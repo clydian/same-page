@@ -70,6 +70,8 @@ interface DragSession {
   extent: number;
 }
 
+export const PAGE_TURN_SETTLE_MS = 300;
+
 const DRAG_LOCK_PX = 8;
 const COMMIT_PROGRESS = 0.22;
 const COMMIT_VELOCITY_PX_PER_MS = 0.55;
@@ -431,7 +433,7 @@ export function usePagedReader({
     if (view.phase !== "settling") return;
     // Resize, browser interruption or a zero-distance transition may suppress
     // transitionend. The same final gate still owns completion.
-    const timeout = setTimeout(finishTransition, 320);
+    const timeout = setTimeout(finishTransition, PAGE_TURN_SETTLE_MS + 80);
     return () => clearTimeout(timeout);
   }, [finishTransition, view]);
 

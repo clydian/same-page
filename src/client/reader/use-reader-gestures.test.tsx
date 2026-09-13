@@ -463,7 +463,7 @@ function flushAnimationFrame() {
 }
 
 
-it.each([600, 1200, 1500])("divides a %ipx viewport into three equal tap zones", width => {
+it.each([600, 1200, 1500])("divides a %ipx viewport into three equal tap zones", async width => {
   const tap = vi.fn();
   const edge = vi.fn();
   function TapHarness() {
@@ -478,6 +478,7 @@ it.each([600, 1200, 1500])("divides a %ipx viewport into three equal tap zones",
     tap.mockClear(); edge.mockClear();
     fireEvent.pointerDown(viewport, { pointerId: 1, clientX: 50 + x, clientY: 100 });
     fireEvent.pointerUp(viewport, { pointerId: 1, clientX: 50 + x, clientY: 100 });
+    await waitFor(() => expect(tap.mock.calls.length + edge.mock.calls.length).toBe(1));
     if (expected === "chrome") { expect(tap).toHaveBeenCalledOnce(); expect(edge).not.toHaveBeenCalled(); }
     else { expect(edge).toHaveBeenCalledWith(expected); expect(tap).not.toHaveBeenCalled(); }
   }

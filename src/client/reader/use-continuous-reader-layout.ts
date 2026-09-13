@@ -1,3 +1,4 @@
+import { capturePaperAnchor, readerOffset, resetReaderOffset } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -53,6 +54,7 @@ export function useContinuousReaderLayout({
     if (scrollRef.current) scrollRef.current.scrollTop += startPadding - commit.current.padding;
     commit.current.padding = startPadding;
   }, [document, startPadding, navigationRequest]);
+  useLayoutEffect(() => { resetReaderOffset(contentRef.current); }, [document, fitRequest, navigationRequest]);
   // PDF page geometry is known independently of canvas rendering. Key the
   // virtual measurements by that geometry, so zoom never reuses old heights.
   const getItemKey = useCallback((index: number) => `${index}:${pageWidth}:${ratios[index] ?? FALLBACK_PAGE_RATIO}`, [pageWidth, ratios]);
@@ -134,17 +136,8 @@ export function useContinuousReaderLayout({
     nativeTouchScroll: !editing,
     minimumZoom: Math.min(1, calculateFittedPageWidth(size.width, size.height, ratios[currentPage - 1] ?? FALLBACK_PAGE_RATIO) / Math.max(1, size.width)),
     captureAnchor: (center: { x: number; y: number }) => {
-      const bounds = contentRef.current!.getBoundingClientRect();
-      const point = { x: center.x - bounds.left, y: center.y - bounds.top };
-      const page = virtualizer.getVirtualItems().find(item => item.end > point.y);
-      // Page gaps remain 8px at every zoom; anchor within the actual page,
-      // rather than treating the whole virtual list as one scalable image.
-      const gaps = (page?.index ?? 0) * PAGE_GAP;
-      return (nextZoom: number) => ({
-        x: point.x * nextZoom / zoom,
-        y: (point.y - gaps - startPadding) * nextZoom / zoom + gaps + (fitPadding
-          ? Math.max(0, (size.height - size.width * nextZoom / (ratios[0] ?? FALLBACK_PAGE_RATIO)) / 2) : 0),
-      });
+      const anchor = contentRef.current && capturePaperAnchor(contentRef.current, center);
+      return anchor?.resolve ?? (() => ({ x: 0, y: 0 }));
     },
   };
 
@@ -156,7 +149,7 @@ export function useContinuousReaderLayout({
     // different offset resumes ordinary viewport-center feedback immediately.
     if (state.programTop !== null && Math.abs(scrollTop - state.programTop) < 1) return;
     state.programTop = null;
-    const threshold = scrollTop + (scrollRef.current?.clientHeight ?? 0) / 2;
+    const threshold = scrollTop - readerOffset(contentRef.current).y + (scrollRef.current?.clientHeight ?? 0) / 2;
     const item = virtualizer.getVirtualItemForOffset(threshold);
     if (item) {
       state.alignedPage = item.index + 1;
