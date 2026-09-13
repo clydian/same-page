@@ -24,7 +24,7 @@
     "test:loading-performance": "npm run build && node scripts/measure-loading-performance.mjs",
     "measure:production-loading": "node scripts/measure-production-loading.mjs",
     "prepare:production-pwa": "node scripts/prepare-production-pwa-profile.mjs",
-    "test:migrations": "node scripts/verify-score-schema-migration.mjs",
+    "test:migrations": "node scripts/verify-score-schema-migration.mjs && node scripts/verify-auth-migration.mjs",
     "test:ci": "node --test scripts/ci-scope.test.mjs",
     "check": "npm run test:ci && npm run lint && npm run typecheck && npm run test && npm run test:worker && npm run test:visual-report && npm run test:migrations && npm run build && npm run test:smoke",
     "check:full": "npm run test:pwa-update && npm run check && node scripts/measure-loading-performance.mjs",
