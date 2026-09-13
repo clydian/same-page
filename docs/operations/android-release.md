@@ -23,7 +23,7 @@ node android/verify.mjs android/generated/app/build/outputs/apk/release/app-rele
 
 - `ANDROID_KEYSTORE_BASE64`：密码加密的 PKCS12 文件编码。
 - `ANDROID_KEYSTORE_PASSWORD`：相同的 keystore/key 密码；alias 固定 `samepage-release`。
-- 现有 `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN`：token 需能读写发布桶。发行进程按 Cloudflare 官方协议临时派生 S3 凭据，不另存一套访问密钥，不打印 token。
+- 现有 `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN`：token 需能读写发布桶。发行进程按 Cloudflare 官方协议临时派生 S3 凭据，不另存一套访问密钥，不打印 token。支持 user/account 两类 API token；旧格式不标识归属，先验证 user 接口，仅在 HTTP 400/401/403 时尝试当前 account 的验证接口。两者均要求 active 状态与合法 token ID；网络错误、限流和服务端错误直接失败。OAuth 登录凭据不能用于此 S3 派生。
 
 只在受保护的 main 的手动发行任务中注入签名。PR 只构建 unsigned APK。签名后的实际 APK 经过 apksigner、aapt 身份/版本/权限检查；签名凭据在步骤结束清理。
 

@@ -15,6 +15,31 @@ export function admitRelease(previous, candidate) {
   return "publish";
 }
 
+export async function deriveR2Credentials(account, token, fetchImpl = fetch) {
+  assert.match(account ?? "", /^[a-f0-9]{32}$/);
+  assert.ok(token, "Production Cloudflare token is required");
+  // Legacy tokens do not identify their owner type. Try the user API first,
+  // then the account API only when authentication is rejected. Never log bodies
+  // or credentials, and never interpret a service failure as a token mismatch.
+  const endpoints = ["user/tokens/verify", `accounts/${account}/tokens/verify`];
+  for (const [index, endpoint] of endpoints.entries()) {
+    const response = await fetchImpl(`https://api.cloudflare.com/client/v4/${endpoint}`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000),
+    });
+    if (index === 0 && [400, 401, 403].includes(response.status)) {
+      await response.body?.cancel();
+      continue;
+    }
+    const owner = index === 0 ? "user" : "account";
+    assert.ok(response.ok, `Cloudflare ${owner} token verification failed (HTTP ${response.status}); check token ownership, validity and account`);
+    const verification = await response.json();
+    assert.ok(verification.success && verification.result?.status === "active", `Cloudflare ${owner} token is not active`);
+    assert.match(verification.result.id ?? "", /^[a-f0-9]{32}$/, "Cloudflare verification returned an invalid token ID");
+    // Official R2 derivation; credentials live only in memory.
+    return { accessKeyId: verification.result.id, secretAccessKey: createHash("sha256").update(token).digest("hex") };
+  }
+}
+
 async function publish() {
   const root = path.dirname(fileURLToPath(import.meta.url));
   const release = JSON.parse(await readFile(path.join(root, "out/release.json"), "utf8"));
@@ -24,17 +49,8 @@ async function publish() {
   assert.equal(release.sourceSha, process.env.GITHUB_SHA, "Artifact must belong to this workflow commit");
   assert.equal(release.packageId, "com.clyapps.samepage");
   const account = process.env.CLOUDFLARE_ACCOUNT_ID;
-  assert.match(account ?? "", /^[a-f0-9]{32}$/);
   const token = process.env.CLOUDFLARE_API_TOKEN;
-  assert.ok(token, "Production Cloudflare token is required");
-  // Reuse the existing production authority; derived S3 credentials live only in memory.
-  const verified = await fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", {
-    headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000),
-  });
-  assert.ok(verified.ok, "Cloudflare token verification failed");
-  const verification = await verified.json();
-  assert.ok(verification.success && verification.result?.status === "active", "Cloudflare token is not active");
-  const credentials = { accessKeyId: verification.result.id, secretAccessKey: createHash("sha256").update(token).digest("hex") };
+  const credentials = await deriveR2Credentials(account, token);
   const client = new S3Client({ credentials, region: "auto", endpoint: `https://${account}.r2.cloudflarestorage.com`, requestChecksumCalculation: "WHEN_REQUIRED", responseChecksumValidation: "WHEN_REQUIRED" });
   const object = { Bucket: "same-page-android-releases", Key: "android/latest.apk" };
   let current;
