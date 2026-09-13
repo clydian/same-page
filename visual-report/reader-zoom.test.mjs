@@ -32,11 +32,10 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await page.getByRole("button", { name: "更多", exact: true }).click();
     await page.getByRole("button", { name: "适合页面", exact: true }).click();
     await page.getByRole("button", { name: "更多", exact: true }).click();
-    const fitted = Number(await viewport.getAttribute("data-zoom"));
     await viewport.dblclick({ position: { x: 400, y: 350 }, delay: 80 });
-    await expect.poll(() => viewport.evaluate(e => Number(e.dataset.zoom))).toBeCloseTo(fitted * 2, 3);
+    await expect.poll(() => viewport.evaluate(e => Number(e.dataset.zoom))).toBeCloseTo(2, 3);
     await viewport.dblclick({ position: { x: 400, y: 350 }, delay: 80 });
-    await expect.poll(() => viewport.evaluate(e => Number(e.dataset.zoom))).toBeCloseTo(fitted, 3);
+    await expect.poll(() => viewport.evaluate(e => Number(e.dataset.zoom))).toBeCloseTo(1, 3);
     for (const factor of [1.5, 2.5]) {
       await page.getByRole("button", { name: "更多", exact: true }).click();
       await page.getByRole("button", { name: "适合页面", exact: true }).click();
@@ -70,8 +69,9 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         await new Promise(resolve => setTimeout(resolve, 300));
         return { preview, committed, settled: point() };
       }, factor);
+      // Allow floating-point noise around the one-CSS-pixel boundary.
       for (const phase of ["committed", "settled"]) {
-        assert.ok(Math.hypot(result[phase].x - result.preview.x, result[phase].y - result.preview.y) <= 1,
+        assert.ok(Math.hypot(result[phase].x - result.preview.x, result[phase].y - result.preview.y) <= 1 + 1e-6,
           `${factor}x ${phase}: ${JSON.stringify(result)}`);
       }
     }
@@ -107,7 +107,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
 }
 
 for (const [name, engine] of Object.entries({ chromium, webkit })) {
-  test(`${name}: double tap uses the hit page in a mixed-size continuous document`, async t => {
+  test(`${name}: continuous double tap restores width and reading position across mixed-size pages`, async t => {
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
@@ -133,12 +133,19 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await second.waitFor();
     await viewport.evaluate(e => { e.scrollTop += e.querySelector('[data-index="1"]').getBoundingClientRect().top - e.getBoundingClientRect().top - 600; });
     await expect(viewport.locator('[data-page-turn-current]')).toHaveAttribute("data-index", "0");
-    // The hit landscape page fits at 1, even though the current portrait page
-    // fits near 0.54. Double-tapping the hit page should enlarge, not shrink.
+    // The first double tap enlarges the shared fit-width baseline, even when
+    // the hit page differs from the viewport-center current page.
+    const secondTop = await second.evaluate(e => e.getBoundingClientRect().top);
     await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
     await expect(viewport).toHaveAttribute("data-zoom", "2");
     await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
     await expect(viewport).toHaveAttribute("data-zoom", "1");
+    await expect.poll(() => second.evaluate((e, top) => Math.abs(e.getBoundingClientRect().top - top), secondTop)).toBeLessThanOrEqual(1);
+    await viewport.evaluate(e => { e.scrollTop += e.querySelector('[data-index="1"]').getBoundingClientRect().top - 200; });
+    await expect(viewport.locator('[data-page-turn-current]')).toHaveAttribute("data-index", "1");
+    await page.getByRole("button", { name: "更多", exact: true }).click();
+    await page.getByRole("button", { name: "适合页面", exact: true }).click();
+    await page.getByRole("button", { name: "关闭更多阅读选项", exact: true }).click();
     await expect.poll(() => second.evaluate(e => { const r = e.getBoundingClientRect(); return Math.abs(r.top + r.height / 2 - 417); })).toBeLessThanOrEqual(1);
   });
 }
@@ -247,7 +254,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await expect.poll(() => last.evaluate((e, top) => Math.abs(e.getBoundingClientRect().top + (710 - top) * 2 - 710), originalTop)).toBeLessThanOrEqual(1);
     await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
     await expect(viewport).toHaveAttribute("data-zoom", "1");
-    await expect.poll(() => last.evaluate(e => { const r = e.getBoundingClientRect(); return Math.abs(r.top + r.height / 2 - 417); })).toBeLessThanOrEqual(1);
+    await expect.poll(() => last.evaluate((e, top) => Math.abs(e.getBoundingClientRect().top - top), originalTop)).toBeLessThanOrEqual(1);
     await viewport.evaluate(e => { e.scrollTop = 0; });
     const first = viewport.locator('[data-index="0"] .annotated-pdf-page');
     await first.waitFor();

@@ -45,6 +45,7 @@ const readerAuthState = vi.hoisted(() => ({ signedIn: true, pending: false }));
 const virtualTestState = vi.hoisted(() => ({
   itemSize: 100,
   scrollToIndex: vi.fn(),
+  scrollToOffset: vi.fn(),
 }));
 
 const localWorkspace = createLocalWorkspace(
@@ -119,6 +120,8 @@ vi.mock("@tanstack/react-virtual", () => ({
     getVirtualItemForOffset: (offset: number) => ({
       index: Math.max(0, Math.min(options.count - 1, Math.floor(offset / virtualTestState.itemSize))),
     }),
+    getOffsetForIndex: (index: number) => [index * virtualTestState.itemSize, "start"],
+    scrollToOffset: virtualTestState.scrollToOffset,
     measureElement: vi.fn(),
     scrollToIndex: virtualTestState.scrollToIndex,
   }),
@@ -1194,7 +1197,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await waitFor(() => expect(Number(viewport.dataset.zoom)).toBeLessThanOrEqual(1));
     expect(screen.getByLabelText("第 2 页笔记层").closest(".annotation-overlay")).toHaveAttribute("data-tool", "text");
     if (layout === "page") expect(viewport.scrollTop).toBe(0);
-    else expect(virtualTestState.scrollToIndex).toHaveBeenCalledWith(1, { align: "center" });
+    else expect(virtualTestState.scrollToOffset).toHaveBeenCalledWith(virtualTestState.itemSize - 4);
   });
 
   it("selects the page at the viewport center before locking it for editing", async () => {

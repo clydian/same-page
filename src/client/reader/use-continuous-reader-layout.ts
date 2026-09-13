@@ -34,6 +34,7 @@ export function useContinuousReaderLayout({
   const [anchorSelection, setAnchorSelection] = useState<{ document: PDFDocumentProxy; page: number } | null>(null);
   const anchorPage = anchorSelection?.document === document ? anchorSelection.page : null;
   const fitSuspended = useRef(false);
+  const capturedZoom = useRef<number | null>(null);
   const anchorReleased = useRef(false);
   const observeOffset = useCallback((instance: Virtualizer<HTMLDivElement, Element>, callback: (offset: number, scrolling: boolean) => void) =>
     observeElementOffset(instance, (offset, scrolling) => callback(Math.max(0, offset - readerOffset(contentRef.current).y), scrolling)), []);
@@ -100,7 +101,7 @@ export function useContinuousReaderLayout({
     if (newFit || (!state.pending && retainFit)) {
       const next = calculateFittedPageWidth(size.width, size.height, ratios[currentPage - 1]) / size.width;
       if (newFit || Math.abs(next - zoom) > 0.001) {
-        state.pending = { page: currentPage, center: false };
+        state.pending = { page: currentPage, center: true };
       }
     }
     if (state.pending) {
@@ -111,8 +112,12 @@ export function useContinuousReaderLayout({
         onZoomChange(next);
         return;
       }
+      if (!fitPadding) { setPaddingDocument(document); return; }
       if (scrollRef.current) scrollRef.current.scrollLeft = 0;
-      virtualizer.scrollToIndex(intent.page - 1, { align: intent.center ? "center" : "start" });
+      // Keep the exact paper target inside the virtualizer's reconciliation;
+      // a direct scroll correction would fight its queued row-center target.
+      const target = virtualizer.getOffsetForIndex(intent.page - 1, intent.center ? "center" : "start");
+      if (target) virtualizer.scrollToOffset(Math.max(0, target[0] - (intent.center ? PAGE_GAP / 2 : 0)));
       state.programTop = scrollRef.current?.scrollTop ?? null;
       state.alignedPage = intent.page;
       state.pending = null;
@@ -128,14 +133,18 @@ export function useContinuousReaderLayout({
       virtualizer.scrollToIndex(currentPage - 1, { align: "start" });
       state.programTop = element?.scrollTop ?? null;
     }
-  }, [document, editing, currentPage, virtualizer, size.width, size.height, geometryReady, ratios, fitRequest, navigationRequest, zoom, onZoomChange]);
+  }, [document, editing, currentPage, virtualizer, size.width, size.height, geometryReady, ratios, fitRequest, fitPadding, navigationRequest, zoom, onZoomChange]);
 
   // Restore only after the real list geometry exists. Restoring an estimated
   // list lets its later initial alignment erase the saved reading position.
   useReturnViewport(scrollRef, "continuous", geometryReady && size.width > 0 && size.height > 0);
 
   const geometryGestures = {
-    onZoomSettled: () => { anchorReleased.current = true; },
+    onZoomSettled: () => {
+      if (capturedZoom.current !== null && Math.abs(capturedZoom.current - zoom) > 0.001) fitSuspended.current = true;
+      capturedZoom.current = null;
+      anchorReleased.current = true;
+    },
     constrainScroll: () => {
       const element = scrollRef.current;
       if (!element || !editing) return;
@@ -150,7 +159,7 @@ export function useContinuousReaderLayout({
     minimumZoom: Math.min(1, calculateFittedPageWidth(size.width, size.height, ratios[currentPage - 1] ?? FALLBACK_PAGE_RATIO) / Math.max(1, size.width)),
     captureAnchor: (center: { x: number; y: number }) => {
       const anchor = contentRef.current && capturePaperAnchor(contentRef.current, center);
-      fitSuspended.current = true;
+      capturedZoom.current = zoom;
       anchorReleased.current = false;
       if (anchor) setAnchorSelection({ document, page: anchor.pageIndex });
       return anchor?.resolve ?? (() => ({ x: 0, y: 0 }));

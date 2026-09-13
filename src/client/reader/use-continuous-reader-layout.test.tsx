@@ -54,7 +54,7 @@ function Harness({ document, initialPage = 1, editing = false, idle = () => true
   const requestedZoom = useRef(1);
   const [fitRequest, fit] = useState(0);
   const [navigationRequest, navigated] = useState(0);
-  const { scrollRef, contentRef, onScroll, width, height, items } = useContinuousReaderLayout({ document, currentPage: page, zoom, fitRequest, navigationRequest,
+  const { scrollRef, contentRef, onScroll, width, height, items, geometryGestures } = useContinuousReaderLayout({ document, currentPage: page, zoom, fitRequest, navigationRequest,
     editing, navigation: { phase: "idle", targetPage: null }, onPageChange: setPage, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); } });
   const navigate = (delta: number) => { if (!idle() || page + delta < 1 || page + delta > document.numPages) return; setPage(page + delta); navigated(value => value + 1); };
   return <>
@@ -62,6 +62,7 @@ function Harness({ document, initialPage = 1, editing = false, idle = () => true
     <button onClick={() => setZoom(requestedZoom.current)}>commit zoom</button>
     <button onClick={() => setPage(1)}>select first</button>
     <button onClick={() => fit(value => value + 1)}>fit</button>
+    <button onClick={() => { geometryGestures.captureAnchor({ x: 200, y: 200 }); geometryGestures.onZoomSettled(); }}>cancel pinch</button>
     <button onClick={() => navigate(1)}>next</button>
     <button onClick={() => navigate(-1)}>previous</button>
     <div data-testid="viewport" ref={scrollRef} onScroll={onScroll}>
@@ -84,7 +85,7 @@ it("waits for destination metadata before committing an editing turn fit", async
   expect(screen.getByTestId("zoom")).toHaveTextContent("1");
   await act(async () => source.release());
   await waitFor(() => expect(Number(screen.getByTestId("zoom").textContent)).toBeCloseTo(2 / 3));
-  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBeCloseTo(612));
+  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBeCloseTo(608));
 });
 
 it("discards an old document's delayed metadata and pending turn", async () => {
@@ -119,10 +120,10 @@ it("recomputes a pending fit with the latest viewport and metadata", async () =>
   act(() => { width = 1000; height = 600; resize.forEach(notify => notify()); });
   await act(async () => source.release());
   await waitFor(() => expect(Number(screen.getByTestId("zoom").textContent)).toBe(0.3));
-  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(308));
+  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(458));
   act(() => { height = 800; resize.forEach(notify => notify()); });
   await waitFor(() => expect(Number(screen.getByTestId("zoom").textContent)).toBe(0.4));
-  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(408));
+  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(608));
 });
 
 it("reads the idle gate on release, never replays rejected turns, and centers short boundary pages", async () => {
@@ -135,12 +136,12 @@ it("reads the idle gate on release, never replays rejected turns, and centers sh
   act(() => { resize.forEach(notify => notify()); });
   expect(screen.getByTestId("page")).toHaveTextContent("2");
   fireEvent.click(screen.getByText("next"));
-  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(920));
+  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(916));
   fireEvent.click(screen.getByText("next"));
   expect(screen.getByTestId("page")).toHaveTextContent("3");
   fireEvent.click(screen.getByText("previous"));
   fireEvent.click(screen.getByText("previous"));
-  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(4));
+  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(0));
   fireEvent.click(screen.getByText("previous"));
   expect(screen.getByTestId("page")).toHaveTextContent("1");
 });
@@ -174,7 +175,7 @@ it("waits for committed zoom and recalculates a pending fit after resize", async
   act(() => { height = 600; resize.forEach(notify => notify()); });
   fireEvent.click(screen.getByText("commit zoom"));
   await waitFor(() => expect(Number(screen.getByTestId("zoom").textContent)).toBe(0.5));
-  expect(screen.getByTestId("viewport").scrollTop).toBe(308);
+  expect(screen.getByTestId("viewport").scrollTop).toBe(458);
 
 });
 
@@ -195,4 +196,24 @@ it("lets a newer page replace an uncommitted fit without aligning the old destin
   fireEvent.click(screen.getByText("commit zoom"));
   expect(screen.getByTestId("zoom")).toHaveTextContent("1");
   expect(viewport.scrollTop).toBe(0);
+});
+
+
+it("retains the fitted viewport after a canceled pinch", async () => {
+  mount({ document: pdf([0.5]).document });
+  fireEvent.click(screen.getByText("fit"));
+  await waitFor(() => expect(Number(screen.getByTestId("zoom").textContent)).toBeCloseTo(2 / 3));
+  fireEvent.click(screen.getByText("cancel pinch"));
+  act(() => { width = 1000; height = 600; resize.forEach(notify => notify()); });
+  await waitFor(() => expect(Number(screen.getByTestId("zoom").textContent)).toBeCloseTo(0.3));
+});
+
+
+it("centers a short first page when fitting without changing zoom", async () => {
+  mount({ document: pdf([2, 1, 2]).document });
+  await screen.findByTestId("page-1");
+  fireEvent.click(screen.getByText("fit"));
+  await waitFor(() => expect(screen.getByTestId("page-1")).toHaveStyle({ transform: "translateY(250px)" }));
+  expect(screen.getByTestId("viewport").scrollTop).toBe(0);
+  expect(screen.getByTestId("zoom")).toHaveTextContent("1");
 });

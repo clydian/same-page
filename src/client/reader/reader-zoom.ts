@@ -1,4 +1,3 @@
-import { calculateFittedPageWidth } from "./reader-dimensions";
 
 export const MAX_READER_ZOOM = 5;
 export const FIT_ZOOM_TOLERANCE = 0.01;
@@ -87,15 +86,18 @@ export function capturePaperAnchor(content: HTMLElement, center: ReaderPoint) {
 export function doubleTapZoomTarget(container: HTMLElement, content: HTMLElement, center: ReaderPoint, zoom: number, continuous: boolean) {
   const anchor = capturePaperAnchor(content, center);
   if (!anchor) return null;
-  const fitted = continuous
-    ? calculateFittedPageWidth(container.clientWidth, container.clientHeight, anchor.ratio) / Math.max(1, container.clientWidth)
-    : 1;
+  // Each layout's 100% is its reading baseline: fit-width for continuous,
+  // fit-page for paged. A default continuous view must enlarge on first tap.
+  const fitted = 1;
   const restore = zoom > fitted * (1 + FIT_ZOOM_TOLERANCE);
   const viewport = container.getBoundingClientRect();
   return {
     zoom: restore ? fitted : Math.min(MAX_READER_ZOOM, fitted * 2),
-    center: restore ? { x: viewport.left + viewport.width / 2, y: viewport.top + viewport.height / 2 } : center,
-    resolveAnchor: restore ? anchor.resolveCenter : anchor.resolve,
+    center: restore ? { x: viewport.left + viewport.width / 2, y: continuous ? center.y : viewport.top + viewport.height / 2 } : center,
+    resolveAnchor: restore ? () => ({
+      x: anchor.resolveCenter().x,
+      y: continuous ? anchor.resolve().y : anchor.resolveCenter().y,
+    }) : anchor.resolve,
     restore,
   };
 }
