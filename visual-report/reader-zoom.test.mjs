@@ -75,6 +75,34 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
           `${factor}x ${phase}: ${JSON.stringify(result)}`);
       }
     }
+    // A downward-moving pinch creates real leading space. Editing must clamp
+    // in physical scroll coordinates, including that leading space.
+    await page.getByRole("button", { name: "更多", exact: true }).click();
+    await page.getByRole("button", { name: "适合页面", exact: true }).click();
+    await page.getByRole("button", { name: "关闭更多阅读选项", exact: true }).click();
+    await viewport.evaluate(async e => {
+      const send = (type, points, changed = points) => {
+        const touch = ([identifier, clientX, clientY]) => ({ identifier, clientX, clientY, target: e });
+        const event = new Event(type, { bubbles: true, cancelable: true });
+        Object.defineProperties(event, { touches: { value: points.map(touch) }, changedTouches: { value: changed.map(touch) } });
+        e.dispatchEvent(event);
+      };
+      send("touchstart", [[1, 400, 100]]);
+      send("touchstart", [[1, 400, 100], [2, 600, 100]], [[2, 600, 100]]);
+      send("touchmove", [[1, 350, 300], [2, 650, 300]]);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      send("touchend", [[2, 650, 300]], [[1, 350, 300]]); send("touchend", [], [[2, 650, 300]]);
+    });
+    await expect.poll(() => viewport.locator(".continuous-reader__inner").evaluate(e => parseFloat(getComputedStyle(e).marginTop))).toBeGreaterThan(100);
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    await expect(viewport).toHaveAttribute("data-editing", "true");
+    await viewport.evaluate(async e => {
+      for (const [phase, y] of [["pointerdown", 350], ["pointermove", -650], ["pointerup", -650]]) {
+        [400, 500].forEach((x, i) => e.dispatchEvent(new PointerEvent(phase, { bubbles: true, pointerId: i + 1, pointerType: "touch", clientX: x, clientY: y })));
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+    });
+    await expect.poll(() => viewport.locator('[data-page-turn-current] .annotated-pdf-page').evaluate(e => Math.abs(e.getBoundingClientRect().bottom - 834))).toBeLessThanOrEqual(1);
   });
 }
 

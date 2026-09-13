@@ -34,6 +34,7 @@ export function useContinuousReaderLayout({
   const [anchorSelection, setAnchorSelection] = useState<{ document: PDFDocumentProxy; page: number } | null>(null);
   const anchorPage = anchorSelection?.document === document ? anchorSelection.page : null;
   const fitSuspended = useRef(false);
+  const anchorReleased = useRef(false);
   const observeOffset = useCallback((instance: Virtualizer<HTMLDivElement, Element>, callback: (offset: number, scrolling: boolean) => void) =>
     observeElementOffset(instance, (offset, scrolling) => callback(Math.max(0, offset - readerOffset(contentRef.current).y), scrolling)), []);
   const scrollTo = useCallback((offset: number, options: { adjustments?: number; behavior?: ScrollBehavior }, instance: Virtualizer<HTMLDivElement, Element>) =>
@@ -134,13 +135,15 @@ export function useContinuousReaderLayout({
   useReturnViewport(scrollRef, "continuous", geometryReady && size.width > 0 && size.height > 0);
 
   const geometryGestures = {
+    onZoomSettled: () => { anchorReleased.current = true; },
     constrainScroll: () => {
       const element = scrollRef.current;
       if (!element || !editing) return;
       const page = virtualizer.getVirtualItems().find(item => item.index === currentPage - 1);
       if (page) {
-        const centeredStart = page.start - Math.max(0, (element.clientHeight - (page.size - PAGE_GAP)) / 2);
-        element.scrollTop = Math.max(centeredStart, Math.min(element.scrollTop, Math.max(centeredStart, page.end - PAGE_GAP - element.clientHeight)));
+        const before = readerOffset(contentRef.current).y;
+        const centeredStart = before + page.start - Math.max(0, (element.clientHeight - (page.size - PAGE_GAP)) / 2);
+        element.scrollTop = Math.max(centeredStart, Math.min(element.scrollTop, Math.max(centeredStart, before + page.end - PAGE_GAP - element.clientHeight)));
       }
     },
     nativeTouchScroll: !editing,
@@ -148,6 +151,7 @@ export function useContinuousReaderLayout({
     captureAnchor: (center: { x: number; y: number }) => {
       const anchor = contentRef.current && capturePaperAnchor(contentRef.current, center);
       fitSuspended.current = true;
+      anchorReleased.current = false;
       if (anchor) setAnchorSelection({ document, page: anchor.pageIndex });
       return anchor?.resolve ?? (() => ({ x: 0, y: 0 }));
     },
@@ -156,6 +160,7 @@ export function useContinuousReaderLayout({
   const onScroll = () => {
     const state = commit.current;
     if (contentRef.current?.hasAttribute("data-gesture-preview")) return;
+    if (anchorReleased.current) { setAnchorSelection(null); anchorReleased.current = false; }
     if (state.document !== document || editing || navigation.phase !== "idle" || state.pending || !geometryReady || state.alignedPage === null) return;
     const scrollTop = scrollRef.current?.scrollTop ?? 0;
     // A queued event from our own alignment is not a new page selection. A

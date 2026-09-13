@@ -61,6 +61,7 @@ export function useReaderGestures({
   tapScope,
   tapRevision,
   constrainScroll,
+  onZoomSettled,
   onNavigationStart,
   isObjectGestureActive,
 }: {
@@ -78,6 +79,7 @@ export function useReaderGestures({
   pageTurnExtent?: number;
   nativeTouchScroll?: boolean;
   constrainScroll?(): void;
+  onZoomSettled?(): void;
   onNavigationStart?(): void;
   isObjectGestureActive?(): boolean;
   gestureRevision?: string;
@@ -87,6 +89,7 @@ export function useReaderGestures({
   captureAnchor?(center: Point): (zoom: number) => Point;
 }) {
   const constrain = useEffectEvent(() => constrainScroll?.());
+  const settled = useEffectEvent(() => onZoomSettled?.());
   const objectPointers = useRef(new Set<string>());
   const points = useRef(new Map<string, Point>());
   const primary = useRef<{
@@ -127,6 +130,7 @@ export function useReaderGestures({
         offset: { x: 0, y: 0 }, contentRatio: { x: 0, y: 0 } };
       if (Math.abs(target.zoom - zoom) < 0.001) {
         placeReaderAnchor(container, content, target.resolveAnchor, target.center);
+        onZoomSettled?.();
       } else {
         pendingCommit.current = commit;
         onZoomChange(target.zoom);
@@ -213,6 +217,7 @@ export function useReaderGestures({
       return commit.resolveAnchor?.(zoom) ?? { x: bounds.width * commit.contentRatio.x, y: bounds.height * commit.contentRatio.y };
     }, commit.center);
     constrain();
+    settled();
     pendingCommit.current = null;
     preview.current = null;
   }, [clearPreview, containerRef, contentRef, zoom]);
@@ -226,6 +231,7 @@ export function useReaderGestures({
   );
 
   useLayoutEffect(() => {
+    settled();
     cancelPairFrame();
     clearPreview();
     navigation.current = null;
@@ -236,6 +242,7 @@ export function useReaderGestures({
   }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairFrame, clearPreview]);
 
   const drainSequence = () => {
+    onZoomSettled?.();
     cancelPairFrame();
     clearPreview();
     preview.current = null;
@@ -393,6 +400,7 @@ export function useReaderGestures({
     }
     if (!lastPreview || Math.abs(settledZoom - zoom) < 0.001) {
       constrainScroll?.();
+      onZoomSettled?.();
       pendingCommit.current = null;
       preview.current = null;
       clearPreview();
@@ -444,6 +452,7 @@ export function useReaderGestures({
     if (pairFrame.current !== null) cancelAnimationFrame(pairFrame.current);
     pairFrame.current = null;
     if (pinched.current) {
+      onZoomSettled?.();
       drained.current = points.current.size > 0;
       cancelPairFrame();
       pendingCommit.current = null;
