@@ -2894,6 +2894,7 @@ h1 {
 }
 
 .continuous-reader__inner {
+  margin-top: var(--reader-anchor-before, 0px);
   position: relative;
   min-width: 100%;
 }

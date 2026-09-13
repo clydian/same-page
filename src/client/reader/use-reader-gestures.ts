@@ -56,6 +56,7 @@ export function useReaderGestures({
   pageTurnExtent,
   nativeTouchScroll = false,
   captureAnchor,
+  gestureRevision,
   tapEnabled = true,
   tapScope,
   tapRevision,
@@ -79,6 +80,7 @@ export function useReaderGestures({
   constrainScroll?(): void;
   onNavigationStart?(): void;
   isObjectGestureActive?(): boolean;
+  gestureRevision?: string;
   tapEnabled?: boolean;
   tapScope?: unknown;
   tapRevision?: string;
@@ -117,6 +119,7 @@ export function useReaderGestures({
     onDouble: (point) => {
       const container = containerRef.current, content = contentRef.current;
       if (!container || !content) return;
+      captureAnchor?.(point);
       const target = doubleTapZoomTarget(container, content, point, zoom, nativeTouchScroll);
       if (!target) return;
       if (target.restore) resetReaderOffset(content);
@@ -230,7 +233,7 @@ export function useReaderGestures({
     preview.current = null;
     pendingCommit.current = null;
     drained.current = points.current.size > 0;
-  }, [pageTurn, disabled, cancelPairFrame, clearPreview]);
+  }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairFrame, clearPreview]);
 
   const drainSequence = () => {
     cancelPairFrame();
@@ -244,7 +247,7 @@ export function useReaderGestures({
 
   const pointerDown = (event: GesturePointer) => {
     if (disabled || (twoFingerOnly && event.pointerType !== "touch")) return;
-    if (event.target instanceof Element && event.target.closest("button, a, input, textarea, select, [role=button], [role=slider]")) { taps.cancel(); return; }
+    if (event.target instanceof Element && !event.target.closest(".annotation-overlay") && event.target.closest("button, a, input, textarea, select, [role=button], [role=slider]")) { taps.cancel(); return; }
     if (!twoFingerOnly && !(nativeTouchScroll && event.pointerType === "touch")) {
       try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch { /* The browser may already have retired this pointer. */ }
     }
@@ -516,7 +519,7 @@ export function useReaderGestures({
     }
   };
   return {
-    onDoubleClick: (event: ReactMouseEvent<HTMLElement>) => { event.preventDefault(); },
+    onDoubleClick: (event: ReactMouseEvent<HTMLElement>) => { if (!twoFingerOnly) event.preventDefault(); },
     onPointerDownCapture: (event: ReactPointerEvent<HTMLElement>) => capture(event, pointerDown),
     onPointerMoveCapture: (event: ReactPointerEvent<HTMLElement>) => capture(event, pointerMove),
     onPointerUpCapture: (event: ReactPointerEvent<HTMLElement>) => capture(event, finishPointer),

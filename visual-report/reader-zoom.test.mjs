@@ -144,10 +144,85 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await page.mouse.click(850, 350);
     await page.getByRole("button", { name: "更多", exact: true }).waitFor();
     await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-page-number", "1");
+    // The toolbar shares the pinch limit, without increasing render budgets.
+    await page.getByRole("button", { name: "更多", exact: true }).click();
+    for (let step = 0; step < 14; step++) await page.getByRole("button", { name: "放大", exact: true }).click();
+    await expect(viewport).toHaveAttribute("data-zoom", "5");
+    await page.getByRole("button", { name: "关闭更多阅读选项", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "更多阅读选项" })).toHaveCount(0);
     // A double tap restores fit, then a single edge tap may turn.
     await page.mouse.dblclick(850, 350, { delay: 80 });
     await expect(viewport).toHaveAttribute("data-zoom", "1");
     await page.mouse.click(850, 350);
     await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-page-number", "2");
+    // Cancelling a pinch, including through orientation change, cannot leave
+    // a preview or execute a delayed tap when the remaining finger releases.
+    const pair = async phase => viewport.evaluate((e, phase) => {
+      for (const [id, x] of [[1, 550], [2, phase === "pointerdown" ? 650 : 750]]) {
+        e.dispatchEvent(new PointerEvent(phase, { bubbles: true, pointerId: id, pointerType: "touch", clientX: x, clientY: 350 }));
+      }
+    }, phase);
+    await pair("pointerdown"); await pair("pointermove");
+    await expect(viewport.locator("[data-gesture-preview]").first()).toBeAttached();
+    await page.setViewportSize({ width: 834, height: 1194 });
+    await expect(viewport.locator("[data-gesture-preview]")).toHaveCount(0);
+    await pair("pointerup");
+    await expect(viewport).toHaveAttribute("data-zoom", "1");
+    await viewport.evaluate(e => {
+      for (const [phase, xs] of [["pointerdown", [350, 450]], ["pointermove", [50, 750]], ["pointerup", [50, 750]]]) {
+        xs.forEach((clientX, i) => e.dispatchEvent(new PointerEvent(phase, { bubbles: true, pointerId: i + 1, pointerType: "touch", clientX, clientY: 350 })));
+      }
+    });
+    await expect(viewport).toHaveAttribute("data-zoom", "5");
+    const alignment = await viewport.locator('[data-page-turn-current] .annotated-pdf-page').evaluate(e => {
+      const paper = e.getBoundingClientRect(), notes = e.querySelector(".annotation-overlay").getBoundingClientRect();
+      return Math.max(Math.abs(paper.left - notes.left), Math.abs(paper.top - notes.top), Math.abs(paper.width - notes.width), Math.abs(paper.height - notes.height));
+    });
+    assert.ok(alignment <= 1, `5x PDF/note alignment: ${alignment}`);
+
+
+  });
+}
+
+for (const [name, engine] of Object.entries({ chromium, webkit })) {
+  test(`${name}: zoom pins a distant hit page and fitted tail leaves the document start reachable`, async t => {
+    const browser = await engine.launch({ headless: true });
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
+    const pdf = await PDFDocument.create();
+    for (let i = 0; i < 20; i++) pdf.addPage(i === 19 ? [1000, 500] : [600, 800]);
+    const bytes = Buffer.from(await pdf.save());
+    const score = JSON.parse(resolveFixtureRequest({ pathname: "/api/choirs/visual-choir/scores/visual-score/sync", identity: "member" }).body).score;
+    score.currentVersion = { ...score.currentVersion, pageCount: 20, sizeBytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
+    await context.route("**/api/**", route => route.fulfill(resolveFixtureRequest({
+      pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "member",
+      scenarioId: "reader-controls-narrow", cookie: "", pdf: bytes, selectedScore: score,
+    })));
+    await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
+    const page = await context.newPage();
+    await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score`);
+    await page.locator("[data-page-turn-current] [data-pdf-canvas-active]").waitFor();
+    await page.locator(".page-reader__viewport").click({ position: { x: 597, y: 350 } });
+    await page.getByRole("button", { name: "更多", exact: true }).click();
+    await page.getByRole("button", { name: "连续滚动", exact: true }).click();
+    const viewport = page.locator(".continuous-reader");
+    await viewport.evaluate(e => { e.scrollTop = e.scrollHeight; });
+    const last = viewport.locator('[data-index="19"] .annotated-pdf-page');
+    await last.waitFor();
+    // Make the previous portrait page current, while the last landscape page
+    // is visible under the double tap. It falls outside overscan after zoom.
+    await viewport.evaluate(e => { e.scrollTop += e.querySelector('[data-index="19"]').getBoundingClientRect().top - 600; });
+    await expect(viewport.locator('[data-page-turn-current]')).toHaveAttribute("data-index", "18");
+    const originalTop = await last.evaluate(e => e.getBoundingClientRect().top);
+    await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
+    await expect(viewport).toHaveAttribute("data-zoom", "2");
+    await expect.poll(() => last.evaluate((e, top) => Math.abs(e.getBoundingClientRect().top + (710 - top) * 2 - 710), originalTop)).toBeLessThanOrEqual(1);
+    await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
+    await expect(viewport).toHaveAttribute("data-zoom", "1");
+    await expect.poll(() => last.evaluate(e => { const r = e.getBoundingClientRect(); return Math.abs(r.top + r.height / 2 - 417); })).toBeLessThanOrEqual(1);
+    await viewport.evaluate(e => { e.scrollTop = 0; });
+    const first = viewport.locator('[data-index="0"] .annotated-pdf-page');
+    await first.waitFor();
+    await expect.poll(() => first.evaluate(e => e.getBoundingClientRect().top)).toBeGreaterThanOrEqual(-1);
   });
 }

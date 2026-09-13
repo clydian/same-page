@@ -123,6 +123,7 @@ export function PageLayout({
     tapEnabled: pager.phase === "idle",
     tapScope: document,
     tapRevision: `${currentPage}:${fitRequest}:${size.width}:${size.height}`,
+    gestureRevision: `${currentPage}:${fitRequest}:${size.width}:${size.height}`,
 
     pageTurn: pager.gesture,
     pageTurnExtent: pageTurnDistance,
@@ -259,6 +260,7 @@ export function ContinuousLayout({
     tapEnabled: pager.phase === "idle",
     tapScope: document,
     tapRevision: `${currentPage}:${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
+    gestureRevision: `${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
     ...geometryGestures,
   });
 
@@ -279,7 +281,7 @@ export function ContinuousLayout({
         ref={contentRef}
         style={{
           width: width,
-          height: height,
+          height: `calc(${height}px + var(--reader-anchor-after, 0px))`,
         }}
       >
         {items.map((item) => {

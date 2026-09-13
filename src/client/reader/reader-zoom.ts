@@ -7,33 +7,50 @@ export interface ReaderPoint { x: number; y: number }
 // These offsets retain the part of an anchored zoom that native scroll cannot
 // represent (notably a narrow page's horizontal position). They belong to the
 // mounted viewport, never to saved notes or reading preferences.
+function continuous(content: HTMLElement | null) { return content?.classList.contains("continuous-reader__inner") ?? false; }
+function pixels(content: HTMLElement | null, property: string) {
+  return Number(content?.style.getPropertyValue(property).replace("px", "")) || 0;
+}
+function notifyPosition(content: HTMLElement) {
+  content.closest(".continuous-reader, .page-reader__viewport")?.dispatchEvent(new Event("reader-viewport-position"));
+}
 export function readerOffset(content: HTMLElement | null): ReaderPoint {
-  return {
-    x: Number(content?.style.getPropertyValue("--reader-anchor-x").replace("px", "")) || 0,
-    y: Number(content?.style.getPropertyValue("--reader-anchor-y").replace("px", "")) || 0,
-  };
+  return { x: pixels(content, "--reader-anchor-x"), y: pixels(content, continuous(content) ? "--reader-anchor-before" : "--reader-anchor-y") };
 }
 export function setReaderOffset(content: HTMLElement, point: ReaderPoint) {
   content.style.setProperty("--reader-anchor-x", `${point.x}px`);
-  content.style.setProperty("--reader-anchor-y", `${point.y}px`);
+  content.style.setProperty(continuous(content) ? "--reader-anchor-before" : "--reader-anchor-y", `${point.y}px`);
+  notifyPosition(content);
 }
 export function resetReaderOffset(content: HTMLElement | null) {
-  if (content) setReaderOffset(content, { x: 0, y: 0 });
+  if (!content) return;
+  content.style.removeProperty("--reader-anchor-after");
+  setReaderOffset(content, { x: 0, y: 0 });
 }
 
 export function placeReaderAnchor(container: HTMLElement, content: HTMLElement, resolve: () => ReaderPoint, center: ReaderPoint) {
-  // Scroll first, then retain the residual, including subpixel scroll rounding.
   const anchor = resolve();
   const bounds = content.getBoundingClientRect();
   container.scrollLeft += bounds.left + anchor.x - center.x;
-  container.scrollTop += bounds.top + anchor.y - center.y;
+  let top = container.scrollTop + bounds.top + anchor.y - center.y;
+  if (continuous(content)) {
+    // Give native scrolling real room at both ends. A negative translateY
+    // would make the document's start unreachable when scrollTop returns to 0.
+    if (top < 0) {
+      const offset = readerOffset(content);
+      setReaderOffset(content, { ...offset, y: offset.y - top });
+      top = 0;
+    }
+    const overflow = top - (container.scrollHeight - container.clientHeight);
+    if (overflow > 0) content.style.setProperty("--reader-anchor-after", `${pixels(content, "--reader-anchor-after") + Math.ceil(overflow)}px`);
+  }
+  container.scrollTop = top;
   const after = content.getBoundingClientRect();
   const offset = readerOffset(content);
   setReaderOffset(content, {
     x: offset.x + center.x - after.left - anchor.x,
-    y: offset.y + center.y - after.top - anchor.y,
+    y: continuous(content) ? offset.y : offset.y + center.y - after.top - anchor.y,
   });
-  container.dispatchEvent(new Event("reader-viewport-position"));
 }
 
 // Resolve against the actual paper after layout, not a scaled list rectangle:
@@ -60,6 +77,7 @@ export function capturePaperAnchor(content: HTMLElement, center: ReaderPoint) {
     return { x: r.left - bounds.left + r.width * x, y: r.top - bounds.top + r.height * y };
   };
   return {
+    pageIndex: Number(paper.closest<HTMLElement>("[data-index]")?.dataset.index ?? 0),
     ratio: initial.width / Math.max(1, initial.height),
     resolve: () => resolvePoint(u, v),
     resolveCenter: () => resolvePoint(0.5, 0.5),

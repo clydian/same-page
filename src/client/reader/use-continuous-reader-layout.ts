@@ -1,6 +1,6 @@
 import { capturePaperAnchor, readerOffset, resetReaderOffset } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
-import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
+import { defaultRangeExtractor, observeElementOffset, elementScroll, useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReturnViewport } from "../navigation/use-return-viewport";
 import type { PDFDocumentProxy } from "./pdf-document";
@@ -31,6 +31,13 @@ export function useContinuousReaderLayout({
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(scrollRef);
+  const [anchorSelection, setAnchorSelection] = useState<{ document: PDFDocumentProxy; page: number } | null>(null);
+  const anchorPage = anchorSelection?.document === document ? anchorSelection.page : null;
+  const fitSuspended = useRef(false);
+  const observeOffset = useCallback((instance: Virtualizer<HTMLDivElement, Element>, callback: (offset: number, scrolling: boolean) => void) =>
+    observeElementOffset(instance, (offset, scrolling) => callback(Math.max(0, offset - readerOffset(contentRef.current).y), scrolling)), []);
+  const scrollTo = useCallback((offset: number, options: { adjustments?: number; behavior?: ScrollBehavior }, instance: Virtualizer<HTMLDivElement, Element>) =>
+    elementScroll(offset + readerOffset(contentRef.current).y, options, instance), []);
   const pageWidth = Math.max(1, size.width * zoom);
   const ratios = usePageAspectRatios(document);
   const geometryReady = ratios.length === document.numPages;
@@ -62,6 +69,8 @@ export function useContinuousReaderLayout({
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: document.numPages,
+    observeElementOffset: observeOffset,
+    scrollToFn: scrollTo,
     getScrollElement: () => scrollRef.current,
     estimateSize: (index) => pageWidth / (ratios[index] ?? FALLBACK_PAGE_RATIO) + PAGE_GAP,
     getItemKey,
@@ -70,7 +79,7 @@ export function useContinuousReaderLayout({
     // pages sit at the viewport center after a fit-and-turn.
     paddingStart: startPadding,
     paddingEnd: fitPadding ? Math.max(0, (size.height - pageWidth / (ratios[document.numPages - 1] ?? FALLBACK_PAGE_RATIO)) / 2) : 0,
-    rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(navigation.targetPage === null ? [] : [navigation.targetPage - 1])])].sort((a, b) => a - b),
+    rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(anchorPage === null ? [] : [anchorPage]), ...(navigation.targetPage === null ? [] : [navigation.targetPage - 1])])].sort((a, b) => a - b),
   });
 
   useEffect(() => {
@@ -85,7 +94,8 @@ export function useContinuousReaderLayout({
     }
     if (!geometryReady || size.width <= 0 || size.height <= 0) return;
     const newFit = fitRequest !== 0 && state.fitted.request !== fitRequest;
-    const retainFit = fitRequest !== 0 && Math.abs(zoom - state.fitted.zoom) <= 0.001;
+    if (newFit) fitSuspended.current = false;
+    const retainFit = !fitSuspended.current && fitRequest !== 0 && Math.abs(zoom - state.fitted.zoom) <= 0.001;
     if (newFit || (!state.pending && retainFit)) {
       const next = calculateFittedPageWidth(size.width, size.height, ratios[currentPage - 1]) / size.width;
       if (newFit || Math.abs(next - zoom) > 0.001) {
@@ -137,12 +147,15 @@ export function useContinuousReaderLayout({
     minimumZoom: Math.min(1, calculateFittedPageWidth(size.width, size.height, ratios[currentPage - 1] ?? FALLBACK_PAGE_RATIO) / Math.max(1, size.width)),
     captureAnchor: (center: { x: number; y: number }) => {
       const anchor = contentRef.current && capturePaperAnchor(contentRef.current, center);
+      fitSuspended.current = true;
+      if (anchor) setAnchorSelection({ document, page: anchor.pageIndex });
       return anchor?.resolve ?? (() => ({ x: 0, y: 0 }));
     },
   };
 
   const onScroll = () => {
     const state = commit.current;
+    if (contentRef.current?.hasAttribute("data-gesture-preview")) return;
     if (state.document !== document || editing || navigation.phase !== "idle" || state.pending || !geometryReady || state.alignedPage === null) return;
     const scrollTop = scrollRef.current?.scrollTop ?? 0;
     // A queued event from our own alignment is not a new page selection. A
