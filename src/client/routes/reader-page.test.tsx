@@ -1197,7 +1197,8 @@ it("keeps a single exit while the PDF never settles", async () => {
     await waitFor(() => expect(Number(viewport.dataset.zoom)).toBeLessThanOrEqual(1));
     expect(screen.getByLabelText("第 2 页笔记层").closest(".annotation-overlay")).toHaveAttribute("data-tool", "text");
     if (layout === "page") expect(viewport.scrollTop).toBe(0);
-    else expect(virtualTestState.scrollToOffset).toHaveBeenCalledWith(virtualTestState.itemSize - 4);
+    // The virtualizer now centers paper without including the inter-page gap.
+    else expect(virtualTestState.scrollToOffset).toHaveBeenCalledWith(virtualTestState.itemSize);
   });
 
   it("selects the page at the viewport center before locking it for editing", async () => {

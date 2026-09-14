@@ -71,6 +71,5 @@ export function doubleTapZoomTarget(container: HTMLElement, anchor: NonNullable<
       x: anchor.resolveCenter().x,
       y: continuous ? anchor.resolve().y : anchor.resolveCenter().y,
     }) : anchor.resolve,
-    restore,
   };
 }

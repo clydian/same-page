@@ -69,9 +69,9 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         await new Promise(resolve => setTimeout(resolve, 300));
         return { preview, committed, settled: point() };
       }, factor);
-      // Allow floating-point noise around the one-CSS-pixel boundary.
+      // Native scroll rounds each axis to CSS pixels independently.
       for (const phase of ["committed", "settled"]) {
-        assert.ok(Math.hypot(result[phase].x - result.preview.x, result[phase].y - result.preview.y) <= 1 + 1e-6,
+        assert.ok(Math.max(Math.abs(result[phase].x - result.preview.x), Math.abs(result[phase].y - result.preview.y)) <= 1,
           `${factor}x ${phase}: ${JSON.stringify(result)}`);
       }
     }

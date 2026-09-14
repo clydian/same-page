@@ -2907,7 +2907,6 @@ h1 {
   display: flex;
   justify-content: safe center;
   width: 100%;
-  padding: 0 0 0.5rem;
 }
 
 @media (min-width: 45.01rem) {

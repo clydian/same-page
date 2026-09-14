@@ -91,6 +91,14 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         }
         await gesture(viewport, native, 0.1);
         await fitted(viewport, paper);
+        if (native) {
+          await viewport.evaluate(e => { e.scrollTop = e.scrollHeight; });
+          await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-index", "1");
+          await fitted(viewport, paper);
+          await viewport.evaluate(e => { e.scrollTop = 0; });
+          await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-index", "0");
+          await fitted(viewport, paper);
+        }
         if (size.width === 1194 && !editing) {
           const directory = "artifacts/verification/332";
           await mkdir(directory, { recursive: true });
