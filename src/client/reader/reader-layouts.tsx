@@ -1,4 +1,4 @@
-import { capturePaperAnchor, FIT_ZOOM_TOLERANCE, readerOffset, resetReaderOffset } from "./reader-zoom";
+import { FIT_ZOOM_TOLERANCE, readerOffset, resetReaderOffset } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
 import { useReturnViewport } from "../navigation/use-return-viewport";
 import { useContinuousReaderLayout } from "./use-continuous-reader-layout";
@@ -119,7 +119,6 @@ export function PageLayout({
     onZoomChange,
     onTap: onToggleChrome,
     onEdgeTap: !annotationProps.editing && zoom <= 1 + FIT_ZOOM_TOLERANCE ? requestPage : undefined,
-    captureAnchor: center => capturePaperAnchor(contentRef.current!, center)?.resolve ?? (() => ({ x: 0, y: 0 })),
     tapEnabled: pager.phase === "idle",
     tapScope: document,
     tapRevision: `${currentPage}:${fitRequest}:${size.width}:${size.height}`,

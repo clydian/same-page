@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useReturnViewport } from "../navigation/use-return-viewport";
 import type { PDFDocumentProxy } from "./pdf-document";
 import type { PagedReader } from "./use-paged-reader";
+import type { ReaderZoomGeometry } from "./use-reader-zoom";
 import { calculateFittedPageWidth } from "./reader-dimensions";
 
 const PAGE_GAP = 8;
@@ -34,8 +35,7 @@ export function useContinuousReaderLayout({
   const [anchorSelection, setAnchorSelection] = useState<{ document: PDFDocumentProxy; page: number } | null>(null);
   const anchorPage = anchorSelection?.document === document ? anchorSelection.page : null;
   const fitSuspended = useRef(false);
-  const capturedZoom = useRef<number | null>(null);
-  const anchorReleased = useRef(false);
+  const zoomLease = useRef<symbol | null>(null);
   const observeOffset = useCallback((instance: Virtualizer<HTMLDivElement, Element>, callback: (offset: number, scrolling: boolean) => void) =>
     observeElementOffset(instance, (offset, scrolling) => callback(Math.max(0, offset - readerOffset(contentRef.current).y), scrolling)), []);
   const scrollTo = useCallback((offset: number, options: { adjustments?: number; behavior?: ScrollBehavior }, instance: Virtualizer<HTMLDivElement, Element>) =>
@@ -139,13 +139,8 @@ export function useContinuousReaderLayout({
   // list lets its later initial alignment erase the saved reading position.
   useReturnViewport(scrollRef, "continuous", geometryReady && size.width > 0 && size.height > 0);
 
-  const geometryGestures = {
-    onZoomSettled: () => {
-      if (capturedZoom.current !== null && Math.abs(capturedZoom.current - zoom) > 0.001) fitSuspended.current = true;
-      capturedZoom.current = null;
-      anchorReleased.current = true;
-    },
-    constrainScroll: () => {
+  const zoomGeometry: ReaderZoomGeometry = {
+    constrain: () => {
       const element = scrollRef.current;
       if (!element || !editing) return;
       const page = virtualizer.getVirtualItems().find(item => item.index === currentPage - 1);
@@ -155,21 +150,31 @@ export function useContinuousReaderLayout({
         element.scrollTop = Math.max(centeredStart, Math.min(element.scrollTop, Math.max(centeredStart, before + page.end - PAGE_GAP - element.clientHeight)));
       }
     },
+    capture: (center) => {
+      const token = Symbol();
+      const anchor = contentRef.current && capturePaperAnchor(contentRef.current, center);
+      zoomLease.current = token;
+      if (anchor) setAnchorSelection({ document, page: anchor.pageIndex });
+      return {
+        anchor,
+        release: (outcome) => {
+          if (zoomLease.current !== token) return;
+          zoomLease.current = null;
+          if (outcome.status === "committed" && outcome.zoomChanged) fitSuspended.current = true;
+          setAnchorSelection(null);
+        },
+      };
+    },
+  };
+  const geometryGestures = {
+    zoomGeometry,
     nativeTouchScroll: !editing,
     minimumZoom: Math.min(1, calculateFittedPageWidth(size.width, size.height, ratios[currentPage - 1] ?? FALLBACK_PAGE_RATIO) / Math.max(1, size.width)),
-    captureAnchor: (center: { x: number; y: number }) => {
-      const anchor = contentRef.current && capturePaperAnchor(contentRef.current, center);
-      capturedZoom.current = zoom;
-      anchorReleased.current = false;
-      if (anchor) setAnchorSelection({ document, page: anchor.pageIndex });
-      return anchor?.resolve ?? (() => ({ x: 0, y: 0 }));
-    },
   };
 
   const onScroll = () => {
     const state = commit.current;
-    if (contentRef.current?.hasAttribute("data-gesture-preview")) return;
-    if (anchorReleased.current) { setAnchorSelection(null); anchorReleased.current = false; }
+    if (zoomLease.current !== null) return;
     if (state.document !== document || editing || navigation.phase !== "idle" || state.pending || !geometryReady || state.alignedPage === null) return;
     const scrollTop = scrollRef.current?.scrollTop ?? 0;
     // A queued event from our own alignment is not a new page selection. A
