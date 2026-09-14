@@ -7,10 +7,14 @@ import type { PDFDocumentProxy } from "./pdf-document";
 type ExportAnnotation = { layerId: string; payload: AnnotationPayload | null; deleted: boolean | number };
 
 /** Preserve the original page streams. Only the annotation overlay is rasterized. */
-export async function exportAnnotatedPdf(source: PDFDocumentProxy, annotations: ExportAnnotation[], layers: AnnotationLayerSummary[]) {
+export async function exportAnnotatedPdf(source: PDFDocumentProxy, annotations: ExportAnnotation[], layers: AnnotationLayerSummary[], signal?: AbortSignal) {
+  signal?.throwIfAborted();
   const pdf = await PDFDocument.load(await source.getData());
   const colors = new Map(layers.map(layer => [layer.id, layer.kind === "shared" ? layer.displayColor : null]));
   for (let index = 0; index < pdf.getPageCount(); index++) {
+    // Yield between pages so option changes and dismissal can cancel old work.
+    if (signal) await new Promise(resolve => setTimeout(resolve, 0));
+    signal?.throwIfAborted();
     const objects = annotations.filter(annotation => !annotation.deleted && annotation.payload?.pageNumber === index + 1 && colors.has(annotation.layerId))
       .sort((left, right) => Number(left.payload?.kind === "text") - Number(right.payload?.kind === "text"));
     if (!objects.length) continue;
@@ -59,5 +63,6 @@ export async function exportAnnotatedPdf(source: PDFDocumentProxy, annotations: 
     page.pushOperators(popGraphicsState());
     canvas.width = canvas.height = 0;
   }
+  signal?.throwIfAborted();
   return new Blob([new Uint8Array(await pdf.save())], { type: "application/pdf" });
 }

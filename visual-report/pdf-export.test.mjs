@@ -116,8 +116,8 @@ test("reader export uses reading subscriptions even when opened from editing", a
   await sheet.click();
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await page.getByRole("button", { name: "完成编辑", exact: true }).click();
-  await page.getByRole("button", { name: "导出 PDF", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "导出 PDF" }); await dialog.waitFor();
+  await page.getByRole("button", { name: "分享 PDF", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "分享 PDF" }); await dialog.waitFor();
   assert.equal(await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).isChecked(), true);
   assert.equal(await dialog.getByRole("checkbox", { name: "Bass", exact: true }).isChecked(), false);
   assert.equal(await dialog.getByRole("checkbox", { name: "我的笔记", exact: true }).isChecked(), true);
@@ -126,18 +126,18 @@ test("reader export uses reading subscriptions even when opened from editing", a
   assert.equal(preferenceWrites.length, 0, "export selection must not change reading subscriptions");
   await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).check();
   await dialog.getByRole("checkbox", { name: "我的笔记", exact: true }).check();
-  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "导出 PDF", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "下载 PDF", exact: true }).click()]);
   assert.ok(download.suggestedFilename().endsWith(".pdf"));
   assert.equal(await download.failure(), null);
   revoked = true;
-  await dialog.getByRole("button", { name: "导出 PDF", exact: true }).click();
+  await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).uncheck();
+  await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).check();
   await dialog.getByText("所选笔记层已不可用，请重新选择后导出").waitFor();
   await dialog.getByRole("button", { name: "移除不可用层" }).click();
   await page.context().setOffline(true);
-  await dialog.getByRole("button", { name: "导出 PDF", exact: true }).click();
   await dialog.getByText("所选笔记层的完整离线数据尚未准备好，请联网后导出").waitFor();
   for (const checkbox of await dialog.getByRole("checkbox").all()) await checkbox.uncheck();
-  const [original] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "导出 PDF", exact: true }).click()]);
+  const [original] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "下载 PDF", exact: true }).click()]);
   assert.equal(await original.failure(), null);
   assert.equal(preferenceWrites.length, 0, "export selection must not change reading subscriptions");
 

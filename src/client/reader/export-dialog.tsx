@@ -1,15 +1,15 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { readAnnotationLayers } from "../annotations/annotation-state";
-import { useEffect, useState } from "react";
+import { readScoreAnnotationState } from "../annotations/annotation-state";
+import { useEffect, useRef, useState } from "react";
 import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
 import type { AnnotationLayerSummary } from "../../shared/annotations";
 import { scorePdfFileName } from "../../shared/score-display-name";
 import { Dialog } from "../navigation/overlays";
-import type { LocalWorkspace } from "../platform/local-workspace";
+import { LocalWorkspaceOwnerChangedError, type LocalWorkspace } from "../platform/local-workspace";
 import type { PDFDocumentProxy } from "./pdf-document";
 import { exportScore } from "./export-score";
 import { prepareExport } from "./prepare-export";
-import { FileUp } from "lucide-react";
+import { Share } from "lucide-react";
 import "./export-dialog.css";
 import { holdUpdate } from "../updates/update-safety";
 
@@ -18,13 +18,31 @@ export function ExportDialog({ layers: initialLayers, workspace, source: initial
   authenticatedUserId: string | null; onClose(): void;
 }) {
   const [prepared, setPrepared] = useState<{ source: PDFDocumentProxy; layers: AnnotationLayerSummary[] } | null>(() => initialSource && initialLayers ? { source: initialSource, layers: initialLayers } : null);
-  const liveLayers = useLiveQuery(() => readAnnotationLayers(workspace), [workspace.scopeKey]);
+  const [readAttempt, setReadAttempt] = useState(0);
+  const observed = useLiveQuery(async () => {
+    try { return { state: await readScoreAnnotationState(workspace), error: null }; }
+    catch (error) {
+      return { state: null, error: error instanceof LocalWorkspaceOwnerChangedError
+        ? "登录状态已变化，请关闭后重新打开分享。"
+        : "无法读取本机笔记，请重试。" };
+    }
+  }, [workspace.scopeKey, workspace.sessionEpoch, workspace.syncLockToken, readAttempt]);
+  const liveState = observed?.state;
+  const readError = observed?.error;
+  const liveLayers = liveState?.layers;
   const layers = initialLayers ?? liveLayers ?? prepared?.layers ?? [];
   const source = prepared?.source;
   const [selected, setSelected] = useState<string[]>(() => defaults(initialLayers ?? []));
   const [includeNotes, setIncludeNotes] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [generated, setGenerated] = useState<{ file: File; options: string; snapshot: string } | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
+  const options = JSON.stringify([workspace, versionId, authenticatedUserId, fileName, includeNotes, selected]);
+  const snapshot = liveState ? JSON.stringify(liveState) : null;
+  const file = generated?.options === options && generated.snapshot === snapshot ? generated.file : null;
+  const canShare = file ? canSharePdf(file) : false;
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (initialSource && initialLayers) return;
@@ -35,43 +53,84 @@ export function ExportDialog({ layers: initialLayers, workspace, source: initial
     });
     return () => { active = false; task.destroy(); };
   }, [workspace, versionId, initialSource, initialLayers, attempt]);
-  const run = async () => {
-    if (!source) return;
+  const generation = useRef<AbortController | null>(null);
+  useEffect(() => () => generation.current?.abort(), [options, source, readError]);
+  useEffect(() => {
+    if (!source || !liveState || file || busy || message) return;
+    const timer = window.setTimeout(() => {
+      const controller = new AbortController();
+      generation.current = controller;
+      void run(controller.signal);
+    }, 300);
+    return () => window.clearTimeout(timer);
+    async function run(signal: AbortSignal) {
+      if (!source) return;
+      const release = holdUpdate();
+      setBusy(true); setMessage(null); setGenerated(null); setShareFailed(false);
+      try {
+        const { blob, snapshot } = await exportScore(workspace, source, versionId, includeNotes ? selected : [], authenticatedUserId, signal);
+        signal.throwIfAborted();
+        setGenerated({ file: new File([blob], scorePdfFileName(fileName), { type: "application/pdf" }), options, snapshot });
+      } catch (error) { if (!signal.aborted) setMessage(error instanceof Error && /[\u3400-\u9fff]/.test(error.message) ? error.message : "无法准备 PDF。请确认联网与笔记数据后重试。"); }
+      finally { setBusy(false); release(); }
+    }
+  }, [source, liveState, file, busy, message, workspace, versionId, includeNotes, selected, authenticatedUserId, fileName, options]);
+  const share = async () => {
+    if (!file) return;
+    setSharing(true); setMessage(null);
     const release = holdUpdate();
-    setBusy(true); setMessage(null);
     try {
-      const blob = await exportScore(workspace, source, versionId, includeNotes ? selected : [], authenticatedUserId);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a"); link.href = url; link.download = scorePdfFileName(fileName); link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      // The browser owns the download UI; keep choices available without a success notice.
-    } catch (error) { setMessage(error instanceof Error && /[\u3400-\u9fff]/.test(error.message) ? error.message : "导出未完成，未生成不完整文件。请确认联网与笔记数据后重试。"); }
-    finally { setBusy(false); release(); }
+      // No async preparation before this call: Safari needs this press's activation.
+      await navigator.share({ files: [file] });
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        setShareFailed(true);
+        setMessage("无法打开系统分享，请重试或下载 PDF。");
+      }
+    } finally { setSharing(false); release(); }
   };
-  return <ModalOverlay className="modal-overlay" isOpen isDismissable={!busy} onOpenChange={open => { if (!open && !busy) onClose(); }}><Modal className="app-modal"><Dialog className="app-dialog export-dialog" exitDisabled={busy}>
-    <Heading slot="title"><FileUp aria-hidden="true" size={22} />导出 PDF</Heading>
+  return <ModalOverlay className="modal-overlay" isOpen isDismissable={!sharing} onOpenChange={open => { if (!open && !sharing) onClose(); }}><Modal className="app-modal"><Dialog className="app-dialog export-dialog" exitDisabled={sharing}>
+    <Heading slot="title"><Share aria-hidden="true" size={22} />分享 PDF</Heading>
     <p className="export-file-name">{fileName}</p>
     {!prepared && !message && <p role="status">正在准备 PDF 和笔记…</p>}
     {prepared && <>
-      <fieldset className="export-mode" disabled={busy}><legend>导出内容</legend>
-        <label><input type="radio" name="export-content" checked={!includeNotes} onChange={() => setIncludeNotes(false)} />仅原谱</label>
-        <label><input type="radio" name="export-content" checked={includeNotes} onChange={() => setIncludeNotes(true)} />包含笔记</label>
+      <fieldset className="export-mode" disabled={sharing}><legend>分享内容</legend>
+        <label><input type="radio" name="export-content" checked={!includeNotes} onChange={() => { setGenerated(null); setMessage(null); setIncludeNotes(false); }} />仅原谱</label>
+        <label><input type="radio" name="export-content" checked={includeNotes} onChange={() => { setGenerated(null); setMessage(null); setIncludeNotes(true); }} />包含笔记</label>
       </fieldset>
       {includeNotes && <div className="export-layers">
         <p className="export-help">选择要包含的笔记，不会改变阅读时的显示设置。</p>
-        {([['共享层', layers.filter(layer => layer.kind === "shared")], ['我的个人层', layers.filter(layer => layer.kind === "personal" && layer.canEdit)], ['成员分享', layers.filter(layer => layer.kind === "personal" && !layer.canEdit)]] as const).map(([title, group]) => group.length > 0 && <fieldset key={title} disabled={busy}><legend>{title}</legend>
-          {group.map(layer => <label className="export-layer" key={layer.id}><input type="checkbox" checked={selected.includes(layer.id)} onChange={event => setSelected(ids => event.target.checked ? [...ids, layer.id] : ids.filter(id => id !== layer.id))} /><span className="export-layer-color" style={{ background: layer.displayColor }} /><span>{layer.name}</span></label>)}
+        {([['共享层', layers.filter(layer => layer.kind === "shared")], ['我的个人层', layers.filter(layer => layer.kind === "personal" && layer.canEdit)], ['成员分享', layers.filter(layer => layer.kind === "personal" && !layer.canEdit)]] as const).map(([title, group]) => group.length > 0 && <fieldset key={title} disabled={sharing}><legend>{title}</legend>
+          {group.map(layer => <label className="export-layer" key={layer.id}><input type="checkbox" checked={selected.includes(layer.id)} onChange={event => { setGenerated(null); setMessage(null); setSelected(ids => event.target.checked ? [...ids, layer.id] : ids.filter(id => id !== layer.id)); }} /><span className="export-layer-color" style={{ background: layer.displayColor }} /><span>{layer.name}</span></label>)}
         </fieldset>)}
-        {layers.length === 0 && <p>没有可导出的笔记层。</p>}
-        <p className="export-help">{selected.length ? `已选 ${selected.length} 个笔记层` : "未选择笔记层，将导出原谱。"}</p>
+        {layers.length === 0 && <p>没有可分享的笔记层。</p>}
+        <p className="export-help">{selected.length ? `已选 ${selected.length} 个笔记层` : "未选择笔记层，将分享原谱。"}</p>
       </div>}
     </>}
-    {includeNotes && selected.some(id => !layers.some(layer => layer.id === id)) && <p role="alert">部分已选层不再可用。<Button isDisabled={busy} onPress={() => setSelected(ids => ids.filter(id => layers.some(layer => layer.id === id)))}>移除不可用层</Button></p>}
-    {message && <p role="alert">{message}{!prepared && <Button className="text-button" onPress={() => { setMessage(null); setAttempt(value => value + 1); }}>重试</Button>}</p>}
-    <div className="export-actions"><Button className="secondary-button" isDisabled={busy} onPress={onClose}>取消</Button><Button className="primary-button" isDisabled={busy || !prepared} onPress={() => void run()}>{busy ? "正在导出…" : "导出 PDF"}</Button></div>
+    {includeNotes && selected.some(id => !layers.some(layer => layer.id === id)) && <p role="alert">部分已选层不再可用。<Button isDisabled={sharing} onPress={() => { setMessage(null); setSelected(ids => ids.filter(id => layers.some(layer => layer.id === id))); }}>移除不可用层</Button></p>}
+    {readError && <p role="alert">{readError}<Button className="text-button" onPress={() => setReadAttempt(value => value + 1)}>重试读取</Button></p>}
+    {message && <p role="alert">{message}{!file && <Button className="text-button" onPress={() => { setMessage(null); if (!prepared) setAttempt(value => value + 1); }}>重试</Button>}</p>}
+    {file && !sharing && <p className="export-help" role="status">{canShare ? "PDF 已准备好，点击“分享 PDF”选择发送或保存位置。" : "PDF 已准备好，可以下载到本机。"}</p>}
+    <div className="export-actions">
+      <Button className="secondary-button" isDisabled={sharing} onPress={onClose}>取消</Button>
+      {file && canShare && shareFailed && <Button className="secondary-button" isDisabled={sharing} onPress={() => downloadPdf(file)}>下载 PDF</Button>}
+      <Button className="primary-button" isDisabled={sharing || !file} onPress={() => { if (!file) return; if (canShare) void share(); else downloadPdf(file); }}>{!file ? message || readError ? "分享 PDF" : "正在准备…" : sharing ? "正在分享…" : file ? canShare ? "分享 PDF" : "下载 PDF" : "分享 PDF"}</Button>
+    </div>
   </Dialog></Modal></ModalOverlay>;
 }
 
 function defaults(layers: AnnotationLayerSummary[]) {
   return layers.filter(layer => layer.subscribed || (layer.kind === "personal" && layer.canEdit)).map(layer => layer.id);
+}
+
+function canSharePdf(file: File) {
+  try { return typeof navigator.share === "function" && navigator.canShare?.({ files: [file] }) === true; }
+  catch { return false; }
+}
+
+function downloadPdf(file: File) {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url; link.download = file.name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
