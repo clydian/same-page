@@ -2562,8 +2562,8 @@ h1 {
 .page-reader__content,
 .continuous-reader__inner {
   transform: translate(
-      calc(var(--reader-anchor-x, 0px) + var(--reader-gesture-x, 0px)),
-      calc(var(--reader-anchor-y, 0px) + var(--reader-gesture-y, 0px))
+      var(--reader-gesture-x, 0px),
+      var(--reader-gesture-y, 0px)
     )
     scale(var(--reader-gesture-scale, 1));
   transform-origin: 0 0;
@@ -2896,7 +2896,6 @@ h1 {
 }
 
 .continuous-reader__inner {
-  margin-top: var(--reader-anchor-before, 0px);
   position: relative;
   min-width: 100%;
 }
@@ -2908,7 +2907,6 @@ h1 {
   display: flex;
   justify-content: safe center;
   width: 100%;
-  padding: 0 0 0.5rem;
 }
 
 @media (min-width: 45.01rem) {

@@ -17,7 +17,7 @@ function geometry() {
   let count = 0;
   const adapter: ReaderZoomGeometry = {
     capture: () => ({
-      anchor: { pageIndex: 0, ratio: 0.75, resolve, resolveCenter: resolve },
+      anchor: { bounds: () => DOMRect.fromRect({ x: -1000, y: -1000, width: 3000, height: 3000 }), pageIndex: 0, ratio: 0.75, resolve, resolveCenter: resolve },
       release: releases[count++],
     }),
     constrain,
@@ -41,7 +41,7 @@ function Harness({ zoom = 1, scope = "document-a", revision = "page:1:fit:0:600x
   const previewBoundaryRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<ReaderZoomGesture | null>(null);
   const previous = useRef<ReaderZoomGesture | null>(null);
-  const handoff = useReaderZoom({ containerRef, contentRef, previewBoundaryRef, zoom, minimumZoom: 1,
+  const handoff = useReaderZoom({ containerRef, contentRef, previewBoundaryRef, zoom,
     geometry, onZoomChange, continuous: false, scope, revision, mode, disabled, navigation });
   return <>
     <button onClick={() => { previous.current = gesture.current; gesture.current = handoff.begin({ x: 300, y: 200 }); }}>begin</button>
