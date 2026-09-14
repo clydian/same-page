@@ -1758,7 +1758,9 @@ h1 {
 .reader-stage {
   position: absolute;
   z-index: 1;
-  inset: 0;
+  /* Fit, scrolling and annotation coordinates share the usable screen. */
+  inset: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  overflow: clip;
 }
 
 .reader-chrome {
