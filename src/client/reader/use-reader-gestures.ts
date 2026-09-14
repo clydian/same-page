@@ -10,7 +10,6 @@ import {
 } from "react";
 
 import { useReaderTaps } from "./use-reader-taps";
-import { readerOffset, setReaderOffset } from "./reader-zoom";
 import { useReaderZoom, type ReaderZoomGeometry, type ReaderZoomGesture } from "./use-reader-zoom";
 import type { PageTurnGesture } from "./use-paged-reader";
 
@@ -27,7 +26,6 @@ export function useReaderGestures({
   previewBoundaryRef,
   disabled,
   twoFingerOnly = false,
-  minimumZoom = 1,
   zoom,
   onZoomChange,
   onTap,
@@ -48,7 +46,6 @@ export function useReaderGestures({
   previewBoundaryRef?: RefObject<HTMLElement | null>;
   disabled: boolean;
   twoFingerOnly?: boolean;
-  minimumZoom?: number;
   zoom: number;
   onZoomChange(value: number): void;
   onTap(): void;
@@ -65,7 +62,7 @@ export function useReaderGestures({
   zoomGeometry?: ReaderZoomGeometry;
 }) {
   const interruptNotes = useEffectEvent(() => onNavigationStart?.());
-  const zoomHandoff = useReaderZoom({ containerRef, contentRef, previewBoundaryRef, zoom, minimumZoom, onZoomChange,
+  const zoomHandoff = useReaderZoom({ containerRef, contentRef, previewBoundaryRef, zoom, onZoomChange,
     geometry: zoomGeometry, continuous: nativeTouchScroll, scope: tapScope, revision: gestureRevision,
     mode: twoFingerOnly, disabled, navigation: pageTurn });
   const cancelZoom = zoomHandoff.cancel;
@@ -78,7 +75,7 @@ export function useReaderGestures({
   } | null>(null);
   const pinch = useRef<{ distance: number; gesture: ReaderZoomGesture } | null>(null);
   const pinched = useRef(false);
-  const navigation = useRef<{ origin: Point; left: number; right: number; scrollLeft: number; scrollTop: number; extent: number; offset: Point } | null>(null);
+  const navigation = useRef<{ origin: Point; left: number; right: number; scrollLeft: number; scrollTop: number; extent: number } | null>(null);
   const scaled = useRef(false);
   const drained = useRef(false);
   const nativeAxis = useRef<"pending" | "horizontal" | "vertical">("pending");
@@ -106,7 +103,7 @@ export function useReaderGestures({
     const extent = pageTurnExtent ?? viewport.width;
     navigation.current = { origin: center, left: Math.max(0, viewport.left - paper.left),
       right: Math.max(0, paper.right - viewport.right), scrollLeft: container.scrollLeft,
-      scrollTop: container.scrollTop, extent, offset: readerOffset(content) };
+      scrollTop: container.scrollTop, extent };
     pageTurn?.begin({ sessionId: 0, x: 0, y: 0, time, extent });
   };
   const moveNavigation = (center: Point, time: number, nativeVertical = false) => {
@@ -116,13 +113,7 @@ export function useReaderGestures({
     const dx = center.x - session.origin.x;
     const dy = center.y - session.origin.y;
     const pan = clamp(dx, -session.right, session.left);
-    const content = contentRef.current;
-    if (content) setReaderOffset(content, session.offset);
     container.scrollLeft = session.scrollLeft - pan;
-    if (content) setReaderOffset(content, {
-      ...session.offset,
-      x: session.offset.x + pan + container.scrollLeft - session.scrollLeft,
-    });
     if (!nativeVertical) container.scrollTop = session.scrollTop - dy;
     zoomGeometry?.constrain();
     const remaining = dx - pan;

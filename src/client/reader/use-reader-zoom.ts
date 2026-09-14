@@ -1,7 +1,7 @@
 import { type RefObject, useCallback, useLayoutEffect, useRef } from "react";
 import {
   capturePaperAnchor, doubleTapZoomTarget, MAX_READER_ZOOM,
-  placeReaderAnchor, resetReaderOffset, type ReaderPoint,
+  placeReaderAnchor, constrainReaderPosition, type ReaderPoint,
 } from "./reader-zoom";
 
 export type ReaderZoomOutcome = { status: "committed"; zoomChanged: boolean } | { status: "cancelled" };
@@ -42,14 +42,13 @@ interface ZoomSession {
 // Own the whole handoff, including the layout commit. Input only supplies a
 // scale/center and a release; it never sequences positioning or lease cleanup.
 export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
-  zoom, minimumZoom, onZoomChange, geometry, continuous, scope, revision,
+  zoom, onZoomChange, geometry, continuous, scope, revision,
   mode, disabled, navigation,
 }: {
   containerRef: RefObject<HTMLElement | null>;
   contentRef: RefObject<HTMLElement | null>;
   previewBoundaryRef?: RefObject<HTMLElement | null>;
   zoom: number;
-  minimumZoom: number;
   onZoomChange(zoom: number): void;
   geometry?: ReaderZoomGeometry;
   continuous: boolean;
@@ -108,7 +107,10 @@ export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
       presentation: previewBoundaryRef?.current ?? null,
       sourceZoom: zoom, preview: null, pending: null,
       release: outcome => lease?.release(outcome),
-      constrain: () => geometry?.constrain(),
+      constrain: () => {
+        if (anchor) constrainReaderPosition(container, anchor.bounds(), !continuous);
+        geometry?.constrain();
+      },
     };
     active.current = session;
     return { session, anchor };
@@ -130,6 +132,11 @@ export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
       const started = start(center);
       if (!started) return null;
       const { session, anchor } = started;
+      // Fit the captured page, which can differ from the viewport-center page
+      // in a continuous document with mixed page sizes.
+      const minimumZoom = anchor && session.content.classList.contains("continuous-reader__inner")
+        ? Math.min(1, session.container.clientHeight * anchor.ratio / Math.max(1, session.container.clientWidth))
+        : 1;
       const bounds = session.content.getBoundingClientRect();
       const scroll = { x: session.container.scrollLeft, y: session.container.scrollTop };
       const point = { x: center.x - bounds.left, y: center.y - bounds.top };
@@ -169,7 +176,6 @@ export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
       const { session, anchor } = started;
       if (!anchor) { cancel(); return; }
       const target = doubleTapZoomTarget(session.container, anchor, center, zoom, continuous);
-      if (target.restore) resetReaderOffset(session.content);
       commit(session, { ...target, resolve: target.resolveAnchor, scale: target.zoom / zoom, offset: { x: 0, y: 0 } }, false);
     },
   };

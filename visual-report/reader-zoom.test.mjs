@@ -44,7 +44,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       const result = await viewport.evaluate(async (e, factor) => {
         const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         await frame();
-        const x = factor === 1.5 ? 417 : 597, y = 350;
+        const x = 597, y = 350;
         const paper = [...e.querySelectorAll(".annotated-pdf-page")].find(p => {
           const r = p.getBoundingClientRect(); return r.top <= y && r.bottom > y;
         });
@@ -75,8 +75,8 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
           `${factor}x ${phase}: ${JSON.stringify(result)}`);
       }
     }
-    // A downward-moving pinch creates real leading space. Editing must clamp
-    // in physical scroll coordinates, including that leading space.
+    // A downward-moving pinch settles at the document edge without creating
+    // leading space. Editing and zoom share the same page bounds.
     await page.getByRole("button", { name: "更多", exact: true }).click();
     await page.getByRole("button", { name: "适合页面", exact: true }).click();
     await page.getByRole("button", { name: "关闭更多阅读选项", exact: true }).click();
@@ -93,7 +93,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       send("touchend", [[2, 650, 300]], [[1, 350, 300]]); send("touchend", [], [[2, 650, 300]]);
     });
-    await expect.poll(() => viewport.locator(".continuous-reader__inner").evaluate(e => parseFloat(getComputedStyle(e).marginTop))).toBeGreaterThan(100);
+    await expect.poll(() => viewport.locator('[data-page-turn-current] .annotated-pdf-page').evaluate(e => Math.abs(e.getBoundingClientRect().top))).toBeLessThanOrEqual(1);
     await page.getByRole("button", { name: "编辑", exact: true }).click();
     await expect(viewport).toHaveAttribute("data-editing", "true");
     await viewport.evaluate(async e => {
@@ -107,7 +107,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
 }
 
 for (const [name, engine] of Object.entries({ chromium, webkit })) {
-  test(`${name}: continuous double tap restores width and reading position across mixed-size pages`, async t => {
+  test(`${name}: continuous double tap restores width and centers short paper across mixed-size pages`, async t => {
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
@@ -135,12 +135,11 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await expect(viewport.locator('[data-page-turn-current]')).toHaveAttribute("data-index", "0");
     // The first double tap enlarges the shared fit-width baseline, even when
     // the hit page differs from the viewport-center current page.
-    const secondTop = await second.evaluate(e => e.getBoundingClientRect().top);
     await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
     await expect(viewport).toHaveAttribute("data-zoom", "2");
     await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
     await expect(viewport).toHaveAttribute("data-zoom", "1");
-    await expect.poll(() => second.evaluate((e, top) => Math.abs(e.getBoundingClientRect().top - top), secondTop)).toBeLessThanOrEqual(1);
+    await expect.poll(() => second.evaluate(e => { const r = e.getBoundingClientRect(); return Math.abs(r.top + r.height / 2 - 417); })).toBeLessThanOrEqual(1);
     await viewport.evaluate(e => { e.scrollTop += e.querySelector('[data-index="1"]').getBoundingClientRect().top - 200; });
     await expect(viewport.locator('[data-page-turn-current]')).toHaveAttribute("data-index", "1");
     await page.getByRole("button", { name: "更多", exact: true }).click();
@@ -254,7 +253,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await expect.poll(() => last.evaluate((e, top) => Math.abs(e.getBoundingClientRect().top + (710 - top) * 2 - 710), originalTop)).toBeLessThanOrEqual(1);
     await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
     await expect(viewport).toHaveAttribute("data-zoom", "1");
-    await expect.poll(() => last.evaluate((e, top) => Math.abs(e.getBoundingClientRect().top - top), originalTop)).toBeLessThanOrEqual(1);
+    await expect.poll(() => last.evaluate(e => { const r = e.getBoundingClientRect(); return Math.abs(r.top + r.height / 2 - 417); })).toBeLessThanOrEqual(1);
     await viewport.evaluate(e => { e.scrollTop = 0; });
     const first = viewport.locator('[data-index="0"] .annotated-pdf-page');
     await first.waitFor();

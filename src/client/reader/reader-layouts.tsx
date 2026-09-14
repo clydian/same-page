@@ -1,4 +1,4 @@
-import { FIT_ZOOM_TOLERANCE, readerOffset, resetReaderOffset } from "./reader-zoom";
+import { FIT_ZOOM_TOLERANCE } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
 import { useReturnViewport } from "../navigation/use-return-viewport";
 import { useContinuousReaderLayout } from "./use-continuous-reader-layout";
@@ -105,7 +105,6 @@ export function PageLayout({
     previousPage.current = currentPage;
     if (containerRef.current) { containerRef.current.scrollLeft = 0; containerRef.current.scrollTop = 0; }
   }, [currentPage]);
-  useLayoutEffect(() => { resetReaderOffset(contentRef.current); }, [document, currentPage, fitRequest]);
   const requestPage = pager.request;
   const gestureHandlers = useReaderGestures({
     containerRef,
@@ -245,7 +244,7 @@ export function ContinuousLayout({
     navigation: pager,
     onZoomChange, onPageChange,
   });
-  const viewportPosition = useViewportPosition(scrollRef, contentRef);
+  const viewportPosition = useViewportPosition(scrollRef);
   const gestureHandlers = useReaderGestures({
     containerRef: scrollRef,
     contentRef: contentRef,
@@ -280,7 +279,7 @@ export function ContinuousLayout({
         ref={contentRef}
         style={{
           width: width,
-          height: `calc(${height}px + var(--reader-anchor-after, 0px))`,
+          height,
         }}
       >
         {items.map((item) => {
@@ -337,21 +336,19 @@ function pageTurnPresentation(pager: PagedReader, extent: number, slot = 0, top 
   };
 }
 
-function useViewportPosition(ref: RefObject<HTMLElement | null>, contentRef?: RefObject<HTMLElement | null>) {
+function useViewportPosition(ref: RefObject<HTMLElement | null>) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   useLayoutEffect(() => {
     const viewport = ref.current;
     if (!viewport) return;
     const update = () => {
-      const offset = readerOffset(contentRef?.current ?? null);
-      const x = viewport.scrollLeft - offset.x, y = viewport.scrollTop - offset.y;
+      const x = viewport.scrollLeft, y = viewport.scrollTop;
       setPosition(previous => previous.x === x && previous.y === y ? previous : { x, y });
     };
-    viewport.addEventListener("reader-viewport-position", update);
     viewport.addEventListener("scroll", update);
     update();
-    return () => { viewport.removeEventListener("scroll", update); viewport.removeEventListener("reader-viewport-position", update); };
-  }, [ref, contentRef]);
+    return () => { viewport.removeEventListener("scroll", update); };
+  }, [ref]);
   return position;
 }
 

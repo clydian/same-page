@@ -110,10 +110,10 @@ it("discards an old document's delayed metadata and pending turn", async () => {
 
 it("keeps a requested short page during program scroll, then uses the reading viewport center", async () => {
   mount({ document: pdf([2, 2, 2, 2, 2]).document, initialPage: 3 });
-  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(616));
+  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(866));
   fireEvent.scroll(screen.getByTestId("viewport"));
   expect(screen.getByTestId("page")).toHaveTextContent("3");
-  screen.getByTestId("viewport").scrollTop = 650;
+  screen.getByTestId("viewport").scrollTop = 900;
   fireEvent.scroll(screen.getByTestId("viewport"));
   expect(screen.getByTestId("page")).toHaveTextContent("4");
 });
@@ -170,10 +170,10 @@ it("restores the visit's actual position after delayed geometry without initial 
 
 it("waits for committed zoom and recalculates a pending fit after resize", async () => {
   mount({ document: pdf([1, 0.5, 2]).document, initialPage: 2, deferZoom: true });
-  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(608));
+  await waitFor(() => expect(screen.getByTestId("viewport").scrollTop).toBe(708));
   fireEvent.click(screen.getByText("fit"));
   expect(screen.getByTestId("zoom")).toHaveTextContent("1");
-  expect(screen.getByTestId("viewport").scrollTop).toBe(608);
+  expect(screen.getByTestId("viewport").scrollTop).toBe(708);
   screen.getByTestId("viewport").scrollTop = 1300;
   fireEvent.scroll(screen.getByTestId("viewport"));
   expect(screen.getByTestId("page")).toHaveTextContent("2");
@@ -188,16 +188,17 @@ it("waits for committed zoom and recalculates a pending fit after resize", async
 it("lets a newer page replace an uncommitted fit without aligning the old destination", async () => {
   mount({ document: pdf([1, 0.5, 2]).document, initialPage: 2, deferZoom: true });
   const viewport = screen.getByTestId("viewport");
-  await waitFor(() => expect(viewport.scrollTop).toBe(608));
+  await waitFor(() => expect(viewport.scrollTop).toBe(708));
   fireEvent.click(screen.getByText("fit"));
   expect(screen.getByTestId("zoom")).toHaveTextContent("1");
   fireEvent.click(screen.getByText("select first"));
-  await waitFor(() => expect(viewport.scrollTop).toBe(0));
+  await waitFor(() => expect(viewport.scrollTop).toBe(100));
   // Deliver the previously requested zoom only after the newer page selection.
   fireEvent.click(screen.getByText("commit zoom"));
   fireEvent.scroll(viewport);
   expect(screen.getByTestId("page")).toHaveTextContent("1");
-  expect(viewport.scrollTop).toBe(0);
+  // Leading fit padding follows the delivered geometry until the newer fit commits.
+  expect(viewport.scrollTop).toBe(200);
   fireEvent.click(screen.getByText("commit zoom"));
   expect(screen.getByTestId("zoom")).toHaveTextContent("1");
   expect(viewport.scrollTop).toBe(0);
