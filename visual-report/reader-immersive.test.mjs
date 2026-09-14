@@ -93,19 +93,55 @@ for (const [engineName, engine] of Object.entries({chromium, webkit})) {
 }
 
 for (const [engineName, engine] of Object.entries({chromium, webkit})) {
- test(`${engineName}: score viewport fills the screen independently of safe areas`, async (context) => {
+ test(`${engineName}: score viewport respects safe areas across layouts and editing`, async (context) => {
   const browser = await engine.launch({headless:true}); context.after(() => browser.close());
   const page = await openMemberReader(browser, {width:1000,height:700});
-  await page.locator(".reader-shell").evaluate(element => {
-   for (const [side,size] of Object.entries({top:44,right:24,bottom:34,left:59})) element.style.setProperty(`--reader-safe-${side}`,`${size}px`);
-  });
-  await page.waitForFunction(() => {
-   const box = document.querySelector(".page-reader__viewport").getBoundingClientRect();
-   const paper = document.querySelector('[data-page-turn-current] .annotated-pdf-page').getBoundingClientRect();
-   return box.left === 0 && box.top === 0 && box.right === 1000 && box.bottom === 700 && paper.left >= 0 && paper.top >= -0.5 && paper.right <= 1000.5 && paper.bottom <= 700.5;
-  });
-  const box = await page.locator('[data-page-turn-current] .annotated-pdf-page').boundingBox();
-  assert.ok(box.x >= 0 && box.y >= -0.5 && box.x+box.width <= 1000.5 && box.y+box.height <= 700.5);
+  // Inject our env-backed variables, not an emulation of iPadOS reporting.
+  const setInsets = values => page.evaluate(values => {
+   for (const [side,size] of Object.entries(values)) document.documentElement.style.setProperty(`--safe-${side}`,`${size}px`);
+  }, values);
+  const bounds = async (selector, expected) => {
+   await expect.poll(() => page.locator(selector).evaluate(element => {
+    const r = element.getBoundingClientRect(); return [r.left,r.top,r.right,r.bottom];
+   })).toEqual(expected);
+  };
+  await bounds('.page-reader__viewport', [0,0,1000,700]);
+  await setInsets({top:44,right:24,bottom:34,left:59});
+  await bounds('.reader-shell', [0,0,1000,700]);
+  await bounds('.page-reader__viewport', [59,44,976,666]);
+  await expect.poll(() => page.locator('[data-page-turn-current] .annotated-pdf-page').evaluate(element => {
+   const r = element.getBoundingClientRect(); return r.left >= 58.5 && r.top >= 43.5 && r.right <= 976.5 && r.bottom <= 666.5;
+  })).toBe(true);
+  await assertPageAlignment(page);
+  await showReaderChrome(page);
+  await page.getByRole('button', {name:'更多',exact:true}).click();
+  await page.getByRole('button', {name:'放大',exact:true}).click();
+  await page.getByRole('button', {name:'更多',exact:true}).click();
+  await page.locator('.page-reader__viewport').evaluate(element => { element.scrollTop = 100; });
+  await assertPageAlignment(page);
+  await page.getByRole('button', {name:'编辑',exact:true}).click();
+  await page.locator('.annotation-controls').waitFor();
+  await bounds('.page-reader__viewport', [59,44,976,666]);
+  await assertPageAlignment(page);
+  await page.getByRole('button', {name:'完成编辑',exact:true}).click();
+  await page.getByRole('button', {name:'更多',exact:true}).click();
+  await page.getByRole('button', {name:'连续滚动',exact:true}).click();
+  await page.getByRole('button', {name:'更多',exact:true}).click();
+  await bounds('.continuous-reader', [59,44,976,666]);
+  await page.locator('.continuous-reader [data-pdf-canvas-active]').first().waitFor();
+  await page.locator('.continuous-reader').evaluate(element => { element.scrollTop = 200; });
+  await assertPageAlignment(page);
+  assert.equal(await page.evaluate(() => document.querySelector('.reader-stage').contains(document.elementFromPoint(500, 20))), false, 'scrolled score cannot paint or receive input in status-bar strip');
+  await page.getByRole('button', {name:'编辑',exact:true}).click();
+  await page.locator('.annotation-controls').waitFor();
+  await bounds('.continuous-reader', [59,44,976,666]);
+  await assertPageAlignment(page);
+  await page.getByRole('button', {name:'完成编辑',exact:true}).click();
+  await page.setViewportSize({width:700,height:1000});
+  await setInsets({top:32,right:0,bottom:20,left:0});
+  await bounds('.continuous-reader', [0,32,700,980]);
+  await setInsets({top:0,right:0,bottom:0,left:0});
+  await bounds('.continuous-reader', [0,0,700,1000]);
  });
 }
 

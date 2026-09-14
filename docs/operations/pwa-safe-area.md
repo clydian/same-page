@@ -2,7 +2,7 @@
 
 安装默认使用 standalone，阅读器仍可由用户主动进入 Fullscreen API。旧安装可能继续采用 fullscreen；安装识别兼容两者，不要求卸载或清理本机数据。
 
-保留 viewport-fit=cover 和 black-translucent，让背景铺满屏幕。普通路由由 page-with-footer 消费四边安全区一次；子页面不重复补偿。顶部背景条保护滚动后的状态栏区域，sticky 云盘头部停在安全区下缘。body 不加 padding，阅读器独立几何布局保持不变。
+保留 viewport-fit=cover 和 black-translucent，让背景铺满屏幕。普通路由由 page-with-footer 消费四边安全区一次；子页面不重复补偿。顶部背景条保护滚动后的状态栏区域，sticky 云盘头部停在安全区下缘。body 不加 padding。阅读器背景铺满屏幕，reader-stage 单独消费四边 --safe-*，并限制谱面绘制边界；其内翻页与连续滚动视口使用剩余尺寸计算适应、缩放和笔记坐标。控件仍独立避让安全区。零安全区保持原布局，不修改用户存储或要求重装。
 
 body portal 不继承普通外壳的布局边界：modal-overlay 与 diagnostic-overlay 负责安全区，内部滚动内容使用扣除安全区后的可用高度。抽屉与固定按钮自行避让。--safe-* 的默认值来自 env(safe-area-inset-*)，测试可注入非零值检验布局，不代表模拟了系统状态栏。
 
