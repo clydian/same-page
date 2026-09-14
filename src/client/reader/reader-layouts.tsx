@@ -1,3 +1,4 @@
+import { capturePaperAnchor, FIT_ZOOM_TOLERANCE, readerOffset, resetReaderOffset } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
 import { useReturnViewport } from "../navigation/use-return-viewport";
 import { useContinuousReaderLayout } from "./use-continuous-reader-layout";
@@ -28,7 +29,7 @@ import {
   calculateFittedPageWidth,
   calculatePageTurnDistance,
 } from "./reader-dimensions";
-import type { PagedReader, PagedReaderItem } from "./use-paged-reader";
+import { PAGE_TURN_SETTLE_MS, type PagedReader, type PagedReaderItem } from "./use-paged-reader";
 import { useReaderGestures } from "./use-reader-gestures";
 
 const PAGE_TURN_GUTTER_PX = 14;
@@ -69,6 +70,7 @@ export function PageLayout({
   document,
   currentPage,
   zoom,
+  fitRequest = 0,
   onZoomChange,
   onToggleChrome,
   annotationProps,
@@ -103,6 +105,7 @@ export function PageLayout({
     previousPage.current = currentPage;
     if (containerRef.current) { containerRef.current.scrollLeft = 0; containerRef.current.scrollTop = 0; }
   }, [currentPage]);
+  useLayoutEffect(() => { resetReaderOffset(contentRef.current); }, [document, currentPage, fitRequest]);
   const requestPage = pager.request;
   const gestureHandlers = useReaderGestures({
     containerRef,
@@ -115,7 +118,13 @@ export function PageLayout({
     zoom,
     onZoomChange,
     onTap: onToggleChrome,
-    onEdgeTap: !annotationProps.editing ? requestPage : undefined,
+    onEdgeTap: !annotationProps.editing && zoom <= 1 + FIT_ZOOM_TOLERANCE ? requestPage : undefined,
+    captureAnchor: center => capturePaperAnchor(contentRef.current!, center)?.resolve ?? (() => ({ x: 0, y: 0 })),
+    tapEnabled: pager.phase === "idle",
+    tapScope: document,
+    tapRevision: `${currentPage}:${fitRequest}:${size.width}:${size.height}`,
+    gestureRevision: `${currentPage}:${fitRequest}:${size.width}:${size.height}`,
+
     pageTurn: pager.gesture,
     pageTurnExtent: pageTurnDistance,
 
@@ -237,7 +246,7 @@ export function ContinuousLayout({
     navigation: pager,
     onZoomChange, onPageChange,
   });
-  const viewportPosition = useViewportPosition(scrollRef);
+  const viewportPosition = useViewportPosition(scrollRef, contentRef);
   const gestureHandlers = useReaderGestures({
     containerRef: scrollRef,
     contentRef: contentRef,
@@ -248,7 +257,10 @@ export function ContinuousLayout({
     zoom, onZoomChange, onTap: onToggleChrome,
     pageTurn: pager.gesture,
     pageTurnExtent: size.width,
-    onEdgeTap: !annotationProps.editing ? pager.request : undefined,
+    tapEnabled: pager.phase === "idle",
+    tapScope: document,
+    tapRevision: `${currentPage}:${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
+    gestureRevision: `${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
     ...geometryGestures,
   });
 
@@ -269,7 +281,7 @@ export function ContinuousLayout({
         ref={contentRef}
         style={{
           width: width,
-          height: height,
+          height: `calc(${height}px + var(--reader-anchor-after, 0px))`,
         }}
       >
         {items.map((item) => {
@@ -319,24 +331,28 @@ function pageTurnPresentation(pager: PagedReader, extent: number, slot = 0, top 
   return {
     "data-page-turn-phase": active ? pager.phase : "idle",
     "data-page-turn-progress": active ? pager.progress : 0,
-    style: { transform: `translate3d(${active ? (pager.progress + slot) * extent : 0}px, ${top}px, 0)` },
+    style: { "--page-turn-duration": `${PAGE_TURN_SETTLE_MS}ms`, transform: `translate3d(${active ? (pager.progress + slot) * extent : 0}px, ${top}px, 0)` } as CSSProperties,
     onTransitionEnd: (event: ReactTransitionEvent<HTMLDivElement>) => {
       if (active && slot === 0 && event.target === event.currentTarget && event.propertyName === "transform") pager.finishTransition();
     },
   };
 }
 
-function useViewportPosition(ref: RefObject<HTMLElement | null>) {
+function useViewportPosition(ref: RefObject<HTMLElement | null>, contentRef?: RefObject<HTMLElement | null>) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   useLayoutEffect(() => {
     const viewport = ref.current;
     if (!viewport) return;
-    const update = () => setPosition(previous => previous.x === viewport.scrollLeft && previous.y === viewport.scrollTop
-      ? previous : { x: viewport.scrollLeft, y: viewport.scrollTop });
+    const update = () => {
+      const offset = readerOffset(contentRef?.current ?? null);
+      const x = viewport.scrollLeft - offset.x, y = viewport.scrollTop - offset.y;
+      setPosition(previous => previous.x === x && previous.y === y ? previous : { x, y });
+    };
+    viewport.addEventListener("reader-viewport-position", update);
     viewport.addEventListener("scroll", update);
     update();
-    return () => viewport.removeEventListener("scroll", update);
-  }, [ref]);
+    return () => { viewport.removeEventListener("scroll", update); viewport.removeEventListener("reader-viewport-position", update); };
+  }, [ref, contentRef]);
   return position;
 }
 

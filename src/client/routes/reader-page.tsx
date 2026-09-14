@@ -1,3 +1,4 @@
+import { MAX_READER_ZOOM } from "../reader/reader-zoom";
 import { subscribeReaderSync } from "../reader/sync-reader";
 import { LocalPdfDownload } from "../reader/local-pdf-download";
 import { useReaderFullscreen } from "../reader/use-reader-fullscreen";
@@ -536,7 +537,7 @@ function ReaderPageContent() {
                 <span aria-live="polite">{Math.round(zoom * 100)}%</span>
                 <Button
                   aria-label="放大"
-                  onPress={() => setZoom((value) => Math.min(3, value + 0.25))}
+                  onPress={() => setZoom((value) => Math.min(MAX_READER_ZOOM, value + 0.25))}
                 >
                   <Plus aria-hidden="true" size={18} />
                 </Button>
@@ -571,7 +572,7 @@ function ReaderPageContent() {
               </section>
               </>}
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
-                <p className="reader-more-menu__status">轻点中央显示工具；点按两侧或左右滑动翻页。编辑时双指移动或缩放当前页，点勾号完成后继续翻页。笔记同步与离线副本分别准备。</p>
+                <p className="reader-more-menu__status">整页阅读时轻点中央显示工具、两侧翻页；放大后或连续滚动时轻点任意位置显示工具。双击放大或恢复：连续滚动恢复适合宽度，翻页阅读恢复整页。左右滑动翻页。编辑时双指移动或缩放。笔记同步与离线副本分别准备。</p>
                 <Button onPress={() => { setMoreOpen(false); setDiagnosticOpen(true); }}>故障诊断</Button>
               </details>
             </Dialog>
@@ -614,8 +615,8 @@ function ReaderPageContent() {
       {!editing && showGestureHint ? (
         <p className="reader-gesture-hint" role="status">
           {layout === "page"
-            ? "轻点页面中央显示控制，点按两侧或左右滑动翻页"
-            : "轻点页面中央显示控制，上下滑动连续浏览"}
+            ? "整页时轻点中央显示控制、两侧翻页；双击缩放"
+            : "轻点显示控制，双击缩放，上下滑动连续浏览"}
         </p>
       ) : null}
 
@@ -706,6 +707,7 @@ function ReaderPageContent() {
             document={document}
             currentPage={currentPage}
             zoom={zoom}
+            fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
             annotationProps={annotationPageProps}

@@ -1,5 +1,6 @@
 import {
   type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
   type RefObject,
   useCallback,
   useEffect,
@@ -8,12 +9,14 @@ import {
   useRef,
 } from "react";
 
+import { useReaderTaps } from "./use-reader-taps";
+import { doubleTapZoomTarget, MAX_READER_ZOOM, placeReaderAnchor, readerOffset, resetReaderOffset, setReaderOffset } from "./reader-zoom";
 import type { PageTurnGesture } from "./use-paged-reader";
 
 const MIN_PINCH_ZOOM = 0.75;
-const MAX_ZOOM = 3;
+const MAX_ZOOM = MAX_READER_ZOOM;
 
-type GesturePointer = Pick<ReactPointerEvent<HTMLElement>, "pointerId" | "pointerType" | "clientX" | "clientY" | "timeStamp" | "currentTarget"> & { source?: "touch-event" };
+type GesturePointer = Pick<ReactPointerEvent<HTMLElement>, "pointerId" | "pointerType" | "clientX" | "clientY" | "timeStamp" | "currentTarget"> & { source?: "touch-event"; target?: EventTarget | null };
 
 interface Point {
   x: number;
@@ -53,7 +56,12 @@ export function useReaderGestures({
   pageTurnExtent,
   nativeTouchScroll = false,
   captureAnchor,
+  gestureRevision,
+  tapEnabled = true,
+  tapScope,
+  tapRevision,
   constrainScroll,
+  onZoomSettled,
   onNavigationStart,
   isObjectGestureActive,
 }: {
@@ -71,11 +79,17 @@ export function useReaderGestures({
   pageTurnExtent?: number;
   nativeTouchScroll?: boolean;
   constrainScroll?(): void;
+  onZoomSettled?(): void;
   onNavigationStart?(): void;
   isObjectGestureActive?(): boolean;
+  gestureRevision?: string;
+  tapEnabled?: boolean;
+  tapScope?: unknown;
+  tapRevision?: string;
   captureAnchor?(center: Point): (zoom: number) => Point;
 }) {
   const constrain = useEffectEvent(() => constrainScroll?.());
+  const settled = useEffectEvent(() => onZoomSettled?.());
   const objectPointers = useRef(new Set<string>());
   const points = useRef(new Map<string, Point>());
   const primary = useRef<{
@@ -88,12 +102,41 @@ export function useReaderGestures({
   const pendingCommit = useRef<PinchPreview | null>(null);
   const latestZoom = useRef(zoom);
   const pinched = useRef(false);
-  const navigation = useRef<{ origin: Point; left: number; right: number; scrollLeft: number; scrollTop: number; extent: number } | null>(null);
+  const navigation = useRef<{ origin: Point; left: number; right: number; scrollLeft: number; scrollTop: number; extent: number; offset: Point } | null>(null);
   const scaled = useRef(false);
   const drained = useRef(false);
   const nativeAxis = useRef<"pending" | "horizontal" | "vertical">("pending");
   const pairFrame = useRef<number | null>(null);
   const pairTime = useRef(0);
+  const taps = useReaderTaps({
+    disabled: disabled || twoFingerOnly || !tapEnabled, scope: tapScope, revision: tapRevision,
+    onSingle: (point) => {
+      const bounds = containerRef.current?.getBoundingClientRect();
+      if (bounds && bounds.width > 0 && onEdgeTap) {
+        const x = point.x - bounds.left;
+        if (x < bounds.width / 3) { onEdgeTap("previous"); return; }
+        if (x >= bounds.width * 2 / 3) { onEdgeTap("next"); return; }
+      }
+      onTap();
+    },
+    onDouble: (point) => {
+      const container = containerRef.current, content = contentRef.current;
+      if (!container || !content) return;
+      captureAnchor?.(point);
+      const target = doubleTapZoomTarget(container, content, point, zoom, nativeTouchScroll);
+      if (!target) return;
+      if (target.restore) resetReaderOffset(content);
+      const commit: PinchPreview = { ...target, scale: target.zoom / zoom,
+        offset: { x: 0, y: 0 }, contentRatio: { x: 0, y: 0 } };
+      if (Math.abs(target.zoom - zoom) < 0.001) {
+        placeReaderAnchor(container, content, target.resolveAnchor, target.center);
+        onZoomSettled?.();
+      } else {
+        pendingCommit.current = commit;
+        onZoomChange(target.zoom);
+      }
+    },
+  });
   const beginNavigation = (center: Point, time: number) => {
     const container = containerRef.current;
     const content = contentRef.current;
@@ -103,7 +146,7 @@ export function useReaderGestures({
     const extent = pageTurnExtent ?? viewport.width;
     navigation.current = { origin: center, left: Math.max(0, viewport.left - paper.left),
       right: Math.max(0, paper.right - viewport.right), scrollLeft: container.scrollLeft,
-      scrollTop: container.scrollTop, extent };
+      scrollTop: container.scrollTop, extent, offset: readerOffset(content) };
     pageTurn?.begin({ sessionId: 0, x: 0, y: 0, time, extent });
   };
   const moveNavigation = (center: Point, time: number, nativeVertical = false) => {
@@ -113,7 +156,13 @@ export function useReaderGestures({
     const dx = center.x - session.origin.x;
     const dy = center.y - session.origin.y;
     const pan = clamp(dx, -session.right, session.left);
+    const content = contentRef.current;
+    if (content) setReaderOffset(content, session.offset);
     container.scrollLeft = session.scrollLeft - pan;
+    if (content) setReaderOffset(content, {
+      ...session.offset,
+      x: session.offset.x + pan + container.scrollLeft - session.scrollLeft,
+    });
     if (!nativeVertical) container.scrollTop = session.scrollTop - dy;
     constrainScroll?.();
     const remaining = dx - pan;
@@ -163,13 +212,12 @@ export function useReaderGestures({
     }
 
     clearPreview();
-    const bounds = content.getBoundingClientRect();
-    const anchor = commit.resolveAnchor?.(zoom);
-    const targetX = bounds.left + (anchor?.x ?? bounds.width * commit.contentRatio.x);
-    const targetY = bounds.top + (anchor?.y ?? bounds.height * commit.contentRatio.y);
-    container.scrollLeft += targetX - commit.center.x;
-    container.scrollTop += targetY - commit.center.y;
+    placeReaderAnchor(container, content, () => {
+      const bounds = content.getBoundingClientRect();
+      return commit.resolveAnchor?.(zoom) ?? { x: bounds.width * commit.contentRatio.x, y: bounds.height * commit.contentRatio.y };
+    }, commit.center);
     constrain();
+    settled();
     pendingCommit.current = null;
     preview.current = null;
   }, [clearPreview, containerRef, contentRef, zoom]);
@@ -183,6 +231,7 @@ export function useReaderGestures({
   );
 
   useLayoutEffect(() => {
+    settled();
     cancelPairFrame();
     clearPreview();
     navigation.current = null;
@@ -190,9 +239,10 @@ export function useReaderGestures({
     preview.current = null;
     pendingCommit.current = null;
     drained.current = points.current.size > 0;
-  }, [pageTurn, disabled, cancelPairFrame, clearPreview]);
+  }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairFrame, clearPreview]);
 
   const drainSequence = () => {
+    onZoomSettled?.();
     cancelPairFrame();
     clearPreview();
     preview.current = null;
@@ -204,12 +254,14 @@ export function useReaderGestures({
 
   const pointerDown = (event: GesturePointer) => {
     if (disabled || (twoFingerOnly && event.pointerType !== "touch")) return;
+    if (event.target instanceof Element && !event.target.closest(".annotation-overlay") && event.target.closest("button, a, input, textarea, select, [role=button], [role=slider]")) { taps.cancel(); return; }
     if (!twoFingerOnly && !(nativeTouchScroll && event.pointerType === "touch")) {
       try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch { /* The browser may already have retired this pointer. */ }
     }
     points.current.set(contactKey(event), { x: event.clientX, y: event.clientY });
     if (drained.current) return;
     if (points.current.size === 1) {
+      taps.down({ x: event.clientX, y: event.clientY });
       primary.current = {
         id: contactKey(event),
         x: event.clientX,
@@ -221,6 +273,7 @@ export function useReaderGestures({
       if (!twoFingerOnly) beginNavigation({ x: event.clientX, y: event.clientY }, event.timeStamp);
       return;
     }
+    taps.cancel();
     if (points.current.size > 2) {
       pageTurn?.cancel(0, true);
       drainSequence();
@@ -307,6 +360,7 @@ export function useReaderGestures({
   };
   const pointerMove = (event: GesturePointer) => {
     if (disabled || !points.current.has(contactKey(event)) || drained.current) return;
+    taps.move({ x: event.clientX, y: event.clientY });
     points.current.set(contactKey(event), { x: event.clientX, y: event.clientY });
     if (points.current.size === 2 && pinch.current) {
       pairTime.current = event.timeStamp;
@@ -339,13 +393,14 @@ export function useReaderGestures({
       const container = containerRef.current;
       const bounds = contentRef.current?.getBoundingClientRect();
       if (container && bounds) {
-        const anchor = lastPreview.resolveAnchor?.(zoom);
-        container.scrollLeft += bounds.left + (anchor?.x ?? bounds.width * lastPreview.contentRatio.x) - lastPreview.center.x;
-        container.scrollTop += bounds.top + (anchor?.y ?? bounds.height * lastPreview.contentRatio.y) - lastPreview.center.y;
+        placeReaderAnchor(container, contentRef.current!, () => lastPreview.resolveAnchor?.(zoom) ?? {
+          x: bounds.width * lastPreview.contentRatio.x, y: bounds.height * lastPreview.contentRatio.y,
+        }, lastPreview.center);
       }
     }
     if (!lastPreview || Math.abs(settledZoom - zoom) < 0.001) {
       constrainScroll?.();
+      onZoomSettled?.();
       pendingCommit.current = null;
       preview.current = null;
       clearPreview();
@@ -383,36 +438,21 @@ export function useReaderGestures({
     if (twoFingerOnly || !start || start.id !== contactKey(event)) return;
     primary.current = null;
     if (pageTurn?.end({ sessionId: 0, x: 0, y: 0, time: event.timeStamp, extent: pageTurnExtent ?? 1 })) {
+      taps.cancel();
       return;
     }
-    const x = event.clientX - start.x;
-    const y = event.clientY - start.y;
-    if (Math.abs(x) < 10 && Math.abs(y) < 10) {
-      const bounds = containerRef.current?.getBoundingClientRect();
-      if (bounds && bounds.width > 0 && onEdgeTap) {
-        const edgeWidth = bounds.width / 3;
-        const relativeX = start.x - bounds.left;
-        if (relativeX < edgeWidth) {
-          onEdgeTap("previous");
-          return;
-        }
-        if (relativeX >= bounds.width * 2 / 3) {
-          onEdgeTap("next");
-          return;
-        }
-      }
-      onTap();
-      return;
-    }
+    taps.up({ x: event.clientX, y: event.clientY });
   };
 
   const cancelPointer = (event: GesturePointer) => {
+    taps.cancel();
     if (!points.current.has(contactKey(event))) return;
     points.current.delete(contactKey(event));
     pageTurn?.cancel(0);
     if (pairFrame.current !== null) cancelAnimationFrame(pairFrame.current);
     pairFrame.current = null;
     if (pinched.current) {
+      onZoomSettled?.();
       drained.current = points.current.size > 0;
       cancelPairFrame();
       pendingCommit.current = null;
@@ -441,7 +481,7 @@ export function useReaderGestures({
       const sample: GesturePointer = {
         source: "touch-event", pointerId: touch.identifier, pointerType: "touch",
         clientX: touch.clientX, clientY: touch.clientY,
-        timeStamp: event.timeStamp, currentTarget: target,
+        timeStamp: event.timeStamp, currentTarget: target, target: touch.target,
       };
       if (event.type === "touchstart") pointerDown(sample);
       else if (event.type === "touchmove") pointerMove(sample);
@@ -488,6 +528,7 @@ export function useReaderGestures({
     }
   };
   return {
+    onDoubleClick: (event: ReactMouseEvent<HTMLElement>) => { if (!twoFingerOnly) event.preventDefault(); },
     onPointerDownCapture: (event: ReactPointerEvent<HTMLElement>) => capture(event, pointerDown),
     onPointerMoveCapture: (event: ReactPointerEvent<HTMLElement>) => capture(event, pointerMove),
     onPointerUpCapture: (event: ReactPointerEvent<HTMLElement>) => capture(event, finishPointer),

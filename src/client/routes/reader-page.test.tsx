@@ -45,6 +45,7 @@ const readerAuthState = vi.hoisted(() => ({ signedIn: true, pending: false }));
 const virtualTestState = vi.hoisted(() => ({
   itemSize: 100,
   scrollToIndex: vi.fn(),
+  scrollToOffset: vi.fn(),
 }));
 
 const localWorkspace = createLocalWorkspace(
@@ -119,6 +120,8 @@ vi.mock("@tanstack/react-virtual", () => ({
     getVirtualItemForOffset: (offset: number) => ({
       index: Math.max(0, Math.min(options.count - 1, Math.floor(offset / virtualTestState.itemSize))),
     }),
+    getOffsetForIndex: (index: number) => [index * virtualTestState.itemSize, "start"],
+    scrollToOffset: virtualTestState.scrollToOffset,
     measureElement: vi.fn(),
     scrollToIndex: virtualTestState.scrollToIndex,
   }),
@@ -250,7 +253,8 @@ it("keeps a single exit while the PDF never settles", async () => {
     return viewport;
   };
 
-  const toggleChrome = () => {
+  const toggleChrome = async () => {
+    const visible = !!screen.queryByLabelText("阅读器控制");
     const viewport = getPageViewport();
     fireEvent.pointerDown(viewport, {
       pointerId: 1,
@@ -264,10 +268,11 @@ it("keeps a single exit while the PDF never settles", async () => {
       clientX: 500,
       clientY: 100,
     });
+    await waitFor(() => expect(!!screen.queryByLabelText("阅读器控制")).toBe(!visible));
   };
 
-  const openMoreMenu = () => {
-    toggleChrome();
+  const openMoreMenu = async () => {
+    await toggleChrome();
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
   };
 
@@ -1064,7 +1069,7 @@ it("keeps a single exit while the PDF never settles", async () => {
       </MemoryRouter>,
     );
     await screen.findByLabelText("翻页阅读");
-    toggleChrome();
+    await toggleChrome();
     fireEvent.change(screen.getByRole("slider", { name: "跳转页码" }), { target: { value: "2" } });
     fireEvent.pointerUp(window);
     expect(currentRenderedPage()).toBe("1");
@@ -1100,7 +1105,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await finishPageTurn();
     expect(currentRenderedPage()).toBe("2");
 
-    toggleChrome();
+    await toggleChrome();
     expect(screen.getByLabelText("页面缩略图")).toBeInTheDocument();
     const scrubber = screen.getByRole("slider", { name: "跳转页码" });
     expect(scrubber).toHaveValue("2");
@@ -1114,10 +1119,10 @@ it("keeps a single exit while the PDF never settles", async () => {
     await finishPageTurn();
     expect(currentRenderedPage()).toBe("3");
     expect(screen.getByLabelText("页面缩略图")).toBeInTheDocument();
-    toggleChrome();
+    await toggleChrome();
     expect(screen.queryByLabelText("页面缩略图")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("页面位置")).not.toBeInTheDocument();
-    toggleChrome();
+    await toggleChrome();
     fireEvent.keyDown(window, { key: "ArrowLeft" });
     await finishPageTurn();
     expect(currentRenderedPage()).toBe("2");
@@ -1137,7 +1142,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(screen.getByLabelText("连续滚动阅读")).toBeInTheDocument();
     expect(screen.getByLabelText("页面位置")).toHaveTextContent("3 / 3");
     expect(
-      screen.getByText("轻点页面中央显示控制，上下滑动连续浏览"),
+      screen.getByText("轻点显示控制，双击缩放，上下滑动连续浏览"),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("轻点页面中央显示控制，点按两侧或左右滑动翻页"),
@@ -1156,7 +1161,7 @@ it("keeps a single exit while the PDF never settles", async () => {
       <Routes><Route path="/choirs/:choirId/scores/:scoreId" element={<ReaderPage />} /></Routes>
     </MemoryRouter>);
     await screen.findByLabelText("翻页阅读");
-    toggleChrome();
+    await toggleChrome();
     if (layout === "continuous") {
       fireEvent.click(screen.getByRole("button", { name: "更多" }));
       fireEvent.click(screen.getByRole("button", { name: "连续滚动" }));
@@ -1192,7 +1197,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await waitFor(() => expect(Number(viewport.dataset.zoom)).toBeLessThanOrEqual(1));
     expect(screen.getByLabelText("第 2 页笔记层").closest(".annotation-overlay")).toHaveAttribute("data-tool", "text");
     if (layout === "page") expect(viewport.scrollTop).toBe(0);
-    else expect(virtualTestState.scrollToIndex).toHaveBeenCalledWith(1, { align: "center" });
+    else expect(virtualTestState.scrollToOffset).toHaveBeenCalledWith(virtualTestState.itemSize - 4);
   });
 
   it("selects the page at the viewport center before locking it for editing", async () => {
@@ -1210,7 +1215,7 @@ it("keeps a single exit while the PDF never settles", async () => {
       <Routes><Route path="/choirs/:choirId/scores/:scoreId" element={<ReaderPage />} /></Routes>
     </MemoryRouter>);
     await screen.findByLabelText("翻页阅读");
-    toggleChrome();
+    await toggleChrome();
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
     fireEvent.click(screen.getByRole("button", { name: "连续滚动" }));
     const reader = screen.getByLabelText("连续滚动阅读");
@@ -1274,7 +1279,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     );
 
     await screen.findByLabelText("翻页阅读");
-    toggleChrome();
+    await toggleChrome();
     const editButton = await screen.findByRole("button", { name: /^(编辑|完成编辑)$/ });
     await waitFor(() => expect(editButton).toHaveAttribute("data-state", "failed"));
     expect(exportDiagnostics()).toContain('"operation": "sync"');
@@ -1331,7 +1336,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     );
 
     await screen.findByLabelText("翻页阅读");
-    toggleChrome();
+    await toggleChrome();
     expect(screen.getByRole("button", { name: /^(编辑|完成编辑)$/ })).toHaveAttribute(
       "data-state",
       "preparing",
@@ -1408,7 +1413,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     );
 
     await screen.findByLabelText("翻页阅读");
-    toggleChrome();
+    await toggleChrome();
     fireEvent.click(screen.getByRole("button", { name: "笔记图层" }));
     const panel = screen.getByRole("dialog", { name: "笔记图层" });
 
@@ -1488,11 +1493,12 @@ it("keeps a single exit while the PDF never settles", async () => {
       await screen.findByText("第 2 页 · Ensemble · 第二页力度轻一些"),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "前往第 2 页" }));
+    await finishPageTurn();
     expect(
       within(screen.getByLabelText("翻页阅读")).getByLabelText("渲染第 2 页"),
     ).toBeInTheDocument();
 
-    toggleChrome();
+    await toggleChrome();
     const edit = await screen.findByRole("button", { name: "编辑" });
     fireEvent.click(edit);
     await screen.findByRole("button", { name: "完成编辑" });
@@ -1532,14 +1538,14 @@ it("keeps a single exit while the PDF never settles", async () => {
 
     await screen.findByText("练声曲");
     await screen.findByLabelText("翻页阅读");
-    openMoreMenu();
+    await openMoreMenu();
     expect(
       await screen.findByText("离线准备未完成，尚未确认本机副本，请重试校验。"),
     ).toBeInTheDocument();
     expect(activateVerifiedOfflineScore).not.toHaveBeenCalled();
   });
 
-  it("swipes fitted pages, consumes zoomed pan and allows zoomed edge taps", async () => {
+  it("swipes fitted pages, consumes zoomed pan and keeps zoomed edge taps on the current page", async () => {
     render(
       <MemoryRouter initialEntries={["/choirs/choir-1/scores/score-1"]}>
         <Routes>
@@ -1684,7 +1690,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(currentRenderedPage()).toBe("2");
     expect(track).toHaveAttribute("data-page-turn-phase", "idle");
 
-    toggleChrome();
+    await toggleChrome();
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
     expect(screen.getByText("200%")).toBeInTheDocument();
 
@@ -1789,7 +1795,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.pointerUp(overlay, { clientX: 20, clientY: 20 });
     expect(screen.queryByLabelText("笔记文本")).not.toBeInTheDocument();
 
-    if (!screen.queryByLabelText("阅读器控制")) toggleChrome();
+    if (!screen.queryByLabelText("阅读器控制")) await toggleChrome();
     expect(screen.getByText("练声曲", { selector: ".reader-chrome__title" })).toBeInTheDocument();
     expect(
       screen.queryByText("练声曲.pdf", { selector: ".reader-chrome__title" }),
@@ -2043,7 +2049,7 @@ it("keeps a single exit while the PDF never settles", async () => {
 
     await screen.findByText("练声曲");
     await screen.findByLabelText("翻页阅读");
-    openMoreMenu();
+    await openMoreMenu();
     expect(
       await screen.findByText("可离线使用"),
     ).toBeInTheDocument();
@@ -2112,7 +2118,7 @@ it("keeps a single exit while the PDF never settles", async () => {
 
     await screen.findByLabelText("翻页阅读");
     expect(screen.getByText("离线练声曲")).toBeInTheDocument();
-    toggleChrome();
+    await toggleChrome();
     const editButton = await screen.findByRole("button", { name: /^(编辑|完成编辑)$/ });
     await waitFor(() => expect(editButton).toHaveAttribute("data-state", "ready"));
     fireEvent.click(editButton);
@@ -2237,7 +2243,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "本机离线副本和未同步笔记仍保留，恢复后可继续同步",
     );
-    toggleChrome();
+    await toggleChrome();
     expect(screen.getByRole("button", { name: /^(编辑|完成编辑)$/ })).toHaveAttribute(
       "data-state",
       "trashed",
