@@ -6,12 +6,13 @@ import { loadPdfDocument, type PdfDocumentLoad } from "./pdf-document";
 
 // Own the PDF lifetime separately from the reader and offline preparation queue.
 export function prepareExport(workspace: LocalWorkspace, versionId: string) {
-  let cancelled = false;
+  const controller = new AbortController();
+  const { signal } = controller;
   let pdf: PdfDocumentLoad | undefined;
   const promise = (async () => {
     let source: string | ArrayBuffer;
     if (navigator.onLine) {
-      await syncAnnotations(workspace, { pull: true, freshLayers: true, push: false });
+      await syncAnnotations(workspace, { pull: true, freshLayers: true, push: false, signal });
       source = `/api/choirs/${workspace.choirId}/scores/${workspace.scoreId}/versions/${encodeURIComponent(versionId)}/pdf`;
     } else {
       const copy = await findVerifiedOfflineScore(workspace);
@@ -20,12 +21,18 @@ export function prepareExport(workspace: LocalWorkspace, versionId: string) {
       source = await copy.blob.arrayBuffer();
     }
     await assertLocalWorkspaceActive(workspace);
-    if (cancelled) throw new DOMException("Export cancelled", "AbortError");
+    signal.throwIfAborted();
     pdf = loadPdfDocument(source, versionId);
     const [{ document }, state] = await Promise.all([pdf.promise, readScoreAnnotationState(workspace)]);
     await assertLocalWorkspaceActive(workspace);
+    signal.throwIfAborted();
     if (!state.layersReady) throw new Error("笔记层尚未准备好，请联网后重试。");
     return { source: document, layers: state.layers };
-  })();
-  return { promise, destroy: () => { cancelled = true; void pdf?.destroy().catch(() => undefined); } };
+  })().catch(error => { destroyPdf(); throw error; });
+  function destroyPdf() {
+    const owned = pdf;
+    pdf = undefined;
+    void owned?.destroy().catch(() => undefined);
+  }
+  return { promise, destroy: () => { controller.abort(); destroyPdf(); } };
 }

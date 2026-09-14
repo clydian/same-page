@@ -23,7 +23,7 @@ beforeEach(() => {
 it("prepares an unopened score at its exact PDF version without publishing drafts or saving an offline copy", async () => {
   const task = prepareExport(workspace, "version-2");
   await expect(task.promise).resolves.toMatchObject({ source: { numPages: 2 } });
-  expect(io.sync).toHaveBeenCalledWith(workspace, { pull: true, freshLayers: true, push: false });
+  expect(io.sync).toHaveBeenCalledWith(workspace, { pull: true, freshLayers: true, push: false, signal: expect.any(AbortSignal) });
   expect(io.load).toHaveBeenCalledWith("/api/choirs/drive/scores/score/versions/version-2/pdf", "version-2");
   expect(io.verify).not.toHaveBeenCalled();
   task.destroy(); expect(io.destroy).toHaveBeenCalledOnce();
@@ -63,4 +63,22 @@ it("rejects revoked workspace authority before loading any PDF", async () => {
   io.active.mockRejectedValue(new Error("owner changed"));
   await expect(prepareExport(workspace, "v").promise).rejects.toThrow("owner changed");
   expect(io.load).not.toHaveBeenCalled();
+});
+
+it("aborts synchronization when preparation is cancelled", async () => {
+  io.sync.mockReturnValue(new Promise(() => {}));
+  const task = prepareExport(workspace, "v");
+  const signal = io.sync.mock.calls[0][1].signal as AbortSignal;
+  expect(signal.aborted).toBe(false);
+  task.destroy();
+  expect(signal.aborted).toBe(true);
+});
+
+it("releases an owned PDF if layer readiness fails after document loading", async () => {
+  io.read.mockResolvedValue({ layersReady: false, layers: [] });
+  const task = prepareExport(workspace, "v");
+  await expect(task.promise).rejects.toThrow("笔记层尚未准备好");
+  expect(io.destroy).toHaveBeenCalledOnce();
+  task.destroy();
+  expect(io.destroy).toHaveBeenCalledOnce();
 });

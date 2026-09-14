@@ -5,9 +5,14 @@ import { Dialog } from "../navigation/overlays";
 import { resolveLocalWorkspace, type LocalWorkspace } from "../platform/local-workspace";
 import { ExportDialog } from "../reader/export-dialog";
 
-export function LibraryExportDialog({ score, authenticatedUserId, onClose }: {
-  score: ScoreSummary; authenticatedUserId: string | null; onClose(): void;
-}) {
+type Props = { score: ScoreSummary; authenticatedUserId: string | null; onClose(): void };
+
+export function LibraryExportDialog(props: Props) {
+  const { score, authenticatedUserId } = props;
+  return <LibraryExportDialogContent key={JSON.stringify([score.choirId, score.id, score.currentVersion.id, authenticatedUserId])} {...props} />;
+}
+
+function LibraryExportDialogContent({ score, authenticatedUserId, onClose }: Props) {
   const [workspace, setWorkspace] = useState<LocalWorkspace | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
