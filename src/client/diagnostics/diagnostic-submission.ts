@@ -43,6 +43,7 @@ const empty = (): Submission => ({ description: "", report: null, phase: "idle",
 let state = empty();
 let epoch = 0;
 let pending: AbortController | null = null;
+let reportDispatched = false;
 const listeners = new Set<() => void>();
 function update(next: Submission) { state = next; for (const listener of listeners) listener(); }
 export const getDiagnosticSubmission = () => state;
@@ -51,6 +52,7 @@ export function resetDiagnosticSubmission() {
   epoch += 1;
   pending?.abort();
   pending = null;
+  reportDispatched = false;
   update(empty());
 }
 subscribeDiagnosticReset(resetDiagnosticSubmission);
@@ -72,14 +74,18 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
   try {
     if (!navigator.onLine) throw new Error("offline");
     // Deliberately outside diagnosticFetch: a failed submission must not report itself or retry business writes.
-    const submit = () => fetch("/api/diagnostic-reports", { method: "POST", credentials: "omit", cache: "no-store",
+    const allowLegacy = !reportDispatched;
+    const submit = () => {
+      reportDispatched = true;
+      return fetch("/api/diagnostic-reports", { method: "POST", credentials: "omit", cache: "no-store",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify(report), signal: controller.signal });
+    };
     let response = await submit();
     if (started !== epoch) return;
     // A cached new client may meet a rolled-back Worker with the old strict
-    // schema. Only an explicit validation rejection permits one legacy retry;
+    // schema. Only the first dispatch being explicitly rejected permits a legacy retry;
     // uncertain delivery always retains the exact previously sent payload/id.
-    if (response.status === 400 && (report.reader?.opening || report.records.some(record => record.opening))) {
+    if (allowLegacy && response.status === 400 && (report.reader?.opening || report.records.some(record => record.opening))) {
       report = { ...report, reader: report.reader ? { interactionMode: report.reader.interactionMode, pendingCount: report.reader.pendingCount, conflictCount: report.reader.conflictCount } : null,
         records: report.records.map(record => { const legacy = { ...record }; delete legacy.opening; return legacy; }) };
       update({ ...state, report });

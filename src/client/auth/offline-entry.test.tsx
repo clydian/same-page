@@ -148,7 +148,7 @@ it("rechecks the same user on reconnect and keeps the drive route", async () => 
   act(() => window.dispatchEvent(new Event("offline")));
   act(() => window.dispatchEvent(new Event("online")));
   await screen.findByRole("heading", { name: "排练云盘" });
-  expect(await screen.findByRole("link", { name: /^cloud$/ })).toHaveAttribute("href", "/choirs/drive/scores/remote");
+  expect(await screen.findByRole("link", { name: /^cloud$/ }, { timeout: 4_000 })).toHaveAttribute("href", "/choirs/drive/scores/remote");
 });
 
 it("does not reveal the former user's saved list when another user authenticates", async () => {
@@ -226,4 +226,22 @@ it("recovers a transient session failure while remaining on the drive page", asy
   await screen.findByText(/暂时无法连接/);
   unavailable = false;
   expect(await screen.findByRole("link", { name: /^cloud$/ }, { timeout: 4_000 })).toBeInTheDocument();
+});
+
+it.each(["signed-out", "local-error", "hidden"] as const)("the real auth client's online event respects %s recovery boundaries", async state => {
+  await saved();
+  const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => state === "local-error" ? authenticatedResponse() : Response.json({ message: "unavailable" }, { status: state === "signed-out" ? 401 : 503 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const accept = state === "local-error" ? vi.spyOn(logoutFence, "acceptNewSession").mockRejectedValue(new DOMException("local failure", "UnknownError")) : null;
+  const visibility = state === "hidden" ? vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden") : null;
+  try {
+    open("/choirs/drive");
+    await screen.findByText(state === "local-error" ? /本机身份校验暂时未完成/ : state === "signed-out" ? /重新登录后同步/ : /暂时无法连接/);
+    const sessionCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("get-session")).length;
+    const count = sessionCalls();
+    act(() => window.dispatchEvent(new Event("offline")));
+    act(() => window.dispatchEvent(new Event("online")));
+    await act(() => new Promise(resolve => setTimeout(resolve, 100)));
+    expect(sessionCalls()).toBe(count);
+  } finally { accept?.mockRestore(); visibility?.mockRestore(); }
 });

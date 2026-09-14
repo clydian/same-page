@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 import { useOfflineScore } from "../offline/use-offline-score";
 import { experienceOwnerKey, authenticatedLocalOwnerKey, createLocalWorkspace, currentLocalOwnerKey } from "../platform/local-workspace";
 
-export function ScoreLink({ userId, choirId, scoreId, local, experience = false, label, description, children, onOpen }: {
-  label: string; description: string; experience?: boolean; userId?: string; choirId: string; scoreId: string; local: boolean; children: ReactNode; onOpen: () => void;
+export function ScoreLink({ userId, choirId, scoreId, local, experience = false, explainUnavailable = true, label, description, children, onOpen }: {
+  explainUnavailable?: boolean; label: string; description: string; experience?: boolean; userId?: string; choirId: string; scoreId: string; local: boolean; children: ReactNode; onOpen: () => void;
 }) {
   const guestOwner = useLiveQuery(async () => {
     if (userId || !local) return null;
@@ -19,6 +19,6 @@ export function ScoreLink({ userId, choirId, scoreId, local, experience = false,
   const inspected = Boolean(workspace && offline?.scopeKey === workspace.scopeKey);
   const unavailable = inspected ? offline?.readFailed ? "本机副本暂时无法校验" : "此设备没有可用的离线副本" : "正在确认打开方式";
   return local && !ready
-    ? <div className="file-row__open" aria-disabled="true" aria-label={label} aria-description={`${description}，${unavailable}`} title={unavailable}>{children}<span className="file-row__unavailable">{unavailable}</span></div>
+    ? <div className="file-row__open" aria-disabled="true" aria-label={label} aria-description={`${description}，${unavailable}`} title={unavailable}>{children}{explainUnavailable && <span className="file-row__unavailable">{unavailable}</span>}</div>
     : <Link aria-label={label} aria-description={description} className="file-row__open" to={`/choirs/${choirId}/scores/${scoreId}${experience ? "?experience=1" : ""}`} onClick={onOpen}>{children}</Link>;
 }

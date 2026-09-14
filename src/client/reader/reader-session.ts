@@ -67,10 +67,10 @@ export class ReaderSession {
     },
     recover: () => { this.restoreDisplay(); },
   });
-  private retained: { document: PDFDocumentProxy; source: Source | null; lease: ReaderDocumentLease | null } | null = null;
+  private retained: { opening: ReaderOpeningSnapshot; document: PDFDocumentProxy; source: Source | null; lease: ReaderDocumentLease | null } | null = null;
   private retainDisplay() {
     if (this.retained || !this.state.document || !this.presentation.hasPresented(this.state.document) || this.cloudInvalidated) return;
-    this.retained = { document: this.state.document, source: this.source, lease: this.lease };
+    this.retained = { opening: this.opening.getSnapshot(), document: this.state.document, source: this.source, lease: this.lease };
     this.lease = null;
   }
   private restoreDisplay() {
@@ -84,7 +84,8 @@ export class ReaderSession {
     this.displayPrepared = true;
     this.pdfFailed = false;
     this.deadline?.();
-    this.publish({ document: previous.document, status: "ready", error: null, displayMessage: "显示恢复未完成，已保留原谱面。" });
+    this.opening.restorePresented(previous.opening);
+    this.publish({ opening: previous.opening, document: previous.document, status: "ready", error: null, displayMessage: "显示恢复未完成，已保留原谱面。" });
     return true;
   }
   private lookupSequence = 0;

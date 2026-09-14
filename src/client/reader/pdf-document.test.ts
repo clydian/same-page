@@ -1,9 +1,12 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { loadPdfDocument } from "./pdf-document";
 
-const engine = vi.hoisted(() => ({ getDocument: vi.fn(), GlobalWorkerOptions: { workerSrc: "" } }));
-vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => engine);
-afterEach(() => vi.restoreAllMocks());
+const engine = vi.hoisted(() => ({ getDocument: vi.fn(), workerReady: Promise.resolve(), destroyWorker: vi.fn(), GlobalWorkerOptions: { workerSrc: "" } }));
+vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => ({ ...engine, PDFWorker: class {
+  promise = engine.workerReady;
+  destroy = engine.destroyWorker;
+} }));
+afterEach(() => { vi.restoreAllMocks(); engine.workerReady = Promise.resolve(); engine.getDocument.mockClear(); engine.destroyWorker.mockClear(); });
 
 it("forwards actual PDF.js progress, leaves unknown totals indeterminate and stops after document readiness", async () => {
   let finish!: (document: { numPages: number }) => void;
@@ -39,4 +42,36 @@ it("destroying a task prevents late PDF progress from publishing", async () => {
   const count = progress.mock.calls.length;
   task.onProgress({ loaded: 1, total: 2 });
   expect(progress).toHaveBeenCalledTimes(count);
+});
+
+it("keeps a stalled PDF Worker in preparation until it is actually ready", async () => {
+  let ready!: () => void;
+  engine.workerReady = new Promise<void>(resolve => { ready = resolve; });
+  engine.getDocument.mockReturnValue({ promise: new Promise(() => {}), destroy: vi.fn().mockResolvedValue(undefined) });
+  const progress = vi.fn();
+  const load = loadPdfDocument("/versions/stalled/pdf", "stalled", progress);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(engine.getDocument).not.toHaveBeenCalled();
+  expect(progress).toHaveBeenLastCalledWith({ phase: "engine", loadedBytes: null, totalBytes: null });
+  ready();
+  await vi.waitFor(() => expect(engine.getDocument).toHaveBeenCalledTimes(1));
+  expect(progress).toHaveBeenLastCalledWith({ phase: "file", loadedBytes: 0, totalBytes: null });
+  await load.destroy();
+  expect(engine.destroyWorker).toHaveBeenCalledTimes(1);
+});
+
+it("cancels during worker preparation without starting a late PDF request", async () => {
+  let ready!: () => void;
+  engine.workerReady = new Promise<void>(resolve => { ready = resolve; });
+  const progress = vi.fn();
+  const load = loadPdfDocument("/versions/cancelled/pdf", "cancelled", progress);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const cancelled = expect(load.promise).rejects.toMatchObject({ name: "AbortError" });
+  await load.destroy();
+  const count = progress.mock.calls.length;
+  ready();
+  await cancelled;
+  expect(engine.getDocument).not.toHaveBeenCalled();
+  expect(progress).toHaveBeenCalledTimes(count);
+  expect(engine.destroyWorker).toHaveBeenCalledTimes(1);
 });

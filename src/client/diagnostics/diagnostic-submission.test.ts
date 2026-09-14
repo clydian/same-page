@@ -113,3 +113,19 @@ it("downgrades optional opening fields only after an explicit old-schema rejecti
   expect(fetchMock.mock.calls[2][1].body).toBe(fetchMock.mock.calls[1][1].body);
   expect(getDiagnosticSubmission().phase).toBe("sent");
 });
+
+it("never rewrites a possibly stored report when a later retry meets an old Worker", async () => {
+  const opening = { phase: "file" as const, source: "cloud" as const, loadedBytes: 12, totalBytes: 24, elapsedMs: 1200, phaseElapsedMs: 1000, lastProgressAgoMs: 0, durations: { file: 1000 } };
+  const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError("receipt lost"));
+  vi.stubGlobal("fetch", fetchMock);
+  await sendDiagnosticReport({ interactionMode: "reading", pendingCount: 0, conflictCount: 0, opening });
+  const first = getDiagnosticSubmission().report!;
+  fetchMock.mockResolvedValueOnce(new Response(null, { status: 400 }));
+  await sendDiagnosticReport(null);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(getDiagnosticSubmission().report).toEqual(first);
+  fetchMock.mockResolvedValueOnce(Response.json({ id: first.id }));
+  await sendDiagnosticReport(null);
+  expect(fetchMock.mock.calls[2][1].body).toBe(fetchMock.mock.calls[0][1].body);
+  expect(getDiagnosticSubmission().phase).toBe("sent");
+});

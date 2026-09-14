@@ -20,6 +20,7 @@ export class ReaderOpening {
       startedAt: now, phaseStartedAt: now, lastProgressAt: now, stoppedAt: null, durations: {} };
   }
   getSnapshot = () => this.state;
+  restorePresented(snapshot: ReaderOpeningSnapshot) { this.state = snapshot; }
   update(phase: ReaderOpeningPhase, progress?: Pick<ReaderOpeningFacts, "loadedBytes" | "totalBytes">, source = this.state.source) {
     const now = performance.now();
     const previous = this.state;

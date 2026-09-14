@@ -1,8 +1,11 @@
+import { installSessionOnlineStatus } from "./session-online-status";
 import { acceptSession } from "./session-logout-fence";
 import { createSessionFetch } from "./session-fetch";
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient } from "better-auth/client/plugins";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
+
+installSessionOnlineStatus();
 
 export const authClient = createAuthClient({
   plugins: [emailOTPClient()],

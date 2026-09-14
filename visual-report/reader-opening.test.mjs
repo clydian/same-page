@@ -34,7 +34,9 @@ test("reader shows real known/unknown transfer progress and retires it only afte
           if (pathname.endsWith("/pdf") && route.request().method() === "GET") return route.continue({ url: `http://127.0.0.1:${stream.address().port}/${total}` });
           return route.fulfill(resolveFixtureRequest({ pathname, method: route.request().method(), identity: "member", cookie: "" }));
         });
+        const pdfRequest = page.waitForRequest(request => new URL(request.url()).pathname.endsWith("/pdf") && request.method() === "GET");
         await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score`, { waitUntil: "domcontentloaded" });
+        await pdfRequest;
         const progress = page.getByRole("progressbar", { name: "PDF 文件加载进度" });
         await expect(progress).toBeVisible();
         if (total === "known") {
