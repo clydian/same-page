@@ -442,7 +442,7 @@ function ReaderPageContent() {
           {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={() => { startLoadingJourney("exit-score", "warm"); navigation.back(`/choirs/${choirId}`); }}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>
-          <TooltipTrigger><Button aria-label="导出 PDF" className="reader-icon-button reader-chrome__export" onPress={() => setExportOpen(true)}><Share aria-hidden="true" size={21} /></Button><Tooltip className="offline-score-tooltip">导出 PDF</Tooltip></TooltipTrigger></div>}
+          <TooltipTrigger><Button aria-label="分享 PDF" className="reader-icon-button reader-chrome__export" onPress={() => setExportOpen(true)}><Share aria-hidden="true" size={21} /></Button><Tooltip className="offline-score-tooltip">分享 PDF</Tooltip></TooltipTrigger></div>}
           <strong className="reader-chrome__title">{readerTitle}</strong>
           <div className="reader-chrome__actions-stack">
             <div className="reader-chrome__actions">
