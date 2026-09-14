@@ -1,3 +1,5 @@
+import { ReaderOpening, readerOpeningFacts, type ReaderOpeningSnapshot } from "./reader-opening";
+import type { ReaderOpeningPhase, ReaderOpeningFacts } from "../../shared/reader-opening";
 import { foregroundDeadline } from "./foreground-deadline";
 import { isLocalExperience } from "../annotations/guest-notes";
 import { ReaderPresentation } from "./reader-presentation";
@@ -22,6 +24,7 @@ import type { PDFDocumentProxy } from "./pdf-document";
 type CloudLookup = { state: "active"; score: ScoreSummary } | { state: "trashed" | "permission-denied" | "missing" | "network-unavailable" | "service-unavailable" };
 type Source = { kind: "cloud" | "offline"; versionId?: string };
 export interface ReaderSessionSnapshot {
+  opening: ReaderOpeningSnapshot | null;
   score: ScoreSummary | null;
   document: PDFDocumentProxy | null;
   displayMessage: string | null;
@@ -38,6 +41,7 @@ export interface ReaderSessionSnapshot {
 // One lifetime owns source arbitration, capability preparation and document leases.
 // Rendering and annotation editing remain independent consumers of this session.
 export class ReaderSession {
+  private opening = new ReaderOpening();
   private state: ReaderSessionSnapshot;
   private listeners = new Set<() => void>();
   private disposed = false;
@@ -52,7 +56,10 @@ export class ReaderSession {
   private displayPrepared = false;
   readonly presentation = new ReaderPresentation({
     confirmed: () => {
-      if (!this.displayPrepared) return false;
+      if (!this.displayPrepared || this.disposed || this.state.status === "error") return false;
+      this.opening.update("ready");
+      this.opening.stop();
+      if (this.state.opening !== this.opening.getSnapshot()) this.publish({ opening: this.opening.getSnapshot() });
       this.deadline?.();
       this.retained?.lease?.release();
       this.retained = null;
@@ -103,7 +110,7 @@ export class ReaderSession {
     this.identity = workspace.ownerKey.startsWith("user:") ? workspace.ownerKey.slice(5) : workspace.ownerKey.startsWith("experience:") ? workspace.ownerKey : "guest";
     const score = peekReaderScore(this.identity, workspace.choirId, workspace.scoreId);
     this.confirmedVersion = score?.currentVersion.id ?? null;
-    this.state = { displayMessage: null, score, document: null, offline: null, cloudState: "checking", capability: "preparing", status: "loading", error: null, downloading: false, downloadMessage: null, preparation: { phase: "idle" } };
+    this.state = { opening: this.opening.getSnapshot(), displayMessage: null, score, document: null, offline: null, cloudState: "checking", capability: "preparing", status: "loading", error: null, downloading: false, downloadMessage: null, preparation: { phase: "idle" } };
   }
   setAuthenticatedUser = (userId: string | null, sessionId: string | null = null) => {
     if (this.authenticatedUserId === userId && this.authenticatedSessionId === sessionId) return;
@@ -120,9 +127,18 @@ export class ReaderSession {
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private publish(patch: Partial<ReaderSessionSnapshot>) {
     if (this.disposed) return;
+    if (patch.status === "error") {
+      this.opening.stop();
+      patch.opening = this.opening.getSnapshot();
+    }
     this.state = { ...this.state, ...patch };
     if ("document" in patch) this.presentation.load(patch.document ?? null);
     this.listeners.forEach((listener) => listener());
+  }
+  private loadingPhase(phase: ReaderOpeningPhase, progress?: Pick<ReaderOpeningFacts, "loadedBytes" | "totalBytes">, source?: ReaderOpeningFacts["source"]) {
+    if (this.disposed || this.state.status === "error") return;
+    this.opening.update(phase, progress, source);
+    this.publish({ opening: this.opening.getSnapshot() });
   }
   private async current() { return !this.disposed && await assertLocalWorkspaceActive(this.workspace).then(() => true, () => false) && !this.disposed; }
   open() {
@@ -178,7 +194,7 @@ export class ReaderSession {
       if (this.retained) { this.restoreDisplay(); return; }
       if (this.state.status === "loading" || !this.state.score || !this.presentation.hasPresented(this.state.document)) {
         recordFailure({ operation: "pdf", category: "internal", stage: "prepare",
-          step: this.state.document ? "reader-presentation" : this.source ? "reader-document" : "reader-source", errorType: "TimeoutError", pdfReason: "timeout" });
+          step: this.state.document ? "reader-presentation" : this.source ? "reader-document" : "reader-source", errorType: "TimeoutError", pdfReason: "timeout", opening: readerOpeningFacts(this.opening.getSnapshot()) });
         this.publish({ status: "error", error: "加载用时较长，可以重试或返回云盘。这不代表设备不兼容。" });
         invalidateReaderDocument({ ...this.workspace });
         this.dispose();
@@ -212,6 +228,7 @@ export class ReaderSession {
       this.confirmedVersion = lookup.score.currentVersion.id;
       rememberReaderScore(this.identity, lookup.score);
       this.publish({ score: lookup.score, downloadMessage: this.state.score?.currentVersion.id === lookup.score.currentVersion.id ? this.state.downloadMessage : null, cloudState: "active", ...(this.pdfFailed ? {} : { error: null }) });
+      if (this.state.document && this.opening.getSnapshot().phase === "score") this.loadingPhase("page");
       const confirmation = confirmReaderDocumentVersion({ ...this.workspace, sourceKind: "cloud", versionId: this.confirmedVersion });
       if (!this.localSettled && !this.localPriorityExpired) {
         // Inspect the verified local copy before starting a competing cloud PDF.
@@ -242,6 +259,7 @@ export class ReaderSession {
     if (this.source?.kind === "offline" && this.source.versionId === offline.versionId) return;
     const generation = this.generation;
     let data: ArrayBuffer | undefined;
+    if (!this.source) this.loadingPhase("local-read", undefined, "offline");
     try { data = await readOfflineFileBytes(offline.blob); }
     catch {
       if (!await this.current() || generation !== this.generation) return;
@@ -267,17 +285,24 @@ export class ReaderSession {
     this.pdfFailed = false;
     this.publish({ document, status: document ? "ready" : "loading", error: null });
     markLoadingJourneyMilestone("open-score", "pdf-task-start");
-    const lease = acquireReaderDocument({ ...this.workspace, source: data ?? cloudPdfSource(this.workspace, source.versionId), sourceKind: source.kind, versionId: source.versionId });
+    const lease = acquireReaderDocument({ ...this.workspace, source: data ?? cloudPdfSource(this.workspace, source.versionId), sourceKind: source.kind, versionId: source.versionId,
+      onProgress: progress => {
+        if (!this.disposed && generation === this.generation) this.loadingPhase(progress.phase, progress, source.kind);
+      },
+    });
     this.lease = lease;
     void lease.promise.then(async (document) => {
+      if (this.disposed || generation !== this.generation) return;
+      this.loadingPhase("local-check");
       if (!await this.current() || generation !== this.generation) return;
       this.displayPrepared = true;
+      this.loadingPhase(this.state.score ? "page" : "score");
       this.publish({ document, status: "ready", displayMessage: null });
       this.resolveFailure();
       this.prepareAutomaticOfflineCopy();
     }).catch((error) => {
       if (this.disposed || generation !== this.generation) return;
-      recordFailure({ operation: "pdf", category: pdfFailureCategory(error), stage: "decode", pdfReason: pdfFailureReason(error), engineVersion: pdfEngineVersion });
+      recordFailure({ operation: "pdf", category: pdfFailureCategory(error), stage: "decode", pdfReason: pdfFailureReason(error), engineVersion: pdfEngineVersion, opening: readerOpeningFacts(this.opening.getSnapshot()) });
       if (error instanceof ReaderDocumentVersionMismatchError && source.kind === "cloud" && source.versionId !== error.expectedVersionId) {
         this.openSource({ kind: "cloud", versionId: error.expectedVersionId });
         return;

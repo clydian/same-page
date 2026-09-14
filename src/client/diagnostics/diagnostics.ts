@@ -1,3 +1,4 @@
+import { readerOpeningSchema, type ReaderOpeningFacts } from "../../shared/reader-opening";
 import { captureNavigationIdentity, observeNavigationResponse } from "../settings/navigation-events";
 import pdfPackage from "pdfjs-dist/package.json";
 import { buildId } from "../../shared/build";
@@ -54,6 +55,7 @@ export function diagnosticCauseType(error: unknown): DiagnosticErrorType | undef
 }
 
 interface Failure {
+  opening?: ReaderOpeningFacts;
   step?: DiagnosticStep;
   errorType?: DiagnosticErrorType;
   causeType?: DiagnosticErrorType;
@@ -67,6 +69,7 @@ interface Failure {
   serverBuild?: string | null;
 }
 interface DiagnosticRecord {
+  opening?: ReaderOpeningFacts;
   step?: DiagnosticStep;
   errorType?: DiagnosticErrorType;
   causeType?: DiagnosticErrorType;
@@ -160,8 +163,10 @@ export function recordFailure(failure: Failure) {
     const errorType = diagnosticErrorTypes.find(value => value === failure.errorType);
     const errorCode = diagnosticErrorCodes.find(value => value === failure.errorCode);
     const causeType = diagnosticErrorTypes.find(value => value === failure.causeType);
-    const previous = [...records].reverse().find((entry) => entry.operation === operation && entry.category === category && entry.stage === stage && entry.step === step && entry.errorType === errorType && entry.causeType === causeType && entry.errorCode === errorCode && entry.pdfReason === failure.pdfReason && now - entry.time < 30_000);
+    const opening = readerOpeningSchema.safeParse(failure.opening);
+    const previous = [...records].reverse().find((entry) => entry.operation === operation && entry.category === category && entry.stage === stage && entry.step === step && entry.errorType === errorType && entry.causeType === causeType && entry.errorCode === errorCode && entry.pdfReason === failure.pdfReason && entry.opening?.phase === (opening.success ? opening.data.phase : undefined) && now - entry.time < 30_000);
     if (previous) {
+      if (opening.success) previous.opening = opening.data;
       previous.count = Math.min(previous.count + 1, 9999);
       previous.time = now;
       previous.requestId = requestId;
@@ -169,6 +174,7 @@ export function recordFailure(failure: Failure) {
       return;
     }
     records.push({
+      ...(opening.success ? { opening: opening.data } : {}),
       ...(step ? { step } : {}),
       ...(errorType ? { errorType } : {}),
       ...(causeType ? { causeType } : {}),

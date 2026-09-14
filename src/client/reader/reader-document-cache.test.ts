@@ -290,3 +290,30 @@ describe("reader document cache", () => {
     lease.release();
   });
 });
+
+it("shares progress with active leases and detaches released or former-owner consumers", async () => {
+  let emit!: NonNullable<Parameters<typeof loadPdfDocument>[2]>;
+  vi.mocked(loadPdfDocument).mockImplementation((_source, _version, progress) => {
+    emit = progress!;
+    return { promise: new Promise(() => {}), destroy: vi.fn().mockResolvedValue(undefined) };
+  });
+  const options = { ownerKey: authenticatedLocalOwnerKey("a"), choirId: "drive", scoreId: "progress", source: "/v/pdf", sourceKind: "cloud" as const };
+  const firstProgress = vi.fn();
+  const first = acquireReaderDocument({ ...options, onProgress: firstProgress });
+  emit({ phase: "file", loadedBytes: 12, totalBytes: 24 });
+  const secondProgress = vi.fn();
+  const second = acquireReaderDocument({ ...options, onProgress: secondProgress });
+  expect(secondProgress).toHaveBeenLastCalledWith({ phase: "file", loadedBytes: 12, totalBytes: 24 });
+  expect(loadPdfDocument).toHaveBeenCalledTimes(1);
+  first.release();
+  const count = firstProgress.mock.calls.length;
+  emit({ phase: "document", loadedBytes: 24, totalBytes: 24 });
+  expect(firstProgress).toHaveBeenCalledTimes(count);
+  expect(secondProgress).toHaveBeenLastCalledWith({ phase: "document", loadedBytes: 24, totalBytes: 24 });
+  activateReaderDocumentOwner(authenticatedLocalOwnerKey("b"));
+  const remaining = secondProgress.mock.calls.length;
+  emit({ phase: "file", loadedBytes: 1, totalBytes: null });
+  expect(secondProgress).toHaveBeenCalledTimes(remaining);
+  second.release();
+  clearReaderDocumentCache();
+});

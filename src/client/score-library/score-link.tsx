@@ -19,6 +19,6 @@ export function ScoreLink({ userId, choirId, scoreId, local, experience = false,
   const inspected = Boolean(workspace && offline?.scopeKey === workspace.scopeKey);
   const unavailable = inspected ? offline?.readFailed ? "本机副本暂时无法校验" : "此设备没有可用的离线副本" : "正在确认打开方式";
   return local && !ready
-    ? <div className="file-row__open" aria-disabled="true" aria-label={label} aria-description={`${description}，${unavailable}`} title={unavailable}>{children}</div>
+    ? <div className="file-row__open" aria-disabled="true" aria-label={label} aria-description={`${description}，${unavailable}`} title={unavailable}>{children}<span className="file-row__unavailable">{unavailable}</span></div>
     : <Link aria-label={label} aria-description={description} className="file-row__open" to={`/choirs/${choirId}/scores/${scoreId}${experience ? "?experience=1" : ""}`} onClick={onOpen}>{children}</Link>;
 }

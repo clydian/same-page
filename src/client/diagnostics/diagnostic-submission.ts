@@ -72,9 +72,20 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
   try {
     if (!navigator.onLine) throw new Error("offline");
     // Deliberately outside diagnosticFetch: a failed submission must not report itself or retry business writes.
-    const response = await fetch("/api/diagnostic-reports", { method: "POST", credentials: "omit", cache: "no-store",
+    const submit = () => fetch("/api/diagnostic-reports", { method: "POST", credentials: "omit", cache: "no-store",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify(report), signal: controller.signal });
+    let response = await submit();
     if (started !== epoch) return;
+    // A cached new client may meet a rolled-back Worker with the old strict
+    // schema. Only an explicit validation rejection permits one legacy retry;
+    // uncertain delivery always retains the exact previously sent payload/id.
+    if (response.status === 400 && (report.reader?.opening || report.records.some(record => record.opening))) {
+      report = { ...report, reader: report.reader ? { interactionMode: report.reader.interactionMode, pendingCount: report.reader.pendingCount, conflictCount: report.reader.conflictCount } : null,
+        records: report.records.map(record => { const legacy = { ...record }; delete legacy.opening; return legacy; }) };
+      update({ ...state, report });
+      response = await submit();
+      if (started !== epoch) return;
+    }
     if (response.status === 429) {
       update({ ...state, phase: "failed", message: "发送过于频繁，请稍后重试。当前诊断仍保留，也可复制。" });
       return;

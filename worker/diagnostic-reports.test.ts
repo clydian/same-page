@@ -140,3 +140,17 @@ it("stores safe local failure details and rejects arbitrary steps or exception t
     expect((await submit({ ...value, id: crypto.randomUUID(), records: [{ ...value.records[0], ...details }] })).status).toBe(400);
   }
 });
+
+it("accepts bounded optional opening facts while keeping legacy reports valid", async () => {
+  const value = report();
+  const opening = { phase: "local-check" as const, source: "cloud" as const, loadedBytes: 198070, totalBytes: 198070, elapsedMs: 45000, phaseElapsedMs: 20000, lastProgressAgoMs: 20000, durations: { engine: 500, file: 24500, "local-check": 20000 } };
+  value.reader = { interactionMode: "reading", pendingCount: 0, conflictCount: 0, opening };
+  value.records = [{ id: crypto.randomUUID(), time: Date.now(), operation: "pdf", category: "internal", stage: "prepare", step: "reader-document", errorType: "TimeoutError", pdfReason: "timeout", serverBuild: null, requestId: null, retryable: true, count: 1, opening }];
+  expect((await submit(value)).status).toBe(201);
+  const stored = await env.DB.prepare("SELECT payload FROM diagnostic_reports WHERE id = ?").bind(value.id).first<{ payload: string }>();
+  expect(JSON.parse(stored!.payload)).toEqual(value);
+  for (const invalid of [{ ...opening, url: "private" }, { ...opening, source: "private-score" }, { ...opening, totalBytes: -1 }, { ...opening, durations: { "private-key": 1 } }, { ...opening, elapsedMs: 86400001 }]) {
+    expect((await submit({ ...report(), reader: { ...value.reader, opening: invalid } })).status).toBe(400);
+  }
+  expect((await submit(report())).status).toBe(201);
+});
