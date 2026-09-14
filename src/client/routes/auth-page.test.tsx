@@ -218,13 +218,21 @@ describe("AuthPage", () => {
     expect(screen.getByRole("button", { name: "使用 Google 继续" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "设置密码，以后用邮箱登录" }));
     fireEvent.change(await screen.findByLabelText("六位验证码"), { target: { value: "123456" } });
-    expect(screen.queryByLabelText("密码（至少 10 位）")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("密码（至少 8 位）")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "验证邮箱" }));
-    fireEvent.change(await screen.findByLabelText("密码（至少 10 位）"), { target: { value: "my new Same Page password" } });
-    fireEvent.change(screen.getByLabelText("确认密码"), { target: { value: "my new Same Page password" } });
+    const passwordField = await screen.findByLabelText("密码（至少 8 位）");
+    expect(passwordField).toHaveAttribute("minlength", "8");
+    expect(passwordField).toHaveAttribute("maxlength", "128");
+    fireEvent.change(passwordField, { target: { value: "abcdefg" } });
+    fireEvent.change(screen.getByLabelText("确认密码"), { target: { value: "abcdefg" } });
+    fireEvent.submit(passwordField.closest("form")!);
+    expect(await screen.findByRole("status")).toHaveTextContent("密码至少需要 8 位");
+    expect(fetchMock.mock.calls.some(([url]) => url === "/api/auth/email-otp/reset-password")).toBe(false);
+    fireEvent.change(await screen.findByLabelText("密码（至少 8 位）"), { target: { value: "abcdefgh" } });
+    fireEvent.change(screen.getByLabelText("确认密码"), { target: { value: "abcdefgh" } });
     fireEvent.click(screen.getByRole("button", { name: "设置密码并登录" }));
     expect(await screen.findByText("密码已设置，以后可以使用邮箱密码或 Google 登录")).toBeInTheDocument();
-    expect(authClient.signIn.email).toHaveBeenCalledWith({ email: "google@example.test", password: "my new Same Page password" });
+    expect(authClient.signIn.email).toHaveBeenCalledWith({ email: "google@example.test", password: "abcdefgh" });
     fireEvent.click(screen.getByRole("button", { name: "继续" }));
     expect(await screen.findByLabelText("current route")).toHaveTextContent("/");
   });
@@ -276,9 +284,9 @@ describe("AuthPage", () => {
     fireEvent.change(screen.getByLabelText("六位验证码"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "验证邮箱" }));
     await vi.waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(failure === 429 ? "尝试次数过多" : failure === 400 || failure === 403 ? "验证码错误、已过期或尝试次数已用尽" : "暂时无法验证"));
-    expect(screen.queryByLabelText("密码（至少 10 位）")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("密码（至少 8 位）")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "验证邮箱" }));
-    expect(await screen.findByLabelText("密码（至少 10 位）")).toBeInTheDocument();
+    expect(await screen.findByLabelText("密码（至少 8 位）")).toBeInTheDocument();
   });
 
   it.each(["lost-response", "expired-code", "login-failed"])("recovers %s while setting the first password", async (failure) => {
@@ -293,7 +301,7 @@ describe("AuthPage", () => {
     await startFirstPassword();
     fireEvent.change(screen.getByLabelText("六位验证码"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "验证邮箱" }));
-    fireEvent.change(await screen.findByLabelText("密码（至少 10 位）"), { target: { value: "new secure password" } });
+    fireEvent.change(await screen.findByLabelText("密码（至少 8 位）"), { target: { value: "new secure password" } });
     fireEvent.change(screen.getByLabelText("确认密码"), { target: { value: "new secure password" } });
     fireEvent.click(screen.getByRole("button", { name: "设置密码并登录" }));
     if (failure === "expired-code") {
@@ -606,11 +614,19 @@ describe("AuthPage", () => {
     await identify("New@Example.Test");
     expect(await screen.findByRole("heading", { name: "注册" })).toBeInTheDocument();
     expect(screen.queryByLabelText("显示名")).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("密码（至少 10 位）"), {
-      target: { value: "new secure password" },
+    const passwordField = screen.getByLabelText("密码（至少 8 位）");
+    expect(passwordField).toHaveAttribute("minlength", "8");
+    expect(passwordField).toHaveAttribute("maxlength", "128");
+    fireEvent.change(passwordField, { target: { value: "abcdefg" } });
+    fireEvent.change(screen.getByLabelText("确认密码"), { target: { value: "abcdefg" } });
+    fireEvent.submit(passwordField.closest("form")!);
+    expect(await screen.findByRole("status")).toHaveTextContent("密码至少需要 8 位");
+    expect(fetchMock.mock.calls.some(([url]) => url === "/api/auth/registration/request-otp")).toBe(false);
+    fireEvent.change(screen.getByLabelText("密码（至少 8 位）"), {
+      target: { value: "abcdefgh" },
     });
     fireEvent.change(screen.getByLabelText("确认密码"), {
-      target: { value: "new secure password" },
+      target: { value: "abcdefgh" },
     });
     fireEvent.click(screen.getByRole("button", { name: "发送验证码" }));
 
@@ -709,6 +725,31 @@ describe("AuthPage", () => {
         name: "重新发送验证码（60 秒）",
       }),
     ).toBeDisabled();
+  });
+
+  it("rejects seven characters and resets a password with eight characters", async () => {
+    renderAuthPage();
+    await identify("admin@example.test");
+    fireEvent.click(await screen.findByRole("button", { name: "忘记密码" }));
+    fireEvent.click(await screen.findByRole("button", { name: "发送密码重置验证码" }));
+    fireEvent.change(await screen.findByLabelText("六位验证码"), { target: { value: "123456" } });
+    const passwordField = screen.getByLabelText("新密码（至少 8 位）");
+    expect(passwordField).toHaveAttribute("minlength", "8");
+    expect(passwordField).toHaveAttribute("maxlength", "128");
+    fireEvent.change(passwordField, { target: { value: "abcdefg" } });
+    fireEvent.change(screen.getByLabelText("确认新密码"), { target: { value: "abcdefg" } });
+    fireEvent.submit(passwordField.closest("form")!);
+    expect(await screen.findByRole("status")).toHaveTextContent("密码至少需要 8 位");
+    expect(authClient.emailOtp.resetPassword).not.toHaveBeenCalled();
+    fireEvent.change(passwordField, { target: { value: "abcdefgh" } });
+    fireEvent.change(screen.getByLabelText("确认新密码"), { target: { value: "abcdefgh" } });
+    fireEvent.click(screen.getByRole("button", { name: "重设密码并登录" }));
+    await vi.waitFor(() => expect(authClient.emailOtp.resetPassword).toHaveBeenCalledWith({
+      email: "admin@example.test", otp: "123456", password: "abcdefgh",
+    }));
+    await vi.waitFor(() => expect(authClient.signIn.email).toHaveBeenCalledWith({
+      email: "admin@example.test", password: "abcdefgh",
+    }));
   });
 
   it("moves focus to the result heading when post-authentication joining fails", async () => {

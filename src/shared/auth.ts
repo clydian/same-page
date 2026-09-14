@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const PASSWORD_POLICY = {
-  minLength: 10,
+  minLength: 8,
   maxLength: 128,
 } as const;
 

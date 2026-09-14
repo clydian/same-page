@@ -974,9 +974,9 @@ describe("authentication and choir boundaries", () => {
     const check = { email, otp, type: "forget-password" };
     expect((await post("/api/auth/email-otp/check-verification-otp", { ...check, otp: "not-a-code" })).status).toBe(400);
     expect((await post("/api/auth/email-otp/check-verification-otp", check)).status).toBe(200);
-    const password = "new Same Page password";
+    const password = "abcdefgh";
     // Password policy rejects before consuming a valid code.
-    expect((await post("/api/auth/email-otp/reset-password", { email, otp, password: "short" })).status).toBe(400);
+    expect((await post("/api/auth/email-otp/reset-password", { email, otp, password: "abcdefg" })).status).toBe(400);
     expect((await post("/api/auth/email-otp/reset-password", { email, otp, password })).status).toBe(200);
     expect((await post("/api/auth/email-otp/reset-password", { email, otp, password })).status).toBe(400);
     expect((await post("/api/auth/email-otp/check-verification-otp", check)).status).toBe(400);
@@ -1061,6 +1061,22 @@ describe("authentication and choir boundaries", () => {
     expect(ownerSignIn.status).toBe(200);
   });
 
+  it("rejects seven-character registration and accepts eight characters with the same OTP", async () => {
+    const email = "password-boundary@example.test";
+    await registerWithPassword({
+      callWorker, email, latestOtp, password: "abcdefgh",
+      afterOtpSent: async (otp) => {
+        const rejected = await callWorker("/api/auth/registration/complete", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, otp, password: "abcdefg" }),
+        });
+        expect(rejected.status).toBe(400);
+      },
+    });
+    expect((await signInWithPassword({ callWorker, email, password: "abcdefgh" })).status).toBe(200);
+  });
+
   it("revokes existing sessions and the old password after a password reset", async () => {
     const email = "password-reset@example.test";
     const registration = await registerWithPassword({
@@ -1080,7 +1096,12 @@ describe("authentication and choir boundaries", () => {
     );
     expect(requestReset.status).toBe(200);
 
-    const newPassword = "a different secure password";
+    expect((await callWorker("/api/auth/email-otp/reset-password", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, otp: latestOtp(), password: "abcdefg" }),
+    })).status).toBe(400);
+    const newPassword = "abcdefgh";
     const reset = await callWorker("/api/auth/email-otp/reset-password", {
       method: "POST",
       headers: { "content-type": "application/json" },

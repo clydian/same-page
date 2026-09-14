@@ -60,13 +60,13 @@ for (const [name, engine, viewport] of [
     await expect(page.getByRole("status")).toContainText("验证码错误");
     await expect(page.getByRole("button", { name: /重新发送验证码/ })).toBeDisabled();
     await page.getByRole("button", { name: "验证邮箱", exact: true }).click();
-    await expect(page.getByLabel("密码（至少 10 位）", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("密码（至少 8 位）", { exact: true })).toBeVisible();
     await screenshot(page, name, "password");
     await page.getByRole("button", { name: "返回验证邮箱" }).click();
     await expect(page.getByLabel("六位验证码")).toBeVisible();
     await page.getByRole("button", { name: "验证邮箱", exact: true }).click();
-    await page.getByLabel("密码（至少 10 位）", { exact: true }).fill("local fixture password");
-    await page.getByLabel("确认密码", { exact: true }).fill("local fixture password");
+    await page.getByLabel("密码（至少 8 位）", { exact: true }).fill("abcdefgh");
+    await page.getByLabel("确认密码", { exact: true }).fill("abcdefgh");
     await page.getByRole("button", { name: "设置密码并登录" }).click();
     await expect(page.getByText("密码已设置，以后可以使用邮箱密码或 Google 登录")).toBeVisible();
     await screenshot(page, name, "complete");
