@@ -331,6 +331,30 @@ describe("useReaderGestures", () => {
     expect(content).not.toHaveAttribute("data-gesture-preview");
   });
 
+  it("drains a resized pinch before accepting a fresh pointer sequence", () => {
+    const onZoomChange = vi.fn();
+    const view = render(<GestureHarness onZoomChange={onZoomChange} revision="600x800" />);
+    const viewport = screen.getByTestId("gesture-viewport"), content = screen.getByTestId("gesture-content");
+    mockGeometry(viewport, content);
+    const finger = (pointerId: number, clientX: number) => ({ pointerId, clientX, clientY: 200 });
+    fireEvent.pointerDown(viewport, finger(1, 200));
+    fireEvent.pointerDown(viewport, finger(2, 400));
+    fireEvent.pointerMove(viewport, finger(2, 600));
+    flushAnimationFrame();
+    view.rerender(<GestureHarness onZoomChange={onZoomChange} revision="800x600" />);
+    fireEvent.pointerMove(viewport, finger(2, 700));
+    fireEvent.pointerUp(viewport, finger(1, 200));
+    fireEvent.pointerUp(viewport, finger(2, 700));
+    expect(content).not.toHaveAttribute("data-gesture-preview");
+    expect(onZoomChange).not.toHaveBeenCalled();
+    fireEvent.pointerDown(viewport, finger(1, 200));
+    fireEvent.pointerDown(viewport, finger(2, 400));
+    fireEvent.pointerMove(viewport, finger(2, 600));
+    fireEvent.pointerUp(viewport, finger(2, 600));
+    fireEvent.pointerUp(viewport, finger(1, 200));
+    expect(onZoomChange).toHaveBeenCalledExactlyOnceWith(2);
+  });
+
   it("discards a cancelled preview without changing committed zoom", () => {
     const onZoomChange = vi.fn();
     render(<GestureHarness onZoomChange={onZoomChange} />);
@@ -356,11 +380,13 @@ function GestureHarness({
   pageTurn,
   twoFingerOnly = false,
   nativeTouchScroll = false,
+  revision,
 }: {
   onZoomChange: (zoom: number) => void;
   pageTurn?: PageTurnGesture;
   twoFingerOnly?: boolean;
   nativeTouchScroll?: boolean;
+  revision?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -370,6 +396,7 @@ function GestureHarness({
     containerRef,
     contentRef,
     previewBoundaryRef,
+    gestureRevision: revision,
     disabled: false,
     twoFingerOnly,
     nativeTouchScroll,

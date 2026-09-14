@@ -53,7 +53,7 @@ function Harness({ zoom = 1, scope = "document-a", revision = "page:1:fit:0:600x
     <div ref={containerRef} data-testid="viewport"><div ref={previewBoundaryRef} data-testid="presentation"><div ref={contentRef} data-testid="content" /></div></div>
   </>;
 }
-const click = (name: string) => fireEvent.click(screen.getByRole("button", { name, exact: true }));
+const click = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
 const preview = () => { click("begin"); click("move"); };
 const pending = () => { preview(); click("finish"); };
 
