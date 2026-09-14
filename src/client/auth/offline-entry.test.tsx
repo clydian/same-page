@@ -1,3 +1,4 @@
+import { slowIndexedDbTasks } from "../../test/slow-indexeddb-tasks";
 import { cleanupAuthClient } from "../../test/cleanup-auth-client";
 import { storeOfflineScore } from "../platform/local-database";
 import { effectiveCapabilities, emptyPermissions } from "../../shared/drive-permissions";
@@ -20,7 +21,7 @@ beforeEach(async () => {
   clearDriveLibraryCache();
   authClient.$store.atoms.session.set({ ...authClient.$store.atoms.session.get(), data: null, error: null, isPending: true, isRefetching: false });
 });
-afterEach(() => { cleanupAuthClient(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanupAuthClient(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 async function saved(userId = "a") {
   await activateAuthenticatedLocalOwner(userId);
   const workspace = createLocalWorkspace(authenticatedLocalOwnerKey(userId), "drive", "score");
@@ -36,13 +37,50 @@ function open(path = "/") {
   return view;
 }
 
+async function findSavedScoreLink() {
+  // Directory hydration and verified opening are separate asynchronous phases.
+  // Target the actual filename, not the offline-control description beside it.
+  await screen.findByText(/^a$/, { selector: ".file-row__name" });
+  return screen.findByRole("link", { name: /^a$/ });
+}
+
 it("offers the last local user's saved score after a cold-start network failure", async () => {
   await saved();
+  slowIndexedDbTasks(40);
   vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
   open();
-  expect(await screen.findByRole("link", { name: /^a$/ })).toHaveAttribute("href", "/choirs/drive/scores/score");
+  expect(await findSavedScoreLink()).toHaveAttribute("href", "/choirs/drive/scores/score");
   await screen.findByText(/暂时无法连接/);
   expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
+});
+
+it.each(["valid", "corrupt"] as const)("keeps the directory entry unopenable until %s bytes finish verification", async kind => {
+  await saved();
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const readBytes = NodeBlob.prototype.arrayBuffer;
+  const read = vi.spyOn(NodeBlob.prototype, "arrayBuffer").mockImplementation(async function(this: NodeBlob) {
+    await gate;
+    return kind === "valid" ? readBytes.call(this) : new ArrayBuffer(1);
+  });
+  vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+  open();
+  try {
+    const name = await screen.findByText(/^a$/, { selector: ".file-row__name" });
+    await waitFor(() => expect(read).toHaveBeenCalled());
+    expect(name.closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByRole("link", { name: /^a$/ })).not.toBeInTheDocument();
+    await act(async () => { release(); await gate; });
+    if (kind === "valid") {
+      expect(await findSavedScoreLink()).toHaveAttribute("href", "/choirs/drive/scores/score");
+    } else {
+      await screen.findByTitle("此设备没有可用的离线副本");
+      expect(screen.queryByRole("link", { name: /^a$/ })).not.toBeInTheDocument();
+      expect(await localDatabase.offlineScores.get("a")).toBeDefined();
+    }
+  } finally {
+    release();
+  }
 });
 
 it("opens saved content at a drive deep link while authentication is still pending", async () => {
@@ -50,7 +88,7 @@ it("opens saved content at a drive deep link while authentication is still pendi
   let finish!: (response: Response) => void;
   vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
   open("/choirs/drive");
-  expect(await screen.findByRole("link", { name: /^a$/ })).toBeInTheDocument();
+  expect(await findSavedScoreLink()).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "登录或注册" })).not.toBeInTheDocument();
   await waitFor(() => expect(finish).toBeDefined());
   await act(async () => finish(Response.json(null)));
@@ -91,7 +129,7 @@ it.each([503, 401, 200])("keeps local files when cold-start authentication retur
   await saved();
   vi.stubGlobal("fetch", vi.fn(async () => status === 200 ? Response.json(null) : Response.json({ message: "unavailable" }, { status })));
   open();
-  await screen.findByRole("link", { name: /^a$/ });
+  await findSavedScoreLink();
   await screen.findByText(status === 503 ? /暂时无法连接/ : /重新登录后同步/);
   expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
 });
@@ -116,7 +154,7 @@ it("does not reveal the former user's saved list when another user authenticates
   await saved();
   vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
   open();
-  await screen.findByRole("link", { name: /^a$/ });
+  await findSavedScoreLink();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).includes("get-session") ? authenticatedResponse("b") : Response.json({ memberships: [] })));
   await act(async () => { await authClient.$store.atoms.session.get().refetch(); });
   await screen.findByText(/本机尚未保存/);
