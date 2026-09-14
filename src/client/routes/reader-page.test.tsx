@@ -411,6 +411,7 @@ it("keeps a single exit while the PDF never settles", async () => {
       expect(loadPdfDocument).toHaveBeenCalledWith(
         "/api/choirs/choir-1/scores/score-1/versions/version-1/pdf",
         "version-1",
+        expect.any(Function),
       ),
     );
   });
@@ -454,6 +455,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await waitFor(() => expect(loadPdfDocument).toHaveBeenCalledWith(
       expect.any(ArrayBuffer),
       "version-1",
+      expect.any(Function),
     ));
   });
 
@@ -495,7 +497,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     );
 
     await screen.findByLabelText("翻页阅读");
-    expect(loadPdfDocument).toHaveBeenCalledWith(expect.any(ArrayBuffer), "version-1");
+    expect(loadPdfDocument).toHaveBeenCalledWith(expect.any(ArrayBuffer), "version-1", expect.any(Function));
     releaseBootstrap(activeSyncResponse());
     await waitFor(() =>
       expect(
@@ -600,7 +602,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     );
 
     await waitFor(() =>
-      expect(loadPdfDocument).toHaveBeenCalledWith(expect.any(ArrayBuffer), "version-1"),
+      expect(loadPdfDocument).toHaveBeenCalledWith(expect.any(ArrayBuffer), "version-1", expect.any(Function)),
     );
     expect(await screen.findByLabelText("翻页阅读")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "回收站离线谱" })).toBeInTheDocument();
@@ -664,7 +666,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     void syncReader(localWorkspace).catch(() => undefined);
     await waitFor(() => expect(syncCalls).toBe(2));
     await waitFor(() =>
-      expect(loadPdfDocument).toHaveBeenCalledWith(expect.any(ArrayBuffer), "version-1"),
+      expect(loadPdfDocument).toHaveBeenCalledWith(expect.any(ArrayBuffer), "version-1", expect.any(Function)),
     );
     expect(await screen.findByLabelText("翻页阅读")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "回收站离线谱" })).toBeInTheDocument();
@@ -971,6 +973,7 @@ it("keeps a single exit while the PDF never settles", async () => {
       expect(loadPdfDocument).toHaveBeenCalledWith(
         "/api/choirs/choir-1/scores/score-1/pdf",
         undefined,
+        expect.any(Function),
       ),
     );
     expect(screen.queryByRole("heading", { name: "无法打开" })).not.toBeInTheDocument();

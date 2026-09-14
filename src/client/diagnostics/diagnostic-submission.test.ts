@@ -94,3 +94,38 @@ it("never claims non-delivery when connectivity drops after dispatch or an uncer
   expect(fetchMock).toHaveBeenCalledTimes(1);
   expect(getDiagnosticSubmission().message).toContain("尚未确认收到");
 });
+
+it("downgrades optional opening fields only after an explicit old-schema rejection, retaining that payload for uncertain retries", async () => {
+  const opening = { phase: "file" as const, source: "cloud" as const, loadedBytes: 12, totalBytes: 24, elapsedMs: 1200, phaseElapsedMs: 1000, lastProgressAgoMs: 0, durations: { file: 1000 } };
+  recordFailure({ operation: "pdf", category: "network", opening });
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 400 })).mockRejectedValueOnce(new TypeError("lost"));
+  vi.stubGlobal("fetch", fetchMock);
+  await sendDiagnosticReport({ interactionMode: "reading", pendingCount: 0, conflictCount: 0, opening });
+  const first = JSON.parse(fetchMock.mock.calls[0][1].body);
+  const legacy = JSON.parse(fetchMock.mock.calls[1][1].body);
+  expect(first.reader.opening).toEqual(opening);
+  expect(legacy.id).toBe(first.id);
+  expect(legacy.reader.opening).toBeUndefined();
+  expect(legacy.records[0].opening).toBeUndefined();
+  expect(getDiagnosticSubmission().phase).toBe("failed");
+  fetchMock.mockResolvedValueOnce(Response.json({ id: first.id }));
+  await sendDiagnosticReport(null);
+  expect(fetchMock.mock.calls[2][1].body).toBe(fetchMock.mock.calls[1][1].body);
+  expect(getDiagnosticSubmission().phase).toBe("sent");
+});
+
+it("never rewrites a possibly stored report when a later retry meets an old Worker", async () => {
+  const opening = { phase: "file" as const, source: "cloud" as const, loadedBytes: 12, totalBytes: 24, elapsedMs: 1200, phaseElapsedMs: 1000, lastProgressAgoMs: 0, durations: { file: 1000 } };
+  const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError("receipt lost"));
+  vi.stubGlobal("fetch", fetchMock);
+  await sendDiagnosticReport({ interactionMode: "reading", pendingCount: 0, conflictCount: 0, opening });
+  const first = getDiagnosticSubmission().report!;
+  fetchMock.mockResolvedValueOnce(new Response(null, { status: 400 }));
+  await sendDiagnosticReport(null);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(getDiagnosticSubmission().report).toEqual(first);
+  fetchMock.mockResolvedValueOnce(Response.json({ id: first.id }));
+  await sendDiagnosticReport(null);
+  expect(fetchMock.mock.calls[2][1].body).toBe(fetchMock.mock.calls[0][1].body);
+  expect(getDiagnosticSubmission().phase).toBe("sent");
+});

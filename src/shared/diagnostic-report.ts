@@ -1,3 +1,4 @@
+import { readerOpeningSchema } from "./reader-opening";
 import { z } from "zod";
 import { diagnosticErrorCodes, diagnosticCategories, diagnosticOperations, diagnosticStages, diagnosticSteps, diagnosticErrorTypes } from "./diagnostics";
 
@@ -7,6 +8,7 @@ const build = z.string().regex(/^(?:[0-9a-f]{7,40}|development)$/).nullable();
 const version = z.string().regex(/^\d{1,4}(?:\.\d{1,6}){0,3}$/).nullable();
 const count = z.number().int().min(0).max(9999);
 export const diagnosticReaderSchema = z.object({
+  opening: readerOpeningSchema.optional(),
   interactionMode: z.enum(["reading", "editing"]),
   pendingCount: count.nullable(),
   conflictCount: count.nullable(),
@@ -30,6 +32,7 @@ export const diagnosticReportSchema = z.object({
   }).strict(),
   reader: diagnosticReaderSchema.nullable(),
   records: z.array(z.object({
+    opening: readerOpeningSchema.optional(),
     id: z.uuidv4(),
     time: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
     operation: z.enum(diagnosticOperations),

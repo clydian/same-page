@@ -1,4 +1,5 @@
 import { slowIndexedDbTasks } from "../../test/slow-indexeddb-tasks";
+import * as logoutFence from "./logout-fence";
 import { cleanupAuthClient } from "../../test/cleanup-auth-client";
 import { storeOfflineScore } from "../platform/local-database";
 import { effectiveCapabilities, emptyPermissions } from "../../shared/drive-permissions";
@@ -6,7 +7,7 @@ import { Blob as NodeBlob } from "node:buffer";
 import { sha256Hex } from "../offline/offline-score-verification";
 import { LocalIdentityObserver } from "../platform/local-identity-observer";
 import { clearPrivateLocalDataAfterLogout } from "./logout-local-data";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { AppRoutes } from "../app";
@@ -147,7 +148,7 @@ it("rechecks the same user on reconnect and keeps the drive route", async () => 
   act(() => window.dispatchEvent(new Event("offline")));
   act(() => window.dispatchEvent(new Event("online")));
   await screen.findByRole("heading", { name: "排练云盘" });
-  expect(await screen.findByRole("link", { name: /^cloud$/ })).toHaveAttribute("href", "/choirs/drive/scores/remote");
+  expect(await screen.findByRole("link", { name: /^cloud$/ }, { timeout: 4_000 })).toHaveAttribute("href", "/choirs/drive/scores/remote");
 });
 
 it("does not reveal the former user's saved list when another user authenticates", async () => {
@@ -172,4 +173,75 @@ it("does not recover the previous user's directory after explicit local logout c
   open();
   await screen.findByRole("heading", { name: "Harmony begins on the Same Page" });
   expect(screen.queryByText("a")).not.toBeInTheDocument();
+});
+
+it("the drive header recovers a failed session before reopening cloud-only scores", async () => {
+  await saved();
+  let unavailable = false;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("get-session")) {
+      if (unavailable) throw new TypeError("Failed to fetch");
+      return authenticatedResponse();
+    }
+    return Response.json(String(input).endsWith("/bootstrap") ? bootstrap : { memberships: [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  open("/choirs/drive");
+  await screen.findByRole("link", { name: /^cloud$/ });
+  unavailable = true;
+  await act(async () => { await authClient.$store.atoms.session.get().refetch(); });
+  await screen.findByText(/暂时无法连接/);
+  expect(screen.queryByRole("link", { name: /^cloud$/ })).not.toBeInTheDocument();
+  unavailable = false;
+  fireEvent.click(screen.getByRole("button", { name: "刷新乐谱列表" }));
+  expect(await screen.findByRole("link", { name: /^cloud$/ })).toBeInTheDocument();
+});
+
+it("reports local acceptance failure after HTTP 200 without claiming a connection failure", async () => {
+  await saved();
+  vi.stubGlobal("fetch", vi.fn(async () => authenticatedResponse()));
+  const accept = vi.spyOn(logoutFence, "acceptNewSession").mockRejectedValue(new DOMException("local failure", "UnknownError"));
+  try {
+    open("/choirs/drive");
+    expect(await screen.findByText(/本机身份校验暂时未完成/)).toBeInTheDocument();
+    expect(screen.queryByText(/暂时无法连接/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重试校验" })).toBeVisible();
+  } finally { accept.mockRestore(); }
+});
+
+it("recovers a transient session failure while remaining on the drive page", async () => {
+  await saved();
+  let unavailable = false;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("get-session")) {
+      if (unavailable) return Response.json({ message: "unavailable" }, { status: 503 });
+      return authenticatedResponse();
+    }
+    return Response.json(String(input).endsWith("/bootstrap") ? bootstrap : { memberships: [] });
+  }));
+  open("/choirs/drive");
+  await screen.findByRole("link", { name: /^cloud$/ });
+  unavailable = true;
+  await act(async () => { await authClient.$store.atoms.session.get().refetch(); });
+  await screen.findByText(/暂时无法连接/);
+  unavailable = false;
+  expect(await screen.findByRole("link", { name: /^cloud$/ }, { timeout: 4_000 })).toBeInTheDocument();
+});
+
+it.each(["signed-out", "local-error", "hidden"] as const)("the real auth client's online event respects %s recovery boundaries", async state => {
+  await saved();
+  const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => state === "local-error" ? authenticatedResponse() : Response.json({ message: "unavailable" }, { status: state === "signed-out" ? 401 : 503 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const accept = state === "local-error" ? vi.spyOn(logoutFence, "acceptNewSession").mockRejectedValue(new DOMException("local failure", "UnknownError")) : null;
+  const visibility = state === "hidden" ? vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden") : null;
+  try {
+    open("/choirs/drive");
+    await screen.findByText(state === "local-error" ? /本机身份校验暂时未完成/ : state === "signed-out" ? /重新登录后同步/ : /暂时无法连接/);
+    const sessionCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("get-session")).length;
+    const count = sessionCalls();
+    act(() => window.dispatchEvent(new Event("offline")));
+    act(() => window.dispatchEvent(new Event("online")));
+    await act(() => new Promise(resolve => setTimeout(resolve, 100)));
+    expect(sessionCalls()).toBe(count);
+  } finally { accept?.mockRestore(); visibility?.mockRestore(); }
 });

@@ -2,6 +2,7 @@ import type { LocalWorkspaceOwnerKey } from "../platform/local-workspace";
 import {
   loadPdfDocument,
   type PDFDocumentProxy,
+  type PdfLoadProgress,
 } from "./pdf-document";
 import { onReaderIdentityChange } from "./reader-cache-events";
 
@@ -22,6 +23,8 @@ interface CachedDocument {
     expected: string | null;
     actual: string | null;
   };
+  progress: PdfLoadProgress;
+  progressListeners: Set<(progress: PdfLoadProgress) => void>;
   references: number;
   releaseTimer: number | null;
 }
@@ -56,6 +59,7 @@ export function acquireReaderDocument(options: {
   source: string | ArrayBuffer;
   sourceKind: "cloud" | "offline";
   versionId?: string;
+  onProgress?: (progress: PdfLoadProgress) => void;
 }): ReaderDocumentLease {
   activateReaderDocumentOwner(options.ownerKey);
   const key = documentKey(options);
@@ -70,7 +74,14 @@ export function acquireReaderDocument(options: {
     cached = undefined;
   }
   if (!cached) {
-    const task = loadPdfDocument(options.source, options.versionId);
+    const progressListeners = new Set<(progress: PdfLoadProgress) => void>();
+    let progress: PdfLoadProgress = { phase: "engine", loadedBytes: null, totalBytes: null };
+    let settled = false;
+    const task = loadPdfDocument(options.source, options.versionId, next => {
+      if (settled) return;
+      progress = next;
+      progressListeners.forEach(listener => listener(next));
+    });
     const load = { task, destroyed: false };
     const version = {
       expected: options.versionId ?? null,
@@ -78,6 +89,7 @@ export function acquireReaderDocument(options: {
     };
     const promise = task.promise
       .then((opened) => {
+        settled = true;
         version.actual = opened.versionId;
         if (version.expected && opened.versionId !== version.expected) {
           throw new ReaderDocumentVersionMismatchError(version.expected);
@@ -85,6 +97,7 @@ export function acquireReaderDocument(options: {
         return opened.document;
       })
       .catch((error) => {
+        settled = true;
         destroyLoad(load);
         throw error;
       });
@@ -96,6 +109,8 @@ export function acquireReaderDocument(options: {
       load,
       promise,
       version,
+      get progress() { return progress; },
+      progressListeners,
       references: 0,
       releaseTimer: null,
     };
@@ -113,6 +128,8 @@ export function acquireReaderDocument(options: {
   }
   evictInactiveOverflow();
   let released = false;
+  const listener = options.onProgress;
+  if (listener) { cached.progressListeners.add(listener); listener(cached.progress); }
   return {
     promise: cached.promise.catch((error) => {
         if (documents.get(key) === cached) documents.delete(key);
@@ -121,6 +138,7 @@ export function acquireReaderDocument(options: {
     release: () => {
       if (released) return;
       released = true;
+      if (listener) cached!.progressListeners.delete(listener);
       release(key, cached!);
     },
   };
@@ -170,9 +188,9 @@ export function activateReaderDocumentOwner(ownerKey: LocalWorkspaceOwnerKey) {
 }
 
 export function clearReaderDocumentCache() {
-  for (const [key, cached] of documents) evict(key, cached);
+  for (const [key, cached] of documents) { cached.progressListeners.clear(); evict(key, cached); }
   documents.clear();
-  for (const cached of retired) destroyLoad(cached.load);
+  for (const cached of retired) { cached.progressListeners.clear(); destroyLoad(cached.load); }
   retired.clear();
   activeOwner = null;
 }

@@ -105,3 +105,7 @@
 
 .upload-progress { display: grid; gap: .25rem; width: 100%; }
 .upload-progress progress { width: 100%; accent-color: var(--brand); }
+
+.file-row__open[aria-disabled="true"] { flex-wrap: wrap; }
+.file-row__unavailable { width: 100%; color: var(--text-muted, #6b7280); font-size: 0.75rem; }
+.drive-connection-notice p { margin: 0.35rem 0; }

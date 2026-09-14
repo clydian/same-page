@@ -1,3 +1,4 @@
+import { useSessionRecovery } from "../auth/session-recovery";
 import { observeNavigationSession } from "../settings/navigation-events";
 import { ReadingPreferenceRecovery } from "../reader/reading-preference-recovery";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -14,25 +15,10 @@ import { clearDiagnostics } from "../diagnostics/diagnostics";
 export function LocalIdentityObserver() {
   const identity = useApplicationIdentity();
   const userId = identity.authenticatedUserId ?? undefined;
-  const refetch = identity.session.refetch;
+  useSessionRecovery(identity.onlineState, identity.session.isRefetching, identity.session.error?.status);
   useLayoutEffect(() => {
     observeNavigationSession(identity.authenticatedUserId ? `${identity.authenticatedUserId}:${identity.authenticatedSessionId ?? ""}` : null);
   }, [identity.authenticatedUserId, identity.authenticatedSessionId]);
-  useEffect(() => {
-    let running = false;
-    const reconnect = () => {
-      if (running) return;
-      running = true;
-      void refetch?.().finally(() => { running = false; });
-    };
-    const foreground = () => { if (document.visibilityState === "visible") reconnect(); };
-    window.addEventListener("online", reconnect);
-    document.addEventListener("visibilitychange", foreground);
-    return () => {
-      window.removeEventListener("online", reconnect);
-      document.removeEventListener("visibilitychange", foreground);
-    };
-  }, [refetch]);
   const readerIdentity = useRef(identity.localUserId);
   const [identityState, setIdentityState] = useState<{
     observedUserId: string | undefined;

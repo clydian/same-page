@@ -74,7 +74,12 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const [quotaBlocked, setQuotaBlocked] = useState(false);
   const [exportScore, setExportScore] = useState<ScoreSummary | null>(null);
   const [scoreAction, setScoreAction] = useState<ScoreActionSelection | null>(null);
-  const refresh = library.refresh;
+  const refresh = () => {
+    // Authentication changes cause useDriveLibrary to acquire/reload the now
+    // authorized resource. Never grant authority from a refetch result here.
+    if (identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || identity.onlineState === "checking") return identity.session.refetch();
+    return library.refresh();
+  };
   const refreshAfterMutation = library.changed;
   const updateSearch = library.setSearch;
   const updateSort = library.setSort;
@@ -164,7 +169,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   return (
     <div className="app-page drive-page">
-      <DriveHeader refreshing={snapshot.reading.request === "pending"} displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} localOnly={Boolean(access.local)} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()}
+      <DriveHeader refreshing={snapshot.reading.request === "pending" || identity.session.isRefetching} displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} localOnly={Boolean(access.local)} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()}
         management={() => <section className="drive-drawer-management">
           <h3>云盘管理</h3>
           <nav aria-label="云盘管理菜单">{[
@@ -175,10 +180,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
       />
       <main className="page-shell file-library">
         {access.retained && <p role="status">已无法访问此云盘，以下为本机保留内容</p>}
-        {(!online || (Boolean(userId) && identity.onlineState === "signed-out") || identity.onlineState === "unreachable" || searchMessage) && <details className="drive-connection-notice"><summary>{!online ? "离线" : searchMessage ? "列表更新失败" : identity.onlineState === "unreachable" ? "连接暂不可用" : "需要重新登录"}</summary>
+        {(!online || (Boolean(userId) && identity.onlineState === "signed-out") || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || searchMessage) && <div className="drive-connection-notice">
+          {!online && <p role="status">当前离线，已保存的乐谱可以继续打开。</p>}
           <IdentityNotice identity={identity} />
           {searchMessage && <p role="status">{searchMessage}<Button onPress={() => void refresh()}>重试</Button></p>}
-        </details>}
+        </div>}
         <InstallSuggestion />
         <section className="library-workspace" aria-labelledby="library-content-title">
           <div className="library-toolbar">
@@ -215,7 +221,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
             <section className="file-list" aria-label="PDF 文件">
               {visibleScores.map((score) => (
                 <article className="file-row" key={score.id}>
-                  <ScoreLink experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
+                  <ScoreLink explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
                     onOpen={() =>
                       {
                         startLoadingJourney(

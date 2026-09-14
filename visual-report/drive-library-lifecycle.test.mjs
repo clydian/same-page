@@ -91,7 +91,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("combobox", { name: "乐谱排序" }).selectOption("updated");
     unavailable = true;
     release(); waiting = null;
-    await page.getByText("列表更新失败", { exact: true }).click();
     await expect(page.getByText(/暂时无法更新乐谱列表，当前内容已保留/)).toBeVisible();
     await expect(page.locator(".file-row")).toHaveCount(1);
     await page.screenshot({ path: path.join(evidence, `${name}-refresh-failed.png`) });

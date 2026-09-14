@@ -1,3 +1,4 @@
+import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
 import { MAX_READER_ZOOM } from "../reader/reader-zoom";
 import { subscribeReaderSync } from "../reader/sync-reader";
 import { LocalPdfDownload } from "../reader/local-pdf-download";
@@ -309,13 +310,14 @@ function ReaderPageContent() {
   };
 
   const diagnosticReader: DiagnosticReader = {
+    ...(reader.snapshot.opening ? { opening: readerOpeningFacts(reader.snapshot.opening) } : {}),
     interactionMode: editing ? "editing" : "reading",
     pendingCount: activeAnnotations ? Math.min(9999, pendingCount) : null,
     conflictCount: activeAnnotations ? Math.min(9999, conflicts.length) : null,
   };
   const diagnosticDialog = <DiagnosticReportDialog reader={diagnosticReader} />;
 
-  const loadingScreen = <ReaderLoading choirId={choirId} fileName={score?.fileName} />;
+  const loadingScreen = <ReaderLoading opening={reader.snapshot.opening} choirId={choirId} fileName={score?.fileName} />;
 
   if (!workspace) {
     if (opening.state.status !== "failed") return loadingScreen;
@@ -341,6 +343,7 @@ function ReaderPageContent() {
         <p className="hero__copy" role="alert">
           {loadError}
         </p>
+        {reader.snapshot.opening && <p>加载停在：{readerOpeningLabel(reader.snapshot.opening.phase, reader.snapshot.opening.source).replace(/…$/, "")}</p>}
         <BackButton className="primary-link" to={`/choirs/${choirId}`}>返回云盘</BackButton>
         <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>重试加载</Button>
         {originalPdfDownload}
@@ -429,7 +432,7 @@ function ReaderPageContent() {
           乐谱已移入回收站。本机离线副本和未同步笔记仍保留，恢复后可继续同步。
         </aside>
       ) : null}
-      {presentation.status === "pending" ? <ReaderLoading choirId={choirId} fileName={score.fileName} /> : null}
+      {presentation.status === "pending" ? <ReaderLoading opening={reader.snapshot.opening} choirId={choirId} fileName={score.fileName} /> : null}
       {presentation.status === "failed" ? <div className="reader-display-recovery" role="alert">
         <span>页面显示失败，本机草稿仍保留。</span>{displayChoices}{diagnosticDialog}
       </div> : null}

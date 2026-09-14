@@ -64,3 +64,12 @@ npm run diagnostics:inbox -- mark --remote --id REPORT_UUID --status resolved
 `sync-layers` 现在细分为 `sync-layers-request`、`sync-layers-response`、`sync-layers-identity`、`sync-layers-cache`、`sync-layers-snapshot`，分别定位请求、响应解析、身份/层完整性、缓存事务与离线快照更新。`errorCode` 只接受固定枚举；`errorType` 可区分 `BulkError` / `ModifyError`，`causeType` 只保留有界嵌套异常中的白名单类型（如 `NotFoundError`）。不记录异常原文、任意字段、文件名、笔记或凭据。
 
 打开超时以 `reader-source`、`reader-document`、`reader-presentation` 区分尚未选定源、文档未就绪及首屏未呈现。PDF 文档就绪不等于首屏已显示。诊断证明某个失败步骤，不自动证明 Safari 底层文件异常的触发原因；真实 iPad PWA 验证需先核对设备 buildId，再分别执行打开、下载、清理后重试、断网重开、联网同步。
+
+
+### 乐谱打开阶段（#325）
+
+报告继续使用 version 1。`reader.opening` 和 `records[].opening` 为可选字段，旧客户端和历史报告仍按原格式接受。`ReaderOpening` 的同一快照供加载界面与诊断使用：固定阶段、cloud/offline/unknown 来源、PDF.js 提供的已载入/总字节、总耗时、当前阶段耗时、最后进展距今以及按阶段汇总耗时。时间是本次打开的墙钟经过时间；原 45 秒故障截止仍仅计算前台时间。字段不含文件名、URL、用户标识或异常原文，服务端按白名单与数值上限校验。
+
+`engine` 表示引擎尚未就绪；`file` 表示等待或接收 PDF 字节；`document` 表示已收到全部字节、等待文档解析；`local-check` 表示文档 promise 已完成而本机工作区校验尚未完成；`score` 表示文档已就绪、乐谱信息仍待确认；`page` 表示等待当前谱面显示。PDF.js 支持在全部字节下载完成前解析可用的文档，所以阶段可以从 `file` 直接进入 `local-check`；100% 文件传输不代表打开完成或离线副本已校验。`ready` 由当前页实际呈现确认，不由下载进度推断。失败时记录冻结快照，成功后手动诊断也保留本次打开耗时。
+
+部署应让接受新可选字段的 Worker 与新前端一起发布，保留已有存储 schema。回滚时优先保留 Worker 的兼容解析；若缓存中的新客户端在该报告首次发出时遇到旧 Worker 对扩展报告明确返回 400，会用相同报告 ID 去除这两个可选字段重试一次。网络失败或未知送达不触发格式降级，后续重试保留已发送的确切内容；没有重复创建反馈或业务请求重放。
