@@ -32,11 +32,13 @@ test("library and reader share export choices without saving notices at desktop 
     await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).waitFor();
     const defaults = await dialog.getByRole("checkbox").evaluateAll(inputs => inputs.map(input => [input.closest("label").textContent, input.checked]));
     await page.screenshot({ path: `artifacts/issue-238/${width}-library-export.png`, fullPage: true });
-    const [annotated] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "导出 PDF", exact: true }).click()]);
+    await dialog.getByRole("button", { name: "生成 PDF", exact: true }).click();
+    const [annotated] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "下载 PDF", exact: true }).click()]);
     assert.equal(await annotated.failure(), null);
     await annotated.saveAs(`artifacts/issue-238/${width}-annotated.pdf`);
     await dialog.getByRole("radio", { name: "仅原谱", exact: true }).check();
-    const [original] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "导出 PDF", exact: true }).click()]);
+    await dialog.getByRole("button", { name: "生成 PDF", exact: true }).click();
+    const [original] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "下载 PDF", exact: true }).click()]);
     assert.equal(await original.failure(), null);
     assert.equal(writes.length, 0);
     await dialog.getByRole("button", { name: "取消", exact: true }).click();

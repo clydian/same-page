@@ -26,5 +26,7 @@ export async function exportScore(workspace: LocalWorkspace, source: PDFDocument
   // A revocation received by another window during rendering must also win.
   const latest = await readScoreAnnotationState(workspace);
   if (selected.some(id => !latest.layers.some(layer => layer.id === id))) throw new Error("笔记层权限已变化，请重新选择后导出");
-  return blob;
+  if (selected.length && JSON.stringify(state.annotations) !== JSON.stringify(latest.annotations)) throw new Error("笔记已变化，请重新生成 PDF");
+  if (layers.some(layer => latest.layers.find(current => current.id === layer.id)?.displayColor !== layer.displayColor)) throw new Error("笔记颜色已变化，请重新生成 PDF");
+  return { blob, snapshot: JSON.stringify(latest) };
 }
