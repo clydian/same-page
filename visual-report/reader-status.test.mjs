@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { test } from "node:test";
+import { expect } from "@playwright/test";
 import { chromium } from "playwright";
 import { startVisualServer } from "./setup.mjs";
 import { resolveFixtureRequest } from "./fixtures.mjs";
@@ -66,6 +67,13 @@ test("reader menu, durable offline draft, reconnect and recovery evidence", asyn
     await captureStates(page, `${width}-editing.png`);
     await page.evaluate(() => { window.fixtureOnline = false; window.dispatchEvent(new Event("offline")); });
     const svg = page.locator("[data-page-turn-current] .annotation-overlay svg");
+    // A layout change cancels an unfinished placement. Its release must not
+    // open text, and the next touch must still be able to create a note.
+    await svg.dispatchEvent("pointerdown", { pointerId: 2, pointerType: "touch", clientX: width / 2, clientY: 450, bubbles: true });
+    await resizeAndSettle(page, 834);
+    await svg.dispatchEvent("pointerup", { pointerId: 2, pointerType: "touch", clientX: width / 2, clientY: 450, bubbles: true });
+    await expect(page.getByRole("textbox", { name: "笔记文本" })).toHaveCount(0);
+    await resizeAndSettle(page, width);
     await svg.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientX: width / 2, clientY: 450, bubbles: true });
     await svg.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientX: width / 2, clientY: 450, bubbles: true });
     await page.getByRole("textbox", { name: "笔记文本" }).fill("本机草稿等待重连");
@@ -126,7 +134,7 @@ test("reader menu, durable offline draft, reconnect and recovery evidence", asyn
 
 async function captureStates(page, name) {
   for (const width of [390, 834]) {
-    await page.setViewportSize({ width, height: 900 });
+    await resizeAndSettle(page, width);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name}/${width}: overflow`);
     for (const dialog of await page.getByRole("dialog").all()) {
       if (!await dialog.isVisible()) continue;
@@ -135,5 +143,24 @@ async function captureStates(page, name) {
     }
     if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/reader-${width}-${name}` });
   }
-  await page.setViewportSize({ width: 390, height: 900 });
+  await resizeAndSettle(page, 390);
+}
+
+async function resizeAndSettle(page, width) {
+  await page.setViewportSize({ width, height: 900 });
+  // setViewportSize finishes before ResizeObserver and React's layout commit.
+  // Observe the paper across frames before sending another pointer sequence.
+  await expect.poll(() => page.evaluate(async width => {
+    const geometry = () => [...document.querySelectorAll(".page-reader__viewport, [data-page-turn-current] .annotation-overlay")]
+      .map(element => {
+        const rect = element.getBoundingClientRect();
+        return [rect.x, rect.y, rect.width, rect.height];
+      });
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    await frame();
+    const before = JSON.stringify(geometry());
+    await frame();
+    await frame();
+    return innerWidth === width && before === JSON.stringify(geometry());
+  }, width)).toBe(true);
 }

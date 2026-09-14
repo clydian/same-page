@@ -90,6 +90,7 @@ export function useReaderGestures({
 }) {
   const constrain = useEffectEvent(() => constrainScroll?.());
   const settled = useEffectEvent(() => onZoomSettled?.());
+  const interruptNotes = useEffectEvent(() => onNavigationStart?.());
   const objectPointers = useRef(new Set<string>());
   const points = useRef(new Map<string, Point>());
   const primary = useRef<{
@@ -231,6 +232,9 @@ export function useReaderGestures({
   );
 
   useLayoutEffect(() => {
+    // The drained sequence will swallow its release; retire the child
+    // placement too so the next touch can start a new note.
+    if (twoFingerOnly && points.current.size > 0) interruptNotes();
     settled();
     cancelPairFrame();
     clearPreview();
