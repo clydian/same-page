@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { PDFDocumentProxy } from "./pdf-document";
 import { Context } from "../navigation/navigation-context";
 import { useContinuousReaderLayout } from "./use-continuous-reader-layout";
+import { useReaderGestures } from "./use-reader-gestures";
 
 let width = 600;
 let height = 800;
@@ -56,16 +57,20 @@ function Harness({ document, initialPage = 1, editing = false, idle = () => true
   const [navigationRequest, navigated] = useState(0);
   const { scrollRef, contentRef, onScroll, width, height, items, geometryGestures } = useContinuousReaderLayout({ document, currentPage: page, zoom, fitRequest, navigationRequest,
     editing, navigation: { phase: "idle", targetPage: null }, onPageChange: setPage, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); } });
+  const gestures = useReaderGestures({ containerRef: scrollRef, contentRef, zoom,
+    disabled: false, twoFingerOnly: editing, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); },
+    onTap: () => {}, tapScope: document, gestureRevision: `${fitRequest}:${navigationRequest}:${width}:${height}`,
+    ...geometryGestures,
+  });
   const navigate = (delta: number) => { if (!idle() || page + delta < 1 || page + delta > document.numPages) return; setPage(page + delta); navigated(value => value + 1); };
   return <>
     <output data-testid="page">{page}</output><output data-testid="zoom">{zoom}</output>
     <button onClick={() => setZoom(requestedZoom.current)}>commit zoom</button>
     <button onClick={() => setPage(1)}>select first</button>
     <button onClick={() => fit(value => value + 1)}>fit</button>
-    <button onClick={() => { geometryGestures.captureAnchor({ x: 200, y: 200 }); geometryGestures.onZoomSettled(); }}>cancel pinch</button>
     <button onClick={() => navigate(1)}>next</button>
     <button onClick={() => navigate(-1)}>previous</button>
-    <div data-testid="viewport" ref={scrollRef} onScroll={onScroll}>
+    <div data-testid="viewport" ref={scrollRef} {...gestures} onScroll={onScroll}>
       <div ref={contentRef} style={{ width: width, height: height }}>
         {items.map(item => <div key={item.index} data-testid={`page-${item.index + 1}`}
           style={{ height: item.width / item.aspectRatio, transform: `translateY(${item.start}px)` }} />)}
@@ -203,7 +208,11 @@ it("retains the fitted viewport after a canceled pinch", async () => {
   mount({ document: pdf([0.5]).document });
   fireEvent.click(screen.getByText("fit"));
   await waitFor(() => expect(Number(screen.getByTestId("zoom").textContent)).toBeCloseTo(2 / 3));
-  fireEvent.click(screen.getByText("cancel pinch"));
+  const viewport = screen.getByTestId("viewport");
+  const touch = (identifier: number, clientX: number) => ({ identifier, clientX, clientY: 200, target: viewport });
+  fireEvent.touchStart(viewport, { touches: [touch(1, 100), touch(2, 300)], changedTouches: [touch(1, 100), touch(2, 300)] });
+  fireEvent.touchMove(viewport, { touches: [touch(1, 100), touch(2, 400)], changedTouches: [touch(2, 400)] });
+  fireEvent.touchCancel(viewport, { touches: [], changedTouches: [touch(1, 100), touch(2, 400)] });
   act(() => { width = 1000; height = 600; resize.forEach(notify => notify()); });
   await waitFor(() => expect(Number(screen.getByTestId("zoom").textContent)).toBeCloseTo(0.3));
 });

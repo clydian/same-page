@@ -83,9 +83,7 @@ export function capturePaperAnchor(content: HTMLElement, center: ReaderPoint) {
   };
 }
 
-export function doubleTapZoomTarget(container: HTMLElement, content: HTMLElement, center: ReaderPoint, zoom: number, continuous: boolean) {
-  const anchor = capturePaperAnchor(content, center);
-  if (!anchor) return null;
+export function doubleTapZoomTarget(container: HTMLElement, anchor: NonNullable<ReturnType<typeof capturePaperAnchor>>, center: ReaderPoint, zoom: number, continuous: boolean) {
   // Each layout's 100% is its reading baseline: fit-width for continuous,
   // fit-page for paged. A default continuous view must enlarge on first tap.
   const fitted = 1;

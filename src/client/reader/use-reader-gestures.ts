@@ -10,35 +10,15 @@ import {
 } from "react";
 
 import { useReaderTaps } from "./use-reader-taps";
-import { doubleTapZoomTarget, MAX_READER_ZOOM, placeReaderAnchor, readerOffset, resetReaderOffset, setReaderOffset } from "./reader-zoom";
+import { readerOffset, setReaderOffset } from "./reader-zoom";
+import { useReaderZoom, type ReaderZoomGeometry, type ReaderZoomGesture } from "./use-reader-zoom";
 import type { PageTurnGesture } from "./use-paged-reader";
-
-const MIN_PINCH_ZOOM = 0.75;
-const MAX_ZOOM = MAX_READER_ZOOM;
 
 type GesturePointer = Pick<ReactPointerEvent<HTMLElement>, "pointerId" | "pointerType" | "clientX" | "clientY" | "timeStamp" | "currentTarget"> & { source?: "touch-event"; target?: EventTarget | null };
 
 interface Point {
   x: number;
   y: number;
-}
-
-interface PinchSession {
-  distance: number;
-  zoom: number;
-  contentBounds: DOMRect;
-  contentPoint: Point;
-  scroll: Point;
-  resolveAnchor?: (zoom: number) => Point;
-}
-
-interface PinchPreview {
-  zoom: number;
-  scale: number;
-  offset: Point;
-  center: Point;
-  contentRatio: Point;
-  resolveAnchor?: (zoom: number) => Point;
 }
 
 export function useReaderGestures({
@@ -55,13 +35,11 @@ export function useReaderGestures({
   pageTurn,
   pageTurnExtent,
   nativeTouchScroll = false,
-  captureAnchor,
+  zoomGeometry,
   gestureRevision,
   tapEnabled = true,
   tapScope,
   tapRevision,
-  constrainScroll,
-  onZoomSettled,
   onNavigationStart,
   isObjectGestureActive,
 }: {
@@ -78,19 +56,19 @@ export function useReaderGestures({
   pageTurn?: PageTurnGesture;
   pageTurnExtent?: number;
   nativeTouchScroll?: boolean;
-  constrainScroll?(): void;
-  onZoomSettled?(): void;
   onNavigationStart?(): void;
   isObjectGestureActive?(): boolean;
   gestureRevision?: string;
   tapEnabled?: boolean;
   tapScope?: unknown;
   tapRevision?: string;
-  captureAnchor?(center: Point): (zoom: number) => Point;
+  zoomGeometry?: ReaderZoomGeometry;
 }) {
-  const constrain = useEffectEvent(() => constrainScroll?.());
-  const settled = useEffectEvent(() => onZoomSettled?.());
   const interruptNotes = useEffectEvent(() => onNavigationStart?.());
+  const zoomHandoff = useReaderZoom({ containerRef, contentRef, previewBoundaryRef, zoom, minimumZoom, onZoomChange,
+    geometry: zoomGeometry, continuous: nativeTouchScroll, scope: tapScope, revision: gestureRevision,
+    mode: twoFingerOnly, disabled, navigation: pageTurn });
+  const cancelZoom = zoomHandoff.cancel;
   const objectPointers = useRef(new Set<string>());
   const points = useRef(new Map<string, Point>());
   const primary = useRef<{
@@ -98,10 +76,7 @@ export function useReaderGestures({
     x: number;
     y: number;
   } | null>(null);
-  const pinch = useRef<PinchSession | null>(null);
-  const preview = useRef<PinchPreview | null>(null);
-  const pendingCommit = useRef<PinchPreview | null>(null);
-  const latestZoom = useRef(zoom);
+  const pinch = useRef<{ distance: number; gesture: ReaderZoomGesture } | null>(null);
   const pinched = useRef(false);
   const navigation = useRef<{ origin: Point; left: number; right: number; scrollLeft: number; scrollTop: number; extent: number; offset: Point } | null>(null);
   const scaled = useRef(false);
@@ -120,23 +95,7 @@ export function useReaderGestures({
       }
       onTap();
     },
-    onDouble: (point) => {
-      const container = containerRef.current, content = contentRef.current;
-      if (!container || !content) return;
-      captureAnchor?.(point);
-      const target = doubleTapZoomTarget(container, content, point, zoom, nativeTouchScroll);
-      if (!target) return;
-      if (target.restore) resetReaderOffset(content);
-      const commit: PinchPreview = { ...target, scale: target.zoom / zoom,
-        offset: { x: 0, y: 0 }, contentRatio: { x: 0, y: 0 } };
-      if (Math.abs(target.zoom - zoom) < 0.001) {
-        placeReaderAnchor(container, content, target.resolveAnchor, target.center);
-        onZoomSettled?.();
-      } else {
-        pendingCommit.current = commit;
-        onZoomChange(target.zoom);
-      }
-    },
+    onDouble: zoomHandoff.doubleTap,
   });
   const beginNavigation = (center: Point, time: number) => {
     const container = containerRef.current;
@@ -165,7 +124,7 @@ export function useReaderGestures({
       x: session.offset.x + pan + container.scrollLeft - session.scrollLeft,
     });
     if (!nativeVertical) container.scrollTop = session.scrollTop - dy;
-    constrainScroll?.();
+    zoomGeometry?.constrain();
     const remaining = dx - pan;
     // Rebase while inside the paper: neither pan distance nor its velocity
     // enters the pager, including after reversing a partial page turn.
@@ -177,80 +136,28 @@ export function useReaderGestures({
     }
   };
 
-  const clearPreview = useCallback(() => {
-    previewBoundaryRef?.current?.removeAttribute("data-gesture-preview");
-    const content = contentRef.current;
-    if (!content) return;
-    content.style.removeProperty("--reader-gesture-scale");
-    content.style.removeProperty("--reader-gesture-x");
-    content.style.removeProperty("--reader-gesture-y");
-    content.removeAttribute("data-gesture-preview");
-  }, [contentRef, previewBoundaryRef]);
-
-  const paintPreview = useCallback((next: PinchPreview) => {
-    const content = contentRef.current;
-    if (!content) return;
-    previewBoundaryRef?.current?.setAttribute("data-gesture-preview", "");
-    content.style.setProperty("--reader-gesture-scale", String(next.scale));
-    content.style.setProperty("--reader-gesture-x", `${next.offset.x}px`);
-    content.style.setProperty("--reader-gesture-y", `${next.offset.y}px`);
-    content.setAttribute("data-gesture-preview", "");
-  }, [contentRef, previewBoundaryRef]);
-
   const cancelPairFrame = useCallback(() => {
     if (pairFrame.current === null) return;
     cancelAnimationFrame(pairFrame.current);
     pairFrame.current = null;
   }, []);
 
-  useLayoutEffect(() => {
-    latestZoom.current = zoom;
-    const commit = pendingCommit.current;
-    const container = containerRef.current;
-    const content = contentRef.current;
-    if (!commit || !container || !content || Math.abs(commit.zoom - zoom) > 0.001) {
-      return;
-    }
-
-    clearPreview();
-    placeReaderAnchor(container, content, () => {
-      const bounds = content.getBoundingClientRect();
-      return commit.resolveAnchor?.(zoom) ?? { x: bounds.width * commit.contentRatio.x, y: bounds.height * commit.contentRatio.y };
-    }, commit.center);
-    constrain();
-    settled();
-    pendingCommit.current = null;
-    preview.current = null;
-  }, [clearPreview, containerRef, contentRef, zoom]);
-
-  useLayoutEffect(
-    () => () => {
-      cancelPairFrame();
-      clearPreview();
-    },
-    [cancelPairFrame, clearPreview],
-  );
+  useLayoutEffect(() => () => { cancelPairFrame(); }, [cancelPairFrame]);
 
   useLayoutEffect(() => {
     // The drained sequence will swallow its release; retire the child
     // placement too so the next touch can start a new note.
     if (twoFingerOnly && points.current.size > 0) interruptNotes();
-    settled();
+    cancelZoom();
     cancelPairFrame();
-    clearPreview();
     navigation.current = null;
     pinch.current = null;
-    preview.current = null;
-    pendingCommit.current = null;
     drained.current = points.current.size > 0;
-  }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairFrame, clearPreview]);
+  }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairFrame, cancelZoom]);
 
   const drainSequence = () => {
-    onZoomSettled?.();
+    cancelZoom();
     cancelPairFrame();
-    clearPreview();
-    preview.current = null;
-    pendingCommit.current = null;
     navigation.current = null;
     pinch.current = null;
     drained.current = points.current.size > 0;
@@ -291,20 +198,10 @@ export function useReaderGestures({
     if (twoFingerOnly) onNavigationStart?.();
     const [first, second] = [...points.current.values()];
     const center = midpoint(first, second);
-    const contentBounds = content.getBoundingClientRect();
-    pinch.current = {
-      resolveAnchor: captureAnchor?.(center),
-      distance: distance(first, second),
-      zoom,
-      contentBounds,
-      scroll: { x: containerRef.current?.scrollLeft ?? 0, y: containerRef.current?.scrollTop ?? 0 },
-      contentPoint: {
-        x: center.x - contentBounds.left,
-        y: center.y - contentBounds.top,
-      },
-    };
+    const gesture = zoomHandoff.begin(center);
+    if (!gesture) return;
+    pinch.current = { distance: distance(first, second), gesture };
     beginNavigation(center, event.timeStamp);
-    latestZoom.current = zoom;
     pinched.current = true;
   };
 
@@ -318,43 +215,7 @@ export function useReaderGestures({
     }
     scaled.current = true;
     pageTurn?.cancel(0, true);
-    const nextZoom = clamp(
-      pinch.current.zoom * (distance(first, second) / pinch.current.distance),
-      Math.min(MIN_PINCH_ZOOM, minimumZoom * 0.75),
-      MAX_ZOOM,
-    );
-    const scale = nextZoom / pinch.current.zoom;
-    const next: PinchPreview = {
-      resolveAnchor: pinch.current.resolveAnchor,
-      zoom: nextZoom,
-      scale,
-      offset: {
-        x:
-          center.x -
-          pinch.current.contentBounds.left -
-          pinch.current.contentPoint.x * scale + (containerRef.current?.scrollLeft ?? 0) - pinch.current.scroll.x,
-        y:
-          center.y -
-          pinch.current.contentBounds.top -
-          pinch.current.contentPoint.y * scale + (containerRef.current?.scrollTop ?? 0) - pinch.current.scroll.y,
-      },
-      center,
-      contentRatio: {
-        x: clamp(
-          pinch.current.contentPoint.x / Math.max(1, pinch.current.contentBounds.width),
-          0,
-          1,
-        ),
-        y: clamp(
-          pinch.current.contentPoint.y / Math.max(1, pinch.current.contentBounds.height),
-          0,
-          1,
-        ),
-      },
-    };
-    latestZoom.current = nextZoom;
-    preview.current = next;
-    paintPreview(next);
+    pinch.current.gesture.update(center, distance(first, second) / pinch.current.distance);
   };
 
   const flushPair = () => {
@@ -390,35 +251,7 @@ export function useReaderGestures({
 
   const finishPinch = () => {
     cancelPairFrame();
-    const lastPreview = preview.current;
-    const settledZoom = clamp(latestZoom.current, minimumZoom, MAX_ZOOM);
-    if (lastPreview && Math.abs(settledZoom - zoom) < 0.001) {
-      clearPreview();
-      const container = containerRef.current;
-      const bounds = contentRef.current?.getBoundingClientRect();
-      if (container && bounds) {
-        placeReaderAnchor(container, contentRef.current!, () => lastPreview.resolveAnchor?.(zoom) ?? {
-          x: bounds.width * lastPreview.contentRatio.x, y: bounds.height * lastPreview.contentRatio.y,
-        }, lastPreview.center);
-      }
-    }
-    if (!lastPreview || Math.abs(settledZoom - zoom) < 0.001) {
-      constrainScroll?.();
-      onZoomSettled?.();
-      pendingCommit.current = null;
-      preview.current = null;
-      clearPreview();
-      resetGesture();
-      return;
-    }
-    const commit = {
-      ...lastPreview,
-      zoom: settledZoom,
-      scale: settledZoom / (pinch.current?.zoom ?? zoom),
-    };
-    paintPreview(commit);
-    pendingCommit.current = commit;
-    onZoomChange(settledZoom);
+    pinch.current?.gesture.finish();
     resetGesture();
   };
 
@@ -435,6 +268,7 @@ export function useReaderGestures({
     if (wasPinched) {
       if (points.current.size === 1 && pageTurn && !scaled.current) {
         pageTurn.end({ sessionId: 0, x: 0, y: 0, time: event.timeStamp, extent: pageTurnExtent ?? 1 });
+        cancelZoom();
         drained.current = true;
       } else if (points.current.size === 0) finishPinch();
       return;
@@ -456,12 +290,10 @@ export function useReaderGestures({
     if (pairFrame.current !== null) cancelAnimationFrame(pairFrame.current);
     pairFrame.current = null;
     if (pinched.current) {
-      onZoomSettled?.();
+      cancelZoom();
       drained.current = points.current.size > 0;
       cancelPairFrame();
-      pendingCommit.current = null;
-      preview.current = null;
-      clearPreview();
+
       if (points.current.size === 0) resetGesture();
     } else if (points.current.size === 0) {
       primary.current = null;
@@ -510,7 +342,7 @@ export function useReaderGestures({
     const objectActive = isObjectGestureActive?.() ?? false;
     if (objectPointers.current.size > 0 || objectActive) {
       pageTurn?.cancel(0, true);
-      cancelPairFrame(); clearPreview();
+      cancelPairFrame(); cancelZoom();
       for (const id of points.current.keys()) objectPointers.current.add(id);
       points.current.clear();
       primary.current = null;
