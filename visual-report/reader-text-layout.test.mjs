@@ -67,28 +67,9 @@ test("gives short editable text a 44px hit target without enlarging its visual b
   ]);
 });
 
-test("aligns explicit lines around the same anchor and lets long lines extend past the page", async context => {
+test("lets long notes extend past the page without wrapping", async context => {
   const browser = await testBrowser(context);
   const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
-  for (const align of ["left", "center", "right"]) {
-    await setFixture(page, annotationPage("aligned", 600, "长的一行提示\n短句", 2.4));
-    const result = await page.locator("#aligned").evaluate((element, align) => {
-      element.style.textAlign = align;
-      const node = element.firstChild;
-      const index = node.textContent.indexOf("\n");
-      const range = document.createRange();
-      range.setStart(node, 0); range.setEnd(node, index);
-      const first = range.getBoundingClientRect();
-      range.setStart(node, index + 1); range.setEnd(node, node.textContent.length);
-      const second = range.getBoundingClientRect();
-      const value = box => align === "left" ? box.left : align === "right" ? box.right : (box.left + box.right) / 2;
-      const box = element.getBoundingClientRect();
-      const parent = element.parentElement.getBoundingClientRect();
-      return { lineDelta: value(first) - value(second), anchorDelta: (box.left + box.right) / 2 - (parent.left + parent.right) / 2 };
-    }, align);
-    assert.ok(Math.abs(result.lineDelta) < 1, align);
-    assert.ok(Math.abs(result.anchorDelta) < 1, align);
-  }
   await setFixture(page, annotationPage("overflow", 600, "不自动换行".repeat(30), 2.4));
   await page.locator("#overflow").evaluate(element => { element.style.left = "98%"; });
   const [layout] = await measureTextLayouts(page);

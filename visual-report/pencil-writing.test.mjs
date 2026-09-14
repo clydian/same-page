@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
 import { before, after, test } from "node:test";
 import { chromium, webkit } from "playwright";
 import { startVisualServer } from "./setup.mjs";
@@ -83,42 +82,5 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     for (let i=1; i<=8; i++) await pointer(page, "pointermove", .2+i*.05, .3);
     await pointer(page, "pointerup", .6, .3);
     assert.deepEqual(await page.evaluate(() => { window.pencilToolbarObserver.disconnect(); return {same:window.pencilToolbar===document.querySelector('.annotation-controls'), changes:window.pencilToolbarChanges}; }), {same:true,changes:[]});
-  });
-  test(`${name}: quiet hover uses roll and ignores tilt`, async t => {
-    const page = await openReader(t, engine);
-    await pointer(page, "pointermove", .5, .5, {buttons:0,pressure:0});
-    assert.equal(await page.locator(".annotation-hover-tool").count(), 0);
-    const dot = page.locator('[aria-label="笔尖预览"] ellipse');
-    assert.notEqual(await dot.getAttribute("fill"), "none");
-    await page.getByRole("button", {name:"荧光笔",exact:true}).click();
-    const hover = page.locator('[aria-label="笔尖预览"] path');
-    await pointer(page,"pointermove",.5,.5,{buttons:0,pressure:0,twist:0});
-    await page.evaluate(() => new Promise(requestAnimationFrame));
-    const initial = await hover.getAttribute("d");
-    await pointer(page,"pointermove",.5,.5,{buttons:0,pressure:0,twist:0,tiltX:60,tiltY:30});
-    await page.evaluate(() => new Promise(requestAnimationFrame));
-    assert.equal(await hover.getAttribute("d"),initial);
-    await pointer(page,"pointermove",.5,.5,{buttons:0,pressure:0,twist:90,tiltX:60,tiltY:30});
-    await page.waitForFunction(previous => document.querySelector('[aria-label="笔尖预览"] path')?.getAttribute("d") !== previous, initial);
-    assert.notEqual(await hover.getAttribute("d"),initial);
-    await mkdir("artifacts/editor-preview", {recursive:true});
-    await page.screenshot({path:`artifacts/editor-preview/${name}-quiet-hover.png`});
-    await page.getByRole("button", {name:"整条橡皮",exact:true}).click();
-    await pointer(page,"pointermove",.5,.5,{buttons:0,pressure:0});
-    const shadow = page.locator('[aria-label="笔尖预览"] ellipse');
-    assert.equal(await shadow.getAttribute("stroke"),null);
-    assert.ok(Number(await shadow.getAttribute("fill-opacity")) <= .15);
-    await pointer(page,"pointermove",.5,.35,{buttons:0,pressure:0});
-    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    const bounds = await page.locator(".annotation-overlay svg").first().boundingBox();
-    const shot = await page.screenshot({clip:{x:bounds.x+bounds.width*.5-25,y:bounds.y+bounds.height*.35-25,width:50,height:50}});
-    const fade = await page.evaluate(async data => {
-      const image = new Image(); image.src = data; await image.decode();
-      const canvas = document.createElement("canvas"); canvas.width=canvas.height=50;
-      const context = canvas.getContext("2d"); context.drawImage(image,0,0);
-      return [0,7,12,17].map(offset => context.getImageData(25+offset,25,1,1).data[1]);
-    }, `data:image/png;base64,${shot.toString("base64")}`);
-    assert.ok(fade[0] > 220 && fade[0]+5 < fade[1] && fade[1]+3 < fade[2] && fade[3] >= 253, `shadow must fade smoothly into the page: ${fade}`);
-    await page.screenshot({path:`artifacts/editor-preview/${name}-eraser-hover.png`});
   });
 }

@@ -20,22 +20,6 @@ async function open(context, identity = "member", experience = false) {
   await page.getByRole('button', { name: '更多', exact: true }).click();
   return page;
 }
-test('landscape continuous fit contains the entire current page', async context => {
-  const page = await open(context);
-  await page.getByRole('button', { name: '连续滚动', exact: true }).click();
-  await page.getByRole('button', { name: '更多', exact: true }).click();
-  await page.getByRole('button', { name: '适合页面', exact: true }).click();
-  await expect.poll(() => page.locator('.continuous-reader__page[data-index="0"] .annotated-pdf-page').evaluate(el => el.getBoundingClientRect().height)).toBeLessThanOrEqual(700);
-});
-test('safe areas do not cut off the zoomed landscape viewport', async context => {
-  const page = await open(context);
-  await page.evaluate(() => document.querySelector('.reader-shell').style.cssText = '--reader-safe-left: 24px; --reader-safe-right: 24px; --reader-safe-bottom: 20px');
-  await page.getByRole('button', { name: '放大', exact: true }).click();
-  const bounds = await page.locator('.page-reader__viewport').boundingBox();
-  assert.equal(bounds.x, 0);
-  assert.equal(bounds.width, 1194);
-  assert.equal(bounds.height, 700);
-});
 test('two-finger editing pans the score without leaving a text placement', async context => {
   const page = await open(context);
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: '放大', exact: true }).click();

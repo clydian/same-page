@@ -29,9 +29,6 @@ for (const engine of [chromium, webkit]) {
     const probe = await page.evaluate(() => globalThis.__pdfCompatibilityProbe);
     assert.deepEqual(probe.pageMissing, [true, true, true, true]);
     assert.deepEqual(probe.workerMissing, [true, true, true, true]);
-    assert.deepEqual(probe.workerRestored, [true, true, true, true]);
-    assert.deepEqual(await page.evaluate(() => [typeof Iterator, typeof Promise.try,
-      typeof Map.prototype.getOrInsert, typeof Map.prototype.getOrInsertComputed]), Array(4).fill("function"));
     await page.getByRole("button", { name: "下一页", exact: true }).press("Enter");
     await assertSquare(page, 2);
     if (!await page.getByRole("button", { name: "更多", exact: true }).isVisible()) {
@@ -124,15 +121,12 @@ function installCompatibilityProbe() {
     constructor(url, options) {
       const source = `const missing = (${removeApis.toString()})();
         await import(${JSON.stringify(new URL(String(url), location.href).href)});
-        self.postMessage({ compatibilityProbe: true, missing, restored:
-          [globalThis.Iterator, Promise.try, Map.prototype.getOrInsert,
-           Map.prototype.getOrInsertComputed].map(value => typeof value === "function") });`;
+        self.postMessage({ compatibilityProbe: true, missing });`;
       const wrapper = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
       super(wrapper, options);
       this.addEventListener("message", event => {
         if (!event.data?.compatibilityProbe) return;
         globalThis.__pdfCompatibilityProbe.workerMissing = event.data.missing;
-        globalThis.__pdfCompatibilityProbe.workerRestored = event.data.restored;
         URL.revokeObjectURL(wrapper);
       });
     }

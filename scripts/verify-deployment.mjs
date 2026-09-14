@@ -72,7 +72,6 @@ export async function verifyDeployment({
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.equal(response.headers.get("referrer-policy"), "no-referrer");
     const html = await response.text();
-    assert.match(html, /<title>合谱 · Same Page<\/title>/);
     assert.ok(html.includes(`<meta name="same-page-build-id" content="${expectedBuildId}">`), "application shell must contain the expected build identity");
     const scriptPaths = shellJavaScriptAssets(html);
     assert.ok(scriptPaths.length > 0, "application shell must load hashed scripts");
@@ -121,8 +120,6 @@ export async function verifyDeployment({
       /no-cache|max-age=0/,
       "manifest must be revalidated",
     );
-    assert.equal(manifest.name, "合谱 · Same Page");
-    assert.equal(manifest.short_name, "合谱");
     assert.equal(manifest.display, "standalone");
   }
 

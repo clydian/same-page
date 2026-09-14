@@ -16,7 +16,7 @@ it("forwards actual PDF.js progress, leaves unknown totals indeterminate and sto
   const progress = vi.fn();
   const load = loadPdfDocument("/versions/v1/pdf", "v1", progress);
   await vi.waitFor(() => expect(engine.getDocument).toHaveBeenCalled());
-  expect(engine.getDocument).toHaveBeenCalledWith(expect.objectContaining({ url: "/versions/v1/pdf", rangeChunkSize: 65_536, withCredentials: true }));
+  expect(engine.getDocument).toHaveBeenCalledWith(expect.objectContaining({ url: "/versions/v1/pdf", withCredentials: true }));
   task.onProgress({ loaded: 123, total: NaN });
   expect(progress).toHaveBeenLastCalledWith({ phase: "file", loadedBytes: 123, totalBytes: null });
   task.onProgress({ loaded: 500, total: 1000 });

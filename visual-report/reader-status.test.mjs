@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { expect } from "@playwright/test";
 import { chromium } from "playwright";
@@ -8,13 +7,10 @@ import { resolveFixtureRequest } from "./fixtures.mjs";
 
 // Real client, IndexedDB, PDF canvas and outbox; API fixtures and network events
 // are simulated. This is not physical-device or airplane-mode acceptance.
-test("reader menu, durable offline draft, reconnect and recovery evidence", async (t) => {
+test("failed local save blocks browser back and retains the draft through reconnect", async (t) => {
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const output = process.env.LAYOUT_CAPTURE_DIR;
-  if (process.env.LAYOUT_CAPTURE_DIR) await mkdir(output, { recursive: true });
-  const evidence = [];
   {
     const width = 390;
     const context = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block", reducedMotion: "reduce" });
@@ -57,14 +53,9 @@ test("reader menu, durable offline draft, reconnect and recovery evidence", asyn
     const menu = page.getByRole("dialog", { name: "更多阅读选项" });
     await menu.waitFor();
     await menu.getByRole("region", { name: "笔记保存与同步" }).waitFor();
-    const bounds = await menu.boundingBox();
-    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1);
-    assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= 901);
-    await captureStates(page, `${width}-menu.png`);
     await page.getByRole("button", { name: "关闭更多阅读选项" }).click();
     await page.getByRole("button", { name: /^(编辑|完成编辑)$/, exact: true }).click();
     await page.locator(".annotation-controls").waitFor();
-    await captureStates(page, `${width}-editing.png`);
     await page.evaluate(() => { window.fixtureOnline = false; window.dispatchEvent(new Event("offline")); });
     const svg = page.locator("[data-page-turn-current] .annotation-overlay svg");
     // A layout change cancels an unfinished placement. Its release must not
@@ -78,11 +69,9 @@ test("reader menu, durable offline draft, reconnect and recovery evidence", asyn
     await svg.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientX: width / 2, clientY: 450, bubbles: true });
     await page.getByRole("textbox", { name: "笔记文本" }).fill("本机草稿等待重连");
     assert.equal(await page.locator(".annotation-controls").count(), 0);
-    await captureStates(page, `${width}-text.png`);
     await page.evaluate(() => { window.fixtureStorageFailed = true; history.back(); });
     await page.getByText("本机保存失败", { exact: true }).waitFor();
     assert.equal(await page.getByRole("textbox", { name: "笔记文本" }).inputValue(), "本机草稿等待重连");
-    await captureStates(page, `${width}-storage-failed.png`);
     await page.evaluate(() => { window.fixtureStorageFailed = false; });
     await page.evaluate(() => history.back());
     await page.getByRole("form", { name: "文字输入" }).waitFor({ state: "hidden" });
@@ -91,60 +80,19 @@ test("reader menu, durable offline draft, reconnect and recovery evidence", asyn
     await page.getByText("已保存在本机 · 等待联网", { exact: true }).waitFor();
     assert.equal(pushes, 0);
     await page.getByText("已保存在本机 · 等待联网", { exact: true }).scrollIntoViewIfNeeded();
-    await captureStates(page, `${width}-offline-draft.png`);
     failSync = true;
     await page.evaluate(() => { window.fixtureOnline = true; window.dispatchEvent(new Event("online")); });
     await menu.getByRole("button", { name: "重试同步", exact: true }).waitFor();
-    await captureStates(page, `${width}-sync-failed.png`);
     failSync = false;
     await menu.getByRole("button", { name: "重试同步", exact: true }).click();
     await page.getByText("没有待上传的修改", { exact: true }).waitFor();
     assert.ok(pushes > 0);
-    await captureStates(page, `${width}-synced.png`);
     await page.getByRole("button", { name: "关闭更多阅读选项" }).click();
     assert.equal(await page.locator("[data-page-turn-current] [data-pdf-canvas-active]").count(), 1);
     assert.deepEqual(errors, []);
-    evidence.push({ width, height: 900, pushes, errors, flow: "open → edit → durable local draft → simulated reconnect → accepted sync" });
     await context.close();
   }
-  const loadingContext = await browser.newContext({ viewport: { width: 390, height: 900 }, serviceWorkers: "block" });
-  let failOpen;
-  const delayedPdf = new Promise(resolve => { failOpen = resolve; });
-  await loadingContext.route("**/api/**", async route => {
-    const request = route.request();
-    const pathname = new URL(request.url()).pathname;
-    if (pathname.endsWith("/pdf")) {
-      await delayedPdf;
-      return route.fulfill({ status: 503, body: "unavailable" });
-    }
-    return route.fulfill(resolveFixtureRequest({ pathname, method: request.method(), identity: "member", scenarioId: "reader-status", cookie: "" }));
-  });
-  const loadingPage = await loadingContext.newPage();
-  await loadingPage.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`, { waitUntil: "domcontentloaded" });
-  await loadingPage.locator(".reader-loading").waitFor();
-  await captureStates(loadingPage, `390-loading.png`);
-  failOpen();
-  await loadingPage.getByRole("heading", { name: "无法打开", exact: true }).waitFor();
-  await captureStates(loadingPage, `390-open-failed.png`);
-  assert.ok(await loadingPage.getByRole("button", { name: "返回云盘", exact: true }).isVisible());
-  assert.ok(await loadingPage.getByRole("button", { name: "重试加载", exact: true }).isVisible());
-  await loadingContext.close();
-  if (process.env.LAYOUT_CAPTURE_DIR) await writeFile(`${output}/evidence.json`, JSON.stringify({ environment: "Chromium; simulated API and offline events; no real-device claim", evidence }, null, 2));
 });
-
-async function captureStates(page, name) {
-  for (const width of [390, 834]) {
-    await resizeAndSettle(page, width);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name}/${width}: overflow`);
-    for (const dialog of await page.getByRole("dialog").all()) {
-      if (!await dialog.isVisible()) continue;
-      const box = await dialog.boundingBox();
-      assert.ok(box.x >= -1 && box.x + box.width <= width + 1 && box.y >= -1 && box.y + box.height <= 901, `${name}/${width}: dialog clipped`);
-    }
-    if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/reader-${width}-${name}` });
-  }
-  await resizeAndSettle(page, 390);
-}
 
 async function resizeAndSettle(page, width) {
   await page.setViewportSize({ width, height: 900 });

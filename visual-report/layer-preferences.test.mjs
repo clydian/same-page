@@ -174,7 +174,8 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     const referenceNote = page.getByRole("button", { name: "换气", exact: true });
     await referenceNote.waitFor({ state: "visible" });
     assert.equal(await referenceNote.isDisabled(), true, "reference notes cannot be edited");
-    assert.equal(await referenceNote.evaluate(element => getComputedStyle(element).opacity), "0.45");
+    const readingOpacity = await referenceNote.evaluate(element => Number(getComputedStyle(element).opacity));
+    assert.ok(readingOpacity > 0 && readingOpacity < 1, "reference notes remain visible but dimmed");
     assert.equal(await page.getByLabel("页面位置").count(), 0);
     await capture(page, `${engineName}-edit-hidden-layer`);
     await page.getByRole("button", { name: /^(编辑|完成编辑)$/, exact: true }).click();

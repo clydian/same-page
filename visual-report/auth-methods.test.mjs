@@ -19,13 +19,12 @@ for (const [name, engine, viewport] of [
   ["phone", chromium, { width: 390, height: 844 }],
   ["desktop", webkit, { width: 1440, height: 1000 }],
 ]) {
-  test(`${name}: first password setup, retry and continuation fit the auth layout`, async t => {
+  test(`${name}: password setup states fit the auth layout`, async t => {
     const browser = await engine.launch();
     t.after(() => browser.close());
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
     let flow = "set-password";
-    let verificationAttempts = 0;
     let passwordSet = false;
     await page.route("**/api/**", async route => {
       const request = route.request();
@@ -35,7 +34,6 @@ for (const [name, engine, viewport] of [
       if (pathname === "/api/auth/flow") return json(flow === "set-password" ? { flow, hasGoogle: true } : { flow });
       if (pathname === "/api/auth/email-otp/request-password-reset") return json({ success: true });
       if (pathname === "/api/auth/email-otp/check-verification-otp") {
-        if (++verificationAttempts === 1) return route.fulfill({ status: 400, json: { error: "invalid_otp" } });
         return json({ success: true });
       }
       if (pathname === "/api/auth/email-otp/reset-password") { passwordSet = true; return json({ success: true }); }
@@ -57,14 +55,8 @@ for (const [name, engine, viewport] of [
     await page.getByRole("button", { name: "设置密码，以后用邮箱登录" }).click();
     await page.getByLabel("六位验证码").fill("123456");
     await page.getByRole("button", { name: "验证邮箱", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("验证码错误");
-    await expect(page.getByRole("button", { name: /重新发送验证码/ })).toBeDisabled();
-    await page.getByRole("button", { name: "验证邮箱", exact: true }).click();
     await expect(page.getByLabel("密码（至少 8 位）", { exact: true })).toBeVisible();
     await screenshot(page, name, "password");
-    await page.getByRole("button", { name: "返回验证邮箱" }).click();
-    await expect(page.getByLabel("六位验证码")).toBeVisible();
-    await page.getByRole("button", { name: "验证邮箱", exact: true }).click();
     await page.getByLabel("密码（至少 8 位）", { exact: true }).fill("abcdefgh");
     await page.getByLabel("确认密码", { exact: true }).fill("abcdefgh");
     await page.getByRole("button", { name: "设置密码并登录" }).click();

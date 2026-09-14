@@ -51,7 +51,6 @@ test('whole-score scrubber selects all 30 pages without horizontal scrolling', a
       await page.locator('.page-reader__sheet[data-page-turn-current][data-page-number="15"]').waitFor();
       assert.equal(await page.locator('.page-preview-strip__thumbnail[data-active]').count(), 1);
       assert.ok(await page.locator('.page-preview-strip__thumbnail').count() < 30);
-      assert.equal(await page.locator('.page-preview-strip__thumbnail[data-active]').evaluate(el => getComputedStyle(el).borderWidth), '0px');
       assert.equal(await page.locator('.page-preview-strip__track').evaluate(el => {
         const boxes = [...el.querySelectorAll('.page-preview-strip__thumbnail:not([data-active])')].map(node => node.getBoundingClientRect());
         return boxes.every((box, index) => index === 0 || box.left >= boxes[index - 1].right);

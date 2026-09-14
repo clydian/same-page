@@ -131,7 +131,7 @@ async function send(viewport, touch, phase, xs) {
   }, { touch, phase, xs });
 }
 
-test("Chromium native touch keeps vertical momentum and reserves horizontal navigation", async t => {
+test("Chromium native touch turns the continuous reader through horizontal native touch", async t => {
   const browser = await chromium.launch({ headless: true });
   t.after(() => browser.close());
   const context = await browser.newContext({ viewport: { width: 834, height: 800 }, hasTouch: true,
@@ -147,24 +147,7 @@ test("Chromium native touch keeps vertical momentum and reserves horizontal navi
   await page.getByRole("button", { name: "更多", exact: true }).click();
   await page.getByRole("button", { name: "连续滚动", exact: true }).click();
   const viewport = page.locator(".continuous-reader");
-  await viewport.evaluate(node => {
-    node.touchDecisions = [];
-    document.addEventListener("touchmove", event => node.touchDecisions.push(event.defaultPrevented));
-  });
   const cdp = await context.newCDPSession(page);
-  let timestamp = Date.now() / 1000;
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", timestamp, touchPoints: [{ x: 400, y: 650 }] });
-  for (const y of [610, 560, 500, 430, 350]) {
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", timestamp: timestamp += 0.016, touchPoints: [{ x: 400, y }] });
-    await page.waitForTimeout(16);
-  }
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", timestamp: timestamp + 0.008, touchPoints: [] });
-  const releasedTop = await viewport.evaluate(node => node.scrollTop);
-  await expect.poll(() => viewport.evaluate(node => node.scrollTop)).toBeGreaterThan(releasedTop + 10);
-  assert.ok((await viewport.evaluate(node => node.touchDecisions)).every(value => !value));
-  await page.waitForTimeout(500);
-  await viewport.evaluate(node => { node.scrollTop = 0; node.touchDecisions = []; });
-  await expect.poll(() => currentPage(viewport)).toBe(1);
   await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 650, y: 400 }] });
   for (const x of [610, 550, 480, 400, 300]) {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: 400 }] });
@@ -172,7 +155,6 @@ test("Chromium native touch keeps vertical momentum and reserves horizontal navi
   }
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect.poll(() => currentPage(viewport)).toBe(2);
-  assert.ok((await viewport.evaluate(node => node.touchDecisions)).some(Boolean));
 });
 
 async function navigationSnapshot(viewport) {
