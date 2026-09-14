@@ -50,17 +50,19 @@ test("PDF generation separates sharing activation, preserves cancelled files, an
     const { localDatabase } = await import("/src/client/platform/local-database.ts");
     await localDatabase.system.put({ key: "local-workspace:active-owner", value: "user:other" });
   });
-  await expect(dialog.getByRole("button", { name: "正在准备…", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("alert")).toContainText("登录状态已变化");
+  await expect(dialog.getByRole("button", { name: "分享 PDF", exact: true })).toBeDisabled();
 
 });
 
-test("automatic preparation abandons superseded choices and remains dismissible", async t => {
+for (const blockedLayerRequest of [1, 2]) test(`changed choices finish while obsolete layer request ${blockedLayerRequest} remains blocked`, async t => {
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
   const context = await browser.newContext({ serviceWorkers: "block" });
   const fixture = createVisualFixtureSession();
   let blockLayers = false;
+  let layerRequests = 0;
   let releaseLayers;
   let announceBlocked;
   const blocked = new Promise(resolve => { announceBlocked = resolve; });
@@ -69,7 +71,8 @@ test("automatic preparation abandons superseded choices and remains dismissible"
   await context.route("**/api/**", async route => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
-    if (blockLayers && pathname.endsWith("/layers")) {
+    if (blockLayers && pathname.endsWith("/layers") && ++layerRequests === blockedLayerRequest) {
+      blockLayers = false;
       announceBlocked();
       await gate;
     }
@@ -88,6 +91,8 @@ test("automatic preparation abandons superseded choices and remains dismissible"
   await expect(dialog.getByRole("button", { name: "正在准备…", exact: true })).toBeDisabled();
   await dialog.getByRole("radio", { name: "包含笔记", exact: true }).check();
   await dialog.getByRole("radio", { name: "仅原谱", exact: true }).check();
+  // The old request is still blocked: the new selection must finish first.
+  await expect(dialog.getByRole("button", { name: "下载 PDF", exact: true })).toBeEnabled({ timeout: 5000 });
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
   releaseLayers();
   await expect(dialog).toHaveCount(0);

@@ -5,7 +5,7 @@ import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
 import type { AnnotationLayerSummary } from "../../shared/annotations";
 import { scorePdfFileName } from "../../shared/score-display-name";
 import { Dialog } from "../navigation/overlays";
-import type { LocalWorkspace } from "../platform/local-workspace";
+import { LocalWorkspaceOwnerChangedError, type LocalWorkspace } from "../platform/local-workspace";
 import type { PDFDocumentProxy } from "./pdf-document";
 import { exportScore } from "./export-score";
 import { prepareExport } from "./prepare-export";
@@ -18,7 +18,17 @@ export function ExportDialog({ layers: initialLayers, workspace, source: initial
   authenticatedUserId: string | null; onClose(): void;
 }) {
   const [prepared, setPrepared] = useState<{ source: PDFDocumentProxy; layers: AnnotationLayerSummary[] } | null>(() => initialSource && initialLayers ? { source: initialSource, layers: initialLayers } : null);
-  const liveState = useLiveQuery(() => readScoreAnnotationState(workspace).catch(() => null), [workspace.scopeKey, workspace.sessionEpoch, workspace.syncLockToken]);
+  const [readAttempt, setReadAttempt] = useState(0);
+  const observed = useLiveQuery(async () => {
+    try { return { state: await readScoreAnnotationState(workspace), error: null }; }
+    catch (error) {
+      return { state: null, error: error instanceof LocalWorkspaceOwnerChangedError
+        ? "登录状态已变化，请关闭后重新打开分享。"
+        : "无法读取本机笔记，请重试。" };
+    }
+  }, [workspace.scopeKey, workspace.sessionEpoch, workspace.syncLockToken, readAttempt]);
+  const liveState = observed?.state;
+  const readError = observed?.error;
   const liveLayers = liveState?.layers;
   const layers = initialLayers ?? liveLayers ?? prepared?.layers ?? [];
   const source = prepared?.source;
@@ -44,7 +54,7 @@ export function ExportDialog({ layers: initialLayers, workspace, source: initial
     return () => { active = false; task.destroy(); };
   }, [workspace, versionId, initialSource, initialLayers, attempt]);
   const generation = useRef<AbortController | null>(null);
-  useEffect(() => () => generation.current?.abort(), [options, source]);
+  useEffect(() => () => generation.current?.abort(), [options, source, readError]);
   useEffect(() => {
     if (!source || !liveState || file || busy || message) return;
     const timer = window.setTimeout(() => {
@@ -98,12 +108,13 @@ export function ExportDialog({ layers: initialLayers, workspace, source: initial
       </div>}
     </>}
     {includeNotes && selected.some(id => !layers.some(layer => layer.id === id)) && <p role="alert">部分已选层不再可用。<Button isDisabled={sharing} onPress={() => { setMessage(null); setSelected(ids => ids.filter(id => layers.some(layer => layer.id === id))); }}>移除不可用层</Button></p>}
+    {readError && <p role="alert">{readError}<Button className="text-button" onPress={() => setReadAttempt(value => value + 1)}>重试读取</Button></p>}
     {message && <p role="alert">{message}{!file && <Button className="text-button" onPress={() => { setMessage(null); if (!prepared) setAttempt(value => value + 1); }}>重试</Button>}</p>}
     {file && !sharing && <p className="export-help" role="status">{canShare ? "PDF 已准备好，点击“分享 PDF”选择发送或保存位置。" : "PDF 已准备好，可以下载到本机。"}</p>}
     <div className="export-actions">
       <Button className="secondary-button" isDisabled={sharing} onPress={onClose}>取消</Button>
       {file && canShare && shareFailed && <Button className="secondary-button" isDisabled={sharing} onPress={() => downloadPdf(file)}>下载 PDF</Button>}
-      <Button className="primary-button" isDisabled={sharing || !file} onPress={() => { if (!file) return; if (canShare) void share(); else downloadPdf(file); }}>{!file ? message ? "分享 PDF" : "正在准备…" : sharing ? "正在分享…" : file ? canShare ? "分享 PDF" : "下载 PDF" : "分享 PDF"}</Button>
+      <Button className="primary-button" isDisabled={sharing || !file} onPress={() => { if (!file) return; if (canShare) void share(); else downloadPdf(file); }}>{!file ? message || readError ? "分享 PDF" : "正在准备…" : sharing ? "正在分享…" : file ? canShare ? "分享 PDF" : "下载 PDF" : "分享 PDF"}</Button>
     </div>
   </Dialog></Modal></ModalOverlay>;
 }
