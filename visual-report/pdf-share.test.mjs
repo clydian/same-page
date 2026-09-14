@@ -26,7 +26,6 @@ test("PDF generation separates sharing activation, preserves cancelled files, an
   await page.locator(".file-row").filter({ hasText: "排练示例" }).getByRole("button", { name: /更多操作/ }).click();
   await page.getByRole("menuitem", { name: "分享 PDF", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "分享 PDF" });
-  await dialog.getByRole("button", { name: "分享 PDF", exact: true }).click();
   await expect(dialog.getByRole("status")).toContainText("PDF 已准备好");
   assert.equal(await page.evaluate(() => window.sharedFiles.length), 0);
   await dialog.getByRole("button", { name: "分享 PDF", exact: true }).click();
@@ -40,19 +39,61 @@ test("PDF generation separates sharing activation, preserves cancelled files, an
   assert.equal(await download.failure(), null);
   await dialog.getByRole("radio", { name: "仅原谱", exact: true }).check();
   await expect(dialog.getByRole("status")).toHaveCount(0);
-  await dialog.getByRole("button", { name: "分享 PDF", exact: true }).click();
   await expect(dialog.getByRole("status")).toContainText("PDF 已准备好");
   await page.evaluate(async () => {
     const { localDatabase } = await import("/src/client/platform/local-database.ts");
     await localDatabase.annotationLayers.toCollection().modify({ displayColor: "#123456" });
   });
   await expect(dialog.getByRole("status")).toHaveCount(0);
-  await dialog.getByRole("button", { name: "分享 PDF", exact: true }).click();
   await expect(dialog.getByRole("status")).toContainText("PDF 已准备好");
   await page.evaluate(async () => {
     const { localDatabase } = await import("/src/client/platform/local-database.ts");
     await localDatabase.system.put({ key: "local-workspace:active-owner", value: "user:other" });
   });
-  await expect(dialog.getByRole("button", { name: "分享 PDF", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "正在准备…", exact: true })).toBeDisabled();
 
+});
+
+test("automatic preparation abandons superseded choices and remains dismissible", async t => {
+  const app = await startVisualServer({ script: "dev" });
+  const browser = await chromium.launch();
+  t.after(async () => { await browser.close(); await app.stop(); });
+  const context = await browser.newContext({ serviceWorkers: "block" });
+  const fixture = createVisualFixtureSession();
+  let blockLayers = false;
+  let releaseLayers;
+  let announceBlocked;
+  const blocked = new Promise(resolve => { announceBlocked = resolve; });
+  const gate = new Promise(resolve => { releaseLayers = resolve; });
+  t.after(() => releaseLayers());
+  await context.route("**/api/**", async route => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (blockLayers && pathname.endsWith("/layers")) {
+      announceBlocked();
+      await gate;
+    }
+    await route.fulfill(fixture.resolve({ pathname, method: request.method(), identity: "admin", cookie: "", body: request.postDataJSON() }));
+  });
+  const page = await context.newPage();
+  await page.goto(`${app.origin}/choirs/visual-choir`);
+  const more = page.locator(".file-row").filter({ hasText: "排练示例" }).getByRole("button", { name: /更多操作/ });
+  await more.click();
+  await page.getByRole("menuitem", { name: "分享 PDF", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "分享 PDF" });
+  await dialog.getByRole("button", { name: "下载 PDF", exact: true }).waitFor();
+  blockLayers = true;
+  await dialog.getByRole("radio", { name: "仅原谱", exact: true }).check();
+  await blocked;
+  await expect(dialog.getByRole("button", { name: "正在准备…", exact: true })).toBeDisabled();
+  await dialog.getByRole("radio", { name: "包含笔记", exact: true }).check();
+  await dialog.getByRole("radio", { name: "仅原谱", exact: true }).check();
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  releaseLayers();
+  await expect(dialog).toHaveCount(0);
+  await more.click();
+  await page.getByRole("menuitem", { name: "分享 PDF", exact: true }).click();
+  await dialog.getByRole("button", { name: "下载 PDF", exact: true }).waitFor();
+  await expect(dialog.getByRole("radio", { name: "包含笔记", exact: true })).toBeChecked();
+  await expect(dialog.getByRole("alert")).toHaveCount(0);
 });
