@@ -13,7 +13,7 @@ import { uploadBody } from "../upload-transport";
 import { AttachmentShell } from "./attachment-shell";
 import type { AttachmentSelection } from "./attachment-list";
 import { attachmentFileUrl, attachmentMessage, attachmentPath, readAttachment, readAttachmentRecovery } from "./api";
-import { markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "./markdown-drafts";
+import { markdownDraftEpoch, readMarkdownDraft, removeMarkdownDraft, writeMarkdownDraft } from "./markdown-drafts";
 
 const Editor = lazy(() => import("./markdown-editor"));
 type Props = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; writable: boolean; onClose: () => void; onBack?: () => void; onChanged: () => Promise<void> };
@@ -48,7 +48,6 @@ export default function MarkdownAttachment(props: Props) {
 function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, canModify, writable, onClose, onBack, onChanged }: Props & { snapshot: Snapshot }) {
   const [base, setBase] = useState(snapshot);
   const scope = { ownerKey, choirId, scoreId: score.id };
-  const draftKey = markdownDraftKey(scope, base.attachment?.id ?? null);
   const [draftEpoch] = useState(() => markdownDraftEpoch(ownerKey));
   const [draft] = useState(() => readMarkdownDraft(scope, snapshot.attachment?.id ?? null));
   const [id] = useState(() => draft?.id ?? snapshot.attachment?.id ?? crypto.randomUUID());
@@ -66,13 +65,13 @@ function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, ca
   useEffect(() => {
     try {
       if (dirty) writeMarkdownDraft({ ownerKey, choirId, scoreId: score.id }, base.attachment?.id ?? null, { id, name, text, revision: revision.current }, draftEpoch);
-      else sessionStorage.removeItem(draftKey);
+      else removeMarkdownDraft({ ownerKey, choirId, scoreId: score.id }, base.attachment?.id ?? null, draftEpoch);
     } catch { /* Navigation and beforeunload guards still protect this tab. */ }
-  }, [draftKey, id, name, text, dirty, ownerKey, choirId, score.id, base.attachment?.id, draftEpoch]);
+  }, [id, name, text, dirty, ownerKey, choirId, score.id, base.attachment?.id, draftEpoch]);
 
   const adoptSaved = (value: Snapshot) => {
     setBase(value); revision.current = value.attachment!.revision; setEditing(false); confirmed.current = true;
-    try { sessionStorage.removeItem(draftKey); } catch { /* Optional storage. */ }
+    removeMarkdownDraft(scope, base.attachment?.id ?? null, draftEpoch);
   };
   const mutation = useSettingsMutation({ enabled: writable && (canModify || !base.attachment), refresh: async isCurrent => {
     if (!confirmed.current) {
@@ -112,7 +111,7 @@ function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, ca
     const link = document.createElement("a"); link.href = url; link.download = name.endsWith(".md") ? name : `${name}.md`; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const discard = () => { try { sessionStorage.removeItem(draftKey); } catch { /* Optional storage. */ } setText(base.text); setName(base.attachment?.name ?? "排练笔记.md"); };
+  const discard = () => { removeMarkdownDraft(scope, base.attachment?.id ?? null, draftEpoch); setText(base.text); setName(base.attachment?.name ?? "排练笔记.md"); };
   return <AttachmentShell title={base.attachment?.name ?? "新建文档（.md）"} subtitle={scoreDisplayName(score.fileName)} wide document onClose={onClose} onBack={!base.attachment ? onBack : undefined}
     dirty={dirty} busy={mutation.pending} save={save} discard={discard} blocked={mutation.blocked || parseFailed} message={validation ?? mutation.message}>
     {!writable && <p className="attachment-help" role="status">连接尚未恢复，输入已保留；联网后可继续保存或核对结果。</p>}

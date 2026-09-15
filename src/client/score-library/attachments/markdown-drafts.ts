@@ -27,9 +27,16 @@ export function writeMarkdownDraft(scope: MarkdownDraftScope, attachmentId: stri
     // A suspended editor cannot recreate a draft after logout in another tab.
     const currentEpoch = markdownDraftEpoch(scope.ownerKey);
     if (epoch === null || currentEpoch === null) return;
-    if (epoch !== currentEpoch) { sessionStorage.removeItem(key); return; }
+    if (epoch !== currentEpoch) return;
     sessionStorage.setItem(key, JSON.stringify({ ...draft, logoutEpoch: epoch }));
   } catch { /* Navigation and beforeunload guards remain available. */ }
+}
+
+export function removeMarkdownDraft(scope: MarkdownDraftScope, attachmentId: string | null, epoch: string | null) {
+  try {
+    if (epoch === null || epoch !== markdownDraftEpoch(scope.ownerKey)) return;
+    sessionStorage.removeItem(markdownDraftKey(scope, attachmentId));
+  } catch { /* An unreadable store is not permission to discard a draft. */ }
 }
 
 function ownerDraftKeys(ownerKey: string) {
