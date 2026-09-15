@@ -1,3 +1,4 @@
+import { PlaybackGate } from "./playback/playback-gate";
 import { InstallProvider } from "./install/install-provider";
 import { LogoutProvider } from "./auth/logout";
 import { NavigationProvider } from "./navigation/navigation";
@@ -81,7 +82,7 @@ export function AppRoutes() {
             element={<RouteContent><ReaderPage /></RouteContent>}
           />
         </Routes>
-      </InstallProvider></LogoutProvider></NavigationProvider>
+      <PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider>
 
     </>
   );

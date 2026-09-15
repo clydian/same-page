@@ -1,5 +1,5 @@
 import { attachmentRecoverySchema, attachmentSchema, type ScoreAttachment } from "../../../shared/attachments";
-import { diagnosticFetch } from "../../diagnostics/diagnostics";
+import { attachmentFetch as diagnosticFetch } from "./request";
 import { SettingsRequestError } from "../../settings/settings-request";
 
 export const attachmentPath = (choirId: string, scoreId: string, id: string) => `/api/choirs/${encodeURIComponent(choirId)}/scores/${encodeURIComponent(scoreId)}/attachments/${encodeURIComponent(id)}`;
@@ -35,6 +35,14 @@ export function attachmentMessage(status: number, body: unknown) {
   if (code === "invalid_markdown_encoding") return "Markdown 需要使用 UTF-8 编码，请转换编码后再上传。";
   if (status === 413) return "文件超过大小上限：音频 50 MB、PDF 20 MB、Markdown 1 MB。";
   if (status === 404) return "附件或所属乐谱已不可用，请刷新云盘。";
+  if (code === "invalid_musicxml") return "无法读取可播放乐谱，请检查格式、编码或解压后的大小（最多 20 MiB）。";
   if (status === 429 || code === "rate_limited") return "操作较频繁，请稍后重试。";
   return "操作未完成，请核对文件名称、类型或网址后重试。";
+}
+
+export async function musicXmlEnabled(choirId: string, signal?: AbortSignal) {
+  const response = await diagnosticFetch(`/api/choirs/${choirId}/attachments/capabilities`, { signal });
+  if (!response.ok) return false;
+  const value: unknown = await response.json();
+  return typeof value === "object" && value !== null && "musicxml" in value && value.musicxml === true;
 }

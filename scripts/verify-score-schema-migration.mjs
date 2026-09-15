@@ -222,6 +222,33 @@ function verifyAttachmentMigration() {
   assert.deepEqual(queryNamed(compatibleQueries), prior);
   assert.deepEqual(query("PRAGMA foreign_key_check"), []);
   assert(query("SELECT platform_bytes FROM score_object_deletions").every(row => row.platform_bytes === 0));
+  executeD1({ command: `
+    INSERT INTO score_attachments (id, choir_id, score_id, kind, name, created_at, updated_at)
+      VALUES ('pending-attachment', 'choir', 'preserved-score', 'audio', 'pending.wav', 2, 2);
+    INSERT INTO score_attachment_files (id, attachment_id, choir_id, object_key, size_bytes, content_type, state, created_at)
+      VALUES ('pending-file', 'pending-attachment', 'choir', 'pending.wav', 24, 'audio/wav', 'pending', 2);
+    UPDATE score_attachments SET trashed_at=3, trash_expires_at=9999999999999 WHERE id='preserved-attachment';
+    UPDATE score_object_deletions SET platform_bytes=17;
+  `, targetArgs });
+  const musicQueries = { ...compatibleQueries, deletions: "SELECT * FROM score_object_deletions ORDER BY id",
+    usage: "SELECT * FROM free_file_storage_usage", foreignKeys: "PRAGMA foreign_key_check" };
+  const beforeMusic = queryNamed(musicQueries);
+  applyMigrations("0029_musicxml_attachments.sql");
+  assert.deepEqual(queryNamed(musicQueries), beforeMusic, "MusicXML migration preserves attachments, pending files, trash, quota and cleanup queue");
+  executeD1({ command: `
+    INSERT INTO score_attachments (id, choir_id, score_id, kind, name, created_at, updated_at)
+      VALUES ('music-attachment', 'choir', 'preserved-score', 'musicxml', 'score.mxl', 4, 4);
+    INSERT INTO score_attachment_files (id, attachment_id, choir_id, object_key, size_bytes, content_type, state, created_at)
+      VALUES ('music-file', 'music-attachment', 'choir', 'music.mxl', 13, 'application/vnd.recordare.musicxml', 'ready', 4);
+    UPDATE score_attachments SET current_file_id='music-file' WHERE id='music-attachment';
+  `, targetArgs });
+  const originalUsage=beforeMusic.drives.find(row=>row.id==='choir').storage_used_bytes;
+  assert.equal(query("SELECT storage_used_bytes FROM choirs WHERE id='choir'")[0].storage_used_bytes, originalUsage+13);
+  executeD1({ command: "DELETE FROM score_attachments WHERE id='music-attachment'", targetArgs });
+  assert.equal(query("SELECT storage_used_bytes FROM choirs WHERE id='choir'")[0].storage_used_bytes, originalUsage);
+  assert.equal(query("SELECT count(*) AS count FROM score_object_deletions WHERE object_key='music.mxl'")[0].count,1);
+  assert.deepEqual(query("PRAGMA foreign_key_check"), []);
+
 }
 
 function verifyImageRetirement() {

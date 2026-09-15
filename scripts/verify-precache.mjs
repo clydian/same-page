@@ -24,7 +24,8 @@ export async function verifyPrecache(root = "dist/client", designRoot = "design"
   for (const name of pdfJsLicenseFiles) {
     assert.ok(published.includes(path.join(root, pdfJsWasmDirectory, name)), `PDF decoder license not published: ${name}`);
   }
-  for (const file of published.filter((file) => file.endsWith(".woff2"))) assert.ok(entries.includes(path.relative(root, file)), `Font not precached: ${file}`);
+  for (const file of published.filter((file) => file.endsWith(".woff2") && !file.includes("/font/"))) assert.ok(entries.includes(path.relative(root, file)), `Font not precached: ${file}`);
+  assert.ok(!entries.some(file => /musicxml-|validate-musicxml-|alphaTab\.|prepare\.worker-|^font\/|^soundfont\//.test(file)), "MusicXML resources must remain on demand");
   const bytes = (await Promise.all(entries.map(async (file) => (await stat(path.join(root, file))).size))).reduce((a, b) => a + b, 0);
   const report = { entries: entries.length, bytes, baseline: { entries: 60, bytes: 5403008 }, deltaEntries: entries.length - 60, deltaBytes: bytes - 5403008 };
   return report;

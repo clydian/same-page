@@ -1,3 +1,4 @@
+import { supportsMusicXml } from "../attachments/protocol";
 import { serveStoredFile } from "./serve-file";
 import { deleteCookie, getCookie } from "hono/cookie";
 import { GUEST_SESSION_COOKIE } from "../security/guest-session";
@@ -63,7 +64,7 @@ scoreRoutes.get("/choirs/:choirId/bootstrap", async (context) => {
               CASE WHEN choirs.id = ? AND choirs.guest_session_version = ?
                 THEN 1 ELSE 0 END AS guest_access,
               scores.id AS score_id, scores.choir_id, scores.file_name,
-              scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count, versions.id AS version_id,
+              scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"}) AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count, versions.id AS version_id,
               versions.version_number, versions.size_bytes, versions.sha256,
               versions.etag, versions.page_count,
               versions.created_at AS version_created_at
@@ -156,7 +157,7 @@ scoreRoutes.get("/choirs/:choirId/scores", async (context) => {
   const access = await resolveChoirAccess(context, choirId);
   const search = scoreFileNameKey(context.req.query("q")?.trim() ?? "");
   const result = await measureServerTiming(context, "d1", () => context.env.DB.prepare(
-    `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
+    `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"}) AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
             versions.id AS version_id, versions.version_number,
             versions.size_bytes, versions.sha256, versions.etag,
             versions.page_count, versions.created_at AS version_created_at

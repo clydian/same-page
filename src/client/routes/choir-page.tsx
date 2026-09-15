@@ -1,3 +1,6 @@
+import { musicXmlEnabled } from "../score-library/attachments/api";
+import { captureNavigationIdentity } from "../settings/navigation-events";
+import { startPlayback } from "../playback/playback-store";
 import { useLibraryAttachments } from "../score-library/attachments/use-library-attachments";
 import { AttachmentLoading } from "../score-library/attachments/attachment-shell";
 import { LibraryTaskLoading } from "../score-library/library-task-dialog";
@@ -79,7 +82,18 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const [quotaBlocked, setQuotaBlocked] = useState(false);
   const [exportScore, setExportScore] = useState<ScoreSummary | null>(null);
   const [attachmentSelection, setAttachmentSelection] = useState<(AttachmentSelection & { sessionId: string | null }) | null>(null);
-  const selectAttachment = (selection: AttachmentSelection) => setAttachmentSelection({ ...selection, sessionId: identity.authenticatedSessionId });
+  const selectAttachment = (selection: AttachmentSelection) => {
+    if (selection.action === "open" && selection.attachment?.kind === "musicxml") {
+      setAttachmentSelection(null);
+      const current = captureNavigationIdentity();
+      const attachment = selection.attachment;
+      void musicXmlEnabled(choirId).then(enabled => {
+        if (!current()) return;
+        if (enabled) startPlayback({ attachment, score: selection.score, choirId, ownerKey: cacheOwner, sessionId: identity.authenticatedSessionId });
+        else setMessage("当前云盘尚未开放播放，可从附件菜单下载原文件。");
+      }).catch(() => setMessage("暂时无法打开播放器，请重试。"));
+    } else setAttachmentSelection({ ...selection, sessionId: identity.authenticatedSessionId });
+  };
   const definitiveSession = identity.onlineState === "authenticated" || identity.onlineState === "signed-out" ? identity.authenticatedSessionId : undefined;
   const attachmentSessionCurrent = attachmentSelection && (definitiveSession === undefined || definitiveSession === attachmentSelection.sessionId);
   if (attachmentSelection && definitiveSession !== undefined && definitiveSession !== attachmentSelection.sessionId) setAttachmentSelection(null);

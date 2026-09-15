@@ -40,6 +40,9 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.2",
+    "@coderline/alphatab": "^1.8.4",
+    "@coderline/alphatab-vite": "^1.8.4",
+    "@itscly2026/chorus-player": "file:vendor/itscly2026-chorus-player-0.1.0.tgz",
     "@mdxeditor/editor": "^4.2.5",
     "@tanstack/react-virtual": "^3.14.11",
     "better-auth": "^1.7.4",
