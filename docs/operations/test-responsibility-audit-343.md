@@ -255,10 +255,10 @@ B5 的笔记节点身份保留、C 的 Clipper 洞/岛映射和隐藏 canvas CSS
 
 ## 验证
 
-- Node 24、锁文件安装。已通过 Node 单测 117 项、Worker 123 项（8 unit + 115 integration）、CI scope 20 项、typecheck 和 build/precache；lint 最终轮通过；本地迁移验证通过。
+- Node 24、锁文件安装。已通过 Node 单测 117 项、Worker 123 项（8 unit + 115 integration）、CI scope 20 项、typecheck 和 build/precache；lint 删除遗留 OTP helper 后最终轮通过（初轮 CI 由此失败）；本地迁移验证通过。
 - 浏览器全量首轮 156/157 通过。剩余 WebKit pinch 在原始基线同样失败：纸面锚点约 0.009px、文字中心约 0.15px 差异，字形边界宽度约 10px 差异。改查应用坐标与字号比例后，相关 3 文件 18 项全部通过；位置容差不变；变换预览与提交字号后的文字边界并不完全相同，不将具体字体引擎机制冒称已证实根因。
-- 客户端首轮 760/761 通过；replacement 场景未等首次 cloud refresh 完成，补充等待后再改变版本，避免新刷新被已有请求合并。完整复测及 Linux CI 结果在 PR 汇总。
-- 本地 smoke 在进程回收遇到 `kill EPERM` 后中止，不能报全绿；重新并行运行客户端结果 750/761，遇到 11 个等待超时（首轮通过的未修改用例），未放宽 timeout/retry。完整集成结果以 PR 的独立 Linux CI 为准。
+- 客户端首轮 760/761 通过；replacement 场景未等首次 cloud refresh 完成，补充等待后再改变版本，避免新刷新被已有请求合并。修正后的关键 4 文件 19 项通过；完整 Linux CI 结果在 PR 汇总。
+- 本地 smoke 在进程回收遇到 `kill EPERM` 后中止，不能报全绿；重新并行运行客户端结果 750/761，遇到 11 个等待超时（首轮通过的未修改用例），未放宽 timeout/retry。这 5 个文件单 worker 复测 124 项全部通过。完整集成结果以 PR 的独立 Linux CI 为准。
 - 三项代表性错误注入在独立临时 checkout 执行，注入后均在目标断言变红，随后还原：文档解析完成就结束 loading；允许完成/销毁后 PDF 进度继续发布；XHR 传输完成即返回成功、尚未收到 HTTP 响应。最后一项暴露旧测试只等一个 microtask 的缺口，改为让 Promise 链在下一事件循环前完成后检查请求仍 pending。
 - 静态扫描覆盖基线 180 个测试文件。删除了四组 12MB 限速上传（每轮合计 48MB 额外请求体）、半流 HTTP fixture、手工 D1 权重 helper、重复 Worker 安装 UI 启动和导出矩阵。浏览器全量目前 157 项，相比触发 CI 的 169 项少 12 项；不将跨轮耗时差异宣称为加速比例。
 - Standards / Spec 双轴审查完成：恒真宽度分支已展开，文件库默认导出选择缺口已补入原有分享场景，无新增浏览器启动。

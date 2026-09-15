@@ -1269,18 +1269,6 @@ async function requestRegistrationOtp(
   });
 }
 
-async function completeRegistrationWithOtp(email: string, otp: string) {
-  return callWorker("/api/auth/registration/complete", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      email,
-      otp,
-      password: "correct horse battery staple",
-    }),
-  });
-}
-
 async function expireOtpCooldown(email: string) {
   const key = await hashRateLimitIdentity(
     `auth-otp:email-cooldown:${email.trim().toLowerCase()}`,
