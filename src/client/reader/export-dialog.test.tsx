@@ -35,3 +35,13 @@ it("explains an invalidated owner instead of showing indefinite preparation", as
   expect(screen.getByRole("button", { name: "分享 PDF" })).toBeDisabled();
   expect(io.generate).not.toHaveBeenCalled();
 });
+
+it("retires the old target immediately when the PDF version changes", async () => {
+  io.read.mockResolvedValue(state);
+  const { rerender } = render(<ExportDialog workspace={workspace} versionId="v1" fileName="score.pdf" authenticatedUserId="reader" onClose={() => {}} />);
+  await waitFor(() => expect(screen.getByRole("button", { name: "下载 PDF" })).toBeEnabled());
+  io.prepare.mockReturnValueOnce({ promise: new Promise(() => {}), destroy: vi.fn() });
+  rerender(<ExportDialog workspace={workspace} versionId="v2" fileName="score.pdf" authenticatedUserId="reader" onClose={() => {}} />);
+  expect(screen.queryByRole("button", { name: "下载 PDF" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "正在准备…" })).toBeDisabled();
+});
