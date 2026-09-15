@@ -1,4 +1,4 @@
-import { beforeEach, expect, it } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { clearMarkdownDraftsAfterLogout, countMarkdownDrafts, markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "./markdown-drafts";
 
 const scope = { ownerKey: "user:one", choirId: "drive", scoreId: "score" };
@@ -54,5 +54,22 @@ it("rejects drafts and late writes from a suspended tab after logout and a later
   writeMarkdownDraft(scope, id, saved, epoch);
   expect(readMarkdownDraft(scope, id)).toBeNull();
   writeMarkdownDraft(scope, id, saved, markdownDraftEpoch(scope.ownerKey));
+  expect(readMarkdownDraft(scope, id)?.text).toBe(saved.text);
+});
+
+it("preserves saved bytes when the logout epoch store is temporarily unavailable", () => {
+  const epoch = markdownDraftEpoch(scope.ownerKey);
+  writeMarkdownDraft(scope, id, saved, epoch);
+  const key = markdownDraftKey(scope, id), bytes = sessionStorage.getItem(key);
+  const originalGet = Storage.prototype.getItem;
+  const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (this: Storage, key) {
+    if (this === localStorage) throw new DOMException("Blocked", "SecurityError");
+    return originalGet.call(this, key);
+  });
+  try {
+    expect(readMarkdownDraft(scope, id)).toBeNull();
+    writeMarkdownDraft(scope, id, { ...saved, text: "new" }, epoch);
+    expect(sessionStorage.getItem(key)).toBe(bytes);
+  } finally { get.mockRestore(); }
   expect(readMarkdownDraft(scope, id)?.text).toBe(saved.text);
 });

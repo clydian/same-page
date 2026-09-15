@@ -80,8 +80,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const [exportScore, setExportScore] = useState<ScoreSummary | null>(null);
   const [attachmentSelection, setAttachmentSelection] = useState<(AttachmentSelection & { sessionId: string | null }) | null>(null);
   const selectAttachment = (selection: AttachmentSelection) => setAttachmentSelection({ ...selection, sessionId: identity.authenticatedSessionId });
-  const attachmentSessionCurrent = attachmentSelection && (identity.authenticatedSessionId === attachmentSelection.sessionId ||
-    (Boolean(userId) && ["checking", "unreachable", "local-unavailable"].includes(identity.onlineState)));
+  const definitiveSession = identity.onlineState === "authenticated" || identity.onlineState === "signed-out" ? identity.authenticatedSessionId : undefined;
+  const attachmentSessionCurrent = attachmentSelection && (definitiveSession === undefined || definitiveSession === attachmentSelection.sessionId);
+  if (attachmentSelection && definitiveSession !== undefined && definitiveSession !== attachmentSelection.sessionId) setAttachmentSelection(null);
   const [attachmentGeneration, setAttachmentGeneration] = useState(0);
   const [expandedScoreIds, setExpandedScoreIds] = useState<Set<string>>(() => new Set());
   const attachmentsEnabled = online && access.kind === "opened" && !access.local;
@@ -99,6 +100,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const refreshAfterMutation = library.changed;
   const updateSearch = library.setSearch;
   const updateSort = library.setSort;
+
+  const attachmentDialog = attachmentSelection && attachmentSessionCurrent && (access.kind === "loading" || (access.kind === "opened" && !access.retained)) && <Suspense fallback={<AttachmentLoading selection={attachmentSelection} onClose={() => setAttachmentSelection(null)} />}><AttachmentDialog
+        key={`${attachmentSelection.sessionId ?? "guest"}:${attachmentSelection.score.id}:${attachmentSelection.attachment?.id ?? attachmentSelection.action}`}
+        selection={attachmentSelection} choirId={choirId} ownerKey={cacheOwner} canModify={access.kind === "opened" && access.result.permissions.capabilities.operations.operations.includes("modifyFiles")} writable={attachmentsEnabled}
+        onClose={() => setAttachmentSelection(null)} onChanged={async () => { setAttachmentGeneration(value => value + 1); await refreshAfterMutation(); }} /></Suspense>;
 
   useEffect(() => {
     if (!userId) return;
@@ -166,10 +172,10 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   if (access.kind === "loading") {
     return (
-      <div className="app-page drive-page">
+      <><div className="app-page drive-page">
         <DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} />
         <main className="page-shell file-library">{access.choir && <h1 className="visually-hidden">{access.choir.name}</h1>}<p className="route-loading" role="status">正在加载乐谱…</p></main>
-      </div>
+      </div>{attachmentDialog}</>
     );
   }
 
@@ -184,7 +190,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const storageRatio = result.storage.usedBytes / result.storage.limitBytes;
 
   return (
-    <div className="app-page drive-page">
+    <><div className="app-page drive-page">
       <DriveHeader refreshing={snapshot.reading.request === "pending" || identity.session.isRefetching} displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} localOnly={Boolean(access.local)} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()}
         management={() => <section className="drive-drawer-management">
           <h3>云盘管理</h3>
@@ -294,10 +300,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         </section>
       </main>
 
-      {attachmentSelection && attachmentSessionCurrent && !access.retained && <Suspense fallback={<AttachmentLoading selection={attachmentSelection} onClose={() => setAttachmentSelection(null)} />}><AttachmentDialog
-        key={`${attachmentSelection.sessionId ?? "guest"}:${attachmentSelection.score.id}:${attachmentSelection.attachment?.id ?? attachmentSelection.action}`}
-        selection={attachmentSelection} choirId={choirId} ownerKey={cacheOwner} canModify={can("modifyFiles")} writable={attachmentsEnabled}
-        onClose={() => setAttachmentSelection(null)} onChanged={async () => { setAttachmentGeneration(value => value + 1); await refreshAfterMutation(); }} /></Suspense>}
+
       {exportScore && <Suspense fallback={<LibraryTaskLoading title="分享 PDF" size="tall" onClose={() => setExportScore(null)} />}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
       {settingsField && !access.local && <DriveSettingsDialog key={`${choirId}:${userId}:${settingsField}`} choirId={choirId} userId={userId!} field={settingsField} onClose={() => setSettingsField(null)} onSaved={async value => { setDisplayName(value); setMessage(null); }} />}
       {visible("uploadFiles") && <UploadFab disabled={!online || Boolean(access.local)} onPress={() => setUploadOpen(true)} />}
@@ -328,7 +331,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           }}
         />
       ) : null}
-    </div>
+    </div>{attachmentDialog}</>
   );
 }
 

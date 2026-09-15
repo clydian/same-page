@@ -104,12 +104,13 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
     const markdown = Buffer.from("# Cold form fixture\n");
     assert.equal((await context.request.post(`${api}/scores/${third.id}/attachments/${crypto.randomUUID()}/file?${new URLSearchParams({ name: "名称测试.md", size: String(markdown.length) })}`, { data: markdown, headers: { "content-type": "application/octet-stream" } })).status(), 201);
     for (const [action, title] of [["重命名", "重命名附件"], ["移到回收站", "移到回收站"]]) {
-      await page.reload();
-      await page.getByRole("button", { name: "第三份：1 个附件", exact: true }).click();
-      await page.getByRole("button", { name: "名称测试.md 更多操作", exact: true }).click();
-      const gate = await hold(page, chunk("attachment-dialog"));
-      await page.getByRole("menuitem", { name: action, exact: true }).click(); await gate.wait();
-      const dialog = page.getByRole("dialog", { name: title, exact: true });
+      const actionPage = await context.newPage();
+      const gate = await hold(actionPage, chunk("attachment-dialog"));
+      await actionPage.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
+      await actionPage.getByRole("button", { name: "第三份：1 个附件", exact: true }).click();
+      await actionPage.getByRole("button", { name: "名称测试.md 更多操作", exact: true }).click();
+      await actionPage.getByRole("menuitem", { name: action, exact: true }).click(); await gate.wait();
+      const dialog = actionPage.getByRole("dialog", { name: title, exact: true });
       await expect(dialog).toBeVisible();
       const before = await dialog.boundingBox();
       await gate.release();
@@ -119,6 +120,7 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
       stays(before.y, after.y, "Cold attachment action retains its frame position");
       stays(before.width, after.width, "Renaming Markdown uses the form width throughout");
       await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+      await actionPage.close();
     }
 
     const module = await hold(page, chunk("drive-management-page"));

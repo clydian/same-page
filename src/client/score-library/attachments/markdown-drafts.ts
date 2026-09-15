@@ -15,7 +15,9 @@ export function markdownDraftEpoch(ownerKey: string) {
 function read(key: string, ownerKey: string) {
   const parsed = draftSchema.safeParse(JSON.parse(sessionStorage.getItem(key) ?? "null"));
   if (!parsed.success) return null;
-  if ((parsed.data.logoutEpoch ?? "") !== markdownDraftEpoch(ownerKey)) { sessionStorage.removeItem(key); return null; }
+  const epoch = markdownDraftEpoch(ownerKey);
+  if (epoch === null) return null;
+  if ((parsed.data.logoutEpoch ?? "") !== epoch) { sessionStorage.removeItem(key); return null; }
   return parsed.data;
 }
 
@@ -23,7 +25,9 @@ export function writeMarkdownDraft(scope: MarkdownDraftScope, attachmentId: stri
   const key = markdownDraftKey(scope, attachmentId);
   try {
     // A suspended editor cannot recreate a draft after logout in another tab.
-    if (epoch === null || epoch !== markdownDraftEpoch(scope.ownerKey)) { sessionStorage.removeItem(key); return; }
+    const currentEpoch = markdownDraftEpoch(scope.ownerKey);
+    if (epoch === null || currentEpoch === null) return;
+    if (epoch !== currentEpoch) { sessionStorage.removeItem(key); return; }
     sessionStorage.setItem(key, JSON.stringify({ ...draft, logoutEpoch: epoch }));
   } catch { /* Navigation and beforeunload guards remain available. */ }
 }
