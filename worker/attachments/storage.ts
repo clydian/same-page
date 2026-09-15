@@ -1,3 +1,4 @@
+import { prepareMusicXmlSource } from "@itscly2026/chorus-player/format";
 import { attachmentFormat, attachmentSchema, type ScoreAttachment } from "../../src/shared/attachments";
 import type { Env } from "../env";
 import { operationPredicate } from "../permissions/access";
@@ -8,6 +9,24 @@ export class AttachmentError extends Error {
 
 // Validate bounded prefixes (or streaming UTF-8) without buffering a recording.
 export function validateAttachmentStream(extension: string) {
+  if (["musicxml", "xml", "mxl"].includes(extension)) {
+    const chunks: Uint8Array[] = [];
+    let length = 0;
+    return new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        length += chunk.length;
+        if (length > 20 * 1024 * 1024) throw new AttachmentError("attachment_too_large", 413);
+        chunks.push(chunk.slice()); controller.enqueue(chunk);
+      },
+      flush() {
+        const bytes = new Uint8Array(length);
+        let offset = 0;
+        for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+        try { prepareMusicXmlSource(bytes); }
+        catch { throw new AttachmentError("invalid_musicxml", 422); }
+      },
+    });
+  }
   const decoder = extension === "md" ? new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }) : null;
   let prefix = new Uint8Array(0);
   let checked = false;

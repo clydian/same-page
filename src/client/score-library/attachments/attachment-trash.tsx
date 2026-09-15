@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "react-aria-components";
 import { attachmentListSchema, type ScoreAttachment } from "../../../shared/attachments";
-import { diagnosticFetch } from "../../diagnostics/diagnostics";
+import { attachmentFetch as diagnosticFetch } from "./request";
 import { attachmentMessage, attachmentPath } from "./api";
 import "./attachments.css";
 

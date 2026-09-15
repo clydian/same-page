@@ -1,3 +1,4 @@
+import { alphaTab } from "@coderline/alphatab-vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { createHash } from "node:crypto";
@@ -35,10 +36,14 @@ export default defineConfig(({ isPreview }) => ({
     // The lazy reader contains the PDF.js display API (about 170 KiB gzip).
     // Keep the warning threshold explicit while the home/auth chunks remain
     // independent and much smaller.
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: { output: { manualChunks(id) {
+      if (/node_modules\/(?:@coderline\/alphatab|@itscly2026\/chorus-player|fflate|saxes|xmlchars)/.test(id)) return "musicxml-engine";
+    } } },
   },
   plugins: [
     pdfJsAssets(),
+    alphaTab(),
     {
       name: "same-page-build-identity",
       configurePreviewServer(server) {
@@ -114,7 +119,7 @@ export default defineConfig(({ isPreview }) => ({
         globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2}"],
         // Attachments are online-only. Do not download their optional viewers
         // and editor on every PWA install; the main PDF engine stays precached.
-        globIgnores: ["**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
+        globIgnores: ["**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
         // PDF.js' worker is slightly larger than Workbox's 2 MiB default.
         // It is required to open a verified offline PDF, so keep it in the
         // application-shell precache rather than making offline claims depend

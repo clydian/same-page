@@ -6,7 +6,7 @@ import { MoreHorizontal, Pencil } from "lucide-react";
 import { Menu } from "../../navigation/overlays";
 import { attachmentFormat, attachmentNameSchema, attachmentSchema, safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
 import { scoreDisplayName } from "../../../shared/score-display-name";
-import { diagnosticFetch } from "../../diagnostics/diagnostics";
+import { attachmentFetch as diagnosticFetch } from "./request";
 import { useSettingsMutation } from "../../settings/settings-mutation";
 import { SettingsRequestError } from "../../settings/settings-request";
 import { uploadBody } from "../upload-transport";

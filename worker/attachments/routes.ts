@@ -18,7 +18,7 @@ const selection = `SELECT a.id, a.score_id AS scoreId, a.name, a.kind, a.url, a.
   LEFT JOIN score_attachment_files f ON f.id = a.current_file_id AND f.state = 'ready' AND f.purged_at IS NULL`;
 const readable = `a.purged_at IS NULL AND s.purged_at IS NULL AND s.trashed_at IS NULL AND (a.kind = 'link' OR f.id IS NOT NULL)`;
 interface AttachmentRow {
-  id: string; scoreId: string; name: string; kind: "link" | "audio" | "pdf" | "markdown"; url: string | null;
+  id: string; scoreId: string; name: string; kind: "link" | "audio" | "pdf" | "markdown" | "musicxml"; url: string | null;
   revision: number; updatedAt: number; trashExpiresAt: number | null; scoreName: string; sizeBytes: number;
   object_key: string | null; content_type: string | null; etag: string | null;
   trashed_at: number | null; purged_at: number | null;
@@ -33,7 +33,7 @@ attachmentRoutes.get("/choirs/:choirId/attachments", async context => {
   if (!ids.length || ids.length > 100 || ids.some(id => id.length > 100)) return context.json({ error: "invalid_score_ids" }, 400);
   const rows = await context.env.DB.prepare(`${selection} WHERE a.choir_id = ? AND a.score_id IN (SELECT value FROM json_each(?))
     AND ${readable} AND a.trashed_at IS NULL ORDER BY a.created_at, a.id`).bind(choirId, JSON.stringify(ids)).all<AttachmentRow>();
-  return context.json({ attachments: rows.results.map(serialize) });
+  return context.json({ attachments: rows.results.filter(row => row.kind !== "musicxml" || context.req.header("X-Same-Page-Attachments") === "2").map(serialize) });
 });
 
 attachmentRoutes.get("/choirs/:choirId/attachments/trash", async context => {
@@ -41,7 +41,7 @@ attachmentRoutes.get("/choirs/:choirId/attachments/trash", async context => {
   await requireOperation(context.env.DB, await resolveContextPrincipal(context), choirId, "trashFiles");
   const rows = await context.env.DB.prepare(`${selection} WHERE a.choir_id = ? AND ${readable}
     AND a.trashed_at IS NOT NULL AND a.trash_expires_at > ? ORDER BY a.trashed_at DESC`).bind(choirId, Date.now()).all<AttachmentRow>();
-  return context.json({ attachments: rows.results.map(serialize) });
+  return context.json({ attachments: rows.results.filter(row => row.kind !== "musicxml" || context.req.header("X-Same-Page-Attachments") === "2").map(serialize) });
 });
 
 attachmentRoutes.post(base + "/links", async context => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { attachmentListSchema, type ScoreAttachment } from "../../../shared/attachments";
 import type { ScoreSummary } from "../../../shared/scores";
-import { diagnosticFetch } from "../../diagnostics/diagnostics";
+import { attachmentFetch as diagnosticFetch } from "./request";
 import { SettingsRequestError } from "../../settings/settings-request";
 
 export function useLibraryAttachments(choirId: string, scores: ScoreSummary[], active: boolean, generation: string) {
