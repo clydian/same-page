@@ -60,7 +60,7 @@
     "react-router-dom": "^7.18.3",
     "resend": "^6.26.0",
     "unpdf": "^1.8.1",
-    "zod": "^4.5.4"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.54.8",
