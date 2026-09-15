@@ -1,4 +1,4 @@
-import { prepareMusicXmlSource } from "@itscly2026/chorus-player/format";
+import { validateMusicXmlSource } from "@itscly2026/chorus-player/format";
 import { attachmentFormat, attachmentSchema, type ScoreAttachment } from "../../src/shared/attachments";
 import type { Env } from "../env";
 import { operationPredicate } from "../permissions/access";
@@ -22,7 +22,8 @@ export function validateAttachmentStream(extension: string) {
         const bytes = new Uint8Array(length);
         let offset = 0;
         for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-        try { prepareMusicXmlSource(bytes); }
+        chunks.length = 0;
+        try { validateMusicXmlSource(bytes); }
         catch { throw new AttachmentError("invalid_musicxml", 422); }
       },
     });
@@ -71,6 +72,10 @@ export async function saveAttachmentFile(options: {
   const format = attachmentFormat(name);
   if (!format) { await body.cancel().catch(() => undefined); throw new AttachmentError("attachment_type_unsupported", 415); }
   if (size > format.maxBytes || (size === 0 && format.kind !== "markdown")) { await body.cancel().catch(() => undefined); throw new AttachmentError("attachment_too_large", 413); }
+  if (format.kind === "musicxml") {
+    const flag = await env.DB.prepare("SELECT musicxml_enabled FROM choirs WHERE id = ?").bind(choirId).first<{ musicxml_enabled: number }>();
+    if (flag?.musicxml_enabled !== 1) { await body.cancel().catch(() => undefined); throw new AttachmentError("musicxml_disabled", 403); }
+  }
   const creating = expectedRevision === undefined;
   if (!creating && format.kind !== "markdown") throw new AttachmentError("attachment_not_editable", 400);
   const operation = creating ? "uploadFiles" : "modifyFiles";

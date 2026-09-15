@@ -1,3 +1,4 @@
+import { supportsMusicXml } from "./protocol";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { attachmentFormat, attachmentLinkRequestSchema, attachmentNameSchema, attachmentPatchSchema, attachmentRecoveryOperationSchema } from "../../src/shared/attachments";
@@ -26,6 +27,13 @@ interface AttachmentRow {
 const serialize = (row: AttachmentRow) => ({ id: row.id, scoreId: row.scoreId, name: row.name, kind: row.kind, url: row.url,
   revision: row.revision, updatedAt: row.updatedAt, trashExpiresAt: row.trashExpiresAt, scoreName: row.scoreName, sizeBytes: row.sizeBytes });
 
+attachmentRoutes.get("/choirs/:choirId/attachments/capabilities", async context => {
+  const choirId = context.req.param("choirId");
+  await resolveContextChoirReadAccess(context, choirId);
+  const row = await context.env.DB.prepare("SELECT musicxml_enabled FROM choirs WHERE id = ?").bind(choirId).first<{ musicxml_enabled: number }>();
+  return context.json({ musicxml: row?.musicxml_enabled === 1 });
+});
+
 attachmentRoutes.get("/choirs/:choirId/attachments", async context => {
   const choirId = context.req.param("choirId");
   await resolveContextChoirReadAccess(context, choirId);
@@ -33,7 +41,7 @@ attachmentRoutes.get("/choirs/:choirId/attachments", async context => {
   if (!ids.length || ids.length > 100 || ids.some(id => id.length > 100)) return context.json({ error: "invalid_score_ids" }, 400);
   const rows = await context.env.DB.prepare(`${selection} WHERE a.choir_id = ? AND a.score_id IN (SELECT value FROM json_each(?))
     AND ${readable} AND a.trashed_at IS NULL ORDER BY a.created_at, a.id`).bind(choirId, JSON.stringify(ids)).all<AttachmentRow>();
-  return context.json({ attachments: rows.results.filter(row => row.kind !== "musicxml" || context.req.header("X-Same-Page-Attachments") === "2").map(serialize) });
+  return context.json({ attachments: rows.results.filter(row => row.kind !== "musicxml" || supportsMusicXml(context)).map(serialize) });
 });
 
 attachmentRoutes.get("/choirs/:choirId/attachments/trash", async context => {
@@ -41,7 +49,7 @@ attachmentRoutes.get("/choirs/:choirId/attachments/trash", async context => {
   await requireOperation(context.env.DB, await resolveContextPrincipal(context), choirId, "trashFiles");
   const rows = await context.env.DB.prepare(`${selection} WHERE a.choir_id = ? AND ${readable}
     AND a.trashed_at IS NOT NULL AND a.trash_expires_at > ? ORDER BY a.trashed_at DESC`).bind(choirId, Date.now()).all<AttachmentRow>();
-  return context.json({ attachments: rows.results.filter(row => row.kind !== "musicxml" || context.req.header("X-Same-Page-Attachments") === "2").map(serialize) });
+  return context.json({ attachments: rows.results.filter(row => row.kind !== "musicxml" || supportsMusicXml(context)).map(serialize) });
 });
 
 attachmentRoutes.post(base + "/links", async context => {

@@ -7,10 +7,24 @@ import { startStorageFixture } from './storage-fixture.mjs';
 import { musicXmlFixture } from './musicxml-fixture.mjs';
 for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
  test(`MusicXML attachment practice and PDF handoff (${engine})`, {timeout:180000}, async t => {
-  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});
+  const fixture=await startStorageFixture({authenticated:true,previewEntry:false,musicxml:true});
   let browser;t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
   browser=await type.launch();const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
   assert.equal((await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}})).status(),200);
+  await context.addInitScript(() => {
+    window.__audioAnalysers = [];
+    const connect = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function(destination, ...args) {
+      if (destination instanceof AudioDestinationNode) {
+        const analyser = this.context.createAnalyser(); analyser.fftSize = 256;
+        window.__audioAnalysers.push(analyser);
+        connect.call(this, analyser);
+        connect.call(analyser, destination);
+        return destination;
+      }
+      return connect.call(this, destination, ...args);
+    };
+  });
   const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));const requests=[];page.on('request',request=>requests.push(request.url()));
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
   await expect(page.getByRole('button',{name:'本地链路测试 更多操作',exact:true})).toBeVisible();
@@ -26,6 +40,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
   const player=page.getByTestId('musicxml-player');
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+  await expect(player.locator('.at-surface svg').first()).toBeVisible({timeout:20000});
   await player.getByLabel('关注声部').selectOption('1');
   await player.getByLabel('速度',{exact:true}).selectOption('0.75');
   await player.getByLabel('循环终点').selectOption('2');
@@ -33,15 +48,40 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(player.getByRole('button',{name:'取消循环',exact:true})).toBeVisible();
   await player.getByRole('button',{name:'播放',exact:true}).click();
   await expect(player.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__audioAnalysers.some(analyser => {
+    const samples = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(samples);
+    return samples.some(value => Math.abs(value) > 0.0001);
+  })), {timeout:10000}).toBe(true);
+  let furthest = 0;
+  await expect.poll(async () => { const index = Number(await player.getByLabel('播放位置',{exact:true}).inputValue()); furthest = Math.max(furthest,index); return furthest >= 2 && index === 0; }, {timeout:20000}).toBe(true);
   await player.getByRole('button',{name:'看原谱',exact:true}).click();
   await expect(page).toHaveURL(new RegExp(`/scores/${fixture.scoreId}`));
   await expect(player.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
   await expect(player).toHaveClass(/compact/);
+  assert.ok((await player.boundingBox()).height < 120, 'compact playback must not cover the score');
+  await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:20000});
   await mkdir('artifacts/verification/musicxml-350',{recursive:true});
   await page.screenshot({path:`artifacts/verification/musicxml-350/${engine}-pdf.png`});
   await player.getByRole('button',{name:'播放详情',exact:true}).click();
+  await expect(player.locator('.at-surface svg').first()).toBeVisible({timeout:20000});
   await page.screenshot({path:`artifacts/verification/musicxml-350/${engine}-player.png`});
   await player.getByRole('button',{name:'结束播放',exact:true}).click();
+  await expect(player).toHaveCount(0);
+  await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
+  await page.getByRole('button',{name:'本地链路测试：1 个附件',exact:true}).click();
+  await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
+  await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+  await expect(player.getByLabel('关注声部')).toHaveValue('1');
+  await expect(player.getByLabel('速度',{exact:true})).toHaveValue('0.75');
+  await page.setViewportSize({width:390,height:844});
+  await expect(player.locator('.at-surface svg').first()).toBeVisible({timeout:20000});
+  await expect.poll(() => player.locator('.at-surface svg').first().evaluate(svg => svg.getBoundingClientRect().width), {timeout:20000}).toBeLessThan(370);
+  await page.screenshot({path:`artifacts/verification/musicxml-350/${engine}-mobile.png`});
+  await player.getByRole('button',{name:'收起详情',exact:true}).click();
+  assert.ok((await player.boundingBox()).height < 150, 'mobile compact controls fit without clipping');
+  await player.getByRole('button',{name:'播放详情',exact:true}).click();
+  await player.getByRole('button',{name:'看原谱',exact:true}).click();
+  await page.goBack();
   await expect(player).toHaveCount(0);
   assert.deepEqual(errors,[]);
  });

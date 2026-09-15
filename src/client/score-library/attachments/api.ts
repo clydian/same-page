@@ -39,3 +39,10 @@ export function attachmentMessage(status: number, body: unknown) {
   if (status === 429 || code === "rate_limited") return "操作较频繁，请稍后重试。";
   return "操作未完成，请核对文件名称、类型或网址后重试。";
 }
+
+export async function musicXmlEnabled(choirId: string, signal?: AbortSignal) {
+  const response = await diagnosticFetch(`/api/choirs/${choirId}/attachments/capabilities`, { signal });
+  if (!response.ok) return false;
+  const value: unknown = await response.json();
+  return typeof value === "object" && value !== null && "musicxml" in value && value.musicxml === true;
+}

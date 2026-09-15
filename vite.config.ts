@@ -119,7 +119,7 @@ export default defineConfig(({ isPreview }) => ({
         globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2}"],
         // Attachments are online-only. Do not download their optional viewers
         // and editor on every PWA install; the main PDF engine stays precached.
-        globIgnores: ["**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
+        globIgnores: ["**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
         // PDF.js' worker is slightly larger than Workbox's 2 MiB default.
         // It is required to open a verified offline PDF, so keep it in the
         // application-shell precache rather than making offline claims depend
