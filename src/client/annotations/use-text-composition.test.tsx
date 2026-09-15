@@ -58,8 +58,9 @@ it("keeps the original page and layer when inputs change before completion", asy
 });
 
 it("admits one save when completion is requested twice while storage is pending", async () => {
-  const saved = Promise.withResolvers<boolean>();
-  const persist = vi.spyOn(editor, "persist").mockReturnValue(saved.promise);
+  let complete!: (saved: boolean) => void;
+  const saved = new Promise<boolean>(resolve => { complete = resolve; });
+  const persist = vi.spyOn(editor, "persist").mockReturnValue(saved);
   render(<Composer />);
   begin();
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "只提交一次" } });
@@ -69,7 +70,7 @@ it("admits one save when completion is requested twice while storage is pending"
   expect(persist).toHaveBeenCalledOnce();
   expect(screen.getByRole("textbox")).toHaveAttribute("readonly");
   expect(editor.canNavigate()).toBe(false);
-  await act(async () => { saved.resolve(false); });
+  await act(async () => { complete(false); });
   expect(screen.getByRole("textbox")).toHaveValue("只提交一次");
   expect(screen.getByRole("textbox")).not.toHaveAttribute("readonly");
 });
@@ -88,8 +89,9 @@ it.each(["touch", "pen"])("retires a cancelled %s placement without opening on a
 });
 
 it("does not publish completion or remember defaults after unmount", async () => {
-  const saved = Promise.withResolvers<boolean>();
-  vi.spyOn(editor, "persist").mockReturnValue(saved.promise);
+  let complete!: (saved: boolean) => void;
+  const saved = new Promise<boolean>(resolve => { complete = resolve; });
+  vi.spyOn(editor, "persist").mockReturnValue(saved);
   const remember = vi.fn();
   const composing = vi.fn();
   const view = render(<Composer remember={remember} composing={composing} />);
@@ -98,7 +100,7 @@ it("does not publish completion or remember defaults after unmount", async () =>
   fireEvent.submit(screen.getByRole("form", { name: "文字输入" }));
   view.unmount();
   composing.mockClear();
-  await act(async () => { saved.resolve(true); });
+  await act(async () => { complete(true); });
   expect(remember).not.toHaveBeenCalled();
   expect(composing).not.toHaveBeenCalled();
   expect(editor.canNavigate()).toBe(true);
