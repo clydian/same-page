@@ -103,7 +103,11 @@ it("invalidates ready output and refreshes layer choices when permission changes
   io.read.mockResolvedValue(permitted); io.generate.mockResolvedValue(pdf(permitted));
   const session = start(); await tick();
   expect(session.getSnapshot().selected).toEqual(["shared"]);
+  const observations: ReturnType<ExportSession["getSnapshot"]>[] = [];
+  const unsubscribe = session.subscribe(() => observations.push(session.getSnapshot()));
   io.read.mockResolvedValue(state); io.refresh(); await vi.advanceTimersByTimeAsync(0);
+  unsubscribe();
+  expect(observations.every(value => value.file === null)).toBe(true);
   expect(session.getSnapshot().file).toBeNull();
   expect(session.getSnapshot().layers).toEqual([]);
   expect(session.getSnapshot().selected).toEqual(["shared"]);
@@ -194,4 +198,17 @@ it("initializes library defaults from prepared layers rather than an earlier emp
   pending.resolve({ source: {}, layers: [{ id: "ensemble", kind: "shared", subscribed: true }] });
   await tick();
   expect(session.getSnapshot().selected).toEqual(["ensemble"]);
+});
+
+it("releases the native share hold on disposal and ignores its late settlement", async () => {
+  const pending = deferred<void>();
+  vi.stubGlobal("navigator", { share: vi.fn(() => pending.promise) });
+  const session = start(); await tick();
+  const sharing = session.share();
+  const release = io.hold.mock.results.at(-1)!.value;
+  const listener = vi.fn(); session.subscribe(listener);
+  session.dispose();
+  expect(release).toHaveBeenCalled();
+  pending.resolve(); await sharing;
+  expect(listener).not.toHaveBeenCalled();
 });

@@ -34,9 +34,11 @@ export class ExportSession {
   private state: ExportSnapshot;
   private listeners = new Set<() => void>();
   private active = false;
+  private disposed = false;
   private source?: PDFDocumentProxy;
   private preparation?: ReturnType<typeof prepareExport>;
   private releasePreparation?: () => void;
+  private releaseSharing?: () => void;
   private observation?: { unsubscribe(): void };
   private observedSnapshot: string | null = null;
   private generated: { file: File; snapshot: string } | null = null;
@@ -63,7 +65,7 @@ export class ExportSession {
   }
 
   start() {
-    if (this.active) return;
+    if (this.active || this.disposed) return;
     this.active = true;
     this.observe();
     if (!this.source) this.prepare();
@@ -71,11 +73,13 @@ export class ExportSession {
 
   dispose() {
     this.active = false;
+    this.disposed = true;
     this.observation?.unsubscribe();
     this.cancelGeneration();
     this.preparation?.destroy();
     this.preparation = undefined;
     this.releasePreparation?.();
+    this.releaseSharing?.();
   }
 
   private observe() {
@@ -98,10 +102,9 @@ export class ExportSession {
       this.observedSnapshot = JSON.stringify(result.state);
       const selected = this.selectionInitialized || !this.source ? this.state.selected : defaults(result.state.layers);
       if (this.source) this.selectionInitialized = true;
-      this.publish({ layers: result.state.layers, selected, readError: null });
       // Generation itself may pull fresh notes. Let it finish its permission checks
       // before deciding whether the observed snapshot requires another generation.
-      this.reconcile();
+      this.reconcile({ layers: result.state.layers, selected, readError: null });
     });
   }
 
@@ -156,11 +159,11 @@ export class ExportSession {
     this.reconcile();
   };
 
-  private reconcile() {
+  private reconcile(patch: Partial<ExportSnapshot> = {}) {
     clearTimeout(this.timer);
     if (!this.active) return;
     const file = this.observedSnapshot && this.generated?.snapshot === this.observedSnapshot ? this.generated.file : null;
-    this.publish({ file });
+    this.publish({ ...patch, file });
     if (file || !this.source || !this.observedSnapshot || this.state.readError || this.state.message || this.generation) return;
     this.timer = setTimeout(() => { void this.generate(); }, 300);
   }
@@ -198,13 +201,13 @@ export class ExportSession {
     const file = this.state.file;
     if (!this.active || !file || this.state.sharing) return;
     this.publish({ sharing: true, message: null });
-    const release = holdUpdate();
+    const release = this.releaseSharing = holdUpdate();
     try { await navigator.share({ files: [file] }); }
     catch (error) {
       if (!((error instanceof Error || error instanceof DOMException) && error.name === "AbortError")) {
         this.publish({ shareFailed: true, message: "无法打开系统分享，请重试或下载 PDF。" });
       }
-    } finally { this.publish({ sharing: false }); release(); }
+    } finally { this.publish({ sharing: false }); release(); this.releaseSharing = undefined; }
   };
 }
 
