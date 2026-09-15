@@ -27,6 +27,9 @@ test("PDF generation separates sharing activation, preserves cancelled files, an
   await page.getByRole("menuitem", { name: "分享 PDF", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "分享 PDF" });
   await expect(dialog.getByRole("status")).toContainText("PDF 已准备好");
+  await expect(dialog.getByRole("checkbox", { name: "Ensemble", exact: true })).toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "Bass", exact: true })).not.toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "我的笔记", exact: true })).toBeChecked();
   assert.equal(await page.evaluate(() => window.sharedFiles.length), 0);
   await dialog.getByRole("button", { name: "分享 PDF", exact: true }).click();
   await expect(dialog.getByRole("status")).toContainText("PDF 已准备好");

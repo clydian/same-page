@@ -13,10 +13,10 @@ async function pdf(pages = 1) {
 
 describe("minimal PDF upload admission", () => {
   it("preserves original bytes and their digest while reading page metadata", async () => {
-    const data = await pdf(1);
+    const data = await pdf(3);
     const original = data.slice(0);
     const result = await inspectPdf(data);
-    expect(result.pageCount).toBe(1);
+    expect(result.pageCount).toBe(3);
     const digest = await crypto.subtle.digest("SHA-256", original);
     expect(result.sha256).toBe(Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join(""));
     expect(data).toEqual(original);
@@ -24,10 +24,6 @@ describe("minimal PDF upload admission", () => {
 
   it("retains the page limit", async () => {
     await expect(inspectPdf(await pdf(501))).rejects.toMatchObject({ code: "pdf_resource_limit" });
-  });
-
-  it("retains valid page counts", async () => {
-    expect((await inspectPdf(await pdf(3))).pageCount).toBe(3);
   });
 
   it("rejects empty, oversized and unreadable input", async () => {

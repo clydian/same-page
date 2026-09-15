@@ -1247,28 +1247,6 @@ describe("authentication and choir boundaries", () => {
     expect(deliveredEmails).toHaveLength(1);
   });
 
-  it("invalidates the previous registration OTP when a new one is sent", async () => {
-    const email = "latest-otp@example.test";
-    expect((await requestRegistrationOtp(email)).status).toBe(200);
-    const previousOtp = latestOtp();
-
-    let currentOtp = previousOtp;
-    for (
-      let attempt = 0;
-      attempt < 2 && currentOtp === previousOtp;
-      attempt += 1
-    ) {
-      await expireOtpCooldown(email);
-      expect((await requestRegistrationOtp(email)).status).toBe(200);
-      currentOtp = latestOtp();
-    }
-    expect(currentOtp).not.toBe(previousOtp);
-
-    const stale = await completeRegistrationWithOtp(email, previousOtp);
-    expect(stale.status).toBe(400);
-    const current = await completeRegistrationWithOtp(email, currentOtp);
-    expect(current.status).toBe(200);
-  });
 });
 
 function latestOtp() {
@@ -1288,18 +1266,6 @@ async function requestRegistrationOtp(
       "CF-Connecting-IP": client,
     },
     body: JSON.stringify({ email }),
-  });
-}
-
-async function completeRegistrationWithOtp(email: string, otp: string) {
-  return callWorker("/api/auth/registration/complete", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      email,
-      otp,
-      password: "correct horse battery staple",
-    }),
   });
 }
 

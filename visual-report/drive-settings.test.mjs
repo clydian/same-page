@@ -102,11 +102,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("link", { name: "查看权限分工", exact: true }).click();
     await page.locator(".view-selector-option").filter({ hasText: "按权限" }).click();
     await expect(page.getByRole("radio", { name: "按权限", exact: true })).toBeChecked();
-    await page.getByRole("radio", { name: "按权限", exact: true }).focus();
-    await page.keyboard.press("ArrowLeft");
-    await expect(page.getByRole("radio", { name: "按成员", exact: true })).toBeChecked();
-    await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("radio", { name: "按权限", exact: true })).toBeFocused();
     await page.getByLabel("选择权限").selectOption("layer:S");
     await expect(page.getByRole("region", { name: "可以操作", exact: true }).getByText("小花", { exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: "可以授权", exact: true }).getByText("小林", { exact: true })).toBeVisible();

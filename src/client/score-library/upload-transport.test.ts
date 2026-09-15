@@ -29,7 +29,8 @@ it("reports real byte progress and waits for server confirmation after transfer 
   TestXhr.current.upload.onprogress({ loaded: 500, total: 1000, lengthComputable: true });
   expect(progress).toHaveBeenLastCalledWith({ percent: 50, bytesPerSecond: 250, processing: false });
   TestXhr.current.upload.onload();
-  await Promise.resolve();
+  // Let the diagnostic Promise wrapper settle while the HTTP response is held.
+  await new Promise(resolve => setTimeout(resolve, 0));
   expect(progress).toHaveBeenLastCalledWith({ percent: 100, bytesPerSecond: 0, processing: true });
   expect(settled).not.toHaveBeenCalled();
   TestXhr.current.onload();
