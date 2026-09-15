@@ -1,4 +1,5 @@
 import { PurgeDialog } from "../drives/purge-dialog";
+import { AttachmentTrash } from "./attachments/attachment-trash";
 import { scoreDisplayName, scorePdfFileName } from "../../shared/score-display-name";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { type FormEvent, useEffect, useState } from "react";
@@ -126,6 +127,7 @@ export function TrashContents({
                 message ? <Button onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="empty-library">回收站是空的。</p>
               )}
               {purging && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title="彻底删除乐谱" description={`“${scoreDisplayName(purging.fileName)}”的全部 PDF 版本和所有成员的笔记都会被删除。`} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
+              <AttachmentTrash key={`${userId}:${choirId}`} choirId={choirId} onRestored={onRestored} />
               {restoreConflict ? (
                 <Form className="entry-form restore-conflict" onSubmit={submitConflict}>
                   <TextField isRequired value={restoreName} onChange={setRestoreName} maxLength={255}>

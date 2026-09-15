@@ -3,7 +3,16 @@ import { Button, Dialog, Heading, Modal, ModalOverlay } from "react-aria-compone
 import { useExitLayer } from "../navigation/navigation-context";
 
 // A manual form never submits merely because navigation was requested.
-export function useUnsavedChanges({ dirty, save, discard, saveState, subject = "修改" }: {
+type UnsavedOptions = {
+  dirty: boolean; subject?: string; save(): Promise<boolean>; discard(): void;
+  saveState?: { blocked: boolean; message: string | null };
+};
+
+export function useUnsavedChanges(options: UnsavedOptions) {
+  return useUnsavedChangesGuard(options).confirmation;
+}
+
+export function useUnsavedChangesGuard({ dirty, save, discard, saveState, subject = "修改" }: {
   dirty: boolean; subject?: string; save(): Promise<boolean>; discard(): void;
   saveState?: { blocked: boolean; message: string | null };
 }) {
@@ -18,13 +27,14 @@ export function useUnsavedChanges({ dirty, save, discard, saveState, subject = "
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
   useEffect(() => () => { resolve.current?.("cancelled"); }, []);
-  useExitLayer(dirty, "form", () => new Promise<boolean | "cancelled">(done => {
+  const confirm = () => !dirty ? Promise.resolve(true as const) : new Promise<boolean | "cancelled">(done => {
     resolve.current = done; setFailed(false); setOpen(true);
-  }));
+  });
+  useExitLayer(dirty, "form", confirm);
   const finish = (result: boolean | "cancelled") => {
     setOpen(false); resolve.current?.(result); resolve.current = null;
   };
-  return <ModalOverlay className="modal-overlay" isOpen={open} isDismissable={!saving} onOpenChange={value => { if (!value && !saving) finish("cancelled"); }}>
+  const confirmation = <ModalOverlay className="modal-overlay" isOpen={open} isDismissable={!saving} onOpenChange={value => { if (!value && !saving) finish("cancelled"); }}>
     <Modal className="app-modal app-modal--compact"><Dialog className="app-dialog" aria-label="处理未保存的修改">
       <Heading slot="title">{dirty ? "有未保存的修改" : "修改已保存"}</Heading><p>{dirty ? `${subject}尚未保存。要保存后离开吗？` : "保存已确认，请核对后续处理结果。"}</p>
       {failed && <p role="alert">{saveState?.message ?? "保存尚未确认，请核对后重试；修改仍保留。"}</p>}
@@ -40,4 +50,5 @@ export function useUnsavedChanges({ dirty, save, discard, saveState, subject = "
       </div>
     </Dialog></Modal>
   </ModalOverlay>;
+  return { confirmation, confirm };
 }

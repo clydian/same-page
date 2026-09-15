@@ -38,6 +38,7 @@ export const scoreSummarySchema = z.object({
   choirId: z.string(),
   fileName: z.string(),
   currentVersion: scoreVersionSummarySchema,
+  attachmentCount: z.number().int().nonnegative().optional(),
   updatedAt: z.number(),
 });
 

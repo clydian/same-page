@@ -9,7 +9,11 @@ export interface UploadProgress {
 }
 
 export function uploadPdf(url: string, form: FormData, signal: AbortSignal, onProgress: (progress: UploadProgress) => void) {
-  return diagnosticRequest(url, { method: "POST", signal }, () => new Promise<Response>((resolve, reject) => {
+  return uploadBody(url, form, signal, onProgress);
+}
+
+export function uploadBody(url: string, body: FormData | Blob, signal: AbortSignal, onProgress: (progress: UploadProgress) => void, method = "POST") {
+  return diagnosticRequest(url, { method, signal }, () => new Promise<Response>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const started = performance.now();
     const abort = () => xhr.abort();
@@ -38,6 +42,6 @@ export function uploadPdf(url: string, form: FormData, signal: AbortSignal, onPr
     xhr.onerror = () => { cleanup(); reject(new TypeError("Upload failed")); };
     xhr.onabort = () => { cleanup(); reject(new DOMException("Aborted", "AbortError")); };
     signal.addEventListener("abort", abort, { once: true });
-    try { xhr.open("POST", url); xhr.send(form); } catch (error) { cleanup(); reject(error); }
+    try { xhr.open(method, url); xhr.timeout = UPLOAD_TIMEOUT_MS; xhr.ontimeout = () => { cleanup(); reject(new TypeError("Upload timed out")); }; xhr.send(body); } catch (error) { cleanup(); reject(error); }
   }));
 }

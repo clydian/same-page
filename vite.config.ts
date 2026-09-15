@@ -112,6 +112,9 @@ export default defineConfig(({ isPreview }) => ({
         // process and must never cache or render.
         navigateFallbackDenylist: navigationFallbackDenylist,
         globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2}"],
+        // Attachments are online-only. Do not download their optional viewers
+        // and editor on every PWA install; the main PDF engine stays precached.
+        globIgnores: ["**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
         // PDF.js' worker is slightly larger than Workbox's 2 MiB default.
         // It is required to open a verified offline PDF, so keep it in the
         // application-shell precache rather than making offline claims depend

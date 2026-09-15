@@ -1126,11 +1126,10 @@ describe("AppRoutes", () => {
     expect(screen.queryByText("2.0 MB")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /更多操作/ }));
     expect(screen.queryByRole("menuitem", { name: "重命名" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("menuitem", { name: "文件信息" }));
-    const info = await screen.findByRole("dialog", { name: "文件信息" });
-    expect(within(info).getByText("2.0 MB")).toBeInTheDocument();
-    fireEvent.click(within(info).getByRole("button", { name: "关闭" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.queryByRole("menuitem", { name: "文件信息" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "历史 PDF 版本" })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "搜索" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("searchbox", { name: /搜索.*中的乐谱/ }), {

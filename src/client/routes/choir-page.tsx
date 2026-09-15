@@ -1,3 +1,7 @@
+import { useLibraryAttachments } from "../score-library/attachments/use-library-attachments";
+import { AttachmentLoading } from "../score-library/attachments/attachment-shell";
+import { LibraryTaskLoading } from "../score-library/library-task-dialog";
+import { AttachmentCount, AttachmentPending, AttachmentRows, type AttachmentSelection } from "../score-library/attachments/attachment-list";
 import { InstallSuggestion } from "../install/install-entry";
 import { scoreDisplayName } from "../../shared/score-display-name";
 import { hasManagement, type Operation } from "../../shared/drive-permissions";
@@ -51,6 +55,7 @@ import { UploadFab } from "../score-library/upload-fab";
 import type { LibrarySort } from "../score-library/library-view-state";
 import { OfflineScoreControl } from "../score-library/offline-score-control";
 
+const AttachmentDialog = lazy(() => import("../score-library/attachments/attachment-dialog"));
 const LibraryExportDialog = lazy(() => import("../score-library/library-export-dialog").then(module => ({ default: module.LibraryExportDialog })));
 
 export default function ChoirPage() {
@@ -73,6 +78,14 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const [uploadOpen, setUploadOpen] = useState(false);
   const [quotaBlocked, setQuotaBlocked] = useState(false);
   const [exportScore, setExportScore] = useState<ScoreSummary | null>(null);
+  const [attachmentSelection, setAttachmentSelection] = useState<AttachmentSelection | null>(null);
+  const [attachmentGeneration, setAttachmentGeneration] = useState(0);
+  const [expandedScoreIds, setExpandedScoreIds] = useState<Set<string>>(() => new Set());
+  const attachmentsEnabled = online && access.kind === "opened" && !access.local;
+  const scoresWithAttachments = visibleScores.filter(score => (score.attachmentCount ?? 0) > 0);
+  const expandedScores = scoresWithAttachments.filter(score => expandedScoreIds.has(score.id));
+  const attachmentsRequested = expandedScores.length > 0;
+  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled && attachmentsRequested, `${identity.authenticatedSessionId ?? "guest"}:${attachmentGeneration}`);
   const [scoreAction, setScoreAction] = useState<ScoreActionSelection | null>(null);
   const refresh = () => {
     // Authentication changes cause useDriveLibrary to acquire/reload the now
@@ -220,7 +233,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           {visibleScores.length > 0 ? (
             <section className="file-list" aria-label="PDF 文件">
               {visibleScores.map((score) => (
-                <article className="file-row" key={score.id}>
+                <article className="score-file-group" key={score.id}><div className="file-row">
                   <ScoreLink explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
                     onOpen={() =>
                       {
@@ -236,6 +249,8 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     <span className="pdf-file-icon" aria-hidden="true">PDF</span>
                     <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}</span></span>
                   </ScoreLink>
+                  <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={!attachmentsEnabled}
+                    onToggle={() => setExpandedScoreIds(current => { const next = new Set(current); if (next.has(score.id)) next.delete(score.id); else next.add(score.id); return next; })} />
                   <div className="file-row__offline"><OfflineScoreControl experience={choir.isPreviewEntry === true} score={score} authenticatedUserId={userId ?? null} authenticatedSessionId={identity.authenticatedSessionId} disabled={session.isPending || access.local} /></div>
                   <MenuTrigger>
                       <Button className="file-menu-button" aria-label={`${scoreDisplayName(score.fileName)} 更多操作`}>
@@ -244,20 +259,29 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                       <Popover className="file-menu-popover">
                         <Menu
                           aria-label={`${scoreDisplayName(score.fileName)} 操作`}
-                          disabledKeys={!online || access.local ? ["rename", "replace", "history", "trash"] : []}
-                          onAction={(key) => key === "export" ? setExportScore(score) : openScoreAction(score, key as ScoreAction)}
+                          disabledKeys={!online || access.local ? ["rename", "replace", "trash", "attachment-add"] : []}
+                          onAction={key => {
+                            if (key === "export") setExportScore(score);
+                            else if (key === "attachment-add") setAttachmentSelection({ score, action: "add" });
+                            else openScoreAction(score, key as ScoreAction);
+                          }}
                         >
                           <MenuItem id="export">分享 PDF</MenuItem>
-                          <MenuItem id="info">文件信息</MenuItem>
+                          {visible("uploadFiles") && <MenuItem id="attachment-add">添加附件</MenuItem>}
                           {managementVisible && <>
                           {visible("modifyFiles") && <MenuItem id="rename">重命名</MenuItem>}
                           {visible("modifyFiles") && <MenuItem id="replace">替换 PDF</MenuItem>}
-                          {visible("modifyFiles") && <MenuItem id="history">历史 PDF 版本</MenuItem>}
                           {visible("trashFiles") && <MenuItem id="trash">移到回收站</MenuItem>}
                           </>}
                         </Menu>
                       </Popover>
                     </MenuTrigger>
+                </div>
+                <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
+                  {expandedScoreIds.has(score.id) && (!attachmentsEnabled ? <p className="attachment-pending attachment-help" role="status">附件需联网后查看，主谱的离线副本不包含附件。</p>
+                    : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={score.attachmentCount ?? 0} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
+                    : <AttachmentRows score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={setAttachmentSelection} />)}
+                </div>
                 </article>
               ))}
             </section>
@@ -267,7 +291,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         </section>
       </main>
 
-      {exportScore && <Suspense fallback={<p role="status">正在准备分享…</p>}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
+      {attachmentSelection && attachmentsEnabled && <Suspense fallback={<AttachmentLoading selection={attachmentSelection} onClose={() => setAttachmentSelection(null)} />}><AttachmentDialog
+        key={`${identity.authenticatedSessionId ?? "guest"}:${attachmentSelection.score.id}:${attachmentSelection.attachment?.id ?? attachmentSelection.action}`}
+        selection={attachmentSelection} choirId={choirId} ownerKey={cacheOwner} canModify={can("modifyFiles")}
+        onClose={() => setAttachmentSelection(null)} onChanged={async () => { setAttachmentGeneration(value => value + 1); await refreshAfterMutation(); }} /></Suspense>}
+      {exportScore && <Suspense fallback={<LibraryTaskLoading title="分享 PDF" size="tall" onClose={() => setExportScore(null)} />}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
       {settingsField && !access.local && <DriveSettingsDialog key={`${choirId}:${userId}:${settingsField}`} choirId={choirId} userId={userId!} field={settingsField} onClose={() => setSettingsField(null)} onSaved={async value => { setDisplayName(value); setMessage(null); }} />}
       {visible("uploadFiles") && <UploadFab disabled={!online || Boolean(access.local)} onPress={() => setUploadOpen(true)} />}
 
@@ -285,7 +313,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           void refreshAfterMutation();
         }}
       /> : null}
-      {scoreAction && (scoreAction.action === "info" || can(scoreAction.action === "trash" ? "trashFiles" : "modifyFiles")) ? (
+      {scoreAction && can(scoreAction.action === "trash" ? "trashFiles" : "modifyFiles") ? (
         <ScoreActionDialog library={library} canPurge={result.permissions.capabilities.isOwner}
           key={`${identity.authenticatedSessionId}:${scoreAction.score.id}:${scoreAction.action}`}
           choirId={choirId}

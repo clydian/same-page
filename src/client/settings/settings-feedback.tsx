@@ -1,3 +1,5 @@
+import { PendingText } from "../components/loading-status";
+
 export function SettingsFeedback({
   loading,
   loadError,
@@ -20,7 +22,7 @@ export function SettingsFeedback({
   }
   return (
     <p className="settings-feedback settings-feedback--status" role="status">
-      {loading ? "正在读取设置…" : message ?? ""}
+      {loading ? <PendingText>正在读取设置…</PendingText> : message ?? ""}
     </p>
   );
 }

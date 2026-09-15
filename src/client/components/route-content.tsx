@@ -4,6 +4,8 @@ import { Component, Suspense, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AppHeader } from "./app-header";
 import { TaskHeader } from "./task-header";
+import { LoadingStatus } from "./loading-status";
+import { driveSettingsTitle } from "./route-titles";
 
 export function RouteContent({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -24,18 +26,21 @@ function RouteFeedback({ failed = false }: { failed?: boolean }) {
     : pathname === "/user/lifecycle" ? "用户删除与恢复"
     : pathname.endsWith("/me") ? "退出云盘成员身份"
     : pathname === "/user" ? "账户"
-    : pathname.includes("/settings/") ? "云盘管理"
+    : pathname.includes("/settings/") ? driveSettingsTitle(pathname.split("/settings/")[1])
     : pathname === "/help" ? "使用手册"
     : pathname === "/about" ? "关于合谱"
     : pathname === "/diagnostics" ? "故障诊断"
-    : pathname === "/privacy" ? "隐私说明" : drive ? "乐谱云盘" : "合谱";
-  return <main className="page-shell">
-    {pathname === "/" || pathname === "/drives" ? <><AppHeader /><h1>{title}</h1></> : <TaskHeader title={title} backTo={drive ? `/choirs/${drive}` : "/drives"} />}
-    <p role={failed ? "alert" : "status"}>{failed ? `${title}加载失败，请重试。` : `正在加载${title}…`}</p>
+    : pathname === "/privacy" ? "隐私政策" : drive ? "乐谱云盘" : "合谱";
+  const home = pathname === "/" || pathname === "/drives";
+  return <div className="app-page">
+    {!home && <TaskHeader title={title} backTo={drive ? `/choirs/${drive}` : "/drives"} />}
+    <main className={`page-shell${home ? "" : " settings-page settings-ux"}`}>
+    {home && <><AppHeader /><h1>{title}</h1></>}
+    {failed ? <p role="alert">{title}加载失败，请重试。</p> : <LoadingStatus>正在加载{title}…</LoadingStatus>}
     <Link className="text-button" state={{ home: true }} to={drive && pathname !== `/choirs/${drive}` ? `/choirs/${drive}` : "/"}>{drive && pathname !== `/choirs/${drive}` ? "返回云盘" : "返回首页"}</Link>
     {failed && <Link className="secondary-link" to="/diagnostics">故障诊断</Link>}
     {failed && <button className="secondary-button" onClick={() => window.location.reload()}>重新加载页面</button>}
-  </main>;
+  </main></div>;
 }
 
 class RouteErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {

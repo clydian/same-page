@@ -39,7 +39,6 @@
 
 .settings-ux .settings-heading h1 { font-size: 1.5rem; overflow-wrap: anywhere; }
 .settings-ux .settings-card { box-shadow: none; }
-.settings-ux .settings-feedback--status:empty { display: none; }
 .settings-ux .settings-layer-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .reading-preferences { max-width: 42rem; }
 .settings-group-title { margin: 0; padding: 1rem 1rem .5rem; font-size: 1rem; }

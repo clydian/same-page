@@ -71,7 +71,7 @@ describe("PDF file library and delivery", () => {
     }
     for (const key of ["derived-existing", "already-queued"]) {
       await env.SCORES_BUCKET.put(key, "old derivative");
-      await env.DB.prepare("INSERT INTO score_object_deletions VALUES (?, ?, 1)").bind(key, key).run();
+      await env.DB.prepare("INSERT INTO score_object_deletions (id, object_key, created_at) VALUES (?, ?, 1)").bind(key, key).run();
     }
     await env.SCORES_BUCKET.put("derived-new", "new derivative");
     await env.DB.batch(removal.queries.map((query: string) => env.DB.prepare(query)));

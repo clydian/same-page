@@ -1,6 +1,6 @@
-import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
-import { Dialog } from "../navigation/overlays";
-import { Share } from "lucide-react";
+import { Button } from "react-aria-components";
+import { LibraryTaskDialog } from "../score-library/library-task-dialog";
+import { LoadingStatus } from "../components/loading-status";
 import { type ExportTarget } from "./export-session";
 import { useExportSession } from "./use-export-session";
 import "./export-dialog.css";
@@ -19,10 +19,9 @@ function ExportDialogContent(props: Props) {
   if (!current) return null;
   const { session, snapshot: { prepared, layers, selected, includeNotes, file, message, readError, sharing, shareFailed } } = current;
   const canShare = file ? canSharePdf(file) : false;
-  return <ModalOverlay className="modal-overlay" isOpen isDismissable={!sharing} onOpenChange={open => { if (!open && !sharing) onClose(); }}><Modal className="app-modal"><Dialog className="app-dialog export-dialog" exitDisabled={sharing}>
-    <Heading slot="title"><Share aria-hidden="true" size={22} />分享 PDF</Heading>
+  return <LibraryTaskDialog title="分享 PDF" size="tall" onClose={onClose} busy={sharing}><div className="export-dialog">
     <p className="export-file-name">{fileName}</p>
-    {!prepared && !message && <p role="status">正在准备 PDF 和笔记…</p>}
+    {!prepared && !message && <LoadingStatus>正在准备 PDF 和笔记…</LoadingStatus>}
     {prepared && <>
       <fieldset className="export-mode" disabled={sharing}><legend>分享内容</legend>
         <label><input type="radio" name="export-content" checked={!includeNotes} onChange={() => { session.setIncludeNotes(false); }} />仅原谱</label>
@@ -46,7 +45,7 @@ function ExportDialogContent(props: Props) {
       {file && canShare && shareFailed && <Button className="secondary-button" isDisabled={sharing} onPress={() => downloadPdf(file)}>下载 PDF</Button>}
       <Button className="primary-button" isDisabled={sharing || !file} onPress={() => { if (!file) return; if (canShare) void session.share(); else downloadPdf(file); }}>{!file ? message || readError ? "分享 PDF" : "正在准备…" : sharing ? "正在分享…" : file ? canShare ? "分享 PDF" : "下载 PDF" : "分享 PDF"}</Button>
     </div>
-  </Dialog></Modal></ModalOverlay>;
+  </div></LibraryTaskDialog>;
 }
 
 function canSharePdf(file: File) {
