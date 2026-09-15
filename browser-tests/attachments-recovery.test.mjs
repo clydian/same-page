@@ -6,8 +6,9 @@ import { startStorageFixture } from "./storage-fixture.mjs";
 for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`attachments preserve document identity and recover interrupted writes (${engine})`, { timeout: 120_000 }, async t => {
     const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
-    t.after(() => fixture.stop());
-    const browser = await browserType.launch(); t.after(() => browser.close());
+    let browser;
+    t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
+    browser = await browserType.launch();
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     const account = fixture.accounts[0];
     assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } })).status(), 200);
