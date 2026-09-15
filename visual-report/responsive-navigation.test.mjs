@@ -4,6 +4,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { chromium, webkit } from "playwright";
+import { expect } from "@playwright/test";
 
 import { startVisualServer } from "./setup.mjs";
 import { resolveFixtureRequest } from "./fixtures.mjs";
@@ -58,8 +59,12 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     assert.equal(await page.locator(".file-row").count(), 1);
     await page.getByRole("button", { name: /更多操作/ }).focus();
     await page.keyboard.press("Enter");
-    await page.getByRole("menuitem", { name: "文件信息", exact: true }).press("Enter");
-    await page.getByRole("dialog", { name: "文件信息" }).waitFor();
+    const exportItem = page.getByRole("menuitem", { name: "分享 PDF", exact: true });
+    await exportItem.waitFor();
+    await exportItem.focus();
+    await page.keyboard.press("Escape");
+    assert.equal(await page.getByRole("menu").count(), 0);
+    await expect(page.getByRole("button", { name: /更多操作/ })).toBeFocused();
     await page.context().close();
   });
 

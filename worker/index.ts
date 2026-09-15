@@ -1,3 +1,5 @@
+import { AttachmentError } from "./attachments/storage";
+import { attachmentRoutes } from "./attachments/routes";
 import { androidReleaseRoutes } from "./android-release";
 import { trialRoutes } from "./choirs/trial-routes";
 import { excludeDeletedResources } from "./choirs/deleted-access";
@@ -56,16 +58,18 @@ app.route("/api", lifecycleRoutes);
 app.route("/api", choirRoutes);
 app.route("/api", driveSettingsRoutes);
 app.route("/api", scoreRoutes);
+app.route("/api", attachmentRoutes);
 app.route("/api", annotationRoutes);
 
 app.notFound((context) => context.json({ error: "not_found" }, 404));
 
 app.onError((error, context) => {
+  if (error instanceof AttachmentError) return context.json({ error: error.code }, error.status);
   if (error instanceof Error) {
     const messages: string[] = [];
     let cause: unknown = error;
     for (let depth = 0; cause instanceof Error && depth < 5; depth++, cause = cause.cause) messages.push(cause.message);
-    const code = ["platform_storage_limit_reached", "free_drive_limit_reached", "owned_drive_limit_reached", "member_limit_reached", "score_limit_reached", "resource_deleted"].find(code => messages.some(message => message.includes(code)));
+    const code = ["platform_storage_limit_reached", "free_drive_limit_reached", "owned_drive_limit_reached", "member_limit_reached", "score_limit_reached", "resource_deleted", "attachment_limit_reached", "choir_storage_quota_exceeded"].find(code => messages.some(message => message.includes(code)));
     if (code) return context.json({ error: code }, 409);
   }
   if (error instanceof Error && error.message.includes("owner_requires_transfer")) {

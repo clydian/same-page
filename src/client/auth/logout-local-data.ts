@@ -1,4 +1,5 @@
 import { storeOfflineScore } from "../platform/local-database";
+import { clearMarkdownDraftsAfterLogout, countMarkdownDrafts } from "../score-library/attachments/markdown-drafts";
 import { retainGuestSharedAnnotations } from "../annotations/annotation-state";
 import {
   annotationRecordKey,
@@ -18,12 +19,13 @@ export interface LogoutLocalSummary {
   pendingOperations: number;
   conflicts: number;
   syncErrors: number;
+  attachmentDrafts: number;
 }
 
 export async function getLogoutLocalSummary(): Promise<LogoutLocalSummary> {
   const ownerKey = await currentLocalOwnerKey();
   if (!ownerKey?.startsWith("user:")) {
-    return { pendingOperations: 0, conflicts: 0, syncErrors: 0 };
+    return { pendingOperations: 0, conflicts: 0, syncErrors: 0, attachmentDrafts: 0 };
   }
   const owners = [ownerKey, experienceOwnerKey(ownerKey)];
   const [pendingOperations, conflicts, syncErrors, drafts] = await Promise.all([
@@ -36,7 +38,7 @@ export async function getLogoutLocalSummary(): Promise<LogoutLocalSummary> {
       .count(),
     localDatabase.annotations.where("ownerKey").anyOf(owners).filter(annotation => annotation.state === "draft").count(),
   ]);
-  return { pendingOperations: pendingOperations + drafts, conflicts, syncErrors };
+  return { pendingOperations: pendingOperations + drafts, conflicts, syncErrors, attachmentDrafts: countMarkdownDrafts(ownerKey) };
 }
 
 export async function clearPrivateLocalDataAfterLogout() {
@@ -44,6 +46,7 @@ export async function clearPrivateLocalDataAfterLogout() {
   if (!ownerKey?.startsWith("user:")) return;
   const experienceOwner = experienceOwnerKey(ownerKey);
   const owners = [ownerKey, experienceOwner];
+  clearMarkdownDraftsAfterLogout(ownerKey);
   await localDatabase.transaction(
     "rw",
     [

@@ -49,13 +49,13 @@ function useLogoutController() {
       setMessage(serverSignedOut ? "服务端已退出，但本机隐私清理未完成。请重试清理。" : "退出未完成，本机数据没有清除。请重试。");
     } finally { running.current = false; setBusy(false); }
   };
-  const pending = summary && (summary.pendingOperations || summary.conflicts || summary.syncErrors);
+  const pending = summary && (summary.pendingOperations || summary.conflicts || summary.syncErrors || summary.attachmentDrafts);
   return { request, dialog: <>
     {message && !summary && <p role="alert">{message}</p>}
     <ModalOverlay className="modal-overlay" isOpen={Boolean(summary)} onOpenChange={open => { if (!open && !busy) setSummary(null); }} isDismissable={!busy}>
       <Modal className="app-modal app-modal--compact"><Dialog className="app-dialog" exitDisabled={busy}>
         <Heading slot="title">确认退出登录</Heading>
-        <p>{pending ? `本机还有 ${summary.pendingOperations} 项待同步操作和 ${summary.conflicts} 项本地冲突、${summary.syncErrors} 项同步异常。继续会永久丢弃这些内容。` : "退出后会清除本机个人层、编辑权限和用户偏好；已下载的共享内容可以保留。"}</p>
+        <p>{pending ? `本机还有 ${summary.pendingOperations} 项待同步操作和 ${summary.conflicts} 项本地冲突、${summary.syncErrors} 项同步异常${summary.attachmentDrafts ? `，以及 ${summary.attachmentDrafts} 份未保存的文档草稿` : ""}。继续会永久丢弃这些内容。` : "退出后会清除本机个人层、文档草稿、编辑权限和用户偏好；已下载的共享内容可以保留。"}</p>
         {message && <p role="alert">{message}</p>}
         <div className="dialog-actions"><Button className="secondary-button" isDisabled={busy} onPress={() => setSummary(null)}>返回处理</Button><Button className="primary-button" isDisabled={busy} onPress={() => void finish()}>{busy ? "正在退出…" : pending ? "丢弃并退出" : "退出并清除"}</Button></div>
       </Dialog></Modal>

@@ -1,0 +1,88 @@
+.score-file-group { border-bottom: 1px solid var(--line); }
+.score-file-group:last-child { border-bottom: 0; }
+.score-file-group .file-row { border-bottom: 0; }
+.attachment-count { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: .2rem; width: 44px; height: 44px; padding: 0; border: 0; border-radius: .5rem; background: none; color: var(--muted); font: inherit; font-size: .7rem; font-variant-numeric: tabular-nums; cursor: pointer; }
+.attachment-count:hover:not(:disabled) { background: var(--brand-soft); }
+.attachment-count:disabled { cursor: default; }
+.attachment-list { list-style: none; margin: -.2rem 0 .65rem; padding: 0 .65rem 0 3.95rem; }
+.attachment-pending { margin: -.2rem 0 .65rem; padding: 0 .65rem 0 3.95rem; font-size: .78rem; }
+.attachment-pending > p { margin: 0; }
+.attachment-row { display: flex; align-items: center; min-width: 0; min-height: 44px; }
+.attachment-open { min-height: 36px; display: flex; align-items: center; gap: .6rem; padding: .3rem 0; flex: 1; min-width: 0; text-decoration: none; color: var(--muted); background: none; border: 0; font: inherit; font-size: .82rem; text-align: left; cursor: pointer; }
+.attachment-open svg { flex-shrink: 0; opacity: .85; }
+.attachment-open span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-open:hover { color: var(--brand); }
+.attachment-menu { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; border: 0; color: var(--muted); background: none; border-radius: .4rem; cursor: pointer; }
+.attachment-menu:hover { background: var(--brand-soft); }
+.attachment-modal { width: min(32rem, 100%); }
+.attachment-modal--wide { width: min(52rem, 100%); }
+.attachment-dialog { padding: 1.5rem; min-height: min(24rem, calc(var(--safe-height) - 2rem)); }
+.attachment-dialog--picker { min-height: min(28rem, calc(var(--safe-height) - 2rem)); }
+.attachment-heading { display: flex; align-items: flex-start; gap: 1rem; justify-content: space-between; margin-bottom: 1.2rem; }
+.attachment-heading > div { min-width: 0; flex: 1; }
+.attachment-heading p { color: var(--muted); font-size: .78rem; margin: 0 0 .4rem; }
+.attachment-heading h2 { font-size: 1.25rem; font-weight: 650; overflow-wrap: anywhere; }
+.attachment-heading button { flex-shrink: 0; }
+.attachment-actions, .attachment-form-actions { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; margin-block: 1rem; }
+.attachment-actions .secondary-button { display: inline-flex; align-items: center; gap: .4rem; }
+.attachment-read-actions { justify-content: flex-end; }
+.attachment-help { color: var(--muted); font-size: .78rem; line-height: 1.7; }
+.attachment-help button { margin-left: .5rem; }
+.attachment-type-list { display: grid; }
+.attachment-type-option { display: grid; grid-template-columns: 24px 1fr 18px; align-items: center; gap: 1rem; width: 100%; min-height: 76px; padding: 1rem .5rem; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.attachment-type-option:last-child { border-bottom: 0; }
+.attachment-type-option:hover { background: var(--brand-soft); }
+.attachment-type-option > svg { color: var(--muted); }
+.attachment-type-option strong { display: block; font-size: .95rem; font-weight: 600; }
+.attachment-type-option small { display: block; margin-top: .3rem; color: var(--muted); font-size: .75rem; line-height: 1.6; }
+.attachment-compose { display: flex; align-items: center; justify-content: center; gap: .6rem; min-height: 48px; border: 1px solid var(--line); border-radius: .6rem; color: var(--brand); background: var(--brand-soft); font: inherit; font-weight: 600; cursor: pointer; }
+.attachment-or { text-align: center; color: var(--muted); font-size: .8rem; margin: .15rem 0; }
+.attachment-form { margin-top: 0; max-width: none; }
+.attachment-form > .attachment-help { margin: 0; }
+.attachment-form .attachment-file-picker { position: relative; display: flex; align-items: center; justify-content: center; gap: .65rem; min-height: 92px; margin: 0; padding: 1rem; border: 1px dashed var(--line); border-radius: .6rem; color: var(--muted); font-size: .9rem; font-weight: 500; cursor: pointer; }
+.attachment-file-picker input { width: 1px; height: 1px; min-height: 0; padding: 0; }
+.attachment-file-picker span { overflow-wrap: anywhere; min-width: 0; }
+.attachment-file-picker svg { flex-shrink: 0; }
+.attachment-file-picker:hover { background: var(--brand-soft); }
+.attachment-file-picker:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.attachment-name-field { display: grid; gap: .4rem; margin-block: .75rem; font-size: .85rem; }
+.attachment-name-field input { min-width: 0; width: 100%; border: 1px solid var(--line); border-radius: .5rem; padding: .65rem; font: inherit; }
+.attachment-audio { text-align: center; padding-block: 1rem; }
+.attachment-audio-art { display: grid; place-items: center; width: 5rem; height: 5rem; margin: auto; border-radius: 1rem; color: var(--brand); background: var(--brand-soft); }
+.attachment-audio p { color: var(--muted); font-size: .8rem; }
+.attachment-audio audio { width: 100%; margin-top: 1rem; }
+.attachment-prose { font: 1rem/1.85 system-ui, sans-serif; color: var(--ink); overflow-wrap: anywhere; }
+.attachment-prose :is(h1,h2,h3) { margin: 1.1em 0 .5em; line-height: 1.5; }
+.attachment-prose h1 { font-size: 1.5rem; }
+.attachment-prose h2 { font-size: 1.2rem; }
+.attachment-prose h3 { font-size: 1.05rem; }
+.attachment-prose p { margin: .6em 0; }
+.attachment-prose :is(ul,ol) { padding-left: 1.5rem; }
+.attachment-prose blockquote { border-left: 3px solid var(--line); padding-left: 1rem; margin-left: 0; color: var(--muted); }
+.attachment-prose pre, .attachment-source { overflow: auto; white-space: pre-wrap; }
+.attachment-editor-body { min-height: 15rem; padding: 1rem; }
+.attachment-dialog .mdxeditor { border: 1px solid var(--line); border-radius: .6rem; --accentBase: var(--brand-soft); --accentSolid: var(--brand); }
+.attachment-dialog .mdxeditor-toolbar { flex-wrap: wrap; border-bottom: 1px solid var(--line); border-radius: .6rem .6rem 0 0; background: #f7f9f9; }
+.attachment-pdf { position: relative; height: min(65vh, 40rem); min-height: 16rem; background: #edf0f0; border: 1px solid var(--line); border-radius: .6rem; overflow: hidden; }
+.attachment-pdf-toolbar { height: 44px; display: flex; align-items: center; justify-content: center; gap: .5rem; background: var(--surface); border-bottom: 1px solid var(--line); font-size: .8rem; }
+.attachment-pdf-toolbar button { display: grid; place-items: center; min-width: 36px; height: 36px; border: 0; border-radius: .4rem; background: transparent; color: var(--ink); cursor: pointer; }
+.attachment-pdf-toolbar button:disabled { opacity: .35; }
+.attachment-pdf-container { position: absolute; inset: 44px 0 0; overflow: auto; }
+.attachment-pdf > p[role="alert"] { position: absolute; inset: 50px 1rem auto; z-index: 1; background: white; padding: 1rem; }
+.attachment-trash { margin-top: 1.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.attachment-trash h3 { font-size: .9rem; color: var(--muted); }
+@media (max-width: 600px) {
+  .attachment-list, .attachment-pending { padding-left: 3.25rem; }
+  .attachment-dialog { padding: 1rem; }
+  .attachment-editor-body { padding: .65rem; }
+  .drive-page .library-controls { flex-wrap: wrap; }
+  .library-title { flex: 1 0 auto; }
+}
+
+.attachment-dialog--document { display: flex; flex-direction: column; height: min(44rem, calc(var(--safe-height) - 2rem)); }
+.attachment-dialog--document > :is(.attachment-heading, .attachment-name-field, .attachment-actions, .form-message) { flex-shrink: 0; }
+.attachment-dialog--document > :is(.attachment-editor-region, .attachment-prose) { flex: 1; min-height: 0; overflow: auto; }
+.attachment-editor-region > .mdxeditor { min-height: 100%; }
+.attachment-dialog .mdxeditor-toolbar { position: sticky; top: 0; z-index: 2; }
+.attachment-open { min-height: 44px; }
+.attachment-menu { width: 44px; height: 44px; }

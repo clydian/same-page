@@ -38,7 +38,11 @@ it("requires the current drive name and explicit confirmation before destructive
 });
 it("distinguishes a full library from a filename conflict when restoring trash", async () => {
   const score={id:"score",choirId:"drive",fileName:"曲谱.pdf",updatedAt:1,trashedAt:1,trashExpiresAt:Date.now()+86400000,currentVersion:{id:"version",versionNumber:1,sizeBytes:10,sha256:"hash",etag:"tag",pageCount:1,createdAt:1}};
-  vi.stubGlobal("fetch",vi.fn().mockResolvedValueOnce(Response.json({scores:[score],storage:{usedBytes:10,limitBytes:100}})).mockResolvedValueOnce(Response.json({error:"score_limit_reached"},{status:409})));
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    if (url.endsWith("/attachments/trash")) return Response.json({ attachments: [] });
+    if (url.endsWith("/scores/trash")) return Response.json({ scores: [score], storage: { usedBytes: 10, limitBytes: 100 } });
+    return Response.json({ error: "score_limit_reached" }, { status: 409 });
+  }));
   render(<MemoryRouter><TrashContents userId="user" choirId="drive" onRestored={()=>{}} /></MemoryRouter>);
   fireEvent.click(await screen.findByRole("button",{name:"恢复"}));
   expect(await screen.findByText(/文件库乐谱数量已达上限/)).toBeVisible();

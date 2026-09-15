@@ -182,9 +182,46 @@ try {
   assert(query("SELECT plan, score_limit, member_limit, purged_at FROM choirs").every(row => row.plan === "configured" && row.score_limit === null && row.member_limit === null && row.purged_at === null));
   assert.deepEqual(query("PRAGMA foreign_key_check"), []);
   verifyImageRetirement();
-  process.stdout.write("Verified legacy score schema migration, including image retirement.\n");
+  verifyAttachmentMigration();
+  process.stdout.write("Verified legacy score schema migration, including image retirement and score attachments.\n");
 } finally {
   rmSync(persistencePath, { recursive: true, force: true });
+}
+
+function verifyAttachmentMigration() {
+  const preservedQueries = {
+    drives: "SELECT * FROM choirs ORDER BY id",
+    scores: "SELECT * FROM scores ORDER BY id",
+    versions: "SELECT * FROM score_versions ORDER BY id",
+    layers: "SELECT * FROM annotation_layers ORDER BY id",
+    objects: "SELECT * FROM annotation_objects ORDER BY id",
+    operations: "SELECT * FROM annotation_sync_operations ORDER BY op_id",
+    deletions: "SELECT * FROM score_object_deletions ORDER BY id",
+  };
+  const before = queryNamed(preservedQueries);
+  applyMigrations("0027_score_attachments.sql");
+  assert.deepEqual(queryNamed(preservedQueries), before);
+  const state = queryNamed({
+    attachments: "SELECT * FROM score_attachments",
+    files: "SELECT * FROM score_attachment_files",
+    foreignKeys: "PRAGMA foreign_key_check",
+  });
+  assert.deepEqual(state, { attachments: [], files: [], foreignKeys: [] });
+  executeD1({ command: `
+    INSERT INTO score_attachments (id, choir_id, score_id, kind, name, created_at, updated_at)
+      VALUES ('preserved-attachment', 'choir', 'preserved-score', 'markdown', '保留.md', 1, 1);
+    INSERT INTO score_attachment_files (id, attachment_id, choir_id, object_key, size_bytes, content_type, state, etag, created_at)
+      VALUES ('preserved-attachment-file', 'preserved-attachment', 'choir', 'preserved.md', 10, 'text/markdown', 'ready', 'md-etag', 1);
+    UPDATE score_attachments SET current_file_id = 'preserved-attachment-file' WHERE id = 'preserved-attachment';
+  `, targetArgs });
+  const compatibleQueries = { ...preservedQueries,
+    deletions: "SELECT id, object_key, created_at FROM score_object_deletions ORDER BY id",
+    attachments: "SELECT * FROM score_attachments", files: "SELECT * FROM score_attachment_files" };
+  const prior = queryNamed(compatibleQueries);
+  applyMigrations("0028_count_pending_object_deletions.sql");
+  assert.deepEqual(queryNamed(compatibleQueries), prior);
+  assert.deepEqual(query("PRAGMA foreign_key_check"), []);
+  assert(query("SELECT platform_bytes FROM score_object_deletions").every(row => row.platform_bytes === 0));
 }
 
 function verifyImageRetirement() {

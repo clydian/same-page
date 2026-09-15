@@ -17,6 +17,16 @@ export async function cleanupScoreStorage(
   await env.DB.prepare("DELETE FROM choirs WHERE purged_at IS NOT NULL AND purged_at <= ?").bind(retentionCutoff).run();
   await env.DB.prepare("DELETE FROM scores WHERE purged_at IS NOT NULL AND purged_at <= ?").bind(retentionCutoff).run();
   await env.DB.prepare("DELETE FROM score_versions WHERE purged_at IS NOT NULL AND purged_at <= ?").bind(retentionCutoff).run();
+  const attachmentCleanup = await env.DB.batch([
+    env.DB.prepare("DELETE FROM score_attachments WHERE purged_at IS NOT NULL AND purged_at <= ?").bind(retentionCutoff),
+    env.DB.prepare("DELETE FROM score_attachments WHERE purged_at IS NULL AND trashed_at IS NOT NULL AND trash_expires_at <= ?").bind(now),
+    env.DB.prepare(`DELETE FROM score_attachment_files WHERE state = 'pending' AND created_at <= ?
+      AND NOT EXISTS (SELECT 1 FROM score_attachments WHERE current_file_id = score_attachment_files.id)`).bind(now - ABANDONED_UPLOAD_MS),
+    env.DB.prepare(`DELETE FROM score_attachment_files WHERE state = 'ready' AND created_at <= ?
+      AND NOT EXISTS (SELECT 1 FROM score_attachments WHERE current_file_id = score_attachment_files.id)`).bind(now - ABANDONED_UPLOAD_MS),
+    env.DB.prepare(`DELETE FROM score_attachments WHERE kind <> 'link' AND current_file_id IS NULL AND created_at <= ?
+      AND NOT EXISTS (SELECT 1 FROM score_attachment_files WHERE attachment_id = score_attachments.id)`).bind(now - ABANDONED_UPLOAD_MS),
+  ]);
   const expiredScores = await env.DB.prepare(
     `SELECT id FROM scores
      WHERE purged_at IS NULL AND trashed_at IS NOT NULL AND trash_expires_at <= ?
@@ -99,12 +109,12 @@ export async function cleanupScoreStorage(
     "SELECT id, object_key FROM score_object_deletions ORDER BY created_at LIMIT 100",
   ).all<{ id: string; object_key: string }>();
   for (const item of queued.results) {
-    const referenced = await env.DB.prepare(`SELECT object_key FROM score_versions WHERE object_key = ? LIMIT 1`).bind(item.object_key).first();
+    const referenced = await env.DB.prepare(`SELECT object_key FROM score_versions WHERE object_key = ? UNION ALL SELECT object_key FROM score_attachment_files WHERE object_key = ? LIMIT 1`).bind(item.object_key, item.object_key).first();
     if (!referenced) await env.SCORES_BUCKET.delete(item.object_key);
     await env.DB.prepare("DELETE FROM score_object_deletions WHERE id = ?")
       .bind(item.id)
       .run();
   }
 
-  return removedScores + removed;
+  return removedScores + removed + attachmentCleanup.reduce((total, result) => total + result.meta.changes, 0);
 }

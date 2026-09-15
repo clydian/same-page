@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
 import type { ScoreSummary } from "../../shared/scores";
-import { Dialog } from "../navigation/overlays";
+import { LibraryTaskDialog } from "./library-task-dialog";
+import { LoadingStatus } from "../components/loading-status";
 import { resolveLocalWorkspace, type LocalWorkspace } from "../platform/local-workspace";
 import { ExportDialog } from "../reader/export-dialog";
 
@@ -23,5 +23,5 @@ function LibraryExportDialogContent({ score, authenticatedUserId, onClose }: Pro
     return () => controller.abort();
   }, [authenticatedUserId, score.choirId, score.id]);
   if (workspace) return <ExportDialog workspace={workspace} versionId={score.currentVersion.id} fileName={score.fileName} authenticatedUserId={authenticatedUserId} onClose={onClose} />;
-  return <ModalOverlay className="modal-overlay" isOpen isDismissable onOpenChange={open => { if (!open) onClose(); }}><Modal className="app-modal"><Dialog className="app-dialog"><Heading slot="title">分享 PDF</Heading><p role={failed ? "alert" : "status"}>{failed ? "请确认登录身份后重新分享。" : "正在准备…"}</p><Button className="secondary-button" onPress={onClose}>取消</Button></Dialog></Modal></ModalOverlay>;
+  return <LibraryTaskDialog title="分享 PDF" size="tall" onClose={onClose}>{failed ? <p role="alert">请确认登录身份后重新分享。</p> : <LoadingStatus>正在准备…</LoadingStatus>}</LibraryTaskDialog>;
 }

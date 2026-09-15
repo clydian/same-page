@@ -1,3 +1,4 @@
+import { serveStoredFile } from "./serve-file";
 import { deleteCookie, getCookie } from "hono/cookie";
 import { GUEST_SESSION_COOKIE } from "../security/guest-session";
 import { limitDriveMutation } from "../security/drive-rate-limit";
@@ -62,7 +63,7 @@ scoreRoutes.get("/choirs/:choirId/bootstrap", async (context) => {
               CASE WHEN choirs.id = ? AND choirs.guest_session_version = ?
                 THEN 1 ELSE 0 END AS guest_access,
               scores.id AS score_id, scores.choir_id, scores.file_name,
-              scores.updated_at, versions.id AS version_id,
+              scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count, versions.id AS version_id,
               versions.version_number, versions.size_bytes, versions.sha256,
               versions.etag, versions.page_count,
               versions.created_at AS version_created_at
@@ -120,6 +121,7 @@ scoreRoutes.get("/choirs/:choirId/bootstrap", async (context) => {
       choir_id: row.choir_id,
       file_name: row.file_name,
       updated_at: row.updated_at,
+      attachment_count: row.attachment_count,
       version_id: row.version_id,
       version_number: row.version_number,
       size_bytes: row.size_bytes,
@@ -154,7 +156,7 @@ scoreRoutes.get("/choirs/:choirId/scores", async (context) => {
   const access = await resolveChoirAccess(context, choirId);
   const search = scoreFileNameKey(context.req.query("q")?.trim() ?? "");
   const result = await measureServerTiming(context, "d1", () => context.env.DB.prepare(
-    `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at,
+    `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
             versions.id AS version_id, versions.version_number,
             versions.size_bytes, versions.sha256, versions.etag,
             versions.page_count, versions.created_at AS version_created_at
@@ -446,51 +448,11 @@ async function serveScorePdf(
     return context.json({ error: "score_not_found" }, 404);
   }
 
-  const headers = new Headers({
-    "Accept-Ranges": "bytes",
-    "Cache-Control": "private, no-cache",
-    "Content-Type": "application/pdf",
-    ETag: row.etag,
-    "X-Content-SHA256": row.sha256,
-    "X-Content-Type-Options": "nosniff",
-    "X-Score-Version": row.version_id,
+  return serveStoredFile(context, {
+    objectKey: row.object_key, sizeBytes: row.size_bytes, etag: row.etag,
+    contentType: "application/pdf", unavailableCode: "score_file_unavailable",
+    headers: { "X-Content-SHA256": row.sha256, "X-Score-Version": row.version_id },
   });
-  const rangeHeader = context.req.header("Range");
-  const ifRange = context.req.header("If-Range");
-  const useRange = rangeHeader && (!ifRange || ifRange === row.etag);
-  const range = useRange ? parseRange(rangeHeader, row.size_bytes) : null;
-  if (useRange && !range) {
-    headers.set("Content-Range", `bytes */${row.size_bytes}`);
-    return new Response(null, { status: 416, headers });
-  }
-
-  const noneMatch = context.req.header("If-None-Match")?.split(/\s*,\s*/);
-  if (!range && (noneMatch?.includes(row.etag) || noneMatch?.includes("*"))) {
-    return new Response(null, { status: 304, headers });
-  }
-
-  if (range) {
-    headers.set("Content-Length", String(range.length));
-    headers.set(
-      "Content-Range",
-      `bytes ${range.offset}-${range.offset + range.length - 1}/${row.size_bytes}`,
-    );
-  } else {
-    headers.set("Content-Length", String(row.size_bytes));
-  }
-  const status = range ? 206 : 200;
-  if (context.req.method === "HEAD") {
-    return new Response(null, { status, headers });
-  }
-
-  const object = await measureServerTiming(context, "r2", () =>
-    context.env.SCORES_BUCKET.get(row.object_key, {
-      ...(range ? { range } : {}),
-    }));
-  if (!object || !("body" in object)) {
-    return context.json({ error: "score_file_unavailable" }, 503);
-  }
-  return new Response(object.body, { status, headers });
 }
 
 export async function resolveScorePdfVersion(context: Context<AppEnvironment>, requestedVersionId?: string) {
@@ -598,38 +560,13 @@ function uploadError(context: Context<AppEnvironment>, error: unknown) {
   throw error;
 }
 
-function parseRange(
-  value: string,
-  size: number,
-): { offset: number; length: number } | null {
-  const match = /^bytes=(\d*)-(\d*)$/.exec(value.trim());
-  if (!match || (!match[1] && !match[2])) return null;
-  if (!match[1]) {
-    const suffix = Number(match[2]);
-    if (!Number.isSafeInteger(suffix) || suffix <= 0) return null;
-    const length = Math.min(suffix, size);
-    return { offset: size - length, length };
-  }
-  const start = Number(match[1]);
-  const requestedEnd = match[2] ? Number(match[2]) : size - 1;
-  if (
-    !Number.isSafeInteger(start) ||
-    !Number.isSafeInteger(requestedEnd) ||
-    start < 0 ||
-    requestedEnd < start ||
-    start >= size
-  ) {
-    return null;
-  }
-  const end = Math.min(requestedEnd, size - 1);
-  return { offset: start, length: end - start + 1 };
-}
 
 interface ScoreRow {
   id: string;
   choir_id: string;
   file_name: string;
   updated_at: number;
+  attachment_count?: number;
   version_id: string;
   version_number: number;
   size_bytes: number;
@@ -650,6 +587,7 @@ function serializeScoreRow(row: ScoreRow) {
     choirId: row.choir_id,
     fileName: row.file_name,
     updatedAt: row.updated_at,
+    ...(row.attachment_count !== undefined ? { attachmentCount: row.attachment_count } : {}),
     currentVersion: {
       id: row.version_id,
       versionNumber: row.version_number,
@@ -695,6 +633,7 @@ interface DriveBootstrapRow {
   choir_id: string | null;
   file_name: string | null;
   updated_at: number | null;
+  attachment_count?: number;
   version_id: string | null;
   version_number: number | null;
   size_bytes: number | null;
@@ -709,6 +648,7 @@ interface DriveBootstrapScoreRow extends DriveBootstrapRow {
   choir_id: string;
   file_name: string;
   updated_at: number;
+  attachment_count?: number;
   version_id: string;
   version_number: number;
   size_bytes: number;

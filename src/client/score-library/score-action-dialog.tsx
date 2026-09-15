@@ -6,7 +6,6 @@ import {
   Button,
 
   Form,
-  Heading,
   Input,
   Label,
   Modal,
@@ -17,11 +16,11 @@ import { Dialog } from "../navigation/overlays";
 
 import type { ScoreSummary } from "../../shared/scores";
 import { LibraryDialogHeading } from "./library-dialog-heading";
-import { formatBytes } from "./library-format";
+import { LibraryTaskLoading } from "./library-task-dialog";
 
 const PdfVersionDialog = lazy(() => import("./pdf-version-dialog").then((module) => ({ default: module.PdfVersionDialog })));
 
-export type ScoreAction = "info" | "rename" | "replace" | "history" | "trash";
+export type ScoreAction = "rename" | "replace" | "trash";
 
 export interface ScoreActionSelection {
   action: ScoreAction;
@@ -43,27 +42,8 @@ export function ScoreActionDialog({
   onClose: () => void;
   onComplete: (message: string) => void;
 }) {
-  if (selection.action === "info") {
-    const { score } = selection;
-    return (
-      <ModalOverlay className="modal-overlay" isOpen isDismissable onOpenChange={(open) => { if (!open) onClose(); }}>
-        <Modal className="app-modal app-modal--compact">
-          <Dialog className="app-dialog file-info-dialog">
-            <Heading slot="title">文件信息</Heading>
-            <p className="file-info-name">{score.fileName}</p>
-            <dl className="file-info-list">
-              <div><dt>文件大小</dt><dd>{formatBytes(score.currentVersion.sizeBytes)}</dd></div>
-              <div><dt>页数</dt><dd>{score.currentVersion.pageCount}</dd></div>
-              <div><dt>PDF 版本</dt><dd>{score.currentVersion.versionNumber}</dd></div>
-            </dl>
-            <Button className="secondary-button" onPress={onClose}>关闭</Button>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    );
-  }
-  if (selection.action === "replace" || selection.action === "history") {
-    return <Suspense fallback={<p role="status">正在加载版本工具…</p>}><PdfVersionDialog canPurge={canPurge} choirId={choirId} score={selection.score} historyOnly={selection.action === "history"}
+  if (selection.action === "replace") {
+    return <Suspense fallback={<LibraryTaskLoading title="替换 PDF" onClose={onClose} />}><PdfVersionDialog canPurge={canPurge} choirId={choirId} score={selection.score} historyOnly={false}
       onClose={onClose} onComplete={async message => { await library.changed(); onComplete(message); }} /></Suspense>;
   }
   return <BasicScoreActionDialog library={library} choirId={choirId} selection={selection} onClose={onClose} onComplete={onComplete} />;

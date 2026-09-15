@@ -36,11 +36,6 @@
 .file-library .library-workspace { border-radius: .75rem; box-shadow: none; }
 .my-drives-page .membership-list, .drive-picker-dialog .membership-list { gap: 0; }
 .my-drives-page .membership-row, .drive-picker-dialog .membership-row { border-radius: 0; border-width: 0 0 1px; }
-.file-info-name { overflow-wrap: anywhere; line-height: 1.6; }
-.file-info-list { display: grid; gap: .75rem; margin-block: 1.5rem; }
-.file-info-list > div { display: flex; justify-content: space-between; gap: 1rem; }
-.file-info-list dt { color: var(--muted); }
-.file-info-list dd { margin: 0; }
 
 .saved-score-links { margin-top: 2rem; }
 .saved-score-links h2 { font-size: 1rem; }

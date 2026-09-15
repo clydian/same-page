@@ -13,6 +13,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { LockKeyhole } from "lucide-react";
 import { authClient } from "../auth/auth-client";
 import { TaskHeader } from "../components/task-header";
+import { driveSettingsTitle } from "../components/route-titles";
 import { driveManagementSchema } from "../../shared/drive-management";
 import { managedMembershipsSchema } from "../../shared/lifecycle";
 import { operationLabels, type Operation } from "../../shared/drive-permissions";
@@ -50,7 +51,7 @@ function DriveManagement({ choirId, section, userId }: { choirId: string; sectio
       {locked === operation && <PermissionContacts userId={userId} choirId={choirId} operation={operation} isMember={Boolean(data?.isMember)} />}
     </section>;
   }
-  return <div className="app-page"><TaskHeader title={{ info: "基本信息", admission: "加入方式", trash: "回收站" }[section] ?? "云盘管理"} backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page settings-ux">
+  return <div className="app-page"><TaskHeader title={driveSettingsTitle(section)} backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page settings-ux">
     <header className="settings-heading"><p>{data?.name ?? "查看配置与权限分工"}</p></header>
     {!data && <p role={error ? "alert" : "status"}>{error ?? "正在读取云盘设置…"}</p>}
     {error && data && <p role="alert">{error}</p>}{error && <Button className="secondary-button" onPress={refresh}>重新读取</Button>}

@@ -1062,6 +1062,44 @@ describe("AppRoutes", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each(["checking", "unreachable"])("retains the attachment form through %s but permanently retires it on a new session", async state => {
+    await activateAuthenticatedLocalOwner("user-1");
+    const session = (id: string, uncertain = false) => ({
+      data: { user: { id: "user-1", email: "singer@example.test" }, session: { id } },
+      isPending: uncertain && state === "checking",
+      error: uncertain && state === "unreachable" ? { status: 503 } : null,
+    }) as ReturnType<typeof authClient.useSession>;
+    vi.mocked(authClient.useSession).mockReturnValue(session("session-1"));
+    const body = { ...driveBootstrapBody({ capabilities: effectiveCapabilities(true, emptyPermissions(), emptyPermissions()), access: "membership" }), scores: [{
+      id: "score-1", choirId: "choir-1", fileName: "表单测试.pdf", updatedAt: 1,
+      currentVersion: { id: "version-1", versionNumber: 1, sizeBytes: 100, sha256: "a".repeat(64), etag: "etag", pageCount: 1, createdAt: 1 },
+    }] };
+    vi.stubGlobal("fetch", vi.fn(async (input: string) => input.includes("/bootstrap") ? Response.json(body) : Response.json({}, { status: 404 })));
+    const view = () => <MemoryRouter initialEntries={["/choirs/choir-1"]}><AppRoutes /></MemoryRouter>;
+    const { rerender } = render(view());
+    fireEvent.click(await screen.findByRole("button", { name: "表单测试 更多操作" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "添加附件" }));
+    fireEvent.click(await screen.findByRole("button", { name: "PDF" }));
+    const picker = await screen.findByLabelText("选择附件文件");
+    fireEvent.change(picker, { target: { files: [new File(["pdf"], "待上传.pdf", { type: "application/pdf" })] } });
+    expect(await screen.findByRole("textbox", { name: "名称" })).toHaveValue("待上传.pdf");
+    vi.mocked(authClient.useSession).mockReturnValue(session("session-1", true));
+    rerender(view());
+    expect(screen.getByLabelText("选择附件文件")).toBe(picker);
+    expect(screen.getByRole("button", { name: "上传" })).toBeDisabled();
+    vi.mocked(authClient.useSession).mockReturnValue(session("session-1"));
+    rerender(view());
+    await waitFor(() => expect(screen.getByRole("button", { name: "上传" })).toBeEnabled());
+    expect(screen.getByLabelText("选择附件文件")).toBe(picker);
+    expect(screen.getByRole("textbox", { name: "名称" })).toHaveValue("待上传.pdf");
+    vi.mocked(authClient.useSession).mockReturnValue(session("session-2"));
+    rerender(view());
+    expect(screen.queryByRole("dialog", { name: "添加PDF" })).not.toBeInTheDocument();
+    vi.mocked(authClient.useSession).mockReturnValue(session("session-2", true));
+    rerender(view());
+    expect(screen.queryByRole("dialog", { name: "添加PDF" })).not.toBeInTheDocument();
+  });
+
   it("shows members a filename-first list without administrator storage controls", async () => {
     const fetchMock = vi.fn().mockImplementation((input: string) =>
       Promise.resolve(
@@ -1126,11 +1164,10 @@ describe("AppRoutes", () => {
     expect(screen.queryByText("2.0 MB")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /更多操作/ }));
     expect(screen.queryByRole("menuitem", { name: "重命名" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("menuitem", { name: "文件信息" }));
-    const info = await screen.findByRole("dialog", { name: "文件信息" });
-    expect(within(info).getByText("2.0 MB")).toBeInTheDocument();
-    fireEvent.click(within(info).getByRole("button", { name: "关闭" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.queryByRole("menuitem", { name: "文件信息" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "历史 PDF 版本" })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "搜索" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("searchbox", { name: /搜索.*中的乐谱/ }), {

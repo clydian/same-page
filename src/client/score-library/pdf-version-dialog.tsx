@@ -3,12 +3,11 @@ import { uploadPdf, UPLOAD_TIMEOUT_MS, type UploadProgress } from "./upload-tran
 import { UploadProgressView } from "./upload-progress-view";
 import { PurgeDialog } from "../drives/purge-dialog";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Button,  Modal, ModalOverlay } from "react-aria-components";
-import { Dialog } from "../navigation/overlays";
+import { Button } from "react-aria-components";
 import { MAX_PDF_BYTES, scoreVersionHistorySchema, scoreVersionSummarySchema, type ScoreSummary, type ScoreVersionHistory } from "../../shared/scores";
 import { authClient } from "../auth/auth-client";
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
-import { LibraryDialogHeading } from "./library-dialog-heading";
+import { LibraryTaskDialog } from "./library-task-dialog";
 import { uploadMessage } from "./library-format";
 import { PdfVersionPreview } from "./pdf-version-preview";
 
@@ -126,11 +125,10 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
     finally { if (mounted.current) setBusy(false); }
   };
   const currentPages = history?.versions.find((version) => version.id === history.currentVersionId)?.pageCount ?? score.currentVersion.pageCount;
-  if (session.isPending || !initialUser || initialUser !== session.data?.user.id) return <p role="alert">登录身份已变化，请关闭后重新打开版本工具。<Button className="secondary-button" onPress={onClose}>关闭</Button></p>;
-  return <ModalOverlay className="modal-overlay" isOpen isDismissable={!busy} isKeyboardDismissDisabled={busy}
-    onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
-    <Modal className="app-modal"><Dialog className="app-dialog pdf-version-dialog">
-      <LibraryDialogHeading title={historyOnly ? "历史 PDF 版本" : "替换 PDF"} close={() => { if (!busy) onClose(); }} />
+  const title = historyOnly ? "历史 PDF 版本" : "替换 PDF";
+  if (session.isPending || !initialUser || initialUser !== session.data?.user.id) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">登录身份已变化，请关闭后重新打开版本工具。</p></LibraryTaskDialog>;
+  return <LibraryTaskDialog title={title} onClose={onClose} busy={busy}>
+    <div className="pdf-version-dialog">
       {!historyOnly && !selected ? <label>新的 PDF（最多 20 MB、500 页）
         <input type="file" accept="application/pdf,.pdf" disabled={!history || busy || uncertain}
           onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
@@ -159,6 +157,6 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
       {historyOnly && selected && canPurge && <Button className="primary-button destructive-button" isDisabled={busy} onPress={() => setPurging(true)}>彻底删除所选历史版本</Button>}
       {purging && selected && <PurgeDialog userId={initialUser} path={`${path}/versions/${selected.id}/purge`} title="彻底删除历史 PDF" description="所选历史谱面将无法查看或回滚。当前 PDF 和笔记不变。" onClose={() => setPurging(false)} onComplete={() => onComplete("历史版本已彻底删除。")} />}
       {message ? <p role="alert">{message}</p> : null}
-    </Dialog></Modal>
-  </ModalOverlay>;
+    </div>
+  </LibraryTaskDialog>;
 }
