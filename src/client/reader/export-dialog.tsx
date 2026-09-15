@@ -1,5 +1,5 @@
 import { Button } from "react-aria-components";
-import { LibraryTaskDialog } from "../score-library/library-task-dialog";
+import { LibraryTaskDialog, LibraryTaskLoading } from "../score-library/library-task-dialog";
 import { LoadingStatus } from "../components/loading-status";
 import { type ExportTarget } from "./export-session";
 import { useExportSession } from "./use-export-session";
@@ -16,7 +16,7 @@ export function ExportDialog(props: Props) {
 function ExportDialogContent(props: Props) {
   const current = useExportSession(props);
   const { fileName, onClose } = props;
-  if (!current) return null;
+  if (!current) return <LibraryTaskLoading title="分享 PDF" size="tall" onClose={onClose} />;
   const { session, snapshot: { prepared, layers, selected, includeNotes, file, message, readError, sharing, shareFailed } } = current;
   const canShare = file ? canSharePdf(file) : false;
   return <LibraryTaskDialog title="分享 PDF" size="tall" onClose={onClose} busy={sharing}><div className="export-dialog">

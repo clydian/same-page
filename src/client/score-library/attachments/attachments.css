@@ -7,7 +7,7 @@
 .attachment-list { list-style: none; margin: -.2rem 0 .65rem; padding: 0 .65rem 0 3.95rem; }
 .attachment-pending { margin: -.2rem 0 .65rem; padding: 0 .65rem 0 3.95rem; font-size: .78rem; }
 .attachment-pending > p { margin: 0; }
-.attachment-row { display: flex; align-items: center; min-width: 0; }
+.attachment-row { display: flex; align-items: center; min-width: 0; min-height: 44px; }
 .attachment-open { min-height: 36px; display: flex; align-items: center; gap: .6rem; padding: .3rem 0; flex: 1; min-width: 0; text-decoration: none; color: var(--muted); background: none; border: 0; font: inherit; font-size: .82rem; text-align: left; cursor: pointer; }
 .attachment-open svg { flex-shrink: 0; opacity: .85; }
 .attachment-open span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

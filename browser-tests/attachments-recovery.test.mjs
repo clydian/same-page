@@ -63,10 +63,17 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
 
     await add("PDF");
     await page.getByLabel("选择附件文件").setInputFiles({ name: "取消后重试.pdf", mimeType: "application/pdf", buffer: fixture.pdf });
+    const attempts = [];
+    page.on("request", request => { if (request.method() === "POST" && new URL(request.url()).searchParams.get("name") === "取消后重试.pdf") attempts.push(request.url()); });
     let held;
     await page.route(filePattern, route => { if (route.request().method() === "POST") held = route; else return route.continue(); });
     await page.getByRole("button", { name: "上传", exact: true }).click();
     await expect.poll(() => Boolean(held)).toBe(true);
+    await context.setOffline(true);
+    await expect(page.getByRole("dialog", { name: "添加PDF", exact: true })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "名称", exact: true })).toHaveValue("取消后重试.pdf");
+    await expect(page.getByText("连接尚未恢复，输入已保留；联网后可继续保存或核对结果。", { exact: true })).toBeVisible();
+    await context.setOffline(false);
     await page.getByRole("button", { name: "取消上传", exact: true }).click();
     await held.abort().catch(() => {});
     await page.unroute(filePattern);
@@ -75,6 +82,8 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     await expect(page.getByLabel("选择附件文件")).toBeEnabled();
     await page.getByRole("button", { name: "上传", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    assert.equal(attempts.length, 2);
+    assert.equal(attempts[0], attempts[1], "Going offline preserves the original upload request identity");
     assert.equal((await list()).filter(item => item.name === "取消后重试.pdf").length, 1);
 
     // The server commits the DELETE, but the browser receives no response.

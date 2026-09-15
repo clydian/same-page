@@ -84,3 +84,14 @@ it("isolates loading and errors to unread scores while preserving other open att
   await act(async () => retry.resolve(Response.json({ attachments: [firstAttachment, secondAttachment] })));
   expect(result.current.statusFor(second.id)).toBe("ready");
 });
+
+it.each([401, 403, 404])("drops cached attachment metadata after explicit access failure %s", async status => {
+  fetchMock.mockResolvedValueOnce(Response.json({ attachments: [firstAttachment] }))
+    .mockResolvedValueOnce(new Response(null, { status }));
+  const { result, rerender } = renderHook(useAttachments, { initialProps });
+  await waitFor(() => expect(result.current.statusFor(first.id)).toBe("ready"));
+  rerender({ ...initialProps, scores: [first, second] });
+  await waitFor(() => expect(result.current.statusFor(first.id)).toBe("error"));
+  expect(result.current.items).toEqual([]);
+  expect(result.current.statusFor(second.id)).toBe("error");
+});

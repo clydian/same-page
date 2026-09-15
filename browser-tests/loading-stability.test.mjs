@@ -93,6 +93,34 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
       await expect(dialog).toHaveCount(0);
     }
 
+    // Removing the last attachment must remove its wait region with the badge.
+    await page.getByRole("button", { name: "第三份参考 更多操作", exact: true }).click();
+    await page.getByRole("menuitem", { name: "移到回收站", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "移到回收站", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "第三份：1 个附件", exact: true })).toHaveCount(0);
+    await expect(page.locator(`#score-attachments-${third.id} .attachment-pending`)).toHaveCount(0);
+
+    const markdown = Buffer.from("# Cold form fixture\n");
+    assert.equal((await context.request.post(`${api}/scores/${third.id}/attachments/${crypto.randomUUID()}/file?${new URLSearchParams({ name: "名称测试.md", size: String(markdown.length) })}`, { data: markdown, headers: { "content-type": "application/octet-stream" } })).status(), 201);
+    for (const [action, title] of [["重命名", "重命名附件"], ["移到回收站", "移到回收站"]]) {
+      await page.reload();
+      await page.getByRole("button", { name: "第三份：1 个附件", exact: true }).click();
+      await page.getByRole("button", { name: "名称测试.md 更多操作", exact: true }).click();
+      const gate = await hold(page, chunk("attachment-dialog"));
+      await page.getByRole("menuitem", { name: action, exact: true }).click(); await gate.wait();
+      const dialog = page.getByRole("dialog", { name: title, exact: true });
+      await expect(dialog).toBeVisible();
+      const before = await dialog.boundingBox();
+      await gate.release();
+      if (action === "重命名") await expect(dialog.getByRole("textbox", { name: "名称", exact: true })).toBeVisible();
+      else await expect(dialog.getByRole("button", { name: title, exact: true })).toBeVisible();
+      const after = await dialog.boundingBox();
+      stays(before.y, after.y, "Cold attachment action retains its frame position");
+      stays(before.width, after.width, "Renaming Markdown uses the form width throughout");
+      await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+    }
+
     const module = await hold(page, chunk("drive-management-page"));
     const data = await hold(page, "**/api/choirs/*/management");
     await page.getByRole("button", { name: "打开云盘菜单", exact: true }).click();
@@ -114,5 +142,20 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
     await layers.release(); await page.getByRole("link", { name: /Ensemble/ }).waitFor();
     stays(selectorTop, await top(selector), "Settings status does not move existing controls");
     assert.deepEqual(errors, []);
+
+    // Read-only links have no more menu; their loading reservation still fits.
+    const reader = await browser.newContext({ viewport: { width, height: 844 }, serviceWorkers: "block" });
+    const member = fixture.accounts[1];
+    assert.equal((await reader.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: member.email, password: member.password } })).status(), 200);
+    const readPage = await reader.newPage();
+    await readPage.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
+    const gate = await hold(readPage, "**/api/choirs/*/attachments?*");
+    await readPage.getByRole("button", { name: "第二份：1 个附件", exact: true }).click(); await gate.wait();
+    const rows = readPage.locator(`#score-attachments-${second.id}`);
+    const reserved = await rows.locator(".attachment-pending").boundingBox();
+    await gate.release(); await rows.getByRole("link", { name: "第二份参考", exact: true }).waitFor();
+    await expect(rows.getByRole("button", { name: /更多操作/ })).toHaveCount(0);
+    const loaded = await rows.locator(".attachment-list").boundingBox();
+    stays(reserved.height, loaded.height, "Read-only link rows retain their reserved height");
   });
 }

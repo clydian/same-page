@@ -1,4 +1,5 @@
 import { storeOfflineScore } from "../platform/local-database";
+import { markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "../score-library/attachments/markdown-drafts";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -18,6 +19,7 @@ import {
 } from "./logout-local-data";
 
 beforeEach(async () => {
+  sessionStorage.clear(); localStorage.clear();
   await localDatabase.open();
   await Promise.all([
     localDatabase.annotationLayers.clear(),
@@ -143,12 +145,18 @@ describe("logout local privacy", () => {
       },
     });
 
+    const draftScope = { ownerKey: workspace.ownerKey, choirId: workspace.choirId, scoreId: workspace.scoreId };
+    writeMarkdownDraft(draftScope, null, { id: crypto.randomUUID(), name: "未保存.md", text: "私密内容", revision: null }, markdownDraftEpoch(workspace.ownerKey));
     await expect(getLogoutLocalSummary()).resolves.toEqual({
       pendingOperations: 1,
       conflicts: 1,
       syncErrors: 1,
+      attachmentDrafts: 1,
     });
     await clearPrivateLocalDataAfterLogout();
+
+    expect(sessionStorage.getItem(markdownDraftKey(draftScope, null))).toBeNull();
+    expect(readMarkdownDraft(draftScope, null)).toBeNull();
 
     expect(await localDatabase.annotationOutbox.count()).toBe(0);
     expect(await localDatabase.annotationConflicts.count()).toBe(0);

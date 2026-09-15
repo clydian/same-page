@@ -13,12 +13,13 @@ import { uploadBody, type UploadProgress } from "../upload-transport";
 import { formatBytes } from "../library-format";
 import type { AttachmentSelection } from "./attachment-list";
 import { attachmentFileUrl, attachmentMessage, attachmentPath, readAttachmentRecovery } from "./api";
+import { attachmentActionTitle } from "./attachment-presentation";
 
 const MarkdownAttachment = lazy(() => import("./markdown-attachment"));
 const PdfPreview = lazy(() => import("./pdf-preview"));
 
 
-type Props = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; onClose: () => void; onChanged: () => Promise<void> };
+type Props = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; writable: boolean; onClose: () => void; onChanged: () => Promise<void> };
 export default function AttachmentDialog(props: Props) {
   const { selection, choirId, onClose } = props;
   const { attachment, score, action } = selection;
@@ -70,7 +71,7 @@ function AudioPreview({ attachment, choirId }: { attachment: ScoreAttachment; ch
   </div>;
 }
 
-function AttachmentForm({ selection: { score, action, attachment }, choirId, onClose, onChanged, uploadKind = "audio", onBack, onCompose }: Props & {
+function AttachmentForm({ selection: { score, action, attachment }, choirId, writable, onClose, onChanged, uploadKind = "audio", onBack, onCompose }: Props & {
   uploadKind?: FileKind; onBack?: () => void; onCompose?: () => void;
 }) {
   const [name, setName] = useState(attachment?.name ?? "");
@@ -84,7 +85,7 @@ function AttachmentForm({ selection: { score, action, attachment }, choirId, onC
   const submitted = useRef<{ name: string; url: string; size: number } | null>(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => () => abort.current?.abort(), []);
-  const mutation = useSettingsMutation({ refresh: async isCurrent => {
+  const mutation = useSettingsMutation({ enabled: writable, refresh: async isCurrent => {
     if (!confirmed.current) {
       const creating = action === "upload" || action === "link";
       const result = await readAttachmentRecovery(choirId, score.id, requestId, creating ? "create" : action === "trash" ? "trash" : "modify");
@@ -133,8 +134,9 @@ function AttachmentForm({ selection: { score, action, attachment }, choirId, onC
     return saved === true;
   };
   const uploadLabel = { audio: "音频", pdf: "PDF", markdown: "文档（.md）" }[uploadKind];
-  const title = action === "upload" ? `添加${uploadLabel}` : action === "link" ? "添加链接" : action === "trash" ? "移到回收站" : isLink ? "修改链接" : "重命名附件";
+  const title = attachmentActionTitle(action, attachment, uploadKind);
   return <AttachmentShell title={title} subtitle={scoreDisplayName(score.fileName)} dirty={dirty && !saved} busy={mutation.pending} blocked={mutation.blocked} save={save} onClose={onClose} onBack={onBack} message={validation ?? mutation.message}>
+    {!writable && <p className="attachment-help" role="status">连接尚未恢复，输入已保留；联网后可继续保存或核对结果。</p>}
     <Form className="entry-form attachment-form" onSubmit={event => { event.preventDefault(); void save(); }}>
       {action === "upload" && <>
         {uploadKind === "markdown" && !file && <><Button className="attachment-compose" onPress={onCompose}><Pencil size={18} />直接编写</Button><p className="attachment-or">或上传已有文档</p></>}
@@ -153,7 +155,7 @@ function AttachmentForm({ selection: { score, action, attachment }, choirId, onC
       {mutation.pending && action === "upload" && <><UploadProgressView name={name} progress={progress} /><p role="status">{progress?.processing ? "正在保存附件…" : "正在上传…"}</p></>}
       {(action !== "upload" || file || mutation.needsRefresh) && <div className="attachment-form-actions"><Button className="primary-button" type="submit" isDisabled={mutation.blocked || (action === "upload" && !file)}>{mutation.pending ? "正在保存…" : action === "trash" ? "移到回收站" : action === "upload" ? "上传" : action === "link" ? "添加" : "保存"}</Button>
         {mutation.pending && action === "upload" && <Button className="secondary-button" onPress={() => abort.current?.abort()}>取消上传</Button>}
-        {mutation.needsRefresh && <Button className="secondary-button" onPress={() => void mutation.refresh().catch(() => {})}>核对保存结果</Button>}
+        {mutation.needsRefresh && <Button className="secondary-button" isDisabled={!writable} onPress={() => void mutation.refresh().catch(() => {})}>核对保存结果</Button>}
       </div>}
     </Form>
   </AttachmentShell>;

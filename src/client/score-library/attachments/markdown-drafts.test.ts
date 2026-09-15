@@ -1,10 +1,10 @@
 import { beforeEach, expect, it } from "vitest";
-import { markdownDraftKey, readMarkdownDraft } from "./markdown-drafts";
+import { clearMarkdownDraftsAfterLogout, countMarkdownDrafts, markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "./markdown-drafts";
 
 const scope = { ownerKey: "user:one", choirId: "drive", scoreId: "score" };
 const id = "00000000-0000-4000-8000-000000000001";
 const saved = { id, name: "笔记.md", text: "不要丢失的草稿", revision: 1 };
-beforeEach(() => { sessionStorage.clear(); });
+beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
 
 it("moves a post-save legacy draft out of new-document creation", () => {
   sessionStorage.setItem(markdownDraftKey(scope, null), JSON.stringify(saved));
@@ -30,4 +30,29 @@ it("resumes a real new draft without assigning a saved revision", () => {
   sessionStorage.setItem(markdownDraftKey(scope, null), JSON.stringify(draft));
   expect(readMarkdownDraft(scope, null)).toEqual(draft);
   expect(readMarkdownDraft(scope, id)).toBeNull();
+});
+
+it("clears the departing owner's drafts without discarding another owner's work", () => {
+  const other = { ...scope, ownerKey: "user:other" };
+  writeMarkdownDraft(scope, id, saved, markdownDraftEpoch(scope.ownerKey));
+  writeMarkdownDraft(other, id, saved, markdownDraftEpoch(other.ownerKey));
+  expect(countMarkdownDrafts(scope.ownerKey)).toBe(1);
+  clearMarkdownDraftsAfterLogout(scope.ownerKey);
+  expect(countMarkdownDrafts(scope.ownerKey)).toBe(0);
+  expect(readMarkdownDraft(other, id)?.text).toBe(saved.text);
+});
+
+it("rejects drafts and late writes from a suspended tab after logout and a later login", () => {
+  const epoch = markdownDraftEpoch(scope.ownerKey);
+  writeMarkdownDraft(scope, id, saved, epoch);
+  const oldTab = sessionStorage.getItem(markdownDraftKey(scope, id))!;
+  clearMarkdownDraftsAfterLogout(scope.ownerKey);
+  // Another tab owns its own sessionStorage and can miss live notifications.
+  sessionStorage.setItem(markdownDraftKey(scope, id), oldTab);
+  expect(readMarkdownDraft(scope, id)).toBeNull();
+  expect(sessionStorage.getItem(markdownDraftKey(scope, id))).toBeNull();
+  writeMarkdownDraft(scope, id, saved, epoch);
+  expect(readMarkdownDraft(scope, id)).toBeNull();
+  writeMarkdownDraft(scope, id, saved, markdownDraftEpoch(scope.ownerKey));
+  expect(readMarkdownDraft(scope, id)?.text).toBe(saved.text);
 });

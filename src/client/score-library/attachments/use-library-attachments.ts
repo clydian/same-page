@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { attachmentListSchema, type ScoreAttachment } from "../../../shared/attachments";
 import type { ScoreSummary } from "../../../shared/scores";
 import { diagnosticFetch } from "../../diagnostics/diagnostics";
+import { SettingsRequestError } from "../../settings/settings-request";
 
 export function useLibraryAttachments(choirId: string, scores: ScoreSummary[], active: boolean, generation: string) {
   const [result, setResult] = useState<{ key: string; scope: string; scoreKey: string; attachments: ScoreAttachment[]; loadedIds: string[]; error: boolean }>();
@@ -18,14 +19,15 @@ export function useLibraryAttachments(choirId: string, scores: ScoreSummary[], a
       for (let start = 0; start < ids.length; start += 100) {
         const query = new URLSearchParams({ scoreIds: ids.slice(start, start + 100).join(",") });
         const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/attachments?${query}`, { signal: abort.signal });
-        if (!response.ok) throw new Error("attachments_unavailable");
+        if (!response.ok) throw new SettingsRequestError(response.status);
         attachments.push(...attachmentListSchema.parse(await response.json()).attachments);
       }
       if (!abort.signal.aborted) setResult({ key, scope, scoreKey, attachments, loadedIds: ids, error: false });
-    })().catch(() => {
+    })().catch((error: unknown) => {
       if (abort.signal.aborted) return;
       setResult(previous => {
-        const retained = matchingIds(previous, scope, scoreKey);
+        const revoked = error instanceof SettingsRequestError && [401, 403, 404].includes(error.status);
+        const retained = revoked ? new Set<string>() : matchingIds(previous, scope, scoreKey);
         return { key, scope, scoreKey, attachments: previous?.attachments.filter(item => retained.has(item.scoreId)) ?? [], loadedIds: [...retained], error: true };
       });
     });

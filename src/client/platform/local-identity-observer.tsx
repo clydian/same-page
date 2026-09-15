@@ -11,8 +11,10 @@ import {
 } from "./local-workspace";
 import { notifyReaderIdentityChange } from "../reader/reader-cache-events";
 import { clearDiagnostics } from "../diagnostics/diagnostics";
+import { observeMarkdownDraftLogout } from "../score-library/attachments/markdown-drafts";
 
 export function LocalIdentityObserver() {
+  useEffect(observeMarkdownDraftLogout, []);
   const identity = useApplicationIdentity();
   const userId = identity.authenticatedUserId ?? undefined;
   useSessionRecovery(identity.onlineState, identity.session.isRefetching, identity.session.error?.status);

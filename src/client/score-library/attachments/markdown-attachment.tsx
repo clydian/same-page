@@ -13,10 +13,10 @@ import { uploadBody } from "../upload-transport";
 import { AttachmentShell } from "./attachment-shell";
 import type { AttachmentSelection } from "./attachment-list";
 import { attachmentFileUrl, attachmentMessage, attachmentPath, readAttachment, readAttachmentRecovery } from "./api";
-import { markdownDraftKey, readMarkdownDraft } from "./markdown-drafts";
+import { markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "./markdown-drafts";
 
 const Editor = lazy(() => import("./markdown-editor"));
-type Props = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; onClose: () => void; onBack?: () => void; onChanged: () => Promise<void> };
+type Props = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; writable: boolean; onClose: () => void; onBack?: () => void; onChanged: () => Promise<void> };
 type Snapshot = { attachment: ScoreAttachment | null; text: string };
 
 async function readMarkdown(choirId: string, scoreId: string, id: string, signal?: AbortSignal): Promise<Snapshot> {
@@ -38,17 +38,18 @@ export default function MarkdownAttachment(props: Props) {
       .catch(() => { if (!abort.signal.aborted) setFailed(true); });
     return () => abort.abort();
   }, [choirId, score.id, attachment, attempt]);
-  if (!snapshot) return <AttachmentShell title={attachment?.name ?? "新建 Markdown"} subtitle={scoreDisplayName(score.fileName)} wide document onClose={onClose}>
+  if (!snapshot) return <AttachmentShell title={attachment?.name ?? "新建文档（.md）"} subtitle={scoreDisplayName(score.fileName)} wide document onClose={onClose}>
     {failed ? <p role="alert">暂时无法打开，附件可能已变化或连接中断。</p> : <LoadingStatus>正在加载文字内容…</LoadingStatus>}
     {failed && <Button className="secondary-button" onPress={() => setAttempt(value => value + 1)}>重试</Button>}
   </AttachmentShell>;
   return <MarkdownSession {...props} snapshot={snapshot} />;
 }
 
-function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, canModify, onClose, onBack, onChanged }: Props & { snapshot: Snapshot }) {
+function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, canModify, writable, onClose, onBack, onChanged }: Props & { snapshot: Snapshot }) {
   const [base, setBase] = useState(snapshot);
   const scope = { ownerKey, choirId, scoreId: score.id };
   const draftKey = markdownDraftKey(scope, base.attachment?.id ?? null);
+  const [draftEpoch] = useState(() => markdownDraftEpoch(ownerKey));
   const [draft] = useState(() => readMarkdownDraft(scope, snapshot.attachment?.id ?? null));
   const [id] = useState(() => draft?.id ?? snapshot.attachment?.id ?? crypto.randomUUID());
   const [name, setName] = useState(draft?.name ?? snapshot.attachment?.name ?? "排练笔记.md");
@@ -64,16 +65,16 @@ function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, ca
   const dirty = text !== base.text || name !== (base.attachment?.name ?? "排练笔记.md");
   useEffect(() => {
     try {
-      if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ id, name, text, revision: revision.current }));
+      if (dirty) writeMarkdownDraft({ ownerKey, choirId, scoreId: score.id }, base.attachment?.id ?? null, { id, name, text, revision: revision.current }, draftEpoch);
       else sessionStorage.removeItem(draftKey);
     } catch { /* Navigation and beforeunload guards still protect this tab. */ }
-  }, [draftKey, id, name, text, dirty]);
+  }, [draftKey, id, name, text, dirty, ownerKey, choirId, score.id, base.attachment?.id, draftEpoch]);
 
   const adoptSaved = (value: Snapshot) => {
     setBase(value); revision.current = value.attachment!.revision; setEditing(false); confirmed.current = true;
     try { sessionStorage.removeItem(draftKey); } catch { /* Optional storage. */ }
   };
-  const mutation = useSettingsMutation({ enabled: canModify || !base.attachment, refresh: async isCurrent => {
+  const mutation = useSettingsMutation({ enabled: writable && (canModify || !base.attachment), refresh: async isCurrent => {
     if (!confirmed.current) {
       if (revision.current === null) {
         const recovery = await readAttachmentRecovery(choirId, score.id, id, "create");
@@ -114,6 +115,7 @@ function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, ca
   const discard = () => { try { sessionStorage.removeItem(draftKey); } catch { /* Optional storage. */ } setText(base.text); setName(base.attachment?.name ?? "排练笔记.md"); };
   return <AttachmentShell title={base.attachment?.name ?? "新建文档（.md）"} subtitle={scoreDisplayName(score.fileName)} wide document onClose={onClose} onBack={!base.attachment ? onBack : undefined}
     dirty={dirty} busy={mutation.pending} save={save} discard={discard} blocked={mutation.blocked || parseFailed} message={validation ?? mutation.message}>
+    {!writable && <p className="attachment-help" role="status">连接尚未恢复，输入已保留；联网后可继续保存或核对结果。</p>}
     {editing ? <>
       <TextField className="attachment-name-field" value={name} onChange={setName} isDisabled={mutation.blocked} maxLength={255}><Label>文件名</Label><Input /></TextField>
       <div className="attachment-editor-region"><Suspense fallback={<LoadingStatus>正在加载编辑器…</LoadingStatus>}><Editor initial={initial} disabled={mutation.blocked || parseFailed} onChange={setText} onError={source => { setText(source); setParseFailed(true); setValidation("这份 Markdown 包含暂不支持的格式，原文已保留。请下载原文，不会用空白内容覆盖。"); }} /></Suspense></div>
@@ -124,7 +126,7 @@ function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, ca
             <MenuItem id="download-draft">下载草稿 .md</MenuItem>
           </Menu></Popover>
         </MenuTrigger>
-        {mutation.needsRefresh && <Button className="secondary-button" onPress={() => void mutation.refresh().catch(() => {})}>核对保存结果</Button>}
+        {mutation.needsRefresh && <Button className="secondary-button" isDisabled={!writable} onPress={() => void mutation.refresh().catch(() => {})}>核对保存结果</Button>}
       </div>
     </> : <>
       {canModify && <div className="attachment-actions attachment-read-actions"><Button className="secondary-button" onPress={() => { setInitial(text); setEditing(true); }}><Pencil size={15} />编辑</Button></div>}

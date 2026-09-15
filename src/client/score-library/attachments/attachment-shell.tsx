@@ -6,6 +6,7 @@ import { useUnsavedChangesGuard } from "../../settings/use-unsaved-changes";
 import { LoadingStatus } from "../../components/loading-status";
 import { scoreDisplayName } from "../../../shared/score-display-name";
 import type { AttachmentSelection } from "./attachment-list";
+import { attachmentActionTitle } from "./attachment-presentation";
 import "./attachments.css";
 
 export function AttachmentShell({ title, subtitle, wide = false, document = false, picker = false, dirty = false, busy = false, save = async () => false, discard = () => {}, blocked = false, message = null, onClose, onBack, children }: {
@@ -34,9 +35,9 @@ export function AttachmentShell({ title, subtitle, wide = false, document = fals
 
 
 export function AttachmentLoading({ selection, onClose }: { selection: AttachmentSelection; onClose: () => void }) {
-  const document = selection.action === "markdown" || selection.attachment?.kind === "markdown";
+  const document = selection.action === "markdown" || (selection.action === "open" && selection.attachment?.kind === "markdown");
   const pdf = selection.action === "open" && selection.attachment?.kind === "pdf";
-  return <AttachmentShell title={selection.attachment?.name ?? (document ? "新建文档（.md）" : "添加附件")} subtitle={scoreDisplayName(selection.score.fileName)}
+  return <AttachmentShell title={attachmentActionTitle(selection.action, selection.attachment)} subtitle={scoreDisplayName(selection.score.fileName)}
     wide={document || pdf} document={document} picker={selection.action === "add"} onClose={onClose}>
     <LoadingStatus className={pdf ? "attachment-pdf" : ""}>正在打开附件…</LoadingStatus>
   </AttachmentShell>;
