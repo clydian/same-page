@@ -183,17 +183,24 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     const preview = sheet.getBoundingClientRect();
     const text = sheet.querySelector(".annotation-text");
     const textPreview = text?.getBoundingClientRect();
+    const previewFontSize = text ? parseFloat(getComputedStyle(text).fontSize) * preview.width / before.width : null;
     send('pointerup', 2, 500); send('pointerup', 1, 100);
     await new Promise(resolve => setTimeout(resolve, 500));
     const after = sheet.getBoundingClientRect();
     const point = rect => ({ x: rect.left + ratio.x * rect.width, y: rect.top + ratio.y * rect.height });
-    return { preview: point(preview), after: point(after), textPreview: textPreview?.toJSON(), textAfter: text?.getBoundingClientRect().toJSON() };
+    return { preview: point(preview), after: point(after), textPreview: textPreview?.toJSON(), textAfter: text?.getBoundingClientRect().toJSON(), previewFontSize, afterFontSize: text ? parseFloat(getComputedStyle(text).fontSize) : null };
   });
   assert.ok(Math.abs(result.after.x - result.preview.x) < 2, JSON.stringify(result));
   assert.ok(Math.abs(result.after.y - result.preview.y) < 2, JSON.stringify(result));
   if (scrollTop === 300) {
     assert.ok(result.textPreview && result.textAfter, "fixture must contain a real displayed annotation");
-    for (const key of ["x", "y", "width", "height"]) assert.ok(Math.abs(result.textAfter[key] - result.textPreview[key]) < 2, `annotation ${key} jumps after pinch`);
+    // Our contract is the annotation anchor and scale. Glyph advances can differ
+    // between a transformed bitmap and layout at the committed font size.
+    for (const [position, size] of [["x", "width"], ["y", "height"]]) {
+      const center = rect => rect[position] + rect[size] / 2;
+      assert.ok(Math.abs(center(result.textAfter) - center(result.textPreview)) < 2, JSON.stringify(result));
+    }
+    assert.ok(Math.abs(result.afterFontSize - result.previewFontSize) < 0.1, JSON.stringify(result));
   }
  });
  }

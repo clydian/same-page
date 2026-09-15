@@ -89,6 +89,9 @@ it("neither a retained bitmap nor a late old-document render confirms a replacem
   const view = render(<Scene session={session} currentPage={2} />);
   await waitFor(() => expect(previous.finishes).toHaveLength(1));
   await act(async () => previous.finishes[0]());
+  // Join the initial confirmation before asking for a newer cloud version.
+  // refresh() intentionally coalesces an already in-flight request.
+  await act(async () => { await session.refresh(); });
   version = "v2";
   supply(next.document);
   await act(async () => { await session.refresh(); });

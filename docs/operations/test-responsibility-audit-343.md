@@ -22,7 +22,7 @@
 | 引擎进度映射及取消/迟到回调 | `pdf-document.test.ts`、`reader-document-cache.test.ts`、`reader-presentation.test.tsx` |
 | 上传完成不等于保存成功 | `upload-transport.test.ts`、`upload-dialog.test.tsx`、`pdf-version-dialog.test.tsx` 的受控回调 |
 | 原生手势不被覆盖层破坏 | `reader-immersive` 纵向按住移动；`reader-navigation` 横向实际翻页 |
-| 原谱/笔记输出、用户激活、未打开谱的导出 | `pdf-export`、`pdf-share`、`prepare-export`；两个产品入口仍共用 ExportDialog |
+| 原谱/笔记输出、用户激活、未打开谱的导出 | `pdf-export`、`pdf-share`、`prepare-export`；前两者分别断言阅读器/文件库入口默认图层选择 |
 | 真实 decoder/Worker/SW 与离线重启 | codecs/storage/offline-entry/PWA 测试；缺失 API 的注入前提仍验证 |
 
 B5 的笔记节点身份保留、C 的 Clipper 洞/岛映射和隐藏 canvas CSS 均核对实现后保留。它们是应用自己做的适配/约定，不属于库的无条件保障。B8 保留 continuous-reader-layout 的偏好页返回、reader-zoom 的双击锚点和 reader-settlement 的 pinch 回弹：入口与故障不同，不能以纸面几何都出现就删掉。
@@ -172,11 +172,11 @@ B5 的笔记节点身份保留、C 的 Clipper 洞/岛映射和隐藏 canvas CSS
 | `visual-report/pdf-export.test.mjs` | 保留 | 接回“取消全部”不改变阅读订阅的独立断言；保留源 PDF 几何与文字/墨迹/透明度保真、订阅范围及失权/离线拒绝 |
 | `visual-report/pdf-share.test.mjs` | 保留 | 真实点击用户激活、取消后的文件复用与失效；系统分享器由 stub 代替。 |
 | `visual-report/pencil-writing.test.mjs` | 删除部分 | A6/B5：删除整个悬浮装饰/姿态 browser case；几何层验证 twist/tilt。保留首笔、相交填充和保存时工具条不中断。 |
-| `visual-report/quiet-export.test.mjs` | 删除 | B4：重复原谱/笔记下载、装饰位置和静默文案；两个入口共用 ExportDialog，prepare-export/pdf-export/pdf-share 分别保障准备、输出和激活。 |
+| `visual-report/quiet-export.test.mjs` | 删除 | B4：重复原谱/笔记下载、装饰位置和静默文案；prepare-export/pdf-export/pdf-share 分别保障准备、输出和激活；在已有 pdf-share 场景补充文件库默认图层选择，与 pdf-export 的阅读器入口对应。 |
 | `visual-report/reader-annotation-stability.test.mjs` | 保留 | ADR-0010 明确要求切工具保留笔记节点及归一化几何，不是 React 的库承诺。 |
 | `visual-report/reader-canvas-layering.test.mjs` | 保留 | 应用 CSS 可能覆盖 hidden 导致旧 canvas 遮住新画布；elementFromPoint 验证实际遮挡，不只是属性快照 |
 | `visual-report/reader-experience.test.mjs` | 删除部分 | B8：删除重复 landscape fit 与写旧 safe-area 变量后期待原尺寸的测试；reader-settlement/reader-immersive 保障实际几何和安全区。 |
-| `visual-report/reader-immersive.test.mjs` | 保留 | 删除 2 个精确惯性场景，换 1 个触点按下期间的原生滚动集成检查；保留原生 pinch、错位/编辑锁页与 safe-area；真实批注 pinch 取代手拼 HTML 预览比较；删除圆角断言 |
+| `visual-report/reader-immersive.test.mjs` | 改写 | 缩放交接检查纸面/笔记中心与字号比例，移除变换预览与提交字号后文字边缘完全相等的约束； 删除 2 个精确惯性场景，换 1 个触点按下期间的原生滚动集成检查；保留原生 pinch、错位/编辑锁页与 safe-area；真实批注 pinch 取代手拼 HTML 预览比较；删除圆角断言 |
 | `visual-report/reader-mobile-editing.test.mjs` | 保留 | 同一阅读器 resize 取代 7 次重开；保留可达/不重叠/触控区域、编辑和双击回归；删除 12px、中心点对齐和 textarea rows/overflow 实现 |
 | `visual-report/reader-navigation.test.mjs` | 改写 | A3：只保留横向 native touch 到实际翻页；纵向原生触摸由 reader-immersive 保障，删除惯性距离/事件取消探针。 |
 | `visual-report/reader-opening.test.mjs` | 删除 | A1/B1：半流字节门禁撤掉；routes/reader-opening.test.tsx 验证真实页面进度和绘制交接。 |
@@ -255,4 +255,12 @@ B5 的笔记节点身份保留、C 的 Clipper 洞/岛映射和隐藏 canvas CSS
 
 ## 验证
 
-结果完成后补录。无生产发布或真机验收声明。
+- Node 24、锁文件安装。已通过 Node 单测 117 项、Worker 123 项（8 unit + 115 integration）、CI scope 20 项、typecheck 和 build/precache；lint 最终轮通过；本地迁移验证通过。
+- 浏览器全量首轮 156/157 通过。剩余 WebKit pinch 在原始基线同样失败：纸面锚点约 0.009px、文字中心约 0.15px 差异，字形边界宽度约 10px 差异。改查应用坐标与字号比例后，相关 3 文件 18 项全部通过；位置容差不变；变换预览与提交字号后的文字边界并不完全相同，不将具体字体引擎机制冒称已证实根因。
+- 客户端首轮 760/761 通过；replacement 场景未等首次 cloud refresh 完成，补充等待后再改变版本，避免新刷新被已有请求合并。完整复测及 Linux CI 结果在 PR 汇总。
+- 本地 smoke 在进程回收遇到 `kill EPERM` 后中止，不能报全绿；重新并行运行客户端结果 750/761，遇到 11 个等待超时（首轮通过的未修改用例），未放宽 timeout/retry。完整集成结果以 PR 的独立 Linux CI 为准。
+- 三项代表性错误注入在独立临时 checkout 执行，注入后均在目标断言变红，随后还原：文档解析完成就结束 loading；允许完成/销毁后 PDF 进度继续发布；XHR 传输完成即返回成功、尚未收到 HTTP 响应。最后一项暴露旧测试只等一个 microtask 的缺口，改为让 Promise 链在下一事件循环前完成后检查请求仍 pending。
+- 静态扫描覆盖基线 180 个测试文件。删除了四组 12MB 限速上传（每轮合计 48MB 额外请求体）、半流 HTTP fixture、手工 D1 权重 helper、重复 Worker 安装 UI 启动和导出矩阵。浏览器全量目前 157 项，相比触发 CI 的 169 项少 12 项；不将跨轮耗时差异宣称为加速比例。
+- Standards / Spec 双轴审查完成：恒真宽度分支已展开，文件库默认导出选择缺口已补入原有分享场景，无新增浏览器启动。
+
+无生产迁移、发布或真机验收。
