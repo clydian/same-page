@@ -81,7 +81,10 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   assert.ok((await player.boundingBox()).height < 150, 'mobile compact controls fit without clipping');
   await player.getByRole('button',{name:'播放详情',exact:true}).click();
   await player.getByRole('button',{name:'看原谱',exact:true}).click();
+  await expect(page).toHaveURL(new RegExp(`/scores/${fixture.scoreId}`));
+  await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:20000});
   await page.goBack();
+  await expect(page).toHaveURL(`${fixture.origin}/choirs/${fixture.choirId}`);
   await expect(player).toHaveCount(0);
   assert.deepEqual(errors,[]);
  });
