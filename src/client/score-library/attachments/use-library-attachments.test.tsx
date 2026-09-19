@@ -140,3 +140,17 @@ it("does not refetch fresh rows when opening another score and forgets collapsed
   rerender(initialProps);
   expect(result.current.items).toEqual([]);
 });
+
+it("bounds retained metadata after a large expanded list is collapsed", async () => {
+  const scores = Array.from({ length: 101 }, (_, i) => score(`score-${i}`));
+  fetchMock.mockImplementation(async input => {
+    const ids = new URL(String(input), "https://example.test").searchParams.get("scoreIds")!.split(",");
+    return Response.json({ attachments: ids.map(attachment) });
+  });
+  const { result, rerender } = renderHook(useAttachments, { initialProps: { ...initialProps, scores } });
+  await waitFor(() => expect(result.current.items).toHaveLength(101));
+  rerender({ ...initialProps, scores: [] });
+  fetchMock.mockReturnValueOnce(pending().promise);
+  rerender({ ...initialProps, scores: [scores[0]] });
+  expect(result.current.statusFor(scores[0].id)).toBe("loading");
+});

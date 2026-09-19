@@ -23,10 +23,18 @@ class AttachmentMetadata {
     this.snapshot = { key, entries: new Map(this.entries), failed, refreshing };
     this.listeners.forEach(listener => listener());
   }
+  private trim(visible: Set<string>) {
+    for (const id of this.entries.keys()) {
+      if (this.entries.size <= Math.max(MAX_SCORES, visible.size)) break;
+      if (!visible.has(id)) this.entries.delete(id);
+    }
+  }
   load(scoreKey: string, attempt: number) {
     if (!this.active) return;
     const abort = new AbortController();
     const rows = JSON.parse(scoreKey) as ScoreRevision[];
+    const visible = new Set(rows.map(row => row[0]));
+    this.trim(visible);
     const key = JSON.stringify([this.generation, scoreKey, attempt]);
     const requested = rows.filter(row => {
       const cached = this.entries.get(row[0]);
@@ -45,11 +53,7 @@ class AttachmentMetadata {
           this.entries.delete(row[0]);
           this.entries.set(row[0], { revision: JSON.stringify(row), items: attachments.filter(item => item.scoreId === row[0]), readAt: Date.now(), attempt });
         }
-        const visible = new Set(rows.map(row => row[0]));
-        for (const id of this.entries.keys()) {
-          if (this.entries.size <= Math.max(MAX_SCORES, visible.size)) break;
-          if (!visible.has(id)) this.entries.delete(id);
-        }
+        this.trim(visible);
         this.publish(key, false, start + 100 < requested.length);
       }
     })().catch((error: unknown) => {
