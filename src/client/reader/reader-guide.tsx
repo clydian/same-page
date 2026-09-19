@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, ArrowRight, Expand, Hand } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, MoveHorizontal, Expand, Hand } from "lucide-react";
 import { Button, Modal, ModalOverlay } from "react-aria-components";
 import { Dialog } from "../navigation/overlays";
 
@@ -9,12 +9,12 @@ export function ReaderGuide({ layout, zoomed, onDismiss }: { layout: "page" | "c
       <Dialog aria-label="阅读器使用指引" className="reader-guide__content">
         <header className="reader-guide__heading"><span>阅读指引</span><Button autoFocus onPress={onDismiss}>知道了</Button></header>
         <div className="reader-guide__zones" data-edges={edges || undefined}>
-          {edges && <div><ArrowLeft size={26} aria-hidden="true" /><strong>上一页</strong><span>轻点左侧</span></div>}
+          {edges && <div><ArrowLeft size={26} aria-hidden="true" /><strong>轻点左侧</strong><span>上一页</span></div>}
           <div><Hand size={28} aria-hidden="true" /><strong>{edges ? "轻点中央" : "轻点谱面"}</strong><span>显示或收起工具栏</span></div>
-          {edges && <div><ArrowRight size={26} aria-hidden="true" /><strong>下一页</strong><span>轻点右侧</span></div>}
+          {edges && <div><ArrowRight size={26} aria-hidden="true" /><strong>轻点右侧</strong><span>下一页</span></div>}
         </div>
         <div className="reader-guide__gestures">
-          <span><ArrowRight size={19} aria-hidden="true" /><strong>左右滑动</strong>切换页面</span>
+          <span><MoveHorizontal size={19} aria-hidden="true" /><strong>左右滑动</strong>切换页面</span>
           <span><Expand size={19} aria-hidden="true" /><strong>双击谱面</strong>放大／恢复</span>
           <span><ArrowDown size={19} aria-hidden="true" /><strong>{layout === "continuous" ? "顶部下拉" : "整页下滑"}</strong>关闭乐谱</span>
         </div>
