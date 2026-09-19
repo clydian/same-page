@@ -14,13 +14,12 @@ import { createPortal } from "react-dom";
 import { Trash2 } from "lucide-react";
 
 import {
-  MAX_TEXT_FONT_SCALE,
-  MIN_TEXT_FONT_SCALE,
   type AnnotationLayerSummary,
   type AnnotationPayload,
 } from "../../shared/annotations";
 import type { LocalAnnotationRecord } from "../platform/local-database";
 import type { AnnotationEditor } from "./annotation-editor";
+import { ObjectMovement, type MovablePayload } from "./object-movement";
 import { NoteInteraction } from "./note-interaction";
 import { useEditorPersistence } from "./use-annotation-editor";
 import { useTextComposition } from "./use-text-composition";
@@ -36,26 +35,7 @@ export type AnnotationOverlayInteraction =
   | "composing-text"
   | "transforming-object";
 
-type MovablePayload = Extract<AnnotationPayload, { kind: "text" | "shape" }>;
-
 const ERASER_HIT_RADIUS_PX = 14;
-const OBJECT_DRAG_THRESHOLD_PX = 6;
-
-interface ObjectTransformState {
-  id: string;
-  layerId: string;
-  payload: MovablePayload;
-  preview: MovablePayload;
-  element: HTMLButtonElement;
-  pointers: Map<number, { startX: number; startY: number; x: number; y: number }>;
-  pinch: {
-    distance: number;
-    centerX: number;
-    centerY: number;
-    payload: MovablePayload;
-  } | null;
-  moved: boolean;
-}
 
 export interface AnnotationInteractionHandle { interrupt(): void; ownsObjectGesture(): boolean; }
 
@@ -98,35 +78,12 @@ export function AnnotationOverlay({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hover, setHover] = useState<Extract<AnnotationPayload, { kind: "ink" }>["points"][number] | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const objectTransform = useRef<ObjectTransformState | null>(null);
-  const [objectTransformPreview, setObjectTransformPreview] = useState<{
-    id: string;
-    payload: MovablePayload;
-  } | null>(null);
-  // Keep released transforms visible until the local projection takes over.
-  // Failed writes stay in the editor's retry queue and retain this preview.
-  const [releasedTransforms, setReleasedTransforms] = useState<Map<string, { payload: MovablePayload; revision: number }>>(() => new Map());
-  const projectedTransforms = new Map([...releasedTransforms].map(([id, released]) => {
-    const committed = editor?.getCommittedObject(id);
-    // A later undo/redo can commit before the live query delivers the dragged
-    // position. Follow that newer intent instead of waiting for a skipped value.
-    const payload = committed && committed.revision > released.revision
-      ? committed.input.payload : released.payload;
-    return [id, payload] as const;
-  }));
-  const acknowledged = [...projectedTransforms].filter(([id, payload]) => {
-    const record = annotations.find(annotation => annotation.id === id);
-    return payload === null ? !record || record.deleted : JSON.stringify(record?.payload) === JSON.stringify(payload);
-  }).map(([id]) => id);
-  if (acknowledged.length) {
-    const next = new Map(releasedTransforms);
-    acknowledged.forEach(id => next.delete(id));
-    setReleasedTransforms(next);
-  }
-  const [transformingObject, setTransformingObject] = useState(false);
+  const movement = useMemo(() => new ObjectMovement(editor), [editor]);
+  const { annotations: projectedAnnotations, preview: objectTransformPreview, transforming: transformingObject, deleteActive } = useSyncExternalStore(movement.subscribe, movement.getSnapshot);
+  useLayoutEffect(() => {
+    movement.reconcile(annotations);
+  }, [movement, annotations]);
   const interactionRef = useRef<AnnotationOverlayInteraction>("idle");
-  const [deleteActive, setDeleteActive] = useState(false);
-  const deleteActiveRef = useRef(false);
   const deleteTargetRef = useRef<HTMLDivElement>(null);
   const finishing = persistence === "finishing";
   const canStartEdit = editing && !finishing && layers.some(layer => layer.id === activeLayerId && layer.canEdit);
@@ -140,9 +97,7 @@ export function AnnotationOverlay({
     layers.filter(layer => layer.kind === "shared").map((layer) => [layer.id, layer.displayColor]),
   );
   const activeLayerColor = layerColors.get(activeLayerId ?? "") ?? toolColor;
-  const pageAnnotations = annotations.map(annotation => {
-    return projectedTransforms.has(annotation.id) ? { ...annotation, payload: projectedTransforms.get(annotation.id) ?? null } : annotation;
-  }).filter(
+  const pageAnnotations = projectedAnnotations.filter(
     (annotation) =>
       annotation.payload?.pageNumber === pageNumber &&
       visibleLayerIds.has(annotation.layerId),
@@ -171,7 +126,6 @@ export function AnnotationOverlay({
   const updateInteraction = (interaction: AnnotationOverlayInteraction) => {
     if (interactionRef.current === interaction) return;
     interactionRef.current = interaction;
-    setTransformingObject(interaction === "transforming-object");
     onInteractionChange?.(interaction);
   };
 
@@ -180,11 +134,7 @@ export function AnnotationOverlay({
     displayColor: layerColors.get(activeLayerId ?? ""),
     pageRef: overlayRef, layerName: layers.find(layer => layer.id === activeLayerId)?.name,
     onComposingChange: composing => updateInteraction(composing ? "composing-text" : "idle"),
-    onDiscard: id => setReleasedTransforms(previous => {
-      const next = new Map(previous);
-      next.delete(id);
-      return next;
-    }),
+    onDiscard: id => movement.discard(id),
     onTextStyleChange,
   });
 
@@ -223,27 +173,10 @@ export function AnnotationOverlay({
     }
   };
 
-  const addTransformPointer = (
-    event: ReactPointerEvent<Element>,
-    transform: ObjectTransformState,
-  ) => {
+  const addTransformPointer = (event: ReactPointerEvent<Element>) => {
+    if (!movement.begin(event)) return;
     event.preventDefault();
     capturePointer(event.currentTarget, event.pointerId);
-    transform.pointers.set(event.pointerId, {
-      startX: event.clientX,
-      startY: event.clientY,
-      x: event.clientX,
-      y: event.clientY,
-    });
-    if (transform.pointers.size === 2) {
-      const [first, second] = [...transform.pointers.values()];
-      transform.pinch = {
-        distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
-        centerX: (first.x + second.x) / 2,
-        centerY: (first.y + second.y) / 2,
-        payload: transform.preview,
-      };
-    }
   };
 
   const beginObjectTransform = (
@@ -254,145 +187,50 @@ export function AnnotationOverlay({
     if (!canMoveObjects || editor?.getSnapshot() === "finishing" || annotation.layerId !== activeLayerId) return;
     event.stopPropagation();
     if (text.active) return;
-    const active = objectTransform.current;
-    // Subsequent fingers belong to the existing transform, even over another object.
-    if (active) {
-      addTransformPointer(event, active);
-      return;
-    }
-    const transform: ObjectTransformState = {
-      id: annotation.id,
-      layerId: annotation.layerId,
-      payload,
-      preview: payload,
-      element: event.currentTarget,
-      pointers: new Map(),
-      pinch: null,
-      moved: false,
-    };
-    objectTransform.current = transform;
-    setObjectTransformPreview(null);
-    addTransformPointer(event, transform);
+    movement.begin(event, { id: annotation.id, layerId: annotation.layerId, payload });
+    event.preventDefault();
+    capturePointer(event.currentTarget, event.pointerId);
   };
 
   const updateObjectTransform = (event: ReactPointerEvent<Element>) => {
-    const transform = objectTransform.current;
-    const pointer = transform?.pointers.get(event.pointerId);
     const bounds = overlayRef.current?.getBoundingClientRect();
-    if (!transform || !pointer || !bounds || bounds.width <= 0 || bounds.height <= 0) return;
-    pointer.x = event.clientX;
-    pointer.y = event.clientY;
-
-    let next: MovablePayload;
-    const entries = [...transform.pointers.values()];
-    if (entries.length >= 2 && transform.pinch) {
-      const [first, second] = entries;
-      const centerX = (first.x + second.x) / 2;
-      const centerY = (first.y + second.y) / 2;
-      const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y));
-      const base = transform.pinch.payload;
-      const scale = distance / transform.pinch.distance;
-      next = {
-        ...base,
-        x: transform.pinch.payload.x + (centerX - transform.pinch.centerX) / bounds.width,
-        y: transform.pinch.payload.y + (centerY - transform.pinch.centerY) / bounds.height,
-        ...(base.kind === "text" ? {
-          fontScale: clampRange(base.fontScale * scale, MIN_TEXT_FONT_SCALE, MAX_TEXT_FONT_SCALE),
-        } : {
-          width: Math.min(1, base.width * scale),
-          height: Math.min(1, base.height * scale),
-        }),
-      };
-      transform.moved = true;
-    } else {
-      const distance = Math.hypot(pointer.x - pointer.startX, pointer.y - pointer.startY);
-      if (!transform.moved && distance <= OBJECT_DRAG_THRESHOLD_PX) return;
-      transform.moved = true;
-      next = {
-        ...transform.preview,
-        x: transform.preview.x + (pointer.x - pointer.startX) / bounds.width,
-        y: transform.preview.y + (pointer.y - pointer.startY) / bounds.height,
-      };
-      pointer.startX = pointer.x;
-      pointer.startY = pointer.y;
-    }
-
-    const clamped = next.kind === "text"
-      ? { ...next, x: clamp(next.x), y: clamp(next.y) }
-      : { ...next, x: clampRange(next.x, 0, 1 - next.width), y: clampRange(next.y, 0, 1 - next.height) };
-    transform.preview = clamped;
-    setObjectTransformPreview({ id: transform.id, payload: clamped });
-    updateInteraction("transforming-object");
-    const centerX = entries.reduce((total, entry) => total + entry.x, 0) / entries.length;
-    const centerY = entries.reduce((total, entry) => total + entry.y, 0) / entries.length;
-    const deleteBounds = deleteTargetRef.current?.getBoundingClientRect();
-    const inDeleteZone = deleteBounds
-      ? Math.hypot(
-          centerX - (deleteBounds.left + deleteBounds.width / 2),
-          centerY - (deleteBounds.top + deleteBounds.height / 2),
-        ) <= Math.min(deleteBounds.width, deleteBounds.height) / 2
-      : false;
-    deleteActiveRef.current = inDeleteZone;
-    setDeleteActive(inDeleteZone);
+    if (!bounds) return;
+    movement.move(event, bounds, deleteTargetRef.current?.getBoundingClientRect());
+    if (movement.getSnapshot().transforming) updateInteraction("transforming-object");
   };
 
   const finishObjectTransform = (event: ReactPointerEvent<Element>) => {
-    const transform = objectTransform.current;
-    if (!transform?.pointers.has(event.pointerId)) return;
-    transform.pointers.delete(event.pointerId);
-    if (transform.pointers.size > 0) {
-      const [remaining] = transform.pointers.values();
-      remaining.startX = remaining.x;
-      remaining.startY = remaining.y;
-      transform.pinch = null;
-      return;
-    }
-    objectTransform.current = null;
-    setObjectTransformPreview(null);
+    if (!movement.owns(event.pointerId)) return;
+    const tapped = movement.release(event.pointerId);
+    if (movement.engaged) return;
     updateInteraction("idle");
-    setDeleteActive(false);
-    const shouldDelete = deleteActiveRef.current;
-    deleteActiveRef.current = false;
-    if (!transform.moved) {
-      if (tool === "select") { setSelectedId(transform.id); return; }
-      if (transform.payload.kind !== "text") return;
-      const bounds = overlayRef.current?.getBoundingClientRect();
-      text.openExisting({
-        id: transform.id,
-        x: transform.payload.x,
-        y: transform.payload.y,
-        initial: transform.payload.text,
-        fontScale: transform.payload.fontScale,
-        textAlign: transform.payload.textAlign,
-        pageWidth: bounds?.width ?? 640,
-        openingPoint: { x: event.clientX, y: event.clientY },
-        color: transform.payload.color ?? "#dc2626",
-      });
-      return;
-    }
-    const revision = editor?.getEditRevision() ?? 0;
-    if (!shouldDelete) setReleasedTransforms(previous => new Map(previous).set(transform.id, { payload: transform.preview, revision }));
-    void editor?.persist({
-      id: transform.id,
-      layerId: transform.layerId,
-      payload: shouldDelete ? null : transform.preview,
-      deleted: shouldDelete,
+    if (!tapped) return;
+    if (tool === "select") { setSelectedId(tapped.id); return; }
+    if (tapped.payload.kind !== "text") return;
+    const bounds = overlayRef.current?.getBoundingClientRect();
+    text.openExisting({
+      id: tapped.id,
+      x: tapped.payload.x,
+      y: tapped.payload.y,
+      initial: tapped.payload.text,
+      fontScale: tapped.payload.fontScale,
+      textAlign: tapped.payload.textAlign,
+      pageWidth: bounds?.width ?? 640,
+      openingPoint: { x: event.clientX, y: event.clientY },
+      color: tapped.payload.color ?? "#dc2626",
     });
   };
 
   const cancelObjectTransform = () => {
-    objectTransform.current = null;
-    setObjectTransformPreview(null);
+    movement.cancel();
     updateInteraction("idle");
-    setDeleteActive(false);
-    deleteActiveRef.current = false;
   };
 
   const pointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (!canStartEdit || editor?.getSnapshot() === "finishing" || !activeLayerId) return;
     setHover(null);
-    if (objectTransform.current) {
-      addTransformPointer(event, objectTransform.current);
+    if (movement.engaged) {
+      addTransformPointer(event);
       return;
     }
     if (tool === "select") {
@@ -437,12 +275,12 @@ export function AnnotationOverlay({
 
   const pointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (editor?.getSnapshot() === "finishing") return;
-    if (canStartEdit && event.pointerType === "pen" && event.buttons === 0 && !notes.drawing && !text.isPlacing() && !objectTransform.current) {
+    if (canStartEdit && event.pointerType === "pen" && event.buttons === 0 && !notes.drawing && !text.isPlacing() && !movement.engaged) {
       setHover(point(event)); return;
     }
     setHover(null);
     if (text.movePlacement(event)) return;
-    if (objectTransform.current?.pointers.has(event.pointerId)) {
+    if (movement.owns(event.pointerId)) {
       updateObjectTransform(event);
       return;
     }
@@ -457,7 +295,7 @@ export function AnnotationOverlay({
   const pointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (editor?.getSnapshot() === "finishing") return;
     if (text.endPlacement(event)) return;
-    if (objectTransform.current?.pointers.has(event.pointerId)) {
+    if (movement.owns(event.pointerId)) {
       finishObjectTransform(event);
       return;
     }
@@ -474,11 +312,11 @@ export function AnnotationOverlay({
   };
   // Layout capture invokes this synchronously before the second touch can edit.
   useEffect(() => editing ? editor?.registerNavigationInterrupt(() => {
-    if (objectTransform.current) return false;
+    if (movement.engaged) return false;
     interrupt();
     return true;
   }) : undefined);
-  useImperativeHandle(handoffRef, () => ({ interrupt, ownsObjectGesture: () => objectTransform.current !== null }));
+  useImperativeHandle(handoffRef, () => ({ interrupt, ownsObjectGesture: () => movement.engaged }));
 
   const previousTool = useRef(tool);
   useLayoutEffect(() => {
@@ -506,7 +344,7 @@ export function AnnotationOverlay({
         onPointerUp={pointerUp}
         onPointerCancel={(event) => {
           if (text.endPlacement(event)) return;
-          if (objectTransform.current?.pointers.has(event.pointerId)) cancelObjectTransform();
+          if (movement.owns(event.pointerId)) cancelObjectTransform();
           else pointerUp(event);
         }}
       >
