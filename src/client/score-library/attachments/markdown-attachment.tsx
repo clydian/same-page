@@ -4,27 +4,17 @@ import { Button, Input, Label, MenuItem, MenuTrigger, Popover, TextField } from 
 import Markdown from "react-markdown";
 import { MoreHorizontal, Pencil } from "lucide-react";
 import { Menu } from "../../navigation/overlays";
-import { attachmentFormat, attachmentNameSchema, attachmentSchema, safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
+import { attachmentFormat, attachmentNameSchema, safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
 import { scoreDisplayName } from "../../../shared/score-display-name";
-import { diagnosticFetch } from "../../diagnostics/diagnostics";
-import { useSettingsMutation } from "../../settings/settings-mutation";
-import { SettingsRequestError } from "../../settings/settings-request";
-import { uploadBody } from "../upload-transport";
 import { AttachmentShell } from "./attachment-shell";
 import type { AttachmentSelection } from "./attachment-list";
-import { attachmentFileUrl, attachmentMessage, attachmentPath, readAttachment, readAttachmentRecovery } from "./api";
+import { readMarkdown } from "./api";
+import { useAttachmentMutation, type AttachmentReceipt } from "./use-attachment-mutation";
 import { markdownDraftEpoch, readMarkdownDraft, removeMarkdownDraft, writeMarkdownDraft } from "./markdown-drafts";
 
 const Editor = lazy(() => import("./markdown-editor"));
 type Props = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; writable: boolean; onClose: () => void; onBack?: () => void; onChanged: () => Promise<void> };
 type Snapshot = { attachment: ScoreAttachment | null; text: string };
-
-async function readMarkdown(choirId: string, scoreId: string, id: string, signal?: AbortSignal): Promise<Snapshot> {
-  const attachment = await readAttachment(choirId, scoreId, id, signal);
-  const response = await diagnosticFetch(attachmentFileUrl(choirId, attachment), { signal });
-  if (!response.ok) throw new SettingsRequestError(response.status);
-  return { attachment, text: await response.text() };
-}
 
 export default function MarkdownAttachment(props: Props) {
   const { selection: { attachment, score }, choirId, onClose } = props;
@@ -58,9 +48,6 @@ function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, ca
   const [initial, setInitial] = useState(draft?.text ?? snapshot.text);
   const [validation, setValidation] = useState<string | null>(draft && draft.revision !== (snapshot.attachment?.revision ?? null) ? "云端内容已变化，已恢复本机草稿。请先下载草稿，再核对最新内容。" : null);
   const [parseFailed, setParseFailed] = useState(false);
-  const abort = useRef<AbortController | null>(null);
-  const confirmed = useRef(false);
-  useEffect(() => () => abort.current?.abort(), []);
   const dirty = text !== base.text || name !== (base.attachment?.name ?? "排练笔记.md");
   useEffect(() => {
     try {
@@ -69,42 +56,20 @@ function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, ca
     } catch { /* Navigation and beforeunload guards still protect this tab. */ }
   }, [id, name, text, dirty, ownerKey, choirId, score.id, base.attachment?.id, draftEpoch]);
 
-  const adoptSaved = (value: Snapshot) => {
-    setBase(value); revision.current = value.attachment!.revision; setEditing(false); confirmed.current = true;
+  const adoptSaved = (value: AttachmentReceipt) => {
+    if (!value.attachment || value.text === undefined) return;
+    setBase({ attachment: value.attachment, text: value.text });
+    revision.current = value.attachment.revision;
+    setEditing(false);
     removeMarkdownDraft(scope, base.attachment?.id ?? null, draftEpoch);
   };
-  const mutation = useSettingsMutation({ enabled: writable && (canModify || !base.attachment), refresh: async isCurrent => {
-    if (!confirmed.current) {
-      if (revision.current === null) {
-        const recovery = await readAttachmentRecovery(choirId, score.id, id, "create");
-        if (!isCurrent()) return;
-        if (recovery.state === "absent") {
-          setValidation("文档尚未保存，草稿仍保留，可以重试。");
-          await onChanged(); return;
-        }
-        if (recovery.state === "pending") { setValidation("文档仍在保存，请稍后再次核对。"); throw new SettingsRequestError(409); }
-        if (recovery.state !== "available") throw new SettingsRequestError(404);
-      }
-      const remote = await readMarkdown(choirId, score.id, id);
-      if (!isCurrent()) return;
-      if (remote.text === text && remote.attachment?.name === name) adoptSaved(remote);
-      else if (remote.attachment?.revision !== revision.current) {
-        setValidation("云端已有其他修改。当前草稿已保留，请下载草稿后重新打开附件进行核对。");
-        throw new SettingsRequestError(409);
-      }
-    }
-    await onChanged();
-  } });
+  const mutation = useAttachmentMutation({ choirId, scoreId: score.id, id, enabled: writable && (canModify || !base.attachment), onChanged, onSaved: adoptSaved });
   const save = async () => {
     if (parseFailed || !attachmentNameSchema.safeParse(name).success || attachmentFormat(name)?.kind !== "markdown") { setValidation("请使用 .md 文件名；无法解析的内容请先下载保留。"); return false; }
     const blob = new Blob([text], { type: "text/markdown; charset=utf-8" });
     if (blob.size > 1024 * 1024) { setValidation("Markdown 最多 1 MB，当前内容仍保留，可下载草稿。"); return false; }
-    setValidation(null); confirmed.current = false; abort.current = new AbortController();
-    const query = new URLSearchParams({ name, size: String(blob.size), ...(revision.current === null ? {} : { expectedRevision: String(revision.current) }) });
-    return await mutation.submit(() => uploadBody(`${attachmentPath(choirId, score.id, id)}/file?${query}`, blob, abort.current!.signal, () => {}, revision.current === null ? "POST" : "PUT"), {
-      rejectionMessage: attachmentMessage,
-      confirmed: async (response, isCurrent) => { const saved = attachmentSchema.parse((await response.json()).attachment); if (isCurrent()) adoptSaved({ attachment: saved, text }); },
-    }) === true;
+    setValidation(null);
+    return await mutation.save({ kind: "markdown", name, text, revision: revision.current }) === true;
   };
   const downloadDraft = () => {
     const url = URL.createObjectURL(new Blob([text], { type: "text/markdown;charset=utf-8" }));

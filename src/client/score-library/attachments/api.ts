@@ -38,3 +38,10 @@ export function attachmentMessage(status: number, body: unknown) {
   if (status === 429 || code === "rate_limited") return "操作较频繁，请稍后重试。";
   return "操作未完成，请核对文件名称、类型或网址后重试。";
 }
+
+export async function readMarkdown(choirId: string, scoreId: string, id: string, signal?: AbortSignal) {
+  const attachment = await readAttachment(choirId, scoreId, id, signal);
+  const response = await diagnosticFetch(attachmentFileUrl(choirId, attachment), { signal });
+  if (!response.ok) throw new SettingsRequestError(response.status);
+  return { attachment, text: await response.text() };
+}

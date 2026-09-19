@@ -88,13 +88,13 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const attachmentsEnabled = online && access.kind === "opened" && !access.local;
   const scoresWithAttachments = visibleScores.filter(score => (score.attachmentCount ?? 0) > 0);
   const expandedScores = scoresWithAttachments.filter(score => expandedScoreIds.has(score.id));
-  const attachmentsRequested = expandedScores.length > 0;
-  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled && attachmentsRequested, `${identity.authenticatedSessionId ?? "guest"}:${attachmentGeneration}`);
+  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled, `${cacheOwner}:${identity.authenticatedSessionId ?? "guest"}:${attachmentGeneration}`);
   const [scoreAction, setScoreAction] = useState<ScoreActionSelection | null>(null);
   const refresh = () => {
     // Authentication changes cause useDriveLibrary to acquire/reload the now
     // authorized resource. Never grant authority from a refetch result here.
     if (identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || identity.onlineState === "checking") return identity.session.refetch();
+    attachments.retry();
     return library.refresh();
   };
   const refreshAfterMutation = library.changed;
