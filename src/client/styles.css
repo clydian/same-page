@@ -1676,30 +1676,6 @@ h1 {
   background: #1d1a1c;
 }
 
-.reader-shell::before {
-  pointer-events: none;
-  position: absolute;
-  z-index: 10;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: max(5.75rem, calc(env(safe-area-inset-top) + 4.75rem));
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 86%) 0%,
-    rgb(255 255 255 / 54%) 38%,
-    rgb(255 255 255 / 18%) 72%,
-    transparent 100%
-  );
-  content: "";
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-
-.reader-shell[data-chrome-visible]::before {
-  opacity: 1;
-}
-
 .reader-loading {
   position: relative;
   display: grid;
@@ -1771,7 +1747,7 @@ h1 {
   right: max(0.75rem, env(safe-area-inset-right));
   left: max(0.75rem, env(safe-area-inset-left));
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: 0.65rem;
   min-height: 0;
@@ -1834,20 +1810,6 @@ h1 {
   padding: 0 !important;
 }
 
-.reader-chrome__title {
-  display: grid;
-  align-items: center;
-  overflow: hidden;
-  min-height: 2.75rem;
-  max-width: min(28rem, 42vw);
-  color: #000;
-  font-size: 0.82rem;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  justify-self: center;
-}
-
 .reader-chrome__actions,
 .segmented-control,
 .reader-more-menu__zoom {
@@ -1864,8 +1826,8 @@ h1 {
 
 .reader-chrome__actions-stack {
   position: relative;
-  /* The title leaves the grid on phones; controls still belong in its last column. */
-  grid-column: 3;
+  /* Keep actions at the trailing edge with or without the leading controls. */
+  grid-column: 2;
   display: grid;
   justify-items: center;
   justify-self: end;
@@ -2060,7 +2022,6 @@ h1 {
   opacity: 0.42;
 }
 
-.reader-gesture-hint,
 .reader-alert {
   position: absolute;
   z-index: 12;
@@ -2076,13 +2037,7 @@ h1 {
   transform: translateX(-50%);
 }
 
-.reader-gesture-hint {
-  bottom: max(1.2rem, env(safe-area-inset-bottom));
-  max-width: calc(100vw - 2rem);
-  font-size: 0.82rem;
-  text-align: center;
-  white-space: nowrap;
-}
+
 
 .reader-alert {
   top: max(5.25rem, calc(env(safe-area-inset-top) + 4.5rem));
@@ -2687,139 +2642,36 @@ h1 {
   pointer-events: none;
 }
 
+/* The sheet stays clear; only the compact controls have a material surface. */
 .annotation-text-composer[data-active] {
-  position: fixed;
-  z-index: 60;
-  display: block;
-  margin: 0;
-  color: #111;
-  background: rgb(34 34 34 / 28%);
-  backdrop-filter: blur(1px);
-  pointer-events: auto;
+  position: fixed; z-index: 60; display: block; margin: 0; padding-top: env(safe-area-inset-top, 0px);
+  color: #173c40; background: transparent; pointer-events: auto;
 }
-
-.annotation-text-composer header {
-  position: absolute;
-  z-index: 2;
-  top: max(0.75rem, env(safe-area-inset-top));
-  right: max(0.75rem, env(safe-area-inset-right));
-  left: max(0.75rem, env(safe-area-inset-left));
-  display: flex;
-  justify-content: space-between;
-}
-
-.annotation-text-composer header button {
-  min-width: 4rem;
-  min-height: 2.75rem;
-  border: 0;
-  border-radius: 999px;
-  padding: 0.55rem 0.9rem;
-  color: #111;
-  background: rgb(255 255 255 / 92%);
-  box-shadow: 0 0.45rem 1.2rem rgb(0 0 0 / 18%);
-  font: inherit;
-  font-weight: 700;
-}
-
+.annotation-composer-layer { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 140px; padding: 0 8px; color: #526761; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.annotation-composer-hint { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 6px; background: rgb(253 253 250 / 92%); color: #62716b; font-size: 11px; font-weight: 400; white-space: nowrap; pointer-events: none; }
+.annotation-composer-layer-color { width: 12px; height: 12px; flex-shrink: 0; border: 1px solid rgb(0 0 0 / 12%); border-radius: 3px; }
+.annotation-composer-styles { position: absolute; z-index: 2; bottom: max(10px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px; max-width: calc(100% - 24px); border: 1px solid rgb(34 65 63 / 14%); border-radius: 16px; background: rgb(253 253 250 / 98%); box-shadow: 0 4px 18px rgb(28 49 43 / 10%); font-size: 13px; }
+.annotation-text-composer button:not(.annotation-text-move) { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; height: 44px; padding: 0 10px; border: 0; border-radius: 10px; color: inherit; background: transparent; font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.annotation-text-composer button:not(.annotation-text-move):hover { background: #eaf0ec; }
+.annotation-text-composer button:disabled { opacity: .4; cursor: default; }
+.annotation-composer-size { display: flex; align-items: center; background: #eff2ee; border-radius: 10px; }
+.annotation-font-scale__value { width: 36px; min-width: 0; height: 36px; padding: 0; border: 0; background: transparent; color: inherit; text-align: center; font: inherit; font-variant-numeric: tabular-nums; appearance: textfield; }
+.annotation-font-scale__value::-webkit-inner-spin-button { appearance: none; }
+.annotation-composer-color { position: relative; display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; }
+.annotation-composer-color span { width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgb(0 0 0 / 16%); }
+.annotation-composer-color input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.annotation-text-anchor { position: absolute; transform: translate(-50%, -50%); font-family: inherit; font-weight: 700; line-height: 1.25; }
+.annotation-text-anchor::before { content: ""; position: absolute; inset: -7px; border: 1px solid rgb(22 76 80 / 45%); border-radius: 5px; pointer-events: none; }
+.annotation-text-measure { position: absolute; visibility: hidden; white-space: pre; width: max-content; pointer-events: none; font: inherit; }
 .annotation-text-composer textarea {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(70%, 42rem);
-  white-space: pre;
-  overflow-wrap: normal;
-  overflow: auto;
-  border: 0;
-  outline: 0;
-  padding: 0;
-  background: transparent;
-  font-family: inherit;
-  font-weight: 700;
-  line-height: 1.25;
-  text-align: center;
-  text-shadow: 0 1px 2px rgb(255 255 255 / 72%);
-  caret-color: currentColor;
-  resize: none;
-  transform: translate(-50%, -50%);
+  position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0;
+  white-space: pre; overflow-wrap: normal; overflow: hidden;
+  border: 0; outline: 0; padding: 0; margin: 0; background: transparent;
+  font-family: inherit; font-weight: 700; line-height: 1.25;
+  caret-color: currentColor; resize: none; border-radius: 0;
 }
-
-.annotation-font-scale {
-  position: absolute;
-  top: 50%;
-  right: max(1rem, env(safe-area-inset-right));
-  display: grid;
-  justify-items: center;
-  gap: 0.5rem;
-  width: 3rem;
-  color: #fff;
-  font-weight: 800;
-  text-shadow: 0 1px 3px rgb(0 0 0 / 45%);
-  transform: translateY(-50%);
-}
-
-.annotation-font-scale__value {
-  min-width: 2.5rem;
-  min-height: 1.6rem;
-  border-radius: 999px;
-  padding: 0.2rem 0.45rem;
-  color: #292729;
-  background: rgb(255 255 255 / 82%);
-  box-shadow: 0 0.3rem 0.8rem rgb(0 0 0 / 16%);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  text-align: center;
-  opacity: 0;
-}
-
-.annotation-font-scale__value[data-visible] {
-  opacity: 1;
-}
-
-.annotation-font-scale__control {
-  position: relative;
-  display: block;
-  width: 2rem;
-  height: min(13rem, 40dvh);
-}
-
-.annotation-font-scale__track {
-  position: absolute;
-  inset: 0 0.35rem;
-  background: rgb(238 238 238 / 72%);
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 22%));
-}
-
-.annotation-font-scale__thumb {
-  position: absolute;
-  z-index: 1;
-  left: 50%;
-  width: 1.15rem;
-  height: 1.15rem;
-  border: 2px solid rgb(255 255 255 / 92%);
-  border-radius: 50%;
-  background: #565255;
-  box-shadow: 0 0.2rem 0.55rem rgb(0 0 0 / 28%);
-  pointer-events: none;
-  transform: translate(-50%, 50%);
-}
-
-.annotation-font-scale input {
-  position: absolute;
-  z-index: 2;
-  inset: -0.75rem;
-  width: 3.5rem;
-  height: calc(100% + 1.5rem);
-  margin: 0;
-  appearance: none;
-  background: transparent;
-  cursor: ns-resize;
-  opacity: 0;
-  writing-mode: vertical-lr;
-  direction: rtl;
-  touch-action: none;
-}
+.annotation-text-move { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #d2dfd9; border-radius: 50%; color: #164c50; background: #fdfdfa; box-shadow: 0 2px 7px #173c401a; touch-action: none; cursor: grab; }
+.annotation-text-move:active { cursor: grabbing; background: #e7eeea; }
 
 .annotation-delete-zone {
   position: fixed;
@@ -3047,9 +2899,6 @@ h1 {
     right: -0.4rem;
   }
 
-  .reader-chrome__title {
-    display: none;
-  }
 
   .reader-panel-backdrop {
     align-items: end;
@@ -3088,10 +2937,6 @@ h1 {
     flex: none;
   }
 
-  .reader-gesture-hint {
-    width: max-content;
-    white-space: normal;
-  }
 
   .reader-alert {
     width: calc(100% - 2rem);
@@ -3249,10 +3094,7 @@ h1 {
 .manual-topic ol { padding-left: 1.5rem; }
 
 .annotation-text-size-field input { width: 4.5rem; margin-left: .5rem; }
-.annotation-font-scale__value { width: 3.5rem; }
-.annotation-text-composer header .annotation-pressure-options { display: flex; gap: .25rem; }
-.annotation-text-composer header .annotation-pressure-options button { min-width: 0; padding: .5rem; }
-.annotation-text-composer header [aria-pressed="true"] { outline: 2px solid #014653; }
+
 .annotation-overlay[data-editing] button[data-transforming]::before,
 .annotation-overlay[data-editing] .annotation-text:not(:disabled):hover::before,
 .annotation-overlay[data-editing] .annotation-shape:not(:disabled):hover::before {
@@ -3263,10 +3105,11 @@ h1 {
 
 
 .annotation-text-alignment { display: flex; gap: 4px; }
-.annotation-text-alignment button,
-.annotation-text-composer header .annotation-text-alignment button {
+.annotation-text-alignment button {
   display: grid; place-items: center; width: 44px; min-width: 44px; height: 44px; padding: 8px;
 }
-.annotation-text-composer header .annotation-text-alignment button[aria-pressed="true"] {
-  color: white; background: var(--brand);
+
+@media (max-width: 520px) {
+  .annotation-composer-styles { flex-wrap: wrap; width: max-content; }
+  .annotation-composer-layer { order: -1; width: 100%; max-width: none; padding: 3px 8px; font-size: 11px; }
 }

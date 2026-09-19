@@ -93,7 +93,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       send("touchend", [[2, 650, 300]], [[1, 350, 300]]); send("touchend", [], [[2, 650, 300]]);
     });
-    await expect.poll(() => viewport.locator('[data-page-turn-current] .annotated-pdf-page').evaluate(e => Math.abs(e.getBoundingClientRect().top))).toBeLessThanOrEqual(1);
+    await expect.poll(() => viewport.locator('[data-index="0"] .annotated-pdf-page').evaluate(e => Math.abs(e.getBoundingClientRect().top))).toBeLessThanOrEqual(1);
     await page.getByRole("button", { name: "编辑", exact: true }).click();
     await expect(viewport).toHaveAttribute("data-editing", "true");
     await viewport.evaluate(async e => {
@@ -102,7 +102,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       }
     });
-    await expect.poll(() => viewport.locator('[data-page-turn-current] .annotated-pdf-page').evaluate(e => Math.abs(e.getBoundingClientRect().bottom - 834))).toBeLessThanOrEqual(1);
+    await expect.poll(() => viewport.locator('[data-index="0"] .annotated-pdf-page').evaluate(e => Math.abs(e.getBoundingClientRect().bottom - 834))).toBeLessThanOrEqual(1);
   });
 }
 
@@ -132,7 +132,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     const second = viewport.locator('[data-index="1"] .annotated-pdf-page');
     await second.waitFor();
     await viewport.evaluate(e => { e.scrollTop += e.querySelector('[data-index="1"]').getBoundingClientRect().top - e.getBoundingClientRect().top - 600; });
-    await expect(viewport.locator('[data-page-turn-current]')).toHaveAttribute("data-index", "0");
+    await expect(page.locator(".reader-page-indicator")).toHaveText(/^1\s*\//);
     // The first double tap enlarges the shared fit-width baseline, even when
     // the hit page differs from the viewport-center current page.
     await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
@@ -141,7 +141,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await expect(viewport).toHaveAttribute("data-zoom", "1");
     await expect.poll(() => second.evaluate(e => { const r = e.getBoundingClientRect(); return Math.abs(r.top + r.height / 2 - 417); })).toBeLessThanOrEqual(1);
     await viewport.evaluate(e => { e.scrollTop += e.querySelector('[data-index="1"]').getBoundingClientRect().top - 200; });
-    await expect(viewport.locator('[data-page-turn-current]')).toHaveAttribute("data-index", "1");
+    await expect(page.locator(".reader-page-indicator")).toHaveText(/^2\s*\//);
     await page.getByRole("button", { name: "更多", exact: true }).click();
     await page.getByRole("button", { name: "适合页面", exact: true }).click();
     await page.getByRole("button", { name: "关闭更多阅读选项", exact: true }).click();
@@ -246,7 +246,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     // Make the previous portrait page current, while the last landscape page
     // is visible under the double tap. It falls outside overscan after zoom.
     await viewport.evaluate(e => { e.scrollTop += e.querySelector('[data-index="19"]').getBoundingClientRect().top - 600; });
-    await expect(viewport.locator('[data-page-turn-current]')).toHaveAttribute("data-index", "18");
+    await expect(page.locator(".reader-page-indicator")).toHaveText(/^19\s*\//);
     const originalTop = await last.evaluate(e => e.getBoundingClientRect().top);
     await viewport.dblclick({ position: { x: 597, y: 710 }, delay: 80 });
     await expect(viewport).toHaveAttribute("data-zoom", "2");

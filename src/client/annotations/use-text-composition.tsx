@@ -1,10 +1,10 @@
-import { type PointerEvent as ReactPointerEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { DEFAULT_TEXT_FONT_SCALE, MIN_TEXT_FONT_SCALE, type AnnotationPayload } from "../../shared/annotations";
 import type { AnnotationEditor } from "./annotation-editor";
 import { useEditorPersistence } from "./use-annotation-editor";
-import { calculateTextEditorLayout } from "./text-editor-layout";
-import { TextAlignment, TextSizeInput } from "./style-fields";
+import { AlignCenter, AlignLeft, AlignRight, Minus, Move, Plus } from "lucide-react";
+import { TextSizeInput } from "./style-fields";
 import type { ToolStyle } from "./tool-style";
 
 type TextPayload = Extract<AnnotationPayload, { kind: "text" }>;
@@ -48,7 +48,7 @@ interface TextSelection {
 
 // Owns the native text interaction as well as its finish/navigation registration.
 // Callers deliver intent and render the form; they do not coordinate draft flags.
-export function useTextComposition({ editor, pageNumber, activeLayerId, editing, toolStyle, toolColor, displayColor, onComposingChange, onDiscard, onTextStyleChange }: {
+export function useTextComposition({ editor, pageNumber, activeLayerId, editing, toolStyle, toolColor, displayColor, pageRef, layerName, onComposingChange, onDiscard, onTextStyleChange }: {
   editor: AnnotationEditor | null;
   pageNumber: number;
   activeLayerId: string | null;
@@ -56,6 +56,8 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   toolStyle: ToolStyle;
   toolColor: string;
   displayColor?: string;
+  pageRef?: RefObject<HTMLDivElement | null>;
+  layerName?: string;
   onComposingChange(composing: boolean): void;
   onDiscard?(id: string): void;
   onTextStyleChange?(style: Pick<ToolStyle, "fontScale" | "textAlign">): void;
@@ -71,7 +73,13 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   const [editorTextAlign, setEditorTextAlign] = useState<"left" | "center" | "right">("center");
   const [editorFontScale, setEditorFontScale] = useState(DEFAULT_TEXT_FONT_SCALE);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
-  const textComposerHeaderRef = useRef<HTMLElement>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [color, setColor] = useState(toolColor);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const paperPan = useRef(0);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const dragging = useRef<{ pointerId: number; x: number; y: number; origin: { x: number; y: number } } | null>(null);
+  const textStyleHintRef = useRef<HTMLSpanElement>(null);
   const pendingTextPlacement = useRef<PendingTextPlacement | null>(null);
   const openingPoint = useRef<{ x: number; y: number } | null>(null);
   const backdropPointer = useRef<number | null>(null);
@@ -80,36 +88,61 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   const editorFontSize = textEditor
     ? textEditor.pageWidth * editorFontScale
     : 12;
-  const editorFontScaleProgress =
-    (editorFontScale - MIN_TEXT_FONT_SCALE) /
-    (0.032 - MIN_TEXT_FONT_SCALE);
   useLayoutEffect(() => {
-    const input = textInputRef.current;
-    if (!input || !textEditor) return;
-    const headerBottom =
-      textComposerHeaderRef.current?.getBoundingClientRect().bottom ?? 0;
-    input.style.height = "auto";
-    const contentHeight = input.scrollHeight;
-    const layout = calculateTextEditorLayout({
-      fontSize: editorFontSize,
-      contentHeight,
-      viewportHeight: visualViewport.height,
-      viewportTop: visualViewport.top,
-      headerBottom,
-    });
-    input.style.height = `${layout.height}px`;
-    input.style.overflowY = layout.overflowY;
-    if (layout.overflowY === "auto" && input.selectionEnd === input.value.length) {
-      input.scrollTop = contentHeight;
-    }
-  }, [
-    editorFontSize,
-    editorText,
-    textEditor,
-    visualViewport.height,
-    visualViewport.top,
-    visualViewport.width,
-  ]);
+    if (!textEditor) return;
+    const paper = pageRef?.current?.closest<HTMLElement>(".annotated-pdf-page");
+    const previous = paper?.style.translate ?? "";
+    paperPan.current = 0;
+    return () => { if (paper) paper.style.translate = previous; paperPan.current = 0; };
+  }, [textEditor, pageRef]);
+
+  // Measure the exact same unwrapped text block used by the saved note. Keep the
+  // portal attached to page geometry even while the visual viewport is moving.
+  useLayoutEffect(() => {
+    if (!textEditor) return;
+    const paper = pageRef?.current?.closest<HTMLElement>(".annotated-pdf-page");
+    let frame = 0;
+    const place = () => {
+      const anchor = anchorRef.current;
+      const measure = measureRef.current;
+      const input = textInputRef.current;
+      if (!anchor || !measure || !input) return;
+      const rect = pageRef?.current?.getBoundingClientRect();
+      const width = rect?.width || textEditor.pageWidth;
+      const height = rect?.height || width;
+      const fontSize = width * editorFontScale;
+      anchor.style.fontSize = `${fontSize}px`;
+      const textWidth = Math.max(2, measure.getBoundingClientRect().width);
+      const textHeight = Math.max(fontSize * 1.25, measure.getBoundingClientRect().height);
+      anchor.style.width = `${textWidth}px`;
+      anchor.style.height = `${textHeight}px`;
+      const viewport = window.visualViewport;
+      const top = viewport?.offsetTop ?? 0;
+      const left = viewport?.offsetLeft ?? 0;
+      let y = (rect?.top ?? 0) + position.y * height;
+      // Reserve the safe area, hint and move handle even with a hardware keyboard. Translate
+      // the paper and all layers together; annotation coordinates stay unchanged.
+      if (paper && !dragging.current) {
+        y -= paperPan.current;
+        const safeTop = top + Math.max(16, input.form ? parseFloat(getComputedStyle(input.form).paddingTop) || 0 : 0);
+        const safeBottom = Math.min(top + (viewport?.height ?? window.innerHeight) - 16, (textStyleHintRef.current?.getBoundingClientRect().top ?? Infinity) - 56);
+        const lineHeight = fontSize * 1.25;
+        const oversized = textHeight > safeBottom - safeTop;
+        const caretLine = input.value.slice(0, input.selectionEnd).split("\n").length - 1;
+        const focusY = oversized ? y - textHeight / 2 + (caretLine + .5) * lineHeight : y;
+        const half = oversized ? lineHeight / 2 : textHeight / 2;
+        const delta = Math.min(0, safeBottom - focusY - half) || Math.max(0, safeTop - focusY + half);
+        paperPan.current = Math.abs(delta) > .5 ? delta : 0;
+        paper.style.translate = paperPan.current ? `0 ${paperPan.current}px` : "";
+        y += paperPan.current;
+      }
+      anchor.style.left = `${(rect?.left ?? 0) + position.x * width - left}px`;
+      anchor.style.top = `${y - top}px`;
+      frame = requestAnimationFrame(place);
+    };
+    place();
+    return () => { cancelAnimationFrame(frame); };
+  }, [textEditor, pageRef, position, editorFontScale, editorText]);
 
   const focusTextInput = (selection?: TextSelection | null) => {
     const input = textInputRef.current;
@@ -137,6 +170,8 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
     currentDraft.current = draft;
     flushSync(() => {
       setEditorText(draft.initial);
+      setPosition({ x: draft.x, y: draft.y });
+      setColor(draft.color ?? toolColor);
       setEditorFontScale(draft.fontScale);
       setEditorTextAlign(draft.textAlign ?? "center");
       setTextEditor(draft);
@@ -155,14 +190,6 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
     if (input && input === document.activeElement) input.blur();
   };
 
-  const cancelTextEditor = () => {
-    if (textSavingRef.current) return;
-    if (textEditor && textEditor.target.editor.discard(textEditor.id)) {
-      onDiscard?.(textEditor.id);
-    }
-    closeTextEditor();
-  };
-
   const commitTextEditor = async () => {
     if (!textEditor) return true;
     const textDraft = textEditor;
@@ -179,6 +206,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
         });
         if (!saved || currentDraft.current !== textDraft) return false;
       }
+      if (textDraft.source === "new" && target.editor.discard(textDraft.id)) onDiscard?.(textDraft.id);
       closeTextEditor();
       return true;
     }
@@ -188,11 +216,11 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
       payload: {
         kind: "text",
         pageNumber: target.pageNumber,
-        x: textDraft.x,
-        y: textDraft.y,
+        x: position.x,
+        y: position.y,
         fontScale: editorFontScale,
         textAlign: editorTextAlign,
-        color: textDraft.color ?? toolColor,
+        color,
         text,
       },
     });
@@ -252,6 +280,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   };
   return {
     active: textEditor !== null,
+    editingId: textEditor?.id,
     isPlacing: () => pendingTextPlacement.current !== null,
     openExisting: (draft: TextEditorBase) => {
       const bound = bindDraft({ ...draft, source: "existing" });
@@ -263,6 +292,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
       <form
         aria-label={textEditor ? "文字输入" : undefined}
         aria-hidden={textEditor ? undefined : "true"}
+        inert={!textEditor}
         className="annotation-text-composer"
         data-active={textEditor ? "true" : undefined}
         style={{
@@ -294,19 +324,42 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           if (editor?.getSnapshot() !== "finishing" && event.target === event.currentTarget && intentional) void finishTextEditor();
         }}
       >
-        <header ref={textComposerHeaderRef}>
-          <button
-            tabIndex={textEditor ? 0 : -1}
-            type="button"
-            disabled={textSaving || finishing}
-            onClick={cancelTextEditor}
-          >
-            取消
+        <div className="annotation-composer-styles" role="group" aria-label="文字样式" onPointerDown={event => {
+          const input = textInputRef.current;
+          textSelection.current = input ? { start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection } : null;
+          if ((event.target as HTMLElement).closest("button")) event.preventDefault();
+        }} onClick={event => { if ((event.target as HTMLElement).closest("button")) focusTextInput(textSelection.current); }}>
+          <span ref={textStyleHintRef} className="annotation-composer-hint">轻点空白处完成</span>
+          <span className="annotation-composer-layer">{displayColor && <span className="annotation-composer-layer-color" aria-hidden="true" style={{ background: displayColor }} />}{layerName ?? "我的笔记"}</span>
+          <div className="annotation-composer-size" role="group" aria-label="文字字号">
+            <button type="button" aria-label="减小字号" disabled={textSaving || finishing || editorFontScale <= MIN_TEXT_FONT_SCALE} onClick={() => setEditorFontScale(value => Math.max(MIN_TEXT_FONT_SCALE, value - .001))}><Minus size={17} /></button>
+            <TextSizeInput className="annotation-font-scale__value" disabled={textSaving || finishing} value={editorFontScale} onChange={setEditorFontScale} />
+            <button type="button" aria-label="增大字号" disabled={textSaving || finishing || editorFontScale >= .08} onClick={() => setEditorFontScale(value => Math.min(.08, value + .001))}><Plus size={17} /></button>
+          </div>
+          <button type="button" aria-label={`文字对齐：${{ left: "左对齐", center: "居中", right: "右对齐" }[editorTextAlign]}`} title="切换文字对齐" disabled={textSaving || finishing} onClick={() => setEditorTextAlign(value => value === "left" ? "center" : value === "center" ? "right" : "left")}>
+            {editorTextAlign === "left" ? <AlignLeft size={19} /> : editorTextAlign === "right" ? <AlignRight size={19} /> : <AlignCenter size={19} />}
           </button>
-          {textEditor && <TextAlignment value={editorTextAlign} onChange={setEditorTextAlign} />}
-          <button tabIndex={textEditor ? 0 : -1} disabled={textSaving || finishing} type="submit">完成</button>
-        </header>
+          {!displayColor && <label className="annotation-composer-color" title="文字颜色"><span style={{ background: color }} /><input aria-label="文字颜色" type="color" value={color} disabled={textSaving || finishing} onChange={event => setColor(event.target.value)} /></label>}
+        </div>
         {textEditor ? (
+          <div className="annotation-text-anchor" ref={anchorRef} style={{ fontSize: editorFontSize, color: displayColor ?? color }}>
+          <span ref={measureRef} className="annotation-text-measure" aria-hidden="true">{editorText || "\u200b"}{editorText.endsWith("\n") ? "\u200b" : ""}</span>
+          <button className="annotation-text-move" aria-label="移动文字" type="button" disabled={textSaving || finishing}
+            onPointerDown={event => {
+              event.preventDefault();
+              if (dragging.current) return;
+              dragging.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, origin: position };
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+            }}
+            onPointerMove={event => {
+              const drag = dragging.current;
+              const rect = pageRef?.current?.getBoundingClientRect();
+              if (!drag || drag.pointerId !== event.pointerId || !rect?.width || !rect.height) return;
+              setPosition({ x: Math.max(0, Math.min(1, drag.origin.x + (event.clientX - drag.x) / rect.width)), y: Math.max(0, Math.min(1, drag.origin.y + (event.clientY - drag.y) / rect.height)) });
+            }}
+            onPointerUp={() => { dragging.current = null; focusTextInput(); }}
+            onPointerCancel={() => { if (dragging.current) setPosition(dragging.current.origin); dragging.current = null; }}
+          ><Move size={16} /></button>
           <textarea
             aria-label="笔记文本"
             autoFocus
@@ -318,62 +371,26 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
             rows={2}
             wrap="off"
             style={{
-              color: displayColor ?? textEditor.color ?? toolColor,
-              fontSize: editorFontSize,
+              color: "inherit",
+              fontSize: "inherit",
               textAlign: editorTextAlign,
             }}
             value={editorText}
             onChange={(event) => { if (editor?.getSnapshot() === "finishing") return; openingPoint.current = null; setEditorText(event.target.value); }}
             onKeyDown={(event) => {
               if (editor?.getSnapshot() === "finishing") return;
+              if (event.nativeEvent.isComposing) return;
               if (event.key === "Escape") {
                 event.preventDefault();
-                cancelTextEditor();
+                void finishTextEditor();
               } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault();
                 void finishTextEditor();
               }
             }}
           />
+          </div>
         ) : null}
-        <div className="annotation-font-scale">
-          <TextSizeInput className="annotation-font-scale__value" disabled={textSaving || finishing}
-            value={editorFontScale} onChange={setEditorFontScale} />
-          <span className="annotation-font-scale__control">
-            <span aria-hidden="true" className="annotation-font-scale__track" />
-            <span
-              aria-hidden="true"
-              className="annotation-font-scale__thumb"
-              style={{ bottom: `${Math.min(1, editorFontScaleProgress) * 100}%` }}
-            />
-            <input
-              aria-label="字号"
-              type="range"
-            disabled={textSaving || finishing}
-              min={MIN_TEXT_FONT_SCALE}
-              max={0.032}
-              step="0.001"
-              value={Math.min(0.032, editorFontScale)}
-              onChange={(event) => setEditorFontScale(Number(event.target.value))}
-              onPointerDown={() => {
-                const input = textInputRef.current;
-                textSelection.current = input
-                  ? {
-                      start: input.selectionStart,
-                      end: input.selectionEnd,
-                      direction: input.selectionDirection,
-                    }
-                  : null;
-              }}
-              onPointerCancel={() => {
-                focusTextInput(textSelection.current);
-              }}
-              onPointerUp={() => {
-                focusTextInput(textSelection.current);
-              }}
-            />
-          </span>
-        </div>
       </form>
     ),
   };

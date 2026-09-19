@@ -13,6 +13,7 @@ async function openReader(t, engine) {
   page.setDefaultTimeout(15_000);
   const fixture = createVisualFixtureSession({ dense: true });
   await page.route("**/api/**", route => route.fulfill(fixture.resolve({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "admin" })));
+  await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
   await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);
   await page.locator(".annotated-pdf-page canvas:not([hidden])").first().waitFor();
   await page.locator(".annotated-pdf-page").first().click({ position: { x: 280, y: 300 } });

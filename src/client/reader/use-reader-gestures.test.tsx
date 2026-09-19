@@ -32,6 +32,38 @@ afterEach(() => {
 });
 
 describe("useReaderGestures", () => {
+  it.each(["close", "short", "cancel", "pinch", "zoomed", "editing"])("downward dismissal respects %s ownership", kind => {
+    const onDismiss = vi.fn();
+    render(<GestureHarness onZoomChange={vi.fn()} onDismiss={onDismiss} initialZoom={kind === "zoomed" ? 2 : 1} twoFingerOnly={kind === "editing"} />);
+    const viewport = screen.getByTestId("gesture-viewport");
+    const content = screen.getByTestId("gesture-content");
+    mockGeometry(viewport, content);
+    const start = { pointerId: 1, pointerType: "touch", clientX: 300, clientY: 100 };
+    fireEvent.pointerDown(viewport, start);
+    const end = { ...start, clientY: kind === "short" ? 130 : 270 };
+    fireEvent.pointerMove(viewport, end);
+    if (kind === "pinch") fireEvent.pointerDown(viewport, { ...end, pointerId: 2, clientX: 400 });
+    if (kind === "cancel") fireEvent.pointerCancel(viewport, end);
+    else fireEvent.pointerUp(viewport, end);
+    expect(onDismiss).toHaveBeenCalledTimes(kind === "close" ? 1 : 0);
+    expect(content.style.translate).toBe("");
+  });
+
+  it("never dismisses continuous scrolling, including repeated pulls at the top", () => {
+    const onDismiss = vi.fn();
+    render(<GestureHarness onZoomChange={vi.fn()} onDismiss={onDismiss} nativeTouchScroll />);
+    const viewport = screen.getByTestId("gesture-viewport");
+    mockGeometry(viewport, screen.getByTestId("gesture-content"));
+    const touch = (y: number) => ({ identifier: 1, clientX: 300, clientY: y, target: viewport });
+    for (const scrollTop of [200, 0, 0]) {
+      viewport.scrollTop = scrollTop;
+      fireEvent.touchStart(viewport, { touches: [touch(100)], changedTouches: [touch(100)] });
+      fireEvent.touchMove(viewport, { touches: [touch(280)], changedTouches: [touch(280)] });
+      fireEvent.touchEnd(viewport, { touches: [], changedTouches: [touch(280)] });
+      expect(onDismiss).not.toHaveBeenCalled();
+    }
+  });
+
   it.each(["turn", "cancel", "pinch"] as const)("shares two-finger %s with the pager using a combined frame", kind => {
     const pageTurn: PageTurnGesture = { begin: vi.fn(), move: vi.fn(() => true), end: vi.fn(() => true), cancel: vi.fn(() => true) };
     render(<GestureHarness onZoomChange={vi.fn()} pageTurn={pageTurn} twoFingerOnly />);
@@ -381,17 +413,21 @@ function GestureHarness({
   twoFingerOnly = false,
   nativeTouchScroll = false,
   revision,
+  onDismiss,
+  initialZoom = 1,
 }: {
   onZoomChange: (zoom: number) => void;
   pageTurn?: PageTurnGesture;
   twoFingerOnly?: boolean;
   nativeTouchScroll?: boolean;
   revision?: string;
+  onDismiss?(): void;
+  initialZoom?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const previewBoundaryRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(initialZoom);
   const handlers = useReaderGestures({
     containerRef,
     contentRef,
@@ -406,6 +442,7 @@ function GestureHarness({
       setZoom(value);
     },
     onTap: vi.fn(),
+    onDismiss,
     pageTurn,
   });
   return (

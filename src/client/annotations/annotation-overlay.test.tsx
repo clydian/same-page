@@ -81,6 +81,64 @@ beforeEach(async () => {
 });
 
 describe("AnnotationOverlay", () => {
+  it("moves composing text with its handle, retains focus, and saves only on completion", async () => {
+    renderOverlay([], "text");
+    const overlay = screen.getByLabelText("第 1 页笔记层");
+    mockBounds(overlay); mockBounds(overlay.parentElement!);
+    openNewText(overlay);
+    const input = screen.getByLabelText("笔记文本");
+    fireEvent.change(input, { target: { value: "提前换气" } });
+    const handle = screen.getByRole("button", { name: "移动文字" });
+    fireEvent.pointerDown(handle, { pointerId: 5, clientX: 20, clientY: 30 });
+    fireEvent.pointerMove(handle, { pointerId: 5, clientX: 45, clientY: 20 });
+    fireEvent.pointerUp(handle, { pointerId: 5 });
+    expect(input).toHaveFocus();
+    expect(await localDatabase.annotations.count()).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: "减小字号" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(async () => expect((await localDatabase.annotations.toArray())[0]?.payload).toMatchObject({ x: .45, y: expect.closeTo(.2), fontScale: .015, text: "提前换气" }));
+    expect(editor.getSnapshot()).toBe("idle");
+  });
+
+  it("hides the original while editing and completes without changing defaults", async () => {
+    const note = annotation("existing-inline", activeLayerId, textPayload("原文字"));
+    await localDatabase.annotations.put(note);
+    const remember = vi.fn();
+    render(<AnnotationOverlay editor={editor} pageNumber={1} layers={layers} annotations={[note]} editing tool="text" activeLayerId={activeLayerId} onTextStyleChange={remember} />);
+    const original = screen.getByRole("button", { name: "原文字" });
+    mockBounds(original.parentElement!); mockTextBounds(original);
+    openExistingText("原文字");
+    expect(original).toHaveStyle({ visibility: "hidden" });
+    expect(screen.queryByLabelText("文字颜色")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "尚未保存" } });
+    fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(() => expect(original).not.toHaveStyle({ visibility: "hidden" }));
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ text: "尚未保存", fontScale: .025 });
+    expect(remember).not.toHaveBeenCalled();
+  });
+
+  it("edits personal text color and clears text with undo", async () => {
+    const note = annotation("personal-inline", activeLayerId, textPayload("个人文字"));
+    await localDatabase.annotations.put(note);
+    const personal = { ...layers[0]!, kind: "personal" as const, sharedSlot: null };
+    const view = render(<AnnotationOverlay editor={editor} pageNumber={1} layers={[personal]} annotations={[note]} editing tool="text" activeLayerId={activeLayerId} />);
+    const original = screen.getByRole("button", { name: "个人文字" });
+    mockBounds(original.parentElement!); mockTextBounds(original);
+    openExistingText("个人文字");
+    fireEvent.change(screen.getByLabelText("文字颜色"), { target: { value: "#123456" } });
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ color: "#123456", x: .2, y: .3 }));
+    const saved = (await localDatabase.annotations.get(note.key))!;
+    view.rerender(<AnnotationOverlay editor={editor} pageNumber={1} layers={[personal]} annotations={[saved]} editing tool="text" activeLayerId={activeLayerId} />);
+    openExistingText("个人文字");
+    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(true));
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(false);
+  });
+
   it("focuses new text even while a previous annotation is being saved", () => {
     vi.spyOn(editor, "getSnapshot").mockReturnValue("saving");
     renderOverlay([], "text");
@@ -143,7 +201,7 @@ describe("AnnotationOverlay", () => {
     expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
   });
 
-  it("keeps the centered composer open across blur until cancel", async () => {
+  it("keeps the inline composer open across blur until cancel", async () => {
     const visualViewport = installVisualViewport();
     const interactions: AnnotationOverlayInteraction[] = [];
     let handlingPointerUp = false;
@@ -205,19 +263,19 @@ describe("AnnotationOverlay", () => {
       preventScroll: false,
     });
     expect(interactions).toEqual(["composing-text"]);
-    expect(input).toHaveStyle({ color: "rgb(161, 38, 82)" });
-    const fontScale = screen.getByRole("slider", { name: "字号" });
-    expect(fontScale).toHaveValue("0.016");
+    expect(input.parentElement).toHaveStyle({ color: "rgb(161, 38, 82)" });
+    const fontScale = screen.getByRole("button", { name: "增大字号" });
+    expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(16);
     const fontValue = composer.querySelector(".annotation-font-scale__value");
     expect(fontValue).toHaveAttribute("data-visible");
     fireEvent.change(input, { target: { value: "保持选择范围" } });
     expect(screen.getByLabelText("笔记文本")).toBe(stableInput);
     input.setSelectionRange(2, 6, "forward");
     fireEvent.pointerDown(fontScale);
-    fontScale.focus();
+
     expect(fontValue).toHaveAttribute("data-visible");
-    fireEvent.change(fontScale, { target: { value: "0.028" } });
-    expect(fontScale).toHaveValue("0.028");
+    fireEvent.click(fontScale);
+    expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(17);
     expect(screen.getByLabelText("笔记文本")).toBe(stableInput);
     expect(input).toHaveValue("保持选择范围");
     expect(input.selectionStart).toBe(2);
@@ -242,7 +300,8 @@ describe("AnnotationOverlay", () => {
     expect(screen.getByLabelText("笔记文本")).toHaveValue("尚未确认");
     expect(await localDatabase.annotations.count()).toBe(0);
 
-    fireEvent.click(within(composer).getByRole("button", { name: "取消" }));
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.keyDown(within(composer).getByLabelText("笔记文本"), { key: "Escape" });
     expect(interactions).toEqual(["composing-text", "idle"]);
     expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
     expect(await localDatabase.annotations.count()).toBe(0);
@@ -412,10 +471,11 @@ describe("AnnotationOverlay", () => {
     fireEvent.change(size, { target: { value: "24" } });
     fireEvent.blur(size);
     expect(size).toHaveValue(24);
-    fireEvent.click(screen.getByRole("button", { name: "左对齐" }));
+    fireEvent.click(screen.getByRole("button", { name: "文字对齐：居中" }));
+    fireEvent.click(screen.getByRole("button", { name: "文字对齐：右对齐" }));
     expect(input).toHaveStyle({ textAlign: "left" });
     fireEvent.change(input, { target: { value: "长句不会自动断行\n短句" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => expect(await localDatabase.annotations.toCollection().first()).toMatchObject({ payload: { textAlign: "left", fontScale: .024, text: "长句不会自动断行\n短句" } }));
   });
 
@@ -431,7 +491,7 @@ describe("AnnotationOverlay", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "字号数值" }), {
       target: { value: "40" },
     });
-    fireEvent.click(within(composer).getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(within(composer).getByLabelText("笔记文本"), { key: "Escape" });
 
     await waitFor(async () => {
       expect(await localDatabase.annotations.toCollection().first()).toMatchObject({
@@ -457,7 +517,7 @@ describe("AnnotationOverlay", () => {
       target: { value: "外围完成" },
     });
 
-    fireEvent.click(screen.getByRole("slider", { name: "字号" }));
+    fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
     expect(screen.getByRole("form", { name: "文字输入" })).toBeInTheDocument();
     expect(await localDatabase.annotations.count()).toBe(0);
 
@@ -496,9 +556,9 @@ describe("AnnotationOverlay", () => {
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "尚未写入的草稿" } });
     let rejectWrite!: (reason: Error) => void;
     const write = vi.spyOn(localDatabase.annotations, "put").mockImplementation(() => new Dexie.Promise((_resolve, reject) => { rejectWrite = reject; }));
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(() => expect(screen.getByLabelText("笔记文本")).toHaveAttribute("readonly"));
-    expect(screen.getByRole("slider", { name: "字号" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "增大字号" })).toBeDisabled();
     await waitFor(() => expect(write).toHaveBeenCalled());
     rejectWrite(new DOMException("full", "QuotaExceededError"));
     expect(await screen.findByText("本机保存失败")).toBeInTheDocument();
@@ -510,7 +570,7 @@ describe("AnnotationOverlay", () => {
     expect(await localDatabase.annotations.toCollection().first()).toMatchObject({ state: "draft", payload: { text: "尚未写入的草稿" } });
   });
 
-  it("discards failed text intent when the user cancels the composer", async () => {
+  it("discards failed new text intent when the user clears and completes it", async () => {
     // Publishing the editor error can precede the composer's async finally.
     // Hold that boundary explicitly instead of depending on CI scheduling.
     const persist = editor.persist.bind(editor);
@@ -527,12 +587,13 @@ describe("AnnotationOverlay", () => {
     openNewText(overlay);
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "取消这次修改" } });
     const write = vi.spyOn(localDatabase.annotations, "put").mockRejectedValue(new DOMException("full", "QuotaExceededError"));
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await screen.findByText("本机保存失败");
-    expect(screen.getByRole("button", { name: "取消" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "增大字号" })).toBeDisabled();
     release();
-    await waitFor(() => expect(screen.getByRole("button", { name: "取消" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "增大字号" })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     expect(screen.queryByText("本机保存失败")).not.toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
     write.mockRestore();
@@ -545,7 +606,7 @@ describe("AnnotationOverlay", () => {
     const overlay = screen.getByLabelText("第 1 页笔记层");
     mockBounds(overlay);
     openNewText(overlay);
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     expect(await localDatabase.annotations.count()).toBe(0);
     newView.unmount();
 
@@ -554,7 +615,7 @@ describe("AnnotationOverlay", () => {
     renderOverlay([text], "text");
     openExistingText("原文");
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => {
       expect(await localDatabase.annotations.get(text.key)).toMatchObject({
         deleted: true,
@@ -563,18 +624,6 @@ describe("AnnotationOverlay", () => {
     });
   });
 
-  it("cancels an existing text edit without changing the object", async () => {
-    const text = annotation("text-1", activeLayerId, textPayload("原文"));
-    await localDatabase.annotations.put(text);
-    renderOverlay([text], "text");
-    openExistingText("原文");
-    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "误改" } });
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
-    expect(await localDatabase.annotations.get(text.key)).toMatchObject({
-      state: "synced",
-      payload: { text: "原文" },
-    });
-  });
 
   it.each(["text", "rectangle", "ellipse"] as const)("moves text with the %s tool and records one undoable final change", async tool => {
     const text = annotation("text-1", activeLayerId, textPayload("跟随拖动"));
@@ -640,28 +689,6 @@ describe("AnnotationOverlay", () => {
     expect(await editor.undo(activeLayerId)).toBe(false);
   });
 
-  it("retires a discarded failed drag preview when canceling its text composer", async () => {
-    const text = annotation("text-1", activeLayerId, textPayload("取消失败拖动"));
-    await localDatabase.annotations.put(text);
-    renderOverlay([text], "text");
-    const button = screen.getByRole("button", { name: "取消失败拖动" });
-    mockBounds(button.parentElement!); mockTextBounds(button);
-    const write = vi.spyOn(localDatabase.annotations, "put").mockRejectedValueOnce(new Error("storage failed"));
-    fireEvent.pointerDown(button, { pointerId: 3, clientX: 20, clientY: 30 });
-    fireEvent.pointerMove(button, { pointerId: 3, clientX: 40, clientY: 50 });
-    fireEvent.pointerUp(button, { pointerId: 3, clientX: 40, clientY: 50 });
-    await waitFor(() => expect(editor.getSnapshot()).toBe("failed"));
-    expect(Number.parseFloat(button.style.left)).toBeCloseTo(40);
-    write.mockRestore();
-    openExistingText("取消失败拖动");
-    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
-    expect(screen.queryByLabelText("笔记文本")).not.toBeInTheDocument();
-    expect(editor.getSnapshot()).toBe("idle");
-    expect(Number.parseFloat(button.style.left)).toBeCloseTo(20);
-    expect((await localDatabase.annotations.get(text.key))?.payload).toEqual(text.payload);
-    await act(async () => { expect(await editor.finish()).toBe("local-saved"); });
-    expect((await localDatabase.annotations.get(text.key))?.payload).toEqual(text.payload);
-  });
 
   it("shows undo even if the local query skips the released drag projection", async () => {
     const text = annotation("text-1", activeLayerId, textPayload("快速撤销"));

@@ -1,3 +1,5 @@
+import { ReaderGuide } from "../reader/reader-guide";
+import { useReaderHint } from "../reader/use-reader-hint";
 import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
 import { MAX_READER_ZOOM } from "../reader/reader-zoom";
 import { subscribeReaderSync } from "../reader/sync-reader";
@@ -26,6 +28,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useCallback,
   lazy,
   useRef,
   useState,
@@ -76,7 +79,7 @@ import {
 } from "../reader/reader-sync-status";
 
 import type { DiagnosticReader } from "../../shared/diagnostic-report";
-import { DiagnosticReportDialog, DiagnosticReportModal } from "../diagnostics/diagnostic-report-dialog";
+import { DiagnosticReportDialog } from "../diagnostics/diagnostic-report-dialog";
 
 type ReaderPanel = "layers";
 
@@ -146,7 +149,6 @@ function ReaderPageContent() {
     });
   }, [workspace]);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
   const moreTrigger = useRef<HTMLButtonElement>(null);
   const layersTrigger = useRef<HTMLButtonElement>(null);
   const previousPanel = useRef(readerPanel);
@@ -157,9 +159,6 @@ function ReaderPageContent() {
     const frame = requestAnimationFrame(() => layersTrigger.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [readerPanel]);
-  const [showGestureHint, setShowGestureHint] = useState(
-    () => !readBooleanPreference("reader-gesture-hint-seen"),
-  );
   useEffect(() => {
     ensureLoadingJourney("open-score", "direct");
   }, []);
@@ -202,33 +201,27 @@ function ReaderPageContent() {
     currentPage,
     pageCount: document?.numPages ?? 1,
     documentKey: `${documentScopeKey ?? "none"}:${score?.currentVersion.id ?? "none"}`,
-    enabled: document !== null,
+    enabled: document !== null && layout === "page",
     beforePageChange: editing ? () => editor.prepareNavigation() : undefined,
     canCompletePage: editing ? editor.canNavigate : undefined,
     onPageChange: page => {
-      if (layout === "page") setZoom(1);
-      else setNavigationRequest(value => value + 1);
+      setZoom(1);
       setCurrentPage(page);
     },
   });
   const requestPage = pager.request;
 
-  useEffect(() => {
-    if (!document || !showGestureHint) return;
-    try {
-      localStorage.setItem("reader-gesture-hint-seen", "true");
-    } catch {
-      // The one-time hint may repeat when storage is unavailable.
-    }
-    const timer = window.setTimeout(() => setShowGestureHint(false), 3600);
-    return () => window.clearTimeout(timer);
-  }, [document, showGestureHint]);
+  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null && !exportOpen, null);
+  const closeScore = useCallback(() => {
+    startLoadingJourney("exit-score", "warm");
+    navigation.back(`/choirs/${choirId}`);
+  }, [navigation, choirId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         layout !== "page" ||
-        readerPanel !== null || moreOpen || diagnosticOpen ||
+        readerPanel !== null || moreOpen || guide.visible ||
         editing ||
         event.metaKey ||
         event.ctrlKey ||
@@ -248,7 +241,7 @@ function ReaderPageContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editing, layout, moreOpen, diagnosticOpen, readerPanel, requestPage, setZoom]);
+  }, [editing, layout, moreOpen, guide.visible, readerPanel, requestPage, setZoom]);
 
   const beginEditing = () => {
     if (cloudState === "trashed") {
@@ -364,7 +357,12 @@ function ReaderPageContent() {
   const hasNewOfflineVersion =
     offline && offline.versionId !== score.currentVersion.id;
   const goToPage = (page: number) => {
-    requestPage(clamp(page, 1, document.numPages));
+    const target = clamp(page, 1, document.numPages);
+    if (layout === "page") requestPage(target);
+    else {
+      setCurrentPage(target);
+      setNavigationRequest(value => value + 1);
+    }
   };
   const selectLayout = (value: ReaderLayout) => {
     setZoom(1);
@@ -411,20 +409,10 @@ function ReaderPageContent() {
     conflictCount: conflicts.length,
     syncErrorCount,
   });
-  const readerTitle = scoreDisplayName(score.fileName);
 
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
-    <main className="reader-shell" data-chrome-visible={chromeVisible || undefined}>
-      <DiagnosticReportModal
-        reader={diagnosticReader}
-        isOpen={diagnosticOpen}
-        onOpenChange={open => {
-          setDiagnosticOpen(open);
-          // Restore focus after the modal releases its focus trap and inert background.
-          if (!open) requestAnimationFrame(() => moreTrigger.current?.focus());
-        }}
-      />
+    <main className="reader-shell" data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
       {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
       {cloudState === "trashed" ? (
@@ -437,13 +425,12 @@ function ReaderPageContent() {
         <span>页面显示失败，本机草稿仍保留。</span>{displayChoices}{diagnosticDialog}
       </div> : null}
       {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
-      {chromeVisible ? (
-      <header className="reader-chrome" aria-label="阅读器控制">
-          {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={() => { startLoadingJourney("exit-score", "warm"); navigation.back(`/choirs/${choirId}`); }}>
+      {chromeVisible && !guide.visible ? (
+      <header className="reader-chrome" aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
+          {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>
           <TooltipTrigger><Button aria-label="分享 PDF" className="reader-icon-button reader-chrome__export" onPress={() => setExportOpen(true)}><Share aria-hidden="true" size={21} /></Button><Tooltip className="offline-score-tooltip">分享 PDF</Tooltip></TooltipTrigger></div>}
-          <strong className="reader-chrome__title">{readerTitle}</strong>
           <div className="reader-chrome__actions-stack">
             <div className="reader-chrome__actions">
               <Button
@@ -575,8 +562,7 @@ function ReaderPageContent() {
               </section>
               </>}
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
-                <p className="reader-more-menu__status">整页阅读时轻点中央显示工具、两侧翻页；放大后或连续滚动时轻点任意位置显示工具。双击放大或恢复：连续滚动恢复适合宽度，翻页阅读恢复整页。左右滑动翻页。编辑时双指移动或缩放。笔记同步与离线副本分别准备。</p>
-                <Button onPress={() => { setMoreOpen(false); setDiagnosticOpen(true); }}>故障诊断</Button>
+                <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>查看操作指引</Button>
               </details>
             </Dialog>
             </Popover>
@@ -584,7 +570,7 @@ function ReaderPageContent() {
         </header>
       ) : null}
 
-      {!editing && chromeVisible ? (
+      {!editing && chromeVisible && !guide.visible ? (
         <>
           <PageNavigatorPanel
             key={score.currentVersion.id}
@@ -615,13 +601,7 @@ function ReaderPageContent() {
         </Suspense>
       ) : null}
 
-      {!editing && showGestureHint ? (
-        <p className="reader-gesture-hint" role="status">
-          {layout === "page"
-            ? "整页时轻点中央显示控制、两侧翻页；双击缩放"
-            : "轻点显示控制，双击缩放，上下滑动连续浏览"}
-        </p>
-      ) : null}
+      {guide.visible && <ReaderGuide layout={layout} onDismiss={guide.dismiss} />}
 
       {hasNewOfflineVersion ? (
         <aside className="reader-alert" role="status">
@@ -713,12 +693,12 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
+            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />
         ) : (
           <ContinuousLayout
-            pager={pager}
             navigationRequest={navigationRequest}
             fitRequest={fitRequest}
             document={document}
@@ -736,16 +716,6 @@ function ReaderPageContent() {
     </ReaderPresentationContext.Provider>
   );
 }
-
-function readBooleanPreference(key: string) {
-  try {
-    return localStorage.getItem(key) === "true";
-  } catch {
-    return false;
-  }
-}
-
-
 
 function readStringPreference(key: string) {
   try {

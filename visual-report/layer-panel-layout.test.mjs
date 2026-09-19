@@ -23,6 +23,7 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
       }
       await route.fulfill(result);
     });
+    await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
     await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);
     await page.locator('.pdf-page-canvas [data-pdf-canvas-active]').first().waitFor();
     const viewport = page.locator('.page-reader__viewport');

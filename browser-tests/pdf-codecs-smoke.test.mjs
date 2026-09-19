@@ -19,6 +19,7 @@ for (const engine of [chromium, webkit]) {
       headers: { origin: fixture.origin }, data: { email: account.email, password: account.password },
     })).status(), 200);
     await context.addInitScript(installCompatibilityProbe);
+    await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
     const page = await context.newPage();
     await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`, { waitUntil: "domcontentloaded" });
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
