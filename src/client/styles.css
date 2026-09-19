@@ -949,7 +949,7 @@ h1 {
 
 .join-code-slots {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: clamp(0.45rem, 1.5vw, 0.8rem);
 }
@@ -1053,7 +1053,7 @@ h1 {
 
 .social-auth-divider {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 0.8rem;
   color: var(--muted);
@@ -1826,7 +1826,7 @@ h1 {
 
 .reader-chrome__actions-stack {
   position: relative;
-  /* The title leaves the grid on phones; controls still belong in its last column. */
+  /* Keep actions at the trailing edge with or without the leading controls. */
   grid-column: 2;
   display: grid;
   justify-items: center;
