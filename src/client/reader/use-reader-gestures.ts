@@ -71,7 +71,7 @@ export function useReaderGestures({
     mode: twoFingerOnly, disabled, navigation: pageTurn });
   const cancelZoom = zoomHandoff.cancel;
   const dismiss = useReaderDismiss({ containerRef, contentRef, onDismiss,
-    enabled: !disabled && !twoFingerOnly && tapEnabled && zoom <= 1 + FIT_ZOOM_TOLERANCE });
+    enabled: !nativeTouchScroll && !disabled && !twoFingerOnly && tapEnabled && zoom <= 1 + FIT_ZOOM_TOLERANCE });
   const cancelDismiss = dismiss.cancel;
   const objectPointers = useRef(new Set<string>());
   const points = useRef(new Map<string, Point>());
@@ -172,7 +172,7 @@ export function useReaderGestures({
     points.current.set(contactKey(event), { x: event.clientX, y: event.clientY });
     if (drained.current) return;
     if (points.current.size === 1) {
-      if (!nativeTouchScroll || (containerRef.current?.scrollTop ?? 0) <= 1) dismiss.start({ x: event.clientX, y: event.clientY });
+      if (!nativeTouchScroll) dismiss.start({ x: event.clientX, y: event.clientY });
       taps.down({ x: event.clientX, y: event.clientY });
       primary.current = {
         id: contactKey(event),

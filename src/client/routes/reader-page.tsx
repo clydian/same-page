@@ -704,7 +704,6 @@ function ReaderPageContent() {
             onZoomChange={setZoom}
             onPageChange={setCurrentPage}
             onToggleChrome={toggleChrome}
-            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
 
           />

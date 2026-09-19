@@ -49,18 +49,18 @@ describe("useReaderGestures", () => {
     expect(content.style.translate).toBe("");
   });
 
-  it("uses top-edge native touch dismissal without stealing continuous scrolling", () => {
+  it("never dismisses continuous scrolling, including repeated pulls at the top", () => {
     const onDismiss = vi.fn();
     render(<GestureHarness onZoomChange={vi.fn()} onDismiss={onDismiss} nativeTouchScroll />);
     const viewport = screen.getByTestId("gesture-viewport");
     mockGeometry(viewport, screen.getByTestId("gesture-content"));
     const touch = (y: number) => ({ identifier: 1, clientX: 300, clientY: y, target: viewport });
-    for (const scrollTop of [200, 0]) {
+    for (const scrollTop of [200, 0, 0]) {
       viewport.scrollTop = scrollTop;
       fireEvent.touchStart(viewport, { touches: [touch(100)], changedTouches: [touch(100)] });
       fireEvent.touchMove(viewport, { touches: [touch(280)], changedTouches: [touch(280)] });
       fireEvent.touchEnd(viewport, { touches: [], changedTouches: [touch(280)] });
-      expect(onDismiss).toHaveBeenCalledTimes(scrollTop === 0 ? 1 : 0);
+      expect(onDismiss).not.toHaveBeenCalled();
     }
   });
 

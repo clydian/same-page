@@ -1147,8 +1147,8 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
     fireEvent.click(screen.getByText("阅读帮助"));
     fireEvent.click(screen.getByRole("button", { name: "查看操作指引" }));
-    expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("顶部下拉");
-    expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("上下滑动连续浏览");
+    expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("上下滑动");
+    expect(screen.getByLabelText("阅读器使用指引")).not.toHaveTextContent("顶部下拉");
     fireEvent.click(screen.getByRole("button", { name: "知道了" }));
     expect(screen.queryByLabelText("阅读器使用指引")).not.toBeInTheDocument();
     expect(screen.queryByText("编辑")).not.toBeInTheDocument();

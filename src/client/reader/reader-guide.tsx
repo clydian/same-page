@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, ArrowRight, MoveHorizontal, Expand, Hand } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, MoveHorizontal, MoveVertical, Expand, Hand } from "lucide-react";
 import { Button, Modal, ModalOverlay } from "react-aria-components";
 import { Dialog } from "../navigation/overlays";
 
@@ -16,9 +16,11 @@ export function ReaderGuide({ layout, zoomed, onDismiss }: { layout: "page" | "c
         <div className="reader-guide__gestures">
           <span><MoveHorizontal size={19} aria-hidden="true" /><strong>左右滑动</strong>切换页面</span>
           <span><Expand size={19} aria-hidden="true" /><strong>双击谱面</strong>放大／恢复</span>
-          <span><ArrowDown size={19} aria-hidden="true" /><strong>{layout === "continuous" ? "顶部下拉" : "整页下滑"}</strong>关闭乐谱</span>
+          {layout === "continuous"
+            ? <span><MoveVertical size={19} aria-hidden="true" /><strong>上下滑动</strong>连续浏览</span>
+            : <span><ArrowDown size={19} aria-hidden="true" /><strong>整页下滑</strong>关闭乐谱</span>}
         </div>
-        {layout === "continuous" && <p className="reader-guide__detail">上下滑动连续浏览；放大时拖动查看谱面。</p>}
+        {layout === "continuous" && <p className="reader-guide__detail">轻点谱面显示工具栏，使用返回按钮关闭乐谱。</p>}
         {layout === "page" && zoomed && <p className="reader-guide__detail">放大时拖动查看谱面；恢复整页后可下滑关闭。</p>}
       </Dialog>
     </Modal>
