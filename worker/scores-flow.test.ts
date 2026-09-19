@@ -450,7 +450,9 @@ trailer << /Root 1 0 R >>
     const guestFallback = await callWorker(`/api/choirs/${choirId}/bootstrap`, {
       headers: { cookie: `${nonmember.cookie}; ${guestCookie}` },
     });
-    expect(guestFallback.headers.get("set-cookie")).toBeNull();
+    const fallbackCookies = guestFallback.headers.getSetCookie();
+    expect(fallbackCookies.some(cookie => cookie.startsWith("same_page_guest="))).toBe(false);
+    expect(fallbackCookies.some(cookie => cookie.includes("Max-Age=15552000"))).toBe(true);
     expect(await guestFallback.json()).toMatchObject({
       permissions: { capabilities: noCapabilities(), access: "guest" },
     });
