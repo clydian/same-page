@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { DEFAULT_TEXT_FONT_SCALE, MIN_TEXT_FONT_SCALE, type AnnotationPayload } from "../../shared/annotations";
 import type { AnnotationEditor } from "./annotation-editor";
 import { useEditorPersistence } from "./use-annotation-editor";
-import { AlignCenter, AlignLeft, AlignRight, Check, ChevronDown, Type, Minus, Move, Plus } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ChevronDown, Type, Minus, Move, Plus } from "lucide-react";
 import { TextSizeInput } from "./style-fields";
 import type { ToolStyle } from "./tool-style";
 
@@ -327,8 +327,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
         }}
       >
         <header ref={textComposerHeaderRef} className="annotation-composer-session" onPointerDown={event => { if ((event.target as HTMLElement).closest("button")) event.preventDefault(); }}>
-          <span className="annotation-composer-layer"><span aria-hidden="true" style={{ background: displayColor ?? color }} />{layerName ?? "我的笔记"}</span>
-          <button className="annotation-composer-done" tabIndex={textEditor ? 0 : -1} disabled={textSaving || finishing} type="submit"><Check size={17} />完成</button>
+          <button className="annotation-composer-done" tabIndex={textEditor ? 0 : -1} disabled={textSaving || finishing} type="submit">完成</button>
         </header>
         <div ref={textStyleBarRef} className="annotation-composer-styles" role="group" aria-label="文字样式" data-collapsed={!stylesExpanded || undefined} onPointerDown={event => {
           const input = textInputRef.current;
@@ -337,6 +336,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
         }} onClick={event => { if ((event.target as HTMLElement).closest("button")) focusTextInput(textSelection.current); }}>
           <button type="button" aria-label={stylesExpanded ? "收起文字样式" : "展开文字样式"} aria-expanded={stylesExpanded} onClick={() => setStylesExpanded(value => !value)}>{stylesExpanded ? <ChevronDown size={18} /> : <><Type size={18} />文字样式</>}</button>
           {stylesExpanded && <>
+          <span className="annotation-composer-layer"><span aria-hidden="true" style={{ background: displayColor ?? color }} />{layerName ?? "我的笔记"}</span>
           <div className="annotation-composer-size" role="group" aria-label="文字字号">
             <button type="button" aria-label="减小字号" disabled={textSaving || finishing || editorFontScale <= MIN_TEXT_FONT_SCALE} onClick={() => setEditorFontScale(value => Math.max(MIN_TEXT_FONT_SCALE, value - .001))}><Minus size={17} /></button>
             <TextSizeInput className="annotation-font-scale__value" disabled={textSaving || finishing} value={editorFontScale} onChange={setEditorFontScale} />
