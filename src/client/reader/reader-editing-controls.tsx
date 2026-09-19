@@ -1,3 +1,4 @@
+import { useReaderHint } from "./use-reader-hint";
 import { useInteractOutside } from "react-aria";
 import { useId, useRef, useState } from "react";
 import { MousePointer2, SlidersHorizontal, ChevronDown, Eraser, Highlighter, Square, Circle, Lock, Pencil, Redo2, Type, Undo2, X } from "lucide-react";
@@ -54,9 +55,7 @@ export function ReaderEditingControls({
   useInteractOutside({ ref: stylePopover, isDisabled: styleSource === null,
     onInteractOutsideStart: closeStyleOutside, onInteractOutside: closeStyleOutside });
   const [choosingLayer, setChoosingLayer] = useState(false);
-  const [showHint, setShowHint] = useState(() => {
-    try { return localStorage.getItem("reader-edit-hint-seen") !== "true"; } catch { return true; }
-  });
+  const hint = useReaderHint("reader-edit-hint-seen");
   const toolHasStyle = tool !== "eraser" && tool !== "select";
   const selectedLayer = layers.find((layer) => layer.id === activeLayerId);
   const chooseLayer = (layerId: string) => {
@@ -68,9 +67,8 @@ export function ReaderEditingControls({
 
   return (
     <section className="annotation-controls" aria-label="笔记工具">
-      {showHint && <div className="reader-edit-first-hint" role="status">
-        <span>仅当前层可编辑，其他层淡化供参考。点勾号完成后恢复阅读。</span>
-        <Button className="icon-button" aria-label="关闭编辑提示" onPress={() => { setShowHint(false); try { localStorage.setItem("reader-edit-hint-seen", "true"); } catch { /* Optional hint preference. */ } }}><X aria-hidden="true" size={18} /></Button>
+      {hint.visible && <div className="reader-hint reader-edit-first-hint" role="status">
+        仅当前层可编辑，其他层淡化供参考。点勾号完成后恢复阅读。
       </div>}
       <DialogTrigger isOpen={choosingLayer} onOpenChange={setChoosingLayer}>
         <Button

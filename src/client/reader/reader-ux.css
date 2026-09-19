@@ -88,7 +88,6 @@
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
   backdrop-filter: none;
 }
-.reader-shell::before { height: 7rem; background: linear-gradient(to bottom, #ffffff90, transparent 100%); }
 .reader-more-popover { z-index: 60; width: min(22rem, calc(100vw - 1.5rem)); }
 .reader-more-popover .reader-more-menu { position: static; width: 100%; max-height: min(42rem, calc(100dvh - 6rem)); overflow-y: auto; overscroll-behavior: contain; border: 1px solid #dfe5e1; border-radius: 20px; padding: 12px 20px 16px; color: #243b35; background: #fcfdfb; box-shadow: 0 16px 48px #17352b20, 0 2px 8px #17352b0a; backdrop-filter: none; gap: 0; }
 .reader-menu-heading { display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin-bottom: 4px; }
@@ -148,8 +147,6 @@
 .continuous-reader[data-editing] { overflow: hidden; }
 .continuous-reader__page[data-edit-hidden] { visibility: hidden; }
 
-.reader-edit-first-hint { position: absolute; bottom: calc(100% + .5rem); left: 0; right: 0; display: flex; align-items: center; padding: .5rem .75rem; border-radius: .75rem; background: white; color: #333; box-shadow: 0 2px 12px #0002; font-size: .8rem; line-height: 1.5; }
-.reader-edit-first-hint button { flex-shrink: 0; min-width: 44px; min-height: 44px; border: 0; background: transparent; }
 
 
 .reader-loading__back { position: absolute; top: max(.75rem, env(safe-area-inset-top)); left: max(.75rem, env(safe-area-inset-left)); z-index: 1; color: #eee; background: transparent; }
@@ -263,3 +260,24 @@
 .reader-loading__feedback { position: absolute; bottom: max(1rem, env(safe-area-inset-bottom)); left: 1rem; right: 1rem; display: flex; flex-direction: column; align-items: center; gap: .75rem; text-align: center; }
 .reader-loading__feedback .reader-loading__label { position: static; }
 .reader-loading__paper { width: min(76vw, calc((100dvh - 13rem) * .75)); }
+
+
+/* Reader hints use the same quiet paper surface and disappear on their own. */
+.reader-hint { border: 1px solid rgb(28 62 58 / 12%); border-radius: 16px; padding: 14px 18px; color: #244440; background: rgb(251 252 248 / 97%); box-shadow: 0 6px 24px #142c231a; font-size: 13px; line-height: 1.6; animation: reader-hint-in 180ms ease-out; }
+.reader-edit-first-hint { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: max-content; max-width: min(440px, calc(100vw - 32px)); text-align: center; pointer-events: none; }
+.reader-guide { position: absolute; inset: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); z-index: 25; pointer-events: none; }
+.reader-guide__zones { position: absolute; inset: 22% 0 32%; display: grid; grid-template-columns: 1fr; color: #164c50; }
+.reader-guide__zones[data-edges] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.reader-guide__zones > div { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: rgb(240 246 241 / 76%); border-block: 1px solid #c4d4cb; font-size: 12px; }
+.reader-guide__zones > div + div { border-left: 1px dashed #8aa99e; }
+.reader-guide__zones strong { font-size: 15px; font-weight: 600; }
+.reader-guide__card { position: absolute; left: 50%; bottom: max(90px, 12%); transform: translateX(-50%); width: min(480px, calc(100% - 32px)); }
+.reader-guide__heading { display: flex; justify-content: space-between; align-items: center; font-weight: 650; }
+.reader-guide__heading button { pointer-events: auto; min-height: 36px; padding: 4px 12px; border: 0; border-radius: 9px; color: #fff; background: #164c50; font: inherit; cursor: pointer; }
+.reader-guide__card p { margin: 8px 0; }
+.reader-guide__gestures { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; }
+.reader-guide__gestures span { display: inline-flex; align-items: center; gap: 5px; }
+.reader-guide__detail { color: #587269; font-size: 12px; }
+[data-dismiss-label]::after { content: attr(data-dismiss-label); position: fixed; z-index: 30; top: max(85px, calc(env(safe-area-inset-top) + 70px)); left: 50%; transform: translateX(-50%); border-radius: 999px; padding: 9px 16px; background: #f9fcf7; color: #244440; box-shadow: 0 3px 18px #0002; pointer-events: none; font-size: 12px; }
+@keyframes reader-hint-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .reader-hint { animation: none; } .page-reader__content, .continuous-reader__inner { transition: none; } }

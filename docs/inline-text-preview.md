@@ -32,3 +32,10 @@ node scripts/preview-reader-editor.mjs
 - `NODE_OPTIONS=--no-experimental-webstorage npm run test:unit`：118 项通过。
 - `NODE_OPTIONS=--no-experimental-webstorage npm run test:client -- --maxWorkers=2`：807 项通过。默认高并发运行曾触发两个加载时序测试失败；相关文件独立复核和限制为两个 worker 的全量回归均通过。
 - `LAYOUT_TEST_ORIGIN=http://127.0.0.1:4176 node --test visual-report/reader-mobile-editing.test.mjs`：Chromium／WebKit 共 11 项通过，包含真实 WebKit DOM 下的模拟 visualViewport 避让和输入／保存尺寸一致性。
+
+## 同分支追加：阅读器入口与轻提示
+
+- 编辑层说明不再有关闭叉号，首次显示约 5 秒后自动收起。阅读操作指引使用同一轻提示样式和设备偏好生命周期；谱面可见后显示约 9 秒，不拦截谱面手势，可点“知道了”关闭。沿用原有“已见过阅读提示”的本机偏好，已使用设备可通过“更多 → 阅读帮助 → 查看操作指引”重新查看。
+- 工具栏出现时不再有整条顶部白色渐变和可见谱名；保留屏幕阅读器标题。
+- 阅读状态、未放大时可向下拖动关闭谱子，走与返回按钮相同的导航。拖动显示“下滑关闭乐谱／松开关闭乐谱”，不足阈值或取消恢复原位。连续滚动只在滚动容器最顶部允许下拉关闭；已滚动、放大、编辑、双指和打开面板时不抢占原有操作。
+- 指引标出整页阅读的左右翻页区域和中央工具栏区域；连续滚动或放大时提示轻点任意谱面显示工具栏，避免承诺不存在的边缘轻点翻页。

@@ -63,6 +63,7 @@ interface ReaderLayoutProps {
   onZoomChange(value: number): void;
   onPageChange(page: number): void;
   onToggleChrome(): void;
+  onDismiss?(): void;
   annotationProps: AnnotationPageProps;
 }
 
@@ -73,6 +74,7 @@ export function PageLayout({
   fitRequest = 0,
   onZoomChange,
   onToggleChrome,
+  onDismiss,
   annotationProps,
   pager,
 }: Omit<ReaderLayoutProps, "onPageChange"> & { pager: PagedReader }) {
@@ -117,6 +119,7 @@ export function PageLayout({
     zoom,
     onZoomChange,
     onTap: onToggleChrome,
+    onDismiss,
     onEdgeTap: !annotationProps.editing && zoom <= 1 + FIT_ZOOM_TOLERANCE ? requestPage : undefined,
     tapEnabled: pager.phase === "idle",
     tapScope: document,
@@ -234,6 +237,7 @@ export function ContinuousLayout({
   onZoomChange,
   onPageChange,
   onToggleChrome,
+  onDismiss,
   annotationProps,
   pager,
 }: ReaderLayoutProps & { pager: PagedReader }) {
@@ -252,7 +256,7 @@ export function ContinuousLayout({
     twoFingerOnly: annotationProps.editing,
     onNavigationStart: () => noteInteraction.current?.interrupt(),
     isObjectGestureActive: () => noteInteraction.current?.ownsObjectGesture() ?? false,
-    zoom, onZoomChange, onTap: onToggleChrome,
+    zoom, onZoomChange, onTap: onToggleChrome, onDismiss,
     pageTurn: pager.gesture,
     pageTurnExtent: size.width,
     tapEnabled: pager.phase === "idle",

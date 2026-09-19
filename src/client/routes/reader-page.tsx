@@ -1,3 +1,5 @@
+import { ReaderGuide } from "../reader/reader-guide";
+import { useReaderHint } from "../reader/use-reader-hint";
 import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
 import { MAX_READER_ZOOM } from "../reader/reader-zoom";
 import { subscribeReaderSync } from "../reader/sync-reader";
@@ -26,6 +28,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useCallback,
   lazy,
   useRef,
   useState,
@@ -157,9 +160,6 @@ function ReaderPageContent() {
     const frame = requestAnimationFrame(() => layersTrigger.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [readerPanel]);
-  const [showGestureHint, setShowGestureHint] = useState(
-    () => !readBooleanPreference("reader-gesture-hint-seen"),
-  );
   useEffect(() => {
     ensureLoadingJourney("open-score", "direct");
   }, []);
@@ -213,16 +213,11 @@ function ReaderPageContent() {
   });
   const requestPage = pager.request;
 
-  useEffect(() => {
-    if (!document || !showGestureHint) return;
-    try {
-      localStorage.setItem("reader-gesture-hint-seen", "true");
-    } catch {
-      // The one-time hint may repeat when storage is unavailable.
-    }
-    const timer = window.setTimeout(() => setShowGestureHint(false), 3600);
-    return () => window.clearTimeout(timer);
-  }, [document, showGestureHint]);
+  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null, 9000);
+  const closeScore = useCallback(() => {
+    startLoadingJourney("exit-score", "warm");
+    navigation.back(`/choirs/${choirId}`);
+  }, [navigation, choirId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -411,7 +406,6 @@ function ReaderPageContent() {
     conflictCount: conflicts.length,
     syncErrorCount,
   });
-  const readerTitle = scoreDisplayName(score.fileName);
 
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
@@ -439,11 +433,10 @@ function ReaderPageContent() {
       {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
       {chromeVisible ? (
       <header className="reader-chrome" aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
-          {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={() => { startLoadingJourney("exit-score", "warm"); navigation.back(`/choirs/${choirId}`); }}>
+          {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>
           <TooltipTrigger><Button aria-label="分享 PDF" className="reader-icon-button reader-chrome__export" onPress={() => setExportOpen(true)}><Share aria-hidden="true" size={21} /></Button><Tooltip className="offline-score-tooltip">分享 PDF</Tooltip></TooltipTrigger></div>}
-          <strong className="reader-chrome__title">{readerTitle}</strong>
           <div className="reader-chrome__actions-stack">
             <div className="reader-chrome__actions">
               <Button
@@ -575,7 +568,8 @@ function ReaderPageContent() {
               </section>
               </>}
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
-                <p className="reader-more-menu__status">整页阅读时轻点中央显示工具、两侧翻页；放大后或连续滚动时轻点任意位置显示工具。双击放大或恢复：连续滚动恢复适合宽度，翻页阅读恢复整页。左右滑动翻页。编辑时双指移动或缩放。笔记同步与离线副本分别准备。</p>
+                <p className="reader-more-menu__status">整页阅读时轻点中央显示工具、两侧翻页；放大后或连续滚动时轻点任意位置显示工具。双击放大或恢复：连续滚动恢复适合宽度，翻页阅读恢复整页。左右滑动翻页。整页状态下滑关闭乐谱；连续滚动在最顶部下拉关闭。放大时拖动查看谱面。编辑时双指移动或缩放。笔记同步与离线副本分别准备。</p>
+                <Button onPress={() => { setMoreOpen(false); guide.show(); }}>查看操作指引</Button>
                 <Button onPress={() => { setMoreOpen(false); setDiagnosticOpen(true); }}>故障诊断</Button>
               </details>
             </Dialog>
@@ -615,13 +609,7 @@ function ReaderPageContent() {
         </Suspense>
       ) : null}
 
-      {!editing && showGestureHint ? (
-        <p className="reader-gesture-hint" role="status">
-          {layout === "page"
-            ? "整页时轻点中央显示控制、两侧翻页；双击缩放"
-            : "轻点显示控制，双击缩放，上下滑动连续浏览"}
-        </p>
-      ) : null}
+      {guide.visible && <ReaderGuide layout={layout} zoomed={zoom > 1.01} onDismiss={guide.dismiss} />}
 
       {hasNewOfflineVersion ? (
         <aside className="reader-alert" role="status">
@@ -713,6 +701,7 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
+            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !diagnosticOpen ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />
@@ -727,6 +716,7 @@ function ReaderPageContent() {
             onZoomChange={setZoom}
             onPageChange={setCurrentPage}
             onToggleChrome={toggleChrome}
+            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !diagnosticOpen ? closeScore : undefined}
             annotationProps={annotationPageProps}
 
           />
@@ -736,16 +726,6 @@ function ReaderPageContent() {
     </ReaderPresentationContext.Provider>
   );
 }
-
-function readBooleanPreference(key: string) {
-  try {
-    return localStorage.getItem(key) === "true";
-  } catch {
-    return false;
-  }
-}
-
-
 
 function readStringPreference(key: string) {
   try {

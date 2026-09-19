@@ -9,6 +9,8 @@ import {
   useRef,
 } from "react";
 
+import { useReaderDismiss } from "./use-reader-dismiss";
+import { FIT_ZOOM_TOLERANCE } from "./reader-zoom";
 import { useReaderTaps } from "./use-reader-taps";
 import { useReaderZoom, type ReaderZoomGeometry, type ReaderZoomGesture } from "./use-reader-zoom";
 import type { PageTurnGesture } from "./use-paged-reader";
@@ -29,6 +31,7 @@ export function useReaderGestures({
   zoom,
   onZoomChange,
   onTap,
+  onDismiss,
   onEdgeTap,
   pageTurn,
   pageTurnExtent,
@@ -49,6 +52,7 @@ export function useReaderGestures({
   zoom: number;
   onZoomChange(value: number): void;
   onTap(): void;
+  onDismiss?(): void;
   onEdgeTap?(direction: "previous" | "next"): void;
   pageTurn?: PageTurnGesture;
   pageTurnExtent?: number;
@@ -66,6 +70,9 @@ export function useReaderGestures({
     geometry: zoomGeometry, continuous: nativeTouchScroll, scope: tapScope, revision: gestureRevision,
     mode: twoFingerOnly, disabled, navigation: pageTurn });
   const cancelZoom = zoomHandoff.cancel;
+  const dismiss = useReaderDismiss({ containerRef, contentRef, onDismiss,
+    enabled: !disabled && !twoFingerOnly && tapEnabled && zoom <= 1 + FIT_ZOOM_TOLERANCE });
+  const cancelDismiss = dismiss.cancel;
   const objectPointers = useRef(new Set<string>());
   const points = useRef(new Map<string, Point>());
   const primary = useRef<{
@@ -140,14 +147,16 @@ export function useReaderGestures({
     // placement too so the next touch can start a new note.
     if (twoFingerOnly && points.current.size > 0) interruptNotes();
     cancelZoom();
+    cancelDismiss();
     cancelPairFrame();
     navigation.current = null;
     pinch.current = null;
     drained.current = points.current.size > 0;
-  }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairFrame, cancelZoom]);
+  }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairFrame, cancelZoom, cancelDismiss]);
 
   const drainSequence = () => {
     cancelZoom();
+    cancelDismiss();
     cancelPairFrame();
     navigation.current = null;
     pinch.current = null;
@@ -163,6 +172,7 @@ export function useReaderGestures({
     points.current.set(contactKey(event), { x: event.clientX, y: event.clientY });
     if (drained.current) return;
     if (points.current.size === 1) {
+      if (!nativeTouchScroll || (containerRef.current?.scrollTop ?? 0) <= 1) dismiss.start({ x: event.clientX, y: event.clientY });
       taps.down({ x: event.clientX, y: event.clientY });
       primary.current = {
         id: contactKey(event),
@@ -176,6 +186,7 @@ export function useReaderGestures({
       return;
     }
     taps.cancel();
+    dismiss.cancel();
     if (points.current.size > 2) {
       pageTurn?.cancel(0, true);
       drainSequence();
@@ -226,6 +237,9 @@ export function useReaderGestures({
       });
       return;
     }
+    if (!pinched.current && points.current.size === 1 && dismiss.move({ x: event.clientX, y: event.clientY })) {
+      taps.cancel(); pageTurn?.cancel(0, true); return;
+    }
     if (twoFingerOnly || pinched.current || nativeAxis.current === "vertical") return;
     moveNavigation({ x: event.clientX, y: event.clientY }, event.timeStamp,
       nativeTouchScroll && event.pointerType === "touch");
@@ -266,6 +280,7 @@ export function useReaderGestures({
     }
     if (twoFingerOnly || !start || start.id !== contactKey(event)) return;
     primary.current = null;
+    if (dismiss.finish()) { taps.cancel(); pageTurn?.cancel(0, true); return; }
     if (pageTurn?.end({ sessionId: 0, x: 0, y: 0, time: event.timeStamp, extent: pageTurnExtent ?? 1 })) {
       taps.cancel();
       return;
@@ -276,6 +291,7 @@ export function useReaderGestures({
   const cancelPointer = (event: GesturePointer) => {
     taps.cancel();
     if (!points.current.has(contactKey(event))) return;
+    dismiss.cancel();
     points.current.delete(contactKey(event));
     pageTurn?.cancel(0);
     if (pairFrame.current !== null) cancelAnimationFrame(pairFrame.current);
@@ -295,7 +311,9 @@ export function useReaderGestures({
   // cancels the default touch action; both input paths share the zoom state.
   const handleTouch = useEffectEvent((event: TouchEvent) => {
     if (disabled) return;
-    if (event.type === "touchmove" && event.touches.length === 1 && primary.current && nativeAxis.current === "pending") {
+    if (event.type === "touchmove" && event.touches.length === 1 && primary.current && dismiss.move({ x: event.touches[0].clientX, y: event.touches[0].clientY })) {
+      if (event.cancelable) event.preventDefault();
+    } else if (event.type === "touchmove" && event.touches.length === 1 && primary.current && nativeAxis.current === "pending") {
       const touch = event.touches[0];
       const dx = Math.abs(touch.clientX - primary.current.x);
       const dy = Math.abs(touch.clientY - primary.current.y);

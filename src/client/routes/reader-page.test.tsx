@@ -1144,12 +1144,13 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.click(screen.getByRole("button", { name: "连续滚动" }));
     expect(screen.getByLabelText("连续滚动阅读")).toBeInTheDocument();
     expect(screen.getByLabelText("页面位置")).toHaveTextContent("3 / 3");
-    expect(
-      screen.getByText("轻点显示控制，双击缩放，上下滑动连续浏览"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("轻点页面中央显示控制，点按两侧或左右滑动翻页"),
-    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "更多" }));
+    fireEvent.click(screen.getByText("阅读帮助"));
+    fireEvent.click(screen.getByRole("button", { name: "查看操作指引" }));
+    expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("顶部下拉关闭");
+    expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("上下滑动连续浏览");
+    fireEvent.click(screen.getByRole("button", { name: "知道了" }));
+    expect(screen.queryByLabelText("阅读器使用指引")).not.toBeInTheDocument();
     expect(screen.queryByText("编辑")).not.toBeInTheDocument();
   });
 
@@ -1800,10 +1801,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(screen.queryByLabelText("笔记文本")).not.toBeInTheDocument();
 
     if (!screen.queryByLabelText("阅读器控制")) await toggleChrome();
-    expect(screen.getByText("练声曲", { selector: ".reader-chrome__title" })).toBeInTheDocument();
-    expect(
-      screen.queryByText("练声曲.pdf", { selector: ".reader-chrome__title" }),
-    ).not.toBeInTheDocument();
+    expect(document.querySelector(".reader-chrome__title")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
     fireEvent.click(screen.getByRole("button", { name: "连续滚动" }));
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
