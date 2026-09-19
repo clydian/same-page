@@ -201,12 +201,11 @@ function ReaderPageContent() {
     currentPage,
     pageCount: document?.numPages ?? 1,
     documentKey: `${documentScopeKey ?? "none"}:${score?.currentVersion.id ?? "none"}`,
-    enabled: document !== null,
+    enabled: document !== null && layout === "page",
     beforePageChange: editing ? () => editor.prepareNavigation() : undefined,
     canCompletePage: editing ? editor.canNavigate : undefined,
     onPageChange: page => {
-      if (layout === "page") setZoom(1);
-      else setNavigationRequest(value => value + 1);
+      setZoom(1);
       setCurrentPage(page);
     },
   });
@@ -358,7 +357,12 @@ function ReaderPageContent() {
   const hasNewOfflineVersion =
     offline && offline.versionId !== score.currentVersion.id;
   const goToPage = (page: number) => {
-    requestPage(clamp(page, 1, document.numPages));
+    const target = clamp(page, 1, document.numPages);
+    if (layout === "page") requestPage(target);
+    else {
+      setCurrentPage(target);
+      setNavigationRequest(value => value + 1);
+    }
   };
   const selectLayout = (value: ReaderLayout) => {
     setZoom(1);
@@ -597,7 +601,7 @@ function ReaderPageContent() {
         </Suspense>
       ) : null}
 
-      {guide.visible && <ReaderGuide layout={layout} zoomed={zoom > 1.01} onDismiss={guide.dismiss} />}
+      {guide.visible && <ReaderGuide layout={layout} onDismiss={guide.dismiss} />}
 
       {hasNewOfflineVersion ? (
         <aside className="reader-alert" role="status">
@@ -695,7 +699,6 @@ function ReaderPageContent() {
           />
         ) : (
           <ContinuousLayout
-            pager={pager}
             navigationRequest={navigationRequest}
             fitRequest={fitRequest}
             document={document}

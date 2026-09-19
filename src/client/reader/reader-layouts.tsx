@@ -237,18 +237,14 @@ export function ContinuousLayout({
   onZoomChange,
   onPageChange,
   onToggleChrome,
-  onDismiss,
   annotationProps,
-  pager,
-}: ReaderLayoutProps & { pager: PagedReader }) {
+}: Omit<ReaderLayoutProps, "onDismiss">) {
   const noteInteraction = useRef<AnnotationInteractionHandle>(null);
   const { scrollRef, contentRef, onScroll, geometryGestures, width, height, items, size } = useContinuousReaderLayout({
     document, currentPage, zoom, fitRequest, navigationRequest,
     editing: annotationProps.editing,
-    navigation: pager,
     onZoomChange, onPageChange,
   });
-  const viewportPosition = useViewportPosition(scrollRef);
   const gestureHandlers = useReaderGestures({
     containerRef: scrollRef,
     contentRef: contentRef,
@@ -256,8 +252,7 @@ export function ContinuousLayout({
     twoFingerOnly: annotationProps.editing,
     onNavigationStart: () => noteInteraction.current?.interrupt(),
     isObjectGestureActive: () => noteInteraction.current?.ownsObjectGesture() ?? false,
-    zoom, onZoomChange, onTap: onToggleChrome, onDismiss,
-    tapEnabled: pager.phase === "idle",
+    zoom, onZoomChange, onTap: onToggleChrome,
     tapScope: document,
     tapRevision: `${currentPage}:${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
     gestureRevision: `${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
@@ -275,7 +270,6 @@ export function ContinuousLayout({
       onScroll={onScroll}
       aria-label={annotationProps.editing ? "当前页编辑" : "连续滚动阅读"}
     >
-      {pager.failedPage !== null && <aside className="reader-page-failure" role="alert">第 {pager.failedPage} 页显示失败，当前页已保留。<Button onPress={pager.retryPage}>重试翻页</Button></aside>}
       <div
         className="continuous-reader__inner"
         ref={contentRef}
@@ -286,35 +280,21 @@ export function ContinuousLayout({
       >
         {items.map((item) => {
           const page = item.index + 1;
-          const active = pager.phase !== "idle";
-          const target = active && page === pager.targetPage;
           const current = page === currentPage;
-          const extent = size.width;
-          const targetWidth = calculateFittedPageWidth(extent, size.height, item.aspectRatio);
-          const hidden = (annotationProps.editing || active) && !current && !target;
-          const top = target ? (viewportPosition.y) + Math.max(0, ((size.height) - targetWidth / item.aspectRatio) / 2) : item.start;
-          const position = target ? (page > currentPage ? 1 : -1) : 0;
-          const presentation = pageTurnPresentation(pager, extent, position, top, active && (current || target));
+          const hidden = annotationProps.editing && !current;
           return <div
             className="continuous-reader__page"
             key={item.index}
             data-index={item.index}
-            data-page-turn-current={current || undefined}
-            data-page-turn-target={target || undefined}
             data-edit-hidden={hidden || undefined}
-            inert={hidden || target}
-            {...presentation}
-            style={{ ...presentation.style,
-              ...(target ? { left: viewportPosition.x, width: extent } : {}) }}
+            inert={hidden}
+            style={{ transform: `translateY(${item.start}px)` }}
           >
             <AnnotatedPdfPage
               document={document}
               pageNumber={page}
-              width={target ? targetWidth : item.width}
-              fitViewport={target ? size : undefined}
-              turn={target ? { position, progress: pager.progress } : undefined}
+              width={item.width}
               aspectRatio={item.aspectRatio}
-              onPageRenderStart={target ? pager.beginPageRender : undefined}
               interactionRef={annotationProps.editing && current ? noteInteraction : undefined}
               annotationProps={current ? annotationProps : { ...annotationProps, editing: false }}
             />
@@ -325,8 +305,7 @@ export function ContinuousLayout({
   );
 }
 
-// Both geometries use the same progress and settling presentation. A scroll
-// selection never enters this surface's horizontal transition.
+// Only paged reading uses a horizontal transition.
 function pageTurnPresentation(pager: PagedReader, extent: number, slot = 0, top = 0, active = true) {
   return {
     "data-page-turn-phase": active ? pager.phase : "idle",

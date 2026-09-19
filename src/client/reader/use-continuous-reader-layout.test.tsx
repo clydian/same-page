@@ -56,7 +56,7 @@ function Harness({ document, initialPage = 1, editing = false, idle = () => true
   const [fitRequest, fit] = useState(0);
   const [navigationRequest, navigated] = useState(0);
   const { scrollRef, contentRef, onScroll, width, height, items, geometryGestures } = useContinuousReaderLayout({ document, currentPage: page, zoom, fitRequest, navigationRequest,
-    editing, navigation: { phase: "idle", targetPage: null }, onPageChange: setPage, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); } });
+    editing, onPageChange: setPage, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); } });
   const gestures = useReaderGestures({ containerRef: scrollRef, contentRef, zoom,
     disabled: false, twoFingerOnly: editing, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); },
     onTap: () => {}, tapScope: document, gestureRevision: `${fitRequest}:${navigationRequest}:${width}:${height}`,

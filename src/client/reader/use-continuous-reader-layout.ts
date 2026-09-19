@@ -4,7 +4,6 @@ import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReturnViewport } from "../navigation/use-return-viewport";
 import type { PDFDocumentProxy } from "./pdf-document";
-import type { PagedReader } from "./use-paged-reader";
 import type { ReaderZoomGeometry } from "./use-reader-zoom";
 import { calculateFittedPageWidth } from "./reader-dimensions";
 
@@ -18,7 +17,6 @@ interface ContinuousReaderLayoutOptions {
   fitRequest?: number;
   navigationRequest?: number;
   editing: boolean;
-  navigation: Pick<PagedReader, "phase" | "targetPage">;
   onZoomChange(zoom: number): void;
   onPageChange(page: number): void;
 }
@@ -27,7 +25,7 @@ interface ContinuousReaderLayoutOptions {
 // geometry and connect the gesture capabilities; they do not sequence commands.
 export function useContinuousReaderLayout({
   document, currentPage, zoom, fitRequest = 0, navigationRequest = 0, editing,
-  navigation, onZoomChange, onPageChange,
+  onZoomChange, onPageChange,
 }: ContinuousReaderLayoutOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -73,7 +71,7 @@ export function useContinuousReaderLayout({
     // pages sit at the viewport center after a fit-and-turn.
     paddingStart: startPadding,
     paddingEnd: Math.max(0, (size.height - pageWidth / (ratios[document.numPages - 1] ?? FALLBACK_PAGE_RATIO)) / 2),
-    rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(anchorPage === null ? [] : [anchorPage]), ...(navigation.targetPage === null ? [] : [navigation.targetPage - 1])])].sort((a, b) => a - b),
+    rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(anchorPage === null ? [] : [anchorPage])])].sort((a, b) => a - b),
   });
 
   useEffect(() => {
@@ -160,7 +158,7 @@ export function useContinuousReaderLayout({
   const onScroll = () => {
     const state = commit.current;
     if (zoomLease.current !== null) return;
-    if (state.document !== document || editing || navigation.phase !== "idle" || state.pending || !geometryReady || state.alignedPage === null) return;
+    if (state.document !== document || editing || state.pending || !geometryReady || state.alignedPage === null) return;
     const scrollTop = scrollRef.current?.scrollTop ?? 0;
     // A queued event from our own alignment is not a new page selection. A
     // different offset resumes ordinary viewport-center feedback immediately.

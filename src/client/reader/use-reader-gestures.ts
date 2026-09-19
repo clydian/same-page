@@ -307,13 +307,11 @@ export function useReaderGestures({
     }
   };
 
-  // Native scrolling owns single-touch movement and momentum. Only a pinch
-  // cancels the default touch action; both input paths share the zoom state.
+  // Native scrolling owns vertical movement and momentum; horizontal panning
+  // and pinching use the shared geometry without turning pages.
   const handleTouch = useEffectEvent((event: TouchEvent) => {
     if (disabled) return;
-    if (event.type === "touchmove" && event.touches.length === 1 && primary.current && dismiss.move({ x: event.touches[0].clientX, y: event.touches[0].clientY })) {
-      if (event.cancelable) event.preventDefault();
-    } else if (event.type === "touchmove" && event.touches.length === 1 && primary.current && nativeAxis.current === "pending") {
+    if (event.type === "touchmove" && event.touches.length === 1 && primary.current && nativeAxis.current === "pending") {
       const touch = event.touches[0];
       const dx = Math.abs(touch.clientX - primary.current.x);
       const dy = Math.abs(touch.clientY - primary.current.y);

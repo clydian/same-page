@@ -1144,6 +1144,10 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.click(screen.getByRole("button", { name: "连续滚动" }));
     expect(screen.getByLabelText("连续滚动阅读")).toBeInTheDocument();
     expect(screen.getByLabelText("页面位置")).toHaveTextContent("3 / 3");
+    fireEvent.change(screen.getByRole("slider", { name: "跳转页码" }), { target: { value: "2" } });
+    fireEvent.pointerUp(window);
+    await waitFor(() => expect(screen.getByLabelText("页面位置")).toHaveTextContent("2 / 3"));
+    expect(document.querySelector(".continuous-reader [data-page-turn-phase]")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
     fireEvent.click(screen.getByText("阅读帮助"));
     fireEvent.click(screen.getByRole("button", { name: "查看操作指引" }));
