@@ -81,7 +81,7 @@ test('fullscreen includes the text portal and exits on leaving the reader', asyn
   await page.locator('.annotation-controls').waitFor();
   await page.getByLabel('第 1 页笔记层').click({ position: { x: 200, y: 250 } });
   await expect(page.getByRole('textbox', { name: '笔记文本' })).toBeFocused();
-  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByRole('button', { name: '完成', exact: true }).click();
   await page.getByRole('button', { name: '完成编辑', exact: true }).click();
   await page.getByRole('button', { name: '返回云盘', exact: true }).click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBe(null);

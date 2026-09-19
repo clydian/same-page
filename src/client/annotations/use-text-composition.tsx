@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { DEFAULT_TEXT_FONT_SCALE, MIN_TEXT_FONT_SCALE, type AnnotationPayload } from "../../shared/annotations";
 import type { AnnotationEditor } from "./annotation-editor";
 import { useEditorPersistence } from "./use-annotation-editor";
-import { AlignCenter, AlignLeft, AlignRight, Check, Minus, MoreHorizontal, Move, Plus, Trash2 } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Check, ChevronDown, Type, Minus, Move, Plus } from "lucide-react";
 import { TextSizeInput } from "./style-fields";
 import type { ToolStyle } from "./tool-style";
 
@@ -80,6 +80,8 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   const measureRef = useRef<HTMLSpanElement>(null);
   const dragging = useRef<{ pointerId: number; x: number; y: number; origin: { x: number; y: number } } | null>(null);
   const textComposerHeaderRef = useRef<HTMLElement>(null);
+  const textStyleBarRef = useRef<HTMLDivElement>(null);
+  const [stylesExpanded, setStylesExpanded] = useState(true);
   const pendingTextPlacement = useRef<PendingTextPlacement | null>(null);
   const openingPoint = useRef<{ x: number; y: number } | null>(null);
   const backdropPointer = useRef<number | null>(null);
@@ -120,23 +122,21 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
       const top = viewport?.offsetTop ?? 0;
       const left = viewport?.offsetLeft ?? 0;
       let y = (rect?.top ?? 0) + position.y * height;
-      if (paper && (!viewport || viewport.height >= window.innerHeight - 100) && paperPan.current) {
+      // Reserve both control surfaces even with a hardware keyboard. Translate
+      // the paper and all layers together; annotation coordinates stay unchanged.
+      if (paper && !dragging.current) {
         y -= paperPan.current;
-        paperPan.current = 0;
-        paper.style.translate = "";
-      }
-      // Translate paper and all layers together, without changing zoom or saved
-      // coordinates. Restore the presentation offset when composition ends.
-      if (paper && viewport && viewport.height < window.innerHeight - 100 && !dragging.current) {
         const safeTop = Math.max(top + 16, (textComposerHeaderRef.current?.getBoundingClientRect().bottom ?? top) + 24);
-        const safeBottom = top + viewport.height - 32;
+        const safeBottom = Math.min(top + (viewport?.height ?? window.innerHeight) - 16, (textStyleBarRef.current?.getBoundingClientRect().top ?? Infinity) - 56);
         const lineHeight = fontSize * 1.25;
         const oversized = textHeight > safeBottom - safeTop;
         const caretLine = input.value.slice(0, input.selectionEnd).split("\n").length - 1;
         const focusY = oversized ? y - textHeight / 2 + (caretLine + .5) * lineHeight : y;
         const half = oversized ? lineHeight / 2 : textHeight / 2;
         const delta = Math.min(0, safeBottom - focusY - half) || Math.max(0, safeTop - focusY + half);
-        if (Math.abs(delta) > .5) { paperPan.current += delta; paper.style.translate = `0 ${paperPan.current}px`; y += delta; }
+        paperPan.current = Math.abs(delta) > .5 ? delta : 0;
+        paper.style.translate = paperPan.current ? `0 ${paperPan.current}px` : "";
+        y += paperPan.current;
       }
       anchor.style.left = `${(rect?.left ?? 0) + position.x * width - left}px`;
       anchor.style.top = `${y - top}px`;
@@ -192,14 +192,6 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
     if (input && input === document.activeElement) input.blur();
   };
 
-  const cancelTextEditor = () => {
-    if (textSavingRef.current) return;
-    if (textEditor && textEditor.target.editor.discard(textEditor.id)) {
-      onDiscard?.(textEditor.id);
-    }
-    closeTextEditor();
-  };
-
   const commitTextEditor = async () => {
     if (!textEditor) return true;
     const textDraft = textEditor;
@@ -216,6 +208,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
         });
         if (!saved || currentDraft.current !== textDraft) return false;
       }
+      if (textDraft.source === "new" && target.editor.discard(textDraft.id)) onDiscard?.(textDraft.id);
       closeTextEditor();
       return true;
     }
@@ -333,12 +326,17 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           if (editor?.getSnapshot() !== "finishing" && event.target === event.currentTarget && intentional) void finishTextEditor();
         }}
       >
-        <header ref={textComposerHeaderRef} onPointerDown={event => {
+        <header ref={textComposerHeaderRef} className="annotation-composer-session" onPointerDown={event => { if ((event.target as HTMLElement).closest("button")) event.preventDefault(); }}>
+          <span className="annotation-composer-layer"><span aria-hidden="true" style={{ background: displayColor ?? color }} />{layerName ?? "我的笔记"}</span>
+          <button className="annotation-composer-done" tabIndex={textEditor ? 0 : -1} disabled={textSaving || finishing} type="submit"><Check size={17} />完成</button>
+        </header>
+        <div ref={textStyleBarRef} className="annotation-composer-styles" role="group" aria-label="文字样式" data-collapsed={!stylesExpanded || undefined} onPointerDown={event => {
           const input = textInputRef.current;
           textSelection.current = input ? { start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection } : null;
           if ((event.target as HTMLElement).closest("button")) event.preventDefault();
         }} onClick={event => { if ((event.target as HTMLElement).closest("button")) focusTextInput(textSelection.current); }}>
-          <span className="annotation-composer-layer"><span aria-hidden="true" style={{ background: displayColor ?? color }} />{layerName ?? "我的笔记"}</span>
+          <button type="button" aria-label={stylesExpanded ? "收起文字样式" : "展开文字样式"} aria-expanded={stylesExpanded} onClick={() => setStylesExpanded(value => !value)}>{stylesExpanded ? <ChevronDown size={18} /> : <><Type size={18} />文字样式</>}</button>
+          {stylesExpanded && <>
           <div className="annotation-composer-size" role="group" aria-label="文字字号">
             <button type="button" aria-label="减小字号" disabled={textSaving || finishing || editorFontScale <= MIN_TEXT_FONT_SCALE} onClick={() => setEditorFontScale(value => Math.max(MIN_TEXT_FONT_SCALE, value - .001))}><Minus size={17} /></button>
             <TextSizeInput className="annotation-font-scale__value" disabled={textSaving || finishing} value={editorFontScale} onChange={setEditorFontScale} />
@@ -348,16 +346,8 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
             {editorTextAlign === "left" ? <AlignLeft size={19} /> : editorTextAlign === "right" ? <AlignRight size={19} /> : <AlignCenter size={19} />}
           </button>
           {!displayColor && <label className="annotation-composer-color" title="文字颜色"><span style={{ background: color }} /><input aria-label="文字颜色" type="color" value={color} disabled={textSaving || finishing} onChange={event => setColor(event.target.value)} /></label>}
-          {textEditor?.source === "existing" && <details className="annotation-composer-more"><summary aria-label="更多文字操作"><MoreHorizontal size={19} /></summary><button type="button" disabled={textSaving || finishing} onClick={async () => {
-            if (textSavingRef.current) return;
-            textSavingRef.current = true; setTextSaving(true);
-            try { if (await textEditor.target.editor.persist({ id: textEditor.id, layerId: textEditor.target.layerId, payload: null, deleted: true }) && currentDraft.current === textEditor) closeTextEditor(); }
-            finally { textSavingRef.current = false; setTextSaving(false); }
-          }}><Trash2 size={16} />删除文字</button></details>}
-          <span className="annotation-composer-divider" />
-          <button tabIndex={textEditor ? 0 : -1} type="button" disabled={textSaving || finishing} onClick={cancelTextEditor}>取消</button>
-          <button className="annotation-composer-done" tabIndex={textEditor ? 0 : -1} disabled={textSaving || finishing} type="submit"><Check size={17} />完成</button>
-        </header>
+          </>}
+        </div>
         {textEditor ? (
           <div className="annotation-text-anchor" ref={anchorRef} style={{ fontSize: editorFontSize, color: displayColor ?? color }}>
           <span ref={measureRef} className="annotation-text-measure" aria-hidden="true">{editorText || "\u200b"}{editorText.endsWith("\n") ? "\u200b" : ""}</span>
@@ -399,7 +389,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
               if (event.nativeEvent.isComposing) return;
               if (event.key === "Escape") {
                 event.preventDefault();
-                cancelTextEditor();
+                void finishTextEditor();
               } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault();
                 void finishTextEditor();

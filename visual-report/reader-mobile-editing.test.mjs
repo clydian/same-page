@@ -147,7 +147,8 @@ test("keeps inline text on its page anchor and pans the paper for a reduced iPad
   });
   await assertEventually(page, () => {
     const input = document.querySelector("textarea");
-    return input && input.getBoundingClientRect().bottom <= 388;
+    const bar = document.querySelector(".annotation-composer-styles");
+    return input && bar && input.getBoundingClientRect().bottom + 46 <= bar.getBoundingClientRect().top;
   });
   const shifted = await paper.boundingBox();
   assert.ok(shifted.y < before.y);
