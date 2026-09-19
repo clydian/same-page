@@ -95,7 +95,7 @@ describe("AnnotationOverlay", () => {
     expect(input).toHaveFocus();
     expect(await localDatabase.annotations.count()).toBe(0);
     fireEvent.click(screen.getByRole("button", { name: "减小字号" }));
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => expect((await localDatabase.annotations.toArray())[0]?.payload).toMatchObject({ x: .45, y: expect.closeTo(.2), fontScale: .015, text: "提前换气" }));
     expect(editor.getSnapshot()).toBe("idle");
   });
@@ -112,7 +112,7 @@ describe("AnnotationOverlay", () => {
     expect(screen.queryByLabelText("文字颜色")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "尚未保存" } });
     fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(() => expect(original).not.toHaveStyle({ visibility: "hidden" }));
     expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ text: "尚未保存", fontScale: .025 });
     expect(remember).not.toHaveBeenCalled();
@@ -127,13 +127,13 @@ describe("AnnotationOverlay", () => {
     mockBounds(original.parentElement!); mockTextBounds(original);
     openExistingText("个人文字");
     fireEvent.change(screen.getByLabelText("文字颜色"), { target: { value: "#123456" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ color: "#123456", x: .2, y: .3 }));
     const saved = (await localDatabase.annotations.get(note.key))!;
     view.rerender(<AnnotationOverlay editor={editor} pageNumber={1} layers={[personal]} annotations={[saved]} editing tool="text" activeLayerId={activeLayerId} />);
     openExistingText("个人文字");
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(true));
     await act(async () => { await editor.undo(activeLayerId); });
     expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(false);
@@ -277,10 +277,6 @@ describe("AnnotationOverlay", () => {
     fireEvent.click(fontScale);
     expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(17);
     expect(screen.getByLabelText("笔记文本")).toBe(stableInput);
-    fireEvent.click(screen.getByRole("button", { name: "收起文字样式" }));
-    expect(screen.queryByRole("button", { name: "增大字号" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "完成" })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "展开文字样式" }));
     expect(input).toHaveValue("保持选择范围");
     expect(input.selectionStart).toBe(2);
     expect(input.selectionEnd).toBe(6);
@@ -305,7 +301,7 @@ describe("AnnotationOverlay", () => {
     expect(await localDatabase.annotations.count()).toBe(0);
 
     fireEvent.change(input, { target: { value: "" } });
-    fireEvent.click(within(composer).getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(within(composer).getByLabelText("笔记文本"), { key: "Escape" });
     expect(interactions).toEqual(["composing-text", "idle"]);
     expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
     expect(await localDatabase.annotations.count()).toBe(0);
@@ -479,7 +475,7 @@ describe("AnnotationOverlay", () => {
     fireEvent.click(screen.getByRole("button", { name: "文字对齐：右对齐" }));
     expect(input).toHaveStyle({ textAlign: "left" });
     fireEvent.change(input, { target: { value: "长句不会自动断行\n短句" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => expect(await localDatabase.annotations.toCollection().first()).toMatchObject({ payload: { textAlign: "left", fontScale: .024, text: "长句不会自动断行\n短句" } }));
   });
 
@@ -495,7 +491,7 @@ describe("AnnotationOverlay", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "字号数值" }), {
       target: { value: "40" },
     });
-    fireEvent.click(within(composer).getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(within(composer).getByLabelText("笔记文本"), { key: "Escape" });
 
     await waitFor(async () => {
       expect(await localDatabase.annotations.toCollection().first()).toMatchObject({
@@ -560,7 +556,7 @@ describe("AnnotationOverlay", () => {
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "尚未写入的草稿" } });
     let rejectWrite!: (reason: Error) => void;
     const write = vi.spyOn(localDatabase.annotations, "put").mockImplementation(() => new Dexie.Promise((_resolve, reject) => { rejectWrite = reject; }));
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(() => expect(screen.getByLabelText("笔记文本")).toHaveAttribute("readonly"));
     expect(screen.getByRole("button", { name: "增大字号" })).toBeDisabled();
     await waitFor(() => expect(write).toHaveBeenCalled());
@@ -591,13 +587,13 @@ describe("AnnotationOverlay", () => {
     openNewText(overlay);
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "取消这次修改" } });
     const write = vi.spyOn(localDatabase.annotations, "put").mockRejectedValue(new DOMException("full", "QuotaExceededError"));
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await screen.findByText("本机保存失败");
-    expect(screen.getByRole("button", { name: "完成" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "增大字号" })).toBeDisabled();
     release();
-    await waitFor(() => expect(screen.getByRole("button", { name: "完成" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "增大字号" })).toBeEnabled());
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     expect(screen.queryByText("本机保存失败")).not.toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
     write.mockRestore();
@@ -610,7 +606,7 @@ describe("AnnotationOverlay", () => {
     const overlay = screen.getByLabelText("第 1 页笔记层");
     mockBounds(overlay);
     openNewText(overlay);
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     expect(await localDatabase.annotations.count()).toBe(0);
     newView.unmount();
 
@@ -619,7 +615,7 @@ describe("AnnotationOverlay", () => {
     renderOverlay([text], "text");
     openExistingText("原文");
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => {
       expect(await localDatabase.annotations.get(text.key)).toMatchObject({
         deleted: true,

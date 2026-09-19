@@ -132,7 +132,7 @@ test("keeps inline text on its page anchor and pans the paper for a reduced iPad
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await page.locator(".annotation-overlay svg").evaluate(element => {
     const bounds = element.getBoundingClientRect();
-    const init = { bubbles: true, pointerId: 1, pointerType: "touch", clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height * .8 };
+    const init = { bubbles: true, pointerId: 1, pointerType: "touch", clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height * .7 };
     element.dispatchEvent(new PointerEvent("pointerdown", init));
     element.dispatchEvent(new PointerEvent("pointerup", init));
   });
@@ -147,7 +147,7 @@ test("keeps inline text on its page anchor and pans the paper for a reduced iPad
   });
   await assertEventually(page, () => {
     const input = document.querySelector("textarea");
-    const bar = document.querySelector(".annotation-composer-styles");
+    const bar = document.querySelector(".annotation-composer-hint");
     return input && bar && input.getBoundingClientRect().bottom + 46 <= bar.getBoundingClientRect().top;
   });
   const shifted = await paper.boundingBox();
@@ -163,7 +163,7 @@ test("keeps inline text on its page anchor and pans the paper for a reduced iPad
   await page.evaluate(() => { delete visualViewport.height; visualViewport.dispatchEvent(new Event("resize")); });
   await assertEventually(page, () => !document.querySelector(".annotated-pdf-page").style.translate);
   const editingBounds = await input.boundingBox();
-  await page.getByRole("button", { name: "完成", exact: true }).click();
+  await page.getByRole("form", { name: "文字输入" }).click({ position: { x: 12, y: 80 } });
   const saved = page.getByRole("button", { name: "原位编辑尺寸一致 留意指挥" });
   await saved.waitFor();
   const savedBounds = await saved.boundingBox();
