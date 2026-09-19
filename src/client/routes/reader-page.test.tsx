@@ -310,7 +310,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await localDatabase.annotationOutbox.clear();
     await localDatabase.annotationConflicts.clear();
     await activateAuthenticatedLocalOwner("user-1");
-    const stored = new Map<string, string>();
+    const stored = new Map<string, string>([["reader-gesture-hint-seen", "true"]]);
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => stored.get(key) ?? null,
       setItem: (key: string, value: string) => stored.set(key, value),
@@ -1147,7 +1147,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
     fireEvent.click(screen.getByText("阅读帮助"));
     fireEvent.click(screen.getByRole("button", { name: "查看操作指引" }));
-    expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("顶部下拉关闭");
+    expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("顶部下拉");
     expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("上下滑动连续浏览");
     fireEvent.click(screen.getByRole("button", { name: "知道了" }));
     expect(screen.queryByLabelText("阅读器使用指引")).not.toBeInTheDocument();

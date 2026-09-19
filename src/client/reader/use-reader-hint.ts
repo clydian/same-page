@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
 
-// Optional hints share the same once-per-device lifecycle. They never require
-// dismissal before the score or tools can be used.
-export function useReaderHint(key: string, enabled = true, duration = 5000) {
+// Timed hints expire automatically; a manual guide is remembered on dismissal.
+export function useReaderHint(key: string, enabled = true, duration: number | null = 5000) {
   const [visible, setVisible] = useState(() => {
     try { return localStorage.getItem(key) !== "true"; } catch { return true; }
   });
   useEffect(() => {
-    if (!enabled || !visible) return;
+    if (!enabled || !visible || duration === null) return;
     try { localStorage.setItem(key, "true"); } catch { /* Optional device preference. */ }
     const timer = window.setTimeout(() => setVisible(false), duration);
     return () => window.clearTimeout(timer);
   }, [key, enabled, visible, duration]);
-  return { visible: enabled && visible, dismiss: () => setVisible(false), show: () => setVisible(true) };
+  return { visible: enabled && visible, dismiss: () => { setVisible(false); try { localStorage.setItem(key, "true"); } catch { /* Optional device preference. */ } }, show: () => setVisible(true) };
 }
 

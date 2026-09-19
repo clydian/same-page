@@ -79,7 +79,7 @@ import {
 } from "../reader/reader-sync-status";
 
 import type { DiagnosticReader } from "../../shared/diagnostic-report";
-import { DiagnosticReportDialog, DiagnosticReportModal } from "../diagnostics/diagnostic-report-dialog";
+import { DiagnosticReportDialog } from "../diagnostics/diagnostic-report-dialog";
 
 type ReaderPanel = "layers";
 
@@ -149,7 +149,6 @@ function ReaderPageContent() {
     });
   }, [workspace]);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
   const moreTrigger = useRef<HTMLButtonElement>(null);
   const layersTrigger = useRef<HTMLButtonElement>(null);
   const previousPanel = useRef(readerPanel);
@@ -213,7 +212,7 @@ function ReaderPageContent() {
   });
   const requestPage = pager.request;
 
-  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null, 9000);
+  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null && !exportOpen, null);
   const closeScore = useCallback(() => {
     startLoadingJourney("exit-score", "warm");
     navigation.back(`/choirs/${choirId}`);
@@ -223,7 +222,7 @@ function ReaderPageContent() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         layout !== "page" ||
-        readerPanel !== null || moreOpen || diagnosticOpen ||
+        readerPanel !== null || moreOpen || guide.visible ||
         editing ||
         event.metaKey ||
         event.ctrlKey ||
@@ -243,7 +242,7 @@ function ReaderPageContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editing, layout, moreOpen, diagnosticOpen, readerPanel, requestPage, setZoom]);
+  }, [editing, layout, moreOpen, guide.visible, readerPanel, requestPage, setZoom]);
 
   const beginEditing = () => {
     if (cloudState === "trashed") {
@@ -410,15 +409,6 @@ function ReaderPageContent() {
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
     <main className="reader-shell" data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
-      <DiagnosticReportModal
-        reader={diagnosticReader}
-        isOpen={diagnosticOpen}
-        onOpenChange={open => {
-          setDiagnosticOpen(open);
-          // Restore focus after the modal releases its focus trap and inert background.
-          if (!open) requestAnimationFrame(() => moreTrigger.current?.focus());
-        }}
-      />
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
       {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
       {cloudState === "trashed" ? (
@@ -431,7 +421,7 @@ function ReaderPageContent() {
         <span>页面显示失败，本机草稿仍保留。</span>{displayChoices}{diagnosticDialog}
       </div> : null}
       {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
-      {chromeVisible ? (
+      {chromeVisible && !guide.visible ? (
       <header className="reader-chrome" aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
@@ -568,9 +558,7 @@ function ReaderPageContent() {
               </section>
               </>}
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
-                <p className="reader-more-menu__status">整页阅读时轻点中央显示工具、两侧翻页；放大后或连续滚动时轻点任意位置显示工具。双击放大或恢复：连续滚动恢复适合宽度，翻页阅读恢复整页。左右滑动翻页。整页状态下滑关闭乐谱；连续滚动在最顶部下拉关闭。放大时拖动查看谱面。编辑时双指移动或缩放。笔记同步与离线副本分别准备。</p>
-                <Button onPress={() => { setMoreOpen(false); guide.show(); }}>查看操作指引</Button>
-                <Button onPress={() => { setMoreOpen(false); setDiagnosticOpen(true); }}>故障诊断</Button>
+                <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>查看操作指引</Button>
               </details>
             </Dialog>
             </Popover>
@@ -578,7 +566,7 @@ function ReaderPageContent() {
         </header>
       ) : null}
 
-      {!editing && chromeVisible ? (
+      {!editing && chromeVisible && !guide.visible ? (
         <>
           <PageNavigatorPanel
             key={score.currentVersion.id}
@@ -701,7 +689,7 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
-            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !diagnosticOpen ? closeScore : undefined}
+            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />
@@ -716,7 +704,7 @@ function ReaderPageContent() {
             onZoomChange={setZoom}
             onPageChange={setCurrentPage}
             onToggleChrome={toggleChrome}
-            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !diagnosticOpen ? closeScore : undefined}
+            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
 
           />
