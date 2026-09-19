@@ -178,6 +178,7 @@ export function AnnotationOverlay({
   const text = useTextComposition({
     editor, pageNumber, activeLayerId, editing, toolStyle, toolColor,
     displayColor: layerColors.get(activeLayerId ?? ""),
+    pageRef: overlayRef, layerName: layers.find(layer => layer.id === activeLayerId)?.name,
     onComposingChange: composing => updateInteraction(composing ? "composing-text" : "idle"),
     onDiscard: id => setReleasedTransforms(previous => {
       const next = new Map(previous);
@@ -574,9 +575,11 @@ export function AnnotationOverlay({
           : payload;
         return (
           <button
+            aria-hidden={annotation.id === text.editingId || undefined}
             className={payload.kind === "text" ? "annotation-text" : "annotation-shape"}
             aria-label={payload.kind === "shape" ? payload.shape === "rectangle" ? "矩形笔记" : "椭圆笔记" : undefined}
             style={{
+              visibility: annotation.id === text.editingId ? "hidden" : undefined,
               opacity: editing && annotation.layerId !== activeLayerId ? 0.45 : 1,
               left: `${position.x * 100}%`,
               top: `${position.y * 100}%`,

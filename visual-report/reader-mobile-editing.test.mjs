@@ -119,67 +119,50 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
   }
 }
 
-test("grows and caps the real text composer inside an iPad WebKit visual viewport", async (context) => {
+test("keeps inline text on its page anchor and pans the paper for a reduced iPad WebKit viewport", async (context) => {
   const browser = await webkit.launch({ headless: true });
   context.after(() => browser.close());
-  const page = await openMemberReader(browser, { width: 834, height: 420 });
+  const page = await openMemberReader(browser, { width: 834, height: 768 });
   await showReaderChrome(page);
-  await page.getByRole("button", { name: /^(编辑|完成编辑)$/, exact: true }).click();
-  await page.locator(".annotation-overlay svg").evaluate((element) => {
+  await page.getByRole("button", { name: "编辑", exact: true }).click();
+  await page.locator(".annotation-overlay svg").evaluate(element => {
     const bounds = element.getBoundingClientRect();
-    const init = {
-      bubbles: true,
-      pointerId: 1,
-      pointerType: "touch",
-      clientX: bounds.left + bounds.width / 2,
-      clientY: bounds.top + bounds.height * 0.42,
-    };
+    const init = { bubbles: true, pointerId: 1, pointerType: "touch", clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height * .8 };
     element.dispatchEvent(new PointerEvent("pointerdown", init));
     element.dispatchEvent(new PointerEvent("pointerup", init));
   });
-
   const input = page.getByRole("textbox", { name: "笔记文本", exact: true });
-  await input.waitFor({ state: "visible" });
   await input.fill("第一行\n第二行\n第三行");
+  assert.equal(await page.getByRole("button", { name: "完成编辑" }).count(), 0);
+  const paper = page.locator(".annotated-pdf-page").first();
+  const before = await paper.boundingBox();
+  await page.evaluate(() => {
+    Object.defineProperty(visualViewport, "height", { configurable: true, value: 420 });
+    visualViewport.dispatchEvent(new Event("resize"));
+  });
   await assertEventually(page, () => {
-    const element = document.querySelector("textarea[aria-label='笔记文本']");
-    return element instanceof HTMLTextAreaElement && element.clientHeight >= element.scrollHeight;
+    const input = document.querySelector("textarea");
+    return input && input.getBoundingClientRect().bottom <= 388;
   });
-  const multiline = await input.evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    scrollHeight: element.scrollHeight,
-  }));
-  assert.ok(multiline.clientHeight >= multiline.scrollHeight);
-
-  const longValue = Array(60).fill("很多换行仍然可以继续编辑").join("\n");
-  await input.fill(longValue);
+  const shifted = await paper.boundingBox();
+  assert.ok(shifted.y < before.y);
+  assert.equal(shifted.width, before.width);
+  await input.fill(Array(60).fill("很多换行仍然可以继续编辑").join("\n"));
   await assertEventually(page, () => {
-    const element = document.querySelector("textarea[aria-label='笔记文本']");
-    return element instanceof HTMLTextAreaElement && element.scrollHeight > element.clientHeight;
+    const input = document.querySelector("textarea");
+    const bounds = input.getBoundingClientRect();
+    return bounds.bottom <= 389 && input.selectionEnd === input.value.length;
   });
-  await page.setViewportSize({ width: 600, height: 320 });
-  await assertEventually(page, () => {
-    const element = document.querySelector("textarea[aria-label='笔记文本']");
-    if (!(element instanceof HTMLTextAreaElement)) return false;
-    const bounds = element.getBoundingClientRect();
-    return bounds.top >= 0 && bounds.bottom <= innerHeight;
-  });
-  const longText = await input.evaluate((element) => {
-    const bounds = element.getBoundingClientRect();
-    return {
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-      scrollTop: element.scrollTop,
-      top: bounds.top,
-      bottom: bounds.bottom,
-      viewportHeight: innerHeight,
-      caretAtEnd: element.selectionEnd === element.value.length,
-    };
-  });
-  assert.ok(longText.clientHeight < longText.scrollHeight);
-  assert.ok(longText.top >= 0 && longText.bottom <= longText.viewportHeight);
-  assert.equal(longText.caretAtEnd, true);
-  assert.ok(longText.scrollTop > 0);
+  await input.fill("原位编辑尺寸一致\n留意指挥");
+  await page.evaluate(() => { delete visualViewport.height; visualViewport.dispatchEvent(new Event("resize")); });
+  await assertEventually(page, () => !document.querySelector(".annotated-pdf-page").style.translate);
+  const editingBounds = await input.boundingBox();
+  await page.getByRole("button", { name: "完成", exact: true }).click();
+  const saved = page.getByRole("button", { name: "原位编辑尺寸一致 留意指挥" });
+  await saved.waitFor();
+  const savedBounds = await saved.boundingBox();
+  for (const key of ["x", "y", "width", "height"]) assert.ok(Math.abs(editingBounds[key] - savedBounds[key]) < 1, key);
+  assert.equal(await page.getByRole("button", { name: "完成编辑" }).count(), 1);
 });
 
 async function openMemberReader(browser, viewport) {

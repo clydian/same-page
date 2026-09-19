@@ -415,7 +415,7 @@ function ReaderPageContent() {
 
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
-    <main className="reader-shell" data-chrome-visible={chromeVisible || undefined}>
+    <main className="reader-shell" data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <DiagnosticReportModal
         reader={diagnosticReader}
         isOpen={diagnosticOpen}
@@ -438,7 +438,7 @@ function ReaderPageContent() {
       </div> : null}
       {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
       {chromeVisible ? (
-      <header className="reader-chrome" aria-label="阅读器控制">
+      <header className="reader-chrome" aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={() => { startLoadingJourney("exit-score", "warm"); navigation.back(`/choirs/${choirId}`); }}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>

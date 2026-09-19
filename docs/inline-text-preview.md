@@ -1,0 +1,34 @@
+# 文字原位编辑预览 · #352
+
+对应 [GitHub issue #352](https://github.com/clydian/same-page/issues/352)。在 `codex/352-inline-text` worktree 中运行：
+
+```sh
+npm ci
+node scripts/preview-reader-editor.mjs
+```
+
+打开 http://127.0.0.1:4176/choirs/visual-choir/scores/visual-score 。此预览复用真实阅读器、编辑器和 IndexedDB，API 与谱面使用合成数据；不验证生产同步或权限。预览服务在本机 4176 端口运行，合成服务数据存于 `artifacts/editor-preview/server-state.json`。
+
+## 体验
+
+1. 轻点谱面中央，选择编辑，再用文字工具点小节附近。
+2. 输入“力度轻一些”，手动换行输入“留意指挥”。通过 −／＋调整字号，对齐按钮循环左、中、右；个人文字可改颜色，共享层沿用显示色。
+3. 拖动文字下方的圆形移动手柄，再继续输入。文本内部负责光标和选字。
+4. 点完成：只完成这条笔记，恢复标注工具栏。点空白也只结束当前文字，第二次点击才新建。外层完成编辑在输入期间隐藏。
+5. 点击已有文字重新编辑，原文字隐藏，避免重复显示；取消恢复旧内容。“更多”中删除文字后可用原工具栏撤销。
+
+## 实现约定与验证边界
+
+- 复用中心锚点、显式换行、保存和撤销机制，没有 API、数据库或 IndexedDB 格式变更。成功新建记忆字号与对齐，修改已有文字不更新默认样式。
+- 输入期间只修改内存状态，完成时才交给既有可靠本机保存。失败保留输入并允许重试。沿用历史规则清理首尾空白；未点完成的新输入尚未可靠落盘，关闭／刷新页面可能丢失。
+- 同一字体、700 字重、1.25 行距和显式换行测量输入与最终显示。键盘压缩 visualViewport 时，临时平移整张当前谱面和所有笔记，不改变缩放或笔记坐标；结束后恢复。超长多行文本优先保证当前光标行可见。
+- 本轮取代 ADR-0010 中关于文字**输入期间** 12–32 滑杆的交互描述；仍保留 12–80 数值输入、历史最小字号与数据格式。未输入时的工具默认样式面板不变。
+- 浏览器已检查原位输入、移动后继续编辑、完成后继续标注、重新编辑无双影，以及 1024×768 和 390×844 布局。保存前后测得坐标、宽高、字体和行距相同。
+- 自动化覆盖保存失败、重复提交、中心锚点、手动换行、移动手柄、个人颜色、删除撤销、空白完成、取消还原与模拟键盘避让。真实 iPad Safari／PWA 的软件键盘、中文 IME、Scribble 和 Pencil 仍需设备验收。
+
+## 本轮验证结果
+
+- `npm run build`、`npm run lint` 通过；构建包含 TypeScript 与 precache 检查。
+- `NODE_OPTIONS=--no-experimental-webstorage npm run test:unit`：118 项通过。
+- `NODE_OPTIONS=--no-experimental-webstorage npm run test:client -- --maxWorkers=2`：807 项通过。默认高并发运行曾触发两个加载时序测试失败；相关文件独立复核和限制为两个 worker 的全量回归均通过。
+- `LAYOUT_TEST_ORIGIN=http://127.0.0.1:4176 node --test visual-report/reader-mobile-editing.test.mjs`：Chromium／WebKit 共 11 项通过，包含真实 WebKit DOM 下的模拟 visualViewport 避让和输入／保存尺寸一致性。

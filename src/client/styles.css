@@ -2687,138 +2687,63 @@ h1 {
   pointer-events: none;
 }
 
+/* The sheet stays clear; only the compact controls have a material surface. */
 .annotation-text-composer[data-active] {
-  position: fixed;
-  z-index: 60;
-  display: block;
-  margin: 0;
-  color: #111;
-  background: rgb(34 34 34 / 28%);
-  backdrop-filter: blur(1px);
-  pointer-events: auto;
+  position: fixed; z-index: 60; display: block; margin: 0;
+  color: #173c40; background: transparent; pointer-events: auto;
 }
-
 .annotation-text-composer header {
-  position: absolute;
-  z-index: 2;
-  top: max(0.75rem, env(safe-area-inset-top));
-  right: max(0.75rem, env(safe-area-inset-right));
-  left: max(0.75rem, env(safe-area-inset-left));
-  display: flex;
-  justify-content: space-between;
+  position: absolute; z-index: 2;
+  top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px;
+  max-width: calc(100% - 24px); padding: 6px;
+  border: 1px solid rgb(34 65 63 / 14%); border-radius: 18px;
+  background: rgb(253 253 250 / 97%);
+  box-shadow: 0 6px 24px rgb(28 49 43 / 12%), 0 1px 3px rgb(28 49 43 / 5%);
+  font-size: 13px;
 }
-
-.annotation-text-composer header button {
-  min-width: 4rem;
-  min-height: 2.75rem;
-  border: 0;
-  border-radius: 999px;
-  padding: 0.55rem 0.9rem;
-  color: #111;
-  background: rgb(255 255 255 / 92%);
-  box-shadow: 0 0.45rem 1.2rem rgb(0 0 0 / 18%);
-  font: inherit;
-  font-weight: 700;
+.annotation-text-composer header button,
+.annotation-composer-more summary {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  min-width: 40px; height: 44px; padding: 0 10px;
+  border: 0; border-radius: 11px; color: inherit; background: transparent;
+  font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer;
 }
-
+.annotation-text-composer header button:hover,
+.annotation-composer-more summary:hover { background: #eaf0ec; }
+.annotation-text-composer header button:disabled { opacity: .4; cursor: default; }
+.annotation-text-composer header .annotation-composer-done { background: #164c50; color: #fff; padding: 0 15px; }
+.annotation-text-composer header .annotation-composer-done:hover { background: #0c3b3f; }
+.annotation-composer-layer { display: flex; align-items: center; gap: 7px; padding: 0 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.annotation-composer-layer > span { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.annotation-composer-size { display: flex; align-items: center; background: #eff2ee; border-radius: 11px; }
+.annotation-font-scale__value { width: 36px; min-width: 0; height: 36px; padding: 0; border: 0; background: transparent; color: inherit; text-align: center; font: inherit; font-variant-numeric: tabular-nums; appearance: textfield; }
+.annotation-font-scale__value::-webkit-inner-spin-button { appearance: none; }
+.annotation-composer-divider { width: 1px; height: 22px; background: #dce4dd; margin: 0 3px; }
+.annotation-composer-color { position: relative; display: grid; place-items: center; width: 40px; height: 44px; flex-shrink: 0; }
+.annotation-composer-color span { width: 19px; height: 19px; border-radius: 50%; outline: 1px solid rgb(0 0 0 / 14%); outline-offset: 3px; }
+.annotation-composer-color input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.annotation-composer-more { position: relative; }
+.annotation-composer-more summary { list-style: none; padding: 0; }
+.annotation-composer-more summary::-webkit-details-marker { display: none; }
+.annotation-composer-more[open] > button { position: absolute; top: 52px; right: 0; padding: 0 16px; background: #fff; color: #b83232; box-shadow: 0 6px 24px #0002; }
+.annotation-text-anchor { position: absolute; transform: translate(-50%, -50%); font-family: inherit; font-weight: 700; line-height: 1.25; }
+.annotation-text-anchor::before { content: ""; position: absolute; inset: -7px; border: 1px solid rgb(22 76 80 / 45%); border-radius: 5px; pointer-events: none; }
+.annotation-text-measure { position: absolute; visibility: hidden; white-space: pre; width: max-content; pointer-events: none; font: inherit; }
 .annotation-text-composer textarea {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(70%, 42rem);
-  white-space: pre;
-  overflow-wrap: normal;
-  overflow: auto;
-  border: 0;
-  outline: 0;
-  padding: 0;
-  background: transparent;
-  font-family: inherit;
-  font-weight: 700;
-  line-height: 1.25;
-  text-align: center;
-  text-shadow: 0 1px 2px rgb(255 255 255 / 72%);
-  caret-color: currentColor;
-  resize: none;
-  transform: translate(-50%, -50%);
+  position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0;
+  white-space: pre; overflow-wrap: normal; overflow: hidden;
+  border: 0; outline: 0; padding: 0; margin: 0; background: transparent;
+  font-family: inherit; font-weight: 700; line-height: 1.25;
+  caret-color: currentColor; resize: none; border-radius: 0;
 }
-
-.annotation-font-scale {
-  position: absolute;
-  top: 50%;
-  right: max(1rem, env(safe-area-inset-right));
-  display: grid;
-  justify-items: center;
-  gap: 0.5rem;
-  width: 3rem;
-  color: #fff;
-  font-weight: 800;
-  text-shadow: 0 1px 3px rgb(0 0 0 / 45%);
-  transform: translateY(-50%);
-}
-
-.annotation-font-scale__value {
-  min-width: 2.5rem;
-  min-height: 1.6rem;
-  border-radius: 999px;
-  padding: 0.2rem 0.45rem;
-  color: #292729;
-  background: rgb(255 255 255 / 82%);
-  box-shadow: 0 0.3rem 0.8rem rgb(0 0 0 / 16%);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  text-align: center;
-  opacity: 0;
-}
-
-.annotation-font-scale__value[data-visible] {
-  opacity: 1;
-}
-
-.annotation-font-scale__control {
-  position: relative;
-  display: block;
-  width: 2rem;
-  height: min(13rem, 40dvh);
-}
-
-.annotation-font-scale__track {
-  position: absolute;
-  inset: 0 0.35rem;
-  background: rgb(238 238 238 / 72%);
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 22%));
-}
-
-.annotation-font-scale__thumb {
-  position: absolute;
-  z-index: 1;
-  left: 50%;
-  width: 1.15rem;
-  height: 1.15rem;
-  border: 2px solid rgb(255 255 255 / 92%);
-  border-radius: 50%;
-  background: #565255;
-  box-shadow: 0 0.2rem 0.55rem rgb(0 0 0 / 28%);
-  pointer-events: none;
-  transform: translate(-50%, 50%);
-}
-
-.annotation-font-scale input {
-  position: absolute;
-  z-index: 2;
-  inset: -0.75rem;
-  width: 3.5rem;
-  height: calc(100% + 1.5rem);
-  margin: 0;
-  appearance: none;
-  background: transparent;
-  cursor: ns-resize;
-  opacity: 0;
-  writing-mode: vertical-lr;
-  direction: rtl;
-  touch-action: none;
+.annotation-text-move { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #d2dfd9; border-radius: 50%; color: #164c50; background: #fdfdfa; box-shadow: 0 2px 7px #173c401a; touch-action: none; cursor: grab; }
+.annotation-text-move:active { cursor: grabbing; background: #e7eeea; }
+@media (max-width: 600px) {
+  .annotation-text-composer header { gap: 1px; padding: 4px; border-radius: 14px; flex-wrap: wrap; width: max-content; }
+  .annotation-composer-layer { width: 100%; max-width: none; font-size: 11px; padding: 3px 10px; }
+  .annotation-text-composer header button { min-width: 34px; padding: 0 8px; }
+  .annotation-text-composer header .annotation-composer-done { padding: 0 10px; }
 }
 
 .annotation-delete-zone {
@@ -3249,7 +3174,7 @@ h1 {
 .manual-topic ol { padding-left: 1.5rem; }
 
 .annotation-text-size-field input { width: 4.5rem; margin-left: .5rem; }
-.annotation-font-scale__value { width: 3.5rem; }
+
 .annotation-text-composer header .annotation-pressure-options { display: flex; gap: .25rem; }
 .annotation-text-composer header .annotation-pressure-options button { min-width: 0; padding: .5rem; }
 .annotation-text-composer header [aria-pressed="true"] { outline: 2px solid #014653; }
