@@ -37,6 +37,11 @@ export function createAuth(env: Env, executionContext: WaitUntilContext) {
       provider: "sqlite",
       schema,
     }),
+    session: {
+      expiresIn: 180 * 24 * 60 * 60,
+      // Every authenticated online request starts a new 180-day idle window.
+      updateAge: 0,
+    },
     account: {
       encryptOAuthTokens: true,
     },
