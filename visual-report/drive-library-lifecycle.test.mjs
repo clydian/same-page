@@ -44,6 +44,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       }
       await route.fulfill(result);
     });
+    await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
     const page = await context.newPage();
     await page.clock.setFixedTime(new Date("2026-09-10T00:00:00Z"));
     await page.goto(`${server.origin}/choirs/visual-choir`);

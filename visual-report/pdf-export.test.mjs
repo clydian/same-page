@@ -111,6 +111,7 @@ test("reader export uses reading subscriptions even when opened from editing", a
     }
     return route.fulfill(response);
   });
+  await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
   await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);
   const sheet = page.locator(".page-reader__viewport"); await sheet.waitFor();
   await sheet.click();

@@ -75,7 +75,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
           if (editing) await page.getByRole("button", { name: "编辑", exact: true }).click();
         }
         const viewport = page.locator(layout === "page" ? ".page-reader__viewport" : ".continuous-reader");
-        const paper = viewport.locator("[data-page-turn-current] .annotated-pdf-page");
+        let paper = viewport.locator(layout === "page" ? "[data-page-turn-current] .annotated-pdf-page" : '[data-index="0"] .annotated-pdf-page');
         const native = layout === "continuous" && !editing;
         await gesture(viewport, native, 0.2);
         await fitted(viewport, paper);
@@ -93,10 +93,12 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         await fitted(viewport, paper);
         if (native) {
           await viewport.evaluate(e => { e.scrollTop = e.scrollHeight; });
-          await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-index", "1");
+          await expect(page.locator(".reader-page-indicator")).toHaveText(/^2\s*\//);
+          paper = viewport.locator('[data-index="1"] .annotated-pdf-page');
           await fitted(viewport, paper);
           await viewport.evaluate(e => { e.scrollTop = 0; });
-          await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-index", "0");
+          await expect(page.locator(".reader-page-indicator")).toHaveText(/^1\s*\//);
+          paper = viewport.locator('[data-index="0"] .annotated-pdf-page');
           await fitted(viewport, paper);
         }
         if (size.width === 1194 && !editing) {
@@ -123,12 +125,12 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     const last = viewport.locator('[data-index="19"] .annotated-pdf-page');
     await last.waitFor();
     await viewport.evaluate(e => { e.scrollTop += e.querySelector('[data-index="19"]').getBoundingClientRect().top - 600; });
-    await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-index", "18");
+    await expect(page.locator(".reader-page-indicator")).toHaveText(/^19\s*\//);
     await gesture(viewport, true, 0.2, { x: 597, y: 710 }, { x: 700, y: 750 });
     await fitted(viewport, last);
     assert.equal(Number(await viewport.getAttribute("data-zoom")), 1);
     await viewport.evaluate(e => { e.scrollTop = 0; });
-    await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-index", "0");
+    await expect(page.locator(".reader-page-indicator")).toHaveText(/^1\s*\//);
     const first = viewport.locator('[data-index="0"] .annotated-pdf-page');
     await expect.poll(() => first.evaluate(e => Math.abs(e.getBoundingClientRect().top))).toBeLessThanOrEqual(1.1);
     await viewport.evaluate(e => { e.scrollTop = e.scrollHeight; });

@@ -48,6 +48,7 @@ test("Pencil event samples persist tilt and twist, preview the nib, and keep suc
   t.after(async()=>{await browser.close();await app.stop();});
   const page = await browser.newPage({viewport:{width:1280,height:900}}), fixture=createVisualFixtureSession({dense:true});
   await page.route("**/api/**",route=>route.fulfill(fixture.resolve({pathname:new URL(route.request().url()).pathname,method:route.request().method(),identity:"admin"})));
+  await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
   await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);
   await page.locator(".annotated-pdf-page canvas:not([hidden])").first().waitFor();
   await page.locator(".annotated-pdf-page").first().click({position:{x:280,y:300}});

@@ -70,6 +70,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         }
         if (engineName === "chromium") await context.setOffline(true);
         else await context.route("**/api/**", route => route.abort("internetdisconnected"));
+        await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
         const offline = await context.newPage();
         await offline.goto(fixture.origin);
         await offline.getByRole("link").filter({ hasText: fixture.fileName.replace(/\.pdf$/i, "") }).waitFor({ timeout: 10_000 });
