@@ -2647,16 +2647,15 @@ h1 {
   position: fixed; z-index: 60; display: block; margin: 0;
   color: #173c40; background: transparent; pointer-events: auto;
 }
-.annotation-composer-session { position: absolute; z-index: 2; top: max(12px, env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
-.annotation-composer-session > * { pointer-events: auto; }
-.annotation-composer-layer { display: flex; align-items: center; gap: 8px; max-width: calc(100% - 100px); padding: 10px 12px; border: 1px solid #dce4dd; border-radius: 12px; background: #fdfdfa; color: #526761; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.annotation-composer-session { position: absolute; z-index: 2; top: max(12px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); display: flex; align-items: center; gap: 8px; width: max-content; max-width: calc(100% - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)); padding: 4px; border: 1px solid rgb(34 65 63 / 12%); border-radius: 14px; background: rgb(253 253 250 / 98%); box-shadow: 0 3px 14px rgb(28 49 43 / 8%); }
+.annotation-composer-layer { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 180px; padding: 0 10px; color: #526761; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .annotation-composer-layer > span { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .annotation-composer-styles { position: absolute; z-index: 2; bottom: max(10px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px; max-width: calc(100% - 24px); border: 1px solid rgb(34 65 63 / 14%); border-radius: 16px; background: rgb(253 253 250 / 98%); box-shadow: 0 4px 18px rgb(28 49 43 / 10%); font-size: 13px; }
 .annotation-text-composer button:not(.annotation-text-move) { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; height: 44px; padding: 0 10px; border: 0; border-radius: 10px; color: inherit; background: transparent; font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; }
 .annotation-text-composer button:not(.annotation-text-move):hover { background: #eaf0ec; }
 .annotation-text-composer button:disabled { opacity: .4; cursor: default; }
-.annotation-text-composer button.annotation-composer-done { background: #164c50; color: #fff; padding: 0 16px; box-shadow: 0 2px 8px #173c401a; }
-.annotation-text-composer button.annotation-composer-done:hover { background: #0c3b3f; }
+.annotation-text-composer button.annotation-composer-done { background: #e8efeb; color: #164c50; padding: 0 14px; flex-shrink: 0; }
+.annotation-text-composer button.annotation-composer-done:hover { background: #dce8e1; }
 .annotation-composer-size { display: flex; align-items: center; background: #eff2ee; border-radius: 10px; }
 .annotation-font-scale__value { width: 36px; min-width: 0; height: 36px; padding: 0; border: 0; background: transparent; color: inherit; text-align: center; font: inherit; font-variant-numeric: tabular-nums; appearance: textfield; }
 .annotation-font-scale__value::-webkit-inner-spin-button { appearance: none; }
