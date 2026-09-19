@@ -81,7 +81,7 @@ test(`${engineName}: reader controls remain reachable without overlap across vie
 
 for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
   for (const layout of ["page", "continuous"]) {
-    test(`${engineName}: editing ${layout} turns a zoomed page and centers the destination`, async context => {
+    test(`${engineName}: editing ${layout} uses layout-appropriate horizontal gestures`, async context => {
       const browser = await engine.launch({ headless: true });
       context.after(() => browser.close());
       const page = await openMemberReader(browser, { width: 834, height: 800 });
@@ -106,6 +106,11 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
         send("pointermove", 3, 500 - remaining - 120); send("pointermove", 4, 600 - remaining - 120);
         send("pointerup", 4, 600 - remaining - 120); send("pointerup", 3, 500 - remaining - 120);
       });
+      if (layout === "continuous") {
+        assert.equal(await viewport.getAttribute("data-zoom"), "2");
+        await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 1 页笔记层"]').waitFor();
+        return;
+      }
       await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
       await page.waitForFunction(selector => {
         const viewport = document.querySelector(selector);

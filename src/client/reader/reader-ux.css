@@ -279,6 +279,7 @@
 .reader-guide__zones strong { font-size: 19px; font-weight: 600; }
 .reader-guide__gestures { position: absolute; top: 73%; left: max(20px, env(safe-area-inset-left)); right: max(20px, env(safe-area-inset-right)); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; text-align: center; font-size: 12px; }
 .reader-guide__gestures span { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.reader-guide__gestures:has(> span:last-child:nth-child(2)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .reader-guide__gestures strong { font-size: 14px; font-weight: 600; }
 .reader-guide__detail { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 20px; right: 20px; margin: 0; color: #587269; text-align: center; font-size: 12px; }
 @media (max-height: 500px) { .reader-guide__zones { inset: 18% 0 39%; } .reader-guide__gestures { top: 64%; } .reader-guide__gestures span { gap: 3px; } }

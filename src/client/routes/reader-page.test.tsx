@@ -1149,12 +1149,13 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.click(screen.getByRole("button", { name: "查看操作指引" }));
     expect(screen.getByLabelText("阅读器使用指引")).toHaveTextContent("上下滑动");
     expect(screen.getByLabelText("阅读器使用指引")).not.toHaveTextContent("顶部下拉");
+    expect(screen.getByLabelText("阅读器使用指引")).not.toHaveTextContent("左右滑动");
     fireEvent.click(screen.getByRole("button", { name: "知道了" }));
     expect(screen.queryByLabelText("阅读器使用指引")).not.toBeInTheDocument();
     expect(screen.queryByText("编辑")).not.toBeInTheDocument();
   });
 
-  it.each(["page", "continuous"] as const)("turns while editing %s and fits the destination after zooming", async layout => {
+  it.each(["page", "continuous"] as const)("uses layout-appropriate horizontal gestures while editing %s", async layout => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1000);
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(800);
     vi.mocked(fetch).mockImplementation((input: string | URL | Request) => Promise.resolve(
@@ -1196,13 +1197,17 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.pointerMove(viewport, sample(4, 500));
     fireEvent.pointerUp(viewport, sample(4, 500));
     fireEvent.pointerUp(viewport, sample(3, 400));
+    if (layout === "continuous") {
+      expect(viewport).toHaveAttribute("data-zoom", "2");
+      expect(screen.getByLabelText("第 1 页笔记层").closest(".annotation-overlay")).toHaveAttribute("data-editing");
+      return;
+    }
     if (layout === "page") await finishPageTurn();
     await waitFor(() => expect(screen.getByLabelText("第 2 页笔记层").closest(".annotation-overlay")).toHaveAttribute("data-editing"));
     await waitFor(() => expect(Number(viewport.dataset.zoom)).toBeLessThanOrEqual(1));
     expect(screen.getByLabelText("第 2 页笔记层").closest(".annotation-overlay")).toHaveAttribute("data-tool", "text");
     if (layout === "page") expect(viewport.scrollTop).toBe(0);
-    // The virtualizer now centers paper without including the inter-page gap.
-    else expect(virtualTestState.scrollToOffset).toHaveBeenCalledWith(virtualTestState.itemSize);
+
   });
 
   it("selects the page at the viewport center before locking it for editing", async () => {

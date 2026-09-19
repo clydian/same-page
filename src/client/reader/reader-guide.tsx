@@ -14,7 +14,7 @@ export function ReaderGuide({ layout, zoomed, onDismiss }: { layout: "page" | "c
           {edges && <div><ArrowRight size={26} aria-hidden="true" /><strong>轻点右侧</strong><span>下一页</span></div>}
         </div>
         <div className="reader-guide__gestures">
-          <span><MoveHorizontal size={19} aria-hidden="true" /><strong>左右滑动</strong>切换页面</span>
+          {layout === "page" && <span><MoveHorizontal size={19} aria-hidden="true" /><strong>左右滑动</strong>切换页面</span>}
           <span><Expand size={19} aria-hidden="true" /><strong>双击谱面</strong>放大／恢复</span>
           {layout === "continuous"
             ? <span><MoveVertical size={19} aria-hidden="true" /><strong>上下滑动</strong>连续浏览</span>

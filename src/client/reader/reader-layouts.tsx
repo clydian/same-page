@@ -257,8 +257,6 @@ export function ContinuousLayout({
     onNavigationStart: () => noteInteraction.current?.interrupt(),
     isObjectGestureActive: () => noteInteraction.current?.ownsObjectGesture() ?? false,
     zoom, onZoomChange, onTap: onToggleChrome, onDismiss,
-    pageTurn: pager.gesture,
-    pageTurnExtent: size.width,
     tapEnabled: pager.phase === "idle",
     tapScope: document,
     tapRevision: `${currentPage}:${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
