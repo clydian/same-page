@@ -1,3 +1,4 @@
+import { usePdfPageAspectRatio } from "./use-pdf-page-geometry";
 import { FIT_ZOOM_TOLERANCE } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
 import { useReturnViewport } from "../navigation/use-return-viewport";
@@ -502,39 +503,4 @@ function AnnotatedPdfPage({
       </Suspense>
     </div>
   );
-}
-
-
-const pageAspectRatios = new WeakMap<PDFDocumentProxy, Map<number, number>>();
-
-function usePdfPageAspectRatio(
-  document: PDFDocumentProxy,
-  pageNumber: number,
-  knownRatio?: number,
-) {
-  const [geometry, setGeometry] = useState<{ document: PDFDocumentProxy; pageNumber: number; ratio: number } | null>(null);
-  useEffect(() => {
-    if (knownRatio !== undefined) {
-      return;
-    }
-    let active = true;
-    void document
-      .getPage(pageNumber)
-      .then((page) => {
-        const viewport = page.getViewport({ scale: 1 });
-        if (active && viewport.height > 0) {
-          const ratio = viewport.width / viewport.height;
-          const ratios = pageAspectRatios.get(document) ?? new Map<number, number>();
-          ratios.set(pageNumber, ratio);
-          pageAspectRatios.set(document, ratios);
-          setGeometry({ document, pageNumber, ratio });
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [document, knownRatio, pageNumber]);
-  return knownRatio ?? pageAspectRatios.get(document)?.get(pageNumber) ??
-    (geometry?.document === document && geometry.pageNumber === pageNumber ? geometry.ratio : 0.707);
 }

@@ -1,3 +1,4 @@
+import { FALLBACK_PAGE_RATIO, usePdfPageAspectRatios } from "./use-pdf-page-geometry";
 import { capturePaperAnchor, constrainReaderPosition } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
@@ -8,7 +9,6 @@ import type { ReaderZoomGeometry } from "./use-reader-zoom";
 import { calculateFittedPageWidth } from "./reader-dimensions";
 
 const PAGE_GAP = 8;
-const FALLBACK_PAGE_RATIO = 0.707;
 
 interface ContinuousReaderLayoutOptions {
   document: PDFDocumentProxy;
@@ -43,7 +43,7 @@ export function useContinuousReaderLayout({
     return () => { browseLease.current = null; };
   }, [document, editing, currentPage, fitRequest, navigationRequest, size.width, size.height]);
   const pageWidth = Math.max(1, size.width * zoom);
-  const ratios = usePageAspectRatios(document);
+  const ratios = usePdfPageAspectRatios(document);
   const geometryReady = ratios.length === document.numPages;
   const startPadding = Math.max(0, (size.height - pageWidth / (ratios[0] ?? FALLBACK_PAGE_RATIO)) / 2);
   const commit = useRef<{
@@ -215,22 +215,4 @@ export function useContinuousReaderLayout({
       aspectRatio: ratios[item.index] ?? FALLBACK_PAGE_RATIO,
     })),
   };
-}
-
-
-function usePageAspectRatios(document: PDFDocumentProxy) {
-  const [geometry, setGeometry] = useState<{ document: PDFDocumentProxy; ratios: number[] } | null>(null);
-  useEffect(() => {
-    let active = true;
-    // Metadata only: this does not render or retain canvases for offscreen pages.
-    void Promise.all(Array.from({ length: document.numPages }, async (_, index) => {
-      try {
-        const page = await document.getPage(index + 1);
-        const viewport = page.getViewport({ scale: 1 });
-        return viewport.width / viewport.height;
-      } catch { return FALLBACK_PAGE_RATIO; }
-    })).then(ratios => { if (active) setGeometry({ document, ratios }); });
-    return () => { active = false; };
-  }, [document]);
-  return geometry?.document === document ? geometry.ratios : [];
 }
