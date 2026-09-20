@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { after, before, test } from "node:test";
 import { chromium, webkit } from "playwright";
 import { expect } from "@playwright/test";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
 import { startVisualServer } from "./setup.mjs";
 import { resolveFixtureRequest } from "./fixtures.mjs";
 
@@ -62,6 +62,34 @@ async function fitted(viewport, paper) {
 }
 
 for (const [name, engine] of Object.entries({ chromium, webkit })) {
+  test(`${name}: continuous editing crosses short pages and its guidance stays readable on dark paper`, async t => {
+    const pdf = await PDFDocument.create();
+    for (const size of [[600, 800], [1000, 300], [1000, 300]]) {
+      const sheet = pdf.addPage(size);
+      sheet.drawRectangle({ x: 0, y: 0, width: size[0], height: size[1], color: rgb(.06, .07, .065) });
+    }
+    const bytes = Buffer.from(await pdf.save());
+    const score = JSON.parse(resolveFixtureRequest({ pathname: '/api/choirs/visual-choir/scores/visual-score/sync', identity: 'member' }).body).score;
+    score.currentVersion = { ...score.currentVersion, pageCount: 3, sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+    const page = await openReader(t, engine, { width: 1194, height: 834 }, { pdf: bytes, selectedScore: score });
+    await page.locator('.page-reader__viewport').click({ position: { x: 597, y: 350 } });
+    await page.getByRole('button', { name: '更多', exact: true }).click();
+    await page.getByRole('button', { name: '连续滚动', exact: true }).click();
+    await page.getByRole('button', { name: '编辑', exact: true }).click();
+    const viewport = page.locator('.continuous-reader');
+    await page.locator('.annotation-controls').waitFor();
+    await page.locator('.continuous-reader [data-pdf-canvas-active]').first().waitFor();
+    const directory = 'artifacts/verification/reader-editing-flow';
+    await mkdir(directory, { recursive: true });
+    await page.screenshot({ path: `${directory}/${name}-dark.png` });
+    await gesture(viewport, false, 1, { x: 500, y: 400 }, { x: 500, y: -900 });
+    await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
+    await gesture(viewport, false, 1, { x: 500, y: 400 }, { x: 500, y: 0 });
+    await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 3 页笔记层"]').waitFor();
+    await gesture(viewport, false, 1, { x: 500, y: 400 }, { x: 500, y: 800 });
+    await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
+    assert.equal(Number(await viewport.getAttribute('data-zoom')), 1);
+  });
   for (const size of [{ width: 1194, height: 834 }, { width: 834, height: 1194 }]) {
     for (const layout of ["page", "continuous"]) for (const editing of [false, true]) {
       test(`${name}: ${size.width}px ${layout} editing=${editing} settles underfit and bounds pan`, async t => {
@@ -83,7 +111,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         const center = { x: size.width / 2, y: size.height / 2 };
         await gesture(viewport, native, 2, center, center);
         await expect.poll(async () => Number(await viewport.getAttribute("data-zoom"))).toBeCloseTo(fitZoom * 2, 3);
-        if (editing || layout === "page") {
+        if (layout === "page") {
           await gesture(viewport, native, 1, center, { ...center, y: center.y + 2000 });
           await expect.poll(() => paper.evaluate(e => Math.abs(e.getBoundingClientRect().top))).toBeLessThanOrEqual(1.1);
           await gesture(viewport, native, 1, center, { ...center, y: center.y - 2000 });

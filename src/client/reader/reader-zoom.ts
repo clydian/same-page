@@ -12,16 +12,16 @@ export function placeReaderAnchor(container: HTMLElement, content: HTMLElement, 
   container.scrollTop += bounds.top + anchor.y - center.y;
 }
 
-// Small paper is centered; large paper covers the viewport. Continuous reading
-// may span pages vertically, while editing constrains movement to one page.
-export function constrainReaderPosition(container: HTMLElement, paper: Pick<DOMRect, "left" | "top" | "width" | "height">, containPage = true) {
+// Paged movement stays on paper. Continuous browsing uses document bounds;
+// a zoom may additionally center short paper without trapping ordinary pans.
+export function constrainReaderPosition(container: HTMLElement, paper: Pick<DOMRect, "left" | "top" | "width" | "height">, containPage = true, centerShortPage = true) {
   const viewport = container.getBoundingClientRect();
   const correction = (start: number, extent: number, paperStart: number, paperExtent: number) =>
     paperExtent <= extent
       ? start + (extent - paperExtent) / 2 - paperStart
       : Math.min(0, start - paperStart) + Math.max(0, start + extent - paperStart - paperExtent);
   container.scrollLeft -= correction(viewport.left, viewport.width, paper.left, paper.width);
-  if (containPage || paper.height <= viewport.height) {
+  if (containPage || (centerShortPage && paper.height <= viewport.height)) {
     container.scrollTop -= correction(viewport.top, viewport.height, paper.top, paper.height);
   }
 }

@@ -197,6 +197,9 @@ function ReaderPageContent() {
       scoreId,
     });
   const presentation = useReaderPresentation(reader.presentation, document, currentPage, editing);
+  const pageEditHint = useReaderHint("reader-edit-page-gesture-seen", editing && layout === "page", null);
+  const continuousEditHint = useReaderHint("reader-edit-continuous-gesture-seen", editing && layout === "continuous", null);
+  const editHint = layout === "page" ? pageEditHint : continuousEditHint;
   const pager = usePagedReader({
     currentPage,
     pageCount: document?.numPages ?? 1,
@@ -205,6 +208,7 @@ function ReaderPageContent() {
     beforePageChange: editing ? () => editor.prepareNavigation() : undefined,
     canCompletePage: editing ? editor.canNavigate : undefined,
     onPageChange: page => {
+      if (editing) pageEditHint.dismiss();
       setZoom(1);
       setCurrentPage(page);
     },
@@ -426,7 +430,7 @@ function ReaderPageContent() {
       </div> : null}
       {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
       {chromeVisible && !guide.visible ? (
-      <header className="reader-chrome" aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
+      <header className="reader-chrome" data-editing={editing || undefined} aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>
@@ -436,10 +440,9 @@ function ReaderPageContent() {
               <Button
                 aria-describedby={editAvailability === "ready" ? undefined : "reader-edit-status"}
                 aria-label={editing ? "完成编辑" : "编辑"}
-                aria-description={editing ? "完成后恢复阅读和翻页" : "进入当前页编辑"}
-                className="reader-icon-button"
+                aria-description={editing ? "完成后恢复阅读" : "进入笔记编辑"}
+                className={editing ? "reader-done-button" : "reader-icon-button"}
                 data-state={editAvailability}
-                aria-pressed={editing}
                 isDisabled={
                   editAvailability === "preparing" ||
                   editAvailability === "read-only" ||
@@ -447,7 +450,7 @@ function ReaderPageContent() {
                 }
                 onPress={() => editing ? navigation.afterEditing(() => { /* Completion is performed by the editing exit layer. */ }) : requestEditing()}
               >
-                {editing ? <Check aria-hidden="true" size={21} /> : <Pencil aria-hidden="true" size={21} />}
+                {editing ? <><Check aria-hidden="true" size={17} strokeWidth={1.8} /><span>完成</span></> : <Pencil aria-hidden="true" size={21} />}
               </Button>
               {!editing && <><Button
                 ref={layersTrigger}
@@ -563,6 +566,7 @@ function ReaderPageContent() {
               </>}
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
                 <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>查看操作指引</Button>
+                {editAvailability === "ready" && <Button onPress={() => { editHint.show(); requestEditing(); }}>编辑操作指引</Button>}
               </details>
             </Dialog>
             </Popover>
@@ -602,6 +606,12 @@ function ReaderPageContent() {
       ) : null}
 
       {guide.visible && <ReaderGuide layout={layout} onDismiss={guide.dismiss} />}
+      {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint"
+        data-visible={editHint.visible || undefined}>
+        <strong>编辑中</strong><span className="reader-edit-gesture-hint__detail" aria-hidden={!editHint.visible}>
+          <span aria-hidden="true">·</span>{layout === "page" ? "双指左右翻页" : "双指上下浏览"}
+        </span>
+      </p>}
 
       {hasNewOfflineVersion ? (
         <aside className="reader-alert" role="status">
@@ -706,6 +716,7 @@ function ReaderPageContent() {
             zoom={zoom}
             onZoomChange={setZoom}
             onPageChange={setCurrentPage}
+            onBrowse={continuousEditHint.dismiss}
             onToggleChrome={toggleChrome}
             annotationProps={annotationPageProps}
 

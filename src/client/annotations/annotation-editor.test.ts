@@ -286,6 +286,46 @@ it("writes explicit center when undo restores a legacy text payload", async () =
   expect(await savedText()).toMatchObject({ text: "aligned", textAlign: "left" });
 });
 
+it("waits for the active local write before admitting navigation and retains undo", async () => {
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  // Pause after the durable transaction, before the queue publishes idle.
+  const apply = editor["apply"].bind(editor);
+  editor["apply"] = async (...args) => {
+    const result = await apply(...args);
+    await gate;
+    return result;
+  };
+  const saving = editor.persist(text("before navigation"));
+  await waitFor(async () => expect(await savedText()).toMatchObject({ text: "before navigation" }));
+  expect(editor.getSnapshot()).toBe("saving");
+  let settled = false;
+  const navigation = editor.prepareNavigation().then(result => { settled = true; return result; });
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  release();
+  expect(await saving).toBe(true);
+  expect(await navigation).toBe(true);
+  expect(await editor.undo("personal")).toBe(true);
+  expect(await savedText()).toBeUndefined();
+});
+
+it("cancels a navigation waiting for a write when the editing lifetime ends", async () => {
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const original = annotationState.saveAnnotationDraft;
+  vi.spyOn(annotationState, "saveAnnotationDraft").mockImplementationOnce(async (...args) => {
+    await gate;
+    return original(...args);
+  });
+  const saving = editor.persist(text("cancelled navigation"));
+  const navigation = editor.prepareNavigation();
+  editor.cancel();
+  expect(await navigation).toBe(false);
+  release();
+  await saving;
+});
+
 it("admits page navigation after composing text is durable without retiring editing history", async () => {
   await editor.persist(text("before"));
   let composing = true;

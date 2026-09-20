@@ -1,4 +1,3 @@
-import { useReaderHint } from "./use-reader-hint";
 import { useInteractOutside } from "react-aria";
 import { useId, useRef, useState } from "react";
 import { MousePointer2, SlidersHorizontal, ChevronDown, Eraser, Highlighter, Square, Circle, Lock, Pencil, Redo2, Type, Undo2, X } from "lucide-react";
@@ -55,7 +54,6 @@ export function ReaderEditingControls({
   useInteractOutside({ ref: stylePopover, isDisabled: styleSource === null,
     onInteractOutsideStart: closeStyleOutside, onInteractOutside: closeStyleOutside });
   const [choosingLayer, setChoosingLayer] = useState(false);
-  const hint = useReaderHint("reader-edit-hint-seen");
   const toolHasStyle = tool !== "eraser" && tool !== "select";
   const selectedLayer = layers.find((layer) => layer.id === activeLayerId);
   const chooseLayer = (layerId: string) => {
@@ -67,9 +65,6 @@ export function ReaderEditingControls({
 
   return (
     <section className="annotation-controls" aria-label="笔记工具">
-      {hint.visible && <div className="reader-hint reader-edit-first-hint" role="status">
-        仅当前层可编辑，其他层淡化供参考。点勾号完成后恢复阅读。
-      </div>}
       <DialogTrigger isOpen={choosingLayer} onOpenChange={setChoosingLayer}>
         <Button
           isDisabled={isDisabled}
@@ -98,7 +93,7 @@ export function ReaderEditingControls({
             <div className="annotation-layer-switcher">
               {personalLayers.map(layer => <LayerSlotButton key={layer.id} isDisabled={isDisabled} layer={layer} activeLayerId={activeLayerId} onLayerChange={chooseLayer} />)}
             </div>
-            <p>仅所选层可编辑，其他已显示的层淡化供参考；双指移动或缩放当前页，单指或笔编辑。</p>
+            <p>仅所选层可编辑，其他已显示的层淡化供参考；双指浏览或缩放，单指或笔编辑。</p>
           </Dialog>
         </Popover>
       </DialogTrigger>
@@ -124,7 +119,7 @@ export function ReaderEditingControls({
           ))}
         </div>
       </div>
-      {selectedLayer?.kind === "personal" && <input type="color" aria-label="工具颜色" title={toolHasStyle ? "工具颜色" : "当前工具不使用颜色"} disabled={isDisabled || !selectedLayer.canEdit || !toolHasStyle} value={toolHasStyle ? toolColor : "#e5e7e5"} onChange={event => onColorChange(event.target.value)} />}
+      {selectedLayer?.kind === "personal" && <label className="annotation-toolbar-color"><span style={{ background: toolHasStyle ? toolColor : "#e5e7e5" }} /><input type="color" aria-label="工具颜色" title={toolHasStyle ? "工具颜色" : "当前工具不使用颜色"} disabled={isDisabled || !selectedLayer.canEdit || !toolHasStyle} value={toolHasStyle ? toolColor : "#e5e7e5"} onChange={event => onColorChange(event.target.value)} /></label>}
       <Button
         className="annotation-tool-button annotation-style-trigger"
         aria-label="工具设置"

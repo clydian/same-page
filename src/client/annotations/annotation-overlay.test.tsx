@@ -81,6 +81,185 @@ beforeEach(async () => {
 });
 
 describe("AnnotationOverlay", () => {
+  it("settles the original keyboard gesture before selecting a different note", async () => {
+    const first = annotation("keyboard-a", activeLayerId, textPayload("ORIGINAL A", .2, .3));
+    const second = annotation("keyboard-b", activeLayerId, textPayload("ORIGINAL B", .6, .7));
+    await localDatabase.annotations.bulkPut([first, second]);
+    renderOverlay([first, second], "select");
+    mockBounds(screen.getByLabelText("第 1 页笔记层").parentElement!);
+    fireEvent.keyDown(screen.getByRole("button", { name: "ORIGINAL A" }), { key: "Enter" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+    const secondButton = screen.getByRole("button", { name: "ORIGINAL B" });
+    act(() => secondButton.focus());
+    fireEvent.keyDown(secondButton, { key: "Enter" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", repeat: true });
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    await waitFor(async () => {
+      expect((await localDatabase.annotations.get(first.key))?.payload).toMatchObject({ text: "ORIGINAL A", x: expect.closeTo(.21), y: .3 });
+      expect((await localDatabase.annotations.get(second.key))?.payload).toMatchObject({ text: "ORIGINAL B", x: expect.closeTo(.61), y: .7 });
+    });
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect((await localDatabase.annotations.get(second.key))?.payload).toMatchObject({ text: "ORIGINAL B", x: .6 });
+    expect((await localDatabase.annotations.get(first.key))?.payload).toMatchObject({ x: expect.closeTo(.21) });
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect((await localDatabase.annotations.get(first.key))?.payload).toMatchObject({ x: .2 });
+  });
+
+  it("accepts undo, arrows and Escape from property buttons while preserving native Enter", async () => {
+    const note = annotation("property-focus", activeLayerId, textPayload("属性快捷键"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    mockBounds(screen.getByLabelText("第 1 页笔记层").parentElement!);
+    openExistingText("属性快捷键");
+    const align = screen.getByRole("button", { name: "文字对齐：居中" });
+    act(() => align.focus());
+    fireEvent.click(align);
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ textAlign: "right" }));
+    fireEvent.keyDown(align, { key: "z", ctrlKey: true });
+    await waitFor(() => expect(align).toHaveAccessibleName("文字对齐：居中"));
+    expect(fireEvent.keyDown(align, { key: "Enter" })).toBe(true);
+    expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
+    fireEvent.keyDown(align, { key: "ArrowDown", shiftKey: true });
+    fireEvent.keyUp(align, { key: "ArrowDown" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ y: expect.closeTo(.4) }));
+    fireEvent.keyDown(align, { key: "Escape" });
+    expect(screen.queryByRole("complementary", { name: "所选笔记属性" })).not.toBeInTheDocument();
+  });
+
+  it("nudges selected text by screen pixels and groups held keys into one undo", async () => {
+    const note = annotation("keyboard", activeLayerId, textPayload("键盘移动"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    const overlay = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(overlay);
+    openExistingText("键盘移动");
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", repeat: true });
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ x: .2 });
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ x: expect.closeTo(.22) }));
+    expect(editor.getEditRevision()).toBe(1);
+    fireEvent.keyDown(document.activeElement!, { key: "z", ctrlKey: true });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ x: .2 }));
+    fireEvent.keyDown(document.activeElement!, { key: "z", ctrlKey: true, shiftKey: true });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ x: expect.closeTo(.22) }));
+  });
+
+  it.each(["shape", "ink"] as const)("moves %s with Shift arrows, clamps at the page edge, and deletes with undo", async kind => {
+    const payload = kind === "shape"
+      ? { kind: "shape" as const, shape: "rectangle" as const, pageNumber: 1, x: .85, y: .2, width: .1, height: .1, strokeWidth: .002 }
+      : { kind: "ink" as const, brush: "pen" as const, nib: "round" as const, pressureMode: "uniform" as const, pageNumber: 1, points: [{ x: .85, y: .2 }, { x: .95, y: .3 }], strokeWidth: .002 };
+    const note = annotation("keyboard-other", activeLayerId, payload);
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    const object = screen.getByRole("button", { name: kind === "shape" ? "矩形笔记" : "画笔笔记" });
+    fireEvent.keyDown(object, { key: "Enter" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", shiftKey: true });
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    await waitFor(() => expect(editor.getSnapshot()).toBe("idle"));
+    const moved = (await localDatabase.annotations.get(note.key))?.payload;
+    if (moved?.kind === "shape") expect(moved.x).toBeCloseTo(.9);
+    else if (moved?.kind === "ink") expect(moved.points[1].x).toBeCloseTo(1);
+    else throw new Error("missing moved annotation");
+    fireEvent.keyDown(document.activeElement!, { key: "Delete" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(true));
+    fireEvent.keyDown(document.activeElement!, { key: "z", metaKey: true });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(false));
+  });
+
+  it("keeps arrows in inputs, enters text with Enter, and deselects with Escape", async () => {
+    const note = annotation("keyboard-focus", activeLayerId, textPayload("焦点"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("焦点");
+    const size = screen.getByRole("spinbutton", { name: "字号数值" });
+    act(() => size.focus());
+    fireEvent.keyDown(size, { key: "ArrowRight" });
+    fireEvent.keyUp(size, { key: "ArrowRight" });
+    expect(editor.getEditRevision()).toBe(0);
+    act(() => screen.getByLabelText("第 1 页笔记层").parentElement!.focus());
+    fireEvent.keyDown(document.activeElement!, { key: "Enter" });
+    expect(screen.getByLabelText("笔记文本")).toHaveFocus();
+    const revision = editor.getEditRevision();
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "ArrowDown" });
+    expect(editor.getEditRevision()).toBe(revision);
+    fireEvent.click(screen.getByRole("button", { name: "收起文字输入" }));
+    await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
+    openExistingText("焦点");
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(screen.queryByRole("complementary", { name: "所选笔记属性" })).not.toBeInTheDocument();
+  });
+
+  it("previews selected text size, commits before deselection, and undoes one adjustment", async () => {
+    const note = annotation("properties", activeLayerId, textPayload("属性测试"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("属性测试");
+    const size = screen.getByRole("spinbutton", { name: "字号数值" });
+    act(() => size.focus());
+    fireEvent.change(size, { target: { value: "30" } });
+    fireEvent.change(size, { target: { value: "36" } });
+    expect(parseFloat(screen.getByRole("button", { name: "属性测试" }).style.fontSize)).toBeCloseTo(3.6);
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .024 });
+    const overlay = screen.getByLabelText("第 1 页笔记层");
+    mockBounds(overlay);
+    fireEvent.pointerDown(overlay, { pointerId: 2, clientX: 90, clientY: 90 });
+    fireEvent.pointerUp(overlay, { pointerId: 2, clientX: 90, clientY: 90 });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .036 }));
+    expect(screen.queryByRole("complementary", { name: "所选笔记属性" })).not.toBeInTheDocument();
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .024 });
+    expect(editor.getEditRevision()).toBe(2);
+  });
+
+  it("normalizes an out-of-range selected size before pointer deselection", async () => {
+    const note = annotation("clamp-size", activeLayerId, textPayload("字号下限"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("字号下限");
+    const size = screen.getByRole("spinbutton", { name: "字号数值" });
+    act(() => size.focus());
+    fireEvent.change(size, { target: { value: "1" } });
+    fireEvent.pointerDown(document.body);
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .012 }));
+    expect(editor.getEditRevision()).toBe(1);
+  });
+
+  it("keeps a failed property write visible through retry and one undo", async () => {
+    const note = annotation("failed-property", activeLayerId, textPayload("属性保存"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("属性保存");
+    vi.spyOn(localDatabase.annotations, "put").mockRejectedValueOnce(new Error("storage failed"));
+    fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    await waitFor(() => expect(editor.getSnapshot()).toBe("failed"));
+    expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(25);
+    await act(async () => { expect(await editor.retry()).toBe(true); });
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .025 });
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+    expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(24);
+    expect(await editor.undo(activeLayerId)).toBe(false);
+  });
+
+  it("automatically saves explicit alignment and opens the latest text for composition", async () => {
+    const note = annotation("alignment", activeLayerId, textPayload("对齐测试"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("对齐测试");
+    fireEvent.click(screen.getByRole("button", { name: "文字对齐：居中" }));
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ textAlign: "right" }));
+    fireEvent.click(screen.getByRole("button", { name: "编辑文字" }));
+    expect(screen.getByLabelText("笔记文本")).toHaveFocus();
+    expect(screen.getByLabelText("笔记文本")).toHaveStyle({ textAlign: "right" });
+    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "已更新" } });
+    fireEvent.click(screen.getByRole("button", { name: "收起文字输入" }));
+    await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ text: "已更新", textAlign: "right" });
+    expect(editor.getSnapshot()).toBe("idle");
+  });
+
   it("moves composing text with its handle, retains focus, and saves only on completion", async () => {
     renderOverlay([], "text");
     const overlay = screen.getByLabelText("第 1 页笔记层");
@@ -463,7 +642,7 @@ describe("AnnotationOverlay", () => {
     const input = screen.getByLabelText("笔记文本");
     expect(input).toHaveAttribute("wrap", "off");
     const size = screen.getByRole("spinbutton", { name: "字号数值" });
-    fireEvent.focus(size);
+    act(() => size.focus());
     fireEvent.change(size, { target: { value: "" } });
     expect(size).toHaveValue(null);
     fireEvent.change(size, { target: { value: "2" } });

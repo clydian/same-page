@@ -35,7 +35,7 @@ interface MovementSnapshot {
 // remains the only writer and history owner; no DOM or React state lives here.
 export class ObjectMovement {
   private active: ObjectTransformState | null = null;
-  private released = new Map<string, { payload: MovablePayload; revision: number }>();
+  private released = new Map<string, { payload: AnnotationPayload | null; revision: number }>();
   private annotations: LocalAnnotationRecord[] = [];
   private deleteActive = false;
   private listeners = new Set<() => void>();
@@ -153,9 +153,7 @@ export class ObjectMovement {
     const shouldDelete = this.deleteActive;
     this.deleteActive = false;
     if (transform.moved) {
-      const revision = this.editor?.getEditRevision() ?? 0;
-      if (!shouldDelete) this.released.set(transform.id, { payload: transform.preview, revision });
-      void this.editor?.persist({ id: transform.id, layerId: transform.layerId, payload: shouldDelete ? null : transform.preview, deleted: shouldDelete });
+      void this.persist({ id: transform.id, layerId: transform.layerId, payload: shouldDelete ? null : transform.preview, deleted: shouldDelete });
     }
     this.publish();
     return transform.moved ? null : { id: transform.id, layerId: transform.layerId, payload: transform.payload };
@@ -170,6 +168,16 @@ export class ObjectMovement {
   discard(id: string) {
     this.released.delete(id);
     this.publish();
+  }
+
+  // Property changes share the movement handoff: a local query may lag the
+  // write or skip a revision, but must never flash old styles over newer undo.
+  persist(target: { id: string; layerId: string; payload: AnnotationPayload | null; deleted?: boolean }) {
+    if (!this.editor) return Promise.resolve(false);
+    this.released.set(target.id, { payload: target.payload, revision: this.editor.getEditRevision() });
+    const saved = this.editor.persist(target);
+    this.publish();
+    return saved;
   }
 
   private publish() {

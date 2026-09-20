@@ -67,9 +67,18 @@ export class AnnotationEditor {
   }
   canNavigate = () => this.active && this.getSnapshot() === "idle" && [...this.navigationGuards].every(guard => guard());
   async prepareNavigation(): Promise<boolean> {
-    if (!this.active || this.getSnapshot() !== "idle") return false;
+    if (!this.active || this.completion) return false;
     const signal = this.lifetime.signal;
+    let unsubscribe = () => {};
     try {
+      // A readable IndexedDB row can precede the queue's idle notification.
+      // Finish this local write before deciding whether a page may leave.
+      if (this.getSnapshot() === "saving") {
+        await untilAborted(new Promise<void>(resolve => {
+          unsubscribe = this.subscribe(() => { if (this.getSnapshot() !== "saving") resolve(); });
+        }), signal);
+      }
+      if (signal.aborted || !this.active || this.getSnapshot() !== "idle") return false;
       for (const interrupt of this.navigationInterrupts) { if (!interrupt()) return false; }
       for (const commit of [...this.finishCommits]) {
         if (!await untilAborted(commit(), signal)) return false;
@@ -77,6 +86,7 @@ export class AnnotationEditor {
       await assertLocalWorkspaceActive(await this.workspace);
       return !signal.aborted && this.active && this.getSnapshot() === "idle";
     } catch { return false; }
+    finally { unsubscribe(); }
   }
 
   // Callers request completion; input commits, durable drafts and retirement

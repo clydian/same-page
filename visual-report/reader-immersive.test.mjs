@@ -49,7 +49,7 @@ for (const [engineName, engine] of Object.entries({chromium, webkit})) {
  });
 }
 for (const [engineName, engine] of Object.entries({chromium, webkit})) {
- test(`${engineName}: continuous editing locks one page without changing its scale or position`, async (context) => {
+ test(`${engineName}: continuous editing preserves the viewport and keeps neighbouring paper visible`, async (context) => {
   const browser = await engine.launch({headless:true});
   context.after(() => browser.close());
   const page = await openMemberReader(browser, {width:834,height:700});
@@ -69,15 +69,9 @@ for (const [engineName, engine] of Object.entries({chromium, webkit})) {
     const before = await read();
     await page.getByRole("button", {name:"编辑",exact:true}).click();
     await page.locator(".annotation-controls").waitFor();
-    // Toolbar readiness is independent of WebKit's next style update. Wait for
-    // the page-lock invariant itself; a persistently visible neighbour still fails.
-    const visiblePages = page.locator('.annotated-pdf-page:visible');
-    await expect(visiblePages).toHaveCount(1, { timeout: 3000 });
-    const focused = await visiblePages.evaluateAll(elements => elements.map(element => {
-     const box = element.getBoundingClientRect(); return {x:box.x,y:box.y,width:box.width};
-    }));
-    assert.equal(focused.length,1);
-    assertView(focused[0], before);
+    await expect(page.locator('.annotation-overlay[data-editing]')).toHaveCount(1);
+    await expect(page.locator('.annotated-pdf-page:visible')).toHaveCount(2);
+    assertView(await read(), before);
     await page.mouse.move(400,450);
     await page.mouse.wheel(0,600);
     assertView((await page.locator('.annotated-pdf-page:visible').evaluateAll(elements => elements.map(element => {

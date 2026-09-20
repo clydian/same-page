@@ -98,7 +98,8 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         }
         await reconnected;
         assert.equal(offline.url(), readerUrl);
-        assert.equal(await offline.getByRole("button", { name: "完成编辑", exact: true }).getAttribute("aria-pressed"), "true");
+        assert.equal(await offline.getByRole("button", { name: "完成编辑", exact: true }).isVisible(), true);
+        assert.equal(await offline.locator(".annotation-overlay[data-editing]").count(), 1);
       });
     });
     await scenario("membership-revocation", async ({ page: offline, context, output }) => {

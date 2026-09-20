@@ -47,8 +47,9 @@ function pdf(ratios: number[], delayed = false) {
     release: () => release(),
   };
 }
-function Harness({ document, initialPage = 1, editing = false, idle = () => true, deferZoom = false }: {
+function Harness({ document, initialPage = 1, editing = false, idle = () => true, deferZoom = false, beforePageChange, onBrowse }: {
   document: PDFDocumentProxy; initialPage?: number; editing?: boolean; idle?: () => boolean; deferZoom?: boolean;
+  beforePageChange?(): Promise<boolean>; onBrowse?(): void;
 }) {
   const [page, setPage] = useState(initialPage);
   const [zoom, setZoom] = useState(1);
@@ -56,7 +57,8 @@ function Harness({ document, initialPage = 1, editing = false, idle = () => true
   const [fitRequest, fit] = useState(0);
   const [navigationRequest, navigated] = useState(0);
   const { scrollRef, contentRef, onScroll, width, height, items, geometryGestures } = useContinuousReaderLayout({ document, currentPage: page, zoom, fitRequest, navigationRequest,
-    editing, onPageChange: setPage, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); } });
+    editing, beforePageChange, canCompletePage: idle, onBrowse, onPageChange: setPage, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); } });
+  const browse = useRef<ReturnType<typeof geometryGestures.zoomGeometry.capture> | null>(null);
   const gestures = useReaderGestures({ containerRef: scrollRef, contentRef, zoom,
     disabled: false, twoFingerOnly: editing, onZoomChange: value => { requestedZoom.current = value; if (!deferZoom) setZoom(value); },
     onTap: () => {}, tapScope: document, gestureRevision: `${fitRequest}:${navigationRequest}:${width}:${height}`,
@@ -66,6 +68,8 @@ function Harness({ document, initialPage = 1, editing = false, idle = () => true
   return <>
     <output data-testid="page">{page}</output><output data-testid="zoom">{zoom}</output>
     <button onClick={() => setZoom(requestedZoom.current)}>commit zoom</button>
+    <button onClick={() => { browse.current = geometryGestures.zoomGeometry.capture({ x: 300, y: 400 }); }}>begin browse</button>
+    <button onClick={() => browse.current?.release({ status: "committed", zoomChanged: false })}>finish browse</button>
     <button onClick={() => setPage(1)}>select first</button>
     <button onClick={() => fit(value => value + 1)}>fit</button>
     <button onClick={() => navigate(1)}>next</button>
@@ -226,4 +230,59 @@ it("centers a short first page when fitting without changing zoom", async () => 
   await waitFor(() => expect(screen.getByTestId("page-1")).toHaveStyle({ transform: "translateY(250px)" }));
   expect(screen.getByTestId("viewport").scrollTop).toBe(0);
   expect(screen.getByTestId("zoom")).toHaveTextContent("1");
+});
+
+it("keeps the outgoing editing page until local navigation admission, then preserves the browsed position", async () => {
+  let allow!: (value: boolean) => void;
+  const beforePageChange = vi.fn(() => new Promise<boolean>(resolve => { allow = resolve; }));
+  const onBrowse = vi.fn();
+  mount({ document: pdf([1, 1, 1]).document, editing: true, beforePageChange, onBrowse });
+  await screen.findByTestId("page-3");
+  const viewport = screen.getByTestId("viewport");
+  fireEvent.click(screen.getByText("begin browse"));
+  viewport.scrollTop = 750;
+  fireEvent.scroll(viewport);
+  fireEvent.click(screen.getByText("finish browse"));
+  expect(screen.getByTestId("page")).toHaveTextContent("1");
+  expect(beforePageChange).toHaveBeenCalledOnce();
+  await act(async () => allow(true));
+  expect(screen.getByTestId("page")).toHaveTextContent("2");
+  expect(viewport.scrollTop).toBe(750);
+  expect(screen.getByTestId("zoom")).toHaveTextContent("1");
+  expect(onBrowse).toHaveBeenCalledOnce();
+});
+
+it("returns to the outgoing page when a new edit arrives during admission and does not consume the hint", async () => {
+  let allow!: (value: boolean) => void;
+  let idle = true;
+  const onBrowse = vi.fn();
+  mount({ document: pdf([1, 1, 1]).document, editing: true, idle: () => idle, onBrowse,
+    beforePageChange: () => new Promise<boolean>(resolve => { allow = resolve; }) });
+  await screen.findByTestId("page-3");
+  const viewport = screen.getByTestId("viewport");
+  const origin = viewport.scrollTop;
+  fireEvent.click(screen.getByText("begin browse"));
+  viewport.scrollTop = 750;
+  fireEvent.click(screen.getByText("finish browse"));
+  idle = false;
+  await act(async () => allow(true));
+  expect(screen.getByTestId("page")).toHaveTextContent("1");
+  expect(viewport.scrollTop).toBe(origin);
+  expect(onBrowse).not.toHaveBeenCalled();
+});
+
+it("does not let an older admission move a newer browsing gesture", async () => {
+  let allow!: (value: boolean) => void;
+  mount({ document: pdf([1, 1, 1]).document, editing: true,
+    beforePageChange: () => new Promise<boolean>(resolve => { allow = resolve; }) });
+  await screen.findByTestId("page-3");
+  const viewport = screen.getByTestId("viewport");
+  fireEvent.click(screen.getByText("begin browse"));
+  viewport.scrollTop = 750;
+  fireEvent.click(screen.getByText("finish browse"));
+  fireEvent.click(screen.getByText("begin browse"));
+  viewport.scrollTop = 1300;
+  await act(async () => allow(true));
+  expect(screen.getByTestId("page")).toHaveTextContent("1");
+  expect(viewport.scrollTop).toBe(1300);
 });

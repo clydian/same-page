@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { mkdir } from "node:fs/promises";
+import { expect } from "@playwright/test";
 
 import { chromium, webkit } from "playwright";
 
@@ -74,7 +76,7 @@ test(`${engineName}: reader controls remain reachable without overlap across vie
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await page.locator('.continuous-reader[data-editing]').waitFor();
   assert.equal(await page.locator('.continuous-reader__page[data-index="1"]').getAttribute("inert"), null);
-  assert.equal(await page.locator('.continuous-reader__page[data-index="0"]').getAttribute("inert"), "");
+  assert.equal(await page.locator('.continuous-reader__page[data-index="0"] .annotation-overlay').getAttribute("data-editing"), null);
   assert.equal(await reader.evaluate(element => element.scrollTop), position);
 });
 }
@@ -147,7 +149,7 @@ test("keeps inline text on its page anchor and pans the paper for a reduced iPad
   });
   await assertEventually(page, () => {
     const input = document.querySelector("textarea");
-    const bar = document.querySelector(".annotation-composer-hint");
+    const bar = document.querySelector(".annotation-composer-styles");
     return input && bar && input.getBoundingClientRect().bottom + 46 <= bar.getBoundingClientRect().top;
   });
   const shifted = await paper.boundingBox();
@@ -223,6 +225,86 @@ async function waitForRenderedPdf(page) {
 
 async function assertEventually(page, predicate) {
   await page.waitForFunction(predicate);
+}
+
+for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
+  test(`${engineName}: continuous two-finger browsing keeps notes, tools and undo across pages`, async context => {
+    const browser = await engine.launch({ headless: true });
+    context.after(() => browser.close());
+    const page = await openMemberReader(browser, { width: 834, height: 800 });
+    await showReaderChrome(page);
+    await page.getByRole("button", { name: "更多", exact: true }).click();
+    await page.getByRole("button", { name: "连续滚动", exact: true }).click();
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    await page.getByRole("button", { name: "画笔", exact: true }).click();
+    const hint = page.locator('.reader-edit-gesture-hint');
+    await expect(hint).toHaveAttribute('data-visible', 'true');
+    await expect(hint).toContainText('双指上下浏览');
+    const layer = await page.getByRole('button', { name: /当前编辑层/ }).getAttribute('aria-label');
+    const draw = async () => {
+      await page.locator('.annotation-overlay[data-editing] svg').evaluate(svg => {
+        const box = svg.getBoundingClientRect();
+        const base = { bubbles: true, pointerType: 'pen', pointerId: 42, buttons: 1, pressure: .5,
+          clientX: box.x + box.width * .5, clientY: Math.max(120, box.top + 180) };
+        svg.dispatchEvent(new PointerEvent('pointerdown', base));
+        svg.dispatchEvent(new PointerEvent('pointermove', { ...base, clientX: base.clientX + 45 }));
+        svg.dispatchEvent(new PointerEvent('pointerup', { ...base, clientX: base.clientX + 45, buttons: 0 }));
+      });
+    };
+    const notePages = () => page.evaluate(async () => {
+      const { localDatabase } = await import('/src/client/platform/local-database.ts');
+      return (await localDatabase.annotations.toArray()).filter(note => !note.deleted && note.payload?.kind === 'ink').map(note => note.payload.pageNumber).sort();
+    });
+    await draw();
+    await expect.poll(notePages).toEqual([1]);
+    const viewport = page.locator('.continuous-reader');
+    await browseVertically(viewport, -800);
+    await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
+    await expect(hint).not.toHaveAttribute('data-visible');
+    await expect(hint.getByText('编辑中', { exact: true })).toBeVisible();
+    await expect(hint.locator('.reader-edit-gesture-hint__detail')).toHaveAttribute('aria-hidden', 'true');
+    assert.equal(await viewport.getAttribute('data-zoom'), '1');
+    assert.equal(await page.getByRole('button', { name: /当前编辑层/ }).getAttribute('aria-label'), layer);
+    await expect(page.getByRole('button', { name: '画笔', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await draw();
+    await expect.poll(notePages).toEqual([1, 2]);
+    await page.getByRole('button', { name: '撤销', exact: true }).click();
+    await expect.poll(notePages).toEqual([1]);
+    await browseVertically(viewport, 800);
+    await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 1 页笔记层"]').waitFor();
+    await page.getByRole('button', { name: '撤销', exact: true }).click();
+    await expect.poll(notePages).toEqual([]);
+    await page.getByRole('button', { name: '重做', exact: true }).click();
+    await expect.poll(notePages).toEqual([1]);
+    await page.getByRole('button', { name: '完成编辑', exact: true }).click();
+    await page.getByRole('button', { name: '更多', exact: true }).click();
+    await page.getByText('阅读帮助', { exact: true }).click();
+    await page.getByRole('button', { name: '编辑操作指引', exact: true }).click();
+    await expect(hint).toHaveAttribute('data-visible', 'true');
+    const directory = 'artifacts/verification/reader-editing-flow';
+    await mkdir(directory, { recursive: true });
+    for (const width of [834, 390, 320]) {
+      await page.setViewportSize({ width, height: 800 });
+      const done = await page.getByRole('button', { name: '完成编辑', exact: true }).boundingBox();
+      const label = await hint.boundingBox();
+      assert.ok(done.width >= 44 && done.height >= 44 && done.x >= 0 && done.x + done.width <= width);
+      assert.ok(label.x >= 0 && label.x + label.width <= width);
+      assert.ok(label.y >= done.y + done.height || label.x + label.width <= done.x);
+      await page.screenshot({ path: `${directory}/${engineName}-${width}.png` });
+    }
+  });
+}
+
+async function browseVertically(viewport, dy) {
+  await viewport.evaluate(async (element, dy) => {
+    const send = (type, id, x, y) => element.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerType: 'touch', pointerId: id, clientX: x, clientY: y,
+    }));
+    send('pointerdown', 71, 250, 400); send('pointerdown', 72, 350, 400);
+    send('pointermove', 71, 250, 400 + dy); send('pointermove', 72, 350, 400 + dy);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    send('pointerup', 71, 250, 400 + dy); send('pointerup', 72, 350, 400 + dy);
+  }, dy);
 }
 
 for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

@@ -19,13 +19,16 @@ interface ContinuousReaderLayoutOptions {
   editing: boolean;
   onZoomChange(zoom: number): void;
   onPageChange(page: number): void;
+  beforePageChange?(): Promise<boolean>;
+  canCompletePage?(): boolean;
+  onBrowse?(): void;
 }
 
 // Owns measurement, fitting and the scroll commit. Callers render the returned
 // geometry and connect the gesture capabilities; they do not sequence commands.
 export function useContinuousReaderLayout({
   document, currentPage, zoom, fitRequest = 0, navigationRequest = 0, editing,
-  onZoomChange, onPageChange,
+  onZoomChange, onPageChange, beforePageChange, canCompletePage, onBrowse,
 }: ContinuousReaderLayoutOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -34,6 +37,11 @@ export function useContinuousReaderLayout({
   const anchorPage = anchorSelection?.document === document ? anchorSelection.page : null;
   const fitSuspended = useRef(false);
   const zoomLease = useRef<symbol | null>(null);
+  const browseLease = useRef<symbol | null>(null);
+  useLayoutEffect(() => {
+    browseLease.current = null;
+    return () => { browseLease.current = null; };
+  }, [document, editing, currentPage, fitRequest, navigationRequest, size.width, size.height]);
   const pageWidth = Math.max(1, size.width * zoom);
   const ratios = usePageAspectRatios(document);
   const geometryReady = ratios.length === document.numPages;
@@ -67,8 +75,7 @@ export function useContinuousReaderLayout({
     gap: PAGE_GAP,
     getItemKey,
     overscan: 2,
-    // Editing hides neighbours; padding lets even the first and last short
-    // pages sit at the viewport center after a fit-and-turn.
+    // Boundary padding lets short first/last pages sit at the viewport center.
     paddingStart: startPadding,
     paddingEnd: Math.max(0, (size.height - pageWidth / (ratios[document.numPages - 1] ?? FALLBACK_PAGE_RATIO)) / 2),
     rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(anchorPage === null ? [] : [anchorPage])])].sort((a, b) => a - b),
@@ -128,16 +135,14 @@ export function useContinuousReaderLayout({
   useReturnViewport(scrollRef, "continuous", geometryReady && size.width > 0 && size.height > 0);
 
   const zoomGeometry: ReaderZoomGeometry = {
-    constrain: () => {
-      const element = scrollRef.current;
-      if (!element || !editing) return;
-      const paper = contentRef.current?.querySelector<HTMLElement>(`[data-index="${currentPage - 1}"] .annotated-pdf-page`);
-      if (paper) constrainReaderPosition(element, paper.getBoundingClientRect());
-    },
+    // Continuous editing shares the document's vertical bounds with reading.
+    constrain: () => {},
     capture: (center) => {
       const token = Symbol();
+      const origin = { top: scrollRef.current?.scrollTop ?? 0, left: scrollRef.current?.scrollLeft ?? 0 };
       const anchor = contentRef.current && capturePaperAnchor(contentRef.current, center);
       zoomLease.current = token;
+      browseLease.current = token;
       if (anchor) setAnchorSelection({ document, page: anchor.pageIndex });
       return {
         anchor,
@@ -146,12 +151,43 @@ export function useContinuousReaderLayout({
           zoomLease.current = null;
           if (outcome.status === "committed" && outcome.zoomChanged) fitSuspended.current = true;
           setAnchorSelection(null);
+          if (outcome.status !== "committed" || !editing) return;
+          const element = scrollRef.current;
+          if (!element) return;
+          const moved = Math.abs(element.scrollTop - origin.top) >= 24 || Math.abs(element.scrollLeft - origin.left) >= 24;
+          const destination = virtualizer.getVirtualItemForOffset(element.scrollTop + element.clientHeight / 2);
+          if (!destination || destination.index + 1 === currentPage) {
+            if (moved && !outcome.zoomChanged) onBrowse?.();
+            return;
+          }
+          // Keep the outgoing editor mounted until local drafts are durable.
+          // A new gesture, selection or scope invalidates this admission.
+          void (async () => {
+            let admitted = false;
+            try { admitted = await beforePageChange?.() ?? true; } catch { /* Preserve the current page on a failed admission. */ }
+            if (browseLease.current !== token) return;
+            if (!admitted || (canCompletePage && !canCompletePage())) {
+              if (!outcome.zoomChanged) {
+                element.scrollTop = origin.top;
+                element.scrollLeft = origin.left;
+              } else {
+                const paper = contentRef.current?.querySelector<HTMLElement>(`[data-index="${currentPage - 1}"] .annotated-pdf-page`);
+                if (paper) constrainReaderPosition(element, paper.getBoundingClientRect());
+              }
+              return;
+            }
+            fitSuspended.current = true;
+            commit.current.alignedPage = destination.index + 1;
+            onPageChange(destination.index + 1);
+            if (moved && !outcome.zoomChanged) onBrowse?.();
+          })();
         },
       };
     },
   };
   const geometryGestures = {
     zoomGeometry,
+    continuous: true,
     nativeTouchScroll: !editing,
   };
 
