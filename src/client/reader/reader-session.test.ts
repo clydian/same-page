@@ -129,18 +129,23 @@ it("a hidden open retains its foreground deadline and still times out when visib
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ state: "active", layers: { layers: [], sharedLayerRevision: 0, permissions: { canManageLayers: false } }, annotations: { cursor: 0, objects: [] }, permissions: { capabilities: noCapabilities() }, score: { id: "score", choirId: "hidden-timeout-drive", fileName: "test.pdf", updatedAt: 1,
     currentVersion: { id: "version", versionNumber: 1, sizeBytes: 10, sha256: "a".repeat(64), etag: "test", pageCount: 1, createdAt: 1 } } })));
   const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
-  vi.useFakeTimers();
+  // Leave IndexedDB task scheduling real; only control the deadline clock.
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date", "performance"] });
   const session = new ReaderSession(workspace, null);
   try {
     session.open();
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(session.getSnapshot().status).toBe("loading");
+    // Join the refresh started by open(), keeping IndexedDB's task scheduler real.
+    // Then advance only the deadline clock, without yielding between assertions.
+    await session.refresh();
+    expect(session.getSnapshot().cloudState).toBe("active");
+    vi.advanceTimersByTime(60_000);
+    expect(session.getSnapshot()).toMatchObject({ status: "loading", opening: { phase: "engine" } });
     visibility.mockReturnValue("visible");
     document.dispatchEvent(new Event("visibilitychange"));
     window.dispatchEvent(new Event("pageshow"));
-    await vi.advanceTimersByTimeAsync(44_999);
+    vi.advanceTimersByTime(44_999);
     expect(session.getSnapshot()).toMatchObject({status: "loading", error: null});
-    await vi.advanceTimersByTimeAsync(1);
+    vi.advanceTimersByTime(1);
     expect(session.getSnapshot().status).toBe("error");
   } finally { session.dispose(); vi.useRealTimers(); }
 });
