@@ -204,6 +204,7 @@ test("Android composition keeps its draft and viewport through blank-space multi
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height * .3);
   const input = page.getByRole("textbox", { name: "笔记文本" });
   await input.fill("仍在输入");
+  await page.evaluate(() => { window.compositionGestures = []; for (const type of ["pointerdown", "pointerup", "pointercancel", "click"]) document.addEventListener(type, e => window.compositionGestures.push({ type, id: e.pointerId, detail: e.detail, x: e.clientX, y: e.clientY, target: e.target.tagName }), true); });
   const client = await page.context().newCDPSession(page);
   await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 130, y: 350, id: 1 }, { x: 230, y: 350, id: 2 }] });
   for (let step = 1; step <= 8; step++) {
@@ -219,7 +220,7 @@ test("Android composition keeps its draft and viewport through blank-space multi
   await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect(input).toBeVisible();
   await page.touchscreen.tap(12, 220);
-  await expect(input).not.toBeVisible();
+  await expect(input, JSON.stringify(await page.evaluate(() => window.compositionGestures))).not.toBeVisible();
   await expect(page.getByRole("button", { name: "仍在输入", exact: true })).toBeVisible();
 });
 
