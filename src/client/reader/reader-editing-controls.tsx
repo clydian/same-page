@@ -59,7 +59,7 @@ export function ReaderEditingControls({
   const toolHasStyle = tool !== "eraser" && tool !== "select";
   const canUndo = useSyncExternalStore(editor.subscribe, () => editor.canUndo(activeLayerId));
   const canRedo = useSyncExternalStore(editor.subscribe, () => editor.canRedo(activeLayerId));
-  const toolNames = { select: "选择", text: "文字", ink: "画笔", highlighter: "荧光笔", rectangle: "矩形", ellipse: "椭圆", eraser: "整条橡皮" };
+  const toolNames = { select: "选择", text: "文字", ink: "画笔", highlighter: "荧光笔", rectangle: "矩形", ellipse: "椭圆", eraser: "橡皮" };
   const selectedLayer = layers.find((layer) => layer.id === activeLayerId);
   const audience = localOnly ? "体验 · 仅本机" : selectedLayer?.kind === "shared" ? "共享 · 云盘可见" : selectedLayer?.sharing ? "个人 · 云盘可见" : "个人 · 仅自己";
   const chooseLayer = (layerId: string) => {

@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { DEFAULT_TEXT_FONT_SCALE, type AnnotationPayload } from "../../shared/annotations";
 import type { AnnotationEditor } from "./annotation-editor";
 import { useEditorPersistence } from "./use-annotation-editor";
-import { Check, GripHorizontal } from "lucide-react";
+import { GripHorizontal } from "lucide-react";
 import { TextSizeControl, TextAlignmentButton } from "./style-fields";
 import type { ToolStyle } from "./tool-style";
 
@@ -83,7 +83,8 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   const textHeaderRef = useRef<HTMLDivElement>(null);
   const pendingTextPlacement = useRef<PendingTextPlacement | null>(null);
   const openingPoint = useRef<{ x: number; y: number } | null>(null);
-  const backdropPointer = useRef<number | null>(null);
+  const backdropPointers = useRef(new Set<number>());
+  const backdropTap = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const backdropReleased = useRef(false);
   const textSelection = useRef<TextSelection | null>(null);
   const editorFontSize = textEditor
@@ -166,7 +167,8 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   const openTextEditor = (draft: Composition) => {
     if (currentDraft.current || textSavingRef.current) return;
     openingPoint.current = draft.openingPoint ?? null;
-    backdropPointer.current = null;
+    backdropPointers.current.clear();
+    backdropTap.current = null;
     backdropReleased.current = false;
     currentDraft.current = draft;
     flushSync(() => {
@@ -252,6 +254,9 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
       source: "new", openingPoint: { x: event.clientX, y: event.clientY }, color: toolColor,
     });
     if (!draft) return;
+    // Opening may move the paper away from the finger. Suppress the follow-up
+    // mouse default that would focus that old blank position and blur the input.
+    event.preventDefault();
     pendingTextPlacement.current = {
       pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
       moved: false, opened: event.pointerType === "pen", editor: draft,
@@ -309,16 +314,31 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
         }}
         onPointerDown={(event) => {
           backdropReleased.current = false;
+          backdropPointers.current.add(event.pointerId);
           const anchor = openingPoint.current;
           const repeatedOpening = anchor && Math.hypot(event.clientX - anchor.x, event.clientY - anchor.y) <= TEXT_PLACEMENT_THRESHOLD_PX;
-          backdropPointer.current = event.target === event.currentTarget && !repeatedOpening ? event.pointerId : null;
-          if (event.target !== event.currentTarget) openingPoint.current = null;
+          const blank = event.target === event.currentTarget;
+          backdropTap.current = blank && !repeatedOpening && backdropPointers.current.size === 1
+            ? { pointerId: event.pointerId, x: event.clientX, y: event.clientY } : null;
+          // Blank gestures must not blur native input before a deliberate tap
+          // can finish (or before a failed save returns to the same draft).
+          if (blank) event.preventDefault();
+          else openingPoint.current = null;
+        }}
+        onPointerMove={(event) => {
+          const tap = backdropTap.current;
+          if (tap?.pointerId === event.pointerId && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > TEXT_PLACEMENT_THRESHOLD_PX) backdropTap.current = null;
         }}
         onPointerUp={(event) => {
-          backdropReleased.current = event.target === event.currentTarget && backdropPointer.current === event.pointerId;
-          backdropPointer.current = null;
+          backdropPointers.current.delete(event.pointerId);
+          backdropReleased.current = event.target === event.currentTarget && backdropTap.current?.pointerId === event.pointerId && backdropPointers.current.size === 0;
+          backdropTap.current = null;
         }}
-        onPointerCancel={() => { backdropPointer.current = null; backdropReleased.current = false; }}
+        onPointerCancel={(event) => {
+          backdropPointers.current.delete(event.pointerId);
+          backdropTap.current = null;
+          backdropReleased.current = false;
+        }}
         onClick={(event) => {
           const intentional = backdropReleased.current && event.detail <= 1;
           backdropReleased.current = false;
@@ -326,8 +346,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
         }}
       >
         {textEditor && <div className="annotation-composer-heading" ref={textHeaderRef}>
-          <p className="reader-edit-gesture-hint annotation-composer-hint"><strong>输入文字</strong><span className="annotation-composer-instruction">· 轻点空白处收起</span></p>
-          <button type="submit" className="reader-done-button annotation-composer-done" aria-label="收起文字输入" disabled={textSaving || finishing}><Check size={17} strokeWidth={1.8} aria-hidden="true" /><span>收起</span></button>
+          <p className="reader-edit-gesture-hint annotation-composer-hint"><strong>正在输入文字</strong><span className="annotation-composer-instruction">· 轻点空白处完成</span></p>
         </div>}
         <div ref={textToolbarRef} className="annotation-composer-styles" role="group" aria-label="文字样式" onPointerDown={event => {
           const input = textInputRef.current;

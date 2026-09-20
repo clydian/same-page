@@ -84,11 +84,11 @@ test('editing keeps gesture guidance and reflects available history without coll
   const redo = page.getByRole('button', { name: '重做', exact: true });
   await expect(undo).toBeDisabled();
   await expect(redo).toBeDisabled();
-  for (const name of ['选择', '画笔', '荧光笔', '整条橡皮', '文字', '矩形', '椭圆']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+  for (const name of ['选择', '画笔', '荧光笔', '橡皮', '文字', '矩形', '椭圆']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   await page.getByLabel('第 1 页笔记层', { exact: true }).click({ position: { x: 200, y: 250 } });
   await page.getByRole('textbox', { name: '笔记文本' }).fill('排练提示');
   await expect(hint).not.toBeVisible();
-  await page.getByRole('button', { name: '收起文字输入' }).click();
+  await page.getByRole('textbox', { name: '笔记文本' }).press('Escape');
   await expect(undo).toBeEnabled();
   await undo.click();
   await expect(undo).toBeDisabled();

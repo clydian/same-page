@@ -277,7 +277,7 @@ describe("AnnotationOverlay", () => {
     const revision = editor.getEditRevision();
     fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "ArrowDown" });
     expect(editor.getEditRevision()).toBe(revision);
-    fireEvent.click(screen.getByRole("button", { name: "收起文字输入" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
     openExistingText("焦点");
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
@@ -346,7 +346,7 @@ describe("AnnotationOverlay", () => {
     expect(screen.getByLabelText("笔记文本")).toHaveFocus();
     expect(screen.getByLabelText("笔记文本")).toHaveStyle({ textAlign: "right" });
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "已更新" } });
-    fireEvent.click(screen.getByRole("button", { name: "收起文字输入" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
     expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ text: "已更新", textAlign: "right" });
     expect(editor.getSnapshot()).toBe("idle");
