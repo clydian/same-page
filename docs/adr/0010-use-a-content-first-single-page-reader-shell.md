@@ -48,7 +48,7 @@ Issue #352 simplifies onboarding to two fixed, manually dismissed full-screen gu
 
 连续滚动模式下，编辑仍使用单指或笔操作笔记，双指移动或缩放，但垂直浏览范围改为整份文档。相邻谱面保持可见；手势期间保留原编辑页，松开后按视口中心选择目的页，通过既有本机持久化准入后才切换编辑页。保留缩放、浏览位置、所选工具、编辑层及 editor 历史；本机保存未就绪或新的编辑到达时保留原编辑页。异步准入不能覆盖后续手势、页面选择、模式或文档变化。此决定取代上文连续编辑仅允许在当前页内移动及隐藏相邻页的约束。横向离散翻页仍仅属于翻页模式。
 
-进入各阅读模式的编辑时，顶部持续显示一行轻量提示：翻页模式为「编辑中 · 双指左右翻页」，连续模式为「编辑中 · 双指上下浏览」。提示不跟随工具变化，不因已经浏览或本机历史记录而淡出，不使用进入动画；阅读帮助保留「编辑操作指引」进入入口。此规则按 #368 取代原先记忆已学会手势并隐藏提示的行为。文字输入期间改为「输入文字 · 轻点空白处收起」，右上「收起」仅结束文字输入并返回编辑模式。完成编辑是一个标有勾号与「完成」的轻量动作按钮，不使用工具选中样式。界面变化不修改 API、PDF、笔记格式或数据库 schema。
+进入各阅读模式的编辑时，顶部持续显示一行轻量提示：翻页模式为「编辑中 · 双指左右翻页」，连续模式为「编辑中 · 双指上下浏览」。提示不跟随工具变化，不因已经浏览或本机历史记录而淡出，不使用进入动画；阅读帮助保留「编辑操作指引」进入入口。此规则按 #368 取代原先记忆已学会手势并隐藏提示的行为。文字输入期间的提示与完成入口由下方 #370 决定取代。完成编辑是一个标有勾号与「完成」的轻量动作按钮，不使用工具选中样式。界面变化不修改 API、PDF、笔记格式或数据库 schema。
 
 所选笔记属性采用主工具栏上方的上下文浮栏，直接预览原笔记，不再使用独立样本或「应用修改」。离散属性自动保存；连续调整在释放、失焦或取消选择前提交，一次调整对应一次撤销。文字对齐点击按左→中→右→左循环切换，图标显示当前状态，不增加提示或菜单，字号采用可输入数值与加减按钮。这取代原属性卡片及字号滑条；下一笔工具设置仍保留小样本预览。所有提交复用既有 AnnotationEditor 保存与历史协议，不改变持久化格式。
 
@@ -60,3 +60,11 @@ Issue #352 simplifies onboarding to two fixed, manually dismissed full-screen gu
 Reader usability refinements (Issue #368) preserve the existing gestures and quiet reading surface. Resizing the continuous viewport preserves the current page and its normalized paper position in reading and editing; it is not a navigation intent. An explicit page-fit preference remains fitted and centered. Editing continuously shows the layout-specific two-finger navigation hint, regardless of earlier device hint preferences, except while composing text. The selected tool is named without collapsing the existing tool set; the editing layer exposes its audience, and history controls reflect the selected layer's available undo/redo history.
 
 The single 笔记图层 entry opens on 显示, with an internal 管理 page. 显示 owns score visibility and shared-layer display colors; 管理 owns personal-layer creation, naming, sharing, deletion and recovery. Restoring drive defaults explicitly names both visibility and color. Page switches keep management errors recoverable and preserve the panel shell. Reading options distinguish local/upload status from the last cloud check; no polling, proactive notices or notification badges are added. These are presentation changes with no storage or synchronization protocol migration.
+
+## 文字输入状态与精确命中 · #370
+
+文字输入期间使用约 8% 的中性灰黑遮罩区分输入状态，正在输入的文字、光标、紧凑边框、移动手柄和文字样式工具保持在遮罩上方；不挖洞、不增加白色输入卡片，其他编辑工具继续隐藏。顶部提示改为「正在输入文字 · 轻点空白处完成」，取消右上「收起」，按安全区和提示实际边界避让，不再为窄屏固定预留 108px。此决定取代 #368 的文字输入提示与右上完成入口。
+
+文字块的点击范围与其内容布局一致，避免 44px 隐形命中区域覆盖相邻文字；普通工具按钮仍保留触摸尺寸。文字输入浮层自行处理触摸，禁止其触发浏览器整页缩放；多指、拖动和取消不能完成输入。进入输入时，避让后的兼容鼠标行为不能夺走输入焦点。只限制文字输入期间的手势，保留其他编辑与阅读状态的谱面双指浏览。
+
+明确轻点空白处或既有键盘快捷键完成输入；新建空白直接退出，不留下空笔记。已有内容继续沿用可靠本机保存后退出、失败保留输入的协议，清空既有文字的删除行为不变。原生 Android PWA 键盘弹出仍需真机验收；浏览器焦点和手势回归不替代该验收。不改变 API、笔记格式或数据库 schema。
