@@ -144,6 +144,33 @@ describe("AnnotationOverlay", () => {
     expect(await editor.undo(activeLayerId)).toBe(false);
   });
 
+  it.each(["selection", "page"] as const)("does not reopen old text after a delayed adjustment and a new %s", async change => {
+    const first = annotation("delayed-first", activeLayerId, textPayload("原笔记"));
+    const second = annotation("delayed-second", activeLayerId, textPayload("新选择", .6));
+    await localDatabase.annotations.bulkPut([first, second]);
+    const view = renderOverlay([first, second], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("原笔记");
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const put = localDatabase.annotations.put.bind(localDatabase.annotations);
+    const write = vi.spyOn(localDatabase.annotations, "put").mockImplementationOnce((...args) => Dexie.waitFor(gate).then(() => put(...args)));
+    fireEvent.keyDown(root, { key: "ArrowRight" });
+    fireEvent.keyDown(root, { key: "Enter" });
+    await waitFor(() => expect(write).toHaveBeenCalled());
+    expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
+    if (change === "selection") fireEvent.keyDown(screen.getByRole("button", { name: "新选择" }), { key: "Enter" });
+    else view.rerender(<AnnotationOverlay editor={editor} pageNumber={2} layers={layers} annotations={[first, second]}
+      editing tool="select" activeLayerId={activeLayerId} />);
+    await act(async () => { release(); });
+    await waitFor(() => expect(editor.getSnapshot()).toBe("idle"));
+    expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
+    if (change === "selection") expect(screen.getByRole("button", { name: "新选择" })).toHaveAttribute("data-selected", "true");
+    // The already released movement still belongs to the original editor.
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+  });
+
   it("settles the original keyboard gesture before selecting a different note", async () => {
     const first = annotation("keyboard-a", activeLayerId, textPayload("ORIGINAL A", .2, .3));
     const second = annotation("keyboard-b", activeLayerId, textPayload("ORIGINAL B", .6, .7));
