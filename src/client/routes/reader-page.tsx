@@ -2,15 +2,14 @@ import { ReaderGuide } from "../reader/reader-guide";
 import { useReaderHint } from "../reader/use-reader-hint";
 import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
 import { MAX_READER_ZOOM } from "../reader/reader-zoom";
-import { subscribeReaderSync } from "../reader/sync-reader";
 import { LocalPdfDownload } from "../reader/local-pdf-download";
 import { useReaderFullscreen } from "../reader/use-reader-fullscreen";
-import { clearGuestNotes, isLocalExperience } from "../annotations/guest-notes";
+import { clearGuestNotes } from "../annotations/guest-notes";
 import { useReadingPreferenceProjection } from "../reader/reading-preference-intents";
 import { loginHref } from "../auth/login-return";
 import { useLocation, useNavigationType } from "react-router-dom";
 import { useReturnState } from "../navigation/navigation-context";
-import { useReaderAnnotationActions } from "../reader/use-reader-annotation-actions";
+import { useReaderSync } from "../reader/use-reader-sync";
 import { useToolColor } from "../reader/use-tool-color";
 import { offlinePreparationDescription } from "../offline/offline-score-status";
 import { ExportDialog } from "../reader/export-dialog";
@@ -21,7 +20,6 @@ import { useAppNavigation, useExitLayer } from "../navigation/navigation-context
 import { ReaderPresentationContext, useReaderPresentation } from "../reader/use-reader-presentation";
 import "../reader/reader-ux.css";
 import { useReaderSession } from "../reader/use-reader-session";
-import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowLeft, Share, HardDrive, Ellipsis, Layers, Maximize2, Minus, Pencil, Plus, BookOpen,
   RefreshCw, Rows3, Check, X, Maximize, ChevronDown,
@@ -32,7 +30,6 @@ import {
   lazy,
   useRef,
   useState,
-  useSyncExternalStore,
   Suspense,
 } from "react";
 import {
@@ -45,10 +42,6 @@ import type { AnnotationLayerSummary } from "../../shared/annotations";
 import type {
   AnnotationOverlayInteraction,
 } from "../annotations/annotation-overlay";
-import {
-  readScoreAnnotationState,
-} from "../annotations/annotation-state";
-import { getAnnotationSyncActivity, subscribeAnnotationSync } from "../annotations/sync";
 import { useAnnotationEditor } from "../annotations/use-annotation-editor";
 import type { AnnotationEditor } from "../annotations/annotation-editor";
 import { useApplicationIdentity } from "../auth/application-identity";
@@ -72,11 +65,7 @@ import {
   useReaderPreferences,
 } from "../reader/use-reader-preferences";
 import { usePagedReader } from "../reader/use-paged-reader";
-import {
-  deriveReaderSyncStatus,
-  describeAnnotationConflict,
-  type ReaderSyncOutcome,
-} from "../reader/reader-sync-status";
+import { describeAnnotationConflict } from "../reader/reader-sync-status";
 
 import type { DiagnosticReader } from "../../shared/diagnostic-report";
 import { DiagnosticReportDialog } from "../diagnostics/diagnostic-report-dialog";
@@ -125,29 +114,8 @@ function ReaderPageContent() {
   const { style: toolStyle, setStyle: setToolStyle } = useToolStyle(workspace?.ownerKey ?? `user:${identity.localUserId ?? "guest"}`, tool);
   const { color: toolColor, setColor: setToolColor } = useToolColor(workspace?.ownerKey ?? `user:${identity.localUserId ?? "guest"}`, tool);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
-  const [syncOutcome, setSyncOutcome] = useState<ReaderSyncOutcome>("none");
-  const [syncing, setSyncing] = useState(false);
-  const [online, setOnline] = useState(navigator.onLine);
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
-  }, []);
-  const syncActivity = useSyncExternalStore(subscribeAnnotationSync,
-    () => getAnnotationSyncActivity(workspace?.scopeKey ?? ""));
-  useEffect(() => subscribeAnnotationSync(() => {
-    if (getAnnotationSyncActivity(workspace?.scopeKey ?? "") === "running") setSyncOutcome("none");
-  }), [workspace?.scopeKey]);
   const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel);
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
-  const [cloudCheck, setCloudCheck] = useState<{ scope: string; at: number } | null>(null);
-  useEffect(() => {
-    if (!workspace) return;
-    return subscribeReaderSync(workspace, result => {
-      if (result.state === "active") setCloudCheck({ scope: workspace.scopeKey, at: Date.now() });
-    });
-  }, [workspace]);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreTrigger = useRef<HTMLButtonElement>(null);
   const layersTrigger = useRef<HTMLButtonElement>(null);
@@ -177,16 +145,19 @@ function ReaderPageContent() {
       recordScoreOpened(driveCacheOwnerKey(workspace.ownerKey.startsWith("user:") ? workspace.ownerKey.slice(5) : null, choirId), choirId, scoreId);
     }
   }, [document, documentScopeKey, workspace, choirId, scoreId, identity.authenticatedUserId]);
-  const annotationState = useLiveQuery(
-    () => workspace ? readScoreAnnotationState(workspace).catch(() => null) : null,
-    [workspace?.scopeKey], null,
-  );
-  const activeAnnotations = annotationState?.scopeKey === workspace?.scopeKey ? annotationState : null;
+  const sync = useReaderSync(workspace, {
+    authenticatedUserId: identity.authenticatedUserId,
+    sessionId: identity.authenticatedSessionId,
+    trashed: cloudState === "trashed",
+    confirmIdentity: identity.session.refetch,
+  });
+  const { annotationState: activeAnnotations, online, localOnly: guestExperience,
+    status: syncStatus, syncing, reportOutcome,
+    retry: manualSync, resolveConflict, lastCheckedAt } = sync;
   const layers = useReadingPreferenceProjection(workspace, [...activeAnnotations?.layers ?? []]).sort(compareLayers);
   const annotations = activeAnnotations?.annotations ?? [];
   const pendingCount = activeAnnotations?.pendingCount ?? 0;
   const conflicts = activeAnnotations?.conflicts ?? [];
-  const syncErrorCount = activeAnnotations?.syncErrorCount ?? 0;
   const editAvailability = reader.snapshot.capability === "ready" && !activeAnnotations?.layersReady
     ? "preparing" : reader.snapshot.capability;
   const { layout, currentPage, setLayout, setCurrentPage } =
@@ -249,7 +220,7 @@ function ReaderPageContent() {
 
   const beginEditing = () => {
     if (cloudState === "trashed") {
-      setSyncOutcome("trash-preserved");
+      reportOutcome("trash-preserved");
       return;
     }
     if (!workspace) return;
@@ -281,30 +252,15 @@ function ReaderPageContent() {
     if (editAvailability === "ready") beginEditing();
   };
 
-  const annotationActions = useReaderAnnotationActions(workspace, identity.authenticatedUserId, identity.authenticatedSessionId, online, cloudState === "trashed", identity.session.refetch);
   const finishEditing = async () => {
     if (!editor) return false;
     const result = await editor.finish();
-    if (result !== "local-saved") { if (result) setSyncOutcome(result); return false; }
+    if (result !== "local-saved") { if (result) reportOutcome(result); return false; }
     setEditingEditor(null);
-    setSyncOutcome(result);
+    reportOutcome(result);
     return true;
   };
   useExitLayer(editing, "editing", finishEditing);
-
-  const manualSync = async () => {
-    if (!annotationActions || syncing) return;
-    setSyncing(true);
-    const result = await annotationActions.retry();
-    if (result) setSyncOutcome(result);
-    setSyncing(false);
-  };
-
-  const resolveConflict = async (opId: string, strategy: "discard" | "reapply" | "keep-both") => {
-    if (!annotationActions) return;
-    const result = await annotationActions.resolveConflict(opId, strategy);
-    if (result) setSyncOutcome(result);
-  };
 
   const diagnosticReader: DiagnosticReader = {
     ...(reader.snapshot.opening ? { opening: readerOpeningFacts(reader.snapshot.opening) } : {}),
@@ -398,21 +354,6 @@ function ReaderPageContent() {
     onInteractionChange: setAnnotationInteraction,
     editor,
   };
-  const guestExperience = workspace ? isLocalExperience(workspace) : false;
-  const syncStatus = deriveReaderSyncStatus({
-    localOnly: guestExperience,
-    outcome: guestExperience ? syncOutcome : cloudState === "trashed" ? "trash-preserved" : syncActivity === "failed" && online ? "failed" : syncOutcome,
-    syncing: syncing || syncActivity === "running",
-    loaded: activeAnnotations !== null,
-    draftCount: annotations.filter(annotation => annotation.state === "draft").length,
-    acceptedCount: annotations.filter(annotation => annotation.state === "synced" && annotation.version > 0).length,
-    permissionErrorCount: annotations.filter(annotation => annotation.syncErrorCode === "permission_denied" ||
-      (annotation.state !== "synced" && !layers.some(layer => layer.id === annotation.layerId && layer.canEdit))).length,
-    online,
-    pendingCount,
-    conflictCount: conflicts.length,
-    syncErrorCount,
-  });
 
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
@@ -494,7 +435,7 @@ function ReaderPageContent() {
               <header className="reader-menu-heading"><strong>阅读选项</strong><Button className="icon-button" aria-label="关闭更多阅读选项" onPress={() => setMoreOpen(false)}><X size={20} aria-hidden="true" /></Button></header>
               <IdentityNotice identity={identity} />
               {guestExperience && <section aria-label="本机体验笔记"><h2>本机体验笔记</h2><p>仅保存在此浏览器，不上传、不修改公开内容。</p>
-                <Button onPress={() => { if (workspace) void clearGuestNotes(workspace).then(() => setSyncOutcome("local-saved")).catch(() => setSyncOutcome("failed")); }}>清除本谱体验笔记</Button>
+                <Button onPress={() => { if (workspace) void clearGuestNotes(workspace).then(() => reportOutcome("local-saved")).catch(() => reportOutcome("failed")); }}>清除本谱体验笔记</Button>
               </section>}
               {!editing && <>
               <section aria-label="页面布局与缩放" className="reader-options-display"><div className="reader-option-heading"><h2>阅读方式</h2>
@@ -554,12 +495,12 @@ function ReaderPageContent() {
               </section>
               <section aria-label="笔记保存与同步">
                 <div className="reader-option-heading"><h2><RefreshCw size={17} aria-hidden="true" />笔记同步</h2>
-                {!guestExperience && <Button className="reader-option-action" aria-label={!online ? "离线，联网后可同步" : syncing || syncActivity === "running" ? "同步中…" : syncStatus.kind === "failed" ? "重试同步" : "立即同步"} aria-description="获取成员最新笔记，并上传我的修改" isDisabled={!online || syncing || syncActivity === "running" || cloudState === "trashed" || !annotationActions} onPress={() => void manualSync()}>{syncing || syncActivity === "running" ? "同步中…" : syncStatus.kind === "failed" ? "重试" : "同步"}</Button>}
+                {!guestExperience && <Button className="reader-option-action" aria-label={!online ? "离线，联网后可同步" : syncing ? "同步中…" : syncStatus.kind === "failed" ? "重试同步" : "立即同步"} aria-description="获取成员最新笔记，并上传我的修改" isDisabled={!sync.canRetry} onPress={() => void manualSync()}>{syncing ? "同步中…" : syncStatus.kind === "failed" ? "重试" : "同步"}</Button>}
                 </div>
                 {guestExperience ? <p className="reader-more-menu__status" role="status">{syncStatus.message}</p> : <>
                   <dl className="reader-sync-details">
                     <div><dt>我的修改</dt><dd data-kind={syncStatus.kind} role="status">{syncStatus.message}</dd></div>
-                    <div><dt>上次检查云端</dt><dd>{cloudCheck?.scope === workspace.scopeKey ? new Date(cloudCheck.at).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "尚未确认"}</dd></div>
+                    <div><dt>上次检查云端</dt><dd>{lastCheckedAt !== null ? new Date(lastCheckedAt).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "尚未确认"}</dd></div>
                   </dl>
                 </>}
               </section>
@@ -687,7 +628,7 @@ function ReaderPageContent() {
           <strong>{syncStatus.message}</strong>
           <div>
             <Link className="text-button" to="/diagnostics">查看原因</Link>
-            <Button isDisabled={syncing} onPress={() => void manualSync()}>
+            <Button isDisabled={!sync.canRetry} onPress={() => void manualSync()}>
               重试同步
             </Button>
             {diagnosticDialog}

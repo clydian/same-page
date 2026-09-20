@@ -367,21 +367,24 @@ function toWireOperation(operation: AnnotationOutboxRecord) {
 
 // Observe the existing sync lock, including background recovery, without
 // treating request completion as proof that every local object was accepted.
-const syncActivity = new Map<string, "running" | "failed">();
+const syncActivity = new Map<string, { sessionEpoch: string | undefined; state: "running" | "failed" }>();
 const syncListeners = new Set<() => void>();
 const syncActivityOwners = new Map<string, symbol>();
 export const subscribeAnnotationSync = (listener: () => void) => {
   syncListeners.add(listener);
   return () => { syncListeners.delete(listener); };
 };
-export const getAnnotationSyncActivity = (scopeKey: string) => syncActivity.get(scopeKey) ?? "idle";
+export const getAnnotationSyncActivity = (scopeKey: string, sessionEpoch?: string) => {
+  const activity = syncActivity.get(scopeKey);
+  return activity && (sessionEpoch === undefined || activity.sessionEpoch === sessionEpoch) ? activity.state : "idle";
+};
 async function observeSync<T>(workspace: LocalWorkspace, action: () => Promise<T>) {
   const owner = Symbol();
   syncActivityOwners.set(workspace.scopeKey, owner);
   const publish = (state: "running" | "failed" | "idle") => {
     if (syncActivityOwners.get(workspace.scopeKey) !== owner) return;
     if (state === "idle") { syncActivity.delete(workspace.scopeKey); syncActivityOwners.delete(workspace.scopeKey); }
-    else syncActivity.set(workspace.scopeKey, state);
+    else syncActivity.set(workspace.scopeKey, { sessionEpoch: workspace.sessionEpoch, state });
     syncListeners.forEach(listener => listener());
   };
   publish("running");
