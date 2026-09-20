@@ -2,7 +2,7 @@ import { permissionSetSchema } from "../../src/shared/drive-permissions";
 import { memberCapabilities, readPermissionMember, requireOperation } from "../permissions/access";
 import { Hono } from "hono";
 import { z } from "zod";
-import { createAuth } from "../auth/create-auth";
+import { readContextSession } from "../auth/context-session";
 import { AuthorizationError } from "../auth/authorization";
 import { resolveContextPrincipal } from "../auth/context-principal";
 import type { AppEnvironment } from "../env";
@@ -13,7 +13,7 @@ const FRESH_AUTH_MS = 10 * 60 * 1000;
 const mutationSchema = z.object({ expectedRevision: z.number().int().nonnegative(), action: z.enum(["remove", "restore"]) });
 
 lifecycleRoutes.get("/user/lifecycle", async (context) => {
-  const session = await createAuth(context.env, context.executionCtx).api.getSession({ headers: context.req.raw.headers });
+  const session = await readContextSession(context);
   if (!session) return context.json({ error: "unauthorized" }, 401);
   const deletion = await context.env.DB.prepare("SELECT deletion_id AS deletionId, expires_at AS expiresAt, auth_method AS authMethod FROM user_lifecycle WHERE user_id = ?").bind(session.user.id).first();
   const challenge = await context.env.DB.prepare(`SELECT created_at FROM lifecycle_reauthentication
@@ -31,7 +31,7 @@ lifecycleRoutes.get("/user/lifecycle", async (context) => {
 lifecycleRoutes.post("/user/lifecycle/reauthenticate", async (context) => {
   const principal = await resolveContextPrincipal(context);
   if (principal?.kind !== "user") return context.json({ error: "unauthorized" }, 401);
-  const session = await createAuth(context.env, context.executionCtx).api.getSession({ headers: context.req.raw.headers });
+  const session = await readContextSession(context);
   if (!session) return context.json({ error: "unauthorized" }, 401);
   const body = await context.req.json().catch(() => null);
   if (body?.expectedUserId !== principal.userId) return context.json({ error: "identity_changed" }, 409);
@@ -46,7 +46,7 @@ lifecycleRoutes.post("/user/lifecycle/reauthenticate", async (context) => {
 });
 
 lifecycleRoutes.post("/user/lifecycle/delete", async (context) => {
-  const session = await createAuth(context.env, context.executionCtx).api.getSession({ headers: context.req.raw.headers });
+  const session = await readContextSession(context);
   if (!session) return context.json({ error: "unauthorized" }, 401);
   const confirmation = await context.req.json().catch(() => null);
   if (confirmation?.expectedUserId !== session.user.id) return context.json({ error: "identity_changed" }, 409);
@@ -67,7 +67,7 @@ lifecycleRoutes.post("/user/lifecycle/delete", async (context) => {
 });
 
 lifecycleRoutes.post("/user/lifecycle/restore", async (context) => {
-  const session = await createAuth(context.env, context.executionCtx).api.getSession({ headers: context.req.raw.headers });
+  const session = await readContextSession(context);
   if (!session) return context.json({ error: "unauthorized" }, 401);
   const body = await context.req.json().catch(() => null);
   if (body?.confirm !== true || typeof body.deletionId !== "string") return context.json({ error: "confirmation_required" }, 400);

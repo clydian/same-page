@@ -1,3 +1,4 @@
+import { readContextSession } from "./context-session";
 import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
 
@@ -13,6 +14,7 @@ import {
 export function resolveContextPrincipal(context: Context<AppEnvironment>) {
   return measureServerTiming(context, "auth", () => resolvePrincipal({
     request: context.req.raw,
+    loadAuthSession: () => readContextSession(context),
     env: context.env,
     executionContext: context.executionCtx,
     guestToken: getCookie(context, GUEST_SESSION_COOKIE),
@@ -29,6 +31,7 @@ export function resolveContextGuestPrincipal(context: Context<AppEnvironment>) {
 export function resolveContextPrincipalCandidates(context: Context<AppEnvironment>) {
   return measureServerTiming(context, "auth", () => resolvePrincipalCandidates({
     request: context.req.raw,
+    loadAuthSession: () => readContextSession(context),
     env: context.env,
     executionContext: context.executionCtx,
     guestToken: getCookie(context, GUEST_SESSION_COOKIE),
