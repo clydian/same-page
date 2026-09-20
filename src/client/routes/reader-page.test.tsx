@@ -1926,7 +1926,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.pointerDown(editingOverlay, { clientX: 20, clientY: 30 });
     fireEvent.pointerUp(editingOverlay, { clientX: 20, clientY: 30 });
     expect(screen.getByLabelText("笔记文本")).toBeInTheDocument();
-    expect(screen.getByText(/轻点空白处收起/)).toBeInTheDocument();
+    expect(screen.getByText(/轻点空白处完成/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "连续布局退出前保存的文字" } });
     expect(screen.queryByRole("button", { name: "完成编辑" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "画笔" })).not.toBeInTheDocument();
@@ -1951,7 +1951,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     const target = screen.getByRole("button", { name: /当前编辑层：Ensemble/ });
     expect(target).toBeVisible();
     expect(target).toBeEnabled();
-    for (const name of ["文字", "画笔", "整条橡皮"]) {
+    for (const name of ["文字", "画笔", "橡皮"]) {
       expect(screen.getByRole("button", { name })).toBeEnabled();
     }
     // This editing session has not committed history yet.
@@ -1961,7 +1961,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await screen.findByRole("button", { name: "重试本机保存" });
     expect(target).toBeVisible();
     expect(target).toBeDisabled();
-    for (const name of ["文字", "画笔", "整条橡皮", "撤销", "重做"]) {
+    for (const name of ["文字", "画笔", "橡皮", "撤销", "重做"]) {
       expect(screen.getByRole("button", { name })).toBeDisabled();
     }
     write.mockRestore();

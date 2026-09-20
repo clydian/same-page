@@ -277,7 +277,7 @@ describe("AnnotationOverlay", () => {
     const revision = editor.getEditRevision();
     fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "ArrowDown" });
     expect(editor.getEditRevision()).toBe(revision);
-    fireEvent.click(screen.getByRole("button", { name: "收起文字输入" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
     openExistingText("焦点");
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
@@ -346,7 +346,7 @@ describe("AnnotationOverlay", () => {
     expect(screen.getByLabelText("笔记文本")).toHaveFocus();
     expect(screen.getByLabelText("笔记文本")).toHaveStyle({ textAlign: "right" });
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "已更新" } });
-    fireEvent.click(screen.getByRole("button", { name: "收起文字输入" }));
+    fireEvent.click(screen.getByRole("button", { name: "完成文字输入" }));
     await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
     expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ text: "已更新", textAlign: "right" });
     expect(editor.getSnapshot()).toBe("idle");
@@ -798,19 +798,17 @@ describe("AnnotationOverlay", () => {
     expect(await localDatabase.annotations.count()).toBe(0);
 
     const persist = vi.spyOn(editor, "persist");
-    // The opening gesture's click and a double-click continuation must not commit.
+    fireEvent.pointerDown(composer, { pointerId: 2, button: 2 });
+    fireEvent.pointerUp(composer, { pointerId: 2, button: 2 });
+    expect(persist).not.toHaveBeenCalled();
+    // A click without its own completed blank pointer gesture must not commit.
     fireEvent.click(composer, { detail: 1 });
     expect(persist).not.toHaveBeenCalled();
     await act(async () => { await Promise.resolve(); });
     expect(screen.getByRole("form", { name: "文字输入" })).toBeInTheDocument();
-    fireEvent.pointerDown(composer, { pointerId: 2, detail: 2 });
-    fireEvent.pointerUp(composer, { pointerId: 2, detail: 2 });
-    fireEvent.click(composer, { detail: 2 });
-    expect(screen.getByRole("form", { name: "文字输入" })).toBeInTheDocument();
-
     fireEvent.pointerDown(composer, { pointerId: 3 });
     fireEvent.pointerUp(composer, { pointerId: 3 });
-    fireEvent.click(composer, { detail: 1 });
+    // Touch browsers may omit click after this completed pointer gesture.
     await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
     await waitFor(async () => {
       expect(await localDatabase.annotations.toCollection().first()).toMatchObject({

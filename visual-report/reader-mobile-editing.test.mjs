@@ -173,9 +173,61 @@ test("keeps inline text on its page anchor and pans the paper for a reduced iPad
   assert.equal(await page.getByRole("button", { name: "完成编辑" }).count(), 1);
 });
 
-async function openMemberReader(browser, viewport) {
+test("Android touch keeps text focus when the opening tap shifts the paper below the hint", async context => {
+  const browser = await chromium.launch({ headless: true });
+  context.after(() => browser.close());
+  const page = await openMemberReader(browser, { width: 412, height: 600 }, { isMobile: true, hasTouch: true });
+  await showReaderChrome(page);
+  await page.getByRole("button", { name: "编辑", exact: true }).tap();
+  await page.locator(".annotation-controls").waitFor();
+  const paper = page.locator(".annotation-overlay[data-editing] svg");
+  const box = await paper.boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + 2);
+  const input = page.getByRole("textbox", { name: "笔记文本" });
+  await expect(input).toBeVisible();
+  await expect(input).toBeFocused();
+  assert.ok(await page.locator(".annotated-pdf-page").first().evaluate(element => Number.parseFloat(element.style.translate.split(" ")[1]) > 0), "the opening point must actually require top avoidance");
+  // A second deliberate blank tap must still dismiss an accidental empty note.
+  await page.touchscreen.tap(12, 220);
+  await expect(input).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "撤销", exact: true })).toBeDisabled();
+});
+
+test("Android composition keeps its draft and viewport through blank-space multi-touch and drags", async context => {
+  const browser = await chromium.launch({ headless: true });
+  context.after(() => browser.close());
+  const page = await openMemberReader(browser, { width: 412, height: 600 }, { isMobile: true, hasTouch: true });
+  await showReaderChrome(page);
+  await page.getByRole("button", { name: "编辑", exact: true }).tap();
+  await page.locator(".annotation-controls").waitFor();
+  const box = await page.locator(".annotation-overlay[data-editing] svg").boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height * .3);
+  const input = page.getByRole("textbox", { name: "笔记文本" });
+  await input.fill("仍在输入");
+  await page.evaluate(() => { window.compositionGestures = []; for (const type of ["pointerdown", "pointerup", "pointercancel", "click"]) document.addEventListener(type, e => window.compositionGestures.push({ type, id: e.pointerId, detail: e.detail, x: e.clientX, y: e.clientY, target: e.target.tagName }), true); });
+  const client = await page.context().newCDPSession(page);
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 130, y: 350, id: 1 }, { x: 230, y: 350, id: 2 }] });
+  for (let step = 1; step <= 8; step++) {
+    await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 130 - step * 6, y: 350, id: 1 }, { x: 230 + step * 6, y: 350, id: 2 }] });
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+  }
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  assert.equal(await page.evaluate(() => visualViewport.scale), 1, "composition must not zoom the entire browser UI");
+  await expect(input).toHaveValue("仍在输入");
+  await expect(input).toBeFocused();
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 30, y: 320, id: 3 }] });
+  await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 70, y: 350, id: 3 }] });
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(input).toBeVisible();
+  await page.touchscreen.tap(12, 220);
+  await expect(input, JSON.stringify(await page.evaluate(() => window.compositionGestures))).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "仍在输入", exact: true })).toBeVisible();
+});
+
+async function openMemberReader(browser, viewport, device = {}) {
   const browserContext = await browser.newContext({
     viewport,
+    ...device,
     colorScheme: "light",
     locale: "zh-CN",
     reducedMotion: "reduce",
