@@ -340,7 +340,9 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           backdropReleased.current = false;
         }}
         onClick={(event) => {
-          const intentional = backdropReleased.current && event.detail <= 1;
+          // Native click counts can include an earlier touch gesture. The
+          // completed blank-pointer intent already excludes repeats and drags.
+          const intentional = backdropReleased.current;
           backdropReleased.current = false;
           if (editor?.getSnapshot() !== "finishing" && event.target === event.currentTarget && intentional) void finishTextEditor();
         }}

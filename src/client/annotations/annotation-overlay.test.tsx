@@ -798,19 +798,15 @@ describe("AnnotationOverlay", () => {
     expect(await localDatabase.annotations.count()).toBe(0);
 
     const persist = vi.spyOn(editor, "persist");
-    // The opening gesture's click and a double-click continuation must not commit.
+    // A click without its own completed blank pointer gesture must not commit.
     fireEvent.click(composer, { detail: 1 });
     expect(persist).not.toHaveBeenCalled();
     await act(async () => { await Promise.resolve(); });
     expect(screen.getByRole("form", { name: "文字输入" })).toBeInTheDocument();
-    fireEvent.pointerDown(composer, { pointerId: 2, detail: 2 });
-    fireEvent.pointerUp(composer, { pointerId: 2, detail: 2 });
-    fireEvent.click(composer, { detail: 2 });
-    expect(screen.getByRole("form", { name: "文字输入" })).toBeInTheDocument();
-
     fireEvent.pointerDown(composer, { pointerId: 3 });
     fireEvent.pointerUp(composer, { pointerId: 3 });
-    fireEvent.click(composer, { detail: 1 });
+    // Native browsers can count an earlier gesture in this click sequence.
+    fireEvent.click(composer, { detail: 2 });
     await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
     await waitFor(async () => {
       expect(await localDatabase.annotations.toCollection().first()).toMatchObject({
