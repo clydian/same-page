@@ -17,12 +17,24 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         server.middlewares.use("/storage-test", (_req, res) => { res.setHeader("Content-Type", "text/html"); res.end("<!doctype html><title>Storage test</title>"); });
       } }],
     });
-    t.after(() => server.close());
+    let profile;
+    let context;
+    // node:test runs after hooks in registration order and stops on errors.
+    // Close the cache writer before removing its profile; always stop Vite.
+    t.after(async () => {
+      try {
+        await context?.close();
+      } finally {
+        try {
+          if (profile) await rm(profile, { recursive: true, force: true });
+        } finally {
+          await server.close();
+        }
+      }
+    });
     await server.listen();
-    const profile = await mkdtemp(path.join(tmpdir(), "same-page-outbox-"));
-    t.after(() => rm(profile, { recursive: true, force: true }));
-    const context = await engine.launchPersistentContext(profile, { headless: true });
-    t.after(() => context.close());
+    profile = await mkdtemp(path.join(tmpdir(), "same-page-outbox-"));
+    context = await engine.launchPersistentContext(profile, { headless: true });
     const page = await context.newPage();
     await page.goto(server.resolvedUrls.local[0] + "storage-test");
     const result = await page.evaluate(async () => {
