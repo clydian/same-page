@@ -37,6 +37,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         await page.getByRole("link", { name: "基本信息", exact: true }).click();
         await page.getByRole("button", { name: "修改云盘名称", exact: true }).waitFor();
         await expect(page.getByRole("button", { name: "修改云盘名称", exact: true })).toBeEnabled();
+        // The management action can become ready before the independently
+        // loaded usage resource. Exercise a confirmed visit, not its loading UI.
+        await expect(page.getByText(/^乐谱 1 · 空间/)).toBeVisible();
         await page.getByRole("button", { name: "返回", exact: true }).click();
         await page.getByRole("link", { name: "基本信息", exact: true }).waitFor();
         await expect(page.getByText("正在确认访问权限，已有内容可以继续浏览。")).toHaveCount(0);
