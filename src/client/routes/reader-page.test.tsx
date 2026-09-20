@@ -1437,7 +1437,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(within(panel).getAllByRole("checkbox")).toHaveLength(6);
     expect(within(panel).getByText("我的笔记")).toBeInTheDocument();
     expect(within(panel).queryByText("本谱")).not.toBeInTheDocument();
-    expect(within(panel).getByRole("button", { name: "使用云盘默认" })).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "恢复默认显示与颜色" })).toBeInTheDocument();
     expect(within(panel).getByRole("checkbox", { name: "显示 我的笔记" })).toBeChecked();
     expect(within(panel).queryByText("Preferences")).not.toBeInTheDocument();
     expect(within(panel).queryByRole("button", { name: /只读/ })).not.toBeInTheDocument();
@@ -1951,9 +1951,12 @@ it("keeps a single exit while the PDF never settles", async () => {
     const target = screen.getByRole("button", { name: /当前编辑层：Ensemble/ });
     expect(target).toBeVisible();
     expect(target).toBeEnabled();
-    for (const name of ["文字", "画笔", "整条橡皮", "撤销", "重做"]) {
+    for (const name of ["文字", "画笔", "整条橡皮"]) {
       expect(screen.getByRole("button", { name })).toBeEnabled();
     }
+    // This editing session has not committed history yet.
+    expect(screen.getByRole("button", { name: "撤销" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "重做" })).toBeDisabled();
     rejectWrite(new DOMException("full", "QuotaExceededError"));
     await screen.findByRole("button", { name: "重试本机保存" });
     expect(target).toBeVisible();
@@ -1970,13 +1973,15 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.pointerUp(inkOverlay, { pointerId: 22, clientX: 70, clientY: 80 });
     await waitFor(() => expect(target).toBeEnabled());
 
+    await waitFor(() => expect(screen.getByRole("button", { name: "撤销" })).toBeEnabled());
+
     // History writes participate in the same local-save completion condition.
     const undoWrite = vi.spyOn(localDatabase.annotations, "delete").mockImplementation(() => new Dexie.Promise((_resolve, reject) => { rejectWrite = reject; }));
     fireEvent.click(screen.getByRole("button", { name: "撤销" }));
     await waitFor(() => expect(undoWrite).toHaveBeenCalled());
     expect(editButton).toBeEnabled();
     expect(target).toBeEnabled();
-    expect(screen.getByRole("button", { name: "重做" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "重做" })).toBeDisabled();
     rejectWrite(new DOMException("full", "QuotaExceededError"));
     await screen.findByRole("button", { name: "重试本机保存" });
     expect(editButton).toBeEnabled();

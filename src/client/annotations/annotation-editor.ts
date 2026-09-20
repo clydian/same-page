@@ -43,6 +43,14 @@ export class AnnotationEditor {
     return () => { this.listeners.delete(listener); };
   };
 
+  canUndo = (layerId: string | null) => this.historyAvailable(this.undoByLayer, layerId);
+  canRedo = (layerId: string | null) => this.historyAvailable(this.redoByLayer, layerId);
+  private historyAvailable(history: Map<string, HistoryEntry[]>, layerId: string | null) {
+    return !!layerId && this.active && !this.completion && this.state !== "failed" &&
+      !!history.get(layerId)?.length &&
+      !this.pending.some(task => task.edit.kind !== "write" && task.edit.layerId === layerId);
+  }
+
   begin() {
     if (this.active || this.state !== "idle") return false;
     this.lifetime = new AbortController();
@@ -203,6 +211,7 @@ export class AnnotationEditor {
         previous.complete = resolve;
       } else this.pending.push({ revision: this.editRevision, edit, complete: resolve });
     });
+    this.publish(this.state);
     void this.drain();
     return completion;
   }
@@ -218,6 +227,7 @@ export class AnnotationEditor {
         const changed = await this.apply(task.edit, generation, task.revision);
         if (generation !== this.generation) return;
         this.pending.shift();
+        this.publish(this.state);
         task.complete(changed);
       } catch {
         if (generation !== this.generation) return;

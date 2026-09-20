@@ -76,12 +76,18 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await page.locator(".annotation-controls").evaluate(element => {
       window.pencilToolbar = element;
       window.pencilToolbarChanges = [];
-      window.pencilToolbarObserver = new MutationObserver(records => window.pencilToolbarChanges.push(...records.map(r => r.attributeName)));
+      // History availability legitimately changes after the first committed stroke.
+      // Saving must not hide the toolbar or disable the drawing controls.
+      window.pencilToolbarObserver = new MutationObserver(records => window.pencilToolbarChanges.push(...records
+        .filter(r => r.attributeName === "hidden" || !r.target.closest(".annotation-history-controls"))
+        .map(r => r.attributeName)));
       window.pencilToolbarObserver.observe(element, { attributes: true, subtree: true, attributeFilter: ["disabled", "data-disabled", "hidden"] });
     });
     await pointer(page, "pointerdown", .2, .3);
     for (let i=1; i<=8; i++) await pointer(page, "pointermove", .2+i*.05, .3);
     await pointer(page, "pointerup", .6, .3);
+    await page.waitForFunction(() => document.querySelector('button[aria-label="撤销"]')?.disabled === false);
+    assert.equal(await page.getByRole("button", { name: "重做", exact: true }).isDisabled(), true);
     assert.deepEqual(await page.evaluate(() => { window.pencilToolbarObserver.disconnect(); return {same:window.pencilToolbar===document.querySelector('.annotation-controls'), changes:window.pencilToolbarChanges}; }), {same:true,changes:[]});
   });
 }

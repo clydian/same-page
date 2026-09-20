@@ -168,9 +168,6 @@ function ReaderPageContent() {
       scoreId,
     });
   const presentation = useReaderPresentation(reader.presentation, document, currentPage, editing);
-  const pageEditHint = useReaderHint("reader-edit-page-gesture-seen", editing && layout === "page", null);
-  const continuousEditHint = useReaderHint("reader-edit-continuous-gesture-seen", editing && layout === "continuous", null);
-  const editHint = layout === "page" ? pageEditHint : continuousEditHint;
   const pager = usePagedReader({
     currentPage,
     pageCount: document?.numPages ?? 1,
@@ -179,7 +176,6 @@ function ReaderPageContent() {
     beforePageChange: editing ? () => editor.prepareNavigation() : undefined,
     canCompletePage: editing ? editor.canNavigate : undefined,
     onPageChange: page => {
-      if (editing) pageEditHint.dismiss();
       setZoom(1);
       setCurrentPage(page);
     },
@@ -195,6 +191,8 @@ function ReaderPageContent() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
+        event.defaultPrevented ||
+        (event.target instanceof Element && Boolean(event.target.closest('[role="dialog"]'))) ||
         layout !== "page" ||
         readerPanel !== null || moreOpen || guide.visible ||
         editing ||
@@ -499,15 +497,16 @@ function ReaderPageContent() {
                 </div>
                 {guestExperience ? <p className="reader-more-menu__status" role="status">{syncStatus.message}</p> : <>
                   <dl className="reader-sync-details">
-                    <div><dt>我的修改</dt><dd data-kind={syncStatus.kind} role="status">{syncStatus.message}</dd></div>
-                    <div><dt>上次检查云端</dt><dd>{lastCheckedAt !== null ? new Date(lastCheckedAt).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "尚未确认"}</dd></div>
+                    <div><dt>本机修改 / 上传</dt><dd data-kind={syncStatus.kind} role="status">{syncStatus.message}</dd></div>
+                    <div><dt>上次检查云端笔记</dt><dd>{lastCheckedAt !== null ? new Date(lastCheckedAt).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "尚未确认"}</dd></div>
                   </dl>
+                  <p className="reader-sync-explanation">上传状态仅指你的修改；点“同步”获取成员最新笔记。</p>
                 </>}
               </section>
               </>}
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
                 <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>查看操作指引</Button>
-                {editAvailability === "ready" && <Button onPress={() => { editHint.show(); requestEditing(); }}>编辑操作指引</Button>}
+                {editAvailability === "ready" && <Button onPress={() => { requestEditing(); }}>编辑操作指引</Button>}
               </details>
             </Dialog>
             </Popover>
@@ -531,6 +530,7 @@ function ReaderPageContent() {
           {/* Normal checkpoints and history are serialized by the editor;
               toggling disabled here makes the toolbar flash on every save. */}
           <ReaderEditingControls
+            localOnly={guestExperience}
             isDisabled={persistence === "failed"}
             editor={editor}
             layers={layers}
@@ -547,9 +547,8 @@ function ReaderPageContent() {
       ) : null}
 
       {guide.visible && <ReaderGuide layout={layout} onDismiss={guide.dismiss} />}
-      {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint"
-        data-visible={editHint.visible || undefined}>
-        <strong>编辑中</strong><span className="reader-edit-gesture-hint__detail" aria-hidden={!editHint.visible}>
+      {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint">
+        <strong>编辑中</strong><span className="reader-edit-gesture-hint__detail">
           <span aria-hidden="true">·</span>{layout === "page" ? "双指左右翻页" : "双指上下浏览"}
         </span>
       </p>}
@@ -657,7 +656,6 @@ function ReaderPageContent() {
             zoom={zoom}
             onZoomChange={setZoom}
             onPageChange={setCurrentPage}
-            onBrowse={continuousEditHint.dismiss}
             onToggleChrome={toggleChrome}
             annotationProps={annotationPageProps}
 

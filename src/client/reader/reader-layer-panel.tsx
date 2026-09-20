@@ -6,8 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { PersonalLayerCard } from "./personal-layer-card";
 import { Link } from "react-router-dom";
-import { MoreHorizontal } from "lucide-react";
-import { Button } from "react-aria-components";
+import { Button, Tabs, TabList, Tab, TabPanel } from "react-aria-components";
 
 import type { AnnotationLayerSummary } from "../../shared/annotations";
 import { syncReader } from "./sync-reader";
@@ -25,7 +24,8 @@ export function ReaderLayerPanel({ workspace, layers: storedLayers, signedIn }: 
   const visibilityPrefix = useId();
   const managementTrigger = useRef<HTMLButtonElement>(null);
   const [creationId, setCreationId] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [panel, setPanel] = useState<string>("display");
+  const editing = panel === "manage";
   const [managing, setManaging] = useState(false);
   const [newName, setNewName] = useState("");
   const [deletedLoaded, setDeletedLoaded] = useState(false);
@@ -121,9 +121,40 @@ export function ReaderLayerPanel({ workspace, layers: storedLayers, signedIn }: 
   const missingFeedbackRow = feedbackTarget !== null && !(feedbackInManagement ? (managing ? deleted : []) : personalLayers).some(layer => layer.id === feedbackTarget);
   const feedbackOutsideManagement = feedbackInManagement && !managementOpen;
 
+  const personalSection = (personalLayers.length > 0 || signedIn) && <div className="layer-section layer-section--personal">
+        <div className="layer-section__heading"><h3>个人层</h3></div>
+        {mutationFeedback(null)}{(feedbackOutsideManagement || (!feedbackInManagement && missingFeedbackRow)) && mutationFeedback(feedbackTarget, feedbackInManagement, true)}
+        {personalLayers.map(layer => <div key={layer.id}><PersonalLayerCard key={`${layer.id}-${editing}`} editing={editing} layer={layer} workspace={workspace} pending={pending} blocked={!signedIn || needsRefresh} feedback={mutationFeedback(layer.id)}
+          onChange={change => personalRequest(`personal-layers/${layer.id}`, "PUT", { ...change, expectedRevision: layer.revision ?? 0 })}
+          onSubscribe={subscribed => void preferences.save({ kind: "personal", id: layer.id }, { subscribed })} />{preferenceFeedback("personal", layer.id)}</div>)}
+        {signedIn && editing && <>
+          <div className="personal-layer-footer">
+            {editing && <Button ref={managementTrigger} className="personal-layer-more" isDisabled={pending || needsRefresh} onPress={() => { setManaging(true); void personalRequest("layers?state=deleted", "GET", undefined, true); }}>已删除个人层</Button>}
+            {!creationId && <Button className="personal-layer-create" isDisabled={pending || needsRefresh} onPress={() => setCreationId(crypto.randomUUID())}>＋ 新建个人层</Button>}
+
+          </div>
+          {creationId && <form onSubmit={event => { event.preventDefault(); void personalRequest("personal-layers", "POST", { id: creationId, name: newName.trim() }); }}>
+            <input aria-label="新个人层名称" placeholder="例如：排练记录" required maxLength={60} value={newName} onChange={event => setNewName(event.target.value)} />
+            <button disabled={pending || needsRefresh || !newName.trim()}>新建个人层</button>
+          <Button isDisabled={pending} onPress={() => setCreationId(null)}>取消</Button>
+          </form>}
+          {editing && managing && <section className="personal-layer-management" aria-label="已删除个人层">
+            <div className="layer-section__heading"><h4>已删除个人层</h4><Button onPress={() => { setManaging(false); requestAnimationFrame(() => managementTrigger.current?.focus()); }}>关闭</Button></div>
+            {mutationFeedback(null, true)}{feedbackInManagement && missingFeedbackRow && mutationFeedback(feedbackTarget, true, true)}{managing && pending && <p role="status">正在更新个人层…</p>}
+          {managing && deletedLoaded && !pending && deleted.length === 0 && <p className="reader-layer-help" role="status">没有可恢复的个人层。</p>}
+          {managing && deleted.map(layer => <div key={layer.id}>{layer.name}<Button isDisabled={pending || needsRefresh}
+            onPress={() => void personalRequest(`personal-layers/${layer.id}`, "PUT", { action: "restore", expectedRevision: layer.revision }, true)}>恢复 {layer.name}</Button>{mutationFeedback(layer.id, true)}</div>)}
+          </section>}
+
+        </>}
+      </div>;
+
   return (
     <section className="reader-layer-panel" aria-label="笔记图层" aria-busy={pending}>
-      <p className="reader-layer-help">设置本谱的显示、颜色与个人层分享。</p><div className="reader-layer-preferences">{isLocalExperience(workspace) ? <span>体验显示仅保存在此浏览器</span> : signedIn ? <Link to={`/choirs/${workspace.choirId}/preferences`}>设置此云盘的默认显示</Link> : <Link to={loginHref(`/choirs/${workspace.choirId}/scores/${workspace.scoreId}`, "layers")}>登录后设置默认显示</Link>}</div>
+      <Tabs selectedKey={panel} onSelectionChange={key => setPanel(String(key))} className="reader-layer-tabs">
+        <TabList aria-label="图层选项"><Tab id="display">显示</Tab><Tab id="manage">管理</Tab></TabList>
+        <TabPanel id="display">
+      <p className="reader-layer-help">选择本谱显示的笔记与共享层颜色。</p>
       <div className="layer-section">
         <div className="layer-section__heading">
           <div><h3>共享层</h3></div>
@@ -131,9 +162,9 @@ export function ReaderLayerPanel({ workspace, layers: storedLayers, signedIn }: 
             <span>显示 {sharedLayers.filter((layer) => layer.subscribed).length} / {sharedLayers.length}</span>
             {overriddenLayers.length > 0 ? (
               <Button className="layer-section__restore"
-                aria-description="将这份乐谱的所有共享层恢复为我的云盘默认显示设置"
+                aria-description="将这份乐谱的所有共享层恢复为我的云盘默认显示和颜色"
                 onPress={() => void save(overriddenLayers.map((layer) => ({ layer, subscribed: null, colorOverride: null })))}>
-                使用云盘默认
+                恢复默认显示与颜色
               </Button>
             ) : null}
           </div>
@@ -154,33 +185,8 @@ export function ReaderLayerPanel({ workspace, layers: storedLayers, signedIn }: 
           ))}
         </div>
       </div>
-      {(personalLayers.length > 0 || signedIn) && <div className="layer-section layer-section--personal">
-        <div className="layer-section__heading"><h3>个人层</h3>{signedIn && <Button className="personal-layer-more" aria-label={editing ? "完成个人层管理" : "管理个人层"} aria-pressed={editing} isDisabled={pending} onPress={() => setEditing(!editing)}>{editing ? "完成" : <MoreHorizontal aria-hidden="true" size={18} />}</Button>}</div>
-        {mutationFeedback(null)}{(feedbackOutsideManagement || (!feedbackInManagement && missingFeedbackRow)) && mutationFeedback(feedbackTarget, feedbackInManagement, true)}
-        {personalLayers.map(layer => <div key={layer.id}><PersonalLayerCard key={`${layer.id}-${editing}`} editing={editing} layer={layer} workspace={workspace} pending={pending} blocked={!signedIn || needsRefresh} feedback={mutationFeedback(layer.id)}
-          onChange={change => personalRequest(`personal-layers/${layer.id}`, "PUT", { ...change, expectedRevision: layer.revision ?? 0 })}
-          onSubscribe={subscribed => void preferences.save({ kind: "personal", id: layer.id }, { subscribed })} />{preferenceFeedback("personal", layer.id)}</div>)}
-        {signedIn && <>
-          <div className="personal-layer-footer">
-            {editing && <Button ref={managementTrigger} className="personal-layer-more" isDisabled={pending || needsRefresh} onPress={() => { setManaging(true); void personalRequest("layers?state=deleted", "GET", undefined, true); }}>已删除个人层</Button>}
-            {!creationId && <Button className="personal-layer-create" isDisabled={pending || needsRefresh} onPress={() => setCreationId(crypto.randomUUID())}>＋ 新建个人层</Button>}
-
-          </div>
-          {creationId && <form onSubmit={event => { event.preventDefault(); void personalRequest("personal-layers", "POST", { id: creationId, name: newName.trim() }); }}>
-            <input aria-label="新个人层名称" placeholder="例如：排练记录" required maxLength={60} value={newName} onChange={event => setNewName(event.target.value)} />
-            <button disabled={pending || needsRefresh || !newName.trim()}>新建个人层</button>
-          <Button isDisabled={pending} onPress={() => setCreationId(null)}>取消</Button>
-          </form>}
-          {editing && managing && <section className="personal-layer-management" aria-label="已删除个人层">
-            <div className="layer-section__heading"><h4>已删除个人层</h4><Button onPress={() => { setManaging(false); requestAnimationFrame(() => managementTrigger.current?.focus()); }}>关闭</Button></div>
-            {mutationFeedback(null, true)}{feedbackInManagement && missingFeedbackRow && mutationFeedback(feedbackTarget, true, true)}{managing && pending && <p role="status">正在更新个人层…</p>}
-          {managing && deletedLoaded && !pending && deleted.length === 0 && <p className="reader-layer-help" role="status">没有可恢复的个人层。</p>}
-          {managing && deleted.map(layer => <div key={layer.id}>{layer.name}<Button isDisabled={pending || needsRefresh}
-            onPress={() => void personalRequest(`personal-layers/${layer.id}`, "PUT", { action: "restore", expectedRevision: layer.revision }, true)}>恢复 {layer.name}</Button>{mutationFeedback(layer.id, true)}</div>)}
-          </section>}
-
-        </>}
-      </div>}
+      <div className="reader-layer-preferences">{isLocalExperience(workspace) ? <span>体验显示仅保存在此浏览器</span> : signedIn ? <Link to={`/choirs/${workspace.choirId}/preferences`}>设置此云盘的默认显示</Link> : <Link to={loginHref(`/choirs/${workspace.choirId}/scores/${workspace.scoreId}`, "layers")}>登录后设置默认显示</Link>}</div>
+      {personalSection}
       {publishedLayers.length ? <div className="layer-section"><h3>成员分享</h3>
         <p className="reader-layer-help">其他成员分享的个人层，仅供阅读。</p>
         <div className="layer-card-list">{publishedLayers.map(layer => <article className="layer-card" key={layer.id}>
@@ -190,6 +196,13 @@ export function ReaderLayerPanel({ workspace, layers: storedLayers, signedIn }: 
           </div>{preferenceFeedback("personal", layer.id)}
         </article>)}</div>
       </div> : null}
+        </TabPanel>
+        <TabPanel id="manage">
+          <p className="reader-layer-help">管理本谱个人层；分享后云盘成员可见，仅你可编辑。</p>
+          {!signedIn && <p className="reader-layer-help">{isLocalExperience(workspace) ? "体验笔记仅保存在此浏览器，不能分享。" : "登录后可管理自己的个人层。"}</p>}
+          {personalSection}
+        </TabPanel>
+      </Tabs>
     </section>
   );
 }

@@ -147,8 +147,8 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     await scoreDisplay.waitFor();
     assert.equal(await scoreDisplay.isChecked(), false, "drive default applies to this score");
     // Clear the pre-existing Bass fixture override first.
-    await confirmPreference(() => page.getByRole("button", { name: "使用云盘默认", exact: true }).click(), "score", "B", { subscribed: null, colorOverride: null });
-    await page.getByRole("button", { name: "使用云盘默认", exact: true }).waitFor({ state: "hidden" });
+    await confirmPreference(() => page.getByRole("button", { name: "恢复默认显示与颜色", exact: true }).click(), "score", "B", { subscribed: null, colorOverride: null });
+    await page.getByRole("button", { name: "恢复默认显示与颜色", exact: true }).waitFor({ state: "hidden" });
     failNext = true;
     await page.locator(".reader-layer-row").filter({ has: scoreDisplay }).locator(".layer-row__name").click();
     await page.getByText("云端保存失败，本机选择已保留。", { exact: true }).waitFor();
@@ -156,8 +156,8 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     await confirmPreference(() => page.getByRole("button", { name: "重试", exact: true }).click(), "score", "E", { subscribed: true });
     await page.waitForFunction(() => document.querySelector('input[aria-label="显示 Ensemble"]').checked);
     await capture(page, `${engineName}-score-override`);
-    await confirmPreference(() => page.getByRole("button", { name: "使用云盘默认", exact: true }).click(), "score", "E", { subscribed: null, colorOverride: null });
-    await page.getByRole("button", { name: "使用云盘默认", exact: true }).waitFor({ state: "hidden" });
+    await confirmPreference(() => page.getByRole("button", { name: "恢复默认显示与颜色", exact: true }).click(), "score", "E", { subscribed: null, colorOverride: null });
+    await page.getByRole("button", { name: "恢复默认显示与颜色", exact: true }).waitFor({ state: "hidden" });
     assert.equal(await scoreDisplay.isChecked(), false);
     await page.getByRole("button", { name: "关闭笔记显示" }).click();
     assert.equal(await page.getByText("第一排男高音这里请统一提前吸气并保持轻声进入", { exact: true }).count(), 0);

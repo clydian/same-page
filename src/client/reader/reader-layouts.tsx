@@ -14,7 +14,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { Button } from "react-aria-components";
+import { Button, DialogTrigger, Modal, ModalOverlay } from "react-aria-components";
+import { ChevronDown, X } from "lucide-react";
+import { Dialog } from "../navigation/overlays";
+import { ReaderPageGrid } from "./reader-page-grid";
 
 import type { AnnotationLayerSummary } from "../../shared/annotations";
 import type {
@@ -65,7 +68,6 @@ interface ReaderLayoutProps {
   onPageChange(page: number): void;
   onToggleChrome(): void;
   onDismiss?(): void;
-  onBrowse?(): void;
   annotationProps: AnnotationPageProps;
 }
 
@@ -239,7 +241,6 @@ export function ContinuousLayout({
   onZoomChange,
   onPageChange,
   onToggleChrome,
-  onBrowse,
   annotationProps,
 }: Omit<ReaderLayoutProps, "onDismiss">) {
   const noteInteraction = useRef<AnnotationInteractionHandle>(null);
@@ -249,7 +250,6 @@ export function ContinuousLayout({
     onZoomChange, onPageChange,
     beforePageChange: annotationProps.editing ? () => annotationProps.editor!.prepareNavigation() : undefined,
     canCompletePage: annotationProps.editing ? annotationProps.editor?.canNavigate : undefined,
-    onBrowse,
   });
   const gestureHandlers = useReaderGestures({
     containerRef: scrollRef,
@@ -345,6 +345,7 @@ export function PageNavigatorPanel({
   currentPage: number;
   onSelect(page: number): void;
 }) {
+  const [gridOpen, setGridOpen] = useState(false);
   const [draftPage, setDraftPage] = useState<number | null>(null);
   const pendingPage = useRef(currentPage);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -355,7 +356,7 @@ export function PageNavigatorPanel({
   const size = useElementSize(panelRef);
   // Sample the document at a density that leaves gaps between resting thumbnails.
   // The range input still addresses every page, including those not sampled.
-  const count = Math.min(document.numPages, 40, Math.max(1, Math.floor((size.width - 32) / 14) + 1));
+  const count = Math.min(document.numPages, 40, Math.max(1, Math.floor((size.width - 40) / 20) + 1));
   const activeIndex = document.numPages === 1 ? 0 : Math.round((page - 1) / (document.numPages - 1) * (count - 1));
   const thumbnails = Array.from({ length: count }, (_, index) =>
     count === 1 ? 1 : 1 + Math.round(index * (document.numPages - 1) / (count - 1)),
@@ -391,9 +392,23 @@ export function PageNavigatorPanel({
 
   return (
     <>
-      <output className="reader-page-indicator" aria-label="页面位置">{page} / {document.numPages}</output>
+      <DialogTrigger isOpen={gridOpen} onOpenChange={setGridOpen}>
+        <Button className="reader-page-indicator" aria-label={`展开页码网格：第 ${page} 页，共 ${document.numPages} 页`}>
+          <span aria-label="页面位置">{page} / {document.numPages}</span><ChevronDown size={14} aria-hidden="true" />
+        </Button>
+        <ModalOverlay className="reader-panel-backdrop" isDismissable>
+          <Modal className="reader-panel reader-page-grid-dialog">
+            <Dialog aria-label="页面总览">
+              <header className="reader-panel__header"><strong>页面总览</strong>
+                <Button className="icon-button" aria-label="关闭页面总览" onPress={() => setGridOpen(false)}><X size={21} aria-hidden="true" /></Button>
+              </header>
+              <ReaderPageGrid document={document} currentPage={currentPage} onSelect={page => { onSelect(page); setGridOpen(false); }} />
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
       <nav className="page-preview-strip" aria-label="页面缩略图" ref={panelRef}
-        style={{ width: `${34 + (Math.min(document.numPages, 40) - 1) * 14}px` }}>
+        style={{ width: `${42 + (Math.min(document.numPages, 40) - 1) * 20}px` }}>
         <div className="page-preview-strip__track" aria-hidden="true">
           {thumbnails.map((number, index) => (
             <div className="page-preview-strip__thumbnail" key={index}
