@@ -81,6 +81,98 @@ beforeEach(async () => {
 });
 
 describe("AnnotationOverlay", () => {
+  it("settles held-key movement before a property adjustment without losing either change", async () => {
+    const note = annotation("keyboard-property", activeLayerId, textPayload("连续调整"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("连续调整");
+    fireEvent.keyDown(root, { key: "ArrowRight" });
+    // Tab can focus a property button while an arrow remains held. Its native
+    // keyboard activation has no pointerdown to settle the outgoing nudge.
+    const align = screen.getByRole("button", { name: "文字对齐：居中" });
+    act(() => align.focus());
+    fireEvent.click(align);
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    await waitFor(() => expect(editor.getSnapshot()).toBe("idle"));
+    expect(parseFloat(screen.getByRole("button", { name: "连续调整" }).style.left)).toBeCloseTo(21);
+    expect(screen.getByRole("button", { name: "文字对齐：右对齐" })).toBeInTheDocument();
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect(parseFloat(screen.getByRole("button", { name: "连续调整" }).style.left)).toBeCloseTo(21);
+    expect(screen.getByRole("button", { name: "文字对齐：居中" })).toBeInTheDocument();
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect(screen.getByRole("button", { name: "连续调整" })).toHaveStyle({ left: "20%" });
+  });
+
+  it.each(["properties", "keyboard"] as const)("saves a pending %s adjustment before navigation and preserves undo", async source => {
+    const note = annotation("admission-adjustment", activeLayerId, textPayload("调整后翻页"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("调整后翻页");
+    if (source === "properties") {
+      fireEvent.change(screen.getByRole("spinbutton", { name: "字号数值" }), { target: { value: "36" } });
+    } else fireEvent.keyDown(root, { key: "ArrowRight" });
+    expect(editor.canNavigate()).toBe(false);
+    await act(async () => { expect(await editor.prepareNavigation()).toBe(true); });
+    expect(editor.canNavigate()).toBe(true);
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+    expect(screen.getByRole("button", { name: "调整后翻页" })).toHaveStyle({ fontSize: "2.4cqw" });
+    expect(screen.getByRole("button", { name: "调整后翻页" })).toHaveStyle({ left: "20%" });
+    expect(await editor.undo(activeLayerId)).toBe(false);
+  });
+
+  it.each(["properties", "keyboard"] as const)("cancels an unreleased %s adjustment when editing permission changes", async source => {
+    const note = annotation("revoked-adjustment", activeLayerId, textPayload("停止编辑"));
+    await localDatabase.annotations.put(note);
+    const view = renderOverlay([note], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("停止编辑");
+    if (source === "properties") {
+      fireEvent.change(screen.getByRole("spinbutton", { name: "字号数值" }), { target: { value: "36" } });
+    } else fireEvent.keyDown(root, { key: "ArrowRight" });
+    view.rerender(<AnnotationOverlay editor={editor} pageNumber={1} layers={layers.map(layer => ({ ...layer, canEdit: false }))}
+      annotations={[note]} editing tool="select" activeLayerId={activeLayerId} />);
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    fireEvent.pointerDown(document.body);
+    await act(async () => { expect(await editor.prepareNavigation()).toBe(true); });
+    expect(screen.queryByRole("complementary", { name: "所选笔记属性" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "停止编辑" })).toHaveStyle({ left: "20%", fontSize: "2.4cqw" });
+    expect(await editor.undo(activeLayerId)).toBe(false);
+  });
+
+  it.each(["selection", "page"] as const)("does not reopen old text after a delayed adjustment and a new %s", async change => {
+    const first = annotation("delayed-first", activeLayerId, textPayload("原笔记"));
+    const second = annotation("delayed-second", activeLayerId, textPayload("新选择", .6));
+    await localDatabase.annotations.bulkPut([first, second]);
+    const view = renderOverlay([first, second], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("原笔记");
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const put = localDatabase.annotations.put.bind(localDatabase.annotations);
+    const write = vi.spyOn(localDatabase.annotations, "put").mockImplementationOnce((...args) => new Dexie.Promise<string>((resolve, reject) => {
+      void Dexie.waitFor(gate).then(() => put(...args)).then(resolve, reject);
+    }));
+    fireEvent.keyDown(root, { key: "ArrowRight" });
+    fireEvent.keyDown(root, { key: "Enter" });
+    await waitFor(() => expect(write).toHaveBeenCalled());
+    expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
+    if (change === "selection") fireEvent.keyDown(screen.getByRole("button", { name: "新选择" }), { key: "Enter" });
+    else view.rerender(<AnnotationOverlay editor={editor} pageNumber={2} layers={layers} annotations={[first, second]}
+      editing tool="select" activeLayerId={activeLayerId} />);
+    await act(async () => { release(); });
+    await waitFor(() => expect(editor.getSnapshot()).toBe("idle"));
+    expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
+    if (change === "selection") expect(screen.getByRole("button", { name: "新选择" })).toHaveAttribute("data-selected", "true");
+    // The already released movement still belongs to the original editor.
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+  });
+
   it("settles the original keyboard gesture before selecting a different note", async () => {
     const first = annotation("keyboard-a", activeLayerId, textPayload("ORIGINAL A", .2, .3));
     const second = annotation("keyboard-b", activeLayerId, textPayload("ORIGINAL B", .6, .7));
