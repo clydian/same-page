@@ -345,6 +345,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           if (editor?.getSnapshot() !== "finishing" && event.target === event.currentTarget && intentional) void finishTextEditor();
         }}
       >
+        {textEditor && <button type="submit" className="visually-hidden" tabIndex={-1} disabled={textSaving || finishing}>完成文字输入</button>}
         {textEditor && <div className="annotation-composer-heading" ref={textHeaderRef}>
           <p className="reader-edit-gesture-hint annotation-composer-hint"><strong>正在输入文字</strong><span className="annotation-composer-instruction">· 轻点空白处完成</span></p>
         </div>}
