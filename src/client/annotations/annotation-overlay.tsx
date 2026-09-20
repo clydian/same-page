@@ -1,6 +1,7 @@
 import {
   type PointerEvent as ReactPointerEvent,
   useEffect,
+  useCallback,
   useId,
   useImperativeHandle,
   useMemo,
@@ -27,6 +28,7 @@ import { useTextComposition } from "./use-text-composition";
 import { inkSvgPaths, inkHit, inkFillRule, inkRenderingDegraded } from "./ink-geometry";
 import { defaultToolStyle, type ToolStyle } from "./tool-style";
 import { highlighterNibPath } from "./highlighter-geometry";
+import { useSelectionKeyboard } from "./use-selection-keyboard";
 import { ObjectProperties } from "./object-properties";
 
 export type AnnotationTool = "select" | "text" | "ink" | "highlighter" | "rectangle" | "ellipse" | "eraser";
@@ -76,6 +78,10 @@ export function AnnotationOverlay({
   const [measuredAspectRatio, setAspectRatio] = useState(1);
   const aspectRatio = pageAspectRatio ?? measuredAspectRatio;
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [propertyPreview, setPropertyPreview] = useState<{ id: string; payload: AnnotationPayload } | null>(null);
+  const previewProperties = useCallback((payload: AnnotationPayload | null) => {
+    setPropertyPreview(payload && selectedId ? { id: selectedId, payload } : null);
+  }, [selectedId]);
   const [hover, setHover] = useState<Extract<AnnotationPayload, { kind: "ink" }>["points"][number] | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const movement = useMemo(() => new ObjectMovement(editor), [editor]);
@@ -137,6 +143,16 @@ export function AnnotationOverlay({
     onDiscard: id => movement.discard(id),
     onTextStyleChange,
   });
+
+  const editSelectedText = () => {
+    const payload = movement.getSnapshot().annotations.find(note => note.id === selectedId)?.payload;
+    if (payload?.kind !== "text" || !selectedId) return;
+    setSelectedId(null);
+    text.openExisting({ id: selectedId, x: payload.x, y: payload.y, initial: payload.text, fontScale: payload.fontScale, textAlign: payload.textAlign, pageWidth, color: payload.color });
+  };
+  useSelectionKeyboard({ editor, movement, root: overlayRef, enabled: editing && layers.some(layer => layer.id === activeLayerId && layer.canEdit), selecting: tool === "select", pageNumber, layerId: activeLayerId, selectedId,
+    busy: () => interactionRef.current !== "idle" || movement.engaged, preview: previewProperties, deselect: () => setSelectedId(null), editText: editSelectedText });
+  useEffect(() => { if (selectedId && tool === "select") overlayRef.current?.focus({ preventScroll: true }); }, [selectedId, tool]);
 
   useEffect(
     () => () => {
@@ -333,6 +349,7 @@ export function AnnotationOverlay({
         data-editing={editing || undefined}
         data-tool={editing ? tool : undefined}
         ref={overlayRef}
+      tabIndex={-1}
       >
       <svg
         aria-label={`第 ${pageNumber} 页笔记层`}
@@ -350,7 +367,7 @@ export function AnnotationOverlay({
       >
         {pageAnnotations.map((annotation) => {
           if (erasedPreview.has(annotation.id)) return null;
-          const payload = annotation.payload;
+          const payload = tool === "select" && propertyPreview?.id === annotation.id && selectedId === annotation.id ? propertyPreview.payload : annotation.payload;
           const color = layerColors.get(annotation.layerId) ?? payload?.color ?? "#dc2626";
           const reference = editing && annotation.layerId !== activeLayerId;
           const selectable = canStartEdit && !reference && tool === "select";
@@ -361,7 +378,7 @@ export function AnnotationOverlay({
           }
           if (payload?.kind !== "ink" || annotation.id === draftId) return null;
           return (
-            <g key={annotation.id} opacity={reference ? 0.45 : 1} pointerEvents={reference ? "none" : undefined} role={selectable ? "button" : undefined} tabIndex={selectable ? 0 : undefined} aria-label={selectable ? payload.brush === "highlighter" ? "荧光笔笔记" : "画笔笔记" : undefined} onKeyDown={event => { if (selectable && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelectedId(annotation.id); } }}>
+            <g key={annotation.id} opacity={reference ? 0.45 : 1} pointerEvents={reference ? "none" : undefined} role={selectable ? "button" : undefined} tabIndex={selectable ? 0 : undefined} aria-label={selectable ? payload.brush === "highlighter" ? "荧光笔笔记" : "画笔笔记" : undefined} onKeyDown={event => { if (selectable && selectedId !== annotation.id && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelectedId(annotation.id); } }}>
               {editing && tool === "eraser" && annotation.layerId === activeLayerId ? (
                 <polyline
                   aria-hidden="true"
@@ -406,7 +423,7 @@ export function AnnotationOverlay({
       </svg>
 
       {pageAnnotations.map((annotation) => {
-        const payload = annotation.payload;
+        const payload = tool === "select" && propertyPreview?.id === annotation.id && selectedId === annotation.id ? propertyPreview.payload : annotation.payload;
         if (payload?.kind !== "text" && payload?.kind !== "shape") return null;
         const position = objectTransformPreview?.id === annotation.id
           ? objectTransformPreview.payload
@@ -435,15 +452,8 @@ export function AnnotationOverlay({
             onPointerUp={finishObjectTransform}
             onPointerCancel={cancelObjectTransform}
             onKeyDown={(event) => {
-              if (tool === "select" && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelectedId(annotation.id); }
-              if (event.key === "Delete" || event.key === "Backspace") {
-                void editor?.persist({
-                  id: annotation.id,
-                  layerId: annotation.layerId,
-                  payload: null,
-                  deleted: true,
-                });
-              }
+              if (tool === "select" && selectedId !== annotation.id && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelectedId(annotation.id); }
+
             }}
           >
             {payload.kind === "text" ? payload.text : null}
@@ -454,12 +464,7 @@ export function AnnotationOverlay({
       </div>
       {editing ? createPortal(
         <>
-          {canStartEdit && tool === "select" && selected?.payload && <ObjectProperties key={`${selected.id}:${JSON.stringify(selected.payload)}`} payload={selected.payload} personal={!layerColors.has(selected.layerId)} displayColor={layerColors.get(selected.layerId)} onClose={() => setSelectedId(null)} onApply={payload => editor?.persist({ id: selected.id, layerId: selected.layerId, payload }) ?? Promise.resolve(false)} onDelete={() => { void editor?.persist({ id: selected.id, layerId: selected.layerId, payload: null, deleted: true }); setSelectedId(null); }} onEditText={() => {
-              const payload = selected.payload;
-              if (payload?.kind !== "text") return;
-              setSelectedId(null);
-              text.openExisting({ id: selected.id, x: payload.x, y: payload.y, initial: payload.text, fontScale: payload.fontScale, textAlign: payload.textAlign, pageWidth, color: payload.color });
-            }} />}
+          {(canStartEdit || finishing) && tool === "select" && selected?.payload && <ObjectProperties key={selected.id} payload={selected.payload} editor={editor} disabled={finishing || persistence === "failed"} onPreview={previewProperties} personal={!layerColors.has(selected.layerId)} onClose={() => setSelectedId(null)} onApply={payload => movement.persist({ id: selected.id, layerId: selected.layerId, payload })} onDelete={() => { void movement.persist({ id: selected.id, layerId: selected.layerId, payload: null, deleted: true }); setSelectedId(null); }} onEditText={editSelectedText} />}
           {!canStartEdit && !finishing && <aside className="annotation-storage-error" role="status">
             <strong>此层已停止编辑</strong>
             <p>共享层已停用、删除或权限已改变。当前输入可完成并保存在原层的本机草稿中；不会上传或转写其他层。</p>

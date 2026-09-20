@@ -76,7 +76,8 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       }
     }
     // A downward-moving pinch settles at the document edge without creating
-    // leading space. Editing and zoom share the same page bounds.
+    // leading space. Continuous editing then browses the document, not just
+    // the outgoing paper, while preserving the committed zoom.
     await page.getByRole("button", { name: "更多", exact: true }).click();
     await page.getByRole("button", { name: "适合页面", exact: true }).click();
     await page.getByRole("button", { name: "关闭更多阅读选项", exact: true }).click();
@@ -96,13 +97,17 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await expect.poll(() => viewport.locator('[data-index="0"] .annotated-pdf-page').evaluate(e => Math.abs(e.getBoundingClientRect().top))).toBeLessThanOrEqual(1);
     await page.getByRole("button", { name: "编辑", exact: true }).click();
     await expect(viewport).toHaveAttribute("data-editing", "true");
+    const editingZoom = await viewport.getAttribute('data-zoom');
     await viewport.evaluate(async e => {
       for (const [phase, y] of [["pointerdown", 350], ["pointermove", -650], ["pointerup", -650]]) {
         [400, 500].forEach((x, i) => e.dispatchEvent(new PointerEvent(phase, { bubbles: true, pointerId: i + 1, pointerType: "touch", clientX: x, clientY: y })));
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       }
     });
-    await expect.poll(() => viewport.locator('[data-index="0"] .annotated-pdf-page').evaluate(e => Math.abs(e.getBoundingClientRect().bottom - 834))).toBeLessThanOrEqual(1);
+    await viewport.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
+    assert.equal(await viewport.getAttribute('data-zoom'), editingZoom);
+    assert.ok(await viewport.evaluate(e => e.scrollTop >= 0 && e.scrollTop <= e.scrollHeight - e.clientHeight));
+    await expect(viewport.locator('[data-gesture-preview]')).toHaveCount(0);
   });
 }
 

@@ -1245,7 +1245,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await waitFor(() => expect(edit).toHaveAttribute("data-state", "ready"));
     fireEvent.click(edit);
     expect(screen.getByLabelText("第 2 页笔记层").closest(".continuous-reader__page")).not.toHaveAttribute("inert");
-    expect(screen.getByLabelText("第 1 页笔记层").closest(".continuous-reader__page")).toHaveAttribute("inert");
+    expect(screen.getByLabelText("第 1 页笔记层").closest(".annotation-overlay")).not.toHaveAttribute("data-editing");
     expect(reader.scrollTop).toBe(80);
   });
 
@@ -1321,7 +1321,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.click(screen.getByRole("button", { name: "关闭更多阅读选项" }));
 
     fireEvent.click(editButton);
-    expect(editButton).toHaveAttribute("aria-pressed", "true");
+    expect(editButton).toHaveAccessibleName("完成编辑");
     expect(screen.queryByText(/编辑模式/)).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "文字" })).toHaveAttribute(
       "aria-pressed",
@@ -1865,13 +1865,13 @@ it("keeps a single exit while the PDF never settles", async () => {
     const editButton = await screen.findByRole("button", { name: /^(编辑|完成编辑)$/ });
     await waitFor(() => expect(editButton).toHaveAttribute("data-state", "ready"));
     fireEvent.click(editButton);
-    expect(editButton).toHaveAttribute("aria-pressed", "true");
+    expect(editButton).toHaveAccessibleName("完成编辑");
     expect(screen.queryByText(/编辑模式/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("阅读器控制")).toBeInTheDocument();
     for (const name of ["页面位置", "笔记图层", "更多", "返回云盘"]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
-    expect(screen.getByLabelText("当前页编辑")).toBeInTheDocument();
+    expect(screen.getByLabelText("连续滚动编辑")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "下一页" })).not.toBeInTheDocument();
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(screen.getByLabelText("第 1 页笔记层")).toBeInTheDocument();
@@ -1926,7 +1926,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.pointerDown(editingOverlay, { clientX: 20, clientY: 30 });
     fireEvent.pointerUp(editingOverlay, { clientX: 20, clientY: 30 });
     expect(screen.getByLabelText("笔记文本")).toBeInTheDocument();
-    expect(screen.getByText("轻点空白处完成")).toBeInTheDocument();
+    expect(screen.getByText(/轻点空白处收起/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "连续布局退出前保存的文字" } });
     expect(screen.queryByRole("button", { name: "完成编辑" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "画笔" })).not.toBeInTheDocument();
@@ -1985,7 +1985,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await waitFor(() => expect(editButton).toBeEnabled());
 
     fireEvent.click(editButton);
-    await waitFor(() => expect(editButton).toHaveAttribute("aria-pressed", "false"));
+    await waitFor(() => expect(editButton).toHaveAccessibleName("编辑"));
     const restoredReader = await screen.findByLabelText("连续滚动阅读");
     await waitFor(() => expect(restoredReader.scrollTop).toBe(40));
     expect(screen.getByLabelText("阅读器控制")).toBeInTheDocument();
@@ -2136,7 +2136,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     const editButton = await screen.findByRole("button", { name: /^(编辑|完成编辑)$/ });
     await waitFor(() => expect(editButton).toHaveAttribute("data-state", "ready"));
     fireEvent.click(editButton);
-    expect(editButton).toHaveAttribute("aria-pressed", "true");
+    expect(editButton).toHaveAccessibleName("完成编辑");
     expect(screen.queryByText(/编辑模式/)).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "文字" })).toHaveAttribute(
       "aria-pressed",
@@ -2145,7 +2145,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     readerAuthState.signedIn = true;
     readerAuthState.pending = false;
     view.rerender(<MemoryRouter initialEntries={["/choirs/choir-1/scores/score-1"]}><Routes><Route path="/choirs/:choirId/scores/:scoreId" element={<ReaderPage />} /></Routes></MemoryRouter>);
-    await waitFor(() => expect(screen.getByRole("button", { name: "完成编辑" })).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "完成编辑" })).toBeEnabled());
     expect(screen.getByLabelText("翻页阅读")).toBeInTheDocument();
   });
 

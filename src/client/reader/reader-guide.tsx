@@ -22,6 +22,7 @@ export function ReaderGuide({ layout, onDismiss }: { layout: "page" | "continuou
         </div>
         {layout === "continuous" && <p className="reader-guide__detail">放大后拖动查看；使用工具栏返回按钮关闭乐谱。</p>}
         {layout === "page" && <p className="reader-guide__detail">放大后拖动查看，轻点任意位置显示工具栏；恢复整页后可下滑关闭。</p>}
+        <details className="reader-guide__detail"><summary>键盘编辑</summary><p>选中笔记后，方向键微移，Shift＋方向键移动十倍距离；Delete／Backspace 删除，Esc 取消选择，Enter 编辑文字。Cmd／Ctrl＋Z 撤销，Shift＋Cmd／Ctrl＋Z 重做。输入文字或调整控件时，键盘操作当前输入。</p></details>
       </Dialog>
     </Modal>
   </ModalOverlay>;

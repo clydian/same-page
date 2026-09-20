@@ -64,6 +64,7 @@ interface ReaderLayoutProps {
   onPageChange(page: number): void;
   onToggleChrome(): void;
   onDismiss?(): void;
+  onBrowse?(): void;
   annotationProps: AnnotationPageProps;
 }
 
@@ -237,6 +238,7 @@ export function ContinuousLayout({
   onZoomChange,
   onPageChange,
   onToggleChrome,
+  onBrowse,
   annotationProps,
 }: Omit<ReaderLayoutProps, "onDismiss">) {
   const noteInteraction = useRef<AnnotationInteractionHandle>(null);
@@ -244,6 +246,9 @@ export function ContinuousLayout({
     document, currentPage, zoom, fitRequest, navigationRequest,
     editing: annotationProps.editing,
     onZoomChange, onPageChange,
+    beforePageChange: annotationProps.editing ? () => annotationProps.editor!.prepareNavigation() : undefined,
+    canCompletePage: annotationProps.editing ? annotationProps.editor?.canNavigate : undefined,
+    onBrowse,
   });
   const gestureHandlers = useReaderGestures({
     containerRef: scrollRef,
@@ -268,7 +273,7 @@ export function ContinuousLayout({
       ref={scrollRef}
       {...gestureHandlers}
       onScroll={onScroll}
-      aria-label={annotationProps.editing ? "当前页编辑" : "连续滚动阅读"}
+      aria-label={annotationProps.editing ? "连续滚动编辑" : "连续滚动阅读"}
     >
       <div
         className="continuous-reader__inner"
@@ -281,13 +286,10 @@ export function ContinuousLayout({
         {items.map((item) => {
           const page = item.index + 1;
           const current = page === currentPage;
-          const hidden = annotationProps.editing && !current;
           return <div
             className="continuous-reader__page"
             key={item.index}
             data-index={item.index}
-            data-edit-hidden={hidden || undefined}
-            inert={hidden}
             style={{ transform: `translateY(${item.start}px)` }}
           >
             <AnnotatedPdfPage

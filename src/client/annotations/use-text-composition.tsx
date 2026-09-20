@@ -1,10 +1,10 @@
 import { type PointerEvent as ReactPointerEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { DEFAULT_TEXT_FONT_SCALE, MIN_TEXT_FONT_SCALE, type AnnotationPayload } from "../../shared/annotations";
+import { DEFAULT_TEXT_FONT_SCALE, type AnnotationPayload } from "../../shared/annotations";
 import type { AnnotationEditor } from "./annotation-editor";
 import { useEditorPersistence } from "./use-annotation-editor";
-import { AlignCenter, AlignLeft, AlignRight, Minus, Move, Plus } from "lucide-react";
-import { TextSizeInput } from "./style-fields";
+import { Check, GripHorizontal } from "lucide-react";
+import { TextSizeControl, TextAlignmentButton } from "./style-fields";
 import type { ToolStyle } from "./tool-style";
 
 type TextPayload = Extract<AnnotationPayload, { kind: "text" }>;
@@ -79,7 +79,8 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   const paperPan = useRef(0);
   const measureRef = useRef<HTMLSpanElement>(null);
   const dragging = useRef<{ pointerId: number; x: number; y: number; origin: { x: number; y: number } } | null>(null);
-  const textStyleHintRef = useRef<HTMLSpanElement>(null);
+  const textToolbarRef = useRef<HTMLDivElement>(null);
+  const textHeaderRef = useRef<HTMLDivElement>(null);
   const pendingTextPlacement = useRef<PendingTextPlacement | null>(null);
   const openingPoint = useRef<{ x: number; y: number } | null>(null);
   const backdropPointer = useRef<number | null>(null);
@@ -124,8 +125,8 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
       // the paper and all layers together; annotation coordinates stay unchanged.
       if (paper && !dragging.current) {
         y -= paperPan.current;
-        const safeTop = top + Math.max(16, input.form ? parseFloat(getComputedStyle(input.form).paddingTop) || 0 : 0);
-        const safeBottom = Math.min(top + (viewport?.height ?? window.innerHeight) - 16, (textStyleHintRef.current?.getBoundingClientRect().top ?? Infinity) - 56);
+        const safeTop = Math.max(top + 16, (textHeaderRef.current?.getBoundingClientRect().bottom ?? top) + 8);
+        const safeBottom = Math.min(top + (viewport?.height ?? window.innerHeight) - 16, (textToolbarRef.current?.getBoundingClientRect().top ?? Infinity) - 56);
         const lineHeight = fontSize * 1.25;
         const oversized = textHeight > safeBottom - safeTop;
         const caretLine = input.value.slice(0, input.selectionEnd).split("\n").length - 1;
@@ -324,21 +325,18 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           if (editor?.getSnapshot() !== "finishing" && event.target === event.currentTarget && intentional) void finishTextEditor();
         }}
       >
-        <div className="annotation-composer-styles" role="group" aria-label="文字样式" onPointerDown={event => {
+        {textEditor && <div className="annotation-composer-heading" ref={textHeaderRef}>
+          <p className="reader-edit-gesture-hint annotation-composer-hint"><strong>输入文字</strong><span className="annotation-composer-instruction">· 轻点空白处收起</span></p>
+          <button type="submit" className="reader-done-button annotation-composer-done" aria-label="收起文字输入" disabled={textSaving || finishing}><Check size={17} strokeWidth={1.8} aria-hidden="true" /><span>收起</span></button>
+        </div>}
+        <div ref={textToolbarRef} className="annotation-composer-styles" role="group" aria-label="文字样式" onPointerDown={event => {
           const input = textInputRef.current;
           textSelection.current = input ? { start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection } : null;
           if ((event.target as HTMLElement).closest("button")) event.preventDefault();
         }} onClick={event => { if ((event.target as HTMLElement).closest("button")) focusTextInput(textSelection.current); }}>
-          <span ref={textStyleHintRef} className="annotation-composer-hint">轻点空白处完成</span>
           <span className="annotation-composer-layer">{displayColor && <span className="annotation-composer-layer-color" aria-hidden="true" style={{ background: displayColor }} />}{layerName ?? "我的笔记"}</span>
-          <div className="annotation-composer-size" role="group" aria-label="文字字号">
-            <button type="button" aria-label="减小字号" disabled={textSaving || finishing || editorFontScale <= MIN_TEXT_FONT_SCALE} onClick={() => setEditorFontScale(value => Math.max(MIN_TEXT_FONT_SCALE, value - .001))}><Minus size={17} /></button>
-            <TextSizeInput className="annotation-font-scale__value" disabled={textSaving || finishing} value={editorFontScale} onChange={setEditorFontScale} />
-            <button type="button" aria-label="增大字号" disabled={textSaving || finishing || editorFontScale >= .08} onClick={() => setEditorFontScale(value => Math.min(.08, value + .001))}><Plus size={17} /></button>
-          </div>
-          <button type="button" aria-label={`文字对齐：${{ left: "左对齐", center: "居中", right: "右对齐" }[editorTextAlign]}`} title="切换文字对齐" disabled={textSaving || finishing} onClick={() => setEditorTextAlign(value => value === "left" ? "center" : value === "center" ? "right" : "left")}>
-            {editorTextAlign === "left" ? <AlignLeft size={19} /> : editorTextAlign === "right" ? <AlignRight size={19} /> : <AlignCenter size={19} />}
-          </button>
+          <TextSizeControl value={editorFontScale} onChange={setEditorFontScale} disabled={textSaving || finishing} />
+          <TextAlignmentButton value={editorTextAlign} onChange={setEditorTextAlign} disabled={textSaving || finishing} />
           {!displayColor && <label className="annotation-composer-color" title="文字颜色"><span style={{ background: color }} /><input aria-label="文字颜色" type="color" value={color} disabled={textSaving || finishing} onChange={event => setColor(event.target.value)} /></label>}
         </div>
         {textEditor ? (
@@ -359,7 +357,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
             }}
             onPointerUp={() => { dragging.current = null; focusTextInput(); }}
             onPointerCancel={() => { if (dragging.current) setPosition(dragging.current.origin); dragging.current = null; }}
-          ><Move size={16} /></button>
+          ><GripHorizontal size={18} /></button>
           <textarea
             aria-label="笔记文本"
             autoFocus

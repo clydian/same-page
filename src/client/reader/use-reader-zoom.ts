@@ -36,7 +36,7 @@ interface ZoomSession {
   preview: ZoomPreview | null;
   pending: ZoomPreview | null;
   release(outcome: ReaderZoomOutcome): void;
-  constrain(): void;
+  constrain(zoomChanged: boolean): void;
 }
 
 // Own the whole handoff, including the layout commit. Input only supplies a
@@ -71,9 +71,10 @@ export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
     if (active.current !== session) return;
     clearPreview(session);
     placeReaderAnchor(session.container, session.content, target.resolve, target.center);
-    session.constrain();
+    const zoomChanged = Math.abs(target.zoom - session.sourceZoom) > 0.001;
+    session.constrain(zoomChanged);
     active.current = null;
-    session.release({ status: "committed", zoomChanged: Math.abs(target.zoom - session.sourceZoom) > 0.001 });
+    session.release({ status: "committed", zoomChanged });
   };
 
   useLayoutEffect(() => {
@@ -107,8 +108,8 @@ export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
       presentation: previewBoundaryRef?.current ?? null,
       sourceZoom: zoom, preview: null, pending: null,
       release: outcome => lease?.release(outcome),
-      constrain: () => {
-        if (anchor) constrainReaderPosition(container, anchor.bounds(), !continuous);
+      constrain: (zoomChanged) => {
+        if (anchor) constrainReaderPosition(container, anchor.bounds(), !continuous, !mode || zoomChanged);
         geometry?.constrain();
       },
     };
@@ -149,7 +150,8 @@ export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
       return {
         update(center, scale) {
           if (active.current !== session || session.pending) return;
-          const nextZoom = clamp(session.sourceZoom * scale, Math.min(0.75, minimumZoom * 0.75), MAX_READER_ZOOM);
+          const translating = continuous && mode && scale === 1;
+          const nextZoom = translating ? session.sourceZoom : clamp(session.sourceZoom * scale, Math.min(0.75, minimumZoom * 0.75), MAX_READER_ZOOM);
           scale = nextZoom / session.sourceZoom;
           const next = {
             zoom: nextZoom, scale, center, resolve,
@@ -165,7 +167,8 @@ export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
           if (active.current !== session || session.pending) return;
           const preview = session.preview;
           if (!preview) { cancel(); return; }
-          const settledZoom = clamp(preview.zoom, minimumZoom, MAX_READER_ZOOM);
+          const translating = continuous && mode && preview.zoom === session.sourceZoom;
+          const settledZoom = translating ? session.sourceZoom : clamp(preview.zoom, minimumZoom, MAX_READER_ZOOM);
           commit(session, { ...preview, zoom: settledZoom, scale: settledZoom / session.sourceZoom }, true);
         },
       };

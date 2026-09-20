@@ -36,6 +36,7 @@ export function useReaderGestures({
   pageTurn,
   pageTurnExtent,
   nativeTouchScroll = false,
+  continuous = nativeTouchScroll,
   zoomGeometry,
   gestureRevision,
   tapEnabled = true,
@@ -57,6 +58,7 @@ export function useReaderGestures({
   pageTurn?: PageTurnGesture;
   pageTurnExtent?: number;
   nativeTouchScroll?: boolean;
+  continuous?: boolean;
   onNavigationStart?(): void;
   isObjectGestureActive?(): boolean;
   gestureRevision?: string;
@@ -67,7 +69,7 @@ export function useReaderGestures({
 }) {
   const interruptNotes = useEffectEvent(() => onNavigationStart?.());
   const zoomHandoff = useReaderZoom({ containerRef, contentRef, previewBoundaryRef, zoom, onZoomChange,
-    geometry: zoomGeometry, continuous: nativeTouchScroll, scope: tapScope, revision: gestureRevision,
+    geometry: zoomGeometry, continuous, scope: tapScope, revision: gestureRevision,
     mode: twoFingerOnly, disabled, navigation: pageTurn });
   const cancelZoom = zoomHandoff.cancel;
   const dismiss = useReaderDismiss({ containerRef, contentRef, onDismiss,
@@ -213,6 +215,11 @@ export function useReaderGestures({
     const center = midpoint(first, second);
     if (pageTurn && !scaled.current && Math.abs(distance(first, second) / pinch.current.distance - 1) <= 0.08) {
       moveNavigation(center, time);
+      return;
+    }
+    if (continuous && twoFingerOnly && !scaled.current && Math.abs(distance(first, second) / pinch.current.distance - 1) <= 0.08) {
+      // Small finger-spacing jitter is still browsing, not a new zoom.
+      pinch.current.gesture.update(center, 1);
       return;
     }
     scaled.current = true;
