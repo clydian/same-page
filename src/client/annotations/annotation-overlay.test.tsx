@@ -155,7 +155,9 @@ describe("AnnotationOverlay", () => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
     const put = localDatabase.annotations.put.bind(localDatabase.annotations);
-    const write = vi.spyOn(localDatabase.annotations, "put").mockImplementationOnce((...args) => Dexie.waitFor(gate).then(() => put(...args)));
+    const write = vi.spyOn(localDatabase.annotations, "put").mockImplementationOnce((...args) => new Dexie.Promise<string>((resolve, reject) => {
+      void Dexie.waitFor(gate).then(() => put(...args)).then(resolve, reject);
+    }));
     fireEvent.keyDown(root, { key: "ArrowRight" });
     fireEvent.keyDown(root, { key: "Enter" });
     await waitFor(() => expect(write).toHaveBeenCalled());
