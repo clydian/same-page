@@ -85,7 +85,6 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   const openingPoint = useRef<{ x: number; y: number } | null>(null);
   const backdropPointers = useRef(new Set<number>());
   const backdropTap = useRef<{ pointerId: number; x: number; y: number } | null>(null);
-  const backdropReleased = useRef(false);
   const textSelection = useRef<TextSelection | null>(null);
   const editorFontSize = textEditor
     ? textEditor.pageWidth * editorFontScale
@@ -169,7 +168,6 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
     openingPoint.current = draft.openingPoint ?? null;
     backdropPointers.current.clear();
     backdropTap.current = null;
-    backdropReleased.current = false;
     currentDraft.current = draft;
     flushSync(() => {
       setEditorText(draft.initial);
@@ -313,12 +311,11 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           void finishTextEditor();
         }}
         onPointerDown={(event) => {
-          backdropReleased.current = false;
           backdropPointers.current.add(event.pointerId);
           const anchor = openingPoint.current;
           const repeatedOpening = anchor && Math.hypot(event.clientX - anchor.x, event.clientY - anchor.y) <= TEXT_PLACEMENT_THRESHOLD_PX;
           const blank = event.target === event.currentTarget;
-          backdropTap.current = blank && !repeatedOpening && backdropPointers.current.size === 1
+          backdropTap.current = blank && event.button === 0 && !repeatedOpening && backdropPointers.current.size === 1
             ? { pointerId: event.pointerId, x: event.clientX, y: event.clientY } : null;
           // Blank gestures must not blur native input before a deliberate tap
           // can finish (or before a failed save returns to the same draft).
@@ -331,20 +328,14 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
         }}
         onPointerUp={(event) => {
           backdropPointers.current.delete(event.pointerId);
-          backdropReleased.current = event.target === event.currentTarget && backdropTap.current?.pointerId === event.pointerId && backdropPointers.current.size === 0;
+          const intentional = event.target === event.currentTarget && backdropTap.current?.pointerId === event.pointerId && backdropPointers.current.size === 0;
           backdropTap.current = null;
+          // Touch browsers can omit click after a native gesture sequence.
+          if (intentional && editor?.getSnapshot() !== "finishing") void finishTextEditor();
         }}
         onPointerCancel={(event) => {
           backdropPointers.current.delete(event.pointerId);
           backdropTap.current = null;
-          backdropReleased.current = false;
-        }}
-        onClick={(event) => {
-          // Native click counts can include an earlier touch gesture. The
-          // completed blank-pointer intent already excludes repeats and drags.
-          const intentional = backdropReleased.current;
-          backdropReleased.current = false;
-          if (editor?.getSnapshot() !== "finishing" && event.target === event.currentTarget && intentional) void finishTextEditor();
         }}
       >
         {textEditor && <button type="submit" className="visually-hidden" tabIndex={-1} disabled={textSaving || finishing}>完成文字输入</button>}
