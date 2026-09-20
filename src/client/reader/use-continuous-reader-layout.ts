@@ -21,14 +21,13 @@ interface ContinuousReaderLayoutOptions {
   onPageChange(page: number): void;
   beforePageChange?(): Promise<boolean>;
   canCompletePage?(): boolean;
-  onBrowse?(): void;
 }
 
 // Owns measurement, fitting and the scroll commit. Callers render the returned
 // geometry and connect the gesture capabilities; they do not sequence commands.
 export function useContinuousReaderLayout({
   document, currentPage, zoom, fitRequest = 0, navigationRequest = 0, editing,
-  onZoomChange, onPageChange, beforePageChange, canCompletePage, onBrowse,
+  onZoomChange, onPageChange, beforePageChange, canCompletePage,
 }: ContinuousReaderLayoutOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -184,10 +183,8 @@ export function useContinuousReaderLayout({
           if (outcome.status !== "committed" || !editing) return;
           const element = scrollRef.current;
           if (!element) return;
-          const moved = Math.abs(element.scrollTop - origin.top) >= 24 || Math.abs(element.scrollLeft - origin.left) >= 24;
           const destination = virtualizer.getVirtualItemForOffset(element.scrollTop + element.clientHeight / 2);
           if (!destination || destination.index + 1 === currentPage) {
-            if (moved && !outcome.zoomChanged) onBrowse?.();
             return;
           }
           // Keep the outgoing editor mounted until local drafts are durable.
@@ -209,7 +206,6 @@ export function useContinuousReaderLayout({
             fitSuspended.current = true;
             commit.current.alignedPage = destination.index + 1;
             onPageChange(destination.index + 1);
-            if (moved && !outcome.zoomChanged) onBrowse?.();
           })();
         },
       };

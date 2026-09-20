@@ -68,7 +68,6 @@ interface ReaderLayoutProps {
   onPageChange(page: number): void;
   onToggleChrome(): void;
   onDismiss?(): void;
-  onBrowse?(): void;
   annotationProps: AnnotationPageProps;
 }
 
@@ -242,7 +241,6 @@ export function ContinuousLayout({
   onZoomChange,
   onPageChange,
   onToggleChrome,
-  onBrowse,
   annotationProps,
 }: Omit<ReaderLayoutProps, "onDismiss">) {
   const noteInteraction = useRef<AnnotationInteractionHandle>(null);
@@ -252,7 +250,6 @@ export function ContinuousLayout({
     onZoomChange, onPageChange,
     beforePageChange: annotationProps.editing ? () => annotationProps.editor!.prepareNavigation() : undefined,
     canCompletePage: annotationProps.editing ? annotationProps.editor?.canNavigate : undefined,
-    onBrowse,
   });
   const gestureHandlers = useReaderGestures({
     containerRef: scrollRef,

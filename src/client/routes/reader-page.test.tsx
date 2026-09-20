@@ -1973,13 +1973,15 @@ it("keeps a single exit while the PDF never settles", async () => {
     fireEvent.pointerUp(inkOverlay, { pointerId: 22, clientX: 70, clientY: 80 });
     await waitFor(() => expect(target).toBeEnabled());
 
+    await waitFor(() => expect(screen.getByRole("button", { name: "撤销" })).toBeEnabled());
+
     // History writes participate in the same local-save completion condition.
     const undoWrite = vi.spyOn(localDatabase.annotations, "delete").mockImplementation(() => new Dexie.Promise((_resolve, reject) => { rejectWrite = reject; }));
     fireEvent.click(screen.getByRole("button", { name: "撤销" }));
     await waitFor(() => expect(undoWrite).toHaveBeenCalled());
     expect(editButton).toBeEnabled();
     expect(target).toBeEnabled();
-    expect(screen.getByRole("button", { name: "重做" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "重做" })).toBeDisabled();
     rejectWrite(new DOMException("full", "QuotaExceededError"));
     await screen.findByRole("button", { name: "重试本机保存" });
     expect(editButton).toBeEnabled();
