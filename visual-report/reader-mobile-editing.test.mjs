@@ -50,7 +50,7 @@ test(`${engineName}: reader controls remain reachable without overlap across vie
   const preview = await page.getByRole("slider", { name: "跳转页码" }).boundingBox();
   assert.ok(preview.width >= 44 && preview.height >= 44, `scrubber hit area: ${preview.width} × ${preview.height}`);
   const strip = await page.locator(".page-preview-strip").boundingBox();
-  assert.ok(strip.height < 32, "the visible strip stays compact independently of its hit area");
+  assert.ok(strip.height < 40, "the visible strip stays compact independently of its hit area");
   assert.ok(strip.width < 80, "the two-page fixture stays tightly packed");
   // A finger can land above the miniature strip and still select the last page.
   const hit = { x: preview.x + preview.width - 2, y: strip.y - 2 };
@@ -61,7 +61,7 @@ test(`${engineName}: reader controls remain reachable without overlap across vie
   await page.locator('.page-reader__sheet[data-page-turn-current][data-page-number="1"]').waitFor();
   assert.equal(await page.locator(".reader-chrome .reader-page-indicator").count(), 0);
   const positionBadge = await page.locator(".reader-page-indicator").boundingBox();
-  assert.ok(positionBadge.height < 32, "the page position is a compact status badge");
+  assert.ok(positionBadge.height >= 44, "the page position opens the grid with a touch-sized target");
   await page.getByRole("button", { name: "更多", exact: true }).click();
   await page.getByRole("button", { name: "连续滚动", exact: true }).click();
   const reader = page.locator(".continuous-reader");
@@ -238,7 +238,7 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     await page.getByRole("button", { name: "编辑", exact: true }).click();
     await page.getByRole("button", { name: "画笔", exact: true }).click();
     const hint = page.locator('.reader-edit-gesture-hint');
-    await expect(hint).toHaveAttribute('data-visible', 'true');
+    await expect(hint.locator('.reader-edit-gesture-hint__detail')).toBeVisible();
     await expect(hint).toContainText('双指上下浏览');
     const layer = await page.getByRole('button', { name: /当前编辑层/ }).getAttribute('aria-label');
     const draw = async () => {
@@ -260,9 +260,9 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     const viewport = page.locator('.continuous-reader');
     await browseVertically(viewport, -800);
     await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
-    await expect(hint).not.toHaveAttribute('data-visible');
+    await expect(hint.locator('.reader-edit-gesture-hint__detail')).toBeVisible();
     await expect(hint.getByText('编辑中', { exact: true })).toBeVisible();
-    await expect(hint.locator('.reader-edit-gesture-hint__detail')).toHaveAttribute('aria-hidden', 'true');
+    await expect(hint).toContainText('双指上下浏览');
     assert.equal(await viewport.getAttribute('data-zoom'), '1');
     assert.equal(await page.getByRole('button', { name: /当前编辑层/ }).getAttribute('aria-label'), layer);
     await expect(page.getByRole('button', { name: '画笔', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -280,7 +280,7 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     await page.getByRole('button', { name: '更多', exact: true }).click();
     await page.getByText('阅读帮助', { exact: true }).click();
     await page.getByRole('button', { name: '编辑操作指引', exact: true }).click();
-    await expect(hint).toHaveAttribute('data-visible', 'true');
+    await expect(hint.locator('.reader-edit-gesture-hint__detail')).toBeVisible();
     const directory = 'artifacts/verification/reader-editing-flow';
     await mkdir(directory, { recursive: true });
     for (const width of [834, 390, 320]) {

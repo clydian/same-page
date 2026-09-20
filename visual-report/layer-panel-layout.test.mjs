@@ -38,10 +38,10 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     }
     await page.setViewportSize({ width: 834, height: 1400 });
     await page.setViewportSize({ width: 390, height: 844 });
-    const actions = page.getByRole('button', { name: '管理个人层' });
+    const actions = page.getByRole('tab', { name: '管理', exact: true });
     await expect(page.getByRole('button', { name: '重命名 我的笔记' })).toHaveCount(0);
     await actions.click();
-    await expect(page.getByRole('switch', { name: '分享 我的笔记' })).toHaveCount(0);
+    await expect(page.getByRole('switch', { name: '分享 我的笔记' })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: '显示 我的笔记', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '重命名 我的笔记', exact: true }).scrollIntoViewIfNeeded();
     await page.getByRole('button', { name: '重命名 我的笔记', exact: true }).click();
@@ -56,7 +56,7 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     assert.ok(confirmBounds.width >= 44 && confirmBounds.height >= 44);
     await page.getByRole('dialog', { name: '确认删除此层' }).getByRole('button', { name: '取消' }).click();
     await expect(page.getByRole('button', { name: '删除 我的笔记', exact: true })).toBeFocused();
-    await page.getByRole('button', { name: '完成个人层管理' }).click();
+    await page.getByRole('tab', { name: '显示', exact: true }).click();
     await expect(page.getByRole('checkbox', { name: '显示 我的笔记', exact: true })).toBeVisible();
   });
 }

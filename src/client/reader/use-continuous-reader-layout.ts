@@ -81,6 +81,36 @@ export function useContinuousReaderLayout({
     rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(anchorPage === null ? [] : [anchorPage])])].sort((a, b) => a - b),
   });
 
+  // Scroll offsets are pixels, but a viewport resize changes every preceding
+  // page's height. Retain a paper-relative anchor, not the old pixel offset.
+  const viewportGeometry = useRef<{
+    document: PDFDocumentProxy; width: number; height: number; pageWidth: number;
+    ratios: readonly number[]; padding: number; top: number; left: number;
+  } | null>(null);
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element || !geometryReady || size.width <= 0 || size.height <= 0) return;
+    const previous = viewportGeometry.current;
+    const resized = previous?.document === document &&
+      (previous.width !== size.width || previous.height !== size.height);
+    const retainFit = !fitSuspended.current && fitRequest !== 0 &&
+      Math.abs(zoom - commit.current.fitted.zoom) <= 0.001;
+    if (resized && !retainFit && commit.current.alignedPage !== null) {
+      const index = currentPage - 1;
+      const pageStart = (width: number, aspects: readonly number[], padding: number) =>
+        padding + aspects.slice(0, index).reduce((sum, ratio) => sum + width / ratio + PAGE_GAP, 0);
+      const oldHeight = previous.pageWidth / previous.ratios[index];
+      const y = (previous.top + previous.height / 2 - pageStart(previous.pageWidth, previous.ratios, previous.padding)) / oldHeight;
+      const x = (previous.left + previous.width / 2) / Math.max(previous.width, previous.pageWidth);
+      const top = pageStart(pageWidth, ratios, startPadding) + y * pageWidth / ratios[index] - size.height / 2;
+      virtualizer.scrollToOffset(Math.max(0, top));
+      element.scrollLeft = Math.max(0, x * Math.max(size.width, pageWidth) - size.width / 2);
+      commit.current.programTop = element.scrollTop;
+    }
+    viewportGeometry.current = { document, ...size, pageWidth, ratios, padding: startPadding,
+      top: element.scrollTop, left: element.scrollLeft };
+  }, [document, geometryReady, size, pageWidth, ratios, startPadding, currentPage, fitRequest, zoom, virtualizer]);
+
   useEffect(() => {
     const state = commit.current;
     // Intent belongs to this document and current selection. A newer selection
@@ -193,6 +223,15 @@ export function useContinuousReaderLayout({
 
   const onScroll = () => {
     const state = commit.current;
+    const element = scrollRef.current;
+    const geometry = viewportGeometry.current;
+    // ResizeObserver and native scroll events can arrive in either order.
+    // A scroll caused by changing viewport bounds is not a page selection.
+    if (element && geometry) {
+      if (element.clientWidth !== geometry.width || element.clientHeight !== geometry.height) return;
+      geometry.top = element.scrollTop;
+      geometry.left = element.scrollLeft;
+    }
     if (zoomLease.current !== null) return;
     if (state.document !== document || editing || state.pending || !geometryReady || state.alignedPage === null) return;
     const scrollTop = scrollRef.current?.scrollTop ?? 0;

@@ -43,12 +43,12 @@ export function PersonalLayerCard({ layer, editing, workspace, pending, blocked,
         <Button ref={renameButton} className="personal-layer-row-action" aria-label={`重命名 ${layer.name}`} isDisabled={pending || blocked || renaming} onPress={() => { setName(layer.name); setRenaming(true); }}>重命名</Button>
         <Button className="personal-layer-row-action personal-layer-row-action--delete" aria-label={`删除 ${layer.name}`} isDisabled={pending || blocked} onPress={() => { setError(""); setConfirming(true); }}>删除</Button>
       </> : <>
-      {!isLocalExperience(workspace) && <Switch className="personal-layer-share layer-row__accessory" aria-label={`分享 ${layer.name}`} aria-description="开启后云盘成员可见，关闭后仅自己可见；仅作者可编辑" isSelected={!!layer.sharing} isDisabled={pending || blocked || !layer.canShare}
-        onChange={sharing => void onChange({ sharing })}><span className="personal-layer-share-track" aria-hidden="true" /><span>分享</span></Switch>}
       <label className="layer-row__visibility"><input id={visibilityId} type="checkbox" aria-label={`显示 ${layer.name}`} checked={layer.subscribed}
         onChange={event => onSubscribe(event.target.checked)} /></label></>}
     </div>
     <div className="personal-layer-details"><p className="personal-layer-audience">{isLocalExperience(workspace) ? "仅保存在此浏览器" : layer.sharing ? "云盘成员可见" : "仅自己可见"}</p>
+      {editing && !isLocalExperience(workspace) && <Switch className="personal-layer-share layer-row__accessory" aria-label={`分享 ${layer.name}`} aria-description="开启后云盘成员可见，关闭后仅自己可见；仅作者可编辑" isSelected={!!layer.sharing} isDisabled={pending || blocked || !layer.canShare}
+        onChange={sharing => void onChange({ sharing })}><span className="personal-layer-share-track" aria-hidden="true" /><span>分享</span></Switch>}
     </div>
     {renaming && <form className="personal-layer-rename" onSubmit={event => { event.preventDefault(); void onChange({ name: name.trim() }).then(saved => { if (saved) closeRename(); }); }}>
       <input autoFocus aria-label={`${layer.name}的名称`} maxLength={60} required value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Escape" && !pending) { event.stopPropagation(); closeRename(); } }} />

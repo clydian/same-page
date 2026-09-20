@@ -1,5 +1,5 @@
 import { useInteractOutside } from "react-aria";
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, useSyncExternalStore } from "react";
 import { MousePointer2, SlidersHorizontal, ChevronDown, Eraser, Highlighter, Square, Circle, Lock, Pencil, Redo2, Type, Undo2, X } from "lucide-react";
 import { Button,  DialogTrigger, Popover } from "react-aria-components";
 import { Dialog } from "../navigation/overlays";
@@ -15,6 +15,7 @@ import { defaultToolStyle, type ToolStyle } from "../annotations/tool-style";
 
 export function ReaderEditingControls({
   isDisabled,
+  localOnly = false,
   editor,
   layers,
   tool,
@@ -27,6 +28,7 @@ export function ReaderEditingControls({
   onLayerChange,
 }: {
   isDisabled: boolean;
+  localOnly?: boolean;
   editor: AnnotationEditor;
   layers: AnnotationLayerSummary[];
   tool: AnnotationTool;
@@ -55,7 +57,11 @@ export function ReaderEditingControls({
     onInteractOutsideStart: closeStyleOutside, onInteractOutside: closeStyleOutside });
   const [choosingLayer, setChoosingLayer] = useState(false);
   const toolHasStyle = tool !== "eraser" && tool !== "select";
+  const canUndo = useSyncExternalStore(editor.subscribe, () => editor.canUndo(activeLayerId));
+  const canRedo = useSyncExternalStore(editor.subscribe, () => editor.canRedo(activeLayerId));
+  const toolNames = { select: "选择", text: "文字", ink: "画笔", highlighter: "荧光笔", rectangle: "矩形", ellipse: "椭圆", eraser: "整条橡皮" };
   const selectedLayer = layers.find((layer) => layer.id === activeLayerId);
+  const audience = localOnly ? "体验 · 仅本机" : selectedLayer?.kind === "shared" ? "共享 · 云盘可见" : selectedLayer?.sharing ? "个人 · 云盘可见" : "个人 · 仅自己";
   const chooseLayer = (layerId: string) => {
     onLayerChange(layerId);
     setStyleSource(null);
@@ -69,9 +75,9 @@ export function ReaderEditingControls({
         <Button
           isDisabled={isDisabled}
           className="reader-edit-layer-trigger"
-          aria-label={`当前编辑层：${selectedLayer?.name ?? ""}，写到哪里`}
+          aria-label={`当前编辑层：${selectedLayer?.name ?? ""}，${audience}，写到哪里`}
         >
-          <span>{selectedLayer?.name}</span>
+          <span className="reader-edit-layer-identity"><span>{selectedLayer?.name}</span><small>{audience}</small></span>
           <ChevronDown aria-hidden="true" size={14} />
         </Button>
         <Popover className="reader-edit-layer-popover" placement="top" offset={12}>
@@ -102,7 +108,7 @@ export function ReaderEditingControls({
           {(["select", "ink", "highlighter", "eraser", "text", "rectangle", "ellipse"] as const).map((entry) => (
             <Button
               isDisabled={isDisabled || !selectedLayer?.canEdit}
-              aria-label={{ select: "选择", text: "文字", ink: "画笔", highlighter: "荧光笔", rectangle: "矩形", ellipse: "椭圆", eraser: "整条橡皮" }[entry]}
+              aria-label={toolNames[entry]}
               aria-pressed={tool === entry}
               aria-haspopup={entry === tool && toolHasStyle ? "dialog" : undefined}
               aria-expanded={entry === tool && toolHasStyle ? styleSource === entry : undefined}
@@ -115,6 +121,7 @@ export function ReaderEditingControls({
               }}
             >
               <AnnotationToolIcon tool={entry} />
+              {tool === entry && <span className="annotation-tool-name" aria-hidden="true">{toolNames[entry]}</span>}
             </Button>
           ))}
         </div>
@@ -147,7 +154,7 @@ export function ReaderEditingControls({
       </Popover>
       <div className="annotation-control-group annotation-history-controls" aria-label="历史">
         <Button
-          isDisabled={isDisabled || !selectedLayer?.canEdit}
+          isDisabled={isDisabled || !selectedLayer?.canEdit || !canUndo}
           aria-label="撤销"
           className="annotation-tool-button"
           onPress={() => activeLayerId ? void editor.undo(activeLayerId) : undefined}
@@ -155,7 +162,7 @@ export function ReaderEditingControls({
           <Undo2 aria-hidden="true" size={20} />
         </Button>
         <Button
-          isDisabled={isDisabled || !selectedLayer?.canEdit}
+          isDisabled={isDisabled || !selectedLayer?.canEdit || !canRedo}
           aria-label="重做"
           className="annotation-tool-button"
           onPress={() => activeLayerId ? void editor.redo(activeLayerId) : undefined}
