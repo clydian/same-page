@@ -82,7 +82,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await setInsets(page);
     await page.setViewportSize({ width: 600, height: 390 });
     await page.evaluate(() => { document.documentElement.style.setProperty('--safe-left', '64px'); document.documentElement.style.setProperty('--safe-right', '64px'); });
-    await page.getByRole('button', { name: '添加到主屏幕', exact: true }).click();
+    await page.getByRole('button', { name: '添加到桌面', exact: true }).click();
     await page.locator('.install-modal').waitFor();
     const install = await page.locator('.install-modal').boundingBox();
     assert.ok(install.x >= 64 && install.x + install.width <= 536, `real install modal exceeds safe width: ${JSON.stringify(install)}`);

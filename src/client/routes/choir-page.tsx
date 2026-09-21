@@ -1,3 +1,4 @@
+import { DrivePreparation } from "../score-library/drive-preparation";
 import { useLibraryAttachments } from "../score-library/attachments/use-library-attachments";
 import { AttachmentLoading } from "../score-library/attachments/attachment-shell";
 import { LibraryTaskLoading } from "../score-library/library-task-dialog";
@@ -207,7 +208,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           <IdentityNotice identity={identity} />
           {searchMessage && <p role="status">{searchMessage}<Button onPress={() => void refresh()}>重试</Button></p>}
         </div>}
-        <InstallSuggestion />
+        {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
+          (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
+          <DrivePreparation choirId={choirId} accountReady={Boolean(identity.authenticatedUserId) && access.isMember} />}
         <section className="library-workspace" aria-labelledby="library-content-title">
           <div className="library-toolbar">
             <div className="library-controls">

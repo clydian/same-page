@@ -20,7 +20,7 @@ export function AndroidInstallOption({ children }: { children: ReactNode }) {
     <p className="install-choice-intro">两种安装方式，选择一种即可</p>
     <section className="install-choice" aria-label="通过浏览器安装">
       <h3>通过浏览器安装</h3>
-      <p className="install-choice-description">直接添加到主屏幕，下次点图标打开。</p>
+      <p className="install-choice-description">直接添加到桌面，下次点图标打开。</p>
       {children}
     </section>
     <div className="install-choice-or">或者</div>

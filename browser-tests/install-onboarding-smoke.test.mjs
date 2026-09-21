@@ -12,10 +12,10 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   const page = await wechat.newPage();
   await page.goto(`${fixture.origin}/?join=1#${new URLSearchParams({ invite: fixture.joinCode })}`);
   await expect(page.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "安装建议" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "排练准备" })).toBeVisible();
   await mkdir("artifacts/verification/install-onboarding", { recursive: true });
   await page.screenshot({ path: "artifacts/verification/install-onboarding/01-drive.png" });
-  await page.getByRole("button", { name: "添加到主屏幕", exact: true }).click();
+  await page.getByRole("button", { name: "添加到桌面", exact: true }).click();
   await expect(page.getByText("点右上角 ···", { exact: false })).toBeVisible();
   // Keep bearer URLs in memory only; screenshots and assertion output omit them.
   const bridge = page.url();
@@ -33,7 +33,7 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   await external.screenshot({ path: "artifacts/verification/install-onboarding/03-safari.png" });
   await external.getByRole("link", { name: "先看乐谱" }).click();
   await expect(external.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
-  await external.getByRole("button", { name: "添加到主屏幕", exact: true }).click();
+  await external.getByRole("button", { name: "添加到桌面", exact: true }).click();
   await external.getByText("添加时遇到问题？", { exact: true }).click();
   await expect(external.getByRole("textbox", { name: "合谱网址" })).toHaveValue(/\/install\?drive=.*#handoff=/);
   const cookies = await safari.cookies();
@@ -48,7 +48,8 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   });
   await launched.goto(fixture.origin);
   await expect(launched.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
-  await expect(launched.getByRole("complementary", { name: "安装建议" })).toHaveCount(0);
+  await expect(launched.getByRole("button", { name: "添加到桌面", exact: true })).toHaveCount(0);
+  await expect(launched.getByRole("link", { name: "注册 / 登录，开始记笔记", exact: true })).toBeVisible();
   await expect(launched.locator(".file-row__open")).toHaveCount(1);
   // Explicit home navigation must still stay home.
   await launched.getByRole("button", { name: "打开云盘菜单" }).click();
@@ -71,11 +72,11 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
     window.dispatchEvent(event);
   });
   await androidPage.getByRole("button", { name: "安装合谱", exact: true }).click();
-  await androidPage.getByRole("dialog").getByRole("button", { name: "添加到主屏幕", exact: true }).click();
-  await expect(androidPage.getByRole("dialog").getByText("主屏幕没有合谱图标？")).toBeVisible();
+  await androidPage.getByRole("dialog").getByRole("button", { name: "添加到桌面", exact: true }).click();
+  await expect(androidPage.getByRole("dialog").getByText("桌面没有合谱图标？")).toBeVisible();
   await androidPage.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
   await androidPage.getByRole("button", { name: "关闭安装引导" }).click();
-  const recovery = androidPage.getByText("主屏幕没有合谱图标？");
+  const recovery = androidPage.getByText("桌面没有合谱图标？");
   await expect(recovery).toBeVisible();
   await expect(recovery.locator("..")).not.toHaveAttribute("open");
   await recovery.click();

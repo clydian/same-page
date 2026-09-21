@@ -1,0 +1,3 @@
+.guest-note-dialog { display: flex; flex-direction: column; gap: 14px; }
+.guest-note-dialog .dialog-copy { margin: 0 0 6px; line-height: 1.8; }
+.guest-note-dialog .primary-button { text-align: center; }

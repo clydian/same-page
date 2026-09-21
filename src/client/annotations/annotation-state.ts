@@ -1,4 +1,4 @@
-import { GUEST_NOTE_LAYER_ID, guestNoteLayer, isLocalExperience } from "./guest-notes";
+import { GUEST_NOTE_LAYER_ID, availableAnnotationLayers, isLocalExperience } from "./guest-notes";
 import { reconcileAnnotationReadingPreferences } from "../reader/reading-preferences";
 import { diagnoseLocalOperation } from "../diagnostics/local-operation";
 import { hasValidSnapshotShape, hasCompleteOfflineLayers } from "../offline/offline-score-verification";
@@ -28,17 +28,20 @@ import {
 
 export function readAnnotationLayers(workspace: LocalWorkspace) {
   return withLocalWorkspaceTransaction(workspace, "r", [localDatabase.annotationLayers], () =>
-    localDatabase.annotationLayers.where("scopeKey").equals(workspace.scopeKey).sortBy("sortOrder"));
+    localDatabase.annotationLayers.where("scopeKey").equals(workspace.scopeKey).sortBy("sortOrder").then(layers =>
+      workspace.ownerKey.startsWith("guest:") ? availableAnnotationLayers(workspace, layers) : layers));
 }
 
 export function readScoreAnnotationState(workspace: LocalWorkspace) {
   return withLocalWorkspaceTransaction(workspace, "r", [localDatabase.annotationLayers, localDatabase.annotations, localDatabase.annotationOutbox, localDatabase.annotationConflicts], async () => {
-    const [layers, annotations, pendingCount, conflicts] = await Promise.all([
+    const [cachedLayers, cachedAnnotations, pendingCount, conflicts] = await Promise.all([
       localDatabase.annotationLayers.where("scopeKey").equals(workspace.scopeKey).sortBy("sortOrder"),
       localDatabase.annotations.where("scopeKey").equals(workspace.scopeKey).toArray(),
       localDatabase.annotationOutbox.where("scopeKey").equals(workspace.scopeKey).count(),
       localDatabase.annotationConflicts.where("scopeKey").equals(workspace.scopeKey).toArray(),
     ]);
+    const layers = workspace.ownerKey.startsWith("guest:") ? availableAnnotationLayers(workspace, cachedLayers) : cachedLayers;
+    const annotations = workspace.ownerKey.startsWith("guest:") ? cachedAnnotations.filter(note => layers.some(layer => layer.id === note.layerId)) : cachedAnnotations;
     return { scopeKey: workspace.scopeKey, layersReady: hasCompleteOfflineLayers(layers, workspace.ownerKey), layers, annotations, pendingCount, conflicts, syncErrorCount: annotations.filter((annotation) => annotation.state === "sync-error").length };
   });
 }
@@ -51,9 +54,7 @@ export interface DraftInput {
 }
 
 export async function cacheAnnotationLayers(workspace: LocalWorkspace, layers: AnnotationLayerSummary[], sharedLayerRevision?: number, preferenceVersion?: string) {
-  if (isLocalExperience(workspace)) layers = [
-    ...layers.filter(layer => layer.kind === "shared").map(layer => ({ ...layer, canEdit: false })), guestNoteLayer(),
-  ];
+  layers = availableAnnotationLayers(workspace, layers);
   return withLocalWorkspaceTransaction(workspace, "rw", [localDatabase.annotationLayers,
     localDatabase.annotations, localDatabase.annotationSyncCursors, localDatabase.offlineSnapshots, localDatabase.readingPreferences], async () => {
     if (sharedLayerRevision !== undefined && !await acceptSharedLayerAvailability(workspace, {
@@ -161,6 +162,7 @@ export async function saveAnnotationDraft(
     input = { ...input, payload: { ...input.payload, textAlign: "center" } };
   }
   await assertLocalWorkspaceActive(workspace);
+  if (workspace.ownerKey.startsWith("guest:")) throw new Error("guest_notes_are_read_only");
   if (isLocalExperience(workspace) && input.layerId !== GUEST_NOTE_LAYER_ID) throw new Error("guest_notes_are_local_only");
   await localDatabase.transaction(
     "rw",
@@ -287,7 +289,7 @@ export async function cleanupUncreatedDeleteConflicts(
 
 export async function queueScoreDrafts(workspace: LocalWorkspace) {
   await assertLocalWorkspaceActive(workspace);
-  if (isLocalExperience(workspace)) return 0;
+  if (!workspace.ownerKey.startsWith("user:")) return 0;
   return localDatabase.transaction(
     "rw",
     localDatabase.system,

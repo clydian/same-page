@@ -13,7 +13,7 @@ async function open(context, engine) {
   const page = await browser.newPage({ viewport: { width: 1194, height: 700 }, hasTouch: true, serviceWorkers: "block" });
   await page.route("**/api/**", route => route.fulfill(resolveFixtureRequest({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "guest", scenarioId: "reader-controls-narrow", cookie: route.request().headers().cookie ?? "" })));
   await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
-  await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score`);
+  await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score?experience=1`);
   await page.locator('.page-reader__sheet[data-page-turn-current] canvas[data-pdf-canvas-active]').waitFor();
   await page.locator('.page-reader__viewport').click({ position: { x: 590, y: 350 } });
   await page.getByRole('button', { name: '更多', exact: true }).click();

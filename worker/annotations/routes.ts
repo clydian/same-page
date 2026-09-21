@@ -40,6 +40,10 @@ annotationRoutes.get("/choirs/:choirId/scores/:scoreId/layers", async (context) 
 
 export async function readScoreLayers(context: Context<AppEnvironment>, access: ResolvedScoreAccess) {
   const { choirId, scoreId, principal } = access;
+  if (context.req.query("experience") === "1") {
+    const preview = await context.env.DB.prepare("SELECT id FROM choirs WHERE id = ? AND is_preview_entry = 1 AND guest_admission_mode = 'open'").bind(choirId).first();
+    if (!preview) throw new AuthorizationError();
+  }
   const userId = context.req.query("experience") !== "1" && principal.kind === "user" ? principal.userId : null;
 
   if (userId) {

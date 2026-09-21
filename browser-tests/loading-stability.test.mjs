@@ -37,7 +37,7 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
     const firstButton = page.getByRole("button", { name: "本地链路测试：1 个附件", exact: true });
     const secondButton = page.getByRole("button", { name: "第二份：1 个附件", exact: true });
     await firstButton.waitFor();
-    const install = page.getByRole("button", { name: "暂时不用，关闭安装建议", exact: true });
+    const install = page.getByRole("button", { name: "暂时不用，关闭排练准备", exact: true });
     if (await install.isVisible()) await install.click();
     for (const [button, expectedName] of [[firstButton, "第一份参考"], [secondButton, "第二份参考"]]) {
       const gate = await hold(page, "**/api/choirs/*/attachments?*");

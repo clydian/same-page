@@ -1,3 +1,4 @@
+import { GuestNoteDialog } from "../auth/guest-note-invitation";
 import { ReaderGuide } from "../reader/reader-guide";
 import { useReaderHint } from "../reader/use-reader-hint";
 import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
@@ -118,6 +119,8 @@ function ReaderPageContent() {
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
   const [layerPanelTab, setLayerPanelTab] = useState<"display" | "manage">("display");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [guestNoteOpen, setGuestNoteOpen] = useState(false);
+  const guestReadOnly = workspace?.ownerKey.startsWith("guest:") === true;
   const moreTrigger = useRef<HTMLButtonElement>(null);
   const layersTrigger = useRef<HTMLButtonElement>(null);
   const previousPanel = useRef(readerPanel);
@@ -240,6 +243,7 @@ function ReaderPageContent() {
   };
 
   const requestEditing = () => {
+    if (guestReadOnly) { setGuestNoteOpen(true); return; }
     if (layers.some((layer) => layer.canEdit)) {
       beginEditing();
       return;
@@ -370,6 +374,7 @@ function ReaderPageContent() {
         <span>页面显示失败，本机草稿仍保留。</span>{displayChoices}{diagnosticDialog}
       </div> : null}
       {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
+      {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
       {chromeVisible && !guide.visible ? (
       <header className="reader-chrome" data-editing={editing || undefined} aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
@@ -386,7 +391,7 @@ function ReaderPageContent() {
                 data-state={editAvailability}
                 isDisabled={
                   editAvailability === "preparing" ||
-                  editAvailability === "read-only" ||
+                  (editAvailability === "read-only" && !guestReadOnly) ||
                   editAvailability === "trashed"
                 }
                 onPress={() => editing ? navigation.afterEditing(() => { /* Completion is performed by the editing exit layer. */ }) : requestEditing()}
@@ -424,7 +429,7 @@ function ReaderPageContent() {
                   : editAvailability === "failed"
                     ? "编辑准备失败，点按铅笔重试"
                     : editAvailability === "read-only"
-                      ? <>此乐谱为只读状态{!identity.localUserId && <Link to={loginHref(`/choirs/${choirId}/scores/${scoreId}`)}>登录后写自己的笔记</Link>}</>
+                      ? <>此乐谱为只读状态{!identity.localUserId && <Link to={loginHref(`/choirs/${choirId}/scores/${scoreId}`)}>注册 / 登录后记笔记并同步</Link>}</>
                       : "乐谱在回收站中，恢复后可编辑"}
               </p>
             ) : null}
@@ -434,7 +439,7 @@ function ReaderPageContent() {
             <Dialog className="reader-more-menu" aria-label="更多阅读选项">
               <header className="reader-menu-heading"><strong>阅读选项</strong><Button className="icon-button" aria-label="关闭更多阅读选项" onPress={() => setMoreOpen(false)}><X size={20} aria-hidden="true" /></Button></header>
               <IdentityNotice identity={identity} />
-              {guestExperience && <section aria-label="本机体验笔记"><h2>本机体验笔记</h2><p>仅保存在此浏览器，不上传、不修改公开内容。</p>
+              {guestExperience && <section aria-label="本机体验笔记"><h2>本机体验笔记</h2><p>仅保存在此浏览器，不上传；登录后也不会转入个人笔记。</p>
                 <Button onPress={() => { if (workspace) void clearGuestNotes(workspace).then(() => reportOutcome("local-saved")).catch(() => reportOutcome("failed")); }}>清除本谱体验笔记</Button>
               </section>}
               {!editing && <>
