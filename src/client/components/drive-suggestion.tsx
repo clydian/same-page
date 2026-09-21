@@ -13,7 +13,7 @@ export function DriveSuggestion({ id, label, title, children, action, closeLabel
     <div className="drive-suggestion__heading"><strong>{title}</strong>
       <Button className="icon-button" aria-label={closeLabel} onPress={() => setDismissed(true)}><X size={18} aria-hidden="true" /></Button>
     </div>
-    <p>{children}</p>
+    <div className="drive-suggestion__body">{children}</div>
     <div className="drive-suggestion__action">{action}</div>
   </aside>;
 }

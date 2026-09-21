@@ -1,0 +1,8 @@
+.preparation-steps { display: grid; gap: 15px; list-style: none; padding: 0; margin: 14px 0 16px; }
+.preparation-steps li { display: flex; align-items: flex-start; gap: 10px; }
+.preparation-step-marker { display: grid; place-items: center; flex: 0 0 26px; height: 26px; border: 1px solid #bad0c9; border-radius: 50%; color: #204a40; background: #fff; font-size: 13px; font-weight: 650; }
+.preparation-steps strong { display: block; color: #173d44; font-size: 14px; line-height: 26px; }
+.preparation-steps p { margin: 2px 0 0; font-size: 13px; line-height: 1.65; }
+.preparation-steps [data-complete] .preparation-step-marker { color: #386c5a; border-color: transparent; background: #dfede6; }
+.preparation-steps [data-complete] strong { color: #526b61; font-weight: 500; }
+.drive-suggestion__action .preparation-login { color: #315e59; padding-inline: 0; font-size: 13px; text-underline-offset: 3px; }

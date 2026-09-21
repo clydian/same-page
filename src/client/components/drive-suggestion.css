@@ -4,3 +4,4 @@
 .drive-suggestion__heading .icon-button { flex-shrink: 0; width: 44px; height: 44px; margin: -10px -8px -10px 0; }
 .drive-suggestion p { margin: 6px 0 12px; color: #52666b; font-size: 14px; line-height: 1.65; }
 .drive-suggestion__action > :is(a, button) { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 44px; max-width: 100%; padding: 8px 14px; text-align: center; }
+.drive-suggestion__action { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }

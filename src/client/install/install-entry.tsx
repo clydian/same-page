@@ -8,15 +8,15 @@ import { detectInstallGuide, useInstall } from "./install-context";
 export function InstallButton({ className }: { className?: string }) {
   const install = useInstall();
   if (!install || install.hidden) return null;
-  return <Button className={`install-button ${className ?? (install.nativeAvailable ? "primary-button" : "secondary-button")}`} onPress={install.open}><Download size={18} aria-hidden="true" />{detectInstallGuide(navigator.userAgent, navigator.maxTouchPoints) === "android" ? "安装合谱" : "添加到主屏幕"}</Button>;
+  return <Button className={`install-button ${className ?? (install.nativeAvailable ? "primary-button" : "secondary-button")}`} onPress={install.open}><Download size={18} aria-hidden="true" />{detectInstallGuide(navigator.userAgent, navigator.maxTouchPoints) === "android" ? "安装合谱" : "添加到桌面"}</Button>;
 }
 
 export function InstallSuggestion() {
   const install = useInstall();
   if (!install?.suggest) return null;
-  return <DriveSuggestion id="install" label="安装建议" title="把合谱添加到主屏幕"
+  return <DriveSuggestion id="install" label="安装建议" title="把合谱添加到桌面"
     closeLabel="暂时不用，关闭安装建议" action={<InstallButton className="secondary-button" />}>
-    下次排练，点一下图标就能打开。
+    <p>下次排练，点一下图标就能打开。</p>
   </DriveSuggestion>;
 }
 

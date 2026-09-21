@@ -17,7 +17,7 @@ afterEach(() => { window.localStorage.clear(); vi.restoreAllMocks(); vi.unstubAl
 
 it("keeps manual help available without a native prompt, and copies no invite or auth data", () => {
   mount();
-  fireEvent.click(screen.getAllByRole("button", { name: "添加到主屏幕" })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: "添加到桌面" })[0]);
   expect(screen.getByRole("dialog")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "已了解，打开安装提示" })).not.toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: "合谱网址", hidden: true })).toHaveValue(`${location.origin}/`);
@@ -32,15 +32,15 @@ it("consumes a deferred prompt once and keeps help after cancellation", async ()
   expect(event.defaultPrevented).toBe(true);
   expect(prompt).not.toHaveBeenCalled();
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  fireEvent.click(screen.getAllByRole("button", { name: "添加到主屏幕" })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: "添加到桌面" })[0]);
   await act(async () => {});
   expect(prompt).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("status")).toHaveTextContent("已取消安装");
   expect(screen.getByRole("complementary", { name: "安装建议", hidden: true })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "已了解，打开安装提示" })).not.toBeInTheDocument();
   act(() => { window.dispatchEvent(new Event("appinstalled")); });
-  expect(screen.getByText("主屏幕没有合谱图标？")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "添加到主屏幕" })).not.toBeInTheDocument();
+  expect(screen.getByText("桌面没有合谱图标？")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "添加到桌面" })).not.toBeInTheDocument();
 });
 
 it("dismisses a suggestion for this visit and shows it on the next open, even after a legacy dismissal", () => {
@@ -51,13 +51,13 @@ it("dismisses a suggestion for this visit and shows it on the next open, even af
   view.unmount();
   mount();
   expect(screen.getByRole("complementary", { name: "安装建议" })).toBeInTheDocument();
-  expect(screen.getAllByRole("button", { name: "添加到主屏幕" })[0]).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: "添加到桌面" })[0]).toBeInTheDocument();
 });
 
 it("hides promotion in the manifest fullscreen display mode", () => {
   vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(display-mode: fullscreen)", addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   mount();
-  expect(screen.queryByRole("button", { name: "添加到主屏幕" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "添加到桌面" })).not.toBeInTheDocument();
 });
 
 it("recognizes iPad desktop UA, iOS Chrome and embedded browsers independently", () => {
@@ -79,7 +79,7 @@ it.each(["iPhone MicroMessenger", "Android MicroMessenger"])("only shows WeChat 
   const event = new Event("beforeinstallprompt", { cancelable: true });
   Object.defineProperty(event, "prompt", { value: prompt });
   act(() => { window.dispatchEvent(event); });
-  fireEvent.click(screen.getAllByRole("button", { name: "添加到主屏幕" })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: "添加到桌面" })[0]);
   expect(screen.getAllByText(/先.*打开/).length).toBeGreaterThan(0);
   expect(screen.getByRole("button", { name: "复制链接", hidden: true })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "已了解，打开安装提示" })).not.toBeInTheDocument();
@@ -96,13 +96,13 @@ it("waits for the Android PWA choice and keeps guidance after cancellation", asy
   act(() => { window.dispatchEvent(event); });
   fireEvent.click(screen.getAllByRole("button", { name: "安装合谱" })[0]);
   expect(prompt).not.toHaveBeenCalled();
-  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "添加到主屏幕" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "添加到桌面" }));
   expect(prompt).toHaveBeenCalledTimes(1);
   await act(async () => {});
   const details = screen.getByText("添加时遇到问题？").closest("details");
   expect(details).not.toHaveAttribute("open");
   expect(details).toHaveTextContent("创建桌面快捷方式");
-  expect(screen.getByText(/添加后，回到主屏幕/)).toBeInTheDocument();
+  expect(screen.getByText(/添加后，回到桌面/)).toBeInTheDocument();
 });
 
 it("recovers from a failed prompt with manual help and consumes a newly offered event", async () => {
@@ -111,18 +111,18 @@ it("recovers from a failed prompt with manual help and consumes a newly offered 
   const event = new Event("beforeinstallprompt", { cancelable: true });
   Object.defineProperty(event, "prompt", { value: failed });
   act(() => window.dispatchEvent(event));
-  await act(async () => fireEvent.click(screen.getAllByRole("button", { name: "添加到主屏幕" })[0]));
+  await act(async () => fireEvent.click(screen.getAllByRole("button", { name: "添加到桌面" })[0]));
   expect(screen.getByRole("status")).toHaveTextContent("暂时无法打开安装窗口");
   const accepted = vi.fn().mockResolvedValue({ outcome: "accepted" });
   const next = new Event("beforeinstallprompt", { cancelable: true });
   Object.defineProperty(next, "prompt", { value: accepted });
   act(() => window.dispatchEvent(next));
-  await act(async () => fireEvent.click(screen.getAllByRole("button", { name: "添加到主屏幕" })[0]));
+  await act(async () => fireEvent.click(screen.getAllByRole("button", { name: "添加到桌面" })[0]));
   expect(failed).toHaveBeenCalledTimes(1);
   expect(accepted).toHaveBeenCalledTimes(1);
-  expect(screen.getByText("主屏幕没有合谱图标？")).toBeInTheDocument();
+  expect(screen.getByText("桌面没有合谱图标？")).toBeInTheDocument();
   act(() => window.dispatchEvent(new Event("appinstalled")));
-  expect(screen.queryByRole("button", { name: "添加到主屏幕" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "添加到桌面" })).not.toBeInTheDocument();
 });
 
 it("keeps Android permission recovery after acceptance and appinstalled", async () => {
@@ -133,12 +133,12 @@ it("keeps Android permission recovery after acceptance and appinstalled", async 
   Object.defineProperty(event, "prompt", { value: prompt });
   act(() => window.dispatchEvent(event));
   fireEvent.click(screen.getAllByRole("button", { name: "安装合谱" })[0]);
-  await act(async () => fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "添加到主屏幕" })));
-  const help = screen.getByText("主屏幕没有合谱图标？").closest("details");
+  await act(async () => fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "添加到桌面" })));
+  const help = screen.getByText("桌面没有合谱图标？").closest("details");
   expect(help).not.toHaveAttribute("open");
   expect(help).toHaveTextContent("创建桌面快捷方式");
   act(() => window.dispatchEvent(new Event("appinstalled")));
-  expect(screen.getByText("主屏幕没有合谱图标？")).toBeInTheDocument();
+  expect(screen.getByText("桌面没有合谱图标？")).toBeInTheDocument();
   expect(screen.queryByText("现在已从合谱应用打开，可以继续看谱。")).not.toBeInTheDocument();
   expect(prompt).toHaveBeenCalledTimes(1);
 });
@@ -155,7 +155,7 @@ it("offers Android APK alongside PWA without consuming the prompt on opening", a
   fireEvent.click(screen.getAllByRole("button", { name: "安装合谱" })[0]);
   expect(await screen.findByRole("link", { name: "下载 Android 安装包" })).toHaveAttribute("href", "/api/android-release/apk");
   expect(prompt).not.toHaveBeenCalled();
-  await act(async () => fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "添加到主屏幕" })));
+  await act(async () => fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "添加到桌面" })));
   expect(prompt).toHaveBeenCalledTimes(1);
 });
 
@@ -163,7 +163,7 @@ it("never fetches or shows APK installation inside WeChat", () => {
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Android MicroMessenger");
   const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
   mount();
-  fireEvent.click(screen.getAllByRole("button", { name: "添加到主屏幕" })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: "添加到桌面" })[0]);
   expect(screen.queryByText("下载 Android 安装包")).not.toBeInTheDocument();
   expect(fetch).not.toHaveBeenCalled();
 });
