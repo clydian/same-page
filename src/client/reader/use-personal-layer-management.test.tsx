@@ -147,3 +147,24 @@ it.each(["submit", "retry"])("retains one creation identity after a lost respons
   expect(result.current.creating).toBe(false);
   expect(result.current.feedback).toBeNull();
 });
+
+it("retires a pending write when cloud authentication disappears while the local owner remains", async () => {
+  let releaseWrite: (response: Response) => void = () => undefined;
+  const remote = vi.fn<typeof fetch>(async (_input, init) => {
+    if (init?.method === "PUT") return new Promise(resolve => { releaseWrite = resolve; });
+    return Response.json(syncResponse);
+  });
+  vi.stubGlobal("fetch", remote);
+  const { result, rerender } = renderHook(({ signedIn }) => usePersonalLayerManagement(workspace, signedIn), { initialProps: { signedIn: true } });
+  let completion: Promise<boolean>;
+  act(() => { completion = result.current.change(own, { sharing: true }); });
+  await waitFor(() => expect(remote).toHaveBeenCalledTimes(1));
+  rerender({ signedIn: false });
+  await act(async () => { releaseWrite(Response.json({ revision: 5 })); expect(await completion).toBe(false); });
+  expect(remote).toHaveBeenCalledTimes(1);
+  expect(result.current.feedback).toBeNull();
+  expect(result.current.retry).toBeNull();
+  expect(result.current.pending).toBe(false);
+  rerender({ signedIn: true });
+  expect(result.current.blocked).toBe(false);
+});

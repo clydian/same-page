@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { annotationLayerListResponseSchema, type AnnotationLayerSummary } from "../../shared/annotations";
 import { isLocalExperience } from "../annotations/guest-notes";
 import { readScoreAnnotationState } from "../annotations/annotation-state";
@@ -38,6 +38,20 @@ export function usePersonalLayerManagement(workspace: LocalWorkspace, signedIn: 
   const [canRetry, setCanRetry] = useState(false);
   const [deleted, setDeleted] = useState<AnnotationLayerSummary[]>([]);
   const [deletedLoaded, setDeletedLoaded] = useState(false);
+  const [previousEnabled, setPreviousEnabled] = useState(enabled);
+  if (previousEnabled !== enabled) {
+    setPreviousEnabled(enabled);
+    setPending(false); setNeedsRefresh(false); setCanRetry(false); setFeedback(null);
+  }
+  useLayoutEffect(() => {
+    if (enabled) return;
+    // Losing cloud authentication need not change the offline owner or unmount
+    // the panel. Retire remote work while preserving the user's form input.
+    controller.current?.abort();
+    gate.current.busy = false;
+    gate.current.needsRefresh = false;
+    attempt.current = null;
+  }, [enabled]);
 
   const run = async (current: Attempt) => {
     if (!enabled || gate.current.busy || gate.current.retired) return false;
