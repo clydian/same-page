@@ -12,7 +12,7 @@ function mount(accountReady: boolean, installed = false) {
 }
 
 it.each([
-  { accountReady: false, installed: false, installation: true, login: "暂不添加，直接登录" },
+  { accountReady: false, installed: false, installation: true, login: null },
   { accountReady: true, installed: false, installation: true, login: null },
   { accountReady: false, installed: true, installation: false, login: "注册 / 登录，开始记笔记" },
   { accountReady: true, installed: true, installation: false, login: null },

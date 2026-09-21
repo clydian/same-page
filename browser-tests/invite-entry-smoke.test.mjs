@@ -43,7 +43,7 @@ test("valid invitations automatically admit guests, existing members and named n
       await expect(page.locator(".file-row__open")).toHaveCount(1);
       assert.equal(admissions, 1);
       if (mode === "fresh") {
-        await expect(page.getByRole("link", { name: "暂不添加，直接登录", exact: true })).toBeVisible();
+        await expect(page.getByRole("complementary", { name: "排练准备" }).getByRole("link")).toHaveCount(0);
         if (process.env.LAYOUT_CAPTURE_DIR) {
           await mkdir(process.env.LAYOUT_CAPTURE_DIR, { recursive: true });
           await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/guest-drive-phone.png`, fullPage: true });
@@ -88,7 +88,7 @@ test("valid invitations automatically admit guests, existing members and named n
       }
       if (mode === "member") {
         await expect(page.getByText("已登录并加入云盘", { exact: true })).toBeVisible();
-        await expect(page.getByRole("link", { name: "暂不添加，直接登录", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("complementary", { name: "排练准备" }).getByRole("link")).toHaveCount(0);
         if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/install-remaining-phone.png`, fullPage: true });
         await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
         await expect(page.getByRole("complementary", { name: "排练准备" })).toHaveCount(0);

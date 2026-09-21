@@ -19,8 +19,8 @@ export function DrivePreparation({ choirId, accountReady }: { choirId: string; a
       {!installed && (pendingInstall
         ? <Button className="secondary-button" onPress={install.open}>查看添加帮助</Button>
         : <InstallButton className="primary-button" />)}
-      {!accountReady && <Link className={installed ? "primary-button" : "preparation-login"} to={login}>
-        {installed ? "注册 / 登录，开始记笔记" : "暂不添加，直接登录"}
+      {installed && !accountReady && <Link className="primary-button" to={login}>
+        注册 / 登录，开始记笔记
       </Link>}
     </>}>
     <ol className="preparation-steps">

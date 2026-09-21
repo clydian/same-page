@@ -5,4 +5,3 @@
 .preparation-steps p { margin: 2px 0 0; font-size: 13px; line-height: 1.65; }
 .preparation-steps [data-complete] .preparation-step-marker { color: #386c5a; border-color: transparent; background: #dfede6; }
 .preparation-steps [data-complete] strong { color: #526b61; font-weight: 500; }
-.drive-suggestion__action .preparation-login { color: #315e59; padding-inline: 0; font-size: 13px; text-underline-offset: 3px; }
