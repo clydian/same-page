@@ -1,4 +1,4 @@
-import { guestNoteLayer, isLocalExperience } from "./guest-notes";
+import { availableAnnotationLayers } from "./guest-notes";
 import { readingPreferenceVersion } from "../reader/reading-preferences";
 import { untilAborted } from "../platform/abortable";
 import { diagnoseLocalOperation } from "../diagnostics/local-operation";
@@ -222,7 +222,7 @@ export async function applyLayerCapabilities(workspace: LocalWorkspace,
   }, diagnostics);
   await assertLocalWorkspaceActive(workspace);
   signal.throwIfAborted();
-  return isLocalExperience(workspace) ? [...applied.filter(layer => layer.kind === "shared").map(layer => ({ ...layer, canEdit: false })), guestNoteLayer()] : applied;
+  return availableAnnotationLayers(workspace, applied);
 
 }
 
@@ -253,7 +253,7 @@ async function drainAnnotationOutbox(
   options: { maxOperations?: number; signal?: AbortSignal; layers?: AnnotationLayerSummary[] } = {},
 ) {
   await assertLocalWorkspaceActive(workspace);
-  if (isLocalExperience(workspace)) return 0;
+  if (!workspace.ownerKey.startsWith("user:")) return 0;
   const layers = options.layers ?? await refreshLayerCapabilities(workspace,
     options.signal ?? AbortSignal.timeout(30_000));
   const editableLayerIds = new Set(layers.filter(layer => layer.canEdit).map(layer => layer.id));

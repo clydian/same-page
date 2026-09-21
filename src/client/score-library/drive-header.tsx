@@ -1,3 +1,4 @@
+import { loginHref } from "../auth/login-return";
 import { InstallButton } from "../install/install-entry";
 import { RefreshCw } from "lucide-react";
 import { useReturnViewport } from "../navigation/use-return-viewport";
@@ -29,7 +30,7 @@ export function DriveHeader({ choirId, choirName, userId, search, onSearch, onRe
         <TextField value={search} onChange={onSearch} aria-label={`搜索「${choirName}」中的乐谱`}><Input type="search" placeholder="搜索乐谱" /></TextField>
       </Form>
       <Button className="icon-button" aria-label="刷新乐谱列表" isPending={refreshing} onPress={onRefresh}><RefreshCw aria-hidden="true" size={19} /></Button>
-      {userId ? <DrivePersonalMenu key={`${userId}:${choirId}:${displayName ?? ""}`} choirId={choirId} userId={userId} displayName={displayName} localOnly={localOnly} onEditDisplayName={onEditDisplayName} /> : resolvingIdentity ? <span className="drive-avatar" aria-label="正在恢复用户">我</span> : <Link className="drive-avatar" aria-label="登录或注册" to="/login">访</Link>}
+      {userId ? <DrivePersonalMenu key={`${userId}:${choirId}:${displayName ?? ""}`} choirId={choirId} userId={userId} displayName={displayName} localOnly={localOnly} onEditDisplayName={onEditDisplayName} /> : resolvingIdentity ? <span className="drive-avatar" aria-label="正在恢复用户">我</span> : <Link className="drive-avatar" aria-label="登录或注册" to={loginHref(`/choirs/${choirId}`)}>访</Link>}
     </header>
     <ModalOverlay className="drive-drawer-overlay" isOpen={drawerOpen && !loading} onOpenChange={setDrawerOpen} isDismissable>
       <Modal className="drive-drawer"><Dialog preserveOnNavigate aria-label="云盘菜单">{({ close }) => <DrawerBody>

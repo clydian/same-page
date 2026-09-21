@@ -1,7 +1,7 @@
 import { ReaderOpening, readerOpeningFacts, type ReaderOpeningSnapshot } from "./reader-opening";
 import type { ReaderOpeningPhase, ReaderOpeningFacts } from "../../shared/reader-opening";
 import { foregroundDeadline } from "./foreground-deadline";
-import { isLocalExperience } from "../annotations/guest-notes";
+import { availableAnnotationLayers } from "../annotations/guest-notes";
 import { ReaderPresentation } from "./reader-presentation";
 import { offlinePreparationDescription } from "../offline/offline-score-status";
 import { offlineScoreSummary as scoreFromOffline } from "../offline/retained-scores";
@@ -170,7 +170,7 @@ export class ReaderSession {
         await restoreOfflineAnnotationSnapshot(this.workspace, offline).catch(() => undefined);
         if (!await this.current()) return;
         if (this.state.capability !== "trashed" && this.state.cloudState !== "active") {
-          this.publish({ capability: offline.annotationSnapshot.layers.some((layer) => layer.canEdit) ? "ready" : "read-only" });
+          this.publish({ capability: availableAnnotationLayers(this.workspace, offline.annotationSnapshot.layers).some(layer => layer.canEdit) ? "ready" : "read-only" });
         }
         if (this.localMatches() && (!this.state.document || this.state.cloudState === "unavailable" || this.getSnapshot().cloudState === "trashed")) {
           await this.openOffline(offline);
@@ -240,7 +240,7 @@ export class ReaderSession {
       } else if ((confirmation !== "match" || this.source?.kind !== "cloud") && !(this.pdfFailed && !this.cloudInvalidated && this.source?.kind === "cloud" && (!this.source.versionId || this.source.versionId === this.confirmedVersion))) {
         this.openSource({ kind: "cloud", versionId: this.confirmedVersion });
       }
-      if ("layers" in lookup) this.publish({ capability: lookup.layers.layers.some(layer => layer.canEdit) || isLocalExperience(this.workspace) ? "ready" : "read-only" });
+      if ("layers" in lookup) this.publish({ capability: availableAnnotationLayers(this.workspace, lookup.layers.layers).some(layer => layer.canEdit) ? "ready" : "read-only" });
     } else {
       if (!unavailable) {
         this.releasePreparation();

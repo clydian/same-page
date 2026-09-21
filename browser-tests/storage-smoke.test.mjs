@@ -37,7 +37,7 @@ test("real Worker D1/R2 score survives a browser restart offline via IndexedDB",
     context = await chromium.launchPersistentContext(profilePath, { headless: true, serviceWorkers: "allow" });
     await context.setOffline(true);
     const offlinePage = await context.newPage();
-    await offlinePage.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
+    await offlinePage.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}?experience=1`);
     await expectSampleScoreContent(offlinePage);
     // Storage is exercised through product download/reopen, never preloaded or mocked.
     assert.equal(await offlinePage.evaluate(async () => {
