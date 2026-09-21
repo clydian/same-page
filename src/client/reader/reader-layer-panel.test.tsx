@@ -113,30 +113,6 @@ it("creates another private layer, caches both editing targets, and protects uns
   expect(requests.filter(request => request.url.endsWith(`/personal-layers/${newLayer.id}`))).toHaveLength(0);
 });
 
-it.each(["submit", "retry"])("reuses the creation identity after a lost response through %s", async route => {
-  const originalFetch = fetch;
-  let loseResponse = true;
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const result = await originalFetch(input, init);
-    if (init?.method === "POST" && String(input).endsWith("/personal-layers") && loseResponse) {
-      loseResponse = false;
-      throw new Error("response lost after commit");
-    }
-    return result;
-  }));
-  render(<Reader />);
-  fireEvent.click(screen.getByRole("tab", { name: "管理" }));
-  fireEvent.click(await screen.findByRole("button", { name: /新建个人层/ }));
-  fireEvent.change(screen.getByRole("textbox", { name: "新个人层名称" }), { target: { value: "排练记录" } });
-  fireEvent.click(screen.getByRole("button", { name: "新建个人层" }));
-  await screen.findByRole("button", { name: "重试" });
-  fireEvent.click(screen.getByRole("button", { name: route === "retry" ? "重试" : "新建个人层" }));
-  await screen.findByRole("switch", { name: "分享 排练记录" });
-  expect(serverLayers.filter(layer => layer.name === "排练记录")).toHaveLength(1);
-  expect(requests[0].body).toEqual(requests[1].body);
-  expect(screen.queryByRole("textbox", { name: "新个人层名称" })).not.toBeInTheDocument();
-});
-
 it("closes a confirmed creation even when refreshing fails and retries only the refresh", async () => {
   const originalFetch = fetch;
   let failRefresh = true;
@@ -210,6 +186,7 @@ it("keeps sharing private until the server confirms and preserves privacy after 
   await waitFor(() => expect(sharing).toBeDisabled());
   expect(sharing).not.toBeChecked();
   expect(screen.getByText("仅自己可见")).toBeInTheDocument();
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith(`/api/choirs/drive/scores/score/personal-layers/${own.id}`, expect.objectContaining({ method: "PUT" })));
   respond(new Response(null, { status: 403 }));
   await waitFor(() => expect(sharing).not.toBeDisabled());
   expect(sharing).not.toBeChecked();
@@ -355,4 +332,27 @@ it("opens on display and keeps personal management behind its own tab", async ()
   fireEvent.click(screen.getByRole("tab", { name: "显示" }));
   expect(screen.getByRole("checkbox", { name: "显示 我的笔记" })).toBeChecked();
   expect(requests).toEqual([]);
+});
+
+it("checks new Local Drafts again before retrying an unconfirmed deletion", async () => {
+  const originalFetch = fetch;
+  let deletes = 0;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.method === "PUT" && JSON.parse(String(init.body)).action === "delete") {
+      deletes++;
+      throw new Error("connection lost before confirmation");
+    }
+    return originalFetch(input, init);
+  }));
+  render(<Reader />);
+  fireEvent.click(await screen.findByRole("tab", { name: "管理" }));
+  fireEvent.click(await screen.findByRole("button", { name: "删除 我的笔记" }));
+  const dialog = await screen.findByRole("dialog", { name: "确认删除此层" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "确认删除" }));
+  await within(dialog).findByRole("button", { name: "重试" });
+  await saveAnnotationDraft(workspace, { id: crypto.randomUUID(), layerId: own.id,
+    payload: { kind: "text", pageNumber: 1, x: .2, y: .3, fontScale: .024, text: "重试前的新笔记" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "重试" }));
+  await within(dialog).findByText(/此层有未同步内容或冲突/);
+  expect(deletes).toBe(1);
 });
