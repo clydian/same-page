@@ -22,7 +22,7 @@ import "../reader/reader-ux.css";
 import { useReaderSession } from "../reader/use-reader-session";
 import {
   ArrowLeft, Share, HardDrive, Ellipsis, Layers, Maximize2, Minus, Pencil, Plus, BookOpen,
-  RefreshCw, Rows3, Check, X, Maximize, ChevronDown,
+  RefreshCw, Rows3, X, Maximize, ChevronDown,
 } from "lucide-react";
 import {
   useEffect,
@@ -116,6 +116,7 @@ function ReaderPageContent() {
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel);
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
+  const [layerPanelTab, setLayerPanelTab] = useState<"display" | "manage">("display");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreTrigger = useRef<HTMLButtonElement>(null);
   const layersTrigger = useRef<HTMLButtonElement>(null);
@@ -333,6 +334,7 @@ function ReaderPageContent() {
   };
   const openReaderPanel = (panel: ReaderPanel) => {
     setMoreOpen(false);
+    setLayerPanelTab("display");
     setReaderPanel(panel);
   };
   const selectEditingLayer = (layerId: string) => {
@@ -389,7 +391,7 @@ function ReaderPageContent() {
                 }
                 onPress={() => editing ? navigation.afterEditing(() => { /* Completion is performed by the editing exit layer. */ }) : requestEditing()}
               >
-                {editing ? <><Check aria-hidden="true" size={17} strokeWidth={1.8} /><span>完成</span></> : <Pencil aria-hidden="true" size={21} />}
+                {editing ? <span>完成</span> : <Pencil aria-hidden="true" size={21} />}
               </Button>
               {!editing && <><Button
                 ref={layersTrigger}
@@ -542,6 +544,7 @@ function ReaderPageContent() {
             activeLayerId={activeLayerId}
             onToolChange={setTool}
             onLayerChange={selectEditingLayer}
+            onOpenLayers={tab => { setLayerPanelTab(tab); setReaderPanel("layers"); }}
           />
         </Suspense>
       ) : null}
@@ -559,8 +562,8 @@ function ReaderPageContent() {
         </aside>
       ) : null}
       {exportOpen && workspace && <ExportDialog layers={layers} workspace={workspace} source={document} versionId={score.currentVersion.id} fileName={score.fileName} authenticatedUserId={identity.authenticatedUserId} onClose={() => setExportOpen(false)} />}
-      {!editing && readerPanel === "layers" ? (
-        <ModalOverlay className="reader-panel-backdrop" isOpen isDismissable
+      {readerPanel === "layers" ? (
+        <ModalOverlay className="reader-panel-backdrop reader-layers-backdrop" isOpen isDismissable
           onOpenChange={(open) => { if (!open) setReaderPanel(null); }}>
           <Modal className="reader-panel reader-layers-dialog">
             <Dialog preserveOnNavigate aria-label={"笔记图层"} className="reader-layers-content">
@@ -572,7 +575,8 @@ function ReaderPageContent() {
               </header>
               <Suspense fallback={<p role="status">正在准备图层…</p>}>
                 <ReaderLayerPanel
-                  key={workspace.scopeKey}
+                  key={`${workspace.scopeKey}:${layerPanelTab}`}
+                  initialTab={layerPanelTab}
                   workspace={workspace}
                   layers={activeAnnotations?.layers ?? []}
                   signedIn={Boolean(identity.authenticatedUserId) && !guestExperience}

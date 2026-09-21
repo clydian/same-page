@@ -109,7 +109,7 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     await page.getByRole("button", { name: "关闭笔记显示" }).click();
     await page.getByRole("button", { name: /^(编辑|完成编辑)$/, exact: true }).click();
     await page.getByRole("button", { name: /当前编辑层/ }).click();
-    await page.getByRole("dialog", { name: "写到哪里" }).waitFor();
+    await page.getByRole("dialog", { name: "编辑图层" }).waitFor();
     await page.getByRole("button", { name: "我的笔记", exact: true }).scrollIntoViewIfNeeded();
     await geometry(".annotation-layer-slot", "target");
     await page.getByRole("button", { name: "关闭写入目标" }).click();

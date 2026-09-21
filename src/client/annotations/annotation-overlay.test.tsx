@@ -306,6 +306,35 @@ describe("AnnotationOverlay", () => {
     expect(editor.getEditRevision()).toBe(2);
   });
 
+  it.each(["color", "size"] as const)("undoes a pending selected %s change without relying on input blur and redoes it", async property => {
+    const note = annotation("pending-history", activeLayerId, { ...textPayload("属性撤销"), color: "#dc2626", textAlign: "center" });
+    await localDatabase.annotations.put(note);
+    const personal = { ...layers[0]!, kind: "personal" as const, sharedSlot: null };
+    render(<AnnotationOverlay editor={editor} pageNumber={1} layers={[personal]} annotations={[note]} editing tool="select" activeLayerId={activeLayerId} />);
+    openExistingText("属性撤销");
+    const input = property === "color" ? screen.getByLabelText("所选笔记颜色") : screen.getByRole("spinbutton", { name: "字号数值" });
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: property === "color" ? "#123456" : "36" } });
+    expect(editor.canUndo(activeLayerId)).toBe(false);
+    expect((await localDatabase.annotations.get(note.key))?.payload).toEqual(note.payload);
+    const undo = screen.getByRole("button", { name: "撤销所选层修改" });
+    expect(undo).toBeEnabled();
+    expect(screen.getByRole("button", { name: "重做所选层修改" })).toBeDisabled();
+    // Some browsers keep input focus when a button is tapped: emit no blur.
+    fireEvent.pointerDown(undo);
+    fireEvent.click(undo);
+    await waitFor(() => expect(editor.canRedo(activeLayerId)).toBe(true));
+    expect((await localDatabase.annotations.get(note.key))?.payload).toEqual(note.payload);
+    expect(editor.canUndo(activeLayerId)).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "重做所选层修改" }));
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject(
+      property === "color" ? { color: "#123456" } : { fontScale: .036 },
+    ));
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+    expect((await localDatabase.annotations.get(note.key))?.payload).toEqual(note.payload);
+    expect(editor.canUndo(activeLayerId)).toBe(false);
+  });
+
   it("normalizes an out-of-range selected size before pointer deselection", async () => {
     const note = annotation("clamp-size", activeLayerId, textPayload("字号下限"));
     await localDatabase.annotations.put(note);

@@ -338,7 +338,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           backdropTap.current = null;
         }}
       >
-        {textEditor && <button type="submit" className="visually-hidden" tabIndex={-1} disabled={textSaving || finishing}>完成文字输入</button>}
+        {textEditor && <button type="submit" className="reader-composer-done" aria-label="完成文字输入" disabled={textSaving || finishing}>完成</button>}
         {textEditor && <div className="annotation-composer-heading" ref={textHeaderRef}>
           <p className="reader-edit-gesture-hint annotation-composer-hint"><strong>正在输入文字</strong><span className="annotation-composer-instruction">· 轻点空白处完成</span></p>
         </div>}
@@ -347,7 +347,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           textSelection.current = input ? { start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection } : null;
           if ((event.target as HTMLElement).closest("button")) event.preventDefault();
         }} onClick={event => { if ((event.target as HTMLElement).closest("button")) focusTextInput(textSelection.current); }}>
-          <span className="annotation-composer-layer">{displayColor && <span className="annotation-composer-layer-color" aria-hidden="true" style={{ background: displayColor }} />}{layerName ?? "我的笔记"}</span>
+          <span className="annotation-composer-layer"><strong>文字样式</strong><span>{displayColor && <span className="annotation-composer-layer-color" aria-hidden="true" style={{ background: displayColor }} />}{layerName ?? "我的笔记"}</span></span>
           <TextSizeControl value={editorFontScale} onChange={setEditorFontScale} disabled={textSaving || finishing} />
           <TextAlignmentButton value={editorTextAlign} onChange={setEditorTextAlign} disabled={textSaving || finishing} />
           {!displayColor && <label className="annotation-composer-color" title="文字颜色"><span style={{ background: color }} /><input aria-label="文字颜色" type="color" value={color} disabled={textSaving || finishing} onChange={event => setColor(event.target.value)} /></label>}

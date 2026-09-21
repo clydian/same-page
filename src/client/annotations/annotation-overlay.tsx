@@ -458,7 +458,7 @@ export function AnnotationOverlay({
       </div>
       {editing ? createPortal(
         <>
-          {(canStartEdit || finishing) && tool === "select" && selected?.payload && <ObjectProperties key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
+          {(canStartEdit || finishing) && tool === "select" && selected?.payload && editor && <ObjectProperties editor={editor} layerId={selected.layerId} key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
           {!canStartEdit && !finishing && <aside className="annotation-storage-error" role="status">
             <strong>此层已停止编辑</strong>
             <p>共享层已停用、删除或权限已改变。当前输入可完成并保存在原层的本机草稿中；不会上传或转写其他层。</p>

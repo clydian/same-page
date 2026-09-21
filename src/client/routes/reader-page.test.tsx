@@ -1887,7 +1887,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(
       Array.from(
         screen
-          .getByRole("dialog", { name: "写到哪里" })
+          .getByRole("dialog", { name: "编辑图层" })
           .querySelectorAll<HTMLButtonElement>(".annotation-layer-slot"),
         (button) => button.getAttribute("aria-label"),
       ),

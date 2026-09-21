@@ -442,3 +442,110 @@
 .annotation-tool-name { font-size: 10px; line-height: 1.1; white-space: nowrap; }
 
 .reader-page-grid__paper .pdf-page-canvas { box-shadow: none; }
+
+/* Unified reader surfaces: reading, writing and layer controls share one palette. */
+:root {
+  --reader-surface: #fafcf9;
+  --reader-ink: #29483d;
+  --reader-muted: #68796f;
+  --reader-line: #dce4dd;
+  --reader-selected: #e1ece3;
+  --reader-shadow: 0 4px 20px #1020171a;
+}
+.reader-shell .reader-chrome__back,
+.reader-shell .reader-chrome__export,
+.reader-shell .reader-chrome__actions-stack,
+.reader-shell .reader-page-indicator,
+.reader-edit-layer-popover,
+.annotation-style-popover,
+.reader-panel.reader-layers-dialog {
+  color: var(--reader-ink); background: var(--reader-surface);
+  border: 1px solid var(--reader-line); border-radius: 18px; box-shadow: var(--reader-shadow);
+}
+.reader-shell .reader-chrome__actions { background: transparent; }
+.reader-shell .reader-chrome button { color: var(--reader-ink); }
+.reader-shell .reader-chrome__back, .reader-shell .reader-chrome__export { border-radius: 14px; }
+.reader-shell .reader-done-button, .annotation-text-composer button.reader-composer-done {
+  min-width: 72px; height: 44px; padding: 0 18px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; color: var(--reader-ink); background: var(--reader-surface);
+}
+.annotation-text-composer button.reader-composer-done { position: absolute; z-index: 3; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); border: 1px solid var(--reader-line); box-shadow: var(--reader-shadow); cursor: pointer; }
+.reader-composer-done:disabled { opacity: .5; }
+.annotation-composer-heading { right: max(96px, calc(env(safe-area-inset-right) + 84px)); justify-content: flex-start; }
+.annotation-composer-heading .annotation-composer-hint { margin: 0; min-height: 44px; box-sizing: border-box; }
+.reader-style-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 13px; }
+.reader-style-heading span { color: var(--reader-muted); font-size: 11px; }
+.reader-target-heading, .reader-layers-dialog .reader-panel__header { background: var(--reader-surface); }
+.reader-edit-layer-popover .annotation-layer-slot { background: transparent; border: 1px solid transparent; color: var(--reader-ink); font-weight: 500; min-height: 44px; padding: 6px 10px; font-size: 13px; }
+.reader-edit-layer-popover .annotation-layer-slot[aria-pressed="true"] { background: var(--reader-selected); border-color: #a6bdad; box-shadow: none; outline: none; }
+.reader-edit-layer-popover .annotation-layer-slot:hover { background: #edf2ed; }
+.reader-edit-layer-popover .annotation-layer-slot:focus-visible { outline: 2px solid #4b7865; outline-offset: 2px; }
+.reader-edit-layer-popover p { color: var(--reader-muted); margin: 8px 10px 4px; font-size: 11px; }
+.reader-layer-shortcuts { border-top: 1px solid var(--reader-line); margin-top: 8px; padding-top: 4px; }
+.reader-layer-shortcuts button { display: flex; justify-content: space-between; width: 100%; min-height: 44px; padding: 0 10px; font-weight: 500; border: 0; border-radius: 10px; background: transparent; color: var(--reader-ink); font-size: 13px; cursor: pointer; }
+.reader-layer-shortcuts button:hover { background: var(--reader-selected); }
+.reader-layers-dialog .icon-button, .reader-target-heading .icon-button { border: 0; border-radius: 12px; color: var(--reader-muted); background: transparent; }
+.reader-layer-panel .layer-card { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.reader-layer-panel .layer-card strong { color: var(--reader-ink); font-weight: 500; }
+.reader-layer-color { position: relative; display: grid; place-items: center; width: 44px; height: 44px; }
+.reader-layer-color span { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 3px var(--reader-surface), 0 0 0 4px var(--reader-line); }
+.reader-layer-panel .reader-layer-color input { position: absolute; inset: 0; width: 44px; height: 44px; opacity: 0; cursor: pointer; }
+.reader-layer-color:focus-within { outline: 2px solid #4b7865; border-radius: 10px; }
+.annotation-object-properties header { height: 44px; padding: 0; border-bottom: 1px solid var(--reader-line); margin-bottom: 8px; }
+.annotation-object-caption { margin-right: auto; font-size: 12px; color: var(--reader-muted); letter-spacing: 0; }
+.annotation-property-history { display: none; }
+.annotation-object-properties .annotation-property-back { padding: 0 8px 0 0; }
+.annotation-composer-styles { border-radius: 18px; border-color: var(--reader-line); box-shadow: var(--reader-shadow); }
+/* Compact panels and a stable two-row mobile editing dock. */
+.reader-edit-layer-popover { padding: 12px; width: min(328px, calc(100vw - 24px)); }
+.reader-target-heading { top: -12px; min-height: 44px; }
+.reader-target-heading h2 { font-size: 14px; }
+.reader-edit-layer-popover .annotation-layer-switcher { gap: 0; }
+.annotation-style-popover { padding: 12px 16px; width: 268px; }
+.annotation-style-popover .annotation-style-fields { gap: 8px; }
+.annotation-style-popover .annotation-style-sample { height: 32px; background: #f0f4ed; }
+.annotation-style-popover .annotation-pressure-options { gap: 4px; }
+.reader-layer-panel .layer-card-list { background: #f4f7f1; border: 1px solid var(--reader-line); border-radius: 14px; box-shadow: none; overflow: hidden; }
+.reader-layer-panel .layer-card + .layer-card { border-top: 1px solid var(--reader-line); }
+.reader-layer-panel input[type="checkbox"] { appearance: none; display: grid; place-content: center; width: 20px; height: 20px; margin: 0; border: 1.5px solid #9aada0; border-radius: 6px; background: var(--reader-surface); cursor: pointer; }
+.reader-layer-panel input[type="checkbox"]:checked { background: #446c56; border-color: #446c56; }
+.reader-layer-panel input[type="checkbox"]:checked::after { content: ""; width: 8px; height: 4px; border: solid white; border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+.reader-layer-panel input[type="checkbox"]:focus-visible { outline: 2px solid #446c56; outline-offset: 3px; }
+.reader-shell > .reader-edit-gesture-hint, .annotation-composer-heading .annotation-composer-hint { border: 0; box-shadow: none; background: rgb(244 248 243 / 72%); color: #53675a; }
+.reader-edit-gesture-hint strong { font-weight: 500; }
+.annotation-composer-layer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.annotation-composer-layer strong { color: var(--reader-ink); font-weight: 500; }
+.annotation-composer-layer > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+  body:has(.annotation-object-properties) .reader-shell .annotation-controls { display: none; }
+  .annotation-object-properties { bottom: max(12px, env(safe-area-inset-bottom)) !important; }
+  .annotation-object-style, .annotation-object-style .annotation-style-fields { display: contents; }
+  .annotation-object-properties .annotation-style-label { display: none; }
+  .annotation-composer-heading .annotation-composer-instruction { display: block; flex-basis: 100%; margin: 0; font-size: 11px; }
+  .reader-panel.reader-layers-dialog { border-radius: 22px 22px 0 0; }
+  .reader-shell > .reader-edit-gesture-hint { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); transform: none; margin: 0; min-height: 44px; box-sizing: border-box; max-width: calc(100vw - 108px); }
+  .reader-shell .annotation-controls, .annotation-object-properties, .annotation-composer-styles { width: 352px; max-width: calc(100vw - 24px); min-height: 112px; border-radius: 18px; padding: 8px; box-sizing: border-box; }
+  .reader-shell .annotation-controls { row-gap: 8px; }
+  .annotation-object-properties header { margin: 0 0 8px; border-bottom: 0; height: 44px; }
+  .annotation-object-properties .annotation-property-back { font-size: 11px; padding: 0 4px; gap: 3px; }
+  .annotation-object-caption { font-size: 11px; }
+  .annotation-property-history { display: flex; }
+  .annotation-object-properties .annotation-property-history button { width: 44px; min-width: 44px; padding: 0; }
+  .annotation-object-controls { gap: 4px; }
+  .annotation-object-properties .annotation-composer-size button { width: 44px; min-width: 44px; padding: 0; }
+  .annotation-object-properties .annotation-alignment-button, .annotation-object-properties .annotation-note-color { width: 44px; min-width: 44px; padding: 0; }
+  .annotation-object-properties .annotation-object-actions { gap: 0; margin: 0; border-left: 0; padding-left: 0; }
+  .annotation-object-properties .annotation-object-actions button span { display: none; }
+  .annotation-object-properties .annotation-object-actions button { width: 44px; min-width: 44px; padding: 0; }
+  .annotation-object-properties .annotation-property-delete { margin-left: 0; }
+  .annotation-composer-styles { bottom: max(12px, env(safe-area-inset-bottom)); gap: 8px 4px; align-content: start; }
+  .annotation-composer-layer { flex-basis: 100%; height: 44px; padding: 0 8px; font-size: 11px; }
+  .annotation-composer-styles .annotation-composer-color { margin: 0; }
+  .reader-shell .annotation-controls .annotation-tool-button { height: 44px; min-height: 44px; }
+  .annotation-object-properties .annotation-composer-size,
+  .annotation-composer-styles .annotation-composer-size { display: flex; width: 122px; min-width: 122px; flex: 0 0 122px; padding: 0; gap: 0; }
+  .annotation-object-properties .annotation-font-scale__value,
+  .annotation-composer-styles .annotation-font-scale__value { min-width: 0; width: 34px; flex: 0 0 34px; padding-inline: 0; }
+}
+
+.reader-layers-backdrop { z-index: 75; }
