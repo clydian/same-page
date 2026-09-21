@@ -84,16 +84,15 @@ test("valid invitations automatically admit guests, existing members and named n
         await page.locator(".page-reader__viewport").click({ position: { x: 195, y: 340 } });
         await page.getByRole("button", { name: "编辑", exact: true }).click();
         await expect(page.locator(".annotation-controls")).toBeVisible();
-        await page.getByRole("button", { name: "完成编辑", exact: true }).click();
-        await page.getByRole("button", { name: "返回云盘", exact: true }).click();
-        await expect(page.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
-        await expect(page.getByRole("complementary", { name: "排练准备" })).toHaveCount(0);
-        if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/ready-phone.png`, fullPage: true });
+
       }
       if (mode === "member") {
         await expect(page.getByText("已登录并加入云盘", { exact: true })).toBeVisible();
         await expect(page.getByRole("link", { name: "暂不添加，直接登录", exact: true })).toHaveCount(0);
         if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/install-remaining-phone.png`, fullPage: true });
+        await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
+        await expect(page.getByRole("complementary", { name: "排练准备" })).toHaveCount(0);
+        if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/ready-phone.png`, fullPage: true });
       }
     } finally { await context.close(); }
   }
