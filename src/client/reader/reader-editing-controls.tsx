@@ -26,6 +26,7 @@ export function ReaderEditingControls({
   activeLayerId,
   onToolChange,
   onLayerChange,
+  onOpenLayers,
 }: {
   isDisabled: boolean;
   localOnly?: boolean;
@@ -39,6 +40,7 @@ export function ReaderEditingControls({
   activeLayerId: string | null;
   onToolChange(tool: AnnotationTool): void;
   onLayerChange(layerId: string): void;
+  onOpenLayers?(tab: "display" | "manage"): void;
 }) {
   const styleAnchor = useRef<Element | null>(null);
   const styleDialogId = useId();
@@ -75,14 +77,14 @@ export function ReaderEditingControls({
         <Button
           isDisabled={isDisabled}
           className="reader-edit-layer-trigger"
-          aria-label={`当前编辑层：${selectedLayer?.name ?? ""}，${audience}，写到哪里`}
+          aria-label={`当前编辑层：${selectedLayer?.name ?? ""}，${audience}，编辑图层`}
         >
           <span className="reader-edit-layer-identity"><span>{selectedLayer?.name}</span><small>{audience}</small></span>
           <ChevronDown aria-hidden="true" size={14} />
         </Button>
         <Popover className="reader-edit-layer-popover" placement="top" offset={12}>
-          <Dialog aria-label="写到哪里">
-            <div className="reader-target-heading"><h2>写到哪里</h2><Button className="icon-button" aria-label="关闭写入目标" onPress={() => setChoosingLayer(false)}><X aria-hidden="true" size={18} /></Button></div>
+          <Dialog aria-label="编辑图层">
+            <div className="reader-target-heading"><h2>编辑图层</h2><Button className="icon-button" aria-label="关闭写入目标" onPress={() => setChoosingLayer(false)}><X aria-hidden="true" size={18} /></Button></div>
             <p>共享层 · 此云盘可见</p>
             <div className="annotation-layer-switcher" aria-label="编辑层">
               {layers.filter(layer => layer.kind === "shared").map((layer) => (
@@ -99,7 +101,10 @@ export function ReaderEditingControls({
             <div className="annotation-layer-switcher">
               {personalLayers.map(layer => <LayerSlotButton key={layer.id} isDisabled={isDisabled} layer={layer} activeLayerId={activeLayerId} onLayerChange={chooseLayer} />)}
             </div>
-            <p>仅所选层可编辑，其他已显示的层淡化供参考；双指浏览或缩放，单指或笔编辑。</p>
+            <div className="reader-layer-shortcuts">
+              <Button onPress={() => { setChoosingLayer(false); onOpenLayers?.("display"); }}>显示参考笔记<span aria-hidden="true">→</span></Button>
+              <Button onPress={() => { setChoosingLayer(false); onOpenLayers?.("manage"); }}>管理个人层<span aria-hidden="true">→</span></Button>
+            </div>
           </Dialog>
         </Popover>
       </DialogTrigger>
@@ -147,6 +152,7 @@ export function ReaderEditingControls({
         offset={12}
       >
         <Dialog id={styleDialogId} aria-label="工具设置">
+          <header className="reader-style-heading"><strong>{toolNames[tool]}设置</strong><span>用于新笔记</span></header>
           <div style={{ color: selectedLayer?.kind === "shared" ? selectedLayer.displayColor : toolColor }}>
             <StyleFields tool={tool} value={toolStyle} onChange={onStyleChange} />
           </div>

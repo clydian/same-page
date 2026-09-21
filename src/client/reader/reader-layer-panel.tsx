@@ -16,15 +16,16 @@ import "./reader-ux.css";
 
 type PreferenceChange = { layer: AnnotationLayerSummary; subscribed?: boolean | null; colorOverride?: string | null };
 
-export function ReaderLayerPanel({ workspace, layers: storedLayers, signedIn }: {
+export function ReaderLayerPanel({ workspace, layers: storedLayers, signedIn, initialTab = "display" }: {
   workspace: LocalWorkspace;
   layers: AnnotationLayerSummary[];
   signedIn: boolean;
+  initialTab?: "display" | "manage";
 }) {
   const visibilityPrefix = useId();
   const managementTrigger = useRef<HTMLButtonElement>(null);
   const [creationId, setCreationId] = useState<string | null>(null);
-  const [panel, setPanel] = useState<string>("display");
+  const [panel, setPanel] = useState<string>(initialTab);
   const editing = panel === "manage";
   const [managing, setManaging] = useState(false);
   const [newName, setNewName] = useState("");
@@ -174,8 +175,8 @@ export function ReaderLayerPanel({ workspace, layers: storedLayers, signedIn }: 
             <article className="layer-card" key={layer.id}>
               <div className="layer-card__main reader-layer-row">
                 <label className="layer-row__name" htmlFor={`${visibilityPrefix}-${layer.id}`}><strong>{layer.name}</strong></label>
-                <input className="layer-row__accessory" type="color" aria-label={`${layer.name}颜色`} value={layer.displayColor}
-                  onChange={event => void save([{ layer, colorOverride: event.target.value }])} />
+                <label className="reader-layer-color" title="显示颜色"><span style={{ background: layer.displayColor }} /><input type="color" aria-label={`${layer.name}颜色`} value={layer.displayColor}
+                  onChange={event => void save([{ layer, colorOverride: event.target.value }])} /></label>
                 <label className="layer-row__visibility"><input id={`${visibilityPrefix}-${layer.id}`} aria-label={`显示 ${layer.name}`}
                   checked={layer.subscribed} type="checkbox"
                   onChange={event => void save([{ layer, subscribed: event.target.checked }])} /></label>

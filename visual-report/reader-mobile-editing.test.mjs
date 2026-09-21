@@ -360,6 +360,67 @@ async function browseVertically(viewport, dy) {
 }
 
 for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
+  test(`${engineName}: unified editing dock keeps completion, properties and layer dialogs reachable`, async context => {
+    const browser = await engine.launch({ headless: true });
+    context.after(() => browser.close());
+    const page = await openMemberReader(browser, { width: 320, height: 800 });
+    await showReaderChrome(page);
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    await page.locator('.annotation-overlay[data-editing] svg').evaluate(svg => {
+      const box = svg.getBoundingClientRect();
+      const init = { bubbles: true, pointerId: 41, pointerType: "touch", clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+      svg.dispatchEvent(new PointerEvent("pointerdown", init));
+      svg.dispatchEvent(new PointerEvent("pointerup", init));
+    });
+    await page.getByRole("textbox", { name: "笔记文本", exact: true }).fill("统一编辑回归");
+    const done = page.getByRole("button", { name: "完成文字输入", exact: true });
+    await expect(done).toHaveText("完成");
+    await expect(page.locator('.annotation-composer-instruction')).toBeVisible();
+    await expect(page.locator('.annotation-composer-instruction')).toContainText("轻点空白处完成");
+    await assertEventually(page, () => {
+      const hint = document.querySelector('.annotation-composer-hint').getBoundingClientRect();
+      const done = document.querySelector('.reader-composer-done').getBoundingClientRect();
+      return hint.left >= 0 && hint.right <= innerWidth && done.left >= 0 && done.right <= innerWidth
+        && (hint.right <= done.left || hint.bottom <= done.top || done.bottom <= hint.top);
+    });
+    await done.click();
+    await page.getByRole("button", { name: "选择", exact: true }).click();
+    await page.getByRole("button", { name: "统一编辑回归", exact: true }).click();
+    const properties = page.locator('.annotation-object-properties');
+    await expect(properties).toBeVisible();
+    for (const width of [320, 390, 834]) {
+      await page.setViewportSize({ width, height: 800 });
+      await assertEventually(page, () => {
+        const dock = document.querySelector('.annotation-object-properties');
+        const bounds = dock.getBoundingClientRect();
+        const controls = [...dock.querySelectorAll('button, input')].map(control => control.getBoundingClientRect()).filter(box => box.width && box.height);
+        return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight
+          && controls.every(box => box.left >= bounds.left && box.right <= bounds.right && box.top >= bounds.top && box.bottom <= bounds.bottom);
+      }).catch(async error => {
+        const geometry = await properties.evaluate(dock => ({ dock: dock.getBoundingClientRect().toJSON(), controls: [...dock.querySelectorAll('button, input')].map(control => ({ name: control.getAttribute('aria-label'), box: control.getBoundingClientRect().toJSON() })) }));
+        throw new Error(`${width}px property dock geometry: ${JSON.stringify(geometry)}`, { cause: error });
+      });
+      if (width <= 640) await expect(page.locator('.annotation-controls')).toBeHidden();
+      else await expect(page.locator('.annotation-controls')).toBeVisible();
+    }
+    for (const shortcut of ["显示参考笔记", "管理个人层"]) {
+      await page.getByRole("button", { name: /当前编辑层/ }).click();
+      await page.getByRole("button", { name: shortcut }).click();
+      await expect(page.getByRole("dialog", { name: "笔记图层", exact: true })).toBeVisible();
+      await expect(page.getByRole("tab", { name: shortcut === "显示参考笔记" ? "显示" : "管理", exact: true })).toHaveAttribute("aria-selected", "true");
+      assert.ok(await properties.evaluate(dock => {
+        const backdrop = document.querySelector('.reader-layers-backdrop');
+        const box = dock.getBoundingClientRect();
+        return Number(getComputedStyle(backdrop).zIndex) > Number(getComputedStyle(dock).zIndex)
+          && backdrop.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      }), "the layer dialog must intercept hits above the still-mounted property dock");
+      await page.getByRole("button", { name: "关闭笔记显示", exact: true }).click();
+      await expect(properties).toBeVisible();
+    }
+  });
+}
+
+for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
   test(`${engineName}: native repeated clicks keep text open and a subsequent blank gesture completes`, async context => {
     const browser = await engine.launch({ headless: true });
     context.after(() => browser.close());
