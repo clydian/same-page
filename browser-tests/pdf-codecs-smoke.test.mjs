@@ -39,31 +39,33 @@ for (const engine of [chromium, webkit]) {
     }
     await page.getByRole("button", { name: "更多", exact: true }).click();
     await expect(page.getByRole("region", { name: "本机离线副本", exact: true }).getByRole("status")).toHaveText("可离线使用", { timeout: 30_000 });
-    await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /^离线副本：/ }).click();
-    await page.getByRole("status").filter({ hasText: /^可离线使用$/ }).waitFor();
-    await page.getByRole("button", { name: "关闭", exact: true }).click();
+    // The reader's verified status is the persistence barrier. A second cold
+    // library navigation can restore the local owner before get-session settles;
+    // session confirmation then replaces the library and dismisses its popover.
+    // Codec coverage must not depend on closing that unrelated transient UI.
+    await page.close();
     await fixture.stop();
     // WebKit's emulated offline navigation can fail before its Service Worker
     // runs. Stop the actual origin for both engines; Chromium also uses the
     // browser offline flag. No API or asset responses are mocked.
     if (engine === chromium) await context.setOffline(true);
-    await page.goto(scoreUrl, { waitUntil: "domcontentloaded" });
-    assert.equal(await page.evaluate(async () => {
+    const offlinePage = await context.newPage();
+    await offlinePage.goto(scoreUrl, { waitUntil: "domcontentloaded" });
+    assert.equal(await offlinePage.evaluate(async () => {
       try { await fetch("/api/health"); return false; } catch { return true; }
     }), true, "the origin must be unreachable");
-    const currentSheet = page.locator(".page-reader__sheet[data-page-turn-current]");
+    const currentSheet = offlinePage.locator(".page-reader__sheet[data-page-turn-current]");
     await expect(currentSheet).toBeVisible();
     const restoredPage = Number(await currentSheet.getAttribute("data-page-number"));
     assert.ok(restoredPage === 1 || restoredPage === 2);
-    await assertSquare(page, restoredPage);
-    await page.getByRole("button", { name: restoredPage === 1 ? "下一页" : "上一页", exact: true }).press("Enter");
-    await assertSquare(page, restoredPage === 1 ? 2 : 1);
+    await assertSquare(offlinePage, restoredPage);
+    await offlinePage.getByRole("button", { name: restoredPage === 1 ? "下一页" : "上一页", exact: true }).press("Enter");
+    await assertSquare(offlinePage, restoredPage === 1 ? 2 : 1);
     // An unsupported engine must not strand an already downloaded PDF offline.
     await context.addInitScript(() => { Promise.withResolvers = undefined; });
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("alert")).toContainText("请升级浏览器或系统");
-    const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "下载原 PDF", exact: true }).click()]);
+    await offlinePage.reload({ waitUntil: "domcontentloaded" });
+    await expect(offlinePage.getByRole("alert")).toContainText("请升级浏览器或系统");
+    const [download] = await Promise.all([offlinePage.waitForEvent("download"), offlinePage.getByRole("button", { name: "下载原 PDF", exact: true }).click()]);
     assert.deepEqual(await readFile(await download.path()), pdf);
   });
 }
