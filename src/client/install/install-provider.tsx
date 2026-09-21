@@ -35,7 +35,6 @@ export function InstallProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const guide = deviceGuide;
-  const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
     const ready = (event: Event) => { event.preventDefault(); if (!deviceGuide.endsWith("external")) { promptRef.current = event as InstallPromptEvent; setPrompt(promptRef.current); } };
     const complete = () => { promptRef.current = null; setInstalled(true); setRequested(true); setPrompt(null); };
@@ -50,7 +49,6 @@ export function InstallProvider({ children }: { children: ReactNode }) {
       queries.forEach(query => query?.removeEventListener("change", modeChanged));
     };
   }, [deviceGuide]);
-  const dismiss = () => setDismissed(true);
   const install = async () => {
     const event = promptRef.current;
     if (!event || busyRef.current) return;
@@ -60,8 +58,8 @@ export function InstallProvider({ children }: { children: ReactNode }) {
     setPrompt(null); // A browser event can only be consumed once.
     try {
       const result = await event.prompt();
-      if (result.outcome === "accepted") { setRequested(true); dismiss(); }
-      else { setMessage("已取消安装。你可以继续使用合谱，稍后从菜单查看安装方法。"); dismiss(); }
+      if (result.outcome === "accepted") setRequested(true);
+      else setMessage("已取消安装。你可以继续使用合谱，稍后从菜单查看安装方法。");
     } catch { setMessage("暂时无法打开安装窗口，请按下面的步骤添加。"); }
     finally { busyRef.current = false; setBusy(false); }
   };
@@ -76,7 +74,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
   };
   const external = guide.endsWith("external");
   const android = deviceGuide.startsWith("android") || guide.startsWith("android");
-  return <InstallContext value={{ hidden: installed, runningInApp, requested, nativeAvailable: Boolean(prompt) && !external, suggest: !installed && !dismissed, open: show }}>
+  return <InstallContext value={{ hidden: installed, runningInApp, requested, nativeAvailable: Boolean(prompt) && !external, suggest: !installed && !requested, open: show }}>
     {children}
     <ModalOverlay className="modal-overlay" isOpen={open && !runningInApp} onOpenChange={setOpen} isDismissable>
       <Modal className="app-modal install-modal"><Dialog className="app-dialog install-dialog">

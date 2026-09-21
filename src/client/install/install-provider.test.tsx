@@ -36,6 +36,7 @@ it("consumes a deferred prompt once and keeps help after cancellation", async ()
   await act(async () => {});
   expect(prompt).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("status")).toHaveTextContent("已取消安装");
+  expect(screen.getByRole("complementary", { name: "安装建议", hidden: true })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "已了解，打开安装提示" })).not.toBeInTheDocument();
   act(() => { window.dispatchEvent(new Event("appinstalled")); });
   expect(screen.getByText("主屏幕没有合谱图标？")).toBeInTheDocument();
