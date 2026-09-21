@@ -5,7 +5,7 @@ import { noCapabilities } from "../../shared/drive-permissions";
 import { applyPushResults, cacheAnnotationLayers, queueScoreDrafts, saveAnnotationDraft } from "../annotations/annotation-state";
 import { GUEST_NOTE_LAYER_ID } from "../annotations/guest-notes";
 import { localDatabase } from "../platform/local-database";
-import { activateAuthenticatedLocalOwner, activateGuestLocalOwner, authenticatedLocalOwnerKey, captureLocalWorkspaceSession, createLocalWorkspace, type LocalWorkspace } from "../platform/local-workspace";
+import { activateAuthenticatedLocalOwner, activateGuestLocalOwner, experienceOwnerKey, authenticatedLocalOwnerKey, captureLocalWorkspaceSession, createLocalWorkspace, type LocalWorkspace } from "../platform/local-workspace";
 import { useReaderSync } from "./use-reader-sync";
 
 let workspace: LocalWorkspace;
@@ -144,7 +144,7 @@ it("reports cloud acceptance only from accepted annotation facts", async () => {
 
 it("keeps local experience notes local and never exposes a cloud retry", async () => {
   const owner = await activateGuestLocalOwner("drive");
-  const guest = await captureLocalWorkspaceSession(createLocalWorkspace(owner, "drive", "score"));
+  const guest = await captureLocalWorkspaceSession(createLocalWorkspace(experienceOwnerKey(owner), "drive", "score"));
   await cacheAnnotationLayers(guest, []);
   await saveAnnotationDraft(guest, { ...draft, layerId: GUEST_NOTE_LAYER_ID });
   const { result } = renderHook(() => useReaderSync(guest, access));
