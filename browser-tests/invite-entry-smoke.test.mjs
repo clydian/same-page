@@ -48,6 +48,20 @@ test("valid invitations automatically admit guests, existing members and named n
           await mkdir(process.env.LAYOUT_CAPTURE_DIR, { recursive: true });
           await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/guest-drive-phone.png`, fullPage: true });
         }
+        await page.getByRole("button", { name: "暂时不用，关闭登录建议" }).click();
+        await expect(page.getByRole("complementary", { name: "访客浏览" })).toHaveCount(0);
+        await expect(page.getByRole("complementary", { name: "安装建议" })).toBeVisible();
+        await page.getByRole("button", { name: "暂时不用，关闭安装建议" }).click();
+        await page.locator(".file-row__open").click();
+        await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
+        await page.locator(".page-reader__viewport").click({ position: { x: 195, y: 340 } });
+        await page.getByRole("button", { name: "返回云盘", exact: true }).click();
+        await expect(page.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
+        await expect(page.getByRole("complementary", { name: "访客浏览" })).toHaveCount(0);
+        await expect(page.getByRole("complementary", { name: "安装建议" })).toHaveCount(0);
+        await page.reload();
+        await expect(page.getByRole("complementary", { name: "访客浏览" })).toBeVisible();
+        await expect(page.getByRole("complementary", { name: "安装建议" })).toBeVisible();
         await page.locator(".file-row__open").click();
         await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
         await page.locator(".page-reader__viewport").click({ position: { x: 195, y: 340 } });

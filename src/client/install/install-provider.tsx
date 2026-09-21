@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { Download, X } from "lucide-react";
 import { Dialog } from "../navigation/overlays";
-import { detectInstallGuide, InstallContext, readInstallPreference, saveInstallPreference } from "./install-context";
+import { detectInstallGuide, InstallContext } from "./install-context";
 import { CopyInstallLink } from "./install-entry";
 import "./install.css";
 
@@ -35,7 +35,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const guide = deviceGuide;
-  const [dismissed, setDismissed] = useState(() => readInstallPreference("install-dismissed"));
+  const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
     const ready = (event: Event) => { event.preventDefault(); if (!deviceGuide.endsWith("external")) { promptRef.current = event as InstallPromptEvent; setPrompt(promptRef.current); } };
     const complete = () => { promptRef.current = null; setInstalled(true); setRequested(true); setPrompt(null); };
@@ -50,7 +50,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
       queries.forEach(query => query?.removeEventListener("change", modeChanged));
     };
   }, [deviceGuide]);
-  const dismiss = () => { setDismissed(true); saveInstallPreference("install-dismissed"); };
+  const dismiss = () => setDismissed(true);
   const install = async () => {
     const event = promptRef.current;
     if (!event || busyRef.current) return;
@@ -76,7 +76,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
   };
   const external = guide.endsWith("external");
   const android = deviceGuide.startsWith("android") || guide.startsWith("android");
-  return <InstallContext value={{ hidden: installed, runningInApp, requested, nativeAvailable: Boolean(prompt) && !external, suggest: !installed && !dismissed, open: show, dismiss }}>
+  return <InstallContext value={{ hidden: installed, runningInApp, requested, nativeAvailable: Boolean(prompt) && !external, suggest: !installed && !dismissed, open: show }}>
     {children}
     <ModalOverlay className="modal-overlay" isOpen={open && !runningInApp} onOpenChange={setOpen} isDismissable>
       <Modal className="app-modal install-modal"><Dialog className="app-dialog install-dialog">

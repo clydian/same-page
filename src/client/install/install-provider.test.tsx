@@ -42,13 +42,14 @@ it("consumes a deferred prompt once and keeps help after cancellation", async ()
   expect(screen.queryByRole("button", { name: "添加到主屏幕" })).not.toBeInTheDocument();
 });
 
-it("remembers dismissed suggestions while preserving the manual entry", () => {
-  window.localStorage.setItem("install-seen-score", "yes");
+it("dismisses a suggestion for this visit and shows it on the next open, even after a legacy dismissal", () => {
+  window.localStorage.setItem("install-dismissed", "yes");
   const view = mount();
   fireEvent.click(screen.getByRole("button", { name: "暂时不用，关闭安装建议" }));
+  expect(screen.queryByRole("complementary", { name: "安装建议" })).not.toBeInTheDocument();
   view.unmount();
   mount();
-  expect(screen.queryByRole("complementary", { name: "安装建议" })).not.toBeInTheDocument();
+  expect(screen.getByRole("complementary", { name: "安装建议" })).toBeInTheDocument();
   expect(screen.getAllByRole("button", { name: "添加到主屏幕" })[0]).toBeInTheDocument();
 });
 
