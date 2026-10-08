@@ -72,3 +72,11 @@ Playwright 关闭 snapshots 仍会在 action trace 中保存 route.fulfill 参�
 失败继续收集剩余轮次，最终任意一轮失败都会令工作流失败，不挑选成功重跑。
 普通 push 不触发十轮；再次实验需要重新添加标签。最终固定提交、首轮/全部十轮结果、
 常规 CI 与审查结果在关联 PR 中记录，不以实验代替完整 CI。
+
+## CI 环境准备预算 · #391
+
+Playwright 安装与浏览器回归共用十分钟 job 预算时，Ubuntu Azure 镜像下载系统依赖可能耗尽全部时间；2026-10-08 的隔离 Linux 实验再次观察到安装超过十分钟、测试尚未开始。默认镜像其他对照约52/63秒，官方 Ubuntu archive 对照约51秒，因此这不是固定的应用执行成本。
+
+visual/integration 的 CI 安装共用 `.github/scripts/install-browsers.sh`，仅将 Azure Ubuntu 源替换为官方 HTTPS archive，保留其余仓库与 apt 签名校验。安装步骤上限五分钟，visual 回归步骤上限十二分钟，两个 job 总上限二十分钟，为 checkout、依赖准备和证据上传留出余量。没有增加单项浏览器断言超时、重试或跳过验证；安装失败、测试失败与取消仍使 verify 失败。integration 的存储 smoke 五分钟上限保持不变。
+
+#386 的 WebKit 权限刷新失败场景在最新 main 与历史 #385 提交的 Linux 实验各10/10通过；应用等待超时尚未重现。此 CI 修复不改变权限或云盘状态逻辑。
