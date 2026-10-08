@@ -407,7 +407,7 @@ async function assertScenarioContent(page, scenario) {
   if (scenario.id === "reader-layer-save-failure" && await page.getByRole("checkbox", { name: "显示 Ensemble", exact: true }).isChecked()) throw new Error("Failed layer save did not preserve the latest local choice");
   if (editing && !deleteDrag) {
     await page.locator(".reader-edit-layer-trigger").waitFor({ state: "visible" });
-    for (const name of ["文本", "画笔", "整条橡皮", "撤销", "重做"]) {
+    for (const name of ["文本", "画笔", "橡皮", "撤销", "重做"]) {
       const button = page.locator(`button[aria-label="${name}"]`);
       await button.waitFor({ state: "visible" });
       const box = await button.boundingBox();

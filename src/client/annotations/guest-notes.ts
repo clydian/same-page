@@ -5,7 +5,7 @@ import { withLocalWorkspaceTransaction, type LocalWorkspace } from "../platform/
 // Stable only within the owner/drive/score workspace; never a server layer.
 export const GUEST_NOTE_LAYER_ID = "a2500000-0000-4000-8000-000000000001";
 export function isLocalExperience(workspace: Pick<LocalWorkspace, "ownerKey">) {
-  return workspace.ownerKey.startsWith("guest:") || workspace.ownerKey.startsWith("experience:");
+  return workspace.ownerKey.startsWith("experience:");
 }
 export function guestNoteLayer(): AnnotationLayerSummary {
   return {
@@ -25,4 +25,11 @@ export function clearGuestNotes(workspace: LocalWorkspace) {
       record.annotationSnapshot.annotations = record.annotationSnapshot.annotations.filter(note => note.layerId !== GUEST_NOTE_LAYER_ID);
     });
   });
+}
+
+// Guest identity never grants editing; only the explicit preview workspace does.
+export function availableAnnotationLayers(workspace: Pick<LocalWorkspace, "ownerKey">, layers: AnnotationLayerSummary[]) {
+  if (workspace.ownerKey.startsWith("user:")) return layers;
+  const shared = layers.filter(layer => layer.kind === "shared").map(layer => ({ ...layer, canEdit: false }));
+  return isLocalExperience(workspace) ? [...shared, guestNoteLayer()] : shared;
 }

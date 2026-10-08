@@ -7,7 +7,6 @@ export const InstallContext = createContext<{
   nativeAvailable: boolean;
   suggest: boolean;
   open: () => void;
-  dismiss: () => void;
 } | null>(null);
 
 export const useInstall = () => useContext(InstallContext);
@@ -22,12 +21,4 @@ export function detectInstallGuide(userAgent: string, touchPoints: number): Inst
   if (ios) return embedded ? "ios-external" : /CriOS/.test(userAgent) ? "ios-chrome" : "safari";
   if (/Android/.test(userAgent)) return embedded ? "android-external" : "android";
   return "desktop";
-}
-
-export function readInstallPreference(key: string) {
-  try { return window.localStorage.getItem(key) === "yes"; } catch { return false; }
-}
-
-export function saveInstallPreference(key: string) {
-  try { window.localStorage.setItem(key, "yes"); } catch { /* Installation help also works without storage. */ }
 }

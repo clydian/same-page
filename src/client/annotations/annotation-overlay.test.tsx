@@ -81,6 +81,364 @@ beforeEach(async () => {
 });
 
 describe("AnnotationOverlay", () => {
+  it("settles held-key movement before a property adjustment without losing either change", async () => {
+    const note = annotation("keyboard-property", activeLayerId, textPayload("连续调整"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("连续调整");
+    fireEvent.keyDown(root, { key: "ArrowRight" });
+    // Tab can focus a property button while an arrow remains held. Its native
+    // keyboard activation has no pointerdown to settle the outgoing nudge.
+    const align = screen.getByRole("button", { name: "文字对齐：居中" });
+    act(() => align.focus());
+    fireEvent.click(align);
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    await waitFor(() => expect(editor.getSnapshot()).toBe("idle"));
+    expect(parseFloat(screen.getByRole("button", { name: "连续调整" }).style.left)).toBeCloseTo(21);
+    expect(screen.getByRole("button", { name: "文字对齐：右对齐" })).toBeInTheDocument();
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect(parseFloat(screen.getByRole("button", { name: "连续调整" }).style.left)).toBeCloseTo(21);
+    expect(screen.getByRole("button", { name: "文字对齐：居中" })).toBeInTheDocument();
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect(screen.getByRole("button", { name: "连续调整" })).toHaveStyle({ left: "20%" });
+  });
+
+  it.each(["properties", "keyboard"] as const)("saves a pending %s adjustment before navigation and preserves undo", async source => {
+    const note = annotation("admission-adjustment", activeLayerId, textPayload("调整后翻页"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("调整后翻页");
+    if (source === "properties") {
+      fireEvent.change(screen.getByRole("spinbutton", { name: "字号数值" }), { target: { value: "36" } });
+    } else fireEvent.keyDown(root, { key: "ArrowRight" });
+    expect(editor.canNavigate()).toBe(false);
+    await act(async () => { expect(await editor.prepareNavigation()).toBe(true); });
+    expect(editor.canNavigate()).toBe(true);
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+    expect(screen.getByRole("button", { name: "调整后翻页" })).toHaveStyle({ fontSize: "2.4cqw" });
+    expect(screen.getByRole("button", { name: "调整后翻页" })).toHaveStyle({ left: "20%" });
+    expect(await editor.undo(activeLayerId)).toBe(false);
+  });
+
+  it.each(["properties", "keyboard"] as const)("cancels an unreleased %s adjustment when editing permission changes", async source => {
+    const note = annotation("revoked-adjustment", activeLayerId, textPayload("停止编辑"));
+    await localDatabase.annotations.put(note);
+    const view = renderOverlay([note], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("停止编辑");
+    if (source === "properties") {
+      fireEvent.change(screen.getByRole("spinbutton", { name: "字号数值" }), { target: { value: "36" } });
+    } else fireEvent.keyDown(root, { key: "ArrowRight" });
+    view.rerender(<AnnotationOverlay editor={editor} pageNumber={1} layers={layers.map(layer => ({ ...layer, canEdit: false }))}
+      annotations={[note]} editing tool="select" activeLayerId={activeLayerId} />);
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    fireEvent.pointerDown(document.body);
+    await act(async () => { expect(await editor.prepareNavigation()).toBe(true); });
+    expect(screen.queryByRole("complementary", { name: "所选笔记属性" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "停止编辑" })).toHaveStyle({ left: "20%", fontSize: "2.4cqw" });
+    expect(await editor.undo(activeLayerId)).toBe(false);
+  });
+
+  it.each(["selection", "page"] as const)("does not reopen old text after a delayed adjustment and a new %s", async change => {
+    const first = annotation("delayed-first", activeLayerId, textPayload("原笔记"));
+    const second = annotation("delayed-second", activeLayerId, textPayload("新选择", .6));
+    await localDatabase.annotations.bulkPut([first, second]);
+    const view = renderOverlay([first, second], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    openExistingText("原笔记");
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const put = localDatabase.annotations.put.bind(localDatabase.annotations);
+    const write = vi.spyOn(localDatabase.annotations, "put").mockImplementationOnce((...args) => new Dexie.Promise<string>((resolve, reject) => {
+      void Dexie.waitFor(gate).then(() => put(...args)).then(resolve, reject);
+    }));
+    fireEvent.keyDown(root, { key: "ArrowRight" });
+    fireEvent.keyDown(root, { key: "Enter" });
+    await waitFor(() => expect(write).toHaveBeenCalled());
+    expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
+    if (change === "selection") fireEvent.keyDown(screen.getByRole("button", { name: "新选择" }), { key: "Enter" });
+    else view.rerender(<AnnotationOverlay editor={editor} pageNumber={2} layers={layers} annotations={[first, second]}
+      editing tool="select" activeLayerId={activeLayerId} />);
+    await act(async () => { release(); });
+    await waitFor(() => expect(editor.getSnapshot()).toBe("idle"));
+    expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
+    if (change === "selection") expect(screen.getByRole("button", { name: "新选择" })).toHaveAttribute("data-selected", "true");
+    // The already released movement still belongs to the original editor.
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+  });
+
+  it("settles the original keyboard gesture before selecting a different note", async () => {
+    const first = annotation("keyboard-a", activeLayerId, textPayload("ORIGINAL A", .2, .3));
+    const second = annotation("keyboard-b", activeLayerId, textPayload("ORIGINAL B", .6, .7));
+    await localDatabase.annotations.bulkPut([first, second]);
+    renderOverlay([first, second], "select");
+    mockBounds(screen.getByLabelText("第 1 页笔记层").parentElement!);
+    fireEvent.keyDown(screen.getByRole("button", { name: "ORIGINAL A" }), { key: "Enter" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+    const secondButton = screen.getByRole("button", { name: "ORIGINAL B" });
+    act(() => secondButton.focus());
+    fireEvent.keyDown(secondButton, { key: "Enter" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", repeat: true });
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    await waitFor(async () => {
+      expect((await localDatabase.annotations.get(first.key))?.payload).toMatchObject({ text: "ORIGINAL A", x: expect.closeTo(.21), y: .3 });
+      expect((await localDatabase.annotations.get(second.key))?.payload).toMatchObject({ text: "ORIGINAL B", x: expect.closeTo(.61), y: .7 });
+    });
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect((await localDatabase.annotations.get(second.key))?.payload).toMatchObject({ text: "ORIGINAL B", x: .6 });
+    expect((await localDatabase.annotations.get(first.key))?.payload).toMatchObject({ x: expect.closeTo(.21) });
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect((await localDatabase.annotations.get(first.key))?.payload).toMatchObject({ x: .2 });
+  });
+
+  it("accepts undo, arrows and Escape from property buttons while preserving native Enter", async () => {
+    const note = annotation("property-focus", activeLayerId, textPayload("属性快捷键"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    mockBounds(screen.getByLabelText("第 1 页笔记层").parentElement!);
+    openExistingText("属性快捷键");
+    const align = screen.getByRole("button", { name: "文字对齐：居中" });
+    act(() => align.focus());
+    fireEvent.click(align);
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ textAlign: "right" }));
+    fireEvent.keyDown(align, { key: "z", ctrlKey: true });
+    await waitFor(() => expect(align).toHaveAccessibleName("文字对齐：居中"));
+    expect(fireEvent.keyDown(align, { key: "Enter" })).toBe(true);
+    expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
+    fireEvent.keyDown(align, { key: "ArrowDown", shiftKey: true });
+    fireEvent.keyUp(align, { key: "ArrowDown" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ y: expect.closeTo(.4) }));
+    fireEvent.keyDown(align, { key: "Escape" });
+    expect(screen.queryByRole("complementary", { name: "所选笔记属性" })).not.toBeInTheDocument();
+  });
+
+  it("nudges selected text by screen pixels and groups held keys into one undo", async () => {
+    const note = annotation("keyboard", activeLayerId, textPayload("键盘移动"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    const overlay = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(overlay);
+    openExistingText("键盘移动");
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", repeat: true });
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ x: .2 });
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ x: expect.closeTo(.22) }));
+    expect(editor.getEditRevision()).toBe(1);
+    fireEvent.keyDown(document.activeElement!, { key: "z", ctrlKey: true });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ x: .2 }));
+    fireEvent.keyDown(document.activeElement!, { key: "z", ctrlKey: true, shiftKey: true });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ x: expect.closeTo(.22) }));
+  });
+
+  it.each(["shape", "ink"] as const)("moves %s with Shift arrows, clamps at the page edge, and deletes with undo", async kind => {
+    const payload = kind === "shape"
+      ? { kind: "shape" as const, shape: "rectangle" as const, pageNumber: 1, x: .85, y: .2, width: .1, height: .1, strokeWidth: .002 }
+      : { kind: "ink" as const, brush: "pen" as const, nib: "round" as const, pressureMode: "uniform" as const, pageNumber: 1, points: [{ x: .85, y: .2 }, { x: .95, y: .3 }], strokeWidth: .002 };
+    const note = annotation("keyboard-other", activeLayerId, payload);
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    const root = screen.getByLabelText("第 1 页笔记层").parentElement!;
+    mockBounds(root);
+    const object = screen.getByRole("button", { name: kind === "shape" ? "矩形笔记" : "画笔笔记" });
+    fireEvent.keyDown(object, { key: "Enter" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", shiftKey: true });
+    fireEvent.keyUp(window, { key: "ArrowRight" });
+    await waitFor(() => expect(editor.getSnapshot()).toBe("idle"));
+    const moved = (await localDatabase.annotations.get(note.key))?.payload;
+    if (moved?.kind === "shape") expect(moved.x).toBeCloseTo(.9);
+    else if (moved?.kind === "ink") expect(moved.points[1].x).toBeCloseTo(1);
+    else throw new Error("missing moved annotation");
+    fireEvent.keyDown(document.activeElement!, { key: "Delete" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(true));
+    fireEvent.keyDown(document.activeElement!, { key: "z", metaKey: true });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(false));
+  });
+
+  it("keeps arrows in inputs, enters text with Enter, and deselects with Escape", async () => {
+    const note = annotation("keyboard-focus", activeLayerId, textPayload("焦点"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("焦点");
+    const size = screen.getByRole("spinbutton", { name: "字号数值" });
+    act(() => size.focus());
+    fireEvent.keyDown(size, { key: "ArrowRight" });
+    fireEvent.keyUp(size, { key: "ArrowRight" });
+    expect(editor.getEditRevision()).toBe(0);
+    act(() => screen.getByLabelText("第 1 页笔记层").parentElement!.focus());
+    fireEvent.keyDown(document.activeElement!, { key: "Enter" });
+    expect(screen.getByLabelText("笔记文本")).toHaveFocus();
+    const revision = editor.getEditRevision();
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "ArrowDown" });
+    expect(editor.getEditRevision()).toBe(revision);
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
+    openExistingText("焦点");
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(screen.queryByRole("complementary", { name: "所选笔记属性" })).not.toBeInTheDocument();
+  });
+
+  it("previews selected text size, commits before deselection, and undoes one adjustment", async () => {
+    const note = annotation("properties", activeLayerId, textPayload("属性测试"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("属性测试");
+    const size = screen.getByRole("spinbutton", { name: "字号数值" });
+    act(() => size.focus());
+    fireEvent.change(size, { target: { value: "30" } });
+    fireEvent.change(size, { target: { value: "36" } });
+    expect(parseFloat(screen.getByRole("button", { name: "属性测试" }).style.fontSize)).toBeCloseTo(3.6);
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .024 });
+    const overlay = screen.getByLabelText("第 1 页笔记层");
+    mockBounds(overlay);
+    fireEvent.pointerDown(overlay, { pointerId: 2, clientX: 90, clientY: 90 });
+    fireEvent.pointerUp(overlay, { pointerId: 2, clientX: 90, clientY: 90 });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .036 }));
+    expect(screen.queryByRole("complementary", { name: "所选笔记属性" })).not.toBeInTheDocument();
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .024 });
+    expect(editor.getEditRevision()).toBe(2);
+  });
+
+  it.each(["color", "size"] as const)("undoes a pending selected %s change without relying on input blur and redoes it", async property => {
+    const note = annotation("pending-history", activeLayerId, { ...textPayload("属性撤销"), color: "#dc2626", textAlign: "center" });
+    await localDatabase.annotations.put(note);
+    const personal = { ...layers[0]!, kind: "personal" as const, sharedSlot: null };
+    render(<AnnotationOverlay editor={editor} pageNumber={1} layers={[personal]} annotations={[note]} editing tool="select" activeLayerId={activeLayerId} />);
+    openExistingText("属性撤销");
+    const input = property === "color" ? screen.getByLabelText("所选笔记颜色") : screen.getByRole("spinbutton", { name: "字号数值" });
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: property === "color" ? "#123456" : "36" } });
+    expect(editor.canUndo(activeLayerId)).toBe(false);
+    expect((await localDatabase.annotations.get(note.key))?.payload).toEqual(note.payload);
+    const undo = screen.getByRole("button", { name: "撤销所选层修改" });
+    expect(undo).toBeEnabled();
+    expect(screen.getByRole("button", { name: "重做所选层修改" })).toBeDisabled();
+    // Some browsers keep input focus when a button is tapped: emit no blur.
+    fireEvent.pointerDown(undo);
+    fireEvent.click(undo);
+    await waitFor(() => expect(editor.canRedo(activeLayerId)).toBe(true));
+    expect((await localDatabase.annotations.get(note.key))?.payload).toEqual(note.payload);
+    expect(editor.canUndo(activeLayerId)).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "重做所选层修改" }));
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject(
+      property === "color" ? { color: "#123456" } : { fontScale: .036 },
+    ));
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+    expect((await localDatabase.annotations.get(note.key))?.payload).toEqual(note.payload);
+    expect(editor.canUndo(activeLayerId)).toBe(false);
+  });
+
+  it("normalizes an out-of-range selected size before pointer deselection", async () => {
+    const note = annotation("clamp-size", activeLayerId, textPayload("字号下限"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("字号下限");
+    const size = screen.getByRole("spinbutton", { name: "字号数值" });
+    act(() => size.focus());
+    fireEvent.change(size, { target: { value: "1" } });
+    fireEvent.pointerDown(document.body);
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .012 }));
+    expect(editor.getEditRevision()).toBe(1);
+  });
+
+  it("keeps a failed property write visible through retry and one undo", async () => {
+    const note = annotation("failed-property", activeLayerId, textPayload("属性保存"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("属性保存");
+    vi.spyOn(localDatabase.annotations, "put").mockRejectedValueOnce(new Error("storage failed"));
+    fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    await waitFor(() => expect(editor.getSnapshot()).toBe("failed"));
+    expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(25);
+    await act(async () => { expect(await editor.retry()).toBe(true); });
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ fontScale: .025 });
+    await act(async () => { expect(await editor.undo(activeLayerId)).toBe(true); });
+    expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(24);
+    expect(await editor.undo(activeLayerId)).toBe(false);
+  });
+
+  it("automatically saves explicit alignment and opens the latest text for composition", async () => {
+    const note = annotation("alignment", activeLayerId, textPayload("对齐测试"));
+    await localDatabase.annotations.put(note);
+    renderOverlay([note], "select");
+    openExistingText("对齐测试");
+    fireEvent.click(screen.getByRole("button", { name: "文字对齐：居中" }));
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ textAlign: "right" }));
+    fireEvent.click(screen.getByRole("button", { name: "编辑文字" }));
+    expect(screen.getByLabelText("笔记文本")).toHaveFocus();
+    expect(screen.getByLabelText("笔记文本")).toHaveStyle({ textAlign: "right" });
+    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "已更新" } });
+    fireEvent.click(screen.getByRole("button", { name: "完成文字输入" }));
+    await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ text: "已更新", textAlign: "right" });
+    expect(editor.getSnapshot()).toBe("idle");
+  });
+
+  it("moves composing text with its handle, retains focus, and saves only on completion", async () => {
+    renderOverlay([], "text");
+    const overlay = screen.getByLabelText("第 1 页笔记层");
+    mockBounds(overlay); mockBounds(overlay.parentElement!);
+    openNewText(overlay);
+    const input = screen.getByLabelText("笔记文本");
+    fireEvent.change(input, { target: { value: "提前换气" } });
+    const handle = screen.getByRole("button", { name: "移动文字" });
+    fireEvent.pointerDown(handle, { pointerId: 5, clientX: 20, clientY: 30 });
+    fireEvent.pointerMove(handle, { pointerId: 5, clientX: 45, clientY: 20 });
+    fireEvent.pointerUp(handle, { pointerId: 5 });
+    expect(input).toHaveFocus();
+    expect(await localDatabase.annotations.count()).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: "减小字号" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(async () => expect((await localDatabase.annotations.toArray())[0]?.payload).toMatchObject({ x: .45, y: expect.closeTo(.2), fontScale: .015, text: "提前换气" }));
+    expect(editor.getSnapshot()).toBe("idle");
+  });
+
+  it("hides the original while editing and completes without changing defaults", async () => {
+    const note = annotation("existing-inline", activeLayerId, textPayload("原文字"));
+    await localDatabase.annotations.put(note);
+    const remember = vi.fn();
+    render(<AnnotationOverlay editor={editor} pageNumber={1} layers={layers} annotations={[note]} editing tool="text" activeLayerId={activeLayerId} onTextStyleChange={remember} />);
+    const original = screen.getByRole("button", { name: "原文字" });
+    mockBounds(original.parentElement!); mockTextBounds(original);
+    openExistingText("原文字");
+    expect(original).toHaveStyle({ visibility: "hidden" });
+    expect(screen.queryByLabelText("文字颜色")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "尚未保存" } });
+    fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(() => expect(original).not.toHaveStyle({ visibility: "hidden" }));
+    expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ text: "尚未保存", fontScale: .025 });
+    expect(remember).not.toHaveBeenCalled();
+  });
+
+  it("edits personal text color and clears text with undo", async () => {
+    const note = annotation("personal-inline", activeLayerId, textPayload("个人文字"));
+    await localDatabase.annotations.put(note);
+    const personal = { ...layers[0]!, kind: "personal" as const, sharedSlot: null };
+    const view = render(<AnnotationOverlay editor={editor} pageNumber={1} layers={[personal]} annotations={[note]} editing tool="text" activeLayerId={activeLayerId} />);
+    const original = screen.getByRole("button", { name: "个人文字" });
+    mockBounds(original.parentElement!); mockTextBounds(original);
+    openExistingText("个人文字");
+    fireEvent.change(screen.getByLabelText("文字颜色"), { target: { value: "#123456" } });
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.payload).toMatchObject({ color: "#123456", x: .2, y: .3 }));
+    const saved = (await localDatabase.annotations.get(note.key))!;
+    view.rerender(<AnnotationOverlay editor={editor} pageNumber={1} layers={[personal]} annotations={[saved]} editing tool="text" activeLayerId={activeLayerId} />);
+    openExistingText("个人文字");
+    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
+    await waitFor(async () => expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(true));
+    await act(async () => { await editor.undo(activeLayerId); });
+    expect((await localDatabase.annotations.get(note.key))?.deleted).toBe(false);
+  });
+
   it("focuses new text even while a previous annotation is being saved", () => {
     vi.spyOn(editor, "getSnapshot").mockReturnValue("saving");
     renderOverlay([], "text");
@@ -143,7 +501,7 @@ describe("AnnotationOverlay", () => {
     expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
   });
 
-  it("keeps the centered composer open across blur until cancel", async () => {
+  it("keeps the inline composer open across blur until cancel", async () => {
     const visualViewport = installVisualViewport();
     const interactions: AnnotationOverlayInteraction[] = [];
     let handlingPointerUp = false;
@@ -205,19 +563,19 @@ describe("AnnotationOverlay", () => {
       preventScroll: false,
     });
     expect(interactions).toEqual(["composing-text"]);
-    expect(input).toHaveStyle({ color: "rgb(161, 38, 82)" });
-    const fontScale = screen.getByRole("slider", { name: "字号" });
-    expect(fontScale).toHaveValue("0.016");
+    expect(input.parentElement).toHaveStyle({ color: "rgb(161, 38, 82)" });
+    const fontScale = screen.getByRole("button", { name: "增大字号" });
+    expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(16);
     const fontValue = composer.querySelector(".annotation-font-scale__value");
     expect(fontValue).toHaveAttribute("data-visible");
     fireEvent.change(input, { target: { value: "保持选择范围" } });
     expect(screen.getByLabelText("笔记文本")).toBe(stableInput);
     input.setSelectionRange(2, 6, "forward");
     fireEvent.pointerDown(fontScale);
-    fontScale.focus();
+
     expect(fontValue).toHaveAttribute("data-visible");
-    fireEvent.change(fontScale, { target: { value: "0.028" } });
-    expect(fontScale).toHaveValue("0.028");
+    fireEvent.click(fontScale);
+    expect(screen.getByRole("spinbutton", { name: "字号数值" })).toHaveValue(17);
     expect(screen.getByLabelText("笔记文本")).toBe(stableInput);
     expect(input).toHaveValue("保持选择范围");
     expect(input.selectionStart).toBe(2);
@@ -242,7 +600,8 @@ describe("AnnotationOverlay", () => {
     expect(screen.getByLabelText("笔记文本")).toHaveValue("尚未确认");
     expect(await localDatabase.annotations.count()).toBe(0);
 
-    fireEvent.click(within(composer).getByRole("button", { name: "取消" }));
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.keyDown(within(composer).getByLabelText("笔记文本"), { key: "Escape" });
     expect(interactions).toEqual(["composing-text", "idle"]);
     expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
     expect(await localDatabase.annotations.count()).toBe(0);
@@ -404,7 +763,7 @@ describe("AnnotationOverlay", () => {
     const input = screen.getByLabelText("笔记文本");
     expect(input).toHaveAttribute("wrap", "off");
     const size = screen.getByRole("spinbutton", { name: "字号数值" });
-    fireEvent.focus(size);
+    act(() => size.focus());
     fireEvent.change(size, { target: { value: "" } });
     expect(size).toHaveValue(null);
     fireEvent.change(size, { target: { value: "2" } });
@@ -412,10 +771,11 @@ describe("AnnotationOverlay", () => {
     fireEvent.change(size, { target: { value: "24" } });
     fireEvent.blur(size);
     expect(size).toHaveValue(24);
-    fireEvent.click(screen.getByRole("button", { name: "左对齐" }));
+    fireEvent.click(screen.getByRole("button", { name: "文字对齐：居中" }));
+    fireEvent.click(screen.getByRole("button", { name: "文字对齐：右对齐" }));
     expect(input).toHaveStyle({ textAlign: "left" });
     fireEvent.change(input, { target: { value: "长句不会自动断行\n短句" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => expect(await localDatabase.annotations.toCollection().first()).toMatchObject({ payload: { textAlign: "left", fontScale: .024, text: "长句不会自动断行\n短句" } }));
   });
 
@@ -431,7 +791,7 @@ describe("AnnotationOverlay", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "字号数值" }), {
       target: { value: "40" },
     });
-    fireEvent.click(within(composer).getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(within(composer).getByLabelText("笔记文本"), { key: "Escape" });
 
     await waitFor(async () => {
       expect(await localDatabase.annotations.toCollection().first()).toMatchObject({
@@ -457,7 +817,7 @@ describe("AnnotationOverlay", () => {
       target: { value: "外围完成" },
     });
 
-    fireEvent.click(screen.getByRole("slider", { name: "字号" }));
+    fireEvent.click(screen.getByRole("button", { name: "增大字号" }));
     expect(screen.getByRole("form", { name: "文字输入" })).toBeInTheDocument();
     expect(await localDatabase.annotations.count()).toBe(0);
 
@@ -467,19 +827,17 @@ describe("AnnotationOverlay", () => {
     expect(await localDatabase.annotations.count()).toBe(0);
 
     const persist = vi.spyOn(editor, "persist");
-    // The opening gesture's click and a double-click continuation must not commit.
+    fireEvent.pointerDown(composer, { pointerId: 2, button: 2 });
+    fireEvent.pointerUp(composer, { pointerId: 2, button: 2 });
+    expect(persist).not.toHaveBeenCalled();
+    // A click without its own completed blank pointer gesture must not commit.
     fireEvent.click(composer, { detail: 1 });
     expect(persist).not.toHaveBeenCalled();
     await act(async () => { await Promise.resolve(); });
     expect(screen.getByRole("form", { name: "文字输入" })).toBeInTheDocument();
-    fireEvent.pointerDown(composer, { pointerId: 2, detail: 2 });
-    fireEvent.pointerUp(composer, { pointerId: 2, detail: 2 });
-    fireEvent.click(composer, { detail: 2 });
-    expect(screen.getByRole("form", { name: "文字输入" })).toBeInTheDocument();
-
     fireEvent.pointerDown(composer, { pointerId: 3 });
     fireEvent.pointerUp(composer, { pointerId: 3 });
-    fireEvent.click(composer, { detail: 1 });
+    // Touch browsers may omit click after this completed pointer gesture.
     await waitFor(() => expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument());
     await waitFor(async () => {
       expect(await localDatabase.annotations.toCollection().first()).toMatchObject({
@@ -496,9 +854,9 @@ describe("AnnotationOverlay", () => {
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "尚未写入的草稿" } });
     let rejectWrite!: (reason: Error) => void;
     const write = vi.spyOn(localDatabase.annotations, "put").mockImplementation(() => new Dexie.Promise((_resolve, reject) => { rejectWrite = reject; }));
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(() => expect(screen.getByLabelText("笔记文本")).toHaveAttribute("readonly"));
-    expect(screen.getByRole("slider", { name: "字号" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "增大字号" })).toBeDisabled();
     await waitFor(() => expect(write).toHaveBeenCalled());
     rejectWrite(new DOMException("full", "QuotaExceededError"));
     expect(await screen.findByText("本机保存失败")).toBeInTheDocument();
@@ -510,7 +868,7 @@ describe("AnnotationOverlay", () => {
     expect(await localDatabase.annotations.toCollection().first()).toMatchObject({ state: "draft", payload: { text: "尚未写入的草稿" } });
   });
 
-  it("discards failed text intent when the user cancels the composer", async () => {
+  it("discards failed new text intent when the user clears and completes it", async () => {
     // Publishing the editor error can precede the composer's async finally.
     // Hold that boundary explicitly instead of depending on CI scheduling.
     const persist = editor.persist.bind(editor);
@@ -527,12 +885,13 @@ describe("AnnotationOverlay", () => {
     openNewText(overlay);
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "取消这次修改" } });
     const write = vi.spyOn(localDatabase.annotations, "put").mockRejectedValue(new DOMException("full", "QuotaExceededError"));
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await screen.findByText("本机保存失败");
-    expect(screen.getByRole("button", { name: "取消" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "增大字号" })).toBeDisabled();
     release();
-    await waitFor(() => expect(screen.getByRole("button", { name: "取消" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "增大字号" })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     expect(screen.queryByText("本机保存失败")).not.toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "文字输入" })).not.toBeInTheDocument();
     write.mockRestore();
@@ -545,7 +904,7 @@ describe("AnnotationOverlay", () => {
     const overlay = screen.getByLabelText("第 1 页笔记层");
     mockBounds(overlay);
     openNewText(overlay);
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     expect(await localDatabase.annotations.count()).toBe(0);
     newView.unmount();
 
@@ -554,7 +913,7 @@ describe("AnnotationOverlay", () => {
     renderOverlay([text], "text");
     openExistingText("原文");
     fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(async () => {
       expect(await localDatabase.annotations.get(text.key)).toMatchObject({
         deleted: true,
@@ -563,18 +922,6 @@ describe("AnnotationOverlay", () => {
     });
   });
 
-  it("cancels an existing text edit without changing the object", async () => {
-    const text = annotation("text-1", activeLayerId, textPayload("原文"));
-    await localDatabase.annotations.put(text);
-    renderOverlay([text], "text");
-    openExistingText("原文");
-    fireEvent.change(screen.getByLabelText("笔记文本"), { target: { value: "误改" } });
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
-    expect(await localDatabase.annotations.get(text.key)).toMatchObject({
-      state: "synced",
-      payload: { text: "原文" },
-    });
-  });
 
   it.each(["text", "rectangle", "ellipse"] as const)("moves text with the %s tool and records one undoable final change", async tool => {
     const text = annotation("text-1", activeLayerId, textPayload("跟随拖动"));
@@ -640,28 +987,6 @@ describe("AnnotationOverlay", () => {
     expect(await editor.undo(activeLayerId)).toBe(false);
   });
 
-  it("retires a discarded failed drag preview when canceling its text composer", async () => {
-    const text = annotation("text-1", activeLayerId, textPayload("取消失败拖动"));
-    await localDatabase.annotations.put(text);
-    renderOverlay([text], "text");
-    const button = screen.getByRole("button", { name: "取消失败拖动" });
-    mockBounds(button.parentElement!); mockTextBounds(button);
-    const write = vi.spyOn(localDatabase.annotations, "put").mockRejectedValueOnce(new Error("storage failed"));
-    fireEvent.pointerDown(button, { pointerId: 3, clientX: 20, clientY: 30 });
-    fireEvent.pointerMove(button, { pointerId: 3, clientX: 40, clientY: 50 });
-    fireEvent.pointerUp(button, { pointerId: 3, clientX: 40, clientY: 50 });
-    await waitFor(() => expect(editor.getSnapshot()).toBe("failed"));
-    expect(Number.parseFloat(button.style.left)).toBeCloseTo(40);
-    write.mockRestore();
-    openExistingText("取消失败拖动");
-    fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
-    expect(screen.queryByLabelText("笔记文本")).not.toBeInTheDocument();
-    expect(editor.getSnapshot()).toBe("idle");
-    expect(Number.parseFloat(button.style.left)).toBeCloseTo(20);
-    expect((await localDatabase.annotations.get(text.key))?.payload).toEqual(text.payload);
-    await act(async () => { expect(await editor.finish()).toBe("local-saved"); });
-    expect((await localDatabase.annotations.get(text.key))?.payload).toEqual(text.payload);
-  });
 
   it("shows undo even if the local query skips the released drag projection", async () => {
     const text = annotation("text-1", activeLayerId, textPayload("快速撤销"));

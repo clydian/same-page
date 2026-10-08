@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import type { PlayerSession, PlayerState } from '@itscly2026/chorus-player';
+import type { PlayerSession, PlayerState } from '@clydian/chorus-player';
 import { rememberPractice } from './practice-preferences';
 import { playbackStore, startPlayback, type PlaybackSource } from './playback-store';
 import { observeNavigationSession } from '../settings/navigation-events';

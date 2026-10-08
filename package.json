@@ -42,7 +42,7 @@
     "@better-auth/drizzle-adapter": "^1.7.2",
     "@coderline/alphatab": "^1.8.4",
     "@coderline/alphatab-vite": "^1.8.4",
-    "@itscly2026/chorus-player": "file:vendor/itscly2026-chorus-player-0.1.0.tgz",
+    "@clydian/chorus-player": "file:vendor/clydian-chorus-player-0.1.0.tgz",
     "@mdxeditor/editor": "^4.2.5",
     "@tanstack/react-virtual": "^3.14.11",
     "better-auth": "^1.7.4",
@@ -51,7 +51,7 @@
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.13.5",
+    "hono": "^4.13.8",
     "lucide-react": "^1.41.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.3.289",
@@ -68,8 +68,8 @@
     "zod": "^4.6.2"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.54.8",
-    "@cloudflare/vitest-plugin": "^1.1.8",
+    "@cloudflare/vite-plugin": "^1.62.5",
+    "@cloudflare/vitest-plugin": "^1.3.6",
     "@cloudflare/workers-types": "^5.20260907.1",
     "@eslint/js": "^10.0.1",
     "@msw/cloudflare": "^0.0.1",
@@ -84,18 +84,18 @@
     "auth": "^1.7.2",
     "eslint": "^10.9.1",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.6",
+    "eslint-plugin-react-refresh": "^0.5.7",
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.11.0",
     "jsdom": "^30.0.1",
     "msw": "^2.15.0",
     "nanostores": "1.5.3",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.69.0",
+    "typescript-eslint": "^8.70.0",
     "vite": "^8.2.2",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.11",
-    "wrangler": "^4.127.1"
+    "wrangler": "^4.147.0"
   },
   "license": "AGPL-3.0-only"
 }

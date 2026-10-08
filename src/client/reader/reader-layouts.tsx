@@ -1,3 +1,4 @@
+import { usePdfPageAspectRatio } from "./use-pdf-page-geometry";
 import { FIT_ZOOM_TOLERANCE } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
 import { useReturnViewport } from "../navigation/use-return-viewport";
@@ -13,7 +14,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { Button } from "react-aria-components";
+import { Button, DialogTrigger, Modal, ModalOverlay } from "react-aria-components";
+import { ChevronDown, X } from "lucide-react";
+import { Dialog } from "../navigation/overlays";
+import { ReaderPageGrid } from "./reader-page-grid";
 
 import type { AnnotationLayerSummary } from "../../shared/annotations";
 import type {
@@ -63,6 +67,7 @@ interface ReaderLayoutProps {
   onZoomChange(value: number): void;
   onPageChange(page: number): void;
   onToggleChrome(): void;
+  onDismiss?(): void;
   annotationProps: AnnotationPageProps;
 }
 
@@ -73,6 +78,7 @@ export function PageLayout({
   fitRequest = 0,
   onZoomChange,
   onToggleChrome,
+  onDismiss,
   annotationProps,
   pager,
 }: Omit<ReaderLayoutProps, "onPageChange"> & { pager: PagedReader }) {
@@ -117,6 +123,7 @@ export function PageLayout({
     zoom,
     onZoomChange,
     onTap: onToggleChrome,
+    onDismiss,
     onEdgeTap: !annotationProps.editing && zoom <= 1 + FIT_ZOOM_TOLERANCE ? requestPage : undefined,
     tapEnabled: pager.phase === "idle",
     tapScope: document,
@@ -235,16 +242,15 @@ export function ContinuousLayout({
   onPageChange,
   onToggleChrome,
   annotationProps,
-  pager,
-}: ReaderLayoutProps & { pager: PagedReader }) {
+}: Omit<ReaderLayoutProps, "onDismiss">) {
   const noteInteraction = useRef<AnnotationInteractionHandle>(null);
   const { scrollRef, contentRef, onScroll, geometryGestures, width, height, items, size } = useContinuousReaderLayout({
     document, currentPage, zoom, fitRequest, navigationRequest,
     editing: annotationProps.editing,
-    navigation: pager,
     onZoomChange, onPageChange,
+    beforePageChange: annotationProps.editing ? () => annotationProps.editor!.prepareNavigation() : undefined,
+    canCompletePage: annotationProps.editing ? annotationProps.editor?.canNavigate : undefined,
   });
-  const viewportPosition = useViewportPosition(scrollRef);
   const gestureHandlers = useReaderGestures({
     containerRef: scrollRef,
     contentRef: contentRef,
@@ -253,9 +259,6 @@ export function ContinuousLayout({
     onNavigationStart: () => noteInteraction.current?.interrupt(),
     isObjectGestureActive: () => noteInteraction.current?.ownsObjectGesture() ?? false,
     zoom, onZoomChange, onTap: onToggleChrome,
-    pageTurn: pager.gesture,
-    pageTurnExtent: size.width,
-    tapEnabled: pager.phase === "idle",
     tapScope: document,
     tapRevision: `${currentPage}:${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
     gestureRevision: `${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
@@ -271,9 +274,8 @@ export function ContinuousLayout({
       ref={scrollRef}
       {...gestureHandlers}
       onScroll={onScroll}
-      aria-label={annotationProps.editing ? "当前页编辑" : "连续滚动阅读"}
+      aria-label={annotationProps.editing ? "连续滚动编辑" : "连续滚动阅读"}
     >
-      {pager.failedPage !== null && <aside className="reader-page-failure" role="alert">第 {pager.failedPage} 页显示失败，当前页已保留。<Button onPress={pager.retryPage}>重试翻页</Button></aside>}
       <div
         className="continuous-reader__inner"
         ref={contentRef}
@@ -284,35 +286,18 @@ export function ContinuousLayout({
       >
         {items.map((item) => {
           const page = item.index + 1;
-          const active = pager.phase !== "idle";
-          const target = active && page === pager.targetPage;
           const current = page === currentPage;
-          const extent = size.width;
-          const targetWidth = calculateFittedPageWidth(extent, size.height, item.aspectRatio);
-          const hidden = (annotationProps.editing || active) && !current && !target;
-          const top = target ? (viewportPosition.y) + Math.max(0, ((size.height) - targetWidth / item.aspectRatio) / 2) : item.start;
-          const position = target ? (page > currentPage ? 1 : -1) : 0;
-          const presentation = pageTurnPresentation(pager, extent, position, top, active && (current || target));
           return <div
             className="continuous-reader__page"
             key={item.index}
             data-index={item.index}
-            data-page-turn-current={current || undefined}
-            data-page-turn-target={target || undefined}
-            data-edit-hidden={hidden || undefined}
-            inert={hidden || target}
-            {...presentation}
-            style={{ ...presentation.style,
-              ...(target ? { left: viewportPosition.x, width: extent } : {}) }}
+            style={{ transform: `translateY(${item.start}px)` }}
           >
             <AnnotatedPdfPage
               document={document}
               pageNumber={page}
-              width={target ? targetWidth : item.width}
-              fitViewport={target ? size : undefined}
-              turn={target ? { position, progress: pager.progress } : undefined}
+              width={item.width}
               aspectRatio={item.aspectRatio}
-              onPageRenderStart={target ? pager.beginPageRender : undefined}
               interactionRef={annotationProps.editing && current ? noteInteraction : undefined}
               annotationProps={current ? annotationProps : { ...annotationProps, editing: false }}
             />
@@ -323,8 +308,7 @@ export function ContinuousLayout({
   );
 }
 
-// Both geometries use the same progress and settling presentation. A scroll
-// selection never enters this surface's horizontal transition.
+// Only paged reading uses a horizontal transition.
 function pageTurnPresentation(pager: PagedReader, extent: number, slot = 0, top = 0, active = true) {
   return {
     "data-page-turn-phase": active ? pager.phase : "idle",
@@ -361,6 +345,7 @@ export function PageNavigatorPanel({
   currentPage: number;
   onSelect(page: number): void;
 }) {
+  const [gridOpen, setGridOpen] = useState(false);
   const [draftPage, setDraftPage] = useState<number | null>(null);
   const pendingPage = useRef(currentPage);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -371,7 +356,7 @@ export function PageNavigatorPanel({
   const size = useElementSize(panelRef);
   // Sample the document at a density that leaves gaps between resting thumbnails.
   // The range input still addresses every page, including those not sampled.
-  const count = Math.min(document.numPages, 40, Math.max(1, Math.floor((size.width - 32) / 14) + 1));
+  const count = Math.min(document.numPages, 40, Math.max(1, Math.floor((size.width - 40) / 20) + 1));
   const activeIndex = document.numPages === 1 ? 0 : Math.round((page - 1) / (document.numPages - 1) * (count - 1));
   const thumbnails = Array.from({ length: count }, (_, index) =>
     count === 1 ? 1 : 1 + Math.round(index * (document.numPages - 1) / (count - 1)),
@@ -407,9 +392,23 @@ export function PageNavigatorPanel({
 
   return (
     <>
-      <output className="reader-page-indicator" aria-label="页面位置">{page} / {document.numPages}</output>
+      <DialogTrigger isOpen={gridOpen} onOpenChange={setGridOpen}>
+        <Button className="reader-page-indicator" aria-label={`展开页码网格：第 ${page} 页，共 ${document.numPages} 页`}>
+          <span aria-label="页面位置">{page} / {document.numPages}</span><ChevronDown size={14} aria-hidden="true" />
+        </Button>
+        <ModalOverlay className="reader-panel-backdrop" isDismissable>
+          <Modal className="reader-panel reader-page-grid-dialog">
+            <Dialog aria-label="页面总览">
+              <header className="reader-panel__header"><strong>页面总览</strong>
+                <Button className="icon-button" aria-label="关闭页面总览" onPress={() => setGridOpen(false)}><X size={21} aria-hidden="true" /></Button>
+              </header>
+              <ReaderPageGrid document={document} currentPage={currentPage} onSelect={page => { onSelect(page); setGridOpen(false); }} />
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
       <nav className="page-preview-strip" aria-label="页面缩略图" ref={panelRef}
-        style={{ width: `${34 + (Math.min(document.numPages, 40) - 1) * 14}px` }}>
+        style={{ width: `${42 + (Math.min(document.numPages, 40) - 1) * 20}px` }}>
         <div className="page-preview-strip__track" aria-hidden="true">
           {thumbnails.map((number, index) => (
             <div className="page-preview-strip__thumbnail" key={index}
@@ -519,39 +518,4 @@ function AnnotatedPdfPage({
       </Suspense>
     </div>
   );
-}
-
-
-const pageAspectRatios = new WeakMap<PDFDocumentProxy, Map<number, number>>();
-
-function usePdfPageAspectRatio(
-  document: PDFDocumentProxy,
-  pageNumber: number,
-  knownRatio?: number,
-) {
-  const [geometry, setGeometry] = useState<{ document: PDFDocumentProxy; pageNumber: number; ratio: number } | null>(null);
-  useEffect(() => {
-    if (knownRatio !== undefined) {
-      return;
-    }
-    let active = true;
-    void document
-      .getPage(pageNumber)
-      .then((page) => {
-        const viewport = page.getViewport({ scale: 1 });
-        if (active && viewport.height > 0) {
-          const ratio = viewport.width / viewport.height;
-          const ratios = pageAspectRatios.get(document) ?? new Map<number, number>();
-          ratios.set(pageNumber, ratio);
-          pageAspectRatios.set(document, ratios);
-          setGeometry({ document, pageNumber, ratio });
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [document, knownRatio, pageNumber]);
-  return knownRatio ?? pageAspectRatios.get(document)?.get(pageNumber) ??
-    (geometry?.document === document && geometry.pageNumber === pageNumber ? geometry.ratio : 0.707);
 }

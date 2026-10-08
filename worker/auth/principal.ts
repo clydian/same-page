@@ -27,6 +27,7 @@ export async function resolvePrincipal(options: {
   env: Env;
   executionContext: WaitUntilContext;
   guestToken?: string;
+  loadAuthSession?: () => Promise<{ user: { id: string } } | null>;
 }): Promise<Principal | null> {
   const candidates = await resolvePrincipalCandidates(options);
   if (candidates.user) return candidates.user;
@@ -47,6 +48,8 @@ export async function resolvePrincipalCandidates(options: {
     ? options.loadAuthSession?.() ??
       createAuth(options.env, options.executionContext).api.getSession({
         headers: options.request.headers,
+        // Without a response channel, authorization must not consume renewal.
+        query: { disableRefresh: true },
       })
     : Promise.resolve(null);
   const guest = options.guestToken

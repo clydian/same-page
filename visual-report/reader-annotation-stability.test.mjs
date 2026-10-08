@@ -13,7 +13,7 @@ async function open(context, engine) {
   const page = await browser.newPage({ viewport: { width: 1194, height: 700 }, hasTouch: true, serviceWorkers: "block" });
   await page.route("**/api/**", route => route.fulfill(resolveFixtureRequest({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "guest", scenarioId: "reader-controls-narrow", cookie: route.request().headers().cookie ?? "" })));
   await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
-  await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score`);
+  await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score?experience=1`);
   await page.locator('.page-reader__sheet[data-page-turn-current] canvas[data-pdf-canvas-active]').waitFor();
   await page.locator('.page-reader__viewport').click({ position: { x: 590, y: 350 } });
   await page.getByRole('button', { name: '更多', exact: true }).click();
@@ -38,7 +38,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     // Wait for the final released stroke, not an earlier durable checkpoint.
     await expect.poll(() => overlay.locator('[data-ink-stroke]').nth(1).evaluate(path => path.getBBox().x / 1000)).toBeLessThan(.31);
     await overlay.evaluate(el => { window.savedOverlay = el; window.savedInk = [...el.querySelectorAll('[data-ink-stroke]')]; window.savedPaths = window.savedInk.map(path => path.getAttribute('d')); });
-    for (const tool of ['整条橡皮', '选择', '文字', '荧光笔']) {
+    for (const tool of ['橡皮', '选择', '文字', '荧光笔']) {
       await page.getByRole('button', { name: tool, exact: true }).click();
       assert.equal(await overlay.evaluate(el => el === window.savedOverlay && [...el.querySelectorAll('[data-ink-stroke]')].every((path, i) => path === window.savedInk[i])), true, `${tool}: retains nodes`);
       assert.deepEqual(await overlay.locator('[data-ink-stroke]').evaluateAll(paths => paths.map(path => path.getAttribute('d'))), await page.evaluate(() => window.savedPaths), `${tool}: retains geometry`);

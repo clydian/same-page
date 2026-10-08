@@ -39,7 +39,7 @@ test('two-finger editing pans the score without leaving a text placement', async
   assert.equal(await page.locator('.page-reader__sheet[data-page-turn-current]').getAttribute('data-page-number'), '1');
 });
 test('guest edits survive reload without any annotation mutation request', async context => {
-  const page = await open(context, 'guest');
+  const page = await open(context, 'guest', true);
   const mutations = [];
   page.on('request', request => { if (new URL(request.url()).pathname.includes('/api/') && !['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()); });
   await page.getByRole('button', { name: '更多', exact: true }).click();
@@ -47,7 +47,7 @@ test('guest edits survive reload without any annotation mutation request', async
   await page.locator('.annotation-controls').waitFor();
   await page.getByLabel('第 1 页笔记层').click({ position: { x: 200, y: 250 } });
   await page.getByRole('textbox', { name: '笔记文本' }).fill('本机试写');
-  await page.getByRole('button', { name: '完成', exact: true }).click();
+  await page.getByRole('form', { name: '文字输入' }).click({ position: { x: 12, y: 80 } });
   await page.getByRole('button', { name: '完成编辑', exact: true }).click();
   await page.reload();
   await page.locator('.annotation-text').filter({ hasText: '本机试写' }).waitFor();
@@ -63,7 +63,7 @@ test('signed-in experience stays local and does not upload notes', async context
   await page.locator('.annotation-controls').waitFor();
   await page.getByLabel('第 1 页笔记层').click({ position: { x: 200, y: 250 } });
   await page.getByRole('textbox', { name: '笔记文本' }).fill('登录后的体验');
-  await page.getByRole('button', { name: '完成', exact: true }).click();
+  await page.getByRole('form', { name: '文字输入' }).click({ position: { x: 12, y: 80 } });
   await page.getByRole('button', { name: '完成编辑', exact: true }).click();
   await page.reload();
   await page.locator('.annotation-text').filter({ hasText: '登录后的体验' }).waitFor();
@@ -81,7 +81,7 @@ test('fullscreen includes the text portal and exits on leaving the reader', asyn
   await page.locator('.annotation-controls').waitFor();
   await page.getByLabel('第 1 页笔记层').click({ position: { x: 200, y: 250 } });
   await expect(page.getByRole('textbox', { name: '笔记文本' })).toBeFocused();
-  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByRole('form', { name: '文字输入' }).click({ position: { x: 12, y: 80 } });
   await page.getByRole('button', { name: '完成编辑', exact: true }).click();
   await page.getByRole('button', { name: '返回云盘', exact: true }).click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBe(null);
@@ -101,7 +101,7 @@ test('fitting the second continuous page keeps that page selected after rotation
   await expect(page.getByRole('slider', { name: '跳转页码' })).toHaveValue('2');
 });
 for (const layout of ['page', 'continuous']) test(`${layout}: two fingers cancel an ink checkpoint instead of saving an accidental stroke`, async context => {
-  const page = await open(context, 'guest');
+  const page = await open(context, 'guest', true);
   if (layout === 'continuous') await page.getByRole('button', { name: '连续滚动', exact: true }).click();
   else await page.getByRole('button', { name: '更多', exact: true }).click();
   await page.getByRole('button', { name: '编辑', exact: true }).click();
@@ -125,13 +125,13 @@ for (const layout of ['page', 'continuous']) test(`${layout}: two fingers cancel
 });
 
 for (const layout of ['page', 'continuous']) test(`${layout}: text owns a second finger outside its bounds`, async context => {
-  const page = await open(context, 'guest');
+  const page = await open(context, 'guest', true);
   if (layout === 'continuous') await page.getByRole('button', { name: '连续滚动', exact: true }).click();
   else await page.getByRole('button', { name: '更多', exact: true }).click();
   await page.getByRole('button', { name: '编辑', exact: true }).click();
   await page.locator('.annotation-overlay').first().click({ position: { x: 180, y: 200 } });
   await page.getByRole('textbox', { name: '笔记文本' }).fill('手势归属');
-  await page.getByRole('button', { name: '完成', exact: true }).click();
+  await page.getByRole('form', { name: '文字输入' }).click({ position: { x: 12, y: 80 } });
   await page.getByRole('button', { name: '完成编辑', exact: true }).click();
   await page.getByRole('button', { name: '编辑', exact: true }).click();
   const text = page.getByRole('button', { name: '手势归属', exact: true });

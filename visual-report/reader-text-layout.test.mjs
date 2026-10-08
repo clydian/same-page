@@ -33,38 +33,27 @@ test("only explicit line breaks remain proportional across zoom", async context 
   }
 });
 
-test("gives short editable text a 44px hit target without enlarging its visual bounds", async (context) => {
+test("nearby short notes remain individually selectable at their visible text", async context => {
   const browser = await testBrowser(context);
   const page = await browser.newPage({ viewport: { width: 800, height: 500 } });
-
-  await setFixture(page, annotationPage("short-note", 556.4, "换", 2.4, true));
-
-  const result = await page.locator("#short-note").evaluate((element) => {
-    const box = element.getBoundingClientRect();
-    const hitBox = getComputedStyle(element, "::before");
-    const center = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
-    const hitOffsets = [-21.5, 21.5];
-    return {
-      visualWidth: box.width,
-      visualHeight: box.height,
-      hitWidth: Number.parseFloat(hitBox.width),
-      hitHeight: Number.parseFloat(hitBox.height),
-      corners: hitOffsets.flatMap((x) =>
-        hitOffsets.map((y) => document.elementFromPoint(center.x + x, center.y + y)?.id),
-      ),
-    };
+  await setFixture(page, annotationPage("first-note", 600, "甲", 2.4, true));
+  await page.locator("#first-note").evaluate(first => {
+    const second = first.cloneNode(true);
+    second.id = "second-note";
+    second.textContent = "乙";
+    second.style.left = "calc(50% + 24px)";
+    first.after(second);
+    for (const note of [first, second]) note.addEventListener("click", () => {
+      document.body.dataset.selectedNote = note.id;
+    });
   });
-
-  assert.ok(result.visualWidth < 44);
-  assert.ok(result.visualHeight < 44);
-  assert.ok(result.hitWidth >= 44);
-  assert.ok(result.hitHeight >= 44);
-  assert.deepEqual(result.corners, [
-    "short-note",
-    "short-note",
-    "short-note",
-    "short-note",
-  ]);
+  // Both visible notes must win over their neighbour's transparent target,
+  // including the side nearest the other note.
+  for (const [id, side] of [["first-note", "right"], ["second-note", "left"]]) {
+    const box = await page.locator(`#${id}`).boundingBox();
+    await page.mouse.click(side === "right" ? box.x + box.width - 3 : box.x + 3, box.y + box.height / 2);
+    assert.equal(await page.locator("body").getAttribute("data-selected-note"), id);
+  }
 });
 
 test("lets long notes extend past the page without wrapping", async context => {

@@ -1,6 +1,7 @@
 import { musicXmlEnabled } from "../score-library/attachments/api";
 import { captureNavigationIdentity } from "../settings/navigation-events";
 import { startPlayback } from "../playback/playback-store";
+import { DrivePreparation } from "../score-library/drive-preparation";
 import { useLibraryAttachments } from "../score-library/attachments/use-library-attachments";
 import { AttachmentLoading } from "../score-library/attachments/attachment-shell";
 import { LibraryTaskLoading } from "../score-library/library-task-dialog";
@@ -102,13 +103,13 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const attachmentsEnabled = online && access.kind === "opened" && !access.local;
   const scoresWithAttachments = visibleScores.filter(score => (score.attachmentCount ?? 0) > 0);
   const expandedScores = scoresWithAttachments.filter(score => expandedScoreIds.has(score.id));
-  const attachmentsRequested = expandedScores.length > 0;
-  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled && attachmentsRequested, `${identity.authenticatedSessionId ?? "guest"}:${attachmentGeneration}`);
+  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled, `${cacheOwner}:${identity.authenticatedSessionId ?? "guest"}:${attachmentGeneration}`);
   const [scoreAction, setScoreAction] = useState<ScoreActionSelection | null>(null);
   const refresh = () => {
     // Authentication changes cause useDriveLibrary to acquire/reload the now
     // authorized resource. Never grant authority from a refetch result here.
     if (identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || identity.onlineState === "checking") return identity.session.refetch();
+    attachments.retry();
     return library.refresh();
   };
   const refreshAfterMutation = library.changed;
@@ -221,7 +222,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           <IdentityNotice identity={identity} />
           {searchMessage && <p role="status">{searchMessage}<Button onPress={() => void refresh()}>重试</Button></p>}
         </div>}
-        <InstallSuggestion />
+        {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
+          (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
+          <DrivePreparation choirId={choirId} accountReady={Boolean(identity.authenticatedUserId) && access.isMember} />}
         <section className="library-workspace" aria-labelledby="library-content-title">
           <div className="library-toolbar">
             <div className="library-controls">

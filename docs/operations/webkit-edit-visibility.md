@@ -10,8 +10,8 @@
 
 ## 核实已有结果
 
-- [PR #164](https://github.com/itscly2026/same-page/pull/164) 的 head `4273a25` 与合并提交 `7438a4f` 的 Git tree 相同。PR [run 34030527519](https://github.com/itscly2026/same-page/actions/runs/34030527519) 首次失败、同 SHA 重试成功；[main run 34031155218](https://github.com/itscly2026/same-page/actions/runs/34031155218) 又在同一 WebKit 场景失败。
-- 后续 [PR #167](https://github.com/itscly2026/same-page/pull/167) 的 `2c82713` 包含 `7438a4f`，[run 34031534537](https://github.com/itscly2026/same-page/actions/runs/34031534537) 的同一场景通过，合并后的 [main run 34031789344](https://github.com/itscly2026/same-page/actions/runs/34031789344) 也通过。
+- [PR #164](https://github.com/clydian/same-page/pull/164) 的 head `4273a25` 与合并提交 `7438a4f` 的 Git tree 相同。PR [run 34030527519](https://github.com/clydian/same-page/actions/runs/34030527519) 首次失败、同 SHA 重试成功；[main run 34031155218](https://github.com/clydian/same-page/actions/runs/34031155218) 又在同一 WebKit 场景失败。
+- 后续 [PR #167](https://github.com/clydian/same-page/pull/167) 的 `2c82713` 包含 `7438a4f`，[run 34031534537](https://github.com/clydian/same-page/actions/runs/34031534537) 的同一场景通过，合并后的 [main run 34031789344](https://github.com/clydian/same-page/actions/runs/34031789344) 也通过。
 
 ## Linux 复现与对照
 
@@ -19,8 +19,8 @@
 
 | 验证 | 结果 |
 | --- | --- |
-| [原断言重复 20 次](https://github.com/itscly2026/same-page/actions/runs/34032357822)，诊断提交 `1e09ff7` | 第一次失败（2 != 1），后 19 次通过 |
-| [可重试断言重复 20 次](https://github.com/itscly2026/same-page/actions/runs/34032658606)，诊断提交 `d9eecda` | 20/20 通过 |
+| [原断言重复 20 次](https://github.com/clydian/same-page/actions/runs/34032357822)，诊断提交 `1e09ff7` | 第一次失败（2 != 1），后 19 次通过 |
+| [可重试断言重复 20 次](https://github.com/clydian/same-page/actions/runs/34032658606)，诊断提交 `d9eecda` | 20/20 通过 |
 | 同一对照 run 中强制隐藏页 `visibility: visible !important` | 3 秒后失败，Expected: 1 / Received: 2，保留对持续错误的检测 |
 
 失败现场的关键状态（artifact `webkit-0.json` 和 trace）：

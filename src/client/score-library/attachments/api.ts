@@ -46,3 +46,10 @@ export async function musicXmlEnabled(choirId: string, signal?: AbortSignal) {
   const value: unknown = await response.json();
   return typeof value === "object" && value !== null && "musicxml" in value && value.musicxml === true;
 }
+
+export async function readMarkdown(choirId: string, scoreId: string, id: string, signal?: AbortSignal) {
+  const attachment = await readAttachment(choirId, scoreId, id, signal);
+  const response = await diagnosticFetch(attachmentFileUrl(choirId, attachment), { signal });
+  if (!response.ok) throw new SettingsRequestError(response.status);
+  return { attachment, text: await response.text() };
+}

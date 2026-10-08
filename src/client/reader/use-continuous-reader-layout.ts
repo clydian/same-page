@@ -1,15 +1,14 @@
+import { FALLBACK_PAGE_RATIO, usePdfPageAspectRatios } from "./use-pdf-page-geometry";
 import { capturePaperAnchor, constrainReaderPosition } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReturnViewport } from "../navigation/use-return-viewport";
 import type { PDFDocumentProxy } from "./pdf-document";
-import type { PagedReader } from "./use-paged-reader";
 import type { ReaderZoomGeometry } from "./use-reader-zoom";
 import { calculateFittedPageWidth } from "./reader-dimensions";
 
 const PAGE_GAP = 8;
-const FALLBACK_PAGE_RATIO = 0.707;
 
 interface ContinuousReaderLayoutOptions {
   document: PDFDocumentProxy;
@@ -18,16 +17,17 @@ interface ContinuousReaderLayoutOptions {
   fitRequest?: number;
   navigationRequest?: number;
   editing: boolean;
-  navigation: Pick<PagedReader, "phase" | "targetPage">;
   onZoomChange(zoom: number): void;
   onPageChange(page: number): void;
+  beforePageChange?(): Promise<boolean>;
+  canCompletePage?(): boolean;
 }
 
 // Owns measurement, fitting and the scroll commit. Callers render the returned
 // geometry and connect the gesture capabilities; they do not sequence commands.
 export function useContinuousReaderLayout({
   document, currentPage, zoom, fitRequest = 0, navigationRequest = 0, editing,
-  navigation, onZoomChange, onPageChange,
+  onZoomChange, onPageChange, beforePageChange, canCompletePage,
 }: ContinuousReaderLayoutOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -36,8 +36,13 @@ export function useContinuousReaderLayout({
   const anchorPage = anchorSelection?.document === document ? anchorSelection.page : null;
   const fitSuspended = useRef(false);
   const zoomLease = useRef<symbol | null>(null);
+  const browseLease = useRef<symbol | null>(null);
+  useLayoutEffect(() => {
+    browseLease.current = null;
+    return () => { browseLease.current = null; };
+  }, [document, editing, currentPage, fitRequest, navigationRequest, size.width, size.height]);
   const pageWidth = Math.max(1, size.width * zoom);
-  const ratios = usePageAspectRatios(document);
+  const ratios = usePdfPageAspectRatios(document);
   const geometryReady = ratios.length === document.numPages;
   const startPadding = Math.max(0, (size.height - pageWidth / (ratios[0] ?? FALLBACK_PAGE_RATIO)) / 2);
   const commit = useRef<{
@@ -69,12 +74,41 @@ export function useContinuousReaderLayout({
     gap: PAGE_GAP,
     getItemKey,
     overscan: 2,
-    // Editing hides neighbours; padding lets even the first and last short
-    // pages sit at the viewport center after a fit-and-turn.
+    // Boundary padding lets short first/last pages sit at the viewport center.
     paddingStart: startPadding,
     paddingEnd: Math.max(0, (size.height - pageWidth / (ratios[document.numPages - 1] ?? FALLBACK_PAGE_RATIO)) / 2),
-    rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(anchorPage === null ? [] : [anchorPage]), ...(navigation.targetPage === null ? [] : [navigation.targetPage - 1])])].sort((a, b) => a - b),
+    rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(anchorPage === null ? [] : [anchorPage])])].sort((a, b) => a - b),
   });
+
+  // Scroll offsets are pixels, but a viewport resize changes every preceding
+  // page's height. Retain a paper-relative anchor, not the old pixel offset.
+  const viewportGeometry = useRef<{
+    document: PDFDocumentProxy; width: number; height: number; pageWidth: number;
+    ratios: readonly number[]; padding: number; top: number; left: number;
+  } | null>(null);
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element || !geometryReady || size.width <= 0 || size.height <= 0) return;
+    const previous = viewportGeometry.current;
+    const resized = previous?.document === document &&
+      (previous.width !== size.width || previous.height !== size.height);
+    const retainFit = !fitSuspended.current && fitRequest !== 0 &&
+      Math.abs(zoom - commit.current.fitted.zoom) <= 0.001;
+    if (resized && !retainFit && commit.current.alignedPage !== null) {
+      const index = currentPage - 1;
+      const pageStart = (width: number, aspects: readonly number[], padding: number) =>
+        padding + aspects.slice(0, index).reduce((sum, ratio) => sum + width / ratio + PAGE_GAP, 0);
+      const oldHeight = previous.pageWidth / previous.ratios[index];
+      const y = (previous.top + previous.height / 2 - pageStart(previous.pageWidth, previous.ratios, previous.padding)) / oldHeight;
+      const x = (previous.left + previous.width / 2) / Math.max(previous.width, previous.pageWidth);
+      const top = pageStart(pageWidth, ratios, startPadding) + y * pageWidth / ratios[index] - size.height / 2;
+      virtualizer.scrollToOffset(Math.max(0, top));
+      element.scrollLeft = Math.max(0, x * Math.max(size.width, pageWidth) - size.width / 2);
+      commit.current.programTop = element.scrollTop;
+    }
+    viewportGeometry.current = { document, ...size, pageWidth, ratios, padding: startPadding,
+      top: element.scrollTop, left: element.scrollLeft };
+  }, [document, geometryReady, size, pageWidth, ratios, startPadding, currentPage, fitRequest, zoom, virtualizer]);
 
   useEffect(() => {
     const state = commit.current;
@@ -130,16 +164,14 @@ export function useContinuousReaderLayout({
   useReturnViewport(scrollRef, "continuous", geometryReady && size.width > 0 && size.height > 0);
 
   const zoomGeometry: ReaderZoomGeometry = {
-    constrain: () => {
-      const element = scrollRef.current;
-      if (!element || !editing) return;
-      const paper = contentRef.current?.querySelector<HTMLElement>(`[data-index="${currentPage - 1}"] .annotated-pdf-page`);
-      if (paper) constrainReaderPosition(element, paper.getBoundingClientRect());
-    },
+    // Continuous editing shares the document's vertical bounds with reading.
+    constrain: () => {},
     capture: (center) => {
       const token = Symbol();
+      const origin = { top: scrollRef.current?.scrollTop ?? 0, left: scrollRef.current?.scrollLeft ?? 0 };
       const anchor = contentRef.current && capturePaperAnchor(contentRef.current, center);
       zoomLease.current = token;
+      browseLease.current = token;
       if (anchor) setAnchorSelection({ document, page: anchor.pageIndex });
       return {
         anchor,
@@ -148,19 +180,56 @@ export function useContinuousReaderLayout({
           zoomLease.current = null;
           if (outcome.status === "committed" && outcome.zoomChanged) fitSuspended.current = true;
           setAnchorSelection(null);
+          if (outcome.status !== "committed" || !editing) return;
+          const element = scrollRef.current;
+          if (!element) return;
+          const destination = virtualizer.getVirtualItemForOffset(element.scrollTop + element.clientHeight / 2);
+          if (!destination || destination.index + 1 === currentPage) {
+            return;
+          }
+          // Keep the outgoing editor mounted until local drafts are durable.
+          // A new gesture, selection or scope invalidates this admission.
+          void (async () => {
+            let admitted = false;
+            try { admitted = await beforePageChange?.() ?? true; } catch { /* Preserve the current page on a failed admission. */ }
+            if (browseLease.current !== token) return;
+            if (!admitted || (canCompletePage && !canCompletePage())) {
+              if (!outcome.zoomChanged) {
+                element.scrollTop = origin.top;
+                element.scrollLeft = origin.left;
+              } else {
+                const paper = contentRef.current?.querySelector<HTMLElement>(`[data-index="${currentPage - 1}"] .annotated-pdf-page`);
+                if (paper) constrainReaderPosition(element, paper.getBoundingClientRect());
+              }
+              return;
+            }
+            fitSuspended.current = true;
+            commit.current.alignedPage = destination.index + 1;
+            onPageChange(destination.index + 1);
+          })();
         },
       };
     },
   };
   const geometryGestures = {
     zoomGeometry,
+    continuous: true,
     nativeTouchScroll: !editing,
   };
 
   const onScroll = () => {
     const state = commit.current;
+    const element = scrollRef.current;
+    const geometry = viewportGeometry.current;
+    // ResizeObserver and native scroll events can arrive in either order.
+    // A scroll caused by changing viewport bounds is not a page selection.
+    if (element && geometry) {
+      if (element.clientWidth !== geometry.width || element.clientHeight !== geometry.height) return;
+      geometry.top = element.scrollTop;
+      geometry.left = element.scrollLeft;
+    }
     if (zoomLease.current !== null) return;
-    if (state.document !== document || editing || navigation.phase !== "idle" || state.pending || !geometryReady || state.alignedPage === null) return;
+    if (state.document !== document || editing || state.pending || !geometryReady || state.alignedPage === null) return;
     const scrollTop = scrollRef.current?.scrollTop ?? 0;
     // A queued event from our own alignment is not a new page selection. A
     // different offset resumes ordinary viewport-center feedback immediately.
@@ -181,22 +250,4 @@ export function useContinuousReaderLayout({
       aspectRatio: ratios[item.index] ?? FALLBACK_PAGE_RATIO,
     })),
   };
-}
-
-
-function usePageAspectRatios(document: PDFDocumentProxy) {
-  const [geometry, setGeometry] = useState<{ document: PDFDocumentProxy; ratios: number[] } | null>(null);
-  useEffect(() => {
-    let active = true;
-    // Metadata only: this does not render or retain canvases for offscreen pages.
-    void Promise.all(Array.from({ length: document.numPages }, async (_, index) => {
-      try {
-        const page = await document.getPage(index + 1);
-        const viewport = page.getViewport({ scale: 1 });
-        return viewport.width / viewport.height;
-      } catch { return FALLBACK_PAGE_RATIO; }
-    })).then(ratios => { if (active) setGeometry({ document, ratios }); });
-    return () => { active = false; };
-  }, [document]);
-  return geometry?.document === document ? geometry.ratios : [];
 }

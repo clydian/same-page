@@ -2,9 +2,9 @@ import type { InstallGuide } from "./install-context";
 
 export function InstallCompletion({ guide }: { guide: InstallGuide }) {
   return <section aria-label="添加后的帮助">
-    <p role="status">已提交添加请求，请回到主屏幕，点合谱图标打开。</p>
+    <p role="status">已提交添加请求，请回到桌面，点合谱图标打开。</p>
     <details className="install-fallback">
-      <summary>主屏幕没有合谱图标？</summary>
+      <summary>桌面没有合谱图标？</summary>
       {guide.startsWith("android") ? <>
         <p>打开手机设置 → 应用 → 当前浏览器 → 权限 / 其他权限，允许“创建桌面快捷方式”（如有）。</p>
         <p>允许后，回到浏览器菜单，再试“添加到主屏幕”或“安装应用”。没有这项权限可跳过。</p>

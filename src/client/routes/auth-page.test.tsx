@@ -566,7 +566,7 @@ describe("AuthPage", () => {
     );
   });
 
-  it("registers first and only then asks for an invite choir display name", async () => {
+  it("registers, joins the invited drive and returns to the original score", async () => {
     const fetchMock = vi.fn().mockImplementation(
       (input: string, init?: RequestInit) => {
         if (input === "/api/auth/flow") {
@@ -609,7 +609,7 @@ describe("AuthPage", () => {
       },
     );
     vi.stubGlobal("fetch", fetchMock);
-    renderAuthPage();
+    renderAuthPage("/login?returnTo=%2Fchoirs%2Fchoir-1%2Fscores%2Fscore-1");
 
     await identify("New@Example.Test");
     expect(await screen.findByRole("heading", { name: "注册" })).toBeInTheDocument();
@@ -649,6 +649,7 @@ describe("AuthPage", () => {
         }),
       );
     });
+    await vi.waitFor(() => expect(screen.getByLabelText("current route")).toHaveTextContent("/choirs/choir-1/scores/score-1"));
   });
 
   it("clears a preview guest session after login without offering membership", async () => {

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { mkdir } from "node:fs/promises";
+import { expect } from "@playwright/test";
 
 import { chromium, webkit } from "playwright";
 
@@ -48,7 +50,7 @@ test(`${engineName}: reader controls remain reachable without overlap across vie
   const preview = await page.getByRole("slider", { name: "跳转页码" }).boundingBox();
   assert.ok(preview.width >= 44 && preview.height >= 44, `scrubber hit area: ${preview.width} × ${preview.height}`);
   const strip = await page.locator(".page-preview-strip").boundingBox();
-  assert.ok(strip.height < 32, "the visible strip stays compact independently of its hit area");
+  assert.ok(strip.height < 40, "the visible strip stays compact independently of its hit area");
   assert.ok(strip.width < 80, "the two-page fixture stays tightly packed");
   // A finger can land above the miniature strip and still select the last page.
   const hit = { x: preview.x + preview.width - 2, y: strip.y - 2 };
@@ -59,7 +61,7 @@ test(`${engineName}: reader controls remain reachable without overlap across vie
   await page.locator('.page-reader__sheet[data-page-turn-current][data-page-number="1"]').waitFor();
   assert.equal(await page.locator(".reader-chrome .reader-page-indicator").count(), 0);
   const positionBadge = await page.locator(".reader-page-indicator").boundingBox();
-  assert.ok(positionBadge.height < 32, "the page position is a compact status badge");
+  assert.ok(positionBadge.height >= 44, "the page position opens the grid with a touch-sized target");
   await page.getByRole("button", { name: "更多", exact: true }).click();
   await page.getByRole("button", { name: "连续滚动", exact: true }).click();
   const reader = page.locator(".continuous-reader");
@@ -74,14 +76,14 @@ test(`${engineName}: reader controls remain reachable without overlap across vie
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await page.locator('.continuous-reader[data-editing]').waitFor();
   assert.equal(await page.locator('.continuous-reader__page[data-index="1"]').getAttribute("inert"), null);
-  assert.equal(await page.locator('.continuous-reader__page[data-index="0"]').getAttribute("inert"), "");
+  assert.equal(await page.locator('.continuous-reader__page[data-index="0"] .annotation-overlay').getAttribute("data-editing"), null);
   assert.equal(await reader.evaluate(element => element.scrollTop), position);
 });
 }
 
 for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
   for (const layout of ["page", "continuous"]) {
-    test(`${engineName}: editing ${layout} turns a zoomed page and centers the destination`, async context => {
+    test(`${engineName}: editing ${layout} uses layout-appropriate horizontal gestures`, async context => {
       const browser = await engine.launch({ headless: true });
       context.after(() => browser.close());
       const page = await openMemberReader(browser, { width: 834, height: 800 });
@@ -106,6 +108,11 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
         send("pointermove", 3, 500 - remaining - 120); send("pointermove", 4, 600 - remaining - 120);
         send("pointerup", 4, 600 - remaining - 120); send("pointerup", 3, 500 - remaining - 120);
       });
+      if (layout === "continuous") {
+        assert.equal(await viewport.getAttribute("data-zoom"), "2");
+        await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 1 页笔记层"]').waitFor();
+        return;
+      }
       await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
       await page.waitForFunction(selector => {
         const viewport = document.querySelector(selector);
@@ -119,72 +126,108 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
   }
 }
 
-test("grows and caps the real text composer inside an iPad WebKit visual viewport", async (context) => {
+test("keeps inline text on its page anchor and pans the paper for a reduced iPad WebKit viewport", async (context) => {
   const browser = await webkit.launch({ headless: true });
   context.after(() => browser.close());
-  const page = await openMemberReader(browser, { width: 834, height: 420 });
+  const page = await openMemberReader(browser, { width: 834, height: 768 });
   await showReaderChrome(page);
-  await page.getByRole("button", { name: /^(编辑|完成编辑)$/, exact: true }).click();
-  await page.locator(".annotation-overlay svg").evaluate((element) => {
+  await page.getByRole("button", { name: "编辑", exact: true }).click();
+  await page.locator(".annotation-overlay svg").evaluate(element => {
     const bounds = element.getBoundingClientRect();
-    const init = {
-      bubbles: true,
-      pointerId: 1,
-      pointerType: "touch",
-      clientX: bounds.left + bounds.width / 2,
-      clientY: bounds.top + bounds.height * 0.42,
-    };
+    const init = { bubbles: true, pointerId: 1, pointerType: "touch", clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height * .7 };
     element.dispatchEvent(new PointerEvent("pointerdown", init));
     element.dispatchEvent(new PointerEvent("pointerup", init));
   });
-
   const input = page.getByRole("textbox", { name: "笔记文本", exact: true });
-  await input.waitFor({ state: "visible" });
   await input.fill("第一行\n第二行\n第三行");
+  assert.equal(await page.getByRole("button", { name: "完成编辑" }).count(), 0);
+  const paper = page.locator(".annotated-pdf-page").first();
+  const before = await paper.boundingBox();
+  await page.evaluate(() => {
+    Object.defineProperty(visualViewport, "height", { configurable: true, value: 420 });
+    visualViewport.dispatchEvent(new Event("resize"));
+  });
   await assertEventually(page, () => {
-    const element = document.querySelector("textarea[aria-label='笔记文本']");
-    return element instanceof HTMLTextAreaElement && element.clientHeight >= element.scrollHeight;
+    const input = document.querySelector("textarea");
+    const bar = document.querySelector(".annotation-composer-styles");
+    return input && bar && input.getBoundingClientRect().bottom + 46 <= bar.getBoundingClientRect().top;
   });
-  const multiline = await input.evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    scrollHeight: element.scrollHeight,
-  }));
-  assert.ok(multiline.clientHeight >= multiline.scrollHeight);
-
-  const longValue = Array(60).fill("很多换行仍然可以继续编辑").join("\n");
-  await input.fill(longValue);
+  const shifted = await paper.boundingBox();
+  assert.ok(shifted.y < before.y);
+  assert.equal(shifted.width, before.width);
+  await input.fill(Array(60).fill("很多换行仍然可以继续编辑").join("\n"));
   await assertEventually(page, () => {
-    const element = document.querySelector("textarea[aria-label='笔记文本']");
-    return element instanceof HTMLTextAreaElement && element.scrollHeight > element.clientHeight;
+    const input = document.querySelector("textarea");
+    const bounds = input.getBoundingClientRect();
+    return bounds.bottom <= 389 && input.selectionEnd === input.value.length;
   });
-  await page.setViewportSize({ width: 600, height: 320 });
-  await assertEventually(page, () => {
-    const element = document.querySelector("textarea[aria-label='笔记文本']");
-    if (!(element instanceof HTMLTextAreaElement)) return false;
-    const bounds = element.getBoundingClientRect();
-    return bounds.top >= 0 && bounds.bottom <= innerHeight;
-  });
-  const longText = await input.evaluate((element) => {
-    const bounds = element.getBoundingClientRect();
-    return {
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-      scrollTop: element.scrollTop,
-      top: bounds.top,
-      bottom: bounds.bottom,
-      viewportHeight: innerHeight,
-      caretAtEnd: element.selectionEnd === element.value.length,
-    };
-  });
-  assert.ok(longText.clientHeight < longText.scrollHeight);
-  assert.ok(longText.top >= 0 && longText.bottom <= longText.viewportHeight);
-  assert.equal(longText.caretAtEnd, true);
-  assert.ok(longText.scrollTop > 0);
+  await input.fill("原位编辑尺寸一致\n留意指挥");
+  await page.evaluate(() => { delete visualViewport.height; visualViewport.dispatchEvent(new Event("resize")); });
+  await assertEventually(page, () => !document.querySelector(".annotated-pdf-page").style.translate);
+  const editingBounds = await input.boundingBox();
+  await page.getByRole("form", { name: "文字输入" }).click({ position: { x: 12, y: 80 } });
+  const saved = page.getByRole("button", { name: "原位编辑尺寸一致 留意指挥" });
+  await saved.waitFor();
+  const savedBounds = await saved.boundingBox();
+  for (const key of ["x", "y", "width", "height"]) assert.ok(Math.abs(editingBounds[key] - savedBounds[key]) < 1, key);
+  assert.equal(await page.getByRole("button", { name: "完成编辑" }).count(), 1);
 });
 
-async function openMemberReader(browser, viewport) {
+test("Android touch keeps text focus when the opening tap shifts the paper below the hint", async context => {
+  const browser = await chromium.launch({ headless: true });
+  context.after(() => browser.close());
+  const page = await openMemberReader(browser, { width: 412, height: 600 }, { isMobile: true, hasTouch: true });
+  await showReaderChrome(page);
+  await page.getByRole("button", { name: "编辑", exact: true }).tap();
+  await page.locator(".annotation-controls").waitFor();
+  const paper = page.locator(".annotation-overlay[data-editing] svg");
+  const box = await paper.boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + 2);
+  const input = page.getByRole("textbox", { name: "笔记文本" });
+  await expect(input).toBeVisible();
+  await expect(input).toBeFocused();
+  assert.ok(await page.locator(".annotated-pdf-page").first().evaluate(element => Number.parseFloat(element.style.translate.split(" ")[1]) > 0), "the opening point must actually require top avoidance");
+  // A second deliberate blank tap must still dismiss an accidental empty note.
+  await page.touchscreen.tap(12, 220);
+  await expect(input).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "撤销", exact: true })).toBeDisabled();
+});
+
+test("Android composition keeps its draft and viewport through blank-space multi-touch and drags", async context => {
+  const browser = await chromium.launch({ headless: true });
+  context.after(() => browser.close());
+  const page = await openMemberReader(browser, { width: 412, height: 600 }, { isMobile: true, hasTouch: true });
+  await showReaderChrome(page);
+  await page.getByRole("button", { name: "编辑", exact: true }).tap();
+  await page.locator(".annotation-controls").waitFor();
+  const box = await page.locator(".annotation-overlay[data-editing] svg").boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height * .3);
+  const input = page.getByRole("textbox", { name: "笔记文本" });
+  await input.fill("仍在输入");
+  await page.evaluate(() => { window.compositionGestures = []; for (const type of ["pointerdown", "pointerup", "pointercancel", "click"]) document.addEventListener(type, e => window.compositionGestures.push({ type, id: e.pointerId, detail: e.detail, x: e.clientX, y: e.clientY, target: e.target.tagName }), true); });
+  const client = await page.context().newCDPSession(page);
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 130, y: 350, id: 1 }, { x: 230, y: 350, id: 2 }] });
+  for (let step = 1; step <= 8; step++) {
+    await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 130 - step * 6, y: 350, id: 1 }, { x: 230 + step * 6, y: 350, id: 2 }] });
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+  }
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  assert.equal(await page.evaluate(() => visualViewport.scale), 1, "composition must not zoom the entire browser UI");
+  await expect(input).toHaveValue("仍在输入");
+  await expect(input).toBeFocused();
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 30, y: 320, id: 3 }] });
+  await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 70, y: 350, id: 3 }] });
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(input).toBeVisible();
+  await page.touchscreen.tap(12, 220);
+  await expect(input, JSON.stringify(await page.evaluate(() => window.compositionGestures))).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "仍在输入", exact: true })).toBeVisible();
+});
+
+async function openMemberReader(browser, viewport, device = {}) {
   const browserContext = await browser.newContext({
     viewport,
+    ...device,
     colorScheme: "light",
     locale: "zh-CN",
     reducedMotion: "reduce",
@@ -234,6 +277,147 @@ async function waitForRenderedPdf(page) {
 
 async function assertEventually(page, predicate) {
   await page.waitForFunction(predicate);
+}
+
+for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
+  test(`${engineName}: continuous two-finger browsing keeps notes, tools and undo across pages`, async context => {
+    const browser = await engine.launch({ headless: true });
+    context.after(() => browser.close());
+    const page = await openMemberReader(browser, { width: 834, height: 800 });
+    await showReaderChrome(page);
+    await page.getByRole("button", { name: "更多", exact: true }).click();
+    await page.getByRole("button", { name: "连续滚动", exact: true }).click();
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    await page.getByRole("button", { name: "画笔", exact: true }).click();
+    const hint = page.locator('.reader-edit-gesture-hint');
+    await expect(hint.locator('.reader-edit-gesture-hint__detail')).toBeVisible();
+    await expect(hint).toContainText('双指上下浏览');
+    const layer = await page.getByRole('button', { name: /当前编辑层/ }).getAttribute('aria-label');
+    const draw = async () => {
+      await page.locator('.annotation-overlay[data-editing] svg').evaluate(svg => {
+        const box = svg.getBoundingClientRect();
+        const base = { bubbles: true, pointerType: 'pen', pointerId: 42, buttons: 1, pressure: .5,
+          clientX: box.x + box.width * .5, clientY: Math.max(120, box.top + 180) };
+        svg.dispatchEvent(new PointerEvent('pointerdown', base));
+        svg.dispatchEvent(new PointerEvent('pointermove', { ...base, clientX: base.clientX + 45 }));
+        svg.dispatchEvent(new PointerEvent('pointerup', { ...base, clientX: base.clientX + 45, buttons: 0 }));
+      });
+    };
+    const notePages = () => page.evaluate(async () => {
+      const { localDatabase } = await import('/src/client/platform/local-database.ts');
+      return (await localDatabase.annotations.toArray()).filter(note => !note.deleted && note.payload?.kind === 'ink').map(note => note.payload.pageNumber).sort();
+    });
+    await draw();
+    await expect.poll(notePages).toEqual([1]);
+    const viewport = page.locator('.continuous-reader');
+    await browseVertically(viewport, -800);
+    await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
+    await expect(hint.locator('.reader-edit-gesture-hint__detail')).toBeVisible();
+    await expect(hint.getByText('编辑中', { exact: true })).toBeVisible();
+    await expect(hint).toContainText('双指上下浏览');
+    assert.equal(await viewport.getAttribute('data-zoom'), '1');
+    assert.equal(await page.getByRole('button', { name: /当前编辑层/ }).getAttribute('aria-label'), layer);
+    await expect(page.getByRole('button', { name: '画笔', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await draw();
+    await expect.poll(notePages).toEqual([1, 2]);
+    await page.getByRole('button', { name: '撤销', exact: true }).click();
+    await expect.poll(notePages).toEqual([1]);
+    await browseVertically(viewport, 800);
+    await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 1 页笔记层"]').waitFor();
+    await page.getByRole('button', { name: '撤销', exact: true }).click();
+    await expect.poll(notePages).toEqual([]);
+    await page.getByRole('button', { name: '重做', exact: true }).click();
+    await expect.poll(notePages).toEqual([1]);
+    await page.getByRole('button', { name: '完成编辑', exact: true }).click();
+    await page.getByRole('button', { name: '更多', exact: true }).click();
+    await page.getByText('阅读帮助', { exact: true }).click();
+    await page.getByRole('button', { name: '编辑操作指引', exact: true }).click();
+    await expect(hint.locator('.reader-edit-gesture-hint__detail')).toBeVisible();
+    const directory = 'artifacts/verification/reader-editing-flow';
+    await mkdir(directory, { recursive: true });
+    for (const width of [834, 390, 320]) {
+      await page.setViewportSize({ width, height: 800 });
+      const done = await page.getByRole('button', { name: '完成编辑', exact: true }).boundingBox();
+      const label = await hint.boundingBox();
+      assert.ok(done.width >= 44 && done.height >= 44 && done.x >= 0 && done.x + done.width <= width);
+      assert.ok(label.x >= 0 && label.x + label.width <= width);
+      assert.ok(label.y >= done.y + done.height || label.x + label.width <= done.x);
+      await page.screenshot({ path: `${directory}/${engineName}-${width}.png` });
+    }
+  });
+}
+
+async function browseVertically(viewport, dy) {
+  await viewport.evaluate(async (element, dy) => {
+    const send = (type, id, x, y) => element.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerType: 'touch', pointerId: id, clientX: x, clientY: y,
+    }));
+    send('pointerdown', 71, 250, 400); send('pointerdown', 72, 350, 400);
+    send('pointermove', 71, 250, 400 + dy); send('pointermove', 72, 350, 400 + dy);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    send('pointerup', 71, 250, 400 + dy); send('pointerup', 72, 350, 400 + dy);
+  }, dy);
+}
+
+for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
+  test(`${engineName}: unified editing dock keeps completion, properties and layer dialogs reachable`, async context => {
+    const browser = await engine.launch({ headless: true });
+    context.after(() => browser.close());
+    const page = await openMemberReader(browser, { width: 320, height: 800 });
+    await showReaderChrome(page);
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    await page.locator('.annotation-overlay[data-editing] svg').evaluate(svg => {
+      const box = svg.getBoundingClientRect();
+      const init = { bubbles: true, pointerId: 41, pointerType: "touch", clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+      svg.dispatchEvent(new PointerEvent("pointerdown", init));
+      svg.dispatchEvent(new PointerEvent("pointerup", init));
+    });
+    await page.getByRole("textbox", { name: "笔记文本", exact: true }).fill("统一编辑回归");
+    const done = page.getByRole("button", { name: "完成文字输入", exact: true });
+    await expect(done).toHaveText("完成");
+    await expect(page.locator('.annotation-composer-instruction')).toBeVisible();
+    await expect(page.locator('.annotation-composer-instruction')).toContainText("轻点空白处完成");
+    await assertEventually(page, () => {
+      const hint = document.querySelector('.annotation-composer-hint').getBoundingClientRect();
+      const done = document.querySelector('.reader-composer-done').getBoundingClientRect();
+      return hint.left >= 0 && hint.right <= innerWidth && done.left >= 0 && done.right <= innerWidth
+        && (hint.right <= done.left || hint.bottom <= done.top || done.bottom <= hint.top);
+    });
+    await done.click();
+    await page.getByRole("button", { name: "选择", exact: true }).click();
+    await page.getByRole("button", { name: "统一编辑回归", exact: true }).click();
+    const properties = page.locator('.annotation-object-properties');
+    await expect(properties).toBeVisible();
+    for (const width of [320, 390, 834]) {
+      await page.setViewportSize({ width, height: 800 });
+      await assertEventually(page, () => {
+        const dock = document.querySelector('.annotation-object-properties');
+        const bounds = dock.getBoundingClientRect();
+        const controls = [...dock.querySelectorAll('button, input')].map(control => control.getBoundingClientRect()).filter(box => box.width && box.height);
+        return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight
+          && controls.every(box => box.left >= bounds.left && box.right <= bounds.right && box.top >= bounds.top && box.bottom <= bounds.bottom);
+      }).catch(async error => {
+        const geometry = await properties.evaluate(dock => ({ dock: dock.getBoundingClientRect().toJSON(), controls: [...dock.querySelectorAll('button, input')].map(control => ({ name: control.getAttribute('aria-label'), box: control.getBoundingClientRect().toJSON() })) }));
+        throw new Error(`${width}px property dock geometry: ${JSON.stringify(geometry)}`, { cause: error });
+      });
+      if (width <= 640) await expect(page.locator('.annotation-controls')).toBeHidden();
+      else await expect(page.locator('.annotation-controls')).toBeVisible();
+    }
+    for (const shortcut of ["显示参考笔记", "管理个人层"]) {
+      await page.getByRole("button", { name: /当前编辑层/ }).click();
+      await page.getByRole("button", { name: shortcut }).click();
+      await expect(page.getByRole("dialog", { name: "笔记图层", exact: true })).toBeVisible();
+      await expect(page.getByRole("tab", { name: shortcut === "显示参考笔记" ? "显示" : "管理", exact: true })).toHaveAttribute("aria-selected", "true");
+      assert.ok(await properties.evaluate(dock => {
+        const backdrop = document.querySelector('.reader-layers-backdrop');
+        const box = dock.getBoundingClientRect();
+        return Number(getComputedStyle(backdrop).zIndex) > Number(getComputedStyle(dock).zIndex)
+          && backdrop.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      }), "the layer dialog must intercept hits above the still-mounted property dock");
+      await page.getByRole("button", { name: "关闭笔记显示", exact: true }).click();
+      await expect(properties).toBeVisible();
+    }
+  });
 }
 
 for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

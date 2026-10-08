@@ -39,7 +39,8 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await page.screenshot({ path: `${directory}/${name}-reading.png` });
     await page.getByRole("button", { name: "编辑", exact: true }).click();
     await page.locator(".annotation-controls").waitFor();
-    await expect(reader.locator(".annotated-pdf-page:visible")).toHaveCount(1);
+    await expect(reader.locator(".annotation-overlay[data-editing]")).toHaveCount(1);
+    await expect.poll(() => reader.locator(".annotated-pdf-page:visible").count()).toBeGreaterThan(1);
     assert.equal(await reader.evaluate(element => element.scrollTop), 300);
     await page.screenshot({ path: `${directory}/${name}-editing.png` });
     await page.getByRole("button", { name: "完成编辑", exact: true }).click();

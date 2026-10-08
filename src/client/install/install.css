@@ -2,9 +2,9 @@
 .install-modal { width: min(480px, calc(100vw - 24px)); max-height: calc(var(--safe-height) - 32px); overflow-y: auto; }
 .install-dialog { padding: 24px; }
 .install-intro { display: flex; gap: 14px; align-items: center; margin: 20px 0 24px; }
-.install-intro img, .install-suggestion img { border-radius: 12px; flex-shrink: 0; }
+.install-intro img { border-radius: 12px; flex-shrink: 0; }
 .install-intro strong { font-size: 17px; }
-.install-intro p, .install-suggestion p { margin: 5px 0 0; color: #52666b; font-size: 14px; line-height: 1.6; }
+.install-intro p { margin: 5px 0 0; color: #52666b; font-size: 14px; line-height: 1.6; }
 .install-steps { list-style: none; padding: 0; margin: 22px 0; display: grid; gap: 18px; }
 .install-steps li { display: flex; gap: 12px; align-items: flex-start; }
 .install-steps li > span { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; color: #014653; background: #eaf2f1; font-weight: 600; }
@@ -16,11 +16,6 @@
 .install-fallback input { width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 10px; border: 1px solid #cbd8d9; border-radius: 8px; }
 .install-note { color: #65777a; font-size: 12px; line-height: 1.7; margin: 20px 0 0; }
 .install-message { font-size: 14px; line-height: 1.6; color: #014653; }
-.install-suggestion { display: flex; align-items: flex-start; gap: 12px; padding: 18px; margin: 0 0 20px; border: 1px solid #d1e3df; border-radius: 14px; background: #f0f7f4; }
-.install-suggestion > div { flex: 1; }
-.install-suggestion strong { font-size: 15px; }
-.install-suggestion .install-button { margin-top: 10px; padding: 0; min-height: 32px; }
-.install-suggestion > .icon-button { flex-shrink: 0; }
 .hero-actions .install-button { min-height: 44px; }
 @media (max-width: 600px) {
   .marketing-hero .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -45,14 +40,12 @@
 .install-skip { display: block; text-align: center; margin-top: 24px; padding: 12px; color: #52666b; }
 .install-page .install-fallback { margin-top: 24px; }
 .install-fallback summary { padding: 8px 0; min-height: 28px; }
-.install-suggestion .install-button { min-height: 44px; }
 @media (max-width: 600px) {
   .install-page { padding: 20px 16px; }
   .install-page-card { padding: 24px 20px; margin-top: 20px; }
   .install-dialog { padding: 20px; }
   .install-page h1 { font-size: 23px; }
 }
-.install-suggestion .install-button { padding: 8px 14px; }
 
  .install-choices { margin-bottom: 20px; }
 .install-choice-intro { color: #173d44; font-size: 15px; font-weight: 600; margin: 0 0 14px; }

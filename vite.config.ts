@@ -38,7 +38,7 @@ export default defineConfig(({ isPreview }) => ({
     // independent and much smaller.
     chunkSizeWarningLimit: 1500,
     rollupOptions: { output: { manualChunks(id) {
-      if (/node_modules\/(?:@coderline\/alphatab|@itscly2026\/chorus-player|fflate|saxes|xmlchars)/.test(id)) return "musicxml-engine";
+      if (/node_modules\/(?:@coderline\/alphatab|@clydian\/chorus-player|fflate|saxes|xmlchars)/.test(id)) return "musicxml-engine";
     } } },
   },
   plugins: [

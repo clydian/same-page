@@ -14,7 +14,7 @@ export async function listLocalFiles() {
     const files = (await localDatabase.offlineScores.toArray()).map(file => ({ ...file, driveName: directories.find(drive => drive.ownerKey === file.ownerKey.replace(/^experience:/, "") && drive.choirId === file.choirId)?.choir.name ?? "云盘" }));
     if (owner?.startsWith("user:")) return files.filter(file => file.ownerKey === owner || file.ownerKey === `experience:${owner}`);
     const guests = await localDatabase.system.bulkGet(files.map(file => guestOwnerSystemKey(file.choirId)));
-    return files.filter((file, i) => file.ownerKey.startsWith("guest:") && guests[i]?.value === file.ownerKey);
+    return files.filter((file, i) => file.ownerKey.replace(/^experience:/, "").startsWith("guest:") && guests[i]?.value === file.ownerKey.replace(/^experience:/, ""));
   });
 }
 export type LocalFileScope = { ownerKey: LocalWorkspaceOwnerKey; choirId?: string; scoreId?: string };
@@ -22,7 +22,7 @@ export async function clearLocalFiles(scope: LocalFileScope) {
   return localDatabase.transaction("rw", [localDatabase.system, localDatabase.offlineScores, localDatabase.offlineSnapshots], async () => {
     const owner = await currentLocalOwnerKey();
     const baseOwnerKey = scope.ownerKey.replace(/^experience:/, "");
-    if (baseOwnerKey.startsWith("user:") ? owner !== baseOwnerKey : owner?.startsWith("user:") || !scope.choirId || (await localDatabase.system.get(guestOwnerSystemKey(scope.choirId)))?.value !== scope.ownerKey) throw new Error("local_workspace_owner_changed");
+    if (baseOwnerKey.startsWith("user:") ? owner !== baseOwnerKey : owner?.startsWith("user:") || !scope.choirId || (await localDatabase.system.get(guestOwnerSystemKey(scope.choirId)))?.value !== baseOwnerKey) throw new Error("local_workspace_owner_changed");
     const key = JSON.stringify(["offline-files", scope.ownerKey, ...(scope.choirId ? [scope.choirId] : []), ...(scope.scoreId ? [scope.scoreId] : [])]);
     await localDatabase.system.put({ key, value: crypto.randomUUID() });
     const files = await localDatabase.offlineScores.where("ownerKey").equals(scope.ownerKey)

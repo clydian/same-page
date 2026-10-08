@@ -15,6 +15,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       const page = await context.newPage();
       const fixture = createVisualFixtureSession();
       const counts = {};
+      const usageRequests = [];
+      for (const event of ["request", "requestfinished", "requestfailed"]) page.on(event, request => {
+        if (new URL(request.url()).pathname.endsWith("/usage")) usageRequests.push({ event, time: Date.now(), failure: request.failure()?.errorText });
+      });
       let releaseBootstrap;
       await page.clock.setFixedTime(new Date("2026-09-10T00:00:00Z"));
       await page.route("**/api/**", async route => {
@@ -33,6 +37,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         await page.getByRole("link", { name: "基本信息", exact: true }).click();
         await page.getByRole("button", { name: "修改云盘名称", exact: true }).waitFor();
         await expect(page.getByRole("button", { name: "修改云盘名称", exact: true })).toBeEnabled();
+        // The management action can become ready before the independently
+        // loaded usage resource. Exercise a confirmed visit, not its loading UI.
+        await expect(page.getByText(/^乐谱 1 · 空间/)).toBeVisible();
         await page.getByRole("button", { name: "返回", exact: true }).click();
         await page.getByRole("link", { name: "基本信息", exact: true }).waitFor();
         await expect(page.getByText("正在确认访问权限，已有内容可以继续浏览。")).toHaveCount(0);
@@ -40,7 +47,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       assert.equal(counts["/api/choirs/visual-choir/bootstrap"], 1);
       assert.equal(counts["/api/choirs/visual-choir/management"], 1);
       assert.equal(counts["/api/choirs/visual-choir/settings"], 1);
-      assert.equal(counts["/api/choirs/visual-choir/usage"], 1);
+      assert.equal(counts["/api/choirs/visual-choir/usage"], 1, JSON.stringify(usageRequests));
       assert.equal(counts["/api/choirs/visual-choir/memberships"] ?? 0, 0);
       await page.clock.setFixedTime(new Date("2026-09-10T00:01:01Z"));
       await page.evaluate(() => { window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("online")); });

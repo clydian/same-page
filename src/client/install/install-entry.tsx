@@ -1,19 +1,23 @@
+import { DriveSuggestion } from "../components/drive-suggestion";
 import { prepareInstallLink } from "./install-transfer";
 import { useEffect, useState } from "react";
 import { Button } from "react-aria-components";
-import { Download, X } from "lucide-react";
+import { Download } from "lucide-react";
 import { detectInstallGuide, useInstall } from "./install-context";
 
 export function InstallButton({ className }: { className?: string }) {
   const install = useInstall();
   if (!install || install.hidden) return null;
-  return <Button className={`install-button ${className ?? (install.nativeAvailable ? "primary-button" : "secondary-button")}`} onPress={install.open}><Download size={18} aria-hidden="true" />{detectInstallGuide(navigator.userAgent, navigator.maxTouchPoints) === "android" ? "安装合谱" : "添加到主屏幕"}</Button>;
+  return <Button className={`install-button ${className ?? (install.nativeAvailable ? "primary-button" : "secondary-button")}`} onPress={install.open}><Download size={18} aria-hidden="true" />{detectInstallGuide(navigator.userAgent, navigator.maxTouchPoints) === "android" ? "安装合谱" : "添加到桌面"}</Button>;
 }
 
 export function InstallSuggestion() {
   const install = useInstall();
   if (!install?.suggest) return null;
-  return <aside className="install-suggestion" aria-label="安装建议"><img src="/icon-192.png" alt="" width="40" height="40" /><div><strong>把合谱添加到主屏幕</strong><p>下次排练，点一下图标就能打开。</p><InstallButton className="primary-button" /></div><Button className="icon-button" aria-label="暂时不用，关闭安装建议" onPress={install.dismiss}><X size={18} /></Button></aside>;
+  return <DriveSuggestion id="install" label="安装建议" title="把合谱添加到桌面"
+    closeLabel="暂时不用，关闭安装建议" action={<InstallButton className="secondary-button" />}>
+    <p>下次排练，点一下图标就能打开。</p>
+  </DriveSuggestion>;
 }
 
 

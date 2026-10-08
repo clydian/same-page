@@ -27,9 +27,9 @@ const initialProps = { drive: "drive", scores: [first], active: true, generation
 const useAttachments = (props: typeof initialProps) => useLibraryAttachments(props.drive, props.scores, props.active, props.generation);
 
 it("keeps unchanged rows visible while another score opens or closes", async () => {
-  const expanding = pending(), collapsing = pending();
+  const expanding = pending();
   fetchMock.mockResolvedValueOnce(Response.json({ attachments: [firstAttachment] }))
-    .mockReturnValueOnce(expanding.promise).mockReturnValueOnce(collapsing.promise);
+    .mockReturnValueOnce(expanding.promise);
   const { result, rerender } = renderHook(useAttachments, { initialProps });
   await waitFor(() => expect(result.current.items).toEqual([firstAttachment]));
   rerender({ ...initialProps, scores: [first, second] });
@@ -38,9 +38,7 @@ it("keeps unchanged rows visible while another score opens or closes", async () 
   await act(async () => expanding.resolve(Response.json({ attachments: [firstAttachment, secondAttachment] })));
   expect(result.current.items).toEqual([firstAttachment, secondAttachment]);
   rerender(initialProps);
-  expect(result.current.loading).toBe(true);
-  expect(result.current.items).toEqual([firstAttachment]);
-  await act(async () => collapsing.resolve(Response.json({ attachments: [firstAttachment] })));
+  expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(result.current.loading).toBe(false);
   expect(result.current.items).toEqual([firstAttachment]);
 });
@@ -94,4 +92,65 @@ it.each([401, 403, 404])("drops cached attachment metadata after explicit access
   await waitFor(() => expect(result.current.statusFor(first.id)).toBe("error"));
   expect(result.current.items).toEqual([]);
   expect(result.current.statusFor(second.id)).toBe("error");
+});
+
+it("reopens recently read attachment rows immediately without requesting them again", async () => {
+  fetchMock.mockResolvedValue(Response.json({ attachments: [firstAttachment] }));
+  const { result, rerender } = renderHook(useAttachments, { initialProps });
+  await waitFor(() => expect(result.current.items).toEqual([firstAttachment]));
+  rerender({ ...initialProps, scores: [] });
+  expect(result.current.items).toEqual([]);
+  rerender(initialProps);
+  expect(result.current.statusFor(first.id)).toBe("ready");
+  expect(result.current.items).toEqual([firstAttachment]);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it("shows expired metadata immediately, updates in the background and retains it on transient failure", async () => {
+  const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
+  const refresh = pending();
+  fetchMock.mockResolvedValueOnce(Response.json({ attachments: [firstAttachment] })).mockReturnValueOnce(refresh.promise);
+  try {
+    const { result, rerender } = renderHook(useAttachments, { initialProps });
+    await waitFor(() => expect(result.current.items).toEqual([firstAttachment]));
+    rerender({ ...initialProps, scores: [] });
+    clock.mockReturnValue(32_000);
+    rerender(initialProps);
+    expect(result.current.items).toEqual([firstAttachment]);
+    expect(result.current.refreshing).toBe(true);
+    await act(async () => refresh.resolve(new Response(null, { status: 503 })));
+    expect(result.current.items).toEqual([firstAttachment]);
+    expect(result.current.error).toBe(true);
+    const changed = { ...firstAttachment, name: "更新.md", revision: 2 };
+    fetchMock.mockResolvedValueOnce(Response.json({ attachments: [changed] }));
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.items).toEqual([changed]));
+  } finally { clock.mockRestore(); }
+});
+
+it("does not refetch fresh rows when opening another score and forgets collapsed rows after revocation", async () => {
+  fetchMock.mockResolvedValueOnce(Response.json({ attachments: [firstAttachment] }))
+    .mockResolvedValueOnce(new Response(null, { status: 403 }));
+  const { result, rerender } = renderHook(useAttachments, { initialProps });
+  await waitFor(() => expect(result.current.items).toEqual([firstAttachment]));
+  rerender({ ...initialProps, scores: [second] });
+  await waitFor(() => expect(result.current.error).toBe(true));
+  expect(String(fetchMock.mock.calls[1][0])).toContain("scoreIds=second");
+  fetchMock.mockReturnValueOnce(pending().promise);
+  rerender(initialProps);
+  expect(result.current.items).toEqual([]);
+});
+
+it("bounds retained metadata after a large expanded list is collapsed", async () => {
+  const scores = Array.from({ length: 101 }, (_, i) => score(`score-${i}`));
+  fetchMock.mockImplementation(async input => {
+    const ids = new URL(String(input), "https://example.test").searchParams.get("scoreIds")!.split(",");
+    return Response.json({ attachments: ids.map(attachment) });
+  });
+  const { result, rerender } = renderHook(useAttachments, { initialProps: { ...initialProps, scores } });
+  await waitFor(() => expect(result.current.items).toHaveLength(101));
+  rerender({ ...initialProps, scores: [] });
+  fetchMock.mockReturnValueOnce(pending().promise);
+  rerender({ ...initialProps, scores: [scores[0]] });
+  expect(result.current.statusFor(scores[0].id)).toBe("loading");
 });

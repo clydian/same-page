@@ -3,7 +3,7 @@ import { holdUpdate } from "../updates/update-safety";
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from 'react-aria-components';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { createPlayerSession, type PlayerSession, type PlayerState } from '@itscly2026/chorus-player';
+import { createPlayerSession, type PlayerSession, type PlayerState } from '@clydian/chorus-player';
 import { attachmentFetch as diagnosticFetch } from '../score-library/attachments/request';
 import { attachmentFileUrl, attachmentPath } from '../score-library/attachments/api';
 import { onDriveChange } from '../settings/navigation-events';

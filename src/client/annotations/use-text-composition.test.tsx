@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { localDatabase } from "../platform/local-database";
@@ -24,11 +25,12 @@ function Composer({ pageNumber = 1, activeLayerId = layerId, remember = () => {}
   remember?: () => void;
   composing?: (active: boolean) => void;
 }) {
-  const text = useTextComposition({ editor, pageNumber, activeLayerId, editing: true,
+  const pageRef = useRef<HTMLDivElement>(null);
+  const text = useTextComposition({ editor, pageNumber, activeLayerId, editing: true, pageRef,
     toolStyle: defaultToolStyle("text"), toolColor: "#dc2626", onTextStyleChange: remember, onComposingChange: composing });
   return <>
-    <svg aria-label="谱面" onPointerDown={event => text.startPlacement(event, { x: .2, y: .3 })}
-      onPointerMove={text.movePlacement} onPointerUp={text.endPlacement} onPointerCancel={text.endPlacement} />
+    <div className="annotated-pdf-page"><div ref={pageRef} className="test-composition-page"><svg aria-label="谱面" onPointerDown={event => text.startPlacement(event, { x: .2, y: .3 })}
+      onPointerMove={text.movePlacement} onPointerUp={text.endPlacement} onPointerCancel={text.endPlacement} /></div></div>
     {text.form}
   </>;
 }
@@ -104,4 +106,32 @@ it("does not publish completion or remember defaults after unmount", async () =>
   expect(remember).not.toHaveBeenCalled();
   expect(composing).not.toHaveBeenCalled();
   expect(editor.canNavigate()).toBe(true);
+});
+
+
+it("avoids a reduced viewport by moving the entire paper, restores it on finish, and preserves the anchor", async () => {
+  const viewport = new EventTarget();
+  Object.assign(viewport, { height: 240, width: 1024, offsetTop: 0, offsetLeft: 0 });
+  vi.stubGlobal("visualViewport", viewport);
+  const nativeBounds = HTMLElement.prototype.getBoundingClientRect;
+  const bounds = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    if (!this.classList.contains("test-composition-page")) return nativeBounds.call(this);
+    const offset = Number.parseFloat(this.parentElement!.style.translate.split(" ")[1] ?? "0");
+    return new DOMRect(0, offset, 1000, 1000);
+  });
+  try {
+    render(<Composer />);
+    begin();
+    const paper = document.querySelector<HTMLElement>(".annotated-pdf-page")!;
+    expect(Number.parseFloat(paper.style.translate.split(" ")[1]!)).toBeLessThan(0);
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "键盘上方" } });
+    const anchor = input.parentElement!;
+    expect(Number.parseFloat(anchor.style.top)).toBeLessThan(208);
+    expect(paper.style.transform).toBe("");
+    fireEvent.submit(screen.getByRole("form", { name: "文字输入" }));
+    await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
+    expect(paper.style.translate).toBe("");
+    expect((await localDatabase.annotations.toArray())[0]?.payload).toMatchObject({ x: .2, y: .3 });
+  } finally { bounds.mockRestore(); vi.unstubAllGlobals(); }
 });

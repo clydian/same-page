@@ -2,7 +2,7 @@
 
 合谱是一款面向合唱排练的乐谱 Web/PWA。成员围绕同一份 PDF 乐谱使用云盘配置的共享批注层，并保留或按谱分享自己的个人层。界面适配平板、桌面和手机。
 
-生产站点：[samepage.clyapps.com](https://samepage.clyapps.com)。项目仍在快速开发；当前工作与验收进度见 [GitHub Issues](https://github.com/itscly2026/same-page/issues)。合并、部署和真实设备验收分别以对应 PR 的记录为准。
+生产站点：[samepage.clyapps.com](https://samepage.clyapps.com)。项目仍在快速开发；当前工作与验收进度见 [GitHub Issues](https://github.com/clydian/same-page/issues)。合并、部署和真实设备验收分别以对应 PR 的记录为准。
 
 ## 开发入口
 

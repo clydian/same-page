@@ -72,6 +72,9 @@ describe("annotation layers and object synchronization", () => {
     stage("member-identity");
     const member = await createMember(fixture.joinCode!, "experience@example.test", "体验者");
     stage("experience-layers");
+    const ordinaryBase = `/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
+    expect((await callWorker(`${ordinaryBase}/layers?experience=1`, { headers: { cookie: member.cookie } })).status).toBe(403);
+    await env.DB.prepare("UPDATE choirs SET is_preview_entry = 1, guest_admission_mode = 'open', join_code_hash = NULL WHERE id = ?").bind(fixture.choirId).run();
     const base = `/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
     const count = () => env.DB.prepare("SELECT COUNT(*) AS count FROM annotation_layers WHERE score_id = ? AND owner_user_id = ?").bind(fixture.scoreId, member.userId).first();
     expect(await count()).toEqual({ count: 0 });

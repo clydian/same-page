@@ -56,6 +56,9 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect.poll(async () => { const index = Number(await player.getByLabel('播放位置',{exact:true}).inputValue()); furthest = Math.max(furthest,index); return furthest >= 2 && index === 0; }, {timeout:20000}).toBe(true);
   await player.getByRole('button',{name:'看原谱',exact:true}).click();
   await expect(page).toHaveURL(new RegExp(`/scores/${fixture.scoreId}`));
+  const guide = page.getByRole('dialog', { name: '阅读器使用指引', exact: true });
+  await guide.getByRole('button', { name: '知道了', exact: true }).click();
+  await expect(guide).toHaveCount(0);
   await expect(player.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
   await expect(player).toHaveClass(/compact/);
   assert.ok((await player.boundingBox()).height < 120, 'compact playback must not cover the score');

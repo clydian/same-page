@@ -1,4 +1,4 @@
-import { guestNoteLayer, isLocalExperience } from "./guest-notes";
+import { availableAnnotationLayers } from "./guest-notes";
 import { readingPreferenceVersion } from "../reader/reading-preferences";
 import { untilAborted } from "../platform/abortable";
 import { diagnoseLocalOperation } from "../diagnostics/local-operation";
@@ -222,7 +222,7 @@ export async function applyLayerCapabilities(workspace: LocalWorkspace,
   }, diagnostics);
   await assertLocalWorkspaceActive(workspace);
   signal.throwIfAborted();
-  return isLocalExperience(workspace) ? [...applied.filter(layer => layer.kind === "shared").map(layer => ({ ...layer, canEdit: false })), guestNoteLayer()] : applied;
+  return availableAnnotationLayers(workspace, applied);
 
 }
 
@@ -253,7 +253,7 @@ async function drainAnnotationOutbox(
   options: { maxOperations?: number; signal?: AbortSignal; layers?: AnnotationLayerSummary[] } = {},
 ) {
   await assertLocalWorkspaceActive(workspace);
-  if (isLocalExperience(workspace)) return 0;
+  if (!workspace.ownerKey.startsWith("user:")) return 0;
   const layers = options.layers ?? await refreshLayerCapabilities(workspace,
     options.signal ?? AbortSignal.timeout(30_000));
   const editableLayerIds = new Set(layers.filter(layer => layer.canEdit).map(layer => layer.id));
@@ -367,21 +367,24 @@ function toWireOperation(operation: AnnotationOutboxRecord) {
 
 // Observe the existing sync lock, including background recovery, without
 // treating request completion as proof that every local object was accepted.
-const syncActivity = new Map<string, "running" | "failed">();
+const syncActivity = new Map<string, { sessionEpoch: string | undefined; state: "running" | "failed" }>();
 const syncListeners = new Set<() => void>();
 const syncActivityOwners = new Map<string, symbol>();
 export const subscribeAnnotationSync = (listener: () => void) => {
   syncListeners.add(listener);
   return () => { syncListeners.delete(listener); };
 };
-export const getAnnotationSyncActivity = (scopeKey: string) => syncActivity.get(scopeKey) ?? "idle";
+export const getAnnotationSyncActivity = (scopeKey: string, sessionEpoch?: string) => {
+  const activity = syncActivity.get(scopeKey);
+  return activity && (sessionEpoch === undefined || activity.sessionEpoch === sessionEpoch) ? activity.state : "idle";
+};
 async function observeSync<T>(workspace: LocalWorkspace, action: () => Promise<T>) {
   const owner = Symbol();
   syncActivityOwners.set(workspace.scopeKey, owner);
   const publish = (state: "running" | "failed" | "idle") => {
     if (syncActivityOwners.get(workspace.scopeKey) !== owner) return;
     if (state === "idle") { syncActivity.delete(workspace.scopeKey); syncActivityOwners.delete(workspace.scopeKey); }
-    else syncActivity.set(workspace.scopeKey, state);
+    else syncActivity.set(workspace.scopeKey, { sessionEpoch: workspace.sessionEpoch, state });
     syncListeners.forEach(listener => listener());
   };
   publish("running");

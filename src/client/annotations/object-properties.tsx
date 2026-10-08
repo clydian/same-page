@@ -1,30 +1,74 @@
-import { X } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import type { AnnotationEditor } from "./annotation-editor";
 import type { AnnotationPayload } from "../../shared/annotations";
+import type { SelectedObjectAdjustment } from "./selected-object-adjustment";
 import { StyleFields } from "./style-fields";
-import { defaultToolStyle } from "./tool-style";
-export function ObjectProperties({ payload, personal, displayColor, onApply, onClose, onEditText, onDelete }: {
-  payload: AnnotationPayload; personal: boolean; displayColor?: string;
-  onApply(payload: AnnotationPayload): Promise<boolean>; onClose(): void; onEditText(): void; onDelete(): void;
+import { defaultToolStyle, type ToolStyle } from "./tool-style";
+
+export function ObjectProperties({ payload, personal, adjustment, disabled = false, editor, layerId, onEditText }: {
+  payload: AnnotationPayload; personal: boolean; adjustment: SelectedObjectAdjustment; disabled?: boolean;
+  editor: AnnotationEditor; layerId: string;
+  onEditText(): void;
 }) {
-  const tool = payload.kind === "ink" ? payload.brush === "highlighter" ? "highlighter" : "ink" : payload.kind === "shape" ? payload.shape : "text";
-  const [style, setStyle] = useState({ ...defaultToolStyle(tool), ...payload });
-  const [color, setColor] = useState(payload.color ?? "#dc2626");
-  const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const apply = async () => {
-    setSaving(true);
-    const next = { ...payload, ...(personal ? { color } : {}), ...(payload.kind === "text" ? { fontScale: style.fontScale, textAlign: style.textAlign } : { strokeWidth: style.strokeWidth }), ...(payload.kind === "ink" ? { nib: style.nib, opacity: style.opacity, pressureMode: style.pressureMode } : {}) };
-    const saved = await onApply(next);
-    setSaving(false); setFailed(!saved);
-    if (saved) onClose();
+  const { preview } = useSyncExternalStore(adjustment.subscribe, adjustment.getSnapshot);
+  const changeHistory = async (direction: "undo" | "redo") => {
+    if (await adjustment.commit()) await editor[direction](layerId);
   };
-  return <aside className="annotation-object-properties" aria-label="所选笔记属性">
-    <header><h2>所选笔记</h2><button type="button" className="icon-button" aria-label="关闭所选笔记属性" onClick={onClose}><X size={20} aria-hidden="true" /></button></header>
-    <p>修改当前对象，可撤销。</p>
-    <fieldset disabled={saving}><div style={{ color: personal ? color : displayColor }}><StyleFields tool={tool} value={style} onChange={value => setStyle({ ...style, ...value })} /></div>
-    {personal && <label className="annotation-object-color">颜色<input aria-label="所选笔记颜色" type="color" value={color} onChange={event => setColor(event.target.value)} /></label>}
-    <footer>{payload.kind === "text" && <button type="button" onClick={onEditText}>编辑文字</button>}<button type="button" onClick={onDelete}>删除</button><button type="button" className="primary-button" onClick={() => void apply()}>应用修改</button></footer></fieldset>
-    {failed && <p role="alert">尚未保存，请重试本机保存。</p>}
+  const canUndo = useSyncExternalStore(editor.subscribe, () => editor.canUndo(layerId));
+  const canRedo = useSyncExternalStore(editor.subscribe, () => editor.canRedo(layerId));
+  const tool = payload.kind === "ink" ? payload.brush === "highlighter" ? "highlighter" : "ink" : payload.kind === "shape" ? payload.shape : "text";
+  const barRef = useRef<HTMLElement>(null);
+  const [bottom, setBottom] = useState(80);
+  useEffect(() => {
+    const commitOutside = (event: PointerEvent) => {
+      const bar = barRef.current;
+      if (!bar || bar.contains(event.target as Node)) return;
+      // Selection changes on pointerdown, before the browser's usual blur.
+      // Flush focused inputs while their property session is still mounted.
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && bar.contains(focused)) focused.blur();
+      void adjustment.commit("properties");
+    };
+    document.addEventListener("pointerdown", commitOutside, true);
+    return () => document.removeEventListener("pointerdown", commitOutside, true);
+  }, [adjustment]);
+  useEffect(() => {
+    const toolbar = document.querySelector<HTMLElement>(".annotation-controls");
+    if (!toolbar) return;
+    const place = () => setBottom(Math.max(12, window.innerHeight - toolbar.getBoundingClientRect().top + 10));
+    const observer = new ResizeObserver(place);
+    observer.observe(toolbar);
+    window.addEventListener("resize", place);
+    place();
+    return () => { observer.disconnect(); window.removeEventListener("resize", place); };
+  }, []);
+  const styled = (value: AnnotationPayload, style: ToolStyle): AnnotationPayload => ({
+    ...value,
+    ...(value.kind === "text" ? { fontScale: style.fontScale, textAlign: style.textAlign } : { strokeWidth: style.strokeWidth }),
+    ...(value.kind === "ink" ? { nib: style.nib, opacity: style.opacity, pressureMode: style.pressureMode } : {}),
+  });
+  const label = { text: "文字笔记", ink: "画笔笔记", highlighter: "荧光笔笔记", rectangle: "矩形笔记", ellipse: "椭圆笔记" }[tool];
+  return <aside ref={barRef} className="annotation-object-properties" data-kind={tool} aria-label="所选笔记属性" style={{ bottom }}>
+    <header>
+      <button type="button" className="annotation-property-back" aria-label="返回笔记工具" disabled={disabled} onClick={() => adjustment.select(null)}><ArrowLeft size={17} aria-hidden="true" /><span>返回工具</span></button>
+      <span className="annotation-object-caption">所选{label}</span>
+      <div className="annotation-property-history">
+        <button type="button" aria-label="撤销所选层修改" disabled={disabled || (!canUndo && !preview)} onClick={() => void changeHistory("undo")}><Undo2 size={18} aria-hidden="true" /></button>
+        <button type="button" aria-label="重做所选层修改" disabled={disabled || !canRedo || !!preview} onClick={() => void changeHistory("redo")}><Redo2 size={18} aria-hidden="true" /></button>
+      </div>
+    </header>
+    <fieldset className="annotation-object-controls" disabled={disabled}>
+      <div className="annotation-object-style">
+        <StyleFields tool={tool} value={{ ...defaultToolStyle(tool), ...payload }} preview={false}
+          onChange={style => adjustment.change("properties", value => styled(value, style))} onCommit={style => { adjustment.change("properties", value => styled(value, style)); void adjustment.commit("properties"); }} />
+      </div>
+      {personal && <label className="annotation-note-color" title="笔记颜色"><span style={{ background: payload.color ?? "#dc2626" }} /><input aria-label="所选笔记颜色" type="color" value={payload.color ?? "#dc2626"}
+        onChange={event => adjustment.change("properties", value => ({ ...value, color: event.target.value }))} onBlur={() => { void adjustment.commit("properties"); }} /></label>}
+      <div className="annotation-object-actions">
+        {payload.kind === "text" && <button type="button" aria-label="编辑文字" onClick={onEditText}><TextCursorInput size={18} aria-hidden="true" /><span>编辑文字</span></button>}
+        <button type="button" className="annotation-property-delete" aria-label="删除笔记" onClick={() => adjustment.remove()}><Trash2 size={17} aria-hidden="true" /></button>
+      </div>
+    </fieldset>
   </aside>;
 }

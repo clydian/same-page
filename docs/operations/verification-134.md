@@ -16,7 +16,7 @@
 
 ## 时间基线与适用范围
 
-当前基线的真实 Actions [运行 33939561018](https://github.com/itscly2026/same-page/actions/runs/33939561018)：verify 310 秒、deploy 62 秒，从 verify 开始到 deploy 完成约 375 秒；其中部署阶段重新构建耗时 14 秒。它是客户端变更的按范围执行，未运行 Worker/PWA/迁移步骤，不能与本次本地全量 197.02 秒直接比较。
+当前基线的真实 Actions [运行 33939561018](https://github.com/clydian/same-page/actions/runs/33939561018)：verify 310 秒、deploy 62 秒，从 verify 开始到 deploy 完成约 375 秒；其中部署阶段重新构建耗时 14 秒。它是客户端变更的按范围执行，未运行 Worker/PWA/迁移步骤，不能与本次本地全量 197.02 秒直接比较。
 
 此次发布链移除了 deploy 的一次构建；完整 verify 仍保留两个 PWA 合成构建和一个正式构建。新增 artifact 传输、摘要核对和真实 smoke 有额外耗时，不能把删掉的 14 秒直接声称为净加速。
 
@@ -25,8 +25,8 @@
 ## 2026-09-05 生产发布
 
 - 源码与线上 buildId：`c0f1487ca8f1e26d86d65066e4e2c627d258b60b`。
-- [Actions 33971285548](https://github.com/itscly2026/same-page/actions/runs/33971285548)：verify 与 deploy 均成功。verify 475 秒，deploy 69 秒，关键路径约 548 秒。本次运行完整范围，包含 Worker、PWA、迁移与真实存储 smoke；基线客户端范围为 375 秒，范围不同，不宣称净提速。部署端的重复构建已移除，产物传输、准入记录和更完整的线上验收各有额外成本。
-- [验证产物 9971102044](https://github.com/itscly2026/same-page/actions/runs/33971285548/artifacts/9971102044)：`release-c0f1487ca8f1e26d86d65066e4e2c627d258b60b`；GitHub artifact digest 为 `sha256:ac3b758d7726e40c8293e2e6385171db59c4396e3064ae16b7d307f9ba89c7a7`。独立下载后核对 87 个文件与清单、源码和验证 run ID，一致。
+- [Actions 33971285548](https://github.com/clydian/same-page/actions/runs/33971285548)：verify 与 deploy 均成功。verify 475 秒，deploy 69 秒，关键路径约 548 秒。本次运行完整范围，包含 Worker、PWA、迁移与真实存储 smoke；基线客户端范围为 375 秒，范围不同，不宣称净提速。部署端的重复构建已移除，产物传输、准入记录和更完整的线上验收各有额外成本。
+- [验证产物 9971102044](https://github.com/clydian/same-page/actions/runs/33971285548/artifacts/9971102044)：`release-c0f1487ca8f1e26d86d65066e4e2c627d258b60b`；GitHub artifact digest 为 `sha256:ac3b758d7726e40c8293e2e6385171db59c4396e3064ae16b7d307f9ba89c7a7`。独立下载后核对 87 个文件与清单、源码和验证 run ID，一致。
 - GitHub `production-release` 发布记录：`6282022209`，源码为上述 SHA。
 - D1：恢复点及迁移前聚合已记录；没有新 migration 需要应用。迁移后列、外键及同步游标核查通过。
 - Cloudflare Worker version：`598372d6-768a-49d2-a653-57becd5305fb`。直接部署 CI 产物，部署 job 没有重新构建。

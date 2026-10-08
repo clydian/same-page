@@ -101,6 +101,67 @@ afterEach(() => {
 });
 
 describe("authentication and choir boundaries", () => {
+  it.each(["/api/auth/get-session", "/api/choirs", "/api/user/lifecycle"])(
+    "renews a legacy session and its browser cookie through %s", async (path) => {
+      const registration = await registerWithPassword({ callWorker, email: "legacy-session@example.test", latestOtp });
+      const sessionResponse = await callWorker("/api/auth/get-session", { headers: { cookie: registration.cookie } });
+      const initial = await sessionResponse.json() as { session: { id: string } };
+      // Fixture from a deployed client: its seven-day session has one day left.
+      await env.DB.prepare("UPDATE session SET expires_at = ?, updated_at = ? WHERE id = ?")
+        .bind(Date.now() + 86_400_000, Date.now() - 6 * 86_400_000, initial.session.id).run();
+      const response = await callWorker(path, { headers: { cookie: registration.cookie } });
+      expect(response.status).toBe(200);
+      const renewal = response.headers.getSetCookie().find(cookie => cookie.startsWith(registration.cookie.split("=", 1)[0] + "="));
+      expect(renewal?.includes("Max-Age=15552000")).toBe(true);
+      expect(renewal?.split(";", 1)[0] === registration.cookie).toBe(true);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      const current = await callWorker("/api/auth/get-session", { headers: { cookie: registration.cookie } });
+      const body = await current.json() as { session: { id: string; expiresAt: string } };
+      expect(body.session.id).toBe(initial.session.id);
+      expect(new Date(body.session.expiresAt).getTime() - Date.now()).toBeGreaterThan(15_552_000_000 - 60_000);
+    },
+  );
+
+  it("rejects a session after its idle deadline instead of reviving it", async () => {
+    const registration = await registerWithPassword({ callWorker, email: "expired-session@example.test", latestOtp });
+    await env.DB.prepare("UPDATE session SET expires_at = ?, updated_at = ?")
+      .bind(Date.now() - 1_000, Date.now() - 15_552_001_000).run();
+    const headers = { cookie: registration.cookie };
+    expect((await callWorker("/api/choirs", { headers })).status).toBe(401);
+    const result = await callWorker("/api/auth/get-session", { headers });
+    expect(result.status).toBe(200);
+    expect((await result.json()) === null).toBe(true);
+    expect(result.headers.getSetCookie().some(cookie => cookie.includes("Max-Age=15552000"))).toBe(false);
+  });
+
+  it("keeps the first device signed in when a second device logs in and out", async () => {
+    const email = "two-devices@example.test";
+    const first = await registerWithPassword({ callWorker, email, latestOtp });
+    const second = await signInWithPassword({ callWorker, email });
+    const read = (cookie: string) => callWorker("/api/auth/get-session", { headers: { cookie } });
+    expect((await (await read(first.cookie)).json()) !== null).toBe(true);
+    const secondCookie = cookieFrom(second);
+    const logout = await callWorker("/api/auth/sign-out", {
+      method: "POST",
+      headers: { cookie: secondCookie, origin: "https://same-page.test", "content-type": "application/json" },
+      body: "{}",
+    });
+    expect(logout.status).toBe(200);
+    expect((await (await read(secondCookie)).json()) === null).toBe(true);
+    expect((await (await read(first.cookie)).json()) !== null).toBe(true);
+  });
+
+  it("keeps a password login for 180 days", async () => {
+    const email = "long-session@example.test";
+    await registerWithPassword({ callWorker, email, latestOtp });
+    const login = await signInWithPassword({ callWorker, email });
+    expect(login.status).toBe(200);
+    expect(login.headers.get("set-cookie")?.includes("Max-Age=15552000")).toBe(true);
+    const result = await callWorker("/api/auth/get-session", { headers: { cookie: cookieFrom(login) } });
+    const body = await result.json() as { session: { expiresAt: string } };
+    expect(new Date(body.session.expiresAt).getTime() - Date.now()).toBeGreaterThan(15_552_000_000 - 60_000);
+  });
+
   it("exposes configured providers and starts minimal Google flow", async () => {
     const providers = await callWorker("/api/auth/social-providers");
     expect(providers.status).toBe(200);

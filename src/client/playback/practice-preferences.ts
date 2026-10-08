@@ -1,4 +1,4 @@
-import type { PlayerSession, PlayerState } from '@itscly2026/chorus-player';
+import type { PlayerSession, PlayerState } from '@clydian/chorus-player';
 import type { PlaybackSource } from './playback-store';
 const keyFor = (source: PlaybackSource) => `same-page.practice:${JSON.stringify([source.ownerKey,source.choirId,source.attachment.id,source.attachment.revision])}`;
 /** Best-effort private device preferences; never authority or a modified score. */

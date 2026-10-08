@@ -1,14 +1,16 @@
+import { GuestNoteDialog } from "../auth/guest-note-invitation";
+import { ReaderGuide } from "../reader/reader-guide";
+import { useReaderHint } from "../reader/use-reader-hint";
 import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
 import { MAX_READER_ZOOM } from "../reader/reader-zoom";
-import { subscribeReaderSync } from "../reader/sync-reader";
 import { LocalPdfDownload } from "../reader/local-pdf-download";
 import { useReaderFullscreen } from "../reader/use-reader-fullscreen";
-import { clearGuestNotes, isLocalExperience } from "../annotations/guest-notes";
+import { clearGuestNotes } from "../annotations/guest-notes";
 import { useReadingPreferenceProjection } from "../reader/reading-preference-intents";
 import { loginHref } from "../auth/login-return";
 import { useLocation, useNavigationType } from "react-router-dom";
 import { useReturnState } from "../navigation/navigation-context";
-import { useReaderAnnotationActions } from "../reader/use-reader-annotation-actions";
+import { useReaderSync } from "../reader/use-reader-sync";
 import { useToolColor } from "../reader/use-tool-color";
 import { offlinePreparationDescription } from "../offline/offline-score-status";
 import { ExportDialog } from "../reader/export-dialog";
@@ -19,17 +21,16 @@ import { useAppNavigation, useExitLayer } from "../navigation/navigation-context
 import { ReaderPresentationContext, useReaderPresentation } from "../reader/use-reader-presentation";
 import "../reader/reader-ux.css";
 import { useReaderSession } from "../reader/use-reader-session";
-import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowLeft, Share, HardDrive, Ellipsis, Layers, Maximize2, Minus, Pencil, Plus, BookOpen,
-  RefreshCw, Rows3, Check, X, Maximize, ChevronDown,
+  RefreshCw, Rows3, X, Maximize, ChevronDown,
 } from "lucide-react";
 import {
   useEffect,
+  useCallback,
   lazy,
   useRef,
   useState,
-  useSyncExternalStore,
   Suspense,
 } from "react";
 import {
@@ -42,10 +43,6 @@ import type { AnnotationLayerSummary } from "../../shared/annotations";
 import type {
   AnnotationOverlayInteraction,
 } from "../annotations/annotation-overlay";
-import {
-  readScoreAnnotationState,
-} from "../annotations/annotation-state";
-import { getAnnotationSyncActivity, subscribeAnnotationSync } from "../annotations/sync";
 import { useAnnotationEditor } from "../annotations/use-annotation-editor";
 import type { AnnotationEditor } from "../annotations/annotation-editor";
 import { useApplicationIdentity } from "../auth/application-identity";
@@ -69,14 +66,10 @@ import {
   useReaderPreferences,
 } from "../reader/use-reader-preferences";
 import { usePagedReader } from "../reader/use-paged-reader";
-import {
-  deriveReaderSyncStatus,
-  describeAnnotationConflict,
-  type ReaderSyncOutcome,
-} from "../reader/reader-sync-status";
+import { describeAnnotationConflict } from "../reader/reader-sync-status";
 
 import type { DiagnosticReader } from "../../shared/diagnostic-report";
-import { DiagnosticReportDialog, DiagnosticReportModal } from "../diagnostics/diagnostic-report-dialog";
+import { DiagnosticReportDialog } from "../diagnostics/diagnostic-report-dialog";
 
 type ReaderPanel = "layers";
 
@@ -122,31 +115,12 @@ function ReaderPageContent() {
   const { style: toolStyle, setStyle: setToolStyle } = useToolStyle(workspace?.ownerKey ?? `user:${identity.localUserId ?? "guest"}`, tool);
   const { color: toolColor, setColor: setToolColor } = useToolColor(workspace?.ownerKey ?? `user:${identity.localUserId ?? "guest"}`, tool);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
-  const [syncOutcome, setSyncOutcome] = useState<ReaderSyncOutcome>("none");
-  const [syncing, setSyncing] = useState(false);
-  const [online, setOnline] = useState(navigator.onLine);
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
-  }, []);
-  const syncActivity = useSyncExternalStore(subscribeAnnotationSync,
-    () => getAnnotationSyncActivity(workspace?.scopeKey ?? ""));
-  useEffect(() => subscribeAnnotationSync(() => {
-    if (getAnnotationSyncActivity(workspace?.scopeKey ?? "") === "running") setSyncOutcome("none");
-  }), [workspace?.scopeKey]);
   const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel);
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
-  const [cloudCheck, setCloudCheck] = useState<{ scope: string; at: number } | null>(null);
-  useEffect(() => {
-    if (!workspace) return;
-    return subscribeReaderSync(workspace, result => {
-      if (result.state === "active") setCloudCheck({ scope: workspace.scopeKey, at: Date.now() });
-    });
-  }, [workspace]);
+  const [layerPanelTab, setLayerPanelTab] = useState<"display" | "manage">("display");
   const [moreOpen, setMoreOpen] = useState(false);
-  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
+  const [guestNoteOpen, setGuestNoteOpen] = useState(false);
+  const guestReadOnly = workspace?.ownerKey.startsWith("guest:") === true;
   const moreTrigger = useRef<HTMLButtonElement>(null);
   const layersTrigger = useRef<HTMLButtonElement>(null);
   const previousPanel = useRef(readerPanel);
@@ -157,9 +131,6 @@ function ReaderPageContent() {
     const frame = requestAnimationFrame(() => layersTrigger.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [readerPanel]);
-  const [showGestureHint, setShowGestureHint] = useState(
-    () => !readBooleanPreference("reader-gesture-hint-seen"),
-  );
   useEffect(() => {
     ensureLoadingJourney("open-score", "direct");
   }, []);
@@ -178,16 +149,19 @@ function ReaderPageContent() {
       recordScoreOpened(driveCacheOwnerKey(workspace.ownerKey.startsWith("user:") ? workspace.ownerKey.slice(5) : null, choirId), choirId, scoreId);
     }
   }, [document, documentScopeKey, workspace, choirId, scoreId, identity.authenticatedUserId]);
-  const annotationState = useLiveQuery(
-    () => workspace ? readScoreAnnotationState(workspace).catch(() => null) : null,
-    [workspace?.scopeKey], null,
-  );
-  const activeAnnotations = annotationState?.scopeKey === workspace?.scopeKey ? annotationState : null;
+  const sync = useReaderSync(workspace, {
+    authenticatedUserId: identity.authenticatedUserId,
+    sessionId: identity.authenticatedSessionId,
+    trashed: cloudState === "trashed",
+    confirmIdentity: identity.session.refetch,
+  });
+  const { annotationState: activeAnnotations, online, localOnly: guestExperience,
+    status: syncStatus, syncing, reportOutcome,
+    retry: manualSync, resolveConflict, lastCheckedAt } = sync;
   const layers = useReadingPreferenceProjection(workspace, [...activeAnnotations?.layers ?? []]).sort(compareLayers);
   const annotations = activeAnnotations?.annotations ?? [];
   const pendingCount = activeAnnotations?.pendingCount ?? 0;
   const conflicts = activeAnnotations?.conflicts ?? [];
-  const syncErrorCount = activeAnnotations?.syncErrorCount ?? 0;
   const editAvailability = reader.snapshot.capability === "ready" && !activeAnnotations?.layersReady
     ? "preparing" : reader.snapshot.capability;
   const { layout, currentPage, setLayout, setCurrentPage } =
@@ -202,33 +176,29 @@ function ReaderPageContent() {
     currentPage,
     pageCount: document?.numPages ?? 1,
     documentKey: `${documentScopeKey ?? "none"}:${score?.currentVersion.id ?? "none"}`,
-    enabled: document !== null,
+    enabled: document !== null && layout === "page",
     beforePageChange: editing ? () => editor.prepareNavigation() : undefined,
     canCompletePage: editing ? editor.canNavigate : undefined,
     onPageChange: page => {
-      if (layout === "page") setZoom(1);
-      else setNavigationRequest(value => value + 1);
+      setZoom(1);
       setCurrentPage(page);
     },
   });
   const requestPage = pager.request;
 
-  useEffect(() => {
-    if (!document || !showGestureHint) return;
-    try {
-      localStorage.setItem("reader-gesture-hint-seen", "true");
-    } catch {
-      // The one-time hint may repeat when storage is unavailable.
-    }
-    const timer = window.setTimeout(() => setShowGestureHint(false), 3600);
-    return () => window.clearTimeout(timer);
-  }, [document, showGestureHint]);
+  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null && !exportOpen, null);
+  const closeScore = useCallback(() => {
+    startLoadingJourney("exit-score", "warm");
+    navigation.back(`/choirs/${choirId}`);
+  }, [navigation, choirId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
+        event.defaultPrevented ||
+        (event.target instanceof Element && Boolean(event.target.closest('[role="dialog"]'))) ||
         layout !== "page" ||
-        readerPanel !== null || moreOpen || diagnosticOpen ||
+        readerPanel !== null || moreOpen || guide.visible ||
         editing ||
         event.metaKey ||
         event.ctrlKey ||
@@ -248,11 +218,11 @@ function ReaderPageContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editing, layout, moreOpen, diagnosticOpen, readerPanel, requestPage, setZoom]);
+  }, [editing, layout, moreOpen, guide.visible, readerPanel, requestPage, setZoom]);
 
   const beginEditing = () => {
     if (cloudState === "trashed") {
-      setSyncOutcome("trash-preserved");
+      reportOutcome("trash-preserved");
       return;
     }
     if (!workspace) return;
@@ -273,6 +243,7 @@ function ReaderPageContent() {
   };
 
   const requestEditing = () => {
+    if (guestReadOnly) { setGuestNoteOpen(true); return; }
     if (layers.some((layer) => layer.canEdit)) {
       beginEditing();
       return;
@@ -284,30 +255,15 @@ function ReaderPageContent() {
     if (editAvailability === "ready") beginEditing();
   };
 
-  const annotationActions = useReaderAnnotationActions(workspace, identity.authenticatedUserId, identity.authenticatedSessionId, online, cloudState === "trashed", identity.session.refetch);
   const finishEditing = async () => {
     if (!editor) return false;
     const result = await editor.finish();
-    if (result !== "local-saved") { if (result) setSyncOutcome(result); return false; }
+    if (result !== "local-saved") { if (result) reportOutcome(result); return false; }
     setEditingEditor(null);
-    setSyncOutcome(result);
+    reportOutcome(result);
     return true;
   };
   useExitLayer(editing, "editing", finishEditing);
-
-  const manualSync = async () => {
-    if (!annotationActions || syncing) return;
-    setSyncing(true);
-    const result = await annotationActions.retry();
-    if (result) setSyncOutcome(result);
-    setSyncing(false);
-  };
-
-  const resolveConflict = async (opId: string, strategy: "discard" | "reapply" | "keep-both") => {
-    if (!annotationActions) return;
-    const result = await annotationActions.resolveConflict(opId, strategy);
-    if (result) setSyncOutcome(result);
-  };
 
   const diagnosticReader: DiagnosticReader = {
     ...(reader.snapshot.opening ? { opening: readerOpeningFacts(reader.snapshot.opening) } : {}),
@@ -364,7 +320,12 @@ function ReaderPageContent() {
   const hasNewOfflineVersion =
     offline && offline.versionId !== score.currentVersion.id;
   const goToPage = (page: number) => {
-    requestPage(clamp(page, 1, document.numPages));
+    const target = clamp(page, 1, document.numPages);
+    if (layout === "page") requestPage(target);
+    else {
+      setCurrentPage(target);
+      setNavigationRequest(value => value + 1);
+    }
   };
   const selectLayout = (value: ReaderLayout) => {
     setZoom(1);
@@ -377,6 +338,7 @@ function ReaderPageContent() {
   };
   const openReaderPanel = (panel: ReaderPanel) => {
     setMoreOpen(false);
+    setLayerPanelTab("display");
     setReaderPanel(panel);
   };
   const selectEditingLayer = (layerId: string) => {
@@ -396,35 +358,10 @@ function ReaderPageContent() {
     onInteractionChange: setAnnotationInteraction,
     editor,
   };
-  const guestExperience = workspace ? isLocalExperience(workspace) : false;
-  const syncStatus = deriveReaderSyncStatus({
-    localOnly: guestExperience,
-    outcome: guestExperience ? syncOutcome : cloudState === "trashed" ? "trash-preserved" : syncActivity === "failed" && online ? "failed" : syncOutcome,
-    syncing: syncing || syncActivity === "running",
-    loaded: activeAnnotations !== null,
-    draftCount: annotations.filter(annotation => annotation.state === "draft").length,
-    acceptedCount: annotations.filter(annotation => annotation.state === "synced" && annotation.version > 0).length,
-    permissionErrorCount: annotations.filter(annotation => annotation.syncErrorCode === "permission_denied" ||
-      (annotation.state !== "synced" && !layers.some(layer => layer.id === annotation.layerId && layer.canEdit))).length,
-    online,
-    pendingCount,
-    conflictCount: conflicts.length,
-    syncErrorCount,
-  });
-  const readerTitle = scoreDisplayName(score.fileName);
 
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
-    <main className="reader-shell" data-chrome-visible={chromeVisible || undefined}>
-      <DiagnosticReportModal
-        reader={diagnosticReader}
-        isOpen={diagnosticOpen}
-        onOpenChange={open => {
-          setDiagnosticOpen(open);
-          // Restore focus after the modal releases its focus trap and inert background.
-          if (!open) requestAnimationFrame(() => moreTrigger.current?.focus());
-        }}
-      />
+    <main className="reader-shell" data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
       {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
       {cloudState === "trashed" ? (
@@ -437,30 +374,29 @@ function ReaderPageContent() {
         <span>页面显示失败，本机草稿仍保留。</span>{displayChoices}{diagnosticDialog}
       </div> : null}
       {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
-      {chromeVisible ? (
-      <header className="reader-chrome" aria-label="阅读器控制">
-          {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={() => { startLoadingJourney("exit-score", "warm"); navigation.back(`/choirs/${choirId}`); }}>
+      {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
+      {chromeVisible && !guide.visible ? (
+      <header className="reader-chrome" data-editing={editing || undefined} aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
+          {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>
           <TooltipTrigger><Button aria-label="分享 PDF" className="reader-icon-button reader-chrome__export" onPress={() => setExportOpen(true)}><Share aria-hidden="true" size={21} /></Button><Tooltip className="offline-score-tooltip">分享 PDF</Tooltip></TooltipTrigger></div>}
-          <strong className="reader-chrome__title">{readerTitle}</strong>
           <div className="reader-chrome__actions-stack">
             <div className="reader-chrome__actions">
               <Button
                 aria-describedby={editAvailability === "ready" ? undefined : "reader-edit-status"}
                 aria-label={editing ? "完成编辑" : "编辑"}
-                aria-description={editing ? "完成后恢复阅读和翻页" : "进入当前页编辑"}
-                className="reader-icon-button"
+                aria-description={editing ? "完成后恢复阅读" : "进入笔记编辑"}
+                className={editing ? "reader-done-button" : "reader-icon-button"}
                 data-state={editAvailability}
-                aria-pressed={editing}
                 isDisabled={
                   editAvailability === "preparing" ||
-                  editAvailability === "read-only" ||
+                  (editAvailability === "read-only" && !guestReadOnly) ||
                   editAvailability === "trashed"
                 }
                 onPress={() => editing ? navigation.afterEditing(() => { /* Completion is performed by the editing exit layer. */ }) : requestEditing()}
               >
-                {editing ? <Check aria-hidden="true" size={21} /> : <Pencil aria-hidden="true" size={21} />}
+                {editing ? <span>完成</span> : <Pencil aria-hidden="true" size={21} />}
               </Button>
               {!editing && <><Button
                 ref={layersTrigger}
@@ -493,7 +429,7 @@ function ReaderPageContent() {
                   : editAvailability === "failed"
                     ? "编辑准备失败，点按铅笔重试"
                     : editAvailability === "read-only"
-                      ? <>此乐谱为只读状态{!identity.localUserId && <Link to={loginHref(`/choirs/${choirId}/scores/${scoreId}`)}>登录后写自己的笔记</Link>}</>
+                      ? <>此乐谱为只读状态{!identity.localUserId && <Link to={loginHref(`/choirs/${choirId}/scores/${scoreId}`)}>注册 / 登录后记笔记并同步</Link>}</>
                       : "乐谱在回收站中，恢复后可编辑"}
               </p>
             ) : null}
@@ -503,8 +439,8 @@ function ReaderPageContent() {
             <Dialog className="reader-more-menu" aria-label="更多阅读选项">
               <header className="reader-menu-heading"><strong>阅读选项</strong><Button className="icon-button" aria-label="关闭更多阅读选项" onPress={() => setMoreOpen(false)}><X size={20} aria-hidden="true" /></Button></header>
               <IdentityNotice identity={identity} />
-              {guestExperience && <section aria-label="本机体验笔记"><h2>本机体验笔记</h2><p>仅保存在此浏览器，不上传、不修改公开内容。</p>
-                <Button onPress={() => { if (workspace) void clearGuestNotes(workspace).then(() => setSyncOutcome("local-saved")).catch(() => setSyncOutcome("failed")); }}>清除本谱体验笔记</Button>
+              {guestExperience && <section aria-label="本机体验笔记"><h2>本机体验笔记</h2><p>仅保存在此浏览器，不上传；登录后也不会转入个人笔记。</p>
+                <Button onPress={() => { if (workspace) void clearGuestNotes(workspace).then(() => reportOutcome("local-saved")).catch(() => reportOutcome("failed")); }}>清除本谱体验笔记</Button>
               </section>}
               {!editing && <>
               <section aria-label="页面布局与缩放" className="reader-options-display"><div className="reader-option-heading"><h2>阅读方式</h2>
@@ -564,19 +500,20 @@ function ReaderPageContent() {
               </section>
               <section aria-label="笔记保存与同步">
                 <div className="reader-option-heading"><h2><RefreshCw size={17} aria-hidden="true" />笔记同步</h2>
-                {!guestExperience && <Button className="reader-option-action" aria-label={!online ? "离线，联网后可同步" : syncing || syncActivity === "running" ? "同步中…" : syncStatus.kind === "failed" ? "重试同步" : "立即同步"} aria-description="获取成员最新笔记，并上传我的修改" isDisabled={!online || syncing || syncActivity === "running" || cloudState === "trashed" || !annotationActions} onPress={() => void manualSync()}>{syncing || syncActivity === "running" ? "同步中…" : syncStatus.kind === "failed" ? "重试" : "同步"}</Button>}
+                {!guestExperience && <Button className="reader-option-action" aria-label={!online ? "离线，联网后可同步" : syncing ? "同步中…" : syncStatus.kind === "failed" ? "重试同步" : "立即同步"} aria-description="获取成员最新笔记，并上传我的修改" isDisabled={!sync.canRetry} onPress={() => void manualSync()}>{syncing ? "同步中…" : syncStatus.kind === "failed" ? "重试" : "同步"}</Button>}
                 </div>
                 {guestExperience ? <p className="reader-more-menu__status" role="status">{syncStatus.message}</p> : <>
                   <dl className="reader-sync-details">
-                    <div><dt>我的修改</dt><dd data-kind={syncStatus.kind} role="status">{syncStatus.message}</dd></div>
-                    <div><dt>上次检查云端</dt><dd>{cloudCheck?.scope === workspace.scopeKey ? new Date(cloudCheck.at).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "尚未确认"}</dd></div>
+                    <div><dt>本机修改 / 上传</dt><dd data-kind={syncStatus.kind} role="status">{syncStatus.message}</dd></div>
+                    <div><dt>上次检查云端笔记</dt><dd>{lastCheckedAt !== null ? new Date(lastCheckedAt).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "尚未确认"}</dd></div>
                   </dl>
+                  <p className="reader-sync-explanation">上传状态仅指你的修改；点“同步”获取成员最新笔记。</p>
                 </>}
               </section>
               </>}
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
-                <p className="reader-more-menu__status">整页阅读时轻点中央显示工具、两侧翻页；放大后或连续滚动时轻点任意位置显示工具。双击放大或恢复：连续滚动恢复适合宽度，翻页阅读恢复整页。左右滑动翻页。编辑时双指移动或缩放。笔记同步与离线副本分别准备。</p>
-                <Button onPress={() => { setMoreOpen(false); setDiagnosticOpen(true); }}>故障诊断</Button>
+                <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>查看操作指引</Button>
+                {editAvailability === "ready" && <Button onPress={() => { requestEditing(); }}>编辑操作指引</Button>}
               </details>
             </Dialog>
             </Popover>
@@ -584,7 +521,7 @@ function ReaderPageContent() {
         </header>
       ) : null}
 
-      {!editing && chromeVisible ? (
+      {!editing && chromeVisible && !guide.visible ? (
         <>
           <PageNavigatorPanel
             key={score.currentVersion.id}
@@ -600,6 +537,7 @@ function ReaderPageContent() {
           {/* Normal checkpoints and history are serialized by the editor;
               toggling disabled here makes the toolbar flash on every save. */}
           <ReaderEditingControls
+            localOnly={guestExperience}
             isDisabled={persistence === "failed"}
             editor={editor}
             layers={layers}
@@ -611,17 +549,17 @@ function ReaderPageContent() {
             activeLayerId={activeLayerId}
             onToolChange={setTool}
             onLayerChange={selectEditingLayer}
+            onOpenLayers={tab => { setLayerPanelTab(tab); setReaderPanel("layers"); }}
           />
         </Suspense>
       ) : null}
 
-      {!editing && showGestureHint ? (
-        <p className="reader-gesture-hint" role="status">
-          {layout === "page"
-            ? "整页时轻点中央显示控制、两侧翻页；双击缩放"
-            : "轻点显示控制，双击缩放，上下滑动连续浏览"}
-        </p>
-      ) : null}
+      {guide.visible && <ReaderGuide layout={layout} onDismiss={guide.dismiss} />}
+      {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint">
+        <strong>编辑中</strong><span className="reader-edit-gesture-hint__detail">
+          <span aria-hidden="true">·</span>{layout === "page" ? "双指左右翻页" : "双指上下浏览"}
+        </span>
+      </p>}
 
       {hasNewOfflineVersion ? (
         <aside className="reader-alert" role="status">
@@ -629,8 +567,8 @@ function ReaderPageContent() {
         </aside>
       ) : null}
       {exportOpen && workspace && <ExportDialog layers={layers} workspace={workspace} source={document} versionId={score.currentVersion.id} fileName={score.fileName} authenticatedUserId={identity.authenticatedUserId} onClose={() => setExportOpen(false)} />}
-      {!editing && readerPanel === "layers" ? (
-        <ModalOverlay className="reader-panel-backdrop" isOpen isDismissable
+      {readerPanel === "layers" ? (
+        <ModalOverlay className="reader-panel-backdrop reader-layers-backdrop" isOpen isDismissable
           onOpenChange={(open) => { if (!open) setReaderPanel(null); }}>
           <Modal className="reader-panel reader-layers-dialog">
             <Dialog preserveOnNavigate aria-label={"笔记图层"} className="reader-layers-content">
@@ -642,7 +580,8 @@ function ReaderPageContent() {
               </header>
               <Suspense fallback={<p role="status">正在准备图层…</p>}>
                 <ReaderLayerPanel
-                  key={workspace.scopeKey}
+                  key={`${workspace.scopeKey}:${layerPanelTab}`}
+                  initialTab={layerPanelTab}
                   workspace={workspace}
                   layers={activeAnnotations?.layers ?? []}
                   signedIn={Boolean(identity.authenticatedUserId) && !guestExperience}
@@ -697,7 +636,7 @@ function ReaderPageContent() {
           <strong>{syncStatus.message}</strong>
           <div>
             <Link className="text-button" to="/diagnostics">查看原因</Link>
-            <Button isDisabled={syncing} onPress={() => void manualSync()}>
+            <Button isDisabled={!sync.canRetry} onPress={() => void manualSync()}>
               重试同步
             </Button>
             {diagnosticDialog}
@@ -713,12 +652,12 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
+            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />
         ) : (
           <ContinuousLayout
-            pager={pager}
             navigationRequest={navigationRequest}
             fitRequest={fitRequest}
             document={document}
@@ -736,16 +675,6 @@ function ReaderPageContent() {
     </ReaderPresentationContext.Provider>
   );
 }
-
-function readBooleanPreference(key: string) {
-  try {
-    return localStorage.getItem(key) === "true";
-  } catch {
-    return false;
-  }
-}
-
-
 
 function readStringPreference(key: string) {
   try {

@@ -13,7 +13,7 @@ beforeEach(async () => {
   for (const table of localDatabase.tables) await table.clear();
 });
 it("retains guest notes across reopening and layer refresh, never queues or pushes them", async () => {
-  const workspace = await resolveLocalWorkspace({ authenticatedUserId: null, choirId: "public", scoreId: "score" });
+  const workspace = await resolveLocalWorkspace({ authenticatedUserId: null, experience: true, choirId: "public", scoreId: "score" });
   await cacheAnnotationLayers(workspace, []);
   const note = { id: crypto.randomUUID(), layerId: GUEST_NOTE_LAYER_ID, payload: { kind: "text" as const, pageNumber: 1, x: .2, y: .3, fontScale: .024, text: "体验" } };
   await saveAnnotationDraft(workspace, note);
@@ -36,7 +36,7 @@ it("retains guest notes across reopening and layer refresh, never queues or push
   expect((await readScoreAnnotationState(account)).annotations).toHaveLength(0);
 });
 it("clears only the current score's experience notes", async () => {
-  const options = { authenticatedUserId: null, choirId: "public", scoreId: "score" };
+  const options = { authenticatedUserId: null, experience: true, choirId: "public", scoreId: "score" };
   const first = await resolveLocalWorkspace(options);
   const second = await resolveLocalWorkspace({ ...options, scoreId: "second" });
   for (const workspace of [first, second]) await saveAnnotationDraft(workspace, { id: crypto.randomUUID(), layerId: GUEST_NOTE_LAYER_ID, payload: { kind: "text", pageNumber: 1, x: .2, y: .3, fontScale: .024, text: "体验" } });
@@ -79,4 +79,19 @@ it("logout clears account experience notes and snapshots without restoring them 
   expect(await localDatabase.annotationLayers.where("ownerKey").equals(workspace.ownerKey).count()).toBe(0);
   await resolveLocalWorkspace(options);
   expect((await readScoreAnnotationState(workspace)).annotations).toHaveLength(0);
+});
+
+it("ordinary guests cannot edit notes or upload", async () => {
+  const workspace = await resolveLocalWorkspace({ authenticatedUserId: null, choirId: "invited", scoreId: "score" });
+  await cacheAnnotationLayers(workspace, []);
+  expect((await readScoreAnnotationState(workspace)).layers).toEqual([]);
+  await expect(saveAnnotationDraft(workspace, { id: crypto.randomUUID(), layerId: GUEST_NOTE_LAYER_ID,
+    payload: { kind: "text", pageNumber: 1, x: .2, y: .3, fontScale: .024, text: "不可写入" },
+  })).rejects.toThrow("guest_notes_are_read_only");
+  expect((await readScoreAnnotationState(workspace)).annotations).toEqual([]);
+  expect(await queueScoreDrafts(workspace)).toBe(0);
+  const fetch = vi.spyOn(globalThis, "fetch");
+  expect(await pushPendingAnnotations(workspace, { maxOperations: 100 })).toBe(0);
+  expect(fetch).not.toHaveBeenCalled();
+  fetch.mockRestore();
 });

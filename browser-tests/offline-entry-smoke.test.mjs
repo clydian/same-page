@@ -70,6 +70,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         }
         if (engineName === "chromium") await context.setOffline(true);
         else await context.route("**/api/**", route => route.abort("internetdisconnected"));
+        await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
         const offline = await context.newPage();
         await offline.goto(fixture.origin);
         await offline.getByRole("link").filter({ hasText: fixture.fileName.replace(/\.pdf$/i, "") }).waitFor({ timeout: 10_000 });
@@ -97,7 +98,8 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         }
         await reconnected;
         assert.equal(offline.url(), readerUrl);
-        assert.equal(await offline.getByRole("button", { name: "完成编辑", exact: true }).getAttribute("aria-pressed"), "true");
+        assert.equal(await offline.getByRole("button", { name: "完成编辑", exact: true }).isVisible(), true);
+        assert.equal(await offline.locator(".annotation-overlay[data-editing]").count(), 1);
       });
     });
     await scenario("membership-revocation", async ({ page: offline, context, output }) => {

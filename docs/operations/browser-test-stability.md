@@ -3,8 +3,8 @@
 ## 固定基线与结论边界
 
 基线为 `20ee0140bb37c3de4cccb2689a2ea46541f1dd91`。最新 main CI
-[34292267399](https://github.com/itscly2026/same-page/actions/runs/34292267399) 通过。
-历史失败 [34291482643](https://github.com/itscly2026/same-page/actions/runs/34291482643)
+[34292267399](https://github.com/clydian/same-page/actions/runs/34292267399) 通过。
+历史失败 [34291482643](https://github.com/clydian/same-page/actions/runs/34291482643)
 中，导航失败是上传按钮先隐藏又显示；offline-entry 的失败实际位于成员移除后的保留副本链接，
 不是测试名所写的入口恢复。旧链仅在入口失败时截图，无法据此判断后段失败的原因。
 

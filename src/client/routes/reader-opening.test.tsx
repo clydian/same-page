@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
 import { noCapabilities } from "../../shared/drive-permissions";
@@ -68,5 +68,6 @@ it("displays engine progress and keeps loading through complete transfer until t
   expect(screen.getByRole("main", { name: "正在加载乐谱" })).toBeVisible();
   await act(async () => finishPaint());
   await waitFor(() => expect(screen.queryByRole("main", { name: "正在加载乐谱" })).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: "知道了" }));
   expect(screen.getByRole("img", { name: "第 1 页" })).toBeVisible();
 });
