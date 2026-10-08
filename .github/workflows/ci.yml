@@ -76,7 +76,8 @@ jobs:
     needs: scope
     if: needs.scope.outputs.visual == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Includes runner preparation, browser validation and evidence upload.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -88,8 +89,10 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Install Playwright Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
+        timeout-minutes: 5
+        run: bash .github/scripts/install-browsers.sh
       - name: Browser layout and interaction regressions
+        timeout-minutes: 12
         run: node scripts/run-browser-tests.mjs visual "${{ needs.scope.outputs.browserGroup }}"
       - name: Preserve synthetic test evidence
         if: always()
@@ -108,7 +111,8 @@ jobs:
       needs.scope.outputs.performance == 'true' ||
       needs.scope.outputs.smoke == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Includes runner preparation, browser validation and evidence upload.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -120,11 +124,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Install Playwright Chromium and WebKit
+        timeout-minutes: 5
         if: >-
           needs.scope.outputs.pwa == 'true' ||
           needs.scope.outputs.performance == 'true' ||
           needs.scope.outputs.smoke == 'true'
-        run: npx playwright install --with-deps chromium webkit
+        run: bash .github/scripts/install-browsers.sh
       - name: PWA update handover
         if: needs.scope.outputs.pwa == 'true'
         run: npm run test:pwa-update
