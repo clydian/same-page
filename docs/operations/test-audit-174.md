@@ -46,10 +46,10 @@
 
 | 阶段 / 运行 | runner 合计 | 关键路径 | client | migration | visual | smoke |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 原基线 [34041072554](https://github.com/itscly2026/same-page/actions/runs/34041072554) | 851 | 342 | 96 | 76 | 136 | 145 |
-| 原 main [34041415382](https://github.com/itscly2026/same-page/actions/runs/34041415382) | 862* | 305 | 95 | 75 | 200 | 131 |
-| 第一轮 [34042495545](https://github.com/itscly2026/same-page/actions/runs/34042495545) | 782 | 310 | 70 | 48 | 190 | 124 |
-| 第一轮最终 [34042898831](https://github.com/itscly2026/same-page/actions/runs/34042898831) | 880 | 345 | 87 | 59 | 201 | 149 |
+| 原基线 [34041072554](https://github.com/clydian/same-page/actions/runs/34041072554) | 851 | 342 | 96 | 76 | 136 | 145 |
+| 原 main [34041415382](https://github.com/clydian/same-page/actions/runs/34041415382) | 862* | 305 | 95 | 75 | 200 | 131 |
+| 第一轮 [34042495545](https://github.com/clydian/same-page/actions/runs/34042495545) | 782 | 310 | 70 | 48 | 190 | 124 |
+| 第一轮最终 [34042898831](https://github.com/clydian/same-page/actions/runs/34042898831) | 880 | 345 | 87 | 59 | 201 | 149 |
 
 *main 扣除仅 main 执行的 seal/upload/identity 6 秒，排除 deploy。原基线两个 commit 树相同。首轮均值 runner 831 秒对比原 856.5 秒仅约 3%，分布重叠，关键路径没有稳定改善。浏览器安装及 runner 速度有混杂，不将波动归因于清理；不拿 library 子集冒充完整测试收益，也不为凑样本空跑旧 CI。最终第二轮完整 CI 数据放在 PR #175 描述，避免为了记录 CI 而不断触发下一轮 CI。
 

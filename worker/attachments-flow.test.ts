@@ -296,3 +296,31 @@ it("does not acknowledge a newer cleanup request after a late upload finishes", 
   expect(await env.SCORES_BUCKET.head(objectKey)).toBeNull();
   expect(await env.DB.prepare("SELECT bytes FROM free_file_storage_usage").first()).toEqual({ bytes: mainBytes.length });
 });
+
+const musicXml = new TextEncoder().encode('<score-partwise><part-list><score-part id="P1"><part-name>Alto</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>');
+it("keeps MusicXML original bytes and negotiates legacy lists, counts and trash", async () => {
+  const originalUsage = await usage();
+  expect((await upload('未开放.musicxml', musicXml)).response.status).toBe(403);
+  await env.DB.prepare("UPDATE choirs SET musicxml_enabled=1 WHERE id=?").bind(choirId).run();
+  const uploaded = await upload('练习.musicxml', musicXml);
+  expect(uploaded.response.status, await uploaded.response.clone().text()).toBe(201);
+  expect(await (await list()).json()).toEqual({ attachments: [] });
+  const headers = { 'X-Same-Page-Attachments': '2' };
+  expect(await (await call(`/api/choirs/${choirId}/attachments?scoreIds=${scoreId}`, { headers })).json()).toMatchObject({attachments:[{kind:'musicxml',id:uploaded.id}]});
+  expect(await (await call(`/api/choirs/${choirId}/bootstrap`)).json()).toMatchObject({scores:[{attachmentCount:0}]});
+  expect(await (await call(`/api/choirs/${choirId}/bootstrap`, { headers })).json()).toMatchObject({scores:[{attachmentCount:1}]});
+  expect(new Uint8Array(await (await call(`${base()}/${uploaded.id}/file`)).arrayBuffer())).toEqual(musicXml);
+  expect(await usage()).toBe(originalUsage + musicXml.length);
+  expect((await call(`${base()}/${uploaded.id}?expectedRevision=1`,{method:'DELETE'})).status).toBe(204);
+  expect(await (await call(`/api/choirs/${choirId}/attachments/trash`)).json()).toEqual({attachments:[]});
+  expect(await (await call(`/api/choirs/${choirId}/attachments/trash`,{headers})).json()).toMatchObject({attachments:[{kind:'musicxml'}]});
+  expect((await call(`${base()}/${uploaded.id}/restore`,{method:'POST'})).status).toBe(204);
+  expect(await usage()).toBe(originalUsage + musicXml.length);
+});
+it("rejects invalid MusicXML without publishing a file or leaking quota", async () => {
+  const originalUsage=await usage();
+  await env.DB.prepare("UPDATE choirs SET musicxml_enabled=1 WHERE id=?").bind(choirId).run();
+  for (const bytes of ['<html/>','<score-partwise>','<score-timewise/>']) expect((await upload('bad.xml',bytes)).response.status).toBe(422);
+  expect(await usage()).toBe(originalUsage);
+  expect(await (await call(`/api/choirs/${choirId}/attachments?scoreIds=${scoreId}`,{headers:{'X-Same-Page-Attachments':'2'}})).json()).toEqual({attachments:[]});
+});

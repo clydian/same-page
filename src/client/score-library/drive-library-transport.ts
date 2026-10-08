@@ -26,7 +26,7 @@ export interface DriveLibraryTransport {
 
 export function driveLibraryTransport(choirId: string): DriveLibraryTransport {
   const bootstrap = async (signal: AbortSignal, authenticated: boolean): Promise<LoadedAccess> => {
-    const response = await diagnosticFetch(`/api/choirs/${choirId}/bootstrap`, { signal });
+    const response = await diagnosticFetch(`/api/choirs/${choirId}/bootstrap`, { signal, headers: { "X-Same-Page-Attachments": "2" } });
     if (response.status === 401 && authenticated) return { kind: "failed", authenticationRequired: true };
     if ([401, 403].includes(response.status)) {
       const body = await response.json().catch(() => null);

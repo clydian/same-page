@@ -8,8 +8,8 @@
 
 | GitHub 成功运行 | verify 总耗时 | client | Worker | 浏览器安装 | 视觉 | storage smoke |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [34001740053](https://github.com/itscly2026/same-page/actions/runs/34001740053) | 740 s | 86 s | 62 s | 53 s | 229 s | 100 s |
-| [34001812033](https://github.com/itscly2026/same-page/actions/runs/34001812033) | 640 s | 69 s | 53 s | 43 s | 206 s | 90 s |
+| [34001740053](https://github.com/clydian/same-page/actions/runs/34001740053) | 740 s | 86 s | 62 s | 53 s | 229 s | 100 s |
+| [34001812033](https://github.com/clydian/same-page/actions/runs/34001812033) | 640 s | 69 s | 53 s | 43 s | 206 s | 90 s |
 
 依赖安装分别只有 18/13 秒。第一个运行的实际 diff 包含 `docs/operations/issue-142/*.png` 和 `evidence.json`，分类器将它们当作未知路径，错误地扩大成包括 PWA、迁移的完整检查。视觉测试的多个文件又各自启动 Vite/workerd、反复编译客户端。串行工作流将这些成本相加。
 

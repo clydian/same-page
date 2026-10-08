@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { attachmentSchema, type ScoreAttachment } from "../../../shared/attachments";
-import { diagnosticFetch } from "../../diagnostics/diagnostics";
+import { attachmentFetch as diagnosticFetch } from "./request";
 import { useSettingsMutation } from "../../settings/settings-mutation";
 import { SettingsRequestError } from "../../settings/settings-request";
 import { uploadBody, type UploadProgress } from "../upload-transport";

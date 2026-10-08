@@ -13,4 +13,3 @@ export function useReaderHint(key: string, enabled = true, duration: number | nu
   }, [key, enabled, visible, duration]);
   return { visible: enabled && visible, dismiss: () => { setVisible(false); try { localStorage.setItem(key, "true"); } catch { /* Optional device preference. */ } }, show: () => setVisible(true) };
 }
-

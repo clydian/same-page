@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { attachmentListSchema, type ScoreAttachment } from "../../../shared/attachments";
 import type { ScoreSummary } from "../../../shared/scores";
-import { diagnosticFetch } from "../../diagnostics/diagnostics";
+import { attachmentFetch as diagnosticFetch } from "./request";
 import { SettingsRequestError } from "../../settings/settings-request";
 
 const FRESH_MS = 30_000;

@@ -8,7 +8,7 @@ import { scoreDisplayName } from "../../../shared/score-display-name";
 import { UploadProgressView } from "../upload-progress-view";
 import { formatBytes } from "../library-format";
 import type { AttachmentSelection } from "./attachment-list";
-import { attachmentFileUrl, attachmentMessage } from "./api";
+import { musicXmlEnabled, attachmentFileUrl, attachmentMessage } from "./api";
 import { useAttachmentMutation } from "./use-attachment-mutation";
 import { attachmentActionTitle } from "./attachment-presentation";
 
@@ -29,8 +29,9 @@ export default function AttachmentDialog(props: Props) {
   </AttachmentShell>;
 }
 
-type FileKind = "audio" | "pdf" | "markdown";
+type FileKind = "audio" | "pdf" | "markdown" | "musicxml";
 const attachmentChoices = [
+  { kind: "musicxml", title: "可播放乐谱", detail: ".musicxml · .xml · .mxl", Icon: FileAudio },
   { kind: "audio", title: "音频", detail: attachmentAccept("audio").split(",").join(" · "), Icon: FileAudio },
   { kind: "pdf", title: "PDF", detail: ".pdf", Icon: FileText },
   { kind: "markdown", title: "文档（仅 .md）", detail: "上传已有文档，或直接编写", Icon: FileText },
@@ -40,6 +41,12 @@ const attachmentChoices = [
 function CreateAttachment(props: Props) {
   const [kind, setKind] = useState<FileKind | "link" | null>(null);
   const [composing, setComposing] = useState(false);
+  const [musicxml, setMusicxml] = useState(false);
+  useEffect(() => {
+    const abort = new AbortController();
+    void musicXmlEnabled(props.choirId, abort.signal).then(enabled => { if (!abort.signal.aborted) setMusicxml(enabled); }).catch(() => {});
+    return () => abort.abort();
+  }, [props.choirId]);
   const onBack = () => { setKind(null); setComposing(false); };
   if (composing) return <Suspense fallback={<AttachmentLoading selection={{ score: props.selection.score, action: "markdown" }} onClose={props.onClose} />}>
     <MarkdownAttachment {...props} selection={{ score: props.selection.score, action: "markdown" }} onBack={onBack} />
@@ -47,7 +54,7 @@ function CreateAttachment(props: Props) {
   if (kind) return <AttachmentForm {...props} selection={{ score: props.selection.score, action: kind === "link" ? "link" : "upload" }}
     uploadKind={kind === "link" ? undefined : kind} onBack={onBack} onCompose={() => setComposing(true)} />;
   return <AttachmentShell picker title="添加附件" subtitle={scoreDisplayName(props.selection.score.fileName)} onClose={props.onClose}>
-    <div className="attachment-type-list">{attachmentChoices.map(({ kind, title, detail, Icon }) => <Button key={kind} className="attachment-type-option" aria-label={title} onPress={() => setKind(kind)}>
+    <div className="attachment-type-list">{attachmentChoices.filter(choice => choice.kind !== "musicxml" || musicxml).map(({ kind, title, detail, Icon }) => <Button key={kind} className="attachment-type-option" aria-label={title} onPress={() => setKind(kind)}>
       <Icon size={22} strokeWidth={1.5} aria-hidden="true" /><span><strong>{title}</strong><small>{detail}</small></span><ChevronRight size={17} aria-hidden="true" />
     </Button>)}</div>
   </AttachmentShell>;
@@ -76,6 +83,8 @@ function AttachmentForm({ selection: { score, action, attachment }, choirId, wri
   const [file, setFile] = useState<File | null>(null);
   const [validation, setValidation] = useState<string | null>(null);
   const [requestId] = useState(() => attachment?.id ?? crypto.randomUUID());
+  const validationAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => validationAbort.current?.abort(), []);
   const mutation = useAttachmentMutation({ choirId, scoreId: score.id, id: requestId, enabled: writable, onChanged, onComplete: onClose });
   const { progress } = mutation;
   const isLink = action === "link" || attachment?.kind === "link";
@@ -92,21 +101,34 @@ function AttachmentForm({ selection: { score, action, attachment }, choirId, wri
       : { kind: "modify", name: effectiveName, ...(isLink ? { url } : {}), revision: attachment!.revision });
     return saved === true;
   };
-  const uploadLabel = { audio: "音频", pdf: "PDF", markdown: "文档（.md）" }[uploadKind];
+  const uploadLabel = { audio: "音频", musicxml: "可播放乐谱", pdf: "PDF", markdown: "文档（.md）" }[uploadKind];
   const title = attachmentActionTitle(action, attachment, uploadKind);
   return <AttachmentShell title={title} subtitle={scoreDisplayName(score.fileName)} dirty={dirty && !mutation.saved} busy={mutation.pending} blocked={mutation.blocked} save={save} onClose={onClose} onBack={onBack} message={validation ?? mutation.message}>
     {!writable && <p className="attachment-help" role="status">连接尚未恢复，输入已保留；联网后可继续保存或核对结果。</p>}
     <Form className="entry-form attachment-form" onSubmit={event => { event.preventDefault(); void save(); }}>
       {action === "upload" && <>
         {uploadKind === "markdown" && !file && <><Button className="attachment-compose" onPress={onCompose}><Pencil size={18} />直接编写</Button><p className="attachment-or">或上传已有文档</p></>}
-        <label className="attachment-file-picker"><Upload size={22} strokeWidth={1.5} /><span>{file?.name ?? { audio: "选择音频文件", pdf: "选择 PDF 文件", markdown: "选择 .md 文件" }[uploadKind]}</span>
-          <input className="visually-hidden" aria-label="选择附件文件" type="file" accept={attachmentAccept(uploadKind)} disabled={mutation.blocked} onChange={event => {
+        <label className="attachment-file-picker"><Upload size={22} strokeWidth={1.5} /><span>{file?.name ?? { audio: "选择音频文件", musicxml: "选择 MusicXML 文件", pdf: "选择 PDF 文件", markdown: "选择 .md 文件" }[uploadKind]}</span>
+          <input className="visually-hidden" aria-label="选择附件文件" type="file" accept={attachmentAccept(uploadKind)} disabled={mutation.blocked} onChange={async event => {
+        validationAbort.current?.abort();
         const chosen = event.target.files?.[0]; if (!chosen) return;
         const format = attachmentFormat(chosen.name);
         if (!format || format.kind !== uploadKind) { setFile(null); setValidation(`请选择${uploadLabel}文件，支持 ${attachmentAccept(uploadKind).split(",").join("、")}。`); return; }
         if (chosen.size > format.maxBytes) { setFile(null); setValidation(attachmentMessage(413, null)); return; }
+        if (format.kind === "musicxml") {
+          const controller = new AbortController(); validationAbort.current = controller;
+          setFile(null); setValidation("正在检查乐谱…");
+          try {
+            const { validateMusicXmlFile } = await import("../../playback/validate-musicxml");
+            await validateMusicXmlFile(chosen, controller.signal);
+          } catch (error) {
+            if (!controller.signal.aborted) setValidation(error instanceof Error ? error.message : "无法读取乐谱。");
+            return;
+          }
+          if (controller.signal.aborted) return;
+        }
         setFile(chosen); setName(chosen.name); setValidation(null);
-      }} /></label><p className="attachment-help">{attachmentAccept(uploadKind).split(",").join(" · ")} · 最大 {{ audio: 50, pdf: 20, markdown: 1 }[uploadKind]} MB</p></>}
+      }} /></label><p className="attachment-help">{attachmentAccept(uploadKind).split(",").join(" · ")} · 最大 {{ audio: 50, musicxml: 20, pdf: 20, markdown: 1 }[uploadKind]} MB</p></>}
       {action === "trash" ? <p>将「{attachment?.name}」移到回收站？三十天内可以恢复，期间仍占云盘空间。</p> : (action !== "upload" || file) && <>
         <TextField isRequired={!isLink} value={name} onChange={setName} maxLength={255} isDisabled={mutation.blocked}><Label>{isLink ? "名称（选填）" : "名称"}</Label><Input autoFocus={action !== "upload"} /></TextField>
         {isLink && <TextField isRequired value={url} onChange={setUrl} isDisabled={mutation.blocked}><Label>网址</Label><Input type="url" placeholder="https://" /></TextField>}

@@ -7,7 +7,7 @@
 PR #223 head `3254a952` and merge `118a39a1` have the same Git tree
 `3200d0715670d2f023d0ae0eec168a57152f5b25`. Both ran `visual/all`.
 The PR's native touch scenario passed; main run
-[34343576622](https://github.com/itscly2026/same-page/actions/runs/34343576622)
+[34343576622](https://github.com/clydian/same-page/actions/runs/34343576622)
 failed at `no momentum: 145 -> 145`. Checks and integration passed and deployment
 was skipped. PR attempt 1 had a separate Worker 5-second timeout.
 

@@ -1,6 +1,6 @@
 # #141 批注显示与阅读偏好验证
 
-实现范围：[简化批注显示、编辑目标与云盘阅读偏好](https://github.com/itscly2026/same-page/issues/141)。独立 worktree 分支 `codex/issue-141`，基线 `6de48820dd506a0983462700b936acdd5129009f`。没有迁移、合并或生产部署。
+实现范围：[简化批注显示、编辑目标与云盘阅读偏好](https://github.com/clydian/same-page/issues/141)。独立 worktree 分支 `codex/issue-141`，基线 `6de48820dd506a0983462700b936acdd5129009f`。没有迁移、合并或生产部署。
 
 ## 行为与证据
 

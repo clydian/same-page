@@ -1,6 +1,6 @@
 # #142 阅读器工具、保存状态与恢复验证
 
-关联 [#142](https://github.com/itscly2026/same-page/issues/142)。实现于独立 worktree，初始基线 `6de4882`，随后 rebase 到 `main` 的 `5c238c0`。范围为阅读器呈现及既有会话的恢复；没有更改权限协议、数据库结构或 #141 的图层信息架构。
+关联 [#142](https://github.com/clydian/same-page/issues/142)。实现于独立 worktree，初始基线 `6de4882`，随后 rebase 到 `main` 的 `5c238c0`。范围为阅读器呈现及既有会话的恢复；没有更改权限协议、数据库结构或 #141 的图层信息架构。
 
 ## 最终行为
 
