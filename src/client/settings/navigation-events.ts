@@ -24,7 +24,7 @@ const sessionChanges = new Set<() => void>();
 const suspensions = new Set<() => void>();
 export const navigationSessionSnapshot = () => sessionState;
 export function onNavigationSessionChange(listener: () => void) { sessionChanges.add(listener); return () => { sessionChanges.delete(listener); }; }
-export function onNavigationSuspend(listener: () => void) { suspensions.add(listener); }
+export function onNavigationSuspend(listener: () => void) { suspensions.add(listener); return () => { suspensions.delete(listener); }; }
 
 let epoch = 0;
 export const captureNavigationIdentity = () => { const captured = epoch; return () => captured === epoch; };

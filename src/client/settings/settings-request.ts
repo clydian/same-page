@@ -16,3 +16,8 @@ export function settingsError(error: unknown, fallback: string) {
   }
   return fallback;
 }
+
+// These responses invalidate remembered display data for this endpoint.
+export function isSettingsReadDenied(error: unknown) {
+  return error instanceof SettingsRequestError && [401, 403, 404].includes(error.status);
+}

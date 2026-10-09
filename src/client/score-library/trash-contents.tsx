@@ -1,3 +1,6 @@
+import { useSettingsLifetime, captureSettingsLifetime, invalidateSettingsLifetime } from "../settings/use-settings-lifetime";
+import { captureReadIdentity } from "../settings/read-resource";
+import { SettingsRequestError, isSettingsReadDenied, settingsError } from "../settings/settings-request";
 import { PurgeDialog } from "../drives/purge-dialog";
 import { AttachmentTrash } from "./attachments/attachment-trash";
 import { scoreDisplayName, scorePdfFileName } from "../../shared/score-display-name";
@@ -31,6 +34,7 @@ export function TrashContents({
   writable?: boolean;
   onRestored: () => void | Promise<void>;
 }) {
+  const lifetime = useSettingsLifetime(writable);
   const [purging, setPurging] = useState<TrashedScoreSummary | null>(null);
   const [trash, setTrash] = useState<TrashedScoreSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,20 +49,29 @@ export function TrashContents({
     let active = true;
     void diagnosticFetch(`/api/choirs/${choirId}/scores/trash`)
       .then(async (response) => {
-        if (!response.ok) throw new Error("trash_unavailable");
+        if (!response.ok) throw new SettingsRequestError(response.status);
         const scores = scoreTrashResponseSchema.parse(await response.json()).scores;
         if (active) { setTrash(scores); setLoading(false); }
       })
-      .catch(() => {
-        if (active) { setMessage("暂时无法打开回收站。"); setLoading(false); }
+      .catch(error => {
+        if (active) {
+          if (isSettingsReadDenied(error)) {
+            invalidateSettingsLifetime(lifetime); setTrash([]); setRestoreConflict(null); setRestoreName(""); setPurging(null); }
+          setMessage(settingsError(error, "暂时无法打开回收站。")); setLoading(false);
+        }
       });
     return () => {
       active = false;
     };
-  }, [choirId, attempt, writable]);
+  }, [choirId, attempt, writable, lifetime]);
+
+  if (purging && !writable) setPurging(null);
 
   const restoreScore = async (score: TrashedScoreSummary, nextName?: string) => {
     if (!writable) return;
+    const sameIdentity = captureReadIdentity();
+    const sameLifetime = captureSettingsLifetime(lifetime);
+    const current = () => sameIdentity() && sameLifetime();
     setBusy(true);
     setMessage(null);
     try {
@@ -68,16 +81,21 @@ export function TrashContents({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ fileName: scorePdfFileName(nextName) }),
         });
+        if (!current()) return;
         if (!rename.ok) {
-          setMessage(uploadMessage(rename.status, await rename.json().catch(() => null)));
+          const payload = await rename.json().catch(() => null);
+          if (!current()) return;
+          setMessage(uploadMessage(rename.status, payload));
           return;
         }
       }
       const response = await diagnosticFetch(`/api/choirs/${choirId}/scores/${score.id}/restore`, {
         method: "POST",
       });
+      if (!current()) return;
       if (response.status === 409) {
         const payload = await response.json().catch(() => null);
+        if (!current()) return;
         if (payload?.error !== "filename_conflict") { setMessage(uploadMessage(response.status, payload)); return; }
         setRestoreConflict(score);
         setRestoreName(scoreDisplayName(score.fileName));
@@ -96,9 +114,11 @@ export function TrashContents({
       setMessage("文件已恢复。笔记和 PDF 版本保持不变。");
       await onRestored();
     } catch {
+      if (!current()) return;
       setMessage("恢复未完成，请稍后重试。");
     } finally {
       setBusy(false);
+      if (!current()) setAttempt(value => value + 1);
     }
   };
 

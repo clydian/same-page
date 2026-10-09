@@ -1,18 +1,16 @@
 import { useSettingsIdentity } from "../auth/application-identity";
 import { NAVIGATION_FRESH_MS } from "../settings/navigation-events";
 import { notifyReaderIdentityChange } from "../reader/reader-cache-events";
-import { rememberDriveAccessRevoked } from "../score-library/local-drive-directory";
+import { rememberDriveAccessRevoked, renameLocalDriveDirectory } from "../score-library/local-drive-directory";
 import { authenticatedLocalOwnerKey, captureLocalWorkspaceSession, createLocalWorkspace } from "../platform/local-workspace";
 import { PurgeDialog } from "../drives/purge-dialog";
 import { DriveUsage } from "../drives/drive-usage";
 import { useReadResource } from "../settings/use-read-resource";
-import { useDriveLibraryResource } from "../score-library/use-drive-library";
 import { driveCacheOwnerKey, invalidateDriveLibrary } from "../score-library/drive-library-cache";
 import { useState } from "react";
 import { Button } from "react-aria-components";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { LockKeyhole } from "lucide-react";
-import { authClient } from "../auth/auth-client";
 import { TaskHeader } from "../components/task-header";
 import { driveSettingsTitle } from "../components/route-titles";
 import { driveManagementSchema } from "../../shared/drive-management";
@@ -41,6 +39,7 @@ function DriveManagement({ choirId, section, userId, ready }: { choirId: string;
     if (!overviewResponse.ok) throw new SettingsRequestError(overviewResponse.status);
     return parseDiagnosticResponse(overviewResponse, driveManagementSchema);
   }, undefined, NAVIGATION_FRESH_MS, ready);
+  if (purge && !resource.canMutate) setPurge(false);
   const data = resource.data;
   const error = resource.error ? settingsError(resource.error, "云盘设置更新失败，已有内容已保留。") : null;
   const refresh = () => { setDialog(null); setLocked(null); void resource.refresh().catch(() => undefined); };
@@ -74,17 +73,18 @@ function DriveManagement({ choirId, section, userId, ready }: { choirId: string;
         notifyReaderIdentityChange();
         navigate("/drives", { replace: true });
       }} />}
-      {dialog === "name" && can("editDriveInfo") && <NameSettings choirId={choirId} onClose={() => setDialog(null)} onSaved={refresh} />}
+      {dialog === "name" && can("editDriveInfo") && <NameSettings userId={userId} choirId={choirId} onClose={() => setDialog(null)} onSaved={refresh} />}
     </>}
   </main></div>;
 }
 
-function NameSettings({ choirId, onClose, onSaved }: { choirId: string; onClose: () => void; onSaved: () => void }) {
-  const session = authClient.useSession();
-  const userId = session.data?.user.id;
-  const { library, snapshot } = useDriveLibraryResource(driveCacheOwnerKey(userId ?? null, choirId), choirId, Boolean(userId), true, session.data?.session?.id ?? null);
-  if (snapshot.access.kind !== "opened") return <div><p role="status">正在准备云盘信息，请稍候；若无法加载，请重试。</p><Button onPress={() => void library.refresh()}>重试</Button><Button onPress={onClose}>取消</Button></div>;
-  return <DriveSettingsDialog choirId={choirId} userId={userId!} field="name" onClose={onClose} onSaved={async name => { await library.confirmName(name); onSaved(); }} />;
+function NameSettings({ choirId, userId, onClose, onSaved }: { choirId: string; userId: string; onClose: () => void; onSaved: () => void }) {
+  return <DriveSettingsDialog choirId={choirId} userId={userId} field="name" onClose={onClose} onSaved={async name => {
+    const workspace = await captureLocalWorkspaceSession(createLocalWorkspace(authenticatedLocalOwnerKey(userId), choirId, ""));
+    await renameLocalDriveDirectory(workspace, name, new AbortController().signal);
+    invalidateDriveLibrary(driveCacheOwnerKey(userId, choirId), choirId);
+    onSaved();
+  }} />;
 }
 
 function PermissionContacts({ userId, choirId, operation, isMember }: { userId: string; choirId: string; operation: Operation; isMember: boolean }) {

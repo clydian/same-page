@@ -140,3 +140,30 @@ it.each(["replacement", "other-owner", "signed-out"])("clears suspended display 
   expect(resource.getSnapshot().data).toBeNull();
   observeNavigationSession(null);
 });
+
+
+it("accepts an outstanding local restore during same-owner suspension without restoring cloud authority", async () => {
+  observeNavigationSession("user:session", "user");
+  const local = deferred<string>();
+  const view = renderHook(() => useReadResource({ owner: "user", driveId: "drive", kind: "reading-defaults" },
+    () => new Promise<string>(() => {}), () => local.promise));
+  act(() => observeNavigationSession(null, "user", true));
+  await act(async () => local.resolve("local defaults"));
+  expect(view.result.current.data).toBe("local defaults");
+  expect(view.result.current.authority).toBe("unconfirmed");
+  expect(view.result.current.canMutate).toBe(false);
+  act(() => observeNavigationSession(null));
+});
+
+it("rejects late local restoration into a resource cleared for another identity", async () => {
+  observeNavigationSession("user:session", "user");
+  const key = { owner: "user", driveId: "drive", kind: "reading-defaults" } as const;
+  const resource = getReadResource<string>(key);
+  const local = deferred<string>();
+  const view = renderHook(() => useReadResource(key, () => new Promise<string>(() => {}), () => local.promise));
+  view.unmount();
+  observeNavigationSession("other:session", "other");
+  local.resolve("private defaults"); await local.promise;
+  expect(resource.getSnapshot().data).toBeNull();
+  observeNavigationSession(null);
+});

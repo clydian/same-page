@@ -1,4 +1,4 @@
-import { NAVIGATION_FRESH_MS } from "../settings/navigation-events";
+import { NAVIGATION_FRESH_MS, onNavigationSuspend } from "../settings/navigation-events";
 import { useEffect, useRef, useState } from "react";
 import { Button, Form, Heading, Input, Label, Modal, ModalOverlay, TextField } from "react-aria-components";
 import { Dialog } from "../navigation/overlays";
@@ -25,11 +25,24 @@ export function DriveSettingsDialog({ choirId, userId, field, onClose, onSaved }
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [needsRead, setNeedsRead] = useState(false);
+  const recovering = useRef(false);
   const active = useRef(true);
-  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const saving = useRef<AbortController | null>(null);
+  useEffect(() => { active.current = true; return () => { active.current = false; saving.current?.abort(); saving.current = null; }; }, []);
+  useEffect(() => onNavigationSuspend(() => {
+    if (!saving.current) return;
+    saving.current.abort(); saving.current = null;
+    setBusy(false); setNeedsRead(true);
+    setMessage("保存结果未确认，输入已保留。请重新读取当前设置后核对。");
+  }), []);
   useEffect(() => {
+    if (recovering.current && resource.data && resource.authority === "confirmed" && resource.request === "idle" && !resource.error) {
+      recovering.current = false; base.current = resource.data; setNeedsRead(false);
+      setMessage(`当前值为“${field === "name" ? resource.data.name : resource.data.displayName}”。你的输入已保留，请核对后再保存。`);
+    }
     if (!dirty.current && resource.data) { base.current = resource.data; setValue(field === "name" ? resource.data.name : resource.data.displayName); }
-  }, [resource.data, field]);
+  }, [resource.data, resource.authority, resource.request, resource.error, field]);
   const title = field === "name" ? "云盘名称" : "我在此云盘的显示名";
   const finish = async () => {
     await onSaved(value.trim());
@@ -37,15 +50,16 @@ export function DriveSettingsDialog({ choirId, userId, field, onClose, onSaved }
   };
   const save = async () => {
     const settings = base.current;
-    if (!settings || busy || !resource.canMutate || saved) return;
+    if (!settings || busy || saving.current || !resource.canMutate || saved || needsRead) return;
     const parsed = (field === "name" ? driveNameSchema : displayNameSchema).safeParse(value);
     if (!parsed.success) { setMessage(`请输入 1–${field === "name" ? 100 : 40} 个字符，不能只含空白。`); return; }
     const sameIdentity = captureReadIdentity();
-    const current = () => active.current && sameIdentity();
+    const controller = new AbortController(); saving.current = controller;
+    const current = () => active.current && sameIdentity() && saving.current === controller;
     setBusy(true); setMessage(null);
     let confirmed = false;
     try {
-      const response = await diagnosticFetch(`/api/choirs/${choirId}/${field}`, { method: "PATCH", headers: { "content-type": "application/json", "x-same-page-owner-user-id": userId },
+      const response = await diagnosticFetch(`/api/choirs/${choirId}/${field}`, { method: "PATCH", signal: controller.signal, headers: { "content-type": "application/json", "x-same-page-owner-user-id": userId },
         body: JSON.stringify(field === "name" ? { name: parsed.data, expectedRevision: settings.nameRevision } : { displayName: parsed.data, expectedRevision: settings.membershipRevision }) });
       if (!current()) return;
       if (response.status === 409) {
@@ -55,8 +69,9 @@ export function DriveSettingsDialog({ choirId, userId, field, onClose, onSaved }
         return;
       }
       if (!response.ok) throw new SettingsRequestError(response.status);
-      confirmed = true; setSaved(true);
+      confirmed = true;
       const result = await response.json(); if (!current()) return;
+      setSaved(true);
       const next = field === "name" ? { ...settings, name: parsed.data, nameRevision: result.revision }
         : { ...settings, displayName: parsed.data, membershipRevision: result.revision };
       resource.update(driveSettingsSchema.parse(next));
@@ -66,7 +81,15 @@ export function DriveSettingsDialog({ choirId, userId, field, onClose, onSaved }
         setMessage(confirmed ? "修改已保存，内容刷新失败。请重试刷新。" : settingsError(error, "保存结果未确认，输入已保留。请重新读取当前设置后核对。"));
         if (error instanceof SettingsRequestError && [401, 403].includes(error.status)) void resource.refresh().catch(() => undefined);
       }
-    } finally { if (current()) setBusy(false); }
+    } finally {
+      if (active.current && saving.current === controller) {
+        saving.current = null; setBusy(false);
+        if (!sameIdentity()) {
+          setNeedsRead(true);
+          setMessage("保存结果未确认，输入已保留。请重新读取当前设置后核对。");
+        }
+      }
+    }
   };
   return <ModalOverlay className="modal-overlay" isOpen onOpenChange={open => { if (!open && !busy) onClose(); }} isDismissable={!busy}>
     <Modal className="app-modal"><Dialog className="app-dialog" aria-label={title}>
@@ -75,11 +98,14 @@ export function DriveSettingsDialog({ choirId, userId, field, onClose, onSaved }
         <TextField value={value} onChange={next => { dirty.current = true; setValue(next); }} isDisabled={!resource.data || busy || saved} maxLength={field === "name" ? 100 : 40} isRequired><Label>{title}</Label><Input autoFocus /></TextField>
         {(message || Boolean(resource.error)) && <p role="status">{message ?? settingsError(resource.error, "暂时无法更新，已有内容已保留，请重试。")}</p>}
         {resource.loading && <p role="status">正在读取当前设置…</p>}
-        {(message || Boolean(resource.error)) && <Button isDisabled={busy} onPress={() => {
+        {(message || Boolean(resource.error)) && <Button isDisabled={busy || !resource.canRead} onPress={() => {
           if (saved) void finish().catch(() => setMessage("修改已保存，内容刷新失败。请重试刷新。"));
-          else void resource.refresh().catch(() => undefined);
+          else {
+            recovering.current = needsRead; setMessage(null);
+            void resource.refresh().catch(() => { recovering.current = false; });
+          }
         }}>{saved ? "重试刷新" : "重新读取"}</Button>}
-        <div className="dialog-actions"><Button className="secondary-button" isDisabled={busy} onPress={onClose}>取消</Button><Button className="primary-button" type="submit" isDisabled={!resource.canMutate || busy || saved || (field === "name" && !resource.data?.canEditDriveInfo)}>{busy ? "正在保存…" : "保存"}</Button></div>
+        <div className="dialog-actions"><Button className="secondary-button" isDisabled={busy} onPress={onClose}>取消</Button><Button className="primary-button" type="submit" isDisabled={!resource.canMutate || busy || saved || needsRead || (field === "name" && !resource.data?.canEditDriveInfo)}>{busy ? "正在保存…" : "保存"}</Button></div>
       </Form>
     </Dialog></Modal>
   </ModalOverlay>;

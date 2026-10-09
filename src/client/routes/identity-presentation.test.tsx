@@ -47,12 +47,13 @@ it("waits for identity then retains an edited settings form through same-user re
   await waitFor(() => expect(field).toHaveValue("排练云盘"));
   fireEvent.change(field, { target: { value: "我的修改" } });
   act(() => observeNavigationSession(null, "user", true));
-  identity.pending = true;
+  identity.data = null; identity.pending = true;
   view.rerender(tree(<DriveManagementPage section="info" />, "/choirs/drive/settings/admission"));
+  expect(screen.getByRole("textbox", { name: "云盘名称" })).toBe(field);
   expect(field).toHaveValue("我的修改");
   expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   act(() => observeNavigationSession("user:session", "user"));
-  identity.pending = false;
+  identity.data = { user: { id: "user", email: "user@example.test" } }; identity.pending = false;
   view.rerender(tree(<DriveManagementPage section="info" />, "/choirs/drive/settings/admission"));
   expect(field).toHaveValue("我的修改");
 });
@@ -67,4 +68,25 @@ it("keeps known trash visible offline and pauses restore instead of showing perm
   await act(async () => { online = false; window.dispatchEvent(new Event("offline")); });
   expect(trash).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "查看权限说明" })).not.toBeInTheDocument();
+});
+
+
+it("saves a drive name without waiting for the unrelated directory bootstrap", async () => {
+  await activateAuthenticatedLocalOwner("user");
+  identity.data = { user: { id: "user", email: "user@example.test" } }; identity.pending = false;
+  const capabilities = noCapabilities(); capabilities.operations.operations.push("editDriveInfo");
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).endsWith("/bootstrap")) return new Promise<Response>(() => {});
+    if (init?.method === "PATCH") return Response.json({ revision: 2 });
+    return Response.json(String(input).endsWith("/management")
+      ? { name: "排练云盘", isMember: true, guestAdmissionMode: "invite", capabilities, layers: [] }
+      : { name: "排练云盘", displayName: "歌者", nameRevision: 1, membershipRevision: 1, canEditDriveInfo: true });
+  }));
+  render(tree(<DriveManagementPage section="info" />, "/choirs/drive/settings/admission"));
+  fireEvent.click(await screen.findByRole("button", { name: "修改云盘名称" }));
+  const field = await screen.findByRole("textbox", { name: "云盘名称" });
+  await waitFor(() => expect(field).toHaveValue("排练云盘"));
+  fireEvent.change(field, { target: { value: "新名称" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(screen.queryByRole("textbox", { name: "云盘名称" })).not.toBeInTheDocument());
 });

@@ -67,3 +67,21 @@ it("keeps the invitation visible while authority is paused and waits before read
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   expect(card).toBeInTheDocument();
 });
+
+
+it.each([401, 403, 404, 503])("distinguishes definitive %i denial from a transient error after resuming invitation reads", async status => {
+  let denied = false;
+  vi.stubGlobal("fetch", vi.fn(async () => denied ? new Response(null, { status }) : Response.json({ joinCode: "ABCDEFGH" })));
+  const view = render(<InviteSharing choirId="drive" choirName="示例云盘" />);
+  const card = await screen.findByRole("img", { name: "示例云盘邀请二维码" });
+  view.rerender(<InviteSharing choirId="drive" choirName="示例云盘" writable={false} />);
+  denied = true;
+  view.rerender(<InviteSharing choirId="drive" choirName="示例云盘" />);
+  await screen.findByText(status === 401 ? "登录已失效，请重新登录后再试。" : status === 403 ? "你没有操作此设置的权限，请联系云盘拥有者。" : "暂时无法读取邀请码，请重试。");
+  if (status === 503) expect(card).toBeInTheDocument();
+  else {
+    expect(card).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "复制邀请码" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "轮换邀请码" })).toBeDisabled();
+  }
+});

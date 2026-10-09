@@ -6,7 +6,7 @@ import { cacheAnnotationLayers, readAnnotationLayers, saveAnnotationDraft } from
 import type { AnnotationLayerSummary } from "../shared/annotations";
 import { captureOfflineAnnotationSnapshot } from "./annotations/offline-snapshot";
 import { StrictMode } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider, Link, MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -443,6 +443,9 @@ describe("AppRoutes", () => {
   });
 
   it("normalizes a grouped pasted invitation and enters as a guest", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((input, init) => input === "/api/guest/session" && !init?.method
+      ? Promise.resolve(new Response(null, { status: 404 })) : original(input, init));
     render(
       <MemoryRouter initialEntries={["/"]}>
         <AppRoutes />
@@ -466,6 +469,24 @@ describe("AppRoutes", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ admission: "invite", joinCode: "ABCDEFGH" }),
     });
+  });
+
+  it("keeps deliberate invitation entry when an old guest restoration responds late", async () => {
+    let finish!: (response: Response) => void;
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((input, init) => input === "/api/guest/session" && !init?.method
+      ? new Promise<Response>(resolve => { finish = resolve; }) : original(input, init));
+    render(<MemoryRouter initialEntries={["/"]}><AppRoutes /></MemoryRouter>);
+    await waitFor(() => expect(finish).toBeDefined());
+    fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
+    const input = await screen.findByLabelText("邀请码");
+    fireEvent.change(input, { target: { value: "abcd-efgh" } });
+    await act(async () => finish(Response.json({ choir: { id: "old-drive", name: "之前的云盘", guestAdmissionMode: "invite" }, entryKind: "admission" })));
+    expect(screen.getByLabelText("邀请码")).toBe(input);
+    expect(input).toHaveValue("ABCD-EFGH");
+    expect(vi.mocked(fetch).mock.calls.filter(([url, init]) => url === "/api/guest/session" && init?.method === "POST")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "进入" }));
+    expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
   });
 
   it("keeps invalid invitations in the entry dialog with clear feedback", async () => {
