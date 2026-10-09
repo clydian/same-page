@@ -610,7 +610,7 @@ function ReaderPageContent() {
       ) : null}
       {!editing && conflictOpen && <ReaderConflictDialog key={`${workspace.scopeKey}:${workspace.sessionEpoch}:${score.currentVersion.id}`}
         conflicts={conflicts} document={document} layers={layers} annotations={annotations} online={online}
-        onRefresh={refreshConflicts} onResolve={resolveConflict} onClose={() => setConflictOpen(false)} />}
+        onRefresh={refreshConflicts} onResolve={resolveConflict} syncStatus={syncStatus} canRetry={sync.canRetry} onRetry={manualSync} onClose={() => setConflictOpen(false)} />}
       {!editing && (syncStatus.kind === "failed" || syncStatus.kind === "risk") ? (
         <aside className="annotation-conflicts" aria-label="笔记同步异常">
           <strong>{syncStatus.message}</strong>

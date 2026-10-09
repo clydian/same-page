@@ -9,7 +9,7 @@ import { Dialog } from "../navigation/overlays";
 import type { PDFDocumentProxy } from "./pdf-document";
 import { PdfPageCanvas } from "./pdf-page";
 import { usePdfPageAspectRatio } from "./use-pdf-page-geometry";
-import type { ReaderSyncOutcome } from "./reader-sync-status";
+import type { ReaderSyncOutcome, ReaderSyncStatus } from "./reader-sync-status";
 import "./reader-conflict.css";
 
 type Props = {
@@ -20,21 +20,31 @@ type Props = {
   online: boolean;
   onRefresh(): Promise<boolean>;
   onResolve(opId: string, strategy: ConflictStrategy, reviewed: AnnotationConflictRecord): Promise<ReaderSyncOutcome | null>;
+  syncStatus: ReaderSyncStatus;
+  canRetry: boolean;
+  onRetry(): Promise<void>;
   onClose(): void;
 };
 
 export function ReaderConflictDialog(props: Props) {
   const { conflicts, online, onRefresh, onClose } = props;
   const [selectedId, setSelectedId] = useState(conflicts[0]?.opId);
-  const [refreshResult, setRefreshResult] = useState<{ request: Props["onRefresh"]; ok: boolean } | null>(null);
+  const [refreshResult, setRefreshResult] = useState<{ request: Props["onRefresh"]; ok: boolean; checkedAt: number } | null>(null);
   const refresh = !online ? "offline" : refreshResult?.request !== onRefresh ? "checking" : refreshResult.ok ? "checked" : "failed";
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const index = Math.max(0, conflicts.findIndex(conflict => conflict.opId === selectedId));
   const conflict = conflicts[index];
+  const dialog = useRef<HTMLDivElement>(null);
+  const fingerprint = conflict ? conflictFingerprint(conflict) : null;
+  // A refreshed variant replaces its focused controls. Keep keyboard dismissal
+  // and focus inside the dialog when that focused control disappears.
+  useLayoutEffect(() => {
+    if (dialog.current && !dialog.current.contains(document.activeElement)) dialog.current.focus();
+  }, [fingerprint]);
   useEffect(() => {
     let active = true;
-    if (online) void onRefresh().then(ok => { if (active) setRefreshResult({ request: onRefresh, ok }); });
+    if (online) void onRefresh().then(ok => { if (active) setRefreshResult({ request: onRefresh, ok, checkedAt: Date.now() }); });
     return () => { active = false; };
   }, [online, onRefresh]);
   const resolve: Props["onResolve"] = async (opId, strategy, reviewed) => {
@@ -50,23 +60,30 @@ export function ReaderConflictDialog(props: Props) {
   return <ModalOverlay className="modal-overlay conflict-backdrop" isOpen isDismissable={!busy} isKeyboardDismissDisabled={busy}
     onOpenChange={open => { if (!open && !busy) onClose(); }}>
     <Modal className="conflict-modal">
-      <Dialog aria-label="比较冲突笔记" className="conflict-dialog" exitDisabled={busy}>
+      <Dialog ref={dialog} aria-label="比较冲突笔记" className="conflict-dialog" exitDisabled={busy}>
         <header className="conflict-header"><div><h2>比较笔记</h2><span>{conflict ? `${index + 1} / ${conflicts.length}` : "已处理"}</span></div>
           <Button className="reader-icon-button" aria-label="关闭笔记比较" isDisabled={busy} onPress={onClose}><X size={20} /></Button></header>
         {conflict ? <>
           <div className="conflict-context"><span>{props.layers.find(layer => layer.id === conflict.layerId)?.name ?? "原图层不可用"}</span>
-            <span>{!online ? "离线 · 显示已保存的云端快照" : refresh === "checking" ? "正在核对云端…" : refresh === "failed" ? "未能核对云端 · 显示已保存的快照" : "已核对云端"}</span></div>
+            <span>{!online ? "离线 · 显示已保存的云端快照" : refresh === "checking" ? "正在核对云端…" : refresh === "failed" ? "未能核对云端 · 显示已保存的快照" : `已核对云端 · ${formatConflictTime(refreshResult?.checkedAt)}`}</span></div>
           <ConflictComparison key={conflictFingerprint(conflict)} {...props} conflict={conflict} busy={busy}
             onResolve={resolve} blocked={online && refresh !== "checked"} />
           {message && <p role="status" className="conflict-message">{message}</p>}
           <footer className="conflict-footer"><Button className="secondary-button" isDisabled={busy} onPress={onClose}>稍后处理</Button>
             {refresh === "failed" && online && <Button className="secondary-button" isDisabled={busy} onPress={() => {
-              setRefreshResult(null); void onRefresh().then(ok => setRefreshResult({ request: onRefresh, ok }));
+              setRefreshResult(null); void onRefresh().then(ok => setRefreshResult({ request: onRefresh, ok, checkedAt: Date.now() }));
             }}>重新核对</Button>}
             <div><Button className="reader-icon-button" aria-label="上一条冲突" isDisabled={busy || index === 0} onPress={() => { setSelectedId(conflicts[index - 1].opId); setMessage(null); }}><ChevronLeft size={20} /></Button>
               <Button className="reader-icon-button" aria-label="下一条冲突" isDisabled={busy || index === conflicts.length - 1} onPress={() => { setSelectedId(conflicts[index + 1].opId); setMessage(null); }}><ChevronRight size={20} /></Button></div>
           </footer>
-        </> : <><p role="status">这份乐谱的本机冲突已处理。</p>{message && <p role="status">{message}</p>}<Button className="primary-button" onPress={onClose}>返回看谱</Button></>}
+        </> : <><p role="status">这份乐谱的本机冲突已处理。</p>{message && <p role="status">{message}</p>}
+          {props.syncStatus.message && <p role="status">{props.syncStatus.message}</p>}
+          <div className="conflict-complete-actions">
+            {props.syncStatus.kind !== "quiet" && <Button className="secondary-button" isDisabled={busy || !props.canRetry} onPress={() => {
+              setBusy(true); setMessage(null); void props.onRetry().finally(() => setBusy(false));
+            }}>{busy ? "正在同步…" : "重试同步"}</Button>}
+            <Button className="primary-button" isDisabled={busy} onPress={onClose}>返回看谱</Button>
+          </div></>}
       </Dialog>
     </Modal>
   </ModalOverlay>;
@@ -103,6 +120,7 @@ function ConflictComparison({ conflict, document, layers, annotations, online, b
       target={preview} /> : <div className="conflict-missing-page" role="status">{page ? `当前 PDF 没有第 ${page} 页，无法显示原谱位置。` : "没有可定位的谱面位置。"}</div>}
     <div className="conflict-variant-detail" aria-live="polite">
       <strong>{deleted ? source === "local" ? "本机已删除这条笔记" : "云端已删除这条笔记" : source === "local" ? "本机修改 · 尚未上传" : `云端版本${conflict.canonical?.updatedByDisplayName ? ` · ${conflict.canonical.updatedByDisplayName}` : ""}`}</strong>
+      {source === "cloud" && <span>{conflict.canonical ? `云端修改于 ${formatConflictTime(conflict.canonical.updatedAt, true)}` : "云端快照时间未知"}{!online ? " · 快照核对时间未知，联网后可重新核对" : ""}</span>}
       {!deleted && payload?.kind === "text" && <span>{payload.text}</span>}
       {!deleted && payload?.kind === "ink" && <span>{payload.brush === "highlighter" ? "荧光笔笔记" : "画笔笔记"}</span>}
       {!deleted && payload?.kind === "shape" && <span>{payload.shape === "rectangle" ? "矩形笔记" : "椭圆笔记"}</span>}
@@ -183,4 +201,8 @@ function ConflictPreview({ document, page, conflict, layers, references, target 
       </div>
     </div>
   </section>;
+}
+
+function formatConflictTime(at: number | undefined, includeDate = false) {
+  return at && Number.isFinite(at) ? new Date(at).toLocaleString("zh-CN", { ...(includeDate ? { month: "numeric", day: "numeric" } : {}), hour: "2-digit", minute: "2-digit" }) : "时间未知";
 }

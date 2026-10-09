@@ -562,7 +562,7 @@ export async function reapplyAnnotationConflict(
   reviewed?: AnnotationConflictRecord,
 ) {
   await assertLocalWorkspaceActive(workspace);
-  await localDatabase.transaction(
+  return localDatabase.transaction(
     "rw",
     localDatabase.system,
     localDatabase.annotations,
@@ -605,6 +605,7 @@ export async function reapplyAnnotationConflict(
         updatedAt: Date.now(),
       });
       await localDatabase.annotationConflicts.delete(opId);
+      return nextId;
     },
   );
 }

@@ -14,7 +14,7 @@ test("conflicts compare in place and require confirmation in Chromium and WebKit
   for (const engine of [chromium, webkit]) {
     const browser = await engine.launch();
     try {
-      for (const width of [834, 390]) {
+      for (const width of [834, 390, 320]) {
         const context = await browser.newContext({ viewport: { width, height: width === 834 ? 1100 : 844 }, serviceWorkers: "block", reducedMotion: "reduce" });
         try {
           await context.addInitScript(() => {
@@ -44,13 +44,15 @@ test("conflicts compare in place and require confirmation in Chromium and WebKit
           cloud = await seedConflict(page);
           await page.getByRole("button", { name: "查看", exact: true }).click();
           const dialog = page.getByRole("dialog", { name: "比较冲突笔记" });
-          await dialog.getByText("已核对云端", { exact: true }).waitFor();
+          await dialog.getByText(/^已核对云端 ·/).waitFor();
           await dialog.locator("[data-pdf-canvas-active]").waitFor();
           await dialog.getByRole("button", { name: "确认选择", exact: true }).scrollIntoViewIfNeeded();
           await expect(dialog.getByRole("button", { name: "确认选择", exact: true })).toBeDisabled();
           assert.equal(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth), true, "dialog content overflows horizontally");
           const bounds = await dialog.boundingBox();
           assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, "dialog is outside viewport");
+          const touchTargets = await dialog.locator('button:not(.annotation-text), .react-aria-Radio').evaluateAll(elements => elements.filter(element => !element.closest('[hidden]')).map(element => ({ label: element.textContent || element.getAttribute('aria-label'), height: element.getBoundingClientRect().height })));
+          assert.ok(touchTargets.every(target => target.height >= 44), JSON.stringify(touchTargets));
           const viewport = dialog.locator(".conflict-viewport");
           await viewport.evaluate(element => { element.scrollTop += 12; element.scrollLeft += 12; });
           const before = await geometry(viewport);
@@ -82,7 +84,7 @@ test("conflicts compare in place and require confirmation in Chromium and WebKit
           });
           await expect(dialog.getByRole("button", { name: "确认处理", exact: true })).toHaveCount(0);
           await expect(dialog.getByRole("button", { name: "确认选择", exact: true })).toBeDisabled();
-          await dialog.getByRole("button", { name: "关闭笔记比较" }).click();
+          await page.keyboard.press("Escape");
           await expect(page.getByRole("button", { name: "查看", exact: true })).toBeFocused();
           assert.equal(await conflictCount(page), 1);
           // Deletion, offline review, cross-page and absent-page labels use the
@@ -97,7 +99,9 @@ test("conflicts compare in place and require confirmation in Chromium and WebKit
           await page.getByRole("button", { name: "查看", exact: true }).click();
           await dialog.getByText("本机已删除这条笔记", { exact: true }).waitFor();
           await expect(dialog.getByRole("radio", { name: "两份都保留" })).toHaveCount(0);
-          await dialog.getByRole("button", { name: "稍后处理", exact: true }).click();
+          await page.evaluate(() => history.back());
+          await expect(dialog).toHaveCount(0);
+          assert.equal(await conflictCount(page), 1);
           for (const kind of ['pen', 'highlighter', 'shape']) {
             await page.evaluate(async kind => {
               const { localDatabase } = await import('/src/client/platform/local-database.ts');
@@ -130,6 +134,12 @@ test("conflicts compare in place and require confirmation in Chromium and WebKit
             await saveAnnotationDraft(conflict, { id: conflict.annotationId, layerId: conflict.layerId, payload: { ...conflict.localPayload, pageNumber: 9 } });
           });
           await dialog.getByText("当前 PDF 没有第 9 页，无法显示原谱位置。", { exact: true }).waitFor();
+          await dialog.evaluate(element => {
+            const text = [...element.querySelectorAll('h2, .conflict-header span, .conflict-context, button, .conflict-variant-detail, .react-aria-Radio, .conflict-missing-page')];
+            const sizes = text.map(node => parseFloat(getComputedStyle(node).fontSize));
+            text.forEach((node, index) => node.style.setProperty('font-size', `${sizes[index] * 2}px`, 'important'));
+          });
+          assert.equal(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth), true, "200% text overflows the comparison dialog");
           await dialog.getByText("采用云端版本", { exact: true }).click();
           await dialog.getByRole("button", { name: "确认选择", exact: true }).click();
           await dialog.getByRole("button", { name: "确认处理", exact: true }).click();

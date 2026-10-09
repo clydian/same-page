@@ -70,15 +70,20 @@ export class ReaderAnnotationActions {
         await this.check(signal);
         return "conflict-discarded";
       }
-      await reapplyAnnotationConflict(this.workspace, opId, strategy === "keep-both", reviewed);
+      const resolvedId = await reapplyAnnotationConflict(this.workspace, opId, strategy === "keep-both", reviewed);
+      if (!resolvedId) throw new AnnotationConflictChangedError();
+      saved = true;
       await this.check(signal);
       await diagnoseLocalOperation("draft-save", () => queueScoreDrafts(this.workspace), diagnostics);
-      saved = true;
       await this.check(signal);
       if (!this.access.online || !this.access.authenticated || this.access.trashed) return "local-saved";
       await syncReader(this.workspace, { signal });
       await this.check(signal);
-      return "conflict-reapplied";
+      const state = await readScoreAnnotationState(this.workspace);
+      await this.check(signal);
+      const target = state.annotations.find(annotation => annotation.id === resolvedId);
+      return target?.state === "conflict" ? "conflict-changed" :
+        target?.state === "synced" && target.version > 0 ? "conflict-reapplied" : "local-saved";
     } catch (error) { return signal.aborted ? null : error instanceof AnnotationConflictChangedError ? "conflict-changed" : saved ? "local-saved" : "failed"; }
   }
 }

@@ -15,7 +15,7 @@ const conflict: AnnotationConflictRecord = { ownerKey: authenticatedLocalOwnerKe
   canonical: { id: "note", layerId: "layer", version: 2, deleted: false, payload: { kind: "text", pageNumber: 1, x: .5, y: .5, fontScale: .024, text: "云端内容" }, createdByDisplayName: "甲", updatedByDisplayName: "乙", updatedAt: 2 } };
 const props = { conflicts: [conflict], document: { numPages: 2 } as PDFDocumentProxy, layers: [{ id: "layer", kind: "personal" as const, sharedSlot: null, name: "我的笔记", sortOrder: 0, subscribed: true, canEdit: true, displayColor: "#dc2626", subscriptionSource: "product" as const, colorSource: "product" as const, adminDefaultColor: "#dc2626", driveSubscribed: null, driveColorOverride: null, scoreSubscriptionOverride: null }],
   annotations: [{ ...conflict, id: "note", key: "note", deleted: false, version: 1, baseVersion: 1, state: "conflict" as const, payload: conflict.localPayload, lastOpId: null, syncErrorCode: null, createdByDisplayName: "甲", updatedByDisplayName: "甲", updatedAt: 1 }],
-  online: false, onRefresh: vi.fn().mockResolvedValue(true), onResolve: vi.fn().mockResolvedValue("conflict-discarded"), onClose: vi.fn() };
+  syncStatus: { kind: "quiet" as const, message: "没有待上传的修改" }, canRetry: true, onRetry: vi.fn().mockResolvedValue(undefined), online: false, onRefresh: vi.fn().mockResolvedValue(true), onResolve: vi.fn().mockResolvedValue("conflict-discarded"), onClose: vi.fn() };
 function mount(input = props) {
   return render(<MemoryRouter><ReaderConflictDialog {...input} /></MemoryRouter>);
 }
@@ -52,4 +52,22 @@ it("deletion has an explicit state, excludes keep-both and retains the choice on
   fireEvent.click(screen.getByRole("button", { name: "确认处理" }));
   await screen.findByText("处理未完成，本机内容保留，请重试。");
   expect(screen.getByRole("radio", { name: "仍要删除" })).toBeChecked();
+});
+
+it("shows cloud content age and explicitly says the offline check time is unknown", () => {
+  mount(); fireEvent.click(screen.getByRole("button", { name: "云端版本 · 第 1 页" }));
+  expect(screen.getByText(/云端修改于.*快照核对时间未知/)).toBeVisible();
+});
+it("keeps pending permission feedback and a retry after the local choice removes the conflict", async () => {
+  const onRetry = vi.fn().mockResolvedValue(undefined);
+  const view = mount({ ...props, onRetry });
+  fireEvent.click(screen.getByRole("radio", { name: "采用本机修改" }));
+  fireEvent.click(screen.getByRole("button", { name: "确认选择" }));
+  fireEvent.click(screen.getByRole("button", { name: "确认处理" }));
+  await waitFor(() => expect(props.onResolve).toHaveBeenCalled());
+  view.rerender(<MemoryRouter><ReaderConflictDialog {...props} conflicts={[]} onRetry={onRetry}
+    syncStatus={{ kind: "failed", message: "原图层编辑权已撤销，本机草稿保留。" }} /></MemoryRouter>);
+  expect(screen.getByText("原图层编辑权已撤销，本机草稿保留。")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "重试同步" }));
+  await waitFor(() => expect(onRetry).toHaveBeenCalledTimes(1));
 });
