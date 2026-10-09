@@ -1,3 +1,4 @@
+import { conflictChoices, conflictFingerprint, type ConflictStrategy } from "./annotation-conflict";
 import { GUEST_NOTE_LAYER_ID, availableAnnotationLayers, isLocalExperience } from "./guest-notes";
 import { reconcileAnnotationReadingPreferences } from "../reader/reading-preferences";
 import { diagnoseLocalOperation } from "../diagnostics/local-operation";
@@ -369,11 +370,16 @@ export async function applyPulledAnnotations(
     localDatabase.system,
     localDatabase.annotations,
     localDatabase.annotationSyncCursors,
+    localDatabase.annotationConflicts,
     async () => {
       await assertLocalWorkspaceActive(workspace);
+      const conflicts = await localDatabase.annotationConflicts.where("scopeKey").equals(workspace.scopeKey).toArray();
       for (const object of objects) {
         const key = annotationRecordKey(workspace.scopeKey, object.id);
         const existing = await localDatabase.annotations.get(key);
+        for (const conflict of conflicts.filter(conflict => conflict.annotationId === object.id)) {
+          if (object.version > (conflict.canonical?.version ?? 0)) await localDatabase.annotationConflicts.update(conflict.opId, { canonical: object });
+        }
         if (existing && (existing.state !== "synced" || existing.version > object.version)) continue;
         await localDatabase.annotations.put(fromCanonical(workspace, object));
       }
@@ -522,6 +528,7 @@ export async function applyPushResults(
 export async function discardAnnotationConflict(
   workspace: LocalWorkspace,
   opId: string,
+  reviewed?: AnnotationConflictRecord,
 ) {
   await assertLocalWorkspaceActive(workspace);
   await localDatabase.transaction(
@@ -529,9 +536,11 @@ export async function discardAnnotationConflict(
     localDatabase.system,
     localDatabase.annotations,
     localDatabase.annotationConflicts,
+    localDatabase.annotationLayers,
     async () => {
       await assertLocalWorkspaceActive(workspace);
       const conflict = await localDatabase.annotationConflicts.get(opId);
+      assertConflictReview(conflict, workspace, reviewed, "discard");
       if (!conflict || conflict.scopeKey !== workspace.scopeKey) return;
       const key = annotationRecordKey(conflict.scopeKey, conflict.annotationId);
       if (conflict.canonical) {
@@ -550,23 +559,30 @@ export async function reapplyAnnotationConflict(
   workspace: LocalWorkspace,
   opId: string,
   keepBoth = false,
+  reviewed?: AnnotationConflictRecord,
 ) {
   await assertLocalWorkspaceActive(workspace);
-  await localDatabase.transaction(
+  return localDatabase.transaction(
     "rw",
     localDatabase.system,
     localDatabase.annotations,
     localDatabase.annotationConflicts,
+    localDatabase.annotationLayers,
     async () => {
       await assertLocalWorkspaceActive(workspace);
-  const conflict = await localDatabase.annotationConflicts.get(opId);
-  if (!conflict || conflict.scopeKey !== workspace.scopeKey) return;
-  const current = await localDatabase.annotations.get(
-    annotationRecordKey(conflict.scopeKey, conflict.annotationId),
-  );
-  if (!current) return;
-  const nextId = keepBoth ? crypto.randomUUID() : conflict.annotationId;
-  const canonicalVersion = keepBoth ? 0 : (conflict.canonical?.version ?? 0);
+      const conflict = await localDatabase.annotationConflicts.get(opId);
+      assertConflictReview(conflict, workspace, reviewed, keepBoth ? "keep-both" : "reapply");
+      if (!conflict || conflict.scopeKey !== workspace.scopeKey) return;
+      if (reviewed) {
+        const layer = await localDatabase.annotationLayers.get(annotationRecordKey(workspace.scopeKey, conflict.layerId));
+        if (!layer?.canEdit) throw new Error("conflict_permission_denied");
+      }
+      const current = await localDatabase.annotations.get(
+        annotationRecordKey(conflict.scopeKey, conflict.annotationId),
+      );
+      if (!current) { if (reviewed) throw new AnnotationConflictChangedError(); return; }
+      const nextId = keepBoth ? crypto.randomUUID() : conflict.annotationId;
+      const canonicalVersion = keepBoth ? 0 : (conflict.canonical?.version ?? 0);
       if (keepBoth && conflict.canonical) {
         await localDatabase.annotations.put(
           fromCanonical(
@@ -589,6 +605,7 @@ export async function reapplyAnnotationConflict(
         updatedAt: Date.now(),
       });
       await localDatabase.annotationConflicts.delete(opId);
+      return nextId;
     },
   );
 }
@@ -879,4 +896,16 @@ export async function retainGuestSharedAnnotations(
         localDatabase.annotationLayers.bulkPut(nextLayers),
         localDatabase.annotations.bulkPut(nextAnnotations),
       ]);
+}
+
+export class AnnotationConflictChangedError extends Error {
+  constructor() { super("annotation_conflict_changed"); }
+}
+function assertConflictReview(current: AnnotationConflictRecord | undefined, workspace: LocalWorkspace,
+  reviewed: AnnotationConflictRecord | undefined, strategy: ConflictStrategy) {
+  if (!reviewed) return;
+  if (!current || current.scopeKey !== workspace.scopeKey || reviewed.scopeKey !== workspace.scopeKey ||
+    conflictFingerprint(current) !== conflictFingerprint(reviewed) || !conflictChoices(current).some(choice => choice.strategy === strategy)) {
+    throw new AnnotationConflictChangedError();
+  }
 }

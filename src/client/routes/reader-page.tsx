@@ -66,7 +66,7 @@ import {
   useReaderPreferences,
 } from "../reader/use-reader-preferences";
 import { usePagedReader } from "../reader/use-paged-reader";
-import { describeAnnotationConflict } from "../reader/reader-sync-status";
+import { ReaderConflictDialog } from "../reader/reader-conflict-dialog";
 
 import type { DiagnosticReader } from "../../shared/diagnostic-report";
 import { DiagnosticReportDialog } from "../diagnostics/diagnostic-report-dialog";
@@ -137,6 +137,16 @@ function ReaderPageContent() {
   const { editor, persistence } = useAnnotationEditor(workspace);
   const editing = editor !== null && editor === editingEditor;
   const [exportOpen, setExportOpen] = useState(false);
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const conflictTrigger = useRef<HTMLButtonElement>(null);
+  const previousConflictOpen = useRef(false);
+  useEffect(() => {
+    const closed = previousConflictOpen.current && !conflictOpen;
+    previousConflictOpen.current = conflictOpen;
+    if (!closed) return;
+    const frame = requestAnimationFrame(() => conflictTrigger.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [conflictOpen]);
   const reader = useReaderSession(workspace, identity.authenticatedUserId, identity.authenticatedSessionId);
   const { score, document, offline: loadedOffline, cloudState, downloading, downloadMessage, preparation } = reader.snapshot;
   const documentScopeKey = document ? workspace?.scopeKey ?? null : null;
@@ -157,7 +167,7 @@ function ReaderPageContent() {
   });
   const { annotationState: activeAnnotations, online, localOnly: guestExperience,
     status: syncStatus, syncing, reportOutcome,
-    retry: manualSync, resolveConflict, lastCheckedAt } = sync;
+    retry: manualSync, refreshConflicts, resolveConflict, lastCheckedAt } = sync;
   const layers = useReadingPreferenceProjection(workspace, [...activeAnnotations?.layers ?? []]).sort(compareLayers);
   const annotations = activeAnnotations?.annotations ?? [];
   const pendingCount = activeAnnotations?.pendingCount ?? 0;
@@ -186,7 +196,7 @@ function ReaderPageContent() {
   });
   const requestPage = pager.request;
 
-  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null && !exportOpen, null);
+  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null && !exportOpen && !conflictOpen, null);
   const closeScore = useCallback(() => {
     startLoadingJourney("exit-score", "warm");
     navigation.back(`/choirs/${choirId}`);
@@ -592,45 +602,15 @@ function ReaderPageContent() {
         </ModalOverlay>
       ) : null}
 
-      {!editing && conflicts.length > 0 ? (
-        <aside className="annotation-conflicts" aria-label="本地笔记冲突">
-          <strong>仍有 {conflicts.length} 项本机冲突待处理</strong>
-          <p>同一笔记的云端版本已经变化；以下是保留在这台设备上的版本。</p>
-          {conflicts.map((conflict) => {
-            const layer = layers.find(layer => layer.id === conflict.layerId);
-            const layerName = layer ? (layer.name) : "未知图层";
-            const detail = describeAnnotationConflict(
-              conflict,
-              layerName,
-            );
-            return (
-              <div className="annotation-conflict-item" key={conflict.opId}>
-                <span>
-                  第 {detail.pageNumber} 页 · {detail.layerName} · {detail.summary}
-                </span>
-                <Button onPress={() => goToPage(detail.pageNumber)}>
-                  前往第 {detail.pageNumber} 页
-                </Button>
-                <Button
-                  onPress={() => void resolveConflict(conflict.opId, "discard")}
-                >
-                  放弃本机版本
-                </Button>
-                <Button
-                  onPress={() => void resolveConflict(conflict.opId, "reapply")}
-                >
-                  基于云端重新应用
-                </Button>
-                <Button
-                  onPress={() => void resolveConflict(conflict.opId, "keep-both")}
-                >
-                  两份都保留
-                </Button>
-              </div>
-            );
-          })}
+      {!editing && conflicts.length > 0 && !conflictOpen ? (
+        <aside className="annotation-conflicts annotation-conflicts--compact" aria-label="本机笔记冲突">
+          <span>有 {conflicts.length} 条笔记需要比较</span>
+          <Button ref={conflictTrigger} onPress={() => { setMoreOpen(false); setReaderPanel(null); setConflictOpen(true); }}>查看</Button>
         </aside>
       ) : null}
+      {!editing && conflictOpen && <ReaderConflictDialog key={`${workspace.scopeKey}:${workspace.sessionEpoch}:${score.currentVersion.id}`}
+        conflicts={conflicts} document={document} layers={layers} annotations={annotations} online={online}
+        onRefresh={refreshConflicts} onResolve={resolveConflict} syncStatus={syncStatus} canRetry={sync.canRetry} onRetry={manualSync} onClose={() => setConflictOpen(false)} />}
       {!editing && (syncStatus.kind === "failed" || syncStatus.kind === "risk") ? (
         <aside className="annotation-conflicts" aria-label="笔记同步异常">
           <strong>{syncStatus.message}</strong>

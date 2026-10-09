@@ -1,0 +1,10 @@
+{
+  "issue": 395,
+  "sourceBaseSha": "c2438809115b30336cec445024f45c3558d026e1",
+  "capturedAt": "2026-10-09",
+  "source": "visual-report/reader-conflicts.test.mjs",
+  "content": "Repository authored score and synthetic identity, API and conflict response",
+  "engines": ["Chromium", "WebKit"],
+  "viewports": [{ "width": 834, "height": 1100 }, { "width": 390, "height": 844 }, { "width": 320, "height": 844 }],
+  "physicalDeviceAcceptance": false
+}
