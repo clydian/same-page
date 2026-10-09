@@ -1444,7 +1444,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(panel.querySelectorAll('input[type="color"]')).toHaveLength(5);
   });
 
-  it("identifies a persisted object conflict by page, layer and summary", async () => {
+  it("opens a persisted object conflict for explicit comparison and keeps it after editing", async () => {
     await localDatabase.annotationConflicts.put({
       opId: "conflict-op",
       ...localWorkspace,
@@ -1501,26 +1501,25 @@ it("keeps a single exit while the PDF never settles", async () => {
     );
 
     expect(
-      await screen.findByText("仍有 1 项本机冲突待处理"),
+      await screen.findByText("有 1 条笔记需要比较"),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText("第 2 页 · Ensemble · 第二页力度轻一些"),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "前往第 2 页" }));
-    await finishPageTurn();
-    expect(
-      within(screen.getByLabelText("翻页阅读")).getByLabelText("渲染第 2 页"),
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "查看" }));
+    const comparison = await screen.findByRole("dialog", { name: "比较冲突笔记" });
+    expect(within(comparison).getByRole("button", { name: "本机修改 · 第 2 页" })).toBeInTheDocument();
+    expect(within(comparison).getByText("Ensemble")).toBeInTheDocument();
+    expect(within(comparison).getByRole("button", { name: "第二页力度轻一些" })).toBeInTheDocument();
+    expect(within(comparison).getByRole("button", { name: "确认选择" })).toBeDisabled();
+    fireEvent.click(within(comparison).getByRole("button", { name: "关闭笔记比较" }));
 
     await toggleChrome();
     const edit = await screen.findByRole("button", { name: "编辑" });
     fireEvent.click(edit);
     await screen.findByRole("button", { name: "完成编辑" });
-    expect(screen.queryByLabelText("本地笔记冲突")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("本机笔记冲突")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("笔记同步异常")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "前往第 2 页" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "完成编辑" }));
-    expect(within(await screen.findByLabelText("本地笔记冲突")).getByRole("button", { name: "前往第 2 页" })).toBeInTheDocument();
+    expect(within(await screen.findByLabelText("本机笔记冲突")).getByRole("button", { name: "查看" })).toBeInTheDocument();
 
     view.unmount();
     render(
@@ -1531,7 +1530,7 @@ it("keeps a single exit while the PDF never settles", async () => {
       </MemoryRouter>,
     );
     expect(
-      await screen.findByText("仍有 1 项本机冲突待处理"),
+      await screen.findByText("有 1 条笔记需要比较"),
     ).toBeInTheDocument();
     await screen.findByLabelText("翻页阅读");
   });

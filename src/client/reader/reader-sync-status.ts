@@ -7,6 +7,7 @@ export type ReaderSyncOutcome =
   | "synced"
   | "failed"
   | "trash-preserved"
+  | "conflict-changed"
   | "conflict-discarded"
   | "conflict-reapplied";
 

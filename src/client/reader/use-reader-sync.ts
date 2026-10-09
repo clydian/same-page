@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { AnnotationConflictRecord } from "../platform/local-database";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { readScoreAnnotationState } from "../annotations/annotation-state";
 import { isLocalExperience } from "../annotations/guest-notes";
@@ -97,16 +98,23 @@ export function useReaderSync(workspace: LocalWorkspace | null, access: ReaderSy
       }
     }
   };
-  const resolveConflict = async (opId: string, strategy: "discard" | "reapply" | "keep-both") => {
+  const refreshConflicts = useCallback(async () => {
     const active = current.current;
-    if (!actions || active?.actions !== actions) return;
-    const result = await actions.resolveConflict(opId, strategy);
-    if (current.current === active && result) reportOutcome(result);
+    if (!actions || active?.actions !== actions) return false;
+    try { return await actions.refreshConflicts() && current.current === active; } catch { return false; }
+  }, [actions]);
+  const resolveConflict = async (opId: string, strategy: "discard" | "reapply" | "keep-both", reviewed?: AnnotationConflictRecord) => {
+    const active = current.current;
+    if (!actions || active?.actions !== actions) return null;
+    const result = await actions.resolveConflict(opId, strategy, reviewed);
+    if (current.current !== active) return null;
+    if (result) reportOutcome(result);
+    return result;
   };
 
   return {
     annotationState, online, localOnly, status, syncing, canRetry,
     lastCheckedAt: cloudCheck?.workspace === workspace ? cloudCheck?.at ?? null : null,
-    reportOutcome, retry, resolveConflict,
+    reportOutcome, retry, refreshConflicts, resolveConflict,
   };
 }
