@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { observeNavigationSession } from "../settings/navigation-events";
 import { DriveSettingsDialog } from "./drive-settings-dialog";
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); observeNavigationSession(null); });
 it("retains the draft after a revision conflict and requires a deliberate resave against refreshed settings", async () => {
   let revision = 0;
   const writes: unknown[] = [];
@@ -66,4 +67,77 @@ it("retries only refreshing after a confirmed name save", async () => {
   fireEvent.click(screen.getByRole("button", { name: "重试刷新" }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
+});
+
+
+it.each(["headers", "body"])("cancels an in-flight save while waiting for %s, retains the draft and requires a fresh read", async phase => {
+  observeNavigationSession("reader:session", "reader");
+  let finish!: (response: Response) => void;
+  let finishBody!: (payload: unknown) => void;
+  let signal!: AbortSignal;
+  const settings = { name: "云盘", nameRevision: 0, displayName: "旧名", membershipRevision: 0, canEditDriveInfo: false };
+  const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) => {
+    if (init?.method === "PATCH") {
+      signal = init.signal!;
+      if (phase === "body") {
+        const response = new Response(null, { status: 200 });
+        vi.spyOn(response, "json").mockImplementation(() => new Promise(resolve => { finishBody = resolve; }));
+        return response;
+      }
+      return new Promise<Response>(resolve => { finish = resolve; });
+    }
+    return Response.json(settings);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const onSaved = vi.fn(async () => {});
+  render(<DriveSettingsDialog choirId="drive" userId="reader" field="display-name" onSaved={onSaved} onClose={() => {}} />);
+  const input = await screen.findByDisplayValue("旧名");
+  fireEvent.change(input, { target: { value: "我的修改" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(phase === "body" ? finishBody : finish).toBeDefined());
+  act(() => observeNavigationSession(null, "reader", true));
+  expect(signal.aborted).toBe(true);
+  expect(screen.getByRole("button", { name: "取消" })).toBeEnabled();
+  expect(screen.getByRole("textbox", { name: "我在此云盘的显示名" })).toBe(input);
+  expect(input).toHaveValue("我的修改");
+  await act(async () => {
+    if (phase === "body") finishBody({ revision: 1 });
+    else finish(Response.json({ revision: 1 }));
+  });
+  act(() => observeNavigationSession("reader:session", "reader"));
+  await waitFor(() => expect(screen.getByRole("button", { name: "重新读取" })).toBeEnabled());
+  expect(onSaved).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "重新读取" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "保存" })).toBeEnabled());
+  expect(input).toHaveValue("我的修改");
+  expect(fetch.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
+});
+
+
+it.each([200, 403])("allows recovery after a transient resumed read failure and handles manual response %i through the resource", async status => {
+  observeNavigationSession("reader:session", "reader");
+  let reads = 0;
+  const settings = { name: "云盘", nameRevision: 0, displayName: "旧名", membershipRevision: 0, canEditDriveInfo: false };
+  vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (_url, init) => {
+    if (init?.method === "PATCH") return new Promise<Response>(() => {});
+    reads++;
+    return reads === 2 ? new Response(null, { status: 503 }) : reads > 2 && status !== 200 ? new Response(null, { status }) : Response.json(settings);
+  }));
+  render(<DriveSettingsDialog choirId="drive" userId="reader" field="display-name" onSaved={async () => {}} onClose={() => {}} />);
+  fireEvent.change(await screen.findByDisplayValue("旧名"), { target: { value: "我的修改" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  act(() => observeNavigationSession(null, "reader", true));
+  act(() => observeNavigationSession("reader:session", "reader"));
+  await waitFor(() => expect(reads).toBe(2));
+  const retry = screen.getByRole("button", { name: "重新读取" });
+  expect(retry).toBeEnabled();
+  fireEvent.click(retry);
+  await waitFor(() => expect(reads).toBe(3));
+  if (status === 200) await waitFor(() => expect(screen.getByRole("button", { name: "保存" })).toBeEnabled());
+  else {
+    await screen.findByText("你没有操作此设置的权限，请联系云盘拥有者。");
+    expect(screen.getByRole("textbox")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+  }
 });

@@ -1,3 +1,4 @@
+import { useSettingsIdentity } from "../auth/application-identity";
 import { ViewSelector } from "../components/view-selector";
 import { useReadResource } from "../settings/use-read-resource";
 import { driveManagementSchema } from "../../shared/drive-management";
@@ -12,19 +13,18 @@ import { Link, useParams } from "react-router-dom";
 import { sharedLayerAvailabilitySchema, sharedLayerManagementResponseSchema, type SharedLayerManagementSummary } from "../../shared/annotations";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { TaskHeader } from "../components/task-header";
-import { authClient } from "../auth/auth-client";
 import { SettingsFeedback } from "../settings/settings-feedback";
 import { settingsError, settingsResponse } from "../settings/settings-request";
 
 export default function SharedLayerManagementPage() {
   const { choirId = "" } = useParams();
-  const session = authClient.useSession();
-  return <SharedLayerAccess key={`${session.data?.user.id ?? "guest"}:${choirId}`} choirId={choirId} userId={session.data?.user.id ?? null} />;
+  const { userId, ready } = useSettingsIdentity();
+  return <SharedLayerAccess key={`${userId ?? "guest"}:${choirId}`} choirId={choirId} userId={userId} ready={ready} />;
 }
 
-function SharedLayerAccess({ choirId, userId }: { choirId: string; userId: string | null }) {
+function SharedLayerAccess({ choirId, userId, ready }: { choirId: string; userId: string | null; ready: boolean }) {
   const resource = useReadResource({ owner: userId, driveId: choirId, kind: "layer-access" }, async signal =>
-    driveManagementSchema.parse(await settingsResponse(await diagnosticFetch(`/api/choirs/${choirId}/management`, { signal }))));
+    driveManagementSchema.parse(await settingsResponse(await diagnosticFetch(`/api/choirs/${choirId}/management`, { signal }))), undefined, 0, ready);
   const overview = resource.data;
   const error = resource.error ? settingsError(resource.error, "无法更新共享层，请重试。") : null;
   if (overview?.capabilities.operations.operations.includes("configureLayers")) return <SharedLayerManagement choirId={choirId} userId={userId} authorized={resource.canMutate} accessError={error} retryAccess={resource.refresh} />;

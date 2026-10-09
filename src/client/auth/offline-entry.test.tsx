@@ -1,3 +1,4 @@
+import { InstallProvider } from "../install/install-provider";
 import { slowIndexedDbTasks } from "../../test/slow-indexeddb-tasks";
 import * as logoutFence from "./logout-fence";
 import { cleanupAuthClient } from "../../test/cleanup-auth-client";
@@ -38,11 +39,11 @@ function open(path = "/") {
   return view;
 }
 
-async function findSavedScoreLink() {
+async function findSavedScoreLink(timeout = 1000) {
   // Directory hydration and verified opening are separate asynchronous phases.
   // Target the actual filename, not the offline-control description beside it.
-  await screen.findByText(/^a$/, { selector: ".file-row__name" });
-  return screen.findByRole("link", { name: /^a$/ });
+  await screen.findByText(/^a$/, { selector: ".file-row__name" }, { timeout });
+  return screen.findByRole("link", { name: /^a$/ }, { timeout });
 }
 
 it("offers the last local user's saved score after a cold-start network failure", async () => {
@@ -50,7 +51,9 @@ it("offers the last local user's saved score after a cold-start network failure"
   slowIndexedDbTasks(40);
   vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
   open();
-  expect(await findSavedScoreLink()).toHaveAttribute("href", "/choirs/drive/scores/score");
+  // Every fake IndexedDB task is deliberately delayed, including identity
+  // and directory hydration; allow that bounded cold-start sequence to settle.
+  expect(await findSavedScoreLink(4000)).toHaveAttribute("href", "/choirs/drive/scores/score");
   await screen.findByText(/暂时无法连接/);
   expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
 });
@@ -244,4 +247,28 @@ it.each(["signed-out", "local-error", "hidden"] as const)("the real auth client'
     await act(() => new Promise(resolve => setTimeout(resolve, 100)));
     expect(sessionCalls()).toBe(count);
   } finally { accept?.mockRestore(); visibility?.mockRestore(); }
+});
+
+
+it("does not flash login preparation in the installed app while a remembered member is rechecked", async () => {
+  await saved();
+  vi.spyOn(window, "matchMedia").mockImplementation(media => Object.assign(new EventTarget(), {
+    media, matches: media === "(display-mode: standalone)", onchange: null,
+    addListener() {}, removeListener() {},
+  }));
+  let finishBootstrap!: (response: Response) => void;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("get-session")) return authenticatedResponse();
+    if (String(input).endsWith("/bootstrap")) return new Promise<Response>(resolve => { finishBootstrap = resolve; });
+    return Response.json({});
+  }));
+  render(<MemoryRouter initialEntries={["/choirs/drive"]}><InstallProvider><LocalIdentityObserver /><AppRoutes /></InstallProvider></MemoryRouter>);
+  act(() => { void authClient.$store.atoms.session.get().refetch(); });
+  await findSavedScoreLink();
+  await waitFor(() => expect(finishBootstrap).toBeDefined());
+  expect(screen.queryByRole("complementary", { name: "排练准备" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "注册 / 登录，开始记笔记" })).not.toBeInTheDocument();
+  await act(async () => finishBootstrap(Response.json(bootstrap)));
+  await screen.findByRole("link", { name: /^cloud$/ });
+  expect(screen.queryByRole("complementary", { name: "排练准备" })).not.toBeInTheDocument();
 });

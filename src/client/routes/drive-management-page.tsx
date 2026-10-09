@@ -1,17 +1,16 @@
+import { useSettingsIdentity } from "../auth/application-identity";
 import { NAVIGATION_FRESH_MS } from "../settings/navigation-events";
 import { notifyReaderIdentityChange } from "../reader/reader-cache-events";
-import { rememberDriveAccessRevoked } from "../score-library/local-drive-directory";
+import { rememberDriveAccessRevoked, renameLocalDriveDirectory } from "../score-library/local-drive-directory";
 import { authenticatedLocalOwnerKey, captureLocalWorkspaceSession, createLocalWorkspace } from "../platform/local-workspace";
 import { PurgeDialog } from "../drives/purge-dialog";
 import { DriveUsage } from "../drives/drive-usage";
 import { useReadResource } from "../settings/use-read-resource";
-import { useDriveLibraryResource } from "../score-library/use-drive-library";
 import { driveCacheOwnerKey, invalidateDriveLibrary } from "../score-library/drive-library-cache";
 import { useState } from "react";
 import { Button } from "react-aria-components";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { LockKeyhole } from "lucide-react";
-import { authClient } from "../auth/auth-client";
 import { TaskHeader } from "../components/task-header";
 import { driveSettingsTitle } from "../components/route-titles";
 import { driveManagementSchema } from "../../shared/drive-management";
@@ -27,10 +26,10 @@ type Overview = ReturnType<typeof driveManagementSchema.parse>;
 type Members = ReturnType<typeof managedMembershipsSchema.parse>;
 export default function DriveManagementPage({ section }: { section: "info" | "admission" | "trash" }) {
   const { choirId = "" } = useParams();
-  const session = authClient.useSession();
-  return <DriveManagement key={`${session.data?.user.id ?? "guest"}:${choirId}`} choirId={choirId} userId={session.data?.user.id ?? "guest"} section={section} />;
+  const { userId, ready } = useSettingsIdentity();
+  return <DriveManagement key={`${userId ?? "guest"}:${choirId}`} choirId={choirId} userId={userId ?? "guest"} ready={ready} section={section} />;
 }
-function DriveManagement({ choirId, section, userId }: { choirId: string; section: string; userId: string }) {
+function DriveManagement({ choirId, section, userId, ready }: { choirId: string; section: string; userId: string; ready: boolean }) {
   const navigate = useNavigate();
   const [purge, setPurge] = useState(false);
   const [dialog, setDialog] = useState<"name" | null>(null);
@@ -39,7 +38,8 @@ function DriveManagement({ choirId, section, userId }: { choirId: string; sectio
     const overviewResponse = await diagnosticFetch(`/api/choirs/${choirId}/management`, { signal });
     if (!overviewResponse.ok) throw new SettingsRequestError(overviewResponse.status);
     return parseDiagnosticResponse(overviewResponse, driveManagementSchema);
-  }, undefined, NAVIGATION_FRESH_MS);
+  }, undefined, NAVIGATION_FRESH_MS, ready);
+  if (purge && !resource.canMutate) setPurge(false);
   const data = resource.data;
   const error = resource.error ? settingsError(resource.error, "云盘设置更新失败，已有内容已保留。") : null;
   const refresh = () => { setDialog(null); setLocked(null); void resource.refresh().catch(() => undefined); };
@@ -59,8 +59,8 @@ function DriveManagement({ choirId, section, userId }: { choirId: string; sectio
       {!data.isMember && <p className="permission-lock-explanation">你正在只读浏览此云盘。可了解功能与公开配置；修改设置需要成为成员并获得相应授权。</p>}
       <div className="management-list">
         {section === "info" && row("云盘名称", data.name, "修改云盘名称", "editDriveInfo", () => setDialog("name"))}
-        {section === "admission" && (data.guestAdmissionMode === "invite" ? (resource.canMutate && can("manageInvites") ? <InviteSharing choirId={choirId} choirName={data.name} /> : row("访客进入方式", "需要邀请码", "查看权限说明", "manageInvites", () => {})) : <section className="management-row"><h2>访客进入方式</h2><p>开放进入</p></section>)}
-        {section === "trash" && (resource.canMutate && can("trashFiles") ? <TrashContents userId={userId} canPurge={data.capabilities.isOwner} choirId={choirId} onRestored={() => { invalidateDriveLibrary(driveCacheOwnerKey(userId, choirId), choirId); }} /> : row("回收站", "删除的乐谱在此保留 30 天。有删除与恢复文件权限的成员可查看并恢复。", "查看权限说明", "trashFiles", () => {}))}
+        {section === "admission" && (data.guestAdmissionMode === "invite" ? (can("manageInvites") ? <InviteSharing writable={resource.canMutate} choirId={choirId} choirName={data.name} /> : row("访客进入方式", "需要邀请码", "查看权限说明", "manageInvites", () => {})) : <section className="management-row"><h2>访客进入方式</h2><p>开放进入</p></section>)}
+        {section === "trash" && (can("trashFiles") ? <TrashContents writable={resource.canMutate} userId={userId} canPurge={data.capabilities.isOwner} choirId={choirId} onRestored={() => { invalidateDriveLibrary(driveCacheOwnerKey(userId, choirId), choirId); }} /> : row("回收站", "删除的乐谱在此保留 30 天。有删除与恢复文件权限的成员可查看并恢复。", "查看权限说明", "trashFiles", () => {}))}
         {section === "info" && data.isMember && <DriveUsage choirId={choirId} userId={userId} />}
         {section === "info" && data.capabilities.isOwner && <section className="management-row"><h2>删除云盘</h2><p>所有成员将失去此云盘及其乐谱和笔记的访问权限。</p><Button className="primary-button destructive-button" isDisabled={!resource.canMutate} onPress={() => setPurge(true)}>彻底删除云盘</Button></section>}
       </div>
@@ -73,17 +73,18 @@ function DriveManagement({ choirId, section, userId }: { choirId: string; sectio
         notifyReaderIdentityChange();
         navigate("/drives", { replace: true });
       }} />}
-      {dialog === "name" && resource.canMutate && can("editDriveInfo") && <NameSettings choirId={choirId} onClose={() => setDialog(null)} onSaved={refresh} />}
+      {dialog === "name" && can("editDriveInfo") && <NameSettings userId={userId} choirId={choirId} onClose={() => setDialog(null)} onSaved={refresh} />}
     </>}
   </main></div>;
 }
 
-function NameSettings({ choirId, onClose, onSaved }: { choirId: string; onClose: () => void; onSaved: () => void }) {
-  const session = authClient.useSession();
-  const userId = session.data?.user.id;
-  const { library, snapshot } = useDriveLibraryResource(driveCacheOwnerKey(userId ?? null, choirId), choirId, Boolean(userId), true, session.data?.session?.id ?? null);
-  if (snapshot.access.kind !== "opened") return <div><p role="status">正在准备云盘信息，请稍候；若无法加载，请重试。</p><Button onPress={() => void library.refresh()}>重试</Button><Button onPress={onClose}>取消</Button></div>;
-  return <DriveSettingsDialog choirId={choirId} userId={userId!} field="name" onClose={onClose} onSaved={async name => { await library.confirmName(name); onSaved(); }} />;
+function NameSettings({ choirId, userId, onClose, onSaved }: { choirId: string; userId: string; onClose: () => void; onSaved: () => void }) {
+  return <DriveSettingsDialog choirId={choirId} userId={userId} field="name" onClose={onClose} onSaved={async name => {
+    const workspace = await captureLocalWorkspaceSession(createLocalWorkspace(authenticatedLocalOwnerKey(userId), choirId, ""));
+    await renameLocalDriveDirectory(workspace, name, new AbortController().signal);
+    invalidateDriveLibrary(driveCacheOwnerKey(userId, choirId), choirId);
+    onSaved();
+  }} />;
 }
 
 function PermissionContacts({ userId, choirId, operation, isMember }: { userId: string; choirId: string; operation: Operation; isMember: boolean }) {

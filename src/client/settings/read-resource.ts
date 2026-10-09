@@ -1,5 +1,5 @@
 import { onReaderIdentityChange } from "../reader/reader-cache-events";
-import { type DriveReadIdentity, onDriveChange, onNavigationReset } from "./navigation-events";
+import { type DriveReadIdentity, onDriveChange, onNavigationReset, onNavigationSuspend } from "./navigation-events";
 import { SettingsRequestError } from "./settings-request";
 
 export type ReadState<T> = { data: T | null; request: "idle" | "pending"; authority: "unconfirmed" | "confirmed" | "signed-out" | "revoked"; error: unknown };
@@ -69,6 +69,7 @@ export function getReadResource<T>(identity: DriveReadIdentity): ReadResource<T>
 export function clearReadResources() { epoch++; for (const { resource } of resources.values()) resource.clear(); resources.clear(); }
 onReaderIdentityChange(clearReadResources);
 onNavigationReset(clearReadResources);
+onNavigationSuspend(() => { epoch++; for (const { resource } of resources.values()) resource.invalidate(true); });
 onDriveChange(impact => {
   for (const { identity, resource } of resources.values()) if (impact.affects(identity)) resource.invalidate(impact.dropAuthority);
 });

@@ -1,6 +1,7 @@
+import { AppHeader } from "../components/app-header";
 import { guestSessionResponseSchema } from "../../shared/choirs";
 import { activateGuestLocalOwner } from "../platform/local-workspace";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { choirMembershipsResponseSchema } from "../../shared/choirs";
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
@@ -20,10 +21,10 @@ function destination(userId: string, driveIds: string[]): EntryResult {
 
 // This component only exists for a startup intent. Explicit home visits never
 // mount it, so a late session/directory response cannot redirect those visits.
-export function StartupEntry({ identity }: { identity: ApplicationIdentity }) {
+export function StartupEntry({ identity, children }: { identity: ApplicationIdentity; children: ReactNode }) {
   const userId = identity.authenticatedUserId ?? identity.localUserId;
   const online = identity.onlineState === "authenticated";
-  const [result, setResult] = useState<{ userId: string; online: boolean; value: EntryResult } | null>(null);
+  const [result, setResult] = useState<{ userId: string; value: EntryResult } | null>(null);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
@@ -31,8 +32,11 @@ export function StartupEntry({ identity }: { identity: ApplicationIdentity }) {
     const ownerId = userId;
     const controller = new AbortController();
     async function resolve() {
+      const local = await localDestination(ownerId, false);
+      if (controller.signal.aborted) return;
       let value: EntryResult;
-      if (online) {
+      if (typeof local === "object") value = local;
+      else if (online) {
         try {
           const response = await diagnosticFetch("/api/choirs", { signal: controller.signal });
           if (!response.ok) throw new Error("memberships_failed");
@@ -45,18 +49,18 @@ export function StartupEntry({ identity }: { identity: ApplicationIdentity }) {
           if (controller.signal.aborted) return;
           value = await localDestination(ownerId, true);
         }
-      } else value = await localDestination(ownerId, false);
-      if (!controller.signal.aborted) setResult({ userId: ownerId, online, value });
+      } else value = local;
+      if (!controller.signal.aborted) setResult({ userId: ownerId, value });
     }
     void resolve();
     return () => controller.abort();
   }, [userId, online, retry]);
 
-  if (!userId && !identity.restoring && identity.onlineState === "signed-out") return <GuestStartupEntry />;
-  if (!result || result.userId !== userId || result.online !== online) return null;
+  if (!userId && !identity.restoring) return identity.onlineState === "signed-out" ? <GuestStartupEntry>{children}</GuestStartupEntry> : children;
+  if (!result || result.userId !== userId) return <div className="app-page"><AppHeader /><p className="page-shell" role="status">正在恢复云盘…</p></div>;
   if (typeof result.value === "object") return <Navigate to={result.value.path} replace state={{ missingLastDrive: result.value.missingLastDrive }} />;
-  if (result.value === "failed") return <p className="page-shell" role="status">暂时无法加载已加入的云盘。<button className="text-button" onClick={() => { setResult(null); setRetry(value => value + 1); }}>重试</button></p>;
-  return null;
+  if (result.value === "failed") return <div className="app-page"><AppHeader /><p className="page-shell" role="status">暂时无法加载已加入的云盘。<button className="text-button" onClick={() => { setResult(null); setRetry(value => value + 1); }}>重试</button></p></div>;
+  return children;
 }
 
 async function localDestination(userId: string, failedOnline: boolean): Promise<EntryResult> {
@@ -68,7 +72,7 @@ async function localDestination(userId: string, failedOnline: boolean): Promise<
   } catch { return failedOnline ? "failed" : "home"; }
 }
 
-function GuestStartupEntry() {
+function GuestStartupEntry({ children }: { children: ReactNode }) {
   const [path, setPath] = useState<string | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -85,5 +89,5 @@ function GuestStartupEntry() {
     void restore();
     return () => controller.abort();
   }, []);
-  return path ? <Navigate to={path} replace /> : null;
+  return path ? <Navigate to={path} replace /> : children;
 }

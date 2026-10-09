@@ -11,9 +11,9 @@ import { useDriveReadingPreferences } from "../reader/use-reading-preferences";
 export default function DriveLayerPreferencesPage() {
   const { choirId = "" } = useParams();
   const identity = useApplicationIdentity();
-  return <DrivePreferenceEntry key={`${identity.localUserId}:${choirId}`} choirId={choirId} userId={identity.localUserId} signedIn={!!identity.authenticatedUserId} />;
+  return <DrivePreferenceEntry key={`${identity.localUserId}:${choirId}`} choirId={choirId} userId={identity.localUserId} signedIn={!!identity.authenticatedUserId} restoring={identity.restoring || identity.onlineState === "checking"} />;
 }
-function DrivePreferenceEntry({ choirId, userId, signedIn }: { choirId: string; userId: string | null; signedIn: boolean }) {
+function DrivePreferenceEntry({ choirId, userId, signedIn, restoring }: { choirId: string; userId: string | null; signedIn: boolean; restoring: boolean }) {
   const [workspace, setWorkspace] = useState<LocalWorkspace | null>(null);
   useEffect(() => {
     let active = true;
@@ -22,7 +22,7 @@ function DrivePreferenceEntry({ choirId, userId, signedIn }: { choirId: string; 
     return () => { active = false; };
   }, [choirId, userId]);
   if (workspace) return <DriveLayerPreferences workspace={workspace} signedIn={signedIn} />;
-  return <div className="app-page"><TaskHeader title="阅读偏好" backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page"><p>{userId ? "正在恢复阅读偏好…" : "登录后设置你在此云盘的默认显示。"}</p>{!userId && <Link to={loginHref(`/choirs/${choirId}/preferences`)}>登录后设置默认显示</Link>}</main></div>;
+  return <div className="app-page"><TaskHeader title="阅读偏好" backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page"><p>{userId || restoring ? "正在恢复阅读偏好…" : "登录后设置你在此云盘的默认显示。"}</p>{!userId && !restoring && <Link to={loginHref(`/choirs/${choirId}/preferences`)}>登录后设置默认显示</Link>}</main></div>;
 }
 function DriveLayerPreferences({ workspace, signedIn }: { workspace: LocalWorkspace; signedIn: boolean }) {
   const { choirId } = workspace;

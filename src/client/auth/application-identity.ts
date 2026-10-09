@@ -35,3 +35,10 @@ export function useApplicationIdentity() {
   };
 }
 export type ApplicationIdentity = ReturnType<typeof useApplicationIdentity>;
+
+// Settings keep the local user's view while cloud identity is checked.
+export function useSettingsIdentity() {
+  const identity = useApplicationIdentity();
+  return { userId: identity.localUserId,
+    ready: !identity.restoring && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") };
+}

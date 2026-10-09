@@ -1,12 +1,14 @@
-import type { DriveReadIdentity } from "./navigation-events";
+import { navigationSessionSnapshot, onNavigationSessionChange, type DriveReadIdentity } from "./navigation-events";
 import { useNetworkStatus } from "../platform/use-network-status";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
-import { captureReadIdentity, getReadResource } from "./read-resource";
+import { getReadResource } from "./read-resource";
 
 // Only explicitly selected, non-sensitive resources reuse a confirmation on
 // remount. Other settings still read on every mount, sharing concurrent reads.
-export function useReadResource<T>(key: DriveReadIdentity, load: (signal: AbortSignal) => Promise<T>, restore?: () => Promise<T | null>, staleTime = 0) {
+export function useReadResource<T>(key: DriveReadIdentity, load: (signal: AbortSignal) => Promise<T>, restore?: () => Promise<T | null>, staleTime = 0, enabled = true) {
   const online = useNetworkStatus();
+  const session = useSyncExternalStore(onNavigationSessionChange, navigationSessionSnapshot);
+  const readable = enabled && !session.paused;
   const resource = getReadResource<T>(key);
   const state = useSyncExternalStore(resource.subscribe, resource.getSnapshot);
   const loader = useRef(load);
@@ -15,14 +17,16 @@ export function useReadResource<T>(key: DriveReadIdentity, load: (signal: AbortS
   useEffect(() => { restoreLoader.current = restore; }, [restore]);
   useEffect(() => {
     let active = true;
-    const currentIdentity = captureReadIdentity();
+    // A local restore may finish while online reads are paused. The resource
+    // rejects restoration after a definitive clear or an authoritative read.
     void restoreLoader.current?.().then(data => {
-      if (active && currentIdentity() && data) resource.restore(data);
+      if (active && data) resource.restore(data);
     }).catch(() => undefined);
     return () => { active = false; };
   }, [resource]);
-  const refresh = useCallback(() => resource.read(signal => loader.current(signal)), [resource]);
+  const refresh = useCallback(() => readable ? resource.read(signal => loader.current(signal)) : Promise.reject(new Error("identity_unconfirmed")), [resource, readable]);
   useEffect(() => {
+    if (!readable) return;
     const refreshIfStale = () => { if (document.visibilityState === "visible" && navigator.onLine) void resource.read(signal => loader.current(signal), staleTime).catch(() => undefined); };
     void resource.read(signal => loader.current(signal), staleTime).catch(() => undefined);
     if (staleTime > 0) {
@@ -31,6 +35,6 @@ export function useReadResource<T>(key: DriveReadIdentity, load: (signal: AbortS
     }
     // The resource owns its request; one departing consumer cannot cancel others.
     return () => { window.removeEventListener("focus", refreshIfStale); window.removeEventListener("online", refreshIfStale); };
-  }, [resource, staleTime]);
-  return { ...state, refresh, confirm: resource.confirm, update: resource.update, clear: resource.clear, loading: !state.data && state.request === "pending", canMutate: online && state.authority === "confirmed" && (staleTime > 0 || (state.request !== "pending" && !state.error)) };
+  }, [resource, staleTime, readable, session.revision]);
+  return { ...state, canRead: readable && online, refresh, confirm: resource.confirm, update: resource.update, clear: resource.clear, loading: !state.data && (!readable || state.request === "pending"), canMutate: readable && online && state.authority === "confirmed" && (staleTime > 0 || (state.request !== "pending" && !state.error)) };
 }

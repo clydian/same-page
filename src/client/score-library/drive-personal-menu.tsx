@@ -14,7 +14,7 @@ export function DrivePersonalMenu(props: Props) {
     const response = await diagnosticFetch(`/api/choirs/${choirId}/settings`, { signal });
     if (!response.ok) throw new SettingsRequestError(response.status);
     return parseDiagnosticResponse(response, driveSettingsSchema);
-  }, undefined, NAVIGATION_FRESH_MS);
+  }, undefined, NAVIGATION_FRESH_MS, !props.localOnly);
   return <PersonalActions {...props} displayName={props.displayName ?? settings.data?.displayName} />;
 }
 

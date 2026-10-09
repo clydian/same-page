@@ -1,3 +1,4 @@
+import { useSettingsIdentity } from "../auth/application-identity";
 import { driveManagementSchema } from "../../shared/drive-management";
 import { ViewSelector } from "../components/view-selector";
 import { useReadResource } from "../settings/use-read-resource";
@@ -7,7 +8,6 @@ import { useSettingsMutation } from "../settings/settings-mutation";
 import { SettingsRequestError, settingsError } from "../settings/settings-request";
 import { PermissionMatrix } from "../settings/permission-matrix";
 import { ConfirmDialog, type Confirmation } from "../settings/confirm-dialog";
-import { authClient } from "../auth/auth-client";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "react-aria-components";
 import { useParams } from "react-router-dom";
@@ -21,10 +21,10 @@ type Member = State["memberships"][number];
 type Layer = { slot: string; name: string };
 export default function MembershipManagementPage() {
   const { choirId = "" } = useParams();
-  const session = authClient.useSession();
-  return <MembershipManagement key={`${session.data?.user.id ?? "guest"}:${choirId}`} choirId={choirId} userId={session.data?.user.id ?? "guest"} />;
+  const { userId, ready } = useSettingsIdentity();
+  return <MembershipManagement key={`${userId ?? "guest"}:${choirId}`} choirId={choirId} userId={userId ?? "guest"} ready={ready} />;
 }
-function MembershipManagement({ choirId, userId }: { choirId: string; userId: string }) {
+function MembershipManagement({ choirId, userId, ready }: { choirId: string; userId: string; ready: boolean }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("active");
   const [view, setView] = useState<"member" | "permission">("member");
@@ -44,7 +44,7 @@ function MembershipManagement({ choirId, userId }: { choirId: string; userId: st
     if (!definitions.ok) throw new SettingsRequestError(definitions.status);
     return { next, layers: (await definitions.json()).layers as Layer[], overview };
   }, [choirId]);
-  const resource = useReadResource({ owner: userId, driveId: choirId, kind: "memberships" }, load);
+  const resource = useReadResource({ owner: userId, driveId: choirId, kind: "memberships" }, load, undefined, 0, ready);
   const state = resource.data?.next ?? null;
   const layers = resource.data?.layers ?? [];
   const loading = resource.request === "pending";

@@ -8,7 +8,7 @@ import { InstallButton } from "../install/install-entry";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { StartupEntry } from "../auth/startup-entry";
 import type { ApplicationIdentity } from "../auth/application-identity";
-import { LocalEntry } from "../auth/local-entry";
+import { IdentityNotice } from "../auth/local-entry";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { type FormEvent, useEffect, useEffectEvent, useRef, useState } from "react";
 import {
@@ -94,7 +94,6 @@ const productFeatures = [
 
 export function HomePage({ startup = false }: { startup?: boolean }) {
   const identity = useApplicationIdentity();
-  const { session } = identity;
   const location = useLocation();
   const [invitation, setInvitation] = useState(() => ({ hash: location.hash, version: 0, link: readInviteLink(location.hash) }));
   // A same-page navigation does not remount HomePage. Capture each new fragment,
@@ -104,9 +103,10 @@ export function HomePage({ startup = false }: { startup?: boolean }) {
     setInvitation({ hash: location.hash, version: invitation.version + (link ? 1 : 0), link: link ?? invitation.link });
   }
   const finishInvitation = () => setInvitation(current => ({ ...current, link: null }));
-  const linkedGuest = invitation.link !== null && identity.onlineState === "signed-out";
-  if (location.pathname === "/drives" && identity.showLocalEntry && !linkedGuest) return <LocalEntry identity={identity} />;
-  return <HomeContent key={`${session.data?.user.id ?? "guest"}:${invitation.version}`} identity={identity} startup={startup} linkInvite={invitation.link} finishInvitation={finishInvitation} />;
+  // Explicit admission owns its lifetime even when it replaces the local owner.
+  const owner = location.pathname === "/drives" || (startup && !location.search && !location.hash && !invitation.link)
+    ? identity.localUserId : identity.session.data?.user.id;
+  return <HomeContent key={`${owner ?? "guest"}:${invitation.version}`} identity={identity} startup={startup} linkInvite={invitation.link} finishInvitation={finishInvitation} />;
 }
 
 function HomeContent({ identity, startup, linkInvite, finishInvitation }: { identity: ApplicationIdentity; startup: boolean; linkInvite: ReturnType<typeof readInviteLink>; finishInvitation: () => void }) {
@@ -131,6 +131,7 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
     if (entryDestination) void navigate(entryDestination);
   }, [entryDestination, navigate]);
   const userId = session.data?.user.id;
+  const localUserId = identity.localUserId ?? undefined;
   useEffect(() => {
     let active = true;
     void loadPreviewChoir().then((choir) => {
@@ -258,7 +259,7 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
     }
   };
 
-  return (
+  const content = (
     <div className="marketing-page">
       <AppHeader
         actions={
@@ -272,13 +273,13 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
         }
       />
 
-      {startupIntent && !joinOpen && <StartupEntry key={`${identity.onlineState}:${identity.authenticatedUserId ?? identity.localUserId}:${identity.authenticatedSessionId}`} identity={identity} />}
-      {location.pathname === "/drives" && !session.isPending && userId ? (
+      {location.pathname === "/drives" && (localUserId || identity.showLocalEntry) && !linkInvite ? (
         <main className="page-shell my-drives-page">
-          <div className="my-drives-heading"><div><h1>我已加入的云盘</h1><p>选择云盘，继续排练。</p></div><Button className="secondary-button" onPress={() => setJoinOpen(true)}>加入新云盘</Button></div>
+          <div className="my-drives-heading"><div><h1>我已加入的云盘</h1><p>选择云盘，继续排练。</p></div><Button className="secondary-button" isDisabled={!identity.authenticatedUserId} onPress={() => setJoinOpen(true)}>加入新云盘</Button></div>
           {location.state?.missingLastDrive === true && <p role="status">上次使用的云盘已不在可访问列表中，请选择其他云盘。</p>}
-          <CreateDrive key={userId} userId={userId} />
-          <MembershipList userId={userId} />
+          <IdentityNotice identity={identity} />
+          {identity.authenticatedUserId && <CreateDrive userId={identity.authenticatedUserId} />}
+          {localUserId ? <MembershipList userId={localUserId} localOnly={!identity.authenticatedUserId} /> : <p role="status">{identity.restoring || identity.onlineState === "checking" ? "正在恢复本机内容…" : "本机没有可恢复的用户内容，请联网后重试。"}</p>}
             </main>
       ) : <main className="marketing-content">
         <section className="marketing-hero" aria-labelledby="page-title">
@@ -462,6 +463,7 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
 
     </div>
   );
+  return startupIntent && !joinOpen ? <StartupEntry identity={identity}>{content}</StartupEntry> : content;
 }
 
 async function loadPreviewChoir(): Promise<ChoirSummary | null> {

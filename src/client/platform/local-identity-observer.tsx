@@ -19,8 +19,8 @@ export function LocalIdentityObserver() {
   const userId = identity.authenticatedUserId ?? undefined;
   useSessionRecovery(identity.onlineState, identity.session.isRefetching, identity.session.error?.status);
   useLayoutEffect(() => {
-    observeNavigationSession(identity.authenticatedUserId ? `${identity.authenticatedUserId}:${identity.authenticatedSessionId ?? ""}` : null);
-  }, [identity.authenticatedUserId, identity.authenticatedSessionId]);
+    observeNavigationSession(identity.authenticatedUserId ? `${identity.authenticatedUserId}:${identity.authenticatedSessionId ?? ""}` : null, identity.localUserId, identity.onlineState === "checking" || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable");
+  }, [identity.authenticatedUserId, identity.authenticatedSessionId, identity.localUserId, identity.onlineState]);
   const readerIdentity = useRef(identity.localUserId);
   const [identityState, setIdentityState] = useState<{
     observedUserId: string | undefined;

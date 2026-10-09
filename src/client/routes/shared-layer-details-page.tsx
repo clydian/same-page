@@ -1,3 +1,4 @@
+import { useSettingsIdentity } from "../auth/application-identity";
 import { SharedLayerDetailsForm } from "../settings/shared-layer-details-form";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { useReadResource } from "../settings/use-read-resource";
@@ -9,23 +10,22 @@ import {
   type SharedLayerManagementSummary,
 } from "../../shared/annotations";
 import { TaskHeader } from "../components/task-header";
-import { authClient } from "../auth/auth-client";
 import { SettingsFeedback } from "../settings/settings-feedback";
 import { settingsError, settingsResponse } from "../settings/settings-request";
 
 export default function SharedLayerDetailsPage() {
   const { choirId = "", slot: slotParam = "" } = useParams();
-  const session = authClient.useSession();
-  return <SharedLayerDetails key={`${session.data?.user.id ?? "guest"}:${choirId}:${slotParam}`} choirId={choirId} slotParam={slotParam} userId={session.data?.user.id ?? null} />;
+  const { userId, ready } = useSettingsIdentity();
+  return <SharedLayerDetails key={`${userId ?? "guest"}:${choirId}:${slotParam}`} choirId={choirId} slotParam={slotParam} userId={userId} ready={ready} />;
 }
 
-function SharedLayerDetails({ choirId, slotParam, userId }: { choirId: string; slotParam: string; userId: string | null }) {
+function SharedLayerDetails({ choirId, slotParam, userId, ready }: { choirId: string; slotParam: string; userId: string | null; ready: boolean }) {
   const parsedSlot = sharedLayerSlotSchema.safeParse(slotParam);
   const slot = parsedSlot.success ? parsedSlot.data : null;
   const resource = useReadResource({ owner: userId, driveId: choirId, kind: "shared-layer", variant: slotParam }, async signal => {
     if (!slot) throw new Error("invalid_shared_layer");
     return sharedLayerManagementResponseSchema.parse(await settingsResponse(await diagnosticFetch(`/api/choirs/${choirId}/shared-layers`, { signal })));
-  });
+  }, undefined, 0, ready);
   const driveName = resource.data?.drive.name ?? "";
   const layer = resource.data?.layers.find(entry => entry.slot === slot) ?? null;
   const loadError = resource.error ? settingsError(resource.error, "暂时无法读取编辑权限。") : null;
