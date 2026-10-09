@@ -111,7 +111,7 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
     }
   };
   const publish = async () => {
-    if (!history || !selected) return;
+    if (!history || !selected || !identityValid.current) return;
     setBusy(true); setMessage(null);
     try {
       const response = await diagnosticFetch(`${path}/versions/${selected.id}/publish`, {
@@ -126,15 +126,16 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
   };
   const currentPages = history?.versions.find((version) => version.id === history.currentVersionId)?.pageCount ?? score.currentVersion.pageCount;
   const title = historyOnly ? "历史 PDF 版本" : "替换 PDF";
-  if (session.isPending || !initialUser || initialUser !== session.data?.user.id) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">登录身份已变化，请关闭后重新打开版本工具。</p></LibraryTaskDialog>;
+  if (!session.isPending && (!initialUser || initialUser !== session.data?.user.id)) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">登录身份已变化，请关闭后重新打开版本工具。</p></LibraryTaskDialog>;
   return <LibraryTaskDialog title={title} onClose={onClose} busy={busy}>
     <div className="pdf-version-dialog">
+      {session.isPending && <p role="status">正在核对登录身份，已选择的内容保留。</p>}
       {!historyOnly && !selected ? <label>新的 PDF（最多 20 MB、500 页）
-        <input type="file" accept="application/pdf,.pdf" disabled={!history || busy || uncertain}
+        <input type="file" accept="application/pdf,.pdf" disabled={session.isPending || !history || busy || uncertain}
           onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
       </label> : null}
       {historyOnly ? <label>选择三十天保留期内的版本
-        <select aria-label="历史 PDF 版本" disabled={!history || busy} value={selected?.id ?? ""}
+        <select aria-label="历史 PDF 版本" disabled={session.isPending || !history || busy} value={selected?.id ?? ""}
           onChange={(event) => { setSelected(history?.versions.find((version) => version.id === event.target.value) ?? null); setReady(false); setAccepted(false); }}>
           <option value="">请选择版本</option>
           {history?.versions.filter((version) => version.id !== history.currentVersionId).map((version) =>
@@ -151,11 +152,11 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
         {selected.pageCount < currentPages ? <p role="alert">页数减少：超出新 PDF 页数的笔记会保留，但暂时不可见。</p> : null}
         <PdfVersionPreview key={selected.id} scorePath={path} choirId={choirId} scoreId={score.id} versionId={selected.id} onReady={setReady} />
         <label className="confirmation-checkbox"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>我已检查预览，理解排版变化不会迁移笔记，笔记仍保留原页码和位置。</span></label>
-        <Button className="primary-button" isDisabled={!ready || !accepted || busy} onPress={() => void publish()}>{historyOnly ? "确认回滚" : "确认替换"}</Button>
+        <Button className="primary-button" isDisabled={session.isPending || !ready || !accepted || busy} onPress={() => void publish()}>{historyOnly ? "确认回滚" : "确认替换"}</Button>
       </> : null}
       {!historyOnly ? <p>确认前原版保持不变。候选文件计入云盘配额，取消后回收，未确认的上传在 24 小时后到期。</p> : null}
-      {historyOnly && selected && canPurge && <Button className="primary-button destructive-button" isDisabled={busy} onPress={() => setPurging(true)}>彻底删除所选历史版本</Button>}
-      {purging && selected && <PurgeDialog userId={initialUser} path={`${path}/versions/${selected.id}/purge`} title="彻底删除历史 PDF" description="所选历史谱面将无法查看或回滚。当前 PDF 和笔记不变。" onClose={() => setPurging(false)} onComplete={() => onComplete("历史版本已彻底删除。")} />}
+      {historyOnly && selected && canPurge && <Button className="primary-button destructive-button" isDisabled={session.isPending || busy} onPress={() => setPurging(true)}>彻底删除所选历史版本</Button>}
+      {purging && selected && initialUser && !session.isPending && <PurgeDialog userId={initialUser} path={`${path}/versions/${selected.id}/purge`} title="彻底删除历史 PDF" description="所选历史谱面将无法查看或回滚。当前 PDF 和笔记不变。" onClose={() => setPurging(false)} onComplete={() => onComplete("历史版本已彻底删除。")} />}
       {message ? <p role="alert">{message}</p> : null}
     </div>
   </LibraryTaskDialog>;

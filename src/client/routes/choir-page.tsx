@@ -206,7 +206,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   return (
     <><div className="app-page drive-page">
-      <DriveHeader refreshing={snapshot.reading.request === "pending" || identity.session.isRefetching} displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} localOnly={Boolean(access.local)} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()}
+      <DriveHeader refreshing={identity.session.isRefetching || (snapshot.reading.request === "pending" && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out"))} displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} localOnly={Boolean(access.local)} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()}
         management={() => <section className="drive-drawer-management">
           <h3>云盘管理</h3>
           <nav aria-label="云盘管理菜单">{[
@@ -223,7 +223,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           {searchMessage && <p role="status">{searchMessage}<Button onPress={() => void refresh()}>重试</Button></p>}
         </div>}
         {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
-          (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
+          !access.local && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
           <DrivePreparation choirId={choirId} accountReady={Boolean(identity.authenticatedUserId) && access.isMember} />}
         <section className="library-workspace" aria-labelledby="library-content-title">
           <div className="library-toolbar">

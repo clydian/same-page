@@ -145,3 +145,26 @@ it("aborts replacement on identity changes and ignores the old completion", asyn
   expect(screen.queryByRole("button", { name: "确认替换" })).not.toBeInTheDocument();
   expect(fetch.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
 });
+
+
+it("keeps the selected PDF and rendered preview during identity confirmation, with publishing paused", async () => {
+  const fetch = mockApi();
+  const props = { choirId: "drive", score, historyOnly: true, onClose: () => {}, onComplete: vi.fn() };
+  const view = render(<PdfVersionDialog {...props} />);
+  await screen.findByRole("option", { name: /版本 2/ });
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "candidate" } });
+  const preview = screen.getByRole("button", { name: "预览渲染完成" });
+  fireEvent.click(preview);
+  fireEvent.click(screen.getByRole("checkbox"));
+  identity.pending = true;
+  view.rerender(<PdfVersionDialog {...props} />);
+  expect(preview).toBeInTheDocument();
+  expect(screen.getByRole("combobox")).toHaveValue("candidate");
+  expect(screen.getByRole("checkbox")).toBeChecked();
+  expect(screen.getByRole("button", { name: "确认回滚" })).toBeDisabled();
+  expect(screen.queryByText(/登录身份已变化/)).not.toBeInTheDocument();
+  expect(fetch.mock.calls.some(([url]) => url.endsWith("/publish"))).toBe(false);
+  identity.pending = false;
+  view.rerender(<PdfVersionDialog {...props} />);
+  expect(screen.getByRole("button", { name: "确认回滚" })).not.toBeDisabled();
+});

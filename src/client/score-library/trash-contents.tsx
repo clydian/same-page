@@ -22,11 +22,13 @@ export function TrashContents({
   userId,
   choirId,
   canPurge = false,
+  writable = true,
   onRestored,
 }: {
   userId: string;
   choirId: string;
   canPurge?: boolean;
+  writable?: boolean;
   onRestored: () => void | Promise<void>;
 }) {
   const [purging, setPurging] = useState<TrashedScoreSummary | null>(null);
@@ -39,6 +41,7 @@ export function TrashContents({
   const [restoreName, setRestoreName] = useState("");
 
   useEffect(() => {
+    if (!writable) return;
     let active = true;
     void diagnosticFetch(`/api/choirs/${choirId}/scores/trash`)
       .then(async (response) => {
@@ -52,9 +55,10 @@ export function TrashContents({
     return () => {
       active = false;
     };
-  }, [choirId, attempt]);
+  }, [choirId, attempt, writable]);
 
   const restoreScore = async (score: TrashedScoreSummary, nextName?: string) => {
+    if (!writable) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -116,25 +120,25 @@ export function TrashContents({
                         <strong>{scoreDisplayName(score.fileName)}</strong>
                         <small>{daysRemaining(score.trashExpiresAt)} 天后自动删除</small>
                       </span>
-                      <Button isDisabled={busy} onPress={() => void restoreScore(score)}>
+                      <Button isDisabled={busy || !writable} onPress={() => void restoreScore(score)}>
                         恢复
                       </Button>
-                      {canPurge && <Button className="primary-button destructive-button" isDisabled={busy} onPress={() => setPurging(score)}>彻底删除</Button>}
+                      {canPurge && <Button className="primary-button destructive-button" isDisabled={busy || !writable} onPress={() => setPurging(score)}>彻底删除</Button>}
                     </li>
                   ))}
                 </ul>
               ) : (
-                message ? <Button onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="empty-library">回收站是空的。</p>
+                message ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="empty-library">回收站是空的。</p>
               )}
-              {purging && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title="彻底删除乐谱" description={`“${scoreDisplayName(purging.fileName)}”的全部 PDF 版本和所有成员的笔记都会被删除。`} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
-              <AttachmentTrash key={`${userId}:${choirId}`} choirId={choirId} onRestored={onRestored} />
+              {purging && writable && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title="彻底删除乐谱" description={`“${scoreDisplayName(purging.fileName)}”的全部 PDF 版本和所有成员的笔记都会被删除。`} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
+              <AttachmentTrash writable={writable} key={`${userId}:${choirId}`} choirId={choirId} onRestored={onRestored} />
               {restoreConflict ? (
                 <Form className="entry-form restore-conflict" onSubmit={submitConflict}>
                   <TextField isRequired value={restoreName} onChange={setRestoreName} maxLength={255}>
                     <Label>恢复时使用的新文件名</Label>
                     <Input autoFocus />
                   </TextField>
-                  <Button type="submit" isDisabled={busy}>
+                  <Button type="submit" isDisabled={busy || !writable}>
                     重命名并恢复
                   </Button>
                 </Form>

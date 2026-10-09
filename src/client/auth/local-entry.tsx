@@ -1,8 +1,5 @@
 import "./local-entry.css";
-import { PersonalMenu } from "../components/personal-menu";
-import { Link, useLocation } from "react-router-dom";
-import { AppHeader } from "../components/app-header";
-import { MembershipList } from "../score-library/membership-list";
+import { Link } from "react-router-dom";
 import type { ApplicationIdentity } from "./application-identity";
 
 export function IdentityNotice({ identity }: { identity: ApplicationIdentity }) {
@@ -14,14 +11,4 @@ export function IdentityNotice({ identity }: { identity: ApplicationIdentity }) 
     {identity.onlineState === "signed-out" ? <> <Link to="/login">重新登录</Link></> : null}
     {identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" ? <> <button className="text-button" disabled={identity.session.isRefetching} onClick={() => void identity.session.refetch()}>{identity.session.isRefetching ? "正在重试…" : identity.onlineState === "local-unavailable" ? "重试校验" : "重试连接"}</button></> : null}
   </p>;
-}
-
-export function LocalEntry({ identity, choirId }: { identity: ApplicationIdentity; choirId?: string }) {
-  const location = useLocation();
-  return <div className="app-page"><AppHeader actions={<PersonalMenu email={identity.session.data?.user.email} />} /><main className="page-shell">
-    <h1>我已加入的云盘</h1><button className="secondary-button" disabled>加入新云盘（需联网）</button><IdentityNotice identity={identity} />
-    {location.state?.missingLastDrive === true && <p role="status">本机未保存上次使用的云盘，请选择其他云盘或联网后重试。</p>}
-    {identity.localUserId ? <MembershipList userId={identity.localUserId} currentChoirId={choirId} localOnly />
-      : <p>{identity.restoring || identity.onlineState === "checking" ? "正在恢复本机内容…" : "本机没有可恢复的用户内容，请联网后重试。"}</p>}
-  </main></div>;
 }

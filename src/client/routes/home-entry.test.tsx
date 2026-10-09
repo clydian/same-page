@@ -191,6 +191,7 @@ it("explains an unavailable last drive instead of silently opening the remaining
 
 it("does not put a saved public preview into offline drive selection or default startup", async () => {
   const { localDatabase } = await import("../platform/local-database");
+  await localDatabase.open();
   const { activateAuthenticatedLocalOwner, authenticatedLocalOwnerKey } = await import("../platform/local-workspace");
   await localDatabase.open();
   await activateAuthenticatedLocalOwner("user-a");
@@ -256,10 +257,10 @@ it("cancels a delayed invitation without late navigation and clears its guest se
 });
 
 
-it("shows the homepage immediately during a first identity check", () => {
+it("shows the homepage after the local check without waiting for the first online identity check", async () => {
   session(null, true);
   render(tree());
-  expect(screen.getByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "我已加入的云盘" })).not.toBeInTheDocument();
 });
 
@@ -314,6 +315,7 @@ it("keeps the signed-in public preview on the homepage and outside drive selecti
 
 it("restores a saved member drive offline but stays home after an explicit return", async () => {
   const { localDatabase } = await import("../platform/local-database");
+  await localDatabase.open();
   const { activateAuthenticatedLocalOwner, authenticatedLocalOwnerKey } = await import("../platform/local-workspace");
   await localDatabase.open();
   await activateAuthenticatedLocalOwner("user-a");
@@ -334,7 +336,7 @@ it("restores a saved member drive offline but stays home after an explicit retur
 it("keeps a first visitor on the homepage even when session checking fails", async () => {
   session(null, true);
   const view = render(tree());
-  expect(screen.getByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
   vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false, error: { status: 503 }, refetch: vi.fn() } as unknown as ReturnType<typeof authClient.useSession>);
   view.rerender(tree());
   await act(async () => {});
@@ -347,7 +349,7 @@ it("keeps a first visitor on the homepage even when session checking fails", asy
 it("preserves a first visitor's invitation input while identity checking finishes", async () => {
   session(null, true);
   const view = render(tree());
-  fireEvent.click(screen.getByRole("button", { name: "进入云盘" }));
+  fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
   fireEvent.change(screen.getByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });
   expect(screen.getByRole("button", { name: "进入" })).toBeDisabled();
   session(null);
@@ -375,4 +377,59 @@ it("does not repeat a completed login startup when navigating back to its homepa
   await screen.findByRole("heading", { name: "Harmony begins on the Same Page" });
   await act(async () => {});
   expectPath("/");
+});
+
+it("keeps the restored drive selection while the same user's online list is pending", async () => {
+  const { localDatabase } = await import("../platform/local-database");
+  await localDatabase.open();
+  const { activateAuthenticatedLocalOwner, authenticatedLocalOwnerKey } = await import("../platform/local-workspace");
+  await activateAuthenticatedLocalOwner("user-a");
+  await localDatabase.driveDirectories.put({ key: "one", ownerKey: authenticatedLocalOwnerKey("user-a"), choirId: "one", choir: membership("one").choir, scores: [], membership: true });
+  session(null, true);
+  const original = vi.mocked(fetch).getMockImplementation()!;
+  let finish!: (response: Response) => void;
+  vi.mocked(fetch).mockImplementation((input, init) => input === "/api/choirs" ? new Promise(resolve => { finish = resolve; }) : original(input, init));
+  const view = render(tree(["/drives"]));
+  const saved = await screen.findByRole("link", { name: "云盘 one" });
+  session("user-a"); view.rerender(tree(["/drives"]));
+  await waitFor(() => expect(finish).toBeDefined());
+  expect(saved).toBeInTheDocument();
+  expect(screen.queryByText("正在加载已加入的云盘…")).not.toBeInTheDocument();
+  await act(async () => finish(Response.json({ memberships: [] })));
+  expect(screen.queryByRole("link", { name: "云盘 one" })).not.toBeInTheDocument();
+  expect(screen.getByText(/还没有已加入的云盘/)).toBeInTheDocument();
+});
+
+it("opens a remembered startup drive without showing marketing or awaiting online memberships", async () => {
+  const { localDatabase } = await import("../platform/local-database");
+  await localDatabase.open();
+  const { activateAuthenticatedLocalOwner, authenticatedLocalOwnerKey } = await import("../platform/local-workspace");
+  await activateAuthenticatedLocalOwner("user-a");
+  await localDatabase.driveDirectories.put({ key: "one", ownerKey: authenticatedLocalOwnerKey("user-a"), choirId: "one", choir: membership("one").choir, scores: [], membership: true });
+  session(null, true);
+  render(tree());
+  expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "云盘 one" })).toBeInTheDocument();
+  expectPath("/choirs/one");
+  expect(fetch).not.toHaveBeenCalledWith("/api/choirs", expect.anything());
+});
+
+
+it("keeps the confirmed picker through a transient reconnection failure", async () => {
+  const { localDatabase } = await import("../platform/local-database");
+  await localDatabase.open();
+  const { activateAuthenticatedLocalOwner } = await import("../platform/local-workspace");
+  await activateAuthenticatedLocalOwner("user-a");
+  const view = render(tree(["/drives"]));
+  const selected = await screen.findByRole("link", { name: /云盘 one.*成员/ });
+  session(null, true);
+  view.rerender(tree(["/drives"]));
+  expect(selected).toBeInTheDocument();
+  const original = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((input, init) => input === "/api/choirs" ? Promise.resolve(new Response(null, { status: 503 })) : original(input, init));
+  session("user-a");
+  view.rerender(tree(["/drives"]));
+  await screen.findByText("暂时无法加载已加入的云盘。");
+  expect(selected).toBeInTheDocument();
+  expect(screen.queryByText("正在加载已加入的云盘…")).not.toBeInTheDocument();
 });

@@ -91,3 +91,52 @@ it("keeps identity fields distinct for reuse, dependency matching and revocation
   expect(layer.getSnapshot()).toMatchObject({ data: null, authority: "revoked" });
   expect(other.getSnapshot()).toMatchObject({ data: "other", authority: "confirmed" });
 });
+
+it("pauses cloud authority without discarding the same owner's view or accepting late reads", async () => {
+  observeNavigationSession("user:session", "user");
+  const resource = getReadResource<string>({ owner: "user", driveId: "drive", kind: "management" });
+  resource.confirm("saved view");
+  const old = deferred<string>();
+  const pending = resource.read(() => old.promise);
+  await Promise.resolve();
+  observeNavigationSession(null, "user", true);
+  expect(resource.getSnapshot()).toMatchObject({ data: "saved view", authority: "unconfirmed", request: "idle" });
+  old.resolve("obsolete response"); await pending;
+  expect(resource.getSnapshot().data).toBe("saved view");
+  observeNavigationSession("user:session", "user");
+  expect(getReadResource({ owner: "user", driveId: "drive", kind: "management" })).toBe(resource);
+  await resource.read(async () => "reconfirmed view");
+  expect(resource.getSnapshot()).toMatchObject({ data: "reconfirmed view", authority: "confirmed" });
+  observeNavigationSession(null);
+});
+
+it("keeps a mounted read view through suspension and rechecks before allowing writes", async () => {
+  observeNavigationSession("user:session", "user");
+  const resource = getReadResource<string>({ owner: "user", driveId: "drive", kind: "management" });
+  resource.confirm("saved view");
+  const next = deferred<string>();
+  const load = vi.fn(() => next.promise);
+  const view = renderHook(() => useReadResource({ owner: "user", driveId: "drive", kind: "management" }, load, undefined, NAVIGATION_FRESH_MS));
+  act(() => observeNavigationSession(null, "user", true));
+  expect(view.result.current.data).toBe("saved view");
+  expect(view.result.current.canMutate).toBe(false);
+  expect(load).not.toHaveBeenCalled();
+  act(() => observeNavigationSession("user:session", "user"));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+  expect(view.result.current.data).toBe("saved view");
+  expect(view.result.current.canMutate).toBe(false);
+  await act(async () => next.resolve("fresh view"));
+  expect(view.result.current.canMutate).toBe(true);
+  act(() => observeNavigationSession(null));
+  expect(view.result.current.data).toBeNull();
+});
+
+it.each(["replacement", "other-owner", "signed-out"])("clears suspended display data for definitive %s", reason => {
+  observeNavigationSession("user:session", "user");
+  const resource = getReadResource<string>({ owner: "user", driveId: "drive", kind: "management" });
+  resource.confirm("private view");
+  observeNavigationSession(null, "user", true);
+  observeNavigationSession(reason === "signed-out" ? null : reason === "replacement" ? "user:next-session" : "other:session", reason === "other-owner" ? "other" : "user");
+  expect(resource.getSnapshot().data).toBeNull();
+  observeNavigationSession(null);
+});

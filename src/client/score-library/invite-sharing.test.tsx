@@ -50,3 +50,20 @@ describe("current invite code", () => {
     expect(await screen.findByRole("img", { name: "示例云盘邀请二维码" })).toHaveTextContent("ABCD–EFGH");
   });
 });
+
+
+it("keeps the invitation visible while authority is paused and waits before reading again", async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json({ joinCode: "ABCDEFGH" }));
+  vi.stubGlobal("fetch", fetch);
+  const view = render(<InviteSharing choirId="drive" choirName="示例云盘" />);
+  const card = await screen.findByRole("img", { name: "示例云盘邀请二维码" });
+  view.rerender(<InviteSharing choirId="drive" choirName="示例云盘" writable={false} />);
+  expect(card).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "轮换邀请码" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "复制邀请码" })).toBeDisabled();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  fetch.mockResolvedValue(Response.json({ joinCode: "ABCDEFGH" }));
+  view.rerender(<InviteSharing choirId="drive" choirName="示例云盘" />);
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  expect(card).toBeInTheDocument();
+});

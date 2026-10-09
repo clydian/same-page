@@ -1,5 +1,5 @@
-// Navigation caches are scoped to one effective online session, independently
-// from the device's offline owner. No server authorization is cached here.
+// Navigation keeps the local owner's display while confirming an online session.
+// A new effective session still clears private reads; local ownership grants no authority.
 export const NAVIGATION_FRESH_MS = 60_000;
 const resets = new Set<() => void>();
 export type DriveReadKind = "settings" | "management" | "permission-contacts" | "memberships" | "usage" | "shared-layers" | "shared-layer" | "layer-access" | "reading-defaults";
@@ -18,6 +18,14 @@ export interface DriveChangeImpact {
 }
 const changes = new Set<(impact: DriveChangeImpact) => void>();
 let session: string | null | undefined;
+let sessionOwner: string | null = null;
+let sessionState = { paused: false, revision: 0 };
+const sessionChanges = new Set<() => void>();
+const suspensions = new Set<() => void>();
+export const navigationSessionSnapshot = () => sessionState;
+export function onNavigationSessionChange(listener: () => void) { sessionChanges.add(listener); return () => { sessionChanges.delete(listener); }; }
+export function onNavigationSuspend(listener: () => void) { suspensions.add(listener); }
+
 let epoch = 0;
 export const captureNavigationIdentity = () => { const captured = epoch; return () => captured === epoch; };
 export function onNavigationReset(listener: () => void) { resets.add(listener); }
@@ -41,10 +49,25 @@ function invalidateNavigationDrive(driveId: string, permissions: boolean, resour
   for (const listener of changes) listener(impact);
 }
 export function resetNavigation() { epoch++; for (const listener of resets) listener(); }
-export function observeNavigationSession(next: string | null) {
-  if (session === next) return;
+export function observeNavigationSession(next: string | null, owner: string | null = null, temporary = false) {
+  // Local ownership keeps presentation stable; it never restores cloud authority.
+  const sameOwner = owner !== null && sessionOwner === owner;
+  if (next === null && temporary && sameOwner) {
+    if (!sessionState.paused) {
+      epoch++;
+      for (const listener of suspensions) listener();
+      sessionState = { paused: true, revision: sessionState.revision + 1 };
+      for (const listener of sessionChanges) listener();
+    }
+    return;
+  }
+  if (session === next && sessionOwner === owner && sessionState.paused === temporary) return;
+  const reconfirming = sameOwner && sessionState.paused && next !== null && (session === null || session === next);
   session = next;
-  resetNavigation();
+  sessionOwner = owner;
+  if (!reconfirming) resetNavigation();
+  sessionState = { paused: temporary, revision: sessionState.revision + 1 };
+  for (const listener of sessionChanges) listener();
 }
 export function observeNavigationResponse(input: RequestInfo | URL, init: RequestInit | undefined, response: Response) {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;

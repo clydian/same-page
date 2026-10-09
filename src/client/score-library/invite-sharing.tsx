@@ -11,7 +11,7 @@ import { JoinCodeField } from "../components/join-code-field";
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
 import { JOIN_CODE_LENGTH } from "../components/join-code";
 
-export function InviteSharing({ choirId, choirName }: { choirId: string; choirName: string }) {
+export function InviteSharing({ choirId, choirName, writable = true }: { choirId: string; choirName: string; writable?: boolean }) {
   const cardRef = useRef<SVGSVGElement>(null);
   const [confirmRotation, setConfirmRotation] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -27,6 +27,7 @@ export function InviteSharing({ choirId, choirName }: { choirId: string; choirNa
   const endpoint = `/api/choirs/${choirId}/join-code`;
 
   useEffect(() => {
+    if (!writable) return;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -42,7 +43,7 @@ export function InviteSharing({ choirId, choirName }: { choirId: string; choirNa
       }
     })();
     return () => controller.abort();
-  }, [endpoint, reload]);
+  }, [endpoint, reload, writable]);
 
   // Prepare before the share press so navigator.share retains user activation.
   useEffect(() => {
@@ -78,6 +79,7 @@ export function InviteSharing({ choirId, choirName }: { choirId: string; choirNa
   }
 
   async function rotate() {
+    if (!writable) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -96,6 +98,7 @@ export function InviteSharing({ choirId, choirName }: { choirId: string; choirNa
 
   async function saveOriginal(event: FormEvent) {
     event.preventDefault();
+    if (!writable) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -124,10 +127,10 @@ export function InviteSharing({ choirId, choirName }: { choirId: string; choirNa
             <>
               <InviteCard ref={cardRef} choirName={choirName} code={currentCode} link={createInviteLink(window.location.origin, currentCode)} />
               <div className="invite-share-actions">
-                <Button className="secondary-button" isDisabled={busy || sharing} onPress={() => void copy(createInviteLink(window.location.origin, currentCode), "邀请链接")}><LinkIcon size={18} />复制邀请链接</Button>
-                <Button className="secondary-button" isDisabled={busy || sharing} onPress={() => void copy(currentCode, "邀请码")}><Copy size={18} />复制邀请码</Button>
-                <Button className="secondary-button" isDisabled={busy || sharing || !readyFile} onPress={() => void deliver(true)}><Share2 size={18} />分享邀请卡</Button>
-                <Button className="secondary-button" isDisabled={busy || sharing || !readyFile} onPress={() => void deliver(false)}><Download size={18} />保存邀请卡</Button>
+                <Button className="secondary-button" isDisabled={!writable || busy || sharing} onPress={() => void copy(createInviteLink(window.location.origin, currentCode), "邀请链接")}><LinkIcon size={18} />复制邀请链接</Button>
+                <Button className="secondary-button" isDisabled={!writable || busy || sharing} onPress={() => void copy(currentCode, "邀请码")}><Copy size={18} />复制邀请码</Button>
+                <Button className="secondary-button" isDisabled={!writable || busy || sharing || !readyFile} onPress={() => void deliver(true)}><Share2 size={18} />分享邀请卡</Button>
+                <Button className="secondary-button" isDisabled={!writable || busy || sharing || !readyFile} onPress={() => void deliver(false)}><Download size={18} />保存邀请卡</Button>
               </div>
               {cardError && <p role="alert">邀请卡生成失败。<Button onPress={() => { setCardError(false); setCardAttempt(value => value + 1); }}>重新生成</Button></p>}
             </>
@@ -136,17 +139,17 @@ export function InviteSharing({ choirId, choirName }: { choirId: string; choirNa
               <p className="drive-management-copy">当前邀请码尚未保存为可查看的形式。如果你保留了原码，可以补录；也可以轮换生成新码。</p>
               <Form className="entry-form" onSubmit={saveOriginal}>
                 <JoinCodeField value={originalCode} onChange={setOriginalCode} />
-                <Button type="submit" isDisabled={busy || originalCode.length !== JOIN_CODE_LENGTH}>保存原邀请码</Button>
+                <Button type="submit" isDisabled={!writable || busy || originalCode.length !== JOIN_CODE_LENGTH}>保存原邀请码</Button>
               </Form>
             </>
           ) : !message ? <p role="status">正在读取邀请码…</p> : null}
           <div className="invite-rotation"><p className="drive-management-copy">轮换后，旧邀请码、邀请链接和二维码将一同失效。</p>
-          <Button className="secondary-button" isDisabled={busy || sharing || !loaded} onPress={() => setConfirmRotation(true)}>
+          <Button className="secondary-button" isDisabled={!writable || busy || sharing || !loaded} onPress={() => setConfirmRotation(true)}>
             {busy ? "正在保存…" : "轮换邀请码"}
           </Button>
-          </div><ConfirmDialog confirmation={confirmRotation ? { title: "轮换邀请码", action: "确认轮换", message: "当前邀请码、邀请链接和二维码会立即失效。请将新邀请方式发给需要加入的人。", onConfirm: rotate } : null} busy={busy} onClose={() => setConfirmRotation(false)} />
+          </div><ConfirmDialog confirmation={confirmRotation && writable ? { title: "轮换邀请码", action: "确认轮换", message: "当前邀请码、邀请链接和二维码会立即失效。请将新邀请方式发给需要加入的人。", onConfirm: rotate } : null} busy={busy} onClose={() => setConfirmRotation(false)} />
           {message ? <p className="library-message" role="status">{message}</p> : null}
-          {!loaded && message ? <Button onPress={() => setReload((value) => value + 1)}>重试</Button> : null}
+          {!loaded && message ? <Button isDisabled={!writable} onPress={() => setReload((value) => value + 1)}>重试</Button> : null}
     </section>
   );
 }

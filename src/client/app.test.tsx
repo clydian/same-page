@@ -1264,7 +1264,7 @@ describe("AppRoutes", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "我的" }));
+    fireEvent.click(await screen.findByRole("button", { name: "我的" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "退出登录" }));
     expect(await screen.findByRole("dialog", { name: "确认退出登录" })).toHaveTextContent(
       "本机还有 1 项待同步操作",
@@ -1308,7 +1308,7 @@ describe("AppRoutes", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "我的" }));
+    fireEvent.click(await screen.findByRole("button", { name: "我的" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "退出登录" }));
     fireEvent.click(
       await screen.findByRole("button", { name: "退出并清除" }),
