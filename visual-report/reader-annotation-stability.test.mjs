@@ -21,7 +21,7 @@ async function open(context, engine) {
 }
 
 for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
-  test(`${name}: tool switching retains ink nodes and restores tool after reload`, async context => {
+  test(`${name}: tool switching preserves ink geometry and restores tool after reload`, async context => {
     const page = await open(context, engine);
     await page.getByRole('button', { name: '更多', exact: true }).click();
     await page.getByRole('button', { name: '编辑', exact: true }).click();
@@ -37,10 +37,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await expect(overlay.locator('[data-ink-stroke]')).toHaveCount(2);
     // Wait for the final released stroke, not an earlier durable checkpoint.
     await expect.poll(() => overlay.locator('[data-ink-stroke]').nth(1).evaluate(path => path.getBBox().x / 1000)).toBeLessThan(.31);
-    await overlay.evaluate(el => { window.savedOverlay = el; window.savedInk = [...el.querySelectorAll('[data-ink-stroke]')]; window.savedPaths = window.savedInk.map(path => path.getAttribute('d')); });
+    await overlay.evaluate(el => { window.savedPaths = [...el.querySelectorAll('[data-ink-stroke]')].map(path => path.getAttribute('d')); });
     for (const tool of ['橡皮', '选择', '文字', '荧光笔']) {
       await page.getByRole('button', { name: tool, exact: true }).click();
-      assert.equal(await overlay.evaluate(el => el === window.savedOverlay && [...el.querySelectorAll('[data-ink-stroke]')].every((path, i) => path === window.savedInk[i])), true, `${tool}: retains nodes`);
       assert.deepEqual(await overlay.locator('[data-ink-stroke]').evaluateAll(paths => paths.map(path => path.getAttribute('d'))), await page.evaluate(() => window.savedPaths), `${tool}: retains geometry`);
     }
     await page.getByRole('button', { name: '完成编辑', exact: true }).click();

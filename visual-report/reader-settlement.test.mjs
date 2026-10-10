@@ -90,8 +90,15 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
     assert.equal(Number(await viewport.getAttribute('data-zoom')), 1);
   });
-  for (const size of [{ width: 1194, height: 834 }, { width: 834, height: 1194 }]) {
-    for (const layout of ["page", "continuous"]) for (const editing of [false, true]) {
+  // Each input path runs in both engines; distribute orientations instead of
+  // repeating the full gesture flow for every Cartesian combination. Rotation
+  // and ResizeObserver transitions remain in reader-ux and reader-experience.
+  for (const { size, layout, editing } of [
+    { size: { width: 1194, height: 834 }, layout: "page", editing: false },
+    { size: { width: 834, height: 1194 }, layout: "page", editing: true },
+    { size: { width: 834, height: 1194 }, layout: "continuous", editing: false },
+    { size: { width: 1194, height: 834 }, layout: "continuous", editing: true },
+  ]) {
       test(`${name}: ${size.width}px ${layout} editing=${editing} settles underfit and bounds pan`, async t => {
         const page = await openReader(t, engine, size);
         if (layout === "continuous" || editing) {
@@ -135,7 +142,6 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
           await page.screenshot({ path: `${directory}/${name}-${layout}-settled.png` });
         }
       });
-    }
   }
 
   test(`${name}: continuous pinch fits its mixed-size hit page and keeps both document ends reachable`, async t => {

@@ -65,11 +65,41 @@ jobs:
       - name: Client tests
         if: needs.scope.outputs.client == 'true'
         run: npm run test
+
+  worker:
+    needs: scope
+    if: needs.scope.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Use Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
       - name: Worker tests
-        if: needs.scope.outputs.worker == 'true'
         run: npm run test:worker
+
+  migration:
+    needs: scope
+    if: needs.scope.outputs.migration == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Use Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
       - name: Migration tests
-        if: needs.scope.outputs.migration == 'true'
         run: npm run test:migrations
 
   visual:
@@ -257,7 +287,7 @@ jobs:
   # the successful scope job explicitly did not select it.
   verify:
     if: always()
-    needs: [scope, checks, visual, integration, platform, smoke]
+    needs: [scope, checks, worker, migration, visual, integration, platform, smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
@@ -274,6 +304,8 @@ jobs:
           const scope = jobs.scope.outputs;
           const expected = {
             checks: scope.full === 'true',
+            worker: scope.worker === 'true',
+            migration: scope.migration === 'true',
             visual: scope.visual === 'true',
             smoke: scope.smoke === 'true',
             integration: ['build', 'smoke'].some(key => scope[key] === 'true'),
