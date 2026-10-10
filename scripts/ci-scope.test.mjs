@@ -251,6 +251,8 @@ test("the workflow gate rejects failure, cancellation and unexpected skips of se
     { full: "false" },
     { full: "true", client: "true" },
     { full: "true", build: "true" },
+    { full: "true", performance: "true", build: "true" },
+    { full: "true", pwa: "true" },
     { full: "true", smoke: "true", build: "true" },
     { full: "true", visual: "true", smoke: "true", build: "true", browserGroup: "library" },
     { full: "true", visual: "true", pwa: "true", browserGroup: "all" },
@@ -259,7 +261,8 @@ test("the workflow gate rejects failure, cancellation and unexpected skips of se
       scope: { result: "success", outputs },
       checks: { result: outputs.full === "true" ? "success" : "skipped" },
       visual: { result: outputs.visual === "true" ? "success" : "skipped" },
-      integration: { result: ["build", "pwa", "performance", "smoke"].some(key => outputs[key] === "true") ? "success" : "skipped" },
+      integration: { result: ["build", "smoke"].some(key => outputs[key] === "true") ? "success" : "skipped" },
+      platform: { result: ["pwa", "performance"].some(key => outputs[key] === "true") ? "success" : "skipped" },
       smoke: { result: outputs.smoke === "true" ? "success" : "skipped" },
     };
     assert.equal(run(jobs), 0);
