@@ -4,15 +4,14 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 
 ## 流程
 
-`scope` 不安装依赖：运行 CI 范围回归测试，然后比较完整 Git diff。checks、worker、migration、visual 和 integration 同时启动；smoke/platform 等待 integration 的统一构建产物（仅 PWA 时不需要构建产物），各自只执行选中的步骤：
+`scope` 不安装依赖：运行 CI 范围回归测试，然后比较完整 Git diff。checks、backend、visual 和 build 同时启动；smoke/platform 等待 build 的统一构建产物（仅 PWA 时不需要构建产物），各自只执行选中的步骤：
 
 | Job | 职责 |
 | --- | --- |
 | `checks` | lint、typecheck、Node/组件测试 |
-| `worker` | 选中时独立运行 Worker 单元与真实 D1/R2 集成测试 |
-| `migration` | 选中时独立验证旧数据库升级、数据保留及旧/新认证写入兼容 |
+| `backend` | 按 scope 顺序运行 Worker 与迁移验证；与前端检查并行，数据库保持独立隔离 |
 | `visual` | 4 个独立 runner 文件分片，Chromium/WebKit 布局与交互回归 |
-| `integration` | 统一生产构建、封存校验产物；不等待浏览器环境安装 |
+| `build` | 统一生产构建、封存校验产物；不等待浏览器环境安装 |
 | `platform` | PWA 双版本交接、下载并校验生产产物后测量加载预算 |
 | `smoke` | 下载并校验同份产物，2 个独立 runner 文件分片运行真实 Worker/D1/R2 流程 |
 | `verify` | 等待以上全部结束；被选中的 job 必须成功，未选中的必须为 skipped；失败、取消、意外跳过均不能通过 |
@@ -59,9 +58,9 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 
 ## 产物与发布
 
-platform 的 PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实 Service Worker 交接。integration 独立构建真实源码；platform 测量加载预算前移除合成 dist、下载并校验真实构建包。smoke 在另外两台 runner 使用同份包，与 PWA/加载检查并行；合成版本不得发布。`npm run test:loading-performance` 单独执行时仍先 build。
+platform 的 PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实 Service Worker 交接。build 独立构建真实源码；platform 测量加载预算前移除合成 dist、下载并校验真实构建包。smoke 在另外两台 runner 使用同份包，与 PWA/加载检查并行；合成版本不得发布。`npm run test:loading-performance` 单独执行时仍先 build。
 
-需要构建或 smoke 的运行（包括 PR）封存并上传 `release-<SHA>`；两个 smoke 分片下载同次运行的包，提取后先校验 SHA256 清单与源码 SHA，再启动浏览器。PR 包只供本次验证，deploy 仍只允许需要部署的 main push，并等待 checks、全部 visual/smoke 分片及 integration/platform 的汇总 `verify` 成功。部署下载同次运行的产物，校验 SHA256 清单，直接发布而不重建。产物保留 14 天；过期需重新验证生成。visual/smoke 各分片使用独立 artifact 名称，integration/platform 也保留 `artifacts/verification/` 的已有合成证据，失败时也上传，不能放入生产会话或私人内容。
+需要构建或 smoke 的运行（包括 PR）封存并上传 `release-<SHA>`；两个 smoke 分片下载同次运行的包，提取后先校验 SHA256 清单与源码 SHA，再启动浏览器。PR 包只供本次验证，deploy 仍只允许需要部署的 main push，并等待 checks、全部 visual/smoke 分片及 build/platform 的汇总 `verify` 成功。部署下载同次运行的产物，校验 SHA256 清单，直接发布而不重建。产物保留 14 天；过期需重新验证生成。visual/smoke 各分片使用独立 artifact 名称，platform 也保留 `artifacts/verification/` 的已有合成证据，失败时也上传，不能放入生产会话或私人内容。
 
 `npm run check` 运行所有常规检查；`npm run check:full` 再包含 PWA 更新及加载预算，是本地验证超集。生产身份、准入与锁见 [交付契约](delivery-contract.md) 和 [发布流程](production-release.md)。
 

@@ -23,9 +23,11 @@ Node 报告的视觉用例从 173 降至 165；另外减少完整冲突场景 2 
 
 基线 Actions run [38052652726](https://github.com/clydian/same-page/actions/runs/38052652726) 全部验证 396 秒（6 分 36 秒）；浏览器在触发后 311 秒结束。最终等待的是串行 `checks`：lint 18 秒、typecheck 14 秒、客户端 102 秒、Worker 50 秒、迁移 151 秒。安装约 17 秒，不能把全部成本归因于安装。
 
-因此保留 `checks` 的 lint/typecheck/客户端，把 Worker 和 migration 分为两个仅依赖 scope 的独立 job。两者不需要前端测试结果，也不共享可变测试数据库。迁移脚本仍验证真实本地 D1、旧数据保留与旧/新写入兼容；本轮没有为提速替换成 SQLite mock 或缩短历史迁移链。
+因此保留 `checks` 的 lint/typecheck/客户端，把 Worker 和 migration 移到仅依赖 scope 的 `backend` job，按各自 scope 顺序执行，与前端检查并行。两者不共享可变测试数据库。迁移脚本仍验证真实本地 D1、旧数据保留与旧/新写入兼容；本轮没有为提速替换成 SQLite mock 或缩短历史迁移链。
 
-`verify` 对新增 job 执行同样严格的选中判定：选中必须 success，未选中必须 skipped，failure/cancelled/意外 skipped 均阻止发布。CI scope 回归直接执行实际 gate，覆盖 Worker-only、migration+Worker 与其他选择组合。生产锁、产物哈希校验和 main-only 发布保持原有协议。
+`verify` 对新增 job 执行同样严格的选中判定：选中必须 success，未选中必须 skipped，failure/cancelled/意外 skipped 均阻止发布。CI scope 回归直接执行实际 gate，覆盖 Worker-only、migration-only、migration+Worker 与其他选择组合。生产锁、产物哈希校验和 main-only 发布保持原有协议。
+
+整体结构复核后合并 Worker/migration，减少一个 runner；原 integration 改名 build，移除重复 job 条件与无生产者的合成证据上传。构建产物、SHA/哈希校验、PWA 合成版本隔离和严格汇总门禁保留。原单轮 Worker 52 秒 + migration 88 秒，合并后预计仍早于浏览器关键路径，不承诺每轮如此。
 
 浏览器仍是简单 Node 文件均分。分片无需历史耗时表；慢文件和浏览器安装可能成为下一轮关键路径，不承诺线性加速。所有耗时是单轮观测，受 runner、网络和调度影响。后续先看真实关键路径，再决定是否值得继续优化。
 

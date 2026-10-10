@@ -57,18 +57,16 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Lint
-        if: needs.scope.outputs.full == 'true'
         run: npm run lint
       - name: Type check
-        if: needs.scope.outputs.full == 'true'
         run: npm run typecheck
       - name: Client tests
         if: needs.scope.outputs.client == 'true'
         run: npm run test
 
-  worker:
+  backend:
     needs: scope
-    if: needs.scope.outputs.worker == 'true'
+    if: needs.scope.outputs.worker == 'true' || needs.scope.outputs.migration == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -82,24 +80,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Worker tests
+        if: needs.scope.outputs.worker == 'true'
         run: npm run test:worker
 
-  migration:
-    needs: scope
-    if: needs.scope.outputs.migration == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Use Node.js 24
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
       - name: Migration tests
+        if: needs.scope.outputs.migration == 'true'
         run: npm run test:migrations
 
   visual:
@@ -138,13 +123,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  integration:
+  build:
     needs: scope
     if: >-
       needs.scope.outputs.build == 'true' ||
       needs.scope.outputs.smoke == 'true'
     runs-on: ubuntu-latest
-    # Includes runner preparation, browser validation and evidence upload.
+    # Build and seal the exact bytes consumed by browser checks and deployment.
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -157,15 +142,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Production build
-        if: needs.scope.outputs.build == 'true' || needs.scope.outputs.smoke == 'true'
         run: npm run build
       - name: Seal verified release
-        if: needs.scope.outputs.build == 'true' || needs.scope.outputs.smoke == 'true'
         run: |
           node scripts/release-artifact.mjs seal "$GITHUB_SHA"
           tar -cf release.tar dist migrations wrangler.jsonc package-lock.json release.json
       - name: Upload verified release
-        if: needs.scope.outputs.build == 'true' || needs.scope.outputs.smoke == 'true'
         id: artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -175,28 +157,19 @@ jobs:
           retention-days: 14
           if-no-files-found: error
       - name: Record verification identity
-        if: needs.scope.outputs.build == 'true' || needs.scope.outputs.smoke == 'true'
         run: |
           echo "Source: $GITHUB_SHA; artifact: $ARTIFACT_URL; digest: $ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
         env:
           ARTIFACT_URL: ${{ steps.artifact.outputs.artifact-url }}
           ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
-      - name: Preserve synthetic test evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: integration-${{ github.sha }}-${{ github.run_attempt }}
-          path: artifacts/verification/
-          if-no-files-found: ignore
-          retention-days: 14
 
   platform:
-    needs: [scope, integration]
+    needs: [scope, build]
     # A PWA-only change has no production build. A selected performance check
-    # consumes integration's exact artifact; failed builds cannot be bypassed.
+    # consumes build's exact artifact; failed builds cannot be bypassed.
     if: >-
       !cancelled() && needs.scope.result == 'success' &&
-      (needs.integration.result == 'success' || needs.integration.result == 'skipped') &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
       (needs.scope.outputs.pwa == 'true' || needs.scope.outputs.performance == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -241,7 +214,7 @@ jobs:
           retention-days: 14
 
   smoke:
-    needs: [scope, integration]
+    needs: [scope, build]
     if: needs.scope.outputs.smoke == 'true'
     strategy:
       fail-fast: false
@@ -287,7 +260,7 @@ jobs:
   # the successful scope job explicitly did not select it.
   verify:
     if: always()
-    needs: [scope, checks, worker, migration, visual, integration, platform, smoke]
+    needs: [scope, checks, backend, visual, build, platform, smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
@@ -304,11 +277,10 @@ jobs:
           const scope = jobs.scope.outputs;
           const expected = {
             checks: scope.full === 'true',
-            worker: scope.worker === 'true',
-            migration: scope.migration === 'true',
+            backend: ['worker', 'migration'].some(key => scope[key] === 'true'),
             visual: scope.visual === 'true',
             smoke: scope.smoke === 'true',
-            integration: ['build', 'smoke'].some(key => scope[key] === 'true'),
+            build: ['build', 'smoke'].some(key => scope[key] === 'true'),
             platform: ['pwa', 'performance'].some(key => scope[key] === 'true'),
           };
           for (const [name, selected] of Object.entries(expected)) {
