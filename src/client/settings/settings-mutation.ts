@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { lifecycleError } from "../auth/lifecycle-error";
 import { SettingsRequestError, settingsError } from "./settings-request";
 import { captureSettingsLifetime, useSettingsLifetime } from "./use-settings-lifetime";
@@ -36,7 +36,7 @@ export function useSettingsMutation({ enabled = true, refresh: read, onRevoked, 
   refresh: (isCurrent: Current) => Promise<void>;
   onRevoked?: () => void;
 }) {
-  const lifetime = useSettingsLifetime();
+  const lifetime = useSettingsLifetime(enabled);
   const gate = useRef({ pending: false, needsRefresh: Boolean(initialRecovery) });
   const [pending, setPending] = useState(false);
   const [needsRefresh, setNeedsRefresh] = useState(Boolean(initialRecovery));
@@ -47,12 +47,18 @@ export function useSettingsMutation({ enabled = true, refresh: read, onRevoked, 
     gate.current.needsRefresh = value;
     setNeedsRefresh(value);
   };
+  useEffect(() => {
+    if (!enabled && gate.current.pending) {
+      gate.current.pending = false; setPending(false); requireRefresh(true);
+      setMessage("操作结果未确认，请重新读取状态后再决定是否重试。");
+    }
+  }, [enabled]);
   const finish = () => { gate.current.pending = false; setPending(false); };
 
   // Only a successful read acknowledges uncertainty; a failed read keeps the
   // original write diagnosis so a confirmed save never looks like a failed save.
   const refresh = async () => {
-    if (gate.current.pending) return false;
+    if (!enabled || gate.current.pending) return false;
     const isCurrent = captureSettingsLifetime(lifetime);
     gate.current.pending = true; setPending(true);
     try {

@@ -31,10 +31,12 @@ export function ScoreActionDialog({
   choirId,
   library,
   canPurge = false,
+  writable = true,
   selection,
   onClose,
   onComplete,
 }: {
+  writable?: boolean;
   library: DriveLibrary;
   canPurge?: boolean;
   choirId: string;
@@ -46,12 +48,12 @@ export function ScoreActionDialog({
     return <Suspense fallback={<LibraryTaskLoading title="替换 PDF" onClose={onClose} />}><PdfVersionDialog canPurge={canPurge} choirId={choirId} score={selection.score} historyOnly={false}
       onClose={onClose} onComplete={async message => { await library.changed(); onComplete(message); }} /></Suspense>;
   }
-  return <BasicScoreActionDialog library={library} choirId={choirId} selection={selection} onClose={onClose} onComplete={onComplete} />;
+  return <BasicScoreActionDialog writable={writable} library={library} choirId={choirId} selection={selection} onClose={onClose} onComplete={onComplete} />;
 }
 
-function BasicScoreActionDialog({ library, selection, onClose, onComplete }: Parameters<typeof ScoreActionDialog>[0]) {
+function BasicScoreActionDialog({ writable = true, library, selection, onClose, onComplete }: Parameters<typeof ScoreActionDialog>[0]) {
   const [renameValue, setRenameValue] = useState(scoreDisplayName(selection.score.fileName));
-  const mutation = useScoreFileAction(library, selection.score, selection.action === "rename" ? "rename" : "trash", onComplete);
+  const mutation = useScoreFileAction(library, selection.score, selection.action === "rename" ? "rename" : "trash", onComplete, writable);
   const busy = mutation.pending;
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -72,6 +74,7 @@ function BasicScoreActionDialog({ library, selection, onClose, onComplete }: Par
           {({ close }) => (
             <>
               <LibraryDialogHeading title={actionTitle(selection.action)} close={close} />
+              {!writable && <p role="status">连接或操作权限尚未恢复，输入已保留。</p>}
               <Form className="entry-form dialog-form" onSubmit={submit}>
                 {selection.action === "rename" ? (
                   <TextField isRequired value={renameValue} onChange={setRenameValue} maxLength={255}>
@@ -90,7 +93,7 @@ function BasicScoreActionDialog({ library, selection, onClose, onComplete }: Par
                   {busy ? "正在处理…" : selection.action === "trash" ? "移到回收站" : "确认"}
                 </Button>
               </Form>
-              {mutation.needsRefresh && <Button className="secondary-button" isDisabled={busy} onPress={() => void mutation.retry()}>重新读取状态</Button>}
+              {mutation.needsRefresh && <Button className="secondary-button" isDisabled={busy || !writable} onPress={() => void mutation.retry()}>重新读取状态</Button>}
               {mutation.message ? (
                 <p className="form-message" role="alert">
                   {mutation.message}

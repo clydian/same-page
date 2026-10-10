@@ -54,6 +54,7 @@ import {
 import { formatBytes } from "../score-library/library-format";
 import { UploadDialog } from "../score-library/upload-dialog";
 
+import { DriveLoading } from "../score-library/drive-loading";
 import { DriveHeader } from "../score-library/drive-header";
 import { UploadFab } from "../score-library/upload-fab";
 import type { LibrarySort } from "../score-library/library-view-state";
@@ -71,9 +72,11 @@ export default function ChoirPage() {
 
 function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; identity: ApplicationIdentity; cacheOwner: DriveCacheOwnerKey }) {
   const { session } = identity;
+  // A remembered session scopes the mounted view; only authenticatedUserId grants authority.
+  const presentationSessionId = session.data?.session?.id ?? null;
   const userId = identity.localUserId ?? undefined;
   const online = useNetworkStatus();
-  const { library, snapshot } = useDriveLibrary(cacheOwner, choirId, Boolean(identity.authenticatedUserId), !identity.restoring && (Boolean(userId) || identity.onlineState !== "checking"), identity.authenticatedSessionId);
+  const { library, snapshot } = useDriveLibrary(cacheOwner, choirId, Boolean(identity.authenticatedUserId), !identity.restoring && (Boolean(userId) || identity.onlineState !== "checking"), presentationSessionId);
   const { access, view: { search, sort }, scores: visibleScores, refreshMessage: searchMessage, joining: busy } = snapshot;
   const [openAdmissionDisplayName, setOpenAdmissionDisplayName] = useState("");
   const [displayName, setDisplayName] = useState<string>();
@@ -103,7 +106,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const attachmentsEnabled = online && access.kind === "opened" && !access.local;
   const scoresWithAttachments = visibleScores.filter(score => (score.attachmentCount ?? 0) > 0);
   const expandedScores = scoresWithAttachments.filter(score => expandedScoreIds.has(score.id));
-  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled, `${cacheOwner}:${identity.authenticatedSessionId ?? "guest"}:${attachmentGeneration}`);
+  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled, `${cacheOwner}:${presentationSessionId ?? "guest"}:${attachmentGeneration}:${access.kind === "opened" && access.retained ? "revoked" : "accessible"}`);
   const [scoreAction, setScoreAction] = useState<ScoreActionSelection | null>(null);
   const refresh = () => {
     // Authentication changes cause useDriveLibrary to acquire/reload the now
@@ -120,6 +123,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         key={`${attachmentSelection.sessionId ?? "guest"}:${attachmentSelection.score.id}:${attachmentSelection.attachment?.id ?? attachmentSelection.action}`}
         selection={attachmentSelection} choirId={choirId} ownerKey={cacheOwner} canModify={access.kind === "opened" && access.result.permissions.capabilities.operations.operations.includes("modifyFiles")} writable={attachmentsEnabled}
         onClose={() => setAttachmentSelection(null)} onChanged={async () => { setAttachmentGeneration(value => value + 1); await refreshAfterMutation(); }} /></Suspense>;
+
+  useEffect(() => {
+    if (access.kind !== "opened" || !access.retained) return;
+    setSettingsField(null); setUploadOpen(false); setScoreAction(null); setAttachmentSelection(null);
+  }, [access]);
 
   useEffect(() => {
     if (!userId) return;
@@ -187,10 +195,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   if (access.kind === "loading") {
     return (
-      <><div className="app-page drive-page">
-        <DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} />
-        <main className="page-shell file-library">{access.choir && <h1 className="visually-hidden">{access.choir.name}</h1>}<p className="route-loading" role="status">正在加载乐谱…</p></main>
-      </div>{attachmentDialog}</>
+      <><DriveLoading choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} />} />{attachmentDialog}</>
     );
   }
 
@@ -275,7 +280,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     <span className="pdf-file-icon" aria-hidden="true">PDF</span>
                     <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}</span></span>
                   </ScoreLink>
-                  <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={!attachmentsEnabled}
+                  <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => setExpandedScoreIds(current => { const next = new Set(current); if (next.has(score.id)) next.delete(score.id); else next.add(score.id); return next; })} />
                   <div className="file-row__offline"><OfflineScoreControl experience={choir.isPreviewEntry === true} score={score} authenticatedUserId={userId ?? null} authenticatedSessionId={identity.authenticatedSessionId} disabled={session.isPending || access.local} /></div>
                   <MenuTrigger>
@@ -304,9 +309,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     </MenuTrigger>
                 </div>
                 <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
-                  {expandedScoreIds.has(score.id) && (score.attachmentCount ?? 0) > 0 && (!attachmentsEnabled ? <p className="attachment-pending attachment-help" role="status">附件需联网后查看，主谱的离线副本不包含附件。</p>
+                  {expandedScoreIds.has(score.id) && (score.attachmentCount ?? 0) > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">附件需联网后查看，主谱的离线副本不包含附件。</p>
                     : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={score.attachmentCount ?? 0} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
-                    : <AttachmentRows score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} />)}
+                    : <><AttachmentRows available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} />{!attachmentsEnabled && <p className="attachment-help" role="status">附件需联网后打开，主谱的离线副本不包含附件。</p>}</>)}
                 </div>
                 </article>
               ))}
@@ -319,12 +324,12 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
 
       {exportScore && <Suspense fallback={<LibraryTaskLoading title="分享 PDF" size="tall" onClose={() => setExportScore(null)} />}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
-      {settingsField && !access.local && <DriveSettingsDialog key={`${choirId}:${userId}:${settingsField}`} choirId={choirId} userId={userId!} field={settingsField} onClose={() => setSettingsField(null)} onSaved={async value => { setDisplayName(value); setMessage(null); }} />}
+      {settingsField && userId && !access.retained && <DriveSettingsDialog key={`${choirId}:${userId}:${presentationSessionId}:${settingsField}`} choirId={choirId} userId={userId!} field={settingsField} onClose={() => setSettingsField(null)} onSaved={async value => { setDisplayName(value); setMessage(null); }} />}
       {visible("uploadFiles") && <UploadFab disabled={!online || Boolean(access.local)} onPress={() => setUploadOpen(true)} />}
 
 
-      {userId && can("uploadFiles") ? <UploadDialog storage={result.storage}
-        key={`upload:${choirId}:${userId}`}
+      {userId && !access.retained && visible("uploadFiles") ? <UploadDialog writable={online && !access.local && can("uploadFiles")} storage={result.storage}
+        key={`upload:${choirId}:${userId}:${presentationSessionId}`}
         choirId={choirId}
         isOpen={uploadOpen}
         onOpenChange={setUploadOpen}
@@ -336,9 +341,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           void refreshAfterMutation();
         }}
       /> : null}
-      {scoreAction && can(scoreAction.action === "trash" ? "trashFiles" : "modifyFiles") ? (
-        <ScoreActionDialog library={library} canPurge={result.permissions.capabilities.isOwner}
-          key={`${identity.authenticatedSessionId}:${scoreAction.score.id}:${scoreAction.action}`}
+      {scoreAction && !access.retained && visible(scoreAction.action === "trash" ? "trashFiles" : "modifyFiles") ? (
+        <ScoreActionDialog writable={online && !access.local && can(scoreAction.action === "trash" ? "trashFiles" : "modifyFiles")} library={library} canPurge={result.permissions.capabilities.isOwner}
+          key={`${presentationSessionId}:${scoreAction.score.id}:${scoreAction.action}`}
           choirId={choirId}
           selection={scoreAction}
           onClose={() => setScoreAction(null)}

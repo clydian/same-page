@@ -68,7 +68,15 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   assert.equal(await editingWindow.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   assert.equal(await page.getByText("有新版本可用", { exact: true }).count(), 0);
+  await page.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "更新并重新加载" }).click();
+  await page.getByText("新版本待应用，请先完成其他窗口中的操作，再尝试更新", { exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   await editingWindow.close();
+  // A prepared update must not reload a restored application just because it is idle.
+  await page.waitForTimeout(4000);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
+  await page.getByRole("button", { name: "更新并重新加载" }).click();
   await page.waitForFunction(
     (expected) => document.documentElement.dataset.buildId === expected,
     buildIds.second,

@@ -1,3 +1,4 @@
+import { UserRound } from "lucide-react";
 import { NAVIGATION_FRESH_MS } from "../settings/navigation-events";
 import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { driveSettingsSchema } from "../../shared/choirs";
@@ -19,7 +20,7 @@ export function DrivePersonalMenu(props: Props) {
 }
 
 function PersonalActions({ choirId, displayName: name, localOnly, onEditDisplayName }: Props) {
-  return <MenuTrigger><Button className="drive-avatar" aria-label="我在此云盘">{name ? Array.from(name)[0] : "我"}</Button>
+  return <MenuTrigger><Button className="drive-avatar" aria-label="我在此云盘"><UserRound aria-hidden="true" size={20} /></Button>
     <Popover className="file-menu-popover account-menu-popover"><Menu aria-label="我在此云盘">
       <MenuItem isDisabled>{name || "我在此云盘"}</MenuItem>
       {onEditDisplayName && <MenuItem isDisabled={localOnly} onAction={onEditDisplayName}>云盘内显示名</MenuItem>}
