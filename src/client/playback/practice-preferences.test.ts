@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import type { PlayerSession, PlayerState } from '@clydian/chorus-player';
 import { rememberPractice } from './practice-preferences';
-import { playbackStore, playbackViewStore, setPlaybackView, startPlayback, type PlaybackSource } from './playback-store';
+import { playbackStore, playbackViewStore, playbackNotationStore, setPlaybackNotation, stopPlayback, setPlaybackView, startPlayback, type PlaybackSource } from './playback-store';
 import { observeNavigationSession } from '../settings/navigation-events';
 function player() {
   let state: PlayerState = { status:'preparing',message:'',playing:false,parts:[{id:0,name:'Alto',volume:.75,muted:false,solo:false}],measures:[],measure:0,speed:1,focus:null,loop:null };
@@ -44,13 +44,35 @@ it('clears the active source on confirmed session replacement or logout', () => 
  expect(playbackStore.getSnapshot()).toBeNull();
 });
 
-it('switches only the displayed score and starts a new source on its original PDF', () => {
+it('switches only the displayed score and opens a different score on its original PDF', () => {
  startPlayback(source);
  setPlaybackView('xml');
  expect(playbackStore.getSnapshot()).toBe(source);
  setPlaybackView('pdf');
  expect(playbackStore.getSnapshot()).toBe(source);
  setPlaybackView('xml');
- startPlayback({...source, attachment: {...source.attachment, id: 'another'}});
+ startPlayback({...source, score: {...source.score, id: 'another'}});
  expect(playbackViewStore.getSnapshot()).toBe('pdf');
+});
+
+it('changing the sound keeps notation and view while changing score or identity clears them', () => {
+ stopPlayback(); startPlayback(source); setPlaybackView('xml');
+ const audio: PlaybackSource = {...source, attachment: {...source.attachment, id: 'audio', kind: 'audio'}};
+ startPlayback(audio);
+ expect(playbackNotationStore.getSnapshot()).toBe(source);
+ expect(playbackViewStore.getSnapshot()).toBe('xml');
+ expect(playbackStore.getSnapshot()).toBe(audio);
+ startPlayback({...audio, ownerKey: 'user:other'});
+ expect(playbackNotationStore.getSnapshot()).toBeNull();
+ expect(playbackViewStore.getSnapshot()).toBe('pdf');
+});
+it('opens notation independently of the recording and rejects notation from another score', () => {
+ stopPlayback();
+ const audio: PlaybackSource = {...source, attachment: {...source.attachment, id: 'audio', kind: 'audio'}};
+ startPlayback(audio); setPlaybackNotation(source);
+ expect(playbackStore.getSnapshot()).toBe(audio);
+ expect(playbackNotationStore.getSnapshot()).toBe(source);
+ setPlaybackNotation({...source, score: {...source.score, id: 'other'}});
+ expect(playbackNotationStore.getSnapshot()).toBe(source);
+ stopPlayback(); expect(playbackNotationStore.getSnapshot()).toBeNull();
 });

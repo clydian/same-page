@@ -6,7 +6,7 @@ export const visualReportScenarios = [
     { id: 'reader-practice-phone', device: 'narrow', title: '练习 · 手机原 PDF' },
     { id: 'reader-practice-settings', device: 'desktop', title: '练习 · 按需设置', settings: true },
     { id: 'reader-practice-sources', device: 'desktop', title: '练习 · 多个音源', sources: true, multipleSources: true },
-    { id: 'reader-practice-xml', device: 'desktop', title: '练习 · 播放谱', xml: true },
+    { id: 'reader-practice-xml', device: 'desktop', title: '练习 · 重排谱面', xml: true },
     { id: 'reader-practice-audio', device: 'narrow', title: '练习 · 录音', audio: true, multipleSources: true },
   ].map(item => ({ ...item, description: '真实阅读器与统一练习底栏，使用原创演示谱及音源。', identity: 'member', route: '/choirs/visual-choir/scores/visual-score',
     waitsForPdf: !item.xml,
@@ -21,7 +21,7 @@ export const visualReportScenarios = [
       { type: 'assertHidden', selector: '.reader-chrome' },
       ...(item.xml ? [{ type: 'selectLabel', label: '显示谱面', value: 'xml' }] : []),
       ...(item.settings ? [{ type: 'clickRole', role: 'button', name: '练习设置' }] : []),
-      ...(item.sources ? [{ type: 'clickRole', role: 'button', name: '选择音源' }] : []),
+      ...(item.sources ? [{ type: 'clickRole', role: 'button', name: '练习设置' }, { type: 'clickCenter', selector: '.practice-content summary' }] : []),
     ],
   })),
   {

@@ -404,7 +404,7 @@ async function assertScenarioContent(page, scenario) {
       const reader = document.querySelector('.reader-shell').getBoundingClientRect();
       return { width: box.width, height: box.height, readerBottom: reader.bottom, barTop: box.top, viewport: innerWidth };
     });
-    if (geometry.height > 56 || geometry.width > 390 || geometry.width > geometry.viewport - 16 || geometry.readerBottom > geometry.barTop) throw new Error(`Practice bar wastes space or overlaps the reader: ${JSON.stringify(geometry)}`);
+    if (geometry.height > 60 || Math.abs(geometry.width - geometry.viewport) > 1 || geometry.readerBottom > geometry.barTop) throw new Error(`Practice bar wastes space or overlaps the reader: ${JSON.stringify(geometry)}`);
     if (!scenario.multipleSources && await page.getByRole('button', { name: '选择音源', exact: true }).count()) throw new Error('Single source must not display a chooser');
     if (scenario.id === 'reader-practice-pdf') {
       const surface = await page.locator('.at-surface').elementHandle();
@@ -422,17 +422,32 @@ async function assertScenarioContent(page, scenario) {
     if (scenario.audio) {
       await page.getByRole('button', { name: '播放', exact: true }).click();
       await page.waitForFunction(() => { const audio = document.querySelector('audio'); return audio && !audio.paused && audio.currentTime > 0; });
+      await page.getByLabel('显示谱面', { exact: true }).selectOption('xml');
+      await page.locator('.practice-notation[data-visible] .at-surface').waitFor({ state: 'visible' });
+      if (!await page.locator('audio').evaluate(audio => !audio.paused)) throw new Error('Opening notation stopped the active recording');
+      await page.getByLabel('显示谱面', { exact: true }).selectOption('pdf');
       await page.getByRole('button', { name: '暂停', exact: true }).click();
     }
     if (scenario.sources) {
-      await page.getByRole('button', { name: '示范录音.wav', exact: true }).click();
+      await page.getByLabel('显示谱面', { exact: true }).selectOption('xml');
+      const surface = await page.locator('.at-surface').elementHandle();
+      await page.getByRole('button', { name: '练习设置', exact: true }).click();
+      await page.locator('.practice-content summary').click();
+      await page.getByRole('button', { name: '示范录音', exact: true }).click();
       await page.locator('.practice-play:not([disabled])').waitFor({ state: 'visible' });
-      if (await page.locator('audio').count() !== 1 || await page.locator('.practice-notation').count()) throw new Error('Switching to a recording did not dispose the notation engine');
-      await page.getByRole('button', { name: '选择音源', exact: true }).click();
-      await page.getByRole('button', { name: '声部练习版.musicxml', exact: true }).click();
+      if (!await surface.evaluate(element => element.isConnected) || await page.getByLabel('显示谱面').inputValue() !== 'xml') throw new Error('Changing audio changed the displayed score');
+      await page.getByRole('button', { name: '播放', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('audio')?.currentTime > 0);
+      await page.getByLabel('显示谱面', { exact: true }).selectOption('pdf');
+      if (!await page.locator('audio').evaluate(audio => !audio.paused)) throw new Error('Changing the score stopped the recording');
+      await page.getByRole('button', { name: '暂停', exact: true }).click();
+      await page.getByRole('button', { name: '练习设置', exact: true }).click();
+      await page.locator('.practice-content summary').click();
+      await page.getByRole('button', { name: '声部练习版', exact: true }).click();
       await page.locator('.practice-play:not([disabled])').waitFor({ state: 'visible' });
-      if (await page.locator('audio').count()) throw new Error('Switching to notation retained the old audio element');
-      await page.getByRole('button', { name: '选择音源', exact: true }).click();
+      if (await page.locator('audio').count()) throw new Error('Switching to synthesis retained the old audio element');
+      await page.getByRole('button', { name: '练习设置', exact: true }).click();
+      await page.locator('.practice-content summary').click();
     }
   }
   if (!scenario.waitsForPdf) return;
