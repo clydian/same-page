@@ -54,7 +54,7 @@ test("code, config, dependencies, workflow and unknown files require full verifi
 test("runtime areas select only their relevant expensive checks", (t) => {
   const repo = repository(t);
   const expectedByPath = new Map([
-    ["scripts/browser-test-plan.mjs", ["client", "visual", "build", "smoke"]],
+    ["scripts/browser-test-selection.mjs", ["client", "visual", "build", "smoke"]],
     ["src/client/routes/home-page.tsx", ["client", "visual", "performance", "build", "smoke", "deploy"]],
     ["src/client/pwa-navigation.ts", ["client", "visual", "pwa", "performance", "build", "smoke", "deploy"]],
     ["worker/index.ts", ["worker", "build", "smoke", "deploy"]],

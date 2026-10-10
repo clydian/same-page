@@ -65,7 +65,9 @@ platform 的 PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实
 
 ## 浏览器分片
 
-`scripts/browser-test-plan.mjs` 按 main run `38049682737` 的顶层用例耗时之和提供文件权重，使用最长文件优先分配到当前最轻分片。权重只是调度提示，不是断言；新文件自动发现并使用默认权重。文件名排序保证不同 runner 对同一源码生成相同计划。all/library 先选择范围再分片，每个选中文件恰好出现一次；非法参数、缺失 library 文件或空分片失败，不能静默跳过。
+`scripts/run-browser-tests.mjs` 自动扫描文件，通过 `scripts/browser-test-selection.mjs` 选择 all/library 范围并排序，随后交给 Node 原生 `--test-shard=index/count` 按文件均分。没有耗时权重、历史数据或手工分片名单。新文件自动加入 all；library 仍是按消费者审计的显式范围名单。非法参数、缺失 library 文件或文件数少于分片数都会失败，不能静默空跑。
+
+文件数量均分不保证运行时间相同；接受这一差异以减少维护成本。各 runner 使用相同源码、同一排序后的候选列表，Node 负责分配。回归通过真实 runner 验证分片并集完整且互不重复，包括新增文件。
 
 本地不传分片时仍运行完整范围。可单独运行：
 
