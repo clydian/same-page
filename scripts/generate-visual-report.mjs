@@ -206,6 +206,7 @@ function ensureSafeOutputPath(target) {
 
 async function runActions(page, actions, fixture) {
   for (const action of actions) {
+    if (action.type === 'selectLabel') { await page.getByLabel(action.label, { exact: true }).selectOption(action.value); continue; }
     if (action.type === "armFailures") { fixture.armFailures(); continue; }
     if (action.type === "waitPreferences") { await page.waitForFunction(async () => { const { localDatabase } = await import("/src/client/platform/local-database.ts"); const { currentReadingIntent } = await import("/src/client/reader/reading-preference-intents.ts"); const rows = await localDatabase.readingPreferences.toArray(); return rows.length > 0 && rows.every(row => { const intent = currentReadingIntent(row.key); return !row.pending && (!intent || (intent.localState === "saved" && intent.version === row.version)); }); }); continue; }
     if (action.type === "reload") { await page.reload({ waitUntil: "domcontentloaded" }); continue; }
@@ -397,6 +398,43 @@ function gitCommit() {
 }
 
 async function assertScenarioContent(page, scenario) {
+  if (scenario.id.startsWith('reader-practice')) {
+    const geometry = await page.locator('.practice-bar').evaluate(bar => {
+      const box = bar.getBoundingClientRect();
+      const reader = document.querySelector('.reader-shell').getBoundingClientRect();
+      return { width: box.width, height: box.height, readerBottom: reader.bottom, barTop: box.top, viewport: innerWidth };
+    });
+    if (geometry.height > 56 || geometry.width > 390 || geometry.width > geometry.viewport - 16 || geometry.readerBottom > geometry.barTop) throw new Error(`Practice bar wastes space or overlaps the reader: ${JSON.stringify(geometry)}`);
+    if (!scenario.multipleSources && await page.getByRole('button', { name: '选择音源', exact: true }).count()) throw new Error('Single source must not display a chooser');
+    if (scenario.id === 'reader-practice-pdf') {
+      const surface = await page.locator('.at-surface').elementHandle();
+      await page.getByRole('button', { name: '播放', exact: true }).click();
+      await page.getByRole('button', { name: '暂停', exact: true }).waitFor({ state: 'visible' });
+      const before = await page.locator('.practice-position').innerText();
+      await page.getByLabel('显示谱面', { exact: true }).selectOption('xml');
+      await page.locator('.practice-notation[data-visible]').waitFor({ state: 'visible' });
+      await page.getByLabel('显示谱面', { exact: true }).selectOption('pdf');
+      if (!await surface.evaluate(element => element.isConnected)) throw new Error('Score switch recreated the playback renderer');
+      await page.waitForFunction(previous => document.querySelector('.practice-position').textContent !== previous, before);
+      await page.getByRole('button', { name: '暂停', exact: true }).click();
+      if (await page.getByRole('button', { name: '前一小节', exact: true }).isEnabled()) await page.getByRole('button', { name: '前一小节', exact: true }).click();
+    }
+    if (scenario.audio) {
+      await page.getByRole('button', { name: '播放', exact: true }).click();
+      await page.waitForFunction(() => { const audio = document.querySelector('audio'); return audio && !audio.paused && audio.currentTime > 0; });
+      await page.getByRole('button', { name: '暂停', exact: true }).click();
+    }
+    if (scenario.sources) {
+      await page.getByRole('button', { name: '示范录音.wav', exact: true }).click();
+      await page.locator('.practice-play:not([disabled])').waitFor({ state: 'visible' });
+      if (await page.locator('audio').count() !== 1 || await page.locator('.practice-notation').count()) throw new Error('Switching to a recording did not dispose the notation engine');
+      await page.getByRole('button', { name: '选择音源', exact: true }).click();
+      await page.getByRole('button', { name: '声部练习版.musicxml', exact: true }).click();
+      await page.locator('.practice-play:not([disabled])').waitFor({ state: 'visible' });
+      if (await page.locator('audio').count()) throw new Error('Switching to notation retained the old audio element');
+      await page.getByRole('button', { name: '选择音源', exact: true }).click();
+    }
+  }
   if (!scenario.waitsForPdf) return;
   if (scenario.id.includes("layers") || scenario.id === "reader-layer-save-failure") {
     await page.locator(".reader-layer-panel .layer-card").first().waitFor({ state: "attached" });

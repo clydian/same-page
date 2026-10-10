@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import type { PlayerSession, PlayerState } from '@clydian/chorus-player';
 import { rememberPractice } from './practice-preferences';
-import { playbackStore, startPlayback, type PlaybackSource } from './playback-store';
+import { playbackStore, playbackViewStore, setPlaybackView, startPlayback, type PlaybackSource } from './playback-store';
 import { observeNavigationSession } from '../settings/navigation-events';
 function player() {
   let state: PlayerState = { status:'preparing',message:'',playing:false,parts:[{id:0,name:'Alto',volume:.75,muted:false,solo:false}],measures:[],measure:0,speed:1,focus:null,loop:null };
@@ -32,11 +32,25 @@ it('a new identity or attachment revision does not inherit old track mix',()=>{
 it('clears the active source on confirmed session replacement or logout', () => {
  observeNavigationSession('first');
  startPlayback(source);
+ setPlaybackView('xml');
  observeNavigationSession('first');
  expect(playbackStore.getSnapshot()).toBe(source);
+ expect(playbackViewStore.getSnapshot()).toBe('xml');
  observeNavigationSession('second');
  expect(playbackStore.getSnapshot()).toBeNull();
+ expect(playbackViewStore.getSnapshot()).toBe('pdf');
  startPlayback(source);
  observeNavigationSession(null);
  expect(playbackStore.getSnapshot()).toBeNull();
+});
+
+it('switches only the displayed score and starts a new source on its original PDF', () => {
+ startPlayback(source);
+ setPlaybackView('xml');
+ expect(playbackStore.getSnapshot()).toBe(source);
+ setPlaybackView('pdf');
+ expect(playbackStore.getSnapshot()).toBe(source);
+ setPlaybackView('xml');
+ startPlayback({...source, attachment: {...source.attachment, id: 'another'}});
+ expect(playbackViewStore.getSnapshot()).toBe('pdf');
 });

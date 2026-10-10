@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Button } from 'react-aria-components';
 import { playbackStore, stopPlayback } from './playback-store';
 const MusicXmlPlayer = lazy(() => import('./musicxml-player'));
+const AudioPlayer = lazy(() => import('./audio-player'));
 export function PlaybackGate() {
   const source = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
   const { pathname } = useLocation();
@@ -15,6 +16,7 @@ export function PlaybackGate() {
   }, [pathname, allowed, source, base]);
   if (!allowed) return null;
   return <Suspense fallback={<aside className="playback-loading" aria-label="播放准备">正在打开播放器…<Button onPress={stopPlayback}>取消</Button></aside>}>
-    <MusicXmlPlayer key={`${source.ownerKey}:${source.attachment.id}:${source.attachment.revision}`} source={source} />
+    {source.attachment.kind === 'audio' ? <AudioPlayer key={`${source.ownerKey}:${source.attachment.id}:${source.attachment.revision}`} source={source} />
+      : <MusicXmlPlayer key={`${source.ownerKey}:${source.attachment.id}:${source.attachment.revision}`} source={source} />}
   </Suspense>;
 }
