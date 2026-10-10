@@ -8,7 +8,7 @@ import { scoreDisplayName } from "../../../shared/score-display-name";
 import { UploadProgressView } from "../upload-progress-view";
 import { formatBytes } from "../library-format";
 import type { AttachmentSelection } from "./attachment-list";
-import { musicXmlEnabled, attachmentFileUrl, attachmentMessage } from "./api";
+import { attachmentFileUrl, attachmentMessage } from "./api";
 import { useAttachmentMutation } from "./use-attachment-mutation";
 import { attachmentActionTitle } from "./attachment-presentation";
 
@@ -41,12 +41,6 @@ const attachmentChoices = [
 function CreateAttachment(props: Props) {
   const [kind, setKind] = useState<FileKind | "link" | null>(null);
   const [composing, setComposing] = useState(false);
-  const [musicxml, setMusicxml] = useState(false);
-  useEffect(() => {
-    const abort = new AbortController();
-    void musicXmlEnabled(props.choirId, abort.signal).then(enabled => { if (!abort.signal.aborted) setMusicxml(enabled); }).catch(() => {});
-    return () => abort.abort();
-  }, [props.choirId]);
   const onBack = () => { setKind(null); setComposing(false); };
   if (composing) return <Suspense fallback={<AttachmentLoading selection={{ score: props.selection.score, action: "markdown" }} onClose={props.onClose} />}>
     <MarkdownAttachment {...props} selection={{ score: props.selection.score, action: "markdown" }} onBack={onBack} />
@@ -54,7 +48,7 @@ function CreateAttachment(props: Props) {
   if (kind) return <AttachmentForm {...props} selection={{ score: props.selection.score, action: kind === "link" ? "link" : "upload" }}
     uploadKind={kind === "link" ? undefined : kind} onBack={onBack} onCompose={() => setComposing(true)} />;
   return <AttachmentShell picker title="添加附件" subtitle={scoreDisplayName(props.selection.score.fileName)} onClose={props.onClose}>
-    <div className="attachment-type-list">{attachmentChoices.filter(choice => choice.kind !== "musicxml" || musicxml).map(({ kind, title, detail, Icon }) => <Button key={kind} className="attachment-type-option" aria-label={title} onPress={() => setKind(kind)}>
+    <div className="attachment-type-list">{attachmentChoices.map(({ kind, title, detail, Icon }) => <Button key={kind} className="attachment-type-option" aria-label={title} onPress={() => setKind(kind)}>
       <Icon size={22} strokeWidth={1.5} aria-hidden="true" /><span><strong>{title}</strong><small>{detail}</small></span><ChevronRight size={17} aria-hidden="true" />
     </Button>)}</div>
   </AttachmentShell>;

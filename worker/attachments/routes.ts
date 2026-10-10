@@ -30,8 +30,8 @@ const serialize = (row: AttachmentRow) => ({ id: row.id, scoreId: row.scoreId, n
 attachmentRoutes.get("/choirs/:choirId/attachments/capabilities", async context => {
   const choirId = context.req.param("choirId");
   await resolveContextChoirReadAccess(context, choirId);
-  const row = await context.env.DB.prepare("SELECT musicxml_enabled FROM choirs WHERE id = ?").bind(choirId).first<{ musicxml_enabled: number }>();
-  return context.json({ musicxml: row?.musicxml_enabled === 1 });
+  // Keep this response for deployed clients that still discover MusicXML support.
+  return context.json({ musicxml: true });
 });
 
 attachmentRoutes.get("/choirs/:choirId/attachments", async context => {

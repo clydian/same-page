@@ -7,7 +7,7 @@ import { startStorageFixture } from './storage-fixture.mjs';
 import { musicXmlFixture } from './musicxml-fixture.mjs';
 for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
  test(`MusicXML attachment practice and PDF handoff (${engine})`, {timeout:180000}, async t => {
-  const fixture=await startStorageFixture({authenticated:true,previewEntry:false,musicxml:true});
+  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});
   let browser;t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
   browser=await type.launch();const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
   assert.equal((await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}})).status(),200);
@@ -89,6 +89,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.goBack();
   await expect(page).toHaveURL(`${fixture.origin}/choirs/${fixture.choirId}`);
   await expect(player).toHaveCount(0);
+  assert.equal(requests.some(url=>url.endsWith('/attachments/capabilities')),false,'upload and playback do not require a capability request');
   assert.deepEqual(errors,[]);
  });
 }
