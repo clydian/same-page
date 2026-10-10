@@ -2,6 +2,7 @@ const operations = ["uploadFiles", "modifyFiles", "trashFiles", "manageInvites",
 const emptyPermissions = () => ({ operations: [], sharedLayers: [] });
 const capabilities = (owner = false) => ({ isOwner: owner, operations: owner ? { operations, sharedLayers: "all" } : emptyPermissions(), management: owner ? { operations, sharedLayers: "all" } : emptyPermissions() });
 import { createHash } from "node:crypto";
+import { practiceMusicXml, practiceWave } from './practice-fixture.mjs';
 
 const FIXED_TIME = Date.parse("2026-08-31T12:00:00.000Z");
 const samplePdf = createSampleScorePdf();
@@ -506,7 +507,11 @@ export function createVisualFixtureSession(scenario = {}) {
     ...score,
     fileName: "原创 SATB 排版样本 · 八页混合尺寸.pdf",
     currentVersion: { ...score.currentVersion, pageCount: 8, sizeBytes: pdf.byteLength, sha256: createHash("sha256").update(pdf).digest("hex") },
-  } : score;
+  } : { ...score };
+  const practice = scenario.id?.startsWith('reader-practice');
+  const practiceAttachments = practice ? [{ id:'practice-xml',scoreId:score.id,name:'声部练习版.musicxml',kind:'musicxml',url:null,sizeBytes:Buffer.byteLength(practiceMusicXml),revision:1,updatedAt:FIXED_TIME,trashExpiresAt:null },
+    ...(scenario.multipleSources ? [{id:'practice-audio',scoreId:score.id,name:'示范录音.wav',kind:'audio',url:null,sizeBytes:320044,revision:1,updatedAt:FIXED_TIME,trashExpiresAt:null}] : [])] : [];
+  if (practice) selectedScore.attachmentCount = practiceAttachments.length;
   let scores = scenario.id === "library-empty" ? [] : [selectedScore, ...otherScores];
   if (scenario.id === "library-long-list") scores = Array.from({ length: 30 }, (_, index) => ({
     ...selectedScore,
@@ -520,6 +525,12 @@ export function createVisualFixtureSession(scenario = {}) {
     resolve(request) {
       const { pathname, method = "GET", body } = request;
       requests.push({ method, pathname });
+      if (practice && method === 'GET') {
+        if (pathname === `/api/choirs/${choir.id}/settings`) return json({ name: choir.name, nameRevision: 0, displayName: '周宁', membershipRevision: 0, canEditDriveInfo: false });
+        if (pathname === `/api/choirs/${choir.id}/attachments`) return json({ attachments: practiceAttachments });
+        const attachment = practiceAttachments.find(item => pathname.startsWith(`/api/choirs/${choir.id}/scores/${score.id}/attachments/${item.id}`));
+        if (attachment) return pathname.endsWith('/file') ? {status:200,contentType:attachment.kind==='musicxml'?'application/vnd.recordare.musicxml+xml':'audio/wav',body:attachment.kind==='musicxml'?practiceMusicXml:practiceWave(),headers:{'cache-control':'no-store'}} : json({attachment});
+      }
       const failure = (status, reason) => {
         intentionalFailures.push({ method, pathname, status, reason });
         return json({ error: reason }, status);

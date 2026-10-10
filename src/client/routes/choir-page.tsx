@@ -29,7 +29,7 @@ import {
   TextField,
 } from "react-aria-components";
 import { Menu } from "../navigation/overlays";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 
 import type { ScoreSummary } from "../../shared/scores";
 import { AppHeader } from "../components/app-header";
@@ -69,6 +69,7 @@ export default function ChoirPage() {
 }
 
 function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; identity: ApplicationIdentity; cacheOwner: DriveCacheOwnerKey }) {
+  const navigate = useNavigate(), location = useLocation();
   const { session } = identity;
   // A remembered session scopes the mounted view; only authenticatedUserId grants authority.
   const [dialogSession, setDialogSession] = useState(session.data?.session?.id ?? null);
@@ -88,9 +89,10 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const [exportScore, setExportScore] = useState<ScoreSummary | null>(null);
   const [attachmentSelection, setAttachmentSelection] = useState<(AttachmentSelection & { sessionId: string | null }) | null>(null);
   const selectAttachment = (selection: AttachmentSelection) => {
-    if (selection.action === "open" && selection.attachment?.kind === "musicxml") {
+    if (selection.action === "open" && (selection.attachment?.kind === "musicxml" || selection.attachment?.kind === "audio")) {
       setAttachmentSelection(null);
       startPlayback({ attachment: selection.attachment, score: selection.score, choirId, ownerKey: cacheOwner, sessionId: identity.authenticatedSessionId });
+      if (selection.attachment.kind === "musicxml") void navigate(`/choirs/${choirId}/scores/${selection.score.id}${location.search}`);
     } else setAttachmentSelection({ ...selection, sessionId: identity.authenticatedSessionId });
   };
   const definitiveSession = identity.onlineState === "authenticated" || identity.onlineState === "signed-out" ? identity.authenticatedSessionId : undefined;

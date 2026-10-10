@@ -1,4 +1,5 @@
 import { GuestNoteDialog } from "../auth/guest-note-invitation";
+import { playbackStore, playbackViewStore } from "../playback/playback-store";
 import { ReaderGuide } from "../reader/reader-guide";
 import { useReaderHint } from "../reader/use-reader-hint";
 import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
@@ -20,6 +21,7 @@ import { ReaderLoading } from "../navigation/reader-loading";
 import { useAppNavigation, useExitLayer } from "../navigation/navigation-context";
 import { ReaderPresentationContext, useReaderPresentation } from "../reader/use-reader-presentation";
 import "../reader/reader-ux.css";
+import "../playback/practice-player.css";
 import { useReaderSession } from "../reader/use-reader-session";
 import {
   ArrowLeft, Share, HardDrive, Ellipsis, Layers, Maximize2, Minus, Pencil, Plus, BookOpen,
@@ -32,6 +34,7 @@ import {
   useRef,
   useState,
   Suspense,
+  useSyncExternalStore,
 } from "react";
 import {
   Button, Tooltip, TooltipTrigger, Modal, ModalOverlay, Popover,
@@ -86,6 +89,7 @@ const ReaderLayerPanel = lazy(() =>
     default: module.ReaderLayerPanel,
   })),
 );
+const ReaderPracticeLauncher = lazy(() => import('../playback/reader-practice-launcher').then(module => ({ default: module.ReaderPracticeLauncher })));
 
 export default function ReaderPage() {
   const { choirId, scoreId } = useParams();
@@ -103,6 +107,9 @@ function ReaderPageContent() {
   const { choirId = "", scoreId = "" } = useParams();
   const identity = useApplicationIdentity();
   const opening = useReaderWorkspace({ choirId, scoreId, experience, identity });
+  const playback = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
+  const playbackView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
+  const showingPlayback = playback?.choirId === choirId && playback.score.id === scoreId && playbackView === 'xml';
   const workspace = opening.state.status === "ready" ? opening.state.workspace : null;
   const navigation = useAppNavigation();
   const [fitRequest, setFitRequest] = useState(0);
@@ -118,6 +125,8 @@ function ReaderPageContent() {
   const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel);
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
   const [layerPanelTab, setLayerPanelTab] = useState<"display" | "manage">("display");
+  const [playbackEntryOpen, setPlaybackEntryOpen] = useState(false);
+  useExitLayer(playbackEntryOpen, "overlay", () => { setPlaybackEntryOpen(false); return true; });
   const [moreOpen, setMoreOpen] = useState(false);
   const [guestNoteOpen, setGuestNoteOpen] = useState(false);
   const guestReadOnly = workspace?.ownerKey.startsWith("guest:") === true;
@@ -196,7 +205,7 @@ function ReaderPageContent() {
   });
   const requestPage = pager.request;
 
-  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null && !exportOpen && !conflictOpen, null);
+  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && !playbackEntryOpen && readerPanel === null && !exportOpen && !conflictOpen, null);
   const closeScore = useCallback(() => {
     startLoadingJourney("exit-score", "warm");
     navigation.back(`/choirs/${choirId}`);
@@ -206,9 +215,11 @@ function ReaderPageContent() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
+        showingPlayback ||
+        (event.target instanceof Element && Boolean(event.target.closest('.practice-dock'))) ||
         (event.target instanceof Element && Boolean(event.target.closest('[role="dialog"]'))) ||
         layout !== "page" ||
-        readerPanel !== null || moreOpen || guide.visible ||
+        readerPanel !== null || moreOpen || playbackEntryOpen || guide.visible ||
         editing ||
         event.metaKey ||
         event.ctrlKey ||
@@ -228,7 +239,7 @@ function ReaderPageContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editing, layout, moreOpen, guide.visible, readerPanel, requestPage, setZoom]);
+  }, [editing, layout, moreOpen, playbackEntryOpen, guide.visible, readerPanel, requestPage, setZoom, showingPlayback]);
 
   const beginEditing = () => {
     if (cloudState === "trashed") {
@@ -343,6 +354,7 @@ function ReaderPageContent() {
     setMoreOpen(false);
   };
   const toggleChrome = () => {
+    setPlaybackEntryOpen(false);
     setMoreOpen(false);
     setChromeVisible((visible) => !visible);
   };
@@ -371,7 +383,7 @@ function ReaderPageContent() {
 
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
-    <main className="reader-shell" data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
+    <main className="reader-shell" data-playback-view={showingPlayback ? 'xml' : undefined} aria-hidden={showingPlayback || undefined} inert={showingPlayback} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
       {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
       {cloudState === "trashed" ? (
@@ -531,6 +543,10 @@ function ReaderPageContent() {
         </header>
       ) : null}
 
+      {!editing && chromeVisible && !guide.visible && Boolean(score.attachmentCount) && workspace && <Suspense fallback={null}>
+        <ReaderPracticeLauncher source={{ score, choirId, ownerKey: workspace.ownerKey, sessionId: identity.authenticatedSessionId }} enabled={online && cloudState === 'active'} open={playbackEntryOpen} onOpenChange={setPlaybackEntryOpen} />
+      </Suspense>}
+
       {!editing && chromeVisible && !guide.visible ? (
         <>
           <PageNavigatorPanel
@@ -632,7 +648,7 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
-            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
+            onDismiss={!editing && !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />

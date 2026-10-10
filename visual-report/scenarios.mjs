@@ -1,6 +1,41 @@
 import { extraVisualReportScenarios } from "./extra-scenarios.mjs";
 
 export const visualReportScenarios = [
+  ...[
+    { id: 'reader-practice-pdf', device: 'desktop', title: '练习 · 原 PDF' },
+    { id: 'reader-practice-phone', device: 'narrow', title: '练习 · 手机原 PDF' },
+    { id: 'reader-practice-settings', device: 'desktop', title: '练习 · 按需设置', settings: true },
+    { id: 'reader-practice-entry-icons', device: 'desktop', title: '谱面 · 独立附件入口', entry: true, icons: true, multipleSources: true },
+    { id: 'reader-practice-entry-icons-phone', device: 'narrow', title: '谱面 · 手机附件入口', entry: true, icons: true, multipleSources: true },
+    { id: 'reader-practice-entry-audio', device: 'desktop', title: '谱面 · 音频附件列表', entry: true, audio: true, multipleSources: true },
+    { id: 'reader-practice-entry-single', device: 'narrow', title: '谱面 · 单个播放内容', entry: true },
+    { id: 'reader-practice-sources', device: 'desktop', title: '谱面 · 选择播放内容', entry: true, multipleSources: true },
+    { id: 'reader-practice-xml', device: 'desktop', title: '练习 · 重排谱面', xml: true },
+    { id: 'reader-practice-audio', device: 'narrow', title: '练习 · 录音', audio: true, multipleSources: true },
+  ].map(item => ({ ...item, description: '真实阅读器与统一练习底栏，使用原创演示谱及音源。', identity: 'member', route: '/choirs/visual-choir/scores/visual-score',
+    waitsForPdf: !item.xml,
+    ready: { type: 'selector', selector: item.icons ? '.reader-playback-entry:first-of-type' : item.entry ? '.reader-practice-source:first-of-type' : item.xml ? '.practice-notation[data-visible] .at-surface' : '.practice-play:not([disabled])' },
+    actions: [
+      { type: 'waitVisible', selector: '.page-reader__sheet[data-page-turn-current] [data-pdf-canvas-active]' },
+      { type: 'clickCenter', selector: '.page-reader__viewport' },
+      ...(!item.icons ? [{ type: 'clickRole', role: 'button', name: item.audio ? '音频附件' : 'MusicXML 附件' }] : []),
+      ...(!item.entry ? [{ type: 'clickRole', role: 'button', name: item.audio ? '示范录音.wav' : '声部练习版.musicxml' },
+      { type: 'waitVisible', selector: '.practice-play:not([disabled])' },
+      { type: 'clickCenter', selector: '.page-reader__viewport' },
+      { type: 'assertHidden', selector: '.reader-chrome' },
+      ...(item.xml ? [{ type: 'selectLabel', label: '显示谱面', value: 'xml' }] : []),
+      ...(item.settings ? [{ type: 'clickRole', role: 'button', name: '练习设置' }] : []),
+      ] : []),
+    ],
+  })),
+  ...[false, true].map(handoff => ({
+    id: handoff ? 'reader-practice-audio-handoff' : 'reader-practice-attachment-audio',
+    title: handoff ? '录音 · 边听边看谱' : '附件 · 录音预览', device: 'desktop', identity: 'member',
+    description: '音频附件保留独立预览，可继续同一播放进入原谱。',
+    route: '/choirs/visual-choir', multipleSources: true, attachmentPreview: true, handoff,
+    waitsForPdf: false, ready: { type: 'selector', selector: handoff ? '.practice-play:not([disabled])' : '.practice-audio-preview .practice-play:not([disabled])' },
+    actions: [ { type: 'waitVisible', selector: '.attachment-count' }, { type: 'clickCenter', selector: '.attachment-count' }, { type: 'clickRole', role: 'button', name: '示范录音.wav' } ],
+  })),
   {
     id: "home-guest",
     title: "首页 · 匿名访问",
