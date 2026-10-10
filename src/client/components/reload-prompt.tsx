@@ -4,7 +4,7 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 import { canApplyUpdate, noteUpdateInteraction, setUpdateRoute } from "../updates/update-safety";
 import { setUpdateStatus, useUpdateStatus } from "../updates/update-status";
 
-const prepared = "新版本已准备，可在此更新并重新加载";
+const prepared = "新版本已准备，关闭所有合谱窗口后会自动更新";
 export function ReloadPrompt() {
   const [attempt, setAttempt] = useState(0);
   const retryRegistration = useCallback(() => setAttempt(value => value + 1), []);
@@ -88,6 +88,6 @@ export function UpdateDetails() {
   const status = useUpdateStatus();
   return <section><h2>版本更新</h2><p role="status">{status.message}</p>
     <button className="secondary-button" disabled={status.applying} onClick={() => window.dispatchEvent(new Event("same-page-check-update"))}>检查更新</button>
-    {status.ready && <button className="primary-button" disabled={status.applying} onClick={() => window.dispatchEvent(new Event("same-page-apply-update"))}>更新并重新加载</button>}
+    {status.ready && <button className="primary-button" disabled={status.applying} onClick={() => window.dispatchEvent(new Event("same-page-apply-update"))}>立即更新并重新加载</button>}
   </section>;
 }

@@ -20,8 +20,8 @@ describe("background updates", () => {
     expect(screen.queryByText("有新版本可用")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     view.rerender(<MemoryRouter><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
-    expect(screen.getByText("新版本已准备，可在此更新并重新加载")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "更新并重新加载" })).toBeInTheDocument();
+    expect(screen.getByText("新版本已准备，关闭所有合谱窗口后会自动更新")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "立即更新并重新加载" })).toBeInTheDocument();
     expect(updateServiceWorkerMock).not.toHaveBeenCalled();
   });
   it("keeps the current build while offline and lets a failed check be retried", async () => {
@@ -35,7 +35,7 @@ describe("background updates", () => {
     fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
     expect(await screen.findByText("更新检查失败，请稍后重试")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
-    expect(await screen.findByText("新版本已准备，可在此更新并重新加载")).toBeInTheDocument();
+    expect(await screen.findByText("新版本已准备，关闭所有合谱窗口后会自动更新")).toBeInTheDocument();
   });
 
 it("does not start a handover on idle time or a foreground update check", async () => {
@@ -52,7 +52,7 @@ it("does not start a handover on idle time or a foreground update check", async 
   expect(post).not.toHaveBeenCalled();
 });
 
-it("applies only on request, preserves operation vetoes and requires another request after a window veto", async () => {
+it("forces a live-window handover only on request and preserves operation vetoes", async () => {
   const ports: { onmessage: ((event: MessageEvent) => void) | null; close: () => void }[] = [];
   vi.stubGlobal("MessageChannel", class {
     port1 = { onmessage: null as ((event: MessageEvent) => void) | null, close: vi.fn() };
@@ -61,7 +61,7 @@ it("applies only on request, preserves operation vetoes and requires another req
   });
   const post = vi.fn(); registration.waiting!.postMessage = post;
   render(<MemoryRouter initialEntries={["/about"]}><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
-  const apply = await screen.findByRole("button", { name: "更新并重新加载" });
+  const apply = await screen.findByRole("button", { name: "立即更新并重新加载" });
   const release = holdUpdate();
   try { fireEvent.click(apply); expect(post).not.toHaveBeenCalled(); } finally { release(); }
   fireEvent.click(apply);

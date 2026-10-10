@@ -3,7 +3,8 @@
 self.addEventListener("message", event => {
   if (event.data?.type !== "SAME_PAGE_SAFE_UPDATE") return;
   // Older clients used the same protocol to request automatic idle activation.
-  // They keep running; only a user's explicit request can activate this worker.
+  // Forced activation needs an explicit request; normal browser activation after
+  // all old clients close remains automatic and does not use this message handler.
   if (event.data.requested !== true) { event.ports[0]?.postMessage({ safe: false }); return; }
   event.waitUntil((async () => {
     const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
