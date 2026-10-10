@@ -43,7 +43,8 @@ it("the real runner uses native shards without omissions or duplicates, includin
 
 it("rejects invalid requests, missing library files and empty shards", () => {
   const entries = readdirSync("browser-tests");
-  for (const shard of ["0/2", "3/2", "1/0", "1/2extra", "1/2/3", "1/99999999999999999", "1/15"]) {
+  const emptyShard = `1/${entries.filter(file => file.endsWith(".test.mjs")).length + 1}`;
+  for (const shard of ["0/2", "3/2", "1/0", "1/2extra", "1/2/3", "1/99999999999999999", emptyShard]) {
     expect(() => selectBrowserTests({ suite: "smoke", entries, shard })).toThrow();
   }
   expect(() => selectBrowserTests({ suite: "unknown", entries })).toThrow();
