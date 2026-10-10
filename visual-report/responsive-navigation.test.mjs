@@ -34,8 +34,8 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     const page = await openPage(browser, libraryIdentity);
     await page.goto(`${origin}/choirs/visual-choir`, { waitUntil: "domcontentloaded" });
     await page.locator(".file-row").nth(99).waitFor();
-    // 44rem is the library layout breakpoint; retain both sides and extremes.
-    for (const width of [320, 704, 705, 1440]) {
+    // Library controls also change at 600px; retain both breakpoints and extremes.
+    for (const width of [320, 600, 601, 704, 705, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
 
       const boxes = await Promise.all([
