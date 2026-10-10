@@ -11,7 +11,7 @@ import { uploadMessage } from "./library-format";
 export function useScoreFileAction(library: DriveLibrary, score: ScoreSummary, action: "rename" | "trash", onComplete: (message: string) => void, enabled = true) {
   const completed = useRef<ScoreFileChange | undefined>(undefined);
   const mutation = useSettingsMutation({
-    enabled,
+    enabled, paused: !enabled,
     initialRecovery: library.scoreChangeRecovery(score.id),
     refresh: async isCurrent => {
       const saved = await library.completeScoreChange(score.id);

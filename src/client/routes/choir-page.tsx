@@ -54,7 +54,7 @@ import {
 import { formatBytes } from "../score-library/library-format";
 import { UploadDialog } from "../score-library/upload-dialog";
 
-import { DriveLoading } from "../score-library/drive-loading";
+import { DrivePage } from "../score-library/drive-page";
 import { DriveHeader } from "../score-library/drive-header";
 import { UploadFab } from "../score-library/upload-fab";
 import type { LibrarySort } from "../score-library/library-view-state";
@@ -73,7 +73,10 @@ export default function ChoirPage() {
 function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; identity: ApplicationIdentity; cacheOwner: DriveCacheOwnerKey }) {
   const { session } = identity;
   // A remembered session scopes the mounted view; only authenticatedUserId grants authority.
-  const presentationSessionId = session.data?.session?.id ?? null;
+  const [dialogSession, setDialogSession] = useState(session.data?.session?.id ?? null);
+  const presentationSessionId = identity.onlineState === "signed-out" ? null
+    : identity.onlineState === "authenticated" ? identity.authenticatedSessionId
+    : session.data?.session?.id ?? dialogSession;
   const userId = identity.localUserId ?? undefined;
   const online = useNetworkStatus();
   const { library, snapshot } = useDriveLibrary(cacheOwner, choirId, Boolean(identity.authenticatedUserId), !identity.restoring && (Boolean(userId) || identity.onlineState !== "checking"), presentationSessionId);
@@ -124,10 +127,16 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         selection={attachmentSelection} choirId={choirId} ownerKey={cacheOwner} canModify={access.kind === "opened" && access.result.permissions.capabilities.operations.operations.includes("modifyFiles")} writable={attachmentsEnabled}
         onClose={() => setAttachmentSelection(null)} onChanged={async () => { setAttachmentGeneration(value => value + 1); await refreshAfterMutation(); }} /></Suspense>;
 
-  useEffect(() => {
-    if (access.kind !== "opened" || !access.retained) return;
-    setSettingsField(null); setUploadOpen(false); setScoreAction(null); setAttachmentSelection(null);
-  }, [access]);
+  // Reset private task selections only at a definitive boundary; temporary
+  // connection checks keep the same mounted form and its unsaved input.
+  const sessionChanged = dialogSession !== presentationSessionId;
+  if (sessionChanged) setDialogSession(presentationSessionId);
+  if (sessionChanged || identity.onlineState === "signed-out" || (access.kind === "opened" && access.retained)) {
+    if (settingsField) setSettingsField(null);
+    if (uploadOpen) setUploadOpen(false);
+    if (scoreAction) setScoreAction(null);
+    if (attachmentSelection) setAttachmentSelection(null);
+  }
 
   useEffect(() => {
     if (!userId) return;
@@ -195,7 +204,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   if (access.kind === "loading") {
     return (
-      <><DriveLoading choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} />} />{attachmentDialog}</>
+      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} />} />{attachmentDialog}</>
     );
   }
 
@@ -210,8 +219,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const storageRatio = result.storage.usedBytes / result.storage.limitBytes;
 
   return (
-    <><div className="app-page drive-page">
-      <DriveHeader refreshing={identity.session.isRefetching || (snapshot.reading.request === "pending" && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out"))} displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} localOnly={Boolean(access.local)} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()}
+    <><DrivePage choirId={choirId} header={<DriveHeader refreshing={identity.session.isRefetching || (snapshot.reading.request === "pending" && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out"))} displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} localOnly={Boolean(access.local)} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()}
         management={() => <section className="drive-drawer-management">
           <h3>云盘管理</h3>
           <nav aria-label="云盘管理菜单">{[
@@ -219,7 +227,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           ].map(([path, label]) => access.local ? <span key={path} aria-disabled="true">{label}</span> : <Link key={path} to={`/choirs/${choirId}/${path}`}>{label}</Link>)}</nav>
           {access.local && <p role="status">{!online ? "当前离线，联网后可使用管理操作。" : identity.onlineState === "signed-out" ? "重新登录后可使用管理操作。" : snapshot.reading.request === "pending" ? null : "访问权限尚未确认，请重试连接。"}</p>}
         </section>}
-      />
+      />}>
       <main className="page-shell file-library">
         {access.retained && <p role="status">已无法访问此云盘，以下为本机保留内容</p>}
         {(!online || (Boolean(userId) && identity.onlineState === "signed-out") || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || searchMessage) && <div className="drive-connection-notice">
@@ -353,7 +361,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           }}
         />
       ) : null}
-    </div>{attachmentDialog}</>
+    </DrivePage>{attachmentDialog}</>
   );
 }
 

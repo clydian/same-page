@@ -63,7 +63,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
         if (event.data?.safe === true) { setUpdateStatus("正在应用更新…"); return; }
         finish("新版本待应用，请先完成其他窗口中的操作，再尝试更新");
       };
-      registration.waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE" }, [channel.port2]);
+      registration.waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE", requested: true }, [channel.port2]);
     };
     window.addEventListener("same-page-apply-update", apply);
     return () => { window.removeEventListener("same-page-apply-update", apply); cancel?.(); };
@@ -72,7 +72,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     const events = ["pointerdown", "pointerup", "keydown", "input", "focusin", "wheel", "scroll"] as const;
     events.forEach(event => document.addEventListener(event, noteUpdateInteraction, true));
     const probe = (event: MessageEvent) => {
-      if (event.data?.type === "SAME_PAGE_UPDATE_PROBE") event.ports[0]?.postMessage(canApplyUpdate(requested.current));
+      if (event.data?.type === "SAME_PAGE_UPDATE_PROBE") event.ports[0]?.postMessage(event.data.requested === true && canApplyUpdate(requested.current));
     };
     navigator.serviceWorker?.addEventListener("message", probe);
     // Only complete an already-authorized handover; idle time never starts one.

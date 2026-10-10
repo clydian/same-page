@@ -149,7 +149,7 @@ it("releases an interrupted submission and requires rereading before another sav
   let finish!: (response: Response) => void;
   const refresh = vi.fn(async () => {});
   const request = vi.fn(() => new Promise<Response>(resolve => { finish = resolve; }));
-  const { result, rerender } = renderHook(({ enabled }) => useSettingsMutation({ enabled, refresh }), { initialProps: { enabled: true } });
+  const { result, rerender } = renderHook(({ enabled }) => useSettingsMutation({ enabled, paused: !enabled, refresh }), { initialProps: { enabled: true } });
   let pending!: Promise<boolean | null>;
   act(() => { pending = result.current.submit(request); });
   expect(result.current.pending).toBe(true);

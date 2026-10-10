@@ -1,4 +1,4 @@
-import { DriveLoading } from "../score-library/drive-loading";
+import { DrivePage } from "../score-library/drive-page";
 import { AppHeader } from "../components/app-header";
 import { guestSessionResponseSchema } from "../../shared/choirs";
 import { activateGuestLocalOwner } from "../platform/local-workspace";
@@ -60,7 +60,7 @@ export function StartupEntry({ identity, children }: { identity: ApplicationIden
   if (!userId && !identity.restoring) return identity.onlineState === "signed-out" ? <GuestStartupEntry>{children}</GuestStartupEntry> : children;
   if ((!result || result.userId !== userId) && userId) {
     const lastDrive = readLastDrive(userId);
-    if (lastDrive) return <DriveLoading choirId={lastDrive} />;
+    if (lastDrive) return <DrivePage choirId={lastDrive} />;
   }
   if (!result || result.userId !== userId) return <div className="app-page"><AppHeader /><p className="page-shell" role="status">正在恢复云盘…</p></div>;
   if (typeof result.value === "object") return <Navigate to={result.value.path} replace state={{ missingLastDrive: result.value.missingLastDrive }} />;

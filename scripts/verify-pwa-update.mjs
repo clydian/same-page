@@ -76,6 +76,17 @@ try {
   // A prepared update must not reload a restored application just because it is idle.
   await page.waitForTimeout(4000);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
+  const legacySafe = await page.evaluate(async () => {
+    const waiting = (await navigator.serviceWorker.getRegistration()).waiting;
+    return new Promise((resolve, reject) => {
+      const channel = new MessageChannel();
+      const timeout = setTimeout(() => { channel.port1.close(); reject(new Error("legacy request unanswered")); }, 3000);
+      channel.port1.onmessage = event => { clearTimeout(timeout); channel.port1.close(); resolve(event.data?.safe); };
+      waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE" }, [channel.port2]);
+    });
+  });
+  assert.equal(legacySafe, false, "legacy idle requests must not activate a prepared update");
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   await page.getByRole("button", { name: "更新并重新加载" }).click();
   await page.waitForFunction(
     (expected) => document.documentElement.dataset.buildId === expected,

@@ -78,6 +78,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await scenario("drawer-keyboard-focus", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: "打开云盘菜单" }).waitFor();
+      await expect(page.getByRole("button", { name: "打开云盘菜单" })).toBeEnabled();
       await page.getByRole("button", { name: "打开云盘菜单" }).focus();
       await page.keyboard.press("Enter");
       await page.getByRole("dialog").waitFor();

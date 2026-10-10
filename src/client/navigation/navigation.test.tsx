@@ -102,7 +102,7 @@ it("asks before losing a changed form, keeps failed saves and returns after conf
   expect(await screen.findByRole("heading", { name: "云盘" })).toBeInTheDocument();
 });
 
-it("keeps the known drive display name while membership is being restored", async () => {
+it("keeps a stable personal icon and known display name while membership is being restored", async () => {
   const { DriveHeader } = await import("../score-library/drive-header");
   const { rememberResource, readResource } = await import("../settings/read-resource");
   const key = { owner: "reader", driveId: "one", kind: "settings" } as const;
@@ -121,12 +121,14 @@ it("keeps the known drive display name while membership is being restored", asyn
   ] }], { initialEntries: ["/choirs/one"] });
   render(<RouterProvider router={router} />);
   await act(async () => { await Promise.resolve(); });
-  expect(screen.getByRole("button", { name: "我在此云盘" })).toHaveTextContent("林");
+  expect(screen.getByRole("button", { name: "我在此云盘" })).toHaveTextContent("");
   expect(readResource(key)).toEqual(settings);
   fireEvent.click(screen.getByRole("button", { name: "我在此云盘" }));
   await screen.findByRole("menuitem", { name: "阅读偏好" });
+  expect(screen.getByRole("menuitem", { name: "林老师" })).toBeVisible();
   await act(async () => { confirmMembership(); finishSettings(Response.json({ ...settings, displayName: "小林" })); });
   expect(screen.getByRole("menuitem", { name: "阅读偏好" })).toBeVisible();
   expect(screen.getByRole("menuitem", { name: "云盘内显示名" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "我在此云盘", hidden: true })).toHaveTextContent("小");
+  expect(screen.getByRole("button", { name: "我在此云盘", hidden: true })).toHaveTextContent("")
+  expect(screen.getByRole("menuitem", { name: "小林" })).toBeVisible();
 });

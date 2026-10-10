@@ -7,14 +7,14 @@ vi.mock("./upload-transport", async (importOriginal) => ({
   ...await importOriginal<typeof import("./upload-transport")>(),
   uploadPdf: vi.fn((url: string, form: FormData, signal: AbortSignal) => fetch(url, { method: "POST", body: form, signal })),
 }));
-const identity = vi.hoisted(() => ({ id: "admin", pending: false }));
-vi.mock("../auth/auth-client", () => ({ authClient: { useSession: () => ({ data: { user: { id: identity.id } }, isPending: identity.pending }) } }));
+const identity = vi.hoisted(() => ({ id: "admin", pending: false, error: null as null | { status: number } }));
+vi.mock("../auth/auth-client", () => ({ authClient: { useSession: () => ({ data: { user: { id: identity.id } }, isPending: identity.pending, error: identity.error }) } }));
 vi.mock("./pdf-version-preview", () => ({ PdfVersionPreview: ({ onReady }: { onReady(ready: boolean): void }) =>
   <button onClick={() => onReady(true)}>预览渲染完成</button> }));
 const original = { id: "original", versionNumber: 1, sizeBytes: 300, sha256: "hash", etag: "etag", pageCount: 3, createdAt: 1 };
 const candidate = { ...original, id: "candidate", versionNumber: 2, pageCount: 2 };
 const score = { id: "score", choirId: "drive", fileName: "练习.pdf", currentVersion: original, updatedAt: 1 };
-afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); identity.id = "admin"; identity.pending = false; });
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); identity.id = "admin"; identity.pending = false; identity.error = null; });
 
 function mockApi() {
   const fetch = vi.fn(async (input: string, init?: RequestInit) => {
@@ -167,4 +167,62 @@ it("keeps the selected PDF and rendered preview during identity confirmation, wi
   identity.pending = false;
   view.rerender(<PdfVersionDialog {...props} />);
   expect(screen.getByRole("button", { name: "确认回滚" })).not.toBeDisabled();
+});
+
+
+it.each(["connection", "permission"])("keeps a selected PDF through a temporary %s pause without publishing", async reason => {
+  const fetch = mockApi();
+  const props = { choirId: "drive", score, historyOnly: true, onClose: () => {}, onComplete: vi.fn() };
+  const view = render(<PdfVersionDialog {...props} />);
+  await screen.findByRole("option", { name: /版本 2/ });
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "candidate" } });
+  const preview = screen.getByRole("button", { name: "预览渲染完成" });
+  fireEvent.click(preview); fireEvent.click(screen.getByRole("checkbox"));
+  if (reason === "connection") identity.error = { status: 503 };
+  view.rerender(<PdfVersionDialog {...props} writable={reason !== "permission"} />);
+  expect(preview).toBeInTheDocument();
+  expect(screen.getByRole("combobox")).toHaveValue("candidate");
+  expect(screen.getByRole("checkbox")).toBeChecked();
+  expect(screen.getByRole("button", { name: "确认回滚" })).toBeDisabled();
+  identity.error = null;
+  view.rerender(<PdfVersionDialog {...props} />);
+  expect(screen.getByRole("button", { name: "确认回滚" })).toBeEnabled();
+  expect(fetch.mock.calls.some(([url]) => url.endsWith("/publish"))).toBe(false);
+});
+
+it.each(["upload", "publish"])("aborts an active PDF %s on a temporary authority pause and fences its late response", async operation => {
+  const fetch = mockApi();
+  let finish!: (response: Response) => void;
+  let signal!: AbortSignal;
+  if (operation === "upload") vi.mocked(uploadPdf).mockImplementationOnce((_url, _form, activeSignal) => {
+    signal = activeSignal; return new Promise(resolve => { finish = resolve; });
+  });
+  else fetch.mockImplementation(async (url, init) => {
+    if (url.endsWith("/publish")) {
+      signal = init!.signal!; return new Promise(resolve => { finish = resolve; });
+    }
+    return Response.json({ currentVersionId: original.id, revision: 7, versions: [{ ...original, retentionExpiresAt: null }, { ...candidate, retentionExpiresAt: Date.now() + 10000 }] });
+  });
+  const props = { choirId: "drive", score, historyOnly: operation === "publish", onClose: () => {}, onComplete: vi.fn() };
+  const view = render(<PdfVersionDialog {...props} />);
+  if (operation === "upload") {
+    const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
+    await waitFor(() => expect(input).toBeEnabled());
+    fireEvent.change(input, { target: { files: [new File(["pdf"], "new.pdf")] } });
+  } else {
+    await screen.findByRole("option", { name: /版本 2/ });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "candidate" } });
+    fireEvent.click(screen.getByRole("button", { name: "预览渲染完成" }));
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "确认回滚" }));
+  }
+  view.rerender(<PdfVersionDialog {...props} writable={false} />);
+  expect(signal.aborted).toBe(true);
+  view.rerender(<PdfVersionDialog {...props} />);
+  await act(async () => finish(operation === "upload" ? Response.json({ version: candidate }) : new Response(null, { status: 204 })));
+  expect(props.onComplete).not.toHaveBeenCalled();
+  if (operation === "upload") {
+    expect(screen.queryByRole("button", { name: "确认替换" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("新的 PDF（最多 20 MB、500 页）")).toBeDisabled();
+  } else expect(screen.getByRole("button", { name: "确认回滚" })).toBeDisabled();
 });

@@ -2,7 +2,7 @@ import { diagnosticErrorType, recordFailure } from "../diagnostics/diagnostics";
 import { ReaderLoading } from "../navigation/reader-loading";
 import { Component, Suspense, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { DriveLoading } from "../score-library/drive-loading";
+import { DrivePage } from "../score-library/drive-page";
 import { AppHeader } from "./app-header";
 import { TaskHeader } from "./task-header";
 import { LoadingStatus } from "./loading-status";
@@ -18,7 +18,7 @@ export function RouteContent({ children }: { children: ReactNode }) {
 function RouteFeedback({ failed = false }: { failed?: boolean }) {
   const { pathname } = useLocation();
   const drive = pathname.match(/^\/choirs\/([^/]+)/)?.[1];
-  if (!failed && drive && pathname === `/choirs/${drive}`) return <DriveLoading choirId={drive} />;
+  if (!failed && drive && pathname === `/choirs/${drive}`) return <DrivePage choirId={drive} />;
   if (!failed && pathname.includes("/scores/") && drive) return <ReaderLoading choirId={drive} />;
   const title = pathname.includes("/scores/") ? "乐谱阅读器"
     : pathname.endsWith("/preferences") ? "阅读偏好"

@@ -66,6 +66,7 @@ it("applies only on request, preserves operation vetoes and requires another req
   try { fireEvent.click(apply); expect(post).not.toHaveBeenCalled(); } finally { release(); }
   fireEvent.click(apply);
   expect(post).toHaveBeenCalledTimes(1);
+  expect(post).toHaveBeenCalledWith({ type: "SAME_PAGE_SAFE_UPDATE", requested: true }, expect.any(Array));
   expect(apply).toBeDisabled();
   act(() => ports[0].onmessage?.(new MessageEvent("message", { data: { safe: false } })));
   expect(apply).toBeEnabled();
@@ -74,5 +75,26 @@ it("applies only on request, preserves operation vetoes and requires another req
   expect(post).toHaveBeenCalledTimes(1);
   fireEvent.click(apply);
   expect(post).toHaveBeenCalledTimes(2);
+});
+it("vetoes legacy automatic probes while preserving explicit cross-window safety checks", async () => {
+  let probe!: (event: MessageEvent) => void;
+  Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {
+    addEventListener: (_name: string, listener: (event: MessageEvent) => void) => { probe = listener; },
+    removeEventListener: vi.fn(),
+  } });
+  render(<MemoryRouter initialEntries={["/about"]}><ReloadPrompt /></MemoryRouter>);
+  await waitFor(() => expect(registrationUpdateMock).toHaveBeenCalled());
+  vi.useFakeTimers();
+  act(() => { vi.advanceTimersByTime(5000); });
+  const reply = vi.fn();
+  probe({ data: { type: "SAME_PAGE_UPDATE_PROBE" }, ports: [{ postMessage: reply }] } as unknown as MessageEvent);
+  expect(reply).toHaveBeenLastCalledWith(false);
+  probe({ data: { type: "SAME_PAGE_UPDATE_PROBE", requested: true }, ports: [{ postMessage: reply }] } as unknown as MessageEvent);
+  expect(reply).toHaveBeenLastCalledWith(true);
+  const release = holdUpdate();
+  try {
+    probe({ data: { type: "SAME_PAGE_UPDATE_PROBE", requested: true }, ports: [{ postMessage: reply }] } as unknown as MessageEvent);
+    expect(reply).toHaveBeenLastCalledWith(false);
+  } finally { release(); Reflect.deleteProperty(navigator, "serviceWorker"); }
 });
 });
