@@ -46,7 +46,7 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
     {preview ? <AttachmentShell title={source.attachment.name} subtitle={scoreDisplayName(source.score.fileName)} onClose={stopPlayback}>
       <div className="attachment-audio practice-audio-preview">
         <div className="attachment-audio-art"><FileAudio size={36} strokeWidth={1.3} aria-hidden="true" /></div>
-        <p>录音</p>
+        <p>音频附件</p>
         <Button className="practice-icon practice-play" aria-label={playing ? '暂停' : '播放'} isDisabled={!ready} onPress={play}>{playing ? <Pause size={20} fill="currentColor" aria-hidden="true" /> : <Play size={20} fill="currentColor" aria-hidden="true" />}</Button>
         <label className="practice-field"><span>{time(position)} / {time(duration)}</span><input aria-label="播放位置" type="range" min="0" max={duration} step="0.1" value={position} disabled={!seekable} onChange={event => seek(Number(event.target.value))} /></label>
         {!ready && !error && <p role="status">正在准备音频…</p>}

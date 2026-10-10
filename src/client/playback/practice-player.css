@@ -54,17 +54,21 @@
 .reader-practice-launcher h2 { margin: 8px 0; font-size: 13px; }
 .reader-practice-launcher p { font-size: 12px; color: #718077; }
 .reader-practice-source { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px; border: 0; border-radius: 9px; background: transparent; color: #31463a; text-align: left; }
-.reader-practice-source span { min-width: 0; overflow-wrap: anywhere; }
 .reader-practice-source[data-hovered] { background: #eaf0ea; }
 .practice-loading-icon { animation: practice-spin 1.5s linear infinite; }
 @keyframes practice-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .practice-loading-icon { animation: none; } }
 @media (max-width: 640px) { .practice-position, .practice-view-label { display: none; } .practice-bar { padding-inline: 8px; } .practice-view select { padding-inline: 0; width: 114px; font-size: 14px; } .practice-field select { font-size: 16px; } .practice-notation-scroll { padding: 8px; } }
 
-.reader-playback-entry { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 13px; white-space: nowrap; }
-.reader-playback-entry[data-hovered] { background: #eaf0ea; }
-.reader-practice-source span { display: grid; gap: 4px; }
-.reader-practice-source strong { font-size: 14px; font-weight: 500; }
-.reader-practice-source small { font-size: 12px; color: #718077; }
 .practice-audio-preview .practice-field { margin-block: 18px; }
 .practice-listen-score { margin-top: 12px; width: 100%; }
+
+.reader-playback-entries { position: absolute; z-index: 45; right: max(16px,env(safe-area-inset-right)); bottom: max(16px,env(safe-area-inset-bottom)); display: flex; gap: 8px; }
+.reader-playback-entry { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid #dce4de; border-radius: 14px; background: #fcfdfbf5; color: #31463a; box-shadow: 0 2px 12px #17352b14; cursor: pointer; }
+.reader-playback-entry[data-hovered], .reader-playback-entry[aria-expanded=true] { background: #eaf0ea; }
+.reader-playback-entry:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
+.reader-practice-source { font: inherit; font-size: 14px; }
+.reader-practice-launcher h2 { margin: 0; font-size: 14px; font-weight: 600; }
+
+.reader-playback-error { display: flex; align-items: center; gap: 8px; padding-inline: 12px; border-radius: 10px; background: #fcfdfb; color: #31463a; font-size: 12px; }
+.reader-playback-error button { min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-decoration: underline; }

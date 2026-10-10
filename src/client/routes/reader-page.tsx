@@ -126,7 +126,6 @@ function ReaderPageContent() {
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
   const [layerPanelTab, setLayerPanelTab] = useState<"display" | "manage">("display");
   const [playbackEntryOpen, setPlaybackEntryOpen] = useState(false);
-  const playbackEntryTrigger = useRef<HTMLButtonElement>(null);
   useExitLayer(playbackEntryOpen, "overlay", () => { setPlaybackEntryOpen(false); return true; });
   const [moreOpen, setMoreOpen] = useState(false);
   const [guestNoteOpen, setGuestNoteOpen] = useState(false);
@@ -355,6 +354,7 @@ function ReaderPageContent() {
     setMoreOpen(false);
   };
   const toggleChrome = () => {
+    setPlaybackEntryOpen(false);
     setMoreOpen(false);
     setChromeVisible((visible) => !visible);
   };
@@ -420,7 +420,7 @@ function ReaderPageContent() {
               >
                 {editing ? <span>完成</span> : <Pencil aria-hidden="true" size={21} />}
               </Button>
-              {!editing && <>{Boolean(score.attachmentCount) && workspace && <Button ref={playbackEntryTrigger} className="reader-playback-entry" aria-expanded={playbackEntryOpen} onPress={() => setPlaybackEntryOpen(open => !open)}>播放内容<ChevronDown size={14} aria-hidden="true" /></Button>}<Button
+              {!editing && <><Button
                 ref={layersTrigger}
                 aria-label="笔记图层"
                 aria-expanded={readerPanel === "layers"}
@@ -456,9 +456,6 @@ function ReaderPageContent() {
               </p>
             ) : null}
           </div>
-          {!editing && playbackEntryOpen && workspace && <Popover triggerRef={playbackEntryTrigger} isOpen onOpenChange={setPlaybackEntryOpen} placement="bottom end" className="practice-popover">
-            <Dialog className="practice-panel" aria-label="选择播放内容"><Suspense fallback={<p>正在读取播放内容…</p>}><ReaderPracticeLauncher source={{ score, choirId, ownerKey: workspace.ownerKey, sessionId: identity.authenticatedSessionId }} enabled={online && cloudState === 'active'} onStarted={() => setPlaybackEntryOpen(false)} /></Suspense></Dialog>
-          </Popover>}
           {!editing && moreOpen ? (
             <Popover triggerRef={moreTrigger} isOpen={moreOpen} onOpenChange={setMoreOpen} isNonModal placement="bottom end" className="reader-more-popover">
             <Dialog className="reader-more-menu" aria-label="更多阅读选项">
@@ -545,6 +542,10 @@ function ReaderPageContent() {
           ) : null}
         </header>
       ) : null}
+
+      {!editing && chromeVisible && !guide.visible && Boolean(score.attachmentCount) && workspace && <Suspense fallback={null}>
+        <ReaderPracticeLauncher source={{ score, choirId, ownerKey: workspace.ownerKey, sessionId: identity.authenticatedSessionId }} enabled={online && cloudState === 'active'} open={playbackEntryOpen} onOpenChange={setPlaybackEntryOpen} />
+      </Suspense>}
 
       {!editing && chromeVisible && !guide.visible ? (
         <>

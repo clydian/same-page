@@ -61,7 +61,7 @@ export function PracticePlayerShell(props: Props) {
     </div>
     {panel && <Popover triggerRef={settingsTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" offset={10}>
       <Dialog className="practice-panel" aria-label="练习设置">
-        <header><div><strong>练习设置</strong><small>{source.attachment.name} · {isXml ? 'XML 合成练习' : '录音'}</small></div><Button className="practice-icon" aria-label="关闭练习设置" onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
+        <header><div><strong>练习设置</strong><small>{source.attachment.name} · {isXml ? 'MusicXML 文件' : '音频附件'}</small></div><Button className="practice-icon" aria-label="关闭练习设置" onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
         {panel === 'settings' && <>{props.children}<footer><Button className="practice-end" onPress={stopPlayback}>结束练习</Button></footer></>}
       </Dialog>
     </Popover>}
