@@ -48,7 +48,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   return <>
     <section className="practice-notation" data-visible={view === 'xml' || undefined} aria-label="MusicXML 谱面" aria-hidden={view !== 'xml'} inert={view !== 'xml'}>
       <div className="practice-notation-heading"><strong>{source.score.fileName}</strong><span>重排谱面 · 来自 MusicXML</span></div>
-      <div className="practice-notation-scroll"><div ref={container} /></div>
+      <div className="practice-notation-scroll"><div className="practice-notation-paper"><div ref={container} /></div></div>
     </section>
     <PracticePlayerShell source={source} ready={ready} playing={state.playing} message={error ?? state.message} failed={Boolean(error) || state.status === 'error'}
       position={state.measures[state.measure] ? `${state.measure + 1} / ${state.measures.length}` : '—'}
