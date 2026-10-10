@@ -398,7 +398,37 @@ function gitCommit() {
 }
 
 async function assertScenarioContent(page, scenario) {
-  if (scenario.id.startsWith('reader-practice')) {
+  if (scenario.handoff) {
+    const audio = await page.locator('audio').elementHandle();
+    await page.getByRole('button', { name: '播放', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('audio')?.currentTime > .2);
+    await audio.evaluate(element => { element.playbackRate = .75; element.volume = .4; });
+    const before = await audio.evaluate(element => element.currentTime);
+    await page.getByRole('button', { name: '边听边看谱', exact: true }).click();
+    await page.locator('.page-reader__sheet[data-page-turn-current] [data-pdf-canvas-active]').waitFor({ state: 'visible' });
+    const retained = await audio.evaluate(element => element.isConnected && !element.paused && element.playbackRate === .75 && element.volume === .4 && element.currentTime >= 0);
+    if (!retained || await audio.evaluate(element => element.currentTime) < before) throw new Error('Audio handoff lost element, playback state or position');
+    await page.getByRole('button', { name: '暂停', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('audio')?.paused);
+    await page.goBack();
+    await page.locator('audio').waitFor({ state: 'detached' });
+    await page.locator('.attachment-count').click();
+    await page.getByRole('button', { name: '示范录音.wav', exact: true }).click();
+    await page.locator('.practice-audio-preview .practice-play:not([disabled])').waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: '播放', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('audio')?.currentTime > 2);
+    await page.getByRole('button', { name: '暂停', exact: true }).click();
+    await page.waitForFunction(() => { const audio = document.querySelector('audio'); return audio?.paused && audio.seekable.length > 0; });
+    const pausedAudio = await page.locator('audio').elementHandle();
+    const pausedPosition = await pausedAudio.evaluate(element => { element.playbackRate = .75; element.volume = .4; return element.currentTime; });
+    await page.getByRole('button', { name: '边听边看谱', exact: true }).click();
+    await page.locator('.page-reader__sheet[data-page-turn-current] [data-pdf-canvas-active]').waitFor({ state: 'visible' });
+    const pausedState = await pausedAudio.evaluate(element => ({connected:element.isConnected, paused:element.paused, position:element.currentTime, rate:element.playbackRate, volume:element.volume}));
+    if (!pausedState.connected || !pausedState.paused || Math.abs(pausedState.position - pausedPosition) > .1 || pausedState.rate !== .75 || pausedState.volume !== .4) throw new Error(`Paused handoff changed playback state: ${JSON.stringify(pausedState)}`);
+    await page.getByRole('button', { name: '播放', exact: true }).waitFor({ state: 'visible' });
+  }
+
+  if (scenario.id.startsWith('reader-practice') && !scenario.entry && !scenario.attachmentPreview) {
     const geometry = await page.locator('.practice-bar').evaluate(bar => {
       const box = bar.getBoundingClientRect();
       const reader = document.querySelector('.reader-shell').getBoundingClientRect();
@@ -422,33 +452,10 @@ async function assertScenarioContent(page, scenario) {
     if (scenario.audio) {
       await page.getByRole('button', { name: '播放', exact: true }).click();
       await page.waitForFunction(() => { const audio = document.querySelector('audio'); return audio && !audio.paused && audio.currentTime > 0; });
-      await page.getByLabel('显示谱面', { exact: true }).selectOption('xml');
-      await page.locator('.practice-notation[data-visible] .at-surface').waitFor({ state: 'visible' });
-      if (!await page.locator('audio').evaluate(audio => !audio.paused)) throw new Error('Opening notation stopped the active recording');
-      await page.getByLabel('显示谱面', { exact: true }).selectOption('pdf');
+      if (await page.getByLabel('显示谱面', { exact: true }).count()) throw new Error('Recording exposes XML view');
       await page.getByRole('button', { name: '暂停', exact: true }).click();
     }
-    if (scenario.sources) {
-      await page.getByLabel('显示谱面', { exact: true }).selectOption('xml');
-      const surface = await page.locator('.at-surface').elementHandle();
-      await page.getByRole('button', { name: '练习设置', exact: true }).click();
-      await page.locator('.practice-content summary').click();
-      await page.getByRole('button', { name: '示范录音', exact: true }).click();
-      await page.locator('.practice-play:not([disabled])').waitFor({ state: 'visible' });
-      if (!await surface.evaluate(element => element.isConnected) || await page.getByLabel('显示谱面').inputValue() !== 'xml') throw new Error('Changing audio changed the displayed score');
-      await page.getByRole('button', { name: '播放', exact: true }).click();
-      await page.waitForFunction(() => document.querySelector('audio')?.currentTime > 0);
-      await page.getByLabel('显示谱面', { exact: true }).selectOption('pdf');
-      if (!await page.locator('audio').evaluate(audio => !audio.paused)) throw new Error('Changing the score stopped the recording');
-      await page.getByRole('button', { name: '暂停', exact: true }).click();
-      await page.getByRole('button', { name: '练习设置', exact: true }).click();
-      await page.locator('.practice-content summary').click();
-      await page.getByRole('button', { name: '声部练习版', exact: true }).click();
-      await page.locator('.practice-play:not([disabled])').waitFor({ state: 'visible' });
-      if (await page.locator('audio').count()) throw new Error('Switching to synthesis retained the old audio element');
-      await page.getByRole('button', { name: '练习设置', exact: true }).click();
-      await page.locator('.practice-content summary').click();
-    }
+
   }
   if (!scenario.waitsForPdf) return;
   if (scenario.id.includes("layers") || scenario.id === "reader-layer-save-failure") {

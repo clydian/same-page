@@ -92,7 +92,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
     if (selection.action === "open" && (selection.attachment?.kind === "musicxml" || selection.attachment?.kind === "audio")) {
       setAttachmentSelection(null);
       startPlayback({ attachment: selection.attachment, score: selection.score, choirId, ownerKey: cacheOwner, sessionId: identity.authenticatedSessionId });
-      void navigate(`/choirs/${choirId}/scores/${selection.score.id}${location.search}`);
+      if (selection.attachment.kind === "musicxml") void navigate(`/choirs/${choirId}/scores/${selection.score.id}${location.search}`);
     } else setAttachmentSelection({ ...selection, sessionId: identity.authenticatedSessionId });
   };
   const definitiveSession = identity.onlineState === "authenticated" || identity.onlineState === "signed-out" ? identity.authenticatedSessionId : undefined;

@@ -2,9 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { attachmentFileUrl } from '../score-library/attachments/api';
 import { PracticePlayerShell } from './practice-player-shell';
 import { usePlaybackLifetime } from './use-playback-lifetime';
-import type { PlaybackSource } from './playback-store';
+import { playbackStore, stopPlayback, type PlaybackSource } from './playback-store';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Button } from 'react-aria-components';
+import { FileAudio, Pause, Play } from 'lucide-react';
+import { AttachmentShell } from '../score-library/attachments/attachment-shell';
+import { scoreDisplayName } from '../../shared/score-display-name';
+import { useAppNavigation } from '../navigation/navigation-context';
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 export default function AudioPlayer({ source }: { source: PlaybackSource }) {
+  const location = useLocation(), navigate = useNavigate(), navigation = useAppNavigation();
+  const preview = location.pathname === `/choirs/${source.choirId}`;
+  const showScore = () => navigation.afterEditing(() => {
+    if (playbackStore.getSnapshot() === source) void navigate(`/choirs/${source.choirId}/scores/${source.score.id}${location.search}`);
+  });
   const audio = useRef<HTMLAudioElement>(null);
   const [ready, setReady] = useState(false), [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0), [duration, setDuration] = useState(0), [speed, setSpeed] = useState(1);
@@ -32,13 +43,23 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
       onProgress={() => { const player = audio.current; const value = player?.duration ?? 0; if (Number.isFinite(value)) setDuration(value); setCanSeek(Boolean(player?.seekable.length)); }}
       onTimeUpdate={() => setPosition(audio.current?.currentTime ?? 0)} onPlay={() => { setError(null); setPlaying(true); }} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
       onError={() => { setReady(false); setError('音频暂不可用，请检查网络或从附件菜单下载。'); }} />
-    <PracticePlayerShell source={source} ready={ready} playing={playing} message={error ?? (!ready ? '正在准备音频…' : '')} failed={Boolean(error)}
+    {preview ? <AttachmentShell title={source.attachment.name} subtitle={scoreDisplayName(source.score.fileName)} onClose={stopPlayback}>
+      <div className="attachment-audio practice-audio-preview">
+        <div className="attachment-audio-art"><FileAudio size={36} strokeWidth={1.3} aria-hidden="true" /></div>
+        <p>录音</p>
+        <Button className="practice-icon practice-play" aria-label={playing ? '暂停' : '播放'} isDisabled={!ready} onPress={play}>{playing ? <Pause size={20} fill="currentColor" aria-hidden="true" /> : <Play size={20} fill="currentColor" aria-hidden="true" />}</Button>
+        <label className="practice-field"><span>{time(position)} / {time(duration)}</span><input aria-label="播放位置" type="range" min="0" max={duration} step="0.1" value={position} disabled={!seekable} onChange={event => seek(Number(event.target.value))} /></label>
+        {!ready && !error && <p role="status">正在准备音频…</p>}
+        {error && <p role="alert">{error}<Button className="practice-action" onPress={() => { setError(null); setReady(false); setAttempt(value => value + 1); }}>重试</Button></p>}
+        <Button className="practice-action practice-listen-score" onPress={showScore}>边听边看谱</Button>
+      </div>
+    </AttachmentShell> : <PracticePlayerShell source={source} ready={ready} playing={playing} message={error ?? (!ready ? '正在准备音频…' : '')} failed={Boolean(error)}
       position={`${time(position)} / ${time(duration)}`} previousDisabled={!seekable || position <= 0} nextDisabled={!seekable || position >= duration}
       play={play} previous={() => seek(position - 10)} next={() => seek(position + 10)} retry={() => { setError(null); setReady(false); setAttempt(value => value + 1); }}>
       <label className="practice-field">播放位置 <span>{time(position)} / {time(duration)}</span><input aria-label="播放位置" type="range" min="0" max={duration} value={position} step="0.1" disabled={!seekable} onChange={event => seek(Number(event.target.value))} /></label>
       <div className="practice-fields"><label className="practice-field">速度<select aria-label="速度" value={speed} disabled={!ready} onChange={event => { const value = Number(event.target.value); if (audio.current) audio.current.playbackRate = value; setSpeed(value); }}>{[0.5, 0.75, 1, 1.25, 1.5].map(value => <option key={value} value={value}>{Math.round(value * 100)}%</option>)}</select></label>
       <label className="practice-field">音量<input aria-label="音量" type="range" min="0" max="1" step="0.05" value={volume} onChange={event => { const value = Number(event.target.value); if (audio.current) audio.current.volume = value; setVolume(value); }} /></label></div>
       <p className="practice-hint">原 PDF 可手动翻页。音频附件需联网打开，不包含在主谱离线副本中。</p>
-    </PracticePlayerShell>
+    </PracticePlayerShell>}
   </>;
 }

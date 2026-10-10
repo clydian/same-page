@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import type { PlayerSession, PlayerState } from '@clydian/chorus-player';
 import { rememberPractice } from './practice-preferences';
-import { playbackStore, playbackViewStore, playbackNotationStore, setPlaybackNotation, stopPlayback, setPlaybackView, startPlayback, type PlaybackSource } from './playback-store';
+import { playbackStore, playbackViewStore, stopPlayback, setPlaybackView, startPlayback, type PlaybackSource } from './playback-store';
 import { observeNavigationSession } from '../settings/navigation-events';
 function player() {
   let state: PlayerState = { status:'preparing',message:'',playing:false,parts:[{id:0,name:'Alto',volume:.75,muted:false,solo:false}],measures:[],measure:0,speed:1,focus:null,loop:null };
@@ -55,24 +55,23 @@ it('switches only the displayed score and opens a different score on its origina
  expect(playbackViewStore.getSnapshot()).toBe('pdf');
 });
 
-it('changing the sound keeps notation and view while changing score or identity clears them', () => {
+it('a newly selected recording starts on PDF and cannot display XML', () => {
  stopPlayback(); startPlayback(source); setPlaybackView('xml');
  const audio: PlaybackSource = {...source, attachment: {...source.attachment, id: 'audio', kind: 'audio'}};
  startPlayback(audio);
- expect(playbackNotationStore.getSnapshot()).toBe(source);
- expect(playbackViewStore.getSnapshot()).toBe('xml');
  expect(playbackStore.getSnapshot()).toBe(audio);
- startPlayback({...audio, ownerKey: 'user:other'});
- expect(playbackNotationStore.getSnapshot()).toBeNull();
  expect(playbackViewStore.getSnapshot()).toBe('pdf');
-});
-it('opens notation independently of the recording and rejects notation from another score', () => {
+ setPlaybackView('xml');
+ expect(playbackViewStore.getSnapshot()).toBe('pdf');
+ startPlayback(source);
+ expect(playbackViewStore.getSnapshot()).toBe('pdf');
  stopPlayback();
- const audio: PlaybackSource = {...source, attachment: {...source.attachment, id: 'audio', kind: 'audio'}};
- startPlayback(audio); setPlaybackNotation(source);
- expect(playbackStore.getSnapshot()).toBe(audio);
- expect(playbackNotationStore.getSnapshot()).toBe(source);
- setPlaybackNotation({...source, score: {...source.score, id: 'other'}});
- expect(playbackNotationStore.getSnapshot()).toBe(source);
- stopPlayback(); expect(playbackNotationStore.getSnapshot()).toBeNull();
+});
+
+it('selecting the same attachment again creates a new playback generation', () => {
+ startPlayback(source); const generation = playbackStore.getGeneration(); setPlaybackView('xml');
+ startPlayback(source);
+ expect(playbackStore.getGeneration()).toBe(generation + 1);
+ expect(playbackViewStore.getSnapshot()).toBe('pdf');
+ stopPlayback();
 });

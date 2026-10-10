@@ -21,6 +21,7 @@ import { ReaderLoading } from "../navigation/reader-loading";
 import { useAppNavigation, useExitLayer } from "../navigation/navigation-context";
 import { ReaderPresentationContext, useReaderPresentation } from "../reader/use-reader-presentation";
 import "../reader/reader-ux.css";
+import "../playback/practice-player.css";
 import { useReaderSession } from "../reader/use-reader-session";
 import {
   ArrowLeft, Share, HardDrive, Ellipsis, Layers, Maximize2, Minus, Pencil, Plus, BookOpen,
@@ -124,6 +125,9 @@ function ReaderPageContent() {
   const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel);
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
   const [layerPanelTab, setLayerPanelTab] = useState<"display" | "manage">("display");
+  const [playbackEntryOpen, setPlaybackEntryOpen] = useState(false);
+  const playbackEntryTrigger = useRef<HTMLButtonElement>(null);
+  useExitLayer(playbackEntryOpen, "overlay", () => { setPlaybackEntryOpen(false); return true; });
   const [moreOpen, setMoreOpen] = useState(false);
   const [guestNoteOpen, setGuestNoteOpen] = useState(false);
   const guestReadOnly = workspace?.ownerKey.startsWith("guest:") === true;
@@ -202,7 +206,7 @@ function ReaderPageContent() {
   });
   const requestPage = pager.request;
 
-  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && readerPanel === null && !exportOpen && !conflictOpen, null);
+  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && !playbackEntryOpen && readerPanel === null && !exportOpen && !conflictOpen, null);
   const closeScore = useCallback(() => {
     startLoadingJourney("exit-score", "warm");
     navigation.back(`/choirs/${choirId}`);
@@ -216,7 +220,7 @@ function ReaderPageContent() {
         (event.target instanceof Element && Boolean(event.target.closest('.practice-dock'))) ||
         (event.target instanceof Element && Boolean(event.target.closest('[role="dialog"]'))) ||
         layout !== "page" ||
-        readerPanel !== null || moreOpen || guide.visible ||
+        readerPanel !== null || moreOpen || playbackEntryOpen || guide.visible ||
         editing ||
         event.metaKey ||
         event.ctrlKey ||
@@ -236,7 +240,7 @@ function ReaderPageContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editing, layout, moreOpen, guide.visible, readerPanel, requestPage, setZoom, showingPlayback]);
+  }, [editing, layout, moreOpen, playbackEntryOpen, guide.visible, readerPanel, requestPage, setZoom, showingPlayback]);
 
   const beginEditing = () => {
     if (cloudState === "trashed") {
@@ -416,7 +420,7 @@ function ReaderPageContent() {
               >
                 {editing ? <span>完成</span> : <Pencil aria-hidden="true" size={21} />}
               </Button>
-              {!editing && <><Button
+              {!editing && <>{Boolean(score.attachmentCount) && workspace && <Button ref={playbackEntryTrigger} className="reader-playback-entry" aria-expanded={playbackEntryOpen} onPress={() => setPlaybackEntryOpen(open => !open)}>播放内容<ChevronDown size={14} aria-hidden="true" /></Button>}<Button
                 ref={layersTrigger}
                 aria-label="笔记图层"
                 aria-expanded={readerPanel === "layers"}
@@ -452,12 +456,14 @@ function ReaderPageContent() {
               </p>
             ) : null}
           </div>
+          {!editing && playbackEntryOpen && workspace && <Popover triggerRef={playbackEntryTrigger} isOpen onOpenChange={setPlaybackEntryOpen} placement="bottom end" className="practice-popover">
+            <Dialog className="practice-panel" aria-label="选择播放内容"><Suspense fallback={<p>正在读取播放内容…</p>}><ReaderPracticeLauncher source={{ score, choirId, ownerKey: workspace.ownerKey, sessionId: identity.authenticatedSessionId }} enabled={online && cloudState === 'active'} onStarted={() => setPlaybackEntryOpen(false)} /></Suspense></Dialog>
+          </Popover>}
           {!editing && moreOpen ? (
             <Popover triggerRef={moreTrigger} isOpen={moreOpen} onOpenChange={setMoreOpen} isNonModal placement="bottom end" className="reader-more-popover">
             <Dialog className="reader-more-menu" aria-label="更多阅读选项">
               <header className="reader-menu-heading"><strong>阅读选项</strong><Button className="icon-button" aria-label="关闭更多阅读选项" onPress={() => setMoreOpen(false)}><X size={20} aria-hidden="true" /></Button></header>
               <IdentityNotice identity={identity} />
-              {Boolean(score.attachmentCount) && workspace && <Suspense fallback={<p>正在打开练习入口…</p>}><ReaderPracticeLauncher source={{ score, choirId, ownerKey: workspace.ownerKey, sessionId: identity.authenticatedSessionId }} enabled={online && cloudState === 'active'} onStarted={() => setMoreOpen(false)} /></Suspense>}
               {guestExperience && <section aria-label="本机体验笔记"><h2>本机体验笔记</h2><p>仅保存在此浏览器，不上传；登录后也不会转入个人笔记。</p>
                 <Button onPress={() => { if (workspace) void clearGuestNotes(workspace).then(() => reportOutcome("local-saved")).catch(() => reportOutcome("failed")); }}>清除本谱体验笔记</Button>
               </section>}
@@ -641,7 +647,7 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
-            onDismiss={!editing && !moreOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
+            onDismiss={!editing && !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />

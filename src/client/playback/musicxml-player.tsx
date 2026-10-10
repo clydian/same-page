@@ -10,7 +10,7 @@ import { usePlaybackLifetime } from './use-playback-lifetime';
 const preparing: PlayerState = { status: 'preparing', message: '正在准备播放…', playing: false, parts: [], measures: [], measure: 0, speed: 1, focus: null, loop: null };
 const noSubscribe = () => () => {};
 const initialSnapshot = () => preparing;
-export default function MusicXmlPlayer({ source, controls = true }: { source: PlaybackSource; controls?: boolean }) {
+export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const container = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<PlayerSession | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,6 @@ export default function MusicXmlPlayer({ source, controls = true }: { source: Pl
   const state = useSyncExternalStore(session?.subscribe ?? noSubscribe, session?.getSnapshot ?? initialSnapshot);
   const view = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
   usePlaybackLifetime(source);
-  useEffect(() => { if (!controls) session?.pause(); }, [controls, session]);
   useEffect(() => {
     const abort = new AbortController();
     let player: PlayerSession | null = null, releasePreferences = () => {};
@@ -49,10 +48,9 @@ export default function MusicXmlPlayer({ source, controls = true }: { source: Pl
   return <>
     <section className="practice-notation" data-visible={view === 'xml' || undefined} aria-label="MusicXML 谱面" aria-hidden={view !== 'xml'} inert={view !== 'xml'}>
       <div className="practice-notation-heading"><strong>{source.score.fileName}</strong><span>重排谱面 · 来自 MusicXML</span></div>
-      {!controls && !ready && <div className="practice-notation-status" role="status">{error ?? state.message}{(error || state.status === 'error') && <Button className="practice-action" onPress={() => { setError(null); setSession(null); setAttempt(value => value + 1); }}>重试</Button>}</div>}
       <div className="practice-notation-scroll"><div ref={container} /></div>
     </section>
-    {controls && <PracticePlayerShell source={source} ready={ready} playing={state.playing} message={error ?? state.message} failed={Boolean(error) || state.status === 'error'}
+    <PracticePlayerShell source={source} ready={ready} playing={state.playing} message={error ?? state.message} failed={Boolean(error) || state.status === 'error'}
       position={state.measures[state.measure] ? `${state.measure + 1} / ${state.measures.length}` : '—'}
       previousDisabled={state.measure <= 0} nextDisabled={state.measure >= state.measures.length - 1}
       play={play} previous={() => session?.seek(state.measure - 1)} next={() => session?.seek(state.measure + 1)}
@@ -70,6 +68,6 @@ export default function MusicXmlPlayer({ source, controls = true }: { source: Pl
       <details className="practice-mixer"><summary>声部混音</summary>{state.parts.map(part => <div className="practice-part" key={part.id}><span>{part.name}</span><input aria-label={`${part.name} 音量`} type="range" min="0" max="1" step="0.05" value={part.volume} disabled={!ready} onChange={event => session?.mix(part.id, { volume: Number(event.target.value) })} />
         <Button className="practice-action" isDisabled={!ready} aria-pressed={part.muted} onPress={() => session?.mix(part.id, { muted: !part.muted })}>静音</Button><Button className="practice-action" isDisabled={!ready} aria-pressed={part.solo} onPress={() => session?.mix(part.id, { solo: !part.solo })}>独奏</Button></div>)}</details>
       <p className="practice-hint">声音来自 MusicXML，可能与原谱不同。合成音色不演唱歌词；原 PDF 可手动翻页。</p>
-    </PracticePlayerShell>}
+    </PracticePlayerShell>
   </>;
 }

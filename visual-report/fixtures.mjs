@@ -526,6 +526,7 @@ export function createVisualFixtureSession(scenario = {}) {
       const { pathname, method = "GET", body } = request;
       requests.push({ method, pathname });
       if (practice && method === 'GET') {
+        if (pathname === `/api/choirs/${choir.id}/settings`) return json({ name: choir.name, nameRevision: 0, displayName: '周宁', membershipRevision: 0, canEditDriveInfo: false });
         if (pathname === `/api/choirs/${choir.id}/attachments`) return json({ attachments: practiceAttachments });
         const attachment = practiceAttachments.find(item => pathname.startsWith(`/api/choirs/${choir.id}/scores/${score.id}/attachments/${item.id}`));
         if (attachment) return pathname.endsWith('/file') ? {status:200,contentType:attachment.kind==='musicxml'?'application/vnd.recordare.musicxml+xml':'audio/wav',body:attachment.kind==='musicxml'?practiceMusicXml:practiceWave(),headers:{'cache-control':'no-store'}} : json({attachment});
