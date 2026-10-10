@@ -350,7 +350,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         }}
       /> : null}
       {scoreAction && !access.retained && visible(scoreAction.action === "trash" ? "trashFiles" : "modifyFiles") ? (
-        <ScoreActionDialog writable={online && !access.local && can(scoreAction.action === "trash" ? "trashFiles" : "modifyFiles")} library={library} canPurge={result.permissions.capabilities.isOwner}
+        <ScoreActionDialog ownerUserId={userId} writable={online && !access.local && can(scoreAction.action === "trash" ? "trashFiles" : "modifyFiles")} library={library} canPurge={result.permissions.capabilities.isOwner}
           key={`${presentationSessionId}:${scoreAction.score.id}:${scoreAction.action}`}
           choirId={choirId}
           selection={scoreAction}

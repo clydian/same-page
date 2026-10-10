@@ -15,12 +15,12 @@ const unconfirmedPublishMessage = "未能确认 PDF 发布结果，请关闭后�
 const unconfirmedUploadMessage = "未能确认候选 PDF 的上传结果，当前 PDF 未改变。请关闭窗口，不要直接重传；可能已保存的候选文件会在 24 小时后到期并由系统回收。";
 
 type Version = ScoreSummary["currentVersion"];
-export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false, writable = true, onClose, onComplete }: {
-  writable?: boolean; canPurge?: boolean; choirId: string; score: ScoreSummary; historyOnly: boolean;
+export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false, writable = true, ownerUserId, onClose, onComplete }: {
+  ownerUserId?: string; writable?: boolean; canPurge?: boolean; choirId: string; score: ScoreSummary; historyOnly: boolean;
   onClose(): void; onComplete(message: string): void | Promise<void>;
 }) {
   const session = authClient.useSession();
-  const [initialUser] = useState(session.data?.user.id);
+  const [initialUser] = useState(ownerUserId ?? session.data?.user.id);
   const path = `/api/choirs/${choirId}/scores/${score.id}`;
   const [purging, setPurging] = useState(false);
   const [history, setHistory] = useState<ScoreVersionHistory | null>(null);
@@ -149,7 +149,9 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
   };
   const currentPages = history?.versions.find((version) => version.id === history.currentVersionId)?.pageCount ?? score.currentVersion.pageCount;
   const title = historyOnly ? "历史 PDF 版本" : "替换 PDF";
-  if (!session.isPending && (!initialUser || initialUser !== session.data?.user.id)) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">登录身份已变化，请关闭后重新打开版本工具。</p></LibraryTaskDialog>;
+  const userChanged = Boolean(session.data?.user.id && initialUser !== session.data.user.id);
+  const signedOut = !session.isPending && !session.error && !session.data?.user.id;
+  if (userChanged || signedOut) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">登录身份已变化，请关闭后重新打开版本工具。</p></LibraryTaskDialog>;
   return <LibraryTaskDialog title={title} onClose={onClose} busy={busy}>
     <div className="pdf-version-dialog">
       {(session.isPending || session.error || !writable) && <p role="status">连接或操作权限尚未确认，已选择的内容保留。</p>}

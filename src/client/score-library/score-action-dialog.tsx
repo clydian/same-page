@@ -32,11 +32,13 @@ export function ScoreActionDialog({
   library,
   canPurge = false,
   writable = true,
+  ownerUserId,
   selection,
   onClose,
   onComplete,
 }: {
   writable?: boolean;
+  ownerUserId?: string;
   library: DriveLibrary;
   canPurge?: boolean;
   choirId: string;
@@ -45,7 +47,7 @@ export function ScoreActionDialog({
   onComplete: (message: string) => void;
 }) {
   if (selection.action === "replace") {
-    return <Suspense fallback={<LibraryTaskLoading title="替换 PDF" onClose={onClose} />}><PdfVersionDialog writable={writable} canPurge={canPurge} choirId={choirId} score={selection.score} historyOnly={false}
+    return <Suspense fallback={<LibraryTaskLoading title="替换 PDF" onClose={onClose} />}><PdfVersionDialog ownerUserId={ownerUserId} writable={writable} canPurge={canPurge} choirId={choirId} score={selection.score} historyOnly={false}
       onClose={onClose} onComplete={async message => { await library.changed(); onComplete(message); }} /></Suspense>;
   }
   return <BasicScoreActionDialog writable={writable} library={library} choirId={choirId} selection={selection} onClose={onClose} onComplete={onComplete} />;

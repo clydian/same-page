@@ -7,14 +7,14 @@ vi.mock("./upload-transport", async (importOriginal) => ({
   ...await importOriginal<typeof import("./upload-transport")>(),
   uploadPdf: vi.fn((url: string, form: FormData, signal: AbortSignal) => fetch(url, { method: "POST", body: form, signal })),
 }));
-const identity = vi.hoisted(() => ({ id: "admin", pending: false, error: null as null | { status: number } }));
-vi.mock("../auth/auth-client", () => ({ authClient: { useSession: () => ({ data: { user: { id: identity.id } }, isPending: identity.pending, error: identity.error }) } }));
+const identity = vi.hoisted(() => ({ id: "admin", pending: false, dataMissing: false, error: null as null | { status: number } }));
+vi.mock("../auth/auth-client", () => ({ authClient: { useSession: () => ({ data: identity.dataMissing ? null : { user: { id: identity.id } }, isPending: identity.pending, error: identity.error }) } }));
 vi.mock("./pdf-version-preview", () => ({ PdfVersionPreview: ({ onReady }: { onReady(ready: boolean): void }) =>
   <button onClick={() => onReady(true)}>预览渲染完成</button> }));
 const original = { id: "original", versionNumber: 1, sizeBytes: 300, sha256: "hash", etag: "etag", pageCount: 3, createdAt: 1 };
 const candidate = { ...original, id: "candidate", versionNumber: 2, pageCount: 2 };
 const score = { id: "score", choirId: "drive", fileName: "练习.pdf", currentVersion: original, updatedAt: 1 };
-afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); identity.id = "admin"; identity.pending = false; identity.error = null; });
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); identity.id = "admin"; identity.pending = false; identity.error = null; identity.dataMissing = false; });
 
 function mockApi() {
   const fetch = vi.fn(async (input: string, init?: RequestInit) => {
@@ -170,7 +170,7 @@ it("keeps the selected PDF and rendered preview during identity confirmation, wi
 });
 
 
-it.each(["connection", "permission"])("keeps a selected PDF through a temporary %s pause without publishing", async reason => {
+it.each(["connection", "missing-data", "permission"])("keeps a selected PDF through a temporary %s pause without publishing", async reason => {
   const fetch = mockApi();
   const props = { choirId: "drive", score, historyOnly: true, onClose: () => {}, onComplete: vi.fn() };
   const view = render(<PdfVersionDialog {...props} />);
@@ -178,13 +178,14 @@ it.each(["connection", "permission"])("keeps a selected PDF through a temporary 
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "candidate" } });
   const preview = screen.getByRole("button", { name: "预览渲染完成" });
   fireEvent.click(preview); fireEvent.click(screen.getByRole("checkbox"));
-  if (reason === "connection") identity.error = { status: 503 };
+  if (reason !== "permission") identity.error = { status: 503 };
+  identity.dataMissing = reason === "missing-data";
   view.rerender(<PdfVersionDialog {...props} writable={reason !== "permission"} />);
   expect(preview).toBeInTheDocument();
   expect(screen.getByRole("combobox")).toHaveValue("candidate");
   expect(screen.getByRole("checkbox")).toBeChecked();
   expect(screen.getByRole("button", { name: "确认回滚" })).toBeDisabled();
-  identity.error = null;
+  identity.error = null; identity.dataMissing = false;
   view.rerender(<PdfVersionDialog {...props} />);
   expect(screen.getByRole("button", { name: "确认回滚" })).toBeEnabled();
   expect(fetch.mock.calls.some(([url]) => url.endsWith("/publish"))).toBe(false);
@@ -225,4 +226,17 @@ it.each(["upload", "publish"])("aborts an active PDF %s on a temporary authority
     expect(screen.queryByRole("button", { name: "确认替换" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("新的 PDF（最多 20 MB、500 页）")).toBeDisabled();
   } else expect(screen.getByRole("button", { name: "确认回滚" })).toBeDisabled();
+});
+
+
+it("keeps the opening owner's lifetime if the lazy version tool mounts during a temporary session failure", async () => {
+  mockApi(); identity.error = { status: 503 }; identity.dataMissing = true;
+  const props = { choirId: "drive", score, historyOnly: false, ownerUserId: "admin", onClose: () => {}, onComplete: vi.fn() };
+  const view = render(<PdfVersionDialog {...props} />);
+  const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
+  expect(input).toBeDisabled();
+  identity.error = null; identity.dataMissing = false;
+  view.rerender(<PdfVersionDialog {...props} />);
+  await waitFor(() => expect(input).toBeEnabled());
+  expect(screen.queryByText(/登录身份已变化/)).not.toBeInTheDocument();
 });
