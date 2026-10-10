@@ -13,7 +13,7 @@ type Snapshot = { key: string; entries: Map<string, Entry>; failed: boolean; ref
 // This resource belongs to one mounted drive view and access generation. No
 // document bodies, persisted cache, or cross-session authority live here.
 class AttachmentMetadata {
-  constructor(private choirId: string, private generation: string, private active: boolean) {}
+  constructor(private choirId: string, private generation: string) {}
   private entries = new Map<string, Entry>();
   private listeners = new Set<() => void>();
   private snapshot: Snapshot = { key: "", entries: new Map(), failed: false, refreshing: false };
@@ -29,8 +29,11 @@ class AttachmentMetadata {
       if (!visible.has(id)) this.entries.delete(id);
     }
   }
+  pause() {
+    for (const [id, entry] of this.entries) this.entries.set(id, { ...entry, readAt: -Infinity });
+    this.publish(this.snapshot.key, this.snapshot.failed, false);
+  }
   load(scoreKey: string, attempt: number) {
-    if (!this.active) return;
     const abort = new AbortController();
     const rows = JSON.parse(scoreKey) as ScoreRevision[];
     const visible = new Set(rows.map(row => row[0]));
@@ -66,21 +69,22 @@ class AttachmentMetadata {
 }
 
 export function useLibraryAttachments(choirId: string, scores: ScoreSummary[], active: boolean, generation: string) {
-  const resource = useMemo(() => new AttachmentMetadata(choirId, generation, active), [choirId, generation, active]);
+  const resource = useMemo(() => new AttachmentMetadata(choirId, generation), [choirId, generation]);
   const snapshot = useSyncExternalStore(resource.subscribe, resource.getSnapshot);
   const [attempt, setAttempt] = useState(0);
   const scoreKey = JSON.stringify(scores.filter(score => (score.attachmentCount ?? 0) > 0).map(score => [score.id, score.updatedAt, score.attachmentCount]));
   const key = JSON.stringify([generation, scoreKey, attempt]);
   useEffect(() => {
     if (active) return resource.load(scoreKey, attempt);
+    resource.pause();
   }, [resource, scoreKey, attempt, active]);
   const current = active && snapshot.key === key ? snapshot : undefined;
   const visible = new Map<string, Entry>();
-  if (active) for (const row of JSON.parse(scoreKey) as ScoreRevision[]) {
+  for (const row of JSON.parse(scoreKey) as ScoreRevision[]) {
     const cached = snapshot.entries.get(row[0]);
     if (cached?.revision === JSON.stringify(row)) visible.set(row[0], cached);
   }
-  const statusFor = (scoreId: string) => !active ? "unavailable" : visible.has(scoreId) ? "ready" : current?.failed ? "error" : "loading";
+  const statusFor = (scoreId: string) => visible.has(scoreId) ? "ready" : !active ? "unavailable" : current?.failed ? "error" : "loading";
   return {
     items: [...visible.values()].flatMap(entry => entry.items), statusFor,
     loading: active && scores.some(score => (score.attachmentCount ?? 0) > 0 && statusFor(score.id) === "loading"),

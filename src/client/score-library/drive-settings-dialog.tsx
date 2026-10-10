@@ -98,6 +98,7 @@ export function DriveSettingsDialog({ choirId, userId, field, onClose, onSaved }
         <TextField value={value} onChange={next => { dirty.current = true; setValue(next); }} isDisabled={!resource.data || busy || saved} maxLength={field === "name" ? 100 : 40} isRequired><Label>{title}</Label><Input autoFocus /></TextField>
         {(message || Boolean(resource.error)) && <p role="status">{message ?? settingsError(resource.error, "暂时无法更新，已有内容已保留，请重试。")}</p>}
         {resource.loading && <p role="status">正在读取当前设置…</p>}
+        {!message && !resource.error && resource.data && !resource.canMutate && !resource.loading && <p role="status">连接或操作权限尚未确认，输入已保留。</p>}
         {(message || Boolean(resource.error)) && <Button isDisabled={busy || !resource.canRead} onPress={() => {
           if (saved) void finish().catch(() => setMessage("修改已保存，内容刷新失败。请重试刷新。"));
           else {

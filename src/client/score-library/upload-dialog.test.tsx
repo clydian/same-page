@@ -31,13 +31,13 @@ function row(name: string) {
   if (!result) throw new Error("Upload row missing");
   return result;
 }
-function Harness({ owner = "user", choirId = "drive", onComplete = () => {}, onQuotaChange = () => {}, onInspect = () => {} }: {
-  owner?: string; choirId?: string; onComplete?: () => void | Promise<void>;
+function Harness({ writable = true, owner = "user", choirId = "drive", onComplete = () => {}, onQuotaChange = () => {}, onInspect = () => {} }: {
+  writable?: boolean; owner?: string; choirId?: string; onComplete?: () => void | Promise<void>;
   onQuotaChange?: (blocked: boolean) => void; onInspect?: (name: string) => void;
 }) {
   const [open, setOpen] = useState(true);
   return <><button onClick={() => setOpen(true)}>重新打开</button>
-    <UploadDialog key={`${owner}:${choirId}`} choirId={choirId} isOpen={open} onOpenChange={setOpen}
+    <UploadDialog writable={writable} key={`${owner}:${choirId}`} choirId={choirId} isOpen={open} onOpenChange={setOpen}
       onComplete={onComplete} onQuotaChange={onQuotaChange} onInspect={onInspect} /></>;
 }
 
@@ -228,4 +228,24 @@ it("shows transfer speed and keeps 100 percent separate from confirmed success",
   await act(async () => result.resolve(success("progress.pdf")));
   expect(row("progress.pdf")).toHaveAttribute("data-status", "success");
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+});
+
+it("preserves waiting Files during a connection pause and resumes only after an explicit action", async () => {
+  const first = deferred<Response>();
+  const fetchMock = vi.fn().mockReturnValueOnce(first.promise).mockResolvedValueOnce(success("b.pdf"));
+  vi.stubGlobal("fetch", fetchMock);
+  const view = render(<Harness />);
+  select(pdf("a.pdf"), pdf("b.pdf"));
+  view.rerender(<Harness writable={false} />);
+  expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
+  expect(row("b.pdf")).toHaveAttribute("data-status", "queued");
+  expect(screen.getByLabelText("选择 PDF 文件")).toBeDisabled();
+  await act(async () => first.resolve(success("a.pdf")));
+  expect(row("a.pdf")).toHaveAttribute("data-status", "unknown");
+  view.rerender(<Harness writable />);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "继续等待项" }));
+  await waitFor(() => expect(row("b.pdf")).toHaveAttribute("data-status", "success"));
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole("button", { name: "重试 a.pdf" })).not.toBeInTheDocument();
 });

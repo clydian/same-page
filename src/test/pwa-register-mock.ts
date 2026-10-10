@@ -5,7 +5,7 @@ import type { RegisterSWOptions } from "vite-plugin-pwa/types";
 export let shouldNeedRefresh = false;
 export const updateServiceWorkerMock = vi.fn(async () => undefined);
 export const registrationUpdateMock = vi.fn(async () => undefined);
-const registration = {
+export const registration = {
   installing: null,
   waiting: {} as ServiceWorker,
   update: registrationUpdateMock,

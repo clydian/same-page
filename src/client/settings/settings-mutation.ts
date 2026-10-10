@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { lifecycleError } from "../auth/lifecycle-error";
 import { SettingsRequestError, settingsError } from "./settings-request";
 import { captureSettingsLifetime, useSettingsLifetime } from "./use-settings-lifetime";
@@ -30,13 +30,16 @@ function mutationMessage(result: MutationResult) {
 
 // Mount this hook inside the user/drive-keyed view. The same synchronous gate
 // protects submissions and recovery reads, even before React renders pending.
-export function useSettingsMutation({ enabled = true, refresh: read, onRevoked, initialRecovery }: {
+export function useSettingsMutation({ enabled = true, paused = false, refresh: read, onRevoked, initialRecovery }: {
   enabled?: boolean;
+  // Pause identity/network work without treating a normal authority reread as
+  // an interrupted submission. Reads can recover disabled mutation authority.
+  paused?: boolean;
   initialRecovery?: "saved" | "unconfirmed";
   refresh: (isCurrent: Current) => Promise<void>;
   onRevoked?: () => void;
 }) {
-  const lifetime = useSettingsLifetime();
+  const lifetime = useSettingsLifetime(paused);
   const gate = useRef({ pending: false, needsRefresh: Boolean(initialRecovery) });
   const [pending, setPending] = useState(false);
   const [needsRefresh, setNeedsRefresh] = useState(Boolean(initialRecovery));
@@ -47,12 +50,18 @@ export function useSettingsMutation({ enabled = true, refresh: read, onRevoked, 
     gate.current.needsRefresh = value;
     setNeedsRefresh(value);
   };
+  useEffect(() => {
+    if (paused && gate.current.pending) {
+      gate.current.pending = false; setPending(false); requireRefresh(true);
+      setMessage("操作结果未确认，请重新读取状态后再决定是否重试。");
+    }
+  }, [paused]);
   const finish = () => { gate.current.pending = false; setPending(false); };
 
   // Only a successful read acknowledges uncertainty; a failed read keeps the
   // original write diagnosis so a confirmed save never looks like a failed save.
   const refresh = async () => {
-    if (gate.current.pending) return false;
+    if (paused || gate.current.pending) return false;
     const isCurrent = captureSettingsLifetime(lifetime);
     gate.current.pending = true; setPending(true);
     try {
@@ -72,7 +81,7 @@ export function useSettingsMutation({ enabled = true, refresh: read, onRevoked, 
   // true: write and follow-up confirmed; false: current failure; null: no
   // submission or an obsolete completion. Callers never classify HTTP outcomes.
   const submit = async (request: () => Promise<Response>, submission: Submission = {}): Promise<boolean | null> => {
-    if (!enabled || gate.current.pending || gate.current.needsRefresh) return null;
+    if (!enabled || paused || gate.current.pending || gate.current.needsRefresh) return null;
     const isCurrent = captureSettingsLifetime(lifetime);
     gate.current.pending = true; setPending(true); setMessage(null);
     let result: MutationResult;
@@ -109,5 +118,5 @@ export function useSettingsMutation({ enabled = true, refresh: read, onRevoked, 
     }
   };
 
-  return { pending, needsRefresh, message, blocked: !enabled || pending || needsRefresh, submit, refresh };
+  return { pending, needsRefresh, message, blocked: !enabled || paused || pending || needsRefresh, submit, refresh };
 }

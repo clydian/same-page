@@ -719,6 +719,12 @@ h1 {
   text-decoration: none;
 }
 
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .primary-button:hover,
 .primary-button:focus-visible,
 .primary-link:hover,

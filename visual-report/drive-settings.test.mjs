@@ -47,7 +47,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.screenshot({ path: `artifacts/verification/issue-170/${name}-display-name.png` });
     await page.getByRole("button", { name: "保存", exact: true }).click();
     await page.getByRole("dialog").waitFor({ state: "hidden" });
-    await expect(page.getByRole("button", { name: "我在此云盘", exact: true })).toHaveText("新");
+    await expect(page.getByRole("button", { name: "我在此云盘", exact: true }).locator(".lucide-user-round")).toBeVisible();
+    await page.getByRole("button", { name: "我在此云盘", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "新名字", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "打开云盘菜单" }).click();
     await page.getByRole("link", { name: "基本信息", exact: true }).click();
     await page.getByRole("button", { name: "修改云盘名称", exact: true }).click();

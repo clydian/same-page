@@ -68,7 +68,26 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   assert.equal(await editingWindow.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   assert.equal(await page.getByText("有新版本可用", { exact: true }).count(), 0);
+  await page.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "立即更新并重新加载" }).click();
+  await page.getByText("新版本待应用，请先完成其他窗口中的操作，再尝试更新", { exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   await editingWindow.close();
+  // A prepared update must not reload a restored application just because it is idle.
+  await page.waitForTimeout(4000);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
+  const legacySafe = await page.evaluate(async () => {
+    const waiting = (await navigator.serviceWorker.getRegistration()).waiting;
+    return new Promise((resolve, reject) => {
+      const channel = new MessageChannel();
+      const timeout = setTimeout(() => { channel.port1.close(); reject(new Error("legacy request unanswered")); }, 3000);
+      channel.port1.onmessage = event => { clearTimeout(timeout); channel.port1.close(); resolve(event.data?.safe); };
+      waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE" }, [channel.port2]);
+    });
+  });
+  assert.equal(legacySafe, false, "legacy idle requests must not activate a prepared update");
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
+  await page.getByRole("button", { name: "立即更新并重新加载" }).click();
   await page.waitForFunction(
     (expected) => document.documentElement.dataset.buildId === expected,
     buildIds.second,
@@ -83,7 +102,37 @@ try {
   );
 
   await context.close();
-  process.stdout.write("Verified real Service Worker update handover\n");
+  // Normal updates require no update-button click: the browser takes over once
+  // every old application window exits, even with our forced-activation guard.
+  activeBuild = builds.first;
+  const automatic = await browser.newContext({ serviceWorkers: "allow" });
+  const running = await automatic.newPage();
+  await running.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
+  await running.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await running.reload({ waitUntil: "domcontentloaded" });
+  await running.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  assert.equal(await running.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
+  const remaining = await automatic.newPage();
+  await remaining.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
+  await remaining.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  activeBuild = builds.second;
+  // The product's foreground check discovers the new build automatically.
+  await running.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await running.getByText("新版本已准备，关闭所有合谱窗口后会自动更新", { exact: true }).waitFor();
+  await running.close();
+  const stillRunning = await automatic.newPage();
+  await stillRunning.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
+  assert.equal(await stillRunning.evaluate(() => document.documentElement.dataset.buildId), buildIds.first,
+    "another open application window must retain the current worker");
+  await remaining.close();
+  await stillRunning.close();
+  const restarted = await automatic.newPage();
+  await restarted.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
+  assert.equal(await restarted.evaluate(() => document.documentElement.dataset.buildId), buildIds.second,
+    "a prepared update must apply automatically after all old windows exit");
+  await restarted.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await automatic.close();
+  process.stdout.write("Verified automatic restart updates and optional live-window handover\n");
 } finally {
   await browser?.close();
   if (server) {

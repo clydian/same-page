@@ -144,3 +144,22 @@ it("allows a rejected validation to be corrected, and keeps completion-only succ
   expect(result.current.message).toBe("操作已确认。");
   expect(refresh).not.toHaveBeenCalled();
 });
+
+it("releases an interrupted submission and requires rereading before another save", async () => {
+  let finish!: (response: Response) => void;
+  const refresh = vi.fn(async () => {});
+  const request = vi.fn(() => new Promise<Response>(resolve => { finish = resolve; }));
+  const { result, rerender } = renderHook(({ enabled }) => useSettingsMutation({ enabled, paused: !enabled, refresh }), { initialProps: { enabled: true } });
+  let pending!: Promise<boolean | null>;
+  act(() => { pending = result.current.submit(request); });
+  expect(result.current.pending).toBe(true);
+  rerender({ enabled: false });
+  expect(result.current.pending).toBe(false);
+  expect(result.current.needsRefresh).toBe(true);
+  await act(async () => { finish(new Response(null, { status: 204 })); await pending; });
+  expect(refresh).not.toHaveBeenCalled();
+  rerender({ enabled: true });
+  await act(async () => { expect(await result.current.submit(request)).toBeNull(); });
+  await act(async () => { await result.current.refresh(); });
+  expect(result.current.blocked).toBe(false);
+});

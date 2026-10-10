@@ -1,6 +1,6 @@
 import { LocalSessionUnavailableError } from "./session-logout-fence";
 import { recoverSession } from "./session-recovery";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { revokeOfflinePreparationIdentity } from "../offline/offline-score";
 import { readLogoutFence } from "./logout-fence";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -25,12 +25,17 @@ export function useApplicationIdentity() {
     if (previousIdentity.current.userId && (previousIdentity.current.userId !== confirmedUserId || previousIdentity.current.sessionId !== sessionId)) revokeOfflinePreparationIdentity(previousIdentity.current.userId);
     previousIdentity.current = { userId: confirmedUserId, sessionId };
   }, [confirmedUserId, sessionId]);
-  const localUserId = session.data?.user.id ?? (rememberedOwner?.startsWith("user:") ? rememberedOwner.slice(5) : null);
+  const observedLocalUserId = session.data?.user.id ?? (rememberedOwner?.startsWith("user:") ? rememberedOwner.slice(5) : null);
+  const [previousLocalUserId, setPreviousLocalUserId] = useState(observedLocalUserId);
+  // A pending IndexedDB read cannot erase an already displayed user while the
+  // cloud session is temporarily unavailable. A resolved owner remains decisive.
+  const localUserId = observedLocalUserId ?? (rememberedOwner === undefined ? previousLocalUserId : null);
+  if (previousLocalUserId !== localUserId) setPreviousLocalUserId(localUserId);
   return {
     session: { ...session, refetch: recoverSession }, onlineState, localUserId,
     authenticatedUserId: confirmedUserId,
     authenticatedSessionId: confirmedUserId ? sessionId ?? null : null,
-    restoring: !session.data?.user && rememberedOwner === undefined,
+    restoring: !localUserId && rememberedOwner === undefined,
     showLocalEntry: onlineState !== "authenticated" && (Boolean(localUserId) || rememberedOwner === undefined || onlineState !== "signed-out"),
   };
 }

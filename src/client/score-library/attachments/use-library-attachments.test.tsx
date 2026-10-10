@@ -49,7 +49,6 @@ it.each([
   { name: "drive", next: { ...initialProps, drive: "other-drive" } },
   { name: "score revision", next: { ...initialProps, scores: [{ ...first, updatedAt: 2 }] } },
   { name: "attachment count", next: { ...initialProps, scores: [{ ...first, attachmentCount: 2 }] } },
-  { name: "access", next: { ...initialProps, active: false } },
 ])("does not retain stale rows after $name changes or accept an old pending response", async ({ next }) => {
   const oldRequest = pending(), newRequest = pending();
   fetchMock.mockResolvedValueOnce(Response.json({ attachments: [firstAttachment] }))
@@ -153,4 +152,19 @@ it("bounds retained metadata after a large expanded list is collapsed", async ()
   fetchMock.mockReturnValueOnce(pending().promise);
   rerender({ ...initialProps, scores: [scores[0]] });
   expect(result.current.statusFor(scores[0].id)).toBe("loading");
+});
+
+it("keeps read metadata through a temporary pause and refreshes it without hiding rows on reconnection", async () => {
+  const refresh = pending();
+  fetchMock.mockResolvedValueOnce(Response.json({ attachments: [firstAttachment] })).mockReturnValueOnce(refresh.promise);
+  const { result, rerender } = renderHook(useAttachments, { initialProps });
+  await waitFor(() => expect(result.current.items).toEqual([firstAttachment]));
+  rerender({ ...initialProps, active: false });
+  expect(result.current.items).toEqual([firstAttachment]);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  rerender(initialProps);
+  expect(result.current.items).toEqual([firstAttachment]);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  await act(async () => refresh.resolve(Response.json({ attachments: [{ ...firstAttachment, name: "更新.md" }] })));
+  expect(result.current.items[0].name).toBe("更新.md");
 });

@@ -16,8 +16,8 @@ export function AttachmentCount({ score, expanded, disabled, onToggle }: { score
     aria-description={expanded ? "收起这份乐谱的附件" : "展开这份乐谱的附件"}><Paperclip size={13} aria-hidden="true" /><span>{score.attachmentCount}</span></Button> : null;
 }
 
-export function AttachmentRows({ score, choirId, items, canModify, canTrash, onSelect }: {
-  score: ScoreSummary; choirId: string; items: ScoreAttachment[]; canModify: boolean; canTrash: boolean;
+export function AttachmentRows({ score, choirId, items, canModify, canTrash, onSelect, available = true }: {
+  available?: boolean; score: ScoreSummary; choirId: string; items: ScoreAttachment[]; canModify: boolean; canTrash: boolean;
   onSelect: (selection: AttachmentSelection) => void;
 }) {
   const rows = items.filter(item => item.scoreId === score.id);
@@ -27,13 +27,13 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
       const Icon = attachment.kind === "audio" ? FileAudio : attachment.kind === "link" ? LinkIcon : FileText;
       const content = <><Icon size={16} aria-hidden="true" /><span>{attachment.name}</span></>;
       return <li className="attachment-row" key={attachment.id}>
-        {attachment.kind === "link" ? <a className="attachment-open" href={safeAttachmentUrl(attachment.url ?? "")} target="_blank" rel="noopener noreferrer">{content}</a>
-          : <Button className="attachment-open" onPress={() => onSelect({ score, attachment, action: "open" })}>{content}</Button>}
+        {attachment.kind === "link" ? <a className="attachment-open" aria-disabled={!available || undefined} href={available ? safeAttachmentUrl(attachment.url ?? "") : undefined} target="_blank" rel="noopener noreferrer">{content}</a>
+          : <Button isDisabled={!available} className="attachment-open" onPress={() => onSelect({ score, attachment, action: "open" })}>{content}</Button>}
         {(attachment.kind !== "link" || canModify || canTrash) && <MenuTrigger><Button className="attachment-menu" aria-label={`${attachment.name} 更多操作`}><MoreHorizontal size={18} /></Button>
           <Popover className="file-menu-popover"><Menu aria-label={`${attachment.name} 操作`} onAction={key => { if (key === "rename" || key === "trash") onSelect({ score, attachment, action: key }); }}>
-            {attachment.kind !== "link" && <MenuItem id="download" href={attachmentFileUrl(choirId, attachment, true)} download={attachment.name}>下载</MenuItem>}
-            {canModify && <MenuItem id="rename">{attachment.kind === "link" ? "修改链接" : "重命名"}</MenuItem>}
-            {canTrash && <MenuItem id="trash">移到回收站</MenuItem>}
+            {attachment.kind !== "link" && <MenuItem id="download" isDisabled={!available} href={available ? attachmentFileUrl(choirId, attachment, true) : undefined} download={attachment.name}>下载</MenuItem>}
+            {canModify && <MenuItem isDisabled={!available} id="rename">{attachment.kind === "link" ? "修改链接" : "重命名"}</MenuItem>}
+            {canTrash && <MenuItem isDisabled={!available} id="trash">移到回收站</MenuItem>}
           </Menu></Popover></MenuTrigger>}
       </li>;
     })}

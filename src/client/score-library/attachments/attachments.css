@@ -12,6 +12,7 @@
 .attachment-open svg { flex-shrink: 0; opacity: .85; }
 .attachment-open span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attachment-open:hover { color: var(--brand); }
+.attachment-open:disabled, .attachment-open[aria-disabled="true"] { color: var(--muted); cursor: default; opacity: .7; }
 .attachment-menu { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; border: 0; color: var(--muted); background: none; border-radius: .4rem; cursor: pointer; }
 .attachment-menu:hover { background: var(--brand-soft); }
 .attachment-modal { width: min(32rem, 100%); }

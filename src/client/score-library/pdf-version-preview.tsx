@@ -75,11 +75,13 @@ export function PdfVersionPreview({ scorePath, choirId, scoreId, versionId, onRe
     onReady(false);
     return { ready: () => onReady(true), cancel: () => onReady(false) };
   }, [onReady]);
-  if (preview && !session.isPending && `user:${session.data?.user.id}` !== preview.workspace.ownerKey) return <p role="alert">登录身份已变化，请重新打开预览。</p>;
+  const userChanged = Boolean(preview && session.data?.user.id && `user:${session.data.user.id}` !== preview.workspace.ownerKey);
+  const signedOut = !session.isPending && !session.error && !session.data?.user.id;
+  if (preview && (userChanged || signedOut)) return <p role="alert">登录身份已变化，请重新打开预览。</p>;
   if (error) return <p role="alert">预览加载失败，请关闭后重试。</p>;
   if (!preview) return <p role="status">正在加载 PDF 与笔记…</p>;
   return <section aria-label="PDF 与现有笔记预览">
-    {session.isPending && <p role="status">正在核对登录身份，预览内容保留。</p>}
+    {(session.isPending || session.error) && <p role="status">正在核对登录身份，预览内容保留。</p>}
     <p>显示云端共享笔记与本人的个人笔记；本机未同步草稿不参与此预览。</p>
     <div className="pdf-version-preview" style={{ aspectRatio: String(ratio) }}>
       <PdfPageCanvas document={preview.document} pageNumber={page} width={600} aspectRatio={ratio} onRenderStart={renderStart} />

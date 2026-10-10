@@ -7,7 +7,8 @@ import { Dialog } from "../navigation/overlays";
 import { LibraryDialogHeading } from "./library-dialog-heading";
 import { useUploadQueue } from "./use-upload-queue";
 
-export function UploadDialog({ choirId, storage, isOpen, onOpenChange, onComplete, onQuotaChange, onInspect }: {
+export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpenChange, onComplete, onQuotaChange, onInspect }: {
+  writable?: boolean;
   choirId: string;
   storage?: { usedBytes: number; limitBytes: number };
   isOpen: boolean;
@@ -16,7 +17,7 @@ export function UploadDialog({ choirId, storage, isOpen, onOpenChange, onComplet
   onQuotaChange: (blocked: boolean) => void;
   onInspect: (fileName: string) => void;
 }) {
-  const queue = useUploadQueue({ choirId, onComplete, onQuotaChange });
+  const queue = useUploadQueue({ enabled: writable, choirId, onComplete, onQuotaChange });
   const waiting = queue.items.filter((item) => item.status === "queued").length;
   const uploading = queue.items.some((item) => item.status === "uploading");
   const hasUnfinished = waiting > 0 || uploading;
@@ -45,10 +46,11 @@ export function UploadDialog({ choirId, storage, isOpen, onOpenChange, onComplet
       <details className="upload-help"><summary>离开页面或上传中断时</summary>
         <p className="dialog-copy">离开此云盘或切换用户会停止本轮上传；已发出的文件可能仍在服务端完成，请返回文件库核对。</p>
       </details>
+      {!writable && <p role="status">连接或上传权限尚未恢复，等待项已保留；恢复后请手动继续。</p>}
       <div className="upload-dropzone"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => { event.preventDefault(); queue.add(Array.from(event.dataTransfer.files)); }}>
-        <label><span>选择 PDF 文件</span><input type="file" accept="application/pdf,.pdf" multiple
+        <label><span>选择 PDF 文件</span><input type="file" accept="application/pdf,.pdf" multiple disabled={!writable}
           onChange={(event) => {
             const files = Array.from(event.currentTarget.files ?? []);
             event.currentTarget.value = "";
@@ -64,14 +66,14 @@ export function UploadDialog({ choirId, storage, isOpen, onOpenChange, onComplet
       </p> : null}
       {queue.refreshFailed ? <p role="alert">文件状态已保留，但列表暂未刷新。请核对文件库，不要重传已完成项。</p> : null}
       {waiting > 0 ? <div className="upload-queue-actions">
-        {queue.paused ? <Button className="secondary-button" onPress={queue.resume}>继续等待项</Button> : null}
+        {queue.paused ? <Button className="secondary-button" isDisabled={!writable} onPress={queue.resume}>继续等待项</Button> : null}
         <Button className="text-button" onPress={queue.stopWaiting}>停止等待项</Button>
       </div> : null}
       {queue.items.length > 0 ? <ul className="upload-list" aria-label="上传状态">
         {queue.items.map((item) => <li key={item.id} data-status={item.status}>
           <span>{item.name}</span><strong>{item.message}</strong>
           {item.status === "uploading" ? <UploadProgressView name={item.name} progress={item.progress} /> : null}
-          {item.status === "error" && item.file ? <Button className="text-button" aria-label={`重试 ${item.name}`} onPress={() => queue.retry(item.id)}>重试</Button> : null}
+          {item.status === "error" && item.file ? <Button className="text-button" isDisabled={!writable} aria-label={`重试 ${item.name}`} onPress={() => queue.retry(item.id)}>重试</Button> : null}
           {item.status === "unknown" || item.status === "success" ? <Button className="text-button" aria-label={`核对 ${item.name}`} onPress={() => { changeOpen(false); onInspect(item.name); }}>核对文件库</Button> : null}
         </li>)}
       </ul> : null}

@@ -470,3 +470,12 @@ describe("confirmed navigation changes across settings and directory consumers",
     expect(readDriveLibrary(owner, choirId)).toBeNull();
   });
 });
+
+it("keeps displayed scores during an identity pause even when directory persistence is unavailable", async () => {
+  const { library } = create(async () => opened("当前内容.pdf"));
+  await library.refresh();
+  library.setAuthenticated(false);
+  await library.whenSettled();
+  expect(library.getSnapshot().scores[0]?.fileName).toBe("当前内容.pdf");
+  expect(library.getSnapshot().access).toMatchObject({ local: true, result: { permissions: { capabilities: noCapabilities() } } });
+});

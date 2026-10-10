@@ -24,13 +24,14 @@ const initialState = (): QueueState => ({ items: [], paused: null, refreshFailed
 
 // The caller keys the dialog by user and drive. One pump owns all batches in
 // that lifetime, including while the dialog is hidden. No persisted tasks.
-export function useUploadQueue({ choirId, onComplete, onQuotaChange }: {
+export function useUploadQueue({ enabled = true, choirId, onComplete, onQuotaChange }: {
+  enabled?: boolean;
   choirId: string;
   onComplete: () => void | Promise<void>;
   onQuotaChange: (blocked: boolean) => void;
 }) {
   const [state, setState] = useState(initialState);
-  const runtime = useRef({ state, active: false, generation: 0, running: false, controller: null as AbortController | null });
+  const runtime = useRef({ state, active: false, generation: 0, running: false, enabled, controller: null as AbortController | null });
   const callbacks = useRef({ onComplete, onQuotaChange });
   useLayoutEffect(() => { callbacks.current = { onComplete, onQuotaChange }; });
   useLayoutEffect(() => {
@@ -47,6 +48,17 @@ export function useUploadQueue({ choirId, onComplete, onQuotaChange }: {
     };
   }, []);
 
+  useLayoutEffect(() => {
+    const current = runtime.current;
+    current.enabled = enabled;
+    if (!enabled) {
+      current.controller?.abort();
+      if (current.state.items.some(item => item.status === "queued" || item.status === "uploading")) {
+        publish({ ...current.state, paused: current.state.paused ?? "permission" });
+      }
+    }
+  }, [enabled]);
+
   function publish(next: QueueState) {
     runtime.current.state = next;
     if (runtime.current.active) setState(next);
@@ -54,13 +66,13 @@ export function useUploadQueue({ choirId, onComplete, onQuotaChange }: {
 
   async function pump() {
     const current = runtime.current;
-    if (!current.active || current.running || current.state.paused) return;
+    if (!current.active || !current.enabled || current.running || current.state.paused) return;
     const releaseUpdate = holdUpdate();
     current.running = true;
     const generation = current.generation;
     const isCurrent = () => current.active && generation === current.generation;
     try {
-      while (isCurrent() && !current.state.paused) {
+      while (isCurrent() && current.enabled && !current.state.paused) {
         const item = current.state.items.find((entry) => entry.status === "queued");
         if (!item?.file) break;
         publish({ ...current.state, items: current.state.items.map((entry) => entry.id === item.id
@@ -75,6 +87,7 @@ export function useUploadQueue({ choirId, onComplete, onQuotaChange }: {
             publish({ ...current.state, items: current.state.items.map((entry) => entry.id === item.id
               ? { ...entry, progress, message: progress.processing ? "传输完成，正在保存…" : "正在上传…" } : entry) });
           });
+          controller.signal.throwIfAborted();
         } catch {
           outcome = { status: "unknown", message: "网络中断或请求超时，结果待核对。请先查看文件库，不要直接重传。", pause: "uncertain" };
         } finally {
@@ -107,7 +120,7 @@ export function useUploadQueue({ choirId, onComplete, onQuotaChange }: {
   }
 
   function add(files: File[]) {
-    if (!runtime.current.active) return;
+    if (!runtime.current.active || !runtime.current.enabled) return;
     const items = files.map((file): UploadItem => {
       const message = !isPdf(file) ? "只接受 PDF 文件。"
         : file.size === 0 ? "PDF 文件为空。"
@@ -120,6 +133,7 @@ export function useUploadQueue({ choirId, onComplete, onQuotaChange }: {
   }
 
   function retry(id: string) {
+    if (!runtime.current.enabled) return;
     const current = runtime.current.state;
     const item = current.items.find((entry) => entry.id === id);
     if (!item || item.status !== "error" || !item.file) return;
@@ -135,6 +149,7 @@ export function useUploadQueue({ choirId, onComplete, onQuotaChange }: {
   }
 
   function resume() {
+    if (!runtime.current.enabled) return;
     publish({ ...runtime.current.state, paused: null });
     void pump();
   }

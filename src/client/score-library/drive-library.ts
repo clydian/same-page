@@ -302,7 +302,8 @@ export class DriveLibrary {
     this.publish({ reading: { ...this.snapshot.reading, request: "pending" } });
     pending.done = Promise.resolve().then(() => {
       signal.throwIfAborted();
-      if (!authenticated && this.ownerKey.startsWith("user:") && this.snapshot.access.kind === "opened" && this.snapshot.access.retained) return this.snapshot.access;
+      // A temporary cloud pause cannot replace newer displayed data with an older local write.
+      if (!authenticated && this.ownerKey.startsWith("user:") && this.snapshot.access.kind === "opened") return this.snapshot.access;
       if (!authenticated && this.ownerKey.startsWith("user:")) return this.readLocal(signal);
       return this.transport.load(signal, allowAdmission, authenticated);
     })

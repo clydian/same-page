@@ -8,9 +8,10 @@ import { uploadMessage } from "./library-format";
 
 // Mount inside the user/session/drive/selection-keyed dialog. Write
 // confirmation lives in the library so closing a dialog cannot bypass recovery.
-export function useScoreFileAction(library: DriveLibrary, score: ScoreSummary, action: "rename" | "trash", onComplete: (message: string) => void) {
+export function useScoreFileAction(library: DriveLibrary, score: ScoreSummary, action: "rename" | "trash", onComplete: (message: string) => void, enabled = true) {
   const completed = useRef<ScoreFileChange | undefined>(undefined);
   const mutation = useSettingsMutation({
+    enabled, paused: !enabled,
     initialRecovery: library.scoreChangeRecovery(score.id),
     refresh: async isCurrent => {
       const saved = await library.completeScoreChange(score.id);
@@ -31,6 +32,7 @@ export function useScoreFileAction(library: DriveLibrary, score: ScoreSummary, a
   };
 
   const retry = async () => {
+    if (!enabled) return;
     try {
       const reread = await mutation.refresh();
       // A successful recovery closes a confirmed action. An uncertain request

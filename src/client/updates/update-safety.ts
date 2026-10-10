@@ -10,9 +10,9 @@ export function holdUpdate() {
 }
 export function noteUpdateInteraction() { lastInteraction = Date.now(); }
 export function setUpdateRoute(path: string) { pathname = path; noteUpdateInteraction(); }
-export function canApplyUpdate() {
+export function canApplyUpdate(requested = false) {
   const candidate = pathname === "/" || pathname === "/drives" || pathname === "/about" || /^\/choirs\/[^/]+$/.test(pathname);
-  return candidate && tasks.size === 0 && navigator.onLine && Date.now() - lastInteraction >= 3000 &&
+  return candidate && tasks.size === 0 && navigator.onLine && (requested || Date.now() - lastInteraction >= 3000) &&
     !document.querySelector('[role="dialog"], [role="menu"], [data-update-busy]') &&
     !(document.activeElement instanceof HTMLElement && document.activeElement.matches('input, textarea, select, [contenteditable="true"]'));
 }
