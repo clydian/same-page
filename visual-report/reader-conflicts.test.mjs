@@ -14,7 +14,8 @@ test("conflicts compare in place and require confirmation in Chromium and WebKit
   for (const engine of [chromium, webkit]) {
     const browser = await engine.launch();
     try {
-      for (const width of [834, 390, 320]) {
+      // Wide and narrowest layouts cover both dialog presentations.
+      for (const width of [834, 320]) {
         const context = await browser.newContext({ viewport: { width, height: width === 834 ? 1100 : 844 }, serviceWorkers: "block", reducedMotion: "reduce" });
         try {
           await context.addInitScript(() => {

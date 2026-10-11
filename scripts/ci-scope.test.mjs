@@ -54,6 +54,7 @@ test("code, config, dependencies, workflow and unknown files require full verifi
 test("runtime areas select only their relevant expensive checks", (t) => {
   const repo = repository(t);
   const expectedByPath = new Map([
+    ["scripts/browser-test-selection.mjs", ["client", "visual", "build", "smoke"]],
     ["src/client/routes/home-page.tsx", ["client", "visual", "performance", "build", "smoke", "deploy"]],
     ["src/client/pwa-navigation.ts", ["client", "visual", "pwa", "performance", "build", "smoke", "deploy"]],
     ["worker/index.ts", ["worker", "build", "smoke", "deploy"]],
@@ -249,14 +250,24 @@ test("the workflow gate rejects failure, cancellation and unexpected skips of se
   for (const outputs of [
     { full: "false" },
     { full: "true", client: "true" },
+    { full: "true", worker: "true" },
+    { full: "true", migration: "true" },
+    { full: "true", migration: "true", worker: "true" },
+    { full: "true", build: "true" },
+    { full: "true", performance: "true", build: "true" },
+    { full: "true", pwa: "true" },
+    { full: "true", smoke: "true", build: "true" },
     { full: "true", visual: "true", smoke: "true", build: "true", browserGroup: "library" },
     { full: "true", visual: "true", pwa: "true", browserGroup: "all" },
   ]) {
     const jobs = {
       scope: { result: "success", outputs },
       checks: { result: outputs.full === "true" ? "success" : "skipped" },
+      backend: { result: ["worker", "migration"].some(key => outputs[key] === "true") ? "success" : "skipped" },
       visual: { result: outputs.visual === "true" ? "success" : "skipped" },
-      integration: { result: outputs.smoke || outputs.pwa ? "success" : "skipped" },
+      build: { result: ["build", "smoke"].some(key => outputs[key] === "true") ? "success" : "skipped" },
+      platform: { result: ["pwa", "performance"].some(key => outputs[key] === "true") ? "success" : "skipped" },
+      smoke: { result: outputs.smoke === "true" ? "success" : "skipped" },
     };
     assert.equal(run(jobs), 0);
     for (const [name, job] of Object.entries(jobs)) {

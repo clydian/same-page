@@ -4,16 +4,19 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 
 ## 流程
 
-`scope` 不安装依赖：运行 CI 范围回归测试，然后比较完整 Git diff。三个验证 job 同时启动，各自只执行选中的步骤：
+`scope` 不安装依赖：运行 CI 范围回归测试，然后比较完整 Git diff。checks、backend、visual 和 build 同时启动；smoke/platform 等待 build 的统一构建产物（仅 PWA 时不需要构建产物），各自只执行选中的步骤：
 
 | Job | 职责 |
 | --- | --- |
-| `checks` | lint、typecheck、Node/组件测试、Worker 测试、迁移回归 |
-| `visual` | Chromium/WebKit 中的布局与交互回归 |
-| `integration` | PWA 交接、生产构建、加载预算、真实 Worker/D1/R2 浏览器流程 |
+| `checks` | lint、typecheck、Node/组件测试 |
+| `backend` | 按 scope 顺序运行 Worker 与迁移验证；与前端检查并行，数据库保持独立隔离 |
+| `visual` | 4 个独立 runner 文件分片，Chromium/WebKit 布局与交互回归 |
+| `build` | 统一生产构建、封存校验产物；不等待浏览器环境安装 |
+| `platform` | PWA 双版本交接、下载并校验生产产物后测量加载预算 |
+| `smoke` | 下载并校验同份产物，2 个独立 runner 文件分片运行真实 Worker/D1/R2 流程 |
 | `verify` | 等待以上全部结束；被选中的 job 必须成功，未选中的必须为 skipped；失败、取消、意外跳过均不能通过 |
 
-部署仅在 `verify` 成功且本次 main 变更需要发布时运行。并行降低等待时间，但重复的 runner 启动和安装可能增加总执行分钟；不是降低账单的承诺。保留三个实际工作 job，避免为每个小测试创建 runner。
+部署仅在 `verify` 成功且本次 main 变更需要发布时运行。并行降低等待时间，但重复的 runner 启动和安装可能增加总执行分钟；不是降低账单的承诺。分片保持有限数量，避免为每个小测试创建 runner。visual 矩阵最多并行 4 份，smoke 最多 2 份；任一分片失败不会取消其余分片，但汇总失败会阻止 verify。
 
 ## 范围选择
 
@@ -40,7 +43,7 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 
 ## 测试的职责
 
-当前测试价值边界与逐文件判断见 [2026-09-09 审查](test-value-audit-2026-09-09.md)。常规 CI 保护应用自己的行为和平台集成：原生触摸能滚动、批注不漂移、离线与权限正确；不验证浏览器惯性曲线、营销布局左右顺序或固定装饰间距。精确时间只用于应用自己的截止期限、过期/重试规则或可控的逻辑时钟。加载脚本保留各阶段测量、身份校验和粗粒度预算，移除单次缓存返回 200ms 与重开必须快于冷开的判断；缓存复用与返回不等网络由受控挂起响应的功能测试保护。
+本轮重复矩阵精简及 CI 瓶颈判断见 [2026-10-10 审查](test-value-audit-2026-10-10.md)。此前测试价值边界与逐文件判断见 [2026-09-09 审查](test-value-audit-2026-09-09.md)。常规 CI 保护应用自己的行为和平台集成：原生触摸能滚动、批注不漂移、离线与权限正确；不验证浏览器惯性曲线、营销布局左右顺序或固定装饰间距。精确时间只用于应用自己的截止期限、过期/重试规则或可控的逻辑时钟。加载脚本保留各阶段测量、身份校验和粗粒度预算，移除单次缓存返回 200ms 与重开必须快于冷开的判断；缓存复用与返回不等网络由受控挂起响应的功能测试保护。
 
 新增测试应说明它阻止的用户损失、现有覆盖的缺口以及最低成本的可靠验证层。诊断期间的对照实验不自动转为永久门禁；删除或合并时记录保留的风险覆盖。布局断言优先检查可达、遮挡、溢出和触控区域，不把当前排版实现固化成产品规则。
 
@@ -48,18 +51,33 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 
 - `npm test`：Node 规则和 jsdom 组件。客户端纯逻辑文件用 `*.node.test.ts` 命名，由 `vitest.node.config.ts` 收集，不启动 DOM、React cleanup 或 IndexedDB setup。jsdom 使用单个 setup hook，先卸载 React 再清理 IndexedDB，保持逐用例数据库隔离。
 - `npm run test:worker`：纯认证配置/安全逻辑在 Node，真实路由、D1、R2、权限与生命周期在 workerd。保留实际迁移初始化和隔离，不为省时间改成共享可变数据库。
-- `npm run test:visual-report`：Node 原生 global setup 只启动一个隔离 Vite dev 服务，最多两个文件并行。各测试仍独立拥有浏览器 context、IndexedDB、API route 和 fixture session；没有重试。直接 `node --test visual-report/<file>.test.mjs` 仍可独立启动服务。
-- `npm run test:smoke`：必须先 build。通过与 CI 相同的 runner 串行运行有状态文件，避免多个 Vite/workerd 优化器争用；每次 fixture 调用有独立真实 D1/R2，验证生产 API、PDF 字节、下载、浏览器关闭重开后的离线副本、批注并发和诊断提交；不改成 API mock。
+- `npm run test:visual-report`：Node 原生 global setup 只启动一个隔离 Vite dev 服务，每台最多两个文件并行。各测试仍独立拥有浏览器 context、IndexedDB、API route 和 fixture session；没有重试。直接 `node --test visual-report/<file>.test.mjs` 仍可独立启动服务。
+- `npm run test:smoke`：必须先 build。通过与 CI 相同的 runner 在每个分片内串行运行有状态文件，避免多个 Vite/workerd 优化器争用；每次 fixture 调用有独立真实 D1/R2，验证生产 API、PDF 字节、下载、浏览器关闭重开后的离线副本、批注并发和诊断提交；不改成 API mock。
 
 视觉回归保留两种浏览器引擎、最窄视口、关键断点两侧、横竖屏、200% 文本、44px 点击目标和真实内容溢出断言。相同完整流程不重复遍历每个设备商品名；这些都是模拟视口，不代表实机验收。
 
 ## 产物与发布
 
-PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实 Service Worker 交接。随后重新构建当前源码，再验证加载预算和浏览器 smoke；合成版本不得发布。`npm run test:loading-performance` 单独执行时仍先 build。
+platform 的 PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实 Service Worker 交接。build 独立构建真实源码；platform 测量加载预算前移除合成 dist、下载并校验真实构建包。smoke 在另外两台 runner 使用同份包，与 PWA/加载检查并行；合成版本不得发布。`npm run test:loading-performance` 单独执行时仍先 build。
 
-仅需部署的 main 运行封存并上传 `release-<SHA>`，PR 不上传不可用于生产的合并测试包。integration 可以先产生包，但 deploy 必须等待汇总 `verify` 成功。部署下载同次运行的产物，校验 SHA256 清单，直接发布而不重建。产物保留 14 天；过期需重新验证生成。visual/integration 分别保留 `artifacts/verification/` 的已有合成证据，失败时也上传，不能放入生产会话或私人内容。
+需要构建或 smoke 的运行（包括 PR）封存并上传 `release-<SHA>`；两个 smoke 分片下载同次运行的包，提取后先校验 SHA256 清单与源码 SHA，再启动浏览器。PR 包只供本次验证，deploy 仍只允许需要部署的 main push，并等待 checks、全部 visual/smoke 分片及 build/platform 的汇总 `verify` 成功。部署下载同次运行的产物，校验 SHA256 清单，直接发布而不重建。产物保留 14 天；过期需重新验证生成。visual/smoke 各分片使用独立 artifact 名称，platform 也保留 `artifacts/verification/` 的已有合成证据，失败时也上传，不能放入生产会话或私人内容。
 
 `npm run check` 运行所有常规检查；`npm run check:full` 再包含 PWA 更新及加载预算，是本地验证超集。生产身份、准入与锁见 [交付契约](delivery-contract.md) 和 [发布流程](production-release.md)。
+
+## 浏览器分片
+
+`scripts/run-browser-tests.mjs` 自动扫描文件，通过 `scripts/browser-test-selection.mjs` 选择 all/library 范围并排序，随后交给 Node 原生 `--test-shard=index/count` 按文件均分。没有耗时权重、历史数据或手工分片名单。新文件自动加入 all；library 仍是按消费者审计的显式范围名单。非法参数、缺失 library 文件或文件数少于分片数都会失败，不能静默空跑。
+
+文件数量均分不保证运行时间相同；接受这一差异以减少维护成本。各 runner 使用相同源码、同一排序后的候选列表，Node 负责分配。回归通过真实 runner 验证分片并集完整且互不重复，包括新增文件。
+
+本地不传分片时仍运行完整范围。可单独运行：
+
+```bash
+node scripts/run-browser-tests.mjs visual all 1/4
+node scripts/run-browser-tests.mjs smoke library 1/2
+```
+
+拆分保留全部测试、引擎、断言和原有同机并发，不代表减少总计算时间。独立 runner 重复安装环境；产物下载与 smoke 等待构建也会进入关键路径。修改后按 Actions 实际耗时和失败率评估，不承诺线性加速。
 
 ## 本地浏览器检查与视觉报告
 

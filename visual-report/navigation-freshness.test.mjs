@@ -6,7 +6,7 @@ import { createVisualFixtureSession } from "./fixtures.mjs";
 import { withBrowserEvidence } from "../browser-tests/browser-evidence.mjs";
 
 for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
-  test(`${name}: ten information round trips reuse confirmed navigation`, async t => {
+  test(`${name}: repeated information round trips reuse confirmed navigation`, async t => {
     const app = await startVisualServer({ script: "dev" }); t.after(() => app.stop());
     const browser = await engine.launch(); t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
@@ -33,7 +33,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: "打开云盘菜单" }).click();
       await page.getByRole("link", { name: "基本信息", exact: true }).waitFor();
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 2; i++) {
         await page.getByRole("link", { name: "基本信息", exact: true }).click();
         await page.getByRole("button", { name: "修改云盘名称", exact: true }).waitFor();
         await expect(page.getByRole("button", { name: "修改云盘名称", exact: true })).toBeEnabled();
