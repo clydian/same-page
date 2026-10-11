@@ -7,6 +7,7 @@ import type { ScoreSummary } from "../../../shared/scores";
 import { Menu } from "../../navigation/overlays";
 import { attachmentFileUrl } from "./api";
 import "./attachments.css";
+import { useAttachmentReveal, type AttachmentRevealRequest } from "./use-attachment-reveal";
 import { LoadingStatus } from "../../components/loading-status";
 
 export type AttachmentSelection = { score: ScoreSummary; action: "add" | "upload" | "link" | "markdown" | "open" | "rename" | "trash"; attachment?: ScoreAttachment };
@@ -17,14 +18,16 @@ export function AttachmentCount({ score, expanded, disabled, onToggle }: { score
     aria-description={expanded ? "收起这份乐谱的附件" : "展开这份乐谱的附件"}><Paperclip size={13} aria-hidden="true" /><span>{score.attachmentCount}</span></Button> : null;
 }
 
-export function AttachmentRows({ score, choirId, items, canModify, canTrash, onSelect, available = true }: {
+export function AttachmentRows({ score, choirId, items, canModify, canTrash, onSelect, available = true, revealRequest, onRevealHandled }: {
+  revealRequest?: AttachmentRevealRequest; onRevealHandled?: (request: AttachmentRevealRequest) => void;
   available?: boolean; score: ScoreSummary; choirId: string; items: ScoreAttachment[]; canModify: boolean; canTrash: boolean;
   onSelect: (selection: AttachmentSelection) => void;
 }) {
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
   const rows = items.filter(item => item.scoreId === score.id);
+  const list = useAttachmentReveal(revealRequest, onRevealHandled);
   if (!rows.length) return null;
-  return <ul className="attachment-list" aria-label={`${score.fileName} 的附件`}>
+  return <ul ref={list} className="attachment-list" aria-label={`${score.fileName} 的附件`}>
     {rows.map(attachment => {
       const Icon = attachment.kind === "audio" ? FileAudio : attachment.kind === "link" ? LinkIcon : FileText;
       const content = <><Icon size={16} aria-hidden="true" /><span>{attachment.name}</span></>;

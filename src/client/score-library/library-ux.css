@@ -49,7 +49,7 @@
 .drive-search [data-rac] { min-width: 0; width: 100%; }
 .drive-header .drive-search input { min-height: 48px; border: 0; border-radius: 1.5rem; padding-inline: 1.15rem; background: var(--surface); font: inherit; }
 .drive-avatar { display: inline-flex; flex: 0 0 44px; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--brand-soft); color: var(--ink); font: inherit; font-weight: 600; font-size: 1.05rem; text-decoration: none; cursor: pointer; }
-.drive-page .file-library { padding-top: .25rem; padding-bottom: 7rem; }
+.drive-page .file-library { padding-top: .25rem; padding-bottom: calc(7rem + var(--safe-bottom)); }
 .drive-page .library-workspace { margin-top: 0; }
 .library-title { min-width: 0; }
 .library-title h1 { margin: 0; font-size: 1.35rem; line-height: 1.5; overflow-wrap: anywhere; }
