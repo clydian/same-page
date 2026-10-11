@@ -1,3 +1,4 @@
+import type { AttachmentRevealRequest } from "../score-library/attachments/use-attachment-reveal";
 import { readerHref } from "../reader/reader-entry";
 import { startPlayback } from "../playback/playback-store";
 import { DrivePreparation } from "../score-library/drive-preparation";
@@ -17,7 +18,7 @@ import { useApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
 import type { ApplicationIdentity } from "../auth/application-identity";
 import { ChevronDown } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   Button,
   Form,
@@ -101,6 +102,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   if (attachmentSelection && definitiveSession !== undefined && definitiveSession !== attachmentSelection.sessionId) setAttachmentSelection(null);
   const [attachmentGeneration, setAttachmentGeneration] = useState(0);
   const [expandedScoreIds, setExpandedScoreIds] = useState<Set<string>>(() => new Set());
+  const [attachmentReveal, setAttachmentReveal] = useState<AttachmentRevealRequest>();
+  const revealScope = `${choirId}:${cacheOwner}:${presentationSessionId}`;
+  const finishAttachmentReveal = useCallback((request: AttachmentRevealRequest) => {
+    setAttachmentReveal(current => current === request ? undefined : current);
+  }, []);
   const attachmentsEnabled = online && access.kind === "opened" && !access.local;
   const scoresWithAttachments = visibleScores.filter(score => (score.attachmentCount ?? 0) > 0);
   const expandedScores = scoresWithAttachments.filter(score => expandedScoreIds.has(score.id));
@@ -280,7 +286,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}</span></span>
                   </PreparedScoreLink>
                   <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={false}
-                    onToggle={() => setExpandedScoreIds(current => { const next = new Set(current); if (next.has(score.id)) next.delete(score.id); else next.add(score.id); return next; })} />
+                    onToggle={() => {
+                      const expanding = !expandedScoreIds.has(score.id);
+                      setAttachmentReveal(expanding ? { scoreId: score.id, scope: revealScope, scrollY: window.scrollY } : undefined);
+                      setExpandedScoreIds(current => { const next = new Set(current); if (expanding) next.add(score.id); else next.delete(score.id); return next; });
+                    }} />
                   <div className="file-row__offline"><OfflineScoreControl experience={choir.isPreviewEntry === true} score={score} authenticatedUserId={userId ?? null} authenticatedSessionId={identity.authenticatedSessionId} disabled={session.isPending || access.local} onOnlineOpen={() => {
                     beforeScoreOpen(score);
                     void navigate(readerHref({ choirId, scoreId: score.id, experience: choir.isPreviewEntry === true }));
@@ -313,7 +323,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                 <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
                   {expandedScoreIds.has(score.id) && (score.attachmentCount ?? 0) > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
                     : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={score.attachmentCount ?? 0} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
-                    : <><AttachmentRows available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} /></>)}
+                    : <><AttachmentRows revealRequest={attachmentReveal?.scoreId === score.id && attachmentReveal.scope === revealScope ? attachmentReveal : undefined} onRevealHandled={finishAttachmentReveal} available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} /></>)}
                 </div>
                 </article>
               ))}
