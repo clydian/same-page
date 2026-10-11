@@ -1,3 +1,4 @@
+import { readerHref } from "../reader/reader-entry";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Popover, Tooltip, TooltipTrigger } from 'react-aria-components';
@@ -35,7 +36,7 @@ export function PracticePlayerShell(props: Props) {
     setPanel(null);
     setPlaybackView(next);
     const path = `/choirs/${source.choirId}/scores/${source.score.id}`;
-    if (location.pathname !== path) void navigate(`${path}${location.search}`);
+    if (location.pathname !== path) void navigate(readerHref({ choirId: source.choirId, scoreId: source.score.id, experience: source.experience === true || source.ownerKey.startsWith("experience:") }, location.search));
   });
   const icon = (label: string, children: ReactNode, action: () => void, disabled = false) => <TooltipTrigger>
     <Button className="practice-icon" aria-label={label} isDisabled={disabled} onPress={action}>{children}</Button>

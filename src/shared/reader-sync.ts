@@ -11,6 +11,7 @@ export const readerSyncQuerySchema = z.object({
 });
 export const readerSyncResponseSchema = z.discriminatedUnion("state", [
   readerScoreStateSchema.options[0].extend({
+    experience: z.boolean().optional(),
     layers: annotationLayerListResponseSchema,
     annotations: annotationPullResponseSchema,
   }),

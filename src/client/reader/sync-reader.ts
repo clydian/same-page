@@ -7,10 +7,14 @@ import { localDatabase } from "../platform/local-database";
 import { assertLocalWorkspaceActive, captureLocalWorkspaceSession, type LocalWorkspace } from "../platform/local-workspace";
 import { readingPreferenceVersion } from "./reading-preferences";
 
+export class ReaderExperienceRequiredError extends Error {
+  constructor() { super("reader_experience_required"); }
+}
+
 export class ReaderSyncError extends Error {
   constructor(readonly status: number) { super("reader_sync_failed"); }
 }
-type ReaderSyncState = ReaderSyncResponse | { state: "permission-denied" | "missing" | "network-unavailable" | "service-unavailable" };
+type ReaderSyncState = ReaderSyncResponse | { state: "experience-required" | "permission-denied" | "missing" | "network-unavailable" | "service-unavailable" };
 type Listener = (result: ReaderSyncState) => void | Promise<void>;
 const listeners = new Map<string, Set<(result: ReaderSyncState, workspace: LocalWorkspace) => Promise<void>>>();
 const tasks = new Map<string, { promise: Promise<ReaderSyncResponse>; controller: AbortController; observers: number }>();
@@ -52,7 +56,7 @@ export async function syncReader(workspace: LocalWorkspace, options: { signal?: 
       try { result = await withScoreSyncLock(workspace, locked => read(locked, signal), { signal }); }
       catch (error) {
         await assertLocalWorkspaceActive(workspace); signal.throwIfAborted();
-        await notify({ state: error instanceof ReaderSyncError
+        await notify({ state: error instanceof ReaderExperienceRequiredError ? "experience-required" : error instanceof ReaderSyncError
           ? [401, 403].includes(error.status) ? "permission-denied" : error.status >= 500 ? "service-unavailable" : "missing"
           : error instanceof DiagnosticResponseError ? "service-unavailable" : "network-unavailable" });
         throw error;
@@ -91,6 +95,7 @@ async function read(workspace: LocalWorkspace, signal: AbortSignal): Promise<Rea
     }
     const result = await parseDiagnosticResponse(response, readerSyncResponseSchema);
     await assertLocalWorkspaceActive(workspace); signal.throwIfAborted();
+    if (result.state === "active" && result.experience && !workspace.ownerKey.startsWith("experience:")) throw new ReaderExperienceRequiredError();
     if (result.state === "trashed") { await removeCachedPublications(workspace); return result; }
     await applyLayerCapabilities(workspace, result.layers, preferenceVersion, signal);
     const previousLayerIds = layerIds;

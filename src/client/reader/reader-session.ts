@@ -24,6 +24,7 @@ import type { PDFDocumentProxy } from "./pdf-document";
 type CloudLookup = { state: "active"; score: ScoreSummary } | { state: "trashed" | "permission-denied" | "missing" | "network-unavailable" | "service-unavailable" };
 type Source = { kind: "cloud" | "offline"; versionId?: string };
 export interface ReaderSessionSnapshot {
+  experienceRequired?: boolean;
   opening: ReaderOpeningSnapshot | null;
   score: ScoreSummary | null;
   document: PDFDocumentProxy | null;
@@ -211,15 +212,19 @@ export class ReaderSession {
   private async confirmCloud() {
     try { await syncReader(this.workspace, { push: false, signal: AbortSignal.any([this.abort.signal, this.layerAbort.signal]) }); }
     catch (error) {
-      if (this.disposed || this.layerAbort.signal.aborted || this.state.cloudState !== "checking") return;
+      if (this.disposed || this.layerAbort.signal.aborted || this.state.experienceRequired || this.state.cloudState !== "checking") return;
       await this.applyCloud({ state: error instanceof ReaderSyncError
         ? error.status === 401 || error.status === 403 ? "permission-denied" : error.status >= 500 ? "service-unavailable" : "missing"
         : error instanceof DiagnosticResponseError ? "service-unavailable" : "network-unavailable" });
     }
   }
-  private async applyCloud(lookup: CloudLookup | ReaderSyncResponse) {
+  private async applyCloud(lookup: CloudLookup | ReaderSyncResponse | { state: "experience-required" }) {
     const sequence = ++this.lookupSequence;
     if (!await this.current() || sequence < this.appliedLookup) return;
+    if (lookup.state === "experience-required") {
+      this.publish({ experienceRequired: true, capability: "read-only" });
+      return;
+    }
     const unavailable = lookup.state === "network-unavailable" || lookup.state === "service-unavailable";
     if (!unavailable) this.appliedLookup = sequence;
     this.cloudSettled = true;

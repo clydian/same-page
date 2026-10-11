@@ -1,3 +1,4 @@
+import { readerHref } from "../reader/reader-entry";
 import { startPlayback } from "../playback/playback-store";
 import { DrivePreparation } from "../score-library/drive-preparation";
 import { useLibraryAttachments } from "../score-library/attachments/use-library-attachments";
@@ -91,8 +92,8 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const selectAttachment = (selection: AttachmentSelection) => {
     if (selection.action === "open" && (selection.attachment?.kind === "musicxml" || selection.attachment?.kind === "audio")) {
       setAttachmentSelection(null);
-      startPlayback({ attachment: selection.attachment, score: selection.score, choirId, ownerKey: cacheOwner, sessionId: identity.authenticatedSessionId });
-      if (selection.attachment.kind === "musicxml") void navigate(`/choirs/${choirId}/scores/${selection.score.id}${location.search}`);
+      startPlayback({ attachment: selection.attachment, score: selection.score, choirId, ownerKey: cacheOwner, sessionId: identity.authenticatedSessionId, experience: "choir" in access && access.choir?.isPreviewEntry === true });
+      if (selection.attachment.kind === "musicxml") void navigate(readerHref({ choirId, scoreId: selection.score.id, experience: "choir" in access && access.choir?.isPreviewEntry === true }, location.search));
     } else setAttachmentSelection({ ...selection, sessionId: identity.authenticatedSessionId });
   };
   const definitiveSession = identity.onlineState === "authenticated" || identity.onlineState === "signed-out" ? identity.authenticatedSessionId : undefined;
@@ -282,7 +283,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     onToggle={() => setExpandedScoreIds(current => { const next = new Set(current); if (next.has(score.id)) next.delete(score.id); else next.add(score.id); return next; })} />
                   <div className="file-row__offline"><OfflineScoreControl experience={choir.isPreviewEntry === true} score={score} authenticatedUserId={userId ?? null} authenticatedSessionId={identity.authenticatedSessionId} disabled={session.isPending || access.local} onOnlineOpen={() => {
                     beforeScoreOpen(score);
-                    void navigate(`/choirs/${choirId}/scores/${score.id}${choir.isPreviewEntry ? "?experience=1" : ""}`);
+                    void navigate(readerHref({ choirId, scoreId: score.id, experience: choir.isPreviewEntry === true }));
                   }} /></div>
                   <MenuTrigger>
                       <Button className="file-menu-button" aria-label={`${scoreDisplayName(score.fileName)} 更多操作`}>

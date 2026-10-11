@@ -1,3 +1,4 @@
+import { readerHref } from "../reader/reader-entry";
 import { GuestNoteDialog } from "../auth/guest-note-invitation";
 import { playbackStore, playbackViewStore } from "../playback/playback-store";
 import { ReaderGuide } from "../reader/reader-guide";
@@ -9,7 +10,7 @@ import { useReaderFullscreen } from "../reader/use-reader-fullscreen";
 import { clearGuestNotes } from "../annotations/guest-notes";
 import { useReadingPreferenceProjection } from "../reader/reading-preference-intents";
 import { loginHref } from "../auth/login-return";
-import { useLocation, useNavigationType } from "react-router-dom";
+import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { useReturnState } from "../navigation/navigation-context";
 import { useReaderSync } from "../reader/use-reader-sync";
 import { useToolColor } from "../reader/use-tool-color";
@@ -101,6 +102,7 @@ export default function ReaderPage() {
 function ReaderPageContent() {
   const fullscreen = useReaderFullscreen();
   const location = useLocation();
+  const navigate = useNavigate();
   const experience = new URLSearchParams(location.search).get("experience") === "1";
   const navigationType = useNavigationType();
   const returnedPanel = navigationType !== "POP" && location.state?.readerReturnPanel === "layers";
@@ -157,6 +159,12 @@ function ReaderPageContent() {
     return () => cancelAnimationFrame(frame);
   }, [conflictOpen]);
   const reader = useReaderSession(workspace, identity.authenticatedUserId, identity.authenticatedSessionId);
+  useEffect(() => {
+    if (!reader.snapshot.experienceRequired || experience) return;
+    void navigation.afterEditing(() => {
+      void navigate(readerHref({ choirId, scoreId, experience: true }, location.search), { replace: true, state: location.state });
+    });
+  }, [reader.snapshot.experienceRequired, experience, navigation, navigate, choirId, scoreId, location.search, location.state]);
   const { score, document, offline: loadedOffline, cloudState, downloading, downloadMessage, preparation } = reader.snapshot;
   const documentScopeKey = document ? workspace?.scopeKey ?? null : null;
   const [inspectionAttempt, setInspectionAttempt] = useState(0);
