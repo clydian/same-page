@@ -1,4 +1,3 @@
-import { createLocalAccountIssuer } from "@better-auth/core/db";
 import { hashPassword } from "better-auth/crypto";
 import { env } from "cloudflare:workers";
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
@@ -39,8 +38,8 @@ beforeEach(async () => {
   const now = Date.now();
   await env.DB.batch([
     env.DB.prepare("INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, '测试用户', 'attachment@example.test', 1, ?, ?)").bind(userId, now, now),
-    env.DB.prepare("INSERT INTO account (id, issuer, account_id, provider_id, user_id, password, created_at, updated_at) VALUES (?, ?, ?, 'credential', ?, ?, ?, ?)")
-      .bind(crypto.randomUUID(), createLocalAccountIssuer("credential"), userId, userId, passwordHash, now, now),
+    env.DB.prepare("INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at) VALUES (?, ?, 'credential', ?, ?, ?, ?)")
+      .bind(crypto.randomUUID(), userId, userId, passwordHash, now, now),
   ]);
   const provisioned = await provisionChoir({ binding: env.DB, ownerUserId: userId, ownerDisplayName: "附件测试", inviteSecret: env.INVITE_SECRET });
   choirId = provisioned.choirId; scoreId = crypto.randomUUID();
