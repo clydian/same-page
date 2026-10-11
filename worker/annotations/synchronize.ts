@@ -21,7 +21,7 @@ const inputCte = `WITH input AS (SELECT value AS op FROM json_each(?)),
   permission AS MATERIALIZED (
     SELECT l.id, l.kind, l.owner_user_id,
       CASE WHEN l.kind = 'personal' THEN l.owner_user_id = scope.actor AND
-        (m.id IS NOT NULL OR (c.is_preview_entry = 1 AND c.guest_admission_mode = 'open'))
+        m.id IS NOT NULL
       ELSE m.id IS NOT NULL AND g.id IS NOT NULL
         AND EXISTS (SELECT 1 FROM choir_shared_layer_settings WHERE choir_id = l.choir_id AND slot = l.default_slot AND active = 1 AND deleted_at IS NULL) END AS editable
     FROM annotation_layers l JOIN scope
@@ -103,9 +103,8 @@ export async function synchronizeOperations(db: D1Database, scope: Scope, operat
   statements.push(db.prepare(`SELECT CASE
     WHEN NOT EXISTS (SELECT 1 FROM scores WHERE id = ? AND choir_id = ? AND trashed_at IS NULL) THEN 404
     WHEN EXISTS (SELECT 1 FROM user_lifecycle WHERE user_id = ?) THEN 403
-    WHEN EXISTS (SELECT 1 FROM memberships WHERE choir_id = ? AND user_id = ? AND status = 'active')
-      OR EXISTS (SELECT 1 FROM choirs WHERE id = ? AND is_preview_entry = 1 AND guest_admission_mode = 'open') THEN 200
-    ELSE 403 END AS scope_status`).bind(scope.scoreId, scope.choirId, scope.userId, scope.choirId, scope.userId, scope.choirId));
+    WHEN EXISTS (SELECT 1 FROM memberships WHERE choir_id = ? AND user_id = ? AND status = 'active') THEN 200
+    ELSE 403 END AS scope_status`).bind(scope.scoreId, scope.choirId, scope.userId, scope.choirId, scope.userId));
   const batches = await db.batch<{ opId: string; status: PushResult["status"]; scope_status?: number; object_json: string | null }>(statements);
   const scopeStatus = batches.pop()?.results[0]?.scope_status;
   if (scopeStatus === 403 || scopeStatus === 404) throw new AnnotationScopeAccessError(scopeStatus);

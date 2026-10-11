@@ -1,3 +1,4 @@
+import { readerHref } from "../reader/reader-entry";
 import { useEffect, useRef, useState } from 'react';
 import { attachmentFileUrl } from '../score-library/attachments/api';
 import { PracticePlayerShell } from './practice-player-shell';
@@ -14,7 +15,7 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
   const location = useLocation(), navigate = useNavigate(), navigation = useAppNavigation();
   const preview = location.pathname === `/choirs/${source.choirId}`;
   const showScore = () => navigation.afterEditing(() => {
-    if (playbackStore.getSnapshot() === source) void navigate(`/choirs/${source.choirId}/scores/${source.score.id}${location.search}`);
+    if (playbackStore.getSnapshot() === source) void navigate(readerHref({ choirId: source.choirId, scoreId: source.score.id, experience: source.experience === true || source.ownerKey.startsWith("experience:") }, location.search));
   });
   const audio = useRef<HTMLAudioElement>(null);
   const [ready, setReady] = useState(false), [playing, setPlaying] = useState(false);

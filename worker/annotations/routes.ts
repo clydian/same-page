@@ -40,11 +40,7 @@ annotationRoutes.get("/choirs/:choirId/scores/:scoreId/layers", async (context) 
 
 export async function readScoreLayers(context: Context<AppEnvironment>, access: ResolvedScoreAccess) {
   const { choirId, scoreId, principal } = access;
-  if (context.req.query("experience") === "1") {
-    const preview = await context.env.DB.prepare("SELECT id FROM choirs WHERE id = ? AND is_preview_entry = 1 AND guest_admission_mode = 'open'").bind(choirId).first();
-    if (!preview) throw new AuthorizationError();
-  }
-  const userId = context.req.query("experience") !== "1" && principal.kind === "user" ? principal.userId : null;
+  const userId = !access.experience && access.membership && principal.kind === "user" ? principal.userId : null;
 
   if (userId) {
     const now = Date.now();
@@ -53,8 +49,10 @@ export async function readScoreLayers(context: Context<AppEnvironment>, access: 
          (id, choir_id, score_id, kind, owner_user_id, name, sort_order,
           default_color, created_by_membership_id, created_at, updated_at)
        SELECT ?, ?, ?, 'personal', ?, '我的笔记', 10000, '#dc2626', ?, ?, ?
-       WHERE NOT EXISTS (SELECT 1 FROM annotation_layers WHERE score_id = ? AND owner_user_id = ? AND kind = 'personal' AND deleted_at IS NULL)`,
-    ).bind(crypto.randomUUID(), choirId, scoreId, userId, access.membership?.id ?? null, now, now, scoreId, userId).run();
+       WHERE EXISTS (SELECT 1 FROM memberships WHERE id = ? AND user_id = ? AND choir_id = ? AND status = 'active' AND lifecycle_revision = ?)
+         AND NOT EXISTS (SELECT 1 FROM user_lifecycle WHERE user_id = ?)
+         AND NOT EXISTS (SELECT 1 FROM annotation_layers WHERE score_id = ? AND owner_user_id = ? AND kind = 'personal' AND deleted_at IS NULL)`,
+    ).bind(crypto.randomUUID(), choirId, scoreId, userId, access.membership!.id, now, now, access.membership!.id, userId, choirId, access.membership!.lifecycleRevision, userId, scoreId, userId).run();
   }
 
   const query = context.env.DB.prepare(
@@ -107,10 +105,11 @@ export async function readScoreLayers(context: Context<AppEnvironment>, access: 
 annotationRoutes.get("/choirs/:choirId/shared-layer-preferences", async (context) => {
   const choirId = context.req.param("choirId");
   const principal = await resolveContextPrincipal(context);
-  await requireChoirRead(createDatabase(context.env.DB), principal, choirId);
+  const access = await requireChoirRead(createDatabase(context.env.DB), principal, choirId);
   if (principal?.kind !== "user") {
     return context.json({ error: "guest_preferences_are_local" }, 403);
   }
+  if (access.kind !== "membership" || await resolveScoreExperience(context, choirId, true)) return context.json({ error: "membership_required" }, 403);
 
   if (context.req.header("x-same-page-owner-user-id") && context.req.header("x-same-page-owner-user-id") !== principal.userId) return context.json({ error: "identity_changed" }, 403);
   const drive = await readDriveIdentity(context, choirId);
@@ -263,8 +262,9 @@ annotationRoutes.put("/choirs/:choirId/shared-layers/:slot/preference", async (c
   const choirId = context.req.param("choirId");
   const slot = sharedLayerSlotSchema.safeParse(context.req.param("slot"));
   const principal = await resolveContextPrincipal(context);
-  await requireChoirRead(createDatabase(context.env.DB), principal, choirId);
+  const access = await requireChoirRead(createDatabase(context.env.DB), principal, choirId);
   if (principal?.kind !== "user") return context.json({ error: "guest_preferences_are_local" }, 403);
+  if (access.kind !== "membership" || await resolveScoreExperience(context, choirId, true)) return context.json({ error: "membership_required" }, 403);
   if (context.req.header("x-same-page-owner-user-id") && context.req.header("x-same-page-owner-user-id") !== principal.userId) return context.json({ error: "identity_changed" }, 403);
   const parsed = driveLayerPreferenceUpdateSchema.safeParse(await context.req.json().catch(() => null));
   if (!slot.success || !parsed.success || Object.keys(parsed.data).length === 0) {
@@ -296,6 +296,7 @@ annotationRoutes.put("/choirs/:choirId/scores/:scoreId/shared-layers/:slot/prefe
   if (access instanceof Response) return access;
   const slot = sharedLayerSlotSchema.safeParse(context.req.param("slot"));
   if (access.principal.kind !== "user") return context.json({ error: "guest_preferences_are_local" }, 403);
+  if (!access.membership || access.experience) return context.json({ error: "membership_required" }, 403);
   if (context.req.header("x-same-page-owner-user-id") && context.req.header("x-same-page-owner-user-id") !== access.principal.userId) return context.json({ error: "identity_changed" }, 403);
   const parsed = scoreLayerPreferenceUpdateSchema.safeParse(await context.req.json().catch(() => null));
   if (!slot.success || !parsed.success || Object.keys(parsed.data).length === 0) {
@@ -338,6 +339,7 @@ annotationRoutes.post("/choirs/:choirId/scores/:scoreId/personal-layers", async 
   const access = await resolveScoreAccess(context);
   if (access instanceof Response) return access;
   if (access.principal.kind !== "user") return context.json({ error: "authentication_required" }, 401);
+  if (!access.membership || access.experience) return context.json({ error: "membership_required" }, 403);
   const body = personalLayerNameSchema.safeParse(await context.req.json().catch(() => null));
   if (!body.success) return context.json({ error: "invalid_personal_layer" }, 400);
   const id = body.data.id;
@@ -348,10 +350,9 @@ annotationRoutes.post("/choirs/:choirId/scores/:scoreId/personal-layers", async 
     WHERE NOT EXISTS (SELECT 1 FROM user_lifecycle WHERE user_id = ?)
       AND EXISTS (SELECT 1 FROM scores JOIN choirs ON choirs.id = scores.choir_id
         WHERE scores.id = ? AND scores.trashed_at IS NULL AND
-          ((? IS NULL AND choirs.is_preview_entry = 1 AND choirs.guest_admission_mode = 'open') OR
-           EXISTS (SELECT 1 FROM memberships WHERE id = ? AND lifecycle_revision = ? AND choir_id = choirs.id AND user_id = ? AND status = 'active')))`)
+          EXISTS (SELECT 1 FROM memberships WHERE id = ? AND lifecycle_revision = ? AND choir_id = choirs.id AND user_id = ? AND status = 'active'))`)
     .bind(id, access.choirId, access.scoreId, access.principal.userId, body.data.name, now, now,
-      access.principal.userId, access.scoreId, access.membership?.id ?? null, access.membership?.id ?? null, access.membership?.lifecycleRevision ?? null, access.principal.userId).run();
+      access.principal.userId, access.scoreId, access.membership.id, access.membership.lifecycleRevision, access.principal.userId).run();
   if (!result.meta.changes) {
     const existing = await context.env.DB.prepare("SELECT id FROM annotation_layers WHERE id = ? AND choir_id = ? AND score_id = ? AND owner_user_id = ? AND kind = 'personal' AND deleted_at IS NULL")
       .bind(id, access.choirId, access.scoreId, access.principal.userId).first();
@@ -364,10 +365,10 @@ annotationRoutes.put("/choirs/:choirId/scores/:scoreId/personal-layers/:layerId"
   const access = await resolveScoreAccess(context);
   if (access instanceof Response) return access;
   if (access.principal.kind !== "user") return context.json({ error: "authentication_required" }, 401);
+  if (!access.membership || access.experience) return context.json({ error: "membership_required" }, 403);
   const parsed = personalLayerUpdateSchema.safeParse(await context.req.json().catch(() => null));
   if (!parsed.success) return context.json({ error: "invalid_personal_layer" }, 400);
   const data = parsed.data;
-  if (data.sharing !== undefined && !access.membership) return context.json({ error: "membership_required" }, 403);
   const now = Date.now();
   const result = await context.env.DB.prepare(`UPDATE annotation_layers SET
     name = COALESCE(?, name), sharing = COALESCE(?, sharing),
@@ -377,11 +378,11 @@ annotationRoutes.put("/choirs/:choirId/scores/:scoreId/personal-layers/:layerId"
       AND ((? = 'restore' AND deleted_at > ?) OR (? <> 'restore' AND deleted_at IS NULL))
       AND NOT EXISTS (SELECT 1 FROM user_lifecycle WHERE user_id = owner_user_id)
       AND EXISTS (SELECT 1 FROM scores JOIN choirs ON choirs.id = scores.choir_id WHERE scores.id = annotation_layers.score_id
-        AND scores.trashed_at IS NULL AND ((? IS NULL AND choirs.is_preview_entry = 1 AND choirs.guest_admission_mode = 'open') OR
-        EXISTS (SELECT 1 FROM memberships WHERE id = ? AND lifecycle_revision = ? AND choir_id = choirs.id AND user_id = annotation_layers.owner_user_id AND status = 'active')))`)
+        AND scores.trashed_at IS NULL AND
+        EXISTS (SELECT 1 FROM memberships WHERE id = ? AND lifecycle_revision = ? AND choir_id = choirs.id AND user_id = annotation_layers.owner_user_id AND status = 'active'))`)
     .bind(data.name ?? null, data.sharing === undefined ? null : Number(data.sharing), data.action ?? '', now, data.action ?? '', now,
       context.req.param("layerId"), access.choirId, access.scoreId, access.principal.userId, data.expectedRevision,
-      data.action ?? '', now - RECOVERY_PERIOD_MS, data.action ?? '', access.membership?.id ?? null, access.membership?.id ?? null, access.membership?.lifecycleRevision ?? null).run();
+      data.action ?? '', now - RECOVERY_PERIOD_MS, data.action ?? '', access.membership.id, access.membership.lifecycleRevision).run();
   if (!result.meta.changes) return context.json({ error: "personal_layer_changed" }, 409);
   return context.json({ revision: data.expectedRevision + 1 });
 });
@@ -390,6 +391,7 @@ annotationRoutes.put("/choirs/:choirId/scores/:scoreId/personal-layers/:layerId/
   const access = await resolveScoreAccess(context);
   if (access instanceof Response) return access;
   if (access.principal.kind !== "user") return context.json({ error: "authentication_required" }, 401);
+  if (!access.membership || access.experience) return context.json({ error: "membership_required" }, 403);
   if (context.req.header("x-same-page-owner-user-id") && context.req.header("x-same-page-owner-user-id") !== access.principal.userId) return context.json({ error: "identity_changed" }, 403);
   const body = await context.req.json<{ subscribed?: unknown }>().catch(() => null);
   if (typeof body?.subscribed !== "boolean") return context.json({ error: "invalid_subscription" }, 400);
@@ -414,6 +416,7 @@ annotationRoutes.post("/choirs/:choirId/scores/:scoreId/annotations/push", async
   if (access.principal.kind !== "user") {
     return context.json({ error: "authentication_required" }, 401);
   }
+  if (!access.membership || access.experience) return context.json({ error: "membership_required" }, 403);
   if (
     context.req.header("x-same-page-owner-user-id") !==
     access.principal.userId
@@ -444,7 +447,7 @@ annotationRoutes.get("/choirs/:choirId/scores/:scoreId/annotations", async (cont
 });
 
 export async function readScoreAnnotations(context: Context<AppEnvironment>, access: ResolvedScoreAccess, cursor: number) {
-  const userId = context.req.query("experience") !== "1" && access.principal.kind === "user" ? access.principal.userId : null;
+  const userId = !access.experience && access.membership && access.principal.kind === "user" ? access.principal.userId : null;
   const rows = await context.env.DB.prepare(
     `SELECT operations.sequence, objects.id, objects.layer_id, objects.version,
             objects.deleted, objects.payload_json,
@@ -521,7 +524,18 @@ async function resolveScoreAccess(
     scoreId,
     principal,
     membership: access.kind === "membership" ? access.membership : null,
+    experience: await resolveScoreExperience(context, choirId, access.kind === "membership"),
   };
+}
+
+// Entry configuration grants local trial writing only; membership remains the
+// independent authority for formal account and shared-layer editing.
+export async function resolveScoreExperience(context: Context<AppEnvironment>, choirId: string, isMember: boolean) {
+  const requested = context.req.query("experience") === "1";
+  if (!requested && isMember) return false;
+  const preview = await context.env.DB.prepare("SELECT id FROM choirs WHERE id = ? AND is_preview_entry = 1 AND guest_admission_mode = 'open'").bind(choirId).first();
+  if (requested && !preview) throw new AuthorizationError();
+  return !!preview;
 }
 
 async function readDriveIdentity(context: Context<AppEnvironment>, choirId: string) {
@@ -601,6 +615,7 @@ export interface ResolvedScoreAccess {
   scoreId: string;
   principal: Principal;
   membership: PermissionMember | null;
+  experience: boolean;
 }
 
 interface LayerRow {

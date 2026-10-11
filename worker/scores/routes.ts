@@ -3,7 +3,7 @@ import { serveStoredFile } from "./serve-file";
 import { deleteCookie, getCookie } from "hono/cookie";
 import { GUEST_SESSION_COOKIE } from "../security/guest-session";
 import { limitDriveMutation } from "../security/drive-rate-limit";
-import { readScoreLayers, readScoreAnnotations } from "../annotations/routes";
+import { readScoreLayers, readScoreAnnotations, resolveScoreExperience } from "../annotations/routes";
 import { readerSyncQuerySchema } from "../../src/shared/reader-sync";
 import { and, eq, isNull } from "drizzle-orm";
 import { type Context, Hono } from "hono";
@@ -251,13 +251,14 @@ scoreRoutes.get("/choirs/:choirId/scores/:scoreId/sync", async (context) => {
       trashExpiresAt: row.trash_expires_at ?? undefined,
     });
   }
-  const scope = { choirId, scoreId, principal, membership: access.kind === "membership" ? access.membership : null };
+  const scope = { choirId, scoreId, principal, membership: access.kind === "membership" ? access.membership : null,
+    experience: await resolveScoreExperience(context, choirId, access.kind === "membership") };
   const layers = await readScoreLayers(context, scope);
   const ids = layers.layers.map(layer => layer.id).sort();
   const cursor = JSON.stringify(ids) === JSON.stringify(parsed.data.layerIds) ? parsed.data.cursor : 0;
   const annotations = await readScoreAnnotations(context, scope, cursor);
   return context.json({
-    layers, annotations,
+    layers, annotations, experience: scope.experience,
     state: "active" as const,
     score: serializeScoreRow(row),
     permissions: { capabilities: access.kind === "membership" ? memberCapabilities(access.membership) : noCapabilities() },

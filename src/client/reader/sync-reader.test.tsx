@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { noCapabilities } from "../../shared/drive-permissions";
 import { localDatabase } from "../platform/local-database";
 import { authenticatedLocalOwnerKey, activateAuthenticatedLocalOwner, captureLocalWorkspaceSession, createLocalWorkspace, type LocalWorkspace } from "../platform/local-workspace";
-import { subscribeReaderSync, syncReader } from "./sync-reader";
+import { ReaderExperienceRequiredError, subscribeReaderSync, syncReader } from "./sync-reader";
 import { useReaderSession } from "./use-reader-session";
 import { clearReaderDocumentCache } from "./reader-document-cache";
 vi.mock("./pdf-document", () => ({ loadPdfDocument: vi.fn(() => ({ promise: Promise.resolve({ document: { numPages: 1 }, versionId: "version" }), destroy: async () => undefined })) }));
@@ -104,4 +104,23 @@ it("aborts the underlying request when its last reader detaches", async () => {
   controller.abort();
   await rejected;
   expect(requestSignal?.aborted).toBe(true);
+});
+
+it("requires a verified preview response to reopen in the experience workspace before caching", async () => {
+  vi.mocked(fetch).mockImplementation(async () => {
+    const body = await response(0, false, true).json();
+    return Response.json({ ...body, experience: true });
+  });
+  const listener = vi.fn();
+  const unsubscribe = subscribeReaderSync(workspace, listener);
+  try {
+    await expect(syncReader(workspace)).rejects.toBeInstanceOf(ReaderExperienceRequiredError);
+    expect(listener).toHaveBeenLastCalledWith({ state: "experience-required" });
+    expect(await localDatabase.annotationLayers.count()).toBe(0);
+    expect(await localDatabase.annotationSyncCursors.count()).toBe(0);
+    const view = renderHook(() => useReaderSession(workspace, "reader", "session"));
+    await waitFor(() => expect(view.result.current.snapshot.experienceRequired).toBe(true));
+    expect(view.result.current.snapshot.capability).toBe("read-only");
+    view.unmount();
+  } finally { unsubscribe(); }
 });

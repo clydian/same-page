@@ -1,7 +1,7 @@
 import type { ScoreAttachment } from '../../shared/attachments';
 import type { ScoreSummary } from '../../shared/scores';
 import { onNavigationReset } from '../settings/navigation-events';
-export interface PlaybackSource { attachment: ScoreAttachment; score: ScoreSummary; choirId: string; ownerKey: string; sessionId: string | null }
+export interface PlaybackSource { attachment: ScoreAttachment; score: ScoreSummary; choirId: string; ownerKey: string; sessionId: string | null; experience?: boolean }
 let source: PlaybackSource | null = null;
 let generation = 0;
 let view: 'pdf' | 'xml' = 'pdf';

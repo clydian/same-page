@@ -1,4 +1,3 @@
-import { noCapabilities } from "../src/shared/drive-permissions";
 import { cleanupAnnotationLayers } from "./annotations/cleanup";
 import { RECOVERY_PERIOD_MS } from "./lifecycle/cleanup";
 import type { SharedLayerManagementSummary } from "../src/shared/annotations";
@@ -426,61 +425,64 @@ describe("annotation layers and object synchronization", () => {
     expect(measurements[1].roundTrips).toBeLessThanOrEqual(measurements[0].roundTrips + 1);
   });
 
-  it("lets signed-in preview users sync only their own personal layer without joining", async () => {
+  it("keeps signed-in preview nonmembers local even when the experience parameter is missing", async () => {
     const fixture = await createFixture();
     await env.DB.prepare("UPDATE choirs SET guest_admission_mode = 'open', is_preview_entry = 1, join_code_hash = NULL, join_code_ciphertext = NULL WHERE id = ?")
       .bind(fixture.choirId).run();
     const first = await signIn("preview-first@example.test");
-    const second = await signIn("preview-second@example.test");
     const base = `/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
-    const read = (path: string, cookie: string) => callWorker(path, { headers: { cookie } });
-    const bootstrap = await read(`/api/choirs/${fixture.choirId}/bootstrap`, first.cookie);
-    expect(bootstrap.status).toBe(200);
-    expect(await bootstrap.json()).toMatchObject({
-      scores: [{ id: fixture.scoreId }], permissions: { capabilities: noCapabilities(), access: "preview" },
-    });
-    const layers = await read(`${base}/layers`, first.cookie);
-    expect(layers.status).toBe(200);
-    const body = await layers.json() as { layers: Array<{ id: string; kind: string; canEdit: boolean }> };
-    const personal = body.layers.find((layer) => layer.kind === "personal")!;
-    expect(personal.canEdit).toBe(true);
-    expect(body.layers.filter((layer) => layer.kind === "shared").every((layer) => !layer.canEdit)).toBe(true);
+    const read = (path: string, cookie = first.cookie) => callWorker(path, { headers: { cookie } });
     const author = { ...fixture, adminCookie: first.cookie, ownerUserId: first.userId };
-    const op = operation(crypto.randomUUID(), personal.id, 0, "只属于我");
-    expect(await (await push(author, [op])).json()).toMatchObject({ results: [{ status: "accepted" }] });
-    // Reloading the layers and pulling from a fresh request retains the same private content.
-    expect(await (await read(`${base}/layers`, first.cookie)).json()).toMatchObject({
-      layers: expect.arrayContaining([expect.objectContaining({ id: personal.id })]),
-    });
-    expect(await (await read(`${base}/annotations`, first.cookie)).json()).toMatchObject({
-      objects: [expect.objectContaining({ id: op.annotationId, payload: expect.objectContaining({ text: "只属于我" }) })],
-    });
-    for (const other of [second, { cookie: fixture.adminCookie, userId: fixture.ownerUserId }]) {
-      expect(await (await read(`${base}/layers`, other.cookie)).json()).not.toMatchObject({
-        layers: expect.arrayContaining([expect.objectContaining({ id: personal.id })]),
-      });
-      expect(await (await read(`${base}/annotations`, other.cookie)).json()).toMatchObject({ objects: [] });
-      expect(await (await push({ ...fixture, adminCookie: other.cookie, ownerUserId: other.userId }, [
-        operation(op.annotationId, personal.id, 1, "不能改别人的"),
-      ])).json()).toMatchObject({ results: [{ status: "permission_denied" }] });
+    // A legacy personal layer must not be exposed or made writable by preview access.
+    const legacyId = crypto.randomUUID();
+    await env.DB.prepare(`INSERT INTO annotation_layers
+      (id, choir_id, score_id, kind, owner_user_id, name, sort_order, default_color)
+      VALUES (?, ?, ?, 'personal', ?, '历史空个人层', 10000, '#dc2626')`)
+      .bind(legacyId, fixture.choirId, fixture.scoreId, first.userId).run();
+    await push(fixture, [operation(crypto.randomUUID(), fixture.layerId, 0, "公开共享内容")]);
+    for (const suffix of ["", "?experience=1"]) {
+      const layers = await read(`${base}/layers${suffix}`);
+      expect(layers.status).toBe(200);
+      const body = await layers.json() as { layers: Array<{ kind: string; canEdit: boolean }> };
+      expect(body.layers).toHaveLength(5);
+      expect(body.layers.every(layer => layer.kind === "shared" && !layer.canEdit)).toBe(true);
+      const pulled = await read(`${base}/annotations${suffix}`);
+      expect(await pulled.json()).toMatchObject({ objects: [expect.objectContaining({ layerId: fixture.layerId })] });
+      const combined = await read(`${base}/sync${suffix}`);
+      expect(await combined.json()).toMatchObject({ experience: true,
+        layers: { layers: expect.not.arrayContaining([expect.objectContaining({ id: legacyId })]) } });
+      expect((await read(`/api/choirs/${fixture.choirId}/shared-layer-preferences${suffix}`)).status).toBe(403);
+      for (const path of [`${base}/personal-layers/${legacyId}/subscription`, `${base}/shared-layers/A/preference`, `/api/choirs/${fixture.choirId}/shared-layers/A/preference`]) {
+        expect((await callWorker(`${path}${suffix}`, { ...jsonRequest(first.cookie, { subscribed: true }), method: "PUT" })).status).toBe(403);
+      }
+      const create = await callWorker(`${base}/personal-layers${suffix}`, jsonRequest(first.cookie, { id: crypto.randomUUID(), name: "不可新建" }));
+      expect(create.status).toBe(403);
+      for (const change of [{ name: "不可改名" }, { action: "delete" }, { action: "restore" }, { sharing: true }]) {
+        const update = await callWorker(`${base}/personal-layers/${legacyId}${suffix}`, {
+          ...jsonRequest(first.cookie, { ...change, expectedRevision: 0 }), method: "PUT",
+        });
+        expect(update.status).toBe(403);
+      }
     }
-    expect(await (await push(author, [operation(crypto.randomUUID(), fixture.layerId, 0, "不能改共享层")])).json()).toMatchObject({ results: [{ status: "permission_denied" }] });
-    expect((await callWorker(`/api/choirs/${fixture.choirId}/scores`, uploadRequest(first.cookie, "禁止上传.pdf"))).status).toBe(403);
-    const guestResponse = await callWorker("/api/guest/session", jsonRequest("", { admission: "open", choirId: fixture.choirId }));
-    const guestCookie = cookieFrom(guestResponse);
-    const guestLayers = await (await read(`${base}/layers`, guestCookie)).json() as typeof body;
-    expect(guestLayers.layers.every((layer) => layer.kind === "shared" && !layer.canEdit)).toBe(true);
-    expect((await push({ ...fixture, adminCookie: guestCookie }, [op])).status).toBe(401);
-    expect(await (await read(`${base}/annotations`, guestCookie)).json()).toMatchObject({ objects: [] });
-    const updated = operation(op.annotationId, personal.id, 1, "修改后");
-    expect(await (await push(author, [updated])).json()).toMatchObject({ results: [{ status: "accepted", object: { version: 2 } }] });
-    expect(await (await push(author, [{ ...updated, opId: crypto.randomUUID(), baseVersion: 2, type: "delete", payload: null }])).json())
-      .toMatchObject({ results: [{ status: "accepted", object: { deleted: true } }] });
-    const memberCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM memberships WHERE choir_id = ?").bind(fixture.choirId).first<{ total: number }>();
-    expect(memberCount?.total).toBe(1);
-    // An ordinary open drive still requires membership for private editing.
+    expect((await push(author, [operation(crypto.randomUUID(), legacyId, 0, "不可写入")])).status).toBe(403);
+    const { synchronizeOperations } = await import("./annotations/synchronize");
+    await expect(synchronizeOperations(env.DB, { choirId: fixture.choirId, scoreId: fixture.scoreId, userId: first.userId },
+      [operation(crypto.randomUUID(), legacyId, 0, "事务也不可写入")])).rejects.toThrow("annotation_scope_unavailable");
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM annotation_layers WHERE owner_user_id = ? AND score_id = ?").bind(first.userId, fixture.scoreId).first()).toEqual({ count: 1 });
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM annotation_objects WHERE layer_id = ?").bind(legacyId).first()).toEqual({ count: 0 });
+    expect(await env.DB.prepare("SELECT name, revision FROM annotation_layers WHERE id = ?").bind(legacyId).first()).toEqual({ name: "历史空个人层", revision: 0 });
+    // The member's formal entry retains account editing, while explicit experience does not.
+    const memberLayers = await (await read(`${base}/layers`, fixture.adminCookie)).json() as { layers: Array<{ id: string; kind: string; canEdit: boolean }> };
+    const memberPersonal = memberLayers.layers.find(layer => layer.kind === "personal")!;
+    expect(memberPersonal.canEdit).toBe(true);
+    expect(await (await push(fixture, [operation(crypto.randomUUID(), memberPersonal.id, 0, "正式个人笔记")])).json()).toMatchObject({ results: [{ status: "accepted" }] });
+    expect((await callWorker(`${base}/annotations/push?experience=1`, jsonRequest(fixture.adminCookie, {
+      operations: [operation(crypto.randomUUID(), fixture.layerId, 0, "体验不改共享层")],
+    }, { "x-same-page-owner-user-id": fixture.ownerUserId }))).status).toBe(403);
     await env.DB.prepare("UPDATE choirs SET is_preview_entry = 0 WHERE id = ?").bind(fixture.choirId).run();
-    expect((await read(`${base}/layers`, first.cookie)).status).toBe(403);
+    expect((await read(`${base}/layers`)).status).toBe(403);
+    expect((await read(`${base}/sync?experience=1`, fixture.adminCookie)).status).toBe(403);
+    expect((await read(`${base}/annotations?experience=1`, fixture.adminCookie)).status).toBe(403);
   });
 
   it("lets only administrators retrieve, restore and rotate the current invite code", async () => {

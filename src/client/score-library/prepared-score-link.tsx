@@ -1,3 +1,4 @@
+import { readerHref } from "../reader/reader-entry";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +31,7 @@ export function PreparedScoreLink({ score, sessionId, canPrepare, ...props }: Pr
   const go = (scrollY: number) => {
     openingGeneration++;
     props.onOpen(scrollY);
-    void navigate(`/choirs/${score.choirId}/scores/${score.id}${props.experience ? "?experience=1" : ""}`);
+    void navigate(readerHref({ choirId: score.choirId, scoreId: score.id, experience: props.experience === true }));
   };
   const open = async () => {
     if (opening) return;
