@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FileAudio, FileText, Link as LinkIcon, MoreHorizontal, Paperclip } from "lucide-react";
 import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
@@ -20,6 +21,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
   available?: boolean; score: ScoreSummary; choirId: string; items: ScoreAttachment[]; canModify: boolean; canTrash: boolean;
   onSelect: (selection: AttachmentSelection) => void;
 }) {
+  const [unavailableId, setUnavailableId] = useState<string | null>(null);
   const rows = items.filter(item => item.scoreId === score.id);
   if (!rows.length) return null;
   return <ul className="attachment-list" aria-label={`${score.fileName} 的附件`}>
@@ -27,8 +29,9 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
       const Icon = attachment.kind === "audio" ? FileAudio : attachment.kind === "link" ? LinkIcon : FileText;
       const content = <><Icon size={16} aria-hidden="true" /><span>{attachment.name}</span></>;
       return <li className="attachment-row" key={attachment.id}>
-        {attachment.kind === "link" ? <a className="attachment-open" aria-disabled={!available || undefined} href={available ? safeAttachmentUrl(attachment.url ?? "") : undefined} target="_blank" rel="noopener noreferrer">{content}</a>
-          : <Button isDisabled={!available} className="attachment-open" onPress={() => onSelect({ score, attachment, action: "open" })}>{content}</Button>}
+        {attachment.kind === "link" ? <a className="attachment-open" onClick={event => { if (!available) { event.preventDefault(); setUnavailableId(attachment.id); } }} href={safeAttachmentUrl(attachment.url ?? "")} target="_blank" rel="noopener noreferrer">{content}</a>
+          : <Button className="attachment-open" onPress={() => { if (!available) setUnavailableId(attachment.id); else onSelect({ score, attachment, action: "open" }); }}>{content}</Button>}
+        {!available && unavailableId === attachment.id && <span className="attachment-help attachment-feedback" role="status">连接网络后可打开此附件。</span>}
         {(attachment.kind !== "link" || canModify || canTrash) && <MenuTrigger><Button className="attachment-menu" aria-label={`${attachment.name} 更多操作`}><MoreHorizontal size={18} /></Button>
           <Popover className="file-menu-popover"><Menu aria-label={`${attachment.name} 操作`} onAction={key => { if (key === "rename" || key === "trash") onSelect({ score, attachment, action: key }); }}>
             {attachment.kind !== "link" && <MenuItem id="download" isDisabled={!available} href={available ? attachmentFileUrl(choirId, attachment, true) : undefined} download={attachment.name}>下载</MenuItem>}

@@ -1,3 +1,4 @@
+import { isAttachmentDirectoryKey } from "../score-library/attachments/attachment-directory";
 import { storeOfflineScore } from "../platform/local-database";
 import { clearMarkdownDraftsAfterLogout, countMarkdownDrafts } from "../score-library/attachments/markdown-drafts";
 import { retainGuestSharedAnnotations } from "../annotations/annotation-state";
@@ -63,7 +64,7 @@ export async function clearPrivateLocalDataAfterLogout() {
       localDatabase.offlineSnapshots,
     ],
     async () => {
-      await localDatabase.system.filter(record => owners.some(owner => record.key.startsWith(JSON.stringify(["reading-defaults", owner]).slice(0, -1)) || record.key.startsWith(JSON.stringify(["reading-preference-version", owner]).slice(0, -1)))).delete();
+      await localDatabase.system.filter(record => owners.some(owner => isAttachmentDirectoryKey(record.key, owner) || record.key.startsWith(JSON.stringify(["reading-defaults", owner]).slice(0, -1)) || record.key.startsWith(JSON.stringify(["reading-preference-version", owner]).slice(0, -1)))).delete();
       await localDatabase.readingPreferences.where("ownerKey").anyOf(owners).delete();
       await localDatabase.driveDirectories.where("ownerKey").anyOf(owners).delete();
       const offlineScores = await localDatabase.offlineScores

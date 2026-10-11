@@ -28,6 +28,7 @@ test("conflicts compare in place and require confirmation in Chromium and WebKit
           await context.route("**/api/**", async route => {
             const request = route.request();
             const pathname = new URL(request.url()).pathname;
+            if (pathname.endsWith("/attachments")) return route.fulfill({ json: { attachments: [] } });
             const response = fixture.resolve({ pathname, method: request.method(), identity: "member", scenarioId: "reader-conflicts", cookie: "" });
             if (pathname.endsWith("/sync") && cloud) {
               const body = JSON.parse(response.body);

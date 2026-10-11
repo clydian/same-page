@@ -1,0 +1,10 @@
+{
+  "issue": 404,
+  "date": "2026-10-11",
+  "viewport": {"width": 390, "height": 844},
+  "engines": ["Chromium", "WebKit"],
+  "source": "visual-report/offline-library.test.mjs",
+  "scope": "Application row preparation, IndexedDB attachment metadata, new-page restoration, offline click feedback, no attachment-file requests and no horizontal overflow",
+  "limits": "API fixture and active-service-worker stub; simulated offline status. Not a physical iPad/Pencil or installed-PWA process-restart acceptance. Real Worker offline tests are separate.",
+  "screenshots": ["chromium-download.png", "chromium-offline-list.png", "chromium-offline-feedback.png", "webkit-offline-feedback.png"]
+}

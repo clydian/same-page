@@ -12,8 +12,8 @@ import { experienceOwnerKey, authenticatedLocalOwnerKey, createLocalWorkspace, r
 import { useOfflineScore, useOfflinePreparation } from "../offline/use-offline-score";
 import "./offline-score-control.css";
 
-export function OfflineScoreControl({ score, authenticatedUserId, authenticatedSessionId, experience = false, disabled = false }: {
-  score: ScoreSummary; authenticatedUserId: string | null; authenticatedSessionId: string | null; disabled?: boolean; experience?: boolean;
+export function OfflineScoreControl({ score, authenticatedUserId, authenticatedSessionId, experience = false, disabled = false, onOnlineOpen }: {
+  score: ScoreSummary; authenticatedUserId: string | null; authenticatedSessionId: string | null; disabled?: boolean; experience?: boolean; onOnlineOpen?: () => void;
 }) {
   const online = useNetworkStatus();
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -50,7 +50,9 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
   const stale = Boolean(record && record.versionId !== score.currentVersion.id);
   const needsDownload = !record || invalid || stale || failed;
   const state = downloading ? "downloading" : failed || invalid || readFailed ? "error" : stale ? "stale" : record ? "ready" : "missing";
-  const description = offlinePreparationDescription(attempt, inspected ? { record, invalid: Boolean(invalid), readFailed } : null, score.currentVersion.id);
+  const percent = attempt.phase === "preparing" && attempt.stage === "download" && attempt.totalBytes
+    ? Math.min(100, Math.floor((attempt.loadedBytes ?? 0) / attempt.totalBytes * 100)) : null;
+  const description = percent !== null ? `正在下载：${percent}%` : offlinePreparationDescription(attempt, inspected ? { record, invalid: Boolean(invalid), readFailed } : null, score.currentVersion.id);
   const actionLabel = failed ? "重试保存" : stale ? "更新离线副本" : "保存供离线使用";
   const Icon = state === "downloading" ? LoaderCircle : state === "error" ? CircleAlert : state === "stale" ? RefreshCw : state === "ready" ? HardDrive : HardDrive;
 
@@ -68,7 +70,7 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
           setDetailsOpen(true);
         }}
       >
-        <Icon aria-hidden="true" size={16} />
+        {downloading && percent !== null ? <span role="progressbar" aria-label="下载乐谱" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} className="offline-score-progress" ><svg viewBox="0 0 24 24" aria-hidden="true"><circle className="offline-score-progress-track" cx="12" cy="12" r="10.5" /><circle className="offline-score-progress-fill" cx="12" cy="12" r="10.5" pathLength="100" strokeDasharray={`${percent} 100`} /></svg><span aria-hidden="true">{percent}</span></span> : <Icon aria-hidden="true" size={16} />}
         {state === "ready" && <Check className="offline-score-check" aria-hidden="true" size={9} />}
       </Button>
       <Tooltip className="offline-score-tooltip">{description}</Tooltip>
@@ -80,6 +82,7 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
         <p>保存在这台设备上，供断网时打开。</p>
         {readFailed && <Button className="secondary-button" onPress={() => setInspectionAttempt(value => value + 1)}>重试校验</Button>}
         {!readFailed && needsDownload && <Button className="secondary-button" isDisabled={!online || disabled || !workspace || explicitDownload} onPress={() => void prepare()}>{downloading ? explicitDownload ? "正在准备…" : "继续保存（切换页面不中断）" : actionLabel}</Button>}
+        {failed && online && !disabled && onOnlineOpen && <Button className="secondary-button" onPress={onOnlineOpen}>在线打开</Button>}
         <Button className="text-button" onPress={() => setDetailsOpen(false)}>关闭</Button>
       </Dialog>
     </Popover>

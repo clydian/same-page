@@ -55,7 +55,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.getByRole("dialog").locator(".dialog-actions").getByRole("button", { name: "取消", exact: true }).click();
       await expect(disclosure).toHaveAttribute("aria-expanded", "true");
       await expect(attachment).toHaveAttribute("data-continuity-observed", "true");
-      await expect(attachment).toBeDisabled();
+      await expect(attachment).toBeEnabled();
+      await attachment.click();
+      await expect(page.getByText("连接网络后可打开此附件。", { exact: true })).toBeVisible();
+      await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir`);
       await expect(page.getByRole("button", { name: "我在此云盘", exact: true }).locator(".lucide-user-round")).toBeVisible();
       await page.screenshot({ path: `${evidence}/offline-attachments.png` });
       holdMetadata = true;
