@@ -18,4 +18,8 @@
 
 .offline-score-control[data-state="ready"] .offline-score-button, .offline-score-control[data-state="missing"] .offline-score-button { opacity: .65; }
 
-.offline-score-progress { display: block; width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 50%; box-sizing: border-box; }
+.offline-score-control[data-state="downloading"] { color: var(--brand); }
+.offline-score-progress { position: relative; display: grid; place-items: center; width: 24px; height: 24px; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.offline-score-progress svg { position: absolute; inset: 0; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; }
+.offline-score-progress-track { opacity: .18; }
+.offline-score-progress-fill { transform: rotate(-90deg); transform-origin: center; }

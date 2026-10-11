@@ -70,7 +70,7 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
           setDetailsOpen(true);
         }}
       >
-        {downloading && percent !== null ? <span role="progressbar" aria-label="下载乐谱" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} className="offline-score-progress" style={{ background: `conic-gradient(currentColor ${percent * 3.6}deg, transparent 0deg)` }} /> : <Icon aria-hidden="true" size={16} />}
+        {downloading && percent !== null ? <span role="progressbar" aria-label="下载乐谱" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} className="offline-score-progress" ><svg viewBox="0 0 24 24" aria-hidden="true"><circle className="offline-score-progress-track" cx="12" cy="12" r="10.5" /><circle className="offline-score-progress-fill" cx="12" cy="12" r="10.5" pathLength="100" strokeDasharray={`${percent} 100`} /></svg><span aria-hidden="true">{percent}</span></span> : <Icon aria-hidden="true" size={16} />}
         {state === "ready" && <Check className="offline-score-check" aria-hidden="true" size={9} />}
       </Button>
       <Tooltip className="offline-score-tooltip">{description}</Tooltip>
