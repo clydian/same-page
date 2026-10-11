@@ -97,11 +97,14 @@ it.each(["stale", "invalid"])("makes a %s copy downloadable without a ready mark
 
 it("exposes download failure and allows retry inside the details", async () => {
   downloadPdf.mockRejectedValueOnce(new Error("network"));
-  render(<OfflineScoreControl score={score} authenticatedUserId="user" authenticatedSessionId="session" />);
+  const onOnlineOpen = vi.fn();
+  render(<OfflineScoreControl score={score} authenticatedUserId="user" authenticatedSessionId="session" onOnlineOpen={onOnlineOpen} />);
   fireEvent.click(screen.getByRole("button", { name: /离线副本：/ }));
   expect(downloadPdf).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "保存供离线使用" }));
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("准备未完成"));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "在线打开" }));
+  expect(onOnlineOpen).toHaveBeenCalledOnce();
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "重试保存" }));
   await waitFor(() => expect(downloadPdf).toHaveBeenCalledTimes(2));
 });

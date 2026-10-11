@@ -17,3 +17,5 @@
 @media (prefers-reduced-motion: reduce) { .offline-score-control[data-state="downloading"] .offline-score-button > svg { animation: none; } }
 
 .offline-score-control[data-state="ready"] .offline-score-button, .offline-score-control[data-state="missing"] .offline-score-button { opacity: .65; }
+
+.offline-score-progress { display: block; width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 50%; box-sizing: border-box; }

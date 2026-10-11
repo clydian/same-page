@@ -210,6 +210,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const can = (operation: Operation) => capabilities.operations.operations.includes(operation);
   const managementVisible = hasManagement(capabilities) || access.managementVisible;
   const localFilesOnly = Boolean(access.local);
+  const beforeScoreOpen = (score: ScoreSummary, scrollY = window.scrollY) => {
+    startLoadingJourney("open-score", classifyReaderOpen(userId ?? "guest", choirId, score.id));
+    library.prepareScoreOpen(scrollY);
+    rememberReaderScore(userId ?? "guest", score);
+  };
   const storageRatio = result.storage.usedBytes / result.storage.limitBytes;
 
   return (
@@ -268,23 +273,17 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
               {visibleScores.map((score) => (
                 <article className="score-file-group" key={score.id}><div className="file-row">
                   <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} canPrepare={attachmentsEnabled && !session.isPending} explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
-                    onOpen={(scrollY) =>
-                      {
-                        startLoadingJourney(
-                          "open-score",
-                          classifyReaderOpen(userId ?? "guest", choirId, score.id),
-                        );
-                        library.prepareScoreOpen(scrollY ?? window.scrollY);
-                        rememberReaderScore(userId ?? "guest", score);
-                      }
-                    }
+                    onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
                     <span className="pdf-file-icon" aria-hidden="true">PDF</span>
                     <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}</span></span>
                   </PreparedScoreLink>
                   <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => setExpandedScoreIds(current => { const next = new Set(current); if (next.has(score.id)) next.delete(score.id); else next.add(score.id); return next; })} />
-                  <div className="file-row__offline"><OfflineScoreControl experience={choir.isPreviewEntry === true} score={score} authenticatedUserId={userId ?? null} authenticatedSessionId={identity.authenticatedSessionId} disabled={session.isPending || access.local} /></div>
+                  <div className="file-row__offline"><OfflineScoreControl experience={choir.isPreviewEntry === true} score={score} authenticatedUserId={userId ?? null} authenticatedSessionId={identity.authenticatedSessionId} disabled={session.isPending || access.local} onOnlineOpen={() => {
+                    beforeScoreOpen(score);
+                    void navigate(`/choirs/${choirId}/scores/${score.id}${choir.isPreviewEntry ? "?experience=1" : ""}`);
+                  }} /></div>
                   <MenuTrigger>
                       <Button className="file-menu-button" aria-label={`${scoreDisplayName(score.fileName)} 更多操作`}>
                         ···

@@ -24,29 +24,30 @@ it("stays in the library, joins repeat clicks and opens only after preparation s
   fireEvent.click(screen.getByRole("link", { name: "score" }));
   await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1));
   expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive");
-  expect(screen.getByRole("progressbar")).toBeVisible();
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button")).not.toBeInTheDocument();
   await act(async () => task.resolve({ phase: "ready", record: {} }));
   await waitFor(() => expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive/scores/score"));
 });
-it.each(["cancel", "unmount", "another score", "session change"])("does not navigate on late completion after %s", async reason => {
+it.each(["unmount", "another score", "session change"])("does not navigate on late completion after %s", async reason => {
   const old = pending(), next = pending(); prepare.mockReturnValueOnce(old.promise).mockReturnValueOnce(next.promise);
   const view = render(<MemoryRouter initialEntries={["/choirs/drive"]}>{row()}{row("next")}<Route /></MemoryRouter>);
   fireEvent.click(screen.getByRole("link", { name: "score" }));
   await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1));
   if (reason === "session change") view.rerender(<MemoryRouter>{row("score", "new-session")}<Route /></MemoryRouter>);
-  if (reason === "cancel") fireEvent.click(screen.getByRole("button", { name: "取消打开" }));
   if (reason === "unmount") view.rerender(<MemoryRouter><Route /></MemoryRouter>);
   if (reason === "another score") fireEvent.click(screen.getByRole("link", { name: "next" }));
   await act(async () => old.resolve({ phase: "ready", record: {} }));
   expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive");
 });
-it("offers retry and an online reading fallback when offline preparation fails", async () => {
-  prepare.mockResolvedValue({ phase: "failed", reason: "download" });
+it("retries a failed open by clicking the score again without adding row controls", async () => {
+  prepare.mockResolvedValueOnce({ phase: "failed", reason: "download" }).mockResolvedValueOnce({ phase: "ready", record: {} });
   render(<MemoryRouter initialEntries={["/choirs/drive"]}>{row()}<Route /></MemoryRouter>);
   fireEvent.click(screen.getByRole("link", { name: "score" }));
-  await screen.findByRole("button", { name: "重试" });
-  fireEvent.click(screen.getByRole("button", { name: "在线打开" }));
-  expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive/scores/score");
+  await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1));
+  expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: "score" }));
+  await waitFor(() => expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive/scores/score"));
 });
 
 it("opens online immediately when this browser has no active offline shell", async () => {

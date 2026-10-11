@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useNavigate } from "react-router-dom";
-import { Button } from "react-aria-components";
 import type { ScoreSummary } from "../../shared/scores";
 import { untilAborted } from "../platform/abortable";
 import { guestOwnerSystemKey, localDatabase } from "../platform/local-database";
@@ -21,12 +20,11 @@ export function PreparedScoreLink({ score, sessionId, canPrepare, ...props }: Pr
   const offline = useOfflineScore(workspace);
   const preparation = useOfflinePreparation(workspace, score, props.userId ?? null, sessionId);
   const [opening, setOpening] = useState(false);
-  const [failed, setFailed] = useState(false);
   const request = useRef(0);
   const lifetime = useRef(new AbortController());
   const target = JSON.stringify([workspace?.scopeKey, sessionId, score.currentVersion.id, canPrepare]);
   const [stateTarget, setStateTarget] = useState(target);
-  if (stateTarget !== target) { setStateTarget(target); setOpening(false); setFailed(false); }
+  if (stateTarget !== target) { setStateTarget(target); setOpening(false); }
   useEffect(() => { const controller = new AbortController(); lifetime.current = controller; return () => controller.abort(); }, [target]);
   const ready = offline?.scopeKey === workspace?.scopeKey && offline?.record && !offline.invalid;
   const go = (scrollY: number) => {
@@ -40,7 +38,7 @@ export function PreparedScoreLink({ score, sessionId, canPrepare, ...props }: Pr
     const generation = ++openingGeneration;
     const signal = lifetime.current.signal;
     const scrollY = window.scrollY;
-    setOpening(true); setFailed(false);
+    setOpening(true);
     const shell = "serviceWorker" in navigator ? await untilAborted(navigator.serviceWorker.getRegistration(), AbortSignal.any([signal, AbortSignal.timeout(1_000)])).catch(() => undefined) : undefined;
     if (signal.aborted || id !== request.current || generation !== openingGeneration) return;
     // Without an active offline shell, keep online reading available immediately.
@@ -49,12 +47,7 @@ export function PreparedScoreLink({ score, sessionId, canPrepare, ...props }: Pr
     if (signal.aborted || id !== request.current || generation !== openingGeneration) { if (!signal.aborted && id === request.current) setOpening(false); return; }
     setOpening(false);
     if (result?.phase === "ready") go(scrollY);
-    else if (result?.phase !== "cancelled") setFailed(true);
   };
-  const state = preparation.state;
-  const percent = state.phase === "preparing" && state.stage === "download" && state.totalBytes
-    ? Math.min(100, Math.floor((state.loadedBytes ?? 0) / state.totalBytes * 100)) : null;
-  const status = state.phase === "preparing" && state.stage === "download" ? "正在下载…" : state.phase === "preparing" && state.stage === "save" ? "正在保存…" : "正在准备并校验…";
   return <div className="prepared-score-open">
     <div className="prepared-score-target" aria-busy={opening || undefined}>
       <ScoreLink {...props} onClick={event => {
@@ -62,9 +55,6 @@ export function PreparedScoreLink({ score, sessionId, canPrepare, ...props }: Pr
         event.preventDefault();
         void open();
       }} onOpen={() => { openingGeneration++; props.onOpen(); }}>{props.children}</ScoreLink>
-      {opening && <span className="score-open-progress"><span role="progressbar" aria-label="下载乐谱" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined} className="score-open-ring" style={percent === null ? undefined : { background: `conic-gradient(currentColor ${percent * 3.6}deg, #dce4de 0deg)` }} /><span>{percent === null ? <span className="visually-hidden">{status}</span> : `${percent}%`}</span></span>}
     </div>
-    {opening && <div className="score-open-status"><span role="status">{percent === null ? status : "正在下载…"}</span><Button className="text-button score-open-cancel" onPress={() => { request.current++; setOpening(false); }}>取消打开</Button></div>}
-    {failed && <div className="score-open-error" role="status">未能准备离线副本。<Button className="text-button" onPress={() => void open()}>重试</Button><Button className="text-button" onPress={() => { request.current++; go(window.scrollY); }}>在线打开</Button></div>}
   </div>;
 }

@@ -52,10 +52,12 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await expect(page.getByRole('progressbar', { name: '下载乐谱' })).toHaveAttribute('aria-valuenow', /4[0-9]|50/);
     await expect(page).toHaveURL(/\/choirs\/visual-choir$/);
     await page.screenshot({ path: path.join(evidence, `${name}-download.png`) });
-    await page.getByRole('button', { name: '取消打开' }).click();
+    await expect(page.locator('.pdf-file-icon').filter({ hasText: 'PDF' })).toHaveCount(3);
+    await expect(page.getByRole('progressbar')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: '取消打开' })).toHaveCount(0);
     await page.evaluate(() => window.__releaseScoreDownload());
-    await expect(page.locator('.file-row__offline [aria-label*="排练示例"]').first()).toHaveAttribute('aria-label', /· 可离线使用$/);
-    await expect(page).toHaveURL(/\/choirs\/visual-choir$/);
+    await expect(page).toHaveURL(/\/scores\/visual-score$/);
+    await page.locator('[data-pdf-canvas-active]').first().waitFor();
     await page.close();
     page = await context.newPage();
     await page.goto(`${server.origin}/choirs/visual-choir`);
