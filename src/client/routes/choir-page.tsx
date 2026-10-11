@@ -107,6 +107,14 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const finishAttachmentReveal = useCallback((request: AttachmentRevealRequest) => {
     setAttachmentReveal(current => current === request ? undefined : current);
   }, []);
+  useEffect(() => {
+    if (!attachmentReveal) return;
+    const cancelAfterScroll = () => {
+      if (Math.abs(window.scrollY - attachmentReveal.scrollY) >= 1) finishAttachmentReveal(attachmentReveal);
+    };
+    window.addEventListener("scroll", cancelAfterScroll, { passive: true });
+    return () => window.removeEventListener("scroll", cancelAfterScroll);
+  }, [attachmentReveal, finishAttachmentReveal]);
   const attachmentsEnabled = online && access.kind === "opened" && !access.local;
   const scoresWithAttachments = visibleScores.filter(score => (score.attachmentCount ?? 0) > 0);
   const expandedScores = scoresWithAttachments.filter(score => expandedScoreIds.has(score.id));

@@ -174,6 +174,19 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.scrollY), 40);
     }, { attachments: true, height: 675, delayed: true });
+    await scenario("manual-scroll-back-during-attachments", async (page, release) => {
+      await page.goto(`${app.origin}/choirs/visual-choir`);
+      await page.getByRole("button", { name: /2 个附件/ }).click();
+      await page.getByText("正在读取附件…").waitFor();
+      await page.evaluate(() => window.scrollTo(0, 40));
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(40);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await expect(page.locator(".upload-fab")).toHaveAttribute("data-visible", "true");
+      release();
+      await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal(await page.evaluate(() => window.scrollY), 0);
+    }, { attachments: true, height: 675, delayed: true });
     await scenario("unobstructed-attachments", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: /2 个附件/ }).click();
