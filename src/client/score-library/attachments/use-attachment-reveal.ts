@@ -4,10 +4,10 @@ export type AttachmentRevealRequest = { scoreId: string; scope: string; scrollY:
 
 // Only explicit expansion requests reveal content. Restored lists and later
 // refreshes must leave the user's reading position alone.
-export function useAttachmentReveal(request: AttachmentRevealRequest | undefined, hasRows: boolean, onHandled?: (request: AttachmentRevealRequest) => void) {
+export function useAttachmentReveal(request: AttachmentRevealRequest | undefined, onHandled?: (request: AttachmentRevealRequest) => void) {
   const list = useRef<HTMLUListElement>(null);
   useLayoutEffect(() => {
-    if (!request || !hasRows) return;
+    if (!request) return;
     const frame = requestAnimationFrame(() => {
       const fab = document.querySelector<HTMLButtonElement>(".upload-fab");
       if (list.current && fab && fab.dataset.visible !== "false" && Math.abs(window.scrollY - request.scrollY) < 1) {
@@ -23,9 +23,11 @@ export function useAttachmentReveal(request: AttachmentRevealRequest | undefined
         // click target while a smooth scroll is still in flight.
         if (distance > 0) window.scrollBy({ top: distance, behavior: "instant" });
       }
+      // This component only mounts once metadata is ready. Empty results
+      // finish the intent too, so a later refresh cannot replay it.
       onHandled?.(request);
     });
     return () => cancelAnimationFrame(frame);
-  }, [request, hasRows, onHandled]);
+  }, [request, onHandled]);
   return list;
 }

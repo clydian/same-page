@@ -25,7 +25,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
 }) {
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
   const rows = items.filter(item => item.scoreId === score.id);
-  const list = useAttachmentReveal(revealRequest, rows.length > 0, onRevealHandled);
+  const list = useAttachmentReveal(revealRequest, onRevealHandled);
   if (!rows.length) return null;
   return <ul ref={list} className="attachment-list" aria-label={`${score.fileName} 的附件`}>
     {rows.map(attachment => {

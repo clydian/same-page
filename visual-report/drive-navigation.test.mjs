@@ -11,13 +11,14 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     t.after(() => app.stop());
     const browser = await engine.launch();
     t.after(() => browser.close());
-    async function scenario(label, run, { attachments = false, height = 844, safeBottom = 0, delayed = false } = {}) {
+    async function scenario(label, run, { attachments = false, height = 844, safeBottom = 0, delayed = false, emptyFirstAttachments = false } = {}) {
       await t.test(label, async () => {
         const context = await browser.newContext({ viewport: { width: 390, height }, serviceWorkers: "block" });
         try {
           await withBrowserEvidence(context, `artifacts/verification/drive-navigation/${name}-${label}`, async () => {
             const page = await context.newPage();
             const fixture = createVisualFixtureSession(attachments ? { id: "reader-practice", multipleSources: true } : {});
+            let attachmentReads = 0;
             let releaseAttachments;
             const attachmentReady = new Promise(resolve => { releaseAttachments = resolve; });
             await page.route("**/api/**", async route => {
@@ -25,6 +26,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
               const pathname = new URL(request.url()).pathname;
               if (delayed && pathname.endsWith("/attachments")) await attachmentReady;
               const result = fixture.resolve({ pathname, method: request.method(), identity: "admin", cookie: "" });
+              if (pathname.endsWith("/attachments") && ++attachmentReads === 1 && emptyFirstAttachments) result.body = JSON.stringify({ attachments: [] });
               if (pathname.endsWith("/bootstrap")) {
                 const data = JSON.parse(result.body);
                 data.scores = attachments ? data.scores.slice(0, 2) : Array.from({ length: 50 }, (_, i) => ({ ...data.scores[0], id: `score-${i}`, fileName: `排练乐谱 ${i + 1}.pdf` }));
@@ -188,6 +190,44 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.scrollY), 0);
     }, { attachments: true, height: 675, delayed: true });
+    await scenario("filtered-pending-attachments", async (page, release) => {
+      await page.goto(`${app.origin}/choirs/visual-choir`);
+      await page.getByRole("button", { name: /2 个附件/ }).click();
+      await page.getByText("正在读取附件…").waitFor();
+      await page.getByRole("searchbox").fill("不存在");
+      await page.getByText(/没有找到包含/).waitFor();
+      release();
+      assert.equal(await page.evaluate(() => window.scrollY), 0);
+      await page.getByRole("searchbox").fill("");
+      await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal(await page.evaluate(() => window.scrollY), 0, "Restoring filtered rows must not replay expansion intent");
+    }, { attachments: true, height: 675, delayed: true });
+    await scenario("sorted-pending-attachments", async (page, release) => {
+      await page.goto(`${app.origin}/choirs/visual-choir`);
+      await page.getByRole("button", { name: /2 个附件/ }).click();
+      await page.getByText("正在读取附件…").waitFor();
+      await page.getByRole("combobox", { name: "乐谱排序" }).selectOption("updated");
+      await page.getByRole("combobox", { name: "乐谱排序" }).selectOption("name");
+      release();
+      await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal(await page.evaluate(() => window.scrollY), 0, "Changing sort must cancel pending expansion intent");
+    }, { attachments: true, height: 675, delayed: true });
+    await scenario("empty-attachments-then-refresh", async page => {
+      await page.goto(`${app.origin}/choirs/visual-choir`);
+      const loaded = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/attachments"));
+      await page.getByRole("button", { name: /2 个附件/ }).click();
+      await loaded;
+      await expect(page.getByText("正在读取附件…")).toBeHidden();
+      await expect(page.locator(".attachment-list")).toHaveCount(0);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal(await page.evaluate(() => window.scrollY), 0);
+      await page.getByRole("button", { name: "刷新乐谱列表" }).click();
+      await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal(await page.evaluate(() => window.scrollY), 0, "A later refresh must not inherit the completed empty expansion");
+    }, { attachments: true, height: 675, emptyFirstAttachments: true });
     await scenario("unobstructed-attachments", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: /2 个附件/ }).click();

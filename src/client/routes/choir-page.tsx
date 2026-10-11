@@ -128,8 +128,14 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
     return library.refresh();
   };
   const refreshAfterMutation = library.changed;
-  const updateSearch = library.setSearch;
-  const updateSort = library.setSort;
+  const updateSearch = (value: string) => {
+    setAttachmentReveal(undefined);
+    library.setSearch(value);
+  };
+  const updateSort = (value: LibrarySort) => {
+    setAttachmentReveal(undefined);
+    library.setSort(value);
+  };
 
   const attachmentDialog = attachmentSelection && attachmentSessionCurrent && (access.kind === "loading" || (access.kind === "opened" && !access.retained)) && <Suspense fallback={<AttachmentLoading selection={attachmentSelection} onClose={() => setAttachmentSelection(null)} />}><AttachmentDialog
         key={`${attachmentSelection.sessionId ?? "guest"}:${attachmentSelection.score.id}:${attachmentSelection.attachment?.id ?? attachmentSelection.action}`}
