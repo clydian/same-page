@@ -1,3 +1,4 @@
+import { clearAttachmentDirectories } from "./attachments/attachment-directory";
 import { noCapabilities, type DriveCapabilities } from "../../shared/drive-permissions";
 import type { ChoirSummary } from "../../shared/choirs";
 import type { ScoreSummary } from "../../shared/scores";
@@ -45,6 +46,7 @@ export async function rememberDriveAccessRevoked(workspace: LocalWorkspace, sign
     signal.throwIfAborted();
     const key = JSON.stringify([workspace.ownerKey, workspace.choirId]);
     const directory = await localDatabase.driveDirectories.get(key);
+    await clearAttachmentDirectories(workspace);
     await localDatabase.driveDirectories.put({ key, ownerKey: workspace.ownerKey, choirId: workspace.choirId,
       choir: directory?.choir ?? { id: workspace.choirId, name: "云盘", guestAdmissionMode: "invite" },
       scores: [], membership: false, capabilities: noCapabilities(), accessRevoked: true });

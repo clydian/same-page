@@ -1,0 +1,12 @@
+.prepared-score-open { flex: 1; min-width: 0; }
+.prepared-score-target { position: relative; }
+.prepared-score-target[aria-busy="true"] .pdf-file-icon { visibility: hidden; }
+.score-open-progress { position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: grid; justify-items: center; gap: 2px; font-size: 10px; color: var(--text-muted, #52695b); pointer-events: none; }
+.score-open-ring { display: block; width: 24px; height: 24px; border-radius: 50%; background: #dce4de; mask: radial-gradient(transparent 55%, #000 57%); }
+.score-open-ring:not([aria-valuenow]) { border: 2px solid currentColor; border-right-color: transparent; background: none; mask: none; animation: score-open-spin 1s linear infinite; }
+.score-open-progress span:last-child { max-width: 48px; text-align: center; }
+.score-open-error { font-size: 12px; color: var(--text-muted, #52695b); }
+.score-open-status { display: flex; align-items: center; gap: .5rem; padding-left: 3rem; font-size: 12px; color: var(--muted); }
+.score-open-cancel { font-size: 12px; }
+@keyframes score-open-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .score-open-ring:not([aria-valuenow]) { animation: none; } }

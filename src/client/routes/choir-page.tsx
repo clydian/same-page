@@ -8,7 +8,7 @@ import { InstallSuggestion } from "../install/install-entry";
 import { scoreDisplayName } from "../../shared/score-display-name";
 import { hasManagement, type Operation } from "../../shared/drive-permissions";
 import { BackButton } from "../navigation/back-button";
-import { ScoreLink } from "../score-library/score-link";
+import { PreparedScoreLink } from "../score-library/prepared-score-link";
 import { useNetworkStatus } from "../platform/use-network-status";
 import { DriveSettingsDialog } from "../score-library/drive-settings-dialog";
 import { rememberLastDrive, forgetLastDrive } from "../score-library/last-drive";
@@ -103,7 +103,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const attachmentsEnabled = online && access.kind === "opened" && !access.local;
   const scoresWithAttachments = visibleScores.filter(score => (score.attachmentCount ?? 0) > 0);
   const expandedScores = scoresWithAttachments.filter(score => expandedScoreIds.has(score.id));
-  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled, `${cacheOwner}:${presentationSessionId ?? "guest"}:${attachmentGeneration}:${access.kind === "opened" && access.retained ? "revoked" : "accessible"}`);
+  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled, `${cacheOwner}:${presentationSessionId ?? "guest"}:${attachmentGeneration}:${access.kind === "opened" && access.retained ? "revoked" : "accessible"}`, access.kind === "opened" && !access.retained ? cacheOwner : undefined);
   const [scoreAction, setScoreAction] = useState<ScoreActionSelection | null>(null);
   const refresh = () => {
     // Authentication changes cause useDriveLibrary to acquire/reload the now
@@ -267,21 +267,21 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
             <section className="file-list" aria-label="PDF 文件">
               {visibleScores.map((score) => (
                 <article className="score-file-group" key={score.id}><div className="file-row">
-                  <ScoreLink explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
-                    onOpen={() =>
+                  <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} canPrepare={attachmentsEnabled && !session.isPending} explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
+                    onOpen={(scrollY) =>
                       {
                         startLoadingJourney(
                           "open-score",
                           classifyReaderOpen(userId ?? "guest", choirId, score.id),
                         );
-                        library.prepareScoreOpen(window.scrollY);
+                        library.prepareScoreOpen(scrollY ?? window.scrollY);
                         rememberReaderScore(userId ?? "guest", score);
                       }
                     }
                   >
                     <span className="pdf-file-icon" aria-hidden="true">PDF</span>
                     <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}</span></span>
-                  </ScoreLink>
+                  </PreparedScoreLink>
                   <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => setExpandedScoreIds(current => { const next = new Set(current); if (next.has(score.id)) next.delete(score.id); else next.add(score.id); return next; })} />
                   <div className="file-row__offline"><OfflineScoreControl experience={choir.isPreviewEntry === true} score={score} authenticatedUserId={userId ?? null} authenticatedSessionId={identity.authenticatedSessionId} disabled={session.isPending || access.local} /></div>
@@ -311,9 +311,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     </MenuTrigger>
                 </div>
                 <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
-                  {expandedScoreIds.has(score.id) && (score.attachmentCount ?? 0) > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">附件需联网后查看，主谱的离线副本不包含附件。</p>
+                  {expandedScoreIds.has(score.id) && (score.attachmentCount ?? 0) > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
                     : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={score.attachmentCount ?? 0} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
-                    : <><AttachmentRows available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} />{!attachmentsEnabled && <p className="attachment-help" role="status">附件需联网后打开，主谱的离线副本不包含附件。</p>}</>)}
+                    : <><AttachmentRows available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} /></>)}
                 </div>
                 </article>
               ))}

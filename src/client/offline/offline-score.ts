@@ -1,3 +1,4 @@
+import { prepareAttachmentDirectory } from "../score-library/attachments/attachment-directory";
 import { untilAborted } from "../platform/abortable";
 import { readLogoutFence } from "../auth/logout-fence";
 import { liveQuery } from "dexie";
@@ -15,11 +16,12 @@ import { findVerifiedOfflineScore, sha256Hex, verifyOfflineScore } from "./offli
 // Both entry points use the same verified replacement path. A failed attempt never
 // activates the new PDF or removes the previous copy or local drafts. Confirmed
 // publication revocations still scrub inaccessible notes, even on failure.
-async function prepareOfflineScore(workspace: LocalWorkspace, score: ScoreSummary, signal = new AbortController().signal, pdfData?: Uint8Array, fileFence?: string) {
+async function prepareOfflineScore(workspace: LocalWorkspace, score: ScoreSummary, signal = new AbortController().signal, pdfData?: Uint8Array, fileFence?: string, progress?: (stage: "download" | "verify" | "save", loadedBytes?: number, totalBytes?: number) => void) {
   signal.throwIfAborted();
   fileFence ??= await captureOfflineFileFence(workspace);
   workspace = await captureLocalWorkspaceSession(workspace);
   if (workspace.choirId !== score.choirId || workspace.scoreId !== score.id) throw new Error("offline_score_scope_mismatch");
+  const directory = prepareAttachmentDirectory(workspace, score, signal).catch(() => undefined);
   const previous = await findActiveOfflineFile(workspace.ownerKey, workspace.choirId, workspace.scoreId);
   const base = `/api/choirs/${encodeURIComponent(score.choirId)}/scores/${encodeURIComponent(score.id)}`;
   let data: ArrayBuffer;
@@ -28,8 +30,28 @@ async function prepareOfflineScore(workspace: LocalWorkspace, score: ScoreSummar
   } else {
     const response = await diagnosticFetch(`${base}/versions/${encodeURIComponent(score.currentVersion.id)}/pdf`, { signal });
     if (!response.ok) throw new Error("offline_pdf_download_failed");
-    data = await response.arrayBuffer();
+    progress?.("download", 0, score.currentVersion.sizeBytes);
+    if (response.body) {
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let loaded = 0;
+      try {
+        while (true) {
+          const part = await reader.read();
+          signal.throwIfAborted();
+          if (part.done) break;
+          chunks.push(part.value); loaded += part.value.byteLength;
+          if (loaded > score.currentVersion.sizeBytes) throw new Error("offline_pdf_size_mismatch");
+          progress?.("download", loaded, score.currentVersion.sizeBytes);
+        }
+      } finally { await reader.cancel().catch(() => undefined); reader.releaseLock(); }
+      const bytes = new Uint8Array(loaded);
+      let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+      data = bytes.buffer;
+    } else data = await response.arrayBuffer();
   }
+  progress?.("verify");
   if (data.byteLength !== score.currentVersion.sizeBytes || await sha256Hex(data) !== score.currentVersion.sha256) throw new Error("offline_pdf_checksum_mismatch");
   const blob = new Blob([data], { type: "application/pdf" });
   const hash = score.currentVersion.sha256;
@@ -53,9 +75,11 @@ async function prepareOfflineScore(workspace: LocalWorkspace, score: ScoreSummar
   };
   if (!(await verifyOfflineScore({ ...record, active: 1, verifiedAt: Date.now() }))) throw new Error("offline_annotation_snapshot_incomplete");
   signal.throwIfAborted();
+  progress?.("save");
   await activateVerifiedOfflineScore(record, { activeKey: previous?.key ?? null, fileFence, signal });
   const verified = await findVerifiedOfflineScore(workspace);
   if (!verified || verified.versionId !== score.currentVersion.id) throw new Error("offline_copy_unavailable");
+  await directory;
   return verified;
 }
 
@@ -63,7 +87,7 @@ class OfflineAnnotationPreparationError extends Error {}
 
 export type OfflinePreparationState =
   | { phase: "idle" | "cancelled" }
-  | { phase: "preparing"; intent: "automatic" | "explicit" }
+  | { phase: "preparing"; intent: "automatic" | "explicit"; stage?: "download" | "verify" | "save"; loadedBytes?: number; totalBytes?: number }
   | { phase: "failed"; reason: "identity" | "download" | "annotations" | "timeout" }
   | { phase: "ready"; record: OfflineScoreRecord };
 type PreparationTask = {
@@ -173,7 +197,10 @@ export class OfflinePreparation {
           const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(180_000)]);
           const bytes = pdfData ? await untilAborted(pdfData().catch(() => undefined), signal) : undefined;
           controller.signal.throwIfAborted();
-          const record = await untilAborted(prepareOfflineScore(context.workspace, this.score, signal, bytes, context.fence), signal);
+          const record = await untilAborted(prepareOfflineScore(context.workspace, this.score, signal, bytes, context.fence, (stage, loadedBytes, totalBytes) => {
+            ownedTask.state = { phase: "preparing", intent: ownedTask.explicit ? "explicit" : "automatic", stage, loadedBytes, totalBytes };
+            notify();
+          }), signal);
           return { phase: "ready", record };
         } catch (error) { return controller.signal.aborted ? { phase: "cancelled" } : { phase: "failed", reason: error instanceof OfflineAnnotationPreparationError ? "annotations" : error instanceof DOMException && error.name === "TimeoutError" ? "timeout" : "download" }; }
         finally { watcher.unsubscribe(); }
@@ -187,7 +214,7 @@ export class OfflinePreparation {
     this.task = task;
     if (intent === "explicit") {
       task.explicit = true;
-      task.state = { phase: "preparing", intent: "explicit" };
+      task.state = { ...task.state, phase: "preparing", intent: "explicit" };
       for (const observer of observers) if (observer.key === this.key) observer.observe();
     }
     else task.automatic.add(this);

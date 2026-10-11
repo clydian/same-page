@@ -285,3 +285,26 @@ it('reports a whole-preparation deadline during stalled notes as a timeout, not 
     expect(await findVerifiedOfflineScore(f.workspace)).toBeNull();
   } finally { deadlines.mockRestore(); vi.useRealTimers(); }
 });
+
+it('reports real download bytes, verifies before readiness and saves attachment metadata without its body', async () => {
+  const f = await fixture();
+  const original = globalThis.fetch;
+  const attachment = { id: 'audio', scoreId: 'score', name: '示范.mp3', kind: 'audio', url: null, sizeBytes: 50000000, revision: 1, updatedAt: 1, trashExpiresAt: null };
+  const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => String(input).includes('/attachments?') ? Response.json({ attachments: [attachment] }) : original(input, init));
+  vi.stubGlobal('fetch', fetcher);
+  const client = f.client();
+  const states: ReturnType<typeof client.getSnapshot>[] = [];
+  client.subscribe(() => states.push(client.getSnapshot()));
+  const pending = client.prepare('explicit');
+  await vi.waitFor(() => expect(f.downloads()).toBe(1));
+  f.finish();
+  expect((await pending).phase).toBe('ready');
+  expect(states).toEqual(expect.arrayContaining([
+    expect.objectContaining({ phase: 'preparing', stage: 'download', loadedBytes: f.score.currentVersion.sizeBytes, totalBytes: f.score.currentVersion.sizeBytes }),
+    expect.objectContaining({ phase: 'preparing', stage: 'verify' }),
+    expect.objectContaining({ phase: 'preparing', stage: 'save' }),
+  ]));
+  const { readAttachmentDirectory } = await import('../score-library/attachments/attachment-directory');
+  expect(await readAttachmentDirectory(f.workspace, f.score)).toEqual([attachment]);
+  expect(fetcher.mock.calls.some(([input]) => String(input).includes('/attachments/audio/file'))).toBe(false);
+});
