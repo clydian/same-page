@@ -180,6 +180,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.getByText("正在读取附件…").waitFor();
       await page.evaluate(() => window.scrollTo(0, 40));
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(40);
+      await expect(page.locator(".upload-fab")).toHaveAttribute("data-visible", "false");
       await page.evaluate(() => window.scrollTo(0, 0));
       await expect(page.locator(".upload-fab")).toHaveAttribute("data-visible", "true");
       release();
