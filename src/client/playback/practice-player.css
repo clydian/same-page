@@ -44,6 +44,8 @@
 .practice-notice button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border: 0; background: transparent; color: inherit; }
 .practice-notation { position: fixed; z-index: 70; inset: 0 0 var(--practice-inset,72px); display: flex; flex-direction: column; visibility: hidden; background: #f3f4f0; color: #31463a; }
 .practice-notation[data-visible] { visibility: visible; }
+.practice-notation { padding: var(--safe-top) var(--safe-right) 0 var(--safe-left); }
+.practice-notation-scroll:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
 .practice-follow { position: absolute; z-index: 2; top: max(12px,env(safe-area-inset-top)); right: max(16px,env(safe-area-inset-right)); min-height: 44px; padding: 0 14px; border: 1px solid #dce4de; border-radius: 24px; background: #fcfdfbf5; color: #365747; font: inherit; font-size: 12px; box-shadow: 0 2px 12px #17352b14; }
 .practice-follow:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
 .practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; }

@@ -60,7 +60,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   return <>
     <section className="practice-notation" data-visible={view === 'xml' || undefined} aria-label="MusicXML 谱面" aria-hidden={view !== 'xml'} inert={view !== 'xml'}>
       {state.following === false && <Button className="practice-follow" onPress={() => session?.follow()}>恢复自动跟随</Button>}
-      <div ref={viewport} className="practice-notation-scroll"><div className="practice-notation-paper"><div ref={container} /></div></div>
+      <div ref={viewport} className="practice-notation-scroll" role="region" aria-label="滚动谱面" tabIndex={0}><div className="practice-notation-paper"><div ref={container} /></div></div>
     </section>
     <PracticePlayerShell source={source} ready={ready} playing={state.playing} message={error ?? state.message} failed={Boolean(error) || state.status === 'error'}
       timeline={{value:state.measure,max:Math.max(0,state.measures.length-1),disabled:!ready,label:value => state.measures[value]?.label ?? '准备中',seek:value => session?.seek(value)}}

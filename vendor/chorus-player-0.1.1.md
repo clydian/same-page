@@ -1,6 +1,6 @@
 # Chorus Player 0.1.1
 
-Source: `clydian/chorus-score-studio`, branch `codex/same-page-playback-session`, commit `aacfdb2`.
+Source: `clydian/chorus-score-studio`, branch `codex/same-page-playback-session`, commit `7ed4a3b`.
 
 Build/pack: Node 24, `npm ci`, `npm pack --workspace @clydian/chorus-player`.
 The tarball is pinned through `package-lock.json`; production does not load from an adjacent checkout or call Chorus.

@@ -31,6 +31,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await expect(page.locator('.practice-notation')).not.toContainText('重排谱面');
  const range=page.getByRole('slider',{name:'播放进度',exact:true});await range.fill('12');await range.dispatchEvent('pointerup');await expect(range).toHaveValue('12');
  const scroll=page.locator('.practice-notation-scroll');await scroll.hover();await page.mouse.wheel(0,400);await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();await expect(page.getByRole('button',{name:'恢复自动跟随'})).toHaveCount(0);
+ await scroll.press('Home');await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
  await settings.getByRole('slider',{name:'Alto 音量',exact:true}).fill('0.6');await settings.locator('summary').filter({hasText:'声部关注'}).click();await settings.getByLabel('关注声部',{exact:true}).selectOption('0');await settings.getByRole('slider',{name:'其他声部音量',exact:true}).fill('0.15');
  await expect(settings.getByRole('slider',{name:'Alto 音量',exact:true})).toHaveValue('0.15');await expect(settings.getByRole('slider',{name:'Alto 音量',exact:true})).toBeDisabled();
@@ -41,5 +42,9 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await bar.getByRole('button',{name:'结束播放',exact:true}).click();await expect(bar).toHaveCount(0);await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
  await reveal();await page.getByRole('button',{name:'本谱附件',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
  await page.setViewportSize({width:390,height:844});await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg=>svg.getBoundingClientRect().width)).toBeLessThan(370);await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mobile.png`});
+ await page.evaluate(()=>{document.documentElement.style.setProperty('--safe-top','44px');document.documentElement.style.setProperty('--safe-left','20px');document.documentElement.style.setProperty('--safe-right','12px');});
+ const safeViewport=await scroll.boundingBox();assert.ok(safeViewport.y>=44&&safeViewport.x>=20&&safeViewport.x+safeViewport.width<=378,'scroll viewport stays inside top and side safe areas');
+ await scroll.press('End');assert.equal((await scroll.boundingBox()).y,safeViewport.y,'scrolling retains the safe-area boundary');
+ await page.evaluate(()=>{for(const name of ['--safe-top','--safe-left','--safe-right'])document.documentElement.style.removeProperty(name);});
  const controls=await bar.locator('button').evaluateAll(buttons=>buttons.map(b=>({label:b.getAttribute('aria-label'),rect:b.getBoundingClientRect().toJSON()})));assert.ok(controls.every(c=>c.rect.x>=0&&c.rect.x+c.rect.width<=390&&c.rect.height>=44));assert.ok(controls.every(c=>Math.abs(c.rect.y-controls[0].rect.y)<1),'all controls stay on one row');
 });
