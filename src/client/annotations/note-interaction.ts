@@ -18,6 +18,19 @@ export interface NoteInteractionSnapshot {
 }
 const empty: NoteInteractionSnapshot = { draftId: null, stroke: null, shape: null, erased: new Set() };
 
+// Compact only newly collected ink. Existing objects and queued retries retain
+// their original payloads. Five decimals bound coordinate error to 0.0205px at 4096px.
+function sampleInkPoint(point: Point): Point {
+  return {
+    x: Math.round(point.x * 100_000) / 100_000,
+    y: Math.round(point.y * 100_000) / 100_000,
+    ...(point.pressure !== undefined ? { pressure: point.pressure } : {}),
+    ...(point.tiltX ? { tiltX: point.tiltX } : {}),
+    ...(point.tiltY ? { tiltY: point.tiltY } : {}),
+    ...(point.twist ? { twist: point.twist } : {}),
+  };
+}
+
 // Owns only unreleased note intent. Released edits and durable-save recovery
 // remain in AnnotationEditor, so interruption cannot undo an earlier gesture.
 export class NoteInteraction {
@@ -38,7 +51,7 @@ export class NoteInteraction {
     else {
       const id = crypto.randomUUID();
       this.active = payload.kind === "ink"
-        ? { kind: "ink", pointerId, layerId, id, payload, checkpointAt: time }
+        ? { kind: "ink", pointerId, layerId, id, payload: { ...payload, points: payload.points.map(sampleInkPoint) }, checkpointAt: time }
         : { kind: "shape", pointerId, layerId, id, payload, start: { x: payload.x, y: payload.y } };
       if (this.active.kind === "ink") void this.saveInk(this.active, false);
     }
@@ -55,7 +68,7 @@ export class NoteInteraction {
     } else if (active.kind === "ink") {
       // Keep the mutable input buffer separate from rendered/persisted snapshots.
       if (active.payload.points.length >= 5000) active.payload.points = active.payload.points.filter((_, index, points) => index % 2 === 0 || index === points.length - 1);
-      active.payload.points.push(point);
+      active.payload.points.push(sampleInkPoint(point));
       if (this.frame === null) this.frame = requestAnimationFrame(() => { this.frame = null; this.publish(); });
       if (time - active.checkpointAt >= 120) { active.checkpointAt = time; void this.saveInk(active); }
     }
@@ -81,6 +94,7 @@ export class NoteInteraction {
     if (active.kind === "ink") {
       if (reason === "interrupt") return this.editor?.persist({ id: active.id, layerId: active.layerId, payload: null, deleted: true }, true) ?? true;
       if (reason === "release" && point && active.payload.points.length < 5000) {
+        point = sampleInkPoint(point);
         const last = active.payload.points.at(-1)!;
         if (point.x !== last.x || point.y !== last.y) active.payload.points.push(point);
       }

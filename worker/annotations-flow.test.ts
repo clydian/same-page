@@ -389,6 +389,62 @@ describe("annotation layers and object synchronization", () => {
     expect(await grants.json()).toMatchObject({ memberships: expect.arrayContaining([expect.objectContaining({ id: grantTarget!.id, isOwner: 0, operations: { operations: [], sharedLayers: [] } })]) });
   });
 
+  it("accepts a large offline ink batch, preserves ordered updates and retries without duplicating versions", { timeout: 15_000 }, async () => {
+    const fixture = await createFixture();
+    const points = Array.from({ length: 300 }, (_, i) => ({
+      x: .1372419876345 + i / 299 * .6134123541245,
+      y: .4782341241342 + Math.sin(i / 299 * Math.PI * 2) * .0734123541321,
+      pressure: .5, tiltX: 0, tiltY: 0, twist: 0,
+    }));
+    const payload = { kind: "ink" as const, pageNumber: 1, brush: "pen" as const,
+      nib: "round" as const, pressureMode: "uniform" as const, strokeWidth: .003, points };
+    const operations = Array.from({ length: 99 }, () => ({
+      ...operation(crypto.randomUUID(), fixture.layerId, 0, ""), payload,
+    }));
+    const first = operations[0]!;
+    operations.push({ ...first, opId: crypto.randomUUID(), baseVersion: 1, payload: { ...payload, strokeWidth: .004 } });
+    // Local D1 does not enforce the production 2 MB string limit. Add that
+    // platform constraint at its binding boundary, keeping real SQL execution.
+    const DB = new Proxy(env.DB, { get(target, key) {
+      if (key === "prepare") return (query: string) => new Proxy(target.prepare(query), { get(statement, method) {
+        if (method === "bind") return (...args: unknown[]) => {
+          for (const argument of args) {
+            if (typeof argument === "string" && new TextEncoder().encode(argument).byteLength > 2_000_000) {
+              throw new RangeError("D1 maximum string size exceeded");
+            }
+          }
+          return statement.bind(...args);
+        };
+        const value = Reflect.get(statement, method);
+        return typeof value === "function" ? value.bind(statement) : value;
+      }});
+      const value = Reflect.get(target, key);
+      return typeof value === "function" ? value.bind(target) : value;
+    }});
+    const send = async () => {
+      const execution = createExecutionContext();
+      const response = await worker.fetch(new Request(`https://same-page.test/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/annotations/push`, jsonRequest(fixture.adminCookie, { operations }, { "x-same-page-owner-user-id": fixture.ownerUserId })), { ...env, DB }, execution);
+      await waitOnExecutionContext(execution);
+      return response;
+    };
+    const response = await send();
+    expect(response.status).toBe(200);
+    const body = await response.json() as { results: Array<{ opId: string; status: string; object: { version: number } }> };
+    expect(body.results.map(result => result.opId)).toEqual(operations.map(op => op.opId));
+    expect(body.results.every(result => result.status === "accepted")).toBe(true);
+    expect(body.results[0]!.object.version).toBe(1);
+    expect(body.results[99]!.object.version).toBe(2);
+    const retry = await send();
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({ results: operations.map(op => ({ opId: op.opId, status: "accepted" })) });
+    const pulled = await callWorker(`/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/annotations`, { headers: { cookie: fixture.adminCookie } });
+    expect(pulled.status).toBe(200);
+    const snapshot = await pulled.json() as { objects: Array<{ id: string; version: number; payload: typeof payload }> };
+    expect(snapshot.objects).toHaveLength(99);
+    expect(snapshot.objects.find(object => object.id === first.annotationId)).toMatchObject({ version: 2, payload: { ...payload, strokeWidth: .004 } });
+    expect(snapshot.objects.filter(object => object.id !== first.annotationId).every(object => object.version === 1)).toBe(true);
+  });
+
   it("measures real local D1 batches of 1 and 100 mixed operations", async () => {
     const fixture = await createFixture();
     const layersResponse = await callWorker(`/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/layers`, { headers: { cookie: fixture.adminCookie } });
