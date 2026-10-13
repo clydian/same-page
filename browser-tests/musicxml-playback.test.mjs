@@ -69,6 +69,20 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
     const samples = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(samples);
     return samples.some(value => Math.abs(value) > 0.0001);
   })), {timeout:10000}).toBe(true);
+  // The engine creates cursor/highlight nodes, but the host must give them visible styles.
+  const beatCursor = page.locator('.practice-notation .at-cursor-beat');
+  await expect.poll(() => beatCursor.evaluate(element => {
+    const color = getComputedStyle(element).backgroundColor;
+    const bounds = element.getBoundingClientRect();
+    return color !== 'rgba(0, 0, 0, 0)' && bounds.width >= 2.5 && bounds.height > 20;
+  })).toBe(true);
+  await expect.poll(() => page.locator('.practice-notation .at-highlight *').evaluateAll(elements =>
+    elements.some(element => getComputedStyle(element).fill === 'rgb(189, 111, 57)')
+  )).toBe(true);
+  const cursorX = await beatCursor.evaluate(element => element.getBoundingClientRect().x);
+  await expect.poll(() => beatCursor.evaluate(element => element.getBoundingClientRect().x)).not.toBe(cursorX);
+  await mkdir('artifacts/verification/playback-413',{recursive:true});
+  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-playing.png`});
   let furthest = 0;
   await expect.poll(async () => { const index = Number(await player.getByLabel('播放进度',{exact:true}).inputValue()); furthest = Math.max(furthest,index); return furthest >= 2 && index === 0; }, {timeout:20000}).toBe(true);
   await player.getByLabel('显示谱面',{exact:true}).selectOption('pdf');

@@ -59,7 +59,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const ready = state.status === 'ready' && !error;
   return <>
     <section className="practice-notation" data-visible={view === 'xml' || undefined} aria-label="MusicXML 谱面" aria-hidden={view !== 'xml'} inert={view !== 'xml'}>
-      <div className="practice-notation-heading"><strong>{source.score.fileName}</strong><span>{source.attachment.name} · 重排谱面</span>{state.following === false && <Button className="practice-action" onPress={() => session?.follow()}>恢复自动跟随</Button>}</div>
+      {state.following === false && <Button className="practice-follow" onPress={() => session?.follow()}>恢复自动跟随</Button>}
       <div ref={viewport} className="practice-notation-scroll"><div className="practice-notation-paper"><div ref={container} /></div></div>
     </section>
     <PracticePlayerShell source={source} ready={ready} playing={state.playing} message={error ?? state.message} failed={Boolean(error) || state.status === 'error'}

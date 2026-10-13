@@ -48,7 +48,7 @@ export function PracticePlayerShell(props: Props) {
       {props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
       <section className="practice-bar" aria-label="乐谱练习" data-testid="musicxml-player">
         <PlaybackTimeline timeline={props.timeline} />
-        <div className="practice-view"><span className="practice-source-name" title={source.attachment.name}>{source.attachment.name}</span>{isXml ? <label><span className="practice-view-label" aria-hidden="true">谱面</span><select aria-label="显示谱面" value={view} onChange={event => selectView(event.target.value === 'xml' ? 'xml' : 'pdf')}><option value="pdf">原始 PDF</option><option value="xml">重排谱面</option></select></label> : <span className="practice-view-static">原始 PDF</span>}</div>
+        <div className="practice-view"><span className="practice-source-name" title={source.attachment.name}>{source.attachment.name}</span>{isXml && <label><select aria-label="显示谱面" value={view} onChange={event => selectView(event.target.value === 'xml' ? 'xml' : 'pdf')}><option value="pdf">原始 PDF</option><option value="xml">重排谱面</option></select></label>}</div>
         <div className="practice-transport">
         {icon(isXml ? '前一小节' : '后退 10 秒', <StepBack size={18} aria-hidden="true" />, props.previous, !props.ready || props.previousDisabled)}
         <TooltipTrigger><Button className="practice-icon practice-play" aria-label={props.playing ? '暂停' : '播放'} isDisabled={!props.ready} onPress={props.play}>
@@ -65,7 +65,7 @@ export function PracticePlayerShell(props: Props) {
     </div>
     {panel && <Popover triggerRef={settingsTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" offset={10}>
       <Dialog className="practice-panel" aria-label="练习设置">
-        <header><div><strong>练习设置</strong><small>{source.attachment.name} · {isXml ? 'MusicXML 文件' : '音频附件'}</small></div><Button className="practice-icon" aria-label="关闭练习设置" onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
+        <header><div><strong>练习设置</strong></div><Button className="practice-icon" aria-label="关闭练习设置" onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
         {panel === 'settings' && <>{props.children}</>}
       </Dialog>
     </Popover>}

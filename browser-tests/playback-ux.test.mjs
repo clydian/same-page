@@ -27,6 +27,8 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  const bar=page.getByTestId('musicxml-player');await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
  const coldReadyMs=Date.now()-coldStart;
  await expect(bar.getByLabel('显示谱面',{exact:true})).toHaveValue('xml');await expect(page.locator('.practice-notation')).toBeVisible();
+ await expect(page.locator('.practice-notation')).not.toContainText('practice.xml');
+ await expect(page.locator('.practice-notation')).not.toContainText('重排谱面');
  const range=page.getByRole('slider',{name:'播放进度',exact:true});await range.fill('12');await range.dispatchEvent('pointerup');await expect(range).toHaveValue('12');
  const scroll=page.locator('.practice-notation-scroll');await scroll.hover();await page.mouse.wheel(0,400);await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();await expect(page.getByRole('button',{name:'恢复自动跟随'})).toHaveCount(0);
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
