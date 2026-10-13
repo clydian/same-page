@@ -163,6 +163,7 @@ async function verifyAnimationCaching(browser, origin) {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
     const buttons = page.locator(".marketing-animation");
+    await buttons.first().waitFor();
     assert.equal(await buttons.count(), 4);
     await buttons.first().scrollIntoViewIfNeeded();
     await waitForImage(page, 0, false);
