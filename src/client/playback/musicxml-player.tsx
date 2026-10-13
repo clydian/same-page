@@ -2,16 +2,17 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from 'react-aria-components';
 import { createPlayerSession, type PlayerSession, type PlayerState } from '@clydian/chorus-player';
 import { attachmentFetch } from '../score-library/attachments/request';
-import { attachmentFileUrl } from '../score-library/attachments/api';
+import { readAttachment, attachmentFileUrl } from '../score-library/attachments/api';
 import { playbackViewStore, stopPlayback, type PlaybackSource } from './playback-store';
 import { rememberPractice } from './practice-preferences';
 import { PracticePlayerShell } from './practice-player-shell';
+import { readPlaybackPreparation, savePlaybackPreparation } from './playback-preparation';
 import { usePlaybackLifetime } from './use-playback-lifetime';
 const preparing: PlayerState = { status: 'preparing', message: '正在准备播放…', playing: false, parts: [], measures: [], measure: 0, speed: 1, focus: null, loop: null };
 const noSubscribe = () => () => {};
 const initialSnapshot = () => preparing;
 export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
-  const container = useRef<HTMLDivElement>(null);
+  const container = useRef<HTMLDivElement>(null), viewport = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<PlayerSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -26,16 +27,25 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
     const pauseForAudio = (event: Event) => { if (event.target instanceof HTMLMediaElement) player?.pause(); };
     document.addEventListener('play', pauseForAudio, true);
     void (async () => {
+      const fresh = await readAttachment(source.choirId, source.score.id, source.attachment.id, abort.signal);
+      if (abort.signal.aborted) return;
+      if (fresh.revision !== source.attachment.revision) throw new Error('附件已更新，请从附件列表重新打开。');
+      const cached = readPlaybackPreparation(source);
+      let bytes = cached?.bytes;
+      if (!bytes) {
       const response = await attachmentFetch(attachmentFileUrl(source.choirId, source.attachment), { signal: abort.signal });
       if (abort.signal.aborted) return;
       if (!response.ok) {
         if ([401, 403, 404].includes(response.status)) { stopPlayback(); return; }
         throw new Error('无法读取附件，请检查网络后重试。');
       }
-      const bytes = new Uint8Array(await response.arrayBuffer());
+      bytes = new Uint8Array(await response.arrayBuffer());
+      }
       if (abort.signal.aborted || !container.current) return;
       clearTimeout(timeout);
-      player = createPlayerSession(container.current, bytes);
+      const sourceBytes = bytes;
+      player = createPlayerSession(container.current, sourceBytes, { scrollElement: viewport.current ?? undefined, prepared: cached?.prepared,
+        onPrepared: prepared => { if (!abort.signal.aborted) savePlaybackPreparation(source, sourceBytes, prepared); } });
       releasePreferences = rememberPractice(player, source);
       setSession(player);
     })().catch(reason => {
@@ -47,26 +57,34 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const ready = state.status === 'ready' && !error;
   return <>
     <section className="practice-notation" data-visible={view === 'xml' || undefined} aria-label="MusicXML 谱面" aria-hidden={view !== 'xml'} inert={view !== 'xml'}>
-      <div className="practice-notation-heading"><strong>{source.score.fileName}</strong><span>重排谱面 · 来自 MusicXML</span></div>
-      <div className="practice-notation-scroll"><div className="practice-notation-paper"><div ref={container} /></div></div>
+      <div className="practice-notation-heading"><strong>{source.score.fileName}</strong><span>{source.attachment.name} · 重排谱面</span>{state.following === false && <Button className="practice-action" onPress={() => session?.follow()}>恢复自动跟随</Button>}</div>
+      <div ref={viewport} className="practice-notation-scroll"><div className="practice-notation-paper"><div ref={container} /></div></div>
     </section>
     <PracticePlayerShell source={source} ready={ready} playing={state.playing} message={error ?? state.message} failed={Boolean(error) || state.status === 'error'}
-      position={state.measures[state.measure] ? `${state.measure + 1} / ${state.measures.length}` : '—'}
+      timeline={{value:state.measure,max:Math.max(0,state.measures.length-1),disabled:!ready,label:value => state.measures[value]?.label ?? '准备中',seek:value => session?.seek(value)}}
+      speed={state.speed} setSpeed={value => session?.speed(value)}
+      position={state.measures[state.measure] ? `${state.measures[state.measure].label.split(" · ")[0]}${state.loop ? " · 循环" : ""}` : '—'}
       previousDisabled={state.measure <= 0} nextDisabled={state.measure >= state.measures.length - 1}
       play={play} previous={() => session?.seek(state.measure - 1)} next={() => session?.seek(state.measure + 1)}
       retry={() => { setError(null); setSession(null); setAttempt(value => value + 1); }}>
-      <label className="practice-field">播放位置 <span>{state.measures[state.measure]?.label ?? '准备中'}</span><input aria-label="播放位置" type="range" min="0" max={Math.max(0, state.measures.length - 1)} value={state.measure} disabled={!ready} onChange={event => session?.seek(Number(event.target.value))} /></label>
-      <div className="practice-fields">
-        <label className="practice-field">速度<select aria-label="速度" value={state.speed} disabled={!ready} onChange={event => session?.speed(Number(event.target.value))}>{[0.5, 0.75, 1, 1.25, 1.5].map(speed => <option key={speed} value={speed}>{Math.round(speed * 100)}%</option>)}</select></label>
-        <label className="practice-field">关注声部<select aria-label="关注声部" value={state.focus ?? ''} disabled={!ready} onChange={event => session?.focus(event.target.value === '' ? null : Number(event.target.value))}><option value="">全部声部</option>{state.focus === 'custom' && <option value="custom" disabled>自定义混音</option>}{state.parts.map(part => <option key={part.id} value={part.id}>{part.name}</option>)}</select></label>
-      </div>
+      <section className="practice-volumes" aria-label="各声部音量"><h3>各声部音量</h3>
+      {state.parts.map(part => <div className="practice-part" key={part.id}><span>{part.name}{typeof state.focus === 'number' ? part.id === state.focus ? ' · 关注声部' : ' · 其他声部联动' : ''}<output>{Math.round(part.volume * 100)}%</output></span>
+        <input aria-label={`${part.name} 音量`} type="range" min="0" max="1" step="0.05" value={part.volume} disabled={!ready || typeof state.focus === 'number' && state.focus !== part.id} onChange={event => session?.mix(part.id, { volume: Number(event.target.value) })} />
+        <Button className="practice-action" isDisabled={!ready} aria-pressed={part.muted} onPress={() => session?.mix(part.id, { muted: !part.muted })}>静音</Button><Button className="practice-action" isDisabled={!ready} aria-pressed={part.solo} onPress={() => session?.mix(part.id, { solo: !part.solo })}>独奏</Button></div>)}
+      </section>
+      <details className="practice-mixer" open={typeof state.focus === 'number' || undefined}><summary>声部关注{typeof state.focus === 'number' ? ` · ${state.parts.find(part => part.id === state.focus)?.name}` : ''}</summary>
+        <label className="practice-field">关注声部<select aria-label="关注声部" value={typeof state.focus === 'number' ? state.focus : ''} disabled={!ready} onChange={event => session?.focus(event.target.value === '' ? null : Number(event.target.value))}><option value="">不关注特定声部</option>{state.parts.map(part => <option key={part.id} value={part.id}>{part.name}</option>)}</select></label>
+        {typeof state.focus === 'number' && <div className="practice-focus-volumes">
+          <label className="practice-field">关注声部音量 · {Math.round((state.parts.find(part => part.id === state.focus)?.volume ?? 0)*100)}%<input aria-label="关注声部音量" type="range" min="0" max="1" step=".05" value={state.parts.find(part => part.id === state.focus)?.volume ?? 0} onChange={event => { if (typeof state.focus === 'number') session?.mix(state.focus, {volume:Number(event.target.value)}); }} /></label>
+          <label className="practice-field">其他声部音量 · {Math.round((state.otherVolume ?? .25)*100)}%<input aria-label="其他声部音量" type="range" min="0" max="1" step=".05" value={state.otherVolume ?? .25} onChange={event => session?.focusOther(Number(event.target.value))} /></label>
+          <Button className="practice-action" onPress={() => session?.focus(null)}>退出声部关注</Button>
+        </div>}
+      </details>
       <details className="practice-mixer"><summary>{state.loop ? '片段循环 · 已开启' : '片段循环'}</summary><div className="practice-fields">
         <label className="practice-field">循环起点<select aria-label="循环起点" disabled={!ready} value={loopStart} onChange={event => setLoopStart(Number(event.target.value))}>{state.measures.map(m => <option key={m.index} value={m.index}>{m.label}</option>)}</select></label>
         <label className="practice-field">循环终点<select aria-label="循环终点" disabled={!ready} value={loopEnd} onChange={event => setLoopEnd(Number(event.target.value))}>{state.measures.map(m => <option key={m.index} value={m.index}>{m.label}</option>)}</select></label>
       </div>
       <Button className="practice-action" isDisabled={!ready || loopEnd < loopStart} aria-pressed={Boolean(state.loop)} onPress={() => session?.loop(state.loop ? null : loopStart, loopEnd)}>{state.loop ? '取消循环' : '循环这一段'}</Button></details>
-      <details className="practice-mixer"><summary>声部混音</summary>{state.parts.map(part => <div className="practice-part" key={part.id}><span>{part.name}</span><input aria-label={`${part.name} 音量`} type="range" min="0" max="1" step="0.05" value={part.volume} disabled={!ready} onChange={event => session?.mix(part.id, { volume: Number(event.target.value) })} />
-        <Button className="practice-action" isDisabled={!ready} aria-pressed={part.muted} onPress={() => session?.mix(part.id, { muted: !part.muted })}>静音</Button><Button className="practice-action" isDisabled={!ready} aria-pressed={part.solo} onPress={() => session?.mix(part.id, { solo: !part.solo })}>独奏</Button></div>)}</details>
       <p className="practice-hint">声音来自 MusicXML，可能与原谱不同。合成音色不演唱歌词；原 PDF 可手动翻页。</p>
     </PracticePlayerShell>
   </>;

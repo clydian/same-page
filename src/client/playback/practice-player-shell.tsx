@@ -7,10 +7,11 @@ import { Dialog } from '../navigation/overlays';
 import { useAppNavigation, useExitLayer } from '../navigation/navigation-context';
 import { playbackStore, playbackViewStore, setPlaybackView, stopPlayback, type PlaybackSource } from './playback-store';
 import './practice-player.css';
+import { PlaybackTimeline, type Timeline } from './playback-timeline';
 
 type Props = {
   source: PlaybackSource; ready: boolean; playing: boolean; message?: string; failed?: boolean;
-  position: string; previousDisabled: boolean; nextDisabled: boolean;
+  position: string; timeline: Timeline; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
   play(): void; previous(): void; next(): void; retry(): void; children: ReactNode;
 };
 
@@ -47,7 +48,8 @@ export function PracticePlayerShell(props: Props) {
       {props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}
         <Button aria-label="结束播放" onPress={stopPlayback}><X size={16} aria-hidden="true" /></Button></div>}
       <section className="practice-bar" aria-label="乐谱练习" data-testid="musicxml-player">
-        <div className="practice-view">{isXml ? <label><span className="practice-view-label" aria-hidden="true">谱面</span><select aria-label="显示谱面" value={view} onChange={event => selectView(event.target.value === 'xml' ? 'xml' : 'pdf')}><option value="pdf">原始 PDF</option><option value="xml">重排谱面</option></select></label> : <span className="practice-view-static">原始 PDF</span>}</div>
+        <PlaybackTimeline timeline={props.timeline} />
+        <div className="practice-view"><span className="practice-source-name" title={source.attachment.name}>{source.attachment.name}</span>{isXml ? <label><span className="practice-view-label" aria-hidden="true">谱面</span><select aria-label="显示谱面" value={view} onChange={event => selectView(event.target.value === 'xml' ? 'xml' : 'pdf')}><option value="pdf">原始 PDF</option><option value="xml">重排谱面</option></select></label> : <span className="practice-view-static">原始 PDF</span>}</div>
         <div className="practice-transport">
         {icon(isXml ? '前一小节' : '后退 10 秒', <StepBack size={18} aria-hidden="true" />, props.previous, !props.ready || props.previousDisabled)}
         <TooltipTrigger><Button className="practice-icon practice-play" aria-label={props.playing ? '暂停' : '播放'} isDisabled={!props.ready} onPress={props.play}>
@@ -57,13 +59,15 @@ export function PracticePlayerShell(props: Props) {
         <span className="practice-position" title={props.position}>{props.position}</span>
 
         </div>
+        <div className="practice-bar-actions">{props.setSpeed && <select className="practice-speed" aria-label="速度" value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select>}
         <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={18} aria-hidden="true" /></Button>
+        {icon("结束播放", <X size={20} aria-hidden="true" />, stopPlayback)}</div>
       </section>
     </div>
     {panel && <Popover triggerRef={settingsTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" offset={10}>
       <Dialog className="practice-panel" aria-label="练习设置">
         <header><div><strong>练习设置</strong><small>{source.attachment.name} · {isXml ? 'MusicXML 文件' : '音频附件'}</small></div><Button className="practice-icon" aria-label="关闭练习设置" onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
-        {panel === 'settings' && <>{props.children}<footer><Button className="practice-end" onPress={stopPlayback}>结束练习</Button></footer></>}
+        {panel === 'settings' && <>{props.children}</>}
       </Dialog>
     </Popover>}
   </>;
