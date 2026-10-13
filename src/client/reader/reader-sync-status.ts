@@ -47,7 +47,7 @@ export function deriveReaderSyncStatus({
   if (localOnly) return { kind: outcome === "failed" ? "failed" : "quiet", message: outcome === "failed" ? "本机操作未完成，请重试。" : "体验笔记仅保存在此浏览器" };
   if (conflictCount > 0) return { kind: "conflict", message: `仍有 ${conflictCount} 项本机冲突待处理。` };
   if (permissionErrorCount > 0) return { kind: "failed", message: `${permissionErrorCount} 项笔记暂缓同步：层已停用、删除或编辑权已撤销。本机草稿保留；原层恢复且权限允许后重试。到期内容仍保留在本机，不会转写同名新层。其它笔记会继续同步。` };
-  if (syncErrorCount > 0 || outcome === "failed") return { kind: "failed", message: "同步未完成；已保存的本机草稿保留，请查看原因或重试。" };
+  if (syncErrorCount > 0 || outcome === "failed") return { kind: "failed", message: "同步未完成，已保存的本机草稿仍保留。请重试同步；若仍失败，可反馈问题。" };
   if (syncing) return { kind: "syncing", message: pendingCount > 0 ? `正在同步 ${pendingCount} 项修改` : "正在检查云端笔记…" };
   if (pendingCount > 0 || draftCount > 0) return {
     kind: "pending",

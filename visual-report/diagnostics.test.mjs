@@ -21,11 +21,11 @@ test("real PDF.js permission and network failures reach private diagnostic repor
       const page = await context.newPage();
       await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score`, { waitUntil: "domcontentloaded" });
       await page.getByRole("alert").waitFor();
-      assert.equal(await page.getByRole("button", { name: "故障诊断", exact: true }).isVisible(), false);
+      assert.equal(await page.getByRole("button", { name: "反馈问题", exact: true }).isVisible(), false);
       await page.getByText("更多帮助", { exact: true }).click();
-      await page.getByRole("button", { name: "故障诊断", exact: true }).click();
-      await page.getByText("查看诊断内容", { exact: true }).click();
-      const textbox = page.getByRole("textbox", { name: "可发送给支持人员的诊断内容" });
+      await page.getByRole("button", { name: "反馈问题", exact: true }).click();
+      await page.getByText("查看诊断信息", { exact: true }).click();
+      const textbox = page.getByRole("textbox", { name: "可发送给维护人员的诊断信息" });
       await textbox.waitFor();
       const report = await textbox.inputValue();
       assert.doesNotMatch(report, /private PDF|visual-score|visual-choir/);

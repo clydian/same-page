@@ -509,6 +509,34 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(screen.queryByLabelText("正在加载乐谱")).not.toBeInTheDocument();
   });
 
+  it("offers one in-place problem feedback entry after sync failure with reader context", async () => {
+    render(<MemoryRouter initialEntries={["/choirs/choir-1/scores/score-1"]}>
+      <Routes><Route path="/choirs/:choirId/scores/:scoreId" element={<ReaderPage />} /></Routes>
+    </MemoryRouter>);
+    await screen.findByLabelText("翻页阅读");
+    await toggleChrome();
+    fireEvent.click(screen.getByRole("button", { name: "更多" }));
+    const syncButton = await screen.findByRole("button", { name: "立即同步" });
+    vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"));
+    fireEvent.click(syncButton);
+    const alert = await screen.findByLabelText("笔记同步异常");
+    expect(alert).toHaveTextContent("若仍失败，可反馈问题");
+    expect(within(alert).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(alert).getAllByRole("button", { name: "反馈问题" })).toHaveLength(1);
+    expect(within(alert).getByRole("button", { name: "重试同步" })).toBeInTheDocument();
+    const callsBeforeFeedback = vi.mocked(fetch).mock.calls.length;
+    fireEvent.click(within(alert).getByRole("button", { name: "反馈问题" }));
+    const dialog = await screen.findByRole("dialog", { name: "问题反馈" });
+    const report = JSON.parse(within(dialog).getByRole<HTMLTextAreaElement>("textbox", {
+      name: "可发送给维护人员的诊断信息",
+    }).value);
+    expect(report.reader).toMatchObject({ interactionMode: "reading", pendingCount: 0, conflictCount: 0 });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(callsBeforeFeedback);
+    fireEvent.click(within(dialog).getByRole("button", { name: "关闭" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "问题反馈" })).not.toBeInTheDocument());
+    expect(screen.getByLabelText("翻页阅读")).toBeInTheDocument();
+  });
+
   it("keeps the rendered document during same-version online explicit synchronization", async () => {
     render(
       <MemoryRouter initialEntries={["/choirs/choir-1/scores/score-1"]}>

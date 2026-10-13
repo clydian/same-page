@@ -46,7 +46,7 @@ npm run visual:report    # 当前产品的视觉报告
 | PDF 验证、候选、发布、回滚与清理 | [PDF 生命周期 runbook](docs/runbooks/pdf-version-lifecycle.md) |
 | PDF.js 解码资源与扫描 PDF 验证 | [PDF 解码资源 runbook](docs/runbooks/pdf-rendering-assets.md) |
 | 用户删除、成员退出与恢复 | [用户生命周期 runbook](docs/runbooks/user-lifecycle.md) |
-| 诊断提交与故障排查 | [故障诊断](docs/operations-diagnostics.md) |
+| 问题反馈与故障排查 | [问题反馈](docs/operations-diagnostics.md) |
 | 测试范围、视觉报告和本地全套检查 | [CI 检查与开发反馈](docs/operations/ci.md) |
 | 发布产物与顺序约束 | [交付契约](docs/operations/delivery-contract.md) |
 | 生产配置、第三方登录、发布恢复、邮件与实机验收 | [发布 runbook](docs/operations/production-release.md) |

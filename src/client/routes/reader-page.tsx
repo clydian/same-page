@@ -639,7 +639,6 @@ function ReaderPageContent() {
         <aside className="annotation-conflicts" aria-label="笔记同步异常">
           <strong>{syncStatus.message}</strong>
           <div>
-            <Link className="text-button" to="/diagnostics">查看原因</Link>
             <Button isDisabled={!sync.canRetry} onPress={() => void manualSync()}>
               重试同步
             </Button>
