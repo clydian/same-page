@@ -64,6 +64,18 @@ it("restores newly collected ink with compact coordinates, pressure and nonzero 
   expect(records[0]!.payload.points[0]).not.toHaveProperty("twist");
 });
 
+it.each(["pen", "highlighter"] as const)("retains a %s release sample whose pressure and rotation change inside one rounded coordinate cell", async brush => {
+  const first = { x: .123451, y: .5, pressure: .2, twist: 0 };
+  notes.begin(1, layerId, { ...ink(), brush, nib: brush === "highlighter" ? "chisel" : "round", points: [first, first] }, 0);
+  await notes.end("release", 1, { x: .123454, y: .5, pressure: .9, twist: 90 });
+  expect(await editor.finish()).toBe("local-saved");
+  expect((await saved())[0]!.payload).toMatchObject({ points: [
+    { x: .12345, y: .5, pressure: .2 },
+    { x: .12345, y: .5, pressure: .2 },
+    { x: .12345, y: .5, pressure: .9, twist: 90 },
+  ] });
+});
+
 it("preserves collected ink on pointercancel without adding its final coordinates", async () => {
   notes.begin(1, layerId, ink(), 0);
   notes.move(1, { x: .4, y: .4 }, 150);
