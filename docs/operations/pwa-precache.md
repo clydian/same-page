@@ -46,3 +46,12 @@ Node 审计回归保护必需资源、静态插画、可选动画和总字节预
 运行时缓存独立、有界；不迁移数据库、IndexedDB、草稿、待同步操作或冲突。
 既有双版本更新、离线 PDF smoke 和完整 `check:full` 继续作为发布门禁；桌面
 浏览器验证不代表 iPad/Pencil 或真实 Safari 验收。
+
+发布前完整验证暴露了既有测试进程清理的 macOS 退出竞态：终止后进程组存在性
+探针 `kill(-pgid, 0)` 偶发返回 `EPERM`，导致产品断言已通过的 smoke 在清理
+hook 失败。Apple XNU 的进程组信号路径过滤 zombie，组仍注册但没有可发信号
+的成员时会返回 `EPERM`，见 [内核实现](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c#L1612)。
+`scripts/process-lifecycle.mjs` 现在把零信号探针的 `EPERM` 保守视为尚未消失，
+继续原有有界等待；真正的 SIGTERM / SIGKILL 权限拒绝仍然抛错，不降级为清理
+成功。新增回归以真实独立进程注入终止后的一次探针拒绝，并另行验证真实终止
+信号拒绝继续失败。该辅助修复不进入生产 Worker，也不放宽浏览器行为断言。
