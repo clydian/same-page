@@ -19,6 +19,10 @@ export function rememberPractice(session: PlayerSession, source: PlaybackSource)
         }
         if (typeof saved.otherVolume === "number" && Number.isFinite(saved.otherVolume)) session.focusOther(saved.otherVolume);
         if (saved.focus === null || typeof saved.focus === "number" && Number.isInteger(saved.focus) && state.parts.some(part => part.id === saved.focus)) session.focus(saved.focus);
+        if (typeof saved.focus === 'number') {
+          const focused = saved.parts?.find(part => part.id === saved.focus);
+          if (focused && typeof focused.volume === 'number' && Number.isFinite(focused.volume)) session.mix(saved.focus, {volume:focused.volume});
+        }
         if (Number.isInteger(saved.measure)) session.seek(saved.measure!);
       }
       return;

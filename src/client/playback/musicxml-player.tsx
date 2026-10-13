@@ -4,9 +4,10 @@ import { createPlayerSession, type PlayerSession, type PlayerState } from '@clyd
 import { attachmentFetch } from '../score-library/attachments/request';
 import { readAttachment, attachmentFileUrl } from '../score-library/attachments/api';
 import { playbackViewStore, stopPlayback, type PlaybackSource } from './playback-store';
+import { SettingsRequestError } from '../settings/settings-request';
 import { rememberPractice } from './practice-preferences';
 import { PracticePlayerShell } from './practice-player-shell';
-import { readPlaybackPreparation, savePlaybackPreparation } from './playback-preparation';
+import { clearPlaybackPreparation, readPlaybackPreparation, savePlaybackPreparation } from './playback-preparation';
 import { usePlaybackLifetime } from './use-playback-lifetime';
 const preparing: PlayerState = { status: 'preparing', message: '正在准备播放…', playing: false, parts: [], measures: [], measure: 0, speed: 1, focus: null, loop: null };
 const noSubscribe = () => () => {};
@@ -33,13 +34,13 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
       const cached = readPlaybackPreparation(source);
       let bytes = cached?.bytes;
       if (!bytes) {
-      const response = await attachmentFetch(attachmentFileUrl(source.choirId, source.attachment), { signal: abort.signal });
-      if (abort.signal.aborted) return;
-      if (!response.ok) {
-        if ([401, 403, 404].includes(response.status)) { stopPlayback(); return; }
-        throw new Error('无法读取附件，请检查网络后重试。');
-      }
-      bytes = new Uint8Array(await response.arrayBuffer());
+        const response = await attachmentFetch(attachmentFileUrl(source.choirId, source.attachment), { signal: abort.signal });
+        if (abort.signal.aborted) return;
+        if (!response.ok) {
+          if ([401, 403, 404].includes(response.status)) { stopPlayback(); return; }
+          throw new Error('无法读取附件，请检查网络后重试。');
+        }
+        bytes = new Uint8Array(await response.arrayBuffer());
       }
       if (abort.signal.aborted || !container.current) return;
       clearTimeout(timeout);
@@ -49,6 +50,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
       releasePreferences = rememberPractice(player, source);
       setSession(player);
     })().catch(reason => {
+      if (!abort.signal.aborted && reason instanceof SettingsRequestError && [401,403,404].includes(reason.status)) { clearPlaybackPreparation(source); stopPlayback(); return; }
       if (!abort.signal.aborted || abort.signal.reason instanceof Error && abort.signal.reason.name !== 'AbortError') setError(reason instanceof Error ? reason.message : '读取失败。');
     });
     return () => { releasePreferences(); abort.abort(); clearTimeout(timeout); document.removeEventListener('play', pauseForAudio, true); player?.dispose(); };

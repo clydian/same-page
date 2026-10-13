@@ -4,6 +4,7 @@ import type { PlaybackSource } from './playback-store';
 const MAX_BYTES = 32 * 1024 * 1024, MAX_ITEMS = 4, TTL = 5 * 60_000;
 type Entry = { bytes: Uint8Array; prepared?: PreparedMusicXml; expires: number; choirId: string };
 const entries = new Map<string, Entry>();
+let expiryTimer: ReturnType<typeof setTimeout> | undefined;
 const keyFor = (source: PlaybackSource) => JSON.stringify([source.ownerKey, source.sessionId, source.choirId, source.score.id, source.attachment.id, source.attachment.revision]);
 const size = (entry: Entry) => entry.bytes.byteLength + (entry.prepared?.bytes.byteLength ?? 0);
 function prune() {
@@ -15,6 +16,11 @@ function prune() {
     total -= size(first[1]); entries.delete(first[0]);
   }
 }
+function scheduleExpiry() {
+  clearTimeout(expiryTimer); expiryTimer = undefined;
+  if (entries.size) expiryTimer = setTimeout(() => { prune(); scheduleExpiry(); }, Math.max(1, Math.min(...[...entries.values()].map(entry => entry.expires)) - Date.now()));
+}
+export function clearPlaybackPreparation(source: PlaybackSource) { entries.delete(keyFor(source)); scheduleExpiry(); }
 /** Reuse display preparation only after the caller has freshly verified access/revision. */
 export function readPlaybackPreparation(source: PlaybackSource) {
   prune(); const key = keyFor(source), entry = entries.get(key);
@@ -23,8 +29,8 @@ export function readPlaybackPreparation(source: PlaybackSource) {
 }
 export function savePlaybackPreparation(source: PlaybackSource, bytes: Uint8Array, prepared?: PreparedMusicXml) {
   const key = keyFor(source);
-  entries.set(key, { bytes, prepared, expires: Date.now() + TTL, choirId: source.choirId }); prune();
+  entries.set(key, { bytes, prepared, expires: Date.now() + TTL, choirId: source.choirId }); prune(); scheduleExpiry();
 }
-export function clearPlaybackPreparations() { entries.clear(); }
+export function clearPlaybackPreparations() { entries.clear(); clearTimeout(expiryTimer); expiryTimer = undefined; }
 onNavigationReset(clearPlaybackPreparations);
-onDriveChange(impact => { if (impact.dropAuthority) for (const [key, entry] of entries) if (entry.choirId === impact.driveId) entries.delete(key); });
+onDriveChange(impact => { if (impact.dropAuthority) for (const [key, entry] of entries) if (entry.choirId === impact.driveId) entries.delete(key); scheduleExpiry(); });

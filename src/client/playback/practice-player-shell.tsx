@@ -45,8 +45,7 @@ export function PracticePlayerShell(props: Props) {
   </TooltipTrigger>;
   return <>
     <div className="practice-dock" data-view={view} ref={dock}>
-      {props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}
-        <Button aria-label="结束播放" onPress={stopPlayback}><X size={16} aria-hidden="true" /></Button></div>}
+      {props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
       <section className="practice-bar" aria-label="乐谱练习" data-testid="musicxml-player">
         <PlaybackTimeline timeline={props.timeline} />
         <div className="practice-view"><span className="practice-source-name" title={source.attachment.name}>{source.attachment.name}</span>{isXml ? <label><span className="practice-view-label" aria-hidden="true">谱面</span><select aria-label="显示谱面" value={view} onChange={event => selectView(event.target.value === 'xml' ? 'xml' : 'pdf')}><option value="pdf">原始 PDF</option><option value="xml">重排谱面</option></select></label> : <span className="practice-view-static">原始 PDF</span>}</div>
