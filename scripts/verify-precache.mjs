@@ -9,7 +9,7 @@ async function files(root) {
   return (await Promise.all(entries.map(async (entry) => entry.isDirectory() ? files(path.join(root, entry.name)) : [path.join(root, entry.name)]))).flat();
 }
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
-// Keep headroom above the ~6.8 MB shell after removing optional animations.
+// Keep headroom above the ~6.5 MB shell after removing optional animations.
 // Review the offline dependencies before deliberately raising this budget.
 export const precacheBudgetBytes = 7 * 1024 * 1024;
 export async function verifyPrecache(root = "dist/client", designRoot = "design") {
@@ -17,7 +17,9 @@ export async function verifyPrecache(root = "dist/client", designRoot = "design"
   const published = await files(root);
   for (const file of published) assert.ok(!designHashes.has(digest(await readFile(file))), `Design source published: ${file}`);
   const worker = await readFile(path.join(root, "sw.js"), "utf8");
-  const entries = [...worker.matchAll(/\{url:"([^"]+)",revision:(?:"[^"]+"|null)\}/g)].map((match) => match[1]);
+  // Workbox merges identical URLs (e.g. includeAssets and globbed icons).
+  // Charge the budget once per stored file, rather than per manifest record.
+  const entries = [...new Set([...worker.matchAll(/\{url:"([^"]+)",revision:(?:"[^"]+"|null)\}/g)].map((match) => match[1]))];
   assert.ok(entries.length > 0, "Generated precache manifest not found");
   for (const required of ["index.html", "favicon-32.png", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"]) assert.ok(entries.includes(required), `Missing offline dependency: ${required}`);
   assert.ok(entries.some((file) => /pdf\.worker.*\.mjs$/.test(file)), "PDF worker not precached");

@@ -19,6 +19,9 @@ it("rejects leaked design sources, missing offline dependencies and oversized or
     const manifest = files => `precacheAndRoute([${files.map(url => `{url:"${url}",revision:null}`).join(",")}])`;
     await writeFile(path.join(output, "sw.js"), manifest([...required, ...decoders]));
     await expect(verifyPrecache(output, design)).resolves.toMatchObject({ entries: required.length + decoders.length });
+    const uniqueReport = await verifyPrecache(output, design);
+    await writeFile(path.join(output, "sw.js"), manifest([...required, ...decoders, ...required]));
+    await expect(verifyPrecache(output, design)).resolves.toEqual(uniqueReport);
     const animation = "shared-layers-animation-current.webp";
     await writeFile(path.join(output, animation), "animation pixels");
     await writeFile(path.join(output, "sw.js"), manifest([...required, ...decoders, animation]));
