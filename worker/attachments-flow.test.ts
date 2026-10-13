@@ -322,3 +322,11 @@ it("rejects invalid MusicXML without publishing a file or leaking quota", async 
   expect(await usage()).toBe(originalUsage);
   expect(await (await call(`/api/choirs/${choirId}/attachments?scoreIds=${scoreId}`,{headers:{'X-Same-Page-Attachments':'2'}})).json()).toEqual({attachments:[]});
 });
+
+it("reader sync preserves playable attachment counts with legacy protocol compatibility", async () => {
+  const uploaded = await upload('practice.musicxml', musicXml);
+  expect(uploaded.response.status).toBe(201);
+  const path = `/api/choirs/${choirId}/scores/${scoreId}/sync?cursor=0&layerIds=%5B%5D`;
+  expect(await (await call(path)).json()).toMatchObject({state:'active',score:{attachmentCount:0}});
+  expect(await (await call(path,{headers:{'X-Same-Page-Attachments':'2'}})).json()).toMatchObject({state:'active',score:{attachmentCount:1}});
+});

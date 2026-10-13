@@ -10,7 +10,7 @@ function player() {
   const session: PlayerSession = {
     getSnapshot:()=>state, subscribe(fn){listeners.add(fn);return()=>{listeners.delete(fn);};},
     speed:vi.fn(speed=>update({speed})), mix:vi.fn((id,value)=>update({parts:state.parts.map(p=>p.id===id?{...p,...value}:p),focus:'custom'})),
-    seek:vi.fn(measure=>update({measure})),focus:vi.fn(focus=>update({focus})),loop:vi.fn(),pause:vi.fn(),playPause:vi.fn(),dispose:vi.fn(),
+    seek:vi.fn(measure=>update({measure})),focus:vi.fn(focus=>update({focus})),focusOther:vi.fn(),follow:vi.fn(),loop:vi.fn(),pause:vi.fn(),playPause:vi.fn(),dispose:vi.fn(),
   };
   return {session,update};
 }
@@ -52,7 +52,7 @@ it('switches only the displayed score and opens a different score on its origina
  expect(playbackStore.getSnapshot()).toBe(source);
  setPlaybackView('xml');
  startPlayback({...source, score: {...source.score, id: 'another'}});
- expect(playbackViewStore.getSnapshot()).toBe('pdf');
+ expect(playbackViewStore.getSnapshot()).toBe('xml');
 });
 
 it('a newly selected recording starts on PDF and cannot display XML', () => {
@@ -64,14 +64,14 @@ it('a newly selected recording starts on PDF and cannot display XML', () => {
  setPlaybackView('xml');
  expect(playbackViewStore.getSnapshot()).toBe('pdf');
  startPlayback(source);
- expect(playbackViewStore.getSnapshot()).toBe('pdf');
+ expect(playbackViewStore.getSnapshot()).toBe('xml');
  stopPlayback();
 });
 
-it('selecting the same attachment again creates a new playback generation', () => {
+it('selecting the same active attachment preserves its playback generation', () => {
  startPlayback(source); const generation = playbackStore.getGeneration(); setPlaybackView('xml');
  startPlayback(source);
- expect(playbackStore.getGeneration()).toBe(generation + 1);
- expect(playbackViewStore.getSnapshot()).toBe('pdf');
+ expect(playbackStore.getGeneration()).toBe(generation);
+ expect(playbackViewStore.getSnapshot()).toBe('xml');
  stopPlayback();
 });

@@ -74,6 +74,11 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           await page.getByRole("button", { name: "本地链路测试：2 个附件", exact: true }).click();
           await page.getByRole("button", { name: entry === "audio" ? "试听.wav" : "试唱.musicxml", exact: true }).click();
           if (entry === "audio") await page.getByRole("button", { name: "边听边看谱", exact: true }).click();
+          if (entry === "musicxml") {
+            const view = page.getByLabel("显示谱面", { exact: true });
+            await expect(view).toHaveValue("xml", { timeout: 60_000 });
+            await view.selectOption("pdf");
+          }
         }
       }
       await checkExperience(`已登录体验 ${entry}`);

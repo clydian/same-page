@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { attachmentFetch } from '../score-library/attachments/request';
 import { holdUpdate } from '../updates/update-safety';
 import { playbackStore, startPlayback, stopPlayback, type PlaybackSource } from './playback-store';
+import { readPlaybackPreparation, savePlaybackPreparation, clearPlaybackPreparations } from './playback-preparation';
 import { usePlaybackLifetime } from './use-playback-lifetime';
 
 vi.mock('../score-library/attachments/request', () => ({ attachmentFetch: vi.fn() }));
@@ -15,12 +16,14 @@ const source: PlaybackSource = {
 };
 function Probe({ source }: { source: PlaybackSource }) { usePlaybackLifetime(source); return null; }
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(holdUpdate).mockReturnValue(releaseUpdate); startPlayback(source); });
-afterEach(() => { cleanup(); stopPlayback(); });
+afterEach(() => { cleanup(); stopPlayback(); clearPlaybackPreparations(); });
 
 it.each([401, 403, 404])('stops either playback engine when initial authority check returns %s', async status => {
   vi.mocked(attachmentFetch).mockResolvedValue(new Response(null, { status }));
+  savePlaybackPreparation(source,new Uint8Array([1]));
   render(<Probe source={source} />);
   await waitFor(() => expect(playbackStore.getSnapshot()).toBeNull());
+  expect(readPlaybackPreparation(source)).toBeUndefined();
 });
 
 it('retains loaded practice after a temporary network failure and checks again on focus', async () => {
