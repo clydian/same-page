@@ -36,7 +36,7 @@ describe("reader sync status", () => {
   it("keeps conflicts and revoked grants actionable even during other sync", () => {
     expect(deriveReaderSyncStatus({ ...quiet, conflictCount: 1, syncing: true }).kind).toBe("conflict");
     expect(deriveReaderSyncStatus({ ...quiet, syncErrorCount: 1, permissionErrorCount: 1 }).message).toContain("编辑权已撤销");
-    expect(deriveReaderSyncStatus({ ...quiet, outcome: "failed" }).message).toContain("查看原因或重试");
+    expect(deriveReaderSyncStatus({ ...quiet, outcome: "failed" }).message).toContain("若仍失败，可反馈问题");
   });
 
   it("describes a persisted conflict by page, layer and a safe summary", () => {

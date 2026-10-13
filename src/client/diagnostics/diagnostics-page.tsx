@@ -3,7 +3,7 @@ import { DiagnosticReportForm } from "./diagnostic-report-form";
 
 export default function DiagnosticsPage() {
   return <div className="privacy-page">
-    <TaskHeader title="故障诊断" backTo="/help" />
+    <TaskHeader title="问题反馈" backTo="/help" />
     <main className="privacy-document diagnostics-document">
 
       <p>没有错误记录也可以反馈，问题描述选填。</p>

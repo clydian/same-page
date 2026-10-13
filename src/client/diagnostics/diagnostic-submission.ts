@@ -65,9 +65,9 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
   if (state.phase === "sending" || state.phase === "sent") return;
   let report: DiagnosticReport;
   try { report = state.report ?? captureDiagnosticReport(state.description, reader); }
-  catch { update({ ...state, message: "暂时无法准备诊断，请复制已有诊断内容。" }); return; }
+  catch { update({ ...state, message: "暂时无法准备反馈，请复制已有诊断信息。" }); return; }
   const started = ++epoch;
-  update({ ...state, report, phase: "sending", message: "正在发送诊断…" });
+  update({ ...state, report, phase: "sending", message: "正在发送反馈…" });
   const controller = new AbortController();
   pending = controller;
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -93,7 +93,7 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
       if (started !== epoch) return;
     }
     if (response.status === 429) {
-      update({ ...state, phase: "failed", message: "发送过于频繁，请稍后重试。当前诊断仍保留，也可复制。" });
+      update({ ...state, phase: "failed", message: "发送过于频繁，请稍后重试。当前反馈仍保留，也可复制。" });
       return;
     }
     if (!response.ok) throw new Error("unconfirmed");
@@ -104,8 +104,8 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
   } catch {
     if (started !== epoch) return;
     update({ ...state, phase: "failed", message: navigator.onLine
-      ? "尚未确认收到诊断。当前内容仍保留，可重试或复制；重试不会重复创建反馈。"
-      : "当前离线，尚未确认收到诊断。请联网后重试，也可复制当前内容；重试不会重复创建反馈。" });
+      ? "尚未确认收到反馈。当前内容仍保留，可重试或复制；重试不会重复创建反馈。"
+      : "当前离线，尚未确认收到反馈。请联网后重试，也可复制当前内容；重试不会重复创建反馈。" });
   } finally {
     clearTimeout(timeout);
     if (started === epoch) pending = null;

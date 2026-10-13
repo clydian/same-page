@@ -31,7 +31,7 @@ function RouteFeedback({ failed = false }: { failed?: boolean }) {
     : pathname.includes("/settings/") ? driveSettingsTitle(pathname.split("/settings/")[1])
     : pathname === "/help" ? "使用手册"
     : pathname === "/about" ? "关于合谱"
-    : pathname === "/diagnostics" ? "故障诊断"
+    : pathname === "/diagnostics" ? "问题反馈"
     : pathname === "/privacy" ? "隐私政策" : drive ? "乐谱云盘" : "合谱";
   const home = pathname === "/" || pathname === "/drives";
   return <div className="app-page">
@@ -40,7 +40,7 @@ function RouteFeedback({ failed = false }: { failed?: boolean }) {
     {home && <><AppHeader /><h1>{title}</h1></>}
     {failed ? <p role="alert">{title}加载失败，请重试。</p> : <LoadingStatus>正在加载{title}…</LoadingStatus>}
     <Link className="text-button" state={{ home: true }} to={drive && pathname !== `/choirs/${drive}` ? `/choirs/${drive}` : "/"}>{drive && pathname !== `/choirs/${drive}` ? "返回云盘" : "返回首页"}</Link>
-    {failed && <Link className="secondary-link" to="/diagnostics">故障诊断</Link>}
+    {failed && <Link className="secondary-link" to="/diagnostics">反馈问题</Link>}
     {failed && <button className="secondary-button" onClick={() => window.location.reload()}>重新加载页面</button>}
   </main></div>;
 }

@@ -5,7 +5,7 @@ import { DiagnosticReportForm } from "./diagnostic-report-form";
 
 export function DiagnosticReportDialog({ reader }: { reader: DiagnosticReader }) {
   return <DialogTrigger>
-    <Button className="secondary-button">故障诊断</Button>
+    <Button className="secondary-button">反馈问题</Button>
     <DiagnosticReportModal reader={reader} />
   </DialogTrigger>;
 }
@@ -20,7 +20,7 @@ export function DiagnosticReportModal({ reader, isOpen, onOpenChange }: {
         <Dialog>
           {({ close }) => <>
             <div className="diagnostic-dialog-heading">
-              <Heading slot="title">故障诊断</Heading>
+              <Heading slot="title">问题反馈</Heading>
               <Button className="secondary-button" onPress={close}>关闭</Button>
             </div>
             <DiagnosticReportForm reader={reader} />
