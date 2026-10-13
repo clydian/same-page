@@ -37,7 +37,9 @@ export async function verifyPrecache(root = "dist/client", designRoot = "design"
   }
   const bytes = (await Promise.all(entries.map(async (file) => (await stat(path.join(root, file))).size))).reduce((a, b) => a + b, 0);
   assert.ok(bytes <= precacheBudgetBytes, `Precache exceeds byte budget: ${bytes} > ${precacheBudgetBytes}`);
-  const report = { entries: entries.length, bytes, budgetBytes: precacheBudgetBytes, baseline: { entries: 60, bytes: 5403008 }, deltaEntries: entries.length - 60, deltaBytes: bytes - 5403008 };
+  // Preserve the historical audit as a reference, but do not subtract metrics
+  // that used manifest records from today's unique-file accounting.
+  const report = { entries: entries.length, bytes, budgetBytes: precacheBudgetBytes, accounting: "unique-urls", baseline: { entries: 60, bytes: 5403008, accounting: "manifest-records" } };
   return report;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === import.meta.filename) {

@@ -22,8 +22,10 @@
 收集时只计一次，与 Workbox 实际存储行为一致。预算为 7 MiB（7,340,032 字节），包括全部预缓存
 条目，不是网络压缩传输量或运行时缓存上限。超限、动画误入预缓存、静态插画
 或 PDF 必需资源遗漏均使构建失败。现有
-`artifacts/verification/precache-136.json` 报告增加 `budgetBytes`，保留历史基线
-与增量字段。升级 PDF.js 或新增离线资源若超预算，应先核查必要性，再明确评审
+`artifacts/verification/precache-136.json` 报告增加 `budgetBytes`，当前统计标记为
+`unique-urls`。历史基线保留并标记为 `manifest-records`，移除不再同口径的
+`deltaEntries` / `deltaBytes`；仓库没有这些字段的运行时消费者。
+升级 PDF.js 或新增离线资源若超预算，应先核查必要性，再明确评审
 预算调整；不要移除离线必需依赖来通过门禁。
 
 基线原始清单报告为 119 项、10,111,786 字节，其中五个图标重复计入；按唯一
