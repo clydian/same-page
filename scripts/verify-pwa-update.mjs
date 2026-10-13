@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 
-import { webkit } from "@playwright/test";
+import { chromium, webkit } from "@playwright/test";
 
 const repositoryRoot = process.cwd();
 const temporaryRoot = await mkdtemp(path.join(tmpdir(), "same-page-pwa-update-"));
@@ -23,6 +23,8 @@ const buildIds = {
 let activeBuild = builds.first;
 let browser;
 let server;
+const animationRequests = [];
+let failAnimationRequests = false;
 
 try {
   await buildVersion(buildIds.first, builds.first);
@@ -38,6 +40,15 @@ try {
   const address = server.address();
   assert.ok(address && typeof address === "object");
   const origin = `http://127.0.0.1:${address.port}`;
+
+  for (const engine of [chromium, webkit]) {
+    const animationBrowser = await engine.launch({ headless: true });
+    try {
+      await verifyAnimationCaching(animationBrowser, origin);
+    } finally {
+      await animationBrowser.close();
+    }
+  }
 
   browser = await webkit.launch({ headless: true });
   const context = await browser.newContext({ serviceWorkers: "allow" });
@@ -141,6 +152,93 @@ try {
   await rm(temporaryRoot, { recursive: true, force: true });
 }
 
+async function verifyAnimationCaching(browser, origin) {
+  const context = await browser.newContext({ serviceWorkers: "allow", reducedMotion: "reduce" });
+  let sourceStopped = false;
+  try {
+    const page = await context.newPage();
+    const requestStart = animationRequests.length;
+    await page.goto(origin, { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+    const buttons = page.locator(".marketing-animation");
+    assert.equal(await buttons.count(), 4);
+    await buttons.first().scrollIntoViewIfNeeded();
+    await waitForImage(page, 0, false);
+    assert.equal(animationRequests.length, requestStart, "install and reduced motion must not fetch animations");
+
+    // Entering the viewport with motion enabled loads exactly the viewed demo.
+    // Reduced-motion visibility already consumes the one-shot observer, so
+    // remount the home route to exercise its ordinary automatic playback.
+    await page.getByRole("link", { name: "关于合谱", exact: true }).click();
+    await page.getByRole("heading", { name: "关于合谱", exact: true }).waitFor();
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    await buttons.first().waitFor();
+    await buttons.first().scrollIntoViewIfNeeded();
+    await waitForImage(page, 0, true);
+    await page.waitForFunction(async () => (await (await caches.open("same-page-home-animations")).keys()).length === 1);
+    assert.equal(animationRequests.length, requestStart + 1, "only the visible animation should download");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await waitForImage(page, 0, false);
+
+    // Use a stopped source for WebKit, matching the offline PDF smoke contract.
+    // Stop it in both engines; Chromium additionally uses its offline flag.
+    await new Promise(resolve => server.close(resolve));
+    sourceStopped = true;
+    if (browser.browserType().name() === "chromium") await context.setOffline(true);
+    await buttons.first().click();
+    await waitForImage(page, 0, true);
+    assert.equal(animationRequests.length, requestStart + 1, "offline replay must use the runtime cache");
+    await waitForImage(page, 0, false);
+
+    await buttons.nth(1).scrollIntoViewIfNeeded();
+    const offlineFailure = page.waitForEvent("requestfailed", {
+      predicate: request => request.url().includes("personal-layer-animation-"),
+    });
+    await buttons.nth(1).click();
+    await offlineFailure;
+    await waitForImage(page, 1, false);
+    assert.equal(await page.evaluate(async () => (await (await caches.open("same-page-home-animations")).keys()).length), 1);
+
+    await context.setOffline(false);
+    await restartSource(origin);
+    sourceStopped = false;
+    failAnimationRequests = true;
+    const failedResponse = page.waitForResponse(response => response.url().includes("personal-layer-animation-") && response.status() === 503);
+    await buttons.nth(1).click();
+    await failedResponse;
+    await waitForImage(page, 1, false);
+    failAnimationRequests = false;
+    await buttons.nth(1).click();
+    await waitForImage(page, 1, true);
+    await page.waitForFunction(async () => (await (await caches.open("same-page-home-animations")).keys()).length === 2);
+    process.stdout.write(`Verified on-demand animation cache and static offline fallback (${browser.browserType().name()})\n`);
+  } finally {
+    failAnimationRequests = false;
+    await context.close();
+    if (sourceStopped) await restartSource(origin);
+  }
+}
+
+async function restartSource(origin) {
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(Number(new URL(origin).port), "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+}
+
+async function waitForImage(page, index, animated) {
+  await page.waitForFunction(({ index, animated }) => {
+    const image = document.querySelectorAll(".marketing-animation img")[index];
+    return image?.src.startsWith("blob:") === animated && image.complete && image.naturalWidth > 0;
+  }, { index, animated });
+}
+
 async function buildVersion(buildId, destination) {
   const executable = process.platform === "win32" ? "npm.cmd" : "npm";
   execFileSync(executable, ["run", "build"], {
@@ -159,6 +257,14 @@ async function serveRequest(request, response, root) {
     if (requestUrl.pathname.startsWith("/api/")) {
       serveApi(requestUrl.pathname, response);
       return;
+    }
+    if (/-animation-[^/]+\.webp$/.test(requestUrl.pathname)) {
+      animationRequests.push(requestUrl.pathname);
+      if (failAnimationRequests) {
+        response.statusCode = 503;
+        response.end("Animation temporarily unavailable");
+        return;
+      }
     }
 
     const requestedPath = requestUrl.pathname === "/"
@@ -223,6 +329,7 @@ function contentType(extension) {
     ".json": "application/json; charset=utf-8",
     ".mjs": "text/javascript; charset=utf-8",
     ".png": "image/png",
+    ".webp": "image/webp",
     ".webmanifest": "application/manifest+json",
   }[extension] ?? "application/octet-stream";
 }
