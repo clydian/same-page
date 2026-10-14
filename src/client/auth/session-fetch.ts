@@ -13,7 +13,8 @@ export function createSessionFetch(transport: typeof fetch, acceptSession: (resp
       finally { generation++; latest = null; }
     }
     const started = generation;
-    const signal = AbortSignal.any([AbortSignal.timeout(10_000), ...(init?.signal ? [init.signal] : [])]);
+    const callerSignal = init?.signal !== undefined ? init.signal : input instanceof Request ? input.signal : undefined;
+    const signal = AbortSignal.any([AbortSignal.timeout(10_000), ...(callerSignal ? [callerSignal] : [])]);
     const requestedAt = Date.now();
     const request = transport(input, { ...init, signal });
     latest = { generation: started, url, requestedAt, result: request };
