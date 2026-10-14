@@ -34,6 +34,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await expect(picker).toBeEnabled();
       await picker.setInputFiles({ name: "替换谱.pdf", mimeType: "application/pdf", buffer: fixture.pdf });
       const dialog = page.getByRole("dialog", { name: "替换 PDF", exact: true });
+      await expect(dialog.locator("canvas[data-pdf-canvas-active]")).toBeVisible();
       const choice = dialog.getByLabel("保留自动生成的练习版");
       await expect(choice).toBeChecked();
       if (!keep) await choice.uncheck();
