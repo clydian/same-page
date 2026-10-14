@@ -58,6 +58,8 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 
 ## 产物与发布
 
+PWA 测试在 Chromium/WebKit 验证首页动画的按需缓存和静态离线兜底；构建审计限制应用壳预缓存为 7 MiB，并保留 PDF 离线依赖检查。预算、缓存生命周期与回归职责见 [预缓存说明](pwa-precache.md)。
+
 platform 的 PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实 Service Worker 交接。build 独立构建真实源码；platform 测量加载预算前移除合成 dist、下载并校验真实构建包。smoke 在另外两台 runner 使用同份包，与 PWA/加载检查并行；合成版本不得发布。`npm run test:loading-performance` 单独执行时仍先 build。
 
 需要构建或 smoke 的运行（包括 PR）封存并上传 `release-<SHA>`；两个 smoke 分片下载同次运行的包，提取后先校验 SHA256 清单与源码 SHA，再启动浏览器。PR 包只供本次验证，deploy 仍只允许需要部署的 main push，并等待 checks、全部 visual/smoke 分片及 build/platform 的汇总 `verify` 成功。部署下载同次运行的产物，校验 SHA256 清单，直接发布而不重建。产物保留 14 天；过期需重新验证生成。visual/smoke 各分片使用独立 artifact 名称，platform 也保留 `artifacts/verification/` 的已有合成证据，失败时也上传，不能放入生产会话或私人内容。

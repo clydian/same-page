@@ -15,14 +15,19 @@ export function rememberPractice(session: PlayerSession, source: PlaybackSource)
       if (saved && typeof saved === 'object') {
         if (typeof saved.speed === 'number' && Number.isFinite(saved.speed)) session.speed(saved.speed);
         if (Array.isArray(saved.parts)) for (const part of saved.parts) {
-          if (part && Number.isInteger(part.id) && typeof part.volume === 'number' && Number.isFinite(part.volume) && typeof part.muted === 'boolean' && typeof part.solo === 'boolean') session.mix(part.id, { volume: part.volume, muted: part.muted, solo: part.solo });
+          if (part && Number.isInteger(part.id) && typeof part.volume === 'number' && Number.isFinite(part.volume) && typeof part.muted === 'boolean' && typeof part.solo === 'boolean') session.mix(part.id, { volume: part.baseVolume ?? part.volume, muted: part.muted, solo: part.solo });
         }
+        if (typeof saved.otherVolume === "number" && Number.isFinite(saved.otherVolume)) session.focusOther(saved.otherVolume);
         if (saved.focus === null || typeof saved.focus === "number" && Number.isInteger(saved.focus) && state.parts.some(part => part.id === saved.focus)) session.focus(saved.focus);
+        if (typeof saved.focus === 'number') {
+          const focused = saved.parts?.find(part => part.id === saved.focus);
+          if (focused && typeof focused.volume === 'number' && Number.isFinite(focused.volume)) session.mix(saved.focus, {volume:focused.volume});
+        }
         if (Number.isInteger(saved.measure)) session.seek(saved.measure!);
       }
       return;
     }
-    try { localStorage.setItem(key, JSON.stringify({ speed:state.speed,focus:state.focus,parts:state.parts,measure:state.measure })); } catch { /* Quota/private mode never blocks playback. */ }
+    try { localStorage.setItem(key, JSON.stringify({ speed:state.speed,focus:state.focus,otherVolume:state.otherVolume,parts:state.parts,measure:state.measure })); } catch { /* Quota/private mode never blocks playback. */ }
   };
   const release = session.subscribe(changed); changed(); return release;
 }

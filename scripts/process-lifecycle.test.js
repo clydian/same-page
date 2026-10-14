@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   detachedProcessGroup,
@@ -32,5 +32,49 @@ it("cleans a descendant even after its launcher exits", async () => {
     expect(() => process.kill(pid, 0)).toThrow();
   } finally {
     try { process.kill(pid, "SIGKILL"); } catch { /* already stopped */ }
+  }
+});
+
+it("waits for group disappearance after a temporarily denied existence probe", async () => {
+  if (process.platform === "win32") return;
+  const child = spawn(process.execPath, ["-e", "console.log('ready'); setInterval(()=>{},1000)"], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  await new Promise(resolve => child.stdout.once("data", resolve));
+  const kill = process.kill.bind(process);
+  let terminated = false;
+  let denied = false;
+  const probe = vi.spyOn(process, "kill").mockImplementation((pid, signal) => {
+    if (pid === -child.pid && signal === 0 && terminated && !denied) {
+      denied = true;
+      throw Object.assign(new Error("kill EPERM"), { code: "EPERM" });
+    }
+    const result = kill(pid, signal);
+    if (pid === -child.pid && signal === "SIGTERM") terminated = true;
+    return result;
+  });
+  try {
+    await stopChildProcessTree(child, 300);
+    expect(denied).toBe(true);
+    expect(child.exitCode !== null || child.signalCode !== null).toBe(true);
+  } finally {
+    probe.mockRestore();
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+  }
+});
+
+it("still reports a denied termination signal", async () => {
+  if (process.platform === "win32") return;
+  const child = spawn(process.execPath, ["-e", "console.log('ready'); setInterval(()=>{},1000)"], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  await new Promise(resolve => child.stdout.once("data", resolve));
+  const kill = process.kill.bind(process);
+  const denied = Object.assign(new Error("kill EPERM"), { code: "EPERM" });
+  const probe = vi.spyOn(process, "kill").mockImplementation((pid, signal) => {
+    if (pid === -child.pid && signal === "SIGTERM") throw denied;
+    return kill(pid, signal);
+  });
+  try {
+    await expect(stopChildProcessTree(child, 300)).rejects.toBe(denied);
+  } finally {
+    probe.mockRestore();
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
   }
 });

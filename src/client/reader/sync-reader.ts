@@ -87,7 +87,7 @@ async function read(workspace: LocalWorkspace, signal: AbortSignal): Promise<Rea
     const preferenceVersion = await readingPreferenceVersion(workspace);
     const query = new URLSearchParams({ cursor: String(cursor), layerIds: JSON.stringify(layerIds) });
     if (workspace.ownerKey.startsWith("experience:")) query.set("experience", "1");
-    const response = await untilAborted(diagnosticFetch(`${base}?${query}`, { signal }), signal);
+    const response = await untilAborted(diagnosticFetch(`${base}?${query}`, { signal, headers: { "X-Same-Page-Attachments": "2" } }), signal);
     await assertLocalWorkspaceActive(workspace); signal.throwIfAborted();
     if (!response.ok) {
       if ([401, 403, 404].includes(response.status)) await removeCachedPublications(workspace);

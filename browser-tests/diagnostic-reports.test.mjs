@@ -17,9 +17,9 @@ test("diagnostic feedback survives lost receipts and offline retries in Chromium
       const page = await context.newPage();
       activePage = page;
       await page.goto(`${fixture.origin}/diagnostics`);
-      await expect(page.getByRole("button", { name: "发送诊断", exact: true })).toBeEnabled();
+      await expect(page.getByRole("button", { name: "发送反馈", exact: true })).toBeEnabled();
       assert.equal(await page.locator(".diagnostic-report-form details").getAttribute("open"), null);
-      const sendBounds = await page.getByRole("button", { name: "发送诊断", exact: true }).boundingBox();
+      const sendBounds = await page.getByRole("button", { name: "发送反馈", exact: true }).boundingBox();
       assert.ok(sendBounds.height >= 44 && sendBounds.y + sendBounds.height <= height, "send is touch-sized and reachable in the first viewport");
       await page.getByLabel("刚才遇到了什么问题？（选填）").fill("显示不正常，没有报错");
       await page.screenshot({ path: `artifacts/verification/diagnostic-${name}-form.png`, fullPage: true });
@@ -38,7 +38,7 @@ test("diagnostic feedback survives lost receipts and offline retries in Chromium
           await route.continue();
         }
       });
-      await page.getByRole("button", { name: "发送诊断", exact: true }).click();
+      await page.getByRole("button", { name: "发送反馈", exact: true }).click();
       await expect(page.getByRole("status")).toContainText("尚未确认收到");
       await page.screenshot({ path: `artifacts/verification/diagnostic-${name}-uncertain.png`, fullPage: true });
       await page.getByRole("button", { name: "重试发送" }).click();
@@ -48,12 +48,12 @@ test("diagnostic feedback survives lost receipts and offline retries in Chromium
       await page.screenshot({ path: `artifacts/verification/diagnostic-${name}-receipt.png`, fullPage: true });
       await page.getByRole("button", { name: "填写另一份反馈" }).click();
       await context.setOffline(true);
-      await page.getByRole("button", { name: "发送诊断", exact: true }).click();
+      await page.getByRole("button", { name: "发送反馈", exact: true }).click();
       await expect(page.getByRole("status")).toContainText("当前离线");
       assert.equal(attempts, 2);
       await context.setOffline(false);
       await page.unroute("**/api/diagnostic-reports");
-      await page.getByRole("button", { name: "清空诊断" }).click();
+      await page.getByRole("button", { name: "清空诊断信息" }).click();
       await writeFile(`artifacts/verification/diagnostic-${name}.json`, JSON.stringify({ engine: name, viewport: { width, height }, realWorkerD1: true, receiptLostAfterPersistence: true, realDevice: false }, null, 2));
       await context.close();
     } catch (error) {

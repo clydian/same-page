@@ -44,11 +44,18 @@
 .practice-notice button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border: 0; background: transparent; color: inherit; }
 .practice-notation { position: fixed; z-index: 70; inset: 0 0 var(--practice-inset,72px); display: flex; flex-direction: column; visibility: hidden; background: #f3f4f0; color: #31463a; }
 .practice-notation[data-visible] { visibility: visible; }
-.practice-notation-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: max(16px,env(safe-area-inset-top)) 20px 12px; font-size: 13px; }
-.practice-notation-heading strong { max-width: 100%; overflow-wrap: anywhere; font-weight: 500; }
-.practice-notation-heading span { color: #718077; font-size: 12px; }
+.practice-notation { padding: var(--safe-top) var(--safe-right) 0 var(--safe-left); }
+.practice-notation-scroll:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
+.practice-follow { position: absolute; z-index: 2; top: max(12px,env(safe-area-inset-top)); right: max(16px,env(safe-area-inset-right)); min-height: 44px; padding: 0 14px; border: 1px solid #dce4de; border-radius: 24px; background: #fcfdfbf5; color: #365747; font: inherit; font-size: 12px; box-shadow: 0 2px 12px #17352b14; }
+.practice-follow:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
 .practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; }
 .practice-notation-scroll > div { max-width: 1100px; margin: auto; padding: 12px; background: #fff; }
+/* Match Chorus: alphaTab supplies positions/classes; the host supplies their visible colors. */
+.practice-notation .at-cursor-bar { background: rgba(212,165,94,.13) !important; border: 1px solid rgba(185,126,72,.16); border-radius: 6px; }
+/* Keep alphaTab's inline width: its transform scales the playback line to 3 visible pixels. */
+.practice-notation .at-cursor-beat { background: #bd7740 !important; border-radius: 3px; box-shadow: 0 0 0 2px rgba(189,119,64,.13); }
+.practice-notation .at-highlight * { fill: #bd6f39 !important; stroke: #bd6f39 !important; }
+.practice-notation .at-selection div { background: rgba(92,127,173,.12) !important; border-radius: 3px; }
 .reader-shell { height: calc(100dvh - var(--practice-inset,0px)); }
 .reader-shell[data-playback-view=xml] { visibility: hidden; }
 .reader-practice-launcher h2 { margin: 8px 0; font-size: 13px; }
@@ -72,3 +79,35 @@
 
 .reader-playback-error { display: flex; align-items: center; gap: 8px; padding-inline: 12px; border-radius: 10px; background: #fcfdfb; color: #31463a; font-size: 12px; }
 .reader-playback-error button { min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-decoration: underline; }
+
+/* One control row, with the scrubber laid over the dock's top edge. */
+.practice-dock { gap: 0; }
+.practice-timeline { position: absolute; z-index: 1; top: -14px; left: 0; width: 100%; height: 28px; margin: 0; accent-color: #365747; cursor: pointer; }
+.practice-bar { min-height: 62px; padding-top: 12px; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 12px; }
+.practice-source-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.practice-view { display: grid; }
+.practice-view select { min-height: 32px; padding-inline: 0; }
+.practice-bar-actions { display: flex; align-items: center; justify-self: end; }
+.practice-speed { width: 62px; min-height: 44px; border: 0; color: inherit; background: transparent; font: inherit; }
+.practice-position { position: static; padding-inline: 6px; }
+.practice-volumes h3 { margin: 0; font-size: 14px; }
+.practice-part > span { display: flex; justify-content: space-between; gap: 8px; }
+.practice-part output { font-variant-numeric: tabular-nums; }
+.practice-focus-volumes { display: grid; gap: 12px; padding-top: 12px; }
+.practice-field input[type=range], .practice-part input[type=range] { min-height: 44px; }
+.attachment-play-badge { position: absolute; right: 4px; bottom: 4px; padding: 2px; border-radius: 50%; background: #fcfdfb; }
+.reader-playback-entry { position: relative; }
+.reader-practice-source span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.reader-practice-source small { display: block; margin-top: 3px; color: #637268; font-size: 12px; }
+.reader-practice-source { color: inherit; text-decoration: none; }
+.reader-practice-source[data-disabled] { opacity: .5; }
+@media (max-width: 640px) {
+  .practice-bar { gap: 2px; padding-inline: 8px; }
+  .practice-bar { grid-template-columns: minmax(0,1fr) auto auto; }
+  .practice-source-name { max-width: 114px; }
+  .practice-speed { width: 48px; font-size: 13px; }
+  .practice-transport { gap: 0; }
+  .practice-bar-actions { gap: 0; }
+}
+
+.practice-bar { position: relative; }

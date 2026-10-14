@@ -8,7 +8,13 @@ export async function stopChildProcessTree(child, graceMs = 3_000) {
   const alive = () => {
     if (!detachedProcessGroup() || !child.pid) return child.exitCode === null && child.signalCode === null;
     try { process.kill(-child.pid, 0); return true; }
-    catch (error) { if (error?.code === "ESRCH") return false; throw error; }
+    catch (error) {
+      if (error?.code === "ESRCH") return false;
+      // Darwin may deny a zero-signal probe while only zombies remain.
+      // Keep waiting for disappearance; actual TERM/KILL denials still throw.
+      if (error?.code === "EPERM") return true;
+      throw error;
+    }
   };
   try {
     if (!alive()) return;

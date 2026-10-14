@@ -1,4 +1,5 @@
 import { availableAnnotationLayers } from "./guest-notes";
+import { toWireOperation } from "./push-request";
 import { readingPreferenceVersion } from "../reader/reading-preferences";
 import { untilAborted } from "../platform/abortable";
 import { diagnoseLocalOperation } from "../diagnostics/local-operation";
@@ -12,7 +13,6 @@ import {
 } from "../../shared/annotations";
 import {
   localDatabase,
-  type AnnotationOutboxRecord,
 } from "../platform/local-database";
 import {
   assertLocalWorkspaceActive,
@@ -352,17 +352,6 @@ export async function withScoreSyncLock<T>(
       if (current?.lockOwner === owner) await localDatabase.syncLeases.delete(scopeKey);
     });
   }
-}
-
-function toWireOperation(operation: AnnotationOutboxRecord) {
-  return {
-    opId: operation.opId,
-    annotationId: operation.annotationId,
-    layerId: operation.layerId,
-    baseVersion: operation.baseVersion,
-    type: operation.type,
-    payload: operation.payload,
-  };
 }
 
 // Observe the existing sync lock, including background recovery, without

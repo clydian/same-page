@@ -232,6 +232,10 @@ scoreRoutes.get("/choirs/:choirId/scores/:scoreId/sync", async (context) => {
   const row = await measureServerTiming(context, "d1", () =>
     context.env.DB.prepare(
       `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at,
+            (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id
+              AND a.trashed_at IS NULL AND a.purged_at IS NULL
+              AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"})
+              AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
             scores.trashed_at, scores.trash_expires_at,
             versions.id AS version_id, versions.version_number,
             versions.size_bytes, versions.sha256, versions.etag,

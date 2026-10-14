@@ -55,11 +55,11 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
         <Button className="practice-action practice-listen-score" onPress={showScore}>边听边看谱</Button>
       </div>
     </AttachmentShell> : <PracticePlayerShell source={source} ready={ready} playing={playing} message={error ?? (!ready ? '正在准备音频…' : '')} failed={Boolean(error)}
+      timeline={{value:position,max:duration,step:.1,disabled:!seekable,label:value => `${time(value)} / ${time(duration)}`,seek}}
+      speed={speed} setSpeed={value => { if (audio.current) audio.current.playbackRate = value; setSpeed(value); }}
       position={`${time(position)} / ${time(duration)}`} previousDisabled={!seekable || position <= 0} nextDisabled={!seekable || position >= duration}
       play={play} previous={() => seek(position - 10)} next={() => seek(position + 10)} retry={() => { setError(null); setReady(false); setAttempt(value => value + 1); }}>
-      <label className="practice-field">播放位置 <span>{time(position)} / {time(duration)}</span><input aria-label="播放位置" type="range" min="0" max={duration} value={position} step="0.1" disabled={!seekable} onChange={event => seek(Number(event.target.value))} /></label>
-      <div className="practice-fields"><label className="practice-field">速度<select aria-label="速度" value={speed} disabled={!ready} onChange={event => { const value = Number(event.target.value); if (audio.current) audio.current.playbackRate = value; setSpeed(value); }}>{[0.5, 0.75, 1, 1.25, 1.5].map(value => <option key={value} value={value}>{Math.round(value * 100)}%</option>)}</select></label>
-      <label className="practice-field">音量<input aria-label="音量" type="range" min="0" max="1" step="0.05" value={volume} onChange={event => { const value = Number(event.target.value); if (audio.current) audio.current.volume = value; setVolume(value); }} /></label></div>
+      <label className="practice-field">音量<input aria-label="音量" type="range" min="0" max="1" step="0.05" value={volume} onChange={event => { const value = Number(event.target.value); if (audio.current) audio.current.volume = value; setVolume(value); }} /></label>
       <p className="practice-hint">原 PDF 可手动翻页。音频附件需联网打开，不包含在主谱离线副本中。</p>
     </PracticePlayerShell>}
   </>;

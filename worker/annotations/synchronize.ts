@@ -38,6 +38,9 @@ const identity = `o.choir_id = scope.choir AND o.score_id = scope.score AND o.ac
  AND o.base_version = json_extract(i.op, '$.baseVersion') AND o.operation_type = json_extract(i.op, '$.type')
  AND o.payload_hash IN (json_extract(i.op, '$.hash'), json_extract(i.op, '$.legacyHash'))`;
 
+// Reserve headroom below D1's 2,000,000-byte string limit, after JSON escaping.
+const maxInputBytes = 1_900_000;
+
 export async function synchronizeOperations(db: D1Database, scope: Scope, operations: Operation[]): Promise<PushResult[]> {
   const prepared = await Promise.all(operations.map(async op => {
     const payloadJson = op.payload === null ? null : JSON.stringify(op.payload);
@@ -46,20 +49,26 @@ export async function synchronizeOperations(db: D1Database, scope: Scope, operat
     const legacyHash = p?.kind === "text" && p.textAlign === undefined && p.fontScale === DEFAULT_TEXT_FONT_SCALE
       ? await sha256(`${op.type}:${JSON.stringify({ pageNumber: p.pageNumber, kind: p.kind, x: p.x, y: p.y, text: p.text })}`)
       : hash;
-    return { ...op, payloadJson, hash, legacyHash };
+    const { opId, annotationId, layerId, baseVersion, type } = op;
+    const json = JSON.stringify({ opId, annotationId, layerId, baseVersion, type, payloadJson, hash, legacyHash });
+    return { annotationId: op.annotationId, opId: op.opId, json, bytes: new TextEncoder().encode(json).byteLength };
   }));
-  // Independent objects share a set-based wave. Repeated object/op IDs retain request order.
-  const waves: typeof prepared[] = [];
-  let wave: typeof prepared = [];
+  // Each wave fits one D1 parameter. Repeated object/op IDs retain request order.
+  // All waves still execute in the same atomic db.batch transaction.
+  const waves: string[] = [];
+  let wave: string[] = [];
+  let waveBytes = 2; // JSON array brackets
   const ids = new Set<string>(); const opIds = new Set<string>();
   for (const op of prepared) {
-    if (ids.has(op.annotationId) || opIds.has(op.opId)) { waves.push(wave); wave = []; ids.clear(); opIds.clear(); }
-    wave.push(op); ids.add(op.annotationId); opIds.add(op.opId);
+    if (wave.length && (ids.has(op.annotationId) || opIds.has(op.opId) || waveBytes + 1 + op.bytes > maxInputBytes)) {
+      waves.push(`[${wave.join(",")}]`); wave = []; waveBytes = 2; ids.clear(); opIds.clear();
+    }
+    waveBytes += op.bytes + (wave.length ? 1 : 0);
+    wave.push(op.json); ids.add(op.annotationId); opIds.add(op.opId);
   }
-  if (wave.length) waves.push(wave);
+  if (wave.length) waves.push(`[${wave.join(",")}]`);
   const statements: D1PreparedStatement[] = [];
-  for (const entries of waves) {
-    const json = JSON.stringify(entries);
+  for (const json of waves) {
     const query = (sql: string) => db.prepare(`${inputCte} ${sql}`).bind(json, scope.choirId, scope.scoreId, scope.userId);
     statements.push(
       query(`INSERT OR IGNORE INTO annotation_sync_operations

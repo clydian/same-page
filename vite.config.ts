@@ -119,7 +119,18 @@ export default defineConfig(({ isPreview }) => ({
         globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2}"],
         // Attachments are online-only. Do not download their optional viewers
         // and editor on every PWA install; the main PDF engine stays precached.
-        globIgnores: ["**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
+        globIgnores: ["assets/{shared-layers,personal-layer,replace-pdf,offline-sync}-animation-*.webp", "**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
+        // Optional homepage demonstrations load only when viewed. Static
+        // illustrations remain precached for offline and failed requests.
+        runtimeCaching: [{
+          urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/assets\/(?:shared-layers|personal-layer|replace-pdf|offline-sync)-animation-[^/]+\.webp$/.test(url.pathname),
+          handler: "CacheFirst",
+          options: {
+            cacheName: "same-page-home-animations",
+            cacheableResponse: { statuses: [200], headers: { "Content-Type": "image/webp" } },
+            expiration: { maxEntries: 8, maxAgeSeconds: 30 * 24 * 60 * 60 },
+          },
+        }],
         // PDF.js' worker is slightly larger than Workbox's 2 MiB default.
         // It is required to open a verified offline PDF, so keep it in the
         // application-shell precache rather than making offline claims depend

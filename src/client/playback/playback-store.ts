@@ -23,9 +23,13 @@ export const playbackStore = {
 };
 export function stopPlayback() { source = null; setPlaybackView('pdf'); listeners.forEach(listener => listener()); }
 export function startPlayback(next: PlaybackSource) {
+  if (source && source.ownerKey === next.ownerKey && source.sessionId === next.sessionId && source.choirId === next.choirId && source.score.id === next.score.id && source.attachment.id === next.attachment.id && source.attachment.revision === next.attachment.revision) {
+    setPlaybackView(next.attachment.kind === 'musicxml' ? 'xml' : 'pdf');
+    return;
+  }
   source = next;
   generation += 1;
-  setPlaybackView('pdf');
+  setPlaybackView(next.attachment.kind === 'musicxml' ? 'xml' : 'pdf');
   listeners.forEach(listener => listener());
 }
 onNavigationReset(stopPlayback);
