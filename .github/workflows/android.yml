@@ -34,7 +34,7 @@ jobs:
       - run: npm run generate --prefix android
       - run: bash android/generated/gradlew -p android/generated --no-daemon assembleRelease
       - run: node android/verify.mjs android/generated/app/build/outputs/apk/release/app-release-unsigned.apk --unsigned
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: android-unsigned-${{ github.sha }}
           path: android/generated/app/build/outputs/apk/release/app-release-unsigned.apk
@@ -82,7 +82,7 @@ jobs:
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
           node android/sign.mjs
           node android/verify.mjs
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: android-release-${{ github.sha }}
           path: android/out/
