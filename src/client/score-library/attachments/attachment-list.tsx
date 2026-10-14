@@ -30,7 +30,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
   return <ul ref={list} className="attachment-list" aria-label={`${score.fileName} 的附件`}>
     {rows.map(attachment => {
       const Icon = attachment.kind === "audio" ? FileAudio : attachment.kind === "link" ? LinkIcon : FileText;
-      const content = <><Icon size={16} aria-hidden="true" /><span>{attachment.name}</span></>;
+      const content = <><Icon size={16} aria-hidden="true" /><span>{attachment.name}{attachment.source === "generated" && <small> · 自动生成 · Beta</small>}</span></>;
       return <li className="attachment-row" key={attachment.id}>
         {attachment.kind === "link" ? <a className="attachment-open" onClick={event => { if (!available) { event.preventDefault(); setUnavailableId(attachment.id); } }} href={safeAttachmentUrl(attachment.url ?? "")} target="_blank" rel="noopener noreferrer">{content}</a>
           : <Button className="attachment-open" onPress={() => { if (!available) setUnavailableId(attachment.id); else onSelect({ score, attachment, action: "open" }); }}>{content}</Button>}

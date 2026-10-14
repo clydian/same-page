@@ -330,3 +330,70 @@ it("reader sync preserves playable attachment counts with legacy protocol compat
   expect(await (await call(path)).json()).toMatchObject({state:'active',score:{attachmentCount:0}});
   expect(await (await call(path,{headers:{'X-Same-Page-Attachments':'2'}})).json()).toMatchObject({state:'active',score:{attachmentCount:1}});
 });
+
+async function uploadGenerated(id = crypto.randomUUID(), revision?: number) {
+  const query = new URLSearchParams({ name: "自动练习.musicxml", size: String(musicXml.length), source: "generated", ...(revision ? { expectedRevision: String(revision) } : {}) });
+  const response = await call(`${base()}/${id}/file?${query}`, { method: revision ? "PUT" : "POST", headers: { "content-length": String(musicXml.length) }, body: musicXml });
+  return { response, id };
+}
+it("keeps one generated XML slot separate from user uploads and allows owner updates", async () => {
+  const userXml = await upload("用户校订.musicxml", musicXml);
+  expect(userXml.response.status).toBe(201);
+  const generated = await uploadGenerated();
+  expect(generated.response.status, await generated.response.clone().text()).toBe(201);
+  expect(await generated.response.json()).toMatchObject({ attachment: { source: "generated", revision: 1 } });
+  expect((await uploadGenerated()).response.status).toBe(409);
+  expect((await uploadGenerated(userXml.id, 1)).response.status).toBe(409);
+  expect((await uploadGenerated(generated.id, 1)).response.status).toBe(200);
+  expect((await uploadGenerated(generated.id, 1)).response.status).toBe(409);
+  expect(await usage()).toBe(mainBytes.length + musicXml.length * 2);
+  const headers = { "X-Same-Page-Attachments": "2" };
+  expect(await (await call(`/api/choirs/${choirId}/attachments?scoreIds=${scoreId}`, { headers })).json()).toMatchObject({ attachments: [
+    { id: userXml.id, source: "user" }, { id: generated.id, source: "generated", revision: 2 },
+  ] });
+  expect((await call(`${base()}/${generated.id}`, { method: "DELETE" })).status).toBe(400);
+  expect((await call(`${base()}/${generated.id}?expectedRevision=2`, { method: "DELETE" })).status).toBe(204);
+  // Removing the generated result is remembered after its old bytes expire.
+  await env.DB.prepare("UPDATE score_attachments SET trash_expires_at = ? WHERE id = ?").bind(Date.now() - 1, generated.id).run();
+  await cleanupScoreStorage(env);
+  expect((await uploadGenerated()).response.status).toBe(409);
+});
+it.each([true, false])("atomically replaces PDF with keepGeneratedXml=%s without touching user XML", async keepGeneratedXml => {
+  const userXml = await upload("用户校订.musicxml", musicXml);
+  const generated = await uploadGenerated();
+  expect(generated.response.status).toBe(201);
+  const next = crypto.randomUUID();
+  const stored = await env.SCORES_BUCKET.put(next, mainBytes);
+  await env.DB.batch([
+    env.DB.prepare("UPDATE choirs SET storage_used_bytes = storage_used_bytes + ? WHERE id = ?").bind(mainBytes.length, choirId),
+    env.DB.prepare(`INSERT INTO score_versions (id, choir_id, score_id, version_number, object_key, size_bytes, sha256, etag, page_count, state, candidate_expires_at, base_revision)
+      VALUES (?, ?, ?, 2, ?, ?, 'next', ?, 1, 'ready', ?, 1)`).bind(next, choirId, scoreId, next, mainBytes.length, stored!.httpEtag, Date.now() + 86400000),
+  ]);
+  const path = `/api/choirs/${choirId}/scores/${scoreId}`;
+  const publish = (revision: number) => call(`${path}/versions/${next}/publish`, { method: "POST", ...json({ expectedRevision: revision, keepGeneratedXml }) });
+  expect((await publish(3)).status).toBe(409);
+  expect(await (await call(`${path}/versions`)).json()).toMatchObject({ hasGeneratedXml: true, canTrashFiles: true });
+  expect((await publish(1)).status).toBe(204);
+  expect((await publish(1)).status).toBe(204);
+  expect((await call(`${base()}/${userXml.id}/file`)).status).toBe(200);
+  expect((await call(`${base()}/${generated.id}/file`)).status).toBe(keepGeneratedXml ? 200 : 404);
+  if (!keepGeneratedXml) {
+    expect((await uploadGenerated(generated.id, 1)).response.status).toBe(409);
+    expect((await call(`${base()}/${generated.id}/restore`, { method: "POST" })).status).toBe(204);
+    expect((await uploadGenerated(generated.id, 3)).response.status).toBe(200);
+  }
+});
+it("does not let a non-owner label or replace a file as generated", async () => {
+  const generated = await uploadGenerated();
+  expect(generated.response.status).toBe(201);
+  // Retain the session but revoke ownership: ordinary upload/modify grants are insufficient.
+  const owner = await env.DB.prepare("SELECT user_id FROM memberships WHERE id = ?").bind(memberId).first<{ user_id: string }>();
+  const other = crypto.randomUUID(), now = Date.now();
+  await env.DB.prepare("INSERT INTO user (id,name,email,email_verified,created_at,updated_at) VALUES (?,'new owner','other@example.test',1,?,?)").bind(other, now, now).run();
+  const membership = crypto.randomUUID();
+  await env.DB.prepare("INSERT INTO memberships (id,choir_id,user_id,display_name,status) VALUES (?,?,?,'new owner','active')").bind(membership, choirId, other).run();
+  await env.DB.prepare("UPDATE choirs SET owner_membership_id = ? WHERE id = ?").bind(membership, choirId).run();
+  await env.DB.prepare(`UPDATE memberships SET permissions = '{"operations":["uploadFiles","modifyFiles"],"sharedLayers":[]}' WHERE user_id = ?`).bind(owner!.user_id).run();
+  expect((await uploadGenerated()).response.status).toBe(403);
+  expect((await uploadGenerated(generated.id, 1)).response.status).toBe(403);
+});

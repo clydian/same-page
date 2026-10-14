@@ -30,7 +30,7 @@ function mockApi() {
 describe("PDF replacement confirmation", () => {
   it("requires a rendered preview and explicit acceptance before publishing the selected revision", async () => {
     const fetch = mockApi(); const complete = vi.fn();
-    render(<PdfVersionDialog choirId="drive" score={score} historyOnly={false} onClose={() => {}} onComplete={complete} />);
+    render(<PdfVersionDialog choirId="drive" score={score} onClose={() => {}} onComplete={complete} />);
     const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
     await waitFor(() => expect(input).not.toBeDisabled());
     fireEvent.change(input, { target: { files: [new File(["pdf"], "新谱.pdf", { type: "application/pdf" })] } });
@@ -48,7 +48,7 @@ describe("PDF replacement confirmation", () => {
 
   it("queues cancellation on close without publishing", async () => {
     const fetch = mockApi();
-    const view = render(<PdfVersionDialog choirId="drive" score={score} historyOnly={false} onClose={() => {}} onComplete={() => {}} />);
+    const view = render(<PdfVersionDialog choirId="drive" score={score} onClose={() => {}} onComplete={() => {}} />);
     const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
     await waitFor(() => expect(input).not.toBeDisabled());
     fireEvent.change(input, { target: { files: [new File(["pdf"], "新谱.pdf")] } });
@@ -58,16 +58,7 @@ describe("PDF replacement confirmation", () => {
     expect(fetch.mock.calls.some(([url]) => url.endsWith("/publish"))).toBe(false);
   });
 
-  it("offers retained original upload numbers for rollback", async () => {
-    const fetch = mockApi();
-    render(<PdfVersionDialog choirId="drive" score={score} historyOnly onClose={() => {}} onComplete={() => {}} />);
-    await screen.findByRole("option", { name: /版本 2/ });
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "candidate" } });
-    fireEvent.click(screen.getByRole("button", { name: "预览渲染完成" }));
-    fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.click(screen.getByRole("button", { name: "确认回滚" }));
-    await waitFor(() => expect(fetch.mock.calls.some(([url]) => url.endsWith("/candidate/publish"))).toBe(true));
-  });
+
 });
 
 
@@ -79,7 +70,7 @@ it("shows replacement transfer progress but waits for the confirmed candidate", 
     report = progress;
     return new Promise(resolve => { finish = resolve; });
   });
-  render(<PdfVersionDialog choirId="drive" score={score} historyOnly={false} onClose={() => {}} onComplete={() => {}} />);
+  render(<PdfVersionDialog choirId="drive" score={score} onClose={() => {}} onComplete={() => {}} />);
   const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
   await waitFor(() => expect(input).not.toBeDisabled());
   fireEvent.change(input, { target: { files: [new File(["pdf"], "new.pdf")] } });
@@ -97,7 +88,7 @@ it("shows replacement transfer progress but waits for the confirmed candidate", 
 it.each([503, 200])("blocks another candidate POST after an unconfirmed %s response", async (status) => {
   const fetch = mockApi();
   vi.mocked(uploadPdf).mockResolvedValueOnce(Response.json({}, { status }));
-  render(<PdfVersionDialog choirId="drive" score={score} historyOnly={false} onClose={() => {}} onComplete={() => {}} />);
+  render(<PdfVersionDialog choirId="drive" score={score} onClose={() => {}} onComplete={() => {}} />);
   const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
   await waitFor(() => expect(input).not.toBeDisabled());
   fireEvent.change(input, { target: { files: [new File(["pdf"], "new.pdf")] } });
@@ -115,7 +106,7 @@ it("bounds a stalled replacement without allowing a second upload", async () => 
   vi.mocked(uploadPdf).mockImplementationOnce((_url, _form, signal) => new Promise((_resolve, reject) => {
     signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
   }));
-  render(<PdfVersionDialog choirId="drive" score={score} historyOnly={false} onClose={() => {}} onComplete={() => {}} />);
+  render(<PdfVersionDialog choirId="drive" score={score} onClose={() => {}} onComplete={() => {}} />);
   const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
   await waitFor(() => expect(input).not.toBeDisabled());
   vi.useFakeTimers();
@@ -133,7 +124,7 @@ it("aborts replacement on identity changes and ignores the old completion", asyn
     signal = activeSignal;
     return new Promise(resolve => { finish = resolve; });
   });
-  const props = { choirId: "drive", score, historyOnly: false, onClose: () => {}, onComplete: vi.fn() };
+  const props = { choirId: "drive", score, onClose: () => {}, onComplete: vi.fn() };
   const view = render(<PdfVersionDialog {...props} />);
   const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
   await waitFor(() => expect(input).not.toBeDisabled());
@@ -149,45 +140,43 @@ it("aborts replacement on identity changes and ignores the old completion", asyn
 
 it("keeps the selected PDF and rendered preview during identity confirmation, with publishing paused", async () => {
   const fetch = mockApi();
-  const props = { choirId: "drive", score, historyOnly: true, onClose: () => {}, onComplete: vi.fn() };
+  const props = { choirId: "drive", score, onClose: () => {}, onComplete: vi.fn() };
   const view = render(<PdfVersionDialog {...props} />);
-  await screen.findByRole("option", { name: /版本 2/ });
-  fireEvent.change(screen.getByRole("combobox"), { target: { value: "candidate" } });
+  await selectNewPdf();
   const preview = screen.getByRole("button", { name: "预览渲染完成" });
   fireEvent.click(preview);
   fireEvent.click(screen.getByRole("checkbox"));
   identity.pending = true;
   view.rerender(<PdfVersionDialog {...props} />);
   expect(preview).toBeInTheDocument();
-  expect(screen.getByRole("combobox")).toHaveValue("candidate");
+  expect(screen.getByText("当前 3 页 → 新 PDF 2 页。")).toBeInTheDocument();
   expect(screen.getByRole("checkbox")).toBeChecked();
-  expect(screen.getByRole("button", { name: "确认回滚" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "确认替换" })).toBeDisabled();
   expect(screen.queryByText(/登录身份已变化/)).not.toBeInTheDocument();
   expect(fetch.mock.calls.some(([url]) => url.endsWith("/publish"))).toBe(false);
   identity.pending = false;
   view.rerender(<PdfVersionDialog {...props} />);
-  expect(screen.getByRole("button", { name: "确认回滚" })).not.toBeDisabled();
+  expect(screen.getByRole("button", { name: "确认替换" })).not.toBeDisabled();
 });
 
 
 it.each(["connection", "missing-data", "permission"])("keeps a selected PDF through a temporary %s pause without publishing", async reason => {
   const fetch = mockApi();
-  const props = { choirId: "drive", score, historyOnly: true, onClose: () => {}, onComplete: vi.fn() };
+  const props = { choirId: "drive", score, onClose: () => {}, onComplete: vi.fn() };
   const view = render(<PdfVersionDialog {...props} />);
-  await screen.findByRole("option", { name: /版本 2/ });
-  fireEvent.change(screen.getByRole("combobox"), { target: { value: "candidate" } });
+  await selectNewPdf();
   const preview = screen.getByRole("button", { name: "预览渲染完成" });
   fireEvent.click(preview); fireEvent.click(screen.getByRole("checkbox"));
   if (reason !== "permission") identity.error = { status: 503 };
   identity.dataMissing = reason === "missing-data";
   view.rerender(<PdfVersionDialog {...props} writable={reason !== "permission"} />);
   expect(preview).toBeInTheDocument();
-  expect(screen.getByRole("combobox")).toHaveValue("candidate");
+  expect(screen.getByText("当前 3 页 → 新 PDF 2 页。")).toBeInTheDocument();
   expect(screen.getByRole("checkbox")).toBeChecked();
-  expect(screen.getByRole("button", { name: "确认回滚" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "确认替换" })).toBeDisabled();
   identity.error = null; identity.dataMissing = false;
   view.rerender(<PdfVersionDialog {...props} />);
-  expect(screen.getByRole("button", { name: "确认回滚" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "确认替换" })).toBeEnabled();
   expect(fetch.mock.calls.some(([url]) => url.endsWith("/publish"))).toBe(false);
 });
 
@@ -202,20 +191,20 @@ it.each(["upload", "publish"])("aborts an active PDF %s on a temporary authority
     if (url.endsWith("/publish")) {
       signal = init!.signal!; return new Promise(resolve => { finish = resolve; });
     }
+    if (init?.method === "POST") return Response.json({ version: candidate });
     return Response.json({ currentVersionId: original.id, revision: 7, versions: [{ ...original, retentionExpiresAt: null }, { ...candidate, retentionExpiresAt: Date.now() + 10000 }] });
   });
-  const props = { choirId: "drive", score, historyOnly: operation === "publish", onClose: () => {}, onComplete: vi.fn() };
+  const props = { choirId: "drive", score, onClose: () => {}, onComplete: vi.fn() };
   const view = render(<PdfVersionDialog {...props} />);
   if (operation === "upload") {
     const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
     await waitFor(() => expect(input).toBeEnabled());
     fireEvent.change(input, { target: { files: [new File(["pdf"], "new.pdf")] } });
   } else {
-    await screen.findByRole("option", { name: /版本 2/ });
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "candidate" } });
+    await selectNewPdf();
     fireEvent.click(screen.getByRole("button", { name: "预览渲染完成" }));
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.click(screen.getByRole("button", { name: "确认回滚" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认替换" }));
   }
   view.rerender(<PdfVersionDialog {...props} writable={false} />);
   expect(signal.aborted).toBe(true);
@@ -225,13 +214,13 @@ it.each(["upload", "publish"])("aborts an active PDF %s on a temporary authority
   if (operation === "upload") {
     expect(screen.queryByRole("button", { name: "确认替换" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("新的 PDF（最多 20 MB、500 页）")).toBeDisabled();
-  } else expect(screen.getByRole("button", { name: "确认回滚" })).toBeDisabled();
+  } else expect(screen.getByRole("button", { name: "确认替换" })).toBeDisabled();
 });
 
 
 it("keeps the opening owner's lifetime if the lazy version tool mounts during a temporary session failure", async () => {
   mockApi(); identity.error = { status: 503 }; identity.dataMissing = true;
-  const props = { choirId: "drive", score, historyOnly: false, ownerUserId: "admin", onClose: () => {}, onComplete: vi.fn() };
+  const props = { choirId: "drive", score, ownerUserId: "admin", onClose: () => {}, onComplete: vi.fn() };
   const view = render(<PdfVersionDialog {...props} />);
   const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
   expect(input).toBeDisabled();
@@ -239,4 +228,30 @@ it("keeps the opening owner's lifetime if the lazy version tool mounts during a 
   view.rerender(<PdfVersionDialog {...props} />);
   await waitFor(() => expect(input).toBeEnabled());
   expect(screen.queryByText(/登录身份已变化/)).not.toBeInTheDocument();
+});
+
+async function selectNewPdf() {
+  const input = screen.getByLabelText("新的 PDF（最多 20 MB、500 页）");
+  await waitFor(() => expect(input).toBeEnabled());
+  fireEvent.change(input, { target: { files: [new File(["pdf"], "新谱.pdf")] } });
+  await screen.findByRole("button", { name: "预览渲染完成" });
+}
+it.each([true, false])("publishes the explicit generated XML choice %s without showing versions", async keep => {
+  const fetch = mockApi();
+  fetch.mockImplementation(async (url, init) => {
+    if (url.endsWith("/publish")) return new Response(null, { status: 204 });
+    if (init?.method === "POST") return Response.json({ version: candidate });
+    return Response.json({ currentVersionId: original.id, revision: 7, hasGeneratedXml: true, canTrashFiles: true,
+      versions: [{ ...original, retentionExpiresAt: null }] });
+  });
+  render(<PdfVersionDialog choirId="drive" score={score} onClose={() => {}} onComplete={() => {}} />);
+  await selectNewPdf();
+  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("保留自动生成的练习版")).toBeChecked();
+  if (!keep) fireEvent.click(screen.getByLabelText("保留自动生成的练习版"));
+  fireEvent.click(screen.getByRole("button", { name: "预览渲染完成" }));
+  fireEvent.click(screen.getByLabelText(/我已检查预览/));
+  fireEvent.click(screen.getByRole("button", { name: "确认替换" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/choirs/drive/scores/score/versions/candidate/publish",
+    expect.objectContaining({ body: JSON.stringify({ expectedRevision: 7, keepGeneratedXml: keep }) })));
 });

@@ -33,6 +33,7 @@ export function attachmentFormat(name: string) {
 
 export const attachmentSchema = z.object({
   id: z.string(), scoreId: z.string(), name: z.string(), kind: z.enum(["link", "audio", "pdf", "markdown", "musicxml"]),
+  source: z.enum(["user", "generated"]).optional(),
   url: z.string().nullable(), sizeBytes: z.number().int().nonnegative(), revision: z.number().int().positive(),
   updatedAt: z.number(), trashExpiresAt: z.number().nullable(), scoreName: z.string().optional(),
 });

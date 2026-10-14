@@ -75,6 +75,7 @@ export const scores = sqliteTable(
     fileName: text("file_name").notNull(),
     fileNameKey: text("file_name_key").notNull(),
     currentVersionId: text("current_version_id"),
+    generatedXmlDisabled: integer("generated_xml_disabled").notNull().default(0),
     versionRevision: integer("version_revision").notNull().default(1),
     lastVersionNumber: integer("last_version_number").notNull().default(1),
     replacementLockId: text("replacement_lock_id"),
@@ -139,6 +140,9 @@ export const scoreVersions = sqliteTable(
     readyAt: integer("ready_at", { mode: "timestamp_ms" }),
     candidateExpiresAt: integer("candidate_expires_at", { mode: "timestamp_ms" }),
     baseRevision: integer("base_revision"),
+    replacedFromScoreId: text("replaced_from_score_id"),
+    replacedFileName: text("replaced_file_name"),
+    replacedAt: integer("replaced_at", { mode: "timestamp_ms" }),
     retentionExpiresAt: integer("retention_expires_at", {
       mode: "timestamp_ms",
     }),

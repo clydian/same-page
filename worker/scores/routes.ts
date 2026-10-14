@@ -26,6 +26,7 @@ import { createDatabase } from "../db/database";
 import { scores } from "../db/schema";
 import type { AppEnvironment } from "../env";
 import { measureServerTiming } from "../performance/server-timing";
+import { pdfTrashRoutes } from "./pdf-trash-routes";
 import { versionRoutes } from "./version-routes";
 import { PdfValidationError, inspectPdf } from "./pdf-validation";
 import {
@@ -45,6 +46,7 @@ const fileNameCollator = new Intl.Collator("zh-CN", {
 
 export const scoreRoutes = new Hono<AppEnvironment>();
 scoreRoutes.route("/", versionRoutes);
+scoreRoutes.route("/", pdfTrashRoutes);
 
 scoreRoutes.get("/choirs/:choirId/bootstrap", async (context) => {
   const choirId = context.req.param("choirId");

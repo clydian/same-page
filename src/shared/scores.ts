@@ -98,12 +98,23 @@ export type ReaderScoreState = z.infer<typeof readerScoreStateSchema>;
 
 export const versionPublicationRequestSchema = z.object({
   expectedRevision: z.number().int().positive(),
+  keepGeneratedXml: z.boolean().optional(),
 });
 export const scoreVersionHistorySchema = z.object({
   currentVersionId: z.string(),
   revision: z.number().int().positive(),
+  hasGeneratedXml: z.boolean().optional(),
+  canTrashFiles: z.boolean().optional(),
   versions: z.array(scoreVersionSummarySchema.extend({
     retentionExpiresAt: z.number().nullable(),
   })),
 });
 export type ScoreVersionHistory = z.infer<typeof scoreVersionHistorySchema>;
+
+// Former PDFs are recoverable files; restoring creates a separate score.
+export const replacedPdfSchema = z.object({
+  id: z.string(), scoreId: z.string(), fileName: z.string(), sizeBytes: z.number(),
+  pageCount: z.number(), replacedAt: z.number(), trashExpiresAt: z.number(),
+});
+export const replacedPdfListSchema = z.object({ files: z.array(replacedPdfSchema) });
+export type ReplacedPdf = z.infer<typeof replacedPdfSchema>;

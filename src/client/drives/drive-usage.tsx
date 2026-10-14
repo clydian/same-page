@@ -16,7 +16,7 @@ export function DriveUsage({ choirId, userId }: { choirId: string; userId: strin
   const data = resource.data;
   return <section className="management-row"><h2>{data?.plan === "free" ? "免费体验版" : "云盘用量"}</h2>
     {data ? <><p>乐谱 {data.scoreCount}{data.scoreLimit !== null ? `/${data.scoreLimit}` : ""} · 空间 {formatBytes(data.usedBytes)} / {formatBytes(data.limitBytes)} · 成员 {data.memberCount}{data.memberLimit !== null ? `/${data.memberLimit}` : ""}</p>
-      <p>回收站、历史版本和待确认的 PDF 也占用空间。拥有者可在回收站或历史版本中彻底删除不需要的内容。</p></> : <p role="status">{resource.error ? "暂时无法读取用量。" : "正在读取用量…"}</p>}
+      <p>回收站和待确认的 PDF 也占用空间。拥有者可在回收站中彻底删除不需要的内容。</p></> : <p role="status">{resource.error ? "暂时无法读取用量。" : "正在读取用量…"}</p>}
     <Button className="secondary-button" onPress={() => void resource.refresh().catch(() => undefined)}>刷新用量</Button>
   </section>;
 }

@@ -320,6 +320,74 @@ describe("PDF file library and delivery", () => {
     expect(twoUpload.id).not.toBe(tenUpload.id);
   });
 
+  it("puts replaced PDFs in trash and restores an independent score without changing current notes or quota", async () => {
+    const { adminCookie, choirId, joinCode } = await createAdminChoir();
+    const guestCookie = await createGuestCookie(joinCode!);
+    const original = await upload(choirId, adminCookie, "原谱.pdf", createMinimalPdf(400, 400));
+    const path = `/api/choirs/${choirId}/scores/${original.id}`;
+    const headers = { cookie: adminCookie };
+    const beforeLayers = (await env.DB.prepare("SELECT id FROM annotation_layers WHERE score_id = ? ORDER BY id").bind(original.id).all()).results;
+    const staged = await callWorker(`${path}/versions`, uploadRequest(createMinimalPdf(500, 600), adminCookie, "新谱.pdf", 1));
+    const next = (await staged.json() as { version: { id: string } }).version;
+    expect((await publishVersion(choirId, original.id, next.id, adminCookie, 1)).status).toBe(204);
+    const trashPath = `/api/choirs/${choirId}/pdf-trash`;
+    expect((await callWorker(trashPath, { headers: { cookie: guestCookie } })).status).toBe(403);
+    expect(await (await callWorker(trashPath, { headers })).json()).toMatchObject({ files: [{ id: original.versionId, scoreId: original.id, fileName: "原谱.pdf" }] });
+    const used = await env.DB.prepare("SELECT storage_used_bytes FROM choirs WHERE id = ?").bind(choirId).first();
+    const stamp = (await env.DB.prepare("SELECT replaced_at FROM score_versions WHERE id = ?").bind(original.versionId).first<{ replaced_at: number }>())!.replaced_at;
+    const restore = (fileName: string) => callWorker(`${trashPath}/${original.versionId}/restore`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ fileName, expectedReplacedAt: stamp }) });
+    expect((await restore("原谱.pdf")).status).toBe(409);
+    expect((await callWorker(`${path}/pdf`, { headers })).headers.get("X-Score-Version")).toBe(next.id);
+    const race = await Promise.all([restore("原谱（恢复）.pdf"), restore("原谱（恢复）.pdf")]);
+    expect(race.map(response => response.status)).toEqual([200, 200]);
+    const target = (await race[0].json() as { scoreId: string }).scoreId;
+    expect((await restore("原谱（恢复）.pdf")).status).toBe(200);
+    expect(await (await callWorker(trashPath, { headers })).json()).toEqual({ files: [] });
+    expect((await callWorker(`${path}/pdf`, { headers })).headers.get("X-Score-Version")).toBe(next.id);
+    expect((await callWorker(`/api/choirs/${choirId}/scores/${target}/pdf`, { headers })).headers.get("X-Score-Version")).toBe(original.versionId);
+    expect((await env.DB.prepare("SELECT id FROM annotation_layers WHERE score_id = ? ORDER BY id").bind(original.id).all()).results).toEqual(beforeLayers);
+    expect((await env.DB.prepare("SELECT id FROM annotation_layers WHERE score_id = ?").bind(target).all()).results.length).toBe(beforeLayers.length);
+    const restoredLayers = await callWorker(`/api/choirs/${choirId}/scores/${target}/layers`, { headers });
+    expect(restoredLayers.status).toBe(200);
+    const layers = (await restoredLayers.json() as { layers: { id: string }[] }).layers;
+    for (const layer of layers) expect(layer.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(await env.DB.prepare("SELECT storage_used_bytes FROM choirs WHERE id = ?").bind(choirId).first()).toEqual(used);
+    await cleanupScoreStorage(env);
+    expect((await callWorker(`/api/choirs/${choirId}/scores/${target}/pdf`, { headers })).status).toBe(200);
+    // Restored old bytes cannot subsequently be published over the source score.
+    expect((await publishVersion(choirId, original.id, original.versionId, adminCookie, 2)).status).toBe(409);
+    const targetPath = `/api/choirs/${choirId}/scores/${target}`;
+    const again = await callWorker(`${targetPath}/versions`, uploadRequest(createMinimalPdf(600, 700), adminCookie, "再次替换.pdf", 1));
+    expect(again.status).toBe(201);
+    const againVersion = (await again.json() as { version: { id: string } }).version;
+    expect((await publishVersion(choirId, target, againVersion.id, adminCookie, 1)).status).toBe(204);
+    const secondStamp = (await env.DB.prepare("SELECT replaced_at FROM score_versions WHERE id = ?").bind(original.versionId).first<{ replaced_at: number }>())!.replaced_at;
+    const restoredAgain = await callWorker(`${trashPath}/${original.versionId}/restore`, { method: "POST", headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({ fileName: "再次恢复.pdf", expectedReplacedAt: secondStamp }) });
+    expect(restoredAgain.status).toBe(200);
+    expect((await restoredAgain.json() as { scoreId: string }).scoreId).not.toBe(target);
+  });
+
+  it("expires and purges replaced PDF files without altering the current PDF", async () => {
+    const { adminCookie, choirId } = await createAdminChoir();
+    const original = await upload(choirId, adminCookie, "保留当前.pdf", createMinimalPdf(400, 400));
+    const path = `/api/choirs/${choirId}/scores/${original.id}`;
+    const headers = { cookie: adminCookie };
+    const staged = await callWorker(`${path}/versions`, uploadRequest(createMinimalPdf(500, 600), adminCookie, "新谱.pdf", 1));
+    const next = (await staged.json() as { version: { id: string } }).version;
+    expect((await publishVersion(choirId, original.id, next.id, adminCookie, 1)).status).toBe(204);
+    const base = `/api/choirs/${choirId}/pdf-trash/${original.versionId}`;
+    const stamp = (await env.DB.prepare("SELECT replaced_at FROM score_versions WHERE id = ?").bind(original.versionId).first<{ replaced_at: number }>())!.replaced_at;
+    const now = Date.now();
+    await env.DB.prepare("UPDATE score_versions SET retention_expires_at = ? WHERE id = ?").bind(now, original.versionId).run();
+    expect((await callWorker(base + "/restore", { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ fileName: "恢复.pdf", expectedReplacedAt: stamp }) })).status).toBe(404);
+    await env.DB.prepare("UPDATE score_versions SET retention_expires_at = ? WHERE id = ?").bind(now + 86400000, original.versionId).run();
+    expect((await callWorker(base + "/purge", { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ confirm: true }) })).status).toBe(204);
+    expect(await (await callWorker(`/api/choirs/${choirId}/pdf-trash`, { headers })).json()).toEqual({ files: [] });
+    expect((await callWorker(`${path}/pdf`, { headers })).headers.get("X-Score-Version")).toBe(next.id);
+    expect((await callWorker(base + "/restore", { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ fileName: "恢复.pdf", expectedReplacedAt: stamp }) })).status).toBe(404);
+  });
+
   it("stages, cancels, publishes and rolls back with revision and retention guards", async () => {
     const { adminCookie, choirId, joinCode } = await createAdminChoir();
     const guestCookie = await createGuestCookie(joinCode!);

@@ -35,7 +35,7 @@ test("real Worker: create trial, upload, permanently clear trash and close drive
   await expect(page.getByRole("alertdialog")).toContainText("所有成员的笔记");
   await page.screenshot({path:"artifacts/verification/free-trial/purge-mobile.png"});
   await page.getByRole("button",{name:"确认彻底删除",exact:true}).click();
-  await expect(page.getByText("回收站是空的。",{exact:true})).toBeVisible();
+  await expect(page.getByText("没有已删除的乐谱。",{exact:true})).toBeVisible();
   assert.equal((await context.request.get(`${fixture.origin}/api/choirs/${driveId}/scores/${scoreId}/pdf`)).status(),404);
   await page.goto(`${fixture.origin}/choirs/${driveId}/settings/info`);
   await expect(page.getByRole("heading",{name:"免费体验版",exact:true})).toBeVisible();

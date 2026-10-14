@@ -183,9 +183,33 @@ try {
   assert.deepEqual(query("PRAGMA foreign_key_check"), []);
   verifyImageRetirement();
   verifyAttachmentMigration();
+  verifyPdfTrashMigration();
   process.stdout.write("Verified legacy score schema migration, including image retirement and score attachments.\n");
 } finally {
   rmSync(persistencePath, { recursive: true, force: true });
+}
+
+function verifyPdfTrashMigration() {
+  applyMigrations("0030_musicxml_rollout.sql");
+  executeD1({ command: `
+    UPDATE choirs SET storage_used_bytes = storage_used_bytes + 7 WHERE id = 'choir';
+    INSERT INTO score_versions (id, choir_id, score_id, version_number, object_key, size_bytes, sha256, etag, page_count, state, retention_expires_at)
+      VALUES ('old-retained-pdf', 'choir', 'preserved-score', 2, 'scores/old.pdf', 7, 'hash', 'etag', 1, 'ready', 4000000000000);
+  `, targetArgs });
+  const queries = { quota: "SELECT id,storage_used_bytes FROM choirs ORDER BY id",
+    objects: "SELECT id,object_key,size_bytes,score_id FROM score_versions ORDER BY id",
+    notes: "SELECT * FROM annotation_objects ORDER BY id",
+    layers: "SELECT * FROM annotation_layers ORDER BY id",
+    attachments: "SELECT id,name,kind,trashed_at,current_file_id FROM score_attachments ORDER BY id",
+    queue: "SELECT * FROM score_object_deletions ORDER BY id",
+    foreignKeys: "PRAGMA foreign_key_check" };
+  const before = queryNamed(queries);
+  applyMigrations("0031_pdf_trash_and_generated_xml.sql");
+  assert.deepEqual(queryNamed(queries), before, "PDF trash migration preserves objects, notes, attachments, quota and deletion queue");
+  assert.deepEqual(query("SELECT replaced_file_name,replaced_at,replaced_from_score_id,retention_expires_at FROM score_versions WHERE id='old-retained-pdf'"),
+    [{ replaced_file_name: "保留.pdf", replaced_at: 4000000000000 - 2592000000, replaced_from_score_id: "preserved-score", retention_expires_at: 4000000000000 }]);
+  assert(query("SELECT source FROM score_attachments").every(row => row.source === "user"));
+  assert(query("SELECT generated_xml_disabled FROM scores").every(row => row.generated_xml_disabled === 0));
 }
 
 function verifyAttachmentMigration() {
