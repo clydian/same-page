@@ -48,8 +48,19 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     const checkExperience = async text => {
       await expect(page).toHaveURL(`${reader}?experience=1`);
       await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
-      await page.locator(".page-reader__viewport").click({ position: { x: 512, y: 340 } });
-      await page.getByRole("button", { name: "编辑", exact: true }).click();
+      // Attachment returns may restore visible chrome. A tap toggles it, and
+      // the viewport's outer thirds turn pages instead of revealing controls.
+      const chromeVisible = await page.locator(".reader-shell").getAttribute("data-chrome-visible");
+      const viewport = page.locator(".page-reader__viewport");
+      const bounds = await viewport.boundingBox();
+      assert.ok(bounds, "reader viewport must be available");
+      t.diagnostic(`${engine}: ${text}; chrome=${chromeVisible}; viewport=${bounds.width}x${bounds.height}`);
+      if (chromeVisible === null) {
+        await viewport.click({ position: { x: bounds.width / 2, y: bounds.height / 2 } });
+      }
+      const edit = page.getByRole("button", { name: "编辑", exact: true });
+      await expect(edit).toBeVisible();
+      await edit.click();
       await expect(page.locator(".annotation-controls")).toBeVisible();
       await page.getByLabel("第 1 页笔记层").click({ position: { x: 200, y: 120 + 80 * placement++ } });
       await page.getByRole("textbox", { name: "笔记文本" }).fill(text);
