@@ -49,8 +49,8 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 
 测试是否保留，以可观察错误及独立覆盖为标准，不以 TDD 来源、用例数量或覆盖率百分比为标准。清理结论与保留风险见 [测试审查记录](test-audit-2026-09-06.md)。
 
-- `npm test`：Node 规则和 jsdom 组件。客户端纯逻辑文件用 `*.node.test.ts` 命名，由 `vitest.node.config.ts` 收集，不启动 DOM、React cleanup 或 IndexedDB setup。jsdom 使用单个 setup hook，先卸载 React 再清理 IndexedDB，保持逐用例数据库隔离。
-- `npm run test:worker`：纯认证配置/安全逻辑在 Node，真实路由、D1、R2、权限与生命周期在 workerd。保留实际迁移初始化和隔离，不为省时间改成共享可变数据库。
+- `npm test`：Node 规则和 jsdom 组件。客户端纯逻辑文件用 `*.node.test.ts` 命名，由 `vitest.node.config.ts` 收集，不启动 DOM、React cleanup 或 IndexedDB setup。jsdom 使用单个 setup hook，先卸载 React 再清理 IndexedDB，保持逐用例数据库隔离。MSW 3、Vitest 5 与 Cloudflare 测试插件保持兼容的 peer 组合；Worker 集成测试关闭 `fsModuleCache`，避免 Workerd 读取宿主机的模块缓存路径。
+- `npm run test:worker`：纯认证配置/安全逻辑在 Node，真实路由、D1、R2、权限与生命周期在 workerd。保留实际迁移初始化和隔离，不为省时间改成共享可变数据库。MSW 3、Vitest 5 与 Cloudflare 测试插件保持兼容的 peer 组合；Worker 集成测试关闭 `fsModuleCache`，避免 Workerd 读取宿主机的模块缓存路径。
 - `npm run test:visual-report`：Node 原生 global setup 只启动一个隔离 Vite dev 服务，每台最多两个文件并行。各测试仍独立拥有浏览器 context、IndexedDB、API route 和 fixture session；没有重试。直接 `node --test visual-report/<file>.test.mjs` 仍可独立启动服务。
 - `npm run test:smoke`：必须先 build。通过与 CI 相同的 runner 在每个分片内串行运行有状态文件，避免多个 Vite/workerd 优化器争用；每次 fixture 调用有独立真实 D1/R2，验证生产 API、PDF 字节、下载、浏览器关闭重开后的离线副本、批注并发和诊断提交；不改成 API mock。
 
