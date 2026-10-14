@@ -60,12 +60,17 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       }
       const edit = page.getByRole("button", { name: "编辑", exact: true });
       await expect(edit).toBeVisible();
+      const attachments = page.getByRole("button", { name: "本谱附件", exact: true });
+      // Editing unmounts this reader entry. Finish its real metadata read so
+      // WebKit does not report our immediate cancellation as a page error.
+      await expect(attachments.locator(".attachment-play-badge")).toBeVisible();
       await edit.click();
       await expect(page.locator(".annotation-controls")).toBeVisible();
       await page.getByLabel("第 1 页笔记层").click({ position: { x: 200, y: 120 + 80 * placement++ } });
       await page.getByRole("textbox", { name: "笔记文本" }).fill(text);
       await page.getByRole("form", { name: "文字输入" }).click({ position: { x: 12, y: 80 } });
       await page.getByRole("button", { name: "完成编辑", exact: true }).click();
+      await expect(attachments.locator(".attachment-play-badge")).toBeVisible();
       await page.reload();
       await expect(page.locator(".annotation-text").filter({ hasText: text })).toBeVisible();
       const cloud = await (await context.request.get(`${base}/layers`)).json();
@@ -90,7 +95,11 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             if (entry === "musicxml") {
               const view = page.getByLabel("显示谱面", { exact: true });
               await expect(view).toHaveValue("xml", { timeout: 60_000 });
+              // The preparation notice changes the dock height. Let that finish
+              // before a PDF tap whose pending intent is fenced by viewport size.
+              await expect(page.getByTestId("musicxml-player").getByRole("button", { name: "播放", exact: true })).toBeEnabled({ timeout: 60_000 });
               await view.selectOption("pdf");
+              await expect(page.locator(".reader-shell")).not.toHaveAttribute("aria-hidden", "true");
             }
           }
         }

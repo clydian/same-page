@@ -36,3 +36,11 @@ Worker 回归包含候选取消与旧客户端回滚兼容、并发恢复及响�
 ![替换 PDF 的保留选项](./replace-mobile.png)
 
 ![旧 PDF 回收与独立恢复](./trash-mobile.png)
+
+## 公开体验 smoke 边界复核
+
+首轮 PR CI `38574958028`（source head `c6a18ea`、merge artifact `c5763b3`）的新 PDF 流程在 Chromium/WebKit 均通过；失败分片的实际失败点是既有 `preview-notes-smoke`：Chromium 从 XML 返回 PDF 后未唤出编辑控件，WebKit 在编辑与文档切换期间记录原 PDF／附件请求取消的 Fetch API 页面错误。本地使用相同 Node 24 与当前 SHA 构建，原用例复现 WebKit 错误。
+
+该用例此前仅等待视图选项值为 XML，就切回 PDF 并立即点击。播放准备提示退出会改变底栏与阅读视口高度；阅读器按几何修订取消旧的延迟 tap 是已有且受测试保护的行为。fixture 现明确等待播放器可播放、PDF 阅读器退出隐藏状态后再执行原点击，并在进入编辑／刷新前等待阅读器附件入口已完成真实元数据读取，避免 fixture 紧接着卸载入口造成 WebKit 请求取消。整页 networkidle 探索未解决这个竞态，最终未采用。所有本机笔记持久化、云端层只读、没有云端写入与没有页面错误的断言保持原样；没有过滤错误、增加重试或修改产品权限和手势。
+
+修复后原公开体验用例 Chromium/WebKit 2/2 通过，明确等待真实可播放附件角标而不是推测网络静止；失败的 smoke 分片继续按原命令完整复核。
