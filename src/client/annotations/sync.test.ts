@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_TEXT_FONT_SCALE } from "../../shared/annotations";
+import { annotationPushRequestSchema, DEFAULT_TEXT_FONT_SCALE } from "../../shared/annotations";
 import {
   annotationRecordKey,
   localDatabase,
@@ -102,6 +102,79 @@ describe("bounded annotation push", () => {
       },
     }});
     await expect(pushPendingAnnotations(workspace, { maxOperations: 100 })).resolves.toBeUndefined();
+  });
+
+  it("drains mixed offline notes in UTF-8 byte-bounded requests without dropping any operation", async () => {
+    const points = Array.from({ length: 300 }, (_, i) => ({
+      x: .1372419876345 + i / 299 * .6134123541245,
+      y: .4782341241342 + Math.sin(i / 299 * Math.PI * 2) * .0734123541321,
+      pressure: .5, tiltX: 0, tiltY: 0, twist: 0,
+    }));
+    for (let i = 0; i < 100; i++) {
+      await saveAnnotationDraft(workspace, { id: crypto.randomUUID(), layerId, payload: i < 80
+        ? { kind: "text", pageNumber: 1, x: .2, y: .3, fontScale: .024, text: "排".repeat(1000) }
+        : { kind: "ink", pageNumber: 1, brush: "pen", nib: "round", pressureMode: "uniform", strokeWidth: .003, points } });
+    }
+    await queueScoreDrafts(workspace);
+    const queued = await localDatabase.annotationOutbox.toArray();
+    const sent: string[] = [];
+    const requestSizes: number[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).endsWith("/layers")) return layerResponse(layerId);
+      const raw = String(init?.body);
+      const size = new TextEncoder().encode(raw).byteLength;
+      expect(size).toBeLessThanOrEqual(512_000);
+      requestSizes.push(size);
+      const body = annotationPushRequestSchema.parse(JSON.parse(raw));
+      sent.push(...body.operations.map(op => op.opId));
+      return Response.json({ results: body.operations.map(op => ({ opId: op.opId, status: "accepted",
+        object: { id: op.annotationId, layerId: op.layerId, version: 1, deleted: false, payload: op.payload,
+          createdByDisplayName: "", updatedByDisplayName: "", updatedAt: 1 } })) });
+    }));
+    await expect(pushPendingAnnotations(workspace, { maxOperations: 100 })).resolves.toBe(100);
+    expect(requestSizes.length).toBeGreaterThan(1);
+    expect(sent.sort()).toEqual(queued.map(op => op.opId).sort());
+    expect(await localDatabase.annotationOutbox.count()).toBe(0);
+    expect((await localDatabase.annotations.toArray()).every(note => note.state === "synced")).toBe(true);
+  });
+
+  it("retries an oversized single legacy stroke unchanged after a lost response, then drains smaller notes", async () => {
+    const id = crypto.randomUUID();
+    const payload = { kind: "ink" as const, pageNumber: 1, brush: "pen" as const,
+      nib: "round" as const, pressureMode: "uniform" as const, strokeWidth: .003,
+      points: Array.from({ length: 5000 }, (_, i) => ({ x: .123456789012345 + i / 5000 * .7,
+        y: .234567890123456 + i / 5000 * .6, pressure: .48123412413 + Math.sin(i / 5000 * Math.PI) * .2,
+        tiltX: 0, tiltY: 0, twist: 0 })) };
+    await saveAnnotationDraft(workspace, { id, layerId, payload });
+    await queueScoreDrafts(workspace);
+    const original = (await localDatabase.annotationOutbox.toArray())[0]!;
+    await saveAnnotationDraft(workspace, { id: crypto.randomUUID(), layerId,
+      payload: { kind: "text", pageNumber: 1, x: .2, y: .3, fontScale: .024, text: "另一条草稿" } });
+    await queueScoreDrafts(workspace);
+    let loseResponse = true;
+    let largeAttempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).endsWith("/layers")) return layerResponse(layerId);
+      const body = annotationPushRequestSchema.parse(JSON.parse(String(init?.body)));
+      const large = body.operations.find(op => op.annotationId === id);
+      if (large) {
+        largeAttempts++;
+        expect(body.operations).toHaveLength(1);
+        expect(new TextEncoder().encode(String(init?.body)).byteLength).toBeGreaterThan(512_000);
+        expect(large).toEqual({ opId: original.opId, annotationId: id, layerId, baseVersion: 0, type: "upsert", payload });
+        if (loseResponse) { loseResponse = false; throw new TypeError("response lost"); }
+      }
+      return Response.json({ results: body.operations.map(op => ({ opId: op.opId, status: "accepted",
+        object: { id: op.annotationId, layerId: op.layerId, version: 1, deleted: false, payload: op.payload,
+          createdByDisplayName: "", updatedByDisplayName: "", updatedAt: 1 } })) });
+    }));
+    await expect(pushPendingAnnotations(workspace, { maxOperations: 100 })).rejects.toThrow("response lost");
+    localDatabase.close();
+    await localDatabase.open();
+    await expect(pushPendingAnnotations(workspace, { maxOperations: 100 })).resolves.toBe(2);
+    expect(largeAttempts).toBe(2);
+    expect(await localDatabase.annotationOutbox.count()).toBe(0);
+    expect(await localDatabase.annotations.get(annotationRecordKey(workspace.scopeKey, id))).toMatchObject({ payload, state: "synced" });
   });
 
   it("leaves work beyond the application recovery limit for a later trigger", async () => {

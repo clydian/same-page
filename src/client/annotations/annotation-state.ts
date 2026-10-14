@@ -1,4 +1,5 @@
 import { conflictChoices, conflictFingerprint, type ConflictStrategy } from "./annotation-conflict";
+import { annotationPushMaxBytes, toWireOperation } from "./push-request";
 import { GUEST_NOTE_LAYER_ID, availableAnnotationLayers, isLocalExperience } from "./guest-notes";
 import { reconcileAnnotationReadingPreferences } from "../reader/reading-preferences";
 import { diagnoseLocalOperation } from "../diagnostics/local-operation";
@@ -746,7 +747,7 @@ export async function prepareAnnotationPush(workspace: LocalWorkspace, maxOperat
           ...discardedOperationIds,
         ]);
         const seenAnnotationIds = new Set<string>();
-        const selected = operations
+        const candidates = operations
           .filter(operation => !editableLayerIds || editableLayerIds.has(operation.layerId))
           .filter(
             (operation) => !discardedOperationIds.has(operation.opId),
@@ -757,6 +758,15 @@ export async function prepareAnnotationPush(workspace: LocalWorkspace, maxOperat
             return true;
           })
           .slice(0, Math.min(100, maxOperations));
+        const selected: AnnotationOutboxRecord[] = [];
+        let requestBytes = 17; // {"operations":[]} including the array brackets
+        const encoder = new TextEncoder();
+        for (const operation of candidates) {
+          const bytes = encoder.encode(JSON.stringify(toWireOperation(operation))).byteLength + (selected.length ? 1 : 0);
+          if (selected.length && requestBytes + bytes > annotationPushMaxBytes) break;
+          selected.push(operation);
+          requestBytes += bytes;
+        }
         for (const operation of selected) {
           assertOutboxOperation(operation);
         }
