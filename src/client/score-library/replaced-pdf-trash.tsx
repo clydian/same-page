@@ -1,3 +1,4 @@
+import "./replaced-pdf-trash.css";
 import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
 import { replacedPdfListSchema, type ReplacedPdf } from "../../shared/scores";
@@ -47,6 +48,7 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
     const identity = captureReadIdentity(), active = captureSettingsLifetime(lifetime);
     const current = () => identity() && active();
     setBusy(true); setMessage(null);
+    let confirmed = false;
     try {
       const response = await diagnosticFetch(`${base}/${file.id}/restore`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fileName: scorePdfFileName(name), expectedReplacedAt: file.replacedAt }),
@@ -58,14 +60,15 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
         setMessage(response.status === 404 ? "这个 PDF 已不在可恢复的回收站中，请重新读取。" : uploadMessage(response.status, payload));
         return;
       }
+      confirmed = true;
       setFiles(items => items.filter(item => item.id !== file.id)); setRestoring(null);
       setMessage("PDF 已恢复为独立乐谱，原乐谱的 PDF、笔记和附件保持不变。");
       await onRestored();
-    } catch { if (current()) setMessage("恢复结果未确认，请重新读取后核对。再次恢复不会创建重复文件。"); }
+    } catch { if (current()) setMessage(confirmed ? "PDF 已恢复，但刷新失败。请重新读取，不必再次恢复。" : "恢复结果未确认，请重新读取后核对。再次恢复不会创建重复文件。"); }
     finally { gate.current = false; setBusy(false); if (!current()) setAttempt(value => value + 1); }
   }
   if (!files.length && !message) return null;
-  return <section className="attachment-trash" aria-label="被替换的 PDF"><h3>被替换的 PDF</h3>
+  return <section className="attachment-trash replaced-pdf-trash" aria-label="被替换的 PDF"><h3>被替换的 PDF</h3>
     <p>恢复为独立乐谱，不覆盖当前 PDF，也不复制原乐谱的笔记和附件。</p>
     <ul className="trash-list">{files.map(file => <li key={file.id}><span><strong>{scoreDisplayName(file.fileName)}</strong>
       <small>{new Date(file.replacedAt).toLocaleDateString()} · {file.pageCount} 页 · {Math.max(1, Math.ceil((file.trashExpiresAt - now) / 86400000))} 天后自动删除</small></span>
@@ -75,7 +78,7 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
     {restoring && <Form className="entry-form restore-conflict" onSubmit={event => { event.preventDefault(); void restore(); }}>
       <TextField isRequired value={name} onChange={setName} maxLength={255} isDisabled={busy || !writable}><Label>恢复后的文件名</Label><Input autoFocus /></TextField>
       <Button type="submit" isDisabled={busy || !writable}>恢复为独立乐谱</Button>
-      <Button isDisabled={busy} onPress={() => setRestoring(null)}>取消</Button>
+      <Button className="secondary-button" isDisabled={busy} onPress={() => setRestoring(null)}>取消</Button>
     </Form>}
     {purging && writable && <PurgeDialog userId={userId} path={`${base}/${purging.id}/purge`} title="彻底删除 PDF"
       description="这个回收站 PDF 将无法恢复。当前乐谱、笔记和附件保持不变。" onClose={() => setPurging(null)}

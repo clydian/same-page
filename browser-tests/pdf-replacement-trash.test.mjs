@@ -30,7 +30,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     const replace = async keep => {
       await page.getByRole("button", { name: "本地链路测试 更多操作", exact: true }).click();
       await page.getByRole("menuitem", { name: "替换 PDF", exact: true }).click();
-      await page.getByLabel("新的 PDF（最多 20 MB、500 页）").setInputFiles({ name: "替换谱.pdf", mimeType: "application/pdf", buffer: fixture.pdf });
+      const picker = page.getByLabel("新的 PDF（最多 20 MB、500 页）");
+      await expect(picker).toBeEnabled();
+      await picker.setInputFiles({ name: "替换谱.pdf", mimeType: "application/pdf", buffer: fixture.pdf });
       const dialog = page.getByRole("dialog", { name: "替换 PDF", exact: true });
       const choice = dialog.getByLabel("保留自动生成的练习版");
       await expect(choice).toBeChecked();
@@ -39,6 +41,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       const confirm = dialog.getByRole("button", { name: "确认替换", exact: true });
       await expect(confirm).toBeEnabled();
       if (!keep) {
+        await choice.scrollIntoViewIfNeeded();
         await mkdir("artifacts/verification/pdf-replacement-trash", { recursive: true });
         await page.screenshot({ path: `artifacts/verification/pdf-replacement-trash/${engine}-replace.png`, fullPage: true });
       }

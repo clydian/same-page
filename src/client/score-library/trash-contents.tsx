@@ -149,7 +149,7 @@ export function TrashContents({
                   ))}
                 </ul>
               ) : (
-                message ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="empty-library">没有已删除的乐谱。</p>
+                message ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="dialog-copy">没有已删除的乐谱。</p>
               )}
               {purging && writable && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title="彻底删除乐谱" description={`“${scoreDisplayName(purging.fileName)}”的PDF 文件、附件和所有成员的笔记都会被删除。`} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
               <ReplacedPdfTrash key={`pdf:${userId}:${choirId}`} userId={userId} choirId={choirId} canPurge={canPurge} writable={writable} onRestored={onRestored} />

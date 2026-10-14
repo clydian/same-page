@@ -1,0 +1,2 @@
+.replaced-pdf-trash .trash-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; }
+.replaced-pdf-trash .trash-list button { white-space: nowrap; }
