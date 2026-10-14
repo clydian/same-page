@@ -289,7 +289,9 @@ jobs:
           JS
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true'
+    # Unselected checks may be skipped. The verify gate decides whether every
+    # selected check passed; do not inherit success() across skipped ancestors.
+    if: ${{ !cancelled() && needs.verify.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true' }}
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
