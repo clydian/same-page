@@ -14,3 +14,17 @@ Chromium / WebKit 的 `musicxml-playback.test.mjs` 和 `playback-ux.test.mjs` �
 已查看桌面和手机混音与标数字谱面截图。浏览器自动化不等于真机排练或实际听觉验收。
 
 后续 UI/UX 优先项：循环表单草稿应区别于正在生效的范围，避免修改表单后误以为循环已更新。
+
+
+## 0.1.3 修复
+
+真实官方 Dichterliebe01 样例（478 个 note 节点）复现并修正：
+- alphaTab 默认 secondaryGlyphColor 为半透明黑，现显式设为黑色。
+- 渲染 Worker 在 postRenderFinished 才发布新 boundsLookup；旧 renderFinished
+  回调读取上次布局。现 renderStarted 清理，postRenderFinished 重建。
+- 首调数字默认只标第一个 track，独立选择标注声部，不改变混音。
+- 循环生效范围、待应用范围与取消操作分别呈现，重复次序仍在小节标签中可见。
+
+浏览器回归覆盖多声部半透明色、手机重排后自动坐标与手动重建坐标一致、
+单声部切换、中途换调、循环草稿与应用行为、原 PDF 和播放交接。
+真实谱桌面、手机、钢琴标注与待应用循环界面已截图检查。
