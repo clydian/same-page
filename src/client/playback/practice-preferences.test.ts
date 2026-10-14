@@ -10,7 +10,7 @@ function player() {
   const session: PlayerSession = {
     getSnapshot:()=>state, subscribe(fn){listeners.add(fn);return()=>{listeners.delete(fn);};},
     speed:vi.fn(speed=>update({speed})), mix:vi.fn((id,value)=>update({parts:state.parts.map(p=>p.id===id?{...p,...value}:p),focus:'custom'})),
-    seek:vi.fn(measure=>update({measure})),focus:vi.fn(focus=>update({focus})),focusOther:vi.fn(),follow:vi.fn(),loop:vi.fn(),pause:vi.fn(),playPause:vi.fn(),dispose:vi.fn(),
+    seek:vi.fn(measure=>update({measure})),focus:vi.fn(focus=>update({focus})),solfege:vi.fn(),focusOther:vi.fn(),follow:vi.fn(),loop:vi.fn(),pause:vi.fn(),playPause:vi.fn(),dispose:vi.fn(),
   };
   return {session,update};
 }

@@ -1,0 +1,71 @@
+--- a/packages/player/src/session.ts
++++ b/packages/player/src/session.ts
+@@ -1,4 +1,5 @@
+ import { assignPlaybackChannels, createPlaybackApi, loadPreparedMusicXml } from './engine.ts';
++import { solfegeDegreeLabel } from './solfege-degree.ts';
+ import * as alphaTab from '@coderline/alphatab';
+ import { applyTimbreProfile, classifyTimbreRoles } from './timbre-profile.ts';
+ import { ScoreFollowSession, isPointerDrag } from './score-follow.ts';
+@@ -9,12 +10,13 @@
+ export interface PlayerState {
+   status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
+   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
+-  focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
++  solfege?: boolean; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
+   loop: { start: number; end: number } | null;
+ }
+ export interface PlayerSession {
+   playPause(): void; pause(): void; seek(index: number): void; speed(value: number): void;
+   mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
++  solfege(visible: boolean): void;
+   focus(id: number | null): void; focusOther(volume: number): void; follow(): void;
+   loop(start: number | null, end?: number): void;
+   getSnapshot(): PlayerState; subscribe(listener: () => void): () => void; dispose(): void;
+@@ -47,6 +49,30 @@
+       scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
+   });
+   api.masterVolume = .72;
++  let degreeOverlay: HTMLDivElement | null = null;
++  const renderDegrees = () => {
++    degreeOverlay?.remove(); degreeOverlay = null;
++    if (disposed || !state.solfege || !api.score || !api.boundsLookup) return;
++    const overlay = document.createElement('div');
++    overlay.className = 'solfege-overlay'; overlay.setAttribute('aria-hidden', 'true');
++    const seen = new Set<string>();
++    for (const track of api.score.tracks) for (const staff of track.staves) for (const bar of staff.bars)
++      for (const voice of bar.voices) for (const beat of voice.beats)
++        for (const bounds of api.boundsLookup.findBeats(beat) ?? []) for (const item of bounds.notes ?? []) {
++          const note = item.note, head = item.noteHeadBounds;
++          if (!note.isVisible || note.isPercussion || note.isDead) continue;
++          const text = solfegeDegreeLabel(note.displayValue, bar.keySignature, note.accidentalMode);
++          const key = `${Math.round(head.x * 2)}:${Math.round(head.y * 2)}:${text}`;
++          if (seen.has(key)) continue;
++          seen.add(key);
++          const label = document.createElement('span'); label.className = 'solfege-degree-label'; label.textContent = text;
++          label.style.left = `${head.x + head.w + 2}px`; label.style.top = `${head.y - 2}px`;
++          overlay.append(label);
++        }
++    element.append(overlay); degreeOverlay = overlay;
++  };
++  api.renderFinished.on(renderDegrees);
++
+   const setFollow = (enabled: boolean) => {
+     if (enabled) follow.restore(); else follow.suspend();
+     api.settings.player.scrollMode = enabled && viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off;
+@@ -135,6 +161,7 @@
+     },
+     focus(id) { if (!disposed && state.status === 'ready' && (id === null || state.parts.some(part => part.id === id))) applyMix(state.parts, id, state.otherVolume, id === null ? undefined : state.parts.find(part => part.id === id)?.baseVolume); },
+     focusOther(volume) { if (!disposed && state.status === 'ready' && Number.isFinite(volume)) applyMix(state.parts, state.focus, clamp(volume)); },
++    solfege(visible) { if (!disposed) { update({ solfege: visible }); renderDegrees(); } },
+     follow() { if (!disposed) setFollow(true); },
+     loop(start, end) {
+       if (disposed || state.status !== 'ready') return;
+@@ -144,7 +171,7 @@
+       api.isLooping = true; api.tickPosition = state.measures[start].startTick; update({ loop: { start, end } });
+     },
+     dispose() {
+-      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear();
++      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove();
+       viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
+       viewport?.removeEventListener('keydown', keyDown);
+       viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy();

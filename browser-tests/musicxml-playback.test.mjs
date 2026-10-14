@@ -52,12 +52,12 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await player.getByLabel('显示谱面',{exact:true}).selectOption('xml');
   await expect(notation).toBeVisible({timeout:20000});
   const surface=await notation.elementHandle();
-  await player.getByRole('button',{name:'练习设置',exact:true}).click();
-  await settings.locator('summary').filter({hasText:'声部关注'}).click();
+  await player.getByRole('button',{name:'声部与练习设置',exact:true}).click();
+
   await settings.getByLabel('关注声部',{exact:true}).selectOption('1');
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByLabel('速度',{exact:true}).selectOption('0.75');
-  await player.getByRole('button',{name:'练习设置',exact:true}).click();
+  await player.getByRole('button',{name:'声部与练习设置',exact:true}).click();
   await settings.locator('summary').filter({hasText:'片段循环'}).click();
   await settings.getByLabel('循环终点').selectOption('2');
   await settings.getByRole('button',{name:'循环这一段',exact:true}).click();
@@ -104,7 +104,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
   await expect(player.getByLabel('显示谱面',{exact:true})).toHaveValue('xml');
-  await player.getByRole('button',{name:'练习设置',exact:true}).click();
+  await player.getByRole('button',{name:'声部与练习设置',exact:true}).click();
   await expect(settings.getByLabel('关注声部',{exact:true})).toHaveValue('1');
   await expect(player.getByLabel('速度',{exact:true})).toHaveValue('0.75');
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
