@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 import { determineCiScope } from "./ci-scope.mjs";
 
@@ -276,6 +277,33 @@ test("the workflow gate rejects failure, cancellation and unexpected skips of se
       }
     }
   }
+});
+
+test("deployment follows the successful verification gate even when an ancestor is skipped", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const condition = workflow.match(/\n  deploy:\n(?:    #.*\n)*    if: (.+)/)[1]
+    .replace(/^\$\{\{\s*|\s*\}\}$/g, "");
+  // GitHub implicitly prefixes success() unless the job condition includes a
+  // status function. A legitimately skipped backend made this false in #415.
+  const expression = /\b(?:always|cancelled|failure|success)\s*\(/.test(condition)
+    ? condition : `success() && (${condition})`;
+  const evaluate = (overrides = {}) => runInNewContext(expression, {
+    success: () => false,
+    cancelled: () => false,
+    github: { event_name: "push", ref: "refs/heads/main" },
+    needs: { verify: { result: "success", outputs: { deploy: "true" } } },
+    ...overrides,
+  });
+  assert.equal(evaluate(), true, "a skipped unselected ancestor must not suppress a verified release");
+  assert.equal(evaluate({ cancelled: () => true }), false);
+  for (const result of ["failure", "cancelled", "skipped"]) {
+    assert.equal(evaluate({ needs: { verify: { result, outputs: { deploy: "true" } } } }), false, result);
+  }
+  assert.equal(evaluate({ needs: { verify: { result: "success", outputs: { deploy: "false" } } } }), false);
+  for (const github of [
+    { event_name: "pull_request", ref: "refs/heads/main" },
+    { event_name: "push", ref: "refs/heads/other" },
+  ]) assert.equal(evaluate({ github }), false);
 });
 
 test("retired consumer deployment fix builds and deploys on main", t => {
