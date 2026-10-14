@@ -2,6 +2,7 @@ import { useSettingsLifetime, captureSettingsLifetime, invalidateSettingsLifetim
 import { captureReadIdentity } from "../settings/read-resource";
 import { SettingsRequestError, isSettingsReadDenied, settingsError } from "../settings/settings-request";
 import { PurgeDialog } from "../drives/purge-dialog";
+import { ReplacedPdfTrash } from "./replaced-pdf-trash";
 import { AttachmentTrash } from "./attachments/attachment-trash";
 import { scoreDisplayName, scorePdfFileName } from "../../shared/score-display-name";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
@@ -111,7 +112,7 @@ export function TrashContents({
       if (!response.ok) throw new Error("restore_failed");
       setRestoreConflict(null);
       setTrash((current) => current.filter((entry) => entry.id !== score.id));
-      setMessage("文件已恢复。笔记和 PDF 版本保持不变。");
+      setMessage("文件已恢复，笔记和附件保持不变。");
       await onRestored();
     } catch {
       if (!current()) return;
@@ -148,9 +149,10 @@ export function TrashContents({
                   ))}
                 </ul>
               ) : (
-                message ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="empty-library">回收站是空的。</p>
+                message ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="empty-library">没有已删除的乐谱。</p>
               )}
-              {purging && writable && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title="彻底删除乐谱" description={`“${scoreDisplayName(purging.fileName)}”的全部 PDF 版本和所有成员的笔记都会被删除。`} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
+              {purging && writable && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title="彻底删除乐谱" description={`“${scoreDisplayName(purging.fileName)}”的PDF 文件、附件和所有成员的笔记都会被删除。`} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
+              <ReplacedPdfTrash key={`pdf:${userId}:${choirId}`} userId={userId} choirId={choirId} canPurge={canPurge} writable={writable} onRestored={onRestored} />
               <AttachmentTrash writable={writable} key={`${userId}:${choirId}`} choirId={choirId} onRestored={onRestored} />
               {restoreConflict ? (
                 <Form className="entry-form restore-conflict" onSubmit={submitConflict}>

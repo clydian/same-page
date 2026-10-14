@@ -30,7 +30,6 @@ export interface ScoreActionSelection {
 export function ScoreActionDialog({
   choirId,
   library,
-  canPurge = false,
   writable = true,
   ownerUserId,
   selection,
@@ -47,7 +46,7 @@ export function ScoreActionDialog({
   onComplete: (message: string) => void;
 }) {
   if (selection.action === "replace") {
-    return <Suspense fallback={<LibraryTaskLoading title="替换 PDF" onClose={onClose} />}><PdfVersionDialog ownerUserId={ownerUserId} writable={writable} canPurge={canPurge} choirId={choirId} score={selection.score} historyOnly={false}
+    return <Suspense fallback={<LibraryTaskLoading title="替换 PDF" onClose={onClose} />}><PdfVersionDialog ownerUserId={ownerUserId} writable={writable} choirId={choirId} score={selection.score}
       onClose={onClose} onComplete={async message => { await library.changed(); onComplete(message); }} /></Suspense>;
   }
   return <BasicScoreActionDialog writable={writable} library={library} choirId={choirId} selection={selection} onClose={onClose} onComplete={onComplete} />;

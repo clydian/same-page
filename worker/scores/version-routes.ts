@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { versionPublicationRequestSchema } from "../../src/shared/scores";
-import { requireOperation } from "../permissions/access";
+import { requireOperation, memberCapabilities } from "../permissions/access";
 import { resolveContextPrincipal } from "../auth/context-principal";
 import type { AppEnvironment } from "../env";
 
@@ -9,7 +9,7 @@ const path = "/choirs/:choirId/scores/:scoreId/versions";
 
 versionRoutes.get(path, async (context) => {
   const { choirId, scoreId } = context.req.param();
-  await requireOperation(context.env.DB, await resolveContextPrincipal(context), choirId, "modifyFiles");
+  const member = await requireOperation(context.env.DB, await resolveContextPrincipal(context), choirId, "modifyFiles");
   const score = await context.env.DB.prepare(
     `SELECT current_version_id AS currentVersionId, version_revision AS revision
      FROM scores WHERE id = ? AND choir_id = ? AND trashed_at IS NULL`,
@@ -24,7 +24,10 @@ versionRoutes.get(path, async (context) => {
      ORDER BY version_number DESC`,
   ).bind(scoreId, choirId, Date.now()).all();
   context.header("Cache-Control", "no-store");
-  return context.json({ ...score, versions: versions.results });
+  const generated = await context.env.DB.prepare(`SELECT id FROM score_attachments WHERE score_id = ?
+    AND source = 'generated' AND trashed_at IS NULL AND purged_at IS NULL AND current_file_id IS NOT NULL`).bind(scoreId).first();
+  return context.json({ ...score, versions: versions.results, hasGeneratedXml: !!generated,
+    canTrashFiles: memberCapabilities(member).operations.operations.includes("trashFiles") });
 });
 
 // Both publishing a candidate and selecting a retained version use the same CAS.
@@ -33,18 +36,22 @@ versionRoutes.post(`${path}/:versionId/publish`, async (context) => {
   const membership = await requireOperation(context.env.DB, await resolveContextPrincipal(context), choirId, "modifyFiles");
   const parsed = versionPublicationRequestSchema.safeParse(await context.req.json().catch(() => null));
   if (!parsed.success) return context.json({ error: "invalid_revision" }, 400);
+  if (parsed.data.keepGeneratedXml === false) {
+    await requireOperation(context.env.DB, await resolveContextPrincipal(context), choirId, "trashFiles");
+  }
   const now = Date.now();
   const result = await context.env.DB.prepare(
-    `UPDATE scores SET current_version_id = ?, updated_at = ?
+    `UPDATE scores SET current_version_id = ?, updated_at = ?,
+       generated_xml_disabled = CASE WHEN ? = 1 THEN generated_xml_disabled ELSE 1 END
      WHERE id = ? AND choir_id = ? AND trashed_at IS NULL AND version_revision = ?
        AND current_version_id <> ?
-       AND EXISTS (SELECT 1 FROM membership_capabilities WHERE id = ? AND modifyFiles = 1)
+       AND EXISTS (SELECT 1 FROM membership_capabilities WHERE id = ? AND modifyFiles = 1 AND (? = 1 OR trashFiles = 1))
        AND EXISTS (SELECT 1 FROM score_versions WHERE id = ? AND score_id = scores.id
          AND purged_at IS NULL AND state = 'ready' AND etag IS NOT NULL
          AND (retention_expires_at IS NULL OR retention_expires_at > ?)
          AND (candidate_expires_at IS NULL OR (candidate_expires_at > ? AND base_revision = ?)))`,
-  ).bind(versionId, now, scoreId, choirId, parsed.data.expectedRevision, versionId,
-    membership.id, versionId, now, now, parsed.data.expectedRevision).run();
+  ).bind(versionId, now, parsed.data.keepGeneratedXml === false ? 0 : 1, scoreId, choirId, parsed.data.expectedRevision, versionId,
+    membership.id, parsed.data.keepGeneratedXml === false ? 0 : 1, versionId, now, now, parsed.data.expectedRevision).run();
   if (result.meta.changes !== 1) {
     // A retry of this exact publication is harmless; an intervening publication isn't.
     const same = await context.env.DB.prepare(

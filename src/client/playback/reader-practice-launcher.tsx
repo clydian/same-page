@@ -33,7 +33,7 @@ export function ReaderPracticeLauncher({ source, enabled, open, onOpenChange }: 
         {items.map(attachment => {
           const canPlay = attachment.kind === 'audio' || attachment.kind === 'musicxml';
           const Icon = attachment.kind === 'musicxml' ? FileMusic : attachment.kind === 'audio' ? FileAudio : attachment.kind === 'link' ? LinkIcon : FileText;
-          const content = <><Icon size={20} aria-hidden="true" /><span>{attachment.name}<small>{{audio:'音频附件',musicxml:'可播放乐谱',pdf:'PDF 附件',markdown:'文档',link:'链接'}[attachment.kind]}</small></span>{canPlay && <Play size={16} aria-hidden="true" />}</>;
+          const content = <><Icon size={20} aria-hidden="true" /><span>{attachment.name}<small>{{audio:'音频附件',musicxml:'可播放乐谱',pdf:'PDF 附件',markdown:'文档',link:'链接'}[attachment.kind]}{attachment.source === "generated" ? " · 自动生成 · Beta" : ""}</small></span>{canPlay && <Play size={16} aria-hidden="true" />}</>;
           return attachment.kind === 'link' && active ? <a key={attachment.id} className="reader-practice-source" href={safeAttachmentUrl(attachment.url ?? '')} target="_blank" rel="noopener noreferrer">{content}</a> : <Button className="reader-practice-source" key={attachment.id} aria-label={attachment.name} isDisabled={!active} onPress={() => {
             if (canPlay) startPlayback({ ...source, attachment });
             else setSelection({score:source.score,attachment,action:'open'});

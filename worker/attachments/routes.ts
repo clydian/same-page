@@ -12,7 +12,7 @@ import { AttachmentError, saveAttachmentFile } from "./storage";
 
 export const attachmentRoutes = new Hono<AppEnvironment>();
 const base = "/choirs/:choirId/scores/:scoreId/attachments";
-const selection = `SELECT a.id, a.score_id AS scoreId, a.name, a.kind, a.url, a.revision, a.updated_at AS updatedAt,
+const selection = `SELECT a.id, a.score_id AS scoreId, a.name, a.kind, a.source, a.url, a.revision, a.updated_at AS updatedAt,
   a.trash_expires_at AS trashExpiresAt, a.trashed_at, a.purged_at, s.file_name AS scoreName, COALESCE(f.size_bytes, 0) AS sizeBytes,
   f.object_key, f.content_type, f.etag
   FROM score_attachments a JOIN scores s ON s.id = a.score_id
@@ -20,11 +20,11 @@ const selection = `SELECT a.id, a.score_id AS scoreId, a.name, a.kind, a.url, a.
 const readable = `a.purged_at IS NULL AND s.purged_at IS NULL AND s.trashed_at IS NULL AND (a.kind = 'link' OR f.id IS NOT NULL)`;
 interface AttachmentRow {
   id: string; scoreId: string; name: string; kind: "link" | "audio" | "pdf" | "markdown" | "musicxml"; url: string | null;
-  revision: number; updatedAt: number; trashExpiresAt: number | null; scoreName: string; sizeBytes: number;
+  source: "user" | "generated"; revision: number; updatedAt: number; trashExpiresAt: number | null; scoreName: string; sizeBytes: number;
   object_key: string | null; content_type: string | null; etag: string | null;
   trashed_at: number | null; purged_at: number | null;
 }
-const serialize = (row: AttachmentRow) => ({ id: row.id, scoreId: row.scoreId, name: row.name, kind: row.kind, url: row.url,
+const serialize = (row: AttachmentRow) => ({ id: row.id, scoreId: row.scoreId, name: row.name, kind: row.kind, source: row.source, url: row.url,
   revision: row.revision, updatedAt: row.updatedAt, trashExpiresAt: row.trashExpiresAt, scoreName: row.scoreName, sizeBytes: row.sizeBytes });
 
 attachmentRoutes.get("/choirs/:choirId/attachments/capabilities", async context => {
@@ -77,10 +77,13 @@ attachmentRoutes.on(["POST", "PUT"], base + "/:attachmentId/file", async context
   });
   if (!input.success || (!creating && input.data.expectedRevision === undefined) || (creating && input.data.expectedRevision !== undefined)) return context.json({ error: "invalid_attachment" }, 400);
   const { id, name, size, expectedRevision } = input.data;
+  const source = context.req.query("source");
+  if (source !== undefined && source !== "generated") return context.json({ error: "invalid_attachment" }, 400);
+  if (source === "generated" && !member.isOwner) return context.json({ error: "forbidden" }, 403);
   const declared = context.req.header("Content-Length");
   if (declared !== undefined && Number(declared) !== size) return context.json({ error: "invalid_upload_length" }, 400);
   const body = context.req.raw.body ?? new Blob([]).stream();
-  const attachment = await saveAttachmentFile({ env: context.env, choirId, scoreId, attachmentId: id, membershipId: member.id, name, size, body, expectedRevision });
+  const attachment = await saveAttachmentFile({ env: context.env, choirId, scoreId, attachmentId: id, membershipId: member.id, name, size, body, expectedRevision, generated: source === "generated" });
   return context.json({ attachment }, creating ? 201 : 200);
 });
 

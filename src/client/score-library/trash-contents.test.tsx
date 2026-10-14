@@ -9,7 +9,7 @@ const score = { id: "score", choirId: "drive", fileName: "排练.pdf", updatedAt
 const attachment = { id: "attachment", scoreId: "score", name: "练习音频", scoreName: "排练", kind: "audio", url: null, sizeBytes: 10, revision: 1, updatedAt: 1, trashExpiresAt: Date.now() + 86400000 };
 it.each([401, 403, 404, 503])("handles %i after resuming a retained trash view", async status => {
   let denied = false;
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("attachments/trash")
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("pdf-trash") ? Response.json({ files: [] }) : String(input).endsWith("attachments/trash")
     ? Response.json({ attachments: [] }) : denied ? new Response(null, { status }) : Response.json({ scores: [score], storage: { usedBytes: 100, limitBytes: 1000 } })));
   const view = render(<TrashContents userId="user" choirId="drive" onRestored={() => {}} />);
   const row = await screen.findByText("排练");
@@ -33,7 +33,7 @@ it.each([401, 403, 404, 503])("handles %i after resuming retained attachment tra
   else { expect(row).not.toBeInTheDocument(); expect(screen.queryByRole("button", { name: "恢复" })).not.toBeInTheDocument(); }
 });
 it("does not reopen an old permanent-deletion confirmation after authority resumes", async () => {
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("attachments/trash") ? Response.json({ attachments: [] }) : Response.json({ scores: [score], storage: { usedBytes: 100, limitBytes: 1000 } })));
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("pdf-trash") ? Response.json({ files: [] }) : String(input).endsWith("attachments/trash") ? Response.json({ attachments: [] }) : Response.json({ scores: [score], storage: { usedBytes: 100, limitBytes: 1000 } })));
   const props = { userId: "user", choirId: "drive", canPurge: true, onRestored: () => {} };
   const view = render(<TrashContents {...props} />);
   fireEvent.click(await screen.findByRole("button", { name: "彻底删除" }));
@@ -49,6 +49,7 @@ it("does not reintroduce a restore conflict from a response that predates a writ
   let finish!: (response: Response) => void;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     if (init?.method === "POST") return new Promise<Response>(resolve => { finish = resolve; });
+    if (String(input).endsWith("pdf-trash")) return Response.json({ files: [] });
     if (String(input).endsWith("attachments/trash")) return Response.json({ attachments: [] });
     reads++;
     return reads === 1 ? Response.json({ scores: [score], storage: { usedBytes: 100, limitBytes: 1000 } }) : new Response(null, { status: 403 });
@@ -88,6 +89,7 @@ it("ignores a delayed conflict body after the retained view loses authority", as
   const body = vi.spyOn(response, "json").mockImplementation(() => new Promise(resolve => { finishBody = resolve; }));
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     if (init?.method === "POST") return response;
+    if (String(input).endsWith("pdf-trash")) return Response.json({ files: [] });
     if (String(input).endsWith("attachments/trash")) return Response.json({ attachments: [] });
     reads++;
     return reads === 1 ? Response.json({ scores: [score], storage: { usedBytes: 100, limitBytes: 1000 } }) : new Response(null, { status: 403 });

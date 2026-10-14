@@ -1,7 +1,6 @@
 import { holdUpdate } from "../updates/update-safety";
 import { uploadPdf, UPLOAD_TIMEOUT_MS, type UploadProgress } from "./upload-transport";
 import { UploadProgressView } from "./upload-progress-view";
-import { PurgeDialog } from "../drives/purge-dialog";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
 import { MAX_PDF_BYTES, scoreVersionHistorySchema, scoreVersionSummarySchema, type ScoreSummary, type ScoreVersionHistory } from "../../shared/scores";
@@ -11,22 +10,22 @@ import { LibraryTaskDialog } from "./library-task-dialog";
 import { uploadMessage } from "./library-format";
 import { PdfVersionPreview } from "./pdf-version-preview";
 
-const unconfirmedPublishMessage = "未能确认 PDF 发布结果，请关闭后重新打开版本记录核对，避免重复提交。";
+const unconfirmedPublishMessage = "未能确认 PDF 发布结果，请关闭窗口并刷新文件库，核对当前 PDF 后再操作。";
 const unconfirmedUploadMessage = "未能确认候选 PDF 的上传结果，当前 PDF 未改变。请关闭窗口，不要直接重传；可能已保存的候选文件会在 24 小时后到期并由系统回收。";
 
 type Version = ScoreSummary["currentVersion"];
-export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false, writable = true, ownerUserId, onClose, onComplete }: {
-  ownerUserId?: string; writable?: boolean; canPurge?: boolean; choirId: string; score: ScoreSummary; historyOnly: boolean;
+export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId, onClose, onComplete }: {
+  ownerUserId?: string; writable?: boolean; choirId: string; score: ScoreSummary;
   onClose(): void; onComplete(message: string): void | Promise<void>;
 }) {
   const session = authClient.useSession();
   const [initialUser] = useState(ownerUserId ?? session.data?.user.id);
   const path = `/api/choirs/${choirId}/scores/${score.id}`;
-  const [purging, setPurging] = useState(false);
   const [history, setHistory] = useState<ScoreVersionHistory | null>(null);
   const [selected, setSelected] = useState<Version | null>(null);
   const [ready, setReady] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [keepGeneratedXml, setKeepGeneratedXml] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [transfer, setTransfer] = useState<{ name: string; progress?: UploadProgress } | null>(null);
@@ -71,7 +70,7 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
       if (!response.ok) throw new Error("history_unavailable");
       const result = await parseDiagnosticResponse(response, scoreVersionHistorySchema);
       if (mounted.current) setHistory(result);
-    }).catch(() => { if (mounted.current) setMessage("版本信息加载失败，请关闭后重试。"); });
+    }).catch(() => { if (mounted.current) setMessage("PDF 信息加载失败，请关闭后重试。"); });
     return () => {
       mounted.current = false;
       controller.abort();
@@ -129,7 +128,7 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
     try {
       const response = await diagnosticFetch(`${path}/versions/${selected.id}/publish`, {
         method: "POST", signal: controller.signal, headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedRevision: history.revision }),
+        body: JSON.stringify({ expectedRevision: history.revision, ...(history.hasGeneratedXml ? { keepGeneratedXml } : {}) }),
       });
       if (!isCurrent()) return;
       if (!response.ok) {
@@ -139,7 +138,7 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
         setMessage(uploadMessage(response.status, body)); return;
       }
       candidate.current = null;
-      await onComplete(historyOnly ? "已回滚 PDF；笔记仍使用原页码和坐标。" : "PDF 已替换；笔记仍使用原页码和坐标。");
+      await onComplete("PDF 已替换，旧 PDF 已移到回收站；笔记仍使用原页码和位置。");
     } catch {
       if (isCurrent()) { setPublishUncertain(true); setMessage(unconfirmedPublishMessage); }
     } finally {
@@ -148,40 +147,33 @@ export function PdfVersionDialog({ choirId, score, historyOnly, canPurge = false
     }
   };
   const currentPages = history?.versions.find((version) => version.id === history.currentVersionId)?.pageCount ?? score.currentVersion.pageCount;
-  const title = historyOnly ? "历史 PDF 版本" : "替换 PDF";
+  const title = "替换 PDF";
   const userChanged = Boolean(session.data?.user.id && initialUser !== session.data.user.id);
   const signedOut = !session.isPending && !session.error && !session.data?.user.id;
-  if (userChanged || signedOut) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">登录身份已变化，请关闭后重新打开版本工具。</p></LibraryTaskDialog>;
+  if (userChanged || signedOut) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">登录身份已变化，请关闭后重新打开替换窗口。</p></LibraryTaskDialog>;
   return <LibraryTaskDialog title={title} onClose={onClose} busy={busy}>
     <div className="pdf-version-dialog">
       {(session.isPending || session.error || !writable) && <p role="status">连接或操作权限尚未确认，已选择的内容保留。</p>}
-      {!historyOnly && !selected ? <label>新的 PDF（最多 20 MB、500 页）
+      {!selected ? <label>新的 PDF（最多 20 MB、500 页）
         <input type="file" accept="application/pdf,.pdf" disabled={!canWrite || !history || busy || uncertain}
           onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
-      </label> : null}
-      {historyOnly ? <label>选择三十天保留期内的版本
-        <select aria-label="历史 PDF 版本" disabled={!canWrite || !history || busy} value={selected?.id ?? ""}
-          onChange={(event) => { setSelected(history?.versions.find((version) => version.id === event.target.value) ?? null); setReady(false); setAccepted(false); }}>
-          <option value="">请选择版本</option>
-          {history?.versions.filter((version) => version.id !== history.currentVersionId).map((version) =>
-            <option key={version.id} value={version.id}>版本 {version.versionNumber} · {version.pageCount} 页 · {new Date(version.createdAt).toLocaleDateString()}</option>)}
-        </select>
-        {history && history.versions.length < 2 ? <p>没有可回滚的历史版本。</p> : null}
       </label> : null}
       {transfer ? <>
         <p role="status">{transfer.progress?.processing ? "传输完成，正在保存…" : "正在上传…"}</p>
         <UploadProgressView name={transfer.name} progress={transfer.progress} />
       </> : busy ? <p role="status">正在处理…</p> : null}
       {selected ? <>
-        <p>当前 {currentPages} 页 → 所选版本 {selected.pageCount} 页。</p>
+        <p>当前 {currentPages} 页 → 新 PDF {selected.pageCount} 页。</p>
         {selected.pageCount < currentPages ? <p role="alert">页数减少：超出新 PDF 页数的笔记会保留，但暂时不可见。</p> : null}
         <PdfVersionPreview key={selected.id} scorePath={path} choirId={choirId} scoreId={score.id} versionId={selected.id} onReady={setReady} />
         <label className="confirmation-checkbox"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>我已检查预览，理解排版变化不会迁移笔记，笔记仍保留原页码和位置。</span></label>
-        <Button className="primary-button" isDisabled={!canWrite || !ready || !accepted || busy || publishUncertain} onPress={() => void publish()}>{historyOnly ? "确认回滚" : "确认替换"}</Button>
+        {history?.hasGeneratedXml && <label className="confirmation-checkbox"><input type="checkbox" checked={keepGeneratedXml}
+          disabled={!canWrite || busy || !history.canTrashFiles} onChange={event => setKeepGeneratedXml(event.target.checked)} />
+          <span>保留自动生成的练习版</span></label>}
+        {history?.hasGeneratedXml && <p>普通附件保持不变。取消保留会将自动生成的练习版移到回收站。{!history.canTrashFiles && "需要删除与恢复文件权限才能取消保留。"}</p>}
+        <Button className="primary-button" isDisabled={!canWrite || !ready || !accepted || busy || publishUncertain} onPress={() => void publish()}>确认替换</Button>
       </> : null}
-      {!historyOnly ? <p>确认前原版保持不变。候选文件计入云盘配额，取消后回收，未确认的上传在 24 小时后到期。</p> : null}
-      {historyOnly && selected && canPurge && <Button className="primary-button destructive-button" isDisabled={!canWrite || busy} onPress={() => setPurging(true)}>彻底删除所选历史版本</Button>}
-      {purging && selected && initialUser && canWrite && <PurgeDialog userId={initialUser} path={`${path}/versions/${selected.id}/purge`} title="彻底删除历史 PDF" description="所选历史谱面将无法查看或回滚。当前 PDF 和笔记不变。" onClose={() => setPurging(false)} onComplete={() => onComplete("历史版本已彻底删除。")} />}
+      <p>确认后旧 PDF 移到回收站，保留三十天。确认前原 PDF 保持不变。</p>
       {message ? <p role="alert">{message}</p> : null}
     </div>
   </LibraryTaskDialog>;

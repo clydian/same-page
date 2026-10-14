@@ -66,15 +66,19 @@ export function validateAttachmentStream(extension: string) {
 
 export async function saveAttachmentFile(options: {
   env: Env; choirId: string; scoreId: string; attachmentId: string; membershipId: string;
-  name: string; size: number; body: ReadableStream<Uint8Array>; expectedRevision?: number;
+  name: string; size: number; body: ReadableStream<Uint8Array>; expectedRevision?: number; generated?: boolean;
 }) {
   const { env, choirId, scoreId, attachmentId, membershipId, name, size, body, expectedRevision } = options;
   const format = attachmentFormat(name);
   if (!format) { await body.cancel().catch(() => undefined); throw new AttachmentError("attachment_type_unsupported", 415); }
   if (size > format.maxBytes || (size === 0 && format.kind !== "markdown")) { await body.cancel().catch(() => undefined); throw new AttachmentError("attachment_too_large", 413); }
   const creating = expectedRevision === undefined;
-  if (!creating && format.kind !== "markdown") throw new AttachmentError("attachment_not_editable", 400);
+  const generated = options.generated === true;
+  if (generated && format.kind !== "musicxml") throw new AttachmentError("attachment_type_unsupported", 415);
+  if (!creating && format.kind !== "markdown" && !generated) throw new AttachmentError("attachment_not_editable", 400);
   const operation = creating ? "uploadFiles" : "modifyFiles";
+  const permission = generated ? "EXISTS (SELECT 1 FROM membership_capabilities WHERE id = ? AND is_owner = 1)" : operationPredicate(operation);
+  const source = generated ? "generated" : "user";
   const fileId = crypto.randomUUID();
   const objectKey = `choirs/${choirId}/scores/${scoreId}/attachments/${attachmentId}/${fileId}`;
   const now = Date.now();
@@ -82,13 +86,13 @@ export async function saveAttachmentFile(options: {
   let platformBytes = 0;
   try {
     const reservation = await env.DB.batch<{ platformBytes: number }>([
-      ...(creating ? [env.DB.prepare(`INSERT INTO score_attachments (id, choir_id, score_id, kind, name, created_at, updated_at)
-        SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${operationPredicate(operation)}`).bind(attachmentId, choirId, scoreId, format.kind, name, now, now, membershipId)] : []),
+      ...(creating ? [env.DB.prepare(`INSERT INTO score_attachments (id, choir_id, score_id, kind, name, source, created_at, updated_at)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${permission}`).bind(attachmentId, choirId, scoreId, format.kind, name, source, now, now, membershipId)] : []),
       env.DB.prepare(`INSERT INTO score_attachment_files (id, attachment_id, choir_id, object_key, size_bytes, content_type, created_at)
         SELECT ?, id, choir_id, ?, ?, ?, ? FROM score_attachments
-        WHERE id = ? AND choir_id = ? AND score_id = ? AND revision = ? AND kind = ? AND ${operationPredicate(operation)}
+        WHERE id = ? AND choir_id = ? AND score_id = ? AND revision = ? AND kind = ? AND source = ? AND trashed_at IS NULL AND purged_at IS NULL AND ${permission}
         RETURNING id, CASE WHEN EXISTS (SELECT 1 FROM choirs WHERE id = score_attachment_files.choir_id AND plan = 'free') THEN size_bytes ELSE 0 END AS platformBytes`)
-        .bind(fileId, objectKey, size, format.contentType, now, attachmentId, choirId, scoreId, expectedRevision ?? 1, format.kind, membershipId),
+        .bind(fileId, objectKey, size, format.contentType, now, attachmentId, choirId, scoreId, expectedRevision ?? 1, format.kind, source, membershipId),
     ]);
     if (reservation.at(-1)?.results.length !== 1) throw new AttachmentError("attachment_conflict");
     reserved = true;
@@ -111,8 +115,8 @@ export async function saveAttachmentFile(options: {
         WHERE id = ? AND choir_id = ? AND score_id = ? AND revision = ? AND trashed_at IS NULL AND purged_at IS NULL
         AND EXISTS (SELECT 1 FROM score_attachment_files WHERE id = ? AND state = 'ready' AND purged_at IS NULL)
         AND EXISTS (SELECT 1 FROM scores WHERE id = ? AND trashed_at IS NULL AND purged_at IS NULL)
-        AND ${operationPredicate(operation)} RETURNING id, score_id AS scoreId, kind, name, url, revision, updated_at AS updatedAt, trash_expires_at AS trashExpiresAt`)
-        .bind(fileId, name, creating ? 0 : 1, Date.now(), attachmentId, choirId, scoreId, expectedRevision ?? 1, fileId, scoreId, membershipId),
+        AND source = ? AND ${permission} RETURNING id, score_id AS scoreId, kind, source, name, url, revision, updated_at AS updatedAt, trash_expires_at AS trashExpiresAt`)
+        .bind(fileId, name, creating ? 0 : 1, Date.now(), attachmentId, choirId, scoreId, expectedRevision ?? 1, fileId, scoreId, source, membershipId),
     ]);
     if (committed[1].results.length !== 1) throw new AttachmentError("attachment_conflict");
     // This metadata belongs to the exact write, even if another editor commits
@@ -134,7 +138,7 @@ export async function saveAttachmentFile(options: {
     if (error instanceof AttachmentError) throw error;
     const messages: string[] = [];
     for (let cause = error, depth = 0; cause instanceof Error && depth < 5; cause = cause.cause, depth++) messages.push(cause.message);
-    const code = ["choir_storage_quota_exceeded", "platform_storage_limit_reached", "attachment_limit_reached", "resource_deleted"].find(code => messages.some(message => message.includes(code)));
+    const code = ["choir_storage_quota_exceeded", "platform_storage_limit_reached", "attachment_limit_reached", "resource_deleted", "generated_xml_unavailable"].find(code => messages.some(message => message.includes(code)));
     if (code) throw new AttachmentError(code);
     if (messages.some(message => message.includes("UNIQUE constraint"))) throw new AttachmentError("attachment_conflict");
     throw error;

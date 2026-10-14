@@ -5,8 +5,8 @@ import { operationKeys, operationLabels, type Operation, type PermissionSet } fr
 
 const descriptions: Record<Operation, string> = {
   uploadFiles: "向云盘上传新的 PDF 乐谱。不包含修改、删除已有文件的权限。",
-  modifyFiles: "重命名乐谱、替换 PDF、查看和回滚历史 PDF 版本。不会自动重新对齐笔记。",
-  trashFiles: "将乐谱移到回收站，并在三十天内恢复。删除和恢复共用此权限。",
+  modifyFiles: "重命名乐谱、替换 PDF。不会自动重新对齐笔记。",
+  trashFiles: "将乐谱或附件移到回收站，恢复回收站文件；替换 PDF 时可移除自动生成的练习版。删除和恢复共用此权限。",
   manageInvites: "查看和轮换云盘邀请码。轮换会使旧邀请码、邀请链接与二维码立即失效。",
   removeMembers: "移除普通成员，并在保留期内恢复成员关系。恢复不会恢复旧权限或笔记分享。",
   configureLayers: "新增、改名、排序、停用、删除和恢复共享层，影响云盘内全部乐谱。不包含编辑笔记或给别人授权。",

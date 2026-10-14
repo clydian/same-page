@@ -40,7 +40,7 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
   return <ModalOverlay className="modal-overlay" isOpen={isOpen} onOpenChange={changeOpen} isDismissable>
     <Modal className="app-modal"><Dialog className="app-dialog">
       <LibraryDialogHeading title="上传 PDF" close={() => changeOpen(false)} />
-      {storage && <p className="dialog-copy">云盘剩余空间 {formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes))} / {formatBytes(storage.limitBytes)}。回收站、历史版本和待确认 PDF 均占空间。</p>}
+      {storage && <p className="dialog-copy">云盘剩余空间 {formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes))} / {formatBytes(storage.limitBytes)}。回收站和待确认 PDF 均占空间。</p>}
       <p className="dialog-copy">可多选或拖入 PDF，按加入顺序逐个上传。</p>
       <p className="dialog-copy">关闭窗口会停止等待项，正在上传的一份会继续完成。</p>
       <details className="upload-help"><summary>离开页面或上传中断时</summary>
