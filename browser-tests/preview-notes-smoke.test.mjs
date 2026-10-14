@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { withBrowserEvidence } from "./browser-evidence.mjs";
 import test from "node:test";
 import { chromium, webkit, expect } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
@@ -65,26 +66,28 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     await page.locator(".file-row__open").click();
     await checkExperience("未登录的本机体验");
     await signIn(context, fixture.accounts[1]);
-    for (const entry of ["pdf", "musicxml", "audio", "missing"]) {
-      if (entry === "missing") await page.goto(reader);
-      else {
-        await openLibrary();
-        if (entry === "pdf") await page.locator(".file-row__open").click();
+    await withBrowserEvidence(context, `artifacts/verification/preview-notes-${engine}`, async () => {
+      for (const entry of ["pdf", "musicxml", "audio", "missing"]) {
+        if (entry === "missing") await page.goto(reader);
         else {
-          await page.getByRole("button", { name: "本地链路测试：2 个附件", exact: true }).click();
-          await page.getByRole("button", { name: entry === "audio" ? "试听.wav" : "试唱.musicxml", exact: true }).click();
-          if (entry === "audio") await page.getByRole("button", { name: "边听边看谱", exact: true }).click();
-          if (entry === "musicxml") {
-            const view = page.getByLabel("显示谱面", { exact: true });
-            await expect(view).toHaveValue("xml", { timeout: 60_000 });
-            await view.selectOption("pdf");
+          await openLibrary();
+          if (entry === "pdf") await page.locator(".file-row__open").click();
+          else {
+            await page.getByRole("button", { name: "本地链路测试：2 个附件", exact: true }).click();
+            await page.getByRole("button", { name: entry === "audio" ? "试听.wav" : "试唱.musicxml", exact: true }).click();
+            if (entry === "audio") await page.getByRole("button", { name: "边听边看谱", exact: true }).click();
+            if (entry === "musicxml") {
+              const view = page.getByLabel("显示谱面", { exact: true });
+              await expect(view).toHaveValue("xml", { timeout: 60_000 });
+              await view.selectOption("pdf");
+            }
           }
         }
+        await checkExperience(`已登录体验 ${entry}`);
       }
-      await checkExperience(`已登录体验 ${entry}`);
-    }
-    assert.deepEqual(mutations, []);
-    assert.deepEqual(errors, []);
+      assert.deepEqual(mutations, []);
+      assert.deepEqual(errors, []);
+    });
     await context.close();
     await owner.close();
   });
