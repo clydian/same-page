@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium, webkit, expect } from '@playwright/test';
 import { zipSync, strToU8 } from 'fflate';
 import { startStorageFixture } from './storage-fixture.mjs';
-import { musicXmlFixture } from './musicxml-fixture.mjs';
+import { polyphonicMusicXmlFixture } from './musicxml-fixture.mjs';
 for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
  test(`MusicXML attachment practice and PDF handoff (${engine})`, {timeout:180000}, async t => {
   const fixture=await startStorageFixture({authenticated:true,previewEntry:false});
@@ -32,7 +32,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByRole('button',{name:'本地链路测试 更多操作',exact:true}).click();
   await page.getByRole('menuitem',{name:'添加附件',exact:true}).click();
   await page.getByRole('button',{name:'可播放乐谱',exact:true}).click();
-  const bytes=zipSync({'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>'),'score.musicxml':musicXmlFixture()});
+  const bytes=zipSync({'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>'),'score.musicxml':polyphonicMusicXmlFixture()});
   await page.getByLabel('选择附件文件').setInputFiles({name:'分声部练习.mxl',mimeType:'application/vnd.recordare.musicxml',buffer:Buffer.from(bytes)});
   await page.getByRole('button',{name:'上传',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -52,6 +52,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await player.getByLabel('显示谱面',{exact:true}).selectOption('xml');
   await expect(notation).toBeVisible({timeout:20000});
   const surface=await notation.elementHandle();
+  assert.equal(await page.locator('.at-surface svg').evaluateAll(svgs => svgs.flatMap(svg => [...svg.querySelectorAll('path,text')]).some(element => /^rgba\(0, 0, 0, 0\./.test(getComputedStyle(element).fill))), false, 'secondary-voice notation stays opaque');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
 
   await settings.getByLabel('关注声部',{exact:true}).selectOption('1');

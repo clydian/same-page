@@ -156,3 +156,5 @@
 .practice-switch[data-selected] .practice-switch-track::after { transform: translateX(16px); }
 .practice-switch[data-focus-visible] .practice-switch-track { outline: 2px solid #769787; outline-offset: 3px; }
 .practice-switch[data-disabled] { opacity: .45; cursor: default; }
+
+.practice-loop-pending { margin: 0; color: #85551d; font-size: 12px; }
