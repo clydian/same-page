@@ -57,6 +57,8 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   }, [source, attempt]);
   const play = () => { document.querySelectorAll('audio,video').forEach(element => { if (element instanceof HTMLMediaElement) element.pause(); }); session?.playPause(); };
   const ready = state.status === 'ready' && !error;
+  const loopPending = Boolean(state.loop && (state.loop.start !== loopStart || state.loop.end !== loopEnd));
+  const measureLabel = (index: number) => state.measures[index]?.label ?? '—';
   return <>
     <section className="practice-notation" data-visible={view === 'xml' || undefined} aria-label="MusicXML 谱面" aria-hidden={view !== 'xml'} inert={view !== 'xml'}>
       {state.following === false && <Button className="practice-follow" onPress={() => session?.follow()}>恢复自动跟随</Button>}
@@ -92,13 +94,17 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
         <Switch className="practice-switch" isSelected={Boolean(state.solfege)} isDisabled={!ready || view !== 'xml'} onChange={visible => session?.solfege(visible)}>
           <span className="practice-switch-label">首调数字</span><span className="practice-switch-state" aria-hidden="true">{state.solfege ? '开' : '关'}</span><span className="practice-switch-track" aria-hidden="true" />
         </Switch>
-        <p className="practice-hint">{view === 'xml' ? '按当前调号，在音符旁标注首调数字。' : '切换到重排谱面后可设置。'}</p>
+        {state.solfege && <label className="practice-field">标注范围<select aria-label="标注范围" value={state.solfegePart === null ? 'all' : state.solfegePart ?? 0} disabled={!ready || view !== 'xml'} onChange={event => session?.solfege(true, event.target.value === 'all' ? null : Number(event.target.value))}><option value="all">全部声部</option>{state.parts.map(part => <option key={part.id} value={part.id}>仅 {part.name}</option>)}</select></label>}
+        <p className="practice-hint">{view === 'xml' ? '按当前调号，可标注全部或指定声部；不改变播放混音。' : '切换到重排谱面后可设置。'}</p>
       </section>
-      <details className="practice-mixer"><summary>{state.loop ? '片段循环 · 已开启' : '片段循环'}</summary><div className="practice-fields">
+      <details className="practice-mixer"><summary>{state.loop ? '片段循环 · 已开启' : '片段循环'}</summary>
+      <p className="practice-hint" role="status">{state.loop ? `正在循环：${measureLabel(state.loop.start)} 至 ${measureLabel(state.loop.end)}` : '未开启循环'}</p>
+      {loopPending && <p className="practice-loop-pending">新范围尚未应用</p>}<div className="practice-fields">
         <label className="practice-field">循环起点<select aria-label="循环起点" disabled={!ready} value={loopStart} onChange={event => setLoopStart(Number(event.target.value))}>{state.measures.map(m => <option key={m.index} value={m.index}>{m.label}</option>)}</select></label>
         <label className="practice-field">循环终点<select aria-label="循环终点" disabled={!ready} value={loopEnd} onChange={event => setLoopEnd(Number(event.target.value))}>{state.measures.map(m => <option key={m.index} value={m.index}>{m.label}</option>)}</select></label>
       </div>
-      <Button className="practice-action" isDisabled={!ready || loopEnd < loopStart} aria-pressed={Boolean(state.loop)} onPress={() => session?.loop(state.loop ? null : loopStart, loopEnd)}>{state.loop ? '取消循环' : '循环这一段'}</Button></details>
+      {(!state.loop || loopPending) && <Button className="practice-action" isDisabled={!ready || loopEnd < loopStart} onPress={() => session?.loop(loopStart, loopEnd)}>{state.loop ? '应用新范围' : '循环这一段'}</Button>}
+      {state.loop && <Button className="practice-action" isDisabled={!ready} onPress={() => session?.loop(null)}>取消循环</Button>}</details>
       <p className="practice-hint">声音来自 MusicXML，可能与原谱不同。合成音色不演唱歌词；原 PDF 可手动翻页。</p>
     </PracticePlayerShell>
   </>;
