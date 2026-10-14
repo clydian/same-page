@@ -136,8 +136,6 @@
 .practice-part-toggle:focus-visible, .practice-end-playback:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
 .practice-end-playback { flex: 0 0 auto; min-width: 44px; min-height: 44px; margin-left: 4px; padding: 0 8px; border: 1px solid #dce4de; border-radius: 9px; background: transparent; color: #52665a; font: inherit; font-size: 12px; cursor: pointer; }
 .practice-end-playback[data-hovered] { background: #eaf0ea; }
-.practice-degree-toggle { position: absolute; z-index: 2; top: max(12px,env(safe-area-inset-top)); left: max(16px,env(safe-area-inset-left)); box-shadow: 0 2px 12px #17352b14; }
-.practice-degree-toggle span { font-weight: 700; }
 .practice-notation-paper > div { position: relative; }
 .solfege-overlay { position: absolute; z-index: 6; inset: 0; pointer-events: none; }
 .solfege-degree-label { position: absolute; transform: translateY(-100%); color: #07875b; font: 700 9px/1 ui-serif,Georgia,"Songti SC",serif; white-space: nowrap; text-shadow: -1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff; }
@@ -145,3 +143,16 @@
 .practice-settings { font: inherit; font-size: 12px; font-weight: 600; }
 .practice-focus-volumes { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
 .practice-focus-volumes > .practice-action { grid-column: 1/-1; }
+
+.practice-settings-xml { width: 66px; flex-basis: 66px; gap: 5px; }
+.practice-notation-options { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid #e4eae4; }
+.practice-notation-options h3 { margin: 0; font-size: 14px; }
+.practice-switch { position: relative; display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; cursor: pointer; }
+.practice-switch-label { flex: 1; }
+.practice-switch-state { font-size: 12px; color: #637268; }
+.practice-switch-track { box-sizing: border-box; width: 38px; height: 22px; padding: 3px; border-radius: 12px; background: #849491; }
+.practice-switch-track::after { content: ""; display: block; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.practice-switch[data-selected] .practice-switch-track { background: #365747; }
+.practice-switch[data-selected] .practice-switch-track::after { transform: translateX(16px); }
+.practice-switch[data-focus-visible] .practice-switch-track { outline: 2px solid #769787; outline-offset: 3px; }
+.practice-switch[data-disabled] { opacity: .45; cursor: default; }

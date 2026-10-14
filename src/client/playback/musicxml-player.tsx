@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Button } from 'react-aria-components';
+import { Button, Switch } from 'react-aria-components';
 import { createPlayerSession, type PlayerSession, type PlayerState } from '@clydian/chorus-player';
 import { attachmentFetch } from '../score-library/attachments/request';
 import { readAttachment, attachmentFileUrl } from '../score-library/attachments/api';
@@ -59,7 +59,6 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const ready = state.status === 'ready' && !error;
   return <>
     <section className="practice-notation" data-visible={view === 'xml' || undefined} aria-label="MusicXML 谱面" aria-hidden={view !== 'xml'} inert={view !== 'xml'}>
-      {view === 'xml' && <Button className="practice-action practice-degree-toggle" isDisabled={!ready} aria-pressed={Boolean(state.solfege)} onPress={() => session?.solfege(!state.solfege)}><span aria-hidden="true">1·2·3</span> 首调数字</Button>}
       {state.following === false && <Button className="practice-follow" onPress={() => session?.follow()}>恢复自动跟随</Button>}
       <div ref={viewport} className="practice-notation-scroll" role="region" aria-label="滚动谱面" tabIndex={0}><div className="practice-notation-paper"><div ref={container} /></div></div>
     </section>
@@ -88,6 +87,12 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
         <Button className="practice-part-toggle practice-mute" aria-label={`静音 ${part.name}`} isDisabled={!ready} aria-pressed={part.muted} onPress={() => session?.mix(part.id, { muted: !part.muted })}>静音</Button>
         <Button className="practice-part-toggle practice-solo" aria-label={`独奏 ${part.name}`} isDisabled={!ready} aria-pressed={part.solo} onPress={() => session?.mix(part.id, { solo: !part.solo })}>独奏</Button>
       </div>)}
+      </section>
+      <section className="practice-notation-options" aria-label="谱面辅助"><h3>谱面辅助</h3>
+        <Switch className="practice-switch" isSelected={Boolean(state.solfege)} isDisabled={!ready || view !== 'xml'} onChange={visible => session?.solfege(visible)}>
+          <span className="practice-switch-label">首调数字</span><span className="practice-switch-state" aria-hidden="true">{state.solfege ? '开' : '关'}</span><span className="practice-switch-track" aria-hidden="true" />
+        </Switch>
+        <p className="practice-hint">{view === 'xml' ? '按当前调号，在音符旁标注首调数字。' : '切换到重排谱面后可设置。'}</p>
       </section>
       <details className="practice-mixer"><summary>{state.loop ? '片段循环 · 已开启' : '片段循环'}</summary><div className="practice-fields">
         <label className="practice-field">循环起点<select aria-label="循环起点" disabled={!ready} value={loopStart} onChange={event => setLoopStart(Number(event.target.value))}>{state.measures.map(m => <option key={m.index} value={m.index}>{m.label}</option>)}</select></label>

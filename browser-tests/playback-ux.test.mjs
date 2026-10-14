@@ -30,15 +30,15 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await expect(page.locator('.practice-notation')).not.toContainText('practice.xml');
  await expect(page.locator('.practice-notation')).not.toContainText('重排谱面');
  await expect(bar).not.toContainText('practice.xml');
- const degrees=page.locator('.solfege-degree-label'),toggle=page.getByRole('button',{name:'首调数字',exact:true});
- await expect(toggle).toHaveAttribute('aria-pressed','false');await toggle.click();await expect(degrees).toHaveCount(96);
+ const degrees=page.locator('.solfege-degree-label'),toggle=page.getByRole('switch',{name:'首调数字',exact:true});
+ await bar.getByRole('button',{name:'练习设置',exact:true}).click();await expect(toggle).not.toBeChecked();await page.locator('.practice-switch').click();await expect(degrees).toHaveCount(96);
  assert.deepEqual([...new Set(await degrees.allTextContents())].sort(),['1','3','4','6'],'degrees follow C major then G major after the key change');
- await toggle.click();await expect(degrees).toHaveCount(0);await toggle.click();
+ await page.locator('.practice-switch').click();await expect(degrees).toHaveCount(0);await page.locator('.practice-switch').click();await expect(toggle).toBeChecked();await toggle.press('Space');await expect(toggle).not.toBeChecked();await toggle.press('Space');await expect(toggle).toBeChecked();await page.getByRole('dialog',{name:'练习设置',exact:true}).locator('header strong').click();await page.screenshot({path:`artifacts/verification/playback-413/${engine}-practice-controls.png`});await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
 
  const range=page.getByRole('slider',{name:'播放进度',exact:true});await range.fill('12');await range.dispatchEvent('pointerup');await expect(range).toHaveValue('12');
  const scroll=page.locator('.practice-notation-scroll');await scroll.hover();await page.mouse.wheel(0,400);await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();await expect(page.getByRole('button',{name:'恢复自动跟随'})).toHaveCount(0);
  await scroll.press('Home');await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();
- await bar.getByRole('button',{name:'声部与练习设置',exact:true}).click();const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
+ await bar.getByRole('button',{name:'练习设置',exact:true}).click();const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
  await expect(settings.getByLabel('关注声部',{exact:true})).toBeVisible();
  const row=settings.locator('.practice-part').first();const rowControls=await row.locator('input,button').evaluateAll(elements=>elements.map(e=>e.getBoundingClientRect().toJSON()));
  assert.ok(rowControls.every(r=>Math.abs(r.y-rowControls[0].y)<2 && r.height>=44),'volume, mute and solo share one touch-friendly row');
@@ -54,12 +54,12 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  const initialReads=fileReads,initialWorkers=workers;
  await bar.getByRole('button',{name:'结束播放',exact:true}).click();await expect(bar).toHaveCount(0);await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
  await reveal();await page.getByRole('button',{name:'本谱附件',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
- await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'首调数字',exact:true}).click();await expect(degrees).toHaveCount(96);await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg=>svg.getBoundingClientRect().width)).toBeLessThan(370);await expect.poll(()=>degrees.evaluateAll(labels=>labels.every(label=>label.getBoundingClientRect().right<=innerWidth))).toBe(true);
+ await page.setViewportSize({width:390,height:844});await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.locator('.practice-switch').click();await expect(degrees).toHaveCount(96);await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg=>svg.getBoundingClientRect().width)).toBeLessThan(370);await expect.poll(()=>degrees.evaluateAll(labels=>labels.every(label=>label.getBoundingClientRect().right<=innerWidth))).toBe(true);
  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mobile.png`});
  await page.evaluate(()=>{document.documentElement.style.setProperty('--safe-top','44px');document.documentElement.style.setProperty('--safe-left','20px');document.documentElement.style.setProperty('--safe-right','12px');});
  const safeViewport=await scroll.boundingBox();assert.ok(safeViewport.y>=44&&safeViewport.x>=20&&safeViewport.x+safeViewport.width<=378,'scroll viewport stays inside top and side safe areas');
  await scroll.press('End');assert.equal((await scroll.boundingBox()).y,safeViewport.y,'scrolling retains the safe-area boundary');
  await page.evaluate(()=>{for(const name of ['--safe-top','--safe-left','--safe-right'])document.documentElement.style.removeProperty(name);});
- await bar.getByRole('button',{name:'声部与练习设置',exact:true}).click();await expect(settings.getByLabel('关注声部',{exact:true})).toBeVisible();await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mobile-mix.png`});const mixerBounds=await settings.boundingBox();assert.ok(mixerBounds.x>=0 && mixerBounds.x+mixerBounds.width<=390,'mobile mixer fits viewport');await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+ await bar.getByRole('button',{name:'练习设置',exact:true}).click();await expect(settings.getByLabel('关注声部',{exact:true})).toBeVisible();await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mobile-mix.png`});const mixerBounds=await settings.boundingBox();assert.ok(mixerBounds.x>=0 && mixerBounds.x+mixerBounds.width<=390,'mobile mixer fits viewport');await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  const controls=await bar.locator('button').evaluateAll(buttons=>buttons.map(b=>({label:b.getAttribute('aria-label'),rect:b.getBoundingClientRect().toJSON()})));assert.ok(controls.every(c=>c.rect.x>=0&&c.rect.x+c.rect.width<=390&&c.rect.height>=44));assert.ok(controls.every(c=>Math.abs(c.rect.y-controls[0].rect.y)<1),'all controls stay on one row');
 });

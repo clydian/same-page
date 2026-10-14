@@ -59,7 +59,7 @@ export function PracticePlayerShell(props: Props) {
 
         </div>
         <div className="practice-bar-actions">{props.setSpeed && <select className="practice-speed" aria-label="速度" value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select>}
-        <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label={isXml ? "声部与练习设置" : "练习设置"} aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}>{isXml ? "声部" : <SlidersHorizontal size={18} aria-hidden="true" />}</Button>
+        <Button ref={settingsTrigger} className={`practice-icon practice-settings${isXml ? " practice-settings-xml" : ""}`} aria-label="练习设置" aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={isXml ? 15 : 18} aria-hidden="true" />{isXml && <span>练习</span>}</Button>
         <Button className="practice-end-playback" aria-label="结束播放" onPress={stopPlayback}>结束</Button></div>
       </section>
     </div>
