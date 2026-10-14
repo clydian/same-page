@@ -30,6 +30,8 @@ export default defineConfig({
     })),
   ],
   test: {
+    // Workerd cannot read Vitest's host-side transformed module cache.
+    fsModuleCache: false,
     include: ["worker/**/*.test.ts"],
     exclude: [
       "worker/auth/social-providers.test.ts",
