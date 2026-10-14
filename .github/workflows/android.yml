@@ -67,7 +67,7 @@ jobs:
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
       - run: sdkmanager 'build-tools;36.0.0'
       - run: npm ci --prefix android --no-audit --no-fund
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: android-unsigned-${{ github.sha }}
           path: android/generated/app/build/outputs/apk/release
