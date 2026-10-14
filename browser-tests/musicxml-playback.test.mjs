@@ -53,7 +53,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(notation).toBeVisible({timeout:20000});
   const surface=await notation.elementHandle();
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
-  await settings.locator('summary').filter({hasText:'声部关注'}).click();
+
   await settings.getByLabel('关注声部',{exact:true}).selectOption('1');
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByLabel('速度',{exact:true}).selectOption('0.75');

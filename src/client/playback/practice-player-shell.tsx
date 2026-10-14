@@ -48,7 +48,7 @@ export function PracticePlayerShell(props: Props) {
       {props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
       <section className="practice-bar" aria-label="乐谱练习" data-testid="musicxml-player">
         <PlaybackTimeline timeline={props.timeline} />
-        <div className="practice-view"><span className="practice-source-name" title={source.attachment.name}>{source.attachment.name}</span>{isXml && <label><select aria-label="显示谱面" value={view} onChange={event => selectView(event.target.value === 'xml' ? 'xml' : 'pdf')}><option value="pdf">原始 PDF</option><option value="xml">重排谱面</option></select></label>}</div>
+        <div className="practice-view">{!isXml && <span className="practice-source-name" title={source.attachment.name}>{source.attachment.name}</span>}{isXml && <label><select aria-label="显示谱面" value={view} onChange={event => selectView(event.target.value === 'xml' ? 'xml' : 'pdf')}><option value="pdf">原始 PDF</option><option value="xml">重排谱面</option></select></label>}</div>
         <div className="practice-transport">
         {icon(isXml ? '前一小节' : '后退 10 秒', <StepBack size={18} aria-hidden="true" />, props.previous, !props.ready || props.previousDisabled)}
         <TooltipTrigger><Button className="practice-icon practice-play" aria-label={props.playing ? '暂停' : '播放'} isDisabled={!props.ready} onPress={props.play}>
@@ -59,8 +59,8 @@ export function PracticePlayerShell(props: Props) {
 
         </div>
         <div className="practice-bar-actions">{props.setSpeed && <select className="practice-speed" aria-label="速度" value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select>}
-        <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={18} aria-hidden="true" /></Button>
-        {icon("结束播放", <X size={20} aria-hidden="true" />, stopPlayback)}</div>
+        <Button ref={settingsTrigger} className={`practice-icon practice-settings${isXml ? " practice-settings-xml" : ""}`} aria-label="练习设置" aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={isXml ? 15 : 18} aria-hidden="true" />{isXml && <span>练习</span>}</Button>
+        <Button className="practice-end-playback" aria-label="结束播放" onPress={stopPlayback}>结束</Button></div>
       </section>
     </div>
     {panel && <Popover triggerRef={settingsTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" offset={10}>
