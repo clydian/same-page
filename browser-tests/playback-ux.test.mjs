@@ -32,11 +32,11 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await expect(bar).not.toContainText('practice.xml');
  const degrees=page.locator('.solfege-degree-label'),toggle=page.getByRole('switch',{name:'首调数字',exact:true});
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();await expect(toggle).not.toBeChecked();await page.locator('.practice-switch').click();await expect(degrees).toHaveCount(48);
- await expect(page.getByLabel('标注声部',{exact:true})).toHaveValue('0');
+ await expect(page.getByLabel('标注范围',{exact:true})).toHaveValue('0');await page.getByLabel('标注范围',{exact:true}).selectOption('all');await expect(degrees).toHaveCount(96);await page.getByLabel('标注范围',{exact:true}).selectOption('0');await expect(degrees).toHaveCount(48);
  assert.deepEqual([...new Set(await degrees.allTextContents())].sort(),['3','6'],'degrees follow C major then G major after the key change');
  await page.locator('.practice-switch').click();await expect(degrees).toHaveCount(0);await page.locator('.practice-switch').click();await expect(toggle).toBeChecked();await toggle.press('Space');await expect(toggle).not.toBeChecked();await toggle.press('Space');await expect(toggle).toBeChecked();await page.getByRole('dialog',{name:'练习设置',exact:true}).locator('header strong').click();await page.screenshot({path:`artifacts/verification/playback-413/${engine}-practice-controls.png`});await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
 
- await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.getByLabel('标注声部',{exact:true}).selectOption('1');await expect.poll(()=>degrees.allTextContents()).toEqual(Array.from({length:48},(_,i)=>i<24?'1':'4'));await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+ await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.getByLabel('标注范围',{exact:true}).selectOption('1');await expect.poll(()=>degrees.allTextContents()).toEqual(Array.from({length:48},(_,i)=>i<24?'1':'4'));await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  const range=page.getByRole('slider',{name:'播放进度',exact:true});await range.fill('12');await range.dispatchEvent('pointerup');await expect(range).toHaveValue('12');
  const scroll=page.locator('.practice-notation-scroll');await scroll.hover();await page.mouse.wheel(0,400);await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();await expect(page.getByRole('button',{name:'恢复自动跟随'})).toHaveCount(0);
  await scroll.press('Home');await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();

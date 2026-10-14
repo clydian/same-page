@@ -11,13 +11,13 @@
    status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
    parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
 -  focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
-+  solfege?: boolean; solfegePart?: number; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
++  solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
    loop: { start: number; end: number } | null;
  }
  export interface PlayerSession {
    playPause(): void; pause(): void; seek(index: number): void; speed(value: number): void;
    mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
-+  solfege(visible: boolean, part?: number): void;
++  solfege(visible: boolean, part?: number | null): void;
    focus(id: number | null): void; focusOther(volume: number): void; follow(): void;
    loop(start: number | null, end?: number): void;
    getSnapshot(): PlayerState; subscribe(listener: () => void): () => void; dispose(): void;
@@ -38,7 +38,7 @@
 +    const overlay = document.createElement('div');
 +    overlay.className = 'solfege-overlay'; overlay.setAttribute('aria-hidden', 'true');
 +    const seen = new Set<string>();
-+    for (const track of api.score.tracks.filter(track => track.index === (state.solfegePart ?? 0))) for (const staff of track.staves) for (const bar of staff.bars)
++    for (const track of api.score.tracks.filter(track => state.solfegePart === null || track.index === (state.solfegePart ?? 0))) for (const staff of track.staves) for (const bar of staff.bars)
 +      for (const voice of bar.voices) for (const beat of voice.beats)
 +        for (const bounds of api.boundsLookup.findBeats(beat) ?? []) for (const item of bounds.notes ?? []) {
 +          const note = item.note, head = item.noteHeadBounds;
@@ -64,8 +64,8 @@
      },
      focus(id) { if (!disposed && state.status === 'ready' && (id === null || state.parts.some(part => part.id === id))) applyMix(state.parts, id, state.otherVolume, id === null ? undefined : state.parts.find(part => part.id === id)?.baseVolume); },
      focusOther(volume) { if (!disposed && state.status === 'ready' && Number.isFinite(volume)) applyMix(state.parts, state.focus, clamp(volume)); },
-+    solfege(visible, part) { if (!disposed && (part === undefined || state.parts.some(item => item.id === part))) {
-+      update({ solfege: visible, solfegePart: part ?? state.solfegePart ?? 0 }); renderDegrees();
++    solfege(visible, part) { if (!disposed && (part === undefined || part === null || state.parts.some(item => item.id === part))) {
++      update({ solfege: visible, solfegePart: part === undefined ? state.solfegePart : part }); renderDegrees();
 +    } },
      follow() { if (!disposed) setFollow(true); },
      loop(start, end) {
