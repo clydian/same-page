@@ -59,13 +59,20 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(page.getByLabel('标注范围',{exact:true})).toHaveValue('all');
   const degrees = page.locator('.solfege-degree-label'); await expect(degrees).toHaveCount(96);
   await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
-  const scroll = page.locator('.practice-notation-scroll'); const scrollDown=await scroll.evaluate(e=>e.scrollTop<(e.scrollHeight-e.clientHeight)/2); await scroll.hover(); await page.mouse.wheel(0,scrollDown?800:-800);
-  await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toBeVisible();
-  const visibleIndex = await degrees.evaluateAll(labels => {
-    const view=document.querySelector('.practice-notation-scroll').getBoundingClientRect();
-    return labels.findIndex(label => { const b=label.getBoundingClientRect(); return b.y>=view.y && b.bottom<view.bottom; });
+  const scroll = page.locator('.practice-notation-scroll');
+  const measureLabels = page.locator('.practice-measure-label');
+  // Align a known system deliberately: track-first annotation DOM order can
+  // otherwise select a note from a different system after font-dependent reflow.
+  const anchorIndex = await measureLabels.evaluateAll(labels => {
+    const y=labels[16].getBoundingClientRect().y;
+    return labels.findIndex(label => Math.abs(label.getBoundingClientRect().y-y)<1);
   });
-  assert.ok(visibleIndex>=0);
+  const anchorOffset = () => measureLabels.nth(anchorIndex).evaluate(label =>
+    label.getBoundingClientRect().y-document.querySelector('.practice-notation-scroll').getBoundingClientRect().y);
+  await scroll.hover(); await page.mouse.wheel(0,await anchorOffset()+4);
+  await expect.poll(async()=>Math.abs(await anchorOffset()+4)).toBeLessThan(3);
+  await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toBeVisible();
+  const beforeOffset = await anchorOffset();
   const oldPosition = await range.inputValue();
   const oldHeight = await page.locator('.at-surface').evaluate(e => e.getBoundingClientRect().height);
   await page.getByRole('button',{name:'放大谱面',exact:true}).click();
@@ -74,10 +81,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect.poll(() => page.locator('.at-surface').evaluate(e => e.getBoundingClientRect().height)).not.toBe(oldHeight);
   await expect(degrees).toHaveCount(96); await expect(range).toHaveValue(oldPosition);
   await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toBeVisible();
-  await expect.poll(() => degrees.nth(visibleIndex).evaluate(label => {
-    const b=label.getBoundingClientRect(),view=document.querySelector('.practice-notation-scroll').getBoundingClientRect();
-    return b.bottom>=view.top && b.top<view.bottom;
-  })).toBe(true);
+  await expect.poll(async()=>Math.abs(await anchorOffset()-beforeOffset)).toBeLessThan(32);
   await page.getByRole('button',{name:'恢复默认谱面大小',exact:true}).click();
   await expect(page.getByRole('button',{name:'恢复默认谱面大小',exact:true})).toHaveText('80%');
 
