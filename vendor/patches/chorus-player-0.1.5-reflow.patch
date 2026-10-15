@@ -1,0 +1,109 @@
+--- a/packages/player/src/session.ts
++++ b/packages/player/src/session.ts
+@@ -10,12 +10,13 @@
+ export interface PlayerState {
+   status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
+   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
+-  solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
++  notationScale: number; solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
+   loop: { start: number; end: number } | null;
+ }
+ export interface PlayerSession {
+   playPause(): void; pause(): void; seek(index: number): void; speed(value: number): void;
+   mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
++  notationScale(value: number): void;
+   solfege(visible: boolean, part?: number | null): void;
+   focus(id: number | null): void; focusOther(volume: number): void; follow(): void;
+   loop(start: number | null, end?: number): void;
+@@ -31,7 +32,7 @@
+ /** The host owns source authorization, bounded preparation reuse and navigation. */
+ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, options: PlayerOptions = {}): PlayerSession {
+   let disposed = false;
+-  let state: PlayerState = { status: 'preparing', message: '正在读取乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, focus: null, otherVolume: .25, following: true, loop: null };
++  let state: PlayerState = { status: 'preparing', message: '正在读取乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .8, solfegePart: null, focus: null, otherVolume: .25, following: true, loop: null };
+   const listeners = new Set<() => void>();
+   const update = (next: Partial<PlayerState>) => {
+     if (disposed) return;
+@@ -44,12 +45,17 @@
+   const api = createPlaybackApi(element, {
+     core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
+     importer: { mergePartGroupsInMusicXml: false },
+-    display: { resources: { secondaryGlyphColor: '#000000' } },
++    display: { scale: .8, resources: { secondaryGlyphColor: '#000000' } },
+     player: { playerMode: alphaTab.PlayerMode.EnabledSynthesizer, soundFont: '/soundfont/sonivox.sf2', enableCursor: true,
+       enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: true,
+       scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
+   });
+   api.masterVolume = .72;
++  const scrollToMeasure = (index: number) => {
++    const masterBar = api.tickCache?.masterBars[index]?.masterBar;
++    const bounds = masterBar && api.boundsLookup?.findMasterBar(masterBar)?.staffSystemBounds?.realBounds;
++    if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - 16;
++  };
+   let degreeOverlay: HTMLDivElement | null = null;
+   const renderDegrees = () => {
+     degreeOverlay?.remove(); degreeOverlay = null;
+@@ -73,16 +79,33 @@
+     element.append(overlay); degreeOverlay = overlay;
+   };
+   // Worker bounds arrive after renderFinished. Never use the previous layout's coordinates.
+-  api.renderStarted.on(() => { degreeOverlay?.remove(); degreeOverlay = null; });
+-  api.postRenderFinished.on(renderDegrees);
++  // Keep the visible system in place after reflow, including viewport resizes.
++  let anchor: { bar: number; offset: number } | null = null;
++  const captureAnchor = () => {
++    if (!viewport || !api.boundsLookup || state.following || anchor) return;
++    const top = viewport.getBoundingClientRect().top;
++    const origin = element.getBoundingClientRect().top;
++    const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
++    if (system?.bars[0]) anchor = { bar: system.bars[0].index, offset: origin + system.realBounds.y - top };
++  };
++  api.renderStarted.on(() => { captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; });
++  api.postRenderFinished.on(() => {
++    renderDegrees();
++    if (disposed || !viewport) return;
++    if (anchor) {
++      const bounds = api.boundsLookup?.findMasterBarByIndex(anchor.bar)?.staffSystemBounds?.realBounds;
++      if (bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - anchor.offset;
++      anchor = null;
++    } else if (state.following && state.status === 'ready' && (state.measure > 0 || state.playing)) scrollToMeasure(state.measure);
++  });
+ 
+   const setFollow = (enabled: boolean) => {
+     if (enabled) follow.restore(); else follow.suspend();
+     api.settings.player.scrollMode = enabled && viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off;
+     api.updateSettings(); update({ following: enabled });
+-    if (enabled && state.status === 'ready') api.scrollToCursor();
++    if (enabled && state.status === 'ready') scrollToMeasure(state.measure);
+   };
+-  const intent = () => follow.noteManualScrollIntent(performance.now());
++  const intent = () => { anchor = null; follow.noteManualScrollIntent(performance.now()); };
+   const keyDown = (event: KeyboardEvent) => {
+     if (!event.defaultPrevented && !event.altKey && !event.ctrlKey && !event.metaKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) intent();
+   };
+@@ -155,7 +178,7 @@
+     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+     playPause() { if (!disposed && state.status === 'ready') api.playPause(); },
+     pause() { if (!disposed) api.pause(); },
+-    seek(index) { if (!disposed && state.status === 'ready' && state.measures[index]) { api.tickPosition = state.measures[index].startTick; if (state.following) api.scrollToCursor(); } },
++    seek(index) { if (!disposed && state.status === 'ready' && state.measures[index]) { api.tickPosition = state.measures[index].startTick; if (state.following) scrollToMeasure(index); } },
+     speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
+     mix(id, value) {
+       if (disposed || state.status !== 'ready' || !api.score?.tracks[id] || value.volume !== undefined && !Number.isFinite(value.volume)) return;
+@@ -164,6 +187,16 @@
+     },
+     focus(id) { if (!disposed && state.status === 'ready' && (id === null || state.parts.some(part => part.id === id))) applyMix(state.parts, id, state.otherVolume, id === null ? undefined : state.parts.find(part => part.id === id)?.baseVolume); },
+     focusOther(volume) { if (!disposed && state.status === 'ready' && Number.isFinite(volume)) applyMix(state.parts, state.focus, clamp(volume)); },
++    notationScale(value) {
++      if (disposed || state.status !== 'ready' || !Number.isFinite(value)) return;
++      const notationScale = Math.max(.6, Math.min(1.2, Math.round(value * 10) / 10));
++      if (notationScale === state.notationScale) return;
++      captureAnchor();
++      api.settings.display.scale = notationScale;
++      api.updateSettings();
++      update({ notationScale });
++      api.render();
++    },
+     solfege(visible, part) { if (!disposed && (part === undefined || part === null || state.parts.some(item => item.id === part))) {
+       update({ solfege: visible, solfegePart: part === undefined ? state.solfegePart : part }); renderDegrees();
+     } },

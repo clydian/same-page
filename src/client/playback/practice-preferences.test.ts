@@ -4,13 +4,13 @@ import { rememberPractice } from './practice-preferences';
 import { playbackStore, playbackViewStore, stopPlayback, setPlaybackView, startPlayback, type PlaybackSource } from './playback-store';
 import { observeNavigationSession } from '../settings/navigation-events';
 function player() {
-  let state: PlayerState = { status:'preparing',message:'',playing:false,parts:[{id:0,name:'Alto',volume:.75,muted:false,solo:false}],measures:[],measure:0,speed:1,focus:null,loop:null };
+  let state: PlayerState = { status:'preparing',message:'',playing:false,parts:[{id:0,name:'Alto',volume:.75,muted:false,solo:false}],measures:[],measure:0,speed:1,notationScale:.8,focus:null,loop:null };
   const listeners = new Set<() => void>();
   const update = (next: Partial<PlayerState>) => { state={...state,...next}; listeners.forEach(fn=>fn()); };
   const session: PlayerSession = {
     getSnapshot:()=>state, subscribe(fn){listeners.add(fn);return()=>{listeners.delete(fn);};},
     speed:vi.fn(speed=>update({speed})), mix:vi.fn((id,value)=>update({parts:state.parts.map(p=>p.id===id?{...p,...value}:p),focus:'custom'})),
-    seek:vi.fn(measure=>update({measure})),focus:vi.fn(focus=>update({focus})),solfege:vi.fn(),focusOther:vi.fn(),follow:vi.fn(),loop:vi.fn(),pause:vi.fn(),playPause:vi.fn(),dispose:vi.fn(),
+    seek:vi.fn(measure=>update({measure})),focus:vi.fn(focus=>update({focus})),solfege:vi.fn(),notationScale:vi.fn(),focusOther:vi.fn(),follow:vi.fn(),loop:vi.fn(),pause:vi.fn(),playPause:vi.fn(),dispose:vi.fn(),
   };
   return {session,update};
 }

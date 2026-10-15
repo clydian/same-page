@@ -9,7 +9,7 @@ import { rememberPractice } from './practice-preferences';
 import { PracticePlayerShell } from './practice-player-shell';
 import { clearPlaybackPreparation, readPlaybackPreparation, savePlaybackPreparation } from './playback-preparation';
 import { usePlaybackLifetime } from './use-playback-lifetime';
-const preparing: PlayerState = { status: 'preparing', message: '正在准备播放…', playing: false, parts: [], measures: [], measure: 0, speed: 1, focus: null, loop: null };
+const preparing: PlayerState = { status: 'preparing', message: '正在准备播放…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .8, focus: null, loop: null };
 const noSubscribe = () => () => {};
 const initialSnapshot = () => preparing;
 export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
@@ -61,13 +61,18 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const measureLabel = (index: number) => state.measures[index]?.label ?? '—';
   return <>
     <section className="practice-notation" data-visible={view === 'xml' || undefined} aria-label="MusicXML 谱面" aria-hidden={view !== 'xml'} inert={view !== 'xml'}>
-      {state.following === false && <Button className="practice-follow" onPress={() => session?.follow()}>恢复自动跟随</Button>}
+      {view === 'xml' && state.following === false && <Button className="practice-follow" onPress={() => session?.follow()}>恢复自动跟随</Button>}
       <div ref={viewport} className="practice-notation-scroll" role="region" aria-label="滚动谱面" tabIndex={0}><div className="practice-notation-paper"><div ref={container} /></div></div>
     </section>
     <PracticePlayerShell source={source} ready={ready} playing={state.playing} message={error ?? state.message} failed={Boolean(error) || state.status === 'error'}
       timeline={{value:state.measure,max:Math.max(0,state.measures.length-1),disabled:!ready,label:value => state.measures[value]?.label ?? '准备中',seek:value => session?.seek(value)}}
       speed={state.speed} setSpeed={value => session?.speed(value)}
-      position={state.measures[state.measure] ? `${state.measures[state.measure].label.split(" · ")[0]}${state.loop ? " · 循环" : ""}` : '—'}
+      notationControls={view === 'xml' && <div className="practice-notation-size" role="group" aria-label="谱面大小">
+        <Button className="practice-icon" aria-label="缩小谱面" isDisabled={!ready || state.notationScale <= .6} onPress={() => session?.notationScale(state.notationScale - .1)}>−</Button>
+        <Button className="practice-size-reset" aria-label="恢复默认谱面大小" isDisabled={!ready} onPress={() => session?.notationScale(.8)}>{Math.round(state.notationScale * 100)}%</Button>
+        <Button className="practice-icon" aria-label="放大谱面" isDisabled={!ready || state.notationScale >= 1.2} onPress={() => session?.notationScale(state.notationScale + .1)}>+</Button>
+      </div>}
+      position={state.measures[state.measure] ? `${state.measures[state.measure].label.split(" · ")[0]}` : '—'}
       previousDisabled={state.measure <= 0} nextDisabled={state.measure >= state.measures.length - 1}
       play={play} previous={() => session?.seek(state.measure - 1)} next={() => session?.seek(state.measure + 1)}
       retry={() => { setError(null); setSession(null); setAttempt(value => value + 1); }}>
