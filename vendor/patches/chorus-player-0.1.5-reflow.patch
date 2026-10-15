@@ -29,7 +29,7 @@
      core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
      importer: { mergePartGroupsInMusicXml: false },
 -    display: { resources: { secondaryGlyphColor: '#000000' } },
-+    display: { scale: .8, resources: { secondaryGlyphColor: '#000000' } },
++    display: { scale: .8, resources: { secondaryGlyphColor: '#000000', barNumberColor: '#78867b' } },
      player: { playerMode: alphaTab.PlayerMode.EnabledSynthesizer, soundFont: '/soundfont/sonivox.sf2', enableCursor: true,
        enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: true,
        scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
