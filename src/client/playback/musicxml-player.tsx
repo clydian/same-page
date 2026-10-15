@@ -8,7 +8,7 @@ import { SettingsRequestError } from '../settings/settings-request';
 import { PracticePlayerShell } from './practice-player-shell';
 import { clearPlaybackPreparation, readPlaybackPreparation, savePlaybackPreparation } from './playback-preparation';
 import { usePlaybackLifetime } from './use-playback-lifetime';
-const preparing: PlayerState = { status: 'preparing', message: '正在准备播放…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .8, focus: null, loop: null };
+const preparing: PlayerState = { status: 'preparing', message: '正在准备播放…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .6, focus: null, loop: null };
 const noSubscribe = () => () => {};
 const initialSnapshot = () => preparing;
 export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
@@ -66,8 +66,8 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
       timeline={{value:state.measure,max:Math.max(0,state.measures.length-1),disabled:!ready,label:value => state.measures[value]?.label ?? '准备中',seek:value => session?.seek(value)}}
       speed={state.speed} setSpeed={value => session?.speed(value)}
       notationControls={view === 'xml' && <div className="practice-notation-size" role="group" aria-label="谱面大小">
-        <Button className="practice-icon" aria-label="缩小谱面" isDisabled={!ready || state.notationScale <= .6} onPress={() => session?.notationScale(state.notationScale - .1)}>−</Button>
-        <Button className="practice-size-reset" aria-label="恢复默认谱面大小" isDisabled={!ready} onPress={() => session?.notationScale(.8)}>{Math.round(state.notationScale * 100)}%</Button>
+        <Button className="practice-icon" aria-label="缩小谱面" isDisabled={!ready || state.notationScale <= .3} onPress={() => session?.notationScale(state.notationScale - .1)}>−</Button>
+        <Button className="practice-size-reset" aria-label="恢复默认谱面大小" isDisabled={!ready} onPress={() => session?.notationScale(.6)}>{Math.round(state.notationScale * 100)}%</Button>
         <Button className="practice-icon" aria-label="放大谱面" isDisabled={!ready || state.notationScale >= 1.2} onPress={() => session?.notationScale(state.notationScale + .1)}>+</Button>
       </div>}
       position={state.measures[state.measure] ? `${state.measures[state.measure].label.split(" · ")[0]}` : '—'}

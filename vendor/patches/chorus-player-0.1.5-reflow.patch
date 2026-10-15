@@ -20,7 +20,7 @@
  export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, options: PlayerOptions = {}): PlayerSession {
    let disposed = false;
 -  let state: PlayerState = { status: 'preparing', message: '正在读取乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, focus: null, otherVolume: .25, following: true, loop: null };
-+  let state: PlayerState = { status: 'preparing', message: '正在读取乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .8, solfegePart: null, focus: null, otherVolume: .25, following: true, loop: null };
++  let state: PlayerState = { status: 'preparing', message: '正在读取乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .6, solfegePart: null, focus: null, otherVolume: .25, following: true, loop: null };
    const listeners = new Set<() => void>();
    const update = (next: Partial<PlayerState>) => {
      if (disposed) return;
@@ -29,7 +29,7 @@
      core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
      importer: { mergePartGroupsInMusicXml: false },
 -    display: { resources: { secondaryGlyphColor: '#000000' } },
-+    display: { scale: .8, resources: { secondaryGlyphColor: '#000000', barNumberColor: '#78867b' } },
++    display: { scale: .6, resources: { secondaryGlyphColor: '#000000', barNumberColor: '#78867b' } },
      player: { playerMode: alphaTab.PlayerMode.EnabledSynthesizer, soundFont: '/soundfont/sonivox.sf2', enableCursor: true,
        enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: true,
        scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
@@ -46,7 +46,15 @@
    let degreeOverlay: HTMLDivElement | null = null;
    const renderDegrees = () => {
      degreeOverlay?.remove(); degreeOverlay = null;
-@@ -72,17 +81,50 @@
+@@ -67,22 +76,57 @@
+           if (seen.has(key)) continue;
+           seen.add(key);
+           const label = document.createElement('span'); label.className = 'solfege-degree-label'; label.textContent = text;
+-          label.style.left = `${head.x + head.w + 2}px`; label.style.top = `${head.y - 2}px`;
++          const gap = 2 * state.notationScale / .8;
++          label.style.fontSize = `${Math.max(5, 11.25 * state.notationScale)}px`;
++          label.style.left = `${head.x + head.w + gap}px`; label.style.top = `${head.y - gap}px`;
+           overlay.append(label);
          }
      element.append(overlay); degreeOverlay = overlay;
    };
@@ -94,14 +102,15 @@
      api.settings.player.scrollMode = enabled && viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off;
      api.updateSettings(); update({ following: enabled });
 -    if (enabled && state.status === 'ready') api.scrollToCursor();
-+    if (enabled && state.status === 'ready') scrollToMeasure(state.measure);
-   };
+-  };
 -  const intent = () => follow.noteManualScrollIntent(performance.now());
++    if (enabled && state.status === 'ready') scrollToMeasure(state.measure);
++  };
 +  const intent = () => { anchor = null; follow.noteManualScrollIntent(performance.now()); };
    const keyDown = (event: KeyboardEvent) => {
      if (!event.defaultPrevented && !event.altKey && !event.ctrlKey && !event.metaKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) intent();
    };
-@@ -112,7 +154,11 @@
+@@ -112,7 +156,11 @@
    };
    const ready = () => {
      if (disposed || state.status === 'error' || state.status === 'ready' || !api.isReadyForPlayback || !api.score) return;
@@ -114,7 +123,7 @@
      clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures });
    };
    element.addEventListener('alphaTab.midiFileLoaded', ready);
-@@ -125,7 +171,14 @@
+@@ -125,7 +173,16 @@
    const render = (prepared: PreparedMusicXml) => {
      if (disposed) return;
      try {
@@ -123,13 +132,15 @@
 +      measureLabels = Array.from(part?.children ?? []).filter(node => node.localName === 'measure').map((node, index) => node.getAttribute('number')?.trim() || String(index + 1));
 +      customMeasureLabels = measureLabels.some((label, index) => label !== String(index + 1));
        const score = loadPreparedMusicXml(prepared, api.settings);
++      // Reflow follows the viewport rather than print-system/page breaks from the source.
++      for (const track of score.tracks) track.lineBreaks?.clear();
 +      // alphaTab 1.8 prints ordinal numbers only. For custom source numbering,
 +      // replace those glyphs with labels positioned from the same post-render bounds.
 +      if (customMeasureLabels) for (const track of score.tracks) for (const staff of track.staves) for (const bar of staff.bars) bar.barNumberDisplay = alphaTab.model.BarNumberDisplay.Hide;
        assignPlaybackChannels(score.tracks);
        applyTimbreProfile(score.tracks, 'choir', classifyTimbreRoles(score.tracks, []));
        const names = score.tracks.map((track, index) => track.name || `声部 ${index + 1}`);
-@@ -155,7 +208,7 @@
+@@ -155,7 +212,7 @@
      subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
      playPause() { if (!disposed && state.status === 'ready') api.playPause(); },
      pause() { if (!disposed) api.pause(); },
@@ -138,13 +149,13 @@
      speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
      mix(id, value) {
        if (disposed || state.status !== 'ready' || !api.score?.tracks[id] || value.volume !== undefined && !Number.isFinite(value.volume)) return;
-@@ -164,6 +217,16 @@
+@@ -164,6 +221,16 @@
      },
      focus(id) { if (!disposed && state.status === 'ready' && (id === null || state.parts.some(part => part.id === id))) applyMix(state.parts, id, state.otherVolume, id === null ? undefined : state.parts.find(part => part.id === id)?.baseVolume); },
      focusOther(volume) { if (!disposed && state.status === 'ready' && Number.isFinite(volume)) applyMix(state.parts, state.focus, clamp(volume)); },
 +    notationScale(value) {
 +      if (disposed || state.status !== 'ready' || !Number.isFinite(value)) return;
-+      const notationScale = Math.max(.6, Math.min(1.2, Math.round(value * 10) / 10));
++      const notationScale = Math.max(.3, Math.min(1.2, Math.round(value * 10) / 10));
 +      if (notationScale === state.notationScale) return;
 +      captureAnchor();
 +      api.settings.display.scale = notationScale;

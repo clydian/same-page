@@ -12,7 +12,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   const context = await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block',hasTouch:true});
   await context.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen','true'));
   await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}});
-  const bytes = Buffer.from(musicXmlFixture(48).toString().replaceAll('<measure number="1">','<measure number="0" implicit="yes">').replaceAll('<measure number="2">','<measure number="25">')), id = crypto.randomUUID();
+  const bytes = Buffer.from(musicXmlFixture(128).toString().replaceAll('<measure number="1">','<measure number="0" implicit="yes">').replaceAll('<measure number="2">','<measure number="25">').replaceAll(/(<measure[^>]*>)/g,'$1<print new-system="yes"/>')), id = crypto.randomUUID();
   assert.equal((await context.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/attachments/${id}/file?name=layout.xml&size=${bytes.length}`,{data:bytes,headers:{'content-length':String(bytes.length)}})).status(),201);
   const page = await context.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
@@ -24,6 +24,18 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
   await expect(page.locator('.practice-measure-label').first()).toHaveText('0');
   await expect(page.locator('.practice-measure-label').nth(1)).toHaveText('25');
+  const size = page.getByRole('button',{name:'恢复默认谱面大小',exact:true});
+  await expect(size).toHaveText('60%');
+  const rowCount = () => page.locator('.practice-measure-label').evaluateAll(labels => new Set(labels.map(label => Math.round(label.getBoundingClientRect().top))).size);
+  await expect.poll(() => page.locator('.practice-measure-label').evaluateAll(labels => Math.abs(labels[0].getBoundingClientRect().top-labels[1].getBoundingClientRect().top))).toBeLessThan(1);
+  for(let n=0;n<3;n++) await page.getByRole('button',{name:'缩小谱面',exact:true}).click();
+  await expect(size).toHaveText('30%');
+  await expect(page.getByRole('button',{name:'缩小谱面',exact:true})).toBeDisabled();
+  const compactRows = await rowCount();
+  for(let n=0;n<9;n++) await page.getByRole('button',{name:'放大谱面',exact:true}).click();
+  await expect(size).toHaveText('120%');
+  await expect.poll(rowCount).toBeGreaterThan(compactRows);
+  await size.click();
   const range = bar.getByRole('slider',{name:'播放进度',exact:true});
   await range.fill('1'); await expect(bar.locator('.practice-position')).toContainText('第 25 小节');
   await expect(range).toHaveAttribute('aria-valuetext', '第 25 小节 · 播放次序 2');
@@ -59,12 +71,13 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await bar.getByRole('button',{name:'练习设置',exact:true}).click();
   await page.locator('.practice-switch').click();
   await expect(page.getByLabel('标注范围',{exact:true})).toHaveValue('all');
-  const degrees = page.locator('.solfege-degree-label'); await expect(degrees).toHaveCount(96);
+  const degrees = page.locator('.solfege-degree-label'); await expect(degrees).toHaveCount(256);
   await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   const scroll = page.locator('.practice-notation-scroll');
   const measureLabels = page.locator('.practice-measure-label');
   // Align a known system deliberately: track-first annotation DOM order can
   // otherwise select a note from a different system after font-dependent reflow.
+  // Keep enough systems after this anchor even at the compact default to avoid scroll-end clamping.
   const anchorIndex = await measureLabels.evaluateAll(labels => {
     const y=labels[16].getBoundingClientRect().y;
     return labels.findIndex(label => Math.abs(label.getBoundingClientRect().y-y)<1);
@@ -75,17 +88,20 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect.poll(async()=>Math.abs(await anchorOffset()+4)).toBeLessThan(3);
   await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toBeVisible();
   const beforeOffset = await anchorOffset();
+  const oldDegreeSize = await degrees.first().evaluate(label => parseFloat(getComputedStyle(label).fontSize));
   const oldPosition = await range.inputValue();
   const oldHeight = await page.locator('.at-surface').evaluate(e => e.getBoundingClientRect().height);
   await page.getByRole('button',{name:'放大谱面',exact:true}).click();
-  await expect(page.getByRole('button',{name:'恢复默认谱面大小',exact:true})).toHaveText('90%');
+  await expect(page.getByRole('button',{name:'恢复默认谱面大小',exact:true})).toHaveText('70%');
   // Reflow changes notation geometry and rebuilds numbers, retaining the browsed system.
   await expect.poll(() => page.locator('.at-surface').evaluate(e => e.getBoundingClientRect().height)).not.toBe(oldHeight);
-  await expect(degrees).toHaveCount(96); await expect(range).toHaveValue(oldPosition);
+  await expect(degrees).toHaveCount(256);
+  await expect.poll(() => degrees.first().evaluate(label => parseFloat(getComputedStyle(label).fontSize))).toBeGreaterThan(oldDegreeSize);
+  await expect(range).toHaveValue(oldPosition);
   await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toBeVisible();
   await expect.poll(async()=>Math.abs(await anchorOffset()-beforeOffset)).toBeLessThan(32);
   await page.getByRole('button',{name:'恢复默认谱面大小',exact:true}).click();
-  await expect(page.getByRole('button',{name:'恢复默认谱面大小',exact:true})).toHaveText('80%');
+  await expect(page.getByRole('button',{name:'恢复默认谱面大小',exact:true})).toHaveText('60%');
 
   await page.getByRole('button',{name:'原始 PDF',exact:true}).tap();
   await expect(page.getByRole('button',{name:'原始 PDF',exact:true})).toHaveAttribute('aria-pressed','true');
