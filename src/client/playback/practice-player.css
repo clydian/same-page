@@ -42,7 +42,7 @@
 .practice-follow { position: relative; z-index: 2; align-self: center; flex-shrink: 0; margin-top: 6px; min-height: 44px; padding: 0 14px; border: 1px solid #dce4de; border-radius: 24px; background: #fcfdfbf5; color: #365747; font: inherit; font-size: 12px; box-shadow: 0 2px 12px #17352b14; }
 .practice-follow:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
 .practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; }
-.practice-notation-scroll > div { max-width: 1100px; margin: auto; padding: 12px; background: #fff; }
+.practice-notation-scroll > div { max-width: 1100px; margin: auto; padding: 12px; background: #fff; border-radius: 3px; box-shadow: 0 1px 5px #17352b0a; }
 /* Match Chorus: alphaTab supplies positions/classes; the host supplies their visible colors. */
 .practice-notation .at-cursor-bar { background: rgba(212,165,94,.13) !important; border: 1px solid rgba(185,126,72,.16); border-radius: 6px; }
 /* Keep alphaTab's inline width: its transform scales the playback line to 3 visible pixels. */
@@ -75,7 +75,13 @@
 
 /* One control row, with the scrubber laid over the dock's top edge. */
 .practice-dock { gap: 0; }
-.practice-timeline { display: block; width: 100%; height: 28px; margin: 0; accent-color: #365747; cursor: pointer; }
+.practice-timeline { appearance: none; display: block; width: 100%; height: 28px; margin: 0; background: transparent; cursor: pointer; }
+.practice-timeline::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(to right,#365747 var(--practice-progress),#dce4de var(--practice-progress)); }
+.practice-timeline::-moz-range-track { height: 3px; border-radius: 3px; background: linear-gradient(to right,#365747 var(--practice-progress),#dce4de var(--practice-progress)); }
+.practice-timeline::-webkit-slider-thumb { appearance: none; box-sizing: border-box; width: 15px; height: 15px; margin-top: -6px; border: 3px solid #fcfdfb; border-radius: 50%; background: #365747; box-shadow: 0 0 0 1px #36574733,0 1px 3px #17352b22; }
+.practice-timeline::-moz-range-thumb { box-sizing: border-box; width: 15px; height: 15px; border: 3px solid #fcfdfb; border-radius: 50%; background: #365747; box-shadow: 0 0 0 1px #36574733,0 1px 3px #17352b22; }
+.practice-timeline:focus-visible { outline: 2px solid #769787; outline-offset: -2px; border-radius: 6px; }
+.practice-timeline:disabled { cursor: default; opacity: .45; }
 .practice-volumes h3 { margin: 0; font-size: 14px; }
 .practice-part > span { display: flex; justify-content: space-between; gap: 8px; }
 .practice-part output { font-variant-numeric: tabular-nums; }
@@ -114,7 +120,7 @@
 .practice-part[data-focus] .practice-part-name { color: #285e3d; font-weight: 600; }
 .practice-part-toggle[data-disabled] { opacity: .4; }
 .practice-part-toggle:focus-visible, .practice-end-playback:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
-.practice-end-playback { flex: 0 0 auto; min-width: 44px; min-height: 44px; margin-left: 4px; padding: 0 8px; border: 1px solid #dce4de; border-radius: 9px; background: transparent; color: #52665a; font: inherit; font-size: 12px; cursor: pointer; }
+.practice-end-playback { flex: 0 0 auto; min-width: 44px; min-height: 44px; margin-left: 4px; padding: 0 8px; border: 0; border-radius: 9px; background: transparent; color: #52665a; font: inherit; font-size: 12px; cursor: pointer; }
 .practice-end-playback[data-hovered] { background: #eaf0ea; }
 .practice-notation-paper > div { position: relative; }
 .solfege-overlay { position: absolute; z-index: 6; inset: 0; pointer-events: none; }
@@ -140,17 +146,18 @@
 
 /* One shared practice shell at every viewport size. */
 .practice-header { position: fixed; z-index: 90; inset: 0 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; box-sizing: border-box; padding: calc(var(--safe-top) + 4px) max(8px,var(--safe-right)) 4px max(8px,var(--safe-left)); background: #fcfdfb; border-bottom: 1px solid #dce4de; color: #31463a; }
-.practice-view-switch { display: flex; padding: 2px; border-radius: 10px; background: #eef2ed; }
+.practice-view-switch { display: flex; padding: 2px; border-radius: 10px; background: #edf0eb; }
 .practice-view-switch button { min-height: 44px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 13px; cursor: pointer; }
-.practice-view-switch button[aria-pressed=true] { background: #365747; color: #fff; }
+.practice-view-switch button[aria-pressed=true] { background: #fff; color: #2f4d3d; box-shadow: 0 1px 4px #17352b16; font-weight: 600; }
+.practice-view-switch button[data-hovered] { color: #213e2e; }
 .practice-source-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.practice-notation-size { display: flex; align-items: center; }
+.practice-notation-size { display: flex; align-items: center; color: #637268; }
 .practice-notation-size .practice-icon { font-size: 22px; }
 .practice-size-reset { min-width: 44px; min-height: 44px; padding: 0 2px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; }
 .practice-size-reset[data-disabled] { opacity: .4; }
 .practice-header button:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
 .practice-bar { position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 16px; width: 100%; min-height: 62px; padding: 12px max(8px,var(--safe-right)) 4px max(8px,var(--safe-left)); color: #31463a; background: #fcfdfb; border-top: 1px solid #dce4de; pointer-events: auto; }
-.practice-position { padding-inline: 6px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; color: #637268; }
+.practice-position { padding-inline: 6px; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; color: #52665a; }
 .practice-bar-actions { display: flex; align-items: center; }
 .practice-speed { appearance: none; width: 56px; height: 44px; padding: 0 16px 0 4px; border: 0; color: inherit; background: transparent; font: inherit; font-size: 13px; }
 .practice-settings-xml { width: 66px; flex-basis: 66px; gap: 5px; }
@@ -173,4 +180,4 @@
 .practice-speed-control > svg { position: absolute; right: 2px; top: 16px; pointer-events: none; }
 
 .practice-measure-overlay { position: absolute; z-index: 5; inset: 0; pointer-events: none; }
-.practice-measure-label { position: absolute; transform: translateY(-100%); color: #c80000; font-family: Arial,sans-serif; line-height: 1; white-space: nowrap; }
+.practice-measure-label { position: absolute; transform: translateY(-100%); color: #78867b; font-family: Arial,sans-serif; line-height: 1; white-space: nowrap; }

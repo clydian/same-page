@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 export type Timeline = { value: number; max: number; step?: number; disabled: boolean; label(value: number): string; seek(value: number): void };
 export function PlaybackTimeline({ timeline }: { timeline: Timeline }) {
   const [draft, setDraft] = useState<number | null>(null);
@@ -30,7 +30,7 @@ export function PlaybackTimeline({ timeline }: { timeline: Timeline }) {
     };
   }, [cancel, commit]);
   const percent = timeline.max > 0 ? (draft ?? timeline.value) / timeline.max * 100 : 0;
-  return <div className="practice-timeline-track">
+  return <div className="practice-timeline-track" style={{ '--practice-progress': `${percent}%` } as CSSProperties}>
     {draft !== null && <output ref={bubble} className="practice-timeline-preview" style={{ left: `clamp(${halfWidth}px, calc(${percent}% + ${10 - percent * .2}px), calc(100% - ${halfWidth}px))` }}>{label}</output>}
     <input className="practice-timeline" aria-label="播放进度" aria-valuetext={label}
       type="range" min="0" max={timeline.max} step={timeline.step ?? 1} disabled={timeline.disabled} value={draft ?? timeline.value}

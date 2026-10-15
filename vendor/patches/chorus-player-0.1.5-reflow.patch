@@ -101,16 +101,20 @@
    const keyDown = (event: KeyboardEvent) => {
      if (!event.defaultPrevented && !event.altKey && !event.ctrlKey && !event.metaKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) intent();
    };
-@@ -112,7 +154,7 @@
+@@ -112,7 +154,11 @@
    };
    const ready = () => {
      if (disposed || state.status === 'error' || state.status === 'ready' || !api.isReadyForPlayback || !api.score) return;
 -    const measures = (api.tickCache?.masterBars ?? []).map((item, index) => ({ index, label: `第 ${item.masterBar.index + 1} 小节 · 播放次序 ${index + 1}`, startTick: item.start, endTick: item.end }));
-+    const measures = (api.tickCache?.masterBars ?? []).map((item, index) => ({ index, label: `第 ${measureLabels[item.masterBar.index] ?? item.masterBar.index + 1} 小节 · 播放次序 ${index + 1}`, startTick: item.start, endTick: item.end }));
++    const measures = (api.tickCache?.masterBars ?? []).map((item, index) => {
++      const number = String(measureLabels[item.masterBar.index] ?? item.masterBar.index + 1);
++      const label = `第 ${number} 小节${number === String(index + 1) ? '' : ` · 播放次序 ${index + 1}`}`;
++      return { index, label, startTick: item.start, endTick: item.end };
++    });
      clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures });
    };
    element.addEventListener('alphaTab.midiFileLoaded', ready);
-@@ -125,7 +167,14 @@
+@@ -125,7 +171,14 @@
    const render = (prepared: PreparedMusicXml) => {
      if (disposed) return;
      try {
@@ -125,7 +129,7 @@
        assignPlaybackChannels(score.tracks);
        applyTimbreProfile(score.tracks, 'choir', classifyTimbreRoles(score.tracks, []));
        const names = score.tracks.map((track, index) => track.name || `声部 ${index + 1}`);
-@@ -155,7 +204,7 @@
+@@ -155,7 +208,7 @@
      subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
      playPause() { if (!disposed && state.status === 'ready') api.playPause(); },
      pause() { if (!disposed) api.pause(); },
@@ -134,7 +138,7 @@
      speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
      mix(id, value) {
        if (disposed || state.status !== 'ready' || !api.score?.tracks[id] || value.volume !== undefined && !Number.isFinite(value.volume)) return;
-@@ -164,6 +213,16 @@
+@@ -164,6 +217,16 @@
      },
      focus(id) { if (!disposed && state.status === 'ready' && (id === null || state.parts.some(part => part.id === id))) applyMix(state.parts, id, state.otherVolume, id === null ? undefined : state.parts.find(part => part.id === id)?.baseVolume); },
      focusOther(volume) { if (!disposed && state.status === 'ready' && Number.isFinite(volume)) applyMix(state.parts, state.focus, clamp(volume)); },

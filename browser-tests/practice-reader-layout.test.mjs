@@ -27,6 +27,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   const range = bar.getByRole('slider',{name:'播放进度',exact:true});
   await range.fill('1'); await expect(bar.locator('.practice-position')).toContainText('第 25 小节');
   await expect(range).toHaveAttribute('aria-valuetext', '第 25 小节 · 播放次序 2');
+  await range.fill('2'); await expect(range).toHaveAttribute('aria-valuetext', '第 3 小节');
   await range.fill('0'); await expect(bar.locator('.practice-position')).toContainText('第 0 小节');
   for (const [width,height] of [[320,740],[390,844],[844,390],[820,1180],[1180,820]]) {
     await page.setViewportSize({width,height});
@@ -46,6 +47,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await page.mouse.move(track.x+track.width*.6,track.y+track.height/2);
   const preview = page.locator('.practice-timeline-preview'); await expect(preview).toBeVisible();
   const target = await range.inputValue(); assert.ok(Number(target)>20);
+  await expect(preview).toHaveText(`第 ${Number(target)+1} 小节`);
   const bubble = await preview.boundingBox(); assert.ok(bubble.x>=0 && bubble.x+bubble.width<=390 && bubble.y+bubble.height<track.y,'target stays above thumb and inside screen');
   await expect(bar.locator('.practice-position')).toContainText('第 0 小节');
   await page.mouse.up(); await expect(preview).toHaveCount(0);

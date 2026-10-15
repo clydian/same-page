@@ -14,6 +14,7 @@ to `src`, build with TypeScript 6 and Node 24, then `npm pack`.
   visible system for suspended follow. While following, keep the playback cursor
   visible; the initial paused first measure retains the score's heading.
 - Preserve source MusicXML measure labels independently of repeat-expanded playback order.
+  Labels append playback order only when it differs from the source measure number.
   For nonstandard numbering (pickup 0, excerpts, repeated labels), replace alphaTab's ordinal glyphs using post-render bounds so score and controls agree.
 - First numeric-annotation scope is all tracks (`null`); subsequent toggles
   preserve an explicitly selected scope independently of mix and focus.
