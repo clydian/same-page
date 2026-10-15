@@ -658,7 +658,7 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
-            onDismiss={!editing && !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
+            onDismiss={!practicing && !editing && !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />

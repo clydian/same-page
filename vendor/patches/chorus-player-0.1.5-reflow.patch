@@ -24,7 +24,7 @@
    const listeners = new Set<() => void>();
    const update = (next: Partial<PlayerState>) => {
      if (disposed) return;
-@@ -44,12 +45,17 @@
+@@ -44,12 +45,20 @@
    const api = createPlaybackApi(element, {
      core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
      importer: { mergePartGroupsInMusicXml: false },
@@ -40,12 +40,32 @@
 +    const bounds = masterBar && api.boundsLookup?.findMasterBar(masterBar)?.staffSystemBounds?.realBounds;
 +    if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - 16;
 +  };
++  let measureLabels: string[] = [];
++  let customMeasureLabels = false;
++  let measureOverlay: HTMLDivElement | null = null;
    let degreeOverlay: HTMLDivElement | null = null;
    const renderDegrees = () => {
      degreeOverlay?.remove(); degreeOverlay = null;
-@@ -73,16 +79,33 @@
+@@ -72,17 +81,50 @@
+         }
      element.append(overlay); degreeOverlay = overlay;
    };
++  const renderMeasureLabels = () => {
++    measureOverlay?.remove(); measureOverlay = null;
++    if (disposed || !customMeasureLabels || !api.boundsLookup) return;
++    const overlay = document.createElement('div');
++    overlay.className = 'practice-measure-overlay'; overlay.setAttribute('aria-hidden', 'true');
++    measureLabels.forEach((text, index) => {
++      const bar = api.boundsLookup?.findMasterBarByIndex(index)?.bars[0];
++      if (!bar) return;
++      const label = document.createElement('span'); label.className = 'practice-measure-label'; label.textContent = text;
++      label.style.left = `${bar.beats[0]?.realBounds.x ?? bar.realBounds.x}px`;
++      label.style.top = `${bar.realBounds.y - 2}px`;
++      label.style.fontSize = `${11 * state.notationScale}px`;
++      overlay.append(label);
++    });
++    element.append(overlay); measureOverlay = overlay;
++  };
    // Worker bounds arrive after renderFinished. Never use the previous layout's coordinates.
 -  api.renderStarted.on(() => { degreeOverlay?.remove(); degreeOverlay = null; });
 -  api.postRenderFinished.on(renderDegrees);
@@ -58,9 +78,9 @@
 +    const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
 +    if (system?.bars[0]) anchor = { bar: system.bars[0].index, offset: origin + system.realBounds.y - top };
 +  };
-+  api.renderStarted.on(() => { captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; });
++  api.renderStarted.on(() => { captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
 +  api.postRenderFinished.on(() => {
-+    renderDegrees();
++    renderDegrees(); renderMeasureLabels();
 +    if (disposed || !viewport) return;
 +    if (anchor) {
 +      const bounds = api.boundsLookup?.findMasterBarByIndex(anchor.bar)?.staffSystemBounds?.realBounds;
@@ -81,7 +101,31 @@
    const keyDown = (event: KeyboardEvent) => {
      if (!event.defaultPrevented && !event.altKey && !event.ctrlKey && !event.metaKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) intent();
    };
-@@ -155,7 +178,7 @@
+@@ -112,7 +154,7 @@
+   };
+   const ready = () => {
+     if (disposed || state.status === 'error' || state.status === 'ready' || !api.isReadyForPlayback || !api.score) return;
+-    const measures = (api.tickCache?.masterBars ?? []).map((item, index) => ({ index, label: `第 ${item.masterBar.index + 1} 小节 · 播放次序 ${index + 1}`, startTick: item.start, endTick: item.end }));
++    const measures = (api.tickCache?.masterBars ?? []).map((item, index) => ({ index, label: `第 ${measureLabels[item.masterBar.index] ?? item.masterBar.index + 1} 小节 · 播放次序 ${index + 1}`, startTick: item.start, endTick: item.end }));
+     clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures });
+   };
+   element.addEventListener('alphaTab.midiFileLoaded', ready);
+@@ -125,7 +167,14 @@
+   const render = (prepared: PreparedMusicXml) => {
+     if (disposed) return;
+     try {
++      const document = new DOMParser().parseFromString(new TextDecoder().decode(prepared.bytes), 'application/xml');
++      const part = Array.from(document.documentElement.children).find(node => node.localName === 'part');
++      measureLabels = Array.from(part?.children ?? []).filter(node => node.localName === 'measure').map((node, index) => node.getAttribute('number')?.trim() || String(index + 1));
++      customMeasureLabels = measureLabels.some((label, index) => label !== String(index + 1));
+       const score = loadPreparedMusicXml(prepared, api.settings);
++      // alphaTab 1.8 prints ordinal numbers only. For custom source numbering,
++      // replace those glyphs with labels positioned from the same post-render bounds.
++      if (customMeasureLabels) for (const track of score.tracks) for (const staff of track.staves) for (const bar of staff.bars) bar.barNumberDisplay = alphaTab.model.BarNumberDisplay.Hide;
+       assignPlaybackChannels(score.tracks);
+       applyTimbreProfile(score.tracks, 'choir', classifyTimbreRoles(score.tracks, []));
+       const names = score.tracks.map((track, index) => track.name || `声部 ${index + 1}`);
+@@ -155,7 +204,7 @@
      subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
      playPause() { if (!disposed && state.status === 'ready') api.playPause(); },
      pause() { if (!disposed) api.pause(); },
@@ -90,7 +134,7 @@
      speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
      mix(id, value) {
        if (disposed || state.status !== 'ready' || !api.score?.tracks[id] || value.volume !== undefined && !Number.isFinite(value.volume)) return;
-@@ -164,6 +187,16 @@
+@@ -164,6 +213,16 @@
      },
      focus(id) { if (!disposed && state.status === 'ready' && (id === null || state.parts.some(part => part.id === id))) applyMix(state.parts, id, state.otherVolume, id === null ? undefined : state.parts.find(part => part.id === id)?.baseVolume); },
      focusOther(volume) { if (!disposed && state.status === 'ready' && Number.isFinite(volume)) applyMix(state.parts, state.focus, clamp(volume)); },

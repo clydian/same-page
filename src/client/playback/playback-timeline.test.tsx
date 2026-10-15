@@ -31,3 +31,10 @@ it('previews keyboard movement and Escape restores the playing position',()=>{
  seek.mockClear();fireEvent.keyDown(input,{key:'ArrowRight'});fireEvent.change(input,{target:{value:'4'}});fireEvent.keyDown(input,{key:'Escape'});fireEvent.keyUp(input,{key:'ArrowRight'});
  expect(seek).not.toHaveBeenCalled();expect(input).toHaveValue('2');
 });
+it('keeps pointer preview through WebKit native range blur and commits on release',()=>{
+ const seek=vi.fn();render(<PlaybackTimeline timeline={{value:0,max:10,disabled:false,label:String,seek}} />);const input=screen.getByRole('slider');
+ fireEvent.pointerDown(input);fireEvent.change(input,{target:{value:'4'}});fireEvent.blur(input);
+ expect(seek).not.toHaveBeenCalled();expect(screen.getByRole('status')).toHaveTextContent('4');
+ fireEvent.change(input,{target:{value:'7'}});fireEvent.pointerUp(window);
+ expect(seek).toHaveBeenCalledExactlyOnceWith(7);
+});

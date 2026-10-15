@@ -13,6 +13,8 @@ to `src`, build with TypeScript 6 and Node 24, then `npm pack`.
 - After post-render bounds arrive, rebuild numeric labels and restore the first
   visible system for suspended follow. While following, keep the playback cursor
   visible; the initial paused first measure retains the score's heading.
+- Preserve source MusicXML measure labels independently of repeat-expanded playback order.
+  For nonstandard numbering (pickup 0, excerpts, repeated labels), replace alphaTab's ordinal glyphs using post-render bounds so score and controls agree.
 - First numeric-annotation scope is all tracks (`null`); subsequent toggles
   preserve an explicitly selected scope independently of mix and focus.
 - Existing APIs and stored practice preferences retain their formats. This is

@@ -37,6 +37,6 @@ export function PlaybackTimeline({ timeline }: { timeline: Timeline }) {
       onPointerDown={() => { interaction.current = 'pointer'; preview(timeline.value); }}
       onKeyDown={event => { if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)) interaction.current = 'keyboard'; if (event.key === 'Escape') cancel(); }}
       onChange={event => { const value = Number(event.target.value); if (interaction.current === null) timeline.seek(value); else preview(value); }}
-      onPointerUp={commit} onKeyUp={() => { if (interaction.current === 'keyboard') commit(); }} onBlur={commit} onPointerCancel={cancel} />
+      onPointerUp={commit} onKeyUp={() => { if (interaction.current === 'keyboard') commit(); }} onBlur={() => { if (interaction.current === 'keyboard') commit(); }} onPointerCancel={cancel} />
   </div>;
 }

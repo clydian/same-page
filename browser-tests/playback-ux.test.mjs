@@ -38,8 +38,11 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
 
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.getByLabel('标注范围',{exact:true}).selectOption('1');await expect.poll(()=>degrees.allTextContents()).toEqual(Array.from({length:48},(_,i)=>i<24?'1':'4'));await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  const range=page.getByRole('slider',{name:'播放进度',exact:true});await range.fill('12');await range.dispatchEvent('pointerup');await expect(range).toHaveValue('12');
- const scroll=page.locator('.practice-notation-scroll');await scroll.hover();await page.mouse.wheel(0,400);await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();await expect(page.getByRole('button',{name:'恢复自动跟随'})).toHaveCount(0);
- await scroll.press('Home');await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();
+ await page.setViewportSize({width:640,height:600});
+ const scroll=page.locator('.practice-notation-scroll');await expect.poll(()=>scroll.evaluate(e=>e.scrollHeight-e.clientHeight)).toBeGreaterThan(0);
+ const towardEnd=await scroll.evaluate(e=>e.scrollTop<(e.scrollHeight-e.clientHeight)/2);await scroll.hover();await page.mouse.wheel(0,towardEnd?400:-400);await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();await expect(page.getByRole('button',{name:'恢复自动跟随'})).toHaveCount(0);
+ const towardStart=await scroll.evaluate(e=>e.scrollTop>(e.scrollHeight-e.clientHeight)/2);await scroll.press(towardStart?'Home':'End');await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();
+ await page.setViewportSize({width:1024,height:768});
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
  await expect(settings.getByLabel('关注声部',{exact:true})).toBeVisible();
  const row=settings.locator('.practice-part').first();const rowControls=await row.locator('input,button').evaluateAll(elements=>elements.map(e=>e.getBoundingClientRect().toJSON()));
