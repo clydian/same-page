@@ -23,11 +23,8 @@ export const playbackStore = {
 };
 export function stopPlayback() { source = null; setPlaybackView('pdf'); listeners.forEach(listener => listener()); }
 export function startPlayback(next: PlaybackSource) {
-  if (source && source.ownerKey === next.ownerKey && source.sessionId === next.sessionId && source.choirId === next.choirId && source.score.id === next.score.id && source.attachment.id === next.attachment.id && source.attachment.revision === next.attachment.revision) {
-    setPlaybackView(next.attachment.kind === 'musicxml' ? 'xml' : 'pdf');
-    return;
-  }
-  source = next;
+  // Each explicit opening is a new session; view switching uses setPlaybackView.
+  source = { ...next };
   generation += 1;
   setPlaybackView(next.attachment.kind === 'musicxml' ? 'xml' : 'pdf');
   listeners.forEach(listener => listener());

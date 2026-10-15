@@ -5,7 +5,6 @@ import { attachmentFetch } from '../score-library/attachments/request';
 import { readAttachment, attachmentFileUrl } from '../score-library/attachments/api';
 import { playbackViewStore, stopPlayback, type PlaybackSource } from './playback-store';
 import { SettingsRequestError } from '../settings/settings-request';
-import { rememberPractice } from './practice-preferences';
 import { PracticePlayerShell } from './practice-player-shell';
 import { clearPlaybackPreparation, readPlaybackPreparation, savePlaybackPreparation } from './playback-preparation';
 import { usePlaybackLifetime } from './use-playback-lifetime';
@@ -23,7 +22,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   usePlaybackLifetime(source);
   useEffect(() => {
     const abort = new AbortController();
-    let player: PlayerSession | null = null, releasePreferences = () => {};
+    let player: PlayerSession | null = null;
     const timeout = setTimeout(() => abort.abort(new Error('读取附件超时，请重试。')), 60000);
     const pauseForAudio = (event: Event) => { if (event.target instanceof HTMLMediaElement) player?.pause(); };
     document.addEventListener('play', pauseForAudio, true);
@@ -47,13 +46,12 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
       const sourceBytes = bytes;
       player = createPlayerSession(container.current, sourceBytes, { scrollElement: viewport.current ?? undefined, prepared: cached?.prepared,
         onPrepared: prepared => { if (!abort.signal.aborted) savePlaybackPreparation(source, sourceBytes, prepared); } });
-      releasePreferences = rememberPractice(player, source);
       setSession(player);
     })().catch(reason => {
       if (!abort.signal.aborted && reason instanceof SettingsRequestError && [401,403,404].includes(reason.status)) { clearPlaybackPreparation(source); stopPlayback(); return; }
       if (!abort.signal.aborted || abort.signal.reason instanceof Error && abort.signal.reason.name !== 'AbortError') setError(reason instanceof Error ? reason.message : '读取失败。');
     });
-    return () => { releasePreferences(); abort.abort(); clearTimeout(timeout); document.removeEventListener('play', pauseForAudio, true); player?.dispose(); };
+    return () => { abort.abort(); clearTimeout(timeout); document.removeEventListener('play', pauseForAudio, true); player?.dispose(); };
   }, [source, attempt]);
   const play = () => { document.querySelectorAll('audio,video').forEach(element => { if (element instanceof HTMLMediaElement) element.pause(); }); session?.playPause(); };
   const ready = state.status === 'ready' && !error;
