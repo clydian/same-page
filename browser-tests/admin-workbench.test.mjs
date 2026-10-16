@@ -140,6 +140,20 @@ for (const [engine, type] of [
       ])
         await page.getByLabel(label, { exact: true }).check();
       await page.getByLabel("检查备注", { exact: true }).fill("两声部已核对");
+      // Saving through the navigation guard must advance the local review CAS,
+      // even if the subsequent import is cancelled.
+      await page.getByRole("button", { name: "导入 XML", exact: true }).click();
+      await expect(
+        page.getByRole("dialog", { name: "处理未保存的修改" }),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "保存并返回", exact: true })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "导入候选练习版" }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "关闭", exact: true }).click();
+
       await page
         .getByRole("button", { name: "标记检查通过", exact: true })
         .click();

@@ -48,6 +48,11 @@ export function ReviewContent({
   const [ready, setReady] = useState(false),
     [checks, setChecks] = useState([false, false, false]),
     [note, setNote] = useState(candidate?.reviewNote ?? ""),
+    [savedNote, setSavedNote] = useState(candidate?.reviewNote ?? ""),
+    [reviewRevision, setReviewRevision] = useState(
+      candidate?.reviewRevision ?? 0,
+    ),
+    [reviewStatus, setReviewStatus] = useState(candidate?.review ?? "pending"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [confirm, setConfirm] = useState(false),
@@ -68,7 +73,7 @@ export function ReviewContent({
         `/scores/${score.id}/candidates/${candidate.id}/review`,
         {
           ...jsonPost({
-            expectedRevision: candidate.reviewRevision,
+            expectedRevision: reviewRevision,
             decision: "pending",
             technicalPassed: ready,
             note,
@@ -76,7 +81,12 @@ export function ReviewContent({
           signal: c.signal,
         },
       );
-      return !c.signal.aborted;
+      if (c.signal.aborted) return false;
+      setSavedNote(note);
+      setReviewRevision(reviewRevision + 1);
+      setReviewStatus("pending");
+      setError("");
+      return true;
     } catch (e) {
       if (!c.signal.aborted) {
         setError(e instanceof Error ? e.message : "保存失败。");
@@ -88,9 +98,9 @@ export function ReviewContent({
     }
   };
   const guard = useUnsavedChangesGuard({
-    dirty: note !== (candidate?.reviewNote ?? ""),
+    dirty: note !== savedNote,
     save: saveNotes,
-    discard: () => setNote(candidate?.reviewNote ?? ""),
+    discard: () => setNote(savedNote),
     saveState: { blocked: busy, message: null },
     subject: "检查备注",
   });
@@ -127,8 +137,8 @@ export function ReviewContent({
       ? `${base}/file`
       : null;
   const canPublish =
-    candidate?.review === "approved" &&
-    !!candidate.technicalPassed &&
+    reviewStatus === "approved" &&
+    !!candidate?.technicalPassed &&
     ready &&
     !stale &&
     !score.disabled &&
@@ -211,12 +221,14 @@ export function ReviewContent({
           </label>
           <p>
             检查结论：
-            {candidate.review === "approved"
+            {reviewStatus === "approved"
               ? "已通过"
-              : candidate.review === "rejected"
+              : reviewStatus === "rejected"
                 ? "已退回"
                 : "待检查"}
-            {candidate.reviewedAt && ` · ${date(candidate.reviewedAt)}`}
+            {reviewStatus !== "pending" &&
+              candidate.reviewedAt &&
+              ` · ${date(candidate.reviewedAt)}`}
           </p>
           <div className="admin-actions">
             <Button
@@ -237,7 +249,7 @@ export function ReviewContent({
                 void post(
                   `${base}/review`,
                   {
-                    expectedRevision: candidate.reviewRevision,
+                    expectedRevision: reviewRevision,
                     decision: "approved",
                     technicalPassed: ready,
                     note,
@@ -255,7 +267,7 @@ export function ReviewContent({
                 void post(
                   `${base}/review`,
                   {
-                    expectedRevision: candidate.reviewRevision,
+                    expectedRevision: reviewRevision,
                     decision: "rejected",
                     technicalPassed: ready,
                     note,
@@ -268,7 +280,7 @@ export function ReviewContent({
             </Button>
             <Button
               className="primary-button"
-              isDisabled={busy || !canPublish || note !== candidate.reviewNote}
+              isDisabled={busy || !canPublish || note !== savedNote}
               onPress={() => setConfirm(true)}
             >
               发布练习版
@@ -324,7 +336,7 @@ export function ReviewContent({
                       `${base}/publish`,
                       {
                         ...publication.current,
-                        expectedReviewRevision: candidate.reviewRevision,
+                        expectedReviewRevision: reviewRevision,
                         expectedAttachmentRevision:
                           score.attachmentRevision ?? 0,
                       },

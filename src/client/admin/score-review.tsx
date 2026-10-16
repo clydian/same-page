@@ -104,7 +104,10 @@ export function ScoreReview({
             value={selected}
             onChange={async (e) => {
               const next = e.target.value;
-              if ((await beforeLeaveRef.current()) === true) setSelected(next);
+              if ((await beforeLeaveRef.current()) === true) {
+                setSelected(next);
+                setRefresh((r) => r + 1);
+              }
             }}
           >
             <option value="">当前原 PDF</option>
