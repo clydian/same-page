@@ -40,7 +40,7 @@ it("keeps an explicit original PDF selection when metadata is refreshed", async 
   const picker = await screen.findByLabelText("比较结果");
   await act(async () => { fireEvent.change(picker, { target: { value: "" } }); });
   await waitFor(() => expect(screen.getByText("原 PDF 预览")).toBeVisible());
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "刷新", exact: true })); });
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "刷新" })); });
   await waitFor(() => expect(screen.getByText("原 PDF 预览")).toBeVisible());
   expect(screen.getByLabelText("比较结果")).toHaveValue("");
 });
@@ -52,7 +52,7 @@ it("reloads a selected older candidate even when it is outside the first page", 
   await act(async () => { fireEvent.change(screen.getByLabelText("比较结果"), { target: { value: old.id } }); });
   await waitFor(() => expect(readAdminDetail).toHaveBeenLastCalledWith("score", expect.any(AbortSignal), undefined, old.id));
   await waitFor(() => expect(screen.getByText(old.name, { selector: "p" })).toBeVisible());
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "刷新", exact: true })); });
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "刷新" })); });
   await waitFor(() => expect(screen.getByText(old.name, { selector: "p" })).toBeVisible());
   expect(screen.getByLabelText("比较结果")).toHaveValue(old.id);
 });
