@@ -149,7 +149,8 @@ adminRoutes.get("/admin/scores/:scoreId", async (c) => {
     .regex(/^\d+:[^:]{1,100}$/)
     .optional()
     .safeParse(c.req.query("before"));
-  if (!cursor.success) return c.json({ error: "invalid_query" }, 400);
+  const selected = z.uuid().optional().safeParse(c.req.query("selected"));
+  if (!cursor.success || !selected.success) return c.json({ error: "invalid_query" }, 400);
   const [time = "0", lastId = ""] = cursor.data?.split(":") ?? [];
   const rows = await c.env.DB.prepare(
     `${candidateSelect} WHERE score_id=? AND choir_id=? AND expires_at>? AND (?=0 OR created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 101`,
@@ -164,11 +165,16 @@ adminRoutes.get("/admin/scores/:scoreId", async (c) => {
       lastId,
     )
     .all<{ id: string; createdAt: number }>();
+  const selectedCandidate = selected.data
+    ? await c.env.DB.prepare(`${candidateSelect} WHERE id=? AND score_id=? AND choir_id=? AND expires_at>?`)
+        .bind(selected.data, s.id, s.choirId, Date.now()).first()
+    : null;
   const last = rows.results[99];
   await audit(c, a.userId, "view-score", s.id, s.choirId);
   return c.json({
     score: s,
     candidates: rows.results.slice(0, 100),
+    selectedCandidate,
     nextBefore:
       rows.results.length > 100 ? `${last.createdAt}:${last.id}` : null,
   });

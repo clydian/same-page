@@ -104,6 +104,13 @@ for (const [engine, type] of [
       await expect(
         page.getByRole("dialog", { name: "导入候选练习版" }),
       ).toHaveCount(0);
+      const imported = await page.getByLabel("比较结果", { exact: true }).inputValue();
+      await page.getByLabel("比较结果", { exact: true }).selectOption("");
+      await expect(page.getByText("先导入 XML，再对照检查和试听。", { exact: true })).toBeVisible();
+      await expect(page.getByLabel("比较结果", { exact: true })).toHaveValue("");
+      await page.getByRole("button", { name: "刷新", exact: true }).click();
+      await expect(page.getByText("先导入 XML，再对照检查和试听。", { exact: true })).toBeVisible();
+      await page.getByLabel("比较结果", { exact: true }).selectOption(imported);
       const player = page.getByTestId("musicxml-player");
       await expect(
         player.getByRole("button", { name: "播放", exact: true }),
