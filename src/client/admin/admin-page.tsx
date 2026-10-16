@@ -72,7 +72,7 @@ function AdminWorkspace() {
   const { scoreId } = useParams();
   return (
     <div className="app-page">
-      <TaskHeader title="产品后台" backTo="/user" />
+      <TaskHeader title="产品后台" backTo="/admin" />
       <main className="page-shell admin-page">
         {denied ? (
           <p role="alert">当前身份没有产品运营权限，或授权已撤销。</p>

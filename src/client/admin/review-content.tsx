@@ -46,7 +46,6 @@ export function ReviewContent({
   refresh(): void;
 }) {
   const [ready, setReady] = useState(false),
-    [checks, setChecks] = useState([false, false, false]),
     [note, setNote] = useState(candidate?.reviewNote ?? ""),
     [savedNote, setSavedNote] = useState(candidate?.reviewNote ?? ""),
     [reviewRevision, setReviewRevision] = useState(
@@ -118,12 +117,15 @@ export function ReviewContent({
       release = holdUpdate();
     try {
       await adminFetch(path, { ...jsonPost(data), signal: c.signal });
-      if (!c.signal.aborted) done();
+      if (c.signal.aborted) return false;
+      done();
+      return true;
     } catch (e) {
       if (!c.signal.aborted) {
         setError(e instanceof Error ? e.message : "操作失败。");
         onError(e);
       }
+      return false;
     } finally {
       release();
       if (!c.signal.aborted) setBusy(false);
@@ -137,8 +139,8 @@ export function ReviewContent({
       ? `${base}/file`
       : null;
   const canPublish =
-    reviewStatus === "approved" &&
-    !!candidate?.technicalPassed &&
+    candidate?.state === "ready" &&
+    !!cap.reviewXml &&
     ready &&
     !stale &&
     !score.disabled &&
@@ -186,33 +188,20 @@ export function ReviewContent({
               来源 PDF 已变化，此候选可以检查，但不能发布到当前乐谱。
             </p>
           )}
-          <p>
-            导入于 {date(candidate.createdAt)} · {candidate.sizeBytes} 字节 ·
-            到期 {date(candidate.expiresAt)}
-            <br />
-            来源工具：{candidate.tool || "未记录"} {candidate.parameters}
-          </p>
-          {[
-            "声部、音高与节奏已核对",
-            "调号、拍号与反复已核对",
-            "关键片段已试听",
-          ].map((label, i) => (
-            <label className="admin-check" key={label}>
-              <input
-                type="checkbox"
-                checked={checks[i]}
-                onChange={(e) =>
-                  setChecks((v) =>
-                    v.map((x, j) => (j === i ? e.target.checked : x)),
-                  )
-                }
-              />
-              {label}
-            </label>
-          ))}
+          <p>草稿已保存 · 保留至 {date(candidate.expiresAt)}</p>
+          <details className="admin-source-details">
+            <summary>导入信息</summary>
+            <p>
+              导入于 {date(candidate.createdAt)} · {candidate.sizeBytes} 字节
+              <br />
+              来源工具：{candidate.tool || "未记录"} {candidate.parameters}
+            </p>
+          </details>
           <label className="admin-field">
-            检查备注
+            检查备注（可选）
             <textarea
+              aria-label="检查备注"
+              placeholder="记录需要保留的说明，留空也可以发布。"
               maxLength={2000}
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -220,12 +209,14 @@ export function ReviewContent({
             />
           </label>
           <p>
-            检查结论：
-            {reviewStatus === "approved"
-              ? "已通过"
-              : reviewStatus === "rejected"
-                ? "已退回"
-                : "待检查"}
+            状态：
+            {success
+              ? "已发布"
+              : reviewStatus === "approved"
+                ? "已检查，待发布"
+                : reviewStatus === "rejected"
+                  ? "已退回"
+                  : "待检查"}
             {reviewStatus !== "pending" &&
               candidate.reviewedAt &&
               ` · ${date(candidate.reviewedAt)}`}
@@ -238,49 +229,11 @@ export function ReviewContent({
                 if (await saveNotes()) refresh();
               }}
             >
-              保存备注（重新待检查）
-            </Button>
-            <Button
-              className="secondary-button"
-              isDisabled={
-                busy || !cap.reviewXml || !ready || !checks.every(Boolean)
-              }
-              onPress={() =>
-                void post(
-                  `${base}/review`,
-                  {
-                    expectedRevision: reviewRevision,
-                    decision: "approved",
-                    technicalPassed: ready,
-                    note,
-                  },
-                  refresh,
-                )
-              }
-            >
-              标记检查通过
-            </Button>
-            <Button
-              className="secondary-button"
-              isDisabled={busy || !cap.reviewXml || candidate.state !== "ready"}
-              onPress={() =>
-                void post(
-                  `${base}/review`,
-                  {
-                    expectedRevision: reviewRevision,
-                    decision: "rejected",
-                    technicalPassed: ready,
-                    note,
-                  },
-                  refresh,
-                )
-              }
-            >
-              退回
+              保存草稿
             </Button>
             <Button
               className="primary-button"
-              isDisabled={busy || !canPublish || note !== savedNote}
+              isDisabled={busy || !canPublish}
               onPress={() => setConfirm(true)}
             >
               发布练习版
@@ -317,7 +270,7 @@ export function ReviewContent({
                 PDF 与用户附件保持不变。
               </p>
               <p>
-                服务端会再次核对来源 PDF、检查记录、用户移除选择与正式附件修订。
+                确认发布表示你已完成检查。检查备注会一并保存。
               </p>
               {error && <p role="alert">{error}</p>}
               <div className="admin-actions">
@@ -331,21 +284,39 @@ export function ReviewContent({
                 <Button
                   className="primary-button"
                   isDisabled={busy || !canPublish}
-                  onPress={() =>
-                    void post(
+                  onPress={async () => {
+                    let revision = reviewRevision;
+                    if (reviewStatus !== "approved" || note !== savedNote) {
+                      const approved = await post(
+                        `${base}/review`,
+                        {
+                          expectedRevision: revision,
+                          decision: "approved",
+                          technicalPassed: ready,
+                          note,
+                        },
+                        () => {
+                          setSavedNote(note);
+                          setReviewRevision(revision + 1);
+                          setReviewStatus("approved");
+                        },
+                      );
+                      if (!approved) return;
+                      revision += 1;
+                    }
+                    await post(
                       `${base}/publish`,
                       {
                         ...publication.current,
-                        expectedReviewRevision: reviewRevision,
-                        expectedAttachmentRevision:
-                          score.attachmentRevision ?? 0,
+                        expectedReviewRevision: revision,
+                        expectedAttachmentRevision: score.attachmentRevision ?? 0,
                       },
                       () => {
                         setConfirm(false);
                         setSuccess(true);
                       },
-                    )
-                  }
+                    );
+                  }}
                 >
                   {busy ? "正在发布…" : "确认发布"}
                 </Button>

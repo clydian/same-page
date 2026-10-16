@@ -67,6 +67,9 @@ for (const [engine, type] of [
       const page = await context.newPage(),
         errors = [];
       page.on("pageerror", (e) => errors.push(e.stack));
+      await page.goto(f.origin + "/user");
+      await expect(page.getByRole("heading", { name: "账户", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: /产品后台/ })).toHaveCount(0);
       await page.goto(f.origin + "/admin");
       await expect(
         page.getByRole("link", { name: "查看与检查 →" }),
@@ -133,12 +136,7 @@ for (const [engine, type] of [
       await page
         .getByRole("button", { name: "关闭练习设置", exact: true })
         .click();
-      for (const label of [
-        "声部、音高与节奏已核对",
-        "调号、拍号与反复已核对",
-        "关键片段已试听",
-      ])
-        await page.getByLabel(label, { exact: true }).check();
+      await expect(page.getByRole("checkbox")).toHaveCount(0);
       await page.getByLabel("检查备注", { exact: true }).fill("两声部已核对");
       // Saving through the navigation guard must advance the local review CAS,
       // even if the subsequent import is cancelled.
@@ -154,10 +152,9 @@ for (const [engine, type] of [
       ).toBeVisible();
       await page.getByRole("button", { name: "关闭", exact: true }).click();
 
-      await page
-        .getByRole("button", { name: "标记检查通过", exact: true })
-        .click();
-      await expect(page.getByText(/检查结论：已通过/)).toBeVisible();
+      // Publishing saves the latest optional note without a separate approval step.
+      const publicationNote = engine === "chromium" ? "" : "检查完成，供后续备案";
+      await page.getByLabel("检查备注", { exact: true }).fill(publicationNote);
       await expect(
         page.getByRole("button", { name: "发布练习版", exact: true }),
       ).toBeEnabled({ timeout: 60000 });
@@ -166,6 +163,9 @@ for (const [engine, type] of [
         .click();
       await page.getByRole("button", { name: "确认发布", exact: true }).click();
       await expect(page.getByText(/发布成功，成员现在可以使用/)).toBeVisible();
+      const reviewed = await (await context.request.get(`${f.origin}/api/admin/scores/${f.adminScoreId}`)).json();
+      assert.equal(reviewed.candidates[0].reviewNote, publicationNote);
+      assert.equal(reviewed.candidates[0].review, "approved");
       const member = await browser.newContext({ serviceWorkers: "block" });
       await member.request.post(f.origin + "/api/auth/sign-in/email", {
         headers: { origin: f.origin },

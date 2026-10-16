@@ -105,14 +105,6 @@
   line-height: 1.8;
   color: var(--muted);
 }
-.admin-check {
-  display: block;
-  margin: 1rem 0;
-}
-.admin-check input {
-  margin-right: 0.6rem;
-  accent-color: var(--brand);
-}
 .admin-field {
   display: block;
   margin: 1rem 0;

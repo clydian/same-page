@@ -1,4 +1,3 @@
-import { ProductAdminLink } from '../admin/product-admin-link';
 import { useApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
 import { useLogout } from "../auth/logout-context";
@@ -18,7 +17,7 @@ export default function PersonalSettingsPage() {
         <p className="settings-copy">阅读偏好和显示名在各云盘中分别设置。</p>
         {email && <p>{email}</p>}<IdentityNotice identity={identity} />
         {identity.localUserId ? <button className="secondary-button" onClick={() => void logout.request()}>退出登录</button> : !identity.restoring && identity.onlineState === "signed-out" && <Link to="/login">登录</Link>}
-        <ProductAdminLink userId={identity.onlineState==='authenticated'?identity.session.data?.user.id??null:null} /><h2>用户与数据</h2><Link className="settings-secondary-link settings-danger-link" to="/user/lifecycle">删除用户<span aria-hidden="true">›</span></Link>
+        <h2>用户与数据</h2><Link className="settings-secondary-link settings-danger-link" to="/user/lifecycle">删除用户<span aria-hidden="true">›</span></Link>
       </section>
     </main>
   </div>;
