@@ -41,7 +41,7 @@
 .practice-notation-scroll:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
 .practice-follow { position: relative; z-index: 2; align-self: center; flex-shrink: 0; margin-top: 6px; min-height: 44px; padding: 0 14px; border: 1px solid #dce4de; border-radius: 24px; background: #fcfdfbf5; color: #365747; font: inherit; font-size: 12px; box-shadow: 0 2px 12px #17352b14; }
 .practice-follow:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
-.practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; }
+.practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 16px; }
 .practice-notation-scroll > div { max-width: 1100px; margin: auto; padding: 12px; background: #fff; border-radius: 3px; box-shadow: 0 1px 5px #17352b0a; }
 /* Match Chorus: alphaTab supplies positions/classes; the host supplies their visible colors. */
 .practice-notation .at-cursor-bar { background: rgba(212,165,94,.13) !important; border: 1px solid rgba(185,126,72,.16); border-radius: 6px; }

@@ -7,6 +7,7 @@ import { playbackViewStore, stopPlayback, type PlaybackSource } from './playback
 import { SettingsRequestError } from '../settings/settings-request';
 import { PracticePlayerShell } from './practice-player-shell';
 import { clearPlaybackPreparation, readPlaybackPreparation, savePlaybackPreparation } from './playback-preparation';
+import { useNotationPinch } from './use-notation-pinch';
 import { usePlaybackLifetime } from './use-playback-lifetime';
 const preparing: PlayerState = { status: 'preparing', message: '正在准备播放…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .6, focus: null, loop: null };
 const noSubscribe = () => () => {};
@@ -20,6 +21,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const state = useSyncExternalStore(session?.subscribe ?? noSubscribe, session?.getSnapshot ?? initialSnapshot);
   const view = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
   usePlaybackLifetime(source);
+  useNotationPinch(viewport, session, view === 'xml' && !error);
   useEffect(() => {
     const abort = new AbortController();
     let player: PlayerSession | null = null;
