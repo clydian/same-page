@@ -36,7 +36,8 @@
     "cf-typegen": "wrangler types",
     "deploy": "node scripts/release-artifact.mjs verify \"$SAME_PAGE_RELEASE_SHA\" && node scripts/retire-image-consumer.mjs && wrangler deploy --config dist/same_page/wrangler.json",
     "test:smoke": "node scripts/run-browser-tests.mjs smoke",
-    "diagnostics:inbox": "node scripts/diagnostic-reports.mjs"
+    "diagnostics:inbox": "node scripts/diagnostic-reports.mjs",
+    "prototype:admin": "vite --config src/client/routes/admin-prototype/vite.config.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",
