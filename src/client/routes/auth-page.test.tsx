@@ -88,6 +88,20 @@ describe("AuthPage", () => {
     expect(await screen.findByLabelText("current route")).toHaveTextContent("/choirs/drive/scores/score");
   });
 
+  it.each(["/admin", "/admin/scores/score-1"])("returns an internal backend login to %s without joining a drive", async target => {
+    const previous = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (input === "/api/guest/session" && !init?.method) return Response.json({ choir: { id: "drive", name: "排练", guestAdmissionMode: "open" }, entryKind: "admission" });
+      return previous(input, init);
+    });
+    renderAuthPage(`/login?returnTo=${encodeURIComponent(target)}`);
+    await identify("developer@example.test");
+    fireEvent.change(await screen.findByLabelText("密码"), { target: { value: "correct horse battery staple" } });
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
+    expect(await screen.findByLabelText("current route")).toHaveTextContent(target);
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("join-state"))).toBe(false);
+  });
+
   it("does not recover a stale input after focus leaves auth or the page unmounts", async () => {
     mockFirstPasswordFlow();
     const viewport = Object.assign(new EventTarget(), { offsetTop: 0, height: 200 });

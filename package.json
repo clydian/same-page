@@ -36,7 +36,8 @@
     "cf-typegen": "wrangler types",
     "deploy": "node scripts/release-artifact.mjs verify \"$SAME_PAGE_RELEASE_SHA\" && node scripts/retire-image-consumer.mjs && wrangler deploy --config dist/same_page/wrangler.json",
     "test:smoke": "node scripts/run-browser-tests.mjs smoke",
-    "diagnostics:inbox": "node scripts/diagnostic-reports.mjs"
+    "diagnostics:inbox": "node scripts/diagnostic-reports.mjs",
+    "admin:configure": "node scripts/product-admin.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",

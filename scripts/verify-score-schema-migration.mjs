@@ -210,6 +210,12 @@ function verifyPdfTrashMigration() {
     [{ replaced_file_name: "保留.pdf", replaced_at: 4000000000000 - 2592000000, replaced_from_score_id: "preserved-score", retention_expires_at: 4000000000000 }]);
   assert(query("SELECT source FROM score_attachments").every(row => row.source === "user"));
   assert(query("SELECT generated_xml_disabled FROM scores").every(row => row.generated_xml_disabled === 0));
+  const beforeAdmin = queryNamed(queries);
+  applyMigrations("0032_product_admin_xml.sql");
+  assert.deepEqual(queryNamed(queries), beforeAdmin, "Product admin migration is additive and preserves all user contents and quota");
+  assert.deepEqual(query("SELECT * FROM product_operators"), []);
+  assert.deepEqual(query("SELECT * FROM product_admin_drives"), []);
+  assert(query("SELECT source_pdf_version_id FROM score_attachments").every(row => row.source_pdf_version_id === null));
 }
 
 function verifyAttachmentMigration() {

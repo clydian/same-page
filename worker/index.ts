@@ -1,3 +1,5 @@
+import { adminRoutes } from './admin/routes';
+import { cleanupAdminXml } from './admin/cleanup';
 import { AttachmentError } from "./attachments/storage";
 import { attachmentRoutes } from "./attachments/routes";
 import { androidReleaseRoutes } from "./android-release";
@@ -51,6 +53,7 @@ app.on(["GET", "POST"], "/api/auth/*", handleAuthRequest);
 app.route("/api", androidReleaseRoutes);
 
 app.use("/api/*", excludeDeletedResources);
+app.route("/api", adminRoutes);
 app.route("/api", trialRoutes);
 app.route("/api", diagnosticReportRoutes);
 app.route("/api", permissionRoutes);
@@ -69,8 +72,8 @@ app.onError((error, context) => {
     const messages: string[] = [];
     let cause: unknown = error;
     for (let depth = 0; cause instanceof Error && depth < 5; depth++, cause = cause.cause) messages.push(cause.message);
-    const code = ["platform_storage_limit_reached", "free_drive_limit_reached", "owned_drive_limit_reached", "member_limit_reached", "score_limit_reached", "resource_deleted", "attachment_limit_reached", "choir_storage_quota_exceeded"].find(code => messages.some(message => message.includes(code)));
-    if (code) return context.json({ error: code }, 409);
+    const code = ["admin_storage_limit_reached", "admin_access_revoked", "xml_publication_conflict", "attachment_conflict", "platform_storage_limit_reached", "free_drive_limit_reached", "owned_drive_limit_reached", "member_limit_reached", "score_limit_reached", "resource_deleted", "attachment_limit_reached", "choir_storage_quota_exceeded"].find(code => messages.some(message => message.includes(code)));
+    if (code) return context.json({ error: code }, code === "admin_access_revoked" ? 403 : 409);
   }
   if (error instanceof Error && error.message.includes("owner_requires_transfer")) {
     return context.json({ error: "owner_requires_transfer" }, 409);
@@ -93,7 +96,7 @@ export default {
       logFailure("storage", "cleanup", 500, crypto.randomUUID());
       throw new Error("diagnostic_report_cleanup_failed");
     }));
-    context.waitUntil(cleanupScoreStorage(env).catch(() => {
+    context.waitUntil(cleanupAdminXml(env).then(() => cleanupScoreStorage(env)).catch(() => {
       logFailure("storage", "cleanup", 500, crypto.randomUUID());
       throw new Error("score_storage_cleanup_failed");
     }));

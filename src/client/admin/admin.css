@@ -1,0 +1,315 @@
+.admin-page {
+  width: min(100rem, calc(100% - 2rem));
+  padding-top: 2rem;
+}
+.admin-title {
+  font-size: 1.8rem;
+  line-height: 1.3;
+  margin: 0.8rem 0;
+}
+.admin-nav,
+.admin-actions,
+.admin-filters,
+.admin-result-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.admin-nav {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1rem;
+}
+.admin-nav span {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.admin-filters input,
+.admin-filters select,
+.admin-result-picker select,
+.admin-field input,
+.admin-field textarea {
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--ink);
+  max-width: 100%;
+}
+.admin-filters label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.admin-table {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+.admin-table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.admin-table th,
+.admin-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.admin-table th {
+  background: var(--brand-soft);
+}
+.admin-table td small,
+.admin-audit small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.admin-score-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.admin-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+.admin-comparison > section {
+  min-width: 0;
+}
+.admin-comparison h2 {
+  font-size: 1rem;
+  margin: 1rem 0;
+}
+.admin-comparison .attachment-pdf {
+  height: 75vh;
+}
+.admin-review {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  max-width: 65rem;
+}
+.admin-review h2 {
+  font-size: 1.25rem;
+}
+.admin-review > p {
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.admin-field {
+  display: block;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+.admin-field input,
+.admin-field textarea {
+  display: block;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+.admin-field textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+.admin-audit {
+  list-style: none;
+  padding: 0;
+}
+.admin-audit li {
+  padding: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.admin-musicxml {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  overflow: hidden;
+  height: 75vh;
+  min-height: 25rem;
+  background: var(--surface);
+}
+.admin-musicxml .practice-notation {
+  position: relative;
+  inset: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  order: 1;
+}
+.admin-musicxml .practice-header {
+  position: relative;
+  inset: auto;
+  flex: none;
+  min-height: 44px;
+  order: 0;
+  z-index: auto;
+  padding: 0.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.admin-musicxml .practice-header > strong {
+  font-size: 0.8rem;
+  margin-right: auto;
+}
+.admin-musicxml .practice-dock {
+  position: relative;
+  inset: auto;
+  order: 2;
+  flex: none;
+  z-index: auto;
+}
+.admin-musicxml .practice-bar {
+  min-height: 60px;
+}
+.admin-musicxml .practice-position {
+  display: none;
+}
+.admin-musicxml .practice-notation-scroll {
+  padding: 8px;
+}
+.admin-musicxml .practice-notation-paper {
+  padding: 0;
+}
+.admin-musicxml .practice-follow {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+.admin-page p[role="alert"] {
+  color: #9b302a;
+  background: #fcf0ec;
+  padding: 0.8rem;
+  border-radius: 0.4rem;
+}
+.admin-page .loading-status {
+  margin: 1rem 0;
+}
+@media (max-width: 800px) {
+  .admin-comparison {
+    grid-template-columns: 1fr;
+  }
+  .admin-nav span {
+    width: 100%;
+    margin: 0;
+  }
+  .admin-comparison .attachment-pdf,
+  .admin-musicxml {
+    height: 65vh;
+  }
+  .admin-score-heading {
+    align-items: flex-start;
+  }
+  .admin-title {
+    font-size: 1.4rem;
+  }
+  .admin-result-picker select {
+    width: 100%;
+  }
+}
+
+/* Use the product palette and explicit states for every internal navigation. */
+.admin-header {
+  gap: 0.8rem;
+}
+.admin-header strong {
+  font-size: 1.1rem;
+}
+.admin-header > span {
+  padding-left: 0.8rem;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.admin-nav {
+  gap: 0.4rem;
+}
+.admin-nav-item,
+.admin-nav-item:visited {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.admin-nav-item[aria-current="page"] {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.admin-nav-item:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.admin-open-score,
+.admin-open-score:visited,
+.admin-back-link,
+.admin-back-link:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.admin-open-score:hover,
+.admin-back-link:hover {
+  background: var(--brand-soft);
+}
+.admin-page a:focus-visible,
+.admin-nav-item:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+.admin-sign-in {
+  max-width: 30rem;
+  padding-top: 12vh;
+}
+.admin-sign-in > p:not(.eyebrow) {
+  color: var(--muted);
+  margin: 1rem 0 1.5rem;
+}
+
+.admin-identity {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.admin-filters select,
+.admin-result-picker select {
+  appearance: none;
+  min-height: 44px;
+  font: inherit;
+  padding-right: 2.4rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23014653' stroke-width='1.5'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
