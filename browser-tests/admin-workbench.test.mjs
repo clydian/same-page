@@ -121,6 +121,12 @@ for (const [engine, type] of [
       await expect(
         page.locator(".admin-comparison canvas").first(),
       ).toBeAttached({ timeout: 20000 });
+      const notationSize = page.getByRole("button", { name: "恢复默认谱面大小", exact: true });
+      await expect(notationSize).toHaveText("60%");
+      await page.locator(".admin-musicxml .practice-notation-scroll").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80 });
+      await expect(notationSize).toHaveText("90%");
+      await notationSize.click();
+      await expect(notationSize).toHaveText("60%");
       await player.getByRole("button", { name: "播放", exact: true }).click();
       await expect(
         player.getByRole("button", { name: "暂停", exact: true }),
