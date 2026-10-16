@@ -9,7 +9,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   const fixture = await startStorageFixture({authenticated:true, previewEntry:false}); let browser;
   t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
   browser = await type.launch();
-  const context = await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block',hasTouch:true});
+  const context = await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block',hasTouch:true,isMobile:engine === 'chromium'});
   await context.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen','true'));
   await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}});
   const bytes = Buffer.from(musicXmlFixture(128).toString().replaceAll('<measure number="1">','<measure number="0" implicit="yes">').replaceAll('<measure number="2">','<measure number="25">').replaceAll(/(<measure[^>]*>)/g,'$1<print new-system="yes"/>')), id = crypto.randomUUID();
@@ -26,8 +26,50 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(page.locator('.practice-measure-label').nth(1)).toHaveText('25');
   const size = page.getByRole('button',{name:'恢复默认谱面大小',exact:true});
   await expect(size).toHaveText('60%');
+  // A native mobile pinch must resize notation, never the browser or transport.
+  const pinch = async (from, to) => {
+    if (engine === 'chromium') {
+      const cdp = await context.newCDPSession(page);
+      const points = distance => [{x:195-distance/2,y:300,id:1},{x:195+distance/2,y:300,id:2}];
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:points(from)});
+      for (let step=1;step<=10;step++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:points(from+(to-from)*step/10)});
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      await cdp.detach();
+    } else {
+      // WebKit's automation protocol has no multi-touch input command.
+      await page.locator('.practice-notation-scroll').evaluate((element,{from,to}) => {
+        const send = (type,distance) => {
+          const touches = distance ? [{identifier:1,target:element,clientX:195-distance/2,clientY:300},{identifier:2,target:element,clientX:195+distance/2,clientY:300}] : [];
+          const event = new Event(type,{bubbles:true,cancelable:true});
+          Object.defineProperty(event,'touches',{value:touches});
+          element.dispatchEvent(event);
+        };
+        send('touchstart',from);send('touchmove',to);send('touchend',0);
+      },{from,to});
+    }
+  };
+  const chromeBefore = await bar.boundingBox();
+  await pinch(80,120);
+  await expect(size).toHaveText('90%');
+  assert.equal(await page.evaluate(()=>visualViewport.scale),1,'pinch never magnifies the whole page');
+  assert.deepEqual(await bar.boundingBox(),chromeBefore,'playback controls retain their geometry');
+  await pinch(120,80);
+  await expect(size).toHaveText('60%');
+  await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toHaveCount(0);
+  if (engine === 'chromium') {
+    const scroll = page.locator('.practice-notation-scroll');
+    const cdp = await context.newCDPSession(page);
+    await scroll.evaluate(element => { element.scrollTop = 0; });
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:500,id:1}]});
+    for (let y=480;y>=300;y-=20) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195,y,id:1}]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await cdp.detach();
+    await expect.poll(()=>scroll.evaluate(element=>element.scrollTop)).toBeGreaterThan(0);
+    await page.getByRole('button',{name:'恢复自动跟随',exact:true}).click();
+  }
+
   const rowCount = () => page.locator('.practice-measure-label').evaluateAll(labels => new Set(labels.map(label => Math.round(label.getBoundingClientRect().top))).size);
-  await expect.poll(() => page.locator('.practice-measure-label').evaluateAll(labels => Math.abs(labels[0].getBoundingClientRect().top-labels[1].getBoundingClientRect().top))).toBeLessThan(1);
+  await expect.poll(() => page.locator('.practice-measure-label').evaluateAll(labels => labels.length < 2 ? Infinity : Math.abs(labels[0].getBoundingClientRect().top-labels[1].getBoundingClientRect().top))).toBeLessThan(1);
   for(let n=0;n<3;n++) await page.getByRole('button',{name:'缩小谱面',exact:true}).click();
   await expect(size).toHaveText('30%');
   await expect(page.getByRole('button',{name:'缩小谱面',exact:true})).toBeDisabled();

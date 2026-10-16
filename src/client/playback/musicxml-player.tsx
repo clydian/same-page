@@ -6,6 +6,7 @@ import { stopPlayback, type PlaybackSource } from './playback-store';
 import { SettingsRequestError } from '../settings/settings-request';
 import { MusicXmlPractice } from './musicxml-practice';
 import { clearPlaybackPreparation, readPlaybackPreparation, savePlaybackPreparation } from './playback-preparation';
+import { useNotationPinch } from './use-notation-pinch';
 import { usePlaybackLifetime } from './use-playback-lifetime';
 export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const container = useRef<HTMLDivElement>(null), viewport = useRef<HTMLDivElement>(null);
@@ -13,6 +14,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   usePlaybackLifetime(source);
+  useNotationPinch(viewport, session, view === 'xml' && !error);
   useEffect(() => {
     const abort = new AbortController();
     let player: PlayerSession | null = null;
