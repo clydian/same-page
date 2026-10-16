@@ -67,23 +67,31 @@ for (const [engine, type] of [
       const page = await context.newPage(),
         errors = [];
       page.on("pageerror", (e) => errors.push(e.stack));
+      const visitor = await browser.newContext({ serviceWorkers: "block" });
+      const entry = await visitor.newPage();
+      await entry.goto(f.origin + "/admin");
+      await expect(entry.getByRole("heading", { name: "登录产品后台" })).toBeVisible();
+      await expect(entry.getByRole("link", { name: "登录", exact: true })).toHaveAttribute("href", "/login?returnTo=%2Fadmin");
+      await visitor.close();
       await page.goto(f.origin + "/user");
       await expect(page.getByRole("heading", { name: "账户", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: /产品后台/ })).toHaveCount(0);
       await page.goto(f.origin + "/admin");
       await expect(
-        page.getByRole("link", { name: "查看与检查 →" }),
+        page.getByRole("link", { name: "打开", exact: true }),
       ).toHaveCount(2);
+      await mkdir("artifacts/verification/admin", { recursive: true });
+      await page.screenshot({ path: `artifacts/verification/admin/${engine}-directory.png`, fullPage: true });
       await page
         .getByLabel("云盘", { exact: true })
         .selectOption(f.adminDriveId);
       await expect(
-        page.getByRole("link", { name: "查看与检查 →" }),
+        page.getByRole("link", { name: "打开", exact: true }),
       ).toHaveCount(1);
       await expect(
         page.getByRole("cell", { name: /另一份原谱\.pdf/ }),
       ).toBeVisible();
-      await page.getByRole("link", { name: "查看与检查 →" }).click();
+      await page.getByRole("link", { name: "打开", exact: true }).click();
       await page.getByRole("button", { name: "导入 XML", exact: true }).click();
       await page.getByLabel("MusicXML 文件", { exact: true }).setInputFiles({
         name: "练习.musicxml",

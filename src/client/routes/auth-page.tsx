@@ -410,6 +410,10 @@ export default function AuthPage() {
       await navigate("/user/lifecycle");
       return;
     }
+    if (returnTarget === "/admin" || returnTarget?.startsWith("/admin/scores/")) {
+      await navigate(returnTarget, { replace: true });
+      return;
+    }
     const pending = resumeDriveEntry();
     pendingEntryRef.current = pending;
     const result = await pending;

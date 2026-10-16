@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "react-aria-components";
-import { ArrowLeft, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import { LoadingStatus } from "../components/loading-status";
 import { readAdminDetail, type AdminCapabilities } from "./api";
 import { ImportXml } from "./import-xml";
@@ -67,16 +67,13 @@ export function ScoreReview({
         ) : (
           <LoadingStatus>正在读取乐谱…</LoadingStatus>
         )}
-        <Link to="/admin">返回工作台</Link>
+        <Link className="admin-back-link" to="/admin">返回工作台</Link>
       </>
     );
   const s = data.score,
     candidate = data.candidates.find((c) => c.id === selected);
   return (
     <>
-      <Link to="/admin">
-        <ArrowLeft size={15} /> 返回工作台
-      </Link>
       <header className="admin-score-heading">
         <div>
           <h1 className="admin-title">{s.fileName}</h1>
@@ -180,7 +177,7 @@ export function ScoreReview({
               setRefresh((r) => r + 1);
           }}
         >
-          重新读取
+          刷新
         </Button>
       </div>
       <ReviewContent

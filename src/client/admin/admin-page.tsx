@@ -1,9 +1,9 @@
 import { useAppNavigation } from "../navigation/navigation-context";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { Button } from "react-aria-components";
 import { useApplicationIdentity } from "../auth/application-identity";
-import { TaskHeader } from "../components/task-header";
+import { loginHref } from "../auth/login-return";
 import { LoadingStatus } from "../components/loading-status";
 import { adminSession, AdminRequestError, type AdminCapabilities } from "./api";
 import { Directory } from "./directory";
@@ -14,6 +14,7 @@ import "./admin.css";
 type Capabilities = AdminCapabilities;
 export default function AdminPage() {
   const identity = useApplicationIdentity();
+  const location = useLocation();
   if (identity.onlineState === "checking")
     return <LoadingStatus>正在确认登录…</LoadingStatus>;
   if (
@@ -21,10 +22,11 @@ export default function AdminPage() {
     !identity.session.data?.user.id
   )
     return (
-      <div className="page-shell">
-        <h1>产品后台</h1>
-        <p>请联网并使用获授权的身份登录。</p>
-        <Link to="/login">前往登录</Link>
+      <div className="page-shell admin-page admin-sign-in">
+        <p className="eyebrow">合谱 · 内部工具</p>
+        <h1>登录产品后台</h1>
+        <p>使用已获后台授权的合谱邮箱或 Google 登录。</p>
+        <Link className="primary-link" to={loginHref(location.pathname)}>登录</Link>
       </div>
     );
   return (
@@ -34,6 +36,7 @@ export default function AdminPage() {
   );
 }
 function AdminWorkspace() {
+  const identity = useApplicationIdentity();
   const navigation = useAppNavigation();
   const [cap, setCap] = useState<Capabilities | null>(null),
     [error, setError] = useState(""),
@@ -72,7 +75,10 @@ function AdminWorkspace() {
   const { scoreId } = useParams();
   return (
     <div className="app-page">
-      <TaskHeader title="产品后台" backTo="/admin" />
+      <header className="task-header admin-header">
+        <strong>合谱</strong><span>产品后台</span>
+        <small className="admin-identity">{identity.session.data?.user.email}</small>
+      </header>
       <main className="page-shell admin-page">
         {denied ? (
           <p role="alert">当前身份没有产品运营权限，或授权已撤销。</p>
@@ -84,18 +90,19 @@ function AdminWorkspace() {
         ) : (
           <>
             <nav className="admin-nav">
-              <Link to="/admin" onClick={() => setAudit(false)}>
+              <Link className="admin-nav-item" aria-current={!audit ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
                 乐谱工作台
               </Link>
               <Button
-                className="secondary-button"
+                className="admin-nav-item"
+                aria-current={audit ? "page" : undefined}
                 onPress={() =>
                   navigation.afterEditing(() => setAudit((a) => !a))
                 }
               >
-                {audit ? "返回乐谱" : "操作记录"}
+                操作记录
               </Button>
-              <span>仅已纳入试点的云盘 · 候选不对成员公开</span>
+              <span>草稿仅在后台可见</span>
             </nav>
             {audit ? (
               <Audit onError={report} />

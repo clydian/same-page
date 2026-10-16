@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "react-aria-components";
-import { Search, Music2 } from "lucide-react";
+import { Search, Music2, ChevronRight } from "lucide-react";
 import { LoadingStatus } from "../components/loading-status";
 import { readAdminDrives, readAdminList } from "./api";
 
@@ -171,7 +171,7 @@ export function Directory({ onError }: { onError(e: unknown): void }) {
                             : "—"}
                     </td>
                     <td>
-                      <Link to={`/admin/scores/${s.id}`}>查看与检查 →</Link>
+                      <Link className="admin-open-score" to={`/admin/scores/${s.id}`}>打开<ChevronRight size={16} aria-hidden="true" /></Link>
                     </td>
                   </tr>
                 ))}
