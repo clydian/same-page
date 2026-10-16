@@ -13,6 +13,7 @@ import { LocalIdentityObserver } from "./platform/local-identity-observer";
 import { ReaderPage } from "./reader/reader-runtime";
 import { HomePage } from "./routes/home-page";
 
+const AdminPage = lazy(() => import('./admin/admin-page'));
 const InstallPage = lazy(() => import("./install/install-page"));
 const HelpPage = lazy(() => import("./routes/help-page"));
 const DriveManagementPage = lazy(() => import("./routes/drive-management-page"));
@@ -48,6 +49,8 @@ export function AppRoutes() {
       <RouteScrollReset />
 
         <Routes>
+          <Route path="/admin" element={<RouteContent><AdminPage /></RouteContent>} />
+          <Route path="/admin/scores/:scoreId" element={<RouteContent><AdminPage /></RouteContent>} />
           <Route element={<PageWithFooter />}>
             <Route path="/" element={<RouteContent><HomePage startup={startup} /></RouteContent>} />
             <Route path="/drives" element={<RouteContent><HomePage /></RouteContent>} />

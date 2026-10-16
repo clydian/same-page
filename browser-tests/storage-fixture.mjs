@@ -9,10 +9,11 @@ import { startViteServer } from "../scripts/vite-server.mjs";
 
 // Each call owns a fresh local Worker store. Bindings are disposed before Vite
 // opens them, so the seed and server never contend for the same SQLite files.
-export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf() } = {}) {
+export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), productAdmin = false } = {}) {
   const accounts = authenticated ? [0, 1].map(() => ({ id: randomUUID(), email: `${randomUUID()}@example.test`, password: randomBytes(24).toString("hex") })) : [];
   const joinCode = invite ? Array.from(randomBytes(8), value => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[value & 31]).join("") : null;
   const choirId = randomUUID(), scoreId = randomUUID(), versionId = randomUUID();
+  const adminDriveId = randomUUID(), adminScoreId = randomUUID(), adminVersionId = randomUUID(), adminOwnerMembershipId = randomUUID();
   const fileName = "本地链路测试.pdf";
   const hash = createHash("sha256").update(pdf).digest("hex");
   const server = await startViteServer({
@@ -46,6 +47,20 @@ export async function startStorageFixture({ authenticated = false, invite = fals
           DB.prepare("INSERT INTO score_versions (id, choir_id, score_id, version_number, object_key, size_bytes, sha256, etag, page_count, state) VALUES (?, ?, ?, 1, ?, ?, ?, ?, 2, 'ready')").bind(versionId, choirId, scoreId, objectKey, pdf.length, hash, object.etag),
           ...accountStatements,
         ]);
+        if (productAdmin) {
+          if (accounts.length < 2) throw new Error("Product admin fixture requires authenticated accounts");
+          const secondKey = `${adminDriveId}/${adminScoreId}/${adminVersionId}.pdf`;
+          const secondObject = await SCORES_BUCKET.put(secondKey, pdf, { httpMetadata: { contentType: "application/pdf" } });
+          await DB.batch([
+            DB.prepare("INSERT INTO choirs(id,owner_membership_id,name,guest_admission_mode,storage_used_bytes) VALUES(?,?,'第二个试点云盘','open',?)").bind(adminDriveId,adminOwnerMembershipId,pdf.length),
+            DB.prepare("INSERT INTO memberships(id,choir_id,user_id,display_name,status) VALUES(?,?,?,'拥有者','active')").bind(adminOwnerMembershipId,adminDriveId,accounts[0].id),
+            DB.prepare("INSERT INTO scores(id,choir_id,file_name,file_name_key,current_version_id) VALUES(?,?,'另一份原谱.pdf','另一份原谱.pdf',?)").bind(adminScoreId,adminDriveId,adminVersionId),
+            DB.prepare("INSERT INTO score_versions(id,choir_id,score_id,version_number,object_key,size_bytes,sha256,etag,page_count,state) VALUES(?,?,?,1,?,?,?,?,2,'ready')").bind(adminVersionId,adminDriveId,adminScoreId,secondKey,pdf.length,hash,secondObject.httpEtag),
+            DB.prepare("INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)").bind(accounts[1].id),
+            DB.prepare("INSERT INTO product_admin_drives(choir_id) VALUES(?)").bind(choirId),
+            DB.prepare("INSERT INTO product_admin_drives(choir_id) VALUES(?)").bind(adminDriveId),
+          ]);
+        }
         if (joinCode) {
           const inviteHash = createHmac("sha256", platform.env.INVITE_SECRET).update(`join-code:${joinCode}`).digest("base64url");
           await DB.prepare("UPDATE choirs SET guest_admission_mode = 'invite', is_preview_entry = 0, join_code_hash = ? WHERE id = ?").bind(inviteHash, choirId).run();
@@ -66,5 +81,5 @@ export async function startStorageFixture({ authenticated = false, invite = fals
     },
   });
   const { buildId } = JSON.parse(await readFile("dist/client/build.json", "utf8"));
-  return { ...server, choirId, scoreId, versionId, fileName, pdf, buildId, accounts, joinCode };
+  return { ...server, choirId, scoreId, versionId, fileName, pdf, buildId, accounts, joinCode, adminDriveId, adminScoreId, adminVersionId };
 }

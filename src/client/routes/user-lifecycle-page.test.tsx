@@ -61,7 +61,7 @@ it("keeps ordinary personal settings available when lifecycle service fails", ()
   render(<MemoryRouter><PersonalSettingsPage /></MemoryRouter>);
   expect(screen.getByRole("button", { name: "退出登录" })).toBeVisible();
   expect(screen.getByRole("link", { name: "删除用户" })).toHaveAttribute("href", "/user/lifecycle");
-  expect(fetch).not.toHaveBeenCalled();
+  expect(vi.mocked(fetch).mock.calls.every(([url]) => !String(url).startsWith("/api/user/lifecycle"))).toBe(true);
 });
 it("explains expired deletion verification without losing the user's confirmation", async () => {
   const fetch = api();

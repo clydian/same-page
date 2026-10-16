@@ -10,7 +10,7 @@ import './practice-player.css';
 import { PlaybackTimeline, type Timeline } from './playback-timeline';
 
 type Props = {
-  source: PlaybackSource; ready: boolean; playing: boolean; message?: string; failed?: boolean;
+  source?: PlaybackSource; embedded?: boolean; ready: boolean; playing: boolean; message?: string; failed?: boolean;
   position: string; timeline: Timeline; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
   notationControls?: ReactNode;
   play(): void; previous(): void; next(): void; retry(): void; children: ReactNode;
@@ -18,14 +18,16 @@ type Props = {
 
 export function PracticePlayerShell(props: Props) {
   const { source } = props;
-  const view = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
+  const readerView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
+  const view = props.embedded ? 'xml' : readerView;
   const [panel, setPanel] = useState<'settings' | null>(null);
   const settingsTrigger = useRef<HTMLButtonElement>(null);
   const dock = useRef<HTMLDivElement>(null), header = useRef<HTMLElement>(null);
   const location = useLocation(), navigate = useNavigate(), navigation = useAppNavigation();
-  const isXml = source.attachment.kind === 'musicxml';
+  const isXml = props.embedded || source?.attachment.kind === 'musicxml';
   useExitLayer(panel !== null, 'overlay', () => { setPanel(null); return true; });
   useLayoutEffect(() => {
+    if (props.embedded) return;
     const element = dock.current, top = header.current;
     if (!element || !top) return;
     const measure = () => {
@@ -35,9 +37,9 @@ export function PracticePlayerShell(props: Props) {
     measure();
     const observer = new ResizeObserver(measure); observer.observe(element); observer.observe(top);
     return () => { observer.disconnect(); document.documentElement.style.removeProperty('--practice-inset'); document.documentElement.style.removeProperty('--practice-top-inset'); };
-  }, []);
+  }, [props.embedded]);
   const selectView = (next: 'pdf' | 'xml') => navigation.afterEditing(() => {
-    if (playbackStore.getSnapshot() !== source) return;
+    if (!source || playbackStore.getSnapshot() !== source) return;
     setPanel(null);
     setPlaybackView(next);
     const path = `/choirs/${source.choirId}/scores/${source.score.id}`;
@@ -49,12 +51,12 @@ export function PracticePlayerShell(props: Props) {
   </TooltipTrigger>;
   return <>
     <header className="practice-header" aria-label="练习看谱" ref={header}>
-      {isXml ? <div className="practice-view-switch" role="group" aria-label="显示谱面">
+      {props.embedded ? <strong>候选谱面与试听</strong> : isXml ? <div className="practice-view-switch" role="group" aria-label="显示谱面">
         <Button aria-pressed={view === 'pdf'} onPress={() => selectView('pdf')}>原始 PDF</Button>
         <Button aria-pressed={view === 'xml'} onPress={() => selectView('xml')}>重排谱面</Button>
-      </div> : <span className="practice-source-name" title={source.attachment.name}>{source.attachment.name}</span>}
+      </div> : <span className="practice-source-name" title={source?.attachment.name}>{source?.attachment.name}</span>}
       {props.notationControls}
-      <Button className="practice-end-playback" aria-label="结束播放" onPress={stopPlayback}>结束</Button>
+      {!props.embedded && <Button className="practice-end-playback" aria-label="结束播放" onPress={stopPlayback}>结束</Button>}
     </header>
     <div className="practice-dock" data-view={view} ref={dock}>
       {props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
