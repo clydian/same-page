@@ -1,0 +1,22 @@
+{
+  "codeSha": "8b30bf9914e7f6e05cf3a62c86d06529ada1874a",
+  "node": "24.21.0",
+  "fixture": "local isolated D1/R2, two pilot drives, non-member operator",
+  "browserCoverage": [
+    "Chromium",
+    "WebKit"
+  ],
+  "assertions": [
+    "candidate isolation",
+    "MusicXML notation",
+    "nonzero audio samples",
+    "voice solo controls",
+    "review approval",
+    "publication",
+    "owner reads generated attachment",
+    "ordinary owner denied admin"
+  ],
+  "audioHeardByAgent": false,
+  "productionChanged": false,
+  "knownLimitation": "#434 rapid pause during AudioWorklet startup"
+}
