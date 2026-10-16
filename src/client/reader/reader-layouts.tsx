@@ -340,10 +340,12 @@ export function PageNavigatorPanel({
   document,
   currentPage,
   onSelect,
+  compact = false,
 }: {
   document: PDFDocumentProxy;
   currentPage: number;
   onSelect(page: number): void;
+  compact?: boolean;
 }) {
   const [gridOpen, setGridOpen] = useState(false);
   const [draftPage, setDraftPage] = useState<number | null>(null);
@@ -407,7 +409,7 @@ export function PageNavigatorPanel({
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
-      <nav className="page-preview-strip" aria-label="页面缩略图" ref={panelRef}
+      {!compact && <nav className="page-preview-strip" aria-label="页面缩略图" ref={panelRef}
         style={{ width: `${42 + (Math.min(document.numPages, 40) - 1) * 20}px` }}>
         <div className="page-preview-strip__track" aria-hidden="true">
           {thumbnails.map((number, index) => (
@@ -437,7 +439,7 @@ export function PageNavigatorPanel({
           onKeyUp={() => { if (draftPage !== null) finish(); }}
           onBlur={() => { if (draftPage !== null) finish(); }}
         />
-      </nav>
+      </nav>}
     </>
   );
 }

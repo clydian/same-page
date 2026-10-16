@@ -93,15 +93,19 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             await page.getByRole("button", { name: entry === "audio" ? "试听.wav" : "试唱.musicxml", exact: true }).click();
             if (entry === "audio") await page.getByRole("button", { name: "边听边看谱", exact: true }).click();
             if (entry === "musicxml") {
-              const view = page.getByLabel("显示谱面", { exact: true });
-              await expect(view).toHaveValue("xml", { timeout: 60_000 });
+              const view = page.getByRole("button", { name: "重排谱面", exact: true });
+              await expect(view).toHaveAttribute("aria-pressed", "true", { timeout: 60_000 });
               // The preparation notice changes the dock height. Let that finish
               // before a PDF tap whose pending intent is fenced by viewport size.
               await expect(page.getByTestId("musicxml-player").getByRole("button", { name: "播放", exact: true })).toBeEnabled({ timeout: 60_000 });
-              await view.selectOption("pdf");
+              await page.getByRole("button", { name: "原始 PDF", exact: true }).click();
               await expect(page.locator(".reader-shell")).not.toHaveAttribute("aria-hidden", "true");
             }
           }
+        }
+        if (entry === "musicxml" || entry === "audio") {
+          await expect(page.getByRole("button", { name: "编辑", exact: true })).toHaveCount(0);
+          await page.getByRole("button", { name: "结束播放", exact: true }).click();
         }
         await checkExperience(`已登录体验 ${entry}`);
       }

@@ -111,7 +111,8 @@ function ReaderPageContent() {
   const opening = useReaderWorkspace({ choirId, scoreId, experience, identity });
   const playback = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
   const playbackView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
-  const showingPlayback = playback?.choirId === choirId && playback.score.id === scoreId && playbackView === 'xml';
+  const practicing = playback?.choirId === choirId && playback.score.id === scoreId;
+  const showingPlayback = practicing && playbackView === 'xml';
   const workspace = opening.state.status === "ready" ? opening.state.workspace : null;
   const navigation = useAppNavigation();
   const [fitRequest, setFitRequest] = useState(0);
@@ -213,7 +214,7 @@ function ReaderPageContent() {
   });
   const requestPage = pager.request;
 
-  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !editing && !moreOpen && !playbackEntryOpen && readerPanel === null && !exportOpen && !conflictOpen, null);
+  const guide = useReaderHint("reader-gesture-hint-seen", presentation.status === "visible" && !practicing && !editing && !moreOpen && !playbackEntryOpen && readerPanel === null && !exportOpen && !conflictOpen, null);
   const closeScore = useCallback(() => {
     startLoadingJourney("exit-score", "warm");
     navigation.back(`/choirs/${choirId}`);
@@ -362,6 +363,7 @@ function ReaderPageContent() {
     setMoreOpen(false);
   };
   const toggleChrome = () => {
+    if (practicing) return;
     setPlaybackEntryOpen(false);
     setMoreOpen(false);
     setChromeVisible((visible) => !visible);
@@ -391,7 +393,7 @@ function ReaderPageContent() {
 
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
-    <main className="reader-shell" data-playback-view={showingPlayback ? 'xml' : undefined} aria-hidden={showingPlayback || undefined} inert={showingPlayback} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
+    <main className="reader-shell" data-practicing={practicing || undefined} data-playback-view={showingPlayback ? 'xml' : undefined} aria-hidden={showingPlayback || undefined} inert={showingPlayback} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
       {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
       {cloudState === "trashed" ? (
@@ -405,7 +407,7 @@ function ReaderPageContent() {
       </div> : null}
       {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
       {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
-      {chromeVisible && !guide.visible ? (
+      {!practicing && chromeVisible && !guide.visible ? (
       <header className="reader-chrome" data-editing={editing || undefined} aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
@@ -551,13 +553,14 @@ function ReaderPageContent() {
         </header>
       ) : null}
 
-      {!editing && chromeVisible && !guide.visible && Boolean(score.attachmentCount) && workspace && <Suspense fallback={null}>
+      {!practicing && !editing && chromeVisible && !guide.visible && Boolean(score.attachmentCount) && workspace && <Suspense fallback={null}>
         <ReaderPracticeLauncher source={{ score, choirId, ownerKey: workspace.ownerKey, sessionId: identity.authenticatedSessionId }} enabled={online && cloudState === 'active'} open={playbackEntryOpen} onOpenChange={setPlaybackEntryOpen} />
       </Suspense>}
 
-      {!editing && chromeVisible && !guide.visible ? (
+      {!editing && (practicing || chromeVisible) && !guide.visible ? (
         <>
           <PageNavigatorPanel
+            compact={practicing}
             key={score.currentVersion.id}
             document={document}
             currentPage={currentPage}
@@ -655,7 +658,7 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
-            onDismiss={!editing && !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
+            onDismiss={!practicing && !editing && !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />
