@@ -224,7 +224,7 @@ export function ReviewContent({
           <div className="admin-actions">
             <Button
               className="secondary-button"
-              isDisabled={busy || !cap.reviewXml || candidate.state !== "ready"}
+              isDisabled={busy || success || !cap.reviewXml || candidate.state !== "ready"}
               onPress={async () => {
                 if (await saveNotes()) refresh();
               }}
@@ -243,7 +243,7 @@ export function ReviewContent({
           {success && (
             <p role="status">
               发布成功，成员现在可以使用这份练习版。
-              <Button onPress={refresh}>重新读取结果</Button>
+              <Button className="secondary-button" onPress={refresh}>刷新</Button>
             </p>
           )}
         </section>

@@ -302,3 +302,14 @@
   color: var(--muted);
   font-size: 0.75rem;
 }
+
+.admin-filters select,
+.admin-result-picker select {
+  appearance: none;
+  min-height: 44px;
+  font: inherit;
+  padding-right: 2.4rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23014653' stroke-width='1.5'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
