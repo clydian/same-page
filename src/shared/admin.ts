@@ -44,6 +44,7 @@ export type XmlCandidate = z.infer<typeof xmlCandidateSchema>;
 export const adminDetailSchema = z.object({
   score: adminScoreSchema,
   candidates: z.array(xmlCandidateSchema),
+  selectedCandidate: xmlCandidateSchema.nullable().optional(),
   nextBefore: z.string().nullable(),
 });
 export const xmlReviewSchema = z.object({

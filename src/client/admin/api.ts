@@ -62,15 +62,15 @@ export const readAdminDetail = async (
   id: string,
   signal?: AbortSignal,
   before?: string,
-) =>
-  adminDetailSchema.parse(
-    await (
-      await adminFetch(
-        `/scores/${id}${before ? `?before=${encodeURIComponent(before)}` : ""}`,
-        { signal },
-      )
-    ).json(),
+  selected?: string | null,
+) => {
+  const query = new URLSearchParams();
+  if (before) query.set("before", before);
+  if (selected && selected !== "published") query.set("selected", selected);
+  return adminDetailSchema.parse(
+    await (await adminFetch(`/scores/${id}?${query}`, { signal })).json(),
   );
+};
 export const readAdminList = async (
   query: URLSearchParams,
   signal?: AbortSignal,

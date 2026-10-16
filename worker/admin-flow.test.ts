@@ -482,3 +482,23 @@ it("rejects a late import commit if the source changes during R2 write", async (
   ).toEqual({ state: "failed" });
   expect((await call(`${base()}/candidates/${r.id}/file`)).status).toBe(409);
 });
+
+
+it("refreshes a selected candidate outside the first history page without exposing another score", async () => {
+  const old = await upload();
+  expect(old.response.status).toBe(201);
+  const now = Date.now();
+  await env.DB.batch(Array.from({ length: 101 }, (_, index) => {
+    const id = crypto.randomUUID();
+    return env.DB.prepare(`INSERT INTO xml_candidates(id,choir_id,score_id,source_version_id,source_sha256,name,size_bytes,sha256,object_key,state,tool,parameters,imported_by,created_at,expires_at)
+      SELECT ?,choir_id,score_id,source_version_id,source_sha256,name,size_bytes,sha256,?,'failed',tool,parameters,imported_by,?,expires_at FROM xml_candidates WHERE id=?`)
+      .bind(id, `history/${id}`, now + index + 1, old.id);
+  }));
+  const first = await (await call(base())).json<{ candidates: { id: string }[]; nextBefore: string; selectedCandidate: { id: string } | null }>();
+  expect(first.candidates).toHaveLength(100);
+  expect(first.candidates.some((v) => v.id === old.id)).toBe(false);
+  const selected = await (await call(`${base()}?selected=${old.id}`)).json<{ selectedCandidate: { id: string } }>();
+  expect(selected.selectedCandidate.id).toBe(old.id);
+  const outside = await (await call(`/api/admin/scores/${otherScore}?selected=${old.id}`)).json<{ selectedCandidate: unknown }>();
+  expect(outside.selectedCandidate).toBeNull();
+});

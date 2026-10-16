@@ -23,7 +23,7 @@ export function ScoreReview({
   const [storedData, setData] = useState<Awaited<
       ReturnType<typeof readAdminDetail>
     > | null>(null),
-    [selected, setSelected] = useState(""),
+    [selection, setSelected] = useState<string | null>(null),
     [importing, setImporting] = useState(false),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0),
@@ -37,19 +37,19 @@ export function ScoreReview({
   );
   useEffect(() => {
     const c = new AbortController();
-    void readAdminDetail(id, c.signal)
+    void readAdminDetail(id, c.signal, undefined, selection)
       .then((r) => {
         if (c.signal.aborted) return;
-        setData(r);
+        const selectedCandidate = r.selectedCandidate;
+        const candidates = selectedCandidate && !r.candidates.some((v) => v.id === selectedCandidate.id)
+          ? [...r.candidates, selectedCandidate]
+          : r.candidates;
+        setData({ ...r, candidates });
         setLoadedRevision(refresh);
         setError("");
-        setSelected((old) =>
-          old &&
-          (r.candidates.some((v) => v.id === old) ||
-            (old === "published" && r.score.attachmentId))
-            ? old
-            : (r.candidates.find((v) => v.state === "ready")?.id ?? ""),
-        );
+        if (selection && !(selection === "published" ? r.score.attachmentId : candidates.some((v) => v.id === selection))) {
+          setSelected("");
+        }
       })
       .catch((e) => {
         if (!c.signal.aborted) {
@@ -58,7 +58,7 @@ export function ScoreReview({
         }
       });
     return () => c.abort();
-  }, [id, refresh, onError]);
+  }, [id, refresh, selection, onError]);
   if (!data)
     return (
       <>
@@ -70,6 +70,7 @@ export function ScoreReview({
         <Link className="admin-back-link" to="/admin">返回工作台</Link>
       </>
     );
+  const selected = selection ?? data.candidates.find((v) => v.state === "ready")?.id ?? "";
   const s = data.score,
     candidate = data.candidates.find((c) => c.id === selected);
   return (
