@@ -7,6 +7,7 @@ import {
 import { Button, Switch } from "react-aria-components";
 import type { PlayerSession, PlayerState } from "@clydian/chorus-player";
 import { playbackViewStore, type PlaybackSource } from "./playback-store";
+import { useNotationPinch } from "./use-notation-pinch";
 import { PracticePlayerShell } from "./practice-player-shell";
 const preparing: PlayerState = {
   status: "preparing",
@@ -52,6 +53,7 @@ export function MusicXmlPractice({
     playbackViewStore.getSnapshot,
   );
   const view = embedded ? "xml" : readerView;
+  useNotationPinch(viewport, session, view === "xml" && !error);
   const [loopStart, setLoopStart] = useState(0),
     [loopEnd, setLoopEnd] = useState(0);
   useEffect(() => {
