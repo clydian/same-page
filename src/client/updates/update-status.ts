@@ -1,8 +1,12 @@
 import { useSyncExternalStore } from "react";
-let status = { message: "后台检查更新，当前版本继续运行", ready: false, applying: false };
+
+export type UpdatePhase = "registering" | "checking" | "preparing" | "current" | "ready" | "applying" | "error" | "offline" | "unsupported";
+export interface UpdateStatus { phase: UpdatePhase; message: string }
+let status: UpdateStatus = { phase: "registering", message: "正在准备更新检查…" };
 const listeners = new Set<() => void>();
-export function setUpdateStatus(message: string, change: Partial<Omit<typeof status, "message">> = {}) {
-  status = { ...status, ...change, message }; listeners.forEach(listener => listener());
+export function setUpdateStatus(next: UpdateStatus) {
+  status = next;
+  listeners.forEach(listener => listener());
 }
 export function useUpdateStatus() {
   return useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => status);

@@ -44,7 +44,7 @@ function PlaybackFailure() {
     <p role="alert">播放器加载失败，乐谱和笔记仍可继续使用。请先完成当前操作，再到关于合谱应用更新。</p>
     <p role="status">{update.message}</p>
     <Button onPress={stopPlayback}>关闭播放器</Button>
-    <Button isDisabled={update.applying} onPress={() => window.dispatchEvent(new Event('same-page-check-update'))}>检查更新</Button>
+    <Button isDisabled={["registering", "checking", "preparing", "applying", "unsupported"].includes(update.phase)} onPress={() => window.dispatchEvent(new Event('same-page-check-update'))}>检查更新</Button>
     <Link to="/about">关于合谱与版本更新</Link>
   </aside>;
 }

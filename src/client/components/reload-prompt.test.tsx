@@ -8,8 +8,11 @@ import { ReloadPrompt, UpdateDetails } from "./reload-prompt";
 
 describe("background updates", () => {
   beforeEach(() => {
-    setUpdateStatus("后台检查更新，当前版本继续运行", { ready: false, applying: false });
+    setUpdateStatus({ phase: "current", message: "后台检查更新，当前版本继续运行" });
+    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { addEventListener: vi.fn(), removeEventListener: vi.fn() } });
+    Object.assign(registration, { installing: null });
     setShouldNeedRefresh(true); setRegistrationWaiting(true);
+    registrationUpdateMock.mockReset();
     updateServiceWorkerMock.mockClear(); registrationUpdateMock.mockClear();
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
   });
@@ -20,27 +23,29 @@ describe("background updates", () => {
     expect(screen.queryByText("有新版本可用")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     view.rerender(<MemoryRouter><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
-    expect(screen.getByText("新版本已准备，关闭所有合谱窗口后会自动更新")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "立即更新并重新加载" })).toBeInTheDocument();
+    expect(screen.getByText("更新已准备好")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeInTheDocument();
     expect(updateServiceWorkerMock).not.toHaveBeenCalled();
   });
   it("keeps the current build while offline and lets a failed check be retried", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    setRegistrationWaiting(false);
     render(<MemoryRouter><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
-    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
-    expect(screen.getByText("当前离线，继续使用当前版本")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "重试检查更新" }));
+    expect(screen.getByText("当前离线，联网后可重试；当前版本仍可使用")).toBeInTheDocument();
     expect(updateServiceWorkerMock).not.toHaveBeenCalled();
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     registrationUpdateMock.mockRejectedValueOnce(new Error("network"));
-    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
-    expect(await screen.findByText("更新检查失败，请稍后重试")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
-    expect(await screen.findByText("新版本已准备，关闭所有合谱窗口后会自动更新")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "重试检查更新" }));
+    expect(await screen.findByText("更新检查失败，请重试")).toBeInTheDocument();
+    setRegistrationWaiting(true);
+    fireEvent.click(screen.getByRole("button", { name: "重试检查更新" }));
+    expect(await screen.findByText("更新已准备好")).toBeInTheDocument();
   });
 
 it("does not start a handover on idle time or a foreground update check", async () => {
+  setRegistrationWaiting(false);
   const post = vi.fn();
-  registration.waiting!.postMessage = post;
   render(<MemoryRouter initialEntries={["/about"]}><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
   await waitFor(() => expect(registrationUpdateMock).toHaveBeenCalled());
   vi.useFakeTimers();
@@ -61,7 +66,7 @@ it("forces a live-window handover only on request and preserves operation vetoes
   });
   const post = vi.fn(); registration.waiting!.postMessage = post;
   render(<MemoryRouter initialEntries={["/about"]}><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
-  const apply = await screen.findByRole("button", { name: "立即更新并重新加载" });
+  const apply = await screen.findByRole("button", { name: "重新加载并更新" });
   const release = holdUpdate();
   try { fireEvent.click(apply); expect(post).not.toHaveBeenCalled(); } finally { release(); }
   fireEvent.click(apply);
