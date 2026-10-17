@@ -44,4 +44,3 @@ test('independent voices at the same written pitch keep separate tie chains',()=
  const voices=score.tracks[0].staves[0].bars[0].voices;
  for(const voice of voices)assert.equal(voice.beats[1].notes[0].tieOrigin===voice.beats[0].notes[0],true);
 });
-
