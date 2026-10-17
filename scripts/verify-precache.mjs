@@ -31,6 +31,7 @@ export async function verifyPrecache(root = "dist/client", designRoot = "design"
   }
   for (const file of published.filter((file) => file.endsWith(".woff2") && !file.includes("/font/"))) assert.ok(entries.includes(path.relative(root, file)), `Font not precached: ${file}`);
   assert.ok(!entries.some(file => /musicxml-|validate-musicxml-|alphaTab\.|prepare\.worker-|^font\/|^soundfont\//.test(file)), "MusicXML resources must remain on demand");
+  assert.ok(!entries.some(file => /^third-party\//.test(file)), "Third-party sources must remain on demand");
   assert.ok(!entries.some(file => /(?:^|\/)admin-/.test(file)), "Product admin resources must remain on demand");
   assert.ok(!entries.some(file => /-animation-[^/]+\.webp$/.test(file)), "Homepage animations must remain on demand");
   for (const file of published.filter(file => /\.webp$/.test(file) && !/-animation-[^/]+\.webp$/.test(file))) {
