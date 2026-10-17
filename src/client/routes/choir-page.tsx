@@ -297,7 +297,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
                     <span className="pdf-file-icon" aria-hidden="true">PDF</span>
-                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}{score.hasGeneratedXml && <span className="file-row__practice" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /><span>自动练习版</span></span>}</span></span>
+                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}{score.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label="有自动生成练习版" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
                   </PreparedScoreLink>
                   <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => {

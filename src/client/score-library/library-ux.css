@@ -105,5 +105,5 @@
 .file-row__unavailable { width: 100%; color: var(--text-muted, #6b7280); font-size: 0.75rem; }
 .drive-connection-notice p { margin: 0.35rem 0; }
 
-.file-row__practice { display: inline-flex; align-items: center; gap: .2rem; margin-left: .65rem; font-size: .6875rem; color: var(--muted); vertical-align: baseline; }
+.file-row__practice { display: inline-flex; margin-left: .35rem; color: var(--muted); opacity: .65; vertical-align: -.1em; }
 .file-row__practice svg { flex-shrink: 0; align-self: center; }

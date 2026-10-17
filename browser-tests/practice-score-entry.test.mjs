@@ -33,13 +33,15 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
     const output = 'artifacts/verification/practice-score-entry';
     await mkdir(output, { recursive: true });
     await page.goto(library);
-    await expect(page.getByText('自动练习版', { exact: true })).toBeVisible();
+    await expect(page.getByRole('img', { name: '有自动生成练习版', exact: true })).toBeVisible();
+    await expect(page.getByText('自动练习版', { exact: true })).toHaveCount(0);
     const preparation = page.getByRole('button', { name: '暂时不用，关闭排练准备', exact: true });
     if (await preparation.isVisible()) await preparation.click();
     await expect(page.locator('.attachment-count')).toHaveCount(0);
     await page.screenshot({ path: `${output}/${engine}-library-generated-only.png` });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: `${output}/${engine}-library-mobile.png` });
+    await page.locator('.library-workspace').screenshot({ path: `${output}/${engine}-library-detail.png` });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'library fits mobile');
     const user = await upload('女高声部练习.musicxml', musicXmlFixture());
     await upload('排练录音.wav', practiceWave());
@@ -84,6 +86,6 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
     await expect(page.getByRole('button', { name: '练习谱', exact: true })).toHaveCount(0);
     await page.goto(library);
     await expect(page.getByRole('button', { name: /1 个附件/ })).toBeVisible();
-    await expect(page.getByText('自动练习版', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('img', { name: '有自动生成练习版', exact: true })).toHaveCount(0);
   });
 }
