@@ -20,13 +20,14 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
    worker.onerror = event => {worker.terminate();reject(new Error(event.message));};
    worker.onmessage = event => {
     worker.terminate();
-    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength});
+    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,wedges:event.data.prepared?.wedgeEventsByPart});
    };
    const bytes = new TextEncoder().encode(xml);
    worker.postMessage(bytes,[bytes.buffer]);
-  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><rest/><duration>3</duration><type>half</type><dot/></note></measure></part></score-partwise>'});
+  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction><direction-type><wedge type="diminuendo" number="1"/></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="stop" number="1"/></direction-type><offset>1.5</offset></direction><note><rest/><duration>3</duration><type>half</type><dot/></note></measure></part></score-partwise>'});
   assert.deepEqual(reply.keys,['prepared'],'no unrelated renderer/synth Worker initialization message may arrive first');
   assert.ok(reply.byteLength>0);
+  assert.deepEqual(reply.wedges[0].map(event=>[event.quarter,event.type]),[[0.5,'diminuendo'],[1.5,'stop']]);
   assert.deepEqual(reply.visibility,{partIds:['P1'],parts:[{trackIndex:0,measures:[{index:0,all:false,staves:[]}]}]});
  });
  test(`MusicXML attachment practice and PDF handoff (${engine})`, {timeout:180000}, async t => {
