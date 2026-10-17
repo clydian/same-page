@@ -79,9 +79,12 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await separator.press('Enter'); await expect(separator).toHaveAttribute('aria-valuenow', '50');
   await separator.press('ArrowDown'); await expect(separator).toHaveAttribute('aria-valuenow', '55');
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(separator).toHaveAttribute('aria-orientation', 'vertical');
   await expect(separator).toHaveAttribute('aria-valuenow', '50');
   await separator.press('ArrowRight'); await expect(separator).toHaveAttribute('aria-valuenow', '55');
   await page.setViewportSize({ width: 390, height: 844 });
+  // Both saved directions are 55% here; wait for the new axis before its reset.
+  await expect(separator).toHaveAttribute('aria-orientation', 'horizontal');
   await expect(separator).toHaveAttribute('aria-valuenow', '55');
   await separator.press('Enter');
   if (engine === 'chromium') {
@@ -97,6 +100,8 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   }
   // Scrolling PDF must neither seek nor suspend XML following.
   const xmlScroll = xml.locator('.practice-notation-scroll'), pdfScroll = pdf.locator('.continuous-reader');
+  await pdfScroll.evaluate(e => { e.scrollTop = 0; });
+  await expect.poll(() => pdfScroll.evaluate(e => e.scrollTop)).toBeLessThan(2);
   const beforePdf = await pdfScroll.evaluate(e => e.scrollTop);
   await pdfScroll.hover(); await page.mouse.wheel(0, 180);
   await expect.poll(() => pdfScroll.evaluate(e => e.scrollTop)).toBeGreaterThan(beforePdf + 150);
@@ -127,5 +132,30 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await page.getByRole('button', { name: '结束播放', exact: true }).click();
   await expect(page.locator('.practice-comparison-pdf')).toHaveCount(0);
   await expect(page.locator('.page-reader__viewport')).toBeVisible();
+  // Pixel minimums allow ratios outside 20–80% on desktop. Every selectable
+  // ratio must survive disposing/reopening the actual playback session.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const openComparison = async () => {
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const entry = page.getByRole('button', { name: '练习谱', exact: true });
+    if (!await entry.isVisible()) await page.locator('.page-reader__viewport').click();
+    await entry.click();
+    await page.getByRole('button', { name: 'compare.xml', exact: true }).click();
+    await expect(bar.getByRole('button', { name: '播放', exact: true })).toBeEnabled({ timeout: 60000 });
+    await selectPracticeView(page, '对照');
+    await expect(separator).toHaveAttribute('aria-orientation', 'vertical');
+  };
+  await openComparison();
+  for (const key of ['Home', 'End']) {
+    await separator.press(key);
+    const saved = await separator.getAttribute('aria-valuenow');
+    assert.ok(key === 'Home' ? Number(saved) < 20 : Number(saved) > 80);
+    await page.getByRole('button', { name: '结束播放', exact: true }).click();
+    await expect(bar).toHaveCount(0);
+    await openComparison();
+    await expect(separator).toHaveAttribute('aria-valuenow', saved);
+    await expect(progress).toHaveValue('0');
+  }
+  await page.getByRole('button', { name: '结束播放', exact: true }).click();
   assert.deepEqual(errors, []);
 });

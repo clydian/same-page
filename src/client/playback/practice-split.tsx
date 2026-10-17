@@ -7,7 +7,7 @@ const GAP = 12;
 function readRatio(ownerKey: string, direction: Direction) {
   try {
     const value = Number(localStorage.getItem(`practice-split:${ownerKey}:${direction}`));
-    return value >= 0.2 && value <= 0.8 ? value : 0.5;
+    return Number.isFinite(value) && value > 0 && value < 1 ? value : 0.5;
   } catch { return 0.5; }
 }
 
