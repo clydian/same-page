@@ -37,7 +37,7 @@ MIDI 事件与 0.1.8 相同，仅《Come to Me》的同拍 108→27 修正为 10
 `src/client/playback/musicxml-tempo.node.test.ts` 直接验证已安装压缩包的实际 MIDI，
 包括经过 structuredClone 的 prepared 数据；反复结尾与延音测试继续验证既有修复。
 
-## 当前固定包：0.1.11
+## 共享钢琴击键修复：0.1.11
 
 来源：[Chorus PR #6](https://github.com/clydian/chorus-score-studio/pull/6)，提交
 `96bdb74cca8579fb00ef380301a4974607d1ff73`，叠加上述 0.1.10。Node 24 执行
@@ -58,3 +58,28 @@ AlphaSynth 最小对照中，旧版起音 RMS 为单键对照的两倍；修复�
 
 `src/client/playback/piano-shared-attacks.node.test.ts` 验证已安装包保留源双声部、合并
 同键攻击、保留长时值和稍后重击，且不把默认 GM program 的 Voice 当作钢琴。
+
+## 当前固定包：0.1.13
+
+来源：[Chorus PR #7](https://github.com/clydian/chorus-score-studio/pull/7) 与
+[PR #8](https://github.com/clydian/chorus-score-studio/pull/8)，最终提交
+`f213db15eb2ddbf4eb4cb444580fe03b421ee446`。Node 24 执行 workspace test、build
+和 pack；本仓库固定安装 `clydian-chorus-player-0.1.13.tgz`，SHA-256 为
+`a49738cbdc703895ff0283345e3e9d976e9bfb6a72afd7d81c3d8ba69b66efb1`。
+
+尊重源 XML 明确的 `time print-object="no"`，通过公开 BarStyle 隐藏对应谱表的小节
+拍号，保留时间和布局空间。按 part-list ID 映射，支持 numbered staff 显示覆盖；
+不扩大为完整 polymeter 或后续系统开头重复拍号的修复。纯 XML 元数据解析与引擎着色
+分离，避免 alphaTab 运行时在准备 Worker 中初始化自己的渲染／合成协议。
+
+明确力度结束之前的文字渐强／渐弱推断，包括相同值与相反方向。力度继承、起点恢复
+和渐变目标共用作用范围优先级；保留既有钢琴整体作用规则、声部间共同插值网格与
+下一文字／渐强线边界。没有明确目标的渐变增量属于练习演奏解释，并非原谱精确力度值。
+
+共享源 232 项全测、21 首目录校验和 build/PWA 通过；26 项重点测试对实际解包产物
+重复通过。23 条交付记录的全部非力度事件字段、顺序和小节 tick 不变，仅 Christus
+22 个及 If Music 446 个力度事件变化；独立原 PDF 核对支持其明确力度边界。
+这些回归不代表全曲源谱验收或耳听通过。
+
+宿主直接测试安装包的隐藏拍号／Worker 序列化与相同力度重置；浏览器还检查实际
+构建准备 Worker 的首条响应及隐藏拍号元数据，并保留完整播放与 PDF 切换流程。
