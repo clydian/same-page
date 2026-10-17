@@ -11,6 +11,7 @@ import { calculateFittedPageWidth } from "./reader-dimensions";
 const PAGE_GAP = 8;
 
 interface ContinuousReaderLayoutOptions {
+  viewportName?: string;
   document: PDFDocumentProxy;
   currentPage: number;
   zoom: number;
@@ -26,7 +27,7 @@ interface ContinuousReaderLayoutOptions {
 // Owns measurement, fitting and the scroll commit. Callers render the returned
 // geometry and connect the gesture capabilities; they do not sequence commands.
 export function useContinuousReaderLayout({
-  document, currentPage, zoom, fitRequest = 0, navigationRequest = 0, editing,
+  document, currentPage, zoom, fitRequest = 0, navigationRequest = 0, editing, viewportName = "continuous",
   onZoomChange, onPageChange, beforePageChange, canCompletePage,
 }: ContinuousReaderLayoutOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -161,7 +162,7 @@ export function useContinuousReaderLayout({
 
   // Restore only after the real list geometry exists. Restoring an estimated
   // list lets its later initial alignment erase the saved reading position.
-  useReturnViewport(scrollRef, "continuous", geometryReady && size.width > 0 && size.height > 0);
+  useReturnViewport(scrollRef, viewportName, geometryReady && size.width > 0 && size.height > 0);
 
   const zoomGeometry: ReaderZoomGeometry = {
     // Continuous editing shares the document's vertical bounds with reading.

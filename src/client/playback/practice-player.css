@@ -181,3 +181,38 @@
 
 .practice-measure-overlay { position: absolute; z-index: 5; inset: 0; pointer-events: none; }
 .practice-measure-label { position: absolute; transform: translateY(-100%); color: #78867b; font-family: Arial,sans-serif; line-height: 1; white-space: nowrap; }
+
+/* The measured frame is shared by the independent PDF and notation viewports. */
+.practice-split-frame, .practice-comparison-pdf {
+  position: fixed;
+  inset: var(--practice-top-inset,56px) var(--safe-right) var(--practice-inset,72px) var(--safe-left);
+}
+.practice-split-frame { z-index: 80; pointer-events: none; }
+.practice-comparison-pdf { z-index: 71; visibility: hidden; background: #eceee9; color: #31463a; overflow: hidden; }
+.practice-comparison-pdf[data-visible] { visibility: visible; }
+.practice-pane-heading { box-sizing: border-box; display: flex; align-items: center; gap: 8px; flex: 0 0 44px; height: 44px; padding: 0 12px; background: #f5f6f2; border-bottom: 1px solid #e0e5dc; font-size: 12px; color: #52665a; }
+.practice-pane-heading small { font-size: 11px; color: #7b8171; }
+.practice-comparison-pdf-stage { position: absolute; inset: 44px 0 0; }
+.practice-comparison-pdf .reader-page-indicator { top: 0; right: 4px; height: 44px; min-height: 44px; background: transparent; }
+.practice-comparison-pdf .continuous-reader { outline: none; }
+.practice-comparison-pdf .continuous-reader:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
+.practice-notation[data-compare] { padding: 0; }
+.practice-notation[data-compare] .practice-follow { top: 52px; }
+.practice-split-handle { position: absolute; display: flex; align-items: center; justify-content: center; background: #e0e5dc; pointer-events: auto; touch-action: none; outline: none; }
+.practice-split-handle::before { content: ''; position: absolute; inset: -12px 0; }
+.practice-split-handle > span { width: 36px; height: 3px; border-radius: 3px; background: #8b9d8e; }
+.practice-split-handle:focus-visible, .practice-split-handle:hover { background: #c8d6c9; }
+:root[data-practice-split=rows] .practice-comparison-pdf { height: var(--practice-first); bottom: auto; }
+:root[data-practice-split=rows] .practice-notation[data-compare] { top: calc(var(--practice-top-inset,56px) + var(--practice-first) + 12px); left: var(--safe-left); right: var(--safe-right); }
+:root[data-practice-split=rows] .practice-split-handle { top: var(--practice-first); left: 0; right: 0; height: 12px; cursor: row-resize; }
+:root[data-practice-split=columns] .practice-comparison-pdf { width: var(--practice-first); right: auto; }
+:root[data-practice-split=columns] .practice-notation[data-compare] { left: calc(var(--safe-left) + var(--practice-first) + 12px); right: var(--safe-right); }
+:root[data-practice-split=columns] .practice-split-handle { left: var(--practice-first); top: 0; bottom: 0; width: 12px; cursor: col-resize; }
+:root[data-practice-split=columns] .practice-split-handle::before { inset: 0 -12px; }
+:root[data-practice-split=columns] .practice-split-handle > span { width: 3px; height: 36px; }
+.practice-pane-heading .practice-notation-size { margin-left: auto; }
+.practice-pane-heading .practice-notation-size button { min-height: 44px; height: 44px; min-width: 44px; width: 44px; flex-basis: 44px; }
+.practice-pane-title { display: grid; min-width: 0; flex: 1; }
+.practice-pane-title small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.practice-comparison-pdf .reader-page-indicator { pointer-events: auto; display: flex; align-items: center; gap: 4px; min-width: 64px; border: 0; border-radius: 8px; padding: 0 10px; font: inherit; font-size: 12px; color: #52665a; cursor: pointer; }
+.practice-comparison-pdf .reader-page-indicator:focus-visible { outline: 2px solid #769787; outline-offset: -3px; }

@@ -59,6 +59,7 @@ export interface AnnotationPageProps {
 }
 
 interface ReaderLayoutProps {
+  viewportName?: string;
   document: PDFDocumentProxy;
   currentPage: number;
   zoom: number;
@@ -233,6 +234,7 @@ export function PageLayout({
 }
 
 export function ContinuousLayout({
+  viewportName,
   document,
   currentPage,
   zoom,
@@ -245,7 +247,7 @@ export function ContinuousLayout({
 }: Omit<ReaderLayoutProps, "onDismiss">) {
   const noteInteraction = useRef<AnnotationInteractionHandle>(null);
   const { scrollRef, contentRef, onScroll, geometryGestures, width, height, items, size } = useContinuousReaderLayout({
-    document, currentPage, zoom, fitRequest, navigationRequest,
+    document, currentPage, zoom, fitRequest, navigationRequest, viewportName,
     editing: annotationProps.editing,
     onZoomChange, onPageChange,
     beforePageChange: annotationProps.editing ? () => annotationProps.editor!.prepareNavigation() : undefined,
@@ -268,6 +270,7 @@ export function ContinuousLayout({
   return (
     <section
       className="continuous-reader"
+      tabIndex={0}
       data-underfit={zoom < 1 || undefined}
       data-zoom={zoom}
       data-editing={annotationProps.editing || undefined}

@@ -53,7 +53,7 @@ export function MusicXmlPractice({
     playbackViewStore.getSnapshot,
   );
   const view = embedded ? "xml" : readerView;
-  useNotationPinch(viewport, session, view === "xml" && !error);
+  useNotationPinch(viewport, session, view !== "pdf" && !error);
   const [loopStart, setLoopStart] = useState(0),
     [loopEnd, setLoopEnd] = useState(0);
   useEffect(() => {
@@ -71,16 +71,54 @@ export function MusicXmlPractice({
     (state.loop.start !== loopStart || state.loop.end !== loopEnd),
   );
   const measureLabel = (index: number) => state.measures[index]?.label ?? "—";
+  const notationControls = (
+    <div
+      className="practice-notation-size"
+      role="group"
+      aria-label="谱面大小"
+    >
+      <Button
+        className="practice-icon"
+        aria-label="缩小谱面"
+        isDisabled={!ready || state.notationScale <= 0.3}
+        onPress={() =>
+          session?.notationScale(state.notationScale - 0.1)
+        }
+      >
+        −
+      </Button>
+      <Button
+        className="practice-size-reset"
+        aria-label="恢复默认谱面大小"
+        isDisabled={!ready}
+        onPress={() => session?.notationScale(0.6)}
+      >
+        {Math.round(state.notationScale * 100)}%
+      </Button>
+      <Button
+        className="practice-icon"
+        aria-label="放大谱面"
+        isDisabled={!ready || state.notationScale >= 1.2}
+        onPress={() =>
+          session?.notationScale(state.notationScale + 0.1)
+        }
+      >
+        +
+      </Button>
+    </div>
+  );
   return (
     <>
       <section
         className="practice-notation"
-        data-visible={view === "xml" || undefined}
+        data-visible={view !== "pdf" || undefined}
+        data-compare={view === "compare" || undefined}
         aria-label="MusicXML 谱面"
-        aria-hidden={view !== "xml"}
-        inert={view !== "xml"}
+        aria-hidden={view === "pdf"}
+        inert={view === "pdf"}
       >
-        {view === "xml" && state.following === false && (
+        {view === "compare" && <div className="practice-pane-heading"><span className="practice-pane-title">重排谱面{source?.attachment.source === "generated" && <small>自动生成 · Beta</small>}</span>{notationControls}</div>}
+        {view !== "pdf" && state.following === false && (
           <Button className="practice-follow" onPress={() => session?.follow()}>
             恢复自动跟随
           </Button>
@@ -113,44 +151,7 @@ export function MusicXmlPractice({
         }}
         speed={state.speed}
         setSpeed={(value) => session?.speed(value)}
-        notationControls={
-          view === "xml" && (
-            <div
-              className="practice-notation-size"
-              role="group"
-              aria-label="谱面大小"
-            >
-              <Button
-                className="practice-icon"
-                aria-label="缩小谱面"
-                isDisabled={!ready || state.notationScale <= 0.3}
-                onPress={() =>
-                  session?.notationScale(state.notationScale - 0.1)
-                }
-              >
-                −
-              </Button>
-              <Button
-                className="practice-size-reset"
-                aria-label="恢复默认谱面大小"
-                isDisabled={!ready}
-                onPress={() => session?.notationScale(0.6)}
-              >
-                {Math.round(state.notationScale * 100)}%
-              </Button>
-              <Button
-                className="practice-icon"
-                aria-label="放大谱面"
-                isDisabled={!ready || state.notationScale >= 1.2}
-                onPress={() =>
-                  session?.notationScale(state.notationScale + 0.1)
-                }
-              >
-                +
-              </Button>
-            </div>
-          )
-        }
+        notationControls={view === "xml" ? notationControls : undefined}
         position={
           state.measures[state.measure]
             ? `${state.measures[state.measure].label.split(" · ")[0]}`
@@ -328,7 +329,7 @@ export function MusicXmlPractice({
           <Switch
             className="practice-switch"
             isSelected={Boolean(state.solfege)}
-            isDisabled={!ready || view !== "xml"}
+            isDisabled={!ready || view === "pdf"}
             onChange={(visible) => session?.solfege(visible)}
           >
             <span className="practice-switch-label">首调数字</span>
@@ -345,7 +346,7 @@ export function MusicXmlPractice({
                 value={
                   state.solfegePart === null ? "all" : (state.solfegePart ?? 0)
                 }
-                disabled={!ready || view !== "xml"}
+                disabled={!ready || view === "pdf"}
                 onChange={(event) =>
                   session?.solfege(
                     true,
@@ -365,7 +366,7 @@ export function MusicXmlPractice({
             </label>
           )}
           <p className="practice-hint">
-            {view === "xml"
+            {view !== "pdf"
               ? "按当前调号，可标注全部或指定声部；不改变播放混音。"
               : "切换到重排谱面后可设置。"}
           </p>

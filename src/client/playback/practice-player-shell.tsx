@@ -5,8 +5,9 @@ import { Button, Popover, Tooltip, TooltipTrigger } from 'react-aria-components'
 import { Pause, Play, RotateCcw, RotateCw, ChevronDown, SlidersHorizontal, X, LoaderCircle } from 'lucide-react';
 import { Dialog } from '../navigation/overlays';
 import { useAppNavigation, useExitLayer } from '../navigation/navigation-context';
-import { playbackStore, playbackViewStore, setPlaybackView, stopPlayback, type PlaybackSource } from './playback-store';
+import { playbackStore, playbackViewStore, setPlaybackView, stopPlayback, type PlaybackSource, type PlaybackView } from './playback-store';
 import './practice-player.css';
+import { PracticeSplit } from './practice-split';
 import { PlaybackTimeline, type Timeline } from './playback-timeline';
 
 type Props = {
@@ -35,10 +36,13 @@ export function PracticePlayerShell(props: Props) {
       document.documentElement.style.setProperty('--practice-top-inset', `${Math.ceil(top.getBoundingClientRect().height)}px`);
     };
     measure();
-    const observer = new ResizeObserver(measure); observer.observe(element); observer.observe(top);
-    return () => { observer.disconnect(); document.documentElement.style.removeProperty('--practice-inset'); document.documentElement.style.removeProperty('--practice-top-inset'); };
+    // Insets resize both score viewports. Commit outside the observer delivery
+    // cycle so WebKit can finish the current layout before measuring them again.
+    let frame = 0;
+    const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); }); observer.observe(element); observer.observe(top);
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); document.documentElement.style.removeProperty('--practice-inset'); document.documentElement.style.removeProperty('--practice-top-inset'); };
   }, [props.embedded]);
-  const selectView = (next: 'pdf' | 'xml') => navigation.afterEditing(() => {
+  const selectView = (next: PlaybackView) => navigation.afterEditing(() => {
     if (!source || playbackStore.getSnapshot() !== source) return;
     setPanel(null);
     setPlaybackView(next);
@@ -50,10 +54,12 @@ export function PracticePlayerShell(props: Props) {
     <Tooltip className="practice-tooltip" placement="top">{label}</Tooltip>
   </TooltipTrigger>;
   return <>
+    {!props.embedded && isXml && source && <PracticeSplit active={view === 'compare'} ownerKey={source.ownerKey} />}
     <header className="practice-header" aria-label="练习看谱" ref={header}>
       {props.embedded ? <strong>候选谱面与试听</strong> : isXml ? <div className="practice-view-switch" role="group" aria-label="显示谱面">
         <Button aria-pressed={view === 'pdf'} onPress={() => selectView('pdf')}>原始 PDF</Button>
         <Button aria-pressed={view === 'xml'} onPress={() => selectView('xml')}>重排谱面</Button>
+        <Button aria-pressed={view === 'compare'} onPress={() => selectView('compare')}>对照</Button>
       </div> : <span className="practice-source-name" title={source?.attachment.name}>{source?.attachment.name}</span>}
       {props.notationControls}
       {!props.embedded && <Button className="practice-end-playback" aria-label="结束播放" onPress={stopPlayback}>结束</Button>}
