@@ -18,11 +18,13 @@ PR #457 使用仓库原创合成谱例，不含用户原截图、用户谱面或
 ![窄屏密集谱面 120%](small-phone.png)
 ![大安全区](safe-area.png)
 
+实际窗格与工具组坐标见 [geometry.json](geometry.json)。对照回归按安全区而不是固定顶部行高检查两窗格，严格验证等分、边界、分隔线和当前系统避让，并验证分隔比例、独立滚动和播放会话。
+
 ## 回归验证
 
 ```sh
 PRACTICE_TEST_ENGINES=chromium PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium node --test visual-report/practice-focus.test.mjs
-PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium node --test --test-name-pattern=chromium browser-tests/practice-reader-layout.test.mjs browser-tests/practice-unified-controls.test.mjs browser-tests/playback-ux.test.mjs browser-tests/musicxml-playback.test.mjs
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium node --test --test-name-pattern=chromium browser-tests/practice-reader-layout.test.mjs browser-tests/practice-unified-controls.test.mjs browser-tests/playback-ux.test.mjs browser-tests/musicxml-playback.test.mjs browser-tests/practice-compare.test.mjs
 npx vitest run --config vitest.client.config.ts src/client/playback
 npm run lint
 npm run typecheck
