@@ -25,6 +25,8 @@ let browser;
 let server;
 const animationRequests = [];
 let failAnimationRequests = false;
+let preparationGate;
+let releasePreparation;
 
 try {
   await buildVersion(buildIds.first, builds.first);
@@ -68,11 +70,22 @@ try {
   const editingWindow = await context.newPage();
   await editingWindow.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
   await editingWindow.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await page.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "检查更新", exact: true }).waitFor();
   activeBuild = builds.second;
-  await page.evaluate(async () => {
-    const registration = await navigator.serviceWorker.getRegistration();
-    await registration.update();
+  // Hold a required precache response to exercise the actual installing worker.
+  preparationGate = new Promise(resolve => { releasePreparation = resolve; });
+  await page.getByRole("button", { name: "检查更新", exact: true }).click();
+  await page.getByText("正在准备更新…，可以继续使用", { exact: true }).waitFor();
+  assert.equal(await page.getByRole("button", { name: "准备中…", exact: true }).isDisabled(), true);
+  assert.equal(await page.getByText("检查完成，当前版本继续运行", { exact: true }).count(), 0);
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("same-page-check-update"));
+    document.dispatchEvent(new Event("visibilitychange"));
   });
+  await page.getByText("正在准备更新…，可以继续使用", { exact: true }).waitFor();
+  releasePreparation(); preparationGate = undefined;
+  await page.getByText("更新已准备好", { exact: true }).waitFor();
   await page.waitForFunction(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting));
   // A second window with an unfinished login form vetoes every candidate page.
   await page.waitForTimeout(5000);
@@ -149,6 +162,7 @@ try {
   await automatic.close();
   process.stdout.write("Verified automatic restart updates and optional live-window handover\n");
 } finally {
+  releasePreparation?.();
   await browser?.close();
   if (server) {
     await new Promise((resolve) => server.close(resolve));
@@ -271,6 +285,7 @@ async function buildVersion(buildId, destination) {
 async function serveRequest(request, response, root) {
   try {
     const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
+    if (root === builds.second && requestUrl.pathname === "/index.html") await preparationGate;
     if (requestUrl.pathname.startsWith("/api/")) {
       serveApi(requestUrl.pathname, response);
       return;

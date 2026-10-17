@@ -30,6 +30,9 @@ export class UpdateController {
     } else if (this.registration) {
       this.registration.addEventListener("updatefound", this.updateFound);
       void this.check();
+    } else if (!navigator.onLine) {
+      this.registrationError = true;
+      this.show("offline", "当前离线，联网后可重试；当前版本仍可使用");
     } else if (this.registrationError) {
       this.show("error", "更新检查准备失败，请重试");
     } else {

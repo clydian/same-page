@@ -195,6 +195,18 @@ describe("update lifecycle feedback", () => {
     expect(retry).toHaveBeenCalledOnce();
   });
 
+  it("reports offline startup without a registration and can retry after reconnecting", () => {
+    controller.dispose();
+    const retry = vi.fn();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    controller = new UpdateController(undefined, false, retry, requested);
+    start();
+    expect(screen.getByText("当前离线，联网后可重试；当前版本仍可使用")).toBeInTheDocument();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    act(() => { void controller.check(); });
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
   it("honestly reports unsupported browsers", () => {
     Reflect.deleteProperty(navigator, "serviceWorker");
     start();
