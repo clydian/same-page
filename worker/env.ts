@@ -1,4 +1,5 @@
 export interface Env {
+  ASSETS: Fetcher;
   DB: D1Database;
   SCORES_BUCKET: R2Bucket;
   ANDROID_RELEASES?: R2Bucket;
