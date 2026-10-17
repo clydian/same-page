@@ -84,7 +84,7 @@ AlphaSynth 最小对照中，旧版起音 RMS 为单键对照的两倍；修复�
 宿主直接测试安装包的隐藏拍号／Worker 序列化与相同力度重置；浏览器还检查实际
 构建准备 Worker 的首条响应及隐藏拍号元数据，并保留完整播放与 PDF 切换流程。
 
-## 当前固定包：0.1.14
+## 否定渐变词：0.1.14
 
 来源：[Chorus PR #9](https://github.com/clydian/chorus-score-studio/pull/9)，提交
 `6f22b6d15fedaa4e03ab47067260026d5389fe59`。Node24 构建并打包，固定包
@@ -102,3 +102,49 @@ AlphaSynth 最小对照中，旧版起音 RMS 为单键对照的两倍；修复�
 
 宿主新增实际安装包的否定表达及肯定程度限定语回归，继续验证原有准备Worker、
 隐藏拍号、力度重置与完整浏览器播放/PDF流程。
+
+## 0.1.16 基础修复（包含于下列当前 0.1.17）
+
+来源：[Chorus PR #11](https://github.com/clydian/chorus-score-studio/pull/11)，提交
+`9f4adcaafe07f6f11660488ef83ffd9f2df8ead0`，叠加 0.1.15 的 offbeat 渐强线边界修复。
+
+按源 MusicXML 的 composer/arranger 类型分别呈现作曲与编曲，不再把编曲者误标为
+音乐作者；新 prepared.creatorCredits 是可 structuredClone 的纯元数据，旧 payload
+继续从原字节解析。准备 Worker 不导入渲染运行时，源 XML 字节保持不变。
+
+支持两个简单 beat-unit（含附点）的速度等式，并从此前有效速度推导隐藏的播放速度。
+Cantate 第 26 小节 dotted-half=whole 把默认 quarter120 转为 quarter160，而不捏造源谱
+未印出的 160 数字。该等式的原生字形显示仍有限制；复杂连音／范围／pass-specific
+关系保留 native fallback。同一时点显式 sound 速度仍优先，但与印刷速度不同时不将
+胜出的播放数值伪装成印刷标记。初始 120 是播放器默认值，非原谱标注。
+
+源码 281 项测试与 build 通过。实际解包产物对 23 条交付记录、望春风 v7 和 Cantate
+完整 v3 共 25 输入比较，全部非速度字段与 tick 保持一致；只有两条 Cantate 及完整
+v3 添加预期速度。宿主新增实际包 SVG 署名、prepared clone／旧 payload、相对速度
+真实 MIDI 及冲突数字可见性回归，并在真实构建 Worker 两浏览器验证 metadata 和
+速度 sidecar。此处不代表这些谱目已完成生产或耳听验收。
+
+
+## 当前固定包：0.1.17（混合延音链与有边界的源力度显示）
+
+来源提交 `64122f37ccf2df0b188d09fff891c782b2da542d`。固定包
+`clydian-chorus-player-0.1.17.tgz` 的 SHA-256：
+`ac3d4345eacfd5c4a3af41c75152ca0ad09a0140f211e6820e2c52d95290e646`。
+包含上述 0.1.16 的署名和相对速度修复；宿主的源 XML、已有用户数据及准备协议不变。
+
+完整且相邻、无歧义的普通／移调声部延音链分配 importer-safe ID，避免已完成的
+numbered origin 被后续 unnumbered stop 错误重用。最小实际宿主 MIDI 保留两个
+G3 攻击，时长分别为 2400 与 5760 ticks。任何无法安全配对的 unnumbered endpoint、
+带延音的 grace、复拍号时间线或 ID 预算耗尽均整 part 保留 native fallback；不声称
+修复这些不支持输入原有的播放问题。
+
+全部播放力度计算完成后，仅对能完整映射到精确发音位置的 track 恢复源力度 glyph；
+不改变 note dynamics 或 MIDI。已复现并修复次声部进入时凭继承力度多印 f／p。
+源标记在休止或拍间、非数字 voice、复合／未知标记、同音柱冲突、重复同值等无法
+忠实显示时，整 track 保留原路径，可能仍有多余或缺失符号。望春风 Piano 的此类
+fallback 未解决，不能把本次更新当作全谱显示保真。producer 的 dynamics
+print-object=no 提示也保守 fallback，不冒称标准 MusicXML 4 隐藏符号支持。
+
+宿主保留原 0.1.16 三项回归，新增真实安装包的 mixed ties／grace fallback／实际
+SVG 单一源力度及旧 prepared payload 兼容断言。Worker 新 completeness 元数据为
+可 structuredClone 的纯数据；没有该字段的旧 payload 保持原 marker 路径。
