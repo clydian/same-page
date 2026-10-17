@@ -1,3 +1,4 @@
+import { selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -27,11 +28,11 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(bar.getByRole('button', { name: '播放', exact: true })).toBeEnabled({ timeout: 60000 });
   const progress = bar.getByRole('slider', { name: '播放进度', exact: true });
   await progress.fill('8');
-  await page.getByRole('button', { name: '原始 PDF', exact: true }).click();
+  await selectPracticeView(page, '原始 PDF');
   await page.locator('.reader-shell').getByRole('button', { name: /展开页码网格/ }).click();
   await page.getByRole('button', { name: '第 2 页', exact: true }).click();
   await expect(page.locator('.reader-shell').getByLabel('页面位置')).toContainText('2 /');
-  await page.getByRole('button', { name: '对照', exact: true }).click();
+  await selectPracticeView(page, '对照');
   const pdf = page.getByRole('region', { name: '对照原始 PDF', exact: true });
   const xml = page.getByRole('region', { name: 'MusicXML 谱面', exact: true });
   const separator = page.getByRole('separator');
@@ -107,9 +108,9 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect.poll(() => xmlScroll.evaluate(e => e.scrollTop)).toBeGreaterThan(beforeXml + 200);
   await expect(page.getByRole('button', { name: '恢复自动跟随', exact: true })).toBeVisible();
   const xmlTop = await xmlScroll.evaluate(e => e.scrollTop);
-  await page.getByRole('button', { name: '原始 PDF', exact: true }).click();
+  await selectPracticeView(page, '原始 PDF');
   await expect(page.locator('.page-reader__viewport')).toBeVisible();
-  await page.getByRole('button', { name: '对照', exact: true }).click();
+  await selectPracticeView(page, '对照');
   await expect.poll(() => pdfScroll.evaluate(e => e.scrollTop)).toBe(pdfTop);
   await expect.poll(() => xmlScroll.evaluate(e => e.scrollTop)).toBe(xmlTop);
   await expect(progress).toHaveValue('8');
@@ -117,8 +118,8 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await bar.getByRole('button', { name: '播放', exact: true }).click();
   await expect(bar.getByRole('button', { name: '暂停', exact: true })).toBeVisible();
   await expect.poll(() => progress.inputValue(), { timeout: 15000 }).not.toBe('8');
-  await page.getByRole('button', { name: '重排谱面', exact: true }).click();
-  await page.getByRole('button', { name: '对照', exact: true }).click();
+  await selectPracticeView(page, '重排谱面');
+  await selectPracticeView(page, '对照');
   await expect(bar.getByRole('button', { name: '暂停', exact: true })).toBeVisible();
   await separator.press('ArrowDown');
   await expect(bar.getByRole('button', { name: '暂停', exact: true })).toBeVisible();

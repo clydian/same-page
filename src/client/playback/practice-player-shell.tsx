@@ -1,9 +1,9 @@
 import { readerHref } from "../reader/reader-entry";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Popover, Tooltip, TooltipTrigger } from 'react-aria-components';
-import { Pause, Play, RotateCcw, RotateCw, ChevronDown, SlidersHorizontal, X, LoaderCircle } from 'lucide-react';
-import { Dialog } from '../navigation/overlays';
+import { Button, MenuItem, MenuTrigger, Popover, Tooltip, TooltipTrigger } from 'react-aria-components';
+import { Pause, Play, RotateCcw, RotateCw, ChevronDown, Check, SlidersHorizontal, X, LoaderCircle } from 'lucide-react';
+import { Dialog, Menu } from '../navigation/overlays';
 import { useAppNavigation, useExitLayer } from '../navigation/navigation-context';
 import { playbackStore, playbackViewStore, setPlaybackView, stopPlayback, type PlaybackSource, type PlaybackView } from './playback-store';
 import './practice-player.css';
@@ -13,7 +13,6 @@ import { PlaybackTimeline, type Timeline } from './playback-timeline';
 type Props = {
   source?: PlaybackSource; embedded?: boolean; ready: boolean; playing: boolean; message?: string; failed?: boolean;
   position: string; timeline: Timeline; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
-  notationControls?: ReactNode;
   play(): void; previous(): void; next(): void; retry(): void; children: ReactNode;
 };
 
@@ -21,7 +20,8 @@ export function PracticePlayerShell(props: Props) {
   const { source } = props;
   const readerView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
   const view = props.embedded ? 'xml' : readerView;
-  const [panel, setPanel] = useState<'settings' | null>(null);
+  const [panel, setPanel] = useState<'settings' | 'position' | null>(null);
+  const positionTrigger = useRef<HTMLButtonElement>(null);
   const settingsTrigger = useRef<HTMLButtonElement>(null);
   const dock = useRef<HTMLDivElement>(null), header = useRef<HTMLElement>(null);
   const location = useLocation(), navigate = useNavigate(), navigation = useAppNavigation();
@@ -56,12 +56,14 @@ export function PracticePlayerShell(props: Props) {
   return <>
     {!props.embedded && isXml && source && <PracticeSplit active={view === 'compare'} ownerKey={source.ownerKey} />}
     <header className="practice-header" aria-label="练习看谱" ref={header}>
-      {props.embedded ? <strong>候选谱面与试听</strong> : isXml ? <div className="practice-view-switch" role="group" aria-label="显示谱面">
-        <Button aria-pressed={view === 'pdf'} onPress={() => selectView('pdf')}>原始 PDF</Button>
-        <Button aria-pressed={view === 'xml'} onPress={() => selectView('xml')}>重排谱面</Button>
-        <Button aria-pressed={view === 'compare'} onPress={() => selectView('compare')}>对照</Button>
-      </div> : <span className="practice-source-name" title={source?.attachment.name}>{source?.attachment.name}</span>}
-      {props.notationControls}
+      {props.embedded ? <strong>候选谱面与试听</strong> : isXml ? <MenuTrigger>
+        <Button className="practice-view-trigger" aria-label="显示谱面">{view === 'pdf' ? '原始 PDF' : view === 'compare' ? '对照' : '重排谱面'}<ChevronDown size={14} aria-hidden="true" /></Button>
+        <Popover className="practice-view-popover" placement="bottom start" offset={6}>
+          <Menu aria-label="显示谱面" selectionMode="single" selectedKeys={[view]} onAction={key => { if (key === 'pdf' || key === 'xml' || key === 'compare') selectView(key); }}>
+            {([['pdf','原始 PDF'],['xml','重排谱面'],['compare','对照']] as const).map(([key,label]) => <MenuItem key={key} id={key} textValue={label} className="practice-view-option"><span>{label}</span>{view === key && <Check size={16} aria-hidden="true" />}</MenuItem>)}
+          </Menu>
+        </Popover>
+      </MenuTrigger> : <span className="practice-source-name" title={source?.attachment.name}>{source?.attachment.name}</span>}
       {!props.embedded && <Button className="practice-end-playback" aria-label="结束播放" onPress={stopPlayback}>结束</Button>}
     </header>
     <div className="practice-dock" data-view={view} ref={dock}>
@@ -69,25 +71,40 @@ export function PracticePlayerShell(props: Props) {
       <section className="practice-bar" aria-label="乐谱练习" data-testid="musicxml-player">
         <PlaybackTimeline timeline={props.timeline} />
 
+        <div className="practice-bar-meta">
+          <Button ref={positionTrigger} className="practice-position" aria-label={isXml ? '定位小节' : '定位时间'} aria-expanded={panel === 'position'} isDisabled={props.timeline.disabled} onPress={() => setPanel(panel === 'position' ? null : 'position')} aria-description={props.timeline.label(props.timeline.value)}>{props.position}</Button>
+          {props.setSpeed && <select className="practice-speed" aria-label="速度" value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select>}
+        </div>
         <div className="practice-transport">
         {icon(isXml ? '前一小节' : '后退 10 秒', <span className="practice-skip" aria-hidden="true"><RotateCcw size={26} /><span>{isXml ? 1 : 10}</span></span>, props.previous, !props.ready || props.previousDisabled)}
         <TooltipTrigger><Button className="practice-icon practice-play" aria-label={props.playing ? '暂停' : '播放'} isDisabled={!props.ready} onPress={props.play}>
           {!props.ready && !props.failed ? <LoaderCircle className="practice-loading-icon" size={18} aria-hidden="true" /> : props.playing ? <Pause size={18} fill="currentColor" aria-hidden="true" /> : <Play size={18} fill="currentColor" aria-hidden="true" />}
         </Button><Tooltip className="practice-tooltip" placement="top">{props.playing ? '暂停' : '播放'}</Tooltip></TooltipTrigger>
         {icon(isXml ? '后一小节' : '前进 10 秒', <span className="practice-skip" aria-hidden="true"><RotateCw size={26} /><span>{isXml ? 1 : 10}</span></span>, props.next, !props.ready || props.nextDisabled)}
-        <span className="practice-position" title={props.position}>{props.position}</span>
 
         </div>
-        <div className="practice-bar-actions">{props.setSpeed && <span className="practice-speed-control"><select className="practice-speed" aria-label="速度" value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select><ChevronDown size={12} aria-hidden="true" /></span>}
-        <Button ref={settingsTrigger} className={`practice-icon practice-settings${isXml ? " practice-settings-xml" : ""}`} aria-label="练习设置" aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={isXml ? 15 : 18} aria-hidden="true" />{isXml && <span>练习</span>}</Button>
-        </div>
+        <div className="practice-bar-actions"><TooltipTrigger>
+          <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={19} aria-hidden="true" /></Button>
+          <Tooltip className="practice-tooltip" placement="top">练习设置</Tooltip>
+        </TooltipTrigger></div>
       </section>
     </div>
-    {panel && <Popover triggerRef={settingsTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" offset={10}>
-      <Dialog className="practice-panel" aria-label="练习设置">
-        <header><div><strong>练习设置</strong></div><Button className="practice-icon" aria-label="关闭练习设置" onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
-        {panel === 'settings' && <>{props.children}</>}
+    {panel && <Popover triggerRef={panel === 'settings' ? settingsTrigger : positionTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" offset={10}>
+      <Dialog className="practice-panel" aria-label={panel === 'settings' ? '练习设置' : isXml ? '定位小节' : '定位时间'}>
+        <header><div><strong>{panel === 'settings' ? '练习设置' : isXml ? '定位小节' : '定位时间'}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? '关闭练习设置' : '关闭定位'} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
+        {panel === 'settings' ? props.children : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}
       </Dialog>
     </Popover>}
+  </>;
+}
+
+function PositionLocator({ timeline, isXml, close }: { timeline: Timeline; isXml: boolean; close(): void }) {
+  const [value, setValue] = useState(timeline.value);
+  return <>
+    <label className="practice-field"><span>{timeline.label(value)}</span>
+      <input aria-label={isXml ? '目标小节' : '目标时间'} type="range" min="0" max={timeline.max} step={timeline.step ?? 1} value={value} disabled={timeline.disabled} onChange={event => setValue(Number(event.target.value))} />
+    </label>
+    {isXml && <p className="practice-hint">播放次序 {value + 1} / {timeline.max + 1}</p>}
+    <Button className="practice-action" isDisabled={timeline.disabled} onPress={() => { timeline.seek(value); close(); }}>跳转</Button>
   </>;
 }

@@ -1,3 +1,4 @@
+import { changeNotationSize } from "./practice-controls.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdir } from "node:fs/promises";
@@ -121,11 +122,11 @@ for (const [engine, type] of [
       await expect(
         page.locator(".admin-comparison canvas").first(),
       ).toBeAttached({ timeout: 20000 });
-      const notationSize = page.getByRole("button", { name: "恢复默认谱面大小", exact: true });
+      const notationSize = page.getByRole("button", { name: "谱面大小", exact: true });
       await expect(notationSize).toHaveText("60%");
       await page.locator(".admin-musicxml .practice-notation-scroll").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80 });
       await expect(notationSize).toHaveText("90%");
-      await notationSize.click();
+      await changeNotationSize(page, "恢复默认谱面大小");
       await expect(notationSize).toHaveText("60%");
       await player.getByRole("button", { name: "播放", exact: true }).click();
       await expect(

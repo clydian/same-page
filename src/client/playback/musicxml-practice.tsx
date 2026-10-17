@@ -8,6 +8,7 @@ import { Button, Switch } from "react-aria-components";
 import type { PlayerSession, PlayerState } from "@clydian/chorus-player";
 import { playbackViewStore, type PlaybackSource } from "./playback-store";
 import { useNotationPinch } from "./use-notation-pinch";
+import { NotationZoom } from "./notation-zoom";
 import { PracticePlayerShell } from "./practice-player-shell";
 const preparing: PlayerState = {
   status: "preparing",
@@ -71,42 +72,6 @@ export function MusicXmlPractice({
     (state.loop.start !== loopStart || state.loop.end !== loopEnd),
   );
   const measureLabel = (index: number) => state.measures[index]?.label ?? "—";
-  const notationControls = (
-    <div
-      className="practice-notation-size"
-      role="group"
-      aria-label="谱面大小"
-    >
-      <Button
-        className="practice-icon"
-        aria-label="缩小谱面"
-        isDisabled={!ready || state.notationScale <= 0.3}
-        onPress={() =>
-          session?.notationScale(state.notationScale - 0.1)
-        }
-      >
-        −
-      </Button>
-      <Button
-        className="practice-size-reset"
-        aria-label="恢复默认谱面大小"
-        isDisabled={!ready}
-        onPress={() => session?.notationScale(0.6)}
-      >
-        {Math.round(state.notationScale * 100)}%
-      </Button>
-      <Button
-        className="practice-icon"
-        aria-label="放大谱面"
-        isDisabled={!ready || state.notationScale >= 1.2}
-        onPress={() =>
-          session?.notationScale(state.notationScale + 0.1)
-        }
-      >
-        +
-      </Button>
-    </div>
-  );
   return (
     <>
       <section
@@ -117,7 +82,7 @@ export function MusicXmlPractice({
         aria-hidden={view === "pdf"}
         inert={view === "pdf"}
       >
-        {view === "compare" && <div className="practice-pane-heading"><span className="practice-pane-title">重排谱面{source?.attachment.source === "generated" && <small>自动生成 · Beta</small>}</span>{notationControls}</div>}
+        <NotationZoom scale={state.notationScale} ready={ready} onChange={value => session?.notationScale(value)} />
         {view !== "pdf" && state.following === false && (
           <Button className="practice-follow" onPress={() => session?.follow()}>
             恢复自动跟随
@@ -151,10 +116,9 @@ export function MusicXmlPractice({
         }}
         speed={state.speed}
         setSpeed={(value) => session?.speed(value)}
-        notationControls={view === "xml" ? notationControls : undefined}
         position={
           state.measures[state.measure]
-            ? `${state.measures[state.measure].label.split(" · ")[0]}`
+            ? state.measures[state.measure].label.split(" · ")[0].replace(/^第\s*/, "").replace(/\s*小节$/, "")
             : "—"
         }
         previousDisabled={state.measure <= 0}

@@ -1,0 +1,13 @@
+import { expect } from '@playwright/test';
+
+export async function selectPracticeView(page, name) {
+  await page.getByRole('button', { name: '显示谱面', exact: true }).click();
+  await page.locator('.practice-view-option').filter({ hasText: name }).click();
+  await expect(page.getByRole('button', { name: '显示谱面', exact: true })).toHaveText(name);
+}
+export async function changeNotationSize(page, operation, count = 1) {
+  await page.getByRole('button', { name: '谱面大小', exact: true }).click();
+  for (let i = 0; i < count; i++) await page.getByRole('button', { name: operation, exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: '调整谱面大小', exact: true })).toBeHidden();
+}

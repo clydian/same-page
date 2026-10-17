@@ -17,7 +17,6 @@ function ComparisonPdfContent({ active, document, initialPage, annotationProps }
   const [page, setPage] = useState(initialPage);
   const [zoom, setZoom] = useState(1);
   return <section className="practice-comparison-pdf" data-visible={active || undefined} aria-label="对照原始 PDF" aria-hidden={!active} inert={!active}>
-    <div className="practice-pane-heading">原始 PDF</div>
     <PageNavigatorPanel document={document} currentPage={page} compact onSelect={setPage} />
     <div className="practice-comparison-pdf-stage">
       <ContinuousLayout document={document} currentPage={page} zoom={zoom}
