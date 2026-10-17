@@ -1,0 +1,82 @@
+diff --git a/packages/player/src/engine.ts b/packages/player/src/engine.ts
+index fcc89bb..39ac3be 100644
+--- a/packages/player/src/engine.ts
++++ b/packages/player/src/engine.ts
+@@ -1,4 +1,5 @@
+ import * as alphaTab from '@coderline/alphatab';
++import { normalizeMusicXmlRepeatEndings } from './musicxml-repeat-endings.ts';
+ import { prepareMusicXmlSource } from './format.ts';
+ import { prepareMusicXmlForAlphaTabBytes } from './musicxml-direction-timing.ts';
+ import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
+@@ -10,7 +11,7 @@ export function loadMusicXml(bytes: Uint8Array, settings: alphaTab.Settings): al
+ }
+ 
+ export function loadPreparedMusicXml(prepared: PreparedMusicXml, settings: alphaTab.Settings): alphaTab.model.Score {
+-  const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(prepared.bytes, settings);
++  const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(normalizeMusicXmlRepeatEndings(prepared.bytes), settings);
+   applyAlphaTabPlaybackDynamics(score, prepared.partsWithExplicitDynamics, score.tracks.length, prepared.dynamicEventsByPart);
+   return score;
+ }
+diff --git a/packages/player/src/musicxml-repeat-endings.ts b/packages/player/src/musicxml-repeat-endings.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/player/src/musicxml-repeat-endings.ts
+@@ -0,0 +1,58 @@
++import { XMLBuilder, XMLParser } from 'fast-xml-parser';
++
++type Node = Record<string, unknown>;
++const options = { ignoreAttributes: false, preserveOrder: true, parseTagValue: false, parseAttributeValue: false };
++const parser = new XMLParser(options);
++const builder = new XMLBuilder({ ...options, suppressEmptyNode: true });
++const tag = (node: Node) => Object.keys(node).find(key => key !== ':@') ?? '';
++const children = (node: Node, name: string): Node[] => Array.isArray(node[name]) ? node[name] as Node[] : [];
++const attributes = (node: Node): Record<string, string> => (node[':@'] ?? {}) as Record<string, string>;
++
++/** alphaTab 1.8.4 overwrites global volta flags while reading later parts.
++ * Mirror only ending markers in the disposable playback input, keeping the
++ * user's original bytes, pitches, durations and per-part bar styles intact. */
++export function normalizeMusicXmlRepeatEndings(bytes: Uint8Array): Uint8Array {
++  const tree = parser.parse(new TextDecoder().decode(bytes)) as Node[];
++  const root = tree.find(node => tag(node) === 'score-partwise');
++  if (!root) return bytes;
++  const parts = children(root, 'score-partwise').filter(node => tag(node) === 'part');
++  if (parts.length < 2) return bytes;
++  const measures = parts.map(part => children(part, 'part').filter(node => tag(node) === 'measure'));
++  const endings = new Map<number, Map<string, Node[]>>();
++  for (const part of measures) part.forEach((measure, index) => {
++    for (const barline of children(measure, 'measure').filter(node => tag(node) === 'barline')) {
++      const markers = children(barline, 'barline').filter(node => tag(node) === 'ending');
++      if (!markers.length) continue;
++      const byLocation = endings.get(index) ?? new Map<string, Node[]>();
++      const location = attributes(barline)['@_location'] ?? 'right';
++      const collected = byLocation.get(location) ?? [];
++      for (const marker of markers) if (!collected.some(existing =>
++        attributes(existing)['@_number'] === attributes(marker)['@_number'] &&
++        attributes(existing)['@_type'] === attributes(marker)['@_type'])) collected.push(marker);
++      byLocation.set(location, collected);
++      endings.set(index, byLocation);
++    }
++  });
++  if (!endings.size) return bytes;
++  let changed = false;
++  for (const part of measures) part.forEach((measure, index) => {
++    const content = children(measure, 'measure');
++    for (const [location, markers] of endings.get(index) ?? []) {
++      let barline = content.find(node => tag(node) === 'barline' && (attributes(node)['@_location'] ?? 'right') === location);
++      if (!barline) {
++        barline = { barline: [], ':@': { '@_location': location } };
++        if (location === 'left') content.unshift(barline); else content.push(barline);
++      }
++      const barContent = children(barline, 'barline');
++      for (const marker of markers) {
++        if (barContent.some(node => tag(node) === 'ending' &&
++          attributes(node)['@_number'] === attributes(marker)['@_number'] &&
++          attributes(node)['@_type'] === attributes(marker)['@_type'])) continue;
++        const repeat = barContent.findIndex(node => tag(node) === 'repeat');
++        barContent.splice(repeat < 0 ? barContent.length : repeat, 0, structuredClone(marker));
++        changed = true;
++      }
++    }
++  });
++  return changed ? new TextEncoder().encode(builder.build(tree)) : bytes;
++}

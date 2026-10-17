@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",
-    "@clydian/chorus-player": "file:vendor/clydian-chorus-player-0.1.5.tgz",
+    "@clydian/chorus-player": "file:vendor/clydian-chorus-player-0.1.6.tgz",
     "@coderline/alphatab": "^1.8.4",
     "@coderline/alphatab-vite": "^1.8.4",
     "@mdxeditor/editor": "^4.2.5",
