@@ -228,3 +228,43 @@
 .reader-shell[data-practicing], .reader-shell[data-practicing] .page-reader__canvas-stage { background: #f3f4f0; }
 
 .practice-notation-size button[aria-disabled=true] { opacity: .35; cursor: default; }
+
+/* Explicit controls only: score gestures never toggle chrome and there is no
+   inactivity timer to interrupt focus, menus or timeline drags. */
+.practice-header-controls { display: flex; align-items: center; justify-content: space-between; flex: 1; min-width: 0; }
+.practice-chrome-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; padding: 0 8px; border: 0; border-radius: 12px; background: transparent; color: #365747; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.practice-chrome-toggle[data-hovered] { background: #eaf0ea; }
+.practice-chrome-toggle:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
+.practice-header [hidden], .practice-dock [hidden] { display: none; }
+.practice-header[data-collapsed] { inset: max(8px,var(--safe-top)) auto auto max(8px,var(--safe-left)); min-height: 44px; padding: 0; gap: 0; border: 1px solid #dce4de; border-radius: 14px; box-shadow: 0 2px 12px #17352b14; background: #fcfdfbf5; }
+.practice-dock[data-collapsed] { inset: auto max(8px,var(--safe-right)) max(8px,env(safe-area-inset-bottom)) auto; padding: 0; border-radius: 28px; background: transparent; }
+.practice-dock[data-collapsed] .practice-bar { display: flex; min-height: 48px; padding: 4px; border: 1px solid #dce4de; border-radius: 28px; box-shadow: 0 2px 12px #17352b14; }
+.practice-dock[data-collapsed] .practice-notice { max-width: 260px; }
+.practice-bar-actions .practice-chrome-toggle { padding-inline: 4px; }
+.practice-bar-actions { gap: 2px; }
+.practice-focus-notice { position: fixed; z-index: 115; bottom: calc(max(8px,env(safe-area-inset-bottom)) + 68px); left: max(12px,var(--safe-left)); max-width: min(320px,calc(100vw - 32px)); padding: 10px 14px; border-radius: 12px; background: #31463af5; color: white; font-size: 12px; line-height: 1.5; pointer-events: none; }
+/* Follow belongs to the score viewport, independent of measured control insets.
+   Keep it clear of the top-left chrome and top-right zoom entry. */
+.practice-follow, .practice-notation[data-compare] .practice-follow { top: auto; bottom: 8px; left: 8px; max-width: calc(100% - 180px); }
+@media (max-height: 500px) {
+  .practice-header { padding-block: max(0px,var(--safe-top)) 0; min-height: 44px; }
+  .practice-bar { min-height: 56px; padding-block: 8px 0; }
+  .practice-notation-scroll { padding-block: 4px; }
+}
+@media (max-width: 380px) {
+  .practice-header-controls .practice-view-trigger { padding-inline: 4px; }
+}
+.practice-expanded-controls { display: contents; }
+.practice-follow, .practice-notation[data-compare] .practice-follow { bottom: calc(8px + var(--practice-float-bottom,0px)); max-width: calc(100% - 16px); }
+@media (max-width: 380px) { .practice-transport .practice-play { flex-basis: 44px; width: 44px; height: 44px; } }
+.practice-focus-notice { display: flex; align-items: center; gap: 4px; top: calc(max(8px,var(--safe-top)) + 56px); bottom: auto; pointer-events: auto; }
+.practice-focus-notice .practice-icon { color: white; }
+
+@media (max-width: 480px) {
+  .practice-dock:not([data-collapsed]) .practice-bar-actions > .practice-chrome-toggle span { display: none; }
+}
+@media (max-width: 380px) {
+  .practice-settings { flex-basis: 44px; width: 44px; }
+  .practice-settings > span { display: none; }
+}
+.practice-header-controls > strong { font-size: .8rem; margin-right: auto; }

@@ -1,0 +1,63 @@
+{
+  "collapsed": {
+    "top": 0,
+    "bottom": 390,
+    "height": 390
+  },
+  "expanded": {
+    "top": 45,
+    "bottom": 333,
+    "height": 288
+  },
+  "smallPhoneControls": [
+    {
+      "label": "定位小节",
+      "left": 4,
+      "right": 48,
+      "width": 44,
+      "height": 44
+    },
+    {
+      "label": "速度",
+      "left": 48,
+      "right": 92,
+      "width": 44,
+      "height": 44
+    },
+    {
+      "label": "前一小节",
+      "left": 94,
+      "right": 138,
+      "width": 44,
+      "height": 44
+    },
+    {
+      "label": "播放",
+      "left": 138,
+      "right": 182,
+      "width": 44,
+      "height": 44
+    },
+    {
+      "label": "后一小节",
+      "left": 182,
+      "right": 226,
+      "width": 44,
+      "height": 44
+    },
+    {
+      "label": "收起播放控制",
+      "left": 226,
+      "right": 270,
+      "width": 44,
+      "height": 44
+    },
+    {
+      "label": "练习设置",
+      "left": 272,
+      "right": 316,
+      "width": 44,
+      "height": 44
+    }
+  ]
+}
