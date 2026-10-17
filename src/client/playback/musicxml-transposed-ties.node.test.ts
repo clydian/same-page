@@ -44,3 +44,13 @@ test('independent voices at the same written pitch keep separate tie chains',()=
  const voices=score.tracks[0].staves[0].bars[0].voices;
  for(const voice of voices)assert.equal(voice.beats[1].notes[0].tieOrigin===voice.beats[0].notes[0],true);
 });
+
+test('explicit IDs reused across XML-order-overlapping voices preserve both pitches and eight-quarter MIDI chains',()=>{
+ const input=bytes(xml([note('E',['start'],{voice:'2',number:'1',duration:4}),note('F',['start'],{number:'1',duration:4})+'<backup><duration>4</duration></backup>'+note('E',['stop'],{voice:'2',number:'1',duration:4}),note('F',['stop'],{number:'1',duration:4})],0));
+ const original=input.slice();const score=loadMusicXml(input,new alphaTab.Settings());
+ const all=score.tracks[0].staves[0].bars.flatMap(bar=>bar.voices.flatMap(voice=>voice.beats.flatMap(beat=>beat.notes)));
+ const destinations=all.filter(note=>note.tieOrigin);
+ assert.deepEqual(destinations.map(note=>[note.realValue,note.tieOrigin?.realValue]),[[64,64],[65,65]]);
+ assert.deepEqual(midi(score),[{start:0,length:7680,key:64},{start:3840,length:7680,key:65}]);
+ assert.deepEqual(input,original);
+});

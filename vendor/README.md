@@ -12,3 +12,5 @@
 0.1.6 修复首谱表反复结尾被后续声部覆盖；来源、构建和验证见 [chorus-player-0.1.6.md](chorus-player-0.1.6.md)。
 
 0.1.7 修复转调乐器无编号延音匹配到旧小节的问题；来源、范围和实际 MIDI 回归见 [chorus-player-0.1.7.md](chorus-player-0.1.7.md)。
+
+0.1.8 修复不同声部复用显式延音编号导致的音高与时值错配；来源、保守边界和完整候选 MIDI 回归见 [chorus-player-0.1.8.md](chorus-player-0.1.8.md)。

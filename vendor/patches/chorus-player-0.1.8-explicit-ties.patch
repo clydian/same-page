@@ -1,0 +1,267 @@
+--- a/packages/player/src/musicxml-transposed-ties.ts
++++ b/packages/player/src/musicxml-transposed-ties.ts
+@@ -1,6 +1,8 @@
+ import { XMLBuilder, XMLParser } from 'fast-xml-parser';
+ 
+ type Node = Record<string, unknown>;
++type Endpoint = { marker: Node; notation: Node; ordinal: number; onset: number; end: number; key: string; type: string; number: string };
++type Pair = { start: Endpoint; stop: Endpoint; id?: string };
+ const options = { ignoreAttributes: false, preserveOrder: true, parseTagValue: false, parseAttributeValue: false };
+ const parser = new XMLParser(options);
+ const builder = new XMLBuilder({ ...options, suppressEmptyNode: true });
+@@ -13,91 +15,133 @@
+ };
+ const descendants = (nodes: Node[], name: string): Node[] => nodes.flatMap(node =>
+   tag(node) === name ? [node] : Object.entries(node).filter(([key, value]) => key !== ':@' && Array.isArray(value)).flatMap(([, value]) => descendants(value as Node[], name)));
++const adjacent = (a: number, b: number) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < 1e-7;
+ 
+-/** alphaTab matches unnumbered tie stops before applying instrument transposition,
+- * against already-transposed starts. Give complete, unambiguous written-pitch
+- * chains explicit IDs in disposable playback input. Never mutate source bytes. */
++/** Assign importer-safe IDs only to complete, adjacent, unambiguous written-pitch
++ * ties. alphaTab's numbered lookup is staff scoped and follows XML order, which
++ * may differ from musical time across voices. Unnumbered ties need this repair
++ * in transposed parts as well. The original attachment bytes are never changed.
++ * Historical function name retained as an internal compatibility seam. */
+ export function normalizeMusicXmlTransposedTies(bytes: Uint8Array): Uint8Array {
+   const source = new TextDecoder().decode(bytes);
+-  if (!/<transpose(?:\s|>)/.test(source) || !/<tied(?:\s|>)/.test(source)) return bytes;
++  if (!/<tied(?:\s|>)/.test(source)) return bytes;
+   const tree = parser.parse(source) as Node[];
+   const root = tree.find(node => tag(node) === 'score-partwise');
+   if (!root) return bytes;
+   let changed = false;
+   for (const part of children(root, 'score-partwise').filter(node => tag(node) === 'part')) {
+     const contents = children(part, 'part');
+-    if (!descendants(contents, 'transpose').some(node =>
+-      ['chromatic', 'octave-change'].some(name => Number(text(children(node, 'transpose'), name)) !== 0))) continue;
+-    const reserved = new Set(descendants(contents, 'tied').map(node => attributes(node)['@_number']).filter(Boolean));
+-    const active = new Map<string, { id: string; marker: Node; end: number }>();
+-    const ambiguous = new Set<string>();
+-    let divisions = 1;
+-    let measureStart = 0;
+-    const occupied = new Set(reserved);
+-    const changedNotations = new Set<Node>();
++    const transposed = descendants(contents, 'transpose').some(node =>
++      ['chromatic', 'octave-change'].some(name => Number(text(children(node, 'transpose'), name)) !== 0));
++    const endpoints: Endpoint[] = [];
++    let unsupportedTimeline = false;
++    let divisions = 1, measureStart = 0, meter = 0, ordinal = 0, measureIndex = 0;
+     for (const measure of contents.filter(node => tag(node) === 'measure')) {
+-      let cursor = 0;
+-      let extent = 0;
+-      let previousOnset = 0;
+-      for (const note of children(measure, 'measure')) {
+-        const kind = tag(note);
++      let cursor = 0, extent = 0, previousOnset = 0;
++      for (const node of children(measure, 'measure')) {
++        const kind = tag(node);
++        const content = children(node, kind);
+         if (kind === 'attributes') {
+-          const value = Number(text(children(note, kind), 'divisions'));
++          const value = Number(text(content, 'divisions'));
+           if (Number.isFinite(value) && value > 0) divisions = value;
++          const times = content.filter(item => tag(item) === 'time');
++          if (times.length > 1 || times.some(time => attributes(time)['@_number'])) unsupportedTimeline = true;
++          const time = times[0];
++          if (time) {
++            const ts = children(time, 'time');
++            if (ts.filter(item => tag(item) === 'beats').length > 1 || ts.filter(item => tag(item) === 'beat-type').length > 1) unsupportedTimeline = true;
++            const beats = text(ts, 'beats').split('+').map(Number);
++            const denominator = Number(text(ts, 'beat-type'));
++            meter = beats.every(value => Number.isFinite(value) && value > 0) && denominator > 0
++              ? beats.reduce((sum, value) => sum + value, 0) * 4 / denominator : 0;
++          }
+           continue;
+         }
+         if (kind === 'backup' || kind === 'forward') {
+-          const length = Number(text(children(note, kind), 'duration')) / divisions;
++          const length = Number(text(content, 'duration')) / divisions;
+           cursor += kind === 'backup' ? -length : length;
+           extent = Math.max(extent, cursor);
+           continue;
+         }
+-        if (kind !== 'note') continue;
+-        const content = children(note, 'note');
+-        if (content.some(node => tag(node) === 'grace')) continue;
++        if (kind !== 'note' || content.some(item => tag(item) === 'grace')) continue;
+         const duration = Number(text(content, 'duration')) / divisions;
+-        const chord = content.some(node => tag(node) === 'chord');
++        const chord = content.some(item => tag(item) === 'chord');
+         const onset = chord ? previousOnset : cursor;
+         if (!chord) { previousOnset = onset; cursor += duration; }
+         extent = Math.max(extent, onset + duration, cursor);
+-        const pitch = content.find(node => tag(node) === 'pitch');
++        const pitch = content.find(item => tag(item) === 'pitch');
++        ordinal++;
+         if (!pitch) continue;
+         const p = children(pitch, 'pitch');
+-        const key = [text(content, 'staff') || '1', text(content, 'voice') || '1', text(p, 'step'), text(p, 'alter') || '0', text(p, 'octave')].join(':');
+-        const notations = content.filter(node => tag(node) === 'notations');
+-        const markers = notations.flatMap(node => children(node, 'notations').filter(child => tag(child) === 'tied' && !attributes(child)['@_number']));
+-        // Stops must consume the old ID before a continuation starts a new chain.
+-        for (const marker of markers.filter(node => attributes(node)['@_type'] === 'stop')) {
+-          if (ambiguous.delete(key)) continue;
+-          const start = active.get(key);
+-          if (!start) continue;
+-          if (!Number.isFinite(duration) || duration <= 0 || Math.abs(start.end - (measureStart + onset)) > 1e-7) {
+-            occupied.delete(start.id); active.delete(key); continue;
++        const identity = [text(content, 'staff') || '1', text(content, 'voice') || '1', text(p, 'step'), Number(text(p, 'alter') || '0'), text(p, 'octave')];
++        for (const notation of content.filter(item => tag(item) === 'notations')) {
++          for (const marker of children(notation, 'notations').filter(item => tag(item) === 'tied')) {
++            const number = attributes(marker)['@_number'] || '';
++            endpoints.push({ marker, notation, ordinal, onset: measureStart + onset,
++              end: duration > 0 ? measureStart + onset + duration : NaN,
++              key: [...identity, number].join(':'), type: attributes(marker)['@_type'], number });
+           }
+-          start.marker[':@'] = { ...attributes(start.marker), '@_number': start.id };
+-          marker[':@'] = { ...attributes(marker), '@_number': start.id };
+-          active.delete(key);
+-          occupied.delete(start.id);
+-          changed = true;
+-          for (const notation of notations) changedNotations.add(notation);
+-        }
+-        for (const marker of markers.filter(node => attributes(node)['@_type'] === 'start')) {
+-          // Duplicate starts cannot be resolved safely from this written-pitch key.
+-          if (active.has(key)) { occupied.delete(active.get(key)!.id); active.delete(key); ambiguous.add(key); continue; }
+-          if (ambiguous.has(key) || !Number.isFinite(duration) || duration <= 0) continue;
+-          const id = Array.from({length:16}, (_, index) => String(index + 1)).find(value => !occupied.has(value));
+-          if (!id) continue;
+-          occupied.add(id);
+-          active.set(key, { id, marker, end: measureStart + onset + duration });
+         }
+       }
+-      measureStart += extent;
++      // Respect silent remainder of ordinary bars. The opening pickup and bars
++      // explicitly marked implicit retain their actual duration.
++      measureStart += measureIndex++ === 0 || attributes(measure)['@_implicit'] === 'yes' ? extent : Math.max(extent, meter);
++    }
++    if (unsupportedTimeline) continue; // polymetric timelines require per-staff timing
++    const unsupportedKeys = new Set(endpoints.filter(endpoint => !['start', 'stop'].includes(endpoint.type)).map(endpoint => endpoint.key));
++    const groups = new Map<string, Endpoint[]>();
++    for (const endpoint of endpoints) {
++      if ((!endpoint.number && !transposed) || unsupportedKeys.has(endpoint.key)) continue;
++      const group = groups.get(endpoint.key) ?? [];
++      group.push(endpoint); groups.set(endpoint.key, group);
++    }
++    const pairs: Pair[] = [];
++    for (const group of groups.values()) {
++      const counts = new Map<string, number>();
++      for (const endpoint of group) {
++        const key = `${endpoint.onset}:${endpoint.type}`;
++        counts.set(key, (counts.get(key) ?? 0) + 1);
++      }
++      if ([...counts.values()].some(count => count > 1)) continue;
++      let active: Endpoint | undefined;
++      let ambiguous = false;
++      group.sort((a, b) => a.onset - b.onset || (a.type === 'stop' ? 0 : 1) - (b.type === 'stop' ? 0 : 1) || a.ordinal - b.ordinal);
++      for (const endpoint of group) {
++        if (endpoint.type === 'stop') {
++          if (!ambiguous && active && adjacent(active.end, endpoint.onset) && Number.isFinite(endpoint.end) && active.ordinal < endpoint.ordinal)
++            pairs.push({ start: active, stop: endpoint });
++          active = undefined; ambiguous = false;
++        } else if (active || ambiguous) {
++          active = undefined; ambiguous = true;
++        } else active = endpoint;
++      }
++    }
++    const handled = new Set(pairs.flatMap(pair => [pair.start.marker, pair.stop.marker]));
++    // Unsafe or unsupported endpoints retain their original IDs. Never allocate
++    // one of those IDs to a repaired chain anywhere in this part.
++    const reserved = new Set(endpoints.filter(endpoint => !handled.has(endpoint.marker)).map(endpoint => endpoint.number).filter(Boolean));
++    const allocated: Pair[] = [];
++    let failed = false;
++    for (const pair of pairs.sort((a, b) => a.start.ordinal - b.start.ordinal)) {
++      const occupied = new Set([...reserved, ...allocated.filter(other => other.stop.ordinal > pair.start.ordinal).map(other => other.id!)]);
++      pair.id = Array.from({ length: 16 }, (_, index) => String(index + 1)).find(id => !occupied.has(id));
++      if (!pair.id) { failed = true; break; }
++      allocated.push(pair);
++    }
++    if (failed) continue; // no partial rewrites if the MusicXML ID budget is exhausted
++    const changedNotations = new Set<Node>();
++    for (const pair of allocated) {
++      for (const endpoint of [pair.start, pair.stop]) {
++        if (endpoint.number !== pair.id) { endpoint.marker[':@'] = { ...attributes(endpoint.marker), '@_number': pair.id! }; changed = true; }
++        changedNotations.add(endpoint.notation);
++      }
+     }
+     for (const notation of changedNotations) {
+       const content = children(notation, 'notations');
+       const indices = content.map((node, index) => tag(node) === 'tied' ? index : -1).filter(index => index >= 0);
+       const markers = indices.map(index => content[index]).sort((a, b) =>
+         (attributes(a)['@_type'] === 'stop' ? 0 : 1) - (attributes(b)['@_type'] === 'stop' ? 0 : 1));
++      if (indices.some((index, markerIndex) => content[index] !== markers[markerIndex])) changed = true;
+       indices.forEach((index, markerIndex) => { content[index] = markers[markerIndex]; });
+     }
+   }
+--- a/tests/musicxml-transposed-ties.test.mjs
++++ b/tests/musicxml-transposed-ties.test.mjs
+@@ -42,12 +42,10 @@
+  for(const voice of voices)assert.equal(voice.beats[1].notes[0].tieOrigin===voice.beats[0].notes[0],true);
+ });
+ 
+-test('explicit tie IDs remain untouched while unnumbered chains avoid reserved IDs',()=>{
++test('safe sequential explicit and unnumbered chains may reuse an importer ID',()=>{
+  const input=bytes(xml([note('D',['start'],{number:'1'})+note('D',['stop'],{number:'1'}),note('C',['start'])+note('C',['stop'])]));
+- const normalized=new TextDecoder().decode(normalizeMusicXmlTransposedTies(input));
+- assert.equal((normalized.match(/number="1"/g)??[]).length,3); // measure 1 and its two existing endpoints
+- assert.equal((normalized.match(/number="2"/g)??[]).length,3); // measure 2 and its two new endpoints
+  const n=notes(loadMusicXml(input,new alphaTab.Settings()));assert.equal(n[1][1].tieOrigin===n[1][0],true);
++ assert.deepEqual(midi(loadMusicXml(input,new alphaTab.Settings())),[{start:0,length:3840,key:60},{start:3840,length:3840,key:58}]);
+ });
+ 
+ test('nontransposing scores and incomplete chains retain original bytes',()=>{
+@@ -71,3 +69,53 @@
+  const score=load(xml([note('D',['start'],{duration:4}),'<attributes><divisions>2</divisions></attributes>'+note('D',['stop'],{duration:4})+'<note><rest/><duration>4</duration><voice>1</voice><type>half</type></note>']));
+  const n=notes(score);assert.equal(n[1][0].tieOrigin===n[0][0],true);
+ });
++
++test('explicit IDs reused across XML-order-overlapping voices preserve both pitches and eight-quarter MIDI chains',()=>{
++ const input=bytes(xml([note('E',['start'],{voice:'2',number:'1',duration:4}),note('F',['start'],{number:'1',duration:4})+'<backup><duration>4</duration></backup>'+note('E',['stop'],{voice:'2',number:'1',duration:4}),note('F',['stop'],{number:'1',duration:4})],0));
++ const original=input.slice();const score=loadMusicXml(input,new alphaTab.Settings());
++ const all=score.tracks[0].staves[0].bars.flatMap(bar=>bar.voices.flatMap(voice=>voice.beats.flatMap(beat=>beat.notes)));
++ const destinations=all.filter(note=>note.tieOrigin);
++ assert.deepEqual(destinations.map(note=>[note.realValue,note.tieOrigin.realValue]),[[64,64],[65,65]]);
++ assert.deepEqual(midi(score),[{start:0,length:7680,key:64},{start:3840,length:7680,key:65}]);
++ assert.deepEqual(input,original);
++});
++
++test('unsupported cross-voice, cross-staff, incomplete and ambiguous explicit ties retain original bytes',()=>{
++ const examples=[
++  xml([note('D',['start'],{number:'1',duration:4}),note('D',['stop'],{voice:'2',number:'1',duration:4})],0),
++  xml([note('D',['start'],{number:'1',duration:4}).replace('<voice>','<staff>1</staff><voice>'),note('D',['stop'],{number:'1',duration:4}).replace('<voice>','<staff>2</staff><voice>')],0),
++  xml([note('D',['start'],{number:'1',duration:4})],0),
++  xml([note('D',['start'],{number:'1'})+note('D',['start'],{number:'1',chord:true})+note('D',['stop'],{number:'1'})],0),
++  xml([note('D',['start'],{number:'1'})+note('D',['stop'],{number:'1'})+note('D',['stop'],{number:'1',chord:true})],0),
++ ];
++ for(const source of examples){const input=bytes(source);assert.equal(normalizeMusicXmlTransposedTies(input),input);}
++});
++
++test('unresolved explicit IDs are reserved while complete colliding chains are reassigned',()=>{
++ const source=xml([note('G',['start'],{voice:'3',number:'1',duration:4})+'<backup><duration>4</duration></backup>'+note('E',['start'],{voice:'2',number:'1',duration:4}),note('F',['start'],{number:'1',duration:4})+'<backup><duration>4</duration></backup>'+note('E',['stop'],{voice:'2',number:'1',duration:4}),note('F',['stop'],{number:'1',duration:4})],0);
++ const normalized=new TextDecoder().decode(normalizeMusicXmlTransposedTies(bytes(source)));
++ assert.equal((normalized.match(/<tied type="start" number="1"/g)??[]).length,1);
++ assert.equal((normalized.match(/number="2"/g)??[]).length>=2,true);
++ assert.equal((normalized.match(/number="3"/g)??[]).length>=2,true);
++});
++
++test('number budget exhaustion leaves the entire part unchanged',()=>{
++ const pending=Array.from({length:16},(_,i)=>note('G',['start'],{voice:String(i+2),number:String(i+1)})+'<backup><duration>2</duration></backup>').join('');
++ const input=bytes(xml([pending+note('D',['start'],{number:'17'})+note('D',['stop'],{number:'17'})],0));
++ assert.equal(normalizeMusicXmlTransposedTies(input),input);
++});
++
++test('a silent remainder in an ordinary partial bar does not imply an adjacent tie',()=>{
++ const input=bytes(xml([note('F',[],{duration:4}),note('D',['start'],{number:'1'}),note('D',['stop'],{number:'1',duration:4})],0));
++ assert.equal(normalizeMusicXmlTransposedTies(input),input);
++});
++
++test('polymetric time declarations retain the original input rather than assuming one staff timeline',()=>{
++ const source=xml([note('D',['start'],{number:'2',duration:4}),note('D',['stop'],{number:'2',duration:4})],0).replace('<time>','<time number="1">');
++ const input=bytes(source);assert.equal(normalizeMusicXmlTransposedTies(input),input);
++});
++
++test('continue markers keep their complete original chain untouched',()=>{
++ const input=bytes(xml([note('D',['start'],{number:'2',duration:4}),note('D',['stop','start'],{number:'2',duration:4}).replace('<tied type="stop" number="2"/><tied type="start" number="2"/>','<tied type="continue" number="2"/>'),note('D',['stop'],{number:'2',duration:4})],0));
++ assert.equal(normalizeMusicXmlTransposedTies(input),input);
++});
