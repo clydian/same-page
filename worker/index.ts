@@ -1,3 +1,4 @@
+import { serveStaticAsset } from "./static-assets";
 import { adminRoutes } from './admin/routes';
 import { cleanupAdminXml } from './admin/cleanup';
 import { AttachmentError } from "./attachments/storage";
@@ -27,6 +28,10 @@ import { scoreRoutes } from "./scores/routes";
 import { cleanupRateLimits } from "./security/rate-limit";
 
 const app = new Hono<AppEnvironment>();
+
+for (const path of ['/assets/*', '/pdfjs/*', '/font/*', '/soundfont/*']) {
+  app.all(path, context => serveStaticAsset(context.req.raw, context.env.ASSETS));
+}
 
 app.use("/api/*", diagnosticMiddleware, serverTimingMiddleware);
 app.use("/api/*", async (context, next) => {
