@@ -9,7 +9,7 @@ import { musicXmlFixture } from './musicxml-fixture.mjs';
 for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(`practice reader position, reflow and PDF controls (${engine})`, {timeout:120000}, async t => {
   const fixture = await startStorageFixture({authenticated:true, previewEntry:false}); let browser;
   t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
-  browser = await type.launch();
+  browser = await type.launch(engine === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});
   const context = await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block',hasTouch:true,isMobile:engine === 'chromium'});
   await context.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen','true'));
   await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}});
@@ -91,11 +91,28 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     await expect(bar.locator('.practice-position')).toBeVisible();
     const bounds = await page.locator('.practice-header button,.practice-bar button,.practice-bar select').evaluateAll(elements => elements.map(e => ({label:e.getAttribute('aria-label'),...e.getBoundingClientRect().toJSON()})));
     assert.ok(bounds.every(b => b.x>=0 && b.right<=width && b.height>=44),`practice controls remain reachable with touch targets at ${width}: ${JSON.stringify(bounds)}`);
-    const [top, viewport, bottom] = await Promise.all([header.boundingBox(),page.locator('.practice-notation-scroll').boundingBox(),bar.boundingBox()]);
-    assert.ok(viewport.y>=top.y+top.height && viewport.y+viewport.height<=bottom.y,'score stays between the two bars');
+    // Height-dependent chrome changes during rotation. Wait for its measured
+    // insets to commit before checking the stable expanded layout.
+    await expect.poll(async () => {
+      const [top, viewport, bottom] = await Promise.all([header.boundingBox(),page.locator('.practice-notation-scroll').boundingBox(),bar.boundingBox()]);
+      return viewport.y>=top.y+top.height && viewport.y+viewport.height<=bottom.y;
+    }, {message:'expanded score stays between the two bars after resize'}).toBe(true);
     await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg => svg.getBoundingClientRect().right)).toBeLessThanOrEqual(width);
   }
+  // Explicitly collapsed controls float over the score and survive rotation.
+  await page.setViewportSize({width:844,height:390});
+  await page.getByRole('button',{name:'收起看谱控制',exact:true}).click();
+  await bar.getByRole('button',{name:'收起播放控制',exact:true}).click();
+  const viewportFrame = () => page.locator('.practice-notation-scroll').evaluate(element => {
+    const box=element.getBoundingClientRect(); return {y:box.y,height:box.height};
+  });
+  await expect.poll(viewportFrame).toEqual({y:0,height:390});
   await page.setViewportSize({width:390,height:844});
+  await expect(page.getByRole('button',{name:'展开看谱控制',exact:true})).toBeVisible();
+  await expect(bar.getByRole('button',{name:'展开播放控制',exact:true})).toBeVisible();
+  await expect.poll(viewportFrame).toEqual({y:0,height:844});
+  await page.getByRole('button',{name:'展开看谱控制',exact:true}).click();
+  await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await expect.poll(async()=>Math.round((await bar.boundingBox()).y+(await bar.boundingBox()).height)).toBe(844);
   // Use real coordinates: preview is visible before release, committed only on release.
