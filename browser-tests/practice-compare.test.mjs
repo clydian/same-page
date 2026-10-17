@@ -98,8 +98,20 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     await expect.poll(async () => Number(await separator.getAttribute('aria-valuenow'))).toBeGreaterThan(55);
     await separator.press('Enter');
   }
+  const settleViewport = async element => element.evaluate(async viewport => {
+    let previous = '', stable = 0;
+    for (let frame = 0; frame < 120 && stable < 8; frame++) {
+      await new Promise(requestAnimationFrame);
+      const bounds = viewport.getBoundingClientRect();
+      const current = [bounds.x, bounds.y, bounds.width, bounds.height, viewport.scrollTop, viewport.scrollHeight].join(':');
+      stable = current === previous ? stable + 1 : 0;
+      previous = current;
+    }
+    if (stable < 8) throw new Error('Viewport geometry/scroll did not settle');
+  });
   // Scrolling PDF must neither seek nor suspend XML following.
   const xmlScroll = xml.locator('.practice-notation-scroll'), pdfScroll = pdf.locator('.continuous-reader');
+  await settleViewport(pdfScroll);
   await pdfScroll.evaluate(e => { e.scrollTop = 0; });
   await expect.poll(() => pdfScroll.evaluate(e => e.scrollTop)).toBeLessThan(2);
   const beforePdf = await pdfScroll.evaluate(e => e.scrollTop);
@@ -107,11 +119,13 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect.poll(() => pdfScroll.evaluate(e => e.scrollTop)).toBeGreaterThan(beforePdf + 150);
   await expect(page.getByRole('button', { name: '恢复自动跟随', exact: true })).toHaveCount(0);
   await expect(progress).toHaveValue('8');
+  await settleViewport(pdfScroll);
   const pdfTop = await pdfScroll.evaluate(e => e.scrollTop);
   const beforeXml = await xmlScroll.evaluate(e => e.scrollTop);
   await xmlScroll.hover(); await page.mouse.wheel(0, 240);
   await expect.poll(() => xmlScroll.evaluate(e => e.scrollTop)).toBeGreaterThan(beforeXml + 200);
   await expect(page.getByRole('button', { name: '恢复自动跟随', exact: true })).toBeVisible();
+  await settleViewport(xmlScroll);
   const xmlTop = await xmlScroll.evaluate(e => e.scrollTop);
   await selectPracticeView(page, '原始 PDF');
   await expect(page.locator('.page-reader__viewport')).toBeVisible();
