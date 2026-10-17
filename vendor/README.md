@@ -125,7 +125,7 @@ v3 添加预期速度。宿主新增实际包 SVG 署名、prepared clone／旧 
 速度 sidecar。此处不代表这些谱目已完成生产或耳听验收。
 
 
-## 当前固定包：0.1.17（混合延音链与有边界的源力度显示）
+## 0.1.17 基础修复（混合延音链与有边界的源力度显示）
 
 来源提交 `64122f37ccf2df0b188d09fff891c782b2da542d`。固定包
 `clydian-chorus-player-0.1.17.tgz` 的 SHA-256：
@@ -148,3 +148,28 @@ print-object=no 提示也保守 fallback，不冒称标准 MusicXML 4 隐藏符�
 宿主保留原 0.1.16 三项回归，新增真实安装包的 mixed ties／grace fallback／实际
 SVG 单一源力度及旧 prepared payload 兼容断言。Worker 新 completeness 元数据为
 可 structuredClone 的纯数据；没有该字段的旧 payload 保持原 marker 路径。
+
+## 当前固定包：0.1.18，原生谱面 1.8.4-samepage.1
+
+来源：[Chorus PR #14](https://github.com/clydian/chorus-score-studio/pull/14)，包构建源提交
+`ef377f2577137a4273a2a36beeb2845290a16227`。播放器 tarball SHA-256：
+`6eda617fd21b2cc6040b2775c0afc6c8460b6b1b74cd34b2d093cced4196e950`。包含 PR #13 的源渐变线显示修复。
+
+宿主与播放器共享本仓库固定的 `coderline-alphatab-1.8.4-samepage.1.tgz`，
+精确 peer 版本为 `1.8.4-samepage.1`，原生源提交
+`9c1e050e3b02673c9d5344ca1b6fa03a476f0f18`。原生 tarball SHA-256：
+`c5f84fa206cdeef0b4be7468be2d37e2ba447a4969b5a3a70c35fdfdd0edfc3f`。
+清单含公开上游基线、源树及制品完整性；旁附 patch 与源码档案内 changes.patch
+字节相同，供独立代码审查和重放，不通过开发目录链接生成运行时。
+
+修复源歌词音节连字符、有限延长线及显式上下位置；力度显式标记可落在休止、
+重复同值及跨谱表的发音间隙，并保留 direction 的 above/below。源时间不靠制造
+音符或把标记移至近邻攻击实现。包内 source-copy 脚本在每次 build 校验原生版本和
+源码 SHA-256，再将完整修改文件、重放 patch、许可及通知保留在公开
+`/third-party/alphatab/` 内容寻址路径；历史快照不能覆盖或删除，也不加入离线预缓存。
+
+Chorus 独立干净安装后 329 项测试、21 首目录检查、build/PWA 通过；29 份真实
+输入的所有 MIDI 字段、顺序及小节 tick 与 0.1.17 相同。独立安装包的真实 Session
+及准备/原生 Worker 完成四曲 285 小节逐个定位。这些不等于成员产品入口、全曲
+连续播放耳听或二轮源谱验收。跨 voice/verse 歌词、自由拍图式、换气符和某些
+钢琴渐变线仍有显示限制，不能把当前更新当作全部乐谱质量已达标。
