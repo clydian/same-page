@@ -336,7 +336,8 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     </MenuTrigger>
                 </div>
                 <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
-                  {expandedScoreIds.has(score.id) && presentation.count > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
+                  {/* Ready empty rows must also finish the explicit reveal request. */}
+                  {expandedScoreIds.has(score.id) && (presentation.count > 0 || attachments.statusFor(score.id) === "ready") && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
                     : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={presentation.count} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
                     : <><AttachmentRows revealRequest={attachmentReveal?.scoreId === score.id && attachmentReveal.scope === revealScope ? attachmentReveal : undefined} onRevealHandled={finishAttachmentReveal} available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} /></>)}
                 </div>
