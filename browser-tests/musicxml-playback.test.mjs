@@ -1,12 +1,34 @@
 import { selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readdir } from 'node:fs/promises';
 import { chromium, webkit, expect } from '@playwright/test';
 import { zipSync, strToU8 } from 'fflate';
 import { startStorageFixture } from './storage-fixture.mjs';
 import { polyphonicMusicXmlFixture } from './musicxml-fixture.mjs';
 for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
+ test(`MusicXML preparation Worker preserves its own response protocol (${engine})`, {timeout:60000}, async t => {
+  const names = (await readdir('dist/client/assets')).filter(name => /^prepare\.worker-.*\.js$/.test(name));
+  assert.equal(names.length,1,'test the exact built preparation worker');
+  const fixture = await startStorageFixture();
+  let browser;t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
+  browser = await type.launch();
+  const page = await browser.newPage();
+  await page.goto(fixture.origin);
+  const reply = await page.evaluate(({url,xml}) => new Promise((resolve,reject) => {
+   const worker = new Worker(url,{type:'module'});
+   worker.onerror = event => {worker.terminate();reject(new Error(event.message));};
+   worker.onmessage = event => {
+    worker.terminate();
+    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength});
+   };
+   const bytes = new TextEncoder().encode(xml);
+   worker.postMessage(bytes,[bytes.buffer]);
+  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><rest/><duration>3</duration><type>half</type><dot/></note></measure></part></score-partwise>'});
+  assert.deepEqual(reply.keys,['prepared'],'no unrelated renderer/synth Worker initialization message may arrive first');
+  assert.ok(reply.byteLength>0);
+  assert.deepEqual(reply.visibility,{partIds:['P1'],parts:[{trackIndex:0,measures:[{index:0,all:false,staves:[]}]}]});
+ });
  test(`MusicXML attachment practice and PDF handoff (${engine})`, {timeout:180000}, async t => {
   const fixture=await startStorageFixture({authenticated:true,previewEntry:false});
   let browser;t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
