@@ -1,63 +1,119 @@
 {
-  "collapsed": {
-    "top": 0,
-    "bottom": 390,
-    "height": 390
+  "header": {
+    "x": 8,
+    "right": 290,
+    "width": 282,
+    "viewport": 390,
+    "items": [
+      {
+        "label": "显示谱面",
+        "x": 12,
+        "right": 56,
+        "y": 12,
+        "bottom": 56,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "缩小谱面",
+        "x": 59,
+        "right": 103,
+        "y": 12,
+        "bottom": 56,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "谱面大小",
+        "x": 103,
+        "right": 147,
+        "y": 12,
+        "bottom": 56,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "放大谱面",
+        "x": 147,
+        "right": 191,
+        "y": 12,
+        "bottom": 56,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "全屏看谱",
+        "x": 194,
+        "right": 238,
+        "y": 12,
+        "bottom": 56,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "结束播放",
+        "x": 242,
+        "right": 286,
+        "y": 12,
+        "bottom": 56,
+        "width": 44,
+        "height": 44
+      }
+    ]
   },
-  "expanded": {
-    "top": 45,
-    "bottom": 333,
-    "height": 288
-  },
-  "smallPhoneControls": [
-    {
-      "label": "定位小节",
-      "left": 4,
-      "right": 48,
-      "width": 44,
-      "height": 44
-    },
-    {
-      "label": "速度",
-      "left": 48,
-      "right": 92,
-      "width": 44,
-      "height": 44
-    },
-    {
-      "label": "前一小节",
-      "left": 94,
-      "right": 138,
-      "width": 44,
-      "height": 44
-    },
-    {
-      "label": "播放",
-      "left": 138,
-      "right": 182,
-      "width": 44,
-      "height": 44
-    },
-    {
-      "label": "后一小节",
-      "left": 182,
-      "right": 226,
-      "width": 44,
-      "height": 44
-    },
-    {
-      "label": "收起播放控制",
-      "left": 226,
-      "right": 270,
-      "width": 44,
-      "height": 44
-    },
-    {
-      "label": "练习设置",
-      "left": 272,
-      "right": 316,
-      "width": 44,
-      "height": 44
-    }
-  ]
+  "transport": {
+    "width": 390,
+    "safeRight": 0,
+    "items": [
+      {
+        "label": "定位小节",
+        "x": 8,
+        "right": 52,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "速度",
+        "x": 52,
+        "right": 96,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "前一小节",
+        "x": 127,
+        "right": 171,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "播放",
+        "x": 171,
+        "right": 219,
+        "width": 48,
+        "height": 48
+      },
+      {
+        "label": "后一小节",
+        "x": 219,
+        "right": 263,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "label": "练习设置",
+        "x": 268,
+        "right": 336,
+        "width": 68,
+        "height": 44
+      },
+      {
+        "label": "收起播放控制",
+        "x": 338,
+        "right": 382,
+        "width": 44,
+        "height": 44
+      }
+    ]
+  }
 }

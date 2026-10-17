@@ -73,9 +73,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect.poll(() => page.locator('.practice-measure-label').evaluateAll(labels => labels.length < 2 ? Infinity : Math.abs(labels[0].getBoundingClientRect().top-labels[1].getBoundingClientRect().top))).toBeLessThan(1);
   await changeNotationSize(page, '缩小谱面', 3);
   await expect(size).toHaveText('30%');
-  await size.click();
   await expect(page.getByRole('button',{name:'缩小谱面',exact:true})).toBeDisabled();
-  await page.keyboard.press('Escape');
   const compactRows = await rowCount();
   await changeNotationSize(page, '放大谱面', 9);
   await expect(size).toHaveText('120%');
@@ -95,23 +93,20 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     // insets to commit before checking the stable expanded layout.
     await expect.poll(async () => {
       const [top, viewport, bottom] = await Promise.all([header.boundingBox(),page.locator('.practice-notation-scroll').boundingBox(),bar.boundingBox()]);
-      return viewport.y>=top.y+top.height && viewport.y+viewport.height<=bottom.y;
-    }, {message:'expanded score stays between the two bars after resize'}).toBe(true);
+      return viewport.y>=0 && viewport.y+viewport.height<=bottom.y && top.width < width && top.x>=0;
+    }, {message:'expanded score stays above the bottom bar after resize'}).toBe(true);
     await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg => svg.getBoundingClientRect().right)).toBeLessThanOrEqual(width);
   }
   // Explicitly collapsed controls float over the score and survive rotation.
   await page.setViewportSize({width:844,height:390});
-  await page.getByRole('button',{name:'收起看谱控制',exact:true}).click();
   await bar.getByRole('button',{name:'收起播放控制',exact:true}).click();
   const viewportFrame = () => page.locator('.practice-notation-scroll').evaluate(element => {
     const box=element.getBoundingClientRect(); return {y:box.y,height:box.height};
   });
   await expect.poll(viewportFrame).toEqual({y:0,height:390});
   await page.setViewportSize({width:390,height:844});
-  await expect(page.getByRole('button',{name:'展开看谱控制',exact:true})).toBeVisible();
   await expect(bar.getByRole('button',{name:'展开播放控制',exact:true})).toBeVisible();
   await expect.poll(viewportFrame).toEqual({y:0,height:844});
-  await page.getByRole('button',{name:'展开看谱控制',exact:true}).click();
   await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await expect.poll(async()=>Math.round((await bar.boundingBox()).y+(await bar.boundingBox()).height)).toBe(844);

@@ -3,19 +3,18 @@ import { useEffect, useRef, useState } from 'react';
 // Decide once per session. Rotation and browser chrome changes must never close
 // a menu, interrupt a scrub, or hide the control that currently owns focus.
 export function usePracticeFocus(embedded?: boolean) {
-  const [topCollapsed, setTopCollapsed] = useState(() => !embedded && (window.visualViewport?.height ?? window.innerHeight) <= 500);
-  const [bottomCollapsed, setBottomCollapsed] = useState(() => !embedded && (window.visualViewport?.height ?? window.innerHeight) <= 500);
+  const [bottomCollapsed, updateBottomCollapsed] = useState(() => !embedded && window.innerWidth > window.innerHeight);
+  const preference = useRef(bottomCollapsed);
+  const setBottomCollapsed = (value: boolean) => { preference.current = value; updateBottomCollapsed(value); };
   const [focused, setFocused] = useState(false);
   const [notice, setNotice] = useState('');
   const [pending, setPending] = useState(false);
   const ownsFullscreen = useRef(false);
-  const previous = useRef({ top: false, bottom: false });
   const mounted = useRef(true);
   const supported = typeof document.documentElement.requestFullscreen === 'function' && document.fullscreenEnabled === true;
   const restore = () => {
     setFocused(false);
-    setTopCollapsed(previous.current.top);
-    setBottomCollapsed(previous.current.bottom);
+    updateBottomCollapsed(preference.current);
     setNotice('');
   };
   useEffect(() => {
@@ -44,8 +43,7 @@ export function usePracticeFocus(embedded?: boolean) {
   };
   const enter = async () => {
     if (pending) return;
-    previous.current = { top: topCollapsed, bottom: bottomCollapsed };
-    setFocused(true); setTopCollapsed(true); setBottomCollapsed(true);
+    setFocused(true); updateBottomCollapsed(true);
     if (!supported) {
       setNotice('已进入专注模式。此浏览器不能全屏显示谱面，系统状态栏由系统保留。');
       return;
@@ -65,5 +63,5 @@ export function usePracticeFocus(embedded?: boolean) {
       if (mounted.current) setNotice('全屏未能开启，已使用专注模式；无法强行隐藏系统状态栏。');
     } finally { if (mounted.current) setPending(false); }
   };
-  return { topCollapsed, setTopCollapsed, bottomCollapsed, setBottomCollapsed, focused, notice, dismissNotice: () => setNotice(''), pending, supported, enter, exit };
+  return { bottomCollapsed, setBottomCollapsed, focused, notice, dismissNotice: () => setNotice(''), pending, supported, enter, exit };
 }
