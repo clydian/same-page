@@ -308,3 +308,25 @@ it('reports real download bytes, verifies before readiness and saves attachment 
   expect(await readAttachmentDirectory(f.workspace, f.score)).toEqual([attachment]);
   expect(fetcher.mock.calls.some(([input]) => String(input).includes('/attachments/audio/file'))).toBe(false);
 });
+
+it.each(['automatic', 'explicit'] as const)('rejects %s preparation without downloading when no offline shell is active', async intent => {
+  const f = await fixture();
+  navigator.serviceWorker.getRegistration = async () => undefined;
+  const originalFetch = fetch;
+  const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => String(input).endsWith('/pdf')
+    ? new Response(new TextEncoder().encode('%PDF-1.7 fixture')) : originalFetch(input, init));
+  vi.stubGlobal('fetch', fetcher);
+  expect(await f.client().prepare(intent)).toEqual({ phase: 'failed', reason: 'download' });
+  expect(fetcher.mock.calls.filter(([input]) => String(input).endsWith('/pdf'))).toEqual([]);
+  expect(await findVerifiedOfflineScore(f.workspace)).toBeNull();
+});
+
+it('rechecks the offline shell after downloading before activating a copy', async () => {
+  const f = await fixture();
+  const pending = f.client().prepare('explicit');
+  await vi.waitFor(() => expect(f.downloads()).toBe(1));
+  navigator.serviceWorker.getRegistration = async () => undefined;
+  f.finish();
+  expect(await pending).toEqual({ phase: 'failed', reason: 'download' });
+  expect(await findVerifiedOfflineScore(f.workspace)).toBeNull();
+});

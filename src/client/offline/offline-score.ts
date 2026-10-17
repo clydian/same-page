@@ -21,6 +21,10 @@ async function prepareOfflineScore(workspace: LocalWorkspace, score: ScoreSummar
   fileFence ??= await captureOfflineFileFence(workspace);
   workspace = await captureLocalWorkspaceSession(workspace);
   if (workspace.choirId !== score.choirId || workspace.scoreId !== score.id) throw new Error("offline_score_scope_mismatch");
+  // Without an active shell no complete offline copy can be activated. Reject
+  // before starting background downloads, and recheck before activation below.
+  await ensureOfflineAppShell();
+  signal.throwIfAborted();
   const directory = prepareAttachmentDirectory(workspace, score, signal).catch(() => undefined);
   const previous = await findActiveOfflineFile(workspace.ownerKey, workspace.choirId, workspace.scoreId);
   const base = `/api/choirs/${encodeURIComponent(score.choirId)}/scores/${encodeURIComponent(score.id)}`;
