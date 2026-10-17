@@ -25,8 +25,8 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`fai
  await page.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
  const canvas=page.locator('canvas[data-pdf-canvas-active]').first();await expect(canvas).toBeAttached({timeout:20000});
  const reader=await page.locator('.reader-shell').elementHandle();
- const reveal=async()=>{if(!await page.getByRole('button',{name:'本谱附件',exact:true}).isVisible())await page.locator('.page-reader__viewport').click({position:{x:400,y:300}});};
- await reveal();await page.getByRole('button',{name:'本谱附件',exact:true}).click();await page.getByRole('button',{name:'practice.xml',exact:true}).click();
+ const reveal=async()=>{if(!await page.getByRole('button',{name:'练习谱',exact:true}).isVisible())await page.locator('.page-reader__viewport').click({position:{x:400,y:300}});};
+ await reveal();await page.getByRole('button',{name:'练习谱',exact:true}).click();await page.getByRole('button',{name:'practice.xml',exact:true}).click();
  const failure=page.getByRole('complementary',{name:'播放器加载失败'});await expect(failure.getByRole('alert')).toContainText('播放器加载失败');
  assert.equal(await reader.evaluate(element=>element.isConnected),true,'reader root must not be unmounted by lazy rejection');await expect(canvas).toBeAttached();
  const before=navigations;await failure.getByRole('button',{name:'检查更新',exact:true}).click();await expect(failure.getByRole('status')).not.toBeEmpty();

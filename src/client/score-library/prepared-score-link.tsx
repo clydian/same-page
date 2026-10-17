@@ -35,6 +35,9 @@ export function PreparedScoreLink({ score, sessionId, canPrepare, ...props }: Pr
   };
   const open = async () => {
     if (opening) return;
+    // First-time guest ownership may resolve during the shell lookup. There is
+    // no workspace to prepare yet; open online before that update fences it.
+    if (!workspace) { go(window.scrollY); return; }
     const id = ++request.current;
     const generation = ++openingGeneration;
     const signal = lifetime.current.signal;
@@ -43,7 +46,7 @@ export function PreparedScoreLink({ score, sessionId, canPrepare, ...props }: Pr
     const shell = "serviceWorker" in navigator ? await untilAborted(navigator.serviceWorker.getRegistration(), AbortSignal.any([signal, AbortSignal.timeout(1_000)])).catch(() => undefined) : undefined;
     if (signal.aborted || id !== request.current || generation !== openingGeneration) return;
     // Without an active offline shell, keep online reading available immediately.
-    if (!shell?.active || !workspace) { setOpening(false); go(scrollY); return; }
+    if (!shell?.active) { setOpening(false); go(scrollY); return; }
     const result = await preparation.prepare();
     if (signal.aborted || id !== request.current || generation !== openingGeneration) { if (!signal.aborted && id === request.current) setOpening(false); return; }
     setOpening(false);

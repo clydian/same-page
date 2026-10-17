@@ -4,8 +4,9 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { PreparedScoreLink } from "./prepared-score-link";
 
 const prepare = vi.hoisted(() => vi.fn());
+const guest = vi.hoisted(() => ({ owner: null as string | null }));
 vi.mock("../offline/use-offline-score", () => ({ useOfflineScore: () => undefined, useOfflinePreparation: () => ({ state: { phase: "idle" }, prepare }) }));
-vi.mock("dexie-react-hooks", () => ({ useLiveQuery: () => null }));
+vi.mock("dexie-react-hooks", () => ({ useLiveQuery: () => guest.owner }));
 const score = { id: "score", choirId: "drive", fileName: "排练.pdf", updatedAt: 1, currentVersion: { id: "v1", versionNumber: 1, sizeBytes: 100, sha256: "a".repeat(64), etag: "v1", pageCount: 1, createdAt: 1 } };
 function Route() { return <output aria-label="当前位置">{useLocation().pathname}</output>; }
 function row(id = "score", sessionId = "session") {
@@ -16,7 +17,7 @@ function pending() {
   const promise = new Promise<{ phase: string; record?: object }>(yes => { resolve = yes; });
   return { promise, resolve };
 }
-beforeEach(() => { prepare.mockReset(); Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { getRegistration: async () => ({ active: {} }) } }); });
+beforeEach(() => { guest.owner = null; prepare.mockReset(); Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { getRegistration: async () => ({ active: {} }) } }); });
 it("stays in the library, joins repeat clicks and opens only after preparation succeeds", async () => {
   const task = pending(); prepare.mockReturnValue(task.promise);
   render(<MemoryRouter initialEntries={["/choirs/drive"]}>{row()}<Route /></MemoryRouter>);
@@ -54,6 +55,19 @@ it("opens online immediately when this browser has no active offline shell", asy
   navigator.serviceWorker.getRegistration = async () => undefined;
   render(<MemoryRouter initialEntries={["/choirs/drive"]}>{row()}<Route /></MemoryRouter>);
   fireEvent.click(screen.getByRole("link", { name: "score" }));
+  await waitFor(() => expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive/scores/score"));
+  expect(prepare).not.toHaveBeenCalled();
+});
+
+it("opens a first-time guest immediately while local ownership is still being established", async () => {
+  let registration!: (value: undefined) => void;
+  navigator.serviceWorker.getRegistration = () => new Promise(resolve => { registration = resolve; });
+  const guestRow = () => <PreparedScoreLink score={score} sessionId={null} canPrepare choirId="drive" scoreId="score" local={false} experience label="guest" description="排练谱" onOpen={() => {}}>guest</PreparedScoreLink>;
+  const view = render(<MemoryRouter initialEntries={["/choirs/drive"]}>{guestRow()}<Route /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("link", { name: "guest" }));
+  guest.owner = "guest:first-visit";
+  view.rerender(<MemoryRouter>{guestRow()}<Route /></MemoryRouter>);
+  await act(async () => registration?.(undefined));
   await waitFor(() => expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive/scores/score"));
   expect(prepare).not.toHaveBeenCalled();
 });

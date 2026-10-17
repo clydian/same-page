@@ -18,7 +18,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:20000});
   await page.locator('.page-reader__viewport').click({position:{x:180,y:200}});
-  await page.getByRole('button',{name:'本谱附件',exact:true}).click();
+  await page.getByRole('button',{name:'练习谱',exact:true}).click();
   await page.getByRole('button',{name:'layout.xml',exact:true}).click();
   const bar = page.getByTestId('musicxml-player'), header = page.getByRole('banner',{name:'练习看谱'});
   await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});

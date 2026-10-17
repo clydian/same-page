@@ -24,6 +24,9 @@ const score = {
   id: "visual-score",
   choirId: choir.id,
   fileName: "排练示例 · 秋日合唱.pdf",
+  attachmentCount: 0,
+  musicXmlCount: 0,
+  hasGeneratedXml: false,
   currentVersion: {
     id: "visual-version-1",
     versionNumber: 1,
@@ -511,7 +514,10 @@ export function createVisualFixtureSession(scenario = {}) {
   const practice = scenario.id?.startsWith('reader-practice');
   const practiceAttachments = practice ? [{ id:'practice-xml',scoreId:score.id,name:'声部练习版.musicxml',kind:'musicxml',url:null,sizeBytes:Buffer.byteLength(practiceMusicXml),revision:1,updatedAt:FIXED_TIME,trashExpiresAt:null },
     ...(scenario.multipleSources ? [{id:'practice-audio',scoreId:score.id,name:'示范录音.wav',kind:'audio',url:null,sizeBytes:320044,revision:1,updatedAt:FIXED_TIME,trashExpiresAt:null}] : [])] : [];
-  if (practice) selectedScore.attachmentCount = practiceAttachments.length;
+  if (practice) {
+    selectedScore.attachmentCount = practiceAttachments.length;
+    selectedScore.musicXmlCount = 1;
+  }
   let scores = scenario.id === "library-empty" ? [] : [selectedScore, ...otherScores];
   if (scenario.id === "library-long-list") scores = Array.from({ length: 30 }, (_, index) => ({
     ...selectedScore,

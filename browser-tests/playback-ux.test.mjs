@@ -16,11 +16,11 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  page.on('request',r=>{if(r.url().includes(`/attachments/${id}/file`))fileReads++;if(/prepare.worker/.test(r.url()))workers++;});
  await page.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
  const guide=page.getByRole('dialog',{name:'阅读器使用指引',exact:true});await expect(guide).toBeVisible({timeout:20000});await guide.getByRole('button',{name:'知道了',exact:true}).click();
- const reveal=async()=>{if(!await page.getByRole('button',{name:'本谱附件',exact:true}).isVisible())await page.locator('.page-reader__viewport').click({position:{x:400,y:300}});};
- await reveal();await expect(page.getByRole('button',{name:'本谱附件',exact:true})).toBeVisible();
+ const reveal=async()=>{if(!await page.getByRole('button',{name:'练习谱',exact:true}).isVisible())await page.locator('.page-reader__viewport').click({position:{x:400,y:300}});};
+ await reveal();await expect(page.getByRole('button',{name:'练习谱',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'编辑',exact:true}).click();await page.getByRole('button',{name:'完成编辑',exact:true}).click();
- await expect(page.getByRole('button',{name:'本谱附件',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'本谱附件',exact:true}).click();
+ await expect(page.getByRole('button',{name:'练习谱',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'练习谱',exact:true}).click();
  await mkdir('artifacts/verification/playback-413',{recursive:true});await page.screenshot({path:`artifacts/verification/playback-413/${engine}-attachments.png`});
  const coldStart=Date.now();
  await page.getByRole('button',{name:'practice.xml',exact:true}).click();
@@ -58,7 +58,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-player.png`});
  const initialReads=fileReads,initialWorkers=workers;
  await page.getByRole('button',{name:'结束播放',exact:true}).click();await expect(bar).toHaveCount(0);await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
- await reveal();await page.getByRole('button',{name:'本谱附件',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
+ await reveal();await page.getByRole('button',{name:'练习谱',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
  await page.setViewportSize({width:390,height:844});await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.locator('.practice-switch').click();await expect(degrees).toHaveCount(96);await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg=>svg.getBoundingClientRect().width)).toBeLessThan(370);await expect.poll(()=>degrees.evaluateAll(labels=>labels.every(label=>label.getBoundingClientRect().right<=innerWidth))).toBe(true);
  const labelPositions=()=>degrees.evaluateAll(labels=>labels.map(label=>[label.textContent,label.style.left,label.style.top]));
  // Worker post-render bounds must already be current, without toggling to repair the overlay.
