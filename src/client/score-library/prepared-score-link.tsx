@@ -23,7 +23,9 @@ export function PreparedScoreLink({ score, sessionId, canPrepare, ...props }: Pr
   const [opening, setOpening] = useState(false);
   const request = useRef(0);
   const lifetime = useRef(new AbortController());
-  const target = JSON.stringify([workspace?.scopeKey, sessionId, score.currentVersion.id, canPrepare]);
+  // Availability chooses how a new click opens; a transient network refresh
+  // must not cancel an accepted click. Ownership/session/version still fence it.
+  const target = JSON.stringify([workspace?.scopeKey, sessionId, score.currentVersion.id]);
   const [stateTarget, setStateTarget] = useState(target);
   if (stateTarget !== target) { setStateTarget(target); setOpening(false); }
   useEffect(() => { const controller = new AbortController(); lifetime.current = controller; return () => controller.abort(); }, [target]);
