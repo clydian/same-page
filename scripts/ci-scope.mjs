@@ -130,6 +130,7 @@ function checksForPath(file) {
       || file.startsWith("src/client/offline/")
       || file.startsWith("src/client/platform/")
       || file.startsWith("src/client/components/reload-prompt")
+      || file.startsWith("src/client/updates/")
       || file.startsWith("src/client/pwa-navigation")
     ) selected.push("pwa");
     return selected;
