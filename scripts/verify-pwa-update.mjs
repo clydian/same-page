@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { cp, mkdtemp, rm, stat } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -80,8 +80,12 @@ try {
   assert.equal(await editingWindow.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   assert.equal(await page.getByText("有新版本可用", { exact: true }).count(), 0);
   await page.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "立即更新并重新加载" }).click();
-  await page.getByText("新版本待应用，请先完成其他窗口中的操作，再尝试更新", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "重新加载并更新" }).click();
+  await page.getByText("请先在其他合谱窗口完成操作并返回文件库，或关闭那些窗口，再重试", { exact: true }).waitFor();
+  await page.setViewportSize({ width: 320, height: 640 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+  await page.screenshot({ path: "artifacts/verification/update-feedback/webkit-blocked-mobile.png", fullPage: true });
+
   assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   await editingWindow.close();
   // A prepared update must not reload a restored application just because it is idle.
@@ -98,7 +102,7 @@ try {
   });
   assert.equal(legacySafe, false, "legacy idle requests must not activate a prepared update");
   assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
-  await page.getByRole("button", { name: "立即更新并重新加载" }).click();
+  await page.getByRole("button", { name: "重新加载并更新" }).click();
   await page.waitForFunction(
     (expected) => document.documentElement.dataset.buildId === expected,
     buildIds.second,
@@ -129,7 +133,7 @@ try {
   activeBuild = builds.second;
   // The product's foreground check discovers the new build automatically.
   await running.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
-  await running.getByText("新版本已准备，关闭所有合谱窗口后会自动更新", { exact: true }).waitFor();
+  await running.getByText("更新已准备好", { exact: true }).waitFor();
   await running.close();
   const stillRunning = await automatic.newPage();
   await stillRunning.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
@@ -174,6 +178,18 @@ async function verifyAnimationCaching(browser, origin) {
     // remount the home route to exercise its ordinary automatic playback.
     await page.getByRole("link", { name: "关于合谱", exact: true }).click();
     await page.getByRole("heading", { name: "关于合谱", exact: true }).waitFor();
+    await page.setViewportSize({ width: 320, height: 640 });
+    const status = page.getByRole("status");
+    await status.filter({ hasText: "检查完成，当前版本继续运行" }).waitFor();
+    assert.equal(await status.getAttribute("aria-live"), "polite");
+    assert.equal(await status.getAttribute("aria-atomic"), "true");
+    const updateSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "版本更新" }) });
+    assert.equal(await updateSection.getByRole("button").count(), 1);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true,
+      "update details must fit a 320px mobile viewport");
+    await mkdir("artifacts/verification/update-feedback", { recursive: true });
+    await page.screenshot({ path: `artifacts/verification/update-feedback/${browser.browserType().name()}-mobile.png`, fullPage: true });
+
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.getByRole("button", { name: "返回", exact: true }).click();
     await buttons.first().waitFor();

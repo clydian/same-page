@@ -11,6 +11,7 @@ const source: PlaybackSource = { ownerKey:'user:one',sessionId:'session',choirId
  attachment:{id:'attachment',scoreId:'score',name:'a.musicxml',kind:'musicxml',url:null,sizeBytes:5,revision:1,updatedAt:1,trashExpiresAt:null} };
 afterEach(() => { stopPlayback(); vi.restoreAllMocks(); });
 it('contains a rejected player import without unmounting the reader, draft or update channel', async () => {
+ setUpdateStatus({ phase: 'current', message: '检查完成，当前版本继续运行' });
  vi.spyOn(console, 'error').mockImplementation(() => {});
  const check = vi.fn(); window.addEventListener('same-page-check-update', check);
  try {
@@ -24,7 +25,7 @@ it('contains a rejected player import without unmounting the reader, draft or up
   expect(playbackViewStore.getSnapshot()).toBe('pdf');
   expect(playbackStore.getSnapshot()?.attachment.id).toBe('attachment');
   fireEvent.click(screen.getByRole('button', {name:'检查更新'})); expect(check).toHaveBeenCalledTimes(1);
-  act(() => setUpdateStatus('新版本待应用，请先完成其他窗口中的操作，再尝试更新'));
+  act(() => setUpdateStatus({ phase: 'ready', message: '新版本待应用，请先完成其他窗口中的操作，再尝试更新' }));
   expect(screen.getByRole('status')).toHaveTextContent('新版本待应用');
   expect(screen.getByRole('link', {name:'关于合谱与版本更新'})).toHaveAttribute('href','/about');
   fireEvent.click(screen.getByRole('button', {name:'关闭播放器'}));
