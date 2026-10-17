@@ -59,7 +59,7 @@ AlphaSynth 最小对照中，旧版起音 RMS 为单键对照的两倍；修复�
 `src/client/playback/piano-shared-attacks.node.test.ts` 验证已安装包保留源双声部、合并
 同键攻击、保留长时值和稍后重击，且不把默认 GM program 的 Voice 当作钢琴。
 
-## 当前固定包：0.1.13
+## 源拍号可见性与力度重置：0.1.13
 
 来源：[Chorus PR #7](https://github.com/clydian/chorus-score-studio/pull/7) 与
 [PR #8](https://github.com/clydian/chorus-score-studio/pull/8)，最终提交
@@ -83,3 +83,22 @@ AlphaSynth 最小对照中，旧版起音 RMS 为单键对照的两倍；修复�
 
 宿主直接测试安装包的隐藏拍号／Worker 序列化与相同力度重置；浏览器还检查实际
 构建准备 Worker 的首条响应及隐藏拍号元数据，并保留完整播放与 PDF 切换流程。
+
+## 当前固定包：0.1.14
+
+来源：[Chorus PR #9](https://github.com/clydian/chorus-score-studio/pull/9)，提交
+`6f22b6d15fedaa4e03ab47067260026d5389fe59`。Node24 构建并打包，固定包
+`clydian-chorus-player-0.1.14.tgz` 的 SHA-256：
+`d1d1f37b62098666f15267511efbbc8e2a1905f8fbd57f5e45c024099ff5357d`。
+
+修正 `non dim.` 被误当作渐弱的既有错误，保留原文字和明确力度。只处理支持的渐变词
+前紧邻的 `non`；`dim. non troppo`、`non troppo dim.`仍为肯定渐弱，混合指令按词组
+处理，保持既有肯定渐强优先规则，不声称支持完整自然语言或意大利语解释。
+
+源247项全测与build/PWA通过，实际包41项重点测试通过。23条交付记录对实际0.1.13
+比较，只有If Music的8个攻击和8个释放力度变化，其他所有事件字段和小节定位不变；
+原PDF第34小节四声部印有non dim.。使用真实addNote handler和库事件类识别，不能
+将引擎内部type枚举当作MIDI线缆状态码。未声称耳听或整曲验收。
+
+宿主新增实际安装包的否定表达及肯定程度限定语回归，继续验证原有准备Worker、
+隐藏拍号、力度重置与完整浏览器播放/PDF流程。
