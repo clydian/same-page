@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 import { chromium, webkit, expect } from '@playwright/test';
@@ -6,14 +8,27 @@ import { startViteServer } from '../scripts/vite-server.mjs';
 import { createVisualFixtureSession } from './fixtures.mjs';
 
 let server;
-before(async () => { server = await startViteServer({ script: 'preview', cwd: process.cwd() }); });
+before(async () => {
+  // Visual shards start from a clean checkout and do not download build's
+  // artifact. Compile these exact sources before exercising alphaTab workers.
+  await promisify(execFile)('npm', ['run', 'build'], { cwd: process.cwd(), timeout: 180000, maxBuffer: 4 * 1024 * 1024 });
+  server = await startViteServer({ script: 'preview', cwd: process.cwd() });
+}, { timeout: 240000 });
 after(async () => { await server?.stop(); });
 const engines = process.env.PRACTICE_TEST_ENGINES?.split(',') ?? ['chromium', 'webkit'];
 const evidence = 'artifacts/verification/practice-focus';
 for (const name of engines) test(`${name}: low-height player controls, rotation, following and fullscreen fallback`, { timeout: 120000 }, async t => {
   const browser = await ({ chromium, webkit })[name].launch({ headless: true, ...(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
-  t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 844, height: 390 }, hasTouch: true, reducedMotion: 'reduce', locale: 'zh-CN' });
+  let completed = false;
+  t.after(async () => {
+    if (!completed) {
+      await mkdir(evidence, { recursive: true });
+      await page.screenshot({ path: `${evidence}/${name}-failure.png` });
+      console.error(await page.locator('.practice-play').evaluate(el => { const r=el.getBoundingClientRect(); return { rect:r.toJSON(), hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML.slice(0,400), viewport: {width:innerWidth,height:innerHeight}, body:document.body.getBoundingClientRect().toJSON() }; }).catch(() => ({})));
+    }
+    await browser.close();
+  });
   await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
   const errors = []; page.on('pageerror', error => errors.push(String(error))); page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); }); page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
   const fixture = createVisualFixtureSession({ id: 'reader-practice-focus' });
@@ -43,6 +58,11 @@ for (const name of engines) test(`${name}: low-height player controls, rotation,
   assert.deepEqual(await frame(), { top: 0, bottom: 390, height: 390 });
   await mkdir(evidence, { recursive: true });
   await page.screenshot({ path: `${evidence}/${name}-landscape-collapsed.png` });
+  await page.getByRole('button', { name: '展开看谱控制' }).click();
+  await page.getByRole('button', { name: '展开播放控制' }).click();
+  await page.screenshot({ path: `${evidence}/${name}-landscape-expanded.png` });
+  await page.getByRole('button', { name: '收起看谱控制' }).click();
+  await page.getByRole('button', { name: '收起播放控制' }).click();
   await page.addStyleTag({ content: ':root { --safe-top: 20px; --safe-left: 28px; --safe-right: 28px; }' });
   await expect.poll(async () => (await frame()).top).toBe(20);
   const headerSafe = await page.locator('.practice-header').boundingBox(); assert.ok(headerSafe.x >= 28 && headerSafe.y >= 20);
@@ -66,7 +86,8 @@ for (const name of engines) test(`${name}: low-height player controls, rotation,
   await page.getByRole('button', { name: '显示谱面' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('menu', { name: '显示谱面' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.locator('.practice-view-option').filter({ hasText: '重排谱面' }).click();
+  await expect(page.getByRole('menu', { name: '显示谱面' })).toBeHidden();
   await expect(page.getByRole('button', { name: '收起看谱控制' })).toBeVisible();
   await page.getByRole('button', { name: '暂停', exact: true }).click();
   await page.getByRole('button', { name: '练习设置', exact: true }).click();
@@ -87,7 +108,17 @@ for (const name of engines) test(`${name}: low-height player controls, rotation,
   await page.screenshot({ path: `${evidence}/${name}-small-phone.png` });
   if (await page.evaluate(() => document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === 'function')) {
     await page.getByRole('button', { name: '全屏看谱' }).click();
-    await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(true);
+    await expect(page.getByRole('button', { name: '退出专注' })).toBeEnabled();
+    const nativeFullscreen = await page.evaluate(() => document.fullscreenElement === document.documentElement);
+    if (!nativeFullscreen) await expect(page.getByRole('status')).toContainText('全屏未能开启');
+    await page.getByRole('button', { name: '展开看谱控制' }).click();
+    await page.getByRole('button', { name: '显示谱面' }).click();
+    await page.locator('.practice-view-option').filter({ hasText: '对照' }).click();
+    await expect(page.locator('.practice-notation[data-compare]')).toBeVisible();
+    await expect(page.getByRole('button', { name: '退出专注' })).toBeVisible();
+    if (nativeFullscreen) await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(true);
+    await page.getByRole('button', { name: '显示谱面' }).click();
+    await page.locator('.practice-view-option').filter({ hasText: '重排谱面' }).click();
     await page.getByRole('button', { name: '退出专注' }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
     await expect(timeline).toBeVisible();
@@ -110,5 +141,6 @@ for (const name of engines) test(`${name}: low-height player controls, rotation,
   await expect(page.getByRole('status')).toContainText('此浏览器不能全屏');
   await page.getByRole('button', { name: '退出专注' }).click();
   assert.equal(fixture.diagnostics.unmatchedRequests.length, 0);
+  completed = true;
   await writeFile(`${evidence}/${name}-geometry.json`, JSON.stringify({ collapsed: followedFrame, expanded, smallPhoneControls: boxes }, null, 2));
 });

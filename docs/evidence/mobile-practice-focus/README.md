@@ -12,6 +12,7 @@
 
 Chromium 154（环境现有浏览器；Playwright 驱动）。844×390 横屏，展开谱面高度 **288px**，收起后 **390px**，增加 **102px / 35%**。设备安全区仍独立保留。浏览器模拟不包含真实 Android 系统状态栏；这些数值仅代表站内布局。
 
+![横屏展开与收起对比](comparison.png)
 ![横屏收起](landscape.png)
 ![手动浏览后恢复跟随浮层](follow.png)
 ![旋转后竖屏展开](portrait.png)
@@ -22,16 +23,15 @@ Chromium 154（环境现有浏览器；Playwright 驱动）。844×390 横屏，
 ## 验证
 
 ```sh
-npm run build
 PRACTICE_TEST_ENGINES=chromium PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium node --test visual-report/practice-focus.test.mjs
 npx vitest run --config vitest.client.config.ts src/client/playback
 npm run lint
 npm run typecheck
 ```
 
-浏览器回归默认在 Chromium 和 WebKit 运行；环境变量仅用于本地浏览器缺失时明确选择可用引擎。用生产预览验证真实 alphaTab worker，避免开发依赖预构建的 worker 路径问题。CI 已有构建产物和双引擎安装步骤；截图写入其现有 `artifacts/verification/` 收集路径。
+浏览器回归默认在 Chromium 和 WebKit 运行；环境变量仅用于本地浏览器缺失时明确选择可用引擎。用生产预览验证真实 alphaTab worker，避免开发依赖预构建的 worker 路径问题。回归会自行构建本次源码（视觉分片不下载独立 build 作业的产物），CI 已有双引擎安装步骤；截图写入其现有 `artifacts/verification/` 收集路径。
 
-本地结果：播放器 34 项通过；完整客户端 118 文件／1033 项通过；lint、typecheck、build 通过；完整 Node 单元 137 项通过、1 项失败（既有 `scripts/process-lifecycle.test.js > cleans a descendant even after its launcher exits`，本次未改进程清理）。WebKit 浏览器下载收到网络规则的 403 `Domain forbidden`，本地未能运行。完整远程 CI 取决于 PR 推送。
+本地结果：播放器 34 项通过；完整客户端 118 文件／1033 项通过；lint、typecheck、build 通过；完整 Node 单元 137 项通过、1 项失败（既有 `scripts/process-lifecycle.test.js > cleans a descendant even after its launcher exits`，本次未改进程清理）。WebKit 浏览器下载收到网络规则的 403 `Domain forbidden`，本地未能运行。远程 CI 以 PR #457 的最新检查为准。
 
 ## 浏览器边界
 

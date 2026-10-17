@@ -21,7 +21,12 @@ export function PracticePlayerShell(props: Props) {
   const { source } = props;
   const focus = usePracticeFocus(props.embedded);
   const { topCollapsed, bottomCollapsed } = focus;
-  useExitLayer(focus.focused, 'overlay', () => { void focus.exit(); return true; });
+  useExitLayer(focus.focused, 'overlay', destination => {
+    // View changes also pass navigation admission; keep focus until a real
+    // route departure unmounts this session. Back closes focus explicitly.
+    if (destination) return true;
+    return focus.exit().then(() => true);
+  });
   const readerView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
   const view = props.embedded ? 'xml' : readerView;
   const [panel, setPanel] = useState<'settings' | 'position' | null>(null);
