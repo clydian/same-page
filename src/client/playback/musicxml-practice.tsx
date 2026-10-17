@@ -8,7 +8,7 @@ import { Button, Switch } from "react-aria-components";
 import type { PlayerSession, PlayerState } from "@clydian/chorus-player";
 import { playbackViewStore, type PlaybackSource } from "./playback-store";
 import { useNotationPinch } from "./use-notation-pinch";
-import { NotationZoom } from "./notation-zoom";
+import { useNotationToolbarClearance } from "./use-notation-toolbar-clearance";
 import { PracticePlayerShell } from "./practice-player-shell";
 const preparing: PlayerState = {
   status: "preparing",
@@ -55,6 +55,7 @@ export function MusicXmlPractice({
   );
   const view = embedded ? "xml" : readerView;
   useNotationPinch(viewport, session, view !== "pdf" && !error);
+  useNotationToolbarClearance(viewport, session, !embedded && view !== "pdf");
   const [loopStart, setLoopStart] = useState(0),
     [loopEnd, setLoopEnd] = useState(0);
   useEffect(() => {
@@ -82,7 +83,6 @@ export function MusicXmlPractice({
         aria-hidden={view === "pdf"}
         inert={view === "pdf"}
       >
-        <NotationZoom scale={state.notationScale} ready={ready} onChange={value => session?.notationScale(value)} />
         {view !== "pdf" && state.following === false && (
           <Button className="practice-follow" onPress={() => session?.follow()}>
             恢复自动跟随
@@ -103,6 +103,7 @@ export function MusicXmlPractice({
       <PracticePlayerShell
         source={source}
         embedded={embedded}
+        notationZoom={view !== "pdf" ? { scale: state.notationScale, ready, onChange: value => session?.notationScale(value) } : undefined}
         ready={ready}
         playing={state.playing}
         message={error ?? state.message}

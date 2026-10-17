@@ -43,6 +43,9 @@
 .practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 16px; }
 .practice-notation-scroll > div { max-width: 1100px; margin: auto; padding: 12px; background: #fff; border-radius: 3px; box-shadow: 0 1px 5px #17352b0a; }
 /* Match Chorus: alphaTab supplies positions/classes; the host supplies their visible colors. */
+/* WebKit can retain old transformed cursor overflow after reflow. Contain only
+   the decorative layer within alphaTab's canvas; wide music still scrolls. */
+.practice-notation .at-cursors { overflow: clip; }
 .practice-notation .at-cursor-bar { background: rgba(212,165,94,.13) !important; border: 1px solid rgba(185,126,72,.16); border-radius: 6px; }
 /* Keep alphaTab's inline width: its transform scales the playback line to 3 visible pixels. */
 .practice-notation .at-cursor-beat { background: #bd7740 !important; border-radius: 3px; box-shadow: 0 0 0 2px rgba(189,119,64,.13); }
@@ -215,11 +218,6 @@
 .practice-position[data-hovered], .practice-speed:hover { background: #edf1eb; }
 .practice-position[data-disabled] { opacity: .4; }
 .practice-position:focus-visible, .practice-speed:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
-.practice-zoom-trigger { position: absolute; z-index: 6; top: 8px; right: max(8px,var(--safe-right)); min-width: 52px; height: 44px; padding: 0 10px; border: 1px solid #dce4de80; border-radius: 12px; background: #fcfdfbe8; color: #52665a; box-shadow: 0 2px 8px #17352b0a; backdrop-filter: blur(10px); font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; }
-.practice-zoom-trigger:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
-.practice-zoom-popover { width: auto; }
-.practice-zoom-panel { padding: 8px; outline: none; }
-.practice-zoom-panel p { margin: 3px 8px 6px; font-size: 11px; color: #718077; }
 .practice-follow, .practice-notation[data-compare] .practice-follow { z-index: 7; min-height: 44px; padding: 0 14px; border: 1px solid #dce4de; border-radius: 24px; background: #fcfdfbf5; color: #365747; font: inherit; font-size: 12px; box-shadow: 0 2px 12px #17352b14; position: absolute; top: 8px; left: 8px; margin: 0; max-width: calc(100% - 80px); }
 .practice-comparison-pdf-stage { inset: 0; }
 .practice-comparison-pdf .reader-page-indicator, .reader-shell[data-practicing] .reader-page-indicator { top: 8px; right: max(8px,var(--safe-right)); min-height: 44px; height: 44px; border: 1px solid #dce4de80; border-radius: 12px; background: #fcfdfbe8; box-shadow: 0 2px 8px #17352b0a; backdrop-filter: blur(10px); }
@@ -228,3 +226,41 @@
 .reader-shell[data-practicing], .reader-shell[data-practicing] .page-reader__canvas-stage { background: #f3f4f0; }
 
 .practice-notation-size button[aria-disabled=true] { opacity: .35; cursor: default; }
+
+/* One floating tool group in every orientation. It reserves no viewport row. */
+.practice-header[data-floating] { inset: max(8px,var(--safe-top)) auto auto max(8px,var(--safe-left)); width: max-content; max-width: calc(100vw - max(8px,var(--safe-left)) - max(8px,var(--safe-right))); min-height: 44px; padding: 3px; gap: 0; flex-wrap: wrap; justify-content: flex-start; border: 1px solid #dce4de; border-radius: 14px; background: #fcfdfbf5; box-shadow: 0 2px 12px #17352b14; backdrop-filter: blur(10px); }
+.practice-header[data-floating] .practice-view-trigger { padding-inline: 8px; gap: 4px; }
+.practice-header[data-floating] .practice-notation-size { border-inline: 1px solid #e4eae4; margin-inline: 2px; }
+.practice-fullscreen > span { display: none; }
+.practice-header[data-floating] .practice-source-name { max-width: 180px; padding-inline: 8px; }
+.practice-chrome-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; padding: 0 8px; border: 0; border-radius: 10px; background: transparent; color: #365747; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.practice-chrome-toggle[data-hovered] { background: #eaf0ea; }
+.practice-chrome-toggle:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
+.practice-dock [hidden] { display: none; }
+.practice-dock[data-collapsed] { inset: auto max(8px,var(--safe-right)) max(8px,env(safe-area-inset-bottom)) auto; padding: 0; border-radius: 28px; background: transparent; }
+.practice-dock[data-collapsed] .practice-bar { display: flex; min-height: 48px; padding: 4px; border: 1px solid #dce4de; border-radius: 28px; box-shadow: 0 2px 12px #17352b14; }
+.practice-dock[data-collapsed] .practice-notice { max-width: 260px; }
+.practice-bar-actions { gap: 2px; }
+.practice-bar-actions > .practice-chrome-toggle { width: 44px; flex: 0 0 44px; padding: 0; }
+.practice-expanded-controls { display: contents; }
+.practice-follow, .practice-notation[data-compare] .practice-follow { top: auto; bottom: calc(8px + var(--practice-float-bottom,0px)); left: max(8px,var(--safe-left)); max-width: calc(100% - max(8px,var(--safe-left)) - max(8px,var(--safe-right))); }
+.practice-notation-scroll { padding-top: var(--practice-tools-clearance,16px); scroll-padding-top: var(--practice-tools-clearance,16px); }
+.reader-shell[data-practicing] .reader-page-indicator, .practice-comparison-pdf .reader-page-indicator { top: auto; bottom: 8px; left: max(8px,var(--safe-left)); right: auto; }
+.practice-focus-notice { position: fixed; z-index: 95; display: flex; align-items: center; gap: 4px; top: calc(var(--safe-top) + var(--practice-tools-clearance,64px) + 8px); left: max(12px,var(--safe-left)); max-width: min(320px,calc(100vw - 32px)); padding: 10px 14px; border-radius: 12px; background: #31463af5; color: white; font-size: 12px; line-height: 1.5; pointer-events: auto; }
+.practice-focus-notice .practice-icon { color: white; }
+@media (max-height: 500px) { .practice-bar { min-height: 56px; padding-block: 8px 0; } }
+@media (max-width: 480px) {
+  .practice-header[data-floating] .practice-view-trigger { width: 44px; padding-inline: 0; gap: 2px; font-size: 11px; }
+  .practice-header[data-floating] .practice-view-label, .practice-fullscreen > span { display: none; }
+  .practice-header[data-floating] .practice-view-trigger::before { content: attr(data-short-label); }
+  .practice-header[data-floating] .practice-fullscreen { width: 44px; padding: 0; }
+}
+@media (max-width: 380px) {
+  .practice-transport .practice-play { flex-basis: 44px; width: 44px; height: 44px; }
+  .practice-dock:not([data-collapsed]) .practice-settings { flex-basis: 44px; width: 44px; }
+  .practice-dock:not([data-collapsed]) .practice-settings > span { display: none; }
+}
+
+.practice-notation[data-compare] .practice-notation-scroll { padding-top: 16px; }
+
+.practice-dock[data-collapsed] .practice-bar-actions { margin-left: auto; }

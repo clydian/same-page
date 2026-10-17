@@ -8,7 +8,7 @@ import { musicXmlFixture } from './musicxml-fixture.mjs';
 for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`attachment launcher, single bar, focus, follow and preparation reuse (${engine})`,{timeout:120000},async t=>{
  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});let browser;
  t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
- browser=await type.launch();const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
+ browser=await type.launch(engine === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
  await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}});
  const bytes=Buffer.from(musicXmlFixture(48).toString().replaceAll('<measure number="25">','<measure number="25"><attributes><key><fifths>1</fifths></key></attributes>')),id=crypto.randomUUID();
  const upload=await context.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/attachments/${id}/file?name=practice.xml&size=${bytes.length}`,{data:bytes,headers:{'content-length':String(bytes.length)}});
@@ -26,6 +26,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  const coldStart=Date.now();
  await page.getByRole('button',{name:'practice.xml',exact:true}).click();
  const bar=page.getByTestId('musicxml-player');await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+ await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();
  const coldReadyMs=Date.now()-coldStart;
  await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');await expect(page.locator('.practice-notation')).toBeVisible();
  await expect(page.locator('.practice-notation')).not.toContainText('practice.xml');
@@ -59,14 +60,14 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-player.png`});
  const initialReads=fileReads,initialWorkers=workers;
  await page.getByRole('button',{name:'结束播放',exact:true}).click();await expect(bar).toHaveCount(0);await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
- await reveal();await page.getByRole('button',{name:'练习谱',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
+ await reveal();await page.getByRole('button',{name:'练习谱',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
  await page.setViewportSize({width:390,height:844});await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.locator('.practice-switch').click();await expect(degrees).toHaveCount(96);await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg=>svg.getBoundingClientRect().width)).toBeLessThan(370);await expect.poll(()=>degrees.evaluateAll(labels=>labels.every(label=>label.getBoundingClientRect().right<=innerWidth))).toBe(true);
  const labelPositions=()=>degrees.evaluateAll(labels=>labels.map(label=>[label.textContent,label.style.left,label.style.top]));
  // Worker post-render bounds must already be current, without toggling to repair the overlay.
  const mobilePositions=await labelPositions();await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.locator('.practice-switch').click();await page.locator('.practice-switch').click();await expect.poll(labelPositions).toEqual(mobilePositions);await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mobile.png`});
  await page.evaluate(()=>{document.documentElement.style.setProperty('--safe-top','44px');document.documentElement.style.setProperty('--safe-left','20px');document.documentElement.style.setProperty('--safe-right','12px');});
- await expect.poll(async()=>{ const [view,top]=await Promise.all([scroll.boundingBox(),page.locator('.practice-header').boundingBox()]);return view.y>=top.y+top.height; }).toBe(true);
+ await expect.poll(async()=>{ const [view,top]=await Promise.all([scroll.boundingBox(),page.locator('.practice-header').boundingBox()]);return view.y>=44 && top.y>=44 && top.width<390 && top.x>=20; }).toBe(true);
  const safeViewport=await scroll.boundingBox();assert.ok(safeViewport.y>=44&&safeViewport.x>=20&&safeViewport.x+safeViewport.width<=378,'scroll viewport stays inside top and side safe areas');
  const notationTop=(await page.locator('.practice-notation').boundingBox()).y;
  await scroll.press('End');assert.equal((await page.locator('.practice-notation').boundingBox()).y,notationTop,'scrolling retains the safe-area boundary');
