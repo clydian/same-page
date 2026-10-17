@@ -101,6 +101,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       assert.equal(cloud.layers.length, 5);
       assert.ok(cloud.layers.every(layer => layer.kind === "shared" && !layer.canEdit));
     };
+    await withBrowserEvidence(context, `artifacts/verification/preview-notes-${engine}`, async () => {
     // A real guest can try notes. Signing in does not promote those notes.
     await openLibrary();
     await page.locator(".file-row__open").click();
@@ -108,7 +109,6 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     await expect.poll(() => pendingDirectories.size).toBe(0);
     stage = "sign-in-non-member";
     await signIn(context, fixture.accounts[1]);
-    await withBrowserEvidence(context, `artifacts/verification/preview-notes-${engine}`, async () => {
       for (const entry of ["pdf", "musicxml", "audio", "missing"]) {
         stage = `${entry}:entry`;
         await expect.poll(() => pendingDirectories.size).toBe(0);
