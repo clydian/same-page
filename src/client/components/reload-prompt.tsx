@@ -2,9 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useLocation } from "react-router-dom";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { canApplyUpdate, noteUpdateInteraction, setUpdateRoute } from "../updates/update-safety";
-import { setUpdateStatus, useUpdateStatus } from "../updates/update-status";
+import { useUpdateStatus } from "../updates/update-status";
+import { UpdateController } from "../updates/update-controller";
 
-const prepared = "新版本已准备，关闭所有合谱窗口后会自动更新";
 export function ReloadPrompt() {
   const [attempt, setAttempt] = useState(0);
   const retryRegistration = useCallback(() => setAttempt(value => value + 1), []);
@@ -16,58 +16,31 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
   const [registration, setRegistration] = useState<ServiceWorkerRegistration>();
   const reloadPending = useRef(false);
   const requested = useRef(false);
-  const applying = useRef(false);
+  const [registrationError, setRegistrationError] = useState(false);
   const onNeedReload = useCallback(() => {
     reloadPending.current = true;
     // Activation may come from another window. Recheck after the worker's probe.
     if (canApplyUpdate(requested.current)) window.location.reload();
   }, []);
   const onRegisteredSW = useCallback((_url: string, value?: ServiceWorkerRegistration) => setRegistration(value), []);
-  const { needRefresh: [ready] } = useRegisterSW({ onNeedReload, onRegisteredSW,
-    onRegisterError: () => setUpdateStatus("应用离线资源准备失败，请稍后重试", { applying: false }),
+  useRegisterSW({ onNeedReload, onRegisteredSW,
+    onRegisterError: () => setRegistrationError(true),
   });
   useLayoutEffect(() => setUpdateRoute(pathname), [pathname]);
-  const check = useCallback(async () => {
-    if (applying.current) return;
-    if (!navigator.onLine) { setUpdateStatus("当前离线，继续使用当前版本"); return; }
-    if (!registration) { setUpdateStatus("正在重新准备离线资源…"); retryRegistration(); return; }
-    setUpdateStatus("正在检查更新…");
-    try {
-      await registration.update();
-      setUpdateStatus(registration.waiting ? prepared : "检查完成，当前版本继续运行", { ready: Boolean(registration.waiting) });
-    } catch { setUpdateStatus("更新检查失败，请稍后重试"); }
-  }, [registration, retryRegistration]);
-  useEffect(() => { if (ready && !applying.current) setUpdateStatus(prepared, { ready: true }); }, [ready]);
   useEffect(() => {
-    if (registration) void check();
-    const visible = () => { if (document.visibilityState === "visible") void check(); };
+    const controller = new UpdateController(registration, registrationError, retryRegistration, value => { requested.current = value; });
+    controller.start();
+    const visible = () => { if (document.visibilityState === "visible") controller.foregroundCheck(); };
     document.addEventListener("visibilitychange", visible);
-    window.addEventListener("same-page-check-update", check);
-    return () => { document.removeEventListener("visibilitychange", visible); window.removeEventListener("same-page-check-update", check); };
-  }, [registration, check]);
-  useEffect(() => {
-    let cancel: (() => void) | undefined;
-    const apply = () => {
-      if (!registration?.waiting || applying.current) return;
-      if (!canApplyUpdate(true)) { setUpdateStatus("请先完成当前操作，再应用更新"); return; }
-      requested.current = true; applying.current = true;
-      setUpdateStatus("正在确认其他窗口是否可以更新…", { applying: true });
-      const channel = new MessageChannel();
-      const finish = (message: string) => {
-        cancel?.(); cancel = undefined; requested.current = false; applying.current = false;
-        setUpdateStatus(message, { applying: false });
-      };
-      const timeout = window.setTimeout(() => finish("更新未完成，当前版本继续运行；可重新尝试"), 10000);
-      cancel = () => { clearTimeout(timeout); channel.port1.close(); };
-      channel.port1.onmessage = event => {
-        if (event.data?.safe === true) { setUpdateStatus("正在应用更新…"); return; }
-        finish("新版本待应用，请先完成其他窗口中的操作，再尝试更新");
-      };
-      registration.waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE", requested: true }, [channel.port2]);
+    window.addEventListener("same-page-check-update", controller.check);
+    window.addEventListener("same-page-apply-update", controller.apply);
+    return () => {
+      controller.dispose();
+      document.removeEventListener("visibilitychange", visible);
+      window.removeEventListener("same-page-check-update", controller.check);
+      window.removeEventListener("same-page-apply-update", controller.apply);
     };
-    window.addEventListener("same-page-apply-update", apply);
-    return () => { window.removeEventListener("same-page-apply-update", apply); cancel?.(); };
-  }, [registration]);
+  }, [registration, registrationError, retryRegistration]);
   useEffect(() => {
     const events = ["pointerdown", "pointerup", "keydown", "input", "focusin", "wheel", "scroll"] as const;
     events.forEach(event => document.addEventListener(event, noteUpdateInteraction, true));
@@ -86,8 +59,14 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
 
 export function UpdateDetails() {
   const status = useUpdateStatus();
-  return <section><h2>版本更新</h2><p role="status">{status.message}</p>
-    <button className="secondary-button" disabled={status.applying} onClick={() => window.dispatchEvent(new Event("same-page-check-update"))}>检查更新</button>
-    {status.ready && <button className="primary-button" disabled={status.applying} onClick={() => window.dispatchEvent(new Event("same-page-apply-update"))}>立即更新并重新加载</button>}
+  const busy = ["registering", "checking", "preparing", "applying"].includes(status.phase);
+  const ready = status.phase === "ready";
+  const labels: Partial<Record<typeof status.phase, string>> = { registering: "准备中…", checking: "检查中…", preparing: "准备中…", applying: "更新中…" };
+  const label = labels[status.phase];
+  return <section><h2>版本更新</h2><p role="status" aria-live="polite" aria-atomic="true">{status.message}</p>
+    <button className={ready ? "primary-button" : "secondary-button"} disabled={busy || status.phase === "unsupported"}
+      onClick={() => window.dispatchEvent(new Event(ready ? "same-page-apply-update" : "same-page-check-update"))}>
+      {label ?? (ready ? "重新加载并更新" : status.phase === "error" || status.phase === "offline" ? "重试检查更新" : "检查更新")}
+    </button>
   </section>;
 }

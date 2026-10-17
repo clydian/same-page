@@ -32,7 +32,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
  test(`MusicXML attachment practice and PDF handoff (${engine})`, {timeout:180000}, async t => {
   const fixture=await startStorageFixture({authenticated:true,previewEntry:false});
   let browser;t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
-  browser=await type.launch();const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
+  browser=await type.launch(engine === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
   assert.equal((await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}})).status(),200);
   await context.addInitScript(() => {
     window.__audioAnalysers = [];
@@ -73,6 +73,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(page).toHaveURL(new RegExp(`/scores/${fixture.scoreId}`));
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeAttached({timeout:20000});
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+  await player.getByRole('button',{name:'展开播放控制',exact:true}).click();
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('0');
   await expect(player.getByLabel('速度',{exact:true})).toHaveValue('1');
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
@@ -138,6 +139,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByRole('button',{name:'本地链路测试：1 个附件',exact:true}).click();
   await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+  await player.getByRole('button',{name:'展开播放控制',exact:true}).click();
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
   await expect(settings.getByLabel('关注声部',{exact:true})).toHaveValue('');
