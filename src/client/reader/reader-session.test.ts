@@ -67,6 +67,9 @@ it("a stalled document reaches a recoverable timeout without classifying the dev
 });
 
 it("requires confirmed identity before user-owned offline preparation and cancels it on identity loss", async () => {
+  // Exercise identity cancellation with a usable shell, rather than failing
+  // the offline capability preflight before a download can start.
+  vi.stubGlobal("navigator", { onLine: true, serviceWorker: { getRegistration: async () => ({ active: {} }) } });
   const workspace = await resolveLocalWorkspace({ authenticatedUserId: "a", choirId: "auth-drive", scoreId: "score" });
   const requested: string[] = [];
   const downloadState: { signal?: AbortSignal | null } = {};
