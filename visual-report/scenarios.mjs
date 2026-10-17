@@ -20,7 +20,7 @@ export const visualReportScenarios = [
       { type: 'clickRole', role: 'button', name: '练习谱' },
       ...(!item.entry ? [{ type: 'clickRole', role: 'button', name: item.audio ? '示范录音.wav' : '声部练习版.musicxml' },
       { type: 'waitVisible', selector: '.practice-play:not([disabled])' },
-      ...(!item.audio ? [{ type: 'clickRole', role: 'button', name: item.xml ? '重排谱面' : '原始 PDF' }] : []),
+      ...(!item.audio ? [{ type: 'clickRole', role: 'button', name: '显示谱面' }, { type: 'clickCenter', selector: item.xml ? '.practice-view-option:has-text("重排谱面")' : '.practice-view-option:has-text("原始 PDF")' }] : []),
       { type: 'assertHidden', selector: '.reader-chrome' },
       ...(item.settings ? [{ type: 'clickRole', role: 'button', name: '练习设置' }] : []),
       ] : []),

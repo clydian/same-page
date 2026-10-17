@@ -1,5 +1,6 @@
 import { readerHref } from "../reader/reader-entry";
 import { GuestNoteDialog } from "../auth/guest-note-invitation";
+import { ComparisonPdf } from "../playback/comparison-pdf";
 import { playbackStore, playbackViewStore } from "../playback/playback-store";
 import { ReaderGuide } from "../reader/reader-guide";
 import { useReaderHint } from "../reader/use-reader-hint";
@@ -112,6 +113,7 @@ function ReaderPageContent() {
   const playback = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
   const playbackView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
   const practicing = playback?.choirId === choirId && playback.score.id === scoreId;
+  const comparing = practicing && playbackView === 'compare';
   const showingPlayback = practicing && playbackView === 'xml';
   const workspace = opening.state.status === "ready" ? opening.state.workspace : null;
   const navigation = useAppNavigation();
@@ -224,7 +226,7 @@ function ReaderPageContent() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
-        showingPlayback ||
+        showingPlayback || comparing ||
         (event.target instanceof Element && Boolean(event.target.closest('.practice-dock'))) ||
         (event.target instanceof Element && Boolean(event.target.closest('[role="dialog"]'))) ||
         layout !== "page" ||
@@ -248,7 +250,7 @@ function ReaderPageContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editing, layout, moreOpen, playbackEntryOpen, guide.visible, readerPanel, requestPage, setZoom, showingPlayback]);
+  }, [editing, layout, moreOpen, playbackEntryOpen, guide.visible, readerPanel, requestPage, setZoom, showingPlayback, comparing]);
 
   const beginEditing = () => {
     if (cloudState === "trashed") {
@@ -393,7 +395,7 @@ function ReaderPageContent() {
 
   return (
     <ReaderPresentationContext.Provider value={presentation.context}>
-    <main className="reader-shell" data-practicing={practicing || undefined} data-playback-view={showingPlayback ? 'xml' : undefined} aria-hidden={showingPlayback || undefined} inert={showingPlayback} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
+    <main className="reader-shell" data-practicing={practicing || undefined} data-playback-view={showingPlayback || comparing ? 'xml' : undefined} aria-hidden={showingPlayback || comparing || undefined} inert={showingPlayback || comparing} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
       {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
       {cloudState === "trashed" ? (
@@ -678,6 +680,10 @@ function ReaderPageContent() {
         )}
       </div>
     </main>
+    {practicing && playback.attachment.kind === 'musicxml' && <ComparisonPdf
+      key={`${playbackStore.getGeneration()}:${score.currentVersion.id}`}
+      active={comparing} document={document} initialPage={currentPage} annotationProps={annotationPageProps}
+    />}
     </ReaderPresentationContext.Provider>
   );
 }

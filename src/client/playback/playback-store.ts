@@ -4,15 +4,16 @@ import { onNavigationReset } from '../settings/navigation-events';
 export interface PlaybackSource { attachment: ScoreAttachment; score: ScoreSummary; choirId: string; ownerKey: string; sessionId: string | null; experience?: boolean }
 let source: PlaybackSource | null = null;
 let generation = 0;
-let view: 'pdf' | 'xml' = 'pdf';
+export type PlaybackView = 'pdf' | 'xml' | 'compare';
+let view: PlaybackView = 'pdf';
 const listeners = new Set<() => void>();
 const viewListeners = new Set<() => void>();
 export const playbackViewStore = {
   getSnapshot: () => view,
   subscribe(listener: () => void) { viewListeners.add(listener); return () => { viewListeners.delete(listener); }; },
 };
-export function setPlaybackView(next: 'pdf' | 'xml') {
-  if (next === 'xml' && source?.attachment.kind !== 'musicxml') return;
+export function setPlaybackView(next: PlaybackView) {
+  if (next !== 'pdf' && source?.attachment.kind !== 'musicxml') return;
   view = next;
   viewListeners.forEach(listener => listener());
 }

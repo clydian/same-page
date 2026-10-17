@@ -1,3 +1,4 @@
+import { selectPracticeView } from "./practice-controls.mjs";
 import assert from "node:assert/strict";
 import { withBrowserEvidence } from "./browser-evidence.mjs";
 import test from "node:test";
@@ -128,12 +129,12 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             await page.getByRole("button", { name: entry === "audio" ? "试听.wav" : "试唱.musicxml", exact: true }).click();
             if (entry === "audio") await page.getByRole("button", { name: "边听边看谱", exact: true }).click();
             if (entry === "musicxml") {
-              const view = page.getByRole("button", { name: "重排谱面", exact: true });
-              await expect(view).toHaveAttribute("aria-pressed", "true", { timeout: 60_000 });
+              const view = page.getByRole("button", { name: "显示谱面", exact: true });
+              await expect(view).toHaveText("重排谱面", { timeout: 60_000 });
               // The preparation notice changes the dock height. Let that finish
               // before a PDF tap whose pending intent is fenced by viewport size.
               await expect(page.getByTestId("musicxml-player").getByRole("button", { name: "播放", exact: true })).toBeEnabled({ timeout: 60_000 });
-              await page.getByRole("button", { name: "原始 PDF", exact: true }).click();
+              await selectPracticeView(page, "原始 PDF");
               await expect(page.locator(".reader-shell")).not.toHaveAttribute("aria-hidden", "true");
             }
           }

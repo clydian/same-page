@@ -1,3 +1,4 @@
+import { selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {mkdir} from 'node:fs/promises';
@@ -26,7 +27,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await page.getByRole('button',{name:'practice.xml',exact:true}).click();
  const bar=page.getByTestId('musicxml-player');await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
  const coldReadyMs=Date.now()-coldStart;
- await expect(page.getByRole('button',{name:'重排谱面',exact:true})).toHaveAttribute('aria-pressed','true');await expect(page.locator('.practice-notation')).toBeVisible();
+ await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');await expect(page.locator('.practice-notation')).toBeVisible();
  await expect(page.locator('.practice-notation')).not.toContainText('practice.xml');
  await expect(page.getByRole('banner',{name:'练习看谱'})).toBeVisible();
  await expect(bar).not.toContainText('practice.xml');
@@ -72,5 +73,5 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  const afterScroll=await scroll.boundingBox();assert.ok(afterScroll.y>=notationTop&&afterScroll.x>=20&&afterScroll.x+afterScroll.width<=378,'manual-follow affordance stays inside the reserved score area');
  await page.evaluate(()=>{for(const name of ['--safe-top','--safe-left','--safe-right'])document.documentElement.style.removeProperty(name);});
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();await expect(settings.getByLabel('关注声部',{exact:true})).toBeVisible();await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mobile-mix.png`});const mixerBounds=await settings.boundingBox();assert.ok(mixerBounds.x>=0 && mixerBounds.x+mixerBounds.width<=390,'mobile mixer fits viewport');await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
- const controls=await bar.locator('button').evaluateAll(buttons=>buttons.map(b=>({label:b.getAttribute('aria-label'),rect:b.getBoundingClientRect().toJSON()})));assert.ok(controls.every(c=>c.rect.x>=0&&c.rect.x+c.rect.width<=390&&c.rect.height>=44));assert.ok(controls.every(c=>Math.abs(c.rect.y-controls[0].rect.y)<1),'all controls stay on one row');
+ const controls=await bar.locator('button').evaluateAll(buttons=>buttons.map(b=>({label:b.getAttribute('aria-label'),rect:b.getBoundingClientRect().toJSON()})));assert.ok(controls.every(c=>c.rect.x>=0&&c.rect.x+c.rect.width<=390&&c.rect.height>=44));assert.ok(controls.every(c=>Math.abs(c.rect.y+c.rect.height/2-controls[0].rect.y-controls[0].rect.height/2)<1),'all controls stay on one row');
 });

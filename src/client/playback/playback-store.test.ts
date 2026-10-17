@@ -38,6 +38,8 @@ it('a newly selected recording starts on PDF and cannot display XML', () => {
  expect(playbackViewStore.getSnapshot()).toBe('pdf');
  setPlaybackView('xml');
  expect(playbackViewStore.getSnapshot()).toBe('pdf');
+ setPlaybackView('compare');
+ expect(playbackViewStore.getSnapshot()).toBe('pdf');
  startPlayback(source);
  expect(playbackViewStore.getSnapshot()).toBe('xml');
  stopPlayback();
@@ -55,7 +57,8 @@ it('every explicit attachment opening starts a fresh playback generation', () =>
 
 it('switching views retains the same session and generation', () => {
  startPlayback(source); const previous = playbackStore.getSnapshot(), generation = playbackStore.getGeneration();
- setPlaybackView('pdf'); setPlaybackView('xml');
+ setPlaybackView('pdf'); setPlaybackView('compare');
+ expect(playbackViewStore.getSnapshot()).toBe('compare'); setPlaybackView('xml');
  expect(playbackStore.getGeneration()).toBe(generation); expect(playbackStore.getSnapshot()).toBe(previous);
  stopPlayback();
 });
