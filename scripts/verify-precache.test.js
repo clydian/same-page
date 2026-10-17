@@ -19,6 +19,11 @@ it("rejects leaked design sources, missing offline dependencies and oversized or
     const manifest = files => `precacheAndRoute([${files.map(url => `{url:"${url}",revision:null}`).join(",")}])`;
     await writeFile(path.join(output, "sw.js"), manifest([...required, ...decoders]));
     await expect(verifyPrecache(output, design)).resolves.toMatchObject({ entries: required.length + decoders.length });
+    await mkdir(path.join(output, "third-party/alphatab"), { recursive: true });
+    await writeFile(path.join(output, "third-party/alphatab/source.json"), "source manifest");
+    await writeFile(path.join(output, "sw.js"), manifest([...required, ...decoders, "third-party/alphatab/source.json"]));
+    await expect(verifyPrecache(output, design)).rejects.toThrow("Third-party sources must remain on demand");
+    await writeFile(path.join(output, "sw.js"), manifest([...required, ...decoders]));
     const uniqueReport = await verifyPrecache(output, design);
     await writeFile(path.join(output, "sw.js"), manifest([...required, ...decoders, ...required]));
     await expect(verifyPrecache(output, design)).resolves.toEqual(uniqueReport);

@@ -1,7 +1,8 @@
 import { selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdir, readdir } from 'node:fs/promises';
+import { mkdir, readdir, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { chromium, webkit, expect } from '@playwright/test';
 import { zipSync, strToU8 } from 'fflate';
 import { startStorageFixture } from './storage-fixture.mjs';
@@ -20,14 +21,15 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
    worker.onerror = event => {worker.terminate();reject(new Error(event.message));};
    worker.onmessage = event => {
     worker.terminate();
-    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,wedges:event.data.prepared?.wedgeEventsByPart,creators:event.data.prepared?.creatorCredits,tempos:event.data.prepared?.tempoMeasures,glyphCompleteness:event.data.prepared?.dynamicGlyphsCompleteByPart});
+    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,wedges:event.data.prepared?.wedgeEventsByPart,creators:event.data.prepared?.creatorCredits,tempos:event.data.prepared?.tempoMeasures,glyphCompleteness:event.data.prepared?.dynamicGlyphsCompleteByPart,dynamics:event.data.prepared?.dynamicEventsByPart});
    };
    const bytes = new TextEncoder().encode(xml);
    worker.postMessage(bytes,[bytes.buffer]);
-  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><identification><creator type="composer">Worker Composer</creator><creator type="arranger">Worker Arranger</creator></identification><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction><direction-type><wedge type="diminuendo" number="1"/></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="stop" number="1"/></direction-type><offset>1.5</offset></direction><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes><direction><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><beat-unit>whole</beat-unit></metronome></direction-type></direction><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>'});
+  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><identification><creator type="composer">Worker Composer</creator><creator type="arranger">Worker Arranger</creator></identification><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction placement="above"><direction-type><dynamics><pp/></dynamics></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="diminuendo" number="1"/></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="stop" number="1"/></direction-type><offset>1.5</offset></direction><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes><direction><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><beat-unit>whole</beat-unit></metronome></direction-type></direction><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>'});
   assert.deepEqual(reply.keys,['prepared'],'no unrelated renderer/synth Worker initialization message may arrive first');
   assert.ok(reply.byteLength>0);
   assert.deepEqual(reply.glyphCompleteness,[true]);
+  assert.deepEqual(reply.dynamics[0].map(event=>[event.quarter,event.value,event.placement]),[[0.5,"pp","above"]]);
   assert.deepEqual(reply.creators,{composers:['Worker Composer'],arrangers:['Worker Arranger']});
   assert.deepEqual(reply.tempos,[{events:[],complete:true},{events:[{quarter:0,bpm:160,visible:false}],complete:true}]);
   assert.deepEqual(reply.wedges[0].map(event=>[event.quarter,event.type]),[[0.5,'diminuendo'],[1.5,'stop']]);
@@ -167,3 +169,25 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   assert.deepEqual(errors,[]);
  });
 }
+
+test('built host publicly serves the exact installed native sources and notices', { timeout: 60000 }, async t => {
+  const directory = 'public/third-party/alphatab';
+  const names = (await readdir(directory)).filter(name => name.endsWith('.json'));
+  assert.ok(names.length > 0);
+  const fixture = await startStorageFixture();
+  t.after(() => fixture.stop());
+  for (const name of names) {
+    const expected = JSON.parse(await readFile(`${directory}/${name}`, 'utf8'));
+    const response = await fetch(`${fixture.origin}/third-party/alphatab/${name}`);
+    assert.equal(response.status, 200);
+    const manifest = await response.json();
+    assert.deepEqual(manifest, expected);
+    for (const file of [manifest.archive, manifest.license, manifest.notices]) {
+      const response = await fetch(`${fixture.origin}/third-party/alphatab/${file}`);
+      assert.equal(response.status, 200);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      assert.deepEqual(bytes, await readFile(`${directory}/${file}`));
+      if (file === manifest.archive) assert.equal(createHash('sha256').update(bytes).digest('hex'), manifest.sha256);
+    }
+  }
+});

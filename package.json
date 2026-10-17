@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/verify-precache.mjs",
+    "build": "npm run copy:native-source && tsc -b && vite build && node scripts/verify-precache.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b --pretty false",
@@ -37,12 +37,13 @@
     "deploy": "node scripts/release-artifact.mjs verify \"$SAME_PAGE_RELEASE_SHA\" && node scripts/retire-image-consumer.mjs && wrangler deploy --config dist/same_page/wrangler.json",
     "test:smoke": "node scripts/run-browser-tests.mjs smoke",
     "diagnostics:inbox": "node scripts/diagnostic-reports.mjs",
-    "admin:configure": "node scripts/product-admin.mjs"
+    "admin:configure": "node scripts/product-admin.mjs",
+    "copy:native-source": "node node_modules/@clydian/chorus-player/scripts/copy-native-source.mjs --output public/third-party/alphatab"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",
-    "@clydian/chorus-player": "file:vendor/clydian-chorus-player-0.1.17.tgz",
-    "@coderline/alphatab": "^1.8.4",
+    "@clydian/chorus-player": "file:vendor/clydian-chorus-player-0.1.18.tgz",
+    "@coderline/alphatab": "file:vendor/coderline-alphatab-1.8.4-samepage.1.tgz",
     "@coderline/alphatab-vite": "^1.8.4",
     "@mdxeditor/editor": "^4.2.5",
     "@tanstack/react-virtual": "^3.14.11",
