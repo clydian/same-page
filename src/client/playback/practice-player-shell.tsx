@@ -84,7 +84,7 @@ export function PracticePlayerShell(props: Props) {
 
         </div>
         <div className="practice-bar-actions"><TooltipTrigger>
-          <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={19} aria-hidden="true" /></Button>
+          <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={17} aria-hidden="true" /><span aria-hidden="true">练习</span></Button>
           <Tooltip className="practice-tooltip" placement="top">练习设置</Tooltip>
         </TooltipTrigger></div>
       </section>

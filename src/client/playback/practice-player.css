@@ -125,7 +125,7 @@
 .solfege-overlay { position: absolute; z-index: 6; inset: 0; pointer-events: none; }
 .solfege-degree-label { position: absolute; transform: translateY(-100%); color: #07875b; font: 700 9px/1 ui-serif,Georgia,"Songti SC",serif; white-space: nowrap; text-shadow: -1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff; }
 @media (max-width: 640px) { .practice-panel { padding: 12px; gap: 12px; } .practice-focus { padding: 10px; } }
-.practice-settings { font: inherit; font-size: 12px; font-weight: 600; }
+.practice-settings { flex-basis: 68px; width: 68px; gap: 5px; font: inherit; font-size: 12px; font-weight: 500; }
 .practice-focus-volumes { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
 .practice-focus-volumes > .practice-action { grid-column: 1/-1; }
 
