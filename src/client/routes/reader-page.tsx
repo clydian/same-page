@@ -553,7 +553,7 @@ function ReaderPageContent() {
         </header>
       ) : null}
 
-      {!practicing && !editing && chromeVisible && !guide.visible && Boolean(score.attachmentCount) && workspace && <Suspense fallback={null}>
+      {!practicing && !editing && chromeVisible && !guide.visible && (score.musicXmlCount !== undefined ? score.musicXmlCount > 0 : Boolean(score.attachmentCount)) && workspace && <Suspense fallback={null}>
         <ReaderPracticeLauncher source={{ score, choirId, ownerKey: workspace.ownerKey, sessionId: identity.authenticatedSessionId }} enabled={online && cloudState === 'active'} open={playbackEntryOpen} onOpenChange={setPlaybackEntryOpen} />
       </Suspense>}
 

@@ -17,7 +17,7 @@ import { rememberLastDrive, forgetLastDrive } from "../score-library/last-drive"
 import { useApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
 import type { ApplicationIdentity } from "../auth/application-identity";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, FileMusic } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   Button,
@@ -33,7 +33,7 @@ import {
 import { Menu } from "../navigation/overlays";
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 
-import type { ScoreSummary } from "../../shared/scores";
+import { visibleAttachmentCount, type ScoreSummary } from "../../shared/scores";
 import { AppHeader } from "../components/app-header";
 import {
   completeLoadingJourney,
@@ -297,7 +297,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
                     <span className="pdf-file-icon" aria-hidden="true">PDF</span>
-                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}</span></span>
+                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}{score.hasGeneratedXml && <span className="file-row__practice" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /><span>自动练习版</span></span>}</span></span>
                   </PreparedScoreLink>
                   <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => {
@@ -335,8 +335,8 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     </MenuTrigger>
                 </div>
                 <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
-                  {expandedScoreIds.has(score.id) && (score.attachmentCount ?? 0) > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
-                    : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={score.attachmentCount ?? 0} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
+                  {expandedScoreIds.has(score.id) && visibleAttachmentCount(score) > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
+                    : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={visibleAttachmentCount(score)} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
                     : <><AttachmentRows revealRequest={attachmentReveal?.scoreId === score.id && attachmentReveal.scope === revealScope ? attachmentReveal : undefined} onRevealHandled={finishAttachmentReveal} available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} /></>)}
                 </div>
                 </article>

@@ -38,7 +38,10 @@ export const scoreSummarySchema = z.object({
   choirId: z.string(),
   fileName: z.string(),
   currentVersion: scoreVersionSummarySchema,
+  // Total directory count retains its deployed-client and metadata-cache meaning.
   attachmentCount: z.number().int().nonnegative().optional(),
+  musicXmlCount: z.number().int().nonnegative().optional(),
+  hasGeneratedXml: z.boolean().optional(),
   updatedAt: z.number(),
 });
 
@@ -118,3 +121,8 @@ export const replacedPdfSchema = z.object({
 });
 export const replacedPdfListSchema = z.object({ files: z.array(replacedPdfSchema) });
 export type ReplacedPdf = z.infer<typeof replacedPdfSchema>;
+
+// Generated practice scores have their own reader entry, outside the library attachments.
+export function visibleAttachmentCount(score: Pick<ScoreSummary, "attachmentCount" | "hasGeneratedXml">) {
+  return Math.max(0, (score.attachmentCount ?? 0) - (score.hasGeneratedXml ? 1 : 0));
+}

@@ -3,7 +3,7 @@ import { FileAudio, FileText, Link as LinkIcon, MoreHorizontal, Paperclip } from
 import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
 import { scoreDisplayName } from "../../../shared/score-display-name";
-import type { ScoreSummary } from "../../../shared/scores";
+import { visibleAttachmentCount, type ScoreSummary } from "../../../shared/scores";
 import { Menu } from "../../navigation/overlays";
 import { attachmentFileUrl } from "./api";
 import "./attachments.css";
@@ -13,9 +13,10 @@ import { LoadingStatus } from "../../components/loading-status";
 export type AttachmentSelection = { score: ScoreSummary; action: "add" | "upload" | "link" | "markdown" | "open" | "rename" | "trash"; attachment?: ScoreAttachment };
 
 export function AttachmentCount({ score, expanded, disabled, onToggle }: { score: ScoreSummary; expanded: boolean; disabled: boolean; onToggle: () => void }) {
-  return score.attachmentCount ? <Button className="attachment-count" aria-label={`${scoreDisplayName(score.fileName)}：${score.attachmentCount} 个附件`}
+  const count = visibleAttachmentCount(score);
+  return count ? <Button className="attachment-count" aria-label={`${scoreDisplayName(score.fileName)}：${count} 个附件`}
     aria-expanded={expanded} aria-controls={`score-attachments-${score.id}`} isDisabled={disabled} onPress={onToggle}
-    aria-description={expanded ? "收起这份乐谱的附件" : "展开这份乐谱的附件"}><Paperclip size={13} aria-hidden="true" /><span>{score.attachmentCount}</span></Button> : null;
+    aria-description={expanded ? "收起这份乐谱的附件" : "展开这份乐谱的附件"}><Paperclip size={13} aria-hidden="true" /><span>{count}</span></Button> : null;
 }
 
 export function AttachmentRows({ score, choirId, items, canModify, canTrash, onSelect, available = true, revealRequest, onRevealHandled }: {
@@ -24,7 +25,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
   onSelect: (selection: AttachmentSelection) => void;
 }) {
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
-  const rows = items.filter(item => item.scoreId === score.id);
+  const rows = items.filter(item => item.scoreId === score.id && item.source !== "generated");
   const list = useAttachmentReveal(revealRequest, onRevealHandled);
   if (!rows.length) return null;
   return <ul ref={list} className="attachment-list" aria-label={`${score.fileName} 的附件`}>

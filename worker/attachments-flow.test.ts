@@ -336,6 +336,32 @@ async function uploadGenerated(id = crypto.randomUUID(), revision?: number) {
   const response = await call(`${base()}/${id}/file?${query}`, { method: revision ? "PUT" : "POST", headers: { "content-length": String(musicXml.length) }, body: musicXml });
   return { response, id };
 }
+it("projects practice availability independently of the legacy attachment directory count", async () => {
+  const generated = await uploadGenerated();
+  expect(generated.response.status).toBe(201);
+  const headers = { "X-Same-Page-Attachments": "2" };
+  const paths = [`/api/choirs/${choirId}/bootstrap`, `/api/choirs/${choirId}/scores`, `/api/choirs/${choirId}/scores/${scoreId}/sync?cursor=0&layerIds=%5B%5D`];
+  const assertSummary = async (expected: object) => {
+    for (const path of paths) {
+      const response = await call(path, { headers });
+      expect(response.status).toBe(200);
+      const body = await response.json() as { score?: object; scores?: object[] };
+      expect(body.score ?? body.scores?.[0]).toMatchObject(expected);
+    }
+  };
+  await assertSummary({ attachmentCount: 1, musicXmlCount: 1, hasGeneratedXml: true });
+  expect(await (await call(paths[0])).json()).toMatchObject({ scores: [{ attachmentCount: 0, musicXmlCount: 0, hasGeneratedXml: false }] });
+  const userXml = await upload("校订.musicxml", musicXml);
+  expect(userXml.response.status).toBe(201);
+  expect((await upload("排练.wav", wav)).response.status).toBe(201);
+  await assertSummary({ attachmentCount: 3, musicXmlCount: 2, hasGeneratedXml: true });
+  expect((await call(`${base()}/${generated.id}?expectedRevision=1`, { method: "DELETE" })).status).toBe(204);
+  await assertSummary({ attachmentCount: 2, musicXmlCount: 1, hasGeneratedXml: false });
+  expect((await call(`${base()}/${userXml.id}?expectedRevision=1`, { method: "DELETE" })).status).toBe(204);
+  await assertSummary({ attachmentCount: 1, musicXmlCount: 0, hasGeneratedXml: false });
+  expect((await call(`${base()}/${generated.id}/restore`, { method: "POST" })).status).toBe(204);
+  await assertSummary({ attachmentCount: 2, musicXmlCount: 1, hasGeneratedXml: true });
+});
 it("keeps one generated XML slot separate from user uploads and allows owner updates", async () => {
   const userXml = await upload("用户校订.musicxml", musicXml);
   expect(userXml.response.status).toBe(201);

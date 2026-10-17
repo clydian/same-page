@@ -60,7 +60,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       }
       const edit = page.getByRole("button", { name: "编辑", exact: true });
       await expect(edit).toBeVisible();
-      const attachments = page.getByRole("button", { name: "本谱附件", exact: true });
+      const attachments = page.getByRole("button", { name: "练习谱", exact: true });
       // Editing unmounts this reader entry. Finish its real metadata read so
       // WebKit does not report our immediate cancellation as a page error.
       await expect(attachments.locator(".attachment-play-badge")).toBeVisible();

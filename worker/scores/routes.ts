@@ -66,7 +66,13 @@ scoreRoutes.get("/choirs/:choirId/bootstrap", async (context) => {
               CASE WHEN choirs.id = ? AND choirs.guest_session_version = ?
                 THEN 1 ELSE 0 END AS guest_access,
               scores.id AS score_id, scores.choir_id, scores.file_name,
-              scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"}) AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count, versions.id AS version_id,
+              scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"}) AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
+              (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id
+                AND a.kind = 'musicxml' AND a.trashed_at IS NULL AND a.purged_at IS NULL
+                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS music_xml_count,
+              EXISTS(SELECT 1 FROM score_attachments a WHERE a.score_id = scores.id
+                AND a.source = 'generated' AND a.trashed_at IS NULL AND a.purged_at IS NULL
+                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS has_generated_xml, versions.id AS version_id,
               versions.version_number, versions.size_bytes, versions.sha256,
               versions.etag, versions.page_count,
               versions.created_at AS version_created_at
@@ -125,6 +131,8 @@ scoreRoutes.get("/choirs/:choirId/bootstrap", async (context) => {
       file_name: row.file_name,
       updated_at: row.updated_at,
       attachment_count: row.attachment_count,
+      music_xml_count: row.music_xml_count,
+      has_generated_xml: row.has_generated_xml,
       version_id: row.version_id,
       version_number: row.version_number,
       size_bytes: row.size_bytes,
@@ -160,6 +168,12 @@ scoreRoutes.get("/choirs/:choirId/scores", async (context) => {
   const search = scoreFileNameKey(context.req.query("q")?.trim() ?? "");
   const result = await measureServerTiming(context, "d1", () => context.env.DB.prepare(
     `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"}) AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
+              (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id
+                AND a.kind = 'musicxml' AND a.trashed_at IS NULL AND a.purged_at IS NULL
+                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS music_xml_count,
+              EXISTS(SELECT 1 FROM score_attachments a WHERE a.score_id = scores.id
+                AND a.source = 'generated' AND a.trashed_at IS NULL AND a.purged_at IS NULL
+                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS has_generated_xml,
             versions.id AS version_id, versions.version_number,
             versions.size_bytes, versions.sha256, versions.etag,
             versions.page_count, versions.created_at AS version_created_at
@@ -238,6 +252,12 @@ scoreRoutes.get("/choirs/:choirId/scores/:scoreId/sync", async (context) => {
               AND a.trashed_at IS NULL AND a.purged_at IS NULL
               AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"})
               AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
+              (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id
+                AND a.kind = 'musicxml' AND a.trashed_at IS NULL AND a.purged_at IS NULL
+                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS music_xml_count,
+              EXISTS(SELECT 1 FROM score_attachments a WHERE a.score_id = scores.id
+                AND a.source = 'generated' AND a.trashed_at IS NULL AND a.purged_at IS NULL
+                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS has_generated_xml,
             scores.trashed_at, scores.trash_expires_at,
             versions.id AS version_id, versions.version_number,
             versions.size_bytes, versions.sha256, versions.etag,
@@ -575,6 +595,8 @@ interface ScoreRow {
   file_name: string;
   updated_at: number;
   attachment_count?: number;
+  music_xml_count?: number;
+  has_generated_xml?: number;
   version_id: string;
   version_number: number;
   size_bytes: number;
@@ -596,6 +618,8 @@ function serializeScoreRow(row: ScoreRow) {
     fileName: row.file_name,
     updatedAt: row.updated_at,
     ...(row.attachment_count !== undefined ? { attachmentCount: row.attachment_count } : {}),
+    ...(row.music_xml_count !== undefined ? { musicXmlCount: row.music_xml_count } : {}),
+    ...(row.has_generated_xml !== undefined ? { hasGeneratedXml: Boolean(row.has_generated_xml) } : {}),
     currentVersion: {
       id: row.version_id,
       versionNumber: row.version_number,
@@ -642,6 +666,8 @@ interface DriveBootstrapRow {
   file_name: string | null;
   updated_at: number | null;
   attachment_count?: number;
+  music_xml_count?: number;
+  has_generated_xml?: number;
   version_id: string | null;
   version_number: number | null;
   size_bytes: number | null;
@@ -657,6 +683,8 @@ interface DriveBootstrapScoreRow extends DriveBootstrapRow {
   file_name: string;
   updated_at: number;
   attachment_count?: number;
+  music_xml_count?: number;
+  has_generated_xml?: number;
   version_id: string;
   version_number: number;
   size_bytes: number;
