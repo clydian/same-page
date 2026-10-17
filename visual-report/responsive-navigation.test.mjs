@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,7 @@ import { expect } from "@playwright/test";
 
 import { startVisualServer } from "./setup.mjs";
 import { resolveFixtureRequest } from "./fixtures.mjs";
+import { withBrowserEvidence } from "../browser-tests/browser-evidence.mjs";
 
 const repositoryRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 let server;
@@ -73,6 +74,8 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
     const page = await openPage(browser, footerIdentity);
+    const evidence = `artifacts/verification/footer-navigation/${engineName}-${footerIdentity}`;
+    await withFooterNavigationEvidence(page, evidence, async record => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(`${origin}/privacy`, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "隐私政策", exact: true }).waitFor();
@@ -89,26 +92,106 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
       assert.ok(box.height >= 44 && box.width >= 44);
     }
     await page.evaluate(() => { window.__layoutDocumentMarker = "same-document"; });
+    await record("marker-set");
     for (const [name, pathname] of [["关于合谱", "/about"], ["隐私政策", "/privacy"]]) {
       const link = footer.getByRole("link", { name, exact: true });
       await link.focus();
       await capture(page, `${engineName}-footer-${footerIdentity}-320`);
+      await record("before-link", { name });
       await page.keyboard.press("Enter");
       await page.getByRole("heading", { name, exact: true }).waitFor();
+      await record("after-link", { name });
       assert.equal(new URL(page.url()).pathname, pathname);
       assert.equal(await page.evaluate(() => window.__layoutDocumentMarker), "same-document");
+      await record("before-back", { name });
       await page.goBack();
       await footer.getByRole("link", { name, exact: true }).waitFor();
+      await record("after-back", { name });
     }
+    await record("before-link", { name: "使用手册" });
     await footer.getByRole("link", { name: "使用手册", exact: true }).press("Enter");
     await page.getByRole("heading", { name: "使用手册", exact: true }).waitFor();
+    await record("after-link", { name: "使用手册" });
+    await record("before-link", { name: "反馈问题" });
     await page.getByRole("link", { name: "反馈问题", exact: true }).press("Enter");
+    await record("after-link", { name: "反馈问题" });
     await page.getByText("查看诊断信息", { exact: true }).click();
     await page.getByRole("textbox", { name: "可发送给维护人员的诊断信息" }).waitFor();
     assert.equal(new URL(page.url()).pathname, "/diagnostics");
     assert.equal(await page.evaluate(() => window.__layoutDocumentMarker), "same-document");
+    });
     await page.context().close();
   });
+}
+
+// Synthetic footer fixtures only. Record document boundaries without query strings,
+// response bodies or DOM snapshots; persist this log and sanitized trace on failure.
+async function withFooterNavigationEvidence(page, directory, run) {
+  const context = page.context();
+  const events = [];
+  const append = (kind, detail) => events.push({ at: Date.now(), kind, ...detail });
+  await context.exposeBinding("__layoutNavigationEvidence", (_, detail) => append("lifecycle", detail));
+  await context.addInitScript(() => {
+    window.__layoutDocumentId = crypto.randomUUID();
+    const report = (event) => window.__layoutNavigationEvidence({
+      event: event.type,
+      documentId: window.__layoutDocumentId,
+      pathname: location.pathname,
+      marker: window.__layoutDocumentMarker ?? null,
+      persisted: "persisted" in event ? event.persisted : null,
+    });
+    report({ type: "document-created" });
+    for (const name of ["pageshow", "pagehide", "popstate"]) addEventListener(name, report);
+  });
+  const request = item => {
+    if (item.isNavigationRequest() && item.frame() === page.mainFrame()) {
+      append("document-request", { pathname: new URL(item.url()).pathname, method: item.method() });
+    }
+  };
+  const sockets = new Map();
+  const websocket = socket => {
+    const frame = ({ payload }) => {
+      try {
+        const message = JSON.parse(String(payload));
+        if (message.type === "full-reload") append("vite-full-reload", {
+          pathname: message.path ? new URL(message.path, page.url()).pathname : null,
+        });
+      } catch { /* Non-JSON frames are unrelated to Vite's reload notification. */ }
+    };
+    sockets.set(socket, frame);
+    socket.on("framereceived", frame);
+  };
+  page.on("request", request);
+  page.on("websocket", websocket);
+  const record = async (kind, detail = {}) => {
+    try {
+      append(kind, { ...detail, ...await page.evaluate(() => ({
+        documentId: window.__layoutDocumentId ?? null,
+        pathname: location.pathname,
+        marker: window.__layoutDocumentMarker ?? null,
+        readyState: document.readyState,
+        navigationTypes: performance.getEntriesByType("navigation").map(entry => entry.type),
+      })) });
+    } catch (error) {
+      // A reload can destroy the context between observation points. Keep the
+      // original test assertions responsible for the pass/fail verdict.
+      append(kind, { ...detail, snapshotUnavailable: true, errorName: error.name });
+    }
+  };
+  try {
+    return await withBrowserEvidence(context, directory, async () => {
+      try { return await run(record); }
+      catch (error) {
+        await mkdir(directory, { recursive: true });
+        await writeFile(`${directory}/navigation.json`, JSON.stringify({ events }, null, 2));
+        throw error;
+      }
+    });
+  } finally {
+    page.off("request", request);
+    page.off("websocket", websocket);
+    for (const [socket, listener] of sockets) socket.off("framereceived", listener);
+  }
 }
 
 async function openPage(browser, identity) {
