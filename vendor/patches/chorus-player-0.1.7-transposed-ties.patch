@@ -1,0 +1,200 @@
+--- a/packages/player/src/engine.ts
++++ b/packages/player/src/engine.ts
+@@ -1,3 +1,4 @@
++import { normalizeMusicXmlTransposedTies } from './musicxml-transposed-ties.ts';
+ import * as alphaTab from '@coderline/alphatab';
+ import { normalizeMusicXmlRepeatEndings } from './musicxml-repeat-endings.ts';
+ import { prepareMusicXmlSource } from './format.ts';
+@@ -11,7 +12,7 @@
+ }
+ 
+ export function loadPreparedMusicXml(prepared: PreparedMusicXml, settings: alphaTab.Settings): alphaTab.model.Score {
+-  const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(normalizeMusicXmlRepeatEndings(prepared.bytes), settings);
++  const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(normalizeMusicXmlRepeatEndings(normalizeMusicXmlTransposedTies(prepared.bytes)), settings);
+   applyAlphaTabPlaybackDynamics(score, prepared.partsWithExplicitDynamics, score.tracks.length, prepared.dynamicEventsByPart);
+   return score;
+ }
+--- /dev/null
++++ b/packages/player/src/musicxml-transposed-ties.ts
+@@ -0,0 +1,105 @@
++import { XMLBuilder, XMLParser } from 'fast-xml-parser';
++
++type Node = Record<string, unknown>;
++const options = { ignoreAttributes: false, preserveOrder: true, parseTagValue: false, parseAttributeValue: false };
++const parser = new XMLParser(options);
++const builder = new XMLBuilder({ ...options, suppressEmptyNode: true });
++const tag = (node: Node) => Object.keys(node).find(key => key !== ':@') ?? '';
++const children = (node: Node, name: string): Node[] => Array.isArray(node[name]) ? node[name] as Node[] : [];
++const attributes = (node: Node): Record<string, string> => (node[':@'] ?? {}) as Record<string, string>;
++const text = (nodes: Node[], name: string): string => {
++  const element = nodes.find(node => tag(node) === name);
++  return element ? children(element, name).map(node => node['#text'] ?? '').join('') : '';
++};
++const descendants = (nodes: Node[], name: string): Node[] => nodes.flatMap(node =>
++  tag(node) === name ? [node] : Object.entries(node).filter(([key, value]) => key !== ':@' && Array.isArray(value)).flatMap(([, value]) => descendants(value as Node[], name)));
++
++/** alphaTab matches unnumbered tie stops before applying instrument transposition,
++ * against already-transposed starts. Give complete, unambiguous written-pitch
++ * chains explicit IDs in disposable playback input. Never mutate source bytes. */
++export function normalizeMusicXmlTransposedTies(bytes: Uint8Array): Uint8Array {
++  const source = new TextDecoder().decode(bytes);
++  if (!/<transpose(?:\s|>)/.test(source) || !/<tied(?:\s|>)/.test(source)) return bytes;
++  const tree = parser.parse(source) as Node[];
++  const root = tree.find(node => tag(node) === 'score-partwise');
++  if (!root) return bytes;
++  let changed = false;
++  for (const part of children(root, 'score-partwise').filter(node => tag(node) === 'part')) {
++    const contents = children(part, 'part');
++    if (!descendants(contents, 'transpose').some(node =>
++      ['chromatic', 'octave-change'].some(name => Number(text(children(node, 'transpose'), name)) !== 0))) continue;
++    const reserved = new Set(descendants(contents, 'tied').map(node => attributes(node)['@_number']).filter(Boolean));
++    const active = new Map<string, { id: string; marker: Node; end: number }>();
++    const ambiguous = new Set<string>();
++    let divisions = 1;
++    let measureStart = 0;
++    const occupied = new Set(reserved);
++    const changedNotations = new Set<Node>();
++    for (const measure of contents.filter(node => tag(node) === 'measure')) {
++      let cursor = 0;
++      let extent = 0;
++      let previousOnset = 0;
++      for (const note of children(measure, 'measure')) {
++        const kind = tag(note);
++        if (kind === 'attributes') {
++          const value = Number(text(children(note, kind), 'divisions'));
++          if (Number.isFinite(value) && value > 0) divisions = value;
++          continue;
++        }
++        if (kind === 'backup' || kind === 'forward') {
++          const length = Number(text(children(note, kind), 'duration')) / divisions;
++          cursor += kind === 'backup' ? -length : length;
++          extent = Math.max(extent, cursor);
++          continue;
++        }
++        if (kind !== 'note') continue;
++        const content = children(note, 'note');
++        if (content.some(node => tag(node) === 'grace')) continue;
++        const duration = Number(text(content, 'duration')) / divisions;
++        const chord = content.some(node => tag(node) === 'chord');
++        const onset = chord ? previousOnset : cursor;
++        if (!chord) { previousOnset = onset; cursor += duration; }
++        extent = Math.max(extent, onset + duration, cursor);
++        const pitch = content.find(node => tag(node) === 'pitch');
++        if (!pitch) continue;
++        const p = children(pitch, 'pitch');
++        const key = [text(content, 'staff') || '1', text(content, 'voice') || '1', text(p, 'step'), text(p, 'alter') || '0', text(p, 'octave')].join(':');
++        const notations = content.filter(node => tag(node) === 'notations');
++        const markers = notations.flatMap(node => children(node, 'notations').filter(child => tag(child) === 'tied' && !attributes(child)['@_number']));
++        // Stops must consume the old ID before a continuation starts a new chain.
++        for (const marker of markers.filter(node => attributes(node)['@_type'] === 'stop')) {
++          if (ambiguous.delete(key)) continue;
++          const start = active.get(key);
++          if (!start) continue;
++          if (!Number.isFinite(duration) || duration <= 0 || Math.abs(start.end - (measureStart + onset)) > 1e-7) {
++            occupied.delete(start.id); active.delete(key); continue;
++          }
++          start.marker[':@'] = { ...attributes(start.marker), '@_number': start.id };
++          marker[':@'] = { ...attributes(marker), '@_number': start.id };
++          active.delete(key);
++          occupied.delete(start.id);
++          changed = true;
++          for (const notation of notations) changedNotations.add(notation);
++        }
++        for (const marker of markers.filter(node => attributes(node)['@_type'] === 'start')) {
++          // Duplicate starts cannot be resolved safely from this written-pitch key.
++          if (active.has(key)) { occupied.delete(active.get(key)!.id); active.delete(key); ambiguous.add(key); continue; }
++          if (ambiguous.has(key) || !Number.isFinite(duration) || duration <= 0) continue;
++          const id = Array.from({length:16}, (_, index) => String(index + 1)).find(value => !occupied.has(value));
++          if (!id) continue;
++          occupied.add(id);
++          active.set(key, { id, marker, end: measureStart + onset + duration });
++        }
++      }
++      measureStart += extent;
++    }
++    for (const notation of changedNotations) {
++      const content = children(notation, 'notations');
++      const indices = content.map((node, index) => tag(node) === 'tied' ? index : -1).filter(index => index >= 0);
++      const markers = indices.map(index => content[index]).sort((a, b) =>
++        (attributes(a)['@_type'] === 'stop' ? 0 : 1) - (attributes(b)['@_type'] === 'stop' ? 0 : 1));
++      indices.forEach((index, markerIndex) => { content[index] = markers[markerIndex]; });
++    }
++  }
++  return changed ? new TextEncoder().encode(builder.build(tree)) : bytes;
++}
+--- /dev/null
++++ b/tests/musicxml-transposed-ties.test.mjs
+@@ -0,0 +1,73 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import * as alphaTab from '@coderline/alphatab';
++import { loadMusicXml } from '../packages/player/src/engine.ts';
++import { normalizeMusicXmlTransposedTies } from '../packages/player/src/musicxml-transposed-ties.ts';
++
++const note = (step, types, { voice = '1', number = '', chord = false, duration = 2 } = {}) => `<note>${chord?'<chord/>':''}<pitch><step>${step}</step><octave>4</octave></pitch><duration>${duration}</duration>${types.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice><type>${duration===4?'whole':'half'}</type><notations>${types.map(type=>`<tied type="${type}"${number?` number="${number}"`:''}/>`).join('')}</notations></note>`;
++const xml = (bars, transpose = -2) => `<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Clarinet</part-name></score-part></part-list><part id="P1">${bars.map((bar,index)=>`<measure number="${index+1}">${index===0?`<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef>${transpose?`<transpose><diatonic>-1</diatonic><chromatic>${transpose}</chromatic></transpose>`:''}</attributes>`:''}${bar}</measure>`).join('')}</part></score-partwise>`;
++const bytes = source => new TextEncoder().encode(source);
++const load = source => loadMusicXml(bytes(source),new alphaTab.Settings());
++const notes = score => score.tracks[0].staves[0].bars.map(bar=>bar.voices[0].beats.flatMap(beat=>beat.notes));
++const midi = score => {
++ const result=[];const handler=new Proxy({addNote:(track,start,length,key)=>result.push({start,length,key})},{get:(target,key)=>target[key]??(()=>{})});
++ new alphaTab.midi.MidiFileGenerator(score,new alphaTab.Settings(),handler).generate();return result;
++};
++
++test('transposed unnumbered ties keep their adjacent origins, concert pitches and MIDI lengths',()=>{
++ const input=bytes(xml([note('D',['start'])+note('D',['stop']),note('C',['start'])+note('C',['stop'])]));
++ const original=input.slice();const score=loadMusicXml(input,new alphaTab.Settings());const n=notes(score);
++ assert.equal(n[0][1].tieOrigin===n[0][0],true);
++ assert.equal(n[1][1].tieOrigin===n[1][0],true);
++ assert.deepEqual(n.map(bar=>bar.map(note=>note.realValue)),[[60,60],[58,58]]);
++ assert.deepEqual(midi(score),[{start:0,length:3840,key:60},{start:3840,length:3840,key:58}]);
++ assert.deepEqual(input,original);
++});
++
++test('start-before-stop notation on a continuation consumes the previous tie first',()=>{
++ const score=load(xml([note('D',['start'],{duration:4}),note('D',['start','stop'],{duration:4}),note('D',['stop'],{duration:4})]));const n=notes(score);
++ assert.equal(n[1][0].tieOrigin===n[0][0],true);assert.equal(n[2][0].tieOrigin===n[1][0],true);
++ assert.deepEqual(midi(score),[{start:0,length:11520,key:60}]);
++});
++
++test('simultaneous chord ties receive distinct active IDs',()=>{
++ const score=load(xml([note('D',['start'])+note('F',['start'],{chord:true})+note('D',['stop'])+note('F',['stop'],{chord:true})]));const n=notes(score)[0];
++ assert.equal(n[2].tieOrigin===n[0],true);assert.equal(n[3].tieOrigin===n[1],true);
++ assert.deepEqual(n.map(n=>n.realValue),[60,63,60,63]);
++});
++
++test('independent voices at the same written pitch keep separate tie chains',()=>{
++ const score=load(xml([note('D',['start'])+note('D',['stop'])+'<backup><duration>4</duration></backup>'+note('D',['start'],{voice:'2'})+note('D',['stop'],{voice:'2'})]));
++ const voices=score.tracks[0].staves[0].bars[0].voices;
++ for(const voice of voices)assert.equal(voice.beats[1].notes[0].tieOrigin===voice.beats[0].notes[0],true);
++});
++
++test('explicit tie IDs remain untouched while unnumbered chains avoid reserved IDs',()=>{
++ const input=bytes(xml([note('D',['start'],{number:'1'})+note('D',['stop'],{number:'1'}),note('C',['start'])+note('C',['stop'])]));
++ const normalized=new TextDecoder().decode(normalizeMusicXmlTransposedTies(input));
++ assert.equal((normalized.match(/number="1"/g)??[]).length,3); // measure 1 and its two existing endpoints
++ assert.equal((normalized.match(/number="2"/g)??[]).length,3); // measure 2 and its two new endpoints
++ const n=notes(loadMusicXml(input,new alphaTab.Settings()));assert.equal(n[1][1].tieOrigin===n[1][0],true);
++});
++
++test('nontransposing scores and incomplete chains retain original bytes',()=>{
++ for(const source of [xml([note('D',['start'])+note('D',['stop'])],0),xml([note('D',['start'])]),xml([note('D',['stop'])])]){
++  const input=bytes(source);assert.equal(normalizeMusicXmlTransposedTies(input)===input,true);
++ }
++});
++
++test('a later same-pitch stop across an intervening note or rest is not guessed',()=>{
++ for(const middle of [note('D',[]),note('F',[]),'<note><rest/><duration>2</duration><voice>1</voice><type>half</type></note>']){
++  const input=bytes(xml([note('D',['start'])+middle+note('D',['stop'])]));assert.equal(normalizeMusicXmlTransposedTies(input)===input,true);
++ }
++});
++
++test('three simultaneous same-pitch starts remain ambiguous until their stop',()=>{
++ const input=bytes(xml([note('D',['start'])+note('D',['start'],{chord:true})+note('D',['start'],{chord:true})+note('D',['stop'])]));
++ assert.equal(normalizeMusicXmlTransposedTies(input)===input,true);
++});
++
++test('tie adjacency survives changes of divisions',()=>{
++ const score=load(xml([note('D',['start'],{duration:4}),'<attributes><divisions>2</divisions></attributes>'+note('D',['stop'],{duration:4})+'<note><rest/><duration>4</duration><voice>1</voice><type>half</type></note>']));
++ const n=notes(score);assert.equal(n[1][0].tieOrigin===n[0][0],true);
++});
