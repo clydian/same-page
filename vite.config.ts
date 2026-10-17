@@ -119,7 +119,7 @@ export default defineConfig(({ isPreview }) => ({
         globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2}"],
         // Attachments are online-only. Do not download their optional viewers
         // and editor on every PWA install; the main PDF engine stays precached.
-        globIgnores: ["**/admin-*","assets/{shared-layers,personal-layer,replace-pdf,offline-sync}-animation-*.webp", "**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
+        globIgnores: ["third-party/**","**/admin-*","assets/{shared-layers,personal-layer,replace-pdf,offline-sync}-animation-*.webp", "**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
         // Optional homepage demonstrations load only when viewed. Static
         // illustrations remain precached for offline and failed requests.
         runtimeCaching: [{
