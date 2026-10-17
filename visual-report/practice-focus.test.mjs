@@ -72,6 +72,9 @@ for (const name of engines) test(`${name}: low-height player controls, rotation,
   await region.evaluate(el => { el.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 120 })); el.scrollTop = 120; el.dispatchEvent(new Event('scroll'));  });
   const follow = page.getByRole('button', { name: '恢复自动跟随' });
   await expect(follow).toBeVisible();
+  await page.addStyleTag({ content: ':root { --safe-left: 28px; --safe-right: 28px; }' });
+  await expect.poll(async () => (await follow.boundingBox()).x).toBeGreaterThanOrEqual(28);
+  await page.addStyleTag({ content: ':root { --safe-left: 0px; --safe-right: 0px; }' });
   const followedFrame = await frame();
   const followPosition = await follow.evaluate(el => getComputedStyle(el).position);
   assert.equal(followPosition, 'absolute');
