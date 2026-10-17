@@ -107,6 +107,34 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     await openLibrary();
     await page.locator(".file-row__open").click();
     await checkExperience("未登录的本机体验");
+    // A connectivity hint can refresh while opening. Pin the shell lookup so
+    // this exercises the accepted-click lifetime instead of relying on timing.
+    await openLibrary();
+    await expect(page.getByRole("button", { name: /^离线副本：/ })).toBeEnabled();
+    await page.evaluate(() => {
+      const original = navigator.serviceWorker.getRegistration;
+      navigator.serviceWorker.getRegistration = () => new Promise(resolve => {
+        window.releasePreviewShellLookup = () => {
+          navigator.serviceWorker.getRegistration = original;
+          delete window.releasePreviewShellLookup;
+          resolve(undefined);
+        };
+      });
+    });
+    await page.locator(".file-row__open").click();
+    await expect(page.locator(".prepared-score-target")).toHaveAttribute("aria-busy", "true");
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+      window.dispatchEvent(new Event("offline"));
+      return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    assert.equal(await page.locator(".prepared-score-target").getAttribute("aria-busy"), "true", "connectivity refresh must retain the accepted click");
+    await page.evaluate(() => {
+      delete navigator.onLine;
+      window.dispatchEvent(new Event("online"));
+      window.releasePreviewShellLookup();
+    });
+    await checkExperience("网络提示变化后的本机体验");
     await expect.poll(() => pendingDirectories.size).toBe(0);
     stage = "sign-in-non-member";
     await signIn(context, fixture.accounts[1]);

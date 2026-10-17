@@ -71,3 +71,30 @@ it("opens a first-time guest immediately while local ownership is still being es
   await waitFor(() => expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive/scores/score"));
   expect(prepare).not.toHaveBeenCalled();
 });
+
+it("keeps an online open across a transient preparation-availability refresh", async () => {
+  let registration!: (value: undefined) => void;
+  navigator.serviceWorker.getRegistration = () => new Promise(resolve => { registration = resolve; });
+  const renderRow = (canPrepare: boolean) => <PreparedScoreLink score={score} sessionId="session" canPrepare={canPrepare} userId="user" choirId="drive" scoreId="score" local={false} label="score" description="排练谱" onOpen={() => {}}>score</PreparedScoreLink>;
+  const view = render(<MemoryRouter initialEntries={["/choirs/drive"]}>{renderRow(true)}<Route /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("link", { name: "score" }));
+  view.rerender(<MemoryRouter>{renderRow(false)}<Route /></MemoryRouter>);
+  view.rerender(<MemoryRouter>{renderRow(true)}<Route /></MemoryRouter>);
+  await act(async () => registration(undefined));
+  await waitFor(() => expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive/scores/score"));
+  expect(prepare).not.toHaveBeenCalled();
+});
+
+it.each(["session", "version", "guest owner", "unmount"])("still cancels a pending shell lookup after %s changes", async change => {
+  let registration!: (value: undefined) => void;
+  navigator.serviceWorker.getRegistration = () => new Promise(resolve => { registration = resolve; });
+  guest.owner = "guest:first";
+  const renderRow = (changed = false) => <PreparedScoreLink score={changed && change === "version" ? { ...score, currentVersion: { ...score.currentVersion, id: "v2" } } : score} sessionId={changed && change === "session" ? "new-session" : "session"} canPrepare choirId="drive" scoreId="score" local={false} label="score" description="排练谱" onOpen={() => {}}>score</PreparedScoreLink>;
+  const view = render(<MemoryRouter initialEntries={["/choirs/drive"]}>{renderRow()}<Route /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("link", { name: "score" }));
+  if (change === "guest owner") guest.owner = "guest:second";
+  view.rerender(<MemoryRouter>{change !== "unmount" && renderRow(true)}<Route /></MemoryRouter>);
+  await act(async () => registration(undefined));
+  expect(screen.getByLabelText("当前位置")).toHaveTextContent(/^\/choirs\/drive$/);
+  expect(prepare).not.toHaveBeenCalled();
+});
