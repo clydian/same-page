@@ -38,6 +38,18 @@ import {
   StorageQuotaError,
 } from "./storage";
 
+// All score reads expose the same protocol-aware directory and practice facts.
+function scoreAttachmentProjection(context: Context<AppEnvironment>) {
+  const musicXml = supportsMusicXml(context);
+  const available = "a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)";
+  return `(SELECT count(*) FROM score_attachments a WHERE ${available}
+    AND (${musicXml ? "1" : "a.kind <> 'musicxml'"})) AS attachment_count,
+    (SELECT count(*) FROM score_attachments a WHERE ${available}
+      AND a.kind = 'musicxml' AND (${musicXml ? "1" : "0"})) AS music_xml_count,
+    EXISTS(SELECT 1 FROM score_attachments a WHERE ${available}
+      AND a.source = 'generated' AND (${musicXml ? "1" : "0"})) AS has_generated_xml`;
+}
+
 const TRASH_RETENTION_MS = SCORE_TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const fileNameCollator = new Intl.Collator("zh-CN", {
   numeric: true,
@@ -66,13 +78,7 @@ scoreRoutes.get("/choirs/:choirId/bootstrap", async (context) => {
               CASE WHEN choirs.id = ? AND choirs.guest_session_version = ?
                 THEN 1 ELSE 0 END AS guest_access,
               scores.id AS score_id, scores.choir_id, scores.file_name,
-              scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"}) AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
-              (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id
-                AND a.kind = 'musicxml' AND a.trashed_at IS NULL AND a.purged_at IS NULL
-                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS music_xml_count,
-              EXISTS(SELECT 1 FROM score_attachments a WHERE a.score_id = scores.id
-                AND a.source = 'generated' AND a.trashed_at IS NULL AND a.purged_at IS NULL
-                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS has_generated_xml, versions.id AS version_id,
+              scores.updated_at, ${scoreAttachmentProjection(context)}, versions.id AS version_id,
               versions.version_number, versions.size_bytes, versions.sha256,
               versions.etag, versions.page_count,
               versions.created_at AS version_created_at
@@ -167,13 +173,7 @@ scoreRoutes.get("/choirs/:choirId/scores", async (context) => {
   const access = await resolveChoirAccess(context, choirId);
   const search = scoreFileNameKey(context.req.query("q")?.trim() ?? "");
   const result = await measureServerTiming(context, "d1", () => context.env.DB.prepare(
-    `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at, (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id AND a.trashed_at IS NULL AND a.purged_at IS NULL AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"}) AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
-              (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id
-                AND a.kind = 'musicxml' AND a.trashed_at IS NULL AND a.purged_at IS NULL
-                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS music_xml_count,
-              EXISTS(SELECT 1 FROM score_attachments a WHERE a.score_id = scores.id
-                AND a.source = 'generated' AND a.trashed_at IS NULL AND a.purged_at IS NULL
-                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS has_generated_xml,
+    `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at, ${scoreAttachmentProjection(context)},
             versions.id AS version_id, versions.version_number,
             versions.size_bytes, versions.sha256, versions.etag,
             versions.page_count, versions.created_at AS version_created_at
@@ -248,16 +248,7 @@ scoreRoutes.get("/choirs/:choirId/scores/:scoreId/sync", async (context) => {
   const row = await measureServerTiming(context, "d1", () =>
     context.env.DB.prepare(
       `SELECT scores.id, scores.choir_id, scores.file_name, scores.updated_at,
-            (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id
-              AND a.trashed_at IS NULL AND a.purged_at IS NULL
-              AND (${supportsMusicXml(context) ? "1" : "a.kind <> 'musicxml'"})
-              AND (a.kind = 'link' OR a.current_file_id IS NOT NULL)) AS attachment_count,
-              (SELECT count(*) FROM score_attachments a WHERE a.score_id = scores.id
-                AND a.kind = 'musicxml' AND a.trashed_at IS NULL AND a.purged_at IS NULL
-                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS music_xml_count,
-              EXISTS(SELECT 1 FROM score_attachments a WHERE a.score_id = scores.id
-                AND a.source = 'generated' AND a.trashed_at IS NULL AND a.purged_at IS NULL
-                AND a.current_file_id IS NOT NULL AND (${supportsMusicXml(context) ? "1" : "0"})) AS has_generated_xml,
+            ${scoreAttachmentProjection(context)},
             scores.trashed_at, scores.trash_expires_at,
             versions.id AS version_id, versions.version_number,
             versions.size_bytes, versions.sha256, versions.etag,

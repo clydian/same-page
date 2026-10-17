@@ -2,7 +2,7 @@ import type { AttachmentRevealRequest } from "../score-library/attachments/use-a
 import { readerHref } from "../reader/reader-entry";
 import { startPlayback } from "../playback/playback-store";
 import { DrivePreparation } from "../score-library/drive-preparation";
-import { useLibraryAttachments } from "../score-library/attachments/use-library-attachments";
+import { useLibraryAttachmentPresentation } from "../score-library/attachments/use-library-attachment-presentation";
 import { AttachmentLoading } from "../score-library/attachments/attachment-shell";
 import { LibraryTaskLoading } from "../score-library/library-task-dialog";
 import { AttachmentCount, AttachmentPending, AttachmentRows, type AttachmentSelection } from "../score-library/attachments/attachment-list";
@@ -33,7 +33,7 @@ import {
 import { Menu } from "../navigation/overlays";
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 
-import { visibleAttachmentCount, type ScoreSummary } from "../../shared/scores";
+import type { ScoreSummary } from "../../shared/scores";
 import { AppHeader } from "../components/app-header";
 import {
   completeLoadingJourney,
@@ -117,8 +117,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   }, [attachmentReveal, finishAttachmentReveal]);
   const attachmentsEnabled = online && access.kind === "opened" && !access.local;
   const scoresWithAttachments = visibleScores.filter(score => (score.attachmentCount ?? 0) > 0);
-  const expandedScores = scoresWithAttachments.filter(score => expandedScoreIds.has(score.id));
-  const attachments = useLibraryAttachments(choirId, expandedScores, attachmentsEnabled, `${cacheOwner}:${presentationSessionId ?? "guest"}:${attachmentGeneration}:${access.kind === "opened" && access.retained ? "revoked" : "accessible"}`, access.kind === "opened" && !access.retained ? cacheOwner : undefined);
+  const attachments = useLibraryAttachmentPresentation(choirId, scoresWithAttachments, expandedScoreIds, attachmentsEnabled, `${cacheOwner}:${presentationSessionId ?? "guest"}:${attachmentGeneration}:${access.kind === "opened" && access.retained ? "revoked" : "accessible"}`, access.kind === "opened" && !access.retained ? cacheOwner : undefined);
   const [scoreAction, setScoreAction] = useState<ScoreActionSelection | null>(null);
   const refresh = () => {
     // Authentication changes cause useDriveLibrary to acquire/reload the now
@@ -291,15 +290,17 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
           {visibleScores.length > 0 ? (
             <section className="file-list" aria-label="PDF 文件">
-              {visibleScores.map((score) => (
+              {visibleScores.map((score) => {
+                const presentation = attachments.forScore(score);
+                return (
                 <article className="score-file-group" key={score.id}><div className="file-row">
                   <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} canPrepare={attachmentsEnabled && !session.isPending} explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
                     onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
                     <span className="pdf-file-icon" aria-hidden="true">PDF</span>
-                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}{score.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label="有自动生成练习版" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
+                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label="有自动生成练习版" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
                   </PreparedScoreLink>
-                  <AttachmentCount score={score} expanded={expandedScoreIds.has(score.id)} disabled={false}
+                  <AttachmentCount score={score} count={presentation.count} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => {
                       const expanding = !expandedScoreIds.has(score.id);
                       setAttachmentReveal(expanding ? { scoreId: score.id, scope: revealScope, scrollY: window.scrollY } : undefined);
@@ -335,12 +336,13 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     </MenuTrigger>
                 </div>
                 <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
-                  {expandedScoreIds.has(score.id) && visibleAttachmentCount(score) > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
-                    : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={visibleAttachmentCount(score)} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
+                  {expandedScoreIds.has(score.id) && presentation.count > 0 && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
+                    : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={presentation.count} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
                     : <><AttachmentRows revealRequest={attachmentReveal?.scoreId === score.id && attachmentReveal.scope === revealScope ? attachmentReveal : undefined} onRevealHandled={finishAttachmentReveal} available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} /></>)}
                 </div>
                 </article>
-              ))}
+              );
+              })}
             </section>
           ) : (
             <div className="library-empty-state">{access.retained && <BackButton className="secondary-link" to="/drives">云盘列表</BackButton>}{search.trim() ? <><p>没有找到包含「{search}」的乐谱。</p><Button className="secondary-button" onPress={() => updateSearch("")}>清除搜索</Button></> : <><p>{access.retained ? "本机没有可用的保留副本。" : access.local ? "本机尚未保存这个云盘的目录或乐谱，请联网后下载。" : "这个云盘还没有乐谱。"}</p><p>{can("uploadFiles") ? "上传第一份 PDF，开始准备排练。" : access.isMember ? "有上传权限的成员上传乐谱后，会显示在这里。" : "暂时没有可浏览的乐谱，请稍后再来。"}</p>{can("uploadFiles") ? <Button className="secondary-button" onPress={() => setUploadOpen(true)}>上传第一份 PDF</Button> : null}</>}</div>

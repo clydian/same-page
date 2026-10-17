@@ -30,6 +30,13 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
     const library = `${fixture.origin}/choirs/${fixture.choirId}`;
     const reader = `${library}/scores/${fixture.scoreId}`;
+    // A legacy worker/cache summary has the total count but no new display fields.
+    await page.route(url => url.pathname === `/api/choirs/${fixture.choirId}/bootstrap`, async route => {
+      const response = await route.fetch();
+      const body = await response.json();
+      for (const score of body.scores ?? []) { delete score.hasGeneratedXml; delete score.musicXmlCount; }
+      await route.fulfill({ response, json: body });
+    });
     const output = 'artifacts/verification/practice-score-entry';
     await mkdir(output, { recursive: true });
     await page.goto(library);
@@ -79,7 +86,15 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.screenshot({ path: `${output}/${engine}-generated-player.png` });
     await page.getByRole('button', { name: '结束播放', exact: true }).click();
     for (const id of [generated, user]) assert.equal((await context.request.delete(`${base}/${id}?expectedRevision=1`)).status(), 204);
+    let staleSummaryServed = false;
+    await page.route(url => url.pathname === `/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/sync`, async route => {
+      const response = await route.fetch();
+      const body = await response.json();
+      if (body.score) { body.score.musicXmlCount = 1; body.score.attachmentCount = 2; staleSummaryServed = true; }
+      await route.fulfill({ response, json: body });
+    });
     await page.reload();
+    await expect.poll(() => staleSummaryServed).toBe(true);
     await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
     await reveal();
     await expect(page.getByRole('button', { name: '编辑', exact: true })).toBeVisible();

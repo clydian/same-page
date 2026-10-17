@@ -25,8 +25,10 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     const page = await context.newPage();
     const url = `${fixture.origin}/choirs/${fixture.choirId}`;
     await page.goto(url);
-    await page.getByRole("button", { name: /本地链路测试：2 个附件/ }).click();
-    await expect(page.getByText(/自动生成练习版.musicxml.*自动生成.*Beta/)).toBeVisible();
+    await page.getByRole("button", { name: /本地链路测试：1 个附件/ }).click();
+    await expect(page.getByRole("button", { name: "用户校订.musicxml", exact: true })).toBeVisible();
+    await expect(page.locator(".attachment-list")).not.toContainText("自动生成练习版.musicxml");
+    await expect(page.getByRole("img", { name: "有自动生成练习版", exact: true })).toBeVisible();
     const replace = async keep => {
       await page.getByRole("button", { name: "本地链路测试 更多操作", exact: true }).click();
       await page.getByRole("menuitem", { name: "替换 PDF", exact: true }).click();

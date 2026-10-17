@@ -17,9 +17,10 @@ export function ReaderPracticeLauncher({ source, enabled, open, onOpenChange }: 
   const trigger = useRef<HTMLButtonElement>(null);
   // Older local score summaries do not have musicXmlCount. Resolve their directory
   // before showing a practice entry, rather than showing it for an audio-only score.
-  if (!items.length && !(source.score.musicXmlCount ?? 0)) return null;
+  const directoryKnown = metadata.statusFor(source.score.id) === 'ready';
+  if (!items.length && (directoryKnown || !(source.score.musicXmlCount ?? 0))) return null;
   return <>
-    <div className="reader-playback-entries" aria-label="练习谱">
+    <div className="reader-playback-entries" aria-label="练习谱" aria-busy={metadata.loading || metadata.refreshing}>
       <TooltipTrigger><Button ref={trigger} className="reader-playback-entry" aria-label="练习谱" aria-expanded={open} onPress={() => onOpenChange(!open)}>
         <FileMusic size={21} aria-hidden="true" /><Play className="attachment-play-badge" size={12} fill="currentColor" aria-hidden="true" />
       </Button><Tooltip className="practice-tooltip" placement="top">练习谱</Tooltip></TooltipTrigger>

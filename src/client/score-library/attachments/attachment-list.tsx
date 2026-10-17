@@ -3,7 +3,7 @@ import { FileAudio, FileText, Link as LinkIcon, MoreHorizontal, Paperclip } from
 import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
 import { scoreDisplayName } from "../../../shared/score-display-name";
-import { visibleAttachmentCount, type ScoreSummary } from "../../../shared/scores";
+import type { ScoreSummary } from "../../../shared/scores";
 import { Menu } from "../../navigation/overlays";
 import { attachmentFileUrl } from "./api";
 import "./attachments.css";
@@ -12,8 +12,7 @@ import { LoadingStatus } from "../../components/loading-status";
 
 export type AttachmentSelection = { score: ScoreSummary; action: "add" | "upload" | "link" | "markdown" | "open" | "rename" | "trash"; attachment?: ScoreAttachment };
 
-export function AttachmentCount({ score, expanded, disabled, onToggle }: { score: ScoreSummary; expanded: boolean; disabled: boolean; onToggle: () => void }) {
-  const count = visibleAttachmentCount(score);
+export function AttachmentCount({ score, count, expanded, disabled, onToggle }: { score: ScoreSummary; count: number; expanded: boolean; disabled: boolean; onToggle: () => void }) {
   return count ? <Button className="attachment-count" aria-label={`${scoreDisplayName(score.fileName)}：${count} 个附件`}
     aria-expanded={expanded} aria-controls={`score-attachments-${score.id}`} isDisabled={disabled} onPress={onToggle}
     aria-description={expanded ? "收起这份乐谱的附件" : "展开这份乐谱的附件"}><Paperclip size={13} aria-hidden="true" /><span>{count}</span></Button> : null;

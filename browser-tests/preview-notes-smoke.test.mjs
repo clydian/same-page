@@ -61,9 +61,10 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       const edit = page.getByRole("button", { name: "编辑", exact: true });
       await expect(edit).toBeVisible();
       const attachments = page.getByRole("button", { name: "练习谱", exact: true });
-      // Editing unmounts this reader entry. Finish its real metadata read so
-      // WebKit does not report our immediate cancellation as a page error.
+      // Editing/reload unmounts this entry. The icon exists before its metadata
+      // resolves; wait for the real directory read, not the decorative badge.
       await expect(attachments.locator(".attachment-play-badge")).toBeVisible();
+      await expect(page.locator(".reader-playback-entries")).toHaveAttribute("aria-busy", "false");
       await edit.click();
       await expect(page.locator(".annotation-controls")).toBeVisible();
       await page.getByLabel("第 1 页笔记层").click({ position: { x: 200, y: 120 + 80 * placement++ } });
@@ -71,6 +72,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await page.getByRole("form", { name: "文字输入" }).click({ position: { x: 12, y: 80 } });
       await page.getByRole("button", { name: "完成编辑", exact: true }).click();
       await expect(attachments.locator(".attachment-play-badge")).toBeVisible();
+      await expect(page.locator(".reader-playback-entries")).toHaveAttribute("aria-busy", "false");
       await page.reload();
       await expect(page.locator(".annotation-text").filter({ hasText: text })).toBeVisible();
       const cloud = await (await context.request.get(`${base}/layers`)).json();

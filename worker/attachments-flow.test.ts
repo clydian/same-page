@@ -337,8 +337,6 @@ async function uploadGenerated(id = crypto.randomUUID(), revision?: number) {
   return { response, id };
 }
 it("projects practice availability independently of the legacy attachment directory count", async () => {
-  const generated = await uploadGenerated();
-  expect(generated.response.status).toBe(201);
   const headers = { "X-Same-Page-Attachments": "2" };
   const paths = [`/api/choirs/${choirId}/bootstrap`, `/api/choirs/${choirId}/scores`, `/api/choirs/${choirId}/scores/${scoreId}/sync?cursor=0&layerIds=%5B%5D`];
   const assertSummary = async (expected: object) => {
@@ -349,6 +347,9 @@ it("projects practice availability independently of the legacy attachment direct
       expect(body.score ?? body.scores?.[0]).toMatchObject(expected);
     }
   };
+  await assertSummary({ attachmentCount: 0, musicXmlCount: 0, hasGeneratedXml: false });
+  const generated = await uploadGenerated();
+  expect(generated.response.status).toBe(201);
   await assertSummary({ attachmentCount: 1, musicXmlCount: 1, hasGeneratedXml: true });
   expect(await (await call(paths[0])).json()).toMatchObject({ scores: [{ attachmentCount: 0, musicXmlCount: 0, hasGeneratedXml: false }] });
   const userXml = await upload("校订.musicxml", musicXml);
