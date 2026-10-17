@@ -84,7 +84,7 @@ AlphaSynth 最小对照中，旧版起音 RMS 为单键对照的两倍；修复�
 宿主直接测试安装包的隐藏拍号／Worker 序列化与相同力度重置；浏览器还检查实际
 构建准备 Worker 的首条响应及隐藏拍号元数据，并保留完整播放与 PDF 切换流程。
 
-## 当前固定包：0.1.14
+## 否定渐变词：0.1.14
 
 来源：[Chorus PR #9](https://github.com/clydian/chorus-score-studio/pull/9)，提交
 `6f22b6d15fedaa4e03ab47067260026d5389fe59`。Node24 构建并打包，固定包
@@ -102,3 +102,26 @@ AlphaSynth 最小对照中，旧版起音 RMS 为单键对照的两倍；修复�
 
 宿主新增实际安装包的否定表达及肯定程度限定语回归，继续验证原有准备Worker、
 隐藏拍号、力度重置与完整浏览器播放/PDF流程。
+
+## 当前固定包：0.1.16（创作者角色与简单相对速度）
+
+来源：[Chorus PR #11](https://github.com/clydian/chorus-score-studio/pull/11)，提交
+`9f4adcaafe07f6f11660488ef83ffd9f2df8ead0`，叠加 0.1.15 的 offbeat 渐强线边界修复。固定包
+`clydian-chorus-player-0.1.16.tgz` 的 SHA-256：
+`30e7d5eac93d5b31dd1d5ea0e7f52dacc302a92f59f5addd18416f87039f5d4c`。
+
+按源 MusicXML 的 composer/arranger 类型分别呈现作曲与编曲，不再把编曲者误标为
+音乐作者；新 prepared.creatorCredits 是可 structuredClone 的纯元数据，旧 payload
+继续从原字节解析。准备 Worker 不导入渲染运行时，源 XML 字节保持不变。
+
+支持两个简单 beat-unit（含附点）的速度等式，并从此前有效速度推导隐藏的播放速度。
+Cantate 第 26 小节 dotted-half=whole 把默认 quarter120 转为 quarter160，而不捏造源谱
+未印出的 160 数字。该等式的原生字形显示仍有限制；复杂连音／范围／pass-specific
+关系保留 native fallback。同一时点显式 sound 速度仍优先，但与印刷速度不同时不将
+胜出的播放数值伪装成印刷标记。初始 120 是播放器默认值，非原谱标注。
+
+源码 281 项测试与 build 通过。实际解包产物对 23 条交付记录、望春风 v7 和 Cantate
+完整 v3 共 25 输入比较，全部非速度字段与 tick 保持一致；只有两条 Cantate 及完整
+v3 添加预期速度。宿主新增实际包 SVG 署名、prepared clone／旧 payload、相对速度
+真实 MIDI 及冲突数字可见性回归，并在真实构建 Worker 两浏览器验证 metadata 和
+速度 sidecar。此处不代表这些谱目已完成生产或耳听验收。
