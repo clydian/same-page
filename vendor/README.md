@@ -173,3 +173,21 @@ Chorus 独立干净安装后 329 项测试、21 首目录检查、build/PWA 通�
 及准备/原生 Worker 完成四曲 285 小节逐个定位。这些不等于成员产品入口、全曲
 连续播放耳听或二轮源谱验收。跨 voice/verse 歌词、自由拍图式、换气符和某些
 钢琴渐变线仍有显示限制，不能把当前更新当作全部乐谱质量已达标。
+
+## 共享符头布局修复：player 0.1.19 / native 1.8.4-samepage.2
+
+来源为 [Chorus PR #16](https://github.com/clydian/chorus-score-studio/pull/16)，
+构建源提交 `4c364b9`（main squash `68934362feef46b24c55372c8c91f813acb97cc1`）。
+播放器包 SHA-256 `cc3091b44f05da732fd6248bb85146e1185ac22034c927e54063345b2cead31f`。
+原生完整源提交 `d917b3e3faa5f64e1c524f9a41af19b537bf3a49`，在旧 .1 上仅新增
+错误一侧的极端符头共享保护及其6个测试；没有加入未发布的换气、隐藏休止或渐变线改造。
+原生包 SHA-256 `60e81212b5c3b960b2bbb00b588662fbcf8693a707bffc162e59c7a666176c47`。
+源码档案 SHA-256 `283d6784a7601396fde378f22b2ad595c6df647a045563dc10d910d508211648`。
+
+修复合法三声部钢琴在 Page/Horizontal 布局中的 `_canShareNoteHead` 崩溃。
+源 XML、发音和时间线不变；精确 peer 确保宿主、引擎和 Worker 共用一个 native 实例。
+Node24 独立 clone 构建，完整修改文件、可重放 patch、MPL 通知和清单随包保留；
+公开内容寻址源码快照继续保留 .1。安装包最小回归旧 .1 两例红、新 .2 四例绿，
+Chorus333测试通过。Come 6轨62小节 Page21/Horizontal7原生SVG不再崩溃，
+7300 MIDI事件全部字段与62小节边界保持，O Nata14SVG字节不变。
+这些不代表原谱全部图形或连续播放耳听已验收。

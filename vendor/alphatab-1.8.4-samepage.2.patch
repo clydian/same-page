@@ -1,0 +1,2284 @@
+diff --git a/PROTOTYPE-DYNAMICS.md b/PROTOTYPE-DYNAMICS.md
+new file mode 100644
+index 0000000..7b631f2
+--- /dev/null
++++ b/PROTOTYPE-DYNAMICS.md
+@@ -0,0 +1,28 @@
++# Explicit source dynamic notation prototype
++
++This local prototype adds `Beat.isDynamicsExplicit` (default false). A caller that has independently recovered an exact source declaration sets the beat's `dynamics` and this flag. The native renderer then draws that declaration on a real rest, in an otherwise rest-only voice, or when its value repeats. Global `hideDynamics` still takes precedence. Existing empty cross-staff beat anchors may carry an exact source direction; callers do not add or retime beats to obtain an anchor. An explicit rest becomes the previous visible declaration so its inherited value does not reappear on the next sounding note.
++
++The flag changes engraving only. It does not change `Note.dynamics`, note duration, beat position, or MIDI generation. Existing unflagged models retain their old behavior. Generated JSON serialization and cloning preserve the flag; this does not alone prove a complete Worker/UI integration.
++
++The public MusicXML importer has not been changed to identify exact source declaration positions. Chorus must project its complete, source-timed metadata after playback dynamics are computed, with whole-track fallback when an anchor cannot be represented. Do not mark every inherited beat explicit or invent/split beats to obtain a convenient anchor.
++
++Validation: six owned tests, fifteen typed-lyric tests and nine legacy lyric tests pass, plus TypeScript. The rest-only actual native SVG was independently checked. This branch also includes the independently verified melismatic syllable fix (original f89fe54, cherry-picked as 4691348). This prototype is not published, packaged for production, or deployed.
++
++Build note: the upstream license-banner helper assumes `.git/HEAD` is a directory path and fails in a Git worktree. Build an independent clone of the committed prototype for the bundle proof; do not remove license banners or fabricate a Git directory. Keep failures as diagnostic evidence.
++
++## Independent bar-time declarations
++
++`Bar.sourceDynamics` is an optional display-only list of `{ displayStart, value }` declarations on that staff. Times use display ticks (960 per quarter) relative to the bar. Null retains legacy inference; a complete array, including an empty array, opts that bar into exact source notation. A native effect band is reserved using the existing initial beat, but each sign uses its own time through the shared nonlinear spring layout. Exact times shared with another staff align to its on-time anchor. Positions inside sustained notes interpolate between the surrounding actual springs; the final interval ends at the bar's actual post-beat boundary. The mechanism never creates/splits a beat, moves a declaration to another staff, or changes note velocities. Worker serialization preserves all declarations. Bars containing declarations report a change so rest condensation cannot silently swallow their signs.
++
++The motivating case is Finzi Piano14: `mp` on staff1 at q3.5 has no staff1 beat after a cross-staff move. A minimal two-staff held-RH/LH-attack reproduction initially produced zero MP signs and lost the list on JSON roundtrip. Owned tests now cover that case, shared layout at two widths, sustained-note interpolation, repeated declarations, hiding, and serialization. This is a local source prototype; real-score wrapper projection, full MIDI protection, and browser review are required before integration.
++
++Source placement follow-up: `SourceDynamic.placement` optionally selects the
++public `SourceDynamicPlacement.Above` or `.Below` native lane. Omission retains
++the existing below-staff behavior and old structural model objects remain valid.
++The standard-notation renderer registers separate upper/lower effect bands;
++each filters the same independent-time declarations and uses the existing shared
++spring geometry. Visibility controls hide both bands. Worker JSON retains the
++optional enum without adding playback events or beats. This supports authored
++above/below placement, not exact MusicXML default-y/relative-y or arbitrary voice
++lanes; tablature-only placement and collisions with all other effect types are
++not claimed accepted by this narrow prototype.
+diff --git a/PROTOTYPE-LYRICS.md b/PROTOTYPE-LYRICS.md
+new file mode 100644
+index 0000000..89130b3
+--- /dev/null
++++ b/PROTOTYPE-LYRICS.md
+@@ -0,0 +1,97 @@
++# Typed source lyrics: reviewable prototype
++
++This isolated checkout is based on the official alphaTab v1.8.4 release, peeled
++commit `022a45c8e42370f9e12e68949d11eada370da83d`. It is not a dependency release.
++The Same Page host, Chorus source and installed packages have not been changed.
++
++Upstream develop `2fb351d56ccc29809ecfffb2f48301fd0ebda5ba` still ignores MusicXML
++syllabic and extend; its LyricsGlyph remains a text-only glyph. Issue #2908 asks
++for exposing lyrics editing, and #2760 fixes tie-destination word assignment;
++neither supplies typed source melisma layout. The existing project pins official
++npm `@coderline/alphatab:1.8.4`; no alphaTab fork maintenance mechanism was found.
++See https://github.com/CoderLine/alphaTab/issues/2908 and
++https://github.com/CoderLine/alphaTab/pull/2760 .
++
++The prototype introduces a serializable `LyricElement` per verse, preserving the
++legacy `Beat.lyrics` text. The importer retains syllabic and extension events.
++The native LyricsGlyph reserves its own lyric line height, measures actual text,
++and draws lines inside its existing effect lane using the native canvas. It
++splits the line using current native staff/system renderers. No SVG overlay,
++private runtime patch, source XML rewrite or underscore text is involved.
++
++From the repository root:
++
++```
++npm ci --ignore-scripts
++npm run generate-typescript --workspace packages/alphatab
++npm test --workspace packages/alphatab -- test/rendering/TypedLyrics.test.ts test/model/Lyrics.test.ts
++npm run typecheck --workspace packages/alphatab
++```
++
++The original four owned tests fail on the baseline release. Eleven owned tests
++now cover typed source semantics, worker JSON serialization, actual SVG geometry,
++missing redundant continue events, no inference from pitch ties/slurs, ordinary
++hyphens, continuous segment joining, legacy extenders ending before a new word,
++basic two-verse lanes, stop-note coverage, and actual system breaks. The nine existing lyric model tests also pass.
++The narrow fixture is three source measures with a same-pitch tied word, an
++unequal-pitch slurred word, and a two-syllable word. Native before/after MIDI
++is byte-for-byte equivalent at the event-object level in the saved proof.
++
++Not production acceptance:
++
++- Stop geometry extends toward the following lyric/rest boundary, clearing the
++  next printed text. This is an explicit re-engraving policy, not measured source
++  horizontal timing. Source exact positioning and style still need review.
++- Complex verse/elision formatting, print-object/no, placement/default-y and
++  mixed font/style are not yet represented in LyricElement.
++- Hyphens spanning rests, skipped beats and system breaks need separate layout;
++  the prototype only draws between adjacent text-bearing beats in one system.
++- Cross-voice divisi/shared lyrics, cross-staff lyrics, multitrack selection,
++  partial redraw/worker layout and all-score collision cases need owned tests.
++- Backward scanning of earlier lyric states is intentionally simple; indexing
++  should replace repeated scans before large-score performance acceptance.
++- Only ESM/native SVG and TypeScript code generation were exercised. C#/Kotlin
++  generation, full importer/visual corpus and browser integration were not.
++
++A supported production path is a maintained source-level alphaTab contribution
++with tests, preferably upstream. If an internal fork is required while upstream
++review runs, establish explicit repository ownership, MPL source/notice retention,
++CI, versioned immutable artifacts and lockfile provenance before integration.
++Do not ship this unversioned build as official 1.8.4 or silently patch node_modules.
++
++Browser verification found that glyph ink height is not a stable lyric-lane height:
++a space has zero ink height, so continuation segments used to jump above the word.
++Each verse now reserves the font's line size and uses that same baseline for text
++and blank continuation beats. An owned test reproduces browser-like zero-height
++spaces before the fix. The Node SVG font fallback still estimates every character
++at a uniform width; it can suppress a syllabic hyphen in a crowded interval even
++when actual browser font measurement renders it correctly. Full-score visual
++acceptance therefore requires the real browser/BrowserUiFacade, not Node SVG only.
++
++A syllabic begin/middle whose following syllable is on the next system retains a
++native hyphen in the trailing space of the first system. The owned two-bar test
++fails without that geometry and passes after it. It does not introduce a second
++literal dash character into the source lyric text or change MIDI.
++
++The 25b027f Finzi evidence did not cover syllabic spans over blank-lyric notes:
++Tenor/Bass bar 4 `No` → untexted note → `thing` had no native hyphen. The follow-up
++branch finds the next printed lyric in the same verse and voice, keeping the dash
++through intermediate notes and blank-lyric systems. Owned same-system and
++three-system fixtures reproduce the omissions before the fix. This deliberately
++does not infer a transition across independent voices; that requires source lane
++identity beyond a bare extender. Prior full-score word-retention/MIDI evidence
++remains valid but was insufficient to claim complete underlay rendering.
++
++Previous-beat scans remain an identified performance concern for long scores;
++this correctness prototype has not optimized or benchmarked their complexity.
++
++Placement follow-up (branch codex/typed-lyrics-placement): MusicXML above/below is
++retained as LyricElement.placement (default Below), including Worker JSON and
++Beat cloning. Above uses a distinct native lyric effect band above standard
++notation; Below keeps the legacy renderer route. Verse indices remain source
++indices while each side compacts its own displayed lines, so source verse 2 above
++does not create a phantom verse-1 line on that side. The native visibility setting
++hides both sides. This change does not resolve source lyric-lane transfers between
++voices/verse numbers or invent an endpoint for a legacy bare extender. In Even
++55/56 the upper I/be placement can be tested separately from its cross-lane
++continuation to the following shared word; the latter remains unaccepted.
+diff --git a/packages/alphatab/src/Environment.ts b/packages/alphatab/src/Environment.ts
+index 70cebd9..86a9cad 100644
+--- a/packages/alphatab/src/Environment.ts
++++ b/packages/alphatab/src/Environment.ts
+@@ -12,6 +12,7 @@ import { Logger } from '@coderline/alphatab/Logger';
+ import type { Font } from '@coderline/alphatab/model/Font';
+ import { GolpeType } from '@coderline/alphatab/model/GolpeType';
+ import { HarmonicType } from '@coderline/alphatab/model/HarmonicType';
++import { LyricPlacement } from '@coderline/alphatab/model/LyricElement';
+ import type { ICanvas } from '@coderline/alphatab/platform/ICanvas';
+ import { AlphaSynthWebWorklet } from '@coderline/alphatab/platform/javascript/AlphaSynthAudioWorkletOutput';
+ import { BrowserUiFacade } from '@coderline/alphatab/platform/javascript/BrowserUiFacade';
+@@ -22,9 +23,7 @@ import { SkiaCanvas } from '@coderline/alphatab/platform/skia/SkiaCanvas';
+ import { CssFontSvgCanvas } from '@coderline/alphatab/platform/svg/CssFontSvgCanvas';
+ import { AlphaSynthWebWorker } from '@coderline/alphatab/platform/worker/AlphaSynthWebWorker';
+ import { AlphaTabWebWorker } from '@coderline/alphatab/platform/worker/AlphaTabWebWorker';
+-import type {
+-    IAlphaTabWorkerGlobalScope
+-} from '@coderline/alphatab/platform/worker/AlphaTabWorkerProtocol';
++import type { IAlphaTabWorkerGlobalScope } from '@coderline/alphatab/platform/worker/AlphaTabWorkerProtocol';
+ import { EffectBandMode, type BarRendererFactory } from '@coderline/alphatab/rendering/BarRendererFactory';
+ import { AlternateEndingsEffectInfo } from '@coderline/alphatab/rendering/effects/AlternateEndingsEffectInfo';
+ import { BeatBarreEffectInfo } from '@coderline/alphatab/rendering/effects/BeatBarreEffectInfo';
+@@ -33,6 +32,7 @@ import { CapoEffectInfo } from '@coderline/alphatab/rendering/effects/CapoEffect
+ import { ChordsEffectInfo } from '@coderline/alphatab/rendering/effects/ChordsEffectInfo';
+ import { CrescendoEffectInfo } from '@coderline/alphatab/rendering/effects/CrescendoEffectInfo';
+ import { DirectionsEffectInfo } from '@coderline/alphatab/rendering/effects/DirectionsEffectInfo';
++import { SourceDynamicPlacement } from '@coderline/alphatab/model/Bar';
+ import { DynamicsEffectInfo } from '@coderline/alphatab/rendering/effects/DynamicsEffectInfo';
+ import { FadeEffectInfo } from '@coderline/alphatab/rendering/effects/FadeEffectInfo';
+ import { FermataEffectInfo } from '@coderline/alphatab/rendering/effects/FermataEffectInfo';
+@@ -472,6 +472,8 @@ export class Environment {
+         //
+         // Score (standard notation)
+         new ScoreBarRendererFactory([
++            { effect: new DynamicsEffectInfo(SourceDynamicPlacement.Above), mode: EffectBandMode.SharedTop },
++            { effect: new LyricsEffectInfo(LyricPlacement.Above), mode: EffectBandMode.SharedTop },
+             { effect: new CapoEffectInfo(), mode: EffectBandMode.SharedTop },
+             { effect: new FermataEffectInfo(), mode: EffectBandMode.SharedTop },
+             { effect: new BeatBarreEffectInfo(), mode: EffectBandMode.SharedTop },
+diff --git a/packages/alphatab/src/generated/model/BarSerializer.ts b/packages/alphatab/src/generated/model/BarSerializer.ts
+index fc757c6..ea6059c 100644
+--- a/packages/alphatab/src/generated/model/BarSerializer.ts
++++ b/packages/alphatab/src/generated/model/BarSerializer.ts
+@@ -7,12 +7,14 @@ import { Bar } from "@coderline/alphatab/model/Bar";
+ import { JsonHelper } from "@coderline/alphatab/io/JsonHelper";
+ import { VoiceSerializer } from "@coderline/alphatab/generated/model/VoiceSerializer";
+ import { SustainPedalMarkerSerializer } from "@coderline/alphatab/generated/model/SustainPedalMarkerSerializer";
++import { SourceDynamicSerializer } from "@coderline/alphatab/generated/model/SourceDynamicSerializer";
+ import { BarStyleSerializer } from "@coderline/alphatab/generated/model/BarStyleSerializer";
+ import { Clef } from "@coderline/alphatab/model/Clef";
+ import { Ottavia } from "@coderline/alphatab/model/Ottavia";
+ import { Voice } from "@coderline/alphatab/model/Voice";
+ import { SimileMark } from "@coderline/alphatab/model/SimileMark";
+ import { SustainPedalMarker } from "@coderline/alphatab/model/Bar";
++import { SourceDynamic } from "@coderline/alphatab/model/Bar";
+ import { BarLineStyle } from "@coderline/alphatab/model/Bar";
+ import { KeySignature } from "@coderline/alphatab/model/KeySignature";
+ import { KeySignatureType } from "@coderline/alphatab/model/KeySignatureType";
+@@ -41,6 +43,9 @@ export class BarSerializer {
+         o.set("displayscale", obj.displayScale);
+         o.set("displaywidth", obj.displayWidth);
+         o.set("sustainpedals", obj.sustainPedals.map(i => SustainPedalMarkerSerializer.toJson(i)));
++        if (obj.sourceDynamics !== null) {
++            o.set("sourcedynamics", obj.sourceDynamics?.map(i => SourceDynamicSerializer.toJson(i)));
++        }
+         o.set("barlineleft", obj.barLineLeft as number);
+         o.set("barlineright", obj.barLineRight as number);
+         o.set("keysignature", obj.keySignature as number);
+@@ -87,6 +92,16 @@ export class BarSerializer {
+                     obj.sustainPedals.push(i);
+                 }
+                 return true;
++            case "sourcedynamics":
++                if (v) {
++                    obj.sourceDynamics = [];
++                    for (const o of (v as (Map<string, unknown> | null)[])) {
++                        const i = new SourceDynamic();
++                        SourceDynamicSerializer.fromJson(i, o);
++                        obj.sourceDynamics.push(i);
++                    }
++                }
++                return true;
+             case "barlineleft":
+                 obj.barLineLeft = JsonHelper.parseEnum<BarLineStyle>(v, BarLineStyle)!;
+                 return true;
+diff --git a/packages/alphatab/src/generated/model/BeatCloner.ts b/packages/alphatab/src/generated/model/BeatCloner.ts
+index ec16d07..0d806d3 100644
+--- a/packages/alphatab/src/generated/model/BeatCloner.ts
++++ b/packages/alphatab/src/generated/model/BeatCloner.ts
+@@ -6,6 +6,7 @@
+ import { Beat } from "@coderline/alphatab/model/Beat";
+ import { NoteCloner } from "@coderline/alphatab/generated/model/NoteCloner";
+ import { AutomationCloner } from "@coderline/alphatab/generated/model/AutomationCloner";
++import { LyricElementCloner } from "@coderline/alphatab/generated/model/LyricElementCloner";
+ import { BendPointCloner } from "@coderline/alphatab/generated/model/BendPointCloner";
+ import { TremoloPickingEffectCloner } from "@coderline/alphatab/generated/model/TremoloPickingEffectCloner";
+ /**
+@@ -33,6 +34,12 @@ export class BeatCloner {
+         clone.dots = original.dots;
+         clone.fade = original.fade;
+         clone.lyrics = original.lyrics ? original.lyrics.slice() : null;
++        if (original.lyricElements) {
++            clone.lyricElements = [];
++            for (const i of original.lyricElements!) {
++                clone.lyricElements.push(LyricElementCloner.clone(i));
++            }
++        }
+         clone.pop = original.pop;
+         clone.slap = original.slap;
+         clone.tap = original.tap;
+@@ -64,6 +71,7 @@ export class BeatCloner {
+         clone.overrideDisplayDuration = original.overrideDisplayDuration;
+         clone.golpe = original.golpe;
+         clone.dynamics = original.dynamics;
++        clone.isDynamicsExplicit = original.isDynamicsExplicit;
+         clone.invertBeamDirection = original.invertBeamDirection;
+         clone.preferredBeamDirection = original.preferredBeamDirection;
+         clone.isEffectSlurOrigin = original.isEffectSlurOrigin;
+diff --git a/packages/alphatab/src/generated/model/BeatSerializer.ts b/packages/alphatab/src/generated/model/BeatSerializer.ts
+index bcc414c..0985fe7 100644
+--- a/packages/alphatab/src/generated/model/BeatSerializer.ts
++++ b/packages/alphatab/src/generated/model/BeatSerializer.ts
+@@ -7,6 +7,7 @@ import { Beat } from "@coderline/alphatab/model/Beat";
+ import { JsonHelper } from "@coderline/alphatab/io/JsonHelper";
+ import { NoteSerializer } from "@coderline/alphatab/generated/model/NoteSerializer";
+ import { AutomationSerializer } from "@coderline/alphatab/generated/model/AutomationSerializer";
++import { LyricElementSerializer } from "@coderline/alphatab/generated/model/LyricElementSerializer";
+ import { BendPointSerializer } from "@coderline/alphatab/generated/model/BendPointSerializer";
+ import { TremoloPickingEffectSerializer } from "@coderline/alphatab/generated/model/TremoloPickingEffectSerializer";
+ import { BeatStyleSerializer } from "@coderline/alphatab/generated/model/BeatStyleSerializer";
+@@ -16,6 +17,7 @@ import { Ottavia } from "@coderline/alphatab/model/Ottavia";
+ import { Duration } from "@coderline/alphatab/model/Duration";
+ import { Automation } from "@coderline/alphatab/model/Automation";
+ import { FadeType } from "@coderline/alphatab/model/FadeType";
++import { LyricElement } from "@coderline/alphatab/model/LyricElement";
+ import { BrushType } from "@coderline/alphatab/model/BrushType";
+ import { WhammyType } from "@coderline/alphatab/model/WhammyType";
+ import { BendPoint } from "@coderline/alphatab/model/BendPoint";
+@@ -58,6 +60,9 @@ export class BeatSerializer {
+         o.set("dots", obj.dots);
+         o.set("fade", obj.fade as number);
+         o.set("lyrics", obj.lyrics);
++        if (obj.lyricElements !== null) {
++            o.set("lyricelements", obj.lyricElements?.map(i => LyricElementSerializer.toJson(i)));
++        }
+         o.set("pop", obj.pop);
+         o.set("slap", obj.slap);
+         o.set("tap", obj.tap);
+@@ -88,6 +93,7 @@ export class BeatSerializer {
+         o.set("overridedisplayduration", obj.overrideDisplayDuration);
+         o.set("golpe", obj.golpe as number);
+         o.set("dynamics", obj.dynamics as number);
++        o.set("isdynamicsexplicit", obj.isDynamicsExplicit);
+         o.set("invertbeamdirection", obj.invertBeamDirection);
+         o.set("preferredbeamdirection", obj.preferredBeamDirection as number | null);
+         o.set("beamingmode", obj.beamingMode as number);
+@@ -147,6 +153,16 @@ export class BeatSerializer {
+             case "lyrics":
+                 obj.lyrics = v as string[] | null;
+                 return true;
++            case "lyricelements":
++                if (v) {
++                    obj.lyricElements = [];
++                    for (const o of (v as (Map<string, unknown> | null)[])) {
++                        const i = new LyricElement();
++                        LyricElementSerializer.fromJson(i, o);
++                        obj.lyricElements.push(i);
++                    }
++                }
++                return true;
+             case "pop":
+                 obj.pop = v! as boolean;
+                 return true;
+@@ -238,6 +254,9 @@ export class BeatSerializer {
+             case "dynamics":
+                 obj.dynamics = JsonHelper.parseEnum<DynamicValue>(v, DynamicValue)!;
+                 return true;
++            case "isdynamicsexplicit":
++                obj.isDynamicsExplicit = v! as boolean;
++                return true;
+             case "invertbeamdirection":
+                 obj.invertBeamDirection = v! as boolean;
+                 return true;
+diff --git a/packages/alphatab/src/generated/model/LyricElementCloner.ts b/packages/alphatab/src/generated/model/LyricElementCloner.ts
+new file mode 100644
+index 0000000..615eaa0
+--- /dev/null
++++ b/packages/alphatab/src/generated/model/LyricElementCloner.ts
+@@ -0,0 +1,18 @@
++// <auto-generated>
++// This code was auto-generated.
++// Changes to this file may cause incorrect behavior and will be lost if
++// the code is regenerated.
++// </auto-generated>
++import { LyricElement } from "@coderline/alphatab/model/LyricElement";
++/**
++ * @internal
++ */
++export class LyricElementCloner {
++    public static clone(original: LyricElement): LyricElement {
++        const clone = new LyricElement();
++        clone.placement = original.placement;
++        clone.syllabic = original.syllabic;
++        clone.extension = original.extension;
++        return clone;
++    }
++}
+diff --git a/packages/alphatab/src/generated/model/LyricElementSerializer.ts b/packages/alphatab/src/generated/model/LyricElementSerializer.ts
+new file mode 100644
+index 0000000..cf3c24f
+--- /dev/null
++++ b/packages/alphatab/src/generated/model/LyricElementSerializer.ts
+@@ -0,0 +1,45 @@
++// <auto-generated>
++// This code was auto-generated.
++// Changes to this file may cause incorrect behavior and will be lost if
++// the code is regenerated.
++// </auto-generated>
++import { LyricElement } from "@coderline/alphatab/model/LyricElement";
++import { JsonHelper } from "@coderline/alphatab/io/JsonHelper";
++import { LyricPlacement } from "@coderline/alphatab/model/LyricElement";
++import { LyricSyllabic } from "@coderline/alphatab/model/LyricElement";
++import { LyricExtension } from "@coderline/alphatab/model/LyricElement";
++/**
++ * @internal
++ */
++export class LyricElementSerializer {
++    public static fromJson(obj: LyricElement, m: unknown): void {
++        if (!m) {
++            return;
++        }
++        JsonHelper.forEach(m, (v, k) => LyricElementSerializer.setProperty(obj, k.toLowerCase(), v));
++    }
++    public static toJson(obj: LyricElement | null): Map<string, unknown> | null {
++        if (!obj) {
++            return null;
++        }
++        const o = new Map<string, unknown>();
++        o.set("placement", obj.placement as number);
++        o.set("syllabic", obj.syllabic as number);
++        o.set("extension", obj.extension as number);
++        return o;
++    }
++    public static setProperty(obj: LyricElement, property: string, v: unknown): boolean {
++        switch (property) {
++            case "placement":
++                obj.placement = JsonHelper.parseEnum<LyricPlacement>(v, LyricPlacement)!;
++                return true;
++            case "syllabic":
++                obj.syllabic = JsonHelper.parseEnum<LyricSyllabic>(v, LyricSyllabic)!;
++                return true;
++            case "extension":
++                obj.extension = JsonHelper.parseEnum<LyricExtension>(v, LyricExtension)!;
++                return true;
++        }
++        return false;
++    }
++}
+diff --git a/packages/alphatab/src/generated/model/SourceDynamicSerializer.ts b/packages/alphatab/src/generated/model/SourceDynamicSerializer.ts
+new file mode 100644
+index 0000000..2fbdebb
+--- /dev/null
++++ b/packages/alphatab/src/generated/model/SourceDynamicSerializer.ts
+@@ -0,0 +1,44 @@
++// <auto-generated>
++// This code was auto-generated.
++// Changes to this file may cause incorrect behavior and will be lost if
++// the code is regenerated.
++// </auto-generated>
++import { SourceDynamic } from "@coderline/alphatab/model/Bar";
++import { JsonHelper } from "@coderline/alphatab/io/JsonHelper";
++import { DynamicValue } from "@coderline/alphatab/model/DynamicValue";
++import { SourceDynamicPlacement } from "@coderline/alphatab/model/Bar";
++/**
++ * @internal
++ */
++export class SourceDynamicSerializer {
++    public static fromJson(obj: SourceDynamic, m: unknown): void {
++        if (!m) {
++            return;
++        }
++        JsonHelper.forEach(m, (v, k) => SourceDynamicSerializer.setProperty(obj, k, v));
++    }
++    public static toJson(obj: SourceDynamic | null): Map<string, unknown> | null {
++        if (!obj) {
++            return null;
++        }
++        const o = new Map<string, unknown>();
++        o.set("displaystart", obj.displayStart);
++        o.set("value", obj.value as number);
++        o.set("placement", obj.placement as number | undefined);
++        return o;
++    }
++    public static setProperty(obj: SourceDynamic, property: string, v: unknown): boolean {
++        switch (property) {
++            case "displaystart":
++                obj.displayStart = v! as number;
++                return true;
++            case "value":
++                obj.value = JsonHelper.parseEnum<DynamicValue>(v, DynamicValue)!;
++                return true;
++            case "placement":
++                obj.placement = JsonHelper.parseEnum<SourceDynamicPlacement>(v, SourceDynamicPlacement);
++                return true;
++        }
++        return false;
++    }
++}
+diff --git a/packages/alphatab/src/importer/MusicXmlImporter.ts b/packages/alphatab/src/importer/MusicXmlImporter.ts
+index 4742ccc..f46abbc 100644
+--- a/packages/alphatab/src/importer/MusicXmlImporter.ts
++++ b/packages/alphatab/src/importer/MusicXmlImporter.ts
+@@ -5,7 +5,7 @@ import { Logger } from '@coderline/alphatab/Logger';
+ import { MidiUtils } from '@coderline/alphatab/midi/MidiUtils';
+ import { AccentuationType } from '@coderline/alphatab/model/AccentuationType';
+ import { Automation, AutomationType } from '@coderline/alphatab/model/Automation';
+-import { Bar, BarLineStyle, SustainPedalMarkerType, SustainPedalMarker } from '@coderline/alphatab/model/Bar';
++import { Bar, BarLineStyle, SustainPedalMarker, SustainPedalMarkerType } from '@coderline/alphatab/model/Bar';
+ import { Beat, BeatBeamingMode } from '@coderline/alphatab/model/Beat';
+ import { BendPoint } from '@coderline/alphatab/model/BendPoint';
+ import { BrushType } from '@coderline/alphatab/model/BrushType';
+@@ -15,13 +15,14 @@ import { CrescendoType } from '@coderline/alphatab/model/CrescendoType';
+ import { Direction } from '@coderline/alphatab/model/Direction';
+ import { Duration } from '@coderline/alphatab/model/Duration';
+ import { DynamicValue } from '@coderline/alphatab/model/DynamicValue';
+-import { FermataType, Fermata } from '@coderline/alphatab/model/Fermata';
++import { Fermata, FermataType } from '@coderline/alphatab/model/Fermata';
+ import { Fingers } from '@coderline/alphatab/model/Fingers';
+ import { GolpeType } from '@coderline/alphatab/model/GolpeType';
+ import { GraceType } from '@coderline/alphatab/model/GraceType';
+ import { InstrumentArticulation } from '@coderline/alphatab/model/InstrumentArticulation';
+ import { KeySignature } from '@coderline/alphatab/model/KeySignature';
+ import { KeySignatureType } from '@coderline/alphatab/model/KeySignatureType';
++import { LyricElement, LyricExtension, LyricPlacement, LyricSyllabic } from '@coderline/alphatab/model/LyricElement';
+ import { MasterBar } from '@coderline/alphatab/model/MasterBar';
+ import { ModelUtils } from '@coderline/alphatab/model/ModelUtils';
+ import { MusicFontSymbol } from '@coderline/alphatab/model/MusicFontSymbol';
+@@ -1903,7 +1904,7 @@ export class MusicXmlImporter extends ScoreImporter {
+                 break;
+             case 'percussion':
+                 bar.clef = Clef.Neutral;
+-                if(bar.index === 0){
++                if (bar.index === 0) {
+                     bar.staff.isPercussion = true;
+                 }
+                 break;
+@@ -3284,9 +3285,54 @@ export class MusicXmlImporter extends ScoreImporter {
+             beat.lyrics.push('');
+         }
+ 
++        beat.lyricElements ??= [];
++        while (beat.lyricElements.length <= index) {
++            beat.lyricElements.push(new LyricElement());
++        }
++        beat.lyricElements[index].placement =
++            element.getAttribute('placement') === 'above' ? LyricPlacement.Above : LyricPlacement.Below;
++
+         for (const c of element.childElements()) {
+             switch (c.localName) {
+-                // case 'syllabic' not supported
++                case 'syllabic': {
++                    beat.lyricElements ??= [];
++                    while (beat.lyricElements.length <= index) {
++                        beat.lyricElements.push(new LyricElement());
++                    }
++                    switch (c.innerText) {
++                        case 'single':
++                            beat.lyricElements[index].syllabic = LyricSyllabic.Single;
++                            break;
++                        case 'begin':
++                            beat.lyricElements[index].syllabic = LyricSyllabic.Begin;
++                            break;
++                        case 'middle':
++                            beat.lyricElements[index].syllabic = LyricSyllabic.Middle;
++                            break;
++                        case 'end':
++                            beat.lyricElements[index].syllabic = LyricSyllabic.End;
++                            break;
++                    }
++                    break;
++                }
++                case 'extend': {
++                    beat.lyricElements ??= [];
++                    while (beat.lyricElements.length <= index) {
++                        beat.lyricElements.push(new LyricElement());
++                    }
++                    switch (c.getAttribute('type', 'start')) {
++                        case 'start':
++                            beat.lyricElements[index].extension = LyricExtension.Start;
++                            break;
++                        case 'continue':
++                            beat.lyricElements[index].extension = LyricExtension.Continue;
++                            break;
++                        case 'stop':
++                            beat.lyricElements[index].extension = LyricExtension.Stop;
++                            break;
++                    }
++                    break;
++                }
+                 case 'text':
+                     if (beat.lyrics[index]) {
+                         beat.lyrics[index] += ` ${c.innerText}`;
+diff --git a/packages/alphatab/src/model/Bar.ts b/packages/alphatab/src/model/Bar.ts
+index 32c85e3..2ff4bf4 100644
+--- a/packages/alphatab/src/model/Bar.ts
++++ b/packages/alphatab/src/model/Bar.ts
+@@ -1,15 +1,37 @@
+ import { Clef } from '@coderline/alphatab/model/Clef';
++import { Duration } from '@coderline/alphatab/model/Duration';
++import { DynamicValue } from '@coderline/alphatab/model/DynamicValue';
++import { ElementStyle } from '@coderline/alphatab/model/ElementStyle';
++import { KeySignature } from '@coderline/alphatab/model/KeySignature';
++import { KeySignatureType } from '@coderline/alphatab/model/KeySignatureType';
+ import type { MasterBar } from '@coderline/alphatab/model/MasterBar';
+ import { Ottavia } from '@coderline/alphatab/model/Ottavia';
++import type { BarNumberDisplay } from '@coderline/alphatab/model/RenderStylesheet';
+ import { SimileMark } from '@coderline/alphatab/model/SimileMark';
+ import type { Staff } from '@coderline/alphatab/model/Staff';
+ import type { Voice } from '@coderline/alphatab/model/Voice';
+ import type { Settings } from '@coderline/alphatab/Settings';
+-import { ElementStyle } from '@coderline/alphatab/model/ElementStyle';
+-import { KeySignature } from '@coderline/alphatab/model/KeySignature';
+-import { KeySignatureType } from '@coderline/alphatab/model/KeySignatureType';
+-import type { BarNumberDisplay } from '@coderline/alphatab/model/RenderStylesheet';
+-import { Duration } from '@coderline/alphatab/model/Duration';
++
++/** The vertical lane of an authored dynamic declaration. @public */
++export enum SourceDynamicPlacement {
++    Below = 0,
++    Above = 1
++}
++
++/**
++ * A display-only dynamic declaration, independent of musical beat ownership.
++ * @json
++ * @json_strict
++ * @public
++ */
++export class SourceDynamic {
++    /** Position within this bar in display ticks (960 ticks per quarter). */
++    public displayStart: number = 0;
++    /** The declared dynamic symbol. This does not change any note velocity. */
++    public value: DynamicValue = DynamicValue.F;
++    /** Authored vertical lane. Omitted retains the legacy below-staff lane. */
++    public placement?: SourceDynamicPlacement;
++}
+ 
+ /**
+  * The different pedal marker types.
+@@ -324,6 +346,13 @@ export class Bar {
+      */
+     public sustainPedals: SustainPedalMarker[] = [];
+ 
++    /**
++     * Display-only source declarations on this staff. Null retains legacy beat
++     * inference; an array (including empty) supplies the complete declarations
++     * for this bar. No beat or playback event is created by these markers.
++     */
++    public sourceDynamics: SourceDynamic[] | null = null;
++
+     public get masterBar(): MasterBar {
+         return this.staff.track.score.masterBars[this.index];
+     }
+@@ -358,6 +387,7 @@ export class Bar {
+         return (
+             this.simileMark !== SimileMark.None ||
+             this.sustainPedals.length > 0 ||
++            (this.sourceDynamics !== null && this.sourceDynamics.length > 0) ||
+             this.barLineLeft !== BarLineStyle.Automatic ||
+             this.barLineRight !== BarLineStyle.Automatic
+         );
+diff --git a/packages/alphatab/src/model/Beat.ts b/packages/alphatab/src/model/Beat.ts
+index a0cbf8d..f2548c2 100644
+--- a/packages/alphatab/src/model/Beat.ts
++++ b/packages/alphatab/src/model/Beat.ts
+@@ -1,5 +1,7 @@
++import { BeatCloner } from '@coderline/alphatab/generated/model/BeatCloner';
+ import { MidiUtils } from '@coderline/alphatab/midi/MidiUtils';
+ import { Automation, AutomationType } from '@coderline/alphatab/model/Automation';
++import { BarreShape } from '@coderline/alphatab/model/BarreShape';
+ import { BendPoint } from '@coderline/alphatab/model/BendPoint';
+ import { BendStyle } from '@coderline/alphatab/model/BendStyle';
+ import { BendType } from '@coderline/alphatab/model/BendType';
+@@ -8,28 +10,27 @@ import type { Chord } from '@coderline/alphatab/model/Chord';
+ import { CrescendoType } from '@coderline/alphatab/model/CrescendoType';
+ import { Duration } from '@coderline/alphatab/model/Duration';
+ import { DynamicValue } from '@coderline/alphatab/model/DynamicValue';
++import { ElementStyle } from '@coderline/alphatab/model/ElementStyle';
++import { FadeType } from '@coderline/alphatab/model/FadeType';
+ import type { Fermata } from '@coderline/alphatab/model/Fermata';
++import { GolpeType } from '@coderline/alphatab/model/GolpeType';
++import { GraceGroup } from '@coderline/alphatab/model/GraceGroup';
+ import { GraceType } from '@coderline/alphatab/model/GraceType';
++import type { LyricElement } from '@coderline/alphatab/model/LyricElement';
+ import { Note } from '@coderline/alphatab/model/Note';
+ import { Ottavia } from '@coderline/alphatab/model/Ottavia';
+ import { PickStroke } from '@coderline/alphatab/model/PickStroke';
++import { Rasgueado } from '@coderline/alphatab/model/Rasgueado';
+ import type { Slur } from '@coderline/alphatab/model/Slur';
++import { TremoloPickingEffect } from '@coderline/alphatab/model/TremoloPickingEffect';
+ import { TupletGroup } from '@coderline/alphatab/model/TupletGroup';
+ import { VibratoType } from '@coderline/alphatab/model/VibratoType';
+ import type { Voice } from '@coderline/alphatab/model/Voice';
++import { WahPedal } from '@coderline/alphatab/model/WahPedal';
+ import { WhammyType } from '@coderline/alphatab/model/WhammyType';
+ import { NotationMode } from '@coderline/alphatab/NotationSettings';
+-import type { Settings } from '@coderline/alphatab/Settings';
+ import type { BeamDirection } from '@coderline/alphatab/rendering/utils/BeamDirection';
+-import { BeatCloner } from '@coderline/alphatab/generated/model/BeatCloner';
+-import { GraceGroup } from '@coderline/alphatab/model/GraceGroup';
+-import { GolpeType } from '@coderline/alphatab/model/GolpeType';
+-import { FadeType } from '@coderline/alphatab/model/FadeType';
+-import { WahPedal } from '@coderline/alphatab/model/WahPedal';
+-import { BarreShape } from '@coderline/alphatab/model/BarreShape';
+-import { Rasgueado } from '@coderline/alphatab/model/Rasgueado';
+-import { ElementStyle } from '@coderline/alphatab/model/ElementStyle';
+-import { TremoloPickingEffect } from '@coderline/alphatab/model/TremoloPickingEffect';
++import type { Settings } from '@coderline/alphatab/Settings';
+ 
+ /**
+  * Lists the different modes on how beaming for a beat should be done.
+@@ -387,6 +388,9 @@ export class Beat {
+      */
+     public lyrics: string[] | null = null;
+ 
++    /** Gets or sets typed source lyric relationships for each verse. */
++    public lyricElements: LyricElement[] | null = null;
++
+     /**
+      * Gets or sets a value indicating whether the beat is played in rasgueado style.
+      */
+@@ -657,6 +661,15 @@ export class Beat {
+      */
+     public dynamics: DynamicValue = DynamicValue.F;
+ 
++    /**
++     * Whether the current dynamics is an explicit notation declaration.
++     * Explicit declarations are displayed at existing timed anchors, including
++     * empty and rest beats, and when their value repeats.
++     * This affects engraving only; it does not change note dynamics or timing.
++     * Callers must set this only at the source declaration's exact beat.
++     */
++    public isDynamicsExplicit: boolean = false;
++
+     /**
+      * Gets or sets a value indicating whether the beam direction should be inverted.
+      */
+diff --git a/packages/alphatab/src/model/LyricElement.ts b/packages/alphatab/src/model/LyricElement.ts
+new file mode 100644
+index 0000000..386a318
+--- /dev/null
++++ b/packages/alphatab/src/model/LyricElement.ts
+@@ -0,0 +1,33 @@
++/** Source syllabic relationship, independent of pitch ties and slurs. @public */
++export enum LyricSyllabic {
++    Single = 0,
++    Begin = 1,
++    Middle = 2,
++    End = 3
++}
++/** Source melisma line endpoint. None preserves legacy text-only lyrics. @public */
++export enum LyricExtension {
++    None = 0,
++    Start = 1,
++    Continue = 2,
++    Stop = 3
++}
++
++/** Source lyric placement relative to the notation staff. @public */
++export enum LyricPlacement {
++    Below = 0,
++    Above = 1
++}
++
++/**
++ * Source lyric semantics, separate from note-level pitch ties and slurs.
++ * Text remains in Beat.lyrics for backwards compatibility.
++ * @json
++ * @cloneable
++ * @public
++ */
++export class LyricElement {
++    public placement: LyricPlacement = LyricPlacement.Below;
++    public syllabic: LyricSyllabic = LyricSyllabic.Single;
++    public extension: LyricExtension = LyricExtension.None;
++}
+diff --git a/packages/alphatab/src/model/_barrel.ts b/packages/alphatab/src/model/_barrel.ts
+index c5c0e1a..6ac2a92 100644
+--- a/packages/alphatab/src/model/_barrel.ts
++++ b/packages/alphatab/src/model/_barrel.ts
+@@ -3,6 +3,8 @@ export { AccidentalType } from '@coderline/alphatab/model/AccidentalType';
+ export { AutomationType, Automation, SyncPointData, type FlatSyncPoint } from '@coderline/alphatab/model/Automation';
+ export {
+     Bar,
++    SourceDynamic,
++    SourceDynamicPlacement,
+     SustainPedalMarkerType,
+     SustainPedalMarker,
+     BarSubElement,
+@@ -70,3 +72,5 @@ export { WahPedal } from '@coderline/alphatab/model/WahPedal';
+ export { WhammyType } from '@coderline/alphatab/model/WhammyType';
+ export { ElementStyle } from '@coderline/alphatab/model/ElementStyle';
+ export { BackingTrack } from '@coderline/alphatab/model/BackingTrack';
++
++export { LyricElement, LyricSyllabic, LyricExtension, LyricPlacement } from '@coderline/alphatab/model/LyricElement';
+diff --git a/packages/alphatab/src/rendering/BarRendererBase.ts b/packages/alphatab/src/rendering/BarRendererBase.ts
+index dd015be..a9ac105 100644
+--- a/packages/alphatab/src/rendering/BarRendererBase.ts
++++ b/packages/alphatab/src/rendering/BarRendererBase.ts
+@@ -5,6 +5,7 @@ import type { Note } from '@coderline/alphatab/model/Note';
+ import { SimileMark } from '@coderline/alphatab/model/SimileMark';
+ import { type Voice, VoiceSubElement } from '@coderline/alphatab/model/Voice';
+ import { CanvasHelper, type ICanvas } from '@coderline/alphatab/platform/ICanvas';
++import type { RenderingResources } from '@coderline/alphatab/RenderingResources';
+ import { BeatXPosition } from '@coderline/alphatab/rendering/BeatXPosition';
+ import { EffectBandContainer } from '@coderline/alphatab/rendering/EffectBandContainer';
+ import {
+@@ -25,7 +26,6 @@ import type { BeamingHelper } from '@coderline/alphatab/rendering/utils/BeamingH
+ import { Bounds } from '@coderline/alphatab/rendering/utils/Bounds';
+ import { ElementStyleHelper } from '@coderline/alphatab/rendering/utils/ElementStyleHelper';
+ import type { MasterBarBounds } from '@coderline/alphatab/rendering/utils/MasterBarBounds';
+-import type { RenderingResources } from '@coderline/alphatab/RenderingResources';
+ import type { Settings } from '@coderline/alphatab/Settings';
+ 
+ /**
+@@ -657,6 +657,11 @@ export class BarRendererBase {
+         return this.beatGlyphsStart + this.voiceContainer.getBeatX(beat, requestedPosition, useSharedSizes);
+     }
+ 
++    /** X position of a display-only direction, using shared bar timing. */
++    public getDisplayTimeX(displayStart: number): number {
++        return this.beatGlyphsStart + this.voiceContainer.getDisplayTimeX(displayStart);
++    }
++
+     public getRatioPositionX(ratio: number): number {
+         const firstOnNoteX = this.bar.isEmpty
+             ? this.beatGlyphsStart
+diff --git a/packages/alphatab/src/rendering/effects/DynamicsEffectInfo.ts b/packages/alphatab/src/rendering/effects/DynamicsEffectInfo.ts
+index 11b1007..d79328c 100644
+--- a/packages/alphatab/src/rendering/effects/DynamicsEffectInfo.ts
++++ b/packages/alphatab/src/rendering/effects/DynamicsEffectInfo.ts
+@@ -1,16 +1,25 @@
++import { SourceDynamicPlacement } from '@coderline/alphatab/model/Bar';
+ import type { Beat } from '@coderline/alphatab/model/Beat';
++import { NotationElement } from '@coderline/alphatab/NotationSettings';
+ import type { BarRendererBase } from '@coderline/alphatab/rendering/BarRendererBase';
+ import { EffectBarGlyphSizing } from '@coderline/alphatab/rendering/EffectBarGlyphSizing';
++import { EffectInfo } from '@coderline/alphatab/rendering/EffectInfo';
+ import { DynamicsGlyph } from '@coderline/alphatab/rendering/glyphs/DynamicsGlyph';
+ import type { EffectGlyph } from '@coderline/alphatab/rendering/glyphs/EffectGlyph';
+-import { EffectInfo } from '@coderline/alphatab/rendering/EffectInfo';
++import { SourceDynamicsGlyph } from '@coderline/alphatab/rendering/glyphs/SourceDynamicsGlyph';
+ import type { Settings } from '@coderline/alphatab/Settings';
+-import { NotationElement } from '@coderline/alphatab/NotationSettings';
+ 
+ /**
+  * @internal
+  */
+ export class DynamicsEffectInfo extends EffectInfo {
++    public constructor(private readonly _placement = SourceDynamicPlacement.Below) {
++        super();
++    }
++
++    public override get effectId(): string {
++        return this._placement === SourceDynamicPlacement.Above ? `${super.effectId}.above` : super.effectId;
++    }
+     public get notationElement(): NotationElement {
+         return NotationElement.EffectDynamics;
+     }
+@@ -32,12 +41,29 @@ export class DynamicsEffectInfo extends EffectInfo {
+     }
+ 
+     private _internalShouldCreateGlyph(beat: Beat): boolean {
+-        if (
+-            beat.voice.bar.staff.track.score.stylesheet.hideDynamics ||
+-            beat.isEmpty ||
+-            beat.voice.isEmpty ||
+-            beat.isRest
+-        ) {
++        if (beat.voice.bar.staff.track.score.stylesheet.hideDynamics) {
++            return false;
++        }
++
++        if (beat.voice.bar.sourceDynamics !== null) {
++            return (
++                beat.voice.index === 0 &&
++                beat.index === 0 &&
++                beat.voice.bar.sourceDynamics.some(
++                    d => (d.placement ?? SourceDynamicPlacement.Below) === this._placement
++                )
++            );
++        }
++
++        if (this._placement === SourceDynamicPlacement.Above) { return false; }
++
++        // A source declaration is a notation event even when no note sounds,
++        // or when the preceding declaration has the same dynamic value.
++        if (beat.isDynamicsExplicit) {
++            return beat.dynamics >= 0;
++        }
++
++        if (beat.isEmpty || beat.voice.isEmpty || beat.isRest) {
+             return false;
+         }
+ 
+@@ -64,7 +90,7 @@ export class DynamicsEffectInfo extends EffectInfo {
+     private _getPreviousDynamicsBeat(beat: Beat) {
+         let previousBeat = beat.previousBeat;
+         while (previousBeat != null) {
+-            if (!previousBeat.isRest) {
++            if (!previousBeat.isRest || previousBeat.isDynamicsExplicit) {
+                 return previousBeat;
+             }
+             previousBeat = previousBeat.previousBeat;
+@@ -73,7 +99,13 @@ export class DynamicsEffectInfo extends EffectInfo {
+     }
+ 
+     public createNewGlyph(_renderer: BarRendererBase, beat: Beat): EffectGlyph {
+-        return new DynamicsGlyph(0, 0, beat.dynamics);
++        return beat.voice.bar.sourceDynamics !== null
++            ? new SourceDynamicsGlyph(
++                  beat.voice.bar.sourceDynamics.filter(
++                      d => (d.placement ?? SourceDynamicPlacement.Below) === this._placement
++                  )
++              )
++            : new DynamicsGlyph(0, 0, beat.dynamics);
+     }
+ 
+     public canExpand(_from: Beat, _to: Beat): boolean {
+diff --git a/packages/alphatab/src/rendering/effects/LyricsEffectInfo.ts b/packages/alphatab/src/rendering/effects/LyricsEffectInfo.ts
+index 30972c7..b9063d2 100644
+--- a/packages/alphatab/src/rendering/effects/LyricsEffectInfo.ts
++++ b/packages/alphatab/src/rendering/effects/LyricsEffectInfo.ts
+@@ -1,4 +1,5 @@
+ import type { Beat } from '@coderline/alphatab/model/Beat';
++import { LyricPlacement } from '@coderline/alphatab/model/LyricElement';
+ import { NotationElement } from '@coderline/alphatab/NotationSettings';
+ import { TextAlign } from '@coderline/alphatab/platform/ICanvas';
+ import type { BarRendererBase } from '@coderline/alphatab/rendering/BarRendererBase';
+@@ -12,6 +13,14 @@ import type { Settings } from '@coderline/alphatab/Settings';
+  * @internal
+  */
+ export class LyricsEffectInfo extends EffectInfo {
++    public constructor(private readonly _placement: LyricPlacement = LyricPlacement.Below) {
++        super();
++    }
++
++    public override get effectId(): string {
++        return this._placement === LyricPlacement.Below ? super.effectId : `${super.effectId}.above`;
++    }
++
+     public get notationElement(): NotationElement {
+         return NotationElement.EffectLyrics;
+     }
+@@ -29,16 +38,27 @@ export class LyricsEffectInfo extends EffectInfo {
+     }
+ 
+     public shouldCreateGlyph(_settings: Settings, beat: Beat): boolean {
+-        return !!beat.lyrics;
++        return LyricsGlyph.versesForPlacement(beat, this._placement).some(verse => {
++            const element = beat.lyricElements?.[verse];
++            return (
++                !!beat.lyrics?.[verse] ||
++                !!element?.extension ||
++                !!element?.syllabic ||
++                LyricsGlyph.extensionBefore(beat, verse) ||
++                LyricsGlyph.syllableBefore(beat, verse)
++            );
++        });
+     }
+ 
+     public createNewGlyph(renderer: BarRendererBase, beat: Beat): EffectGlyph {
++        const verses = LyricsGlyph.versesForPlacement(beat, this._placement);
+         return new LyricsGlyph(
+             0,
+             0,
+-            beat.lyrics!,
++            verses.map(verse => beat.lyrics?.[verse] ?? ''),
+             renderer.resources.elementFonts.get(NotationElement.EffectLyrics)!,
+-            TextAlign.Center
++            TextAlign.Center,
++            verses
+         );
+     }
+ 
+diff --git a/packages/alphatab/src/rendering/glyphs/LyricsGlyph.ts b/packages/alphatab/src/rendering/glyphs/LyricsGlyph.ts
+index 61841b4..4420db7 100644
+--- a/packages/alphatab/src/rendering/glyphs/LyricsGlyph.ts
++++ b/packages/alphatab/src/rendering/glyphs/LyricsGlyph.ts
+@@ -1,5 +1,8 @@
++import type { Beat } from '@coderline/alphatab/model/Beat';
+ import type { Font } from '@coderline/alphatab/model/Font';
++import { LyricExtension, LyricPlacement, LyricSyllabic } from '@coderline/alphatab/model/LyricElement';
+ import { type ICanvas, TextAlign } from '@coderline/alphatab/platform/ICanvas';
++import { BeatXPosition } from '@coderline/alphatab/rendering/BeatXPosition';
+ import { EffectGlyph } from '@coderline/alphatab/rendering/glyphs/EffectGlyph';
+ 
+ /**
+@@ -7,14 +10,92 @@ import { EffectGlyph } from '@coderline/alphatab/rendering/glyphs/EffectGlyph';
+  */
+ export class LyricsGlyph extends EffectGlyph {
+     private _lines: string[];
++    private _verses: number[];
+     private _linePositions: number[] = [];
++    private _lineWidths: number[] = [];
++    private _lineHeights: number[] = [];
++
++    public static linesForBeat(beat: Beat): string[] {
++        let count = beat.lyrics?.length ?? 0;
++        for (let b = beat.previousBeat; b; b = b.previousBeat) {
++            count = Math.max(count, b.lyrics?.length ?? 0);
++        }
++        return Array.from({ length: count }, (_, i) => beat.lyrics?.[i] ?? '');
++    }
++
++    public static placementForVerse(beat: Beat, verse: number): LyricPlacement {
++        for (let current: Beat | null = beat; current; current = current.previousBeat) {
++            const element = current.lyricElements?.[verse];
++            if (current.lyrics?.[verse] || element?.extension || element?.syllabic || element?.placement) {
++                return element?.placement ?? LyricPlacement.Below;
++            }
++        }
++        return LyricPlacement.Below;
++    }
++
++    public static versesForPlacement(beat: Beat, placement: LyricPlacement): number[] {
++        return LyricsGlyph.linesForBeat(beat)
++            .map((_, verse) => verse)
++            .filter(verse => LyricsGlyph.placementForVerse(beat, verse) === placement);
++    }
++
++    public static extensionBefore(beat: Beat, verse: number): boolean {
++        for (let b = beat.previousBeat; b; b = b.previousBeat) {
++            const e = b.lyricElements?.[verse]?.extension ?? LyricExtension.None;
++            if (e === LyricExtension.Stop) {
++                return false;
++            }
++            if (e === LyricExtension.Start || e === LyricExtension.Continue) {
++                return true;
++            }
++            if (b.lyrics?.[verse]) {
++                return false;
++            }
++        }
++        return false;
++    }
++
++    public static hasIncomingExtension(beat: Beat): boolean {
++        return LyricsGlyph.linesForBeat(beat).some((_, i) => LyricsGlyph.extensionBefore(beat, i));
++    }
++
++    public static syllableBefore(beat: Beat, verse: number): boolean {
++        for (let previous = beat.previousBeat; previous; previous = previous.previousBeat) {
++            if (previous.lyrics?.[verse]) {
++                const syllabic = previous.lyricElements?.[verse]?.syllabic;
++                return syllabic === LyricSyllabic.Begin || syllabic === LyricSyllabic.Middle;
++            }
++        }
++        return false;
++    }
++
++    public static hasIncomingSyllable(beat: Beat): boolean {
++        return LyricsGlyph.linesForBeat(beat).some((_, verse) => LyricsGlyph.syllableBefore(beat, verse));
++    }
++
++    private static _nextLyricBeat(beat: Beat, verse: number): Beat | null {
++        for (let next = beat.nextBeat; next; next = next.nextBeat) {
++            if (next.lyrics?.[verse]) {
++                return next;
++            }
++        }
++        return null;
++    }
+ 
+     public font: Font;
+     public textAlign: TextAlign;
+ 
+-    public constructor(x: number, y: number, lines: string[], font: Font, textAlign: TextAlign = TextAlign.Center) {
++    public constructor(
++        x: number,
++        y: number,
++        lines: string[],
++        font: Font,
++        textAlign: TextAlign = TextAlign.Center,
++        verses?: number[]
++    ) {
+         super(x, y);
+         this._lines = lines;
++        this._verses = verses ?? lines.map((_, verse) => verse);
+         this.font = font;
+         this.textAlign = textAlign;
+     }
+@@ -26,11 +107,19 @@ export class LyricsGlyph extends EffectGlyph {
+ 
+         const canvas = this.renderer.scoreRenderer.canvas!;
+         canvas.font = this.font;
++        this._linePositions = [];
++        this._lineWidths = [];
++        this._lineHeights = [];
+         let y = 0;
+         for (const line of this._lines) {
+             this._linePositions.push(y);
+             const size = canvas.measureText(line.length > 0 ? line : ' ');
+-            y += size.height + lineSpacing;
++            this._lineWidths.push(line ? size.width : 0);
++            // A lyric lane is a font line, not the ink bounds of its current word.
++            // Browsers correctly report zero ink height for a space; using that
++            // would lift blank melisma continuation segments above the word.
++            this._lineHeights.push(this.font.size);
++            y += this.font.size + lineSpacing;
+         }
+         y -= lineSpacing;
+ 
+@@ -47,5 +136,83 @@ export class LyricsGlyph extends EffectGlyph {
+             }
+         }
+         canvas.textAlign = old;
++        this._paintSourceConnections(cx, cy, canvas);
++    }
++
++    private _paintSourceConnections(cx: number, cy: number, canvas: ICanvas): void {
++        const beat = this.beat!;
++        const originX = cx - this.renderer.x;
++        const next = beat.nextBeat;
++        const nextRenderer = next
++            ? this.renderer.scoreRenderer.layout!.getRendererForBar(this.renderer.staff!.staffId, next.voice.bar)
++            : null;
++        const sameSystem = nextRenderer?.staff?.system === this.renderer.staff?.system;
++        const headX = cx + this.x;
++        const nextX =
++            nextRenderer && sameSystem
++                ? originX + nextRenderer.x + nextRenderer.getBeatX(next!, BeatXPosition.MiddleNotes)
++                : originX + this.renderer.x + this.renderer.width;
++        const previous = beat.previousBeat;
++        const newSystem = !!previous && beat.index === 0 && this.renderer.isFirstOfStaff;
++        for (let line = 0; line < this._lines.length; line++) {
++            const verse = this._verses[line];
++            const incoming = LyricsGlyph.extensionBefore(beat, verse);
++            const extension = beat.lyricElements?.[verse]?.extension ?? LyricExtension.None;
++            const outgoing =
++                extension === LyricExtension.Start ||
++                extension === LyricExtension.Continue ||
++                (extension === LyricExtension.Stop && incoming) ||
++                (extension === LyricExtension.None && incoming && !this._lines[line]);
++            const y = cy + this.y + this._linePositions[line] + this._lineHeights[line] - 1;
++            if (incoming && newSystem && !this._lines[line]) {
++                const start = cx + this.renderer.beatGlyphsStart;
++                if (headX > start) {
++                    canvas.fillRect(start, y, headX - start, 0.75);
++                }
++            }
++            if (outgoing) {
++                const start = headX + this._lineWidths[line] / 2 + (this._lines[line] ? 2 : 0);
++                const nextText = sameSystem ? next?.lyrics?.[verse] : null;
++                const end = nextText
++                    ? nextX - canvas.measureText(nextText).width / 2 - 2
++                    : extension === LyricExtension.Stop
++                      ? originX + this.renderer.x + this.renderer.getBeatX(beat, BeatXPosition.EndBeat)
++                      : nextX;
++                if (end > start) {
++                    canvas.fillRect(start, y, end - start, 0.75);
++                }
++            }
++            // A syllable can cover several notes without repeating its text.
++            // Its target is the next text in this verse, not necessarily nextBeat.
++            const syllabic = beat.lyricElements?.[verse]?.syllabic;
++            const startsSyllable = syllabic === LyricSyllabic.Begin || syllabic === LyricSyllabic.Middle;
++            const continuesOnNewSystem = newSystem && !this._lines[line] && LyricsGlyph.syllableBefore(beat, verse);
++            if (startsSyllable || continuesOnNewSystem) {
++                const target = LyricsGlyph._nextLyricBeat(beat, verse);
++                const targetRenderer = target
++                    ? this.renderer.scoreRenderer.layout!.getRendererForBar(
++                          this.renderer.staff!.staffId,
++                          target.voice.bar
++                      )
++                    : null;
++                if (target) {
++                    const targetInSystem =
++                        !!targetRenderer && targetRenderer.staff?.system === this.renderer.staff?.system;
++                    const right = targetInSystem
++                        ? originX +
++                          targetRenderer.x +
++                          targetRenderer!.getBeatX(target, BeatXPosition.MiddleNotes) -
++                          canvas.measureText(target.lyrics![verse]).width / 2 -
++                          2
++                        : originX + this.renderer.x + this.renderer.width - 2;
++                    const left = startsSyllable
++                        ? headX + this._lineWidths[line] / 2 + 2
++                        : cx + this.renderer.beatGlyphsStart;
++                    if (right > left) {
++                        canvas.fillRect((left + right) / 2 - 2, y - this._lineHeights[line] * 0.45, 4, 0.75);
++                    }
++                }
++            }
++        }
+     }
+ }
+diff --git a/packages/alphatab/src/rendering/glyphs/MultiVoiceContainerGlyph.ts b/packages/alphatab/src/rendering/glyphs/MultiVoiceContainerGlyph.ts
+index ce893a6..db4c88e 100644
+--- a/packages/alphatab/src/rendering/glyphs/MultiVoiceContainerGlyph.ts
++++ b/packages/alphatab/src/rendering/glyphs/MultiVoiceContainerGlyph.ts
+@@ -22,6 +22,8 @@ import { ElementStyleHelper } from '@coderline/alphatab/rendering/utils/ElementS
+ export class MultiVoiceContainerGlyph extends Glyph {
+     public static readonly KeySizeBeat: string = 'Beat';
+ 
++    private _onTimePositions = new Map<number, number>();
++
+     public voiceDrawOrder?: number[];
+ 
+     private readonly _beatGlyphLookup = new Map<number, BeatContainerGlyphBase>();
+@@ -61,6 +63,7 @@ export class MultiVoiceContainerGlyph extends Glyph {
+     private _scaleToForce(force: number): void {
+         this.width = this.renderer.layoutingInfo.calculateVoiceWidth(force);
+         const positions = this.renderer.layoutingInfo.buildOnTimePositions(force);
++        this._onTimePositions = positions;
+         for (const beatGlyphs of this.beatGlyphs.values()) {
+             for (let i: number = 0, j: number = beatGlyphs.length; i < j; i++) {
+                 const currentBeatGlyph = beatGlyphs[i];
+@@ -142,6 +145,34 @@ export class MultiVoiceContainerGlyph extends Glyph {
+         }
+     }
+ 
++    /** Resolve an independent display time through the actual shared spring layout. */
++    public getDisplayTimeX(displayStart: number): number {
++        const bar = this.renderer.bar;
++        const absolute = bar.masterBar.start + displayStart;
++        const exact = this._onTimePositions.get(absolute);
++        if (exact !== undefined) {
++            return exact;
++        }
++        let beforeTime = bar.masterBar.start;
++        let beforeX = this._onTimePositions.get(beforeTime) ?? 0;
++        let afterTime = bar.masterBar.start + bar.masterBar.calculateDuration();
++        let afterX = this.renderer.postBeatGlyphsStart - this.renderer.beatGlyphsStart;
++        for (const [time, x] of this._onTimePositions) {
++            if (time < absolute && time >= beforeTime) {
++                beforeTime = time;
++                beforeX = x;
++            }
++            if (time > absolute && time <= afterTime) {
++                afterTime = time;
++                afterX = x;
++            }
++        }
++        if (afterTime <= beforeTime) {
++            return beforeX;
++        }
++        return beforeX + ((afterX - beforeX) * (absolute - beforeTime)) / (afterTime - beforeTime);
++    }
++
+     public registerLayoutingInfo(info: BarLayoutingInfo): void {
+         for (const beatGlyphs of this.beatGlyphs.values()) {
+             for (const b of beatGlyphs) {
+diff --git a/packages/alphatab/src/rendering/glyphs/ScoreNoteChordGlyphBase.ts b/packages/alphatab/src/rendering/glyphs/ScoreNoteChordGlyphBase.ts
+index 5ae9a37..86151d8 100644
+--- a/packages/alphatab/src/rendering/glyphs/ScoreNoteChordGlyphBase.ts
++++ b/packages/alphatab/src/rendering/glyphs/ScoreNoteChordGlyphBase.ts
+@@ -232,13 +232,16 @@ export class ScoreChordNoteHeadInfo {
+         const mainGroupBottom = mainGroup.direction === BeamDirection.Up ? mainGroup.maxStep : mainGroup.minStep;
+         const thisGroupBottom = thisGroup.direction === BeamDirection.Up ? thisGroup.maxStep : thisGroup.minStep;
+ 
+-        const mainGroupBottomNoteHead = mainGroup.correctNotes.notes.get(mainGroupBottom)!;
+-        if (mainGroupBottomNoteHead.length > 1) {
++        // Group extrema include both sides of the stem. A collision may put
++        // this extreme on the displaced side; those heads cannot be shared
++        // across opposing stems, so use the normal non-sharing displacement.
++        const mainGroupBottomNoteHead = mainGroup.correctNotes.notes.get(mainGroupBottom);
++        if (!mainGroupBottomNoteHead || mainGroupBottomNoteHead.length !== 1) {
+             return false;
+         }
+ 
+-        const thisGroupBottomNoteHead = thisGroup.correctNotes.notes.get(thisGroupBottom)!;
+-        if (thisGroupBottomNoteHead.length > 1) {
++        const thisGroupBottomNoteHead = thisGroup.correctNotes.notes.get(thisGroupBottom);
++        if (!thisGroupBottomNoteHead || thisGroupBottomNoteHead.length !== 1) {
+             return false;
+         }
+ 
+diff --git a/packages/alphatab/src/rendering/glyphs/SourceDynamicsGlyph.ts b/packages/alphatab/src/rendering/glyphs/SourceDynamicsGlyph.ts
+new file mode 100644
+index 0000000..1ee798d
+--- /dev/null
++++ b/packages/alphatab/src/rendering/glyphs/SourceDynamicsGlyph.ts
+@@ -0,0 +1,38 @@
++import type { SourceDynamic } from '@coderline/alphatab/model/Bar';
++import type { ICanvas } from '@coderline/alphatab/platform/ICanvas';
++import { DynamicsGlyph } from '@coderline/alphatab/rendering/glyphs/DynamicsGlyph';
++import { EffectGlyph } from '@coderline/alphatab/rendering/glyphs/EffectGlyph';
++
++/**
++ * One native effect band for all staff declarations in a bar. The initial beat
++ * reserves the band only; declaration timing does not belong to that beat.
++ * @internal
++ */
++export class SourceDynamicsGlyph extends EffectGlyph {
++    private _glyphs: DynamicsGlyph[] = [];
++
++    public constructor(private readonly _declarations: SourceDynamic[]) {
++        super(0, 0);
++    }
++
++    public override doLayout(): void {
++        this._glyphs = [];
++        this.height = 0;
++        for (const declaration of this._declarations) {
++            const glyph = new DynamicsGlyph(0, 0, declaration.value);
++            glyph.renderer = this.renderer;
++            glyph.doLayout();
++            this._glyphs.push(glyph);
++            this.height = Math.max(this.height, glyph.height);
++        }
++    }
++
++    public override paint(cx: number, cy: number, canvas: ICanvas): void {
++        for (let i = 0; i < this._declarations.length; i++) {
++            const glyph = this._glyphs[i];
++            glyph.x = this.renderer.getDisplayTimeX(this._declarations[i].displayStart);
++            // Intentionally ignore the carrier beat's x: this is a timed bar direction.
++            glyph.paint(cx, cy + this.y, canvas);
++        }
++    }
++}
+diff --git a/packages/alphatab/test-data/musicxml-lyrics/above-and-below-voices.musicxml b/packages/alphatab/test-data/musicxml-lyrics/above-and-below-voices.musicxml
+new file mode 100644
+index 0000000..d18c84c
+--- /dev/null
++++ b/packages/alphatab/test-data/musicxml-lyrics/above-and-below-voices.musicxml
+@@ -0,0 +1,173 @@
++<?xml version='1.0' encoding='utf-8'?>
++<score-partwise version="4.0">
++  <part-list><score-part id="P1">
++      <part-name>Soprano</part-name>
++      <part-abbreviation>S</part-abbreviation>
++      <score-instrument id="P1-I1">
++        <instrument-name>Choir</instrument-name>
++      </score-instrument>
++      <midi-instrument id="P1-I1">
++        <midi-channel>1</midi-channel>
++        <midi-program>53</midi-program>
++      </midi-instrument>
++    </score-part>
++    </part-list>
++  <part id="P1"><measure number="55">
++      <print new-system="yes"/>
++      <attributes>
++        <divisions>6</divisions><time>
++          <beats>4</beats>
++          <beat-type>4</beat-type>
++        </time>
++      <clef><sign>G</sign><line>2</line></clef></attributes>
++      <note>
++        <pitch>
++          <step>C</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>6</duration>
++        <voice>1</voice>
++        <type>quarter</type>
++        <stem>up</stem>
++        <notations><slur type="start" number="1" placement="above"/></notations><lyric number="1" placement="below"><syllabic>end</syllabic><text>lieve</text><extend type="start"/></lyric></note>
++      <note>
++        <pitch>
++          <step>D</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>12</duration>
++        <voice>1</voice>
++        <type>half</type>
++        <stem>up</stem>
++        <notations><slur type="stop" number="1" placement="above"/></notations><lyric number="1" placement="below"><extend type="stop"/></lyric></note>
++      <note>
++        <pitch>
++          <step>C</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>3</duration>
++        <voice>1</voice>
++        <type>eighth</type>
++        <stem>up</stem>
++        <beam number="1">begin</beam>
++        <lyric number="2" placement="above"><syllabic>single</syllabic><text>I</text></lyric></note>
++      <note>
++        <pitch>
++          <step>D</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>3</duration>
++        <voice>1</voice>
++        <type>eighth</type>
++        <stem>up</stem>
++        <beam number="1">end</beam>
++        <lyric number="2" placement="above"><syllabic>begin</syllabic><text>be</text></lyric></note>
++      <backup>
++        <duration>24</duration>
++      </backup>
++      <note>
++        <pitch>
++          <step>B</step>
++          <octave>4</octave>
++        </pitch>
++        <duration>12</duration>
++        <voice>2</voice>
++        <type>half</type>
++        <stem>down</stem>
++      </note>
++      <note>
++        <pitch>
++          <step>B</step>
++          <octave>4</octave>
++        </pitch>
++        <duration>6</duration>
++        <voice>2</voice>
++        <type>quarter</type>
++        <stem>down</stem>
++      <lyric number="1" placement="below"><syllabic>single</syllabic><text>I</text></lyric></note>
++      <note>
++        <pitch>
++          <step>B</step>
++          <octave>4</octave>
++        </pitch>
++        <duration>6</duration>
++        <voice>2</voice>
++        <type>quarter</type>
++        <stem>down</stem>
++      <lyric number="1" placement="below"><syllabic>begin</syllabic><text>be</text></lyric></note>
++    </measure>
++    <measure number="56">
++      <attributes>
++        <time>
++          <beats>3</beats>
++          <beat-type>4</beat-type>
++        </time>
++      </attributes>
++      <note>
++        <pitch>
++          <step>F</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>3</duration>
++        <voice>1</voice>
++        <type>eighth</type>
++        <stem>up</stem>
++        <beam number="1">begin</beam>
++        <notations><slur type="start" number="2" placement="above"/></notations><lyric number="1" placement="below"><syllabic>end</syllabic><text>lieve</text><extend type="start"/></lyric></note>
++      <note>
++        <pitch>
++          <step>E</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>3</duration>
++        <voice>1</voice>
++        <type>eighth</type>
++        <stem>up</stem>
++        <beam number="1">end</beam>
++      <lyric number="1" placement="below"><extend type="continue"/></lyric></note>
++      <note>
++        <pitch>
++          <step>C</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>6</duration>
++        <voice>1</voice>
++        <type>quarter</type>
++        <stem>up</stem>
++        <notations><slur type="stop" number="2" placement="above"/></notations><lyric number="1" placement="below"><extend type="stop"/></lyric></note>
++      <note>
++        <pitch>
++          <step>G</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>6</duration>
++        <voice>1</voice>
++        <type>quarter</type>
++        <stem>up</stem>
++      <lyric number="1" placement="below"><syllabic>single</syllabic><text>in</text></lyric></note>
++      <backup>
++        <duration>18</duration>
++      </backup>
++      <note>
++        <pitch>
++          <step>C</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>12</duration>
++        <voice>2</voice>
++        <type>half</type>
++        <stem>down</stem>
++      </note>
++      <note>
++        <pitch>
++          <step>C</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>6</duration>
++        <voice>2</voice>
++        <type>quarter</type>
++        <stem>down</stem>
++      </note>
++    </measure>
++    </part>
++</score-partwise>
+diff --git a/packages/alphatab/test-data/musicxml-lyrics/extenders.musicxml b/packages/alphatab/test-data/musicxml-lyrics/extenders.musicxml
+new file mode 100644
+index 0000000..f9ab6f5
+--- /dev/null
++++ b/packages/alphatab/test-data/musicxml-lyrics/extenders.musicxml
+@@ -0,0 +1,131 @@
++<?xml version='1.0' encoding='UTF-8'?>
++<score-partwise version="4.0">
++  <part-list>
++    <score-part id="P1">
++      <part-name>Voice</part-name>
++    </score-part>
++  </part-list>
++  <part id="P1">
++    <measure number="1">
++      <attributes>
++        <divisions>1</divisions>
++        <time>
++          <beats>4</beats>
++          <beat-type>4</beat-type>
++        </time>
++        <clef>
++          <sign>G</sign>
++          <line>2</line>
++        </clef>
++      </attributes>
++      <note>
++        <pitch>
++          <step>G</step>
++          <octave>4</octave>
++        </pitch>
++        <duration>4</duration>
++        <tie type="start"/>
++        <voice>1</voice>
++        <type>whole</type>
++        <notations>
++          <tied type="start" number="1"/>
++        </notations>
++        <lyric number="1">
++          <syllabic>single</syllabic>
++          <text>Joy</text>
++          <extend type="start"/>
++        </lyric>
++      </note>
++    </measure>
++    <measure number="2">
++      <note>
++        <pitch>
++          <step>G</step>
++          <octave>4</octave>
++        </pitch>
++        <duration>2</duration>
++        <tie type="stop"/>
++        <voice>1</voice>
++        <type>half</type>
++        <notations>
++          <tied type="stop" number="1"/>
++        </notations>
++        <lyric number="1">
++          <extend type="stop"/>
++        </lyric>
++      </note>
++      <note>
++        <pitch>
++          <step>A</step>
++          <octave>4</octave>
++        </pitch>
++        <duration>1</duration>
++        <voice>1</voice>
++        <type>quarter</type>
++        <notations>
++          <slur type="start" number="1"/>
++        </notations>
++        <lyric number="1">
++          <syllabic>single</syllabic>
++          <text>Sing</text>
++          <extend type="start"/>
++        </lyric>
++      </note>
++      <note>
++        <pitch>
++          <step>B</step>
++          <octave>4</octave>
++        </pitch>
++        <duration>1</duration>
++        <voice>1</voice>
++        <type>quarter</type>
++        <lyric number="1">
++          <extend type="continue"/>
++        </lyric>
++      </note>
++    </measure>
++    <measure number="3">
++      <note>
++        <pitch>
++          <step>C</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>2</duration>
++        <voice>1</voice>
++        <type>half</type>
++        <notations>
++          <slur type="stop" number="1"/>
++        </notations>
++        <lyric number="1">
++          <extend type="stop"/>
++        </lyric>
++      </note>
++      <note>
++        <pitch>
++          <step>D</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>1</duration>
++        <voice>1</voice>
++        <type>quarter</type>
++        <lyric number="1">
++          <syllabic>begin</syllabic>
++          <text>mu</text>
++        </lyric>
++      </note>
++      <note>
++        <pitch>
++          <step>E</step>
++          <octave>5</octave>
++        </pitch>
++        <duration>1</duration>
++        <voice>1</voice>
++        <type>quarter</type>
++        <lyric number="1">
++          <syllabic>end</syllabic>
++          <text>sic</text>
++        </lyric>
++      </note>
++    </measure>
++  </part>
++</score-partwise>
+diff --git a/packages/alphatab/test-data/musicxml-lyrics/melismatic-syllable-across-systems.musicxml b/packages/alphatab/test-data/musicxml-lyrics/melismatic-syllable-across-systems.musicxml
+new file mode 100644
+index 0000000..b893170
+--- /dev/null
++++ b/packages/alphatab/test-data/musicxml-lyrics/melismatic-syllable-across-systems.musicxml
+@@ -0,0 +1 @@
++<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><type>half</type><lyric><syllabic>begin</syllabic><text>mu</text></lyric></note><note><pitch><step>D</step><octave>5</octave></pitch><duration>2</duration><type>half</type></note></measure><measure number="2"><note><pitch><step>G</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note></measure><measure number="3"><note><pitch><step>E</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><lyric><syllabic>end</syllabic><text>sic</text></lyric></note></measure></part></score-partwise>
+\ No newline at end of file
+diff --git a/packages/alphatab/test-data/musicxml-lyrics/melismatic-syllable.musicxml b/packages/alphatab/test-data/musicxml-lyrics/melismatic-syllable.musicxml
+new file mode 100644
+index 0000000..b728fc2
+--- /dev/null
++++ b/packages/alphatab/test-data/musicxml-lyrics/melismatic-syllable.musicxml
+@@ -0,0 +1 @@
++<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type><lyric><syllabic>begin</syllabic><text>mu</text></lyric></note><note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>E</step><octave>5</octave></pitch><duration>2</duration><type>half</type><lyric><syllabic>end</syllabic><text>sic</text></lyric></note></measure></part></score-partwise>
+\ No newline at end of file
+diff --git a/packages/alphatab/test/rendering/ExplicitDynamics.test.ts b/packages/alphatab/test/rendering/ExplicitDynamics.test.ts
+new file mode 100644
+index 0000000..5efb05c
+--- /dev/null
++++ b/packages/alphatab/test/rendering/ExplicitDynamics.test.ts
+@@ -0,0 +1,125 @@
++import { BeatCloner } from '@coderline/alphatab/generated/model/BeatCloner';
++import { MusicXmlImporter } from '@coderline/alphatab/importer/MusicXmlImporter';
++import { ByteBuffer } from '@coderline/alphatab/io/ByteBuffer';
++import { DynamicValue } from '@coderline/alphatab/model/DynamicValue';
++import { JsonConverter } from '@coderline/alphatab/model/JsonConverter';
++import { MusicFontSymbol } from '@coderline/alphatab/model/MusicFontSymbol';
++import { DynamicsEffectInfo } from '@coderline/alphatab/rendering/effects/DynamicsEffectInfo';
++import { ScoreRenderer } from '@coderline/alphatab/rendering/ScoreRenderer';
++import { Settings } from '@coderline/alphatab/Settings';
++import { StaveProfile } from '@coderline/alphatab/StaveProfile';
++import { describe, expect, it } from 'vitest';
++
++const input = `<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note><note><rest/><duration>1</duration><type>quarter</type></note><note><pitch><step>D</step><octave>5</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>`;
++function load(xml = input) {
++    const settings = new Settings();
++    settings.core.engine = 'svg';
++    settings.core.enableLazyLoading = false;
++    settings.display.staveProfile = StaveProfile.Score;
++    const importer = new MusicXmlImporter();
++    importer.init(ByteBuffer.fromBuffer(new TextEncoder().encode(xml)), settings);
++    const score = importer.readScore();
++    // This caller supplies explicit source declarations after import.
++    score.stylesheet.hideDynamics = false;
++    return { score, settings };
++}
++describe('explicit source dynamic engraving', () => {
++    it('draws an exact declaration on an existing empty cross-staff time anchor', () => {
++        const xml = `<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>2</staff></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note></measure></part></score-partwise>`;
++        const { score, settings } = load(xml);
++        const empty = score.tracks[0].staves[0].bars[0].voices[0].beats[0];
++        expect(empty.isEmpty).toBe(true);
++        expect(empty.playbackStart).toBe(0);
++        for (const staff of score.tracks[0].staves) {
++            for (const voice of staff.bars[0].voices) {
++                for (const beat of voice.beats) {
++                    beat.dynamics = DynamicValue.P;
++                }
++            }
++        }
++        empty.dynamics = DynamicValue.PP;
++        empty.isDynamicsExplicit = true;
++        const renderer = new ScoreRenderer(settings),
++            svg: string[] = [];
++        renderer.width = 1000;
++        renderer.error.on(error => {
++            throw error;
++        });
++        renderer.partialRenderFinished.on(e => {
++            if (typeof e.renderResult === 'string') {
++                svg.push(e.renderResult);
++            }
++        });
++        renderer.renderScore(score, [0]);
++        expect(svg.join('').split(`&#${MusicFontSymbol.DynamicPP};`).length - 1).toBe(1);
++    });
++    it('draws a source declaration at a rest rather than carrying its glyph to the next note', () => {
++        const { score, settings } = load();
++        const beats = score.tracks[0].staves[0].bars[0].voices[0].beats;
++        for (const beat of beats) {
++            beat.dynamics = DynamicValue.P;
++        }
++        const rest = beats[1];
++        rest.dynamics = DynamicValue.PP;
++        rest.isDynamicsExplicit = true;
++        const effect = new DynamicsEffectInfo();
++        expect(effect.shouldCreateGlyph(settings, rest)).toBe(true);
++        const renderer = new ScoreRenderer(settings),
++            svg: string[] = [];
++        renderer.width = 1000;
++        renderer.error.on(error => {
++            throw error;
++        });
++        renderer.partialRenderFinished.on(e => {
++            if (typeof e.renderResult === 'string') {
++                svg.push(e.renderResult);
++            }
++        });
++        renderer.renderScore(score, [0]);
++        expect(svg.join('').split(`&#${MusicFontSymbol.DynamicPP};`).length - 1).toBe(1);
++    });
++    it('retains consecutive equal source declarations but keeps legacy suppression', () => {
++        const { score, settings } = load(input.replace('<rest/>', '<pitch><step>E</step><octave>5</octave></pitch>'));
++        const beats = score.tracks[0].staves[0].bars[0].voices[0].beats;
++        for (const beat of beats) {
++            beat.dynamics = DynamicValue.P;
++        }
++        const effect = new DynamicsEffectInfo();
++        expect(effect.shouldCreateGlyph(settings, beats[1])).toBe(false);
++        beats[1].isDynamicsExplicit = true;
++        expect(effect.shouldCreateGlyph(settings, beats[1])).toBe(true);
++        score.stylesheet.hideDynamics = true;
++        expect(effect.shouldCreateGlyph(settings, beats[1])).toBe(false);
++    });
++    it('supports a real whole-bar rest in an otherwise empty voice', () => {
++        const { score, settings } = load(
++            input.replace(
++                /<note>[\s\S]*<\/note>/,
++                '<note><rest measure="yes"/><duration>4</duration><type>whole</type></note>'
++            )
++        );
++        const rest = score.tracks[0].staves[0].bars[0].voices[0].beats[0];
++        rest.dynamics = DynamicValue.PP;
++        rest.isDynamicsExplicit = true;
++        expect(new DynamicsEffectInfo().shouldCreateGlyph(settings, rest)).toBe(true);
++    });
++    it('does not repeat an explicit rest declaration at the following note which inherits it', () => {
++        const { score, settings } = load();
++        const beats = score.tracks[0].staves[0].bars[0].voices[0].beats;
++        beats[0].dynamics = DynamicValue.P;
++        beats[1].dynamics = DynamicValue.PP;
++        beats[1].isDynamicsExplicit = true;
++        beats[2].dynamics = DynamicValue.PP;
++        const effect = new DynamicsEffectInfo();
++        expect(effect.shouldCreateGlyph(settings, beats[1])).toBe(true);
++        expect(effect.shouldCreateGlyph(settings, beats[2])).toBe(false);
++    });
++    it('preserves the declaration flag through Worker serialization and cloning', () => {
++        const { score } = load();
++        const rest = score.tracks[0].staves[0].bars[0].voices[0].beats[1];
++        rest.isDynamicsExplicit = true;
++        const copy = JsonConverter.jsObjectToScore(JsonConverter.scoreToJsObject(score));
++        expect(copy.tracks[0].staves[0].bars[0].voices[0].beats[1].isDynamicsExplicit).toBe(true);
++        expect(BeatCloner.clone(rest).isDynamicsExplicit).toBe(true);
++    });
++});
+diff --git a/packages/alphatab/test/rendering/LyricsPlacement.test.ts b/packages/alphatab/test/rendering/LyricsPlacement.test.ts
+new file mode 100644
+index 0000000..4b8928a
+--- /dev/null
++++ b/packages/alphatab/test/rendering/LyricsPlacement.test.ts
+@@ -0,0 +1,93 @@
++import { readFileSync } from 'node:fs';
++import { BeatCloner } from '@coderline/alphatab/generated/model/BeatCloner';
++import { MusicXmlImporter } from '@coderline/alphatab/importer/MusicXmlImporter';
++import { ByteBuffer } from '@coderline/alphatab/io/ByteBuffer';
++import { JsonConverter } from '@coderline/alphatab/model/JsonConverter';
++import { NotationElement } from '@coderline/alphatab/NotationSettings';
++import { ScoreRenderer } from '@coderline/alphatab/rendering/ScoreRenderer';
++import { Settings } from '@coderline/alphatab/Settings';
++import { StaveProfile } from '@coderline/alphatab/StaveProfile';
++import { describe, expect, it } from 'vitest';
++
++const xml = readFileSync('test-data/musicxml-lyrics/above-and-below-voices.musicxml', 'utf8');
++function load(input = xml) {
++    const settings = new Settings();
++    settings.core.engine = 'svg';
++    settings.core.enableLazyLoading = false;
++    settings.display.staveProfile = StaveProfile.Score;
++    const importer = new MusicXmlImporter();
++    importer.init(ByteBuffer.fromBuffer(new TextEncoder().encode(input)), settings);
++    return { score: importer.readScore(), settings };
++}
++function render(input: string, hide = false) {
++    const { score, settings } = load(input),
++        renderer = new ScoreRenderer(settings),
++        svg: string[] = [];
++    if (hide) {
++        settings.notation.elements.set(NotationElement.EffectLyrics, false);
++    }
++    renderer.width = 1000;
++    renderer.error.on(error => {
++        throw error;
++    });
++    renderer.partialRenderFinished.on(e => {
++        if (typeof e.renderResult === 'string') {
++            svg.push(e.renderResult);
++        }
++    });
++    renderer.renderScore(score, [0]);
++    const output = svg.join('');
++    // Use the actual five staff strokes: lineAlignedBounds includes effect-band
++    // whitespace here and is not a reliable staff-bottom assertion.
++    const staffYs = [...output.matchAll(/<rect x="[^"]+" y="([^"]+)" width="([^"]+)" height="([^"]+)"/g)]
++        .filter(m => Number(m[2]) > 50 && Number(m[3]) > 1 && Number(m[3]) < 2)
++        .map(m => Number(m[1]));
++    expect(new Set(staffYs).size).toBe(5);
++    return { svg: output, topLine: Math.min(...staffYs), bottomLine: Math.max(...staffYs) };
++}
++describe('source lyric above/below placement', () => {
++    it('retains authored placement independently of verse number and voice', () => {
++        const { score } = load(),
++            first = score.tracks[0].staves[0].bars[0];
++        expect(first.voices[0].beats[2].lyricElements?.[1].placement).toBe(1);
++        expect(first.voices[1].beats[1].lyricElements?.[0].placement).toBe(0);
++    });
++    it('preserves placement through Worker JSON serialization and beat cloning', () => {
++        const { score } = load(),
++            beat = score.tracks[0].staves[0].bars[0].voices[0].beats[2];
++        const copy = JsonConverter.jsObjectToScore(JsonConverter.scoreToJsObject(score));
++        expect(copy.tracks[0].staves[0].bars[0].voices[0].beats[2].lyricElements?.[1].placement).toBe(1);
++        expect(BeatCloner.clone(beat).lyricElements?.[1].placement).toBe(1);
++    });
++    it('places the upper I above the actual staff and the lower I below', () => {
++        const result = render(xml);
++        const ys = [...result.svg.matchAll(/<text[^>]* y="([^"]+)"[^>]*>I<\/text>/g)].map(m => Number(m[1]));
++        expect(ys.length).toBe(2);
++        expect(Math.min(...ys) + 12).toBeLessThan(result.topLine);
++        expect(Math.max(...ys)).toBeGreaterThan(result.bottomLine);
++    });
++    it('does not silently collapse authored above and below into identical output', () => {
++        const below = xml.replace(/(<lyric\b[^>]*placement=)"above"/g, '$1"below"');
++        expect(render(xml).svg).not.toEqual(render(below).svg);
++    });
++    it('keeps native extender geometry in the authored above lane', () => {
++        const original = readFileSync('test-data/musicxml-lyrics/extenders.musicxml', 'utf8');
++        const above = original.replace(/<lyric\b/g, '<lyric placement="above"');
++        const result = render(above);
++        const ys = [...result.svg.matchAll(/<rect x="[^"]+" y="([^"]+)" width="[^"]+" height="0.75"/g)].map(m =>
++            Number(m[1])
++        );
++        expect(ys.length).toBeGreaterThan(2);
++        expect(Math.max(...ys)).toBeLessThan(result.topLine);
++    });
++    it('respects native lyric visibility for both placement lanes', () => {
++        const output = render(xml, true).svg;
++        expect(output).not.toContain('>I</text>');
++        expect(output).not.toContain('>be</text>');
++        expect(output).not.toContain('>lieve</text>');
++    });
++    it('keeps omitted placement identical to explicit default below', () => {
++        const below = xml.replace(/(<lyric\b[^>]*placement=)"above"/g, '$1"below"');
++        expect(render(below).svg).toEqual(render(below.replace(/ placement="below"/g, '')).svg);
++    });
++});
+diff --git a/packages/alphatab/test/rendering/SharedNoteHeadSides.test.ts b/packages/alphatab/test/rendering/SharedNoteHeadSides.test.ts
+new file mode 100644
+index 0000000..70e3027
+--- /dev/null
++++ b/packages/alphatab/test/rendering/SharedNoteHeadSides.test.ts
+@@ -0,0 +1,69 @@
++import { MusicXmlImporter } from '@coderline/alphatab/importer/MusicXmlImporter';
++import { ByteBuffer } from '@coderline/alphatab/io/ByteBuffer';
++import { LayoutMode } from '@coderline/alphatab/LayoutMode';
++import { ScoreRenderer } from '@coderline/alphatab/rendering/ScoreRenderer';
++import { Settings } from '@coderline/alphatab/Settings';
++import { StaveProfile } from '@coderline/alphatab/StaveProfile';
++import { describe, expect, it } from 'vitest';
++
++const note = (pitch: string, duration: number, voice: number, stem: string) =>
++    `<note><pitch><step>${pitch}</step><octave>4</octave></pitch><duration>${duration}</duration><voice>${voice}</voice><type>${duration === 1 ? 'quarter' : 'half'}</type>${stem ? `<stem>${stem}</stem>` : ''}</note>`;
++function source(third = true, reverse = false) {
++    return `<score-partwise version="4.0"><part-list><score-part id="P"><part-name>Piano</part-name></score-part></part-list><part id="P"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>${note('G', 1, 1, reverse ? 'down' : 'up')}${note('G', 1, 1, reverse ? 'down' : 'up')}<backup><duration>2</duration></backup>${note('F', 2, 2, reverse ? 'up' : 'down')}${third ? `<backup><duration>2</duration></backup>${note('G', 2, 3, reverse ? 'up' : '')}` : ''}</measure></part></score-partwise>`;
++}
++function render(xml: string, horizontal = false) {
++    const settings = new Settings();
++    settings.core.engine = 'svg';
++    settings.core.enableLazyLoading = false;
++    settings.display.staveProfile = StaveProfile.Score;
++    if (horizontal) {
++        settings.display.layoutMode = LayoutMode.Horizontal;
++    }
++    const importer = new MusicXmlImporter();
++    importer.init(ByteBuffer.fromBuffer(new TextEncoder().encode(xml)), settings);
++    const score = importer.readScore(),
++        renderer = new ScoreRenderer(settings),
++        svg: string[] = [],
++        errors: unknown[] = [];
++    renderer.width = 800;
++    renderer.error.on(e => errors.push(e));
++    renderer.partialRenderFinished.on(e => {
++        if (typeof e.renderResult === 'string') {
++            svg.push(e.renderResult);
++        }
++    });
++    const original = score.tracks[0].staves[0].bars[0].voices.flatMap(v => v.beats.flatMap(b => b.notes));
++    expect(() => renderer.renderScore(score, [0])).not.toThrow();
++    renderer.destroy();
++    expect(errors).toEqual([]);
++    expect(svg.length).toBeGreaterThan(0);
++    expect(svg.join('')).not.toContain('NaN');
++    expect(original.length).toBeGreaterThanOrEqual(2);
++    return svg.join('');
++}
++describe('notehead sharing across correct and displaced group sides', () => {
++    for (const horizontal of [false, true]) {
++        for (const reverse of [false, true]) {
++            it(`renders displaced group extreme with ${reverse ? 'reversed' : 'normal'} stems in ${horizontal ? 'Horizontal' : 'Page'}`, () => {
++                render(source(true, reverse), horizontal);
++            });
++        }
++    }
++    it('preserves two-voice layout with no displaced third voice', () => {
++        render(source(false));
++    });
++});
++
++it('still aligns legal matching black heads on opposite stems', () => {
++    const xml = source(false)
++        .replaceAll('<duration>2</duration>', '<duration>1</duration>')
++        .replace('<beats>2</beats>', '<beats>1</beats>')
++        .replace(note('G', 1, 1, 'up') + note('G', 1, 1, 'up'), note('G', 1, 1, 'up'))
++        .replace(note('F', 2, 2, 'down'), note('G', 1, 2, 'down'));
++    const svg = render(xml);
++    const x = [...svg.matchAll(/<g transform="translate\(([^ ]+) ([^)]+)\)"[^>]*><text[^>]*>&#57508;<\/text>/g)].map(
++        m => Number(m[1])
++    );
++    expect(x.length).toBeGreaterThan(0);
++    expect(new Set(x).size).toBe(1);
++});
+diff --git a/packages/alphatab/test/rendering/SourceDynamicsPlacement.test.ts b/packages/alphatab/test/rendering/SourceDynamicsPlacement.test.ts
+new file mode 100644
+index 0000000..679682b
+--- /dev/null
++++ b/packages/alphatab/test/rendering/SourceDynamicsPlacement.test.ts
+@@ -0,0 +1,97 @@
++import { MusicXmlImporter } from '@coderline/alphatab/importer/MusicXmlImporter';
++import { ByteBuffer } from '@coderline/alphatab/io/ByteBuffer';
++import { SourceDynamic } from '@coderline/alphatab/model/Bar';
++import { DynamicValue } from '@coderline/alphatab/model/DynamicValue';
++import { JsonConverter } from '@coderline/alphatab/model/JsonConverter';
++import { MusicFontSymbol } from '@coderline/alphatab/model/MusicFontSymbol';
++import { NotationElement } from '@coderline/alphatab/NotationSettings';
++import { ScoreRenderer } from '@coderline/alphatab/rendering/ScoreRenderer';
++import { Settings } from '@coderline/alphatab/Settings';
++import { StaveProfile } from '@coderline/alphatab/StaveProfile';
++import { describe, expect, it } from 'vitest';
++const xml =
++    '<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>8</duration><voice>1</voice><type>whole</type><staff>1</staff></note><backup><duration>8</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>6</duration><voice>2</voice><type>half</type><dot/><staff>2</staff></note><note><pitch><step>D</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><staff>2</staff></note><note><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><staff>2</staff></note></measure></part></score-partwise>';
++function load() {
++    const settings = new Settings();
++    settings.core.engine = 'svg';
++    settings.core.enableLazyLoading = false;
++    settings.display.staveProfile = StaveProfile.Score;
++    const imp = new MusicXmlImporter();
++    imp.init(ByteBuffer.fromBuffer(new TextEncoder().encode(xml)), settings);
++    const score = imp.readScore();
++    score.stylesheet.hideDynamics = false;
++    score.tracks[0].staves[1].bars[0].sourceDynamics = [];
++    return { score, settings };
++}
++function declarations(above = true): SourceDynamic[] {
++    return [
++        Object.assign(new SourceDynamic(), { displayStart: 2880, value: DynamicValue.PP, placement: above ? 1 : 0 }),
++        Object.assign(new SourceDynamic(), { displayStart: 3360, value: DynamicValue.MP, placement: 0 })
++    ];
++}
++function render(marks = declarations(), hidden: 'stylesheet' | 'notation' | null = null) {
++    const { score, settings } = load();
++    score.tracks[0].staves[0].bars[0].sourceDynamics = marks;
++    if (hidden === 'stylesheet') { score.stylesheet.hideDynamics = true; }
++    if (hidden === 'notation') { settings.notation.elements.set(NotationElement.EffectDynamics, false); }
++    const r = new ScoreRenderer(settings),
++        svg: string[] = [];
++    r.width = 1000;
++    r.error.on(e => {
++        throw e;
++    });
++    r.partialRenderFinished.on(e => {
++        if (typeof e.renderResult === 'string') { svg.push(e.renderResult); }
++    });
++    r.renderScore(score, [0]);
++    return svg.join('');
++}
++function symbolY(svg: string, symbol: MusicFontSymbol) {
++    const matches = [
++        ...svg.matchAll(
++            new RegExp(`<g transform="translate\\([^ ]+ ([^)]+)\\)"[^>]*><text[^>]*>&#${symbol};<\\/text>`, 'g')
++        )
++    ];
++    expect(matches.length).toBe(1);
++    return Number(matches[0][1]);
++}
++describe('source dynamic above/below native lanes', () => {
++    it('retains explicit placement through Worker JSON', () => {
++        const { score } = load(),
++            bar = score.tracks[0].staves[0].bars[0];
++        bar.sourceDynamics = declarations();
++        const copy = JsonConverter.jsObjectToScore(JsonConverter.scoreToJsObject(score));
++        expect(copy.tracks[0].staves[0].bars[0].sourceDynamics).toEqual(bar.sourceDynamics);
++    });
++    it('places PP above RH and MP between staves with no RH beat at those times', () => {
++        const { score } = load();
++        expect(score.tracks[0].staves[0].bars[0].voices[0].beats.some(b => [2880, 3360].includes(b.displayStart))).toBe(
++            false
++        );
++        const svg = render(),
++            ys = [...svg.matchAll(/<rect x="[^"]+" y="([^"]+)" width="([^"]+)" height="([^"]+)"/g)]
++                .filter(m => Number(m[2]) > 50 && Number(m[3]) > 1 && Number(m[3]) < 2)
++                .map(m => Number(m[1])),
++            lines = [...new Set(ys)].sort((a, b) => a - b);
++        expect(lines.length).toBe(10);
++        expect(symbolY(svg, MusicFontSymbol.DynamicPP)).toBeLessThan(lines[0]);
++        expect(symbolY(svg, MusicFontSymbol.DynamicMP)).toBeGreaterThan(lines[4]);
++        expect(symbolY(svg, MusicFontSymbol.DynamicMP)).toBeLessThan(lines[5]);
++    });
++    it('does not collapse authored above into below output', () => {
++        expect(render()).not.toEqual(render(declarations(false)));
++    });
++    it.each(['stylesheet', 'notation'] as const)('respects %s hiding in both lanes', hidden => {
++        const svg = render(declarations(), hidden);
++        expect(svg).not.toContain(`&#${MusicFontSymbol.DynamicPP};`);
++        expect(svg).not.toContain(`&#${MusicFontSymbol.DynamicMP};`);
++    });
++    it('keeps omitted placement identical to explicit below', () => {
++        const omitted = declarations(false).map(d => {
++            const copy = { ...d };
++            delete copy.placement;
++            return copy;
++        });
++        expect(render(omitted)).toEqual(render(declarations(false)));
++    });
++});
+diff --git a/packages/alphatab/test/rendering/TimedDynamics.test.ts b/packages/alphatab/test/rendering/TimedDynamics.test.ts
+new file mode 100644
+index 0000000..372e9bc
+--- /dev/null
++++ b/packages/alphatab/test/rendering/TimedDynamics.test.ts
+@@ -0,0 +1,114 @@
++import { MusicXmlImporter } from '@coderline/alphatab/importer/MusicXmlImporter';
++import { ByteBuffer } from '@coderline/alphatab/io/ByteBuffer';
++import { DynamicValue } from '@coderline/alphatab/model/DynamicValue';
++import { JsonConverter } from '@coderline/alphatab/model/JsonConverter';
++import { MusicFontSymbol } from '@coderline/alphatab/model/MusicFontSymbol';
++import { ScoreRenderer } from '@coderline/alphatab/rendering/ScoreRenderer';
++import { Settings } from '@coderline/alphatab/Settings';
++import { StaveProfile } from '@coderline/alphatab/StaveProfile';
++import { describe, expect, it } from 'vitest';
++
++// Held RH and a new LH eighth at q3.5: no RH beat exists for that direction.
++const xml = `<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>8</duration><voice>1</voice><type>whole</type><staff>1</staff></note><backup><duration>8</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>6</duration><voice>2</voice><type>half</type><dot/><staff>2</staff></note><note><pitch><step>D</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><staff>2</staff></note><note><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><staff>2</staff></note></measure></part></score-partwise>`;
++function load() {
++    const settings = new Settings();
++    settings.core.engine = 'svg';
++    settings.core.enableLazyLoading = false;
++    settings.display.staveProfile = StaveProfile.Score;
++    const importer = new MusicXmlImporter();
++    importer.init(ByteBuffer.fromBuffer(new TextEncoder().encode(xml)), settings);
++    const score = importer.readScore();
++    score.stylesheet.hideDynamics = false;
++    return { score, settings };
++}
++describe('timed source dynamics independent of beat anchors', () => {
++    it.each([420, 1000])('uses shared nonlinear spring timing at width %i, with held-note interpolation', width => {
++        const { score, settings } = load();
++        const [rh, lh] = score.tracks[0].staves.map(s => s.bars[0]);
++        rh.sourceDynamics = [{ displayStart: 3360, value: DynamicValue.MP }];
++        const renderer = new ScoreRenderer(settings);
++        renderer.width = width;
++        renderer.error.on(e => {
++            throw e;
++        });
++        renderer.renderScore(score, [0]);
++        const right = renderer.layout!.getRendererForBar('score', rh)!;
++        const left = renderer.layout!.getRendererForBar('score', lh)!;
++        const attack = lh.voices.flatMap(v => v.beats).find(b => b.playbackStart === 3360)!;
++        const container = left.getBeatContainer(attack)!;
++        // Match the native DynamicsEffectInfo on-time anchor (not the notehead left edge).
++        expect(right.getDisplayTimeX(3360)).toBeCloseTo(left.beatGlyphsStart + container.x + container.onTimeX, 7);
++        const start = right.getDisplayTimeX(2880),
++            end = right.getDisplayTimeX(3360);
++        expect(right.getDisplayTimeX(3120)).toBeCloseTo((start + end) / 2, 7);
++        expect(right.getDisplayTimeX(3840)).toBeCloseTo(right.postBeatGlyphsStart, 7);
++        const oldX = right.getDisplayTimeX(3360);
++        right.scaleToWidth(width);
++        left.scaleToWidth(width);
++        expect(right.getDisplayTimeX(3360)).not.toBeCloseTo(oldX, 2);
++        expect(right.getDisplayTimeX(3360)).toBeCloseTo(left.beatGlyphsStart + container.x + container.onTimeX, 7);
++        expect(right.getDisplayTimeX(3120)).toBeCloseTo(
++            (right.getDisplayTimeX(2880) + right.getDisplayTimeX(3360)) / 2,
++            7
++        );
++        expect(right.getDisplayTimeX(3840)).toBeCloseTo(right.postBeatGlyphsStart, 7);
++    });
++    it('supports repeated equal and rest-time declarations, and respects global hiding', () => {
++        const { score, settings } = load();
++        const rh = score.tracks[0].staves[0].bars[0];
++        rh.sourceDynamics = [
++            { displayStart: 0, value: DynamicValue.PP },
++            { displayStart: 3360, value: DynamicValue.PP }
++        ];
++        const renderer = new ScoreRenderer(settings),
++            svg: string[] = [];
++        renderer.width = 1000;
++        renderer.error.on(e => {
++            throw e;
++        });
++        renderer.partialRenderFinished.on(e => {
++            if (typeof e.renderResult === 'string') {
++                svg.push(e.renderResult);
++            }
++        });
++        renderer.renderScore(score, [0]);
++        expect(svg.join('').split(`&#${MusicFontSymbol.DynamicPP};`).length - 1).toBe(2);
++        svg.length = 0;
++        score.stylesheet.hideDynamics = true;
++        renderer.renderScore(score, [0]);
++        expect(svg.join('').split(`&#${MusicFontSymbol.DynamicPP};`).length - 1).toBe(0);
++    });
++
++    it('engraves a RH declaration at q3.5 without inventing or moving any beat', () => {
++        const { score, settings } = load();
++        const rh = score.tracks[0].staves[0].bars[0];
++        expect(rh.voices.flatMap(v => v.beats).some(b => b.playbackStart === 3360)).toBe(false);
++        const before = JsonConverter.scoreToJsObject(score);
++        Object.assign(rh, { sourceDynamics: [{ displayStart: 3360, value: DynamicValue.MP }] });
++        const renderer = new ScoreRenderer(settings),
++            svg: string[] = [];
++        renderer.width = 1000;
++        renderer.error.on(e => {
++            throw e;
++        });
++        renderer.partialRenderFinished.on(e => {
++            if (typeof e.renderResult === 'string') {
++                svg.push(e.renderResult);
++            }
++        });
++        renderer.renderScore(score, [0]);
++        expect(svg.join('').split(`&#${MusicFontSymbol.DynamicMP};`).length - 1).toBe(1);
++        Object.assign(rh, { sourceDynamics: null });
++        expect(JsonConverter.scoreToJsObject(score)).toEqual(before);
++    });
++    it('retains all declaration times and values through Worker serialization', () => {
++        const { score } = load();
++        const declarations = [
++            { displayStart: 0, value: DynamicValue.PP },
++            { displayStart: 3360, value: DynamicValue.MP }
++        ];
++        Object.assign(score.tracks[0].staves[0].bars[0], { sourceDynamics: declarations });
++        const copy = JsonConverter.jsObjectToScore(JsonConverter.scoreToJsObject(score));
++        expect(copy.tracks[0].staves[0].bars[0].sourceDynamics).toEqual(declarations);
++    });
++});
+diff --git a/packages/alphatab/test/rendering/TypedLyrics.test.ts b/packages/alphatab/test/rendering/TypedLyrics.test.ts
+new file mode 100644
+index 0000000..dff92c9
+--- /dev/null
++++ b/packages/alphatab/test/rendering/TypedLyrics.test.ts
+@@ -0,0 +1,158 @@
++import { readFileSync } from 'node:fs';
++import { MusicXmlImporter } from '@coderline/alphatab/importer/MusicXmlImporter';
++import { ByteBuffer } from '@coderline/alphatab/io/ByteBuffer';
++import { JsonConverter } from '@coderline/alphatab/model/JsonConverter';
++import { MeasuredText } from '@coderline/alphatab/platform/ICanvas';
++import { FontSizes } from '@coderline/alphatab/platform/svg/FontSizes';
++import { LyricsGlyph } from '@coderline/alphatab/rendering/glyphs/LyricsGlyph';
++import { ScoreRenderer } from '@coderline/alphatab/rendering/ScoreRenderer';
++import { Settings } from '@coderline/alphatab/Settings';
++import { StaveProfile } from '@coderline/alphatab/StaveProfile';
++import { describe, expect, it, vi } from 'vitest';
++
++const input = readFileSync('test-data/musicxml-lyrics/extenders.musicxml', 'utf8');
++function load(xml: string, settings = new Settings()) {
++    const importer = new MusicXmlImporter();
++    importer.init(ByteBuffer.fromBuffer(new TextEncoder().encode(xml)), settings);
++    return importer.readScore();
++}
++function render(xml: string, rows = false) {
++    const settings = new Settings();
++    settings.core.engine = 'svg';
++    settings.core.enableLazyLoading = false;
++    settings.display.staveProfile = StaveProfile.Score;
++    if (rows) {
++        settings.display.barsPerRow = 1;
++    }
++    const score = load(xml, settings),
++        renderer = new ScoreRenderer(settings),
++        svg: string[] = [];
++    renderer.width = 1000;
++    renderer.partialRenderFinished.on(e => {
++        if (typeof e.renderResult === 'string') {
++            svg.push(e.renderResult);
++        }
++    });
++    renderer.renderScore(score, [0]);
++    return svg;
++}
++const control = input.replace(/<extend[^>]*\/>/g, '');
++describe('typed source lyrics native layout', () => {
++    it('retains source extension endpoints and syllabic independently from ties/slurs', () => {
++        const score = load(input),
++            bars = score.tracks[0].staves[0].bars;
++        expect(bars[0].voices[0].beats[0].lyricElements?.[0].extension).toBe(1);
++        expect(bars[1].voices[0].beats[0].lyricElements?.[0].extension).toBe(3);
++        expect(bars[1].voices[0].beats[1].lyricElements?.[0].extension).toBe(1);
++        expect(bars[2].voices[0].beats[1].lyricElements?.[0].syllabic).toBe(1);
++        expect(bars[2].voices[0].beats[2].lyricElements?.[0].syllabic).toBe(3);
++    });
++    it('survives worker JSON serialization', () => {
++        const score = load(input);
++        const copy = JsonConverter.jsObjectToScore(JsonConverter.scoreToJsObject(score));
++        expect(copy.tracks[0].staves[0].bars[0].voices[0].beats[0].lyricElements?.[0].extension).toBe(1);
++    });
++    it('draws real source extender geometry rather than adding underscore text', () => {
++        expect(render(input)).not.toEqual(render(control));
++        expect(render(input).join('')).not.toContain('Joy_');
++    });
++    it('keeps a source span across a note with no redundant continue element', () => {
++        const sparse = input.replace(/<lyric number="1">\s*<extend type="continue"\/>\s*<\/lyric>/, '');
++        expect(sparse).not.toBe(input);
++        expect(render(sparse)).toEqual(render(input));
++    });
++    it('does not infer a lyric line from a pitch tie or a slur', () => {
++        const score = load(control);
++        for (const bar of score.tracks[0].staves[0].bars) {
++            for (const beat of bar.voices[0].beats) {
++                expect(LyricsGlyph.hasIncomingExtension(beat)).toBe(false);
++            }
++        }
++    });
++    it('renders syllabic hyphens separately from same-word extenders', () => {
++        const noSyllabic = input.replace(/<syllabic>(?:begin|end)<\/syllabic>/g, '');
++        expect(render(noSyllabic)).not.toEqual(render(input));
++    });
++    it('keeps a syllabic hyphen when the following syllable starts a new system', () => {
++        const split = `<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><rest/><duration>2</duration><type>half</type></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><type>half</type><lyric><syllabic>begin</syllabic><text>re</text></lyric></note></measure><measure number="2"><note><pitch><step>D</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><lyric><syllabic>end</syllabic><text>plied</text></lyric></note></measure></part></score-partwise>`;
++        const untyped = split.replace(/<syllabic>(?:begin|end)<\/syllabic>/g, '');
++        expect(render(split, true)).not.toEqual(render(untyped, true));
++    });
++    it('links a syllabic word across intervening notes without lyric text', () => {
++        const xml = readFileSync('test-data/musicxml-lyrics/melismatic-syllable.musicxml', 'utf8');
++        const untyped = xml.replace(/<syllabic>(?:begin|middle|end)<\/syllabic>/g, '');
++        expect(render(xml)).not.toEqual(render(untyped));
++    });
++    it('retains a syllabic span through a full blank-lyric system', () => {
++        const xml = readFileSync('test-data/musicxml-lyrics/melismatic-syllable-across-systems.musicxml', 'utf8');
++        const untyped = xml.replace(/<syllabic>(?:begin|middle|end)<\/syllabic>/g, '');
++        const typedRows = render(xml, true),
++            plainRows = render(untyped, true);
++        expect(typedRows.filter((row, i) => row !== plainRows[i]).length).toBe(2);
++    });
++    it('joins contiguous melisma segments without notehead-width gaps', () => {
++        const lines = [
++            ...render(input)
++                .join('')
++                .matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="0.75"/g)
++        ].map(m => ({ x: Number(m[1]), y: Number(m[2]), width: Number(m[3]) }));
++        expect(
++            lines.some(a => lines.some(b => a !== b && a.y === b.y && Math.abs(a.x + a.width - b.x) < 0.000001))
++        ).toBe(true);
++    });
++    it('ends an implicit legacy extension before the next printed word', () => {
++        const legacy = input.replace('<extend type="start"/>', '<extend/>').replace('<extend type="stop"/>', '');
++        const lines = [
++            ...render(legacy)
++                .join('')
++                .matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="0.75"/g)
++        ].map(m => ({ x: Number(m[1]), y: Number(m[2]), width: Number(m[3]) }));
++        const parsed = render(legacy).join('');
++        const word = /<text[^>]*x="([^"]+)"[^>]*>Sing<\/text>/.exec(parsed);
++        expect(word).not.toBeNull();
++        const x = Number(word![1]);
++        expect(lines.filter(l => l.x < x).every(l => l.x + l.width < x)).toBe(true);
++    });
++    it('keeps two numbered verses and their native lyric lanes separate', () => {
++        const two = input.replace(
++            /<lyric number="1">[\s\S]*?<\/lyric>/g,
++            lyric => lyric + lyric.replace('number="1"', 'number="2"').replace('Joy', 'Love').replace('Sing', 'Peace')
++        );
++        const score = load(two);
++        const first = score.tracks[0].staves[0].bars[0].voices[0].beats[0];
++        expect(first.lyrics).toEqual(['Joy', 'Love']);
++        expect(first.lyricElements?.map(e => e.extension)).toEqual([1, 1]);
++        const svg = render(two).join('');
++        expect(svg).toContain('Love');
++        expect(svg).toContain('Peace');
++        expect(svg).not.toBe(render(input).join(''));
++    });
++    it('keeps the stop note covered while clearing the following lyric', () => {
++        const implicitEndAtNewWord = input.replace('<extend type="stop"/>', '');
++        expect(render(input)).toEqual(render(implicitEndAtNewWord));
++    });
++    it('keeps the extender baseline stable when browser space has no ink height', () => {
++        const original = FontSizes.measureString;
++        const measure = vi.spyOn(FontSizes, 'measureString').mockImplementation((text, ...args) => {
++            const result = original(text, ...args);
++            return new MeasuredText(result.width, text.trim() ? 9 : 0);
++        });
++        try {
++            const extenders = [
++                ...render(input)
++                    .join('')
++                    .matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="0.75"/g)
++            ].filter(m => Number(m[3]) > 4);
++            expect(extenders.length).toBeGreaterThan(2);
++            expect(new Set(extenders.map(m => m[2])).size).toBe(1);
++        } finally {
++            measure.mockRestore();
++        }
++    });
++    it('splits native extension geometry across actual systems', () => {
++        const a = render(input, true),
++            b = render(control, true);
++        expect(a.length).toBe(b.length);
++        expect(a.filter((x, i) => x !== b[i]).length).toBeGreaterThanOrEqual(2);
++    });
++});
