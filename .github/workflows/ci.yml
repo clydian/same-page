@@ -245,7 +245,9 @@ jobs:
         timeout-minutes: 5
         run: bash .github/scripts/install-browsers.sh
       - name: Real browser Worker storage smoke
-        timeout-minutes: 5
+        # The full suite includes MusicXML offline cold starts; a passing shard
+        # can take just over five minutes. Keep runner headroom without dropping tests.
+        timeout-minutes: 6
         run: node scripts/run-browser-tests.mjs smoke "${{ needs.scope.outputs.browserGroup }}" "${{ matrix.shard }}/2"
       - name: Preserve synthetic test evidence
         if: always()
