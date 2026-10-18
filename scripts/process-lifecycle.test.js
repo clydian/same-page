@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
+import { readFile } from "node:fs/promises";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,7 +30,15 @@ it("cleans a descendant even after its launcher exits", async () => {
   await new Promise((resolve) => child.once("exit", resolve));
   try {
     await stopChildProcessTree(child, 300);
-    expect(() => process.kill(pid, 0)).toThrow();
+    try {
+      process.kill(pid, 0);
+      // A container's PID 1 may not reap an orphan promptly. kill(pid, 0)
+      // still sees its zombie PID; the descendant must no longer execute.
+      if (process.platform !== "linux") throw new Error("descendant is still present");
+      expect(await readFile(`/proc/${pid}/status`, "utf8")).toMatch(/^State:\s+Z\b/m);
+    } catch (error) {
+      if (!["ESRCH", "ENOENT"].includes(error.code)) throw error;
+    }
   } finally {
     try { process.kill(pid, "SIGKILL"); } catch { /* already stopped */ }
   }

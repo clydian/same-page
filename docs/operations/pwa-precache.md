@@ -55,3 +55,31 @@ hook 失败。Apple XNU 的进程组信号路径过滤 zombie，组仍注册但�
 继续原有有界等待；真正的 SIGTERM / SIGKILL 权限拒绝仍然抛错，不降级为清理
 成功。新增回归以真实独立进程注入终止后的一次探针拒绝，并另行验证真实终止
 信号拒绝继续失败。该辅助修复不进入生产 Worker，也不放宽浏览器行为断言。
+
+## 版本隔离与缓存缺失恢复
+
+应用壳现使用 injectManifest 的独立版本缓存，名称为
+`same-page-shell-v1:<编码scope>:<build>:<manifest摘要>`。该格式不匹配旧
+Workbox 的 `-precache-` 与原始 scope 清理选择器；新 worker 不调用旧式通用
+cache cleanup。`shell-manifest.json` 是构建审计产物，每项有精确 SHA-256、
+字节数和revision。规范根路径 `/` 使用 index.html 的内容与revision，避免
+把 `/index.html` 跟随307后的响应直接用于导航。
+
+安装和激活检查完整清单，受损缓存按精确摘要修复；无法修复时只使用完整、
+校验通过的保留版本，或返回可手动重试的页面。接口及OAuth仍直接到Worker，
+缺失静态模块不转成HTML。保留版本和旧Workbox静态缓存可供尚在使用旧HTML的
+页面取回带hash资产；不强刷读谱/编辑页面，不写业务IndexedDB。
+
+只有本机制拥有的缓存参与回收。worker身份与页面版本探测保护active、waiting、
+installing和在用版本；未知/挂起客户端否决回收。短Web Lock及安装租约防止回收
+与重装同一版本竞争；缺少该API时保守不回收。额外保留一个完整rollback版本，
+已激活版本有24小时历史/BFCache宽限。安装容量上限为四份7MiB清单；引用、宽限
+或配额不足时暂停新安装，保留当前可用壳与既有waiting更新。此上限只约束应用壳，
+不会以清谱面、笔记、草稿或待同步操作换取空间。旧Workbox缓存不自动删除，
+避免迁移时破坏无法识别的旧客户端；退役旧worker后不再向它增长写入。
+
+`test:pwa-update` 保留原自动重启/明确安全交接和动画回归，另验证旧共享缓存
+A/B与新C交错时两种激活方式、完整manifest、真实Chromium配额失败及重试、
+壳缺失恢复、API排除、Back、离线与重连。WebKit因不提供后台worker执行上下文，
+最终C交接通过真实明确更新协议验证；自然后台激活由Chromium覆盖。桌面WebKit
+不代表真实iOS/Safari/PWA验收。详见ADR-0020。

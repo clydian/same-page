@@ -1,0 +1,83 @@
+{
+  "source": "controlled synthetic HTTP delay; historical source reconstructions; not the user phone incident",
+  "versions": [
+    {
+      "build": "8e9f83de16f108886315c163a3e45d7ed6233e08",
+      "runId": "38926336100",
+      "indexKey": "/index.html?__WB_REVISION__=148fd0aec3c1e34e6e861c725a2befc9"
+    },
+    {
+      "build": "4eb296efae28e4767dae4b7d9c2583d6e85e1232",
+      "runId": "39047737550",
+      "indexKey": "/index.html?__WB_REVISION__=0f4355b26dcc3b154943182c04412a04"
+    },
+    {
+      "build": "6975f25b3ed6b9926b8255ba18d5dedb382689ac",
+      "runId": "39058222316",
+      "indexKey": "/index.html?__WB_REVISION__=3cce50d5c3a1ebffa1b6aba54c2810ca"
+    }
+  ],
+  "events": [
+    {
+      "worker": "B",
+      "event": "index-put",
+      "name": "workbox-precache-v2-http://127.0.0.1:44321/",
+      "url": "http://127.0.0.1:44321/index.html?__WB_REVISION__=0f4355b26dcc3b154943182c04412a04",
+      "status": 200,
+      "redirected": false,
+      "time": 1792283213257,
+      "utc": "2026-10-18T00:26:53.257000+00:00"
+    },
+    {
+      "worker": "B",
+      "event": "activate",
+      "time": 1792283214803,
+      "utc": "2026-10-18T00:26:54.803000+00:00"
+    },
+    {
+      "worker": "B",
+      "event": "cache-entry-delete",
+      "name": "workbox-precache-v2-http://127.0.0.1:44321/",
+      "url": "http://127.0.0.1:44321/index.html?__WB_REVISION__=148fd0aec3c1e34e6e861c725a2befc9",
+      "time": 1792283214807,
+      "utc": "2026-10-18T00:26:54.807000+00:00"
+    },
+    {
+      "worker": "B",
+      "event": "cache-entry-delete",
+      "name": "workbox-precache-v2-http://127.0.0.1:44321/",
+      "url": "http://127.0.0.1:44321/index.html?__WB_REVISION__=3cce50d5c3a1ebffa1b6aba54c2810ca",
+      "time": 1792283214824,
+      "utc": "2026-10-18T00:26:54.824000+00:00"
+    },
+    {
+      "worker": "C",
+      "event": "index-put",
+      "name": "workbox-precache-v2-http://127.0.0.1:44321/",
+      "url": "http://127.0.0.1:44321/index.html?__WB_REVISION__=3cce50d5c3a1ebffa1b6aba54c2810ca",
+      "status": 200,
+      "redirected": false,
+      "time": 1792283213638,
+      "utc": "2026-10-18T00:26:53.638000+00:00"
+    },
+    {
+      "worker": "C",
+      "event": "activate",
+      "time": 1792283216083,
+      "utc": "2026-10-18T00:26:56.083000+00:00"
+    },
+    {
+      "worker": "C",
+      "event": "cache-entry-delete",
+      "name": "workbox-precache-v2-http://127.0.0.1:44321/",
+      "url": "http://127.0.0.1:44321/index.html?__WB_REVISION__=0f4355b26dcc3b154943182c04412a04",
+      "time": 1792283216087,
+      "utc": "2026-10-18T00:26:56.087000+00:00"
+    }
+  ],
+  "outcome": {
+    "scenario": "three-version-overlap",
+    "label": "C-navigation",
+    "error": "page.goto: net::ERR_FAILED at http://127.0.0.1:44321/about?three-version=1\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:44321/about?three-version=1\", waiting until \"load\"\u001b[22m\n"
+  }
+}

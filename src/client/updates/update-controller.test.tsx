@@ -85,6 +85,17 @@ describe("update lifecycle feedback", () => {
     expect(screen.getByText("更新已准备好")).toBeInTheDocument();
   });
 
+  it("preserves an already waiting release when a newer installer fails", async () => {
+    const waiting = worker();
+    Object.assign(registration, { waiting });
+    start();
+    let newer!: ServiceWorker;
+    await act(async () => { newer = install(); });
+    act(() => { Object.assign(registration, { installing: null }); state(newer, "redundant"); });
+    expect(screen.getByText("更新已准备好")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
+  });
+
   it("allows immediate retry after install failure even if update() has not settled", async () => {
     const pending = deferred(); update.mockReturnValueOnce(pending.promise);
     start();
@@ -166,6 +177,19 @@ describe("update lifecycle feedback", () => {
       ports[1].onmessage?.(new MessageEvent("message", { data: { safe: true } }));
     });
     expect(screen.getByText("正在应用更新…")).toBeInTheDocument();
+  });
+
+  it("distinguishes unavailable shell resources from another window veto", async () => {
+    let port!: { onmessage?: (event: MessageEvent) => void; close: () => void };
+    vi.stubGlobal("MessageChannel", class {
+      port1 = { close: vi.fn() }; port2 = {};
+      constructor() { port = this.port1; }
+    });
+    Object.assign(registration, { waiting: worker() });
+    start(); await act(async () => {});
+    act(() => { controller.apply(); port.onmessage?.(new MessageEvent("message", { data: { safe: false, reason: "incomplete" } })); });
+    expect(screen.getByText("更新资源暂不可用，请联网后重试")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
   });
 
   it("reports a handover timeout and ignores its late acknowledgment", async () => {
