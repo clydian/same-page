@@ -152,7 +152,10 @@ export class ShellRuntime {
     if (!this.repair) this.repair = (async () => {
       const record = await this.current;
       await this.check(record, true, true, signal);
-      record.complete = true; await this.save(record);
+      // Readiness of an already installed shell depends on verified bytes,
+      // not on spare quota for refreshing its bookkeeping. Installation still
+      // requires its registry commit before the candidate can become waiting.
+      record.complete = true; await this.save(record).catch(() => undefined);
     })().finally(() => { this.repair = undefined; });
     return this.repair;
   }

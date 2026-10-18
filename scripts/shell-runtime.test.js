@@ -168,3 +168,14 @@ it('reuses legacy bytes only after matching the new integrity, without retaining
   await caches.delete('workbox-precache-v2-' + origin);
   expect(await complete(c)).toBe(true);
 });
+
+it('serves a fully verified installed shell when quota prevents refreshing its registry', async () => {
+  const c = await release('C');
+  const registry = await caches.open(c.registryName);
+  vi.spyOn(registry, 'put').mockRejectedValue(new DOMException('quota', 'QuotaExceededError'));
+  server.clear();
+  const response = await c.navigation();
+  expect(response.status).toBe(200);
+  expect(await response.text()).toContain('content="C"');
+  vi.restoreAllMocks();
+});
