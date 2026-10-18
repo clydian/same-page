@@ -59,7 +59,11 @@ scope.addEventListener('fetch', event => {
     if (url.pathname === new URL('index.html', scope.registration.scope).pathname) {
       const canonical = new URL(scope.registration.scope); canonical.search = url.search;
       event.respondWith(Promise.resolve(Response.redirect(canonical.href, 307)));
-    } else event.respondWith(runtime.navigation());
+    } else {
+      const response = runtime.navigation();
+      event.respondWith(response);
+      event.waitUntil(response.then(() => runtime.auditAfterNavigation()));
+    }
   }
 
 });

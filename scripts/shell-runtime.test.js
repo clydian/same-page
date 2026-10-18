@@ -26,11 +26,11 @@ beforeEach(() => {
   scope = { navigator: { locks: { request: (_name, action) => { const next = tail.then(action); tail = next.catch(() => undefined); return next; } } }, location: { origin: origin.slice(0, -1) }, registration: { scope: origin, active: null, waiting: null, installing: null }, clients: { matchAll: async () => [] } };
   vi.stubGlobal('fetch', vi.fn(async request => { const body = server.get(request.url); if (body === undefined) throw new TypeError('offline'); return new Response(body, { headers: { 'Content-Type': request.url.endsWith('.js') ? 'text/javascript' : 'text/html' } }); }));
 });
-async function release(id, bytes = 32) {
+async function release(id, bytes = 32, scriptCount = 1) {
   const html = `<meta name="same-page-build-id" content="${id}">`;
-  const script = `/* ${id} */`;
-  const entries = await Promise.all([['/', html], [`/assets/main-${id}.js`, script]].map(async ([url, text]) => ({ url, revision: id, bytes, integrity: `sha256-${await digest(new TextEncoder().encode(text))}` })));
-  server.set(origin, html); server.set(origin + `assets/main-${id}.js`, script);
+  const files = [['/', html], ...Array.from({ length: scriptCount }, (_, index) => [`/assets/main-${id}${index ? '-' + index : ''}.js`, `/* ${id}${index ? '-' + index : ''} */`])];
+  const entries = await Promise.all(files.map(async ([url, text]) => ({ url, revision: id, bytes, integrity: `sha256-${await digest(new TextEncoder().encode(text))}` })));
+  for (const [url, text] of files) server.set(new URL(url, origin).href, text);
   const runtime = new ShellRuntime(scope, entries, id); await runtime.install();
   return runtime;
 }
@@ -44,7 +44,7 @@ it('isolates overlapping installers from both legacy revision pruning and legacy
   const b = await release('B'), c = await release('C');
   const legacyName = 'workbox-precache-v2-' + origin;
   await caches.open(legacyName);
-  for (const name of await caches.keys()) if (name.includes('-precache-') && name.includes(origin) && name !== legacyName) await caches.delete(name);
+  for (const name of await caches.keys()) if (name.startsWith('workbox-') && name.includes('-precache-') && name.endsWith(origin) && name !== legacyName) await caches.delete(name);
   expect(await complete(b)).toBe(true); expect(await complete(c)).toBe(true);
   expect((await c.identity).cacheName).not.toContain('-precache-');
   expect((await c.identity).cacheName).not.toContain(origin);
@@ -171,11 +171,56 @@ it('reuses legacy bytes only after matching the new integrity, without retaining
 
 it('serves a fully verified installed shell when quota prevents refreshing its registry', async () => {
   const c = await release('C');
+  scope.registration.active = target(() => c.identity);
+  await c.activate();
   const registry = await caches.open(c.registryName);
   vi.spyOn(registry, 'put').mockRejectedValue(new DOMException('quota', 'QuotaExceededError'));
   server.clear();
+  await c.auditAfterNavigation();
+  expect(registry.put).toHaveBeenCalled();
   const response = await c.navigation();
   expect(response.status).toBe(200);
   expect(await response.text()).toContain('content="C"');
   vi.restoreAllMocks();
+});
+
+it('always returns a Response when eviction races the final navigation read', async () => {
+  const c = await release('C'); const cache = await caches.open((await c.identity).cacheName);
+  await cache.delete(origin + 'assets/main-C.js'); // Require the repair path.
+  const ready = c.ready.bind(c);
+  vi.spyOn(c, 'ready').mockImplementation(async () => {
+    await ready(); await cache.delete(origin); // Eviction immediately after audit.
+  });
+  const response = await c.navigation();
+  expect(response).toBeInstanceOf(Response);
+  expect(response.status).toBe(503);
+  vi.restoreAllMocks();
+});
+
+it('overlaps bounded installation requests instead of paying an RTT for each resource', async () => {
+  const original = fetch.getMockImplementation();
+  let inFlight = 0, peak = 0;
+  fetch.mockImplementation(async request => {
+    peak = Math.max(peak, ++inFlight);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const response = await original(request); inFlight--; return response;
+  });
+  await release('parallel', 32, 12);
+  expect(peak).toBe(4);
+});
+
+it('checks required keys and root integrity on wake without reading every asset before HTML', async () => {
+  const c = await release('C'); const record = (await c.records())[0];
+  const restarting = new ShellRuntime(scope, record.entries, 'C');
+  const hashes = vi.spyOn(crypto.subtle, 'digest');
+  expect((await restarting.navigation()).status).toBe(200);
+  const script = new TextEncoder().encode('/* C */');
+  const scriptAudits = () => hashes.mock.calls.filter(([, bytes]) => Buffer.from(bytes).equals(Buffer.from(script))).length;
+  expect(scriptAudits()).toBe(0);
+  await restarting.auditAfterNavigation();
+  expect(scriptAudits()).toBeGreaterThan(0);
+  vi.restoreAllMocks();
+  await (await caches.open(record.cacheName)).delete(origin + 'assets/main-C.js');
+  server.clear();
+  expect((await restarting.navigation()).status).toBe(503);
 });

@@ -37,7 +37,9 @@ const server = createServer(async (request, response) => {
     if (offline) { response.destroy(); return; }
     const url = new URL(request.url, 'http://localhost');
     requests.push({ path: url.pathname, release: active });
-    if (url.pathname === '/index.html') { response.writeHead(307, { Location: '/' + url.search }); response.end(); return; }
+    // Fixed loopback fixture destination; query preservation is independently
+    // asserted against the product worker below, not this legacy redirect stub.
+    if (url.pathname === '/index.html') { response.writeHead(307, { Location: '/' }); response.end(); return; }
     if (active === 2 && url.pathname === gatePath && gate) { blocked = true; await gate; }
     if (url.pathname.startsWith('/api/')) {
       response.setHeader('Content-Type', 'application/json');
@@ -144,8 +146,17 @@ try {
           await current.goto(origin + '/index.html?canonical=1');
           assert.equal(new URL(current.url()).pathname, '/'); assert.equal(new URL(current.url()).search, '?canonical=1');
           await current.goto(origin + '/about');
-          const asset = await current.goto(origin + '/assets/shell-test-missing.js'); assert.equal(asset.status(), 404); assert.doesNotMatch(asset.headers()['content-type'] ?? '', /html/);
-          await current.goto(origin + '/about');
+          // Chromium can replace an empty 404 document with its own error page;
+          // this explicit missing static URL must never resolve to the SPA shell.
+          const assetPage = await context.newPage();
+          try {
+            const asset = await assetPage.goto(origin + '/assets/shell-test-missing.js').catch(error => {
+              assert.match(error.message, /ERR_HTTP_RESPONSE_CODE_FAILURE/); return null;
+            });
+            if (asset) { assert.equal(asset.status(), 404); assert.doesNotMatch(asset.headers()['content-type'] ?? '', /html/); }
+          } finally { await assetPage.close(); }
+          const missingAsset = await current.evaluate(async () => { const response = await fetch('/assets/shell-test-missing.js'); return { status: response.status, type: response.headers.get('content-type') }; });
+          assert.equal(missingAsset.status, 404); assert.doesNotMatch(missingAsset.type ?? '', /html/);
           const api = await current.goto(origin + '/api/shell-test-missing'); assert.equal(api.status(), 404); assert.match(api.headers()['content-type'], /json/);
           await current.goBack(); await current.getByRole('heading', { name: '关于合谱', exact: true }).waitFor();
           // Fault injection is recovery coverage, separate from the overlap above.

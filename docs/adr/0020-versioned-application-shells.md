@@ -14,8 +14,10 @@ cannot be returned as a navigation response. This can produce a native ERR_FAILE
   readiness is sealed only after the entire manifest is checked again. Activation
   rechecks and repairs before use. Failed admission/download never evicts a usable
   release. The canonical shell URL is `/`, with index.html's revision and integrity.
-- A navigation returns a complete, verified release. A damaged current shell is
-  repaired with exact hashes, or uses a complete retained release while offline.
+- Installation and activation audit a complete release. Navigation checks the
+  sealed manifest's required keys and hashes the root document before responding;
+  a full wake-up audit follows the response, and each served asset is hashed.
+  Missing required entries trigger exact repair or a complete retained release.
   A new deployment's HTML is never cached under an older manifest. Failure renders
   a small retry page rather than returning a redirect or throwing a fetch error.
 - Hash assets may be served from retained releases and legacy precaches, keeping
@@ -46,3 +48,11 @@ matching the new manifest's SHA-256 and MIME, avoiding a full network download
 for every small release. This copies responses into the new owner's cache;
 activation never shares or prunes another owner's bookkeeping. Explicit static
 file navigations bypass the HTML fallback, and encoded API paths stay excluded.
+
+Full checks use four bounded tasks; candidate downloads have a five-minute total
+deadline, allowing high RTT without serializing 120 network round trips. Existing
+healthy shell reads do not depend on quota for rewriting registry metadata. A
+response captured before cache eviction remains safe; a missing final response
+always enters fallback rather than escaping respondWith as undefined. Asset
+metadata is read once per worker and invalidated by collection; a stale snapshot
+uses cache-name lookup without recreating a retired namespace.

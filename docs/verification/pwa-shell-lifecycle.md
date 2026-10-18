@@ -33,3 +33,24 @@ Chromium覆盖自动和明确激活B；WebKit不提供后台worker执行上下�
 本地容器PID 1不及时回收已死亡子进程，既有process-lifecycle测试的kill(pid,0)
 不能区分活进程和zombie；仅调整该测试以严格接受Linux Z状态或ESRCH/ENOENT，
 不放宽终止信号错误或修改产品进程清理逻辑。
+
+性能复核确认旧版导航每次串行审核约6.5MB，安装请求也串行。以bc72313构建为
+调整前基准，本地Chromium每个安装响应延迟200ms、导航CPU限速4倍，安装约
+28.5s→9.7s；5次热导航首字节中位数408ms→14ms，5次终止worker后的冷导航
+322ms→31ms。调整后数据来自提交前工作树；这是共享容器上的受控基准，不能
+代表手机或生产延迟。安装峰值并发1→3（上限4），120项资源均完成。
+重跑：先build，再执行 `node scripts/benchmark-shell-lifecycle.mjs`；可设置
+SHELL_RTT（每响应延迟ms）、SHELL_BUILD、SHELL_BENCH_OUTPUT。默认产物放在
+artifacts/verification/shell-lifecycle/performance.json。单测另覆盖唤醒不在HTML
+首字节前读取全部资产、完整后台审核、必需资源缺失、已激活壳registry配额失败、
+读取与驱逐竞争，以及有界并发安装。
+
+CodeQL两条提示位于测试夹具：缓存名匹配改为明确Workbox前缀及scope后缀；
+本地旧版重定向改为常量 `/`。实际产品worker的query保留断言继续存在；没有把
+动态重定向放进生产，也没有以“测试代码”为由忽略告警。
+
+修复后的离线损坏壳[重试页面](../evidence/pwa-shell-lifecycle/after-offline-retry.png)
+及[重连恢复](../evidence/pwa-shell-lifecycle/after-reconnect.png)留作人工审阅证据。
+本地完整视觉回归中，系统Chromium策略拒绝既有drive-navigation测试的data:
+前置文档（ERR_BLOCKED_BY_ADMINISTRATOR）；该子测试及父测试失败，其他187项
+通过。未更改浏览器策略或测试以绕过限制；标准Playwright浏览器交由CI验证。

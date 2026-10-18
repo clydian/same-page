@@ -36,6 +36,8 @@ export class ShellRuntime {
   readonly identity: Promise<ShellIdentity>;
   private current: Promise<ShellRecord>;
   private repair?: Promise<void>;
+  private assetRecords?: Promise<ShellRecord[]>;
+  private audit?: Promise<void>;
   constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string) {
     this.prefix = `same-page-shell-v1:${encodeURIComponent(scope.registration.scope)}:`;
     this.registryName = `same-page-shell-registry-v1:${encodeURIComponent(scope.registration.scope)}`;
@@ -51,7 +53,7 @@ export class ShellRuntime {
     this.current = digest(new TextEncoder().encode(JSON.stringify(normalized))).then(async hash => {
       const cacheName = this.prefix + encodeURIComponent(buildId) + ':' + encodeURIComponent(hash);
       const saved = await caches.open(this.registryName).then(cache => cache.match(this.key(cacheName))).then(response => response?.json()).catch(() => undefined) as ShellRecord | undefined;
-      return { cacheName, buildId, entries: normalized, complete: false,
+      return { cacheName, buildId, entries: normalized, complete: saved?.complete === true,
         created: Number.isFinite(saved?.created) ? saved!.created : Date.now(),
         ...(Number.isFinite(saved?.activated) ? { activated: saved!.activated } : {}),
       };
@@ -97,16 +99,26 @@ export class ShellRuntime {
   }
   private async check(record: ShellRecord, repair: boolean, verify: boolean, signal?: AbortSignal) {
     const cache = await caches.open(record.cacheName);
-    for (const entry of record.entries) {
+    const checkEntry = async (entry: ManifestEntry) => {
       const response = await cache.match(entry.url);
       const correctVersion = async (value: Response) => entry.url !== this.scope.registration.scope ||
         /text\/html/i.test(value.headers.get('Content-Type') ?? '') && (await value.clone().text()).includes(`<meta name="same-page-build-id" content="${record.buildId}">`);
-      if (response && (!verify || await valid(response, entry)) && await correctVersion(response)) continue;
+      if (response && (!verify || await valid(response, entry)) && await correctVersion(response)) return;
       if (!repair) throw new Error('shell_incomplete');
       const replacement = await this.obtain(entry, signal);
       if (!await correctVersion(replacement)) throw new Error('shell_version_mismatch');
       await cache.put(entry.url, replacement);
-    }
+    };
+    // Bound network/crypto work without making mobile installation pay one RTT
+    // per manifest entry. Finish in-flight writes before cleanup on failure.
+    let next = 0, failure: { error: unknown } | undefined;
+    await Promise.all(Array.from({ length: Math.min(4, record.entries.length) }, async () => {
+      while (!failure && next < record.entries.length) {
+        const entry = record.entries[next++];
+        try { await checkEntry(entry); } catch (error) { failure ??= { error }; }
+      }
+    }));
+    if (failure) throw failure.error;
   }
   private locked<T>(action: () => Promise<T>) {
     const locks = this.scope.navigator?.locks;
@@ -129,7 +141,7 @@ export class ShellRuntime {
     await this.save(record);
     });
     try {
-      await this.check(record, true, true, AbortSignal.timeout(120_000));
+      await this.check(record, true, true, AbortSignal.timeout(300_000));
       // Other workers cannot prune this namespace. Recheck all entries before
       // publishing readiness; a successful earlier put is not a commit marker.
       await this.locked(async () => {
@@ -151,7 +163,8 @@ export class ShellRuntime {
   async ready(signal?: AbortSignal) {
     if (!this.repair) this.repair = (async () => {
       const record = await this.current;
-      await this.check(record, true, true, signal);
+      try { await this.check(record, true, true, signal); }
+      catch (error) { record.complete = false; throw error; }
       // Readiness of an already installed shell depends on verified bytes,
       // not on spare quota for refreshing its bookkeeping. Installation still
       // requires its registry commit before the candidate can become waiting.
@@ -211,13 +224,28 @@ export class ShellRuntime {
       if (!latest || latest.pages.some(page => !candidates.some(record => record.buildId === page.buildId)) || latest.roles.some(role => role.cacheName === record.cacheName) || latest.pages.some(page => page.buildId === record.buildId)) return;
       await caches.delete(record.cacheName);
       await (await caches.open(this.registryName)).delete(this.key(record.cacheName));
+      this.assetRecords = undefined;
     }
   }
   async navigation() {
     const record = await this.current;
     try {
-      await this.ready(AbortSignal.timeout(10_000));
-      return (await (await caches.open(record.cacheName)).match(this.scope.registration.scope))!;
+      const cache = await caches.open(record.cacheName);
+      // A sealed manifest was fully audited at install/activation. Check all
+      // required keys before returning HTML, and verify the actual root bytes.
+      // Every served asset is separately hashed; a full wake-up audit runs after
+      // the response instead of blocking its first byte on 6+ MiB of reads.
+      const present = new Set((await cache.keys()).map(key => key.url));
+      const root = record.entries.find(entry => entry.url === this.scope.registration.scope)!;
+      let shell = await cache.match(root.url);
+      if (!record.complete || record.entries.some(entry => !present.has(entry.url)) || !await valid(shell, root) || !/text\/html/i.test(shell?.headers.get('Content-Type') ?? '')) {
+        await this.ready(AbortSignal.timeout(10_000));
+        shell = await cache.match(root.url);
+      }
+      // Cache eviction can race the audit and this final read. Never let an
+      // undefined value escape respondWith, even after successful readiness.
+      if (!shell || !await valid(shell, root)) throw new Error('shell_disappeared');
+      return shell;
     } catch {
       for (const previous of (await this.records().catch(() => [])).filter(r => r.complete && r.cacheName !== record.cacheName).sort((a, b) => b.created - a.created)) {
         try {
@@ -229,17 +257,22 @@ export class ShellRuntime {
       return new Response('<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>合谱</title><body><main><h1>暂时无法打开合谱</h1><p>请联网后重试。此设备保存的内容仍然保留。</p><button onclick="location.reload()">重试</button></main></body></html>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
   }
+  auditAfterNavigation() {
+    this.audit ??= this.ready(AbortSignal.timeout(30_000)).catch(() => undefined);
+    return this.audit;
+  }
   async asset(request: Request): Promise<Response> {
     try { return await this.cachedAsset(request); } catch { return this.networkAsset(request); }
   }
   private async cachedAsset(request: Request) {
     const url = new URL(request.url); url.search = '';
     const current = await this.current;
-    const records = [current, ...(await this.records()).filter(record => record.cacheName !== current.cacheName)];
+    this.assetRecords ??= this.records().catch(error => { this.assetRecords = undefined; throw error; });
+    const records = [current, ...(await this.assetRecords).filter(record => record.cacheName !== current.cacheName)];
     for (const record of records) {
       const entry = record.entries.find(entry => entry.url === url.href);
       if (!entry) continue;
-      const cached = await (await caches.open(record.cacheName)).match(url.href);
+      const cached = await caches.match(url.href, { cacheName: record.cacheName });
       if (cached && await valid(cached, entry)) return cached;
       if (record.cacheName === current.cacheName) {
         try {
