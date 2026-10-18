@@ -144,6 +144,8 @@ try {
           await current.goto(origin + '/index.html?canonical=1');
           assert.equal(new URL(current.url()).pathname, '/'); assert.equal(new URL(current.url()).search, '?canonical=1');
           await current.goto(origin + '/about');
+          const asset = await current.goto(origin + '/assets/shell-test-missing.js'); assert.equal(asset.status(), 404); assert.doesNotMatch(asset.headers()['content-type'] ?? '', /html/);
+          await current.goto(origin + '/about');
           const api = await current.goto(origin + '/api/shell-test-missing'); assert.equal(api.status(), 404); assert.match(api.headers()['content-type'], /json/);
           await current.goBack(); await current.getByRole('heading', { name: '关于合谱', exact: true }).waitFor();
           // Fault injection is recovery coverage, separate from the overlap above.

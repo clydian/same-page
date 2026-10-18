@@ -40,3 +40,9 @@ activate without deleting the new installer's cache.
 Update feedback from #456 stays in place. A failed newer installer must preserve
 an already-waiting release's update action. This decision does not authorize
 publishing or changing production settings.
+
+Identical public bytes can be copied from retained or legacy caches only after
+matching the new manifest's SHA-256 and MIME, avoiding a full network download
+for every small release. This copies responses into the new owner's cache;
+activation never shares or prunes another owner's bookkeeping. Explicit static
+file navigations bypass the HTML fallback, and encoded API paths stay excluded.

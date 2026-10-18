@@ -1,3 +1,4 @@
+import { isApiPath } from '../src/client/pwa-navigation';
 export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number }
 export interface ShellRecord { cacheName: string; buildId: string; created: number; complete: boolean; installing?: number; activated?: number; entries: ManifestEntry[] }
 export interface ShellIdentity { cacheName: string; buildId: string }
@@ -43,7 +44,7 @@ export class ShellRuntime {
     const verifiedEntries = entries.filter(entry => entry.integrity || !entries.some(other => other.url === entry.url && other.integrity));
     const normalized = [...new Map(verifiedEntries.map(entry => {
       const url = new URL(entry.url, scope.registration.scope);
-      if (url.origin !== scope.location.origin || /^\/api(?:\/|$)/.test(url.pathname) || !/^sha256-[A-Za-z0-9+/]{43}=$/.test(entry.integrity) || !(entry.bytes >= 0)) throw new Error('invalid_shell_manifest');
+      if (url.origin !== scope.location.origin || isApiPath(url.pathname) || !/^sha256-[A-Za-z0-9+/]{43}=$/.test(entry.integrity) || !(entry.bytes >= 0)) throw new Error('invalid_shell_manifest');
       return [url.href, { ...entry, url: url.href }];
     })).values()].sort((a, b) => a.url.localeCompare(b.url));
     if (!normalized.some(entry => entry.url === scope.registration.scope)) throw new Error('missing_canonical_shell');
@@ -70,7 +71,7 @@ export class ShellRuntime {
         const record = await (await registry.match(key))!.json() as ShellRecord;
         if (!record.cacheName.startsWith(this.prefix) || typeof record.buildId !== 'string' || !Number.isFinite(record.created) || !Array.isArray(record.entries)) continue;
         if (!record.entries.some(entry => entry.url === this.scope.registration.scope)) continue;
-        if (!record.entries.every(entry => /^sha256-[A-Za-z0-9+/]{43}=$/.test(entry.integrity) && Number.isFinite(entry.bytes) && entry.bytes >= 0 && new URL(entry.url).origin === this.scope.location.origin && !/^\/api(?:\/|$)/.test(new URL(entry.url).pathname))) continue;
+        if (!record.entries.every(entry => /^sha256-[A-Za-z0-9+/]{43}=$/.test(entry.integrity) && Number.isFinite(entry.bytes) && entry.bytes >= 0 && new URL(entry.url).origin === this.scope.location.origin && !isApiPath(new URL(entry.url).pathname))) continue;
         const expected = this.prefix + encodeURIComponent(record.buildId) + ':' + encodeURIComponent(await digest(new TextEncoder().encode(JSON.stringify(record.entries))));
         if (record.cacheName === expected) result.push(record);
       } catch { /* Unknown records never authorize deletion of unrelated caches. */ }
@@ -78,7 +79,15 @@ export class ShellRuntime {
     return result;
   }
   private async obtain(entry: ManifestEntry, signal?: AbortSignal) {
-    const response = await fetch(new Request(entry.url, { credentials: 'same-origin', cache: 'reload', redirect: 'error', integrity: entry.integrity, signal }));
+    // Copy matching immutable bytes, never cache handles or another release's
+    // revision bookkeeping. Legacy cleanup can then delete its copy safely.
+    let response: Response | undefined;
+    for (const name of await caches.keys()) {
+      if (!name.startsWith(this.prefix) && !(name.startsWith('workbox-') && name.includes('-precache-') && name.endsWith(this.scope.registration.scope))) continue;
+      const candidate = await caches.match(entry.url, { cacheName: name, ignoreSearch: true });
+      if (candidate && await valid(candidate, entry)) { response = candidate; break; }
+    }
+    response ??= await fetch(new Request(entry.url, { credentials: 'same-origin', cache: 'reload', redirect: 'error', integrity: entry.integrity, signal }));
     if (!await valid(response, entry)) throw new Error('shell_integrity_mismatch');
     // A constructed response cannot carry a network redirect flag or compressed
     // transfer headers after its decoded bytes have been read.

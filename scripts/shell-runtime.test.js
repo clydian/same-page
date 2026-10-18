@@ -19,6 +19,7 @@ beforeEach(() => {
   stores = new Map(); server = new Map();
   vi.stubGlobal('caches', {
     open: async name => { if (!stores.has(name)) stores.set(name, new MemoryCache()); return stores.get(name); },
+    match: async (key, options) => stores.get(options.cacheName)?.match(key, options),
     keys: async () => [...stores.keys()], delete: async name => stores.delete(name),
   });
   let tail = Promise.resolve();
@@ -157,4 +158,13 @@ it('repairs a canonical shell with an incorrect MIME type even if its bytes matc
   const body = await (await cache.match(origin)).text();
   await cache.put(origin, new Response(body, { headers: { 'Content-Type': 'application/octet-stream' } }));
   expect((await c.navigation()).headers.get('Content-Type')).toMatch(/text\/html/);
+});
+
+it('reuses legacy bytes only after matching the new integrity, without retaining a shared cache handle', async () => {
+  const legacy = await caches.open('workbox-precache-v2-' + origin);
+  await legacy.put(origin + 'assets/main-C.js', new Response('/* C */', { headers: { 'Content-Type': 'text/javascript' } }));
+  const c = await release('C');
+  expect(fetch.mock.calls.map(([request]) => request.url)).not.toContain(origin + 'assets/main-C.js');
+  await caches.delete('workbox-precache-v2-' + origin);
+  expect(await complete(c)).toBe(true);
 });

@@ -1,3 +1,4 @@
+import { isApiPath } from '../src/client/pwa-navigation';
 import { ShellRuntime, type ManifestEntry } from './shell-runtime';
 declare const __SAME_PAGE_BUILD_ID__: string;
 const scope = self as unknown as ServiceWorkerGlobalScope & { __WB_MANIFEST: ManifestEntry[] };
@@ -48,8 +49,11 @@ async function animation(request: Request) {
 }
 scope.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  if (event.request.method !== 'GET' || url.origin !== scope.location.origin || /^\/api(?:\/|$)/.test(url.pathname)) return;
-  if (event.request.mode === 'navigate') {
+  if (event.request.method !== 'GET' || url.origin !== scope.location.origin || isApiPath(url.pathname)) return;
+  const staticAsset = /^\/(?:assets|pdfjs|font|soundfont)\//.test(url.pathname) || /\.(?:m?js|css|wasm|pdf|xml|musicxml|mxl|png|webp|ico|woff2?|json|webmanifest|tgz|txt|map)$/i.test(url.pathname) || manifest.some(entry => new URL(entry.url, scope.registration.scope).pathname === url.pathname && url.pathname !== new URL(scope.registration.scope).pathname);
+  if (animations.test(url.pathname)) event.respondWith(animation(event.request));
+  else if (staticAsset) event.respondWith(runtime.asset(event.request));
+  else if (event.request.mode === 'navigate') {
     // Preserve the host's explicit index URL canonicalization, also offline.
     // This is a new redirect response, never a fetched redirected HTML body.
     if (url.pathname === new URL('index.html', scope.registration.scope).pathname) {
@@ -57,6 +61,5 @@ scope.addEventListener('fetch', event => {
       event.respondWith(Promise.resolve(Response.redirect(canonical.href, 307)));
     } else event.respondWith(runtime.navigation());
   }
-  else if (animations.test(url.pathname)) event.respondWith(animation(event.request));
-  else if (/^\/(?:assets|pdfjs|font|soundfont)\//.test(url.pathname) || manifest.some(entry => new URL(entry.url, scope.registration.scope).pathname === url.pathname)) event.respondWith(runtime.asset(event.request));
+
 });
