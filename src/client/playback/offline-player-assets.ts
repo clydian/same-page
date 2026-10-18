@@ -22,6 +22,8 @@ export async function offlinePlayerAssetsReady() {
     if (!await shellReady()) return false;
     const assets = await manifest();
     const cache = await caches.open(playbackCacheName(buildId));
+    const savedManifest = await cache.match(playbackManifestUrl(buildId));
+    if (!savedManifest || await savedManifest.text() !== JSON.stringify(assets)) return false;
     for (const entry of assets.entries) if (!await assetValid(await cache.match(entry.url), entry)) return false;
     return true;
   } catch { return false; }

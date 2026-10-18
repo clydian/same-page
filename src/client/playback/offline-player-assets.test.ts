@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import { assetValid, parsePlaybackManifest, playbackCacheName, type PlaybackManifest } from '../../shared/playback-assets';
+import { assetValid, parsePlaybackManifest, playbackCacheName, playbackManifestUrl, type PlaybackManifest } from '../../shared/playback-assets';
 import { offlinePlayerAssetsReady, prepareOfflinePlayerAssets } from './offline-player-assets';
 const build = 'development';
 let stores: Map<string, Map<string, Response>>;
@@ -31,6 +31,10 @@ it('deduplicates repeated preparation, verifies every asset and detects system e
  const cache=stores.get(playbackCacheName(build))!;
  cache.set(manifest.entries[0].url,new Response('bad'));
  expect(await offlinePlayerAssetsReady()).toBe(false);
+ await prepareOfflinePlayerAssets();expect(await offlinePlayerAssetsReady()).toBe(true);
+ cache.delete(playbackManifestUrl(build));expect(await offlinePlayerAssetsReady()).toBe(false);
+ await prepareOfflinePlayerAssets();expect(await offlinePlayerAssetsReady()).toBe(true);
+ cache.set(playbackManifestUrl(build),Response.json({...manifest,buildId:'wrong'}));expect(await offlinePlayerAssetsReady()).toBe(false);
  await prepareOfflinePlayerAssets();expect(await offlinePlayerAssetsReady()).toBe(true);
  cache.delete(manifest.entries[1].url);expect(await offlinePlayerAssetsReady()).toBe(false);
 });
