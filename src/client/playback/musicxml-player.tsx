@@ -1,3 +1,4 @@
+import { captureMusicXmlWrite, prepareOfflineMusicXml, readOfflineMusicXml, revokeOfflineMusicXml } from './offline-musicxml';
 import { useEffect, useRef, useState } from 'react';
 import { createPlayerSession, type PlayerSession } from '@clydian/chorus-player';
 import { attachmentFetch } from '../score-library/attachments/request';
@@ -11,6 +12,9 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const container = useRef<HTMLDivElement>(null), viewport = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<PlayerSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState<'preparing' | 'ready' | 'failed'>('preparing');
+  const [preparation, setPreparation] = useState<{ bytes: Uint8Array; save: (bytes: Uint8Array) => Promise<void> } | null>(null);
+  const [offlineAttempt, retryOffline] = useState(0);
   const [attempt, setAttempt] = useState(0);
   usePlaybackLifetime(source);
   useEffect(() => {
@@ -20,20 +24,37 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
     const pauseForAudio = (event: Event) => { if (event.target instanceof HTMLMediaElement) player?.pause(); };
     document.addEventListener('play', pauseForAudio, true);
     void (async () => {
-      const fresh = await readAttachment(source.choirId, source.score.id, source.attachment.id, abort.signal);
-      if (abort.signal.aborted) return;
-      if (fresh.revision !== source.attachment.revision) throw new Error('附件已更新，请从附件列表重新打开。');
-      const cached = readPlaybackPreparation(source);
-      let bytes = cached?.bytes;
-      if (!bytes) {
-        const response = await attachmentFetch(attachmentFileUrl(source.choirId, source.attachment), { signal: abort.signal });
+      // Capture the write lifetime before either authorization or download yields.
+      const save = await captureMusicXmlWrite(source, abort.signal).catch(() => null);
+      let bytes: Uint8Array | undefined;
+      let cached: ReturnType<typeof readPlaybackPreparation>;
+      try {
+        if (!navigator.onLine) throw new TypeError('offline');
+        const fresh = await readAttachment(source.choirId, source.score.id, source.attachment.id, abort.signal);
         if (abort.signal.aborted) return;
-        if (!response.ok) {
-          if ([401, 403, 404].includes(response.status)) { stopPlayback(); return; }
-          throw new Error('无法读取附件，请检查网络后重试。');
+        if (fresh.revision !== source.attachment.revision || fresh.trashExpiresAt) throw new Error('附件已更新，请从附件列表重新打开。');
+        cached = readPlaybackPreparation(source);
+        bytes = cached?.bytes;
+        if (!bytes) {
+          const response = await attachmentFetch(attachmentFileUrl(source.choirId, source.attachment), { signal: abort.signal });
+          if (!response.ok) throw new SettingsRequestError(response.status);
+          bytes = new Uint8Array(await response.arrayBuffer());
         }
-        bytes = new Uint8Array(await response.arrayBuffer());
+      } catch (reason) {
+        if (abort.signal.aborted) return;
+        if (reason instanceof SettingsRequestError && [401, 403, 404].includes(reason.status)) {
+          await revokeOfflineMusicXml(source).catch(() => undefined);
+          throw reason;
+        }
+        // A revision mismatch or malformed response must never select old bytes.
+        if (!(reason instanceof TypeError) && !(reason instanceof SettingsRequestError && reason.status >= 500)) throw reason;
+        bytes = await readOfflineMusicXml(source) ?? undefined;
+        if (!bytes) throw new Error('这份练习谱尚未完成离线准备，请联网打开后重试。', { cause: reason });
+        setOffline('ready');
       }
+      if (abort.signal.aborted) return;
+      if (save && navigator.onLine) setPreparation({ bytes, save });
+      else if (!save) setOffline('failed');
       if (abort.signal.aborted || !container.current) return;
       clearTimeout(timeout);
       const sourceBytes = bytes;
@@ -46,5 +67,13 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
     });
     return () => { abort.abort(); clearTimeout(timeout); document.removeEventListener('play', pauseForAudio, true); player?.dispose(); };
   }, [source, attempt]);
-  return <MusicXmlPractice source={source} session={session} error={error} container={container} viewport={viewport} retry={() => { setError(null); setSession(null); setAttempt(value => value + 1); }} />;
+  useEffect(() => {
+    if (!preparation) return;
+    let active = true;
+    void prepareOfflineMusicXml(source, () => preparation.save(preparation.bytes)).then(() => {
+      if (active) setOffline('ready');
+    }).catch(() => { if (active) setOffline('failed'); });
+    return () => { active = false; };
+  }, [source, preparation, offlineAttempt]);
+  return <MusicXmlPractice offlineStatus={offline} retryOffline={() => { setOffline('preparing'); retryOffline(value => value + 1); }} source={source} session={session} error={error} container={container} viewport={viewport} retry={() => { setError(null); setSession(null); setAttempt(value => value + 1); }} />;
 }

@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+import { playbackAssets } from "./scripts/playback-assets";
 import { shellManifest } from "./scripts/shell-manifest";
 import { pdfJsAssets } from "./scripts/pdfjs-assets-plugin.ts";
 
@@ -42,6 +43,7 @@ export default defineConfig(({ isPreview }) => ({
     } } },
   },
   plugins: [
+    playbackAssets(buildId),
     pdfJsAssets(),
     alphaTab(),
     {
@@ -106,11 +108,11 @@ export default defineConfig(({ isPreview }) => ({
         ],
       },
       injectManifest: {
-        manifestTransforms: [entries => shellManifest(entries)],
+        manifestTransforms: [entries => shellManifest(entries, undefined, buildId)],
         globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2,webmanifest}"],
-        // Attachments are online-only. Do not download their optional viewers
+        // Prepare MusicXML resources on demand. Do not download optional viewers
         // and editor on every PWA install; the main PDF engine stays precached.
-        globIgnores: ["third-party/**","**/admin-*","assets/{shared-layers,personal-layer,replace-pdf,offline-sync}-animation-*.webp", "**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
+        globIgnores: ["playback/**", "third-party/**","**/admin-*","assets/{shared-layers,personal-layer,replace-pdf,offline-sync}-animation-*.webp", "**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
         // PDF.js' worker is slightly larger than Workbox's 2 MiB default.
         // It is required to open a verified offline PDF, so keep it in the
         // application-shell precache rather than making offline claims depend

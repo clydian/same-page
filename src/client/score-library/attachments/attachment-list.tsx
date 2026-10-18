@@ -33,7 +33,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
       const content = <><Icon size={16} aria-hidden="true" /><span>{attachment.name}{attachment.source === "generated" && <small> · 自动生成 · Beta</small>}</span></>;
       return <li className="attachment-row" key={attachment.id}>
         {attachment.kind === "link" ? <a className="attachment-open" onClick={event => { if (!available) { event.preventDefault(); setUnavailableId(attachment.id); } }} href={safeAttachmentUrl(attachment.url ?? "")} target="_blank" rel="noopener noreferrer">{content}</a>
-          : <Button className="attachment-open" onPress={() => { if (!available) setUnavailableId(attachment.id); else onSelect({ score, attachment, action: "open" }); }}>{content}</Button>}
+          : <Button className="attachment-open" onPress={() => { if (!available && attachment.kind !== "musicxml") setUnavailableId(attachment.id); else onSelect({ score, attachment, action: "open" }); }}>{content}</Button>}
         {!available && unavailableId === attachment.id && <span className="attachment-help attachment-feedback" role="status">连接网络后可打开此附件。</span>}
         {(attachment.kind !== "link" || canModify || canTrash) && <MenuTrigger><Button className="attachment-menu" aria-label={`${attachment.name} 更多操作`}><MoreHorizontal size={18} /></Button>
           <Popover className="file-menu-popover"><Menu aria-label={`${attachment.name} 操作`} onAction={key => { if (key === "rename" || key === "trash") onSelect({ score, attachment, action: key }); }}>

@@ -1,3 +1,4 @@
+import { assetValid, parsePlaybackManifest, playbackManifestUrl } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
 import { ShellRuntime, type ManifestEntry } from './shell-runtime';
 declare const __SAME_PAGE_BUILD_ID__: string;
@@ -9,6 +10,7 @@ scope.addEventListener('install', event => event.waitUntil(runtime.install()));
 scope.addEventListener('activate', event => event.waitUntil(runtime.activate()));
 scope.addEventListener('message', event => {
   const type = event.data?.type;
+  if (type === 'SAME_PAGE_PLAYBACK_READY') { event.waitUntil(runtime.readyBuild(event.data.buildId, AbortSignal.timeout(15_000)).then(() => event.ports[0]?.postMessage({ buildId: event.data.buildId })).catch(() => event.ports[0]?.postMessage(null))); return; }
   if (type === 'SAME_PAGE_SHELL_IDENTITY') { event.waitUntil(runtime.identity.then(value => event.ports[0]?.postMessage(value))); return; }
   if (type === 'SAME_PAGE_COLLECT_SHELLS') { event.waitUntil(runtime.collect().then(() => runtime.identity).then(value => event.ports[0]?.postMessage(value))); return; }
   if (type !== 'SAME_PAGE_SAFE_UPDATE') return;
@@ -32,6 +34,27 @@ scope.addEventListener('message', event => {
   })());
 });
 
+async function playbackAsset(request: Request) {
+  for (const name of await caches.keys()) {
+    if (!name.startsWith('same-page-playback-v1:')) continue;
+    try {
+      const build = decodeURIComponent(name.slice('same-page-playback-v1:'.length));
+      const cache = await caches.open(name);
+      const manifest = await cache.match(playbackManifestUrl(build));
+      if (!manifest) continue;
+      const assets = parsePlaybackManifest(await manifest.json(), build);
+      const entry = assets.entries.find(entry => new URL(entry.url, scope.location.origin).href === request.url);
+      if (entry) {
+        // Font/worklet requests carry different Origin/Accept headers. These
+        // verified public bytes have one representation per immutable URL.
+        const cached = await cache.match(entry.url);
+        if (await assetValid(cached, entry)) return cached!;
+      }
+    } catch { /* Unknown or incomplete bundles do not authorize a response. */ }
+  }
+  return runtime.asset(request);
+}
+
 const animations = /^\/assets\/(?:shared-layers|personal-layer|replace-pdf|offline-sync)-animation-[^/]+\.webp$/;
 async function animation(request: Request) {
   const cache = await caches.open('same-page-home-animations');
@@ -50,9 +73,9 @@ async function animation(request: Request) {
 scope.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== scope.location.origin || isApiPath(url.pathname)) return;
-  const staticAsset = /^\/(?:assets|pdfjs|font|soundfont)\//.test(url.pathname) || /\.(?:m?js|css|wasm|pdf|xml|musicxml|mxl|png|webp|ico|woff2?|json|webmanifest|tgz|txt|map)$/i.test(url.pathname) || manifest.some(entry => new URL(entry.url, scope.registration.scope).pathname === url.pathname && url.pathname !== new URL(scope.registration.scope).pathname);
+  const staticAsset = /^\/(?:assets|pdfjs|font|soundfont|playback)\//.test(url.pathname) || /\.(?:m?js|css|wasm|pdf|xml|musicxml|mxl|png|webp|ico|woff2?|json|webmanifest|tgz|txt|map)$/i.test(url.pathname) || manifest.some(entry => new URL(entry.url, scope.registration.scope).pathname === url.pathname && url.pathname !== new URL(scope.registration.scope).pathname);
   if (animations.test(url.pathname)) event.respondWith(animation(event.request));
-  else if (staticAsset) event.respondWith(runtime.asset(event.request));
+  else if (staticAsset) event.respondWith(playbackAsset(event.request));
   else if (event.request.mode === 'navigate') {
     // Preserve the host's explicit index URL canonicalization, also offline.
     // This is a new redirect response, never a fetched redirected HTML body.

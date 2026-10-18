@@ -32,3 +32,22 @@ it('keeps a known XML entry available for retry after a transient directory erro
   await waitFor(() => expect(screen.getByRole('button', { name: '练习.xml' })).toBeVisible());
   expect(screen.getByLabelText('练习谱', { selector: '.reader-playback-entries' })).toHaveAttribute('aria-busy', 'false');
 });
+
+it('restores practice choices for a retained PDF with no attachment counters after an offline refresh', async () => {
+  const { localDatabase } = await import('../platform/local-database');
+  const { activateAuthenticatedLocalOwner, createLocalWorkspace } = await import('../platform/local-workspace');
+  const { captureAttachmentDirectoryWrite } = await import('../score-library/attachments/attachment-directory');
+  const { playbackStore, stopPlayback } = await import('./playback-store');
+  await localDatabase.open();
+  const owner = await activateAuthenticatedLocalOwner('review');
+  const xml = { ...audio, id: 'xml', name: '练习.xml', kind: 'musicxml' as const, source: 'user' as const };
+  await (await captureAttachmentDirectoryWrite(createLocalWorkspace(owner, 'drive', 'score')))(score, [xml], new AbortController().signal);
+  const retained = { ...score, updatedAt: 999, attachmentCount: undefined, musicXmlCount: undefined };
+  render(<ReaderPracticeLauncher source={{ ...source, score: retained }} enabled={false} open onOpenChange={() => {}} />);
+  const button = await screen.findByRole('button', { name: '练习.xml' });
+  expect(button).toBeEnabled();
+  fireEvent.click(button);
+  expect(playbackStore.getSnapshot()?.attachment.id).toBe('xml');
+  expect(fetchMock).not.toHaveBeenCalled();
+  stopPlayback();
+});
