@@ -29,3 +29,27 @@ Issue #397 retains the drive presentation under the remembered session during a 
 Issue #404 prepares an unready score from its library row, with byte download progress followed by verification/storage phases, before navigating to the reader. A verified retained copy opens directly. A preparation failure offers retry and an explicit online-open fallback; storage success is never the only online reading path. Navigation, a newer open or a changed target/session fences late automatic navigation; its explicit preparation can still finish. Progress appears only in the existing right-hand offline button as a filled circle, with an indeterminate state for verification/storage. The PDF icon stays unchanged; no extra progress text or cancel action is added to the row. Failure details, retry and online-open fallback live in the same offline button's popover. Without an active offline app shell or established local workspace, the library opens online immediately. Direct reader links retain the existing non-blocking automatic preparation.
 
 Preparing the main score also attempts to retain its attachment directory, never attachment bodies. Attachment metadata is optional and cannot certify or block a main score's offline readiness. Persisted owner/drive/score metadata uses additive namespaced system records, without a database version or API change. Successful reads replace records, transient errors retain them, and logout/confirmed drive or attachment denial remove protected directories and fence late writes. Offline users can expand known attachment names and types; only clicking an unavailable item shows a local connection hint. Unknown metadata is distinct from a known empty list. Existing copies gain metadata on the next successful online attachment read or explicit preparation, without redownloading attachment files.
+
+
+MusicXML practice adds an optional, on-demand public resource bundle; ordinary
+shell installation does not fetch its engine, workers, fonts or soundfont. The
+shell includes only the matching build-specific bundle manifest. Build-scoped
+font and soundfont URLs and content-hashed scripts prevent mixed releases. Every
+resource is size/hash checked before storage and readiness; a retry fills missing
+resources without removing an older usable bundle. The existing shell collector
+retires only the corresponding optional public bundle after the shell's live-page,
+worker, rollback and grace-period protections allow retirement.
+
+Original XML/MXL bytes live in additive `offline-musicxml` records with Blob
+fields in the existing IndexedDB system store, without a database version upgrade
+that could close older active clients. They are scoped to local owner, drive, score, attachment and revision. Preparation captures
+navigation, workspace-session, attachment-denial and local-file-cleanup fences
+before network work, checks logout inside its activation transaction, and replaces
+older attachment revisions only after a successful write. Logout deletes these
+protected files rather than transferring them to a guest. File cleanup removes
+only matching raw files in addition to PDFs, leaving notes and directories intact.
+A cached attachment directory, verified retained-score authority, complete matching
+shell and fully verified optional bundle are required to use a stored original.
+Explicit HTTP 401/403/404 clears attachment authority and raw files; network errors
+and service failures may use a verified local copy. Prepared player objects remain
+memory-only. No playback position, mix or speed is persisted.

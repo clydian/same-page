@@ -1,3 +1,4 @@
+import { playbackCacheName } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
 export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number }
 export interface ShellRecord { cacheName: string; buildId: string; created: number; complete: boolean; installing?: number; activated?: number; entries: ManifestEntry[] }
@@ -29,7 +30,7 @@ export async function identify(target: { postMessage(message: unknown, transfer:
   });
 }
 
-// This manager owns only shell caches and its registry, never business storage.
+// This manager owns shell caches, their optional public player bundles and its registry, never business storage.
 export class ShellRuntime {
   readonly prefix: string;
   readonly registryName: string;
@@ -172,6 +173,15 @@ export class ShellRuntime {
     })().finally(() => { this.repair = undefined; });
     return this.repair;
   }
+  async readyBuild(buildId: string, signal?: AbortSignal) {
+    const current = await this.current;
+    if (current.buildId === buildId) return this.ready(signal);
+    for (const record of await this.records()) {
+      if (record.buildId !== buildId || !record.complete) continue;
+      try { await this.check(record, false, true, signal); return; } catch { /* Try a retained matching shell. */ }
+    }
+    throw new Error('matching_shell_unavailable');
+  }
   async activate() {
     // If storage was externally lost after install, remain able to serve a
     // complete rollback shell or a retry page. Do not fail activation itself.
@@ -223,6 +233,9 @@ export class ShellRuntime {
       const latest = await this.references();
       if (!latest || latest.pages.some(page => !candidates.some(record => record.buildId === page.buildId)) || latest.roles.some(role => role.cacheName === record.cacheName) || latest.pages.some(page => page.buildId === record.buildId)) return;
       await caches.delete(record.cacheName);
+      // Optional public resources share the same live-document protection.
+      // Their collector never touches IndexedDB or another product cache.
+      if (!candidates.some(other => keep.has(other.cacheName) && other.buildId === record.buildId)) await caches.delete(playbackCacheName(record.buildId));
       await (await caches.open(this.registryName)).delete(this.key(record.cacheName));
       this.assetRecords = undefined;
     }

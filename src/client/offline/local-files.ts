@@ -1,3 +1,4 @@
+import { musicXmlFiles } from "../platform/musicxml-files";
 import { localDatabase, guestOwnerSystemKey } from "../platform/local-database";
 import { assertLocalWorkspaceActive, currentLocalOwnerKey, type LocalWorkspace, type LocalWorkspaceOwnerKey } from "../platform/local-workspace";
 import { offlineFileFenceKeys } from "./offline-file-fence";
@@ -27,8 +28,10 @@ export async function clearLocalFiles(scope: LocalFileScope) {
     await localDatabase.system.put({ key, value: crypto.randomUUID() });
     const files = await localDatabase.offlineScores.where("ownerKey").equals(scope.ownerKey)
       .filter(file => (!scope.choirId || file.choirId === scope.choirId) && (!scope.scoreId || file.scoreId === scope.scoreId)).toArray();
+    const xml = await musicXmlFiles(scope).toArray();
+    await localDatabase.system.bulkDelete(xml.map(file => file.key));
     await localDatabase.offlineScores.bulkDelete(files.map(file => file.key));
     await localDatabase.offlineSnapshots.bulkDelete(files.map(file => file.key));
-    return files.reduce((bytes, file) => bytes + file.blob.size, 0);
+    return [...files, ...xml].reduce((bytes, file) => bytes + (file.blob?.size ?? 0), 0);
   });
 }

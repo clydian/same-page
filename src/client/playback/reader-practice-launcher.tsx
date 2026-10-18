@@ -1,3 +1,5 @@
+import { useLiveQuery } from 'dexie-react-hooks';
+import { attachmentWorkspace, readAttachmentDirectory } from '../score-library/attachments/attachment-directory';
 import { useRef } from 'react';
 import { useLibraryAttachments } from '../score-library/attachments/use-library-attachments';
 import { Button, Popover, Tooltip, TooltipTrigger } from 'react-aria-components';
@@ -12,7 +14,15 @@ export function ReaderPracticeLauncher({ source, enabled, open, onOpenChange }: 
   const current = identity.onlineState === 'authenticated' || identity.onlineState === 'signed-out';
   const active = enabled && current && identity.authenticatedSessionId === source.sessionId;
   const metadata = useLibraryAttachments(source.choirId, [source.score], active, `${source.ownerKey}:${source.sessionId ?? 'guest'}`, source.ownerKey);
-  const items = metadata.items.filter(item => !item.trashExpiresAt && item.kind === 'musicxml')
+  // Retained PDFs intentionally contain no current attachment counters. Their
+  // directory remains display metadata; opening still verifies the raw original.
+  const retained = useLiveQuery(async () => {
+    if (source.score.attachmentCount !== undefined) return null;
+    const workspace = await attachmentWorkspace(source.ownerKey.replace(/^experience:/, ''), source.choirId, source.score.id).catch(() => null);
+    return workspace ? readAttachmentDirectory(workspace, source.score, true).catch(() => null) : null;
+  }, [source.ownerKey, source.choirId, source.score.id, source.score.updatedAt, source.score.attachmentCount]);
+  const directoryItems = metadata.statusFor(source.score.id) === 'ready' ? metadata.items : retained ?? metadata.items;
+  const items = directoryItems.filter(item => !item.trashExpiresAt && item.kind === 'musicxml')
     .sort((left, right) => Number(right.source === 'generated') - Number(left.source === 'generated'));
   const trigger = useRef<HTMLButtonElement>(null);
   // Older local score summaries do not have musicXmlCount. Resolve their directory
@@ -28,13 +38,13 @@ export function ReaderPracticeLauncher({ source, enabled, open, onOpenChange }: 
     {open && <Popover triggerRef={trigger} isOpen onOpenChange={onOpenChange} placement="top end" offset={10} className="practice-popover">
       <Dialog className="practice-panel reader-practice-launcher" aria-label="练习谱">
         <h2>练习谱</h2>
-        {!active && <p role="status">连接网络并确认访问后可打开练习谱。</p>}
+        {!active && <p role="status">已完成离线准备的练习谱可直接打开。</p>}
         {metadata.error && <p role="status">暂时无法读取练习谱。<Button onPress={metadata.retry}>重试</Button></p>}
         {metadata.loading && !items.length && <p role="status">正在读取练习谱…</p>}
         {items.map(attachment => {
           const generated = attachment.source === 'generated';
           const name = generated ? '自动生成练习版' : attachment.name;
-          return <Button className="reader-practice-source" key={attachment.id} aria-label={name} isDisabled={!active} onPress={() => {
+          return <Button className="reader-practice-source" key={attachment.id} aria-label={name} onPress={() => {
             startPlayback({ ...source, attachment });
             onOpenChange(false);
           }}>

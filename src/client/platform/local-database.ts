@@ -26,6 +26,7 @@ export const guestOwnerSystemKey = (choirId: string) =>
 export interface SystemRecord {
   key: string;
   value: string;
+  blob?: Blob;
 }
 
 export interface OfflineScoreRecord {

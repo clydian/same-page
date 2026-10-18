@@ -18,16 +18,19 @@ export async function attachmentWorkspace(owner: string, choirId: string, scoreI
   if (!actual) return null;
   return captureLocalWorkspaceSession(createLocalWorkspace(actual as LocalWorkspaceOwnerKey, choirId, scoreId));
 }
-export async function readAttachmentDirectory(workspace: LocalWorkspace, score: Pick<ScoreSummary, "id" | "updatedAt" | "attachmentCount">) {
+export async function readAttachmentDirectory(workspace: LocalWorkspace, score: Pick<ScoreSummary, "id" | "updatedAt" | "attachmentCount">, retained = false) {
   return withLocalWorkspaceTransaction(workspace, "r", [], async () => {
     const saved = await localDatabase.system.get(key(workspace));
     if (!saved) return null;
     try {
       const data = JSON.parse(saved.value);
-      if (data.revision !== attachmentRevision(score)) return null;
+      if (!retained && data.revision !== attachmentRevision(score)) return null;
       return attachmentListSchema.parse(data).attachments.filter(item => item.scoreId === score.id);
     } catch { return null; }
   });
+}
+export async function attachmentDirectoryFence(workspace: LocalWorkspace) {
+  return (await localDatabase.system.get(fenceKey(workspace)))?.value;
 }
 export async function clearAttachmentDirectories(workspace: LocalWorkspace) {
   await withLocalWorkspaceTransaction(workspace, "rw", [], async () => {

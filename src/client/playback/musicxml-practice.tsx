@@ -28,6 +28,8 @@ const initialSnapshot = () => preparing;
 // Source authorization, fetching, cache ownership and disposal remain with callers.
 export function MusicXmlPractice({
   source,
+  offlineStatus,
+  retryOffline,
   session,
   error,
   retry,
@@ -37,6 +39,8 @@ export function MusicXmlPractice({
   onReady,
 }: {
   source?: PlaybackSource;
+  offlineStatus?: "preparing" | "ready" | "failed";
+  retryOffline?(): void;
   session: PlayerSession | null;
   error: string | null;
   retry(): void;
@@ -397,6 +401,7 @@ export function MusicXmlPractice({
             </Button>
           )}
         </details>
+        {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? '此练习谱可离线打开与播放。' : offlineStatus === 'preparing' ? '正在准备离线播放…' : <>离线准备未完成。<Button onPress={retryOffline}>重试离线准备</Button></>}</p>}
         <p className="practice-hint">
           声音来自 MusicXML，可能与原谱不同。合成音色不演唱歌词；原 PDF
           可手动翻页。
