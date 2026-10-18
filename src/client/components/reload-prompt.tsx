@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { canApplyUpdate, noteUpdateInteraction, setUpdateRoute } from "../updates/update-safety";
 import { useUpdateStatus } from "../updates/update-status";
+import { buildId } from "../../shared/build";
 import { UpdateController } from "../updates/update-controller";
 
 export function ReloadPrompt() {
@@ -45,6 +46,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     const events = ["pointerdown", "pointerup", "keydown", "input", "focusin", "wheel", "scroll"] as const;
     events.forEach(event => document.addEventListener(event, noteUpdateInteraction, true));
     const probe = (event: MessageEvent) => {
+      if (event.data?.type === "SAME_PAGE_SHELL_PROBE") event.ports[0]?.postMessage({ buildId, cacheName: "" });
       if (event.data?.type === "SAME_PAGE_UPDATE_PROBE") event.ports[0]?.postMessage(event.data.requested === true && canApplyUpdate(requested.current));
     };
     navigator.serviceWorker?.addEventListener("message", probe);

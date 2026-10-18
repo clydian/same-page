@@ -74,7 +74,7 @@ export class UpdateController {
         this.endCheck();
         this.stopWorker?.(); this.worker = undefined;
         clearTimeout(this.installTimer);
-        this.show("error", "更新准备失败，请重试；当前版本仍可使用");
+        this.show(this.registration?.waiting ? "ready" : "error", this.registration?.waiting ? prepared : "更新准备失败，请重试；当前版本仍可使用");
       } else if (worker.state === "installed" || worker.state === "activated") {
         this.endCheck();
         clearTimeout(this.installTimer);
@@ -165,7 +165,7 @@ export class UpdateController {
     channel.port1.onmessage = event => {
       if (!active || this.disposed) return;
       if (event.data?.safe === true) this.show("applying", "正在应用更新…");
-      else finish(blocked);
+      else finish(event.data?.reason === "incomplete" ? "更新资源暂不可用，请联网后重试" : blocked);
     };
     try { waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE", requested: true }, [channel.port2]); }
     catch { finish("更新未能开始，请稍后重试，或关闭所有合谱窗口后重新打开"); }

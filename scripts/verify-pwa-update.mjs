@@ -86,7 +86,7 @@ try {
   await page.getByText("正在准备更新…，可以继续使用", { exact: true }).waitFor();
   releasePreparation(); preparationGate = undefined;
   await page.getByText("更新已准备好", { exact: true }).waitFor();
-  await page.waitForFunction(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting));
+  await waitForPage(page, async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting));
   // A second window with an unfinished login form vetoes every candidate page.
   await page.waitForTimeout(5000);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
@@ -209,7 +209,7 @@ async function verifyAnimationCaching(browser, origin) {
     await buttons.first().waitFor();
     await buttons.first().scrollIntoViewIfNeeded();
     await waitForImage(page, 0, true);
-    await page.waitForFunction(async () => (await (await caches.open("same-page-home-animations")).keys()).length === 1);
+    await waitForPage(page, async () => (await (await caches.open("same-page-home-animations")).keys()).length === 1);
     assert.equal(animationRequests.length, requestStart + 1, "only the visible animation should download");
     await page.emulateMedia({ reducedMotion: "reduce" });
     await waitForImage(page, 0, false);
@@ -244,7 +244,7 @@ async function verifyAnimationCaching(browser, origin) {
     failAnimationRequests = false;
     await buttons.nth(1).click();
     await waitForImage(page, 1, true);
-    await page.waitForFunction(async () => (await (await caches.open("same-page-home-animations")).keys()).length === 2);
+    await waitForPage(page, async () => (await (await caches.open("same-page-home-animations")).keys()).length === 2);
     process.stdout.write(`Verified on-demand animation cache and static offline fallback (${browser.browserType().name()})\n`);
   } finally {
     failAnimationRequests = false;
@@ -285,7 +285,7 @@ async function buildVersion(buildId, destination) {
 async function serveRequest(request, response, root) {
   try {
     const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
-    if (root === builds.second && requestUrl.pathname === "/index.html") await preparationGate;
+    if (root === builds.second && requestUrl.pathname === "/") await preparationGate;
     if (requestUrl.pathname.startsWith("/api/")) {
       serveApi(requestUrl.pathname, response);
       return;
@@ -364,4 +364,13 @@ function contentType(extension) {
     ".webp": "image/webp",
     ".webmanifest": "application/manifest+json",
   }[extension] ?? "application/octet-stream";
+}
+
+async function waitForPage(page, predicate) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    if (await page.evaluate(predicate)) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error("Timed out waiting for asynchronous browser state");
 }
