@@ -44,7 +44,12 @@ it('isolates overlapping installers from both legacy revision pruning and legacy
   const b = await release('B'), c = await release('C');
   const legacyName = 'workbox-precache-v2-' + origin;
   await caches.open(legacyName);
-  for (const name of await caches.keys()) if (name.startsWith('workbox-') && name.includes('-precache-') && name.endsWith(origin) && name !== legacyName) await caches.delete(name);
+  for (const name of await caches.keys()) {
+    const scopeUrl = name.match(/^workbox-precache-v\d+-(https?:\/\/.*)$/)?.[1];
+    if (!scopeUrl || name === legacyName) continue;
+    try { if (new URL(scopeUrl).href === origin) await caches.delete(name); }
+    catch { /* A malformed cache name never authorizes deletion. */ }
+  }
   expect(await complete(b)).toBe(true); expect(await complete(c)).toBe(true);
   expect((await c.identity).cacheName).not.toContain('-precache-');
   expect((await c.identity).cacheName).not.toContain(origin);

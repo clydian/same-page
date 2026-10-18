@@ -45,7 +45,7 @@ artifacts/verification/shell-lifecycle/performance.json。单测另覆盖唤醒�
 首字节前读取全部资产、完整后台审核、必需资源缺失、已激活壳registry配额失败、
 读取与驱逐竞争，以及有界并发安装。
 
-CodeQL两条提示位于测试夹具：缓存名匹配改为明确Workbox前缀及scope后缀；
+CodeQL两条提示位于测试夹具：解析明确Workbox缓存名中的scope URL并精确比较；
 本地旧版重定向改为常量 `/`。实际产品worker的query保留断言继续存在；没有把
 动态重定向放进生产，也没有以“测试代码”为由忽略告警。
 
