@@ -79,3 +79,9 @@ it('a persisted logout fence blocks both reads and late writes before cleanup st
  await expect(save(bytes)).rejects.toThrow('offline_identity_changed');
  await expect(readOfflineMusicXml(source)).rejects.toThrow('offline_identity_changed');
 });
+
+it('a late denial cannot clear a newly active navigation lifetime',async()=>{
+ await (await captureMusicXmlWrite(source,signal()))(bytes);
+ const revocation=revokeOfflineMusicXml(source);resetNavigation();await revocation;
+ expect(await readOfflineMusicXml(source)).toEqual(bytes);
+});

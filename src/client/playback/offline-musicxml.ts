@@ -52,10 +52,15 @@ export async function readOfflineMusicXml(source: PlaybackSource) {
   return new Uint8Array(bytes);
 }
 export async function revokeOfflineMusicXml(source: PlaybackSource) {
+  const current = captureNavigationIdentity();
   const workspace = await playbackWorkspace(source);
-  await clearAttachmentDirectories(workspace);
-  await withLocalWorkspaceTransaction(workspace, 'rw', [], () => musicXmlFiles({ ...workspace, attachmentId: source.attachment.id }).delete());
+  await withLocalWorkspaceTransaction(workspace, 'rw', [], async () => {
+    if (!current()) return;
+    await clearAttachmentDirectories(workspace);
+    await musicXmlFiles({ ...workspace, attachmentId: source.attachment.id }).delete();
+  });
 }
+
 export async function prepareOfflineMusicXml(source: PlaybackSource, save: () => Promise<void>) {
   await prepareOfflinePlayerAssets();
   await save();
