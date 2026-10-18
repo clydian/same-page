@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-import { navigationFallbackDenylist } from "./src/client/pwa-navigation.ts";
+import { shellManifest } from "./scripts/shell-manifest";
 import { pdfJsAssets } from "./scripts/pdfjs-assets-plugin.ts";
 
 const buildId = process.env.SAME_PAGE_BUILD_ID
@@ -72,13 +72,10 @@ export default defineConfig(({ isPreview }) => ({
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
-      includeAssets: [
-        "favicon-32.png",
-        "apple-touch-icon.png",
-        "icon-192.png",
-        "icon-512.png",
-        "icon-maskable-512.png",
-      ],
+      strategies: "injectManifest",
+      srcDir: "service-worker",
+      filename: "sw.ts",
+      includeManifestIcons: false,
       manifest: {
         name: "合谱 · Same Page",
         short_name: "合谱",
@@ -108,29 +105,12 @@ export default defineConfig(({ isPreview }) => ({
           },
         ],
       },
-      workbox: {
-        cleanupOutdatedCaches: true,
-        importScripts: ["/update-coordination.js"],
-        navigateFallback: "/index.html",
-        // API navigations must always reach the Worker. In particular, OAuth
-        // callbacks carry one-time codes that the application shell cannot
-        // process and must never cache or render.
-        navigateFallbackDenylist: navigationFallbackDenylist,
-        globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2}"],
+      injectManifest: {
+        manifestTransforms: [entries => shellManifest(entries)],
+        globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2,webmanifest}"],
         // Attachments are online-only. Do not download their optional viewers
         // and editor on every PWA install; the main PDF engine stays precached.
         globIgnores: ["third-party/**","**/admin-*","assets/{shared-layers,personal-layer,replace-pdf,offline-sync}-animation-*.webp", "**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
-        // Optional homepage demonstrations load only when viewed. Static
-        // illustrations remain precached for offline and failed requests.
-        runtimeCaching: [{
-          urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/assets\/(?:shared-layers|personal-layer|replace-pdf|offline-sync)-animation-[^/]+\.webp$/.test(url.pathname),
-          handler: "CacheFirst",
-          options: {
-            cacheName: "same-page-home-animations",
-            cacheableResponse: { statuses: [200], headers: { "Content-Type": "image/webp" } },
-            expiration: { maxEntries: 8, maxAgeSeconds: 30 * 24 * 60 * 60 },
-          },
-        }],
         // PDF.js' worker is slightly larger than Workbox's 2 MiB default.
         // It is required to open a verified offline PDF, so keep it in the
         // application-shell precache rather than making offline claims depend
