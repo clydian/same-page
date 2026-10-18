@@ -251,7 +251,7 @@ export class ShellRuntime {
         try {
           await this.check(previous, false, true);
           const shell = await (await caches.open(previous.cacheName)).match(this.scope.registration.scope);
-          if (shell) return shell;
+          if (shell) { this.assetRecords = undefined; return shell; }
         } catch { /* Try another complete retained release; never a mixed shell. */ }
       }
       return new Response('<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>合谱</title><body><main><h1>暂时无法打开合谱</h1><p>请联网后重试。此设备保存的内容仍然保留。</p><button onclick="location.reload()">重试</button></main></body></html>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });

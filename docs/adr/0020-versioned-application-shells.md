@@ -54,5 +54,5 @@ deadline, allowing high RTT without serializing 120 network round trips. Existin
 healthy shell reads do not depend on quota for rewriting registry metadata. A
 response captured before cache eviction remains safe; a missing final response
 always enters fallback rather than escaping respondWith as undefined. Asset
-metadata is read once per worker and invalidated by collection; a stale snapshot
+metadata is read once per worker and invalidated by collection or shell fallback; a stale snapshot
 uses cache-name lookup without recreating a retired namespace.

@@ -229,3 +229,14 @@ it('checks required keys and root integrity on wake without reading every asset 
   server.clear();
   expect((await restarting.navigation()).status).toBe(503);
 });
+
+it('refreshes the asset catalogue when falling back to a release installed after worker startup', async () => {
+  const a = await release('A');
+  expect((await a.asset(new Request(origin + 'assets/main-A.js'))).status).toBe(200);
+  await release('B'); // New retained/waiting release, absent from A's first asset snapshot.
+  await (await caches.open((await a.identity).cacheName)).delete(origin);
+  server.clear();
+  expect(await (await a.navigation()).text()).toContain('content="B"');
+  const script = await a.asset(new Request(origin + 'assets/main-B.js'));
+  expect(script.status).toBe(200); expect(await script.text()).toBe('/* B */');
+});
