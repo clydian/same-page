@@ -37,6 +37,13 @@ for (const engine of [chromium, webkit]) {
       const bounds = await viewport.boundingBox();
       await viewport.click({ position: { x: bounds.width / 2, y: bounds.height / 2 } });
     }
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    const paper = page.getByLabel("第 2 页笔记层", { exact: true });
+    const paperBox = await paper.boundingBox();
+    await page.mouse.click(paperBox.x + paperBox.width / 2, paperBox.y + paperBox.height / 2);
+    await page.getByRole("textbox", { name: "笔记文本", exact: true }).fill("Codec recovery note");
+    await page.getByRole("button", { name: "完成文字输入", exact: true }).click();
+    await page.getByRole("button", { name: "完成编辑", exact: true }).click();
     await page.getByRole("button", { name: "更多", exact: true }).click();
     await expect(page.getByRole("region", { name: "本机离线副本", exact: true }).getByRole("status")).toHaveText("可离线使用", { timeout: 30_000 });
     // The reader's verified status is the persistence barrier. A second cold
@@ -61,16 +68,24 @@ for (const engine of [chromium, webkit]) {
     await assertSquare(offlinePage, restoredPage);
     await offlinePage.getByRole("button", { name: restoredPage === 1 ? "下一页" : "上一页", exact: true }).press("Enter");
     await assertSquare(offlinePage, restoredPage === 1 ? 2 : 1);
-    // An unsupported engine must not strand an already downloaded PDF offline.
-    await context.addInitScript(() => { Promise.withResolvers = undefined; });
+    const beforeFailure = await localRecoveryState(offlinePage, fixture.scoreId);
+    assert.ok(beforeFailure.notes.some(note => note.payload?.text === "Codec recovery note"));
+    // Engine recovery retains both the verified original bytes and real notes,
+    // but the failure page must not offer a misleading notes-free download.
+    await context.addInitScript(() => { window.nativePromiseResolvers = Promise.withResolvers; Promise.withResolvers = undefined; });
     await offlinePage.reload({ waitUntil: "domcontentloaded" });
     await expect(offlinePage.getByRole("alert")).toContainText("请升级浏览器或系统");
-    const [download] = await Promise.all([offlinePage.waitForEvent("download"), offlinePage.getByRole("button", { name: "下载原 PDF", exact: true }).click()]);
-    assert.deepEqual(await readFile(await download.path()), pdf);
+    await assertRecoveryChoices(offlinePage);
+    assert.deepEqual(await localRecoveryState(offlinePage, fixture.scoreId), beforeFailure);
+    await offlinePage.evaluate(() => { Promise.withResolvers = window.nativePromiseResolvers; });
+    await offlinePage.getByRole("button", { name: "重试加载", exact: true }).click();
+    const sheet = offlinePage.locator(".page-reader__sheet[data-page-turn-current]");
+    await expect(sheet).toBeVisible();
+    await assertSquare(offlinePage, Number(await sheet.getAttribute("data-page-number")));
   });
 }
 
-test("missing native Promise.withResolvers exposes engine recovery and an independent PDF download", { timeout: 60000 }, async t => {
+test("missing native Promise.withResolvers keeps explicit recovery without a failure-page original download", { timeout: 60000 }, async t => {
   const fixture = await startStorageFixture({ authenticated: true });
   t.after(() => fixture.stop());
   const browser = await chromium.launch();
@@ -84,12 +99,39 @@ test("missing native Promise.withResolvers exposes engine recovery and an indepe
   const page = await context.newPage();
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("alert")).toContainText("请升级浏览器或系统");
-  const link = page.getByRole("link", { name: "下载原 PDF", exact: true });
-  await expect(link).toBeVisible();
-  const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
-  const bytes = await readFile(await download.path());
-  assert.deepEqual(bytes, fixture.pdf);
+  await assertRecoveryChoices(page);
+  // Removing this fault-page shortcut does not remove the original-file API.
+  const original = await context.request.get(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/versions/${fixture.versionId}/pdf`);
+  assert.equal(original.status(), 200);
+  assert.deepEqual(await original.body(), fixture.pdf);
 });
+
+async function assertRecoveryChoices(page) {
+  await expect(page.getByRole("button", { name: "重试加载", exact: true })).toBeEnabled();
+  await page.getByText("更多帮助", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "反馈问题", exact: true })).toBeVisible();
+  assert.equal(await page.getByRole("button", { name: "下载原 PDF", exact: true }).count(), 0);
+  assert.equal(await page.getByRole("link", { name: "下载原 PDF", exact: true }).count(), 0);
+}
+
+async function localRecoveryState(page, scoreId) {
+  return page.evaluate(async scoreId => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("same-page"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    try {
+      const read = name => new Promise((resolve, reject) => {
+        const request = db.transaction(name, "readonly").objectStore(name).getAll();
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      const [files, notes] = await Promise.all([read("offlineScores"), read("annotations")]);
+      const file = files.find(record => record.scoreId === scoreId);
+      if (!file) throw new Error("verified fixture PDF missing");
+      const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", await file.blob.arrayBuffer()))].map(byte => byte.toString(16).padStart(2, "0")).join("");
+      return { hash, notes: notes.filter(note => note.scoreId === scoreId && !note.deleted).map(({id, payload}) => ({id, payload})).sort((a, b) => a.id.localeCompare(b.id)) };
+    } finally { db.close(); }
+  }, scoreId);
+}
 
 async function assertSquare(page, pageNumber) {
   const canvas = page.locator(`.page-reader__sheet[data-page-turn-current][data-page-number="${pageNumber}"] .pdf-page-canvas canvas[data-pdf-canvas-active]`).first();
