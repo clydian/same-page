@@ -41,7 +41,7 @@
 .practice-notation-scroll:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
 .practice-follow:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
 .practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 16px; }
-.practice-notation-scroll > div { max-width: 1100px; margin: auto; padding: 12px; background: #fff; border-radius: 3px; box-shadow: 0 1px 5px #17352b0a; }
+.practice-notation-paper { max-width: 1100px; margin: auto; padding: 12px; background: #fff; border-radius: 3px; box-shadow: 0 1px 5px #17352b0a; }
 /* Match Chorus: alphaTab supplies positions/classes; the host supplies their visible colors. */
 /* WebKit can retain old transformed cursor overflow after reflow. Contain only
    the decorative layer within alphaTab's canvas; wide music still scrolls. */
@@ -264,3 +264,20 @@
 .practice-notation[data-compare] .practice-notation-scroll { padding-top: 16px; }
 
 .practice-dock[data-collapsed] .practice-bar-actions { margin-left: auto; }
+
+/* Visual magnification changes scroll extents, never the engraving width. */
+.practice-notation-extent { position: relative; margin-inline: auto; }
+.practice-notation-paper { position: absolute; top: 0; left: 0; box-sizing: border-box; max-width: none; transform-origin: 0 0; }
+.practice-notation-tools { position: absolute; z-index: 8; top: 8px; left: 8px; padding: 3px; border: 1px solid #dce4de; border-radius: 14px; background: #fcfdfbf5; box-shadow: 0 2px 12px #17352b14; }
+.practice-notation[data-compare] .practice-notation-scroll { padding-top: 68px; scroll-padding-top: 68px; }
+.practice-reading-actions { position: absolute; z-index: 8; bottom: calc(8px + var(--practice-float-bottom,0px)); left: max(8px,var(--safe-left)); right: max(8px,var(--safe-right)); display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
+.practice-reading-actions .practice-follow, .practice-notation[data-compare] .practice-reading-actions .practice-follow { position: static; max-width: 100%; pointer-events: auto; }
+.practice-view-reset { min-height: 44px; padding: 0 14px; border: 1px solid #dce4de; border-radius: 24px; background: #fcfdfbf5; color: #365747; font: inherit; font-size: 12px; pointer-events: auto; }
+.practice-view-reset:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
+.practice-end-playback { border: 1px solid #b6c7bb; background: #edf2ec; color: #314d3d; font-size: 13px; font-weight: 600; margin-left: 8px; }
+.practice-settings[data-loop] { background: #e4eee6; box-shadow: inset 0 0 0 1px #8baa95; }
+@media (max-width: 380px) { .practice-dock:not([data-collapsed]) .practice-settings[data-loop] { width: 44px; flex-basis: 44px; } .practice-settings[data-loop] > svg { display: none; } .practice-dock:not([data-collapsed]) .practice-settings[data-loop] > span { display: inline; } }
+
+@media (max-width: 380px) { .practice-end-playback > span { display: none; } }
+
+.practice-notation-scroll { scrollbar-gutter: stable; }

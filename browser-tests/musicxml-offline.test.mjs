@@ -46,11 +46,11 @@ test('MusicXML and MXL: verified optional bundle, closed-browser offline cold st
   return player;
  };
  await open(page,'xml');
- await page.getByRole('button',{name:'结束播放',exact:true}).click();
+ await page.getByRole('button',{name:'结束练习',exact:true}).click();
  await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
  await page.getByRole('button',{name:'本地链路测试：2 个附件',exact:true}).click();
  await open(page,'mxl');
- await page.getByRole('button',{name:'结束播放',exact:true}).click();
+ await page.getByRole('button',{name:'结束练习',exact:true}).click();
  await context.close();
  context=await chromium.launchPersistentContext(profile,options);await context.setOffline(true);
  await context.addInitScript(()=>{

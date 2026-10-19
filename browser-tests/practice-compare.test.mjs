@@ -172,7 +172,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await separator.press('ArrowDown');
   await expect(bar.getByRole('button', { name: '暂停', exact: true })).toBeVisible();
   await bar.getByRole('button', { name: '暂停', exact: true }).click();
-  await page.getByRole('button', { name: '结束播放', exact: true }).click();
+  await page.getByRole('button', { name: '结束练习', exact: true }).click();
   await expect(page.locator('.practice-comparison-pdf')).toHaveCount(0);
   await expect(page.locator('.page-reader__viewport')).toBeVisible();
   // Pixel minimums allow ratios outside 20–80% on desktop. Every selectable
@@ -195,12 +195,12 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     await separator.press(key);
     const saved = await separator.getAttribute('aria-valuenow');
     assert.ok(key === 'Home' ? Number(saved) < 20 : Number(saved) > 80);
-    await page.getByRole('button', { name: '结束播放', exact: true }).click();
+    await page.getByRole('button', { name: '结束练习', exact: true }).click();
     await expect(bar).toHaveCount(0);
     await openComparison();
     await expect(separator).toHaveAttribute('aria-valuenow', saved);
     await expect(progress).toHaveValue('0');
   }
-  await page.getByRole('button', { name: '结束播放', exact: true }).click();
+  await page.getByRole('button', { name: '结束练习', exact: true }).click();
   assert.deepEqual(errors, []);
 });

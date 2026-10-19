@@ -138,7 +138,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByLabel('播放进度',{exact:true}).fill('4');
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('4');
-  await page.getByRole('button',{name:'结束播放',exact:true}).click();
+  await page.getByRole('button',{name:'结束练习',exact:true}).click();
   await expect(player).toHaveCount(0);
   await expect(notation).toHaveCount(0);
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);

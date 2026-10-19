@@ -7,6 +7,7 @@ import {
 import { Button, Switch } from "react-aria-components";
 import type { PlayerSession, PlayerState } from "@clydian/chorus-player";
 import { playbackViewStore, type PlaybackSource } from "./playback-store";
+import { NotationZoom } from "./notation-zoom";
 import { useNotationPinch } from "./use-notation-pinch";
 import { useNotationToolbarClearance } from "./use-notation-toolbar-clearance";
 import { PracticePlayerShell } from "./practice-player-shell";
@@ -58,7 +59,7 @@ export function MusicXmlPractice({
     playbackViewStore.getSnapshot,
   );
   const view = embedded ? "xml" : readerView;
-  useNotationPinch(viewport, session, view !== "pdf" && !error);
+  const visual = useNotationPinch(viewport, session, view !== "pdf" && !error);
   useNotationToolbarClearance(viewport, session, !embedded && view !== "pdf");
   const [loopStart, setLoopStart] = useState(0),
     [loopEnd, setLoopEnd] = useState(0);
@@ -77,6 +78,7 @@ export function MusicXmlPractice({
     (state.loop.start !== loopStart || state.loop.end !== loopEnd),
   );
   const measureLabel = (index: number) => state.measures[index]?.label ?? "—";
+  const notationZoom = { scale: state.notationScale, ready, onChange: (value: number) => { visual.reset(); session?.notationScale(value); } };
   return (
     <>
       <section
@@ -87,11 +89,11 @@ export function MusicXmlPractice({
         aria-hidden={view === "pdf"}
         inert={view === "pdf"}
       >
-        {view !== "pdf" && state.following === false && (
-          <Button className="practice-follow" onPress={() => session?.follow()}>
-            恢复自动跟随
-          </Button>
-        )}
+        {view === "compare" && <div className="practice-notation-tools" role="group" aria-label="重排谱面工具"><NotationZoom {...notationZoom} /></div>}
+        {view !== "pdf" && <div className="practice-reading-actions">
+          {state.following === false && <Button className="practice-follow" onPress={() => { visual.reset(); session?.follow(); }}>恢复自动跟随</Button>}
+          {visual.zoom > 1 && <Button className="practice-view-reset" aria-label="恢复查看比例" onPress={visual.reset}>适合宽度</Button>}
+        </div>}
         <div
           ref={viewport}
           className="practice-notation-scroll"
@@ -99,15 +101,16 @@ export function MusicXmlPractice({
           aria-label="滚动谱面"
           tabIndex={0}
         >
-          <div className="practice-notation-paper">
+          <div className="practice-notation-extent"><div className="practice-notation-paper">
             <div ref={container} />
-          </div>
+          </div></div>
         </div>
       </section>
       <PracticePlayerShell
         source={source}
         embedded={embedded}
-        notationZoom={view !== "pdf" ? { scale: state.notationScale, ready, onChange: value => session?.notationScale(value) } : undefined}
+        notationZoom={view !== "pdf" && view !== "compare" ? notationZoom : undefined}
+        loopStatus={state.loop ? `${measureLabel(state.loop.start)} 至 ${measureLabel(state.loop.end)}` : undefined}
         ready={ready}
         playing={state.playing}
         message={error ?? state.message}

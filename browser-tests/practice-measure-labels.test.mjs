@@ -23,11 +23,11 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(page.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
   const range = page.getByRole('slider',{name:'播放进度',exact:true});
   await expect(range).toHaveAttribute('max','5');
-  for (const [index,label] of ['第 1 小节','第 2 小节','第 1 小节 · 播放次序 3','第 2 小节 · 播放次序 4','第 3 小节 · 播放次序 5','第 4 小节 · 播放次序 6'].entries()) {
+  for (const [index,label] of ['第 1 小节 · 第 1 次经过','第 2 小节 · 第 1 次经过','第 1 小节 · 第 2 次经过','第 2 小节 · 第 2 次经过','第 3 小节','第 4 小节'].entries()) {
     await range.fill(String(index));
     await expect(range).toHaveAttribute('aria-valuetext',label);
   }
   await page.getByRole('button',{name:'练习设置',exact:true}).click();
   await page.locator('summary').filter({hasText:'片段循环'}).click();
-  assert.deepEqual(await page.getByLabel('循环起点',{exact:true}).locator('option').allTextContents(),['第 1 小节','第 2 小节','第 1 小节 · 播放次序 3','第 2 小节 · 播放次序 4','第 3 小节 · 播放次序 5','第 4 小节 · 播放次序 6']);
+  assert.deepEqual(await page.getByLabel('循环起点',{exact:true}).locator('option').allTextContents(),['第 1 小节 · 第 1 次经过','第 2 小节 · 第 1 次经过','第 1 小节 · 第 2 次经过','第 2 小节 · 第 2 次经过','第 3 小节','第 4 小节']);
 });
