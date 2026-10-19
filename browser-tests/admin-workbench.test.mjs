@@ -125,7 +125,11 @@ for (const [engine, type] of [
       const notationSize = page.getByRole("button", { name: "谱面大小", exact: true });
       await expect(notationSize).toHaveText("60%");
       await page.locator(".admin-musicxml .practice-notation-scroll").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80 });
-      await expect(notationSize).toHaveText("90%");
+      await expect(notationSize).toHaveText("60%");
+      await expect.poll(() => page.locator(".admin-musicxml .practice-notation-paper").evaluate(element => new DOMMatrixReadOnly(getComputedStyle(element).transform).a)).toBeGreaterThan(1);
+      await page.getByRole("button", { name: "恢复查看比例", exact: true }).click();
+      await changeNotationSize(page, "放大谱面");
+      await expect(notationSize).toHaveText("70%");
       await changeNotationSize(page, "恢复默认谱面大小");
       await expect(notationSize).toHaveText("60%");
       await player.getByRole("button", { name: "播放", exact: true }).click();

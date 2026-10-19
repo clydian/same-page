@@ -24,7 +24,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
     for (const name of stylesheets) await page.addStyleTag({ url: `${fixture.origin}/assets/${name}` });
     await page.evaluate(() => {
       document.body.innerHTML = `<section class="practice-notation" data-visible style="position:static;display:block;visibility:visible;padding:0">
-        <div class="practice-notation-scroll" style="position:fixed;inset:53px 0 65px;overflow:auto;padding:8px"><div class="practice-notation-paper">
+        <div class="practice-notation-scroll" style="position:fixed;inset:53px 0 65px;overflow:auto;padding:8px"><div class="practice-notation-extent" style="width:100%;height:18000px"><div class="practice-notation-paper" style="width:100%">
           <div class="alphaTab" style="position:relative;height:18000px">
             <div class="at-cursors" style="position:absolute;pointer-events:none;z-index:1000;width:100%;height:18000px">
               <div class="at-cursor-bar" style="position:absolute;left:0;top:0;width:100px;height:100px;transform-origin:left top;will-change:transform;transform:translate(610px,4500px) scale(1.1,3.138)"></div>
@@ -32,10 +32,11 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
             </div>
             <div class="at-surface" style="position:relative;overflow:hidden;width:100%;height:18000px"></div>
           </div>
-        </div></div>
+        </div></div></div>
       </section>`;
     });
     const cursor = page.locator('.at-cursor-beat');
+    await expect.poll(() => page.locator('.at-cursors').evaluate(element => element.clientWidth)).toBeGreaterThan(300);
     await expect.poll(() => cursor.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(189, 119, 64)');
     // Let the old desktop cursor layer reach the compositor before resizing.
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
