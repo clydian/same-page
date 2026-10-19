@@ -283,6 +283,7 @@ export function ContinuousLayout({
     <AnnotationPagesContext.Provider value={annotationProps.editing ? pages : null}>
     <section
       className="continuous-reader"
+      data-current-page={currentPage}
       tabIndex={0}
       data-underfit={zoom < 1 || undefined}
       data-zoom={zoom}

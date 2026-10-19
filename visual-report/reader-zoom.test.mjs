@@ -104,6 +104,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       }
     });
+    await expect(viewport).toHaveAttribute("data-current-page", "2");
     await viewport.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
     assert.equal(await viewport.getAttribute('data-zoom'), editingZoom);
     assert.ok(await viewport.evaluate(e => e.scrollTop >= 0 && e.scrollTop <= e.scrollHeight - e.clientHeight));

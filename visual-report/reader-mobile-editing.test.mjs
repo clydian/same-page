@@ -76,7 +76,7 @@ test(`${engineName}: reader controls remain reachable without overlap across vie
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await page.locator('.continuous-reader[data-editing]').waitFor();
   assert.equal(await page.locator('.continuous-reader__page[data-index="1"]').getAttribute("inert"), null);
-  assert.equal(await page.locator('.continuous-reader__page[data-index="0"] .annotation-overlay').getAttribute("data-editing"), null);
+  assert.equal(await page.locator('.continuous-reader__page[data-index="0"] .annotation-overlay').getAttribute("data-editing"), "true");
   assert.equal(await reader.evaluate(element => element.scrollTop), position);
 });
 }
@@ -293,8 +293,8 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     await expect(hint.locator('.reader-edit-gesture-hint__detail')).toBeVisible();
     await expect(hint).toContainText('双指上下浏览');
     const layer = await page.getByRole('button', { name: /当前编辑层/ }).getAttribute('aria-label');
-    const draw = async () => {
-      await page.locator('.annotation-overlay[data-editing] svg').evaluate(svg => {
+    const draw = async targetPage => {
+      await page.getByLabel(`第 ${targetPage} 页笔记层`, { exact: true }).evaluate(svg => {
         const box = svg.getBoundingClientRect();
         const base = { bubbles: true, pointerType: 'pen', pointerId: 42, buttons: 1, pressure: .5,
           clientX: box.x + box.width * .5, clientY: Math.max(120, box.top + 180) };
@@ -307,10 +307,11 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
       const { localDatabase } = await import('/src/client/platform/local-database.ts');
       return (await localDatabase.annotations.toArray()).filter(note => !note.deleted && note.payload?.kind === 'ink').map(note => note.payload.pageNumber).sort();
     });
-    await draw();
+    await draw(1);
     await expect.poll(notePages).toEqual([1]);
     const viewport = page.locator('.continuous-reader');
     await browseVertically(viewport, -800);
+    await expect(viewport).toHaveAttribute("data-current-page", "2");
     await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
     await expect(hint.locator('.reader-edit-gesture-hint__detail')).toBeVisible();
     await expect(hint.getByText('编辑中', { exact: true })).toBeVisible();
@@ -318,11 +319,12 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     assert.equal(await viewport.getAttribute('data-zoom'), '1');
     assert.equal(await page.getByRole('button', { name: /当前编辑层/ }).getAttribute('aria-label'), layer);
     await expect(page.getByRole('button', { name: '画笔', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await draw();
+    await draw(2);
     await expect.poll(notePages).toEqual([1, 2]);
     await page.getByRole('button', { name: '撤销', exact: true }).click();
     await expect.poll(notePages).toEqual([1]);
     await browseVertically(viewport, 800);
+    await expect(viewport).toHaveAttribute("data-current-page", "1");
     await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 1 页笔记层"]').waitFor();
     await page.getByRole('button', { name: '撤销', exact: true }).click();
     await expect.poll(notePages).toEqual([]);
