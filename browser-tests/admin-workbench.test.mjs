@@ -112,10 +112,15 @@ for (const [engine, type] of [
       await page.getByRole("button", { name: "刷新", exact: true }).click();
       await expect(page.getByText("先导入 XML，再对照检查和试听。", { exact: true })).toBeVisible();
       await page.getByLabel("比较结果", { exact: true }).selectOption(imported);
+      // Exercise late viewport admission: a ready synth is not proof that an
+      // off-screen engraving's lazy SVG tiles have been painted.
+      await page.getByRole("heading", { name: "检查与发布", exact: true }).scrollIntoViewIfNeeded();
       const player = page.getByTestId("musicxml-player");
       await expect(
         player.getByRole("button", { name: "播放", exact: true }),
       ).toBeEnabled({ timeout: 60000 });
+      await page.locator(".admin-musicxml").scrollIntoViewIfNeeded();
+      await expect(page.locator(".admin-musicxml")).toBeInViewport();
       await expect(
         page.locator(".admin-musicxml .at-surface svg").first(),
       ).toBeVisible();
