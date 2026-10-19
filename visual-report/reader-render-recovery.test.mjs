@@ -73,6 +73,9 @@ for (const [name, engine] of Object.entries(engines)) test(`${name}: high-DPR co
   await editing.locator('..').locator('[data-pdf-canvas-active]').dispatchEvent('contextlost');
   const reload = page.getByRole('button', { name: '重新加载 PDF', exact: true }).first();
   await reload.waitFor();
+  // Wait for the bounded retries to finish before repairing the injected API;
+  // otherwise a slow runner could auto-recover between waitFor and click.
+  await expect.poll(() => page.evaluate(async () => JSON.parse((await import('/src/client/diagnostics/diagnostics.ts')).exportDiagnostics()).records.some(record => record.render?.reason === 'canvas-unavailable' && record.render.automaticRetries === 2))).toBe(true);
   await page.evaluate(() => { HTMLCanvasElement.prototype.getContext = window.originalCanvasGetContext; });
   await reload.click();
   await expect.poll(painted).toBe(true);
