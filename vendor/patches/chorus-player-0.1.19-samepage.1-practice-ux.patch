@@ -6,7 +6,7 @@
  import { ScoreFollowSession, isPointerDrag } from './score-follow.ts';
 +import { playbackMeasureLabels } from './playback-measures.ts';
  import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
- 
+
  export interface PlayerPart { id: number; name: string; volume: number; baseVolume?: number; muted: boolean; solo: boolean }
 @@ -14,11 +15,11 @@
    loop: { start: number; end: number } | null;
