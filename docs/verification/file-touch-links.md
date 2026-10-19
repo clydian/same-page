@@ -28,6 +28,8 @@
   目标变化、重渲染、卸载及不启动离线准备。
 - `browser-tests/file-touch-links.test.mjs` 使用本地隔离 Worker 夹具；验证真实页面的
   链接、外链、搜索框、省略号/Escape 焦点、正常打开及本机存储入口。
+  两个引擎均使用持久浏览器上下文，并经产品正常打开准备本机副本；返回云盘及
+  本机存储走应用导航，保留页面错误断言，不向 WebKit 临时上下文直接注入 Blob。
 - 本地 Chromium 154 通过 Playwright/CDP 输入验证按住不打开、下一次点按恢复、
   原生滚动与双指不误打开、右键不被取消、Ctrl 点击打开新标签页及键盘 Enter。
   检查按住/滚动期间没有 PDF 或笔记准备请求。
@@ -39,9 +41,12 @@
 浏览器的 contextmenu、pointercancel、pointerup、click 顺序不统一；应用事件测试
 不证明系统菜单被真机隐藏。未知来源的菜单保守放行。
 
-云环境下载 Playwright 配套浏览器被代理以 `403 Domain forbidden` 拒绝；本地使用
-`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`。WebKit 用例交由正常 CI；
-其 held sequence 是 DOM 事件回归，不能算 iOS 原生手势验收。
+云环境 Chromium 配套下载被代理以 `403 Domain forbidden` 拒绝，本地使用
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`。WebKit 26.5 通过官方备用
+下载地址安装，所缺 Debian 运行库经签名源下载、仅解包到 `/tmp` 的浏览器环境；
+手工验证库可加载后，设置 `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1` 绕过
+仅识别系统缓存的主机库探测。实际双引擎验收仍完整执行，CI 使用正常安装流程。
+WebKit 的 held sequence 是 DOM 事件回归，不能算 iOS 原生手势验收。
 
 尚未完成 Android 已安装 PWA、iOS Safari/主屏幕 PWA、TalkBack/VoiceOver 真机验收。
 旧平台若不提供 Pointer Events 或明确的来源，不能承诺消除所有原生菜单。

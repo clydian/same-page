@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { chromium, webkit, expect } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
+import { expectSampleScoreContent } from "./pdf-content.mjs";
 
 // Chromium uses browser touch input through CDP, not DOM dispatch. WebKit's
 // held sequence only tests app logic; neither is physical-device acceptance.
@@ -30,11 +34,12 @@ async function hold(page, file, engine) {
 for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`file links retain navigation and withdraw held touch (${engine})`, { timeout: 120_000 }, async t => {
     const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
-    let browser;
-    t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
+    const profile = await mkdtemp(path.join(tmpdir(), "same-page-file-touch-"));
+    let context;
+    t.after(async () => { try { await context?.close(); } finally { try { await fixture.stop(); } finally { await rm(profile, { recursive: true, force: true }); } } });
     const executablePath = engine === "chromium" ? process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH : undefined;
-    browser = await browserType.launch({ ...(executablePath ? { executablePath } : {}) });
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "block" });
+    context = await browserType.launchPersistentContext(profile, { headless: true, ...(executablePath ? { executablePath } : {}), viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow" });
+    await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
     const account = fixture.accounts[0];
     assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } })).status(), 200);
     const api = `${fixture.origin}/api/choirs/${fixture.choirId}`;
@@ -43,10 +48,12 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       assert.equal((await context.request.post(api + "/scores", { multipart: { file: { name: `滚动测试${index}.pdf`, mimeType: "application/pdf", buffer: fixture.pdf } } })).status(), 201);
     }
     const page = await context.newPage();
-    const errors = []; page.on("pageerror", error => errors.push(error.message));
+    let phase = "file library";
+    const errors = []; page.on("pageerror", error => errors.push({ phase, message: error.message }));
     const library = `${fixture.origin}/choirs/${fixture.choirId}`;
     const scorePath = `/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
     await page.goto(library);
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
     const file = page.getByRole("link", { name: "本地链路测试", exact: true });
     await expect(file).toBeVisible();
     await expect(file).toHaveAttribute("href", scorePath);
@@ -107,35 +114,36 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     assert.equal(await rightMenu, false);
     await page.keyboard.press("Escape");
     const popup = context.waitForEvent("page", { timeout: 5_000 });
+    phase = "modified link opening";
     await file.click({ modifiers: ["Control"] });
     const other = await popup;
-    await expect(other).toHaveURL(new RegExp(`${scorePath}$`)); await other.close();
+    await expect(other).toHaveURL(new RegExp(`${scorePath}$`));
+    await expectSampleScoreContent(other); await other.close();
     await expect(page).toHaveURL(library);
+    phase = "normal reader opening";
     await file.tap();
     await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
-    await page.goto(library);
+    await expectSampleScoreContent(page);
+    phase = "return to library";
+    await page.goBack();
+    await expect(page).toHaveURL(library);
     await expect(file).toBeVisible();
 
-    // Seed only this fixture's local copy so the actual storage route exercises
-    // the same link surface without requiring an installed offline shell.
-    await page.evaluate(async ({ choirId, scoreId, versionId, ownerKey, pdf }) => {
-      const db = await new Promise((resolve, reject) => { const request = indexedDB.open("same-page"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      try {
-        await new Promise((resolve, reject) => {
-          const tx = db.transaction("offlineScores", "readwrite");
-          tx.objectStore("offlineScores").put({ key: "touch-test-copy", ownerKey, scopeKey: JSON.stringify([ownerKey, choirId, scoreId]), choirId, scoreId, versionId, fileName: "本机副本.pdf", blob: new Blob([new Uint8Array(pdf)], { type: "application/pdf" }), active: 1, verifiedAt: Date.now(), sha256: "a".repeat(64), pageCount: 2 });
-          tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
-        });
-      } finally { db.close(); }
-    }, { choirId: fixture.choirId, scoreId: fixture.scoreId, versionId: fixture.versionId, ownerKey: `user:${account.id}`, pdf: [...fixture.pdf] });
+    // The normal file opening above prepares its verified local copy through
+    // the product. Do not inject a Blob into WebKit's ephemeral IndexedDB.
     const storage = library + "/storage";
-    await page.goto(storage);
-    const localFile = page.getByRole("link", { name: "本机副本", exact: true });
+    phase = "local storage";
+    await page.getByRole("button", { name: "我在此云盘", exact: true }).tap();
+    await page.getByRole("menuitem", { name: "本机存储", exact: true }).click();
+    await expect(page).toHaveURL(storage);
+    const localFile = page.getByRole("link", { name: "本地链路测试", exact: true });
     await expect(localFile).toBeVisible();
     await hold(page, localFile, engine);
     await expect(page).toHaveURL(storage);
+    phase = "local reader opening";
     await localFile.focus(); await page.keyboard.press("Enter");
     await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
+    await expectSampleScoreContent(page);
     assert.deepEqual(errors, []);
   });
 }
