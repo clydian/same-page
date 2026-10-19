@@ -20,18 +20,24 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   useEffect(() => {
     const abort = new AbortController();
     let player: PlayerSession | null = null;
-    const timeout = setTimeout(() => abort.abort(new Error('读取附件超时，请重试。')), 60000);
+    let active = true;
+    const timeout = setTimeout(() => {
+      const reason = new Error('读取附件超时，请重试。');
+      abort.abort(reason);
+      if (active) setError(reason.message);
+    }, 60000);
     const pauseForAudio = (event: Event) => { if (event.target instanceof HTMLMediaElement) player?.pause(); };
     document.addEventListener('play', pauseForAudio, true);
     void (async () => {
       // Capture the write lifetime before either authorization or download yields.
       const save = await captureMusicXmlWrite(source, abort.signal).catch(() => null);
+      abort.signal.throwIfAborted();
       let bytes: Uint8Array | undefined;
       let cached: ReturnType<typeof readPlaybackPreparation>;
       try {
         if (!navigator.onLine) throw new TypeError('offline');
         const fresh = await readAttachment(source.choirId, source.score.id, source.attachment.id, abort.signal);
-        if (abort.signal.aborted) return;
+        abort.signal.throwIfAborted();
         if (fresh.revision !== source.attachment.revision || fresh.trashExpiresAt) throw new Error('附件已更新，请从附件列表重新打开。');
         cached = readPlaybackPreparation(source);
         bytes = cached?.bytes;
@@ -41,7 +47,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
           bytes = new Uint8Array(await response.arrayBuffer());
         }
       } catch (reason) {
-        if (abort.signal.aborted) return;
+        if (abort.signal.aborted) throw abort.signal.reason;
         if (reason instanceof SettingsRequestError && [401, 403, 404].includes(reason.status)) {
           await revokeOfflineMusicXml(source).catch(() => undefined);
           throw reason;
@@ -52,20 +58,23 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
         if (!bytes) throw new Error('这份练习谱尚未完成离线准备，请联网打开后重试。', { cause: reason });
         setOffline('ready');
       }
-      if (abort.signal.aborted) return;
+      abort.signal.throwIfAborted();
       if (save && navigator.onLine) setPreparation({ bytes, save });
       else if (!save) setOffline('failed');
-      if (abort.signal.aborted || !container.current) return;
+      abort.signal.throwIfAborted();
+      if (!container.current) return;
       clearTimeout(timeout);
       const sourceBytes = bytes;
       player = createPlayerSession(container.current, sourceBytes, { scrollElement: viewport.current ?? undefined, prepared: cached?.prepared,
         onPrepared: prepared => { if (!abort.signal.aborted) savePlaybackPreparation(source, sourceBytes, prepared); } });
       setSession(player);
     })().catch(reason => {
+      clearTimeout(timeout);
+      if (!active) return;
       if (!abort.signal.aborted && reason instanceof SettingsRequestError && [401,403,404].includes(reason.status)) { clearPlaybackPreparation(source); stopPlayback(); return; }
       if (!abort.signal.aborted || abort.signal.reason instanceof Error && abort.signal.reason.name !== 'AbortError') setError(reason instanceof Error ? reason.message : '读取失败。');
     });
-    return () => { abort.abort(); clearTimeout(timeout); document.removeEventListener('play', pauseForAudio, true); player?.dispose(); };
+    return () => { active = false; abort.abort(); clearTimeout(timeout); document.removeEventListener('play', pauseForAudio, true); player?.dispose(); };
   }, [source, attempt]);
   useEffect(() => {
     if (!preparation) return;
