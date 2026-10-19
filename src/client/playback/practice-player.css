@@ -267,7 +267,9 @@
 
 /* Visual magnification changes scroll extents, never the engraving width. */
 .practice-notation-extent { position: relative; margin-inline: auto; }
-.practice-notation-paper { position: absolute; top: 0; left: 0; box-sizing: border-box; max-width: none; transform-origin: 0 0; }
+/* The engine is created before the gesture hook receives its session. Normal
+   flow gives it a usable initial width without waiting for hook measurements. */
+.practice-notation-paper { position: relative; margin: 0; box-sizing: border-box; max-width: none; transform-origin: 0 0; }
 .practice-notation-tools { position: absolute; z-index: 8; top: 8px; left: 8px; padding: 3px; border: 1px solid #dce4de; border-radius: 14px; background: #fcfdfbf5; box-shadow: 0 2px 12px #17352b14; }
 .practice-notation[data-compare] .practice-notation-scroll { padding-top: 68px; scroll-padding-top: 68px; }
 .practice-reading-actions { position: absolute; z-index: 8; bottom: calc(8px + var(--practice-float-bottom,0px)); left: max(8px,var(--safe-left)); right: max(8px,var(--safe-right)); display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
