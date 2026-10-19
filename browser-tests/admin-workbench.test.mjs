@@ -137,10 +137,21 @@ for (const [engine, type] of [
       await expect(notationSize).toHaveText("70%");
       await changeNotationSize(page, "恢复默认谱面大小");
       await expect(notationSize).toHaveText("60%");
+      // Result replacement also disposes an output whose worklet may be pending.
+      await player.getByRole("button", { name: "播放", exact: true }).click();
+      await expect(player.getByRole("button", { name: "暂停", exact: true })).toBeVisible();
+      await page.getByLabel("比较结果", { exact: true }).selectOption("");
+      await expect(player).toHaveCount(0);
+      await page.getByLabel("比较结果", { exact: true }).selectOption(imported);
+      await expect(player.getByRole("button", { name: "播放", exact: true })).toBeEnabled({ timeout: 60000 });
       await player.getByRole("button", { name: "播放", exact: true }).click();
       await expect(
         player.getByRole("button", { name: "暂停", exact: true }),
       ).toBeVisible();
+      // #434: pausing before the first audio sample must be safe as well.
+      await player.getByRole("button", { name: "暂停", exact: true }).click();
+      await expect(player.getByRole("button", { name: "播放", exact: true })).toBeEnabled();
+      await player.getByRole("button", { name: "播放", exact: true }).click();
       await expect
         .poll(
           () =>

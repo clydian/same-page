@@ -50,6 +50,7 @@ Playwright Chromium 的 CDN 下载受限，测试使用系统 Chromium；WebKit 
 临时目录后运行，没有修改应用依赖或部署系统。真实 iOS Safari/已安装 PWA 的杀进程、
 后台回收、音频路由及系统存储淘汰仍需真机验收，不能由桌面 WebKit 结果代替。
 
-共享播放器现有 AudioWorklet 初始化期间，极快地“播放后立即结束/暂停”可能触发
-未 start 的 AudioBufferSourceNode.stop 异常。此 PR 未修改原生播放器制品；本次播放
-验收在确认真实音频输出后暂停及测试失权清理，不将这个既有初始化竞态视为已修复。
+原离线播放 PR 未修复的 AudioWorklet 初始化快速暂停竞态（#434），后由固定的
+player `0.1.19-samepage.2` / native `1.8.4-samepage.3` 修复：同步启动静音 source，
+并隔离暂停、结束、释放之后迟到的初始化回调。构建来源及回归范围见
+`vendor/chorus-player-0.1.19-samepage.2.md`；不将桌面浏览器自动化视为手机真机或耳听验收。

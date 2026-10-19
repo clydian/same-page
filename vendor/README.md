@@ -195,3 +195,10 @@ Chorus333测试通过。Come 6轨62小节 Page21/Horizontal7原生SVG不再崩�
 ## 练习交互扩展：0.1.19-samepage.1
 
 SamePage 本地播放器制品，在精确 0.1.19 基线上增加显式暂停跟随和按印刷小节歧义生成经过信息。源码补丁、固定来源、重建命令及 SHA-256 见 [制品说明](chorus-player-0.1.19-samepage.1.md)。原生依赖保持 1.8.4-samepage.2；没有跨仓库发布。
+
+## AudioWorklet 初始化取消：player 0.1.19-samepage.2 / native 1.8.4-samepage.3
+
+修复 #434：初始化期间立即暂停、结束或释放，不再对未启动 source 调用 stop；迟到
+的初始化回调也不能连接已取消或已替换的播放。原生仅一个运行时文件变化，player
+仅更新版本及精确 peer，保留所有既有交互扩展。来源、完整/增量 patch、构建脚本、
+MPL 源码分发和回归边界见 [制品说明](chorus-player-0.1.19-samepage.2.md)。未跨仓库发布。
