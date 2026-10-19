@@ -18,6 +18,22 @@ function pending() {
   return { promise, resolve };
 }
 beforeEach(() => { guest.owner = null; prepare.mockReset(); Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { getRegistration: async () => ({ active: {} }) } }); });
+it("never starts shell lookup or preparation after a withdrawn touch, but accepts the next tap", async () => {
+  guest.owner = "guest:touch";
+  const registration = vi.spyOn(navigator.serviceWorker, "getRegistration");
+  prepare.mockResolvedValue({ phase: "ready", record: {} });
+  render(<MemoryRouter initialEntries={["/choirs/drive"]}>{row()}<Route /></MemoryRouter>);
+  const file = screen.getByRole("link", { name: "score" });
+  const pointer = (type: string) => fireEvent(file, new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: "touch", pointerId: 1, isPrimary: true }));
+  pointer("pointerdown"); pointer("contextmenu"); pointer("pointercancel");
+  fireEvent.click(file, { detail: 1 });
+  expect(registration).not.toHaveBeenCalled();
+  expect(prepare).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("当前位置")).toHaveTextContent(/^\/choirs\/drive$/);
+  pointer("pointerdown"); pointer("pointerup"); fireEvent.click(file, { detail: 1 });
+  await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(screen.getByLabelText("当前位置")).toHaveTextContent("/choirs/drive/scores/score"));
+});
 it("stays in the library, joins repeat clicks and opens only after preparation succeeds", async () => {
   const task = pending(); prepare.mockReturnValue(task.promise);
   render(<MemoryRouter initialEntries={["/choirs/drive"]}>{row()}<Route /></MemoryRouter>);
