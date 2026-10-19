@@ -27,7 +27,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(page.locator('.practice-measure-label').nth(1)).toHaveText('25');
   const size = page.getByRole('button',{name:'谱面大小',exact:true});
   await expect(size).toHaveText('60%');
-  // A native mobile pinch must resize notation, never the browser or transport.
+  // Magnify existing SVGs without changing their layout or engraving size.
   const pinch = async (from, to) => {
     if (engine === 'chromium') {
       const cdp = await context.newCDPSession(page);
@@ -50,13 +50,27 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     }
   };
   const chromeBefore = await bar.boundingBox();
+  const engraving = await page.locator('.practice-notation .at-surface svg').first().elementHandle();
+  const engravingPositions = () => page.locator('.practice-measure-label').evaluateAll(labels => labels.map(e => [e.style.left,e.style.top]));
+  const engravingBefore = await engravingPositions();
   await pinch(80,120);
-  await expect(size).toHaveText('90%');
+  await expect(size).toHaveText('60%');
+  await expect(page.locator('.practice-notation-paper')).toHaveCSS('transform', 'matrix(1.5, 0, 0, 1.5, 0, 0)');
+  assert.equal(await engraving.evaluate(e => e.isConnected), true, 'pinch retains mounted SVGs; lazy rendering of additional systems remains allowed');
+  assert.deepEqual(await engravingPositions(), engravingBefore, 'pinch retains measure positions and line breaks');
+  await expect(page.getByRole('button',{name:'恢复查看比例',exact:true})).toBeVisible();
   assert.equal(await page.evaluate(()=>visualViewport.scale),1,'pinch never magnifies the whole page');
   assert.deepEqual(await bar.boundingBox(),chromeBefore,'playback controls retain their geometry');
+  await page.locator('.practice-notation .b1').first().click();
+  await expect(bar.getByRole('slider',{name:'播放进度',exact:true})).toHaveValue('1');
+  await page.setViewportSize({width:844,height:390});
+  await expect(page.getByRole('button',{name:'恢复查看比例',exact:true})).toHaveCount(0);
+  await page.setViewportSize({width:390,height:844});
+  await expect(size).toHaveText('60%');
   await pinch(120,80);
   await expect(size).toHaveText('60%');
-  await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'恢复自动跟随',exact:true}).click();
   if (engine === 'chromium') {
     const scroll = page.locator('.practice-notation-scroll');
     const cdp = await context.newCDPSession(page);
@@ -81,7 +95,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await changeNotationSize(page, '恢复默认谱面大小');
   const range = bar.getByRole('slider',{name:'播放进度',exact:true});
   await range.fill('1'); await expect(bar.locator('.practice-position')).toHaveText('25');
-  await expect(range).toHaveAttribute('aria-valuetext', '第 25 小节 · 播放次序 2');
+  await expect(range).toHaveAttribute('aria-valuetext', '第 25 小节 · 第 1 次经过');
   await range.fill('2'); await expect(range).toHaveAttribute('aria-valuetext', '第 3 小节');
   await range.fill('0'); await expect(bar.locator('.practice-position')).toHaveText('0');
   for (const [width,height] of [[320,740],[390,844],[844,390],[820,1180],[1180,820]]) {
@@ -170,7 +184,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(page.getByRole('dialog',{name:'页面总览',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'关闭页面总览',exact:true}).click();
   await selectPracticeView(page, '重排谱面'); await expect(range).toHaveValue(oldPosition);
-  await page.getByRole('button',{name:'结束播放',exact:true}).click(); await expect(bar).toHaveCount(0);
+  await page.getByRole('button',{name:'结束练习',exact:true}).click(); await expect(bar).toHaveCount(0);
   // Ending removes both insets; let the ordinary reader measure its restored
   // viewport before starting a tap that resize cancellation would invalidate.
   await expect.poll(async () => Math.round((await page.locator('.page-reader__viewport').boundingBox()).height)).toBe(844);

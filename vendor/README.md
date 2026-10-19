@@ -191,3 +191,7 @@ Node24 独立 clone 构建，完整修改文件、可重放 patch、MPL 通知�
 Chorus333测试通过。Come 6轨62小节 Page21/Horizontal7原生SVG不再崩溃，
 7300 MIDI事件全部字段与62小节边界保持，O Nata14SVG字节不变。
 这些不代表原谱全部图形或连续播放耳听已验收。
+
+## 练习交互扩展：0.1.19-samepage.1
+
+SamePage 本地播放器制品，在精确 0.1.19 基线上增加显式暂停跟随和按印刷小节歧义生成经过信息。源码补丁、固定来源、重建命令及 SHA-256 见 [制品说明](chorus-player-0.1.19-samepage.1.md)。原生依赖保持 1.8.4-samepage.2；没有跨仓库发布。

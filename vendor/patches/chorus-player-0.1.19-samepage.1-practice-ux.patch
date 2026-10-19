@@ -1,0 +1,86 @@
+--- a/packages/player/src/session.ts
++++ b/packages/player/src/session.ts
+@@ -3,6 +3,7 @@
+ import * as alphaTab from '@coderline/alphatab';
+ import { applyTimbreProfile, classifyTimbreRoles } from './timbre-profile.ts';
+ import { ScoreFollowSession, isPointerDrag } from './score-follow.ts';
++import { playbackMeasureLabels } from './playback-measures.ts';
+ import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
+
+ export interface PlayerPart { id: number; name: string; volume: number; baseVolume?: number; muted: boolean; solo: boolean }
+@@ -14,11 +15,11 @@
+   loop: { start: number; end: number } | null;
+ }
+ export interface PlayerSession {
+-  playPause(): void; pause(): void; seek(index: number): void; speed(value: number): void;
++  playPause(): void; pause(): void; seek(index: number): void; seekAt(x: number, y: number): void; speed(value: number): void;
+   mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
+   notationScale(value: number): void;
+   solfege(visible: boolean, part?: number | null): void;
+-  focus(id: number | null): void; focusOther(volume: number): void; follow(): void;
++  focus(id: number | null): void; focusOther(volume: number): void; follow(): void; suspendFollow(): void;
+   loop(start: number | null, end?: number): void;
+   getSnapshot(): PlayerState; subscribe(listener: () => void): () => void; dispose(): void;
+ }
+@@ -156,9 +157,10 @@
+   };
+   const ready = () => {
+     if (disposed || state.status === 'error' || state.status === 'ready' || !api.isReadyForPlayback || !api.score) return;
+-    const measures = (api.tickCache?.masterBars ?? []).map((item, index) => {
+-      const number = String(measureLabels[item.masterBar.index] ?? item.masterBar.index + 1);
+-      const label = `第 ${number} 小节${number === String(index + 1) ? '' : ` · 播放次序 ${index + 1}`}`;
++    const bars = api.tickCache?.masterBars ?? [];
++    const labels = playbackMeasureLabels(bars.map(item => String(measureLabels[item.masterBar.index] ?? item.masterBar.index + 1)));
++    const measures = bars.map((item, index) => {
++      const label = labels[index];
+       return { index, label, startTick: item.start, endTick: item.end };
+     });
+     clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures });
+@@ -213,6 +215,12 @@
+     playPause() { if (!disposed && state.status === 'ready') api.playPause(); },
+     pause() { if (!disposed) api.pause(); },
+     seek(index) { if (!disposed && state.status === 'ready' && state.measures[index]) { api.tickPosition = state.measures[index].startTick; if (state.following) scrollToMeasure(index); } },
++    // Hosts normalize transformed viewport coordinates before crossing this seam.
++    seekAt(x, y) {
++      if (disposed || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
++      const beat = api.boundsLookup?.getBeatAtPos(x, y);
++      if (beat && api.tickCache) api.tickPosition = api.tickCache.getBeatStart(beat);
++    },
+     speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
+     mix(id, value) {
+       if (disposed || state.status !== 'ready' || !api.score?.tracks[id] || value.volume !== undefined && !Number.isFinite(value.volume)) return;
+@@ -235,6 +243,7 @@
+       update({ solfege: visible, solfegePart: part === undefined ? state.solfegePart : part }); renderDegrees();
+     } },
+     follow() { if (!disposed) setFollow(true); },
++    suspendFollow() { if (!disposed && state.following) setFollow(false); },
+     loop(start, end) {
+       if (disposed || state.status !== 'ready') return;
+       if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); return; }
+--- a/packages/player/src/playback-measures.ts
++++ b/packages/player/src/playback-measures.ts
+@@ -67,3 +67,14 @@
+   const clampedRatio = Math.min(1, Math.max(0, ratio));
+   return Math.round(clampedRatio * (measures.length - 1));
+ };
++
++/** Printed numbers identify score locations; repeated visits alone need disambiguation. */
++export function playbackMeasureLabels(numbers: string[]): string[] {
++  const totals = new Map<string, number>(), visits = new Map<string, number>();
++  for (const number of numbers) totals.set(number, (totals.get(number) ?? 0) + 1);
++  return numbers.map(number => {
++    const visit = (visits.get(number) ?? 0) + 1;
++    visits.set(number, visit);
++    return `第 ${number} 小节${totals.get(number)! > 1 ? ` · 第 ${visit} 次经过` : ''}`;
++  });
++}
+--- a/packages/player/package.json
++++ b/packages/player/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@clydian/chorus-player",
+-  "version": "0.1.19",
++  "version": "0.1.19-samepage.1",
+   "type": "module",
+   "license": "UNLICENSED",
+   "files": [

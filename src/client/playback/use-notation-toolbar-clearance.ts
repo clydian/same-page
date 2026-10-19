@@ -10,7 +10,7 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
     const place = () => {
       frame = 0;
       if (session.getSnapshot().following === false) return;
-      const toolbar = document.querySelector<HTMLElement>('.practice-header[data-floating]');
+      const toolbar = scroll.closest('.practice-notation')?.querySelector<HTMLElement>('.practice-notation-tools') ?? document.querySelector<HTMLElement>('.practice-header[data-floating]');
       const cursor = scroll.querySelector<HTMLElement>('.at-cursor-bar');
       if (!toolbar || !cursor) return;
       const tools = toolbar.getBoundingClientRect(), bar = cursor.getBoundingClientRect(), area = scroll.getBoundingClientRect();
@@ -28,7 +28,7 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
     const release = session.subscribe(schedule);
     const observer = new ResizeObserver(schedule);
     observer.observe(scroll);
-    const toolbar = document.querySelector<HTMLElement>('.practice-header[data-floating]');
+    const toolbar = scroll.closest('.practice-notation')?.querySelector<HTMLElement>('.practice-notation-tools') ?? document.querySelector<HTMLElement>('.practice-header[data-floating]');
     if (toolbar) observer.observe(toolbar);
     // alphaTab may move its cursor after publishing the player snapshot. Watch
     // that one DOM node so a late seek/reflow cannot leave the active system

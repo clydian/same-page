@@ -169,7 +169,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
         }
         if (entry === "musicxml" || entry === "audio") {
           await expect(page.getByRole("button", { name: "编辑", exact: true })).toHaveCount(0);
-          await page.getByRole("button", { name: "结束播放", exact: true }).click();
+          await page.getByRole("button", { name: "结束练习", exact: true }).click();
         }
         await checkExperience(`已登录体验 ${entry}`);
       }
