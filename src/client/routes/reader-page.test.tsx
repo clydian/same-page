@@ -1242,7 +1242,7 @@ it("keeps a single exit while the PDF never settles", async () => {
 
   });
 
-  it("selects the page at the viewport center before locking it for editing", async () => {
+  it("seeds input ownership at the viewport center while keeping neighbouring pages editable", async () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(100);
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(100);
     vi.mocked(fetch).mockImplementation((input: string | URL | Request) =>
@@ -1273,7 +1273,8 @@ it("keeps a single exit while the PDF never settles", async () => {
     await waitFor(() => expect(edit).toHaveAttribute("data-state", "ready"));
     fireEvent.click(edit);
     expect(screen.getByLabelText("第 2 页笔记层").closest(".continuous-reader__page")).not.toHaveAttribute("inert");
-    expect(screen.getByLabelText("第 1 页笔记层").closest(".annotation-overlay")).not.toHaveAttribute("data-editing");
+    expect(screen.getByLabelText("第 1 页笔记层").closest(".annotation-overlay")).toHaveAttribute("data-editing");
+    expect(screen.getByLabelText("第 2 页笔记层").closest(".annotation-overlay")).toHaveAttribute("data-input-page");
     expect(reader.scrollTop).toBe(80);
   });
 

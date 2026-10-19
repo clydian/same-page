@@ -18,6 +18,7 @@ interface ContinuousReaderLayoutOptions {
   fitRequest?: number;
   navigationRequest?: number;
   editing: boolean;
+  pinnedPages?: readonly number[];
   onZoomChange(zoom: number): void;
   onPageChange(page: number): void;
   beforePageChange?(): Promise<boolean>;
@@ -28,7 +29,7 @@ interface ContinuousReaderLayoutOptions {
 // geometry and connect the gesture capabilities; they do not sequence commands.
 export function useContinuousReaderLayout({
   document, currentPage, zoom, fitRequest = 0, navigationRequest = 0, editing, viewportName = "continuous",
-  onZoomChange, onPageChange, beforePageChange, canCompletePage,
+  onZoomChange, onPageChange, beforePageChange, canCompletePage, pinnedPages = [],
 }: ContinuousReaderLayoutOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -80,7 +81,7 @@ export function useContinuousReaderLayout({
     // Boundary padding lets short first/last pages sit at the viewport center.
     paddingStart: startPadding,
     paddingEnd: Math.max(0, (size.height - pageWidth / (ratios[document.numPages - 1] ?? FALLBACK_PAGE_RATIO)) / 2),
-    rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...(anchorPage === null ? [] : [anchorPage])])].sort((a, b) => a - b),
+    rangeExtractor: range => [...new Set([...defaultRangeExtractor(range), currentPage - 1, ...pinnedPages.filter(page => page >= 1 && page <= document.numPages).map(page => page - 1), ...(anchorPage === null ? [] : [anchorPage])])].sort((a, b) => a - b),
   });
 
   // Scroll offsets are pixels, but a viewport resize changes every preceding

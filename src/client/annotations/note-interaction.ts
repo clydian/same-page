@@ -82,6 +82,25 @@ export class NoteInteraction {
     this.publish();
   }
 
+  finishAtBoundary(pointerId: number, outside: Point, time: number) {
+    const active = this.active;
+    if (!active || !this.owns(pointerId)) return Promise.resolve(true);
+    let point = { ...outside, x: Math.max(0, Math.min(1, outside.x)), y: Math.max(0, Math.min(1, outside.y)) };
+    if (active.kind === "ink") {
+      // Intersect the last segment with the paper edge; independent x/y clamps
+      // would bend diagonal strokes along a different path near a corner.
+      const last = active.lastPoint;
+      let fraction = 1;
+      if (outside.x < 0) fraction = Math.min(fraction, -last.x / (outside.x - last.x));
+      if (outside.x > 1) fraction = Math.min(fraction, (1 - last.x) / (outside.x - last.x));
+      if (outside.y < 0) fraction = Math.min(fraction, -last.y / (outside.y - last.y));
+      if (outside.y > 1) fraction = Math.min(fraction, (1 - last.y) / (outside.y - last.y));
+      point = { ...outside, x: last.x + fraction * (outside.x - last.x), y: last.y + fraction * (outside.y - last.y) };
+    }
+    if (active.kind !== "eraser") this.move(pointerId, point, time);
+    return this.end("release", pointerId, point);
+  }
+
   // Backgrounding preserves unfinished ink, but does not release its ownership.
   checkpoint = () => { if (this.active?.kind === "ink") void this.saveInk(this.active); };
 
