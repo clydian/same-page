@@ -125,3 +125,15 @@ it("keeps failure steps and error types separate and rejects arbitrary metadata"
   expect(recordSchema.safeParse({ ...exported.records[0], errorType: "private-custom-error" }).success).toBe(false);
   expect(recordSchema.safeParse({ ...exported.records[0], step: "private-score-id" }).success).toBe(false);
 });
+
+it('rejects private or out-of-range render fields and keeps failures on different pages separate', () => {
+  const render = { reason: 'context-lost' as const, page: 1, pageCount: 60, mode: 'continuous' as const, width: 1200,
+    devicePixelRatio: 2, priority: 0, maxPixels: 4194304, residentPixels: 1000, residentCanvases: 1, automaticRetries: 0 };
+  recordFailure({ operation: 'pdf', category: 'internal', render });
+  recordFailure({ operation: 'pdf', category: 'internal', render: { ...render, page: 2 } });
+  recordFailure({ operation: 'pdf', category: 'internal', render: { ...render, width: Infinity } });
+  recordFailure({ operation: 'pdf', category: 'internal', render: { ...render, fileName: 'secret-score.pdf' } as typeof render });
+  const report = JSON.parse(exportDiagnostics());
+  expect(report.records.filter((record: {render?: unknown}) => record.render)).toHaveLength(2);
+  expect(exportDiagnostics()).not.toContain('secret-score');
+});

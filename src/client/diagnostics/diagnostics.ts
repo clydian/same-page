@@ -1,3 +1,4 @@
+import { pdfRenderFactsSchema, type PdfRenderFacts } from "../../shared/pdf-render-facts";
 import { readerOpeningSchema, type ReaderOpeningFacts } from "../../shared/reader-opening";
 import { captureNavigationIdentity, observeNavigationResponse } from "../settings/navigation-events";
 import pdfPackage from "pdfjs-dist/package.json";
@@ -55,6 +56,7 @@ export function diagnosticCauseType(error: unknown): DiagnosticErrorType | undef
 }
 
 interface Failure {
+  render?: PdfRenderFacts;
   opening?: ReaderOpeningFacts;
   step?: DiagnosticStep;
   errorType?: DiagnosticErrorType;
@@ -69,6 +71,7 @@ interface Failure {
   serverBuild?: string | null;
 }
 interface DiagnosticRecord {
+  render?: PdfRenderFacts;
   opening?: ReaderOpeningFacts;
   step?: DiagnosticStep;
   errorType?: DiagnosticErrorType;
@@ -164,9 +167,11 @@ export function recordFailure(failure: Failure) {
     const errorCode = diagnosticErrorCodes.find(value => value === failure.errorCode);
     const causeType = diagnosticErrorTypes.find(value => value === failure.causeType);
     const opening = readerOpeningSchema.safeParse(failure.opening);
-    const previous = [...records].reverse().find((entry) => entry.operation === operation && entry.category === category && entry.stage === stage && entry.step === step && entry.errorType === errorType && entry.causeType === causeType && entry.errorCode === errorCode && entry.pdfReason === failure.pdfReason && entry.opening?.phase === (opening.success ? opening.data.phase : undefined) && now - entry.time < 30_000);
+    const render = pdfRenderFactsSchema.safeParse(failure.render);
+    const previous = [...records].reverse().find((entry) => entry.operation === operation && entry.category === category && entry.stage === stage && entry.step === step && entry.errorType === errorType && entry.causeType === causeType && entry.errorCode === errorCode && entry.pdfReason === failure.pdfReason && entry.render?.page === (render.success ? render.data.page : undefined) && entry.render?.reason === (render.success ? render.data.reason : undefined) && entry.opening?.phase === (opening.success ? opening.data.phase : undefined) && now - entry.time < 30_000);
     if (previous) {
       if (opening.success) previous.opening = opening.data;
+      if (render.success) previous.render = render.data;
       previous.count = Math.min(previous.count + 1, 9999);
       previous.time = now;
       previous.requestId = requestId;
@@ -174,6 +179,7 @@ export function recordFailure(failure: Failure) {
       return;
     }
     records.push({
+      ...(render.success ? { render: render.data } : {}),
       ...(opening.success ? { opening: opening.data } : {}),
       ...(step ? { step } : {}),
       ...(errorType ? { errorType } : {}),

@@ -129,3 +129,19 @@ it("never rewrites a possibly stored report when a later retry meets an old Work
   expect(fetchMock.mock.calls[2][1].body).toBe(fetchMock.mock.calls[0][1].body);
   expect(getDiagnosticSubmission().phase).toBe("sent");
 });
+
+it('sends bounded PDF render facts only on request and strips them for an old strict Worker', async () => {
+  const render = { reason: 'budget' as const, page: 14, pageCount: 60, mode: 'continuous' as const, width: 1200,
+    devicePixelRatio: 2, priority: 0, maxPixels: 4194304, residentPixels: 25165824, residentCanvases: 7, automaticRetries: 1 };
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, {status: 400})).mockImplementationOnce((_url, init) => Promise.resolve(Response.json({id: JSON.parse(init.body).id})));
+  vi.stubGlobal('fetch', fetchMock);
+  recordFailure({ operation: 'pdf', category: 'internal', render });
+  expect(fetchMock).not.toHaveBeenCalled();
+  await sendDiagnosticReport(null);
+  const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+  const fallback = JSON.parse(fetchMock.mock.calls[1][1].body);
+  expect(sent.records[0].render).toEqual(render);
+  expect(fallback.id).toBe(sent.id);
+  expect(fallback.records[0].render).toBeUndefined();
+  expect(getDiagnosticSubmission().phase).toBe('sent');
+});

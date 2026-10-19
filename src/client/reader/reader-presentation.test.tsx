@@ -175,7 +175,7 @@ it("a failed replacement restores the previously presented document and its visi
   expect(session.presentation.hasPresented(replacement.document)).toBe(false);
 });
 
-it.each([false, true])("context loss exposes recovery without losing the document (editing=%s)", async editing => {
+it.each([false, true])("context loss stays local to the page without losing the document (editing=%s)", async editing => {
   const source = pdf();
   const session = await open(source.document);
   const view = render(<Scene session={session} editing={editing} />);
@@ -184,15 +184,15 @@ it.each([false, true])("context loss exposes recovery without losing the documen
   expect(status()).toHaveTextContent("visible");
   const lostCanvas = view.container.querySelector("[data-pdf-canvas-active]")!;
   act(() => lostCanvas.dispatchEvent(new Event("contextlost")));
-  expect(status()).toHaveTextContent("failed");
+  expect(status()).toHaveTextContent("visible");
   expect(view.container.querySelector("[data-pdf-canvas-active]")).toBeNull();
   expect(session.getSnapshot().document).toBe(source.document);
   // Recovery is available even if contextrestored never arrives. A new canvas
-  // must be used and only its completed draw can clear the failed presentation.
+  // must be used; other pages remain available throughout recovery.
   act(() => screen.getByRole("button", { name: "重试本页" }).click());
   await waitFor(() => expect(source.finishes).toHaveLength(2));
   expect(view.container.contains(lostCanvas)).toBe(false);
-  expect(status()).toHaveTextContent("failed");
+  expect(status()).toHaveTextContent("visible");
   await act(async () => source.finishes[1]());
   expect(status()).toHaveTextContent("visible");
   expect(session.getSnapshot().document).toBe(source.document);

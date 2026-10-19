@@ -1,8 +1,9 @@
 import { foregroundDeadline, waitForForeground } from "./foreground-deadline";
 import { pdfFailureCategory, pdfFailureReason, pdfEngineVersion, recordFailure } from "../diagnostics/diagnostics";
-import { acquireRenderSlot, sizeRenderCanvas, releaseRenderCanvas } from "./render-budget";
-import { usePagePresentation } from "./use-reader-presentation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { acquireRenderSlot, sizeRenderCanvas, releaseRenderCanvas, renderBudgetFacts, subscribeRenderBudget, hasRenderCapacity } from "./render-budget";
+import type { PdfRenderFacts } from "../../shared/pdf-render-facts";
+import { ReaderPresentationContext, usePagePresentation } from "./use-reader-presentation";
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { PDFDocumentProxy } from "./pdf-document";
 import { completeLoadingJourney } from "../performance/loading-performance";
@@ -15,6 +16,9 @@ export function PdfPageCanvas({
   className = "pdf-page-canvas",
   onRenderStart,
   presentation = true,
+  priority,
+  maxPixels,
+  mode,
 }: {
   document: PDFDocumentProxy;
   pageNumber: number;
@@ -23,7 +27,18 @@ export function PdfPageCanvas({
   className?: string;
   onRenderStart?(pageNumber: number): PdfPageRenderLease;
   presentation?: boolean;
+  priority?: number;
+  maxPixels?: number;
+  mode?: PdfRenderFacts["mode"];
 }) {
+  const renderPriority = priority ?? (presentation ? 0 : 2);
+  const pixelLimit = maxPixels ?? (presentation ? 4 * 1024 * 1024 : 64 * 1024);
+  const renderMode = mode ?? (presentation ? "paged" : "thumbnail");
+  const retryDocument = useContext(ReaderPresentationContext)?.retryDocument;
+  const automaticRetries = useRef(0);
+  const automaticRetryPending = useRef(false);
+  useLayoutEffect(() => { automaticRetries.current = 0; }, [document, pageNumber]);
+  const [errorReason, setErrorReason] = useState<PdfRenderFacts["reason"] | null>(null);
   const [attempt, setAttempt] = useState(0);
   const canvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
   const frontCanvas = useRef(0);
@@ -39,8 +54,41 @@ export function PdfPageCanvas({
   // a lost context. Do not expose an old bitmap identity on the new elements.
   const retry = useCallback(() => {
     setPainted(null);
+    setError(false);
+    setErrorReason(null);
     setAttempt(value => value + 1);
   }, []);
+
+  const autoRetry = useCallback(() => {
+    if (automaticRetries.current >= 2 || automaticRetryPending.current) return;
+    automaticRetryPending.current = true;
+    automaticRetries.current++;
+    retry();
+  }, [retry]);
+  // Only resource failures retry themselves. A real PDF/decode failure remains
+  // manual, and repeated context loss cannot run a retry loop.
+  useEffect(() => {
+    if (!errorReason || automaticRetries.current >= 2) return;
+    if (errorReason === "budget") {
+      const resume = () => { if (globalThis.document.visibilityState !== "hidden" && hasRenderCapacity()) autoRetry(); };
+      const unsubscribe = subscribeRenderBudget(resume);
+      globalThis.document.addEventListener("visibilitychange", resume);
+      window.addEventListener("pageshow", resume);
+      resume();
+      return () => { unsubscribe(); globalThis.document.removeEventListener("visibilitychange", resume); window.removeEventListener("pageshow", resume); };
+    }
+    if (errorReason === "context-lost" || errorReason === "canvas-unavailable") {
+      return foregroundDeadline(autoRetry, 250);
+    }
+  }, [errorReason, autoRetry, attempt]);
+  const recordPageFailure = useCallback((reason: PdfRenderFacts["reason"], error: unknown) => {
+    recordFailure({ operation: "pdf", category: pdfFailureCategory(error), stage: "decode",
+      pdfReason: pdfFailureReason(error, true), engineVersion: pdfEngineVersion,
+      render: { reason, page: pageNumber, pageCount: document.numPages, mode: renderMode,
+        width: Math.min(32768, Math.max(0, Math.round(width))), devicePixelRatio: Math.min(16, window.devicePixelRatio || 1),
+        priority: renderPriority, maxPixels: Math.round(pixelLimit), ...renderBudgetFacts(), automaticRetries: automaticRetries.current } });
+    setErrorReason(reason);
+  }, [document, pageNumber, width, renderMode, renderPriority, pixelLimit]);
 
   useLayoutEffect(() => {
     const lease = onRenderStart?.(pageNumber) ?? null;
@@ -71,14 +119,17 @@ export function PdfPageCanvas({
       // Invalidate synchronously: React effect cleanup can run after a queued
       // render Promise, which must never publish the lost backing store.
       currentDraw.current?.cancel();
+      const error = new Error("canvas_context_lost");
+      recordPageFailure("context-lost", error);
+      canvases.forEach(releaseRenderCanvas);
       setPainted(null);
       setError(true);
-      reportFailure(new Error("canvas_context_lost"));
+      reportFailure(error);
       renderLease.current?.failed?.();
     };
     const onRestored = (event: Event) => {
       const canvas = event.currentTarget as HTMLCanvasElement;
-      if (lost.delete(canvas) && (canvas === canvasRefs.current[frontCanvas.current] || canvas === currentDraw.current?.canvas)) retry();
+      if (lost.delete(canvas) && (canvas === canvasRefs.current[frontCanvas.current] || canvas === currentDraw.current?.canvas)) autoRetry();
     };
     canvases.forEach(canvas => {
       canvas.addEventListener("contextlost", onLost);
@@ -88,11 +139,12 @@ export function PdfPageCanvas({
       canvas.removeEventListener("contextlost", onLost);
       canvas.removeEventListener("contextrestored", onRestored);
     });
-  }, [attempt, reportFailure, retry]);
+  }, [attempt, reportFailure, autoRetry, recordPageFailure]);
 
   useEffect(() => {
+    automaticRetryPending.current = false;
     const sourceChanged =
-      source.current.pageNumber !== pageNumber;
+      source.current.pageNumber !== pageNumber || source.current.document !== document;
     source.current = { document, pageNumber };
     const previousFront = frontCanvas.current;
     const nextFront = 1 - previousFront;
@@ -116,7 +168,7 @@ export function PdfPageCanvas({
     currentDraw.current = drawingLease;
     const draw = async () => {
       await waitForForeground(abort.signal);
-      const release = await acquireRenderSlot(abort.signal);
+      const release = await acquireRenderSlot(abort.signal, renderPriority);
       try {
         for (let resolution = 1; resolution >= 0.5; resolution /= 2) {
           let drawing = true;
@@ -131,7 +183,7 @@ export function PdfPageCanvas({
                 if (!drawing) throw new DOMException("cancelled", "AbortError");
                 const unscaled = page.getViewport({ scale: 1 });
                 const pixels = width * Math.min(window.devicePixelRatio || 1, 2) * resolution;
-                sizeRenderCanvas(canvas, pixels, pixels * unscaled.height / unscaled.width);
+                sizeRenderCanvas(canvas, pixels, pixels * unscaled.height / unscaled.width, pixelLimit);
                 const context = canvas.getContext("2d", { alpha: false });
                 if (!context) throw new Error("canvas_unavailable");
                 const viewport = page.getViewport({ scale: canvas.width / unscaled.width });
@@ -167,7 +219,12 @@ export function PdfPageCanvas({
       })
       .catch((reason: unknown) => {
         if (active && !(reason instanceof Error && reason.name === "RenderingCancelledException")) {
-          recordFailure({ operation: "pdf", category: pdfFailureCategory(reason), stage: "decode", pdfReason: pdfFailureReason(reason, true), engineVersion: pdfEngineVersion });
+          const kind = reason instanceof Error && reason.message === "canvas_memory_budget" ? "budget"
+            : reason instanceof Error && reason.message === "canvas_unavailable" ? "canvas-unavailable"
+            : reason instanceof Error && reason.name === "TimeoutError" ? "timeout" : "page-failed";
+          recordPageFailure(kind, reason);
+          // A failed back buffer has no useful bitmap; return its reservation.
+          releaseRenderCanvas(canvas);
           setError(true);
           reportFailure(reason instanceof Error && reason.name === "Error" && pdfFailureCategory(reason) === "internal" ? Object.assign(new Error("pdf_page_render_failed"), { name: "PdfPageRenderError" }) : reason);
           lease?.failed?.();
@@ -178,7 +235,7 @@ export function PdfPageCanvas({
       drawingLease.cancel();
       if (currentDraw.current === drawingLease) currentDraw.current = null;
     };
-  }, [document, onRenderStart, pageNumber, width, attempt, reportFailure]);
+  }, [document, onRenderStart, pageNumber, width, attempt, reportFailure, renderPriority, pixelLimit, recordPageFailure]);
 
   return (
     <div
@@ -202,7 +259,7 @@ export function PdfPageCanvas({
           }}
         />
       ))}
-      {error ? <div className="page-render-recovery"><p role="alert">这一页暂时无法显示</p><button onClick={retry}>重试本页</button></div> : null}
+      {error ? <div className="page-render-recovery"><p role="alert">这一页暂时无法显示</p><button onClick={() => { automaticRetries.current = 0; retry(); }}>重试本页</button>{presentation && retryDocument && <button onClick={retryDocument}>重新加载 PDF</button>}</div> : null}
     </div>
   );
 }

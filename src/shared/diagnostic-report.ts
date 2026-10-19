@@ -1,3 +1,4 @@
+import { pdfRenderFactsSchema } from "./pdf-render-facts";
 import { readerOpeningSchema } from "./reader-opening";
 import { z } from "zod";
 import { diagnosticErrorCodes, diagnosticCategories, diagnosticOperations, diagnosticStages, diagnosticSteps, diagnosticErrorTypes } from "./diagnostics";
@@ -32,6 +33,7 @@ export const diagnosticReportSchema = z.object({
   }).strict(),
   reader: diagnosticReaderSchema.nullable(),
   records: z.array(z.object({
+    render: pdfRenderFactsSchema.optional(),
     opening: readerOpeningSchema.optional(),
     id: z.uuidv4(),
     time: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),

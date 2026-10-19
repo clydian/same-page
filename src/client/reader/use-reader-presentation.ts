@@ -5,6 +5,7 @@ import type { ReaderPresentation, PresentationSnapshot } from "./reader-presenta
 export const ReaderPresentationContext = createContext<{
   presentation: ReaderPresentation | null;
   currentPage: number;
+  retryDocument?(): void;
   snapshot: PresentationSnapshot;
 } | null>(null);
 const subscribeNone = () => () => {};

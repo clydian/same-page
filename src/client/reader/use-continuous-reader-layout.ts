@@ -74,7 +74,9 @@ export function useContinuousReaderLayout({
     estimateSize: (index) => pageWidth / (ratios[index] ?? FALLBACK_PAGE_RATIO),
     gap: PAGE_GAP,
     getItemKey,
-    overscan: 2,
+    // Full-resolution pages reserve most of the budget; speculative neighbours
+    // use small previews. Avoid growing the window on tall/high-DPR viewports.
+    overscan: pageWidth * pageWidth * Math.min(window.devicePixelRatio || 1, 2) ** 2 > 2 * 1024 * 1024 ? 1 : 2,
     // Boundary padding lets short first/last pages sit at the viewport center.
     paddingStart: startPadding,
     paddingEnd: Math.max(0, (size.height - pageWidth / (ratios[document.numPages - 1] ?? FALLBACK_PAGE_RATIO)) / 2),
@@ -243,10 +245,18 @@ export function useContinuousReaderLayout({
       onPageChange(item.index + 1);
     }
   };
+  const virtualItems = virtualizer.getVirtualItems();
+  const top = scrollRef.current?.scrollTop ?? 0;
+  const visiblePages = Math.max(1, virtualItems.filter(item => item.end > top && item.start < top + size.height).length);
+  // 12 Mi pixels for visible paper leaves room for two replacement buffers,
+  // low-resolution neighbours and thumbnails under the shared 24 Mi ceiling.
+  const visiblePixelLimit = Math.max(64 * 1024, Math.min(4 * 1024 * 1024, Math.floor(12 * 1024 * 1024 / visiblePages)));
   return {
     scrollRef, contentRef, onScroll, geometryGestures, size,
     width: Math.max(size.width, pageWidth), height: virtualizer.getTotalSize(),
-    items: virtualizer.getVirtualItems().map(item => ({
+    items: virtualItems.map(item => ({
+      priority: item.end > top && item.start < top + size.height ? 0 : 1,
+      maxPixels: item.end > top && item.start < top + size.height ? visiblePixelLimit : 256 * 1024,
       index: item.index, start: item.start, width: pageWidth,
       aspectRatio: ratios[item.index] ?? FALLBACK_PAGE_RATIO,
     })),

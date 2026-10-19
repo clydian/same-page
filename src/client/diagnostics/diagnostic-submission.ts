@@ -85,9 +85,9 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
     // A cached new client may meet a rolled-back Worker with the old strict
     // schema. Only the first dispatch being explicitly rejected permits a legacy retry;
     // uncertain delivery always retains the exact previously sent payload/id.
-    if (allowLegacy && response.status === 400 && (report.reader?.opening || report.records.some(record => record.opening))) {
+    if (allowLegacy && response.status === 400 && (report.reader?.opening || report.records.some(record => record.opening || record.render))) {
       report = { ...report, reader: report.reader ? { interactionMode: report.reader.interactionMode, pendingCount: report.reader.pendingCount, conflictCount: report.reader.conflictCount } : null,
-        records: report.records.map(record => { const legacy = { ...record }; delete legacy.opening; return legacy; }) };
+        records: report.records.map(record => { const legacy = { ...record }; delete legacy.opening; delete legacy.render; return legacy; }) };
       update({ ...state, report });
       response = await submit();
       if (started !== epoch) return;

@@ -400,10 +400,10 @@ function failureMessage(state: Exclude<CloudLookup["state"], "active">) {
 
 function pdfErrorMessage(error: unknown, source: Source["kind"]) {
   const reason = pdfFailureReason(error);
-  if (reason === "engine-unavailable") return "当前浏览器无法启动 PDF 阅读引擎，请升级浏览器或系统，也可以下载原 PDF 阅读。本机笔记仍然保留。";
+  if (reason === "engine-unavailable") return "当前浏览器无法启动 PDF 阅读引擎，请升级浏览器或系统。本机笔记仍然保留。";
   const category = pdfFailureCategory(error);
   if (category === "permission") return "当前无法访问这份 PDF，请返回云盘确认登录状态和权限。";
   if (category === "network") return "PDF 下载失败，请检查网络后重试。本机笔记仍然保留。";
-  if (error instanceof Error && error.name === "PasswordException") return "这份 PDF 需要密码，暂时无法在这里阅读。可以下载原 PDF 打开。";
-  return source === "offline" ? "本机离线副本无法解析，现有笔记仍然保留。" : "PDF 无法解析或文件暂时不可用，可以重试或下载原 PDF。";
+  if (error instanceof Error && error.name === "PasswordException") return "这份 PDF 需要密码，暂时无法在这里阅读。请重试或联系文件提供者。";
+  return source === "offline" ? "本机离线副本无法解析，现有笔记仍然保留。" : "PDF 无法解析或文件暂时不可用，请重试。";
 }

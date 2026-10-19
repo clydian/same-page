@@ -96,7 +96,7 @@ it('does not publish a bitmap whose context was lost during rendering', async ()
   expect(view.container.querySelector('[data-pdf-canvas-active]')).toBeNull();
 });
 
-it('lost displayed canvas offers recovery when restoration never arrives', async () => {
+it('lost displayed canvas recovers without waiting indefinitely for restoration', async () => {
   vi.useFakeTimers();
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({} as CanvasRenderingContext2D);
   const pdf = { getPage: vi.fn().mockResolvedValue({getViewport: () => ({width:600,height:800}), render: () => ({promise: Promise.resolve(), cancel: vi.fn()})}) } as unknown as PDFDocumentProxy;
@@ -105,7 +105,7 @@ it('lost displayed canvas offers recovery when restoration never arrives', async
   const canvas = view.container.querySelector('[data-pdf-canvas-active]')!;
   act(() => { canvas.dispatchEvent(new Event('contextlost')); });
   await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
-  expect(view.queryByRole('button', {name:'重试本页'})).not.toBeNull();
+  expect(view.container.querySelector('[data-pdf-canvas-active]')).not.toBeNull();
 });
 
 it('keeps the healthy front bitmap when an idle spare context is restored', async () => {

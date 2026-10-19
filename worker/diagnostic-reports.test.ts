@@ -154,3 +154,17 @@ it("accepts bounded optional opening facts while keeping legacy reports valid", 
   }
   expect((await submit(report())).status).toBe(201);
 });
+
+it('stores optional bounded render facts while rejecting private or invalid nested render fields', async () => {
+  const value = report();
+  const render = { reason: 'budget' as const, page: 14, pageCount: 60, mode: 'continuous' as const, width: 1200,
+    devicePixelRatio: 2, priority: 0, maxPixels: 4194304, residentPixels: 25165824, residentCanvases: 7, automaticRetries: 1 };
+  value.records.push({ id: crypto.randomUUID(), time: Date.now(), operation: 'pdf', category: 'internal', stage: 'decode',
+    requestId: null, serverBuild: null, retryable: true, count: 1, render });
+  expect((await submit(value)).status).toBe(201);
+  const row = await env.DB.prepare('SELECT payload FROM diagnostic_reports WHERE id = ?').bind(value.id).first<{payload: string}>();
+  expect(JSON.parse(row!.payload).records[0].render).toEqual(render);
+  for (const invalid of [{ ...render, fileName: 'private.pdf' }, { ...render, residentPixels: 1000000000 }, { ...render, reason: 'private exception text' }]) {
+    expect((await submit({ ...value, id: crypto.randomUUID(), records: [{ ...value.records[0], render: invalid }] })).status).toBe(400);
+  }
+});

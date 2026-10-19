@@ -6,7 +6,6 @@ import { ReaderGuide } from "../reader/reader-guide";
 import { useReaderHint } from "../reader/use-reader-hint";
 import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
 import { MAX_READER_ZOOM } from "../reader/reader-zoom";
-import { LocalPdfDownload } from "../reader/local-pdf-download";
 import { useReaderFullscreen } from "../reader/use-reader-fullscreen";
 import { clearGuestNotes } from "../annotations/guest-notes";
 import { useReadingPreferenceProjection } from "../reader/reading-preference-intents";
@@ -318,10 +317,7 @@ function ReaderPageContent() {
     </main>;
   }
 
-  const originalPdfDownload = online && cloudState === "active" && score ? <a className="secondary-button"
-    href={`/api/choirs/${encodeURIComponent(choirId)}/scores/${encodeURIComponent(scoreId)}/versions/${encodeURIComponent(score.currentVersion.id)}/pdf`}
-    download={score.fileName}>下载原 PDF</a> : offline ? <LocalPdfDownload workspace={workspace} record={offline} /> : null;
-  const displayChoices = <><Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>重试 PDF 阅读</Button>{originalPdfDownload}</>;
+  const displayChoices = <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>重试 PDF 阅读</Button>;
   const loadError = reader.snapshot.error;
   if (loadError) {
     return (
@@ -334,7 +330,6 @@ function ReaderPageContent() {
         {reader.snapshot.opening && <p>加载停在：{readerOpeningLabel(reader.snapshot.opening.phase, reader.snapshot.opening.source).replace(/…$/, "")}</p>}
         <BackButton className="primary-link" to={`/choirs/${choirId}`}>返回云盘</BackButton>
         <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>重试加载</Button>
-        {originalPdfDownload}
         <details><summary>更多帮助</summary>{diagnosticDialog}</details>
       </main>
     );
@@ -394,7 +389,7 @@ function ReaderPageContent() {
   };
 
   return (
-    <ReaderPresentationContext.Provider value={presentation.context}>
+    <ReaderPresentationContext.Provider value={{ ...presentation.context, retryDocument: () => navigation.afterEditing(reader.retry) }}>
     <main className="reader-shell" data-practicing={practicing || undefined} data-playback-view={showingPlayback || comparing ? 'xml' : undefined} aria-hidden={showingPlayback || comparing || undefined} inert={showingPlayback || comparing} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
       {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
