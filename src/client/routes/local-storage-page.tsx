@@ -3,7 +3,8 @@ import { useOfflineScore } from "../offline/use-offline-score";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { localDatabase } from "../platform/local-database";
 import { scoreDisplayName } from "../../shared/score-display-name";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { FileOpenLink } from "../score-library/file-open-link";
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
@@ -57,7 +58,7 @@ function LocalFileRow({ file, currentVersionId, onClear }: { currentVersionId?: 
   const workspace = createLocalWorkspace(file.ownerKey, file.choirId, file.scoreId);
   const offline = useOfflineScore(workspace);
   const status = !offline ? "正在校验…" : offline.readFailed ? "校验失败，请重新打开重试" : offline.record?.key === file.key ? currentVersionId && file.versionId !== currentVersionId ? "需更新 · 已保存旧版" : "可离线" : "副本不可用，需重新下载";
-  return <li className="local-file-row"><div><Link to={`/choirs/${file.choirId}/scores/${file.scoreId}${file.ownerKey.startsWith("experience:") ? "?experience=1" : ""}`}>{scoreDisplayName(file.fileName)}</Link>
+  return <li className="local-file-row"><div><FileOpenLink to={`/choirs/${file.choirId}/scores/${file.scoreId}${file.ownerKey.startsWith("experience:") ? "?experience=1" : ""}`}>{scoreDisplayName(file.fileName)}</FileOpenLink>
     <p>{formatBytes(file.blob.size)} · {status}</p></div>
     <Button className="text-button" onPress={onClear} aria-label={`移除 ${scoreDisplayName(file.fileName)} 的离线副本`}>清理</Button></li>;
 }

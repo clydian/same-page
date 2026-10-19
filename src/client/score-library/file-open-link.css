@@ -1,0 +1,2 @@
+.file-open-link { -webkit-touch-callout: none; }
+.file-open-link[data-touch-active] { -webkit-user-select: none; user-select: none; }
