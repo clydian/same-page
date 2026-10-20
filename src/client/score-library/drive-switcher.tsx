@@ -15,11 +15,17 @@ export function DriveSwitcher({ choirId, choirName, userId, localOnly, loading }
 }) {
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<"join" | "create" | null>(null);
+  const [returnAction, setReturnAction] = useState<"join" | "create" | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const identity = useApplicationIdentity();
   const closeAction = () => {
     setAction(null);
     requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
+  };
+  const returnToPicker = () => {
+    setReturnAction(action);
+    setAction(null);
+    setOpen(true);
   };
   const narrow = useCompactLayout();
   const content = <Dialog className="drive-switch-content" aria-label="切换云盘">{({ close }) => <>
@@ -28,17 +34,21 @@ export function DriveSwitcher({ choirId, choirName, userId, localOnly, loading }
     {userId ? <MembershipList userId={userId} currentChoirId={choirId} localOnly={localOnly} onSelect={close} />
       : <Link className="secondary-link" to={loginHref(`/choirs/${choirId}`)} onClick={close}>登录后查看已加入的云盘</Link>}
     <footer className="drive-switch-actions">
-      <Button isDisabled={localOnly} onPress={() => { close(); setAction("join"); }}><Plus size={17} aria-hidden="true" />{userId ? "加入新云盘" : "进入其他云盘"}</Button>
-      {identity.authenticatedUserId && <Button className="drive-switch-create" isDisabled={localOnly} onPress={() => { close(); setAction("create"); }}>创建云盘</Button>}
+      <Button autoFocus={returnAction === "join"} isDisabled={localOnly} onPress={() => { setOpen(false); setAction("join"); }}><Plus size={17} aria-hidden="true" />{userId ? "加入新云盘" : "进入其他云盘"}</Button>
+      {identity.authenticatedUserId && <Button autoFocus={returnAction === "create"} className="drive-switch-create" isDisabled={localOnly} onPress={() => { setOpen(false); setAction("create"); }}>创建云盘</Button>}
     </footer>
     {localOnly && <p className="drive-switch-caption">联网后可加入或创建云盘。</p>}
   </>}</Dialog>;
-  return <><DialogTrigger isOpen={open} onOpenChange={setOpen}>
+  return <><DialogTrigger isOpen={open} onOpenChange={open => {
+    setOpen(open);
+    if (open) setReturnAction(null);
+    else requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
+  }}>
     <Button ref={triggerRef} className="drive-switch-trigger" isDisabled={loading && !userId} aria-label={`切换云盘：${choirName}`}><span>{choirName}</span><ChevronDown size={17} aria-hidden="true" /></Button>
     {narrow ? <ModalOverlay className="drive-switch-overlay" isDismissable><Modal className="drive-switch-sheet">{content}</Modal></ModalOverlay>
       : <Popover className="drive-switch-popover" placement="bottom start">{content}</Popover>}
   </DialogTrigger>
-    <JoinDriveDialog open={action === "join"} onClose={closeAction} identity={identity} />
-    {identity.authenticatedUserId && <CreateDriveDialog userId={identity.authenticatedUserId} open={action === "create"} onOpenChange={open => { if (!open) closeAction(); }} />}
+    <JoinDriveDialog open={action === "join"} onClose={closeAction} onBack={returnToPicker} identity={identity} />
+    {identity.authenticatedUserId && <CreateDriveDialog userId={identity.authenticatedUserId} open={action === "create"} onBack={returnToPicker} onOpenChange={open => { if (!open) closeAction(); }} />}
   </>;
 }

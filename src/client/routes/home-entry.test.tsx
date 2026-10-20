@@ -481,7 +481,9 @@ it("keeps the active guest credential when cancelling an untouched inline invita
   fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
   fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
   await screen.findByRole("dialog", { name: "进入云盘" });
-  fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+  fireEvent.click(screen.getByRole("button", { name: "返回切换云盘" }));
+  await screen.findByRole("dialog", { name: "切换云盘" });
+  fireEvent.click(screen.getByRole("button", { name: "关闭云盘选择" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expectPath("/choirs/one");
   expect(fetch).not.toHaveBeenCalledWith("/api/guest/session", expect.objectContaining({ method: "DELETE" }));
@@ -510,12 +512,16 @@ it.each(["success", "denied"])("preserves the guest credential after %s admissio
   fireEvent.click(screen.getByRole("button", { name: "进入" }));
   if (outcome === "denied") {
     await screen.findByRole("alert");
-    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+    fireEvent.click(screen.getByRole("button", { name: "返回切换云盘" }));
+    await screen.findByRole("dialog", { name: "切换云盘" });
+    fireEvent.click(screen.getByRole("button", { name: "关闭云盘选择" }));
   }
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
   fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
-  fireEvent.click(await screen.findByRole("button", { name: "关闭" }));
+  fireEvent.click(await screen.findByRole("button", { name: "返回切换云盘" }));
+  await screen.findByRole("dialog", { name: "切换云盘" });
+  fireEvent.click(screen.getByRole("button", { name: "关闭云盘选择" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expect(fetch).not.toHaveBeenCalledWith("/api/guest/session", expect.objectContaining({ method: "DELETE" }));
   expectPath("/choirs/one");

@@ -1,5 +1,5 @@
 import { clearGuestSession } from "../auth/preview-guest-session";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { activateGuestLocalOwner } from "../platform/local-workspace";
 import { enterDrive, joinDrive, cancelDriveEntry, type DriveEntryResult } from "../auth/drive-entry";
 import { invalidateSettingsLifetime, useSettingsLifetime } from "../settings/use-settings-lifetime";
@@ -17,8 +17,8 @@ type JoinStep = { kind: "invite" } | { kind: "display-name"; choir: ChoirSummary
 
 // Keep the controller mounted when closed so admission can unregister its
 // dialog before navigating; cancellation still owns pending entry cleanup.
-export function JoinDriveDialog({ open, onClose, identity, invitation = null }: {
-  open: boolean; onClose(): void; identity: ApplicationIdentity; invitation?: ReturnType<typeof readInviteLink>;
+export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = null }: {
+  open: boolean; onClose(): void; onBack?(): void; identity: ApplicationIdentity; invitation?: ReturnType<typeof readInviteLink>;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,7 +72,8 @@ export function JoinDriveDialog({ open, onClose, identity, invitation = null }: 
       setClearingGuestSession(true);
       void cancelDriveEntry(pending).finally(() => setClearingGuestSession(false));
     }
-    finishJoinDialog();
+    resetJoinFlow();
+    (onBack ?? onClose)();
   };
 
   const entryLifetimeRef = useSettingsLifetime();
@@ -169,18 +170,19 @@ export function JoinDriveDialog({ open, onClose, identity, invitation = null }: 
           <Dialog className="app-dialog">
             {({ close }) => (
               <>
-                <div className="dialog-heading">
+                <div className={onBack ? "dialog-heading dialog-heading--back" : "dialog-heading"}>
+                  {onBack && <Button className="icon-button" aria-label="返回切换云盘" onPress={close}><ArrowLeft size={20} aria-hidden="true" /></Button>}
                   <div>
-                    <p className="dialog-eyebrow">合谱 · Same Page</p>
+                    {!onBack && <p className="dialog-eyebrow">合谱 · Same Page</p>}
                     <Heading slot="title">
                       {joinStep.kind === "invite"
                         ? (userId ? "加入新云盘" : "进入云盘")
                         : `加入「${joinStep.choir.name}」`}
                     </Heading>
                   </div>
-                  <Button className="icon-button" aria-label="关闭" onPress={close}>
+                  {!onBack && <Button className="icon-button" aria-label="关闭" onPress={close}>
                     <X size={20} aria-hidden="true" />
-                  </Button>
+                  </Button>}
                 </div>
 
                 {joinStep.kind === "invite" ? (

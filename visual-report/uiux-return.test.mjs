@@ -60,7 +60,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(page.getByRole("dialog", { name: "加入新云盘", exact: true })).toBeVisible();
       await page.goBack();
       await expect(page.getByRole("dialog", { name: "加入新云盘", exact: true })).toBeHidden();
-      await page.getByRole("button", { name: /^切换云盘/ }).click();
+      await expect(page.getByRole("dialog", { name: "切换云盘", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "关闭云盘选择" }).click();
       await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
       await expect(page.getByRole("searchbox")).toHaveValue("排练");

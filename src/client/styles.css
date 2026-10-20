@@ -827,6 +827,8 @@ h1 {
   gap: 1rem;
 }
 
+.dialog-heading--back { justify-content: flex-start; }
+
 .dialog-heading .dialog-eyebrow {
   margin-bottom: 0.45rem;
 }
