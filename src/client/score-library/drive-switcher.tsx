@@ -16,16 +16,21 @@ export function DriveSwitcher({ choirId, choirName, userId, localOnly, loading }
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<"join" | "create" | null>(null);
   const [returnAction, setReturnAction] = useState<"join" | "create" | null>(null);
+  const libraryPosition = useRef({ left: 0, top: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const identity = useApplicationIdentity();
   const closeAction = () => {
     setAction(null);
     requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
   };
+  const restoreLibraryPosition = () => {
+    if (triggerRef.current?.isConnected) window.scrollTo({ ...libraryPosition.current, behavior: "instant" });
+  };
   const returnToPicker = () => {
     setReturnAction(action);
     setAction(null);
     setOpen(true);
+    requestAnimationFrame(restoreLibraryPosition);
   };
   const narrow = useCompactLayout();
   const content = <Dialog className="drive-switch-content" aria-label="切换云盘">{({ close }) => <>
@@ -41,8 +46,13 @@ export function DriveSwitcher({ choirId, choirName, userId, localOnly, loading }
   </>}</Dialog>;
   return <><DialogTrigger isOpen={open} onOpenChange={open => {
     setOpen(open);
-    if (open) setReturnAction(null);
-    else requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
+    if (open) {
+      setReturnAction(null);
+      libraryPosition.current = { left: window.scrollX, top: window.scrollY };
+    } else requestAnimationFrame(() => {
+      triggerRef.current?.focus({ preventScroll: true });
+      restoreLibraryPosition();
+    });
   }}>
     <Button ref={triggerRef} className="drive-switch-trigger" isDisabled={loading && !userId} aria-label={`切换云盘：${choirName}`}><span>{choirName}</span><ChevronDown size={17} aria-hidden="true" /></Button>
     {narrow ? <ModalOverlay className="drive-switch-overlay" isDismissable><Modal className="drive-switch-sheet">{content}</Modal></ModalOverlay>

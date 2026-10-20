@@ -84,7 +84,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
           await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
           await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
           await expect(page.getByRole("searchbox")).toHaveValue("秋日");
-          await expect.poll(() => page.evaluate(() => scrollY)).toBe(350);
+          await expect.poll(() => page.evaluate(() => scrollY), { message: `${width} ${action} ${dismissal}: preserve library position` }).toBe(350);
           await page.getByRole("button", { name: /^切换云盘/ }).click();
         }
       }
