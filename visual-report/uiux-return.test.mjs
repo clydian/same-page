@@ -30,10 +30,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         await run(page, drive);
       });
     }
-    await scenario("drawer-return-and-member-filter", async (page, drive) => {
+    await scenario("settings-return-and-member-filter", async (page, drive) => {
       await page.goto(drive);
       await page.getByRole("searchbox").fill("排练");
-      await page.getByRole("button", { name: "打开云盘菜单" }).click();
+      await page.getByRole("link", { name: "云盘设置" }).click();
       await page.getByRole("link", { name: "成员与权限", exact: true }).click();
       await expect(page.getByRole("heading", { name: "成员与权限" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "排练成员97", exact: true })).toHaveCount(0);
@@ -52,14 +52,17 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await cancelPermission.click();
       await expect(cancelPermission).toHaveCount(0);
       await page.getByRole("button", { name: "返回", exact: true }).click();
-      await expect(page.getByRole("dialog", { name: "云盘菜单" })).toBeVisible();
-      await expect(page.getByRole("link", { name: "成员与权限", exact: true })).toBeFocused();
-      await page.getByRole("link", { name: "云盘列表", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "我已加入的云盘", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "云盘设置", exact: true, level: 1 })).toBeVisible();
+      await expect(page.getByRole("link", { name: "成员与权限", exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "返回", exact: true }).click();
+      await page.getByRole("button", { name: /^切换云盘/ }).click();
+      await page.getByRole("button", { name: "加入新云盘", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "加入新云盘", exact: true })).toBeVisible();
       await page.goBack();
-      await expect(page.getByRole("dialog", { name: "云盘菜单" })).toBeVisible();
-      await page.getByRole("button", { name: "关闭云盘菜单" }).click();
-      await expect(page.getByRole("button", { name: "打开云盘菜单" })).toBeFocused();
+      await expect(page.getByRole("dialog", { name: "加入新云盘", exact: true })).toBeHidden();
+      await expect(page.getByRole("dialog", { name: "切换云盘", exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "关闭云盘选择" }).click();
+      await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
       await expect(page.getByRole("searchbox")).toHaveValue("排练");
     });
     await scenario("changed-form-decisions", async (page, drive) => {

@@ -11,8 +11,7 @@ import { useState } from "react";
 import { Button } from "react-aria-components";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { LockKeyhole } from "lucide-react";
-import { TaskHeader } from "../components/task-header";
-import { driveSettingsTitle } from "../components/route-titles";
+import { DriveSettingsContent } from "../score-library/drive-settings-content";
 import { driveManagementSchema } from "../../shared/drive-management";
 import { managedMembershipsSchema } from "../../shared/lifecycle";
 import { operationLabels, type Operation } from "../../shared/drive-permissions";
@@ -24,12 +23,12 @@ import { TrashContents } from "../score-library/trash-contents";
 
 type Overview = ReturnType<typeof driveManagementSchema.parse>;
 type Members = ReturnType<typeof managedMembershipsSchema.parse>;
-export default function DriveManagementPage({ section }: { section: "info" | "admission" | "trash" }) {
+export default function DriveManagementPage({ section, index = false }: { section: "info" | "admission" | "trash"; index?: boolean }) {
   const { choirId = "" } = useParams();
   const { userId, ready } = useSettingsIdentity();
-  return <DriveManagement key={`${userId ?? "guest"}:${choirId}`} choirId={choirId} userId={userId ?? "guest"} ready={ready} section={section} />;
+  return <DriveManagement key={`${userId ?? "guest"}:${choirId}`} choirId={choirId} userId={userId ?? "guest"} ready={ready} section={section} index={index} />;
 }
-function DriveManagement({ choirId, section, userId, ready }: { choirId: string; section: string; userId: string; ready: boolean }) {
+function DriveManagement({ choirId, section, userId, ready, index }: { choirId: string; section: "info" | "admission" | "trash"; userId: string; ready: boolean; index: boolean }) {
   const navigate = useNavigate();
   const [purge, setPurge] = useState(false);
   const [dialog, setDialog] = useState<"name" | null>(null);
@@ -51,8 +50,7 @@ function DriveManagement({ choirId, section, userId, ready }: { choirId: string;
       {locked === operation && <PermissionContacts userId={userId} choirId={choirId} operation={operation} isMember={Boolean(data?.isMember)} />}
     </section>;
   }
-  return <div className="app-page"><TaskHeader title={driveSettingsTitle(section)} backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page settings-ux">
-    <header className="settings-heading"><p>{data?.name ?? "查看配置与权限分工"}</p></header>
+  return <DriveSettingsContent choirId={choirId} name={data?.name} section={section} index={index}>
     {!data && <p role={error ? "alert" : "status"}>{error ?? "正在读取云盘设置…"}</p>}
     {error && data && <p role="alert">{error}</p>}{error && <Button className="secondary-button" onPress={refresh}>重新读取</Button>}
     {data && <>
@@ -75,7 +73,7 @@ function DriveManagement({ choirId, section, userId, ready }: { choirId: string;
       }} />}
       {dialog === "name" && can("editDriveInfo") && <NameSettings userId={userId} choirId={choirId} onClose={() => setDialog(null)} onSaved={refresh} />}
     </>}
-  </main></div>;
+  </DriveSettingsContent>;
 }
 
 function NameSettings({ choirId, userId, onClose, onSaved }: { choirId: string; userId: string; onClose: () => void; onSaved: () => void }) {

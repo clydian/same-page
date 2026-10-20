@@ -13,7 +13,7 @@ import { Button } from "react-aria-components";
 import { useParams } from "react-router-dom";
 import { managedMembershipsSchema } from "../../shared/lifecycle";
 import { allPermissions, isDelegated, operationLabels, operationKeys, includesLayer, type PermissionSet } from "../../shared/drive-permissions";
-import { TaskHeader } from "../components/task-header";
+import { DriveSettingsContent } from "../score-library/drive-settings-content";
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
 
 type State = ReturnType<typeof managedMembershipsSchema.parse>;
@@ -69,7 +69,7 @@ function MembershipManagement({ choirId, userId, ready }: { choirId: string; use
       return true;
     },
   });
-  return <div className="app-page"><TaskHeader title={"成员与权限"} backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page settings-ux lifecycle-page">
+  return <DriveSettingsContent choirId={choirId} name={resource.data?.overview.name} section="memberships" className="lifecycle-page">
     {exitDialog}<header className="settings-heading"><p>找有权处理问题的人，或查看成员的权限。</p></header>
     {resource.data && !resource.data.overview.isMember && <section className="management-list">
       <h2>{resource.data.overview.name}</h2>
@@ -99,7 +99,7 @@ function MembershipManagement({ choirId, userId, ready }: { choirId: string; use
     <SettingsFeedback loading={resource.loading} loadError={resource.error ? settingsError(resource.error, "成员列表更新失败，已有内容已保留。") : null} message={message} retry={() => void reload().catch(() => undefined)} />
     {(!resource.data || needsRefresh) && <Button className="secondary-button" isDisabled={busy || loading} onPress={() => void reload().catch(() => undefined)}>重新读取成员列表</Button>}
     <ConfirmDialog confirmation={confirmation} busy={busy} onClose={() => setConfirmation(null)} />
-  </main></div>;
+  </DriveSettingsContent>;
 }
 function PermissionPeople({ title, members }: { title: string; members: Member[] }) {
   return <section className="permission-people" aria-label={title}><h2>{title}<span>{members.length} 人</span></h2>{members.length ? <ul>{members.map(member => <li key={member.id}><span>{member.displayName}</span></li>)}</ul> : <p className="settings-copy">暂无成员</p>}</section>;

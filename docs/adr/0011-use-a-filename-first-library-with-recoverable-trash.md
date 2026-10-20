@@ -9,3 +9,6 @@ Explicit home navigation uses `/` with a home intent and always stays on the hom
 
 
 Installation onboarding (#290) extends cold startup for signed-out visitors with no remembered user identity: a currently valid server guest session may reopen its ordinary drive. Public preview sessions never trigger restoration. The server must confirm admission before activating the isolated guest workspace; local storage alone cannot authorize access. This lets Home Screen launches resume an invited drive when the platform copies cookies at installation, while retaining all explicit-navigation and member-startup rules above.
+
+
+Navigation refinement (#482) makes the current drive name the direct membership picker, with the gear opening drive settings. The public homepage and explicit `/drives` selection rules above remain unchanged. Library search and sort share one row; sort direction is an optional owner/drive-scoped session preference compatible with earlier views. Touch pull-to-refresh and the personal/guest menu both refresh the existing library without reloading the application. Existing settings deep links, authority checks and local draft boundaries remain unchanged.

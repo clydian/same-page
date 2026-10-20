@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Form, Heading, Input, Label, Modal, ModalOverlay, TextField } from "react-aria-components";
 import { useNavigate } from "react-router-dom";
 import { Dialog } from "../navigation/overlays";
@@ -7,15 +8,27 @@ import { captureSettingsLifetime, useSettingsLifetime } from "../settings/use-se
 import { trialMessage } from "./trial-messages";
 
 export function CreateDrive({ userId }: { userId: string }) {
+  const [open, setOpen] = useState(false);
+  return <><Button className="primary-button" onPress={() => setOpen(true)}>创建云盘</Button>
+    <CreateDriveDialog userId={userId} open={open} onOpenChange={setOpen} />
+  </>;
+}
+
+export function CreateDriveDialog({ userId, open, onOpenChange, onBack }: { userId: string; open: boolean; onOpenChange(open: boolean): void; onBack?(): void }) {
   const gate = useRef(false);
   const [uncertain, setUncertain] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [destination, setDestination] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lifetime = useSettingsLifetime();
   const navigate = useNavigate();
+  useEffect(() => {
+    if (destination && !open && !busy) {
+      void navigate(destination);
+    }
+  }, [destination, open, busy, navigate]);
   async function create() {
     if (gate.current || uncertain) return;
     gate.current = true;
@@ -28,14 +41,17 @@ export function CreateDrive({ userId }: { userId: string }) {
       const payload = await response.json();
       if (!active()) return;
       if (!response.ok) { setError(trialMessage(payload.error)); return; }
-      navigate(`/choirs/${payload.choirId}`);
-    } catch { if (active()) { setUncertain(true); setError("未能确认创建结果，请先关闭并刷新云盘列表，再决定是否重试。"); } }
+      onOpenChange(false);
+      setDestination(`/choirs/${payload.choirId}`);
+    } catch { if (active()) { setUncertain(true); setError("未能确认创建结果，请先关闭并重新读取已加入的云盘，再决定是否重试。"); } }
     finally { gate.current = false; if (active()) setBusy(false); }
   }
-  return <><Button className="primary-button" onPress={() => setOpen(true)}>创建云盘</Button>
-    {open && <ModalOverlay className="modal-overlay" isOpen isDismissable={!busy} isKeyboardDismissDisabled={busy} onOpenChange={setOpen}>
+  return <ModalOverlay className="modal-overlay" isOpen={open} isDismissable={!busy} isKeyboardDismissDisabled={busy} onOpenChange={open => { if (!open && onBack) onBack(); else onOpenChange(open); }}>
       <Modal className="app-modal"><Dialog className="app-dialog" exitDisabled={busy}>
-        <Heading slot="title">创建免费体验云盘</Heading>
+        <div className={onBack ? "dialog-heading dialog-heading--back" : "dialog-heading"}>
+          {onBack && <Button className="icon-button" aria-label="返回切换云盘" isDisabled={busy} onPress={onBack}><ArrowLeft size={20} aria-hidden="true" /></Button>}
+          <Heading slot="title">创建免费体验云盘</Heading>
+        </div>
         <p>每人可拥有一个云盘，支持 10 份乐谱、50 MB 空间、20 位成员（含你自己）。</p>
         <Form className="entry-form" onSubmit={event => { event.preventDefault(); void create(); }}>
           <TextField isRequired maxLength={100} value={name} onChange={setName}><Label>云盘名称</Label><Input autoFocus /></TextField>
@@ -44,9 +60,8 @@ export function CreateDrive({ userId }: { userId: string }) {
           <p>为合理利用存储资源，连续超过 30 天无成员联网访问的云盘可能被清理。清理前，我们会至少提前 14 天通过邮件通知云盘拥有者；通知期内任一成员重新联网访问云盘，即取消本次清理。</p>
           {error && <p role="alert">{error}</p>}
           <Button className="primary-button" type="submit" isDisabled={busy || uncertain}>{busy ? "正在创建…" : "免费创建"}</Button>
-          <Button className="secondary-button" isDisabled={busy} onPress={() => setOpen(false)}>取消</Button>
+          <Button className="secondary-button" isDisabled={busy} onPress={() => { if (onBack) onBack(); else onOpenChange(false); }}>取消</Button>
         </Form>
       </Dialog></Modal>
-    </ModalOverlay>}
-  </>;
+    </ModalOverlay>;
 }

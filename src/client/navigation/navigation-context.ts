@@ -1,7 +1,7 @@
 import { createContext, useContext, useLayoutEffect, useRef, useState, useCallback, type SetStateAction } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 export type Exit = { kind: "overlay" | "editing" | "form"; leave: (destination?: boolean) => boolean | "cancelled" | Promise<boolean | "cancelled"> };
-type Navigation = { returnState: Map<string, unknown>; register(exit: Exit): () => void; back(fallback: string): void; afterEditing(action: () => void): void };
+type Navigation = { returnState: Map<string, unknown>; register(exit: Exit): () => void; back(fallback: string, destination?: "parent"): void; afterEditing(action: () => void): void };
 export const Context = createContext<Navigation | null>(null);
 
 export function useExitLayer(active: boolean, kind: Exit["kind"], leave: Exit["leave"]) {
@@ -14,7 +14,7 @@ export function useExitLayer(active: boolean, kind: Exit["kind"], leave: Exit["l
   }, [active, kind, register]);
 }
 
-export function useAppNavigation() {
+export function useAppNavigation(): Pick<Navigation, "back" | "afterEditing"> {
   const context = useContext(Context);
   const navigate = useNavigate();
   return context ?? { back: (fallback: string) => { void navigate(fallback, { replace: true }); }, afterEditing: (action: () => void) => action() };

@@ -15,7 +15,7 @@ test("shared-layer controls reorder the chosen layer and save its details", asyn
     return route.fulfill(fixture.resolve({ pathname: new URL(request.url()).pathname, method: request.method(), identity: "admin", cookie: "", body: request.headers()["content-type"]?.includes("application/json") ? request.postDataJSON() : null }));
   });
   await page.goto(`${app.origin}/choirs/visual-choir`);
-  await page.getByRole("button", { name: "打开云盘菜单", exact: true }).click();
+  await page.getByRole("link", { name: "云盘设置", exact: true }).click();
   await page.getByRole("link", { name: "共享层", exact: true }).click();
   await page.getByRole("button", { name: "上移 Tenor" }).click();
   await page.waitForFunction(() => !document.querySelector(".settings-page [aria-busy=true]"));

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 const library = {
-  visual: ["drive-settings", "drive-navigation", "drive-library-lifecycle", "upload-queue", "responsive-navigation", "shared-layer-management"],
+  visual: ["drive-settings", "drive-navigation", "drive-navigation-settings", "drive-library-lifecycle", "upload-queue", "responsive-navigation", "shared-layer-management"],
   smoke: ["storage-smoke", "offline-entry-smoke"],
 };
 

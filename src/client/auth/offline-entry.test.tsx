@@ -196,7 +196,8 @@ it("the drive header recovers a failed session before reopening cloud-only score
   await screen.findByText(/暂时无法连接/);
   expect(screen.queryByRole("link", { name: /^cloud$/ })).not.toBeInTheDocument();
   unavailable = false;
-  fireEvent.click(screen.getByRole("button", { name: "刷新乐谱列表" }));
+  fireEvent.click(screen.getByRole("button", { name: "我的" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "刷新列表" }));
   expect(await screen.findByRole("link", { name: /^cloud$/ })).toBeInTheDocument();
 });
 

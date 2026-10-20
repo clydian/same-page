@@ -3,10 +3,16 @@ import type { ScoreSummary } from "../../shared/scores";
 import type { DriveCacheOwnerKey } from "./drive-library-cache";
 
 export type LibrarySort = "name" | "updated" | "opened";
+export type LibrarySortDirection = "asc" | "desc";
 export interface LibraryView {
   search: string;
   sort: LibrarySort;
+  sortDirections?: Partial<Record<LibrarySort, LibrarySortDirection>>;
   scrollTop: number;
+}
+
+export function librarySortDirection(view: Pick<LibraryView, "sort" | "sortDirections">): LibrarySortDirection {
+  return view.sortDirections?.[view.sort] ?? (view.sort === "name" ? "asc" : "desc");
 }
 
 const prefix = "same-page:library-view:";
@@ -20,7 +26,13 @@ export function readLibraryView(owner: DriveCacheOwnerKey, choirId: string): Lib
     if (value && typeof value.search === "string" &&
       ["name", "updated", "opened"].includes(value.sort) &&
       Number.isFinite(value.scrollTop) && value.scrollTop >= 0) {
-      return { search: value.search, sort: value.sort, scrollTop: value.scrollTop };
+      const sortDirections: LibraryView["sortDirections"] = {};
+      for (const sort of ["name", "updated", "opened"] as const) {
+        const direction = value.sortDirections?.[sort];
+        if (direction === "asc" || direction === "desc") sortDirections[sort] = direction;
+      }
+      return { search: value.search, sort: value.sort, scrollTop: value.scrollTop,
+        ...(Object.keys(sortDirections).length ? { sortDirections } : {}) };
     }
   } catch { /* Storage is optional; navigation still works without it. */ }
   return { ...defaultView };
@@ -59,15 +71,18 @@ function readRecentlyOpened(owner: DriveCacheOwnerKey, choirId: string): Record<
 export function selectLibraryScores(
   scores: ScoreSummary[], search: string, sort: LibrarySort,
   owner: DriveCacheOwnerKey, choirId: string,
+  direction: LibrarySortDirection = sort === "name" ? "asc" : "desc",
 ) {
   const query = scoreFileNameKey(search.trim());
   const opened = sort === "opened" ? readRecentlyOpened(owner, choirId) : {};
   return scores
     .filter((score) => scoreFileNameKey(score.fileName).includes(query))
     .sort((a, b) => {
-      const difference = sort === "updated" ? b.updatedAt - a.updatedAt
-        : sort === "opened" ? (opened[b.id] ?? 0) - (opened[a.id] ?? 0) : 0;
-      return difference || a.fileName.localeCompare(b.fileName, "zh-CN", { numeric: true }) || a.id.localeCompare(b.id);
+      const order = direction === "asc" ? 1 : -1;
+      const difference = sort === "updated" ? a.updatedAt - b.updatedAt
+        : sort === "opened" ? (opened[a.id] ?? 0) - (opened[b.id] ?? 0) : 0;
+      const name = a.fileName.localeCompare(b.fileName, "zh-CN", { numeric: true }) || a.id.localeCompare(b.id);
+      return difference * order || name * (sort === "name" ? order : 1);
     });
 }
 

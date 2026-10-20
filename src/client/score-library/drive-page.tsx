@@ -6,7 +6,6 @@ export function DrivePage({ choirId, choirName, header, children }: { choirId: s
   return <div className="app-page drive-page">
     {header ?? <DriveHeader loading choirId={choirId} choirName={choirName ?? "云盘"} resolvingIdentity search="" onSearch={() => {}} onRefresh={() => {}} />}
     {children ?? <main className="page-shell file-library">
-      {choirName && <h1 className="visually-hidden">{choirName}</h1>}
       <p className="route-loading" role="status">正在加载乐谱…</p>
     </main>}
   </div>;

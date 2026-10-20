@@ -922,10 +922,10 @@ describe("AppRoutes", () => {
     expect(await screen.findByRole("heading", { name: "公开体验云盘" })).toBeInTheDocument();
     expect(screen.getByText("这个云盘还没有乐谱。")).toBeInTheDocument();
     expect(screen.queryByLabelText("显示名")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "打开云盘菜单" }));
+    fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
     expect(screen.queryByRole("menu", { name: "管理员菜单" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "关闭" })).not.toBeInTheDocument();
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "云盘菜单" }), { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "切换云盘" }), { key: "Escape" });
     expect(fetchMock).not.toHaveBeenCalledWith("/api/choirs/join", expect.anything());
     expect(fetchMock).not.toHaveBeenCalledWith("/api/guest/session", expect.objectContaining({ method: "POST" }));
   });
@@ -973,7 +973,9 @@ describe("AppRoutes", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "打开云盘菜单" }));
+    const settingsLink = await screen.findByRole("link", { name: "云盘设置" });
+    await waitFor(() => expect(settingsLink).not.toHaveAttribute("aria-disabled", "true"));
+    fireEvent.click(settingsLink);
     expect(await screen.findByRole("link", { name: "共享层" })).toHaveAttribute(
       "href",
       "/choirs/choir-1/shared-layers",
@@ -1015,7 +1017,7 @@ describe("AppRoutes", () => {
     );
 
     await screen.findByRole("searchbox", { name: /搜索.*中的乐谱/ });
-    fireEvent.click(await screen.findByRole("button", { name: "我在此云盘" }));
+    fireEvent.click(await screen.findByRole("button", { name: "我的" }));
     expect(await screen.findByRole("menuitem", { name: "阅读偏好" })).toHaveAttribute(
       "href",
       "/choirs/choir-1/preferences",
@@ -1075,7 +1077,8 @@ describe("AppRoutes", () => {
       await screen.findByRole("button", { name: "上传 PDF" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/云盘存储已使用 858\.3 MB/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "打开云盘菜单" }));
+    fireEvent.click(screen.getByRole("link", { name: "云盘设置" }));
+    await screen.findByRole("link", { name: "回收站" });
     expect(screen.queryByText(/云盘存储：/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "回收站" })).toBeInTheDocument();
     expect(
@@ -1194,13 +1197,14 @@ describe("AppRoutes", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: /搜索.*中的乐谱/ }), {
       target: { value: "排练" },
     });
-    expect(screen.getByText("找到 1 份乐谱", { selector: ".library-title p" })).toBeInTheDocument();
+    expect(screen.getByText("找到 1 份乐谱")).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("?q="))).toBe(false);
 
     fetchMock.mockImplementationOnce(() =>
       Promise.resolve(Response.json({ error: "temporary" }, { status: 503 })),
     );
-    fireEvent.click(screen.getByRole("button", { name: "刷新乐谱列表" }));
+    fireEvent.click(screen.getByRole("button", { name: "访客选项" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "刷新列表" }));
     expect(
       await screen.findByText("暂时无法更新乐谱列表，当前内容已保留。请稍后重试。"),
     ).toBeInTheDocument();

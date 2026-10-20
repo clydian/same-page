@@ -20,7 +20,7 @@ function session(userId: string | null, isPending = false) {
 function NavigationProbe() {
   const location = useLocation();
   const navigate = useNavigate();
-  return <><output aria-label="当前位置">{location.pathname}{location.search}</output><button onClick={() => void navigate(-1)}>返回测试</button></>;
+  return <><output aria-label="当前位置">{location.pathname}{location.search}</output><button onClick={() => void navigate(-1)}>返回测试</button><button onClick={() => void navigate("/drives")}>选择页测试</button></>;
 }
 function tree(entries = ["/"]) { return <MemoryRouter initialEntries={entries}><AppRoutes /><NavigationProbe /></MemoryRouter>; }
 function expectPath(path: string) { expect(screen.getByLabelText("当前位置").textContent).toBe(path); }
@@ -75,8 +75,7 @@ it("keeps explicit invitation intent and the switch picker accessible with one m
   fireEvent.click(screen.getByRole("link", { name: "我的云盘" }));
   fireEvent.click(await screen.findByRole("link", { name: /云盘 one.*成员/ }));
   await screen.findByRole("heading", { name: "云盘 one" });
-  fireEvent.click(screen.getByRole("button", { name: "打开云盘菜单" }));
-  fireEvent.click(screen.getByRole("link", { name: "云盘列表" }));
+  fireEvent.click(screen.getByRole("button", { name: "选择页测试" }));
   await screen.findByRole("link", { name: /云盘 one.*成员/ });
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expectPath("/drives");
@@ -175,7 +174,7 @@ it("keeps the drive shell and search when the online session cannot be reached a
   render(tree(["/choirs/one"]));
   await screen.findByRole("heading", { name: "云盘 one" });
   expect(screen.getByRole("searchbox", { name: /搜索.*中的乐谱/ })).toBeInTheDocument();
-  expect(screen.getByRole("combobox", { name: "乐谱排序" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "按名称排序，升序" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "本机内容" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "登录或注册" })).not.toBeInTheDocument();
 });
@@ -325,8 +324,7 @@ it("restores a saved member drive offline but stays home after an explicit retur
   render(tree());
   await screen.findByRole("heading", { name: "云盘 one" });
   expectPath("/choirs/one");
-  fireEvent.click(screen.getByRole("button", { name: "打开云盘菜单" }));
-  fireEvent.click(screen.getByRole("link", { name: "云盘列表" }));
+  fireEvent.click(screen.getByRole("button", { name: "选择页测试" }));
   await screen.findByRole("heading", { name: "我已加入的云盘" });
   fireEvent.click(screen.getByRole("link", { name: "合谱 Same Page 首页" }));
   await screen.findByRole("heading", { name: "Harmony begins on the Same Page" });
@@ -432,4 +430,99 @@ it("keeps the confirmed picker through a transient reconnection failure", async 
   await screen.findByText("暂时无法加载已加入的云盘。");
   expect(selected).toBeInTheDocument();
   expect(screen.queryByText("正在加载已加入的云盘…")).not.toBeInTheDocument();
+});
+
+
+it("joins from the library without a selection-page detour and can repeat admission to the current drive", async () => {
+  const original = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((input, init) => {
+    if (input === "/api/guest/session" && init?.method === "POST") return Promise.resolve(Response.json({ choir: membership("one").choir, entryKind: "admission" }));
+    if (input === "/api/choirs/current-guest/join-state") return Promise.resolve(Response.json({ status: "joined", choir: membership("one").choir }));
+    if (input === "/api/guest/session" && init?.method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+    return original(input, init);
+  });
+  render(tree(["/choirs/one"]));
+  await screen.findByRole("heading", { name: "云盘 one" });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
+    expect(screen.queryByRole("link", { name: "云盘列表" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "加入新云盘" }));
+    expectPath("/choirs/one");
+    fireEvent.change(await screen.findByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });
+    fireEvent.click(screen.getByRole("button", { name: "进入" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expectPath("/choirs/one");
+  }
+  expect(vi.mocked(fetch).mock.calls.filter(([input, init]) => input === "/api/guest/session" && init?.method === "POST")).toHaveLength(2);
+});
+
+it("creates from the library and navigates only after its dialog closes", async () => {
+  const original = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((input, init) => input === "/api/choirs" && init?.method === "POST"
+    ? Promise.resolve(Response.json({ choirId: "new-drive" }, { status: 201 })) : original(input, init));
+  render(tree(["/choirs/one"]));
+  await screen.findByRole("heading", { name: "云盘 one" });
+  fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
+  fireEvent.click(screen.getByRole("button", { name: "创建云盘" }));
+  expectPath("/choirs/one");
+  fireEvent.change(screen.getByLabelText("云盘名称"), { target: { value: "新云盘" } });
+  fireEvent.change(screen.getByLabelText("你在云盘内的显示名"), { target: { value: "指挥" } });
+  fireEvent.click(screen.getByRole("button", { name: "免费创建" }));
+  await screen.findByRole("heading", { name: "云盘 new-drive" });
+  expectPath("/choirs/new-drive");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+
+it("keeps the active guest credential when cancelling an untouched inline invitation", async () => {
+  session(null);
+  render(tree(["/choirs/one"]));
+  await screen.findByRole("heading", { name: "云盘 one" });
+  fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
+  fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
+  await screen.findByRole("dialog", { name: "进入云盘" });
+  fireEvent.click(screen.getByRole("button", { name: "返回切换云盘" }));
+  await screen.findByRole("dialog", { name: "切换云盘" });
+  fireEvent.click(screen.getByRole("button", { name: "关闭云盘选择" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expectPath("/choirs/one");
+  expect(fetch).not.toHaveBeenCalledWith("/api/guest/session", expect.objectContaining({ method: "DELETE" }));
+});
+
+
+it.each(["success", "denied"])("preserves the guest credential after %s admission then reopening and cancelling", async outcome => {
+  session(null);
+  const { activateGuestLocalOwner } = await import("../platform/local-workspace");
+  const { localDatabase } = await import("../platform/local-database");
+  await localDatabase.open();
+  await activateGuestLocalOwner("one");
+  const original = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((input, init) => {
+    if (input === "/api/guest/session" && init?.method === "POST") return Promise.resolve(outcome === "denied"
+      ? Response.json({ error: "guest_admission_denied" }, { status: 401 })
+      : Response.json({ choir: membership("one").choir, entryKind: "admission" }));
+    if (input === "/api/guest/session" && init?.method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+    return original(input, init);
+  });
+  const { DriveSwitcher } = await import("../score-library/drive-switcher");
+  render(<MemoryRouter initialEntries={["/choirs/one"]}><DriveSwitcher choirId="one" choirName="云盘 one" localOnly={false} loading={false} /><NavigationProbe /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
+  fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
+  fireEvent.change(await screen.findByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });
+  fireEvent.click(screen.getByRole("button", { name: "进入" }));
+  if (outcome === "denied") {
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "返回切换云盘" }));
+    await screen.findByRole("dialog", { name: "切换云盘" });
+    fireEvent.click(screen.getByRole("button", { name: "关闭云盘选择" }));
+  }
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
+  fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
+  fireEvent.click(await screen.findByRole("button", { name: "返回切换云盘" }));
+  await screen.findByRole("dialog", { name: "切换云盘" });
+  fireEvent.click(screen.getByRole("button", { name: "关闭云盘选择" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(fetch).not.toHaveBeenCalledWith("/api/guest/session", expect.objectContaining({ method: "DELETE" }));
+  expectPath("/choirs/one");
 });

@@ -14,7 +14,7 @@ it("selects complete and audited library scopes, independent of directory order"
       const files = selectBrowserTests({ suite, group, entries, shard: `1/${count}` });
       expect(files).toEqual(selectBrowserTests({ suite, group, entries: [...entries].reverse(), shard: `${count}/${count}` }));
       if (group === "all") expect(files).toEqual(entries.filter(file => file.endsWith(".test.mjs")).sort());
-      else expect(files.length).toBe(suite === "visual" ? 6 : 2);
+      else expect(files.length).toBe(suite === "visual" ? 7 : 2);
     }
   }
 });
@@ -43,7 +43,7 @@ it("the real runner uses native shards without omissions or duplicates, includin
       }
     }
   } finally { rmSync(cwd, { recursive: true, force: true }); }
-});
+}, 15_000); // This integration check starts ten runners and thirty child test processes.
 
 it("rejects invalid requests, missing library files and empty shards", () => {
   const entries = readdirSync("browser-tests");

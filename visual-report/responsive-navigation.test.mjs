@@ -1,3 +1,4 @@
+import { chooseLibrarySort } from "./navigation-actions.mjs";
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -41,9 +42,9 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
 
       const boxes = await Promise.all([
         page.getByRole("searchbox", { name: /搜索.*中的乐谱/ }),
-        page.getByRole("combobox", { name: "乐谱排序" }),
-        page.getByRole("button", { name: "打开云盘菜单" }),
-        page.getByRole("button", { name: "我在此云盘" }),
+        page.getByRole("button", { name: /^按.*排序/ }),
+        page.getByRole("button", { name: /^切换云盘/ }),
+        page.getByRole("button", { name: "我的" }),
       ].map(control => control.boundingBox()));
       assert.ok(boxes.every(box => box && box.width > 0 && box.height > 0 && box.x >= 0 && box.x + box.width <= width), `${width}: library controls are reachable ${JSON.stringify(boxes)}`);
       assert.ok(boxes.slice(0, 2).every(box => box.height >= 44), "search and sort retain their touch-sized controls");
@@ -57,7 +58,7 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     }
     await page.getByRole("searchbox", { name: /搜索.*中的乐谱/ }).fill("晨光");
     await page.getByRole("status").filter({ hasText: "找到 1 份" }).waitFor();
-    await page.getByRole("combobox", { name: "乐谱排序" }).selectOption("updated");
+    await chooseLibrarySort(page, "updated");
     assert.equal(await page.locator(".file-row").count(), 1);
     await page.getByRole("button", { name: /更多操作/ }).focus();
     await page.keyboard.press("Enter");

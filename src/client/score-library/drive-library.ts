@@ -12,17 +12,21 @@ import {
   readDriveLibrary, readDriveSummary, rememberDriveLibrary,
   type DriveCacheOwnerKey,
 } from "./drive-library-cache";
-import { readLibraryView, rememberLibraryView, selectLibraryScores, type LibrarySort, type LibraryView } from "./library-view-state";
+import { readLibraryView, rememberLibraryView, selectLibraryScores, librarySortDirection, type LibrarySort, type LibrarySortDirection, type LibraryView } from "./library-view-state";
 import { driveLibraryTransport, type DriveLibraryAccess, type DriveLibraryTransport, type ScoreFileChange } from "./drive-library-transport";
 
 export interface DriveLibrarySnapshot {
   reading: Pick<ReadState<never>, "request" | "authority">;
   access: DriveLibraryAccess;
-  view: Pick<LibraryView, "search" | "sort">;
+  view: Pick<LibraryView, "search" | "sort" | "sortDirections">;
   scores: ScoreSummary[];
   refreshMessage: string | null;
   joinMessage: string | null;
   joining: boolean;
+}
+
+function viewControls(view: LibraryView): DriveLibrarySnapshot["view"] {
+  return { search: view.search, sort: view.sort, ...(view.sortDirections ? { sortDirections: view.sortDirections } : {}) };
 }
 
 type OpenedAccess = Extract<DriveLibraryAccess, { kind: "opened" }>;
@@ -74,7 +78,7 @@ export class DriveLibrary {
     this.view = readLibraryView(ownerKey, choirId);
     this.snapshot = {
       reading: { request: "idle", authority: "unconfirmed" },
-      access: { kind: "loading" }, view: { search: this.view.search, sort: this.view.sort }, scores: [],
+      access: { kind: "loading" }, view: viewControls(this.view), scores: [],
       refreshMessage: null, joinMessage: null, joining: false,
     };
   }
@@ -106,7 +110,7 @@ export class DriveLibrary {
     const confirmed = Boolean(cached && (this.authenticated || this.ownerKey.startsWith("guest:")));
     this.confirmedAt = confirmed ? cached!.updatedAt : -Infinity;
     this.publish({
-      view: { search: this.view.search, sort: this.view.sort },
+      view: viewControls(this.view),
       reading: { request: "idle", authority: confirmed ? "confirmed" : "unconfirmed" },
       access: cached
         ? (confirmed ? { kind: "opened", choir: cached.choir, result: cached.result, isMember: cached.isMember ?? false } : localAccess({ kind: "opened", choir: cached.choir, result: cached.result, isMember: cached.isMember ?? false }))
@@ -251,6 +255,10 @@ export class DriveLibrary {
 
   setSearch = (search: string) => this.updateView({ search, scrollTop: 0 });
   setSort = (sort: LibrarySort) => this.updateView({ sort });
+  setSortDirection = (direction: LibrarySortDirection) => {
+    if (direction === librarySortDirection(this.view)) return;
+    this.updateView({ sortDirections: { ...this.view.sortDirections, [this.view.sort]: direction } });
+  };
   rememberScroll = (scrollTop: number) => {
     // Scroll events during a pending DOM restore must not erase its target.
     if (this.restorePending) return;
@@ -415,11 +423,11 @@ export class DriveLibrary {
     if (!this.isActive()) return;
     const view = { ...this.view, ...update };
     const previous = this.view;
-    if (view.search === previous.search && view.sort === previous.sort && view.scrollTop === previous.scrollTop) return;
+    if (view.search === previous.search && view.sort === previous.sort && view.scrollTop === previous.scrollTop && view.sortDirections === previous.sortDirections) return;
     rememberLibraryView(this.ownerKey, this.choirId, view);
     this.view = view;
-    if (view.search !== previous.search || view.sort !== previous.sort) {
-      this.publish({ view: { search: view.search, sort: view.sort } });
+    if (view.search !== previous.search || view.sort !== previous.sort || view.sortDirections !== previous.sortDirections) {
+      this.publish({ view: viewControls(view) });
     }
   }
 
@@ -430,7 +438,7 @@ export class DriveLibrary {
     const next = { ...this.snapshot, ...update };
     if (update.access || update.view) {
       next.scores = next.access.kind === "opened"
-        ? selectLibraryScores(next.access.result.scores, next.view.search, next.view.sort, this.ownerKey, this.choirId)
+        ? selectLibraryScores(next.access.result.scores, next.view.search, next.view.sort, this.ownerKey, this.choirId, librarySortDirection(next.view))
         : [];
     }
     this.snapshot = next;

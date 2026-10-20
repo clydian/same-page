@@ -202,3 +202,6 @@
 .entry-form.purge-confirmation > button[type="submit"] { background: #b02d34; border-color: #b02d34; }
 .entry-form.purge-confirmation > button[type="submit"]:hover { background: #92232a; border-color: #92232a; }
 .entry-form.purge-confirmation > button[type="submit"]:focus-visible { outline: 3px solid #e09fa4; outline-offset: 3px; }
+
+.task-header-heading { flex: 1; min-width: 0; }
+.task-header-heading > p { margin: .2rem 0 0; font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; }

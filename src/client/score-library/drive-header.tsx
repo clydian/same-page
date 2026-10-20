@@ -1,49 +1,51 @@
-import { loginHref } from "../auth/login-return";
-import { InstallButton } from "../install/install-entry";
-import { UserRound, RefreshCw } from "lucide-react";
-import { useReturnViewport } from "../navigation/use-return-viewport";
-import { Menu as MenuIcon, List, X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
-import { Button,  Form, Heading, Input,   Modal, ModalOverlay,  TextField } from "react-aria-components";
-import { useReturnState } from "../navigation/navigation-context";
-import { DrivePersonalMenu } from "./drive-personal-menu";
-import { Dialog } from "../navigation/overlays";
+import { useId } from "react";
 import { Link } from "react-router-dom";
+import { loginHref } from "../auth/login-return";
+import { UserRound, Settings } from "lucide-react";
+import { Button, Form, Input, MenuItem, MenuTrigger, Popover, TextField } from "react-aria-components";
+import { Menu } from "../navigation/overlays";
+import { DrivePersonalMenu } from "./drive-personal-menu";
+import { DriveSwitcher } from "./drive-switcher";
+import { LibrarySortControl } from "./library-sort-control";
+import type { LibrarySort, LibrarySortDirection, LibraryView } from "./library-view-state";
 
-export function DriveHeader({ choirId, choirName, userId, search, onSearch, onRefresh, management, onEditDisplayName, displayName, localOnly = false, resolvingIdentity = false, refreshing = false, loading = false }: {
-  choirId: string; choirName: string; displayName?: string; userId?: string; search: string;
+export function DriveHeader({ choirId, choirName, userId, email, search, onSearch, onRefresh,
+  onEditDisplayName, displayName, localOnly = false, resolvingIdentity = false, loading = false,
+  view = { sort: "name" }, onSort, onDirection,
+}: {
+  choirId: string; choirName: string; displayName?: string; userId?: string; email?: string | null; search: string;
   onSearch: (value: string) => void; onRefresh: () => void;
-  refreshing?: boolean; loading?: boolean; resolvingIdentity?: boolean; localOnly?: boolean; onEditDisplayName?: () => void;
-  management?: (close: () => void) => ReactNode;
+  loading?: boolean; resolvingIdentity?: boolean; localOnly?: boolean; onEditDisplayName?: () => void;
+  view?: Pick<LibraryView, "sort" | "sortDirections">;
+  onSort?: (value: LibrarySort) => void; onDirection?: (value: LibrarySortDirection) => void;
 }) {
-  const [drawerOpen, setDrawerOpen] = useReturnState(`drawer:${userId ?? "guest"}`, false);
-  const trigger = useRef<HTMLButtonElement>(null);
-  const wasOpen = useRef(drawerOpen);
-  useEffect(() => {
-    const closed = wasOpen.current && !drawerOpen; wasOpen.current = drawerOpen;
-    if (closed) { const frame = requestAnimationFrame(() => trigger.current?.focus()); return () => cancelAnimationFrame(frame); }
-  }, [drawerOpen]);
-  return <>
-    <header className="drive-header">
-      <Button ref={trigger} className="icon-button" aria-label="打开云盘菜单" isDisabled={loading && !userId} onPress={() => setDrawerOpen(true)}><MenuIcon aria-hidden="true" size={23} /></Button>
-      <Form className="library-search drive-search" role="search" onSubmit={event => { event.preventDefault(); }}>
+  const settingsHint = useId();
+  return <header className="drive-header">
+    <div className="drive-context-row">
+      <h1 aria-label={choirName}><DriveSwitcher key={`${userId ?? "guest"}:${choirId}`} choirId={choirId} choirName={choirName} userId={userId} localOnly={localOnly} loading={loading} /></h1>
+      <span className="drive-settings-control"><Link className="icon-button drive-settings-entry" to={`/choirs/${choirId}/settings`} aria-label="云盘设置" aria-describedby={settingsHint} aria-disabled={loading || localOnly || undefined} onClick={event => { if (loading || localOnly) event.preventDefault(); }}>
+        <Settings size={20} aria-hidden="true" />
+      </Link><span id={settingsHint} role="tooltip" className="drive-settings-hint">{localOnly ? "联网并确认访问后可使用云盘设置" : "云盘设置"}</span></span>
+      {userId ? <DrivePersonalMenu key={`${userId}:${choirId}`} choirId={choirId} choirName={choirName} userId={userId} email={email} displayName={displayName} localOnly={localOnly} onEditDisplayName={onEditDisplayName} onRefresh={onRefresh} />
+        : resolvingIdentity || loading ? <span className="drive-avatar" aria-label="正在恢复用户"><UserRound aria-hidden="true" size={20} /></span>
+        : <GuestMenu choirId={choirId} onRefresh={onRefresh} />}
+    </div>
+    <div className="drive-library-controls">
+      <Form className="library-search drive-search" role="search" onSubmit={event => event.preventDefault()}>
         <TextField isDisabled={loading} value={search} onChange={onSearch} aria-label={`搜索「${choirName}」中的乐谱`}><Input type="search" placeholder="搜索乐谱" /></TextField>
       </Form>
-      <Button className="icon-button" aria-label="刷新乐谱列表" isPending={refreshing} isDisabled={loading} onPress={onRefresh}><RefreshCw aria-hidden="true" size={19} /></Button>
-      {userId ? <DrivePersonalMenu key={`${userId}:${choirId}`} choirId={choirId} userId={userId} displayName={displayName} localOnly={localOnly} onEditDisplayName={onEditDisplayName} /> : resolvingIdentity || loading ? <span className="drive-avatar" aria-label="正在恢复用户"><UserRound aria-hidden="true" size={20} /></span> : <Link className="drive-avatar" aria-label="登录或注册" to={loginHref(`/choirs/${choirId}`)}>访</Link>}
-    </header>
-    <ModalOverlay className="drive-drawer-overlay" isOpen={drawerOpen && !loading} onOpenChange={setDrawerOpen} isDismissable>
-      <Modal className="drive-drawer"><Dialog preserveOnNavigate aria-label="云盘菜单">{({ close }) => <DrawerBody>
-        <div className="dialog-heading"><Heading slot="title">{choirName}</Heading><Button className="icon-button" aria-label="关闭云盘菜单" onPress={close}><X size={22} aria-hidden="true" /></Button></div>
-        {management?.(close)}
-        <footer className="drive-drawer-footer"><InstallButton /><Link className="drive-drawer-switch" to="/drives"><List size={18} aria-hidden="true" />云盘列表</Link></footer>
-      </DrawerBody>}</Dialog></Modal>
-    </ModalOverlay>
-  </>;
+      <LibrarySortControl view={view} disabled={loading} onSort={onSort ?? (() => {})} onDirection={onDirection ?? (() => {})} />
+    </div>
+  </header>;
 }
 
-function DrawerBody({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useReturnViewport(ref, "drawer", true);
-  return <div ref={ref} className="drive-drawer-content">{children}</div>;
+function GuestMenu({ choirId, onRefresh }: { choirId: string; onRefresh(): void }) {
+  return <MenuTrigger><Button className="drive-avatar" aria-label="访客选项">访</Button>
+    <Popover className="file-menu-popover account-menu-popover"><Menu aria-label="访客选项">
+      <MenuItem href={loginHref(`/choirs/${choirId}`)}>登录或注册</MenuItem>
+      <MenuItem onAction={onRefresh}>刷新列表</MenuItem>
+      <MenuItem href="/help">使用手册</MenuItem>
+      <MenuItem href="/diagnostics">问题反馈</MenuItem>
+    </Menu></Popover>
+  </MenuTrigger>;
 }
