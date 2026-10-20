@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { chromium, webkit, expect } from "@playwright/test";
@@ -36,9 +36,35 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
     const profile = await mkdtemp(path.join(tmpdir(), "same-page-file-touch-"));
     let context;
+    let page;
+    let phase = "fixture setup";
+    const evidence = [];
+    const directory = "artifacts/verification/file-touch-links";
+    const record = (type, detail = {}) => evidence.push({ type, phase, at: Date.now(), ...detail });
+    t.after(async () => {
+      await mkdir(directory, { recursive: true });
+      try {
+        if (page && !page.isClosed()) await page.screenshot({ path: `${directory}/${engine}-final.png`, fullPage: true });
+        await context?.tracing.stop({ path: `${directory}/${engine}-trace.zip` });
+      } finally {
+        await writeFile(`${directory}/${engine}-events.json`, JSON.stringify(evidence, null, 2));
+      }
+    });
     t.after(async () => { try { await context?.close(); } finally { try { await fixture.stop(); } finally { await rm(profile, { recursive: true, force: true }); } } });
     const executablePath = engine === "chromium" ? process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH : undefined;
     context = await browserType.launchPersistentContext(profile, { headless: true, ...(executablePath ? { executablePath } : {}), viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow" });
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+    await context.exposeBinding("recordFileInput", (_, detail) => record("input", detail));
+    await context.addInitScript(() => {
+      for (const type of ["pointerdown", "pointerup", "pointercancel", "click", "contextmenu", "keydown", "keyup"]) {
+        document.addEventListener(type, event => {
+          const target = event.target instanceof Element ? event.target.closest("a, button") : null;
+          const detail = { type, target: target?.getAttribute("aria-label") ?? target?.textContent?.slice(0, 40),
+            pointerType: event.pointerType, button: event.button, ctrlKey: event.ctrlKey, key: event.key };
+          queueMicrotask(() => void window.recordFileInput({ ...detail, defaultPrevented: event.defaultPrevented }));
+        }, true);
+      }
+    });
     await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
     const account = fixture.accounts[0];
     assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } })).status(), 200);
@@ -47,8 +73,11 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     for (let index = 0; index < 10; index++) {
       assert.equal((await context.request.post(api + "/scores", { multipart: { file: { name: `滚动测试${index}.pdf`, mimeType: "application/pdf", buffer: fixture.pdf } } })).status(), 201);
     }
-    const page = await context.newPage();
-    let phase = "file library";
+    page = await context.newPage();
+    phase = "file library";
+    context.on("page", other => record("new-page", { url: other.url() }));
+    context.on("request", request => { if (request.isNavigationRequest()) record("navigation-request", { url: request.url() }); });
+    context.on("response", response => { if (response.request().isNavigationRequest()) record("navigation-response", { url: response.url(), status: response.status() }); });
     const errors = []; page.on("pageerror", error => errors.push({ phase, message: error.message }));
     const library = `${fixture.origin}/choirs/${fixture.choirId}`;
     const scorePath = `/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
@@ -109,17 +138,23 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     await expect(page.getByRole("menuitem", { name: "分享 PDF", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(menu).toBeFocused();
-    const rightMenu = page.evaluate(() => new Promise(resolve => document.querySelector(".file-open-link").addEventListener("contextmenu", event => queueMicrotask(() => resolve(event.defaultPrevented)), { once: true })));
-    await file.click({ button: "right" });
-    assert.equal(await rightMenu, false);
-    await page.keyboard.press("Escape");
-    const popup = context.waitForEvent("page", { timeout: 5_000 });
-    phase = "modified link opening";
-    await file.click({ modifiers: ["Control"] });
-    const other = await popup;
-    await expect(other).toHaveURL(new RegExp(`${scorePath}$`));
-    await expectSampleScoreContent(other); await other.close();
-    await expect(page).toHaveURL(library);
+    for (let repeat = 0; repeat < 3; repeat++) {
+      const rightMenu = page.evaluate(() => new Promise(resolve => document.querySelector(".file-open-link").addEventListener("contextmenu", event => queueMicrotask(() => resolve(event.defaultPrevented)), { once: true })));
+      await file.click({ button: "right" });
+      assert.equal(await rightMenu, false);
+      await page.keyboard.press("Escape");
+      phase = `modified link opening ${repeat + 1}`;
+      record("click-start");
+      // Observe both operations immediately, including an event deadline that
+      // expires while click is still waiting for actionability. No failed retry.
+      const [other] = await Promise.all([
+        context.waitForEvent("page", { timeout: 5_000 }),
+        file.click({ modifiers: ["Control"] }).then(() => record("click-complete")),
+      ]);
+      await expect(other).toHaveURL(new RegExp(`${scorePath}$`));
+      await expectSampleScoreContent(other); await other.close();
+      await expect(page).toHaveURL(library);
+    }
     phase = "normal reader opening";
     await file.tap();
     await expect(page).toHaveURL(new RegExp(`${scorePath}$`));

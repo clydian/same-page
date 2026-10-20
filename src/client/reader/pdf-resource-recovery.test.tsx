@@ -51,3 +51,32 @@ it('never retries corrupt page content on resource notifications or elapsed time
   expect(draw).toHaveBeenCalledTimes(2);
   expect(screen.getByRole('button', {name: '重试本页'})).toBeVisible();
 });
+it('rejects late page lookup after document replacement and releases every canvas on unmount', async () => {
+  let resolvePage!: (page: unknown) => void;
+  const oldDraw = vi.fn(() => ({promise: Promise.resolve(), cancel: vi.fn()}));
+  const oldDocument = {numPages: 30, getPage: vi.fn(() => new Promise(resolve => { resolvePage = resolve; }))} as unknown as PDFDocumentProxy;
+  const view = render(<PdfPageCanvas document={oldDocument} pageNumber={1} width={2000}/>);
+  await act(async () => {});
+  view.rerender(<PdfPageCanvas document={pdf} pageNumber={1} width={2000}/>);
+  await act(async () => {});
+  const front = view.container.querySelector('[data-pdf-canvas-active]');
+  expect(front).not.toBeNull();
+  const allocation = renderBudgetFacts();
+  await act(async () => { resolvePage({getViewport: () => ({width: 600, height: 800}), render: oldDraw}); });
+  expect(oldDraw).not.toHaveBeenCalled();
+  expect(view.container.querySelector('[data-pdf-canvas-active]')).toBe(front);
+  expect(renderBudgetFacts()).toEqual(allocation);
+  view.unmount();
+  expect(renderBudgetFacts()).toEqual({residentPixels: 0, residentCanvases: 0});
+});
+it('retires a page on unmount without allowing a late lookup to allocate a detached canvas', async () => {
+  let resolvePage!: (page: unknown) => void;
+  const orphanDraw = vi.fn();
+  const pending = {numPages: 30, getPage: () => new Promise(resolve => { resolvePage = resolve; })} as unknown as PDFDocumentProxy;
+  const view = render(<PdfPageCanvas document={pending} pageNumber={1} width={2000}/>);
+  await act(async () => {});
+  view.unmount();
+  await act(async () => { resolvePage({getViewport: () => ({width: 600, height: 800}), render: orphanDraw}); });
+  expect(orphanDraw).not.toHaveBeenCalled();
+  expect(renderBudgetFacts()).toEqual({residentPixels: 0, residentCanvases: 0});
+});
