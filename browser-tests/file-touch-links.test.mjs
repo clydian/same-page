@@ -61,7 +61,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           const target = event.target instanceof Element ? event.target.closest("a, button") : null;
           const detail = { type, target: target?.getAttribute("aria-label") ?? target?.textContent?.slice(0, 40),
             pointerType: event.pointerType, button: event.button, ctrlKey: event.ctrlKey, key: event.key };
-          queueMicrotask(() => void window.recordFileInput({ ...detail, defaultPrevented: event.defaultPrevented }));
+          // Native event dispatch can checkpoint microtasks between listeners.
+          // Read cancellation after React and target listeners have all run.
+          setTimeout(() => void window.recordFileInput({ ...detail, defaultPrevented: event.defaultPrevented }), 0);
         }, true);
       }
     });
