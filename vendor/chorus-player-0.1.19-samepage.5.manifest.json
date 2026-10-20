@@ -1,0 +1,14 @@
+{
+  "player": "0.1.19-samepage.5",
+  "nativePeer": "1.8.4-samepage.6",
+  "playerSourceCommit": "4d25948bb6b06e16742de0d6675f54a759b08b02",
+  "nativeSourceCommit": "d0fb909fd80d180761a4a7e22dccc87c735424c5",
+  "playerSha256": "c53cac64f3c8b74d8c857daf3268e7562f481801541518f8dd3d57b8d261ea56",
+  "nativeSha256": "56f3b11ba50f0cecedecbfa7ce43bce5306b58ebba7713862008094c5c001832",
+  "sourceArchiveSha256": "02242a5571fe4860b1edfc98343d964284774c11a334a5954a4a1c24e50e397d",
+  "sourceRepository": "https://github.com/clydian/chorus-score-studio",
+  "sourcePullRequest": "https://github.com/clydian/chorus-score-studio/pull/20",
+  "artifact": "clydian-chorus-player-0.1.19-samepage.5.tgz",
+  "npmPublished": false,
+  "sourceMainMergeCommit": "315ce224fb7ad32d66522570df6bc33d78102a1e"
+}
