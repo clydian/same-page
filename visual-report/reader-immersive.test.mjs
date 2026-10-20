@@ -69,7 +69,7 @@ for (const [engineName, engine] of Object.entries({chromium, webkit})) {
     const before = await read();
     await page.getByRole("button", {name:"编辑",exact:true}).click();
     await page.locator(".annotation-controls").waitFor();
-    await expect(page.locator('.annotation-overlay[data-editing]')).toHaveCount(1);
+    await expect.poll(() => page.locator('.annotation-overlay[data-editing]').count()).toBeGreaterThan(1);
     await expect(page.locator('.annotated-pdf-page:visible')).toHaveCount(2);
     assertView(await read(), before);
     await page.mouse.move(400,450);

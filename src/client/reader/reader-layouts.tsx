@@ -1,3 +1,4 @@
+import { AnnotationPages, AnnotationPagesContext } from "../annotations/annotation-pages";
 import { usePdfPageAspectRatio } from "./use-pdf-page-geometry";
 import { FIT_ZOOM_TOLERANCE } from "./reader-zoom";
 import { useElementSize } from "./use-element-size";
@@ -11,6 +12,8 @@ import {
   Suspense,
   useEffect,
   useLayoutEffect,
+  useMemo,
+  useSyncExternalStore,
   useRef,
   useState,
 } from "react";
@@ -245,10 +248,19 @@ export function ContinuousLayout({
   onToggleChrome,
   annotationProps,
 }: Omit<ReaderLayoutProps, "onDismiss">) {
-  const noteInteraction = useRef<AnnotationInteractionHandle>(null);
+  const pages = useMemo(() => new AnnotationPages(annotationProps.editor), [annotationProps.editor]);
+  const pageSession = useSyncExternalStore(pages.subscribe, pages.getSnapshot);
+  useEffect(() => pages.connect(), [pages]);
+  useLayoutEffect(() => {
+    if (annotationProps.editing && pages.getSnapshot().activePage === null) pages.activate(currentPage);
+  }, [annotationProps.editing, currentPage, pages]);
+  const onInteractionChange = annotationProps.onInteractionChange;
+  useEffect(() => onInteractionChange(pageSession.interaction), [onInteractionChange, pageSession.interaction]);
+  useEffect(() => () => onInteractionChange("idle"), [onInteractionChange]);
   const { scrollRef, contentRef, onScroll, geometryGestures, width, height, items, size } = useContinuousReaderLayout({
     document, currentPage, zoom, fitRequest, navigationRequest, viewportName,
     editing: annotationProps.editing,
+    pinnedPages: annotationProps.editing ? pageSession.pinnedPages : [],
     onZoomChange, onPageChange,
     beforePageChange: annotationProps.editing ? () => annotationProps.editor!.prepareNavigation() : undefined,
     canCompletePage: annotationProps.editing ? annotationProps.editor?.canNavigate : undefined,
@@ -258,8 +270,8 @@ export function ContinuousLayout({
     contentRef: contentRef,
     disabled: false,
     twoFingerOnly: annotationProps.editing,
-    onNavigationStart: () => noteInteraction.current?.interrupt(),
-    isObjectGestureActive: () => noteInteraction.current?.ownsObjectGesture() ?? false,
+    onNavigationStart: pages.interrupt,
+    isObjectGestureActive: pages.ownsObjectGesture,
     zoom, onZoomChange, onTap: onToggleChrome,
     tapScope: document,
     tapRevision: `${currentPage}:${fitRequest}:${navigationRequest}:${size.width}:${size.height}`,
@@ -268,8 +280,10 @@ export function ContinuousLayout({
   });
 
   return (
+    <AnnotationPagesContext.Provider value={annotationProps.editing ? pages : null}>
     <section
       className="continuous-reader"
+      data-current-page={currentPage}
       tabIndex={0}
       data-underfit={zoom < 1 || undefined}
       data-zoom={zoom}
@@ -289,7 +303,6 @@ export function ContinuousLayout({
       >
         {items.map((item) => {
           const page = item.index + 1;
-          const current = page === currentPage;
           return <div
             className="continuous-reader__page"
             key={item.index}
@@ -304,13 +317,13 @@ export function ContinuousLayout({
               maxPixels={item.maxPixels}
               mode="continuous"
               aspectRatio={item.aspectRatio}
-              interactionRef={annotationProps.editing && current ? noteInteraction : undefined}
-              annotationProps={current ? annotationProps : { ...annotationProps, editing: false }}
+              annotationProps={annotationProps}
             />
           </div>;
         })}
       </div>
     </section>
+    </AnnotationPagesContext.Provider>
   );
 }
 

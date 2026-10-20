@@ -46,9 +46,9 @@ for (const [name, engine] of Object.entries(engines)) test(`${name}: high-DPR co
   for (const top of [40000, 17000, 34000, 1700, 15300, 300]) await reader.evaluate((el, top) => { el.scrollTop = top; }, top);
   await expect.poll(painted).toBe(true);
   await page.getByRole('button', { name: '编辑', exact: true }).click();
-  await page.locator('.annotation-overlay[data-editing]').waitFor();
+  await page.locator('.annotation-overlay[data-input-page]').waitFor();
   await page.getByRole('button', { name: '画笔', exact: true }).click();
-  const editing = page.locator('.continuous-reader .annotation-overlay[data-editing]');
+  const editing = page.locator('.continuous-reader .annotation-overlay[data-input-page]');
   const box = await editing.boundingBox();
   await page.mouse.move(box.x + 350, Math.max(150, box.y + 450));
   await page.mouse.down(); await page.mouse.move(box.x + 500, Math.max(150, box.y + 450), { steps: 10 }); await page.mouse.up();

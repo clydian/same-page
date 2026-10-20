@@ -1,6 +1,7 @@
 import {
   type PointerEvent as ReactPointerEvent,
   useEffect,
+  useContext,
   useId,
   useImperativeHandle,
   useMemo,
@@ -29,6 +30,7 @@ import { defaultToolStyle, type ToolStyle } from "./tool-style";
 import { highlighterNibPath } from "./highlighter-geometry";
 import { useSelectionKeyboard } from "./use-selection-keyboard";
 import { useSelectedObjectAdjustment } from "./use-selected-object-adjustment";
+import { AnnotationPagesContext, emptyAnnotationPages, type AnnotationPageHandle } from "./annotation-pages";
 import { ObjectProperties } from "./object-properties";
 
 export type AnnotationTool = "select" | "text" | "ink" | "highlighter" | "rectangle" | "ellipse" | "eraser";
@@ -70,6 +72,9 @@ export function AnnotationOverlay({
   interactionRef?: Ref<AnnotationInteractionHandle>;
   onInteractionChange?(interaction: AnnotationOverlayInteraction): void;
 }) {
+  const pages = useContext(AnnotationPagesContext);
+  const pageSession = useSyncExternalStore(pages?.subscribe ?? noPageSubscription, pages?.getSnapshot ?? noPageSnapshot);
+  const activePage = !pages || (pageSession.activePage ?? pageNumber) === pageNumber;
   const persistence = useEditorPersistence(editor);
   const notes = useMemo(() => new NoteInteraction(editor), [editor]);
   const { draftId, stroke: draftStroke, shape: draftShape, erased: erasedPreview } = useSyncExternalStore(notes.subscribe, notes.getSnapshot);
@@ -129,7 +134,8 @@ export function AnnotationOverlay({
   const updateInteraction = (interaction: AnnotationOverlayInteraction) => {
     if (interactionRef.current === interaction) return;
     interactionRef.current = interaction;
-    onInteractionChange?.(interaction);
+    if (pages) pages.setInteraction(pageNumber, interaction);
+    else onInteractionChange?.(interaction);
   };
 
   const text = useTextComposition({
@@ -144,22 +150,24 @@ export function AnnotationOverlay({
   const editSelectedText = () => adjustment.editText(({ id, payload }) => {
     text.openExisting({ id, x: payload.x, y: payload.y, initial: payload.text, fontScale: payload.fontScale, textAlign: payload.textAlign, pageWidth, color: payload.color });
   });
-  useSelectionKeyboard({ editor, adjustment, root: overlayRef, enabled: editing && layers.some(layer => layer.id === activeLayerId && layer.canEdit), layerId: activeLayerId,
+  useSelectionKeyboard({ editor, adjustment, root: overlayRef, enabled: editing && activePage && layers.some(layer => layer.id === activeLayerId && layer.canEdit), layerId: activeLayerId,
     busy: () => interactionRef.current !== "idle" || movement.engaged, editText: editSelectedText });
   useEffect(() => { if (selectedId && tool === "select") overlayRef.current?.focus({ preventScroll: true }); }, [selectedId, tool]);
 
   useEffect(
     () => () => {
-      if (interactionRef.current !== "idle") onInteractionChange?.("idle");
+      if (interactionRef.current !== "idle") {
+        if (pages) pages.setInteraction(pageNumber, "idle"); else onInteractionChange?.("idle");
+      }
     },
-    [onInteractionChange],
+    [onInteractionChange, pages, pageNumber],
   );
 
-  const point = (event: ReactPointerEvent<SVGSVGElement>) => {
+  const point = (event: ReactPointerEvent<SVGSVGElement>, constrain = true) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     return {
-      x: clamp((event.clientX - bounds.left) / bounds.width),
-      y: clamp((event.clientY - bounds.top) / bounds.height),
+      x: constrain ? clamp((event.clientX - bounds.left) / bounds.width) : (event.clientX - bounds.left) / bounds.width,
+      y: constrain ? clamp((event.clientY - bounds.top) / bounds.height) : (event.clientY - bounds.top) / bounds.height,
       ...(event.pressure > 0 ? { pressure: event.pressure } : {}),
       ...(event.pointerType === "pen" ? { tiltX: event.tiltX || 0, tiltY: event.tiltY || 0, twist: event.twist || 0 } : {}),
     };
@@ -194,6 +202,7 @@ export function AnnotationOverlay({
     annotation: LocalAnnotationRecord,
     payload: MovablePayload,
   ) => {
+    if (pages?.forwardObjectPointer(pageNumber, "down", event)) return;
     if (!canMoveObjects || editor?.getSnapshot() === "finishing" || annotation.layerId !== activeLayerId) return;
     event.stopPropagation();
     if (text.active) return;
@@ -203,6 +212,7 @@ export function AnnotationOverlay({
   };
 
   const updateObjectTransform = (event: ReactPointerEvent<Element>) => {
+    if (pages?.forwardObjectPointer(pageNumber, "move", event)) return;
     const bounds = overlayRef.current?.getBoundingClientRect();
     if (!bounds) return;
     movement.move(event, bounds, deleteTargetRef.current?.getBoundingClientRect());
@@ -210,6 +220,7 @@ export function AnnotationOverlay({
   };
 
   const finishObjectTransform = (event: ReactPointerEvent<Element>) => {
+    if (pages?.forwardObjectPointer(pageNumber, "up", event)) return;
     if (!movement.owns(event.pointerId)) return;
     const tapped = movement.release(event.pointerId);
     if (movement.engaged) return;
@@ -237,6 +248,7 @@ export function AnnotationOverlay({
   };
 
   const pointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (pages?.forwardObjectPointer(pageNumber, "down", event)) return;
     if (!canStartEdit || editor?.getSnapshot() === "finishing" || !activeLayerId) return;
     setHover(null);
     if (movement.engaged) {
@@ -284,6 +296,7 @@ export function AnnotationOverlay({
   };
 
   const pointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (pages?.forwardObjectPointer(pageNumber, "move", event)) return;
     if (editor?.getSnapshot() === "finishing") return;
     if (canStartEdit && event.pointerType === "pen" && event.buttons === 0 && !notes.drawing && !text.isPlacing() && !movement.engaged) {
       setHover(point(event)); return;
@@ -292,6 +305,14 @@ export function AnnotationOverlay({
     if (text.movePlacement(event)) return;
     if (movement.owns(event.pointerId)) {
       updateObjectTransform(event);
+      return;
+    }
+    // Pointer capture stays on the origin page until physical release. Once
+    // outside, finish this note at the boundary; returning cannot extend it or
+    // feed the same pointer into a neighbouring page.
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (pages && notes.owns(event.pointerId) && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+      void notes.finishAtBoundary(event.pointerId, point(event, false), event.timeStamp);
       return;
     }
     if (editing && tool === "eraser" && notes.erasing(event.pointerId)) {
@@ -303,6 +324,7 @@ export function AnnotationOverlay({
   };
 
   const pointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (pages?.forwardObjectPointer(pageNumber, "up", event)) return;
     if (editor?.getSnapshot() === "finishing") return;
     if (text.endPlacement(event)) return;
     if (movement.owns(event.pointerId)) {
@@ -328,6 +350,33 @@ export function AnnotationOverlay({
   }) : undefined);
   useImperativeHandle(handoffRef, () => ({ interrupt, ownsObjectGesture: () => movement.engaged }));
 
+  const pageHandle = useRef<AnnotationPageHandle | null>(null);
+  useLayoutEffect(() => {
+    pageHandle.current = { interrupt, ownsObjectGesture: () => movement.engaged,
+      canYield: () => !notes.drawing && !movement.engaged && !text.active && !text.isPlacing(),
+      deactivate: () => adjustment.select(null),
+      objectPointer: (phase, event) => {
+        if (!movement.engaged || (phase !== "down" && !movement.owns(event.pointerId))) return false;
+        event.stopPropagation();
+        if (phase === "down") addTransformPointer(event);
+        else if (phase === "move") updateObjectTransform(event);
+        else if (phase === "up") finishObjectTransform(event);
+        else cancelObjectTransform();
+        return true;
+      },
+    };
+  });
+  useEffect(() => {
+    if (!editing || !pages) return;
+    return pages.register(pageNumber, {
+      interrupt: () => pageHandle.current?.interrupt(),
+      ownsObjectGesture: () => pageHandle.current?.ownsObjectGesture() ?? false,
+      canYield: () => pageHandle.current?.canYield() ?? true,
+      deactivate: () => pageHandle.current?.deactivate(),
+      objectPointer: (phase, event) => pageHandle.current?.objectPointer(phase, event) ?? false,
+    });
+  }, [editing, pages, pageNumber]);
+
   const previousTool = useRef(tool);
   useLayoutEffect(() => {
     if (previousTool.current === tool) return;
@@ -341,6 +390,12 @@ export function AnnotationOverlay({
       <div
         className="annotation-overlay"
         data-editing={editing || undefined}
+        data-input-page={editing && activePage || undefined}
+        onPointerDownCapture={event => {
+          if (!editing || !pages || pages.ownsObjectGesture()) return;
+          if (!pages.activate(pageNumber)) { event.preventDefault(); event.stopPropagation(); }
+        }}
+        onFocusCapture={() => { if (editing) pages?.activate(pageNumber); }}
         data-tool={editing ? tool : undefined}
         ref={overlayRef}
       tabIndex={-1}
@@ -354,6 +409,7 @@ export function AnnotationOverlay({
         onPointerLeave={() => setHover(null)}
         onPointerUp={pointerUp}
         onPointerCancel={(event) => {
+          if (pages?.forwardObjectPointer(pageNumber, "cancel", event)) return;
           if (text.endPlacement(event)) return;
           if (movement.owns(event.pointerId)) cancelObjectTransform();
           else pointerUp(event);
@@ -444,7 +500,7 @@ export function AnnotationOverlay({
             onPointerDown={(event) => beginObjectTransform(event, annotation, payload)}
             onPointerMove={updateObjectTransform}
             onPointerUp={finishObjectTransform}
-            onPointerCancel={cancelObjectTransform}
+            onPointerCancel={event => { if (!pages?.forwardObjectPointer(pageNumber, "cancel", event)) cancelObjectTransform(); }}
             onKeyDown={(event) => {
               if (tool === "select" && selectedId !== annotation.id && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); adjustment.select(annotation.id); }
 
@@ -458,12 +514,12 @@ export function AnnotationOverlay({
       </div>
       {editing ? createPortal(
         <>
-          {(canStartEdit || finishing) && tool === "select" && selected?.payload && editor && <ObjectProperties editor={editor} layerId={selected.layerId} key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
-          {!canStartEdit && !finishing && <aside className="annotation-storage-error" role="status">
+          {activePage && (canStartEdit || finishing) && tool === "select" && selected?.payload && editor && <ObjectProperties editor={editor} layerId={selected.layerId} key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
+          {activePage && !canStartEdit && !finishing && <aside className="annotation-storage-error" role="status">
             <strong>此层已停止编辑</strong>
             <p>共享层已停用、删除或权限已改变。当前输入可完成并保存在原层的本机草稿中；不会上传或转写其他层。</p>
           </aside>}
-          {persistence === "failed" && <aside className="annotation-storage-error" role="alert">
+          {activePage && persistence === "failed" && <aside className="annotation-storage-error" role="alert">
             <strong>本机保存失败</strong>
             <p>修改仍留在当前编辑器，尚未可靠保存。请保留此页面，释放设备空间后重试。</p>
             <button type="button" onClick={() => void editor?.retry()}>重试本机保存</button>
@@ -510,3 +566,6 @@ function ShapePreview({ payload, color }: { payload: Extract<AnnotationPayload, 
     ? <rect {...props} x={payload.x * 1000} y={payload.y * 1000} width={payload.width * 1000} height={payload.height * 1000} />
     : <ellipse {...props} cx={(payload.x + payload.width / 2) * 1000} cy={(payload.y + payload.height / 2) * 1000} rx={payload.width * 500} ry={payload.height * 500} />;
 }
+
+const noPageSubscription = () => () => {};
+const noPageSnapshot = () => emptyAnnotationPages;

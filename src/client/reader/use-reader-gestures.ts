@@ -372,7 +372,7 @@ export function useReaderGestures({
     }
     const suppress = drained.current || pinched.current || points.current.size >= 2;
     handle(event);
-    if (suppress || pinched.current) {
+    if (suppress || pinched.current || points.current.size >= 2) {
       event.preventDefault();
       event.stopPropagation();
     }

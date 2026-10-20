@@ -83,10 +83,13 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await mkdir(directory, { recursive: true });
     await page.screenshot({ path: `${directory}/${name}-dark.png` });
     await gesture(viewport, false, 1, { x: 500, y: 400 }, { x: 500, y: -900 });
+    await expect(viewport).toHaveAttribute("data-current-page", "2");
     await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
     await gesture(viewport, false, 1, { x: 500, y: 400 }, { x: 500, y: 0 });
+    await expect(viewport).toHaveAttribute("data-current-page", "3");
     await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 3 页笔记层"]').waitFor();
     await gesture(viewport, false, 1, { x: 500, y: 400 }, { x: 500, y: 800 });
+    await expect(viewport).toHaveAttribute("data-current-page", "2");
     await page.locator('.annotation-overlay[data-editing] svg[aria-label="第 2 页笔记层"]').waitFor();
     assert.equal(Number(await viewport.getAttribute('data-zoom')), 1);
   });
