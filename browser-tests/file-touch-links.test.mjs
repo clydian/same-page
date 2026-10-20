@@ -59,8 +59,12 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       }
     });
     t.after(async () => { try { await context?.close(); } finally { try { await fixture.stop(); } finally { await rm(profile, { recursive: true, force: true }); } } });
+    // Native modifier clicks exercise browser tab handling. The default shell
+    // can strand new-page initialization: microsoft/playwright#42142. Use the
+    // bundled full Chromium/new headless; retain real popup, URL and PDF proofs.
+    const nativeTabBrowser = engine === "chromium" ? {channel: "chromium"} : {};
     const executablePath = engine === "chromium" ? process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH : undefined;
-    context = await browserType.launchPersistentContext(profile, { headless: true, ...(executablePath ? { executablePath } : {}), viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow" });
+    context = await browserType.launchPersistentContext(profile, { headless: true, ...nativeTabBrowser, ...(executablePath ? { executablePath } : {}), viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow" });
     if (engine === "chromium") targetObserver = await observeBrowserTargets(context, record);
     await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
     await context.exposeBinding("recordFileInput", (_, detail) => record("input", detail));
