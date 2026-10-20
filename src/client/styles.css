@@ -2428,6 +2428,26 @@ h1 {
   pointer-events: none;
 }
 
+.reader-reveal-tools { pointer-events: none; }
+.reader-reveal-tools:focus-visible {
+  position: fixed;
+  z-index: 7;
+  top: calc(var(--safe-top) + 1rem);
+  left: calc(var(--safe-left) + 1rem);
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 60%);
+  border-radius: 0.7rem;
+  color: #fff;
+  background: rgb(20 18 19 / 92%);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 35%);
+  pointer-events: auto;
+}
+
 .page-turn-control:focus-visible {
   position: absolute;
   z-index: 5;

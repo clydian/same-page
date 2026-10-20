@@ -70,6 +70,16 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
         await viewport.click({ position: { x: box.width / 2, y: box.height / 2 } });
       }
     };
+    const keyboardTools = page.getByRole('button', { name: '显示阅读器工具', exact: true });
+    assert.equal(await keyboardTools.evaluate(button => getComputedStyle(button).clipPath), 'inset(50%)');
+    await page.keyboard.press('Tab');
+    await expect(keyboardTools).toBeFocused();
+    await expect.poll(() => keyboardTools.evaluate(button => button.getBoundingClientRect().width)).toBeGreaterThan(40);
+    await page.screenshot({ path: `${output}/${engine}-reader-keyboard-tools.png` });
+    await page.keyboard.press('Enter');
+    await expect(page.getByLabel('阅读器控制', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '返回云盘', exact: true })).toBeFocused();
+    await page.screenshot({ path: `${output}/${engine}-reader-keyboard-open.png` });
     await reveal();
     await page.getByRole('button', { name: '练习谱', exact: true }).click();
     const panel = page.getByRole('dialog', { name: '练习谱', exact: true });
