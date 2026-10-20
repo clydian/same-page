@@ -1111,6 +1111,22 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(currentRenderedPage()).toBe("2");
   });
 
+  it.each(["Enter", " "])("lets keyboard users reveal reader tools with %s without a pointer gesture", async (key) => {
+    render(<MemoryRouter initialEntries={["/choirs/choir-1/scores/score-1"]}>
+      <Routes><Route path="/choirs/:choirId/scores/:scoreId" element={<ReaderPage />} /></Routes>
+    </MemoryRouter>);
+    await screen.findByLabelText("翻页阅读");
+    expect(screen.queryByLabelText("阅读器控制")).not.toBeInTheDocument();
+    const reveal = screen.getByRole("button", { name: "显示阅读器工具" });
+    reveal.focus();
+    fireEvent.keyDown(reveal, { key, code: key === "Enter" ? "Enter" : "Space" });
+    fireEvent.keyUp(reveal, { key, code: key === "Enter" ? "Enter" : "Space" });
+    expect(await screen.findByLabelText("阅读器控制")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "返回云盘" })).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "显示阅读器工具" })).not.toBeInTheDocument();
+    expect(currentRenderedPage()).toBe("1");
+  });
+
   it("opens with score-only chrome and switches layouts without entering edit mode", async () => {
     render(
       <MemoryRouter

@@ -134,6 +134,14 @@ function ReaderPageContent() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [guestNoteOpen, setGuestNoteOpen] = useState(false);
   const guestReadOnly = workspace?.ownerKey.startsWith("guest:") === true;
+  const readerBackTrigger = useRef<HTMLButtonElement>(null);
+  const focusRevealedTools = useRef(false);
+  useEffect(() => {
+    if (chromeVisible && focusRevealedTools.current) {
+      focusRevealedTools.current = false;
+      readerBackTrigger.current?.focus();
+    }
+  }, [chromeVisible]);
   const moreTrigger = useRef<HTMLButtonElement>(null);
   const layersTrigger = useRef<HTMLButtonElement>(null);
   const previousPanel = useRef(readerPanel);
@@ -392,6 +400,10 @@ function ReaderPageContent() {
     <ReaderPresentationContext.Provider value={{ ...presentation.context, retryDocument: () => navigation.afterEditing(reader.retry) }}>
     <main className="reader-shell" data-practicing={practicing || undefined} data-playback-view={showingPlayback || comparing ? 'xml' : undefined} aria-hidden={showingPlayback || comparing || undefined} inert={showingPlayback || comparing} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
+      {!practicing && !editing && !chromeVisible && !guide.visible && <Button
+        className="reader-reveal-tools visually-hidden"
+        onPress={() => { focusRevealedTools.current = true; setChromeVisible(true); }}
+      >显示阅读器工具</Button>}
       {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
       {cloudState === "trashed" ? (
         <aside className="reader-alert reader-alert--trash" role="alert">
@@ -406,7 +418,7 @@ function ReaderPageContent() {
       {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
       {!practicing && chromeVisible && !guide.visible ? (
       <header className="reader-chrome" data-editing={editing || undefined} aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
-          {!editing && <div className="reader-chrome__leading"><Button aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
+          {!editing && <div className="reader-chrome__leading"><Button ref={readerBackTrigger} aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>
           <TooltipTrigger><Button aria-label="分享 PDF" className="reader-icon-button reader-chrome__export" onPress={() => setExportOpen(true)}><Share aria-hidden="true" size={21} /></Button><Tooltip className="offline-score-tooltip">分享 PDF</Tooltip></TooltipTrigger></div>}
