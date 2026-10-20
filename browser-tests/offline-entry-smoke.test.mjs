@@ -76,8 +76,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         await offline.getByRole("link").filter({ hasText: fixture.fileName.replace(/\.pdf$/i, "") }).waitFor({ timeout: 10_000 });
         assert.equal(new URL(offline.url()).pathname, `/choirs/${fixture.choirId}`);
         await offline.getByRole("searchbox", { name: /搜索.*中的乐谱/ }).waitFor();
-        await offline.getByRole("button", { name: /^切换云盘/ }).click();
-        await offline.getByRole("link", { name: "云盘列表", exact: true }).click();
+        await offline.goto(`${fixture.origin}/drives`);
         await offline.getByRole("link").filter({ hasText: "本地链路云盘" }).click();
         await offline.getByRole("heading", { name: "本地链路云盘" }).waitFor();
         await offline.getByRole("link").filter({ hasText: fixture.fileName.replace(/\.pdf$/i, "") }).click();

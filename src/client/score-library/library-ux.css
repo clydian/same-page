@@ -115,8 +115,8 @@
 .drive-switch-content .membership-row { border-radius: .5rem; padding: .75rem; border: 0; min-height: 72px; }
 .drive-switch-content .membership-row[aria-current] { background: var(--brand-soft); }
 .drive-switch-actions { display: flex; gap: .75rem; justify-content: space-between; border-top: 1px solid var(--line); margin-top: .75rem; padding-top: .5rem; }
-.drive-switch-actions a { display: flex; align-items: center; gap: .4rem; min-height: 44px; padding: .4rem; color: var(--brand); font-size: .85rem; text-decoration: none; }
-.drive-switch-actions a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.drive-switch-actions button { display: flex; align-items: center; gap: .4rem; min-height: 44px; padding: .4rem; color: var(--brand); font-size: .85rem; text-decoration: none; border: 0; background: transparent; cursor: pointer; }
+.drive-switch-actions button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .drive-switch-overlay { position: fixed; z-index: 100; inset: 0; display: flex; align-items: flex-end; background: rgb(0 0 0 / 30%); }
 .drive-switch-sheet { width: 100%; max-height: calc(100dvh - var(--safe-top) - 2rem); background: var(--surface); border-radius: 1.25rem 1.25rem 0 0; padding-bottom: var(--safe-bottom); }
 .drive-switch-sheet .drive-switch-content { max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2rem); }
@@ -139,3 +139,6 @@
 .library-sort-popover { max-height: var(--available-height); overflow-y: auto; overscroll-behavior: contain; }
 .drive-switch-popover .drive-switch-content { max-height: min(38rem, var(--available-height, calc(var(--safe-height) - 3rem))); }
 .drive-switch-sheet .drive-switch-content { padding-inline: max(1rem, var(--safe-left)) max(1rem, var(--safe-right)); }
+
+.drive-switch-actions .drive-switch-create { color: var(--muted); }
+.drive-switch-actions button[disabled] { opacity: .5; cursor: default; }

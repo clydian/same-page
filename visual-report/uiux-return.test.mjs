@@ -56,10 +56,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(page.getByRole("link", { name: "成员与权限", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "返回", exact: true }).click();
       await page.getByRole("button", { name: /^切换云盘/ }).click();
-      await page.getByRole("link", { name: "云盘列表", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "我已加入的云盘", exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "加入新云盘", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "加入新云盘", exact: true })).toBeVisible();
       await page.goBack();
-      await expect(page.getByRole("dialog", { name: "切换云盘" })).toBeHidden();
+      await expect(page.getByRole("dialog", { name: "加入新云盘", exact: true })).toBeHidden();
       await page.getByRole("button", { name: /^切换云盘/ }).click();
       await page.getByRole("button", { name: "关闭云盘选择" }).click();
       await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();

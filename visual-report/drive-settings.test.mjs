@@ -68,7 +68,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("button", { name: /^切换云盘/ }).click();
     await expect(page.getByRole("dialog", { name: "切换云盘" })).toBeVisible();
     await page.screenshot({ path: `artifacts/verification/issue-170/${name}-renamed-drive.png` });
-    await page.getByRole("link", { name: "云盘列表", exact: true }).click();
+
     await expect(page.getByRole("link", { name: /周末排练云盘/ })).toBeVisible();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   });

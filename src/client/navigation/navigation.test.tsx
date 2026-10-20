@@ -111,7 +111,7 @@ it("retries the original internal destination after a failed save", async () => 
   expect(save).toHaveBeenCalledTimes(2);
 });
 
-it("returns from explicit drive selection with its transient picker closed", async () => {
+it("closes the transient picker before navigation and keeps it closed on return", async () => {
   const { DriveHeader } = await import("../score-library/drive-header");
   const router = createMemoryRouter([{ element: <NavigationProvider><Outlet /></NavigationProvider>, children: [
     { path: "/choirs/one", element: <DriveHeader choirId="one" choirName="排练" search="" onSearch={() => {}} onRefresh={() => {}} /> },
@@ -120,7 +120,8 @@ it("returns from explicit drive selection with its transient picker closed", asy
   render(<RouterProvider router={router} />);
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
-  fireEvent.click(await screen.findByRole("link", { name: "云盘列表" }));
+  await screen.findByRole("dialog", { name: "切换云盘" });
+  await act(() => router.navigate("/drives"));
   await screen.findByRole("heading", { name: "云盘列表内容" });
   await act(() => router.navigate(-1));
   await screen.findByRole("button", { name: /^切换云盘/ });

@@ -56,7 +56,8 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.getByRole("button", { name: "我的" }).waitFor();
       await page.getByRole("button", { name: /^切换云盘/ }).click();
       await page.getByRole("dialog", { name: "切换云盘" }).waitFor();
-      await page.getByRole("link", { name: "云盘列表", exact: true }).click();
+      await page.keyboard.press("Escape");
+      await page.goto(`${app.origin}/drives`);
       await page.getByRole("heading", { name: "我已加入的云盘" }).waitFor();
       assert.equal(new URL(page.url()).pathname, "/drives");
       await page.getByRole("link", { name: "合谱 Same Page 首页" }).click();

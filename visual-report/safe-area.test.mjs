@@ -53,7 +53,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         const close = page.getByRole('button', { name: '关闭云盘选择', exact: true });
         await close.waitFor();
         assert.ok((await close.boundingBox()).y >= 32, 'real drawer header respects top inset');
-        const lastLink = page.locator('.drive-switch-content').getByRole('link', { name: '云盘列表', exact: true });
+        const lastLink = page.locator('.drive-switch-content').getByRole('button', { name: /加入新云盘|进入其他云盘/, exact: true });
         await lastLink.scrollIntoViewIfNeeded();
         const lastBox = await lastLink.boundingBox();
         assert.ok(lastBox.y + lastBox.height <= 976, 'real drawer footer remains reachable');
