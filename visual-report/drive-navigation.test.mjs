@@ -79,8 +79,14 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.keyboard.press("Escape");
       await expect(trigger).toBeFocused();
       await page.getByRole("button", { name: /^切换云盘/ }).click();
-      for (const name of ["阅读偏好", "本机存储", "使用手册"]) await expect(page.getByRole("link", { name, exact: true })).toHaveCount(0);
-      await page.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
+      const picker = page.getByRole("dialog", { name: "切换云盘" });
+      // A bottom sheet grows upward when its async directory arrives. Wait for
+      // the loaded row before pressing its moving close button; absence of the
+      // personal-menu links below is not a readiness signal.
+      await expect(picker.getByRole("link", { name: /示例云盘.*拥有者/ })).toBeVisible();
+      for (const name of ["阅读偏好", "本机存储", "使用手册"]) await expect(picker.getByRole("link", { name, exact: true })).toHaveCount(0);
+      await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
+      await expect(picker).toBeHidden();
       await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
     });
     await scenario("drawer-keyboard-focus", async page => {
