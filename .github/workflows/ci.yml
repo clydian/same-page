@@ -220,7 +220,8 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        shard: [1, 2]
+        # Full storage coverage needs three slices; the audited library scope has two files.
+        shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1, 2]' || '[1, 2, 3]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -245,10 +246,10 @@ jobs:
         timeout-minutes: 5
         run: bash .github/scripts/install-browsers.sh
       - name: Real browser Worker storage smoke
-        # The full suite includes MusicXML offline cold starts; a passing shard
-        # can take just over five minutes. Keep runner headroom without dropping tests.
+        # Keep the six-minute aggregate budget and individual test deadlines.
+        # Three full-suite slices leave room for fixture and runner variability.
         timeout-minutes: 6
-        run: node scripts/run-browser-tests.mjs smoke "${{ needs.scope.outputs.browserGroup }}" "${{ matrix.shard }}/2"
+        run: node scripts/run-browser-tests.mjs smoke "${{ needs.scope.outputs.browserGroup }}" "${{ matrix.shard }}/${{ needs.scope.outputs.browserGroup == 'library' && '2' || '3' }}"
       - name: Preserve synthetic test evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

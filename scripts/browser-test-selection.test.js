@@ -7,9 +7,10 @@ import { expect, it } from "vitest";
 import { selectBrowserTests } from "./browser-test-selection.mjs";
 
 it("selects complete and audited library scopes, independent of directory order", () => {
-  for (const [suite, count, directory] of [["visual", 4, "visual-report"], ["smoke", 2, "browser-tests"]]) {
+  for (const [suite, directory] of [["visual", "visual-report"], ["smoke", "browser-tests"]]) {
     const entries = readdirSync(directory);
     for (const group of ["all", "library"]) {
+      const count = suite === "visual" ? 4 : group === "library" ? 2 : 3;
       const files = selectBrowserTests({ suite, group, entries, shard: `1/${count}` });
       expect(files).toEqual(selectBrowserTests({ suite, group, entries: [...entries].reverse(), shard: `${count}/${count}` }));
       if (group === "all") expect(files).toEqual(entries.filter(file => file.endsWith(".test.mjs")).sort());
@@ -26,17 +27,20 @@ it("the real runner uses native shards without omissions or duplicates, includin
     mkdirSync(path.join(cwd, "browser-tests"));
     const add = i => writeFileSync(path.join(cwd, "browser-tests", `${i}.test.mjs`), `import test from 'node:test'; import { appendFileSync } from 'node:fs'; test('fixture-${i}', () => appendFileSync(${JSON.stringify(receipts)}, '${i}\\n'));`);
     for (let i = 0; i < 7; i++) add(i);
-    for (const total of [7, 8]) {
-      if (total === 8) add(7);
-      writeFileSync(receipts, "");
-      const sizes = [];
-      for (let i = 1; i <= 2; i++) {
-        const output = execFileSync(process.execPath, [runner, "smoke", "all", `${i}/2`], { cwd, encoding: "utf8" });
-        sizes.push((output.match(/# Subtest: fixture-/g) ?? []).length);
+    for (const count of [2, 3]) {
+      for (const total of [7, 8]) {
+        if (total === 8) add(7);
+        else rmSync(path.join(cwd, "browser-tests", "7.test.mjs"), { force: true });
+        writeFileSync(receipts, "");
+        const sizes = [];
+        for (let i = 1; i <= count; i++) {
+          const output = execFileSync(process.execPath, [runner, "smoke", "all", `${i}/${count}`], { cwd, encoding: "utf8" });
+          sizes.push((output.match(/# Subtest: fixture-/g) ?? []).length);
+        }
+        const seen = readFileSync(receipts, "utf8").trim().split("\n").map(Number);
+        expect(seen.sort((a, b) => a - b)).toEqual(Array.from({ length: total }, (_, i) => i));
+        expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
       }
-      const seen = readFileSync(receipts, "utf8").trim().split("\n").map(Number);
-      expect(seen.sort((a, b) => a - b)).toEqual(Array.from({ length: total }, (_, i) => i));
-      expect(Math.abs(sizes[0] - sizes[1])).toBeLessThanOrEqual(1);
     }
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });
