@@ -94,6 +94,39 @@ deploy job 在生产锁内核对发布顺序，记录发布尝试，在汇总 ve
 
 构建身份、HTML meta、Worker 须匹配显式 expected SHA；实际脚本逐个核对已验证发布包 `dist/client/build.json` 中的 SHA256（包括入口、共享与延迟加载脚本及 PDF Worker）。独立验收需下载对应 artifact；CLI 第三个参数可指定该清单路径，不能使用另一版本的本地构建。全部返回同一个旧版本仍失败。验收最多 12 次、每次请求超时 15 秒、间隔 3 秒，超过传播窗口则保留失败。成功记录只能在这些检查全部完成后写入。迁移后的失败尝试仍推进发布边界；旧作业不能在它之后部署旧 Worker。
 
+### 固定来源的受控手动入口
+
+`controlled-release.yml` 只接受本仓库 `main` 上的 `workflow_dispatch`，确认输入必须为完整
+`8909b335284dd4affebc4ce26bccf76f2439f6ef`。这是一次已批准来源的恢复入口，不接受任意
+SHA、run、artifact、URL 或强制降级参数，也不修改正常 CI 的范围判断。
+
+固定来源为成功 CI [39384186793](https://github.com/clydian/same-page/actions/runs/39384186793)
+attempt 1、workflow ID `345732692`、artifact `12247185579`，ZIP SHA256 为
+`17ec872271fdaf8ba3f2e72f755e7dbfe20c5dd63c296b026986c8552cd74d84`。
+校验仓库身份、push/main、源 SHA、完整成功 job 集合（deploy 应跳过）、产物归属、大小、摘要与有效期。
+该产物原定于 2026-11-03 07:05:38 UTC 到期；缺失、过期或 CI 证据改变时失败，不重新构建或静默改用其他来源。
+
+独立 `validate` job 没有 production environment 或生产 secrets，只为本次 job 的短期
+`GITHUB_TOKEN` 增加 `actions: read`，用于读取旧 run 和下载原始 ZIP；不新增长期 token。
+它校验 ZIP 和封存清单，再将原始 ZIP 字节以当前 run 的短期 artifact 转交生产 job。
+生产 job 不设置跨 run 下载 token，权限仍为 `contents: read`、`deployments: write`。
+它再次校验固定 ZIP 摘要、SHA、源 `release.json.runId` 和逐文件摘要；使用固定源码及其锁文件，
+不将 workflow 的 `GITHUB_SHA` 冒充为源 SHA，不重建产物。
+发布记录 payload 的 `runId` 指向原始封存 CI，状态记录的日志 URL 指向本次手动运行，分别保留产物与执行来源。
+
+生产 job 复用 `production` environment、`same-page-production` 锁、既有 Cloudflare secrets
+与发布记录。锁内先通过发布顺序准入，再执行原有恢复点、退役 consumer、迁移前后核查、回填、
+部署及显式目标 SHA 的线上验证，最后记录成功或失败。较新发布已准入时，旧目标明确失败，
+不会以跳过包装为发布成功；没有自动回滚或绕过开关。取消/runner 丢失可能留下 in_progress，
+仍推进发布边界，维护人员须按原 run 核查真实结果。
+
+**2026-10-20 实现时状态：** main 已推进至 `39a1a6ce012910d28856802467c35bab295ffb41`，
+既有 CI `39386745941` 已在 07:40 UTC 部署该版本；Cloudflare deployment
+`5bf6de47-cb95-420d-8bc6-e9e179afdf8a` 的 100% version 为
+`eb1ae9d7-e4a5-40fc-9379-fc687b35a149`。它比批准目标更新，因此此固定入口预期拒绝
+`8909b33`，不能用来覆盖当前生产。若要发布其他来源，必须重新批准并以代码审查更新固定策略。
+仅打开此入口的 PR 不会触发手动发布；合并与实际执行分别需要明确授权。
+
 ## 每次发布记录
 
 在对应 Issue 或 PR 中分别记录：
