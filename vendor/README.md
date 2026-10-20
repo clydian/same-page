@@ -209,3 +209,12 @@ MPL 源码分发和回归边界见 [制品说明](chorus-player-0.1.19-samepage.
 保留明确上下位置的独立渐变线及多个文字指令，原生跨小节连续线使用稳定layout lane。
 保留samepage.3的AudioWorklet取消修复和既有交互扩展，播放器发音与源XML不改。
 精确来源、MPL源码分发、可重建patch及实际回归范围见[制品说明](chorus-player-0.1.19-samepage.3.md)。
+
+## 跨声部反序延音与钢琴缩谱名称：player 0.1.19-samepage.4 / native samepage.5
+
+修复[#491](https://github.com/clydian/same-page/issues/491)的同谱表、同小节、相邻且唯一
+的有音高延音端点反序导入，并保留公开 Worker JSON 关联；不推断多起点/多终点或
+非相邻的音乐语义。修复[#492](https://github.com/clydian/same-page/issues/492)的窄
+`Keyboard reduction` 名称识别，保留源名称和严格的 GM0/bank0 等共享键隔离条件。
+完整已部署 source directions/session/AudioWorklet 行为保留；旧源码下载不删除。
+来源与验证边界见[制品说明](chorus-player-0.1.19-samepage.4.md)。
