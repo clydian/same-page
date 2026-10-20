@@ -214,7 +214,9 @@ try {
             try { snapshots.push(await candidate.evaluate(snapshotShellRegistration)); }
             catch (reason) { snapshots.push({ error: String(reason) }); }
           }
-          await writeFile(`${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}-failure.json`, JSON.stringify({ error: String(error), phase: auditPhase, observations: lifecycleObservations, snapshots }, null, 2));
+          try {
+            await writeFile(`${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}-failure.json`, JSON.stringify({ error: String(error), phase: auditPhase, observations: lifecycleObservations, snapshots }, null, 2));
+          } catch (diagnosticError) { console.error('Unable to preserve shell lifecycle observation:', diagnosticError); }
           throw error;
         } finally { release?.(); gate = undefined; offline = false; await context.close(); }
       }
