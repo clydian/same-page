@@ -7,7 +7,7 @@ export type DriveEntryResult =
   | { kind: "enter"; choir: ChoirSummary }
   | { kind: "display-name"; choir: ChoirSummary }
   | { kind: "none" }
-  | { kind: "failed"; message: string; restart: boolean };
+  | { kind: "failed"; message: string; restart: boolean; guestSessionUnchanged?: true };
 const unavailable = "暂时无法进入这个云盘，请稍后再试。";
 const removed = "该成员关系需要有成员恢复权限的人恢复。";
 
@@ -39,7 +39,7 @@ export async function enterDrive(admission: GuestAdmissionRequest, authenticated
     const response = await diagnosticFetch("/api/guest/session", {
       method: "POST", signal, headers: { "content-type": "application/json" }, body: JSON.stringify(admission),
     });
-    if (!response.ok) return { kind: "failed", restart: true, message: response.status === 429 ? "尝试次数过多，请稍后再试。" : response.status >= 500 ? unavailable : "邀请码无效或已失效。" };
+    if (!response.ok) return { kind: "failed", restart: true, guestSessionUnchanged: true, message: response.status === 429 ? "尝试次数过多，请稍后再试。" : response.status >= 500 ? unavailable : "邀请码无效或已失效。" };
     const guest = await parseDiagnosticResponse(response, guestSessionResponseSchema);
     signal?.throwIfAborted();
     return await continueGuest(guest, authenticated, signal);

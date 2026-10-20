@@ -97,6 +97,7 @@ export function JoinDriveDialog({ open, onClose, identity, invitation = null }: 
         }
         if (generation !== entryLifetimeRef.current) return;
       }
+      pendingEntryRef.current = null;
       setSubmitting(false);
       finishJoinDialog();
       setEntryDestination(`/choirs/${result.choir.id}`);
@@ -105,7 +106,11 @@ export function JoinDriveDialog({ open, onClose, identity, invitation = null }: 
     setSubmitting(false);
     if (result.kind === "display-name") {
       setJoinStep({ kind: "display-name", choir: result.choir });
-    } else if (result.kind === "failed") setJoinMessage(result.message);
+    } else if (result.kind === "failed") {
+      // A refused invitation never replaced the current guest credential.
+      if (result.guestSessionUnchanged) pendingEntryRef.current = null;
+      setJoinMessage(result.message);
+    }
   };
 
   const enterLinkedDrive = useEffectEvent(() => {
@@ -143,6 +148,7 @@ export function JoinDriveDialog({ open, onClose, identity, invitation = null }: 
     if (generation !== entryLifetimeRef.current) return;
     setSubmitting(false);
     if (result.kind === "enter") {
+      pendingEntryRef.current = null;
       finishJoinDialog(); setEntryDestination(`/choirs/${result.choir.id}`);
     } else if (result.kind === "failed") {
       if (result.restart) setJoinStep({ kind: "invite" });

@@ -446,10 +446,10 @@ it("joins from the library without a selection-page detour and can repeat admiss
   for (let attempt = 0; attempt < 2; attempt++) {
     fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
     expect(screen.queryByRole("link", { name: "云盘列表" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "加入新云盘", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "加入新云盘" }));
     expectPath("/choirs/one");
     fireEvent.change(await screen.findByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });
-    fireEvent.click(screen.getByRole("button", { name: "进入", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "进入" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expectPath("/choirs/one");
   }
@@ -463,11 +463,11 @@ it("creates from the library and navigates only after its dialog closes", async 
   render(tree(["/choirs/one"]));
   await screen.findByRole("heading", { name: "云盘 one" });
   fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
-  fireEvent.click(screen.getByRole("button", { name: "创建云盘", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "创建云盘" }));
   expectPath("/choirs/one");
   fireEvent.change(screen.getByLabelText("云盘名称"), { target: { value: "新云盘" } });
   fireEvent.change(screen.getByLabelText("你在云盘内的显示名"), { target: { value: "指挥" } });
-  fireEvent.click(screen.getByRole("button", { name: "免费创建", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "免费创建" }));
   await screen.findByRole("heading", { name: "云盘 new-drive" });
   expectPath("/choirs/new-drive");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -479,10 +479,44 @@ it("keeps the active guest credential when cancelling an untouched inline invita
   render(tree(["/choirs/one"]));
   await screen.findByRole("heading", { name: "云盘 one" });
   fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
-  fireEvent.click(screen.getByRole("button", { name: "进入其他云盘", exact: true }));
-  await screen.findByRole("dialog", { name: "进入云盘", exact: true });
-  fireEvent.click(screen.getByRole("button", { name: "关闭", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
+  await screen.findByRole("dialog", { name: "进入云盘" });
+  fireEvent.click(screen.getByRole("button", { name: "关闭" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expectPath("/choirs/one");
   expect(fetch).not.toHaveBeenCalledWith("/api/guest/session", expect.objectContaining({ method: "DELETE" }));
+});
+
+
+it.each(["success", "denied"])("preserves the guest credential after %s admission then reopening and cancelling", async outcome => {
+  session(null);
+  const { activateGuestLocalOwner } = await import("../platform/local-workspace");
+  const { localDatabase } = await import("../platform/local-database");
+  await localDatabase.open();
+  await activateGuestLocalOwner("one");
+  const original = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((input, init) => {
+    if (input === "/api/guest/session" && init?.method === "POST") return Promise.resolve(outcome === "denied"
+      ? Response.json({ error: "guest_admission_denied" }, { status: 401 })
+      : Response.json({ choir: membership("one").choir, entryKind: "admission" }));
+    if (input === "/api/guest/session" && init?.method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+    return original(input, init);
+  });
+  const { DriveSwitcher } = await import("../score-library/drive-switcher");
+  render(<MemoryRouter initialEntries={["/choirs/one"]}><DriveSwitcher choirId="one" choirName="云盘 one" localOnly={false} loading={false} /><NavigationProbe /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
+  fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
+  fireEvent.change(await screen.findByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });
+  fireEvent.click(screen.getByRole("button", { name: "进入" }));
+  if (outcome === "denied") {
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+  }
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
+  fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
+  fireEvent.click(await screen.findByRole("button", { name: "关闭" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(fetch).not.toHaveBeenCalledWith("/api/guest/session", expect.objectContaining({ method: "DELETE" }));
+  expectPath("/choirs/one");
 });
