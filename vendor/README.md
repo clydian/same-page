@@ -222,3 +222,7 @@ MPL 源码分发和回归边界见 [制品说明](chorus-player-0.1.19-samepage.
 ## 原谱短句弧上下位置：player 0.1.19-samepage.5 / native samepage.6
 
 修复[#497](https://github.com/clydian/same-page/issues/497)：保留 MusicXML 单条短句弧显式 above/below 的公开模型、Worker JSON 与原生绘制，未指定时仍自动布局。source ties、音符、发音和 AudioWorklet 不变。单头多 outgoing slur 的既有模型限制由[#498](https://github.com/clydian/same-page/issues/498)独立跟踪，不改 XML 或复制源音头掩盖。完整来源与验证范围见[制品说明](chorus-player-0.1.19-samepage.5.md)。
+
+## 原谱保持音上下位置：player 0.1.19-samepage.6 / native samepage.7
+
+修复[#499](https://github.com/clydian/same-page/issues/499)：保留明确 tenuto above/below 的公开模型、Worker JSON 与原生 effect band/glyph，缺省维持原布局。完整音频/播放器与旧源码下载保持；来源和验证边界见[制品说明](chorus-player-0.1.19-samepage.6.md)。
