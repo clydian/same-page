@@ -1,0 +1,42 @@
+{
+  "baseline": "b3db24b9c2858952386cb1c43fbcfb2caeb44054",
+  "original": {
+    "run": 39378715350,
+    "job": 118482674316,
+    "at": "2026-10-20T06:10:17Z",
+    "port": 43175,
+    "stage": "Vite globalSetup before browser tests",
+    "exit": 7,
+    "error": "Port 43175 is already in use",
+    "accompanyingError": "capnp/serialize-async.c++:813 incoming RPC message exceeds size limit",
+    "historicalOwner": "not captured"
+  },
+  "versions": {
+    "vite": "8.2.2",
+    "cloudflareVitePlugin": "1.62.5",
+    "miniflare": "5.20261001.0-alpha",
+    "workerd": "1.20261001.1"
+  },
+  "controlledBefore": {
+    "port": 41003,
+    "workerdPid": 35731,
+    "ownerSnapshot": "LISTEN 0 0 127.0.0.1:41003 0.0.0.0:* users:((\"workerd\",pid=35731,fd=49))",
+    "selectedDebugArgument": "--debug-port=127.0.0.1:41003",
+    "httpPollingRpcSizeError": true,
+    "vitePortInUse": true
+  },
+  "controlledAfter": {
+    "port": 40897,
+    "preferredBindErrno": 98,
+    "selectedDebugArgument": "--debug-port=127.0.0.1:0",
+    "httpStatus": 200,
+    "runIdMatched": true,
+    "stoppedListenersAbsent": true
+  },
+  "regression": {
+    "baseline": "expected EADDRINUSE but got undefined",
+    "patched": "passes",
+    "assertionsUnchanged": true
+  },
+  "limits": "Fault injection proves a matching internal mechanism; original CI had no PID snapshot so unique historical ownership is not proven."
+}
