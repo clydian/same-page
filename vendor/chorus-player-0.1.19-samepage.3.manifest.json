@@ -1,0 +1,11 @@
+{
+  "version": "0.1.19-samepage.3",
+  "nativePeer": "1.8.4-samepage.4",
+  "baseArtifactSha256": "7d51d40634864959276e8619333d7332331792cab33e63f0fa92885c4ea91e12",
+  "patchSha256": "00d5d355765b0087cb2fbb923d7d58c33827e6435eaa836ea142104760dc2773",
+  "artifact": "clydian-chorus-player-0.1.19-samepage.3.tgz",
+  "artifactSha256": "10e25024ae05cc6198d6583902b6ad3ac6de63fc1d396669fe0fad0bb3b7b5f9",
+  "integrity": "sha512-o+HRtvFIe3WDjjgUCNQARGpJJow1fPAhRsfhuabc2rDS56oVSa0hBE2IkD3I699lel2CGgG+BKzRg7ruW5yDUQ==",
+  "node": "v24.22.0",
+  "scope": "Display-only authored text and wedge projection after playback dynamics; preserves practice extensions and AudioWorklet compatible exact peer."
+}
