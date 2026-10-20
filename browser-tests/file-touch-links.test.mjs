@@ -7,6 +7,7 @@ import path from "node:path";
 import { chromium, webkit, expect } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
 import { expectSampleScoreContent } from "./pdf-content.mjs";
+import { observeBrowserTargets } from "./ctrl-target-observer.mjs";
 
 // Chromium uses browser touch input through CDP, not DOM dispatch. WebKit's
 // held sequence only tests app logic; neither is physical-device acceptance.
@@ -37,6 +38,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     const profile = await mkdtemp(path.join(tmpdir(), "same-page-file-touch-"));
     let context;
     let page;
+    let targetObserver;
     let phase = "fixture setup";
     const evidence = [];
     const directory = "artifacts/verification/file-touch-links";
@@ -44,6 +46,12 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     t.after(async () => {
       await mkdir(directory, { recursive: true });
       try {
+        if (targetObserver) {
+          await targetObserver.snapshot().catch(error => record("cdp-snapshot-failed", {message: error.message}));
+          await targetObserver.close().catch(error => record("cdp-close-failed", {message: error.message}));
+        }
+        // Keep essential evidence readable even if artifact transfer is unavailable.
+        console.log("FILE_LINK_EVIDENCE", JSON.stringify({engine, phase, evidence}));
         if (page && !page.isClosed()) await page.screenshot({ path: `${directory}/${engine}-final.png`, fullPage: true });
         await context?.tracing.stop({ path: `${directory}/${engine}-trace.zip` });
       } finally {
@@ -53,6 +61,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     t.after(async () => { try { await context?.close(); } finally { try { await fixture.stop(); } finally { await rm(profile, { recursive: true, force: true }); } } });
     const executablePath = engine === "chromium" ? process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH : undefined;
     context = await browserType.launchPersistentContext(profile, { headless: true, ...(executablePath ? { executablePath } : {}), viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow" });
+    if (engine === "chromium") targetObserver = await observeBrowserTargets(context, record);
     await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
     await context.exposeBinding("recordFileInput", (_, detail) => record("input", detail));
     await context.addInitScript(() => {
@@ -77,7 +86,11 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     }
     page = await context.newPage();
     phase = "file library";
-    context.on("page", other => record("new-page", { url: other.url() }));
+    context.on("page", other => {
+      record("new-page", {url: other.url()});
+      other.on("framenavigated", frame => record("frame-navigated", {url: frame.url(), main: frame === other.mainFrame()}));
+      other.on("close", () => record("page-closed", {url: other.url()}));
+    });
     context.on("request", request => { if (request.isNavigationRequest()) record("navigation-request", { url: request.url() }); });
     context.on("response", response => { if (response.request().isNavigationRequest()) record("navigation-response", { url: response.url(), status: response.status() }); });
     const errors = []; page.on("pageerror", error => errors.push({ phase, message: error.message }));
