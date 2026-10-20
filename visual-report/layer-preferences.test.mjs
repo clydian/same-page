@@ -217,6 +217,15 @@ async function showReader(page) {
   await page.getByRole("button", { name: "笔记图层", exact: true }).waitFor();
 }
 async function layout(page, selector) {
+  // The settings directory also reacts to the breakpoint in React. Measure
+  // after that layout settles, rather than between CSS and component updates.
+  await page.waitForFunction(selector => {
+    const controls = [...document.querySelectorAll(selector)];
+    return controls.length > 0 && controls.every(element => {
+      const box = element.getBoundingClientRect();
+      return box.width >= 44 && box.height >= 44 && box.left >= 0 && box.right <= innerWidth;
+    });
+  }, selector);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "document has no horizontal overflow");
   const controls = await page.locator(selector).evaluateAll(elements => elements.map(element => {
     const box = element.getBoundingClientRect();

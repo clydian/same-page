@@ -168,7 +168,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       // expires while click is still waiting for actionability. No failed retry.
       const [other] = await Promise.all([
         context.waitForEvent("page", { timeout: 5_000 }),
-        file.click({ modifiers: ["Control"] }).then(() => record("click-complete")),
+        file.click({ modifiers: ["ControlOrMeta"] }).then(() => record("click-complete")),
       ]);
       await expect(other).toHaveURL(new RegExp(`${scorePath}$`));
       await expectSampleScoreContent(other); await other.close();

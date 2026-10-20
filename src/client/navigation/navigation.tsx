@@ -17,7 +17,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const type = useNavigationType();
   const navigate = useNavigate();
-  const history = useRef<string[]>([]);
+  const history = useRef<{ key: string; path: string }[]>([]);
+  const historyIndex = useRef(-1);
   const latestIntent = useRef(0);
   const checkpointOriginal = useRef<string | null>(null);
   const pendingFallback = useRef<string | null>(null);
@@ -40,11 +41,16 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   }, [location, navigate, type]);
   useLayoutEffect(() => {
     latestIntent.current++;
-    const index = history.current.indexOf(location.key);
-    if (index >= 0) history.current = history.current.slice(0, index + 1);
-    else if (type === "REPLACE") history.current.splice(-1, 1, location.key);
-    else history.current.push(location.key);
-  }, [location.key, type]);
+    const index = history.current.findIndex(entry => entry.key === location.key);
+    const entry = { key: location.key, path: location.pathname + location.search + location.hash };
+    if (index >= 0) historyIndex.current = index;
+    else if (type === "REPLACE" && historyIndex.current >= 0) history.current[historyIndex.current] = entry;
+    else {
+      history.current.splice(historyIndex.current + 1);
+      history.current.push(entry);
+      historyIndex.current = history.current.length - 1;
+    }
+  }, [location.key, location.pathname, location.search, location.hash, type]);
   const register = useCallback((exit: Exit) => {
     const releaseUpdate = holdUpdate();
     entries.current.push(exit); update(entries.current.length); setFormsOnly(entries.current.every(item => item.kind === "form"));
@@ -69,15 +75,20 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     }).finally(() => { running.current = null; releaseUpdate(); });
     return running.current;
   };
-  const leaveRoute = (fallback: string) => {
+  const leaveRoute = (fallback: string, destination?: "parent") => {
+    if (destination === "parent") {
+      let parent = historyIndex.current - 1;
+      while (parent >= 0 && history.current[parent].path !== fallback) parent--;
+      if (parent >= 0) { void navigate(parent - historyIndex.current); return; }
+    }
     if (location.state?.exitCheckpoint) { pendingFallback.current = fallback; void navigate(-1); return; }
-    if (history.current.length > 1 || (window.history.state?.idx ?? 0) > 0) void navigate(-1);
+    if (!destination && (historyIndex.current > 0 || (window.history.state?.idx ?? 0) > 0)) void navigate(-1);
     else void navigate(fallback, { replace: true });
   };
-  const back = (fallback: string) => {
-    if (!entries.current.length) { leaveRoute(fallback); return; }
+  const back = (fallback: string, destination?: "parent") => {
+    if (!entries.current.length) { leaveRoute(fallback, destination); return; }
     if (entries.current.every(entry => entry.kind === "form")) {
-      void consume(true).then(ok => { if (ok) leaveRoute(fallback); });
+      void consume(true).then(ok => { if (ok) leaveRoute(fallback, destination); });
     } else void consume(false);
   };
   const afterEditing = (action: () => void) => {

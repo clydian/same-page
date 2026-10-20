@@ -22,7 +22,7 @@ export function DriveSettingsContent({ choirId, name, section, index = false, ch
   const current = sections.find(item => item.id === section)!;
   if (index && !compact) return <Navigate to={`/choirs/${choirId}/settings/info`} replace />;
   return <div className={`app-page drive-settings-page${index ? " drive-settings-index" : ""}`}>
-    <TaskHeader title={index || !compact ? "云盘设置" : current.title} subtitle={name}
+    <TaskHeader title={index || !compact ? "云盘设置" : current.title} subtitle={name} backBehavior="parent"
       backTo={index || !compact ? `/choirs/${choirId}` : `/choirs/${choirId}/settings`} />
     <Layout className="drive-settings-layout page-shell">
       {(!compact || index) && <nav className="drive-settings-nav" aria-label="云盘设置分类">

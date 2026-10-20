@@ -24,16 +24,18 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
     document.documentElement.style.overscrollBehaviorY = "contain";
     let start: { x: number; y: number } | null = null;
     let pulled = 0;
+    let interrupted = false;
     const cancel = () => { start = null; pulled = 0; setDistance(0); };
     const begin = (event: TouchEvent) => {
-      if (window.scrollY > 0 || event.touches.length !== 1 || !canStart()) return;
+      if (event.touches.length !== 1) { interrupted = true; cancel(); return; }
+      if (interrupted || window.scrollY > 0 || !canStart()) return;
       const target = event.target;
       if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"]')) return;
       start = { x: event.touches[0].clientX, y: event.touches[0].clientY };
     };
     const move = (event: TouchEvent) => {
       if (!start) return;
-      if (event.touches.length !== 1 || !canStart()) { cancel(); return; }
+      if (event.touches.length !== 1 || !canStart()) { interrupted = true; cancel(); return; }
       const dx = event.touches[0].clientX - start.x;
       const dy = event.touches[0].clientY - start.y;
       if (dy < 0 || Math.abs(dx) > Math.max(14, dy) || window.scrollY > 0) { cancel(); return; }
@@ -43,20 +45,22 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
       pulled = Math.min(72, dy / 2);
       setDistance(pulled);
     };
-    const end = () => {
-      const ready = pulled >= 54 && canStart();
+    const end = (event: TouchEvent) => {
+      const ready = !interrupted && event.touches.length === 0 && pulled >= 54 && canStart();
+      interrupted = event.touches.length > 0;
       cancel();
       if (ready) void refresh(controller.signal);
     };
+    const abort = (event: TouchEvent) => { interrupted = event.touches.length > 0; cancel(); };
     element.addEventListener("touchstart", begin, { passive: true });
     element.addEventListener("touchmove", move, { passive: false });
     element.addEventListener("touchend", end);
-    element.addEventListener("touchcancel", cancel);
+    element.addEventListener("touchcancel", abort);
     return () => {
       controller.abort();
       document.documentElement.style.overscrollBehaviorY = previous;
       element.removeEventListener("touchstart", begin); element.removeEventListener("touchmove", move);
-      element.removeEventListener("touchend", end); element.removeEventListener("touchcancel", cancel);
+      element.removeEventListener("touchend", end); element.removeEventListener("touchcancel", abort);
     };
   }, []);
   return <div ref={container} className="pull-refresh-area">

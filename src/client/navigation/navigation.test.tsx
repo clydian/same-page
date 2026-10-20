@@ -6,6 +6,7 @@ import { NavigationProvider } from "./navigation";
 import { useAppNavigation, useExitLayer } from "./navigation-context";
 import { Dialog } from "./overlays";
 import { Modal, ModalOverlay } from "react-aria-components";
+import { TaskHeader } from "../components/task-header";
 
 function Page({ save }: { save: () => Promise<boolean> }) {
   const [editing, edit] = useState(true);
@@ -28,6 +29,54 @@ it("consumes one overlay then durable editing before history leaves the score", 
   await act(() => router.navigate(-1));
   expect(screen.getByText("阅读中")).toBeInTheDocument(); expect(save).toHaveBeenCalledTimes(1);
   await act(() => router.navigate(-1)); expect(screen.getByRole("heading", { name: "云盘" })).toBeInTheDocument();
+});
+
+it("returns to an explicit settings parent after guarding a changed form, regardless of history", async () => {
+  const { useUnsavedChanges } = await import("../settings/use-unsaved-changes");
+  function Settings() {
+    const [dirty, setDirty] = useState(true);
+    const confirmation = useUnsavedChanges({ dirty, save: async () => false, discard: () => setDirty(false) });
+    return <><TaskHeader title="设置详情" backTo="/library" backBehavior="parent" />{confirmation}</>;
+  }
+  const router = createMemoryRouter([{ element: <NavigationProvider><Outlet /></NavigationProvider>, children: [
+    { path: "/library", element: <h1>云盘</h1> }, { path: "/directory", element: <h1>旧布局目录</h1> }, { path: "/detail", element: <Settings /> },
+  ] }], { initialEntries: ["/library", "/directory", "/detail"] });
+  render(<RouterProvider router={router} />);
+  fireEvent.click(screen.getByRole("button", { name: "返回" }));
+  const continueEditing = await screen.findByRole("button", { name: "继续编辑" });
+  await act(async () => { fireEvent.click(continueEditing); });
+  expect(screen.getByRole("heading", { name: "设置详情" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "返回" }));
+  fireEvent.click(await screen.findByRole("button", { name: "放弃修改" }));
+  expect(await screen.findByRole("heading", { name: "云盘" })).toBeInTheDocument();
+  expect(router.state.location.pathname).toBe("/library");
+});
+
+it.each([false, true])("reuses settings parent history after a forward jump=%s so system back does not reopen an exited task", async jump => {
+  const router = createMemoryRouter([{ element: <NavigationProvider><Outlet /></NavigationProvider>, children: [
+    { path: "/landing", element: <h1>入口</h1> },
+    { path: "/library", element: <h1>云盘</h1> },
+    { path: "/directory", element: <TaskHeader title="设置目录" backTo="/library" backBehavior="parent" /> },
+    { path: "/detail", element: <TaskHeader title="设置详情" backTo="/directory" backBehavior="parent" /> },
+  ] }], { initialEntries: ["/landing"] });
+  render(<RouterProvider router={router} />);
+  await act(() => router.navigate("/library"));
+  const libraryKey = router.state.location.key;
+  await act(() => router.navigate("/directory"));
+  const directoryKey = router.state.location.key;
+  await act(() => router.navigate("/detail"));
+  if (jump) {
+    await act(() => router.navigate(-2));
+    await act(() => router.navigate(2));
+  }
+  fireEvent.click(screen.getByRole("button", { name: "返回" }));
+  await screen.findByRole("heading", { name: "设置目录" });
+  expect(router.state.location.key).toBe(directoryKey);
+  fireEvent.click(screen.getByRole("button", { name: "返回" }));
+  await screen.findByRole("heading", { name: "云盘" });
+  expect(router.state.location.key).toBe(libraryKey);
+  await act(() => router.navigate(-1));
+  expect(screen.getByRole("heading", { name: "入口" })).toBeInTheDocument();
 });
 it("keeps the explicit internal target after closing a dialog and saving", async () => {
   const save = vi.fn(async () => true); setup(save);

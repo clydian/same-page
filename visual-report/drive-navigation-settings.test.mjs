@@ -108,6 +108,18 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await expect(input).toHaveValue("旋转后仍保留的草稿");
     await page.setViewportSize({ width: 1112, height: 834 });
     await expect(input).toHaveValue("旋转后仍保留的草稿");
+    await page.getByRole("dialog", { name: "云盘名称", exact: true }).getByRole("button", { name: "取消", exact: true }).click();
+    // A tablet entry rotated to a phone returns through the phone directory.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole("heading", { name: "基本信息", exact: true, level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir/settings`);
+    await page.getByRole("link", { name: "成员与权限", exact: true }).click();
+    // A phone detail rotated to a tablet exits the whole settings task once.
+    await page.setViewportSize({ width: 834, height: 1112 });
+    await expect(page.getByRole("heading", { name: "云盘设置", exact: true, level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir`);
     assert.deepEqual(errors, []);
   });
 }
@@ -138,7 +150,19 @@ test("chromium: native downward touch refreshes only the library and cancelled g
   const before = reads;
   await gesture(100, 5);
   await gesture(0, 140, true);
-  assert.equal(reads, before, "Horizontal and cancelled input must not refresh");
+  // Adding a second finger after the threshold cancels even without another move.
+  // Lifting either contact first must also leave the remaining contact cancelled.
+  for (const remaining of [1, 2]) {
+    const y = (await page.locator(".file-row").first().boundingBox()).y + 20;
+    const first = { x: 140, y, id: 1 }, second = { x: 220, y: y + 140, id: 2 };
+    await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first] });
+    for (let step = 1; step <= 6; step++) await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...first, y: y + 140 * step / 6 }] });
+    first.y += 140;
+    await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first, second] });
+    await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [remaining === 1 ? first : second] });
+    await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  }
+  assert.equal(reads, before, "Horizontal, cancelled and multiple-contact input must not refresh");
   await gesture(0, 150);
   await expect.poll(() => reads).toBe(before + 1);
   await expect(page.getByRole("searchbox")).toHaveValue("秋日");

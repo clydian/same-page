@@ -52,7 +52,7 @@ test('native modifier tabs initialize repeatedly in Chromium', {timeout: 120_000
   for (let iteration = 0; iteration < repetitions; iteration++) {
     const [other] = await Promise.all([
       context.waitForEvent('page', {timeout: 5_000}),
-      page.getByRole('link', {name: 'Open target', exact: true}).click({modifiers: ['Control']}),
+      page.getByRole('link', {name: 'Open target', exact: true}).click({modifiers: ['ControlOrMeta']}),
     ]);
     // Native modifier activation may intentionally disown window.opener.
     assert.equal(context.pages().length, initialPages + 1);

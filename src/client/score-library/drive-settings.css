@@ -11,7 +11,7 @@
 .drive-setting-link small { margin-top: .15rem; font-size: .8rem; color: var(--muted); }
 .drive-setting-link:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
 .drive-setting-link .drive-setting-chevron { color: var(--muted); }
-.drive-settings-main { min-width: 0; padding: 0; }
+.drive-settings-main { min-width: 0; width: 100%; padding: 0; }
 .drive-settings-index .drive-settings-main { display: none; }
 @media (hover: hover) { .drive-setting-link:hover { background: var(--canvas); } }
 @media (min-width: 681px) {
