@@ -120,6 +120,7 @@
 .drive-switch-overlay { position: fixed; z-index: 100; inset: 0; display: flex; align-items: flex-end; background: rgb(0 0 0 / 30%); }
 .drive-switch-sheet { width: 100%; max-height: calc(100dvh - var(--safe-top) - 2rem); background: var(--surface); border-radius: 1.25rem 1.25rem 0 0; padding-bottom: var(--safe-bottom); }
 .drive-switch-sheet .drive-switch-content { max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2rem); }
+.account-menu-popover { width: min(20rem, calc(100vw - 2rem)); max-height: min(40rem, var(--available-height, calc(var(--safe-height) - 2rem))); overflow: auto; overflow-wrap: anywhere; }
 .account-menu-popover .react-aria-Header { padding: .6rem .6rem .3rem; color: var(--muted); font-size: .75rem; overflow-wrap: anywhere; }
 .account-menu-popover .react-aria-MenuSection + .react-aria-MenuSection { border-top: 1px solid var(--line); margin-top: .4rem; }
 .pull-refresh-status { display: flex; align-items: center; justify-content: center; gap: .5rem; overflow: hidden; color: var(--muted); font-size: .8rem; }

@@ -24,6 +24,11 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       if (original.endsWith("/settings")) return route.fulfill({ json: { name: other ? "周末排练云盘" : "示例云盘", nameRevision: 0, displayName: "林老师", membershipRevision: 0, canEditDriveInfo: true } });
       const pathname = original.replace("/other-drive/", "/visual-choir/");
       const result = fixture.resolve({ pathname, method: request.method(), identity: "admin", cookie: "" });
+      if (pathname === "/api/auth/get-session") {
+        const body = JSON.parse(result.body);
+        body.user.email = "12345678-1234-1234-1234-123456789012@example.test";
+        result.body = JSON.stringify(body);
+      }
       if (pathname.endsWith("/bootstrap")) reads++;
       if (pathname === "/api/choirs") {
         const body = JSON.parse(result.body), first = body.memberships[0];
@@ -79,7 +84,15 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("button", { name: "返回", exact: true }).click();
     await page.getByRole("button", { name: "我的", exact: true }).click();
     for (const item of ["阅读偏好", "本机存储", "账户", "问题反馈", "退出登录"]) await expect(page.getByRole("menuitem", { name: item, exact: true })).toBeVisible();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "Long account names must fit the personal menu");
+    await page.setViewportSize({ width: 740, height: 320 });
+    await page.keyboard.press("End");
+    await expect.poll(async () => {
+      const box = await page.getByRole("menuitem", { name: "退出登录", exact: true }).boundingBox();
+      return box.y >= 0 && box.y + box.height <= 320;
+    }).toBe(true);
     await page.keyboard.press("Escape");
+    await page.setViewportSize({ width: 390, height: 844 });
     const beforeRefresh = reads;
     await refreshLibrary(page);
     await expect.poll(() => reads).toBeGreaterThan(beforeRefresh);
