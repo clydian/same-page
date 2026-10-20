@@ -1,0 +1,249 @@
+--- a/package/dist/engine.js
++++ b/package/dist/engine.js
+@@ -1,3 +1,5 @@
++import {restoreSourceTextDeclarations} from './source-text-declarations.js';
++import {restoreSourceWedgeDeclarations} from './source-wedge-declarations.js';
+ import { restoreMusicXmlWedgeGlyphs } from "./musicxml-wedge-glyphs.js";
+ import { applyMusicXmlTimeVisibility, readMusicXmlTimeVisibility } from "./musicxml-hidden-time.js";
+ export { preparePianoPlaybackMidi } from "./piano-shared-attacks.js";
+@@ -64,6 +66,8 @@
+     applyMusicXmlTimeVisibility(score, prepared.timeVisibility ?? readMusicXmlTimeVisibility(prepared.bytes));
+     applyAlphaTabPlaybackDynamics(score, prepared.partsWithExplicitDynamics, score.tracks.length, prepared.dynamicEventsByPart, prepared.wedgeEventsByPart, prepared.dynamicGlyphsCompleteByPart);
+     score.tracks.forEach((track, index) => restoreMusicXmlWedgeGlyphs(track, prepared.wedgeEventsByPart?.[index] ?? []));
++    score.tracks.forEach((track,index)=>{ const events=prepared.wedgeEventsByPart?.[index]; if(Array.isArray(events)) restoreSourceWedgeDeclarations(track,events); });
++    score.tracks.forEach((track,index)=>restoreSourceTextDeclarations(track,prepared.wordEventsByPart?.[index]));
+     return score;
+ }
+ /** Same channel isolation for the standalone and embedded player. */
+--- a/package/dist/musicxml-direction-timing.d.ts
++++ b/package/dist/musicxml-direction-timing.d.ts
+@@ -9,6 +9,7 @@
+     dynamicEventsByPart: MusicXmlDynamicEvent[][];
+     dynamicGlyphsCompleteByPart?: boolean[];
+     wedgeEventsByPart?: MusicXmlWedgeEvent[][];
++    wordEventsByPart?: (MusicXmlWordEvent[] | null)[];
+     partsWithExplicitDynamics: boolean[];
+     partsWithVoiceScopedDynamics: boolean[];
+ }
+@@ -21,7 +22,18 @@
+     value: string;
+     voice: string | null;
+ }
++export interface MusicXmlWordEvent {
++    measureIndex: number;
++    quarter: number;
++    staff: number | null;
++    text: string;
++    placement?: "above" | "below";
++    fontSize?: number;
++    italic?: boolean;
++    bold?: boolean;
++}
+ export interface MusicXmlWedgeEvent {
++    placement?: "above" | "below";
+     measureIndex: number;
+     quarter: number;
+     staff: number | null;
+--- a/package/dist/musicxml-direction-timing.js
++++ b/package/dist/musicxml-direction-timing.js
+@@ -150,6 +150,7 @@
+                             staff: staff !== null && Number.isFinite(staff) ? staff : null,
+                             voice: directText(children, "voice"),
+                             number: attributes?.["@_number"] ?? "1",
++                            ...(node[":@"]?.["@_placement"] === "above" || node[":@"]?.["@_placement"] === "below" ? {placement:node[":@"]?.["@_placement"]}:{}),
+                             type,
+                         });
+                     }
+@@ -373,6 +374,39 @@
+     }
+     return builder.build(document);
+ };
++const collectSourceWordEvents = (partChildren) => {
++    const events = []; let divisions = 1;
++    for (const [measureIndex, measure] of partChildren.filter(n => tagName(n) === 'measure').entries()) {
++        let cursor = 0;
++        for (const node of childNodes(measure, 'measure')) {
++            const tag = tagName(node), children = childNodes(node,tag);
++            if (tag === 'attributes') { const d = directNumber(children,'divisions'); if (d>0) divisions=d; }
++            else if (tag === 'direction') {
++                for (const words of findDescendants(children,'words')) {
++                    const content = childNodes(words,'words');
++                    if (content.some(c => tagName(c) !== '#text')) return null;
++                    const text = content.map(c => c['#text'] ?? '').join('');
++                    const a = words[':@'] ?? {};
++                    if (a['@_font-size'] !== undefined && (!Number.isFinite(Number(a['@_font-size'])) || Number(a['@_font-size']) <= 0)) return null;
++                    if (a['@_font-family'] || a['@_rotation'] || a['@_enclosure']) return null;
++                    if (!text.length) continue;
++                    const placement = node[':@']?.['@_placement'];
++                    if (placement !== undefined && !['above','below'].includes(placement)) return null;
++                    const staffText = directText(children,'staff'), staff=staffText===null?null:Number(staffText);
++                    if (staff !== null && (!Number.isSafeInteger(staff) || staff<1)) return null;
++                    events.push({measureIndex,quarter:(cursor+directNumber(children,'offset'))/divisions,staff,text,
++                        ...(placement?{placement}:{}),
++                        ...(a['@_font-size']?{fontSize:Number(a['@_font-size'])}:{}),
++                        ...(a['@_font-style']?{italic:a['@_font-style']==='italic'}:{}),
++                        ...(a['@_font-weight']?{bold:a['@_font-weight']==='bold'}:{})});
++                }
++            } else if (tag === 'note' && !hasDirectChild(children,'chord') && !hasDirectChild(children,'grace')) cursor+=directNumber(children,'duration');
++            else if (tag === 'backup') cursor-=directNumber(children,'duration');
++            else if (tag === 'forward') cursor+=directNumber(children,'duration');
++        }
++    }
++    return events;
++};
+ export const prepareMusicXmlForAlphaTabBytes = (bytes) => {
+     const xml = new TextDecoder().decode(bytes);
+     const document = parser.parse(xml);
+@@ -380,6 +414,7 @@
+     const dynamicEventsByPart = [];
+     const dynamicGlyphsCompleteByPart = [];
+     const wedgeEventsByPart = [];
++    const wordEventsByPart = [];
+     const partsWithExplicitDynamics = [];
+     const partsWithVoiceScopedDynamics = [];
+     for (const rootNode of document) {
+@@ -392,6 +427,7 @@
+             dynamicEventsByPart.push(collectDynamicEvents(partChildren));
+             dynamicGlyphsCompleteByPart.push(hasCompleteDynamicGlyphEvents(partChildren));
+             wedgeEventsByPart.push(collectWedgeEvents(partChildren));
++            wordEventsByPart.push(collectSourceWordEvents(partChildren));
+             partsWithExplicitDynamics.push(hasDescendantTag(partChildren, "dynamics"));
+             partsWithVoiceScopedDynamics.push(hasVoiceScopedDynamics(partChildren));
+             for (const measureNode of partChildren.filter((node) => tagName(node) === "measure")) {
+@@ -407,6 +443,7 @@
+         dynamicEventsByPart,
+         dynamicGlyphsCompleteByPart,
+         wedgeEventsByPart,
++        wordEventsByPart,
+         partsWithExplicitDynamics,
+         partsWithVoiceScopedDynamics,
+     };
+--- /dev/null
++++ b/package/dist/source-text-declarations.js
+@@ -0,0 +1,26 @@
++import * as at from '@coderline/alphatab';
++/** Display-only complete source words for a part; never mutates notes or tempo. */
++export function restoreSourceTextDeclarations(track, events) {
++    if (!Array.isArray(events) || events.length === 0 || typeof at.model.SourceText !== 'function') return false;
++    const staged = new Map();
++    for (const event of events) {
++        const staff = track.staves[(event.staff ?? 1) - 1];
++        const bar = staff?.bars[event.measureIndex], start = event.quarter * 960;
++        if (!bar || !Number.isSafeInteger(event.measureIndex) || !Number.isFinite(start) || start < 0 ||
++            start > bar.masterBar.calculateDuration() || typeof event.text !== 'string' || !event.text.length ||
++            (event.placement !== undefined && !['above','below'].includes(event.placement))) return false;
++        // Grace display time differs from source musical time. Preserve legacy
++        // for the complete part rather than snapping an authored direction.
++        if (bar.voices.some(v => v.beats.some(b => b.displayStart !== b.playbackStart))) return false;
++        const item = Object.assign(new at.model.SourceText(), {
++            displayStart: start, text: event.text,
++            ...(event.placement ? {placement:event.placement === 'below' ? at.model.SourceTextPlacement.Below : at.model.SourceTextPlacement.Above}:{}),
++            ...(event.fontSize ? {fontSize:event.fontSize * 96 / 72}:{}),
++            ...(event.italic !== undefined ? {italic:event.italic}:{}),
++            ...(event.bold !== undefined ? {bold:event.bold}:{})
++        });
++        const values = staged.get(bar) ?? []; values.push(item); staged.set(bar, values);
++    }
++    for (const staff of track.staves) for (const bar of staff.bars) bar.sourceTexts = staged.get(bar) ?? [];
++    return true;
++}
+--- /dev/null
++++ b/package/dist/source-wedge-declarations.js
+@@ -0,0 +1,79 @@
++import * as alphaTab from '@coderline/alphatab';
++export function restoreSourceWedgeDeclarations(track, events) {
++    if (typeof alphaTab.model.SourceWedge !== 'function')
++        return false;
++    for (const staff of track.staves)
++        for (const bar of staff.bars)
++            for (const voice of bar.voices)
++                for (const beat of voice.beats)
++                    if (!beat.isEmpty && (beat.graceType !== alphaTab.model.GraceType.None ||
++                        beat.displayStart !== beat.playbackStart || beat.playbackStart < 0 ||
++                        beat.playbackStart + beat.playbackDuration > bar.masterBar.calculateDuration() + 1e-6))
++                        return false;
++    const active = new Map();
++    const spans = [];
++    const tick = (event) => {
++        const bar = track.score.masterBars[event.measureIndex], local = event.quarter * 960;
++        if (!bar || !Number.isSafeInteger(event.measureIndex) || typeof event.quarter !== "number" || !Number.isFinite(local) || local < 0 ||
++            local > bar.calculateDuration())
++            return null;
++        return bar.start + local;
++    };
++    for (const event of [...events].sort((a, b) => a.measureIndex - b.measureIndex || a.quarter - b.quarter)) {
++        if (tick(event) === null ||
++            (event.staff !== null && (!Number.isSafeInteger(event.staff) || !track.staves[event.staff - 1])) ||
++            (event.placement !== undefined && event.placement !== 'above' && event.placement !== 'below'))
++            return false;
++        const start = active.get(event.number);
++        if (event.type === 'continue') {
++            if (!start || (start.placement !== undefined && event.placement !== undefined && start.placement !== event.placement))
++                return false;
++        }
++        else if (event.type === 'stop') {
++            if (!start)
++                return false;
++            const from = tick(start), to = tick(event), staff = (start.staff ?? 1) - 1;
++            if (!track.staves[staff] || to <= from || (start.placement !== undefined && event.placement !== undefined && start.placement !== event.placement))
++                return false;
++                spans.push({ start, stop: event, from, to, staff });
++            active.delete(event.number);
++        }
++        else if (event.type === 'crescendo' || event.type === 'diminuendo') {
++            if (start)
++                return false;
++            active.set(event.number, event);
++        }
++        else
++            return false;
++    }
++    if (active.size > 0)
++        return false;
++    const declarations = new Map();
++    for (const [index, span] of spans.entries()) {
++        const { start, stop, from, to, staff } = span;
++        const placement = start.placement ?? stop.placement;
++        let covered = 0;
++        for (const bar of track.staves[staff].bars) {
++            const barStart = bar.masterBar.start, barEnd = barStart + bar.masterBar.calculateDuration();
++            const segmentStart = Math.max(from, barStart), segmentEnd = Math.min(to, barEnd);
++            if (segmentEnd <= segmentStart)
++                continue;
++            covered += segmentEnd - segmentStart;
++            const values = declarations.get(bar) ?? [];
++            values.push(Object.assign(new alphaTab.model.SourceWedge(), {
++                sourceId: `source-wedge-${index}`,
++                displayStart: segmentStart - barStart, displayEnd: segmentEnd - barStart,
++                startProgress: (segmentStart - from) / (to - from), endProgress: (segmentEnd - from) / (to - from),
++                type: start.type === 'crescendo' ? alphaTab.model.CrescendoType.Crescendo : alphaTab.model.CrescendoType.Decrescendo,
++                ...(placement ? { placement: placement === 'above' ? alphaTab.model.SourceWedgePlacement.Above : alphaTab.model.SourceWedgePlacement.Below } : {}),
++            }));
++            declarations.set(bar, values);
++        }
++        if (Math.abs(covered - (to - from)) > 1e-6)
++            return false;
++    }
++    for (const staff of track.staves)
++        for (const bar of staff.bars)
++            bar.sourceWedges = declarations.get(bar) ?? [];
++    return true;
++}
+--- a/package/package.json
++++ b/package/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@clydian/chorus-player",
+-  "version": "0.1.19-samepage.2",
++  "version": "0.1.19-samepage.3",
+   "type": "module",
+   "license": "UNLICENSED",
+   "files": [
+@@ -65,6 +65,6 @@
+     "prepack": "npm run build"
+   },
+   "peerDependencies": {
+-    "@coderline/alphatab": "1.8.4-samepage.3"
++    "@coderline/alphatab": "1.8.4-samepage.4"
+   }
+ }

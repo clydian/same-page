@@ -202,3 +202,10 @@ SamePage 本地播放器制品，在精确 0.1.19 基线上增加显式暂停跟
 的初始化回调也不能连接已取消或已替换的播放。原生仅一个运行时文件变化，player
 仅更新版本及精确 peer，保留所有既有交互扩展。来源、完整/增量 patch、构建脚本、
 MPL 源码分发和回归边界见 [制品说明](chorus-player-0.1.19-samepage.2.md)。未跨仓库发布。
+
+## 原谱独立渐变线与文字方向：player 0.1.19-samepage.3 / native samepage.4
+
+修复[#486](https://github.com/clydian/same-page/issues/486)与[#487](https://github.com/clydian/same-page/issues/487)：
+保留明确上下位置的独立渐变线及多个文字指令，原生跨小节连续线使用稳定layout lane。
+保留samepage.3的AudioWorklet取消修复和既有交互扩展，播放器发音与源XML不改。
+精确来源、MPL源码分发、可重建patch及实际回归范围见[制品说明](chorus-player-0.1.19-samepage.3.md)。
