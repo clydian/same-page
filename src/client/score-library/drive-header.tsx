@@ -46,6 +46,7 @@ function GuestMenu({ choirId, onRefresh }: { choirId: string; onRefresh(): void 
       <MenuItem onAction={onRefresh}>刷新列表</MenuItem>
       <MenuItem href="/help">使用手册</MenuItem>
       <MenuItem href="/diagnostics">问题反馈</MenuItem>
+      <MenuItem href="/about">关于与更新</MenuItem>
     </Menu></Popover>
   </MenuTrigger>;
 }

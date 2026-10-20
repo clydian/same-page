@@ -13,6 +13,7 @@ import {
 import { serveStoredFile } from "../scores/serve-file";
 import { limitDriveMutation } from "../security/drive-rate-limit";
 import { adminAuthority, requireAdmin } from "./access";
+import { readAdminSession } from "./diagnostic-access";
 export const adminRoutes = new Hono<AppEnvironment>();
 const live = `s.trashed_at IS NULL AND s.purged_at IS NULL AND c.purged_at IS NULL AND v.purged_at IS NULL AND v.state='ready' AND v.etag IS NOT NULL`;
 const parents = `FROM scores s JOIN choirs c ON c.id=s.choir_id JOIN product_admin_drives d ON d.choir_id=c.id
@@ -90,12 +91,7 @@ async function audit(
     .run();
 }
 adminRoutes.get("/admin/session", async (c) => {
-  const a = await requireAdmin(c);
-  return c.json({
-    viewScores: a.viewScores,
-    reviewXml: a.reviewXml,
-    publishXml: a.publishXml,
-  });
+  return c.json(await readAdminSession(c));
 });
 adminRoutes.get("/admin/drives", async (c) => {
   await requireAdmin(c);

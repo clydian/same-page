@@ -108,7 +108,7 @@ describe("AppRoutes", () => {
       screen.getByText("为合唱排练与共享笔记打造的乐谱云盘。"),
     ).toHaveAttribute("lang", "zh-CN");
     expect(screen.getByRole("link", { name: "登录" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "关于合谱" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "关于与更新" })).toHaveAttribute(
       "href",
       "/about",
     );
@@ -123,7 +123,7 @@ describe("AppRoutes", () => {
       "/login",
     );
     expect(
-      screen.getByRole("heading", { name: "使用邀请码进入新的云盘" }),
+      screen.getByRole("heading", { name: "使用邀请卡或邀请码" }),
     ).toBeInTheDocument();
     expect(await screen.findByLabelText("邀请码")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "进入" })).toBeDisabled();

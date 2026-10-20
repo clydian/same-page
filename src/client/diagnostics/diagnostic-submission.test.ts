@@ -104,6 +104,8 @@ it("downgrades optional opening fields only after an explicit old-schema rejecti
   const first = JSON.parse(fetchMock.mock.calls[0][1].body);
   const legacy = JSON.parse(fetchMock.mock.calls[1][1].body);
   expect(first.reader.opening).toEqual(opening);
+  expect(first.retentionDays).toBe(180);
+  expect(legacy.retentionDays).toBeUndefined();
   expect(legacy.id).toBe(first.id);
   expect(legacy.reader.opening).toBeUndefined();
   expect(legacy.records[0].opening).toBeUndefined();
@@ -112,6 +114,15 @@ it("downgrades optional opening fields only after an explicit old-schema rejecti
   await sendDiagnosticReport(null);
   expect(fetchMock.mock.calls[2][1].body).toBe(fetchMock.mock.calls[1][1].body);
   expect(getDiagnosticSubmission().phase).toBe("sent");
+});
+
+it("does not retry a deleted report into existence and explains how to send a new incident", async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 410 }));
+  vi.stubGlobal("fetch", fetchMock);
+  await sendDiagnosticReport(null);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(getDiagnosticSubmission().phase).toBe("failed");
+  expect(getDiagnosticSubmission().message).toContain("已被维护人员删除");
 });
 
 it("never rewrites a possibly stored report when a later retry meets an old Worker", async () => {

@@ -73,7 +73,7 @@ import { usePagedReader } from "../reader/use-paged-reader";
 import { ReaderConflictDialog } from "../reader/reader-conflict-dialog";
 
 import type { DiagnosticReader } from "../../shared/diagnostic-report";
-import { DiagnosticReportDialog } from "../diagnostics/diagnostic-report-dialog";
+import { DiagnosticReportDialog, DiagnosticReportModal } from "../diagnostics/diagnostic-report-dialog";
 
 type ReaderPanel = "layers";
 
@@ -132,6 +132,7 @@ function ReaderPageContent() {
   const [playbackEntryOpen, setPlaybackEntryOpen] = useState(false);
   useExitLayer(playbackEntryOpen, "overlay", () => { setPlaybackEntryOpen(false); return true; });
   const [moreOpen, setMoreOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [guestNoteOpen, setGuestNoteOpen] = useState(false);
   const guestReadOnly = workspace?.ownerKey.startsWith("guest:") === true;
   const readerBackTrigger = useRef<HTMLButtonElement>(null);
@@ -552,6 +553,7 @@ function ReaderPageContent() {
                 </>}
               </section>
               </>}
+              <Button className="secondary-button" onPress={() => { setMoreOpen(false); setFeedbackOpen(true); }}>问题反馈</Button>
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
                 <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>查看操作指引</Button>
                 {editAvailability === "ready" && <Button onPress={() => { requestEditing(); }}>编辑操作指引</Button>}
@@ -638,6 +640,7 @@ function ReaderPageContent() {
         </ModalOverlay>
       ) : null}
 
+      {feedbackOpen && <DiagnosticReportModal reader={diagnosticReader} isOpen onOpenChange={setFeedbackOpen} />}
       {!editing && conflicts.length > 0 && !conflictOpen ? (
         <aside className="annotation-conflicts annotation-conflicts--compact" aria-label="本机笔记冲突">
           <span>有 {conflicts.length} 条笔记需要比较</span>

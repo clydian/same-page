@@ -2,6 +2,7 @@ import { UserRound } from "lucide-react";
 import { Button, Header, MenuItem, MenuSection, MenuTrigger, Popover } from "react-aria-components";
 import { useLogout } from "../auth/logout-context";
 import { Menu } from "../navigation/overlays";
+import { buildVersion } from "../../shared/build";
 
 export interface PersonalDriveActions {
   choirId: string; choirName: string; displayName?: string; localOnly: boolean;
@@ -26,6 +27,7 @@ export function PersonalMenu({ email, drive }: { email?: string | null; drive?: 
         <MenuItem href="/user">账户</MenuItem>
         <MenuItem href="/help">使用手册</MenuItem>
         <MenuItem href="/diagnostics">问题反馈</MenuItem>
+        <MenuItem href="/about" textValue="关于与更新">关于与更新 <small>{buildVersion}</small></MenuItem>
         <MenuItem onAction={() => void logout.request()}>退出登录</MenuItem>
       </MenuSection>
     </Menu></Popover>

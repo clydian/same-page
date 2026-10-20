@@ -28,7 +28,7 @@ try {
   const start = performance.now(); await page.goto(origin + '/about');
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   const installMs = performance.now() - start;
-  await page.reload(); await page.getByRole('heading', { name: '关于合谱', exact: true }).waitFor();
+  await page.reload(); await page.getByRole('heading', { name: '关于与更新', exact: true }).waitFor();
   const session = await context.newCDPSession(page);
   await session.send('ServiceWorker.enable');
   await session.send('Emulation.setCPUThrottlingRate', { rate: 4 });

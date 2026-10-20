@@ -205,3 +205,6 @@
 
 .task-header-heading { flex: 1; min-width: 0; }
 .task-header-heading > p { margin: .2rem 0 0; font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; }
+
+.about-version { font-variant-numeric: tabular-nums; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.about-build pre { white-space: pre-wrap; overflow-wrap: anywhere; }

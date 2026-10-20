@@ -3,7 +3,7 @@ import { createExecutionContext, createScheduledController, waitOnExecutionConte
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import worker from "./index";
 import { cleanupDiagnosticReports } from "./diagnostic-reports";
-import { diagnosticReportMaxBytes, diagnosticReportRetentionMs, type DiagnosticReport } from "../src/shared/diagnostic-report";
+import { diagnosticReportMaxBytes, type DiagnosticReport } from "../src/shared/diagnostic-report";
 
 function report(): DiagnosticReport {
   return { id: crypto.randomUUID(), version: 1, clientBuild: "abcdef1", description: "没有报错，但页面显示不正常",
@@ -27,7 +27,7 @@ it("accepts an anonymous report without errors, durably stores it, and discloses
   const row = await env.DB.prepare("SELECT * FROM diagnostic_reports WHERE id = ?").bind(value.id).first<{ payload: string; status: string; created_at: number; expires_at: number }>();
   expect(JSON.parse(row!.payload)).toEqual(value);
   expect(row!.status).toBe("new");
-  expect(row!.expires_at - row!.created_at).toBe(diagnosticReportRetentionMs);
+  expect(row!.expires_at - row!.created_at).toBe(30 * 86400000);
   expect(row!.payload).not.toContain("192.0.2.1");
   const limits = await env.DB.prepare("SELECT key FROM rate_limits").all();
   expect(JSON.stringify(limits.results)).not.toContain("192.0.2.1");

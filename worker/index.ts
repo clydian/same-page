@@ -1,5 +1,6 @@
 import { serveStaticAsset } from "./static-assets";
 import { adminRoutes } from './admin/routes';
+import { adminDiagnosticRoutes } from './admin/diagnostic-routes';
 import { cleanupAdminXml } from './admin/cleanup';
 import { AttachmentError } from "./attachments/storage";
 import { attachmentRoutes } from "./attachments/routes";
@@ -59,6 +60,7 @@ app.route("/api", androidReleaseRoutes);
 
 app.use("/api/*", excludeDeletedResources);
 app.route("/api", adminRoutes);
+app.route("/api", adminDiagnosticRoutes);
 app.route("/api", trialRoutes);
 app.route("/api", diagnosticReportRoutes);
 app.route("/api", permissionRoutes);

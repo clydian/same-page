@@ -2,7 +2,7 @@
 
 ## 用户反馈
 
-在问题发生的同一标签页，通过页脚「使用手册 → 反馈问题」或阅读器错误提示中的「反馈问题」打开。阅读器错误/加载页面也有入口，面板不离开阅读器。不要刷新整个网页；刷新会清空会话记录和待发送内容。
+在问题发生的同一标签页，通过「我的 → 问题反馈」、页脚「使用手册 → 反馈问题」、阅读器「更多 → 问题反馈」或错误提示中的「反馈问题」打开。阅读器错误/加载页面也有入口，面板不离开阅读器。不要刷新整个网页；刷新会清空会话记录和待发送内容。
 
 可选填「刚才遇到了什么问题」，查看折叠的诊断信息后点击「发送反馈」。无需登录，即使没有错误记录也可反馈。发送仅由用户点击触发，报告包含明确列出的环境状态和错误，不截图、不读取 PDF、批注正文、文件名或完整网址。用户输入的文字是主动提交内容，不能承诺自动识别其中的敏感信息；提示用户不要输入凭据或私人内容。
 
@@ -12,9 +12,9 @@
 
 ## 私有收件箱
 
-第一版是运维 CLI，使用当前 Cloudflare D1 账户权限，**不新增产品管理员角色、公开报告查询 API 或邮件通知**。只授权必要维护人员访问 Cloudflare；云盘管理员没有收件箱权限。请把报告内容当作不可信用户数据，不执行其中的命令或链接，不把完整报告默认附到公开 Issue。
+网页收件箱位于 `/admin/reports`，与既有乐谱工作台共用登录外壳，但使用独立的 `diagnostic_operators` 授权。云盘拥有者和 XML 运营者不会自动获得反馈权限；仅有反馈授权的维护人员也不能查看乐谱。原运维 CLI 继续使用 Cloudflare D1 账户权限；不提供公开报告查询 API 或邮件通知。请把报告内容当作不可信用户数据，不执行其中的命令或链接，不把完整报告默认附到公开 Issue。
 
-部署先应用 `0016_diagnostic_reports.sql`。本地可用 `npm run db:migrate:local`。生产沿用 CI 的迁移/发布流程。命令必须显式选择 `--local` 或 `--remote`；remote 使用已有 Wrangler 授权，凭据只通过子进程环境注入，不写入命令、日志或文件。
+部署先应用既有 `0016_diagnostic_reports.sql` 和增量迁移 `0033_diagnostic_inbox.sql`。本地可用 `npm run db:migrate:local`。生产沿用 CI 的迁移/发布流程。命令必须显式选择 `--local` 或 `--remote`；remote 使用已有 Wrangler 授权，凭据只通过子进程环境注入，不写入命令、日志或文件。
 
 ```sh
 npm run diagnostics:inbox -- list --remote --status new
@@ -24,7 +24,7 @@ npm run diagnostics:inbox -- mark --remote --id REPORT_UUID --status investigati
 npm run diagnostics:inbox -- mark --remote --id REPORT_UUID --status resolved
 ```
 
-`REPORT_UUID` 替换为完整反馈编号。列表最多最近 100 份，不输出问题描述；按编号查看才返回完整报告。状态为 `new` / `investigating` / `resolved`，改变状态不延长保留期限。报告创建起保留 30 天，查询排除到期报告，每小时清理全部过期记录，清理失败由现有 Worker 异常监控发现；各清理任务独立执行。
+`REPORT_UUID` 替换为完整反馈编号。列表最多最近 100 份，不输出问题描述；按编号查看才返回完整报告。状态为 `new` / `investigating` / `resolved`，改变状态不延长保留期限。新版客户端的报告携带 `retentionDays: 180`，创建起最多保留 180 天；旧版客户端未携带该字段，仍保留 30 天。存量 `expires_at` 不追溯修改。查询排除到期报告，每小时清理全部过期记录，清理失败由现有 Worker 异常监控发现；各清理任务独立执行。
 
 没有自动通知，值班维护人员应在支持排查时或日常巡检中查看 `new` 报告。用户可以携反馈编号联系维护人员；不承诺自动回复，不从登录邮箱推断联系方式。形成产品修复 ticket 时只提取必要、脱敏的复现信息。
 
@@ -39,7 +39,7 @@ npm run diagnostics:inbox -- mark --remote --id REPORT_UUID --status resolved
 - `rate-limit`：等待后手动重试。
 - `internal`：根据版本与阶段检查代码和部署。
 
-`retryable` 仅表示可能恢复，绝不自动重放写请求。仅凭错误类别不能定位到具体代码行；复现异常、部署版本、环境和服务端记录共同支持判断。报告保留 30 天不等于关联的运行日志也保留 30 天。
+`retryable` 仅表示可能恢复，绝不自动重放写请求。仅凭错误类别不能定位到具体代码行；复现异常、部署版本、环境和服务端记录共同支持判断。报告保留期不等于关联的运行日志保留期。
 
 在 Cloudflare same-page Worker → Observability Logs 中按 `event=same_page_failure`、`requestId`、`buildId` 过滤。服务端每 isolate 的固定操作/阶段/类别每分钟只输出第一条，后续次数在下一条 `suppressed` 汇总，因此不能保证每个请求编号都命中，也不能把条数当作全站错误计数。未命中时按时间、操作、阶段、类别排查。
 
@@ -79,3 +79,24 @@ npm run diagnostics:inbox -- mark --remote --id REPORT_UUID --status resolved
 `records[].render` 是可选的白名单快照：固定原因（budget/context-lost/canvas-unavailable/timeout/page-failed）、页序号和总页数、布局、CSS 宽度、DPR、任务优先级、像素限额、已分配像素/画布数和自动重试次数。它不包含文件身份、谱面、笔记、异常正文或堆栈；像素限额不代表浏览器全部内存。预算不足和画布上下文丢失可在资源释放/前台恢复后有界重试，同一挂载页最多两次；解析/超时失败不自动循环重试，仍可明确重试本页。已打开文档的后续失败只影响单页，重新加载 PDF 经过原有本机编辑完成协议。
 
 报告仍使用 version 1，不改 D1 schema，不自动上传。随前端发布接受新可选字段的 Worker；旧报告不含 render 仍可接收。回滚到旧严格 schema 时，仅首次提交明确返回 400 才用原报告编号剥除 render（以及既有 opening 扩展）重试一次；未知送达、丢失回执和稍后重试均保持冻结内容不变。
+
+
+## 网页收件箱与独立授权
+
+迁移默认不授予反馈权限。由持有 Cloudflare 维护权限的人按稳定 user ID 显式配置，不接受邮箱，不改变成员关系或乐谱运营授权：
+
+```sh
+npm run diagnostics:operators -- grant --local USER_ID manage
+npm run diagnostics:operators -- grant --remote USER_ID delete
+npm run diagnostics:operators -- revoke --remote USER_ID
+```
+
+`manage` 可以读取和标记反馈，`delete` 包含处理及删除能力。重复 grant 会替换删除能力，可用 manage 降权。网页后台支持按完整反馈编号、状态、完整构建 SHA 或展示版本、错误类别与北京时间日期范围筛选，每页 25 份。详情保留完整白名单报告，不渲染用户提交的 HTML 或执行其中的命令；状态修改不延长保留期。
+
+删除前要求明确确认。删除在一个 D1 batch 事务中写入最小审计、UUID 删除标记并移除报告；报表正文不进入审计。每次读取及写入重新检查服务端会话、用户生命周期和独立授权，写入 SQL 再次检查，不能只依赖页面权限。审计保留 180 天；UUID 删除标记无正文或用户身份，长期保留，旧客户端重试同编号收到 410，不能复活报告。数据库触发器同时阻止旧 Worker 的原始 INSERT 写回已删除报告，覆盖发布中未结束的旧请求及代码回滚。清空本机会话不是撤回已经发送的报告。
+
+发布顺序：先应用增量迁移，再发布同时支持新字段的 Worker 与前端。旧 Worker 在新客户端第一次提交明确返回 400 时，客户端仅以同编号剥除 `clientVersion` / `retentionDays` 及既有扩展字段重试一次；提示旧服务保存 30 天。未知送达不做格式转换，重试保持冻结的确切内容。回滚只回退代码，不删除新增表、原报告或独立授权；优先保留支持新字段的 Worker。
+
+## 展示版本
+
+关于与更新及“我的”菜单显示当前设备正在运行的 `vYY.MM.DD.HHMM`（北京时间），构建时固定，并封存在 `build.json`。重新部署同一产物不生成新版本。精确排障仍按 Git SHA / run ID；一分钟内多个构建可能有相同展示版本，后台可用 SHA 进一步区分。历史报告缺少展示版本时使用原 SHA，不推算日期版本。

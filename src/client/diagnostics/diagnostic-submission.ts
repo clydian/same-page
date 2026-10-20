@@ -1,5 +1,6 @@
 import { diagnosticReceiptSchema, diagnosticReportSchema, type DiagnosticReader, type DiagnosticReport } from "../../shared/diagnostic-report";
 import { exportDiagnostics, subscribeDiagnosticReset } from "./diagnostics";
+import { buildVersion } from "../../shared/build";
 
 // Only parsed, bounded tokens leave this function; never retain a raw user agent.
 export function diagnosticEnvironment(ua = navigator.userAgent): DiagnosticReport["environment"] {
@@ -30,7 +31,8 @@ export function diagnosticEnvironment(ua = navigator.userAgent): DiagnosticRepor
 
 export function captureDiagnosticReport(description: string, reader: DiagnosticReader | null, id = crypto.randomUUID()): DiagnosticReport {
   return diagnosticReportSchema.parse({ ...JSON.parse(exportDiagnostics()), id,
-    description, environment: diagnosticEnvironment(), reader });
+    ...(/^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/.test(buildVersion) ? { clientVersion: buildVersion } : {}),
+    retentionDays: 180, description, environment: diagnosticEnvironment(), reader });
 }
 
 type Submission = {
@@ -85,12 +87,18 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
     // A cached new client may meet a rolled-back Worker with the old strict
     // schema. Only the first dispatch being explicitly rejected permits a legacy retry;
     // uncertain delivery always retains the exact previously sent payload/id.
-    if (allowLegacy && response.status === 400 && (report.reader?.opening || report.records.some(record => record.opening || record.render))) {
+    if (allowLegacy && response.status === 400 && (report.retentionDays || report.clientVersion || report.reader?.opening || report.records.some(record => record.opening || record.render))) {
       report = { ...report, reader: report.reader ? { interactionMode: report.reader.interactionMode, pendingCount: report.reader.pendingCount, conflictCount: report.reader.conflictCount } : null,
         records: report.records.map(record => { const legacy = { ...record }; delete legacy.opening; delete legacy.render; return legacy; }) };
+      delete report.clientVersion;
+      delete report.retentionDays;
       update({ ...state, report });
       response = await submit();
       if (started !== epoch) return;
+    }
+    if (response.status === 410) {
+      update({ ...state, phase: "failed", message: "这份反馈已被维护人员删除，请填写另一份反馈。" });
+      return;
     }
     if (response.status === 429) {
       update({ ...state, phase: "failed", message: "发送过于频繁，请稍后重试。当前反馈仍保留，也可复制。" });
@@ -100,7 +108,7 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
     const receipt = diagnosticReceiptSchema.parse(await response.json());
     if (started !== epoch) return;
     if (receipt.id !== report.id) throw new Error("invalid_receipt");
-    update({ ...state, phase: "sent", message: "已发送给合谱维护人员。" });
+    update({ ...state, phase: "sent", message: report.retentionDays ? "已发送给合谱维护人员。" : "已发送给合谱维护人员，旧服务保存期限为 30 天。" });
   } catch {
     if (started !== epoch) return;
     update({ ...state, phase: "failed", message: navigator.onLine
