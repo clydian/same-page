@@ -86,6 +86,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     for (const item of ["阅读偏好", "本机存储", "账户", "问题反馈", "退出登录"]) await expect(page.getByRole("menuitem", { name: item, exact: true })).toBeVisible();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "Long account names must fit the personal menu");
     await page.setViewportSize({ width: 740, height: 320 });
+    await expect.poll(async () => {
+      const box = await page.locator(".account-menu-popover").boundingBox();
+      return box.y >= 0 && box.y + box.height <= 320;
+    }).toBe(true);
     await page.keyboard.press("End");
     await expect.poll(async () => {
       const box = await page.getByRole("menuitem", { name: "退出登录", exact: true }).boundingBox();
@@ -112,6 +116,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("link", { name: "加入方式", exact: true }).click();
     await expect(page.getByRole("heading", { name: "云盘设置", exact: true, level: 1 })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "云盘设置分类" })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("heading", { name: "加入方式", exact: true, level: 2 })).toBeVisible();
     await page.screenshot({ path: `artifacts/verification/issue-482/${name}-tablet-settings.png` });
     await page.getByRole("link", { name: "基本信息", exact: true }).click();
     await page.getByRole("button", { name: "修改云盘名称", exact: true }).click();
