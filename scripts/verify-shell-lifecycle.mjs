@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { requireShellAuditResult } from './shell-audit-diagnostics.mjs';
 import { createServer } from 'node:http';
 import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os'; import path from 'node:path';
@@ -72,7 +73,19 @@ async function poll(read, label, timeout = 30_000) {
 async function audit(page, role = 'active') {
   const state = await page.evaluate(async ({ manifest, role }) => {
     const registration = await navigator.serviceWorker.getRegistration();
-    const identity = await new Promise(resolve => { const c = new MessageChannel(); c.port1.onmessage = e => { c.port1.close(); resolve(e.data); }; registration[role].postMessage({ type: 'SAME_PAGE_SHELL_IDENTITY' }, [c.port2]); });
+    const target = registration?.[role];
+    if (!target) {
+      const describeWorker = worker => worker ? { scriptURL: worker.scriptURL, state: worker.state } : null;
+      return { missingAuditTarget: {
+        role, url: location.href, scope: registration?.scope ?? null,
+        controller: describeWorker(navigator.serviceWorker.controller),
+        registration: registration ? { scope: registration.scope, active: describeWorker(registration.active), waiting: describeWorker(registration.waiting), installing: describeWorker(registration.installing) } : null,
+        registrations: (await navigator.serviceWorker.getRegistrations()).map(value => ({ scope: value.scope, active: describeWorker(value.active), waiting: describeWorker(value.waiting), installing: describeWorker(value.installing) })),
+        navigation: performance.getEntriesByType('navigation').map(entry => ({ name: entry.name, type: entry.type, workerStart: entry.workerStart, responseStart: entry.responseStart })),
+        heading: document.querySelector('h1')?.textContent ?? null,
+      } };
+    }
+    const identity = await new Promise(resolve => { const c = new MessageChannel(); c.port1.onmessage = e => { c.port1.close(); resolve(e.data); }; target.postMessage({ type: 'SAME_PAGE_SHELL_IDENTITY' }, [c.port2]); });
     const cache = await caches.open(identity.cacheName);
     const failures = [];
     for (const entry of manifest) {
@@ -83,6 +96,7 @@ async function audit(page, role = 'active') {
     }
     return { identity, entries: manifest.length, failures, caches: await caches.keys() };
   }, { manifest, role });
+  requireShellAuditResult(state);
   assert.equal(state.identity.buildId, currentBuild); assert.deepEqual(state.failures, []);
   assert.ok(!state.identity.cacheName.includes('-precache-'));
   return state;
