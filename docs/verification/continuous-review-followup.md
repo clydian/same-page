@@ -44,3 +44,10 @@
 原footer测试的goto(domcontentloaded)、heading、click、waitForURL及后续键盘/同文档断言全部保留。另为Chromium和WebKit各增加pending-content及content-handoff两种控制：前者在模块仍被阻塞时点击返回；后者让模块在mouse.down/up之间完成，断言原按钮仍连接并成功到/drives。输入标签/生命周期元数据加入原失败证据记录。组件测试另验证模块加载失败后仍只存在一个标题和原返回按钮。
 
 本地Chromium三个相关浏览器用例通过，相关组件33项通过；修前控制日志和修后结果保留于artifacts/verification/privacy-header-handoff/。固定WebKit的最终结果以同步后的CI为准。未重跑旧失败作为结案依据，未放宽原导航时限或断言。
+
+
+## 浏览器测试分片预算
+
+修正隐私页后，run39352906919 的 smoke(1) 37项通过、0失败，但总时长361140.69ms触及原6分钟步骤上限；同一提交的另一分片317227.08ms，#480对应分片为280080.86ms和308657.48ms。这是整步预算不足，不是断言失败，也不能用重跑碰绿结案。
+
+纯HTML modifier-tab回归不使用Worker、存储或应用，将其放入visual-report浏览器交互套件；保留60次逐次断言、5秒Page事件限制及全部证据采集。它原先插入smoke排序中间，会改变后续文件的Node分片归属；移出后恢复原存储套件的分配，并利用现有四个visual分片的容量。未增加CI时限、并发数或重试，也未跳过任何用例。旧后端对照命令相应为`SAME_PAGE_MODIFIER_CHANNEL=shell node --test visual-report/modifier-tab-readiness.test.mjs`。最终耗时以新head的CI为准。

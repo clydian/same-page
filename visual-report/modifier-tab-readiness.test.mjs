@@ -5,7 +5,7 @@ import {mkdtemp, rm, mkdir, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {chromium, expect} from '@playwright/test';
-import {observeBrowserTargets} from './ctrl-target-observer.mjs';
+import {observeBrowserTargets} from '../browser-tests/ctrl-target-observer.mjs';
 
 // Pure HTML isolates native new-tab initialization from Same Page, its worker,
 // storage, PDF engine and touch handlers. Every iteration must pass; no retries.
