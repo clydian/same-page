@@ -21,14 +21,14 @@ beforeEach(async () => {
   editor = new AnnotationEditor(workspace); editor.begin(); pages = new AnnotationPages(editor); pages.activate(1);
 });
 afterEach(() => { editor.cancel(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
-function Reader({tool}: {tool: AnnotationTool}) {
+function Reader({tool, availableLayers = layers}: {tool: AnnotationTool; availableLayers?: AnnotationLayerSummary[]}) {
   const annotations = useLiveQuery(() => localDatabase.annotations.toArray(), [], []);
   useEffect(() => pages.connect(), []);
   const ref = useRef<HTMLDivElement>(null);
   const gestures = useReaderGestures({containerRef: ref, contentRef: ref, disabled: false, twoFingerOnly: true, zoom: 1,
     onZoomChange() {}, onTap() {}, onNavigationStart: pages.interrupt, isObjectGestureActive: pages.ownsObjectGesture});
   return <AnnotationPagesContext.Provider value={pages}><div ref={ref} {...gestures} data-testid="viewport">
-    {[1, 2].map(page => <AnnotationOverlay key={page} editor={editor} pageNumber={page} layers={layers} annotations={annotations} editing tool={tool} activeLayerId={layerId} />)}
+    {[1, 2].map(page => <AnnotationOverlay key={page} editor={editor} pageNumber={page} layers={availableLayers} annotations={annotations} editing tool={tool} activeLayerId={layerId} />)}
   </div></AnnotationPagesContext.Provider>;
 }
 function bounds(element: Element, top: number, height = 100) {
@@ -142,4 +142,16 @@ it('two-finger browsing across the page seam interrupts only the unfinished stro
   fireEvent.pointerDown(b, touch(2, 130));
   fireEvent.pointerUp(b, touch(2, 130)); fireEvent.pointerUp(a, touch(1, 85));
   await idle(); expect((await rows()).map(note => note.id)).toEqual(before);
+});
+
+it('does not let shared input ownership bypass a read-only layer on either page', async () => {
+  const denied = layers.map(layer => ({...layer, canEdit: false}));
+  render(<Reader tool="ink" availableLayers={denied}/>);
+  const a = screen.getByLabelText('第 1 页笔记层'), b = screen.getByLabelText('第 2 页笔记层');
+  for (const [element, top] of [[a, 0], [b, 108]] as const) { bounds(element, top); bounds(element.parentElement!, top); }
+  stroke(a, 1, 0); stroke(b, 2, 108);
+  await act(async () => {});
+  expect(pages.getSnapshot().activePage).toBe(2);
+  expect(editor.getEditRevision()).toBe(0);
+  expect(await rows()).toEqual([]);
 });
