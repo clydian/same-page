@@ -226,3 +226,7 @@ MPL 源码分发和回归边界见 [制品说明](chorus-player-0.1.19-samepage.
 ## 原谱保持音上下位置：player 0.1.19-samepage.6 / native samepage.7
 
 修复[#499](https://github.com/clydian/same-page/issues/499)：保留明确 tenuto above/below 的公开模型、Worker JSON 与原生 effect band/glyph，缺省维持原布局。完整音频/播放器与旧源码下载保持；来源和验证边界见[制品说明](chorus-player-0.1.19-samepage.6.md)。
+
+## 原谱文字字族与同刻多指示：player 0.1.19-samepage.7 / native samepage.8
+
+修复[#501](https://github.com/clydian/same-page/issues/501)：六个受支持的generic字族列表通过typed模型/Worker保留，同刻多条文字不会因serif触发整part旧回退。缺省字体和其它属性保护保留，未改原谱。精确来源、MPL和验证范围见[制品说明](chorus-player-0.1.19-samepage.7.md)。
