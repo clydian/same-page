@@ -7,7 +7,7 @@ import { resolveFixtureRequest } from "./fixtures.mjs";
 test("real PDF.js permission and network failures reach private diagnostic reports", async (t) => {
   const server = await startVisualServer({ script: "dev" });
   t.after(() => server.stop());
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
   try {
     for (const category of ["permission", "network"]) {
       const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 320, height: 740 } });
@@ -25,6 +25,8 @@ test("real PDF.js permission and network failures reach private diagnostic repor
       await page.getByText("更多帮助", { exact: true }).click();
       await page.getByRole("button", { name: "反馈问题", exact: true }).click();
       await page.getByText("查看诊断信息", { exact: true }).click();
+      assert.equal(await page.getByRole("link", {name: /下载原 PDF/}).count(), 0);
+      assert.equal(await page.getByRole("button", {name: /下载原 PDF/}).count(), 0);
       const textbox = page.getByRole("textbox", { name: "可发送给维护人员的诊断信息" });
       await textbox.waitFor();
       const report = await textbox.inputValue();

@@ -70,6 +70,47 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     await page.context().close();
   });
 
+  for (const completion of ["pending-content", "content-handoff"]) {
+    test(`${engineName}: privacy return works through ${completion}`, async t => {
+      const browser = await engine.launch({headless: true});
+      let release;
+      t.after(async () => { release?.(); await browser.close(); });
+      const page = await openPage(browser, footerIdentity);
+      await withFooterNavigationEvidence(page, `artifacts/verification/footer-navigation/${engineName}-privacy-${completion}`, async record => {
+        await page.setViewportSize({width: 320, height: 800});
+        const gate = new Promise(resolve => { release = resolve; });
+        let seen;
+        const requested = new Promise(resolve => { seen = resolve; });
+        // Hold the real dev module at its network boundary. Heading visibility
+        // alone also matches the loading fallback.
+        await page.route("**/src/client/routes/privacy-page.tsx*", async route => {
+          seen(); await gate; await route.continue();
+        });
+        await page.goto(`${origin}/privacy`, {waitUntil: "domcontentloaded"});
+        await requested;
+        await page.getByRole("status").filter({hasText: "正在加载隐私政策"}).waitFor();
+        const back = await page.getByRole("button", {name: "返回", exact: true}).elementHandle();
+        const box = await back.boundingBox();
+        assert.ok(box);
+        await record("before-return-down", {completion});
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        if (completion === "content-handoff") {
+          release();
+          await page.getByRole("main", {name: "隐私政策", exact: true}).waitFor();
+          assert.equal(await back.evaluate(node => node.isConnected), true, "The pressed return button must survive content loading");
+        }
+        await page.mouse.up();
+        await page.waitForURL(`${origin}/drives`);
+        release();
+        await page.unrouteAll({behavior: "wait"});
+        await page.getByRole("contentinfo").getByRole("link", {name: "隐私政策", exact: true}).waitFor();
+        await record("return-complete", {completion});
+      });
+      await page.context().close();
+    });
+  }
+
   test(`${engineName}: public footer supports keyboard navigation and direct privacy access`, async (t) => {
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
@@ -139,9 +180,11 @@ async function withFooterNavigationEvidence(page, directory, run) {
       pathname: location.pathname,
       marker: window.__layoutDocumentMarker ?? null,
       persisted: "persisted" in event ? event.persisted : null,
+      pointerType: event.pointerType, key: event.key,
+      target: event.target instanceof Element ? {tag: event.target.tagName, label: event.target.closest("a,button")?.getAttribute("aria-label")} : null,
     });
     report({ type: "document-created" });
-    for (const name of ["pageshow", "pagehide", "popstate"]) addEventListener(name, report);
+    for (const name of ["pageshow", "pagehide", "popstate", "pointerdown", "pointerup", "click", "keydown", "keyup"]) addEventListener(name, report);
   });
   const request = item => {
     if (item.isNavigationRequest() && item.frame() === page.mainFrame()) {

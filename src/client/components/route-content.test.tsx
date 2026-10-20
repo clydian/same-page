@@ -1,8 +1,9 @@
 import { lazy } from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 import { RouteContent } from "./route-content";
+import { TaskHeader } from "./task-header";
 
 it("keeps route-specific navigation reachable while preferences load", () => {
   const Pending = lazy(() => new Promise<{ default: () => null }>(() => {}));
@@ -47,4 +48,25 @@ it("records render failures without serializing private messages or component st
     expect(report).toContain('"RangeError"');
     expect(report).not.toMatch(/private score|points|Failed|\/choirs/);
   } finally { quiet.mockRestore(); clearDiagnostics(); }
+});
+
+
+it("retains the owning route header when lazy content fails", async () => {
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  let reject!: (error: Error) => void;
+  const Pending = lazy(() => new Promise<{default: () => null}>((_, fail) => { reject = fail; }));
+  try {
+    render(<MemoryRouter initialEntries={["/privacy"]}>
+      <TaskHeader title="隐私政策" backTo="/drives" />
+      <RouteContent showHeader={false}><Pending /></RouteContent>
+    </MemoryRouter>);
+    const back = screen.getByRole("button", {name: "返回"});
+    expect(screen.getAllByRole("heading", {name: "隐私政策"})).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("正在加载隐私政策");
+    await act(async () => { reject(new Error("fixture module unavailable")); });
+    expect(await screen.findByRole("alert")).toHaveTextContent("隐私政策加载失败");
+    expect(screen.getByRole("button", {name: "返回"})).toBe(back);
+    expect(back.isConnected).toBe(true);
+    expect(screen.getAllByRole("heading", {name: "隐私政策"})).toHaveLength(1);
+  } finally { quiet.mockRestore(); }
 });

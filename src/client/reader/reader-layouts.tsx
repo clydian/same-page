@@ -300,6 +300,9 @@ export function ContinuousLayout({
               document={document}
               pageNumber={page}
               width={item.width}
+              priority={item.priority}
+              maxPixels={item.maxPixels}
+              mode="continuous"
               aspectRatio={item.aspectRatio}
               interactionRef={annotationProps.editing && current ? noteInteraction : undefined}
               annotationProps={current ? annotationProps : { ...annotationProps, editing: false }}
@@ -477,6 +480,9 @@ function AnnotatedPdfPage({
   annotationProps,
   onPageRenderStart,
   interactionRef,
+  priority,
+  maxPixels,
+  mode,
 }: {
   document: PDFDocumentProxy;
   pageNumber: number;
@@ -487,6 +493,9 @@ function AnnotatedPdfPage({
   annotationProps: AnnotationPageProps;
   onPageRenderStart?(page: number): PdfPageRenderLease;
   interactionRef?: RefObject<AnnotationInteractionHandle | null>;
+  priority?: number;
+  maxPixels?: number;
+  mode?: "continuous";
 }) {
   const resolvedAspectRatio = usePdfPageAspectRatio(
     document,
@@ -511,6 +520,9 @@ function AnnotatedPdfPage({
         width={renderedWidth}
         aspectRatio={resolvedAspectRatio}
         onRenderStart={onPageRenderStart}
+        priority={priority}
+        maxPixels={maxPixels}
+        mode={mode}
       />
       <Suspense fallback={null}>
         <AnnotationOverlay

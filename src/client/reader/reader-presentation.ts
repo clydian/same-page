@@ -49,6 +49,9 @@ export class ReaderPresentation {
   }
   failed(document: PDFDocumentProxy, page: number, reason: unknown) {
     if (!this.matches(document, page)) return;
+    // Once open, a failed page owns its own recovery. Keep other pages and the
+    // annotation editor available; only first-presentation failure is global.
+    if (this.hasPresented(document)) return;
     this.publish("failed");
     if (!this.target?.editing) this.effects.recover(reason);
   }
