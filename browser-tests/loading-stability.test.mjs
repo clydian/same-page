@@ -102,7 +102,8 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
     await page.getByText("正在读取云盘设置…", { exact: true }).waitFor();
     await data.release(); await page.getByRole("button", { name: "修改云盘名称", exact: true }).waitFor();
     await page.getByRole("button", { name: "返回", exact: true }).click();
-    // Returning restores the settings directory, including when a section loaded lazily.
+    // Phone details return to the directory; the tablet task returns to its library.
+    if (width >= 681) await page.getByRole("link", { name: "云盘设置", exact: true }).click();
     await page.getByRole("link", { name: "共享层", exact: true }).waitFor();
     const layers = await hold(page, "**/api/choirs/*/shared-layers?state=current");
     await page.getByRole("link", { name: "共享层", exact: true }).click(); await layers.wait();
