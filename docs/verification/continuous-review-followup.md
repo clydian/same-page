@@ -1,6 +1,6 @@
 # PR #479 / #480 再审查与 Ctrl+点击修正
 
-审查起点：#479 `4e76d74`、#480 `8e6dcb7`。两者保持 draft，未合并、部署或写生产数据。重新读取 conversation、review submissions 和 review threads，均为空。检查预算回收/排队取消/后台恢复/旧异步结果，跨页持久化/撤销/失败保留，以及 owner/session/workspace/layer 权限边界，没有新发现的产品代码阻断项。新增旧 getPage 在文档替换或卸载后不得绘制、替换画面或重新占预算的测试；#480 另补双页协调不得绕过只读层的测试。
+审查起点：#479 `4e76d74`、#480 `8e6dcb7`。两者保持 draft，未合并、部署或写生产数据。重新读取 conversation、review submissions 和 review threads，均为空。检查预算回收/排队取消/后台恢复/旧异步结果，跨页持久化/撤销/失败保留，以及 owner/session/workspace/layer 权限边界，预算、持久化和权限未发现新的阻断项；最终 CI 另暴露并修正了隐私页加载切换的返回按钮竞态，见末节。新增旧 getPage 在文档替换或卸载后不得绘制、替换画面或重新占预算的测试；#480 另补双页协调不得绕过只读层的测试。
 
 ## 修前证据与定位
 
@@ -29,3 +29,18 @@
 本地系统 Chromium 154 的原应用三次真实 PDF 路径及纯 HTML 60 次均通过（分别约 19 秒和 6 秒）；本地 CDN 拒绝固定 151 二进制下载，不能将本地 154 当作同版本对照。固定 Chromium 151 与 WebKit 的最终结果以各自 CI head 为准。实体 Android/iOS、Pencil、软键盘和后台内存回收不属于这些桌面模拟结果。
 
 失败证据长期保留为 trace、截图、输入取消状态、点击和导航时序、原始 targets/frame/runtime 快照；关键 JSON 同时写入 CI 日志。TAP 会转义日志中的反斜杠，读取内嵌 JSON 时需还原该 stdout 编码。采集器另用受控 preventDefault 取消验证：事件分发后的 task 才能正确读到最终 defaultPrevented；capture listener 内的 microtask 可过早读到 false。该采集修正与原新页故障分别记录。
+
+
+## 隐私页返回：真实按钮在 lazy 内容切换中被替换
+
+最终 head60fda23 的 run39350272398/job118392628969，WebKit 在 direct privacy access 的前置步骤点击返回后仍停在/privacy，等待/drives超时。对应 artifact12232628985 的 clientBuild=e8cc414c24ba2774dcd3f71d6897cc49eed43eb2，已实际读取 GitHub refs/pull/479/merge 核对：它的两个父提交为 main9015197 与 PR head60fda23，归属正确。原 trace 精简，只有/privacy document-created/pageshow、click API返回及最终/privacy；没有输入或 handler 记录。marker尚未设置，不能据此推断reload，也没有Vite full-reload证据。
+
+源码使用空root加createRoot，不是服务端按钮的hydration问题。隐私页模块是lazy导入；RouteContent的Suspense fallback和已加载PrivacyPage都各自渲染一个同名标题和TaskHeader。原测试等到标题时，可能仍是fallback。原生click过程中的稳定性检查并不保证pointerdown后DOM永不替换。
+
+本地用真实浏览器把privacy-page.tsx请求保持pending，先在fallback返回按钮上mouse.down，再释放模块并等正文出现，然后mouse.up。修前旧按钮isConnected=false，文档收到down/up但没有click，URL仍/privacy；随后新按钮的正常点击立即到/drives。同一新增回归在临时还原产品修正后确定以“The pressed return button must survive content loading / false !== true”失败。此因果控制定位了真实可复现的handoff缺陷；原CI未记录输入，因此不声称还原了其唯一内部事件顺序。
+
+最小产品修正把/privacy的TaskHeader和privacy-page外框交由路由持有，放在Suspense之外；lazy模块只提供政策正文。RouteContent新增默认开启的showHeader选项，隐私页关闭其fallback副本，其他页面默认行为保持原约定。返回按钮在pending、正文成功和正文失败之间保留同一个DOM节点，直接修正用户点击被丢弃的窗口；没有通过推迟测试点击来避开它。
+
+原footer测试的goto(domcontentloaded)、heading、click、waitForURL及后续键盘/同文档断言全部保留。另为Chromium和WebKit各增加pending-content及content-handoff两种控制：前者在模块仍被阻塞时点击返回；后者让模块在mouse.down/up之间完成，断言原按钮仍连接并成功到/drives。输入标签/生命周期元数据加入原失败证据记录。组件测试另验证模块加载失败后仍只存在一个标题和原返回按钮。
+
+本地Chromium三个相关浏览器用例通过，相关组件33项通过；修前控制日志和修后结果保留于artifacts/verification/privacy-header-handoff/。固定WebKit的最终结果以同步后的CI为准。未重跑旧失败作为结案依据，未放宽原导航时限或断言。

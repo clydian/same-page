@@ -8,14 +8,14 @@ import { TaskHeader } from "./task-header";
 import { LoadingStatus } from "./loading-status";
 import { driveSettingsTitle } from "./route-titles";
 
-export function RouteContent({ children }: { children: ReactNode }) {
+export function RouteContent({ children, showHeader = true }: { children: ReactNode; showHeader?: boolean }) {
   const { pathname } = useLocation();
-  return <RouteErrorBoundary key={pathname} fallback={<RouteFeedback failed />}>
-    <Suspense fallback={<RouteFeedback />}>{children}</Suspense>
+  return <RouteErrorBoundary key={pathname} fallback={<RouteFeedback failed showHeader={showHeader} />}>
+    <Suspense fallback={<RouteFeedback showHeader={showHeader} />}>{children}</Suspense>
   </RouteErrorBoundary>;
 }
 
-function RouteFeedback({ failed = false }: { failed?: boolean }) {
+function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean; showHeader?: boolean }) {
   const { pathname } = useLocation();
   const drive = pathname.match(/^\/choirs\/([^/]+)/)?.[1];
   if (!failed && drive && pathname === `/choirs/${drive}`) return <DrivePage choirId={drive} />;
@@ -35,7 +35,7 @@ function RouteFeedback({ failed = false }: { failed?: boolean }) {
     : pathname === "/privacy" ? "隐私政策" : drive ? "乐谱云盘" : "合谱";
   const home = pathname === "/" || pathname === "/drives";
   return <div className="app-page">
-    {!home && <TaskHeader title={title} backTo={drive ? `/choirs/${drive}` : "/drives"} />}
+    {!home && showHeader && <TaskHeader title={title} backTo={drive ? `/choirs/${drive}` : "/drives"} />}
     <main className={`page-shell${home ? "" : " settings-page settings-ux"}`}>
     {home && <><AppHeader /><h1>{title}</h1></>}
     {failed ? <p role="alert">{title}加载失败，请重试。</p> : <LoadingStatus>正在加载{title}…</LoadingStatus>}

@@ -1,14 +1,11 @@
 import { Link } from "react-router-dom";
 
-import { TaskHeader } from "../components/task-header";
 
 const CONTACT_EMAIL = "admin@clyapps.com";
 
 export default function PrivacyPage() {
   return (
-    <div className="privacy-page">
-      <TaskHeader title="隐私政策" backTo="/drives" />
-      <main className="privacy-document" aria-label="隐私政策">
+    <main className="privacy-document" aria-label="隐私政策">
         <header className="privacy-document__header">
           <p className="eyebrow">合谱 · Same Page</p>
 
@@ -153,7 +150,6 @@ export default function PrivacyPage() {
             服务或数据处理方式发生重要变化时，我们会更新本页面和顶部日期；必要时也会通过服务内提示或邮件说明。
           </p>
         </section>
-      </main>
-    </div>
+    </main>
   );
 }

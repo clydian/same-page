@@ -3,6 +3,7 @@ import { InstallProvider } from "./install/install-provider";
 import { LogoutProvider } from "./auth/logout";
 import { NavigationProvider } from "./navigation/navigation";
 import { RouteContent } from "./components/route-content";
+import { TaskHeader } from "./components/task-header";
 import { lazy, useLayoutEffect, useState } from "react";
 import { createBrowserRouter, RouterProvider, Outlet, Route, Routes, useLocation, useNavigationType } from "react-router-dom";
 
@@ -64,7 +65,11 @@ export function AppRoutes() {
             <Route path="/user/lifecycle" element={<RouteContent><UserLifecyclePage /></RouteContent>} />
             <Route path="/choirs/:choirId/memberships" element={<RouteContent><MembershipManagementPage /></RouteContent>} />
             <Route path="/login" element={<RouteContent><AuthPage /></RouteContent>} />
-            <Route path="/privacy" element={<RouteContent><PrivacyPage /></RouteContent>} />
+            <Route path="/privacy" element={<div className="privacy-page">
+              {/* Keep the return control mounted while the policy body suspends. */}
+              <TaskHeader title="隐私政策" backTo="/drives" />
+              <RouteContent showHeader={false}><PrivacyPage /></RouteContent>
+            </div>} />
             <Route path="/diagnostics" element={<RouteContent><DiagnosticsPage /></RouteContent>} />
             <Route path="/choirs/:choirId" element={<RouteContent><ChoirPage /></RouteContent>} />
             <Route
