@@ -21,15 +21,16 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
    worker.onerror = event => {worker.terminate();reject(new Error(event.message));};
    worker.onmessage = event => {
     worker.terminate();
-    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,wedges:event.data.prepared?.wedgeEventsByPart,creators:event.data.prepared?.creatorCredits,tempos:event.data.prepared?.tempoMeasures,glyphCompleteness:event.data.prepared?.dynamicGlyphsCompleteByPart,dynamics:event.data.prepared?.dynamicEventsByPart});
+    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,wedges:event.data.prepared?.wedgeEventsByPart,words:event.data.prepared?.wordEventsByPart,creators:event.data.prepared?.creatorCredits,tempos:event.data.prepared?.tempoMeasures,glyphCompleteness:event.data.prepared?.dynamicGlyphsCompleteByPart,dynamics:event.data.prepared?.dynamicEventsByPart});
    };
    const bytes = new TextEncoder().encode(xml);
    worker.postMessage(bytes,[bytes.buffer]);
-  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><identification><creator type="composer">Worker Composer</creator><creator type="arranger">Worker Arranger</creator></identification><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction placement="above"><direction-type><dynamics><pp/></dynamics></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="diminuendo" number="1"/></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="stop" number="1"/></direction-type><offset>1.5</offset></direction><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes><direction><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><beat-unit>whole</beat-unit></metronome></direction-type></direction><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>'});
+  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><identification><creator type="composer">Worker Composer</creator><creator type="arranger">Worker Arranger</creator></identification><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction><direction placement="above"><direction-type><dynamics><pp/></dynamics></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="diminuendo" number="1"/></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="stop" number="1"/></direction-type><offset>1.5</offset></direction><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes><direction><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><beat-unit>whole</beat-unit></metronome></direction-type></direction><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>'});
   assert.deepEqual(reply.keys,['prepared'],'no unrelated renderer/synth Worker initialization message may arrive first');
   assert.ok(reply.byteLength>0);
   assert.deepEqual(reply.glyphCompleteness,[true]);
   assert.deepEqual(reply.dynamics[0].map(event=>[event.quarter,event.value,event.placement]),[[0.5,"pp","above"]]);
+  assert.deepEqual(reply.words[0].map(word=>[word.text,word.fontFamilies]),[['SOLO or Div.',['serif']],['gently',['serif']]]);
   assert.deepEqual(reply.creators,{composers:['Worker Composer'],arrangers:['Worker Arranger']});
   assert.deepEqual(reply.tempos,[{events:[],complete:true},{events:[{quarter:0,bpm:160,visible:false}],complete:true}]);
   assert.deepEqual(reply.wedges[0].map(event=>[event.quarter,event.type]),[[0.5,'diminuendo'],[1.5,'stop']]);
@@ -61,7 +62,8 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByRole('button',{name:'本地链路测试 更多操作',exact:true}).click();
   await page.getByRole('menuitem',{name:'添加附件',exact:true}).click();
   await page.getByRole('button',{name:'可播放乐谱',exact:true}).click();
-  const bytes=zipSync({'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>'),'score.musicxml':polyphonicMusicXmlFixture()});
+  const practiceXml = new TextDecoder().decode(polyphonicMusicXmlFixture()).replace('</attributes>', '</attributes><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction>');
+  const bytes=zipSync({'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>'),'score.musicxml':strToU8(practiceXml)});
   await page.getByLabel('选择附件文件').setInputFiles({name:'分声部练习.mxl',mimeType:'application/vnd.recordare.musicxml',buffer:Buffer.from(bytes)});
   await page.getByRole('button',{name:'上传',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -85,6 +87,12 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await selectPracticeView(page, '重排谱面');
   await expect(notation).toBeVisible({timeout:20000});
+  const authoredWords = page.locator('.practice-notation .at-surface svg text').filter({hasText:/^(SOLO or Div\.|gently)$/});
+  await expect(authoredWords).toHaveCount(2);
+  const wordBoxes = await authoredWords.evaluateAll(nodes=>nodes.map(node=>({text:node.textContent,font:getComputedStyle(node).fontFamily,y:node.getBoundingClientRect().y})));
+  assert.deepEqual(wordBoxes.map(word=>word.text).toSorted(),['SOLO or Div.','gently']);
+  assert.ok(wordBoxes.every(word=>word.font==='serif'));
+  assert.ok(Math.abs(wordBoxes[0].y-wordBoxes[1].y)>0,'independent same-time instructions must occupy separate lines');
   const surface=await notation.elementHandle();
   assert.equal(await page.locator('.at-surface svg').evaluateAll(svgs => svgs.flatMap(svg => [...svg.querySelectorAll('path,text')]).some(element => /^rgba\(0, 0, 0, 0\./.test(getComputedStyle(element).fill))), false, 'secondary-voice notation stays opaque');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
