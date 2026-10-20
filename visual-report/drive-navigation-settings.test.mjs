@@ -115,6 +115,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("button", { name: "返回", exact: true }).click();
     await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir/settings`);
     await page.getByRole("link", { name: "成员与权限", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "成员与权限", exact: true, level: 1 })).toBeVisible();
     // A phone detail rotated to a tablet exits the whole settings task once.
     await page.setViewportSize({ width: 834, height: 1112 });
     await expect(page.getByRole("heading", { name: "云盘设置", exact: true, level: 1 })).toBeVisible();

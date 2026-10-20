@@ -43,7 +43,7 @@ it("the real runner uses native shards without omissions or duplicates, includin
       }
     }
   } finally { rmSync(cwd, { recursive: true, force: true }); }
-});
+}, 15_000); // This integration check starts ten runners and thirty child test processes.
 
 it("rejects invalid requests, missing library files and empty shards", () => {
   const entries = readdirSync("browser-tests");
