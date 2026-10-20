@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { requireShellAuditResult } from './shell-audit-diagnostics.mjs';
+import { observeShellLifecycleCalls, snapshotShellRegistration } from './shell-lifecycle-observation.mjs';
 import { createServer } from 'node:http';
 import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os'; import path from 'node:path';
@@ -33,8 +34,17 @@ const expected = await Promise.all(roots.map(async root => (await readFile(path.
 let active = 0, gate, release, blocked = false, offline = false;
 const gatePath = '/' + manifest.find(entry => /reader-page-.*\.js$/.test(entry.url)).url.replace(/^\//, '');
 const requests = [];
+const lifecycleObservations = [];
+let auditPhase = 'setup';
+const observe = entry => { if (lifecycleObservations.length < 500) lifecycleObservations.push({ time: Date.now(), phase: auditPhase, ...entry }); };
 const server = createServer(async (request, response) => {
   try {
+    if (request.url === '/sw.js') {
+      const requestOffline = offline, releaseIndex = active;
+      observe({ type: 'worker-script-request', offline: requestOffline, release: releaseIndex });
+      response.once('finish', () => observe({ type: 'worker-script-response', offline: requestOffline, release: releaseIndex, status: response.statusCode }));
+      response.once('close', () => { if (!response.writableFinished) observe({ type: 'worker-script-connection-closed', offline: requestOffline, release: releaseIndex }); });
+    }
     if (offline) { response.destroy(); return; }
     const url = new URL(request.url, 'http://localhost');
     requests.push({ path: url.pathname, release: active });
@@ -108,7 +118,10 @@ try {
     try {
       for (const explicit of engine === webkit ? [true] : [false, true]) {
         active = 0; offline = false; blocked = false; gate = undefined;
+        lifecycleObservations.length = 0; auditPhase = 'legacy-overlap';
         const context = await browser.newContext({ serviceWorkers: 'allow', viewport: { width: 390, height: 844 } });
+        await context.exposeBinding('__shellLifecycleObservation', (_, entry) => observe({ type: 'browser', ...entry }));
+        await context.addInitScript(observeShellLifecycleCalls, '__shellLifecycleObservation');
         const workers = [];
         context.on('serviceworker', worker => { workers.push(worker); void worker.evaluate(() => { self.__shellTestActivated = false; self.addEventListener('activate', () => { self.__shellTestActivated = true; }); }).catch(() => {}); });
         const page = await context.newPage();
@@ -156,6 +169,7 @@ try {
           if (c) await poll(() => c.evaluate(() => self.__shellTestActivated && self.registration.active?.state === 'activated').catch(() => false), 'C activated');
           const current = await context.newPage(); await current.goto(origin + '/about');
           await poll(() => current.evaluate(build => document.documentElement.dataset.buildId === build, currentBuild), 'C displayed');
+          auditPhase = 'initial-current-audit';
           const complete = await audit(current);
           await current.goto(origin + '/index.html?canonical=1');
           assert.equal(new URL(current.url()).pathname, '/'); assert.equal(new URL(current.url()).search, '?canonical=1');
@@ -175,7 +189,10 @@ try {
           await current.goBack(); await current.getByRole('heading', { name: '关于合谱', exact: true }).waitFor();
           // Fault injection is recovery coverage, separate from the overlap above.
           await current.evaluate(async () => { for (const name of await caches.keys()) if (name.startsWith('same-page-shell-v1:')) await (await caches.open(name)).delete(location.origin + '/'); });
+          auditPhase = 'root-repair-reload';
           await current.reload(); await audit(current);
+          observe({ type: 'before-offline', state: await current.evaluate(snapshotShellRegistration) });
+          auditPhase = 'first-offline-reload';
           offline = true; if (engine === chromium) await context.setOffline(true);
           await current.reload(); await current.getByRole('heading', { name: '关于合谱', exact: true }).waitFor(); await audit(current);
           await current.evaluate(async () => { for (const name of await caches.keys()) if (name.startsWith('same-page-shell-v1:')) await (await caches.open(name)).delete(location.origin + '/'); });
@@ -189,6 +206,16 @@ try {
           await current.screenshot({ path: `${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}.png` });
           await writeFile(`${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}.json`, JSON.stringify({ versions: expected, before, during, complete, finalActivation: engine === webkit ? 'explicit (no background worker inspection)' : 'automatic', scenario: 'legacy A/B + isolated C; full manifest; API; Back; repair; offline; reconnect' }, null, 2));
           console.log(`Verified ${engine.name()} ${explicit ? 'explicit' : 'automatic'} A/B/C migration and all ${manifest.length} entries`);
+        } catch (error) {
+          // Fixed-scope synthetic fixture only; collect before context teardown.
+          // Keep the original assertion/error and do not retry or replace its target.
+          const snapshots = [];
+          for (const candidate of context.pages()) {
+            try { snapshots.push(await candidate.evaluate(snapshotShellRegistration)); }
+            catch (reason) { snapshots.push({ error: String(reason) }); }
+          }
+          await writeFile(`${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}-failure.json`, JSON.stringify({ error: String(error), phase: auditPhase, observations: lifecycleObservations, snapshots }, null, 2));
+          throw error;
         } finally { release?.(); gate = undefined; offline = false; await context.close(); }
       }
       if (engine === chromium) {
