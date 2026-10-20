@@ -41,7 +41,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       const attachment = page.getByRole("button", { name: "排练说明.md", exact: true });
       await expect(attachment).toBeVisible();
       await attachment.evaluate(element => { element.dataset.continuityObserved = "true"; });
-      await page.getByRole("button", { name: "我在此云盘", exact: true }).click();
+      await page.getByRole("button", { name: "我的", exact: true }).click();
       await page.getByRole("menuitem", { name: "云盘内显示名", exact: true }).click();
       const input = page.getByRole("textbox", { name: "我在此云盘的显示名", exact: true });
       await input.fill("尚未保存的排练名字");
@@ -59,7 +59,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await attachment.click();
       await expect(page.getByText("连接网络后可打开此附件。", { exact: true })).toBeVisible();
       await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir`);
-      await expect(page.getByRole("button", { name: "我在此云盘", exact: true }).locator(".lucide-user-round")).toBeVisible();
+      await expect(page.getByRole("button", { name: "我的", exact: true }).locator(".lucide-user-round")).toBeVisible();
       await page.screenshot({ path: `${evidence}/offline-attachments.png` });
       holdMetadata = true;
       await context.setOffline(false);

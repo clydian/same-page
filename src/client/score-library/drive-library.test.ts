@@ -479,3 +479,20 @@ it("keeps displayed scores during an identity pause even when directory persiste
   expect(library.getSnapshot().scores[0]?.fileName).toBe("当前内容.pdf");
   expect(library.getSnapshot().access).toMatchObject({ local: true, result: { permissions: { capabilities: noCapabilities() } } });
 });
+
+it("keeps each sort direction through refresh and reopening without losing a saved return position", async () => {
+  const { library } = create(async () => opened());
+  await library.refresh();
+  library.prepareScoreOpen(240);
+  library.setSortDirection("desc");
+  library.setSort("updated");
+  library.setSortDirection("asc");
+  await library.refresh();
+  expect(readLibraryView(owner, choirId)).toMatchObject({ scrollTop: 240, sortDirections: { name: "desc", updated: "asc" } });
+  library.stop();
+  const { library: reopened } = create(async () => opened());
+  await reopened.refresh();
+  expect(reopened.getSnapshot().view).toMatchObject({ sort: "updated", sortDirections: { name: "desc", updated: "asc" } });
+  reopened.setSort("name");
+  expect(reopened.getSnapshot().view.sortDirections?.name).toBe("desc");
+});

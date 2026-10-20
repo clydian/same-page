@@ -187,7 +187,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     // the product. Do not inject a Blob into WebKit's ephemeral IndexedDB.
     const storage = library + "/storage";
     phase = "local storage";
-    await page.getByRole("button", { name: "我在此云盘", exact: true }).tap();
+    await page.getByRole("button", { name: "我的", exact: true }).tap();
     await page.getByRole("menuitem", { name: "本机存储", exact: true }).click();
     await expect(page).toHaveURL(storage);
     const localFile = page.getByRole("link", { name: "本地链路测试", exact: true });

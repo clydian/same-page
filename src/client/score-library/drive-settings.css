@@ -1,0 +1,24 @@
+.drive-settings-page .task-header { max-width: 72rem; margin-inline: auto; }
+.drive-settings-layout { display: grid; gap: 1.5rem; padding-block: 1.25rem 3rem; }
+.drive-settings-nav { display: none; align-self: start; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface); overflow: hidden; }
+.drive-settings-index .drive-settings-nav { display: grid; }
+.drive-setting-link { display: flex; align-items: center; gap: .75rem; min-height: 70px; padding: .75rem 1rem; text-decoration: none; color: var(--ink); }
+.drive-setting-link + .drive-setting-link { border-top: 1px solid var(--line); }
+.drive-setting-link > svg { flex-shrink: 0; color: var(--brand); }
+.drive-setting-link > span { min-width: 0; flex: 1; }
+.drive-setting-link strong, .drive-setting-link small { display: block; overflow-wrap: anywhere; }
+.drive-setting-link strong { font-size: .95rem; font-weight: 600; }
+.drive-setting-link small { margin-top: .15rem; font-size: .8rem; color: var(--muted); }
+.drive-setting-link:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
+.drive-setting-link .drive-setting-chevron { color: var(--muted); }
+.drive-settings-main { min-width: 0; padding: 0; }
+.drive-settings-index .drive-settings-main { display: none; }
+@media (hover: hover) { .drive-setting-link:hover { background: var(--canvas); } }
+@media (min-width: 681px) {
+  .drive-settings-layout { grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr); align-items: start; padding-top: 1.75rem; }
+  .drive-settings-nav { display: grid; }
+  .drive-settings-main, .drive-settings-index .drive-settings-main { display: block; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface); padding: 1.5rem; }
+  .drive-settings-content-title { display: block; margin: 0 0 1rem; font-size: 1.2rem; }
+  .drive-setting-link.current { background: var(--brand-soft); }
+  .drive-setting-link .drive-setting-chevron { display: none; }
+}

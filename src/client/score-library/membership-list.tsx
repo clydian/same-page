@@ -45,7 +45,8 @@ export function MembershipList({
       try {
         const response = await diagnosticFetch("/api/choirs", { signal: controller.signal });
         if (!response.ok) throw new SettingsRequestError(response.status);
-        const { memberships } = await parseDiagnosticResponse(response, choirMembershipsResponseSchema);
+        const responseData = await parseDiagnosticResponse(response, choirMembershipsResponseSchema);
+        const memberships = responseData.memberships.filter(member => !member.choir.isPreviewEntry);
         if (controller.signal.aborted) return;
         memberships.forEach(({ choir }) =>
           rememberDriveSummary(driveCacheOwnerKey(userId, choir.id), choir),
@@ -64,7 +65,7 @@ export function MembershipList({
   const retryNotice = state.userId === userId && (state.kind === "failed" || (state.kind === "loaded" && state.failed)) && !localOnly
     ? <p role="status">暂时无法加载已加入的云盘。<Button onPress={() => setRetry(value => value + 1)}>重试</Button></p> : null;
   if (state.userId !== userId || state.kind !== "loaded") {
-    const drives = local?.userId === userId ? local.drives === null ? null : local.drives.filter(entry => entry.membership && !entry.accessRevoked) : undefined;
+    const drives = local?.userId === userId ? local.drives === null ? null : local.drives.filter(entry => entry.membership && !entry.accessRevoked && !entry.choir.isPreviewEntry) : undefined;
     return <>
       {retryNotice}
       {drives?.length ? <div className="membership-list">{drives.map(entry => <Link className="membership-row" key={entry.choirId} to={`/choirs/${entry.choirId}`} aria-current={entry.choirId === currentChoirId ? "page" : undefined} onClick={onSelect}><span><strong>{entry.choir.name}</strong></span></Link>)}</div>

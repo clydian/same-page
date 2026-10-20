@@ -94,16 +94,16 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
 
     const module = await hold(page, chunk("drive-management-page"));
     const data = await hold(page, "**/api/choirs/*/management");
-    await page.getByRole("button", { name: "打开云盘菜单", exact: true }).click();
-    await page.getByRole("link", { name: "基本信息", exact: true }).click(); await module.wait();
-    const heading = page.getByRole("heading", { name: "基本信息", exact: true });
+    await page.getByRole("link", { name: "云盘设置", exact: true }).click(); await module.wait();
+    const heading = page.getByRole("heading", { name: "云盘设置", exact: true, level: 1 });
     await heading.waitFor();
-    await module.release(); await data.wait();
+    await module.release();
+    await page.getByRole("link", { name: "基本信息", exact: true }).click(); await data.wait();
     await page.getByText("正在读取云盘设置…", { exact: true }).waitFor();
     await data.release(); await page.getByRole("button", { name: "修改云盘名称", exact: true }).waitFor();
     await page.getByRole("button", { name: "返回", exact: true }).click();
-    // The drawer is restored as part of the existing navigation contract.
-    if (!await page.getByRole("link", { name: "共享层", exact: true }).isVisible()) await page.getByRole("button", { name: "打开云盘菜单", exact: true }).click();
+    // Returning restores the settings directory, including when a section loaded lazily.
+    await page.getByRole("link", { name: "共享层", exact: true }).waitFor();
     const layers = await hold(page, "**/api/choirs/*/shared-layers?state=current");
     await page.getByRole("link", { name: "共享层", exact: true }).click(); await layers.wait();
     const selector = page.getByRole("radiogroup", { name: "共享层视图", exact: true });

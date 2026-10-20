@@ -21,6 +21,7 @@ function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean
   if (!failed && drive && pathname === `/choirs/${drive}`) return <DrivePage choirId={drive} />;
   if (!failed && pathname.includes("/scores/") && drive) return <ReaderLoading choirId={drive} />;
   const title = pathname.includes("/scores/") ? "乐谱阅读器"
+    : pathname.endsWith("/settings") ? "云盘设置"
     : pathname.endsWith("/preferences") ? "阅读偏好"
     : pathname.includes("/shared-layers") ? "共享层"
     : pathname.endsWith("/memberships") ? "成员与权限"

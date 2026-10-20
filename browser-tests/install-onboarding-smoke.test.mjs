@@ -52,7 +52,7 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   await expect(launched.getByRole("link", { name: "注册 / 登录，开始记笔记", exact: true })).toBeVisible();
   await expect(launched.locator(".file-row__open")).toHaveCount(1);
   // Explicit home navigation must still stay home.
-  await launched.getByRole("button", { name: "打开云盘菜单" }).click();
+  await launched.getByRole("button", { name: /^切换云盘/ }).click();
   await launched.getByRole("link", { name: "云盘列表", exact: true }).click();
   await expect(launched).toHaveURL(fixture.origin + "/drives");
   // A guest cannot mint a bridge to an unrelated drive.

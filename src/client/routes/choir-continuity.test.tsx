@@ -19,7 +19,7 @@ it.each(['temporary', 'missing-data', 'signed-out', 'new-session'] as const)('ke
     : String(input).endsWith('/settings') ? Response.json({ name: '排练云盘', nameRevision: 1, displayName: '小花', membershipRevision: 1, canEditDriveInfo: false }) : new Response(null, { status: 404 })));
   const tree = () => <MemoryRouter initialEntries={['/choirs/drive']}><LocalIdentityObserver /><Routes><Route path="/choirs/:choirId" element={<ChoirPage />} /></Routes></MemoryRouter>;
   const view = render(tree());
-  const button = await screen.findByRole('button', { name: '我在此云盘' });
+  const button = await screen.findByRole('button', { name: '我的' });
   expect(button).toHaveTextContent('');
   fireEvent.click(button);
   fireEvent.click(await screen.findByRole('menuitem', { name: '云盘内显示名' }));
@@ -45,7 +45,7 @@ it.each(['temporary', 'missing-data', 'signed-out', 'new-session'] as const)('ke
     await waitFor(() => expect(screen.queryByRole('textbox', { name: '我在此云盘的显示名' })).not.toBeInTheDocument());
     state.error = null;
     view.rerender(tree());
-    await screen.findByRole('button', { name: '我在此云盘' });
+    await screen.findByRole('button', { name: '我的' });
     expect(screen.queryByRole('textbox', { name: '我在此云盘的显示名' })).not.toBeInTheDocument();
   }
 });

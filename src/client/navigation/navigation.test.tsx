@@ -62,7 +62,7 @@ it("retries the original internal destination after a failed save", async () => 
   expect(save).toHaveBeenCalledTimes(2);
 });
 
-it("returns from drawer destinations to the open drawer, but deep links start closed", async () => {
+it("returns from explicit drive selection with its transient picker closed", async () => {
   const { DriveHeader } = await import("../score-library/drive-header");
   const router = createMemoryRouter([{ element: <NavigationProvider><Outlet /></NavigationProvider>, children: [
     { path: "/choirs/one", element: <DriveHeader choirId="one" choirName="排练" search="" onSearch={() => {}} onRefresh={() => {}} /> },
@@ -70,11 +70,12 @@ it("returns from drawer destinations to the open drawer, but deep links start cl
   ] }], { initialEntries: ["/choirs/one"] });
   render(<RouterProvider router={router} />);
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "打开云盘菜单" }));
+  fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
   fireEvent.click(await screen.findByRole("link", { name: "云盘列表" }));
   await screen.findByRole("heading", { name: "云盘列表内容" });
   await act(() => router.navigate(-1));
-  expect(await screen.findByRole("dialog", { name: "云盘菜单" })).toBeInTheDocument();
+  await screen.findByRole("button", { name: /^切换云盘/ });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
 it("asks before losing a changed form, keeps failed saves and returns after confirmed save", async () => {
@@ -121,14 +122,14 @@ it("keeps a stable personal icon and known display name while membership is bein
   ] }], { initialEntries: ["/choirs/one"] });
   render(<RouterProvider router={router} />);
   await act(async () => { await Promise.resolve(); });
-  expect(screen.getByRole("button", { name: "我在此云盘" })).toHaveTextContent("");
+  expect(screen.getByRole("button", { name: "我的" })).toHaveTextContent("");
   expect(readResource(key)).toEqual(settings);
-  fireEvent.click(screen.getByRole("button", { name: "我在此云盘" }));
+  fireEvent.click(screen.getByRole("button", { name: "我的" }));
   await screen.findByRole("menuitem", { name: "阅读偏好" });
   expect(screen.getByRole("menuitem", { name: "林老师" })).toBeVisible();
   await act(async () => { confirmMembership(); finishSettings(Response.json({ ...settings, displayName: "小林" })); });
   expect(screen.getByRole("menuitem", { name: "阅读偏好" })).toBeVisible();
   expect(screen.getByRole("menuitem", { name: "云盘内显示名" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "我在此云盘", hidden: true })).toHaveTextContent("")
+  expect(screen.getByRole("button", { name: "我的", hidden: true })).toHaveTextContent("")
   expect(screen.getByRole("menuitem", { name: "小林" })).toBeVisible();
 });

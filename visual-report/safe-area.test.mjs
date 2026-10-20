@@ -49,11 +49,11 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         await page.evaluate(() => window.scrollTo(0, 400));
         assert.ok(await page.evaluate(() => scrollY > 0), 'fixture actually scrolls');
         assert.equal((await control.boundingBox()).y, 32, 'sticky header stops at safe-area edge');
-        await page.getByRole('button', { name: '打开云盘菜单', exact: true }).click();
-        const close = page.getByRole('button', { name: '关闭云盘菜单', exact: true });
+        await page.getByRole('button', { name: /^切换云盘/, exact: true }).click();
+        const close = page.getByRole('button', { name: '关闭云盘选择', exact: true });
         await close.waitFor();
         assert.ok((await close.boundingBox()).y >= 32, 'real drawer header respects top inset');
-        const lastLink = page.locator('.drive-drawer').getByRole('link', { name: '云盘列表', exact: true });
+        const lastLink = page.locator('.drive-switch-content').getByRole('link', { name: '云盘列表', exact: true });
         await lastLink.scrollIntoViewIfNeeded();
         const lastBox = await lastLink.boundingBox();
         assert.ok(lastBox.y + lastBox.height <= 976, 'real drawer footer remains reachable');

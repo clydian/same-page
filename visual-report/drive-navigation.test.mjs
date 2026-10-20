@@ -1,3 +1,4 @@
+import { chooseLibrarySort, refreshLibrary } from "./navigation-actions.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chromium, webkit, expect } from "@playwright/test";
@@ -43,18 +44,18 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await scenario("history-and-destinations", async page => {
       await page.goto("data:text/html,<h1>Previous document</h1>");
       await page.goto(`${app.origin}/choirs/visual-choir`);
-      await page.getByRole("button", { name: "我在此云盘" }).waitFor();
-      await page.getByRole("button", { name: "打开云盘菜单" }).click();
-      await page.getByRole("dialog", { name: "云盘菜单" }).waitFor();
+      await page.getByRole("button", { name: "我的" }).waitFor();
+      await page.getByRole("button", { name: /^切换云盘/ }).click();
+      await page.getByRole("dialog", { name: "切换云盘" }).waitFor();
       await page.evaluate(() => history.back());
-      await expect(page.getByRole("dialog", { name: "云盘菜单" })).toBeHidden();
+      await expect(page.getByRole("dialog", { name: "切换云盘" })).toBeHidden();
       assert.equal(new URL(page.url()).pathname, "/choirs/visual-choir");
       await page.evaluate(() => history.back());
       await page.getByRole("heading", { name: "Previous document" }).waitFor();
       await page.goto(`${app.origin}/choirs/visual-choir`);
-      await page.getByRole("button", { name: "我在此云盘" }).waitFor();
-      await page.getByRole("button", { name: "打开云盘菜单" }).click();
-      await page.getByRole("dialog", { name: "云盘菜单" }).waitFor();
+      await page.getByRole("button", { name: "我的" }).waitFor();
+      await page.getByRole("button", { name: /^切换云盘/ }).click();
+      await page.getByRole("dialog", { name: "切换云盘" }).waitFor();
       await page.getByRole("link", { name: "云盘列表", exact: true }).click();
       await page.getByRole("heading", { name: "我已加入的云盘" }).waitFor();
       assert.equal(new URL(page.url()).pathname, "/drives");
@@ -69,29 +70,29 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     });
     await scenario("personal-menu-scope", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
-      const trigger = page.getByRole("button", { name: "我在此云盘", exact: true });
+      const trigger = page.getByRole("button", { name: "我的", exact: true });
       await trigger.click();
       await expect(page.getByRole("menuitem", { name: "阅读偏好", exact: true })).toBeVisible();
       await expect(page.getByRole("menuitem", { name: "本机存储", exact: true })).toBeVisible();
-      for (const name of ["账户", "使用手册", "关于合谱", "退出登录"]) await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(0);
+      for (const name of ["账户", "使用手册", "问题反馈", "退出登录", "刷新列表"]) await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(trigger).toBeFocused();
-      await page.getByRole("button", { name: "打开云盘菜单" }).click();
+      await page.getByRole("button", { name: /^切换云盘/ }).click();
       for (const name of ["阅读偏好", "本机存储", "使用手册"]) await expect(page.getByRole("link", { name, exact: true })).toHaveCount(0);
-      await page.getByRole("button", { name: "关闭云盘菜单", exact: true }).click();
-      await expect(page.getByRole("button", { name: "打开云盘菜单" })).toBeFocused();
+      await page.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
+      await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
     });
     await scenario("drawer-keyboard-focus", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
-      await page.getByRole("button", { name: "打开云盘菜单" }).waitFor();
-      await expect(page.getByRole("button", { name: "打开云盘菜单" })).toBeEnabled();
-      await page.getByRole("button", { name: "打开云盘菜单" }).focus();
+      await page.getByRole("button", { name: /^切换云盘/ }).waitFor();
+      await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeEnabled();
+      await page.getByRole("button", { name: /^切换云盘/ }).focus();
       await page.keyboard.press("Enter");
       await page.getByRole("dialog").waitFor();
       await page.keyboard.press("Escape");
       // React Aria restores focus on the next animation frame after unmount.
-      await expect(page.getByRole("dialog", { name: "云盘菜单" })).toBeHidden();
-      await expect(page.getByRole("button", { name: "打开云盘菜单" })).toBeFocused();
+      await expect(page.getByRole("dialog", { name: "切换云盘" })).toBeHidden();
+      await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
     });
     await scenario("scroll-upload", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
@@ -207,8 +208,8 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: /2 个附件/ }).click();
       await page.getByText("正在读取附件…").waitFor();
-      await page.getByRole("combobox", { name: "乐谱排序" }).selectOption("updated");
-      await page.getByRole("combobox", { name: "乐谱排序" }).selectOption("name");
+      await chooseLibrarySort(page, "updated");
+      await chooseLibrarySort(page, "name");
       release();
       await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -223,7 +224,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(page.locator(".attachment-list")).toHaveCount(0);
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.scrollY), 0);
-      await page.getByRole("button", { name: "刷新乐谱列表" }).click();
+      await refreshLibrary(page);
       await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.scrollY), 0, "A later refresh must not inherit the completed empty expansion");

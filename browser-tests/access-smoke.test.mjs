@@ -82,7 +82,7 @@ test("expired but uncleaned trash cannot be restored through a real browser sess
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
   const restored = await page.evaluate(async ({ choirId, scoreId }) => (await fetch(`/api/choirs/${choirId}/scores/${scoreId}/restore`, { method: "POST" })).status, { choirId: fixture.choirId, scoreId: fixture.scoreId });
   assert.equal(restored, 404);
-  await page.getByRole("button", { name: "打开云盘菜单", exact: true }).click();
+  await page.getByRole("link", { name: "云盘设置", exact: true }).click();
   await page.getByRole("link", { name: "回收站", exact: true }).click();
   await expect(page.getByRole("heading", { name: "回收站", exact: true })).toBeVisible();
   await page.getByText("没有已删除的乐谱。", { exact: true }).waitFor();

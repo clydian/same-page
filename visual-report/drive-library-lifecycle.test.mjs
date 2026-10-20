@@ -1,3 +1,4 @@
+import { chooseLibrarySort } from "./navigation-actions.mjs";
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -74,7 +75,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.evaluate(() => window.scrollTo(0, 900));
     const currentTop = await page.evaluate(() => window.scrollY);
     release(); waiting = null;
-    await expect(page.getByRole("button", { name: "刷新乐谱列表" })).not.toHaveAttribute("aria-disabled", "true");
+    await expect(page.getByRole("region", { name: "乐谱", exact: true })).toHaveAttribute("aria-busy", "false");
     await expect(page.getByRole("button", { name: "上传 PDF", exact: true })).toBeAttached();
     // WebKit may adjust its scroll anchor by a CSS pixel as management controls return.
     await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - currentTop)).toBeLessThanOrEqual(2);
@@ -89,7 +90,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     });
     await expect.poll(() => requests).toBe(before + 1);
     await page.getByRole("searchbox", { name: /搜索.*中的乐谱/ }).fill("040");
-    await page.getByRole("combobox", { name: "乐谱排序" }).selectOption("updated");
+    await chooseLibrarySort(page, "updated");
     unavailable = true;
     release(); waiting = null;
     await expect(page.getByText(/暂时无法更新乐谱列表，当前内容已保留/)).toBeVisible();
@@ -99,7 +100,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("button", { name: "重试", exact: true }).click();
     await expect(page.getByText(/暂时无法更新乐谱列表，当前内容已保留/)).toHaveCount(0);
     await expect(page.getByRole("searchbox", { name: /搜索.*中的乐谱/ })).toHaveValue("040");
-    await expect(page.getByRole("combobox", { name: "乐谱排序" })).toHaveValue("updated");
+    await expect(page.getByRole("button", { name: "按最近更新排序，最新在前" })).toBeVisible();
     await page.screenshot({ path: path.join(evidence, `${name}-refreshed.png`) });
     await writeFile(path.join(evidence, `${name}-lifecycle.json`), JSON.stringify({
       engine: name, requests, savedTop, currentTop,

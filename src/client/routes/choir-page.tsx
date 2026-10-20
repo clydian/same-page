@@ -17,7 +17,7 @@ import { rememberLastDrive, forgetLastDrive } from "../score-library/last-drive"
 import { useApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
 import type { ApplicationIdentity } from "../auth/application-identity";
-import { ChevronDown, FileMusic } from "lucide-react";
+import { FileMusic } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   Button,
@@ -57,7 +57,8 @@ import { UploadDialog } from "../score-library/upload-dialog";
 import { DrivePage } from "../score-library/drive-page";
 import { DriveHeader } from "../score-library/drive-header";
 import { UploadFab } from "../score-library/upload-fab";
-import type { LibrarySort } from "../score-library/library-view-state";
+import type { LibrarySort, LibrarySortDirection } from "../score-library/library-view-state";
+import { PullToRefresh } from "../score-library/pull-to-refresh";
 import { OfflineScoreControl } from "../score-library/offline-score-control";
 
 const AttachmentDialog = lazy(() => import("../score-library/attachments/attachment-dialog"));
@@ -81,7 +82,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const userId = identity.localUserId ?? undefined;
   const online = useNetworkStatus();
   const { library, snapshot } = useDriveLibrary(cacheOwner, choirId, Boolean(identity.authenticatedUserId), !identity.restoring && (Boolean(userId) || identity.onlineState !== "checking"), presentationSessionId);
-  const { access, view: { search, sort }, scores: visibleScores, refreshMessage: searchMessage, joining: busy } = snapshot;
+  const { access, view: { search }, scores: visibleScores, refreshMessage: searchMessage, joining: busy } = snapshot;
   const [openAdmissionDisplayName, setOpenAdmissionDisplayName] = useState("");
   const [displayName, setDisplayName] = useState<string>();
   const [settingsField, setSettingsField] = useState<"display-name" | null>(null);
@@ -134,6 +135,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const updateSort = (value: LibrarySort) => {
     setAttachmentReveal(undefined);
     library.setSort(value);
+  };
+
+  const updateDirection = (value: LibrarySortDirection) => {
+    setAttachmentReveal(undefined);
+    library.setSortDirection(value);
   };
 
   const attachmentDialog = attachmentSelection && attachmentSessionCurrent && (access.kind === "loading" || (access.kind === "opened" && !access.retained)) && <Suspense fallback={<AttachmentLoading selection={attachmentSelection} onClose={() => setAttachmentSelection(null)} />}><AttachmentDialog
@@ -218,7 +224,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   if (access.kind === "loading") {
     return (
-      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} />} />{attachmentDialog}</>
+      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} localOnly={!identity.authenticatedUserId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} />} />{attachmentDialog}</>
     );
   }
 
@@ -238,15 +244,8 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const storageRatio = result.storage.usedBytes / result.storage.limitBytes;
 
   return (
-    <><DrivePage choirId={choirId} header={<DriveHeader refreshing={identity.session.isRefetching || (snapshot.reading.request === "pending" && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out"))} displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} localOnly={Boolean(access.local)} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()}
-        management={() => <section className="drive-drawer-management">
-          <h3>云盘管理</h3>
-          <nav aria-label="云盘管理菜单">{[
-            ["settings/info", "基本信息"], ["memberships", "成员与权限"], ["shared-layers", "共享层"], ["settings/admission", "加入方式"], ["settings/trash", "回收站"],
-          ].map(([path, label]) => access.local ? <span key={path} aria-disabled="true">{label}</span> : <Link key={path} to={`/choirs/${choirId}/${path}`}>{label}</Link>)}</nav>
-          {access.local && <p role="status">{!online ? "当前离线，联网后可使用管理操作。" : identity.onlineState === "signed-out" ? "重新登录后可使用管理操作。" : snapshot.reading.request === "pending" ? null : "访问权限尚未确认，请重试连接。"}</p>}
-        </section>}
-      />}>
+    <><DrivePage choirId={choirId} header={<DriveHeader displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} email={session.data?.user.email} localOnly={Boolean(access.local) || !online} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
+      <PullToRefresh key={`${cacheOwner}:${choirId}`} onRefresh={refresh} disabled={!online}>
       <main className="page-shell file-library">
         {access.retained && <p role="status">已无法访问此云盘，以下为本机保留内容</p>}
         {(!online || (Boolean(userId) && identity.onlineState === "signed-out") || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || searchMessage) && <div className="drive-connection-notice">
@@ -257,27 +256,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
           !access.local && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
           <DrivePreparation choirId={choirId} accountReady={Boolean(identity.authenticatedUserId) && access.isMember} />}
-        <section className="library-workspace" aria-labelledby="library-content-title">
-          <div className="library-toolbar">
-            <div className="library-controls">
-              <div className="library-title"><h1 id="library-content-title">{choir.name}</h1>{search.trim() && <p>找到 {visibleScores.length} 份乐谱</p>}</div>
-              <label className="library-sort-label">
-                排序
-                <span className="library-sort-control">
-                  <select
-                    aria-label="乐谱排序"
-                    value={sort}
-                    onChange={(event) => updateSort(event.target.value as LibrarySort)}
-                  >
-                    <option value="name">名称</option>
-                    <option value="updated">最近更新</option>
-                    <option value="opened">本机最近打开</option>
-                  </select>
-                  <ChevronDown aria-hidden="true" size={16} />
-                </span>
-              </label>
-            </div>
-          </div>
+        <section className="library-workspace" aria-label="乐谱" aria-busy={snapshot.reading.request === "pending"}>
           {search.trim() && <p className="visually-hidden" role="status">找到 {visibleScores.length} 份乐谱{localFilesOnly ? "，仅搜索本机记录" : ""}</p>}
 
           {can("uploadFiles") && (storageRatio >= 0.8 || quotaBlocked) ? (
@@ -350,7 +329,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           )}
         </section>
       </main>
-
+      </PullToRefresh>
 
       {exportScore && <Suspense fallback={<LibraryTaskLoading title="分享 PDF" size="tall" onClose={() => setExportScore(null)} />}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
       {settingsField && userId && !access.retained && <DriveSettingsDialog key={`${choirId}:${userId}:${presentationSessionId}:${settingsField}`} choirId={choirId} userId={userId!} field={settingsField} onClose={() => setSettingsField(null)} onSaved={async value => { setDisplayName(value); setMessage(null); }} />}

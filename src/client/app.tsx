@@ -59,6 +59,7 @@ export function AppRoutes() {
             <Route path="/choirs/:choirId/me" element={<RouteContent><LeaveDrivePage /></RouteContent>} />
             <Route path="/install" element={<RouteContent><InstallPage /></RouteContent>} />
             <Route path="/help" element={<RouteContent><HelpPage /></RouteContent>} />
+            <Route path="/choirs/:choirId/settings" element={<RouteContent><DriveManagementPage section="info" index /></RouteContent>} />
             {(["info", "admission", "trash"] as const).map(section => <Route key={section} path={`/choirs/:choirId/settings/${section}`} element={<RouteContent><DriveManagementPage section={section} /></RouteContent>} />)}
             <Route path="/about" element={<RouteContent><AboutPage /></RouteContent>} />
             <Route path="/user" element={<RouteContent><PersonalSettingsPage /></RouteContent>} />

@@ -31,7 +31,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         await route.fulfill(fixture.resolve({ pathname, method: request.method(), identity: "admin", cookie: "" }));
       });
       await page.goto(`${app.origin}/choirs/visual-choir`);
-      await page.getByRole("button", { name: "打开云盘菜单" }).click();
+      await page.getByRole("link", { name: "云盘设置" }).click();
       await page.getByRole("link", { name: "基本信息", exact: true }).waitFor();
       for (let i = 0; i < 2; i++) {
         await page.getByRole("link", { name: "基本信息", exact: true }).click();
@@ -49,13 +49,15 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       assert.equal(counts["/api/choirs/visual-choir/settings"], 1);
       assert.equal(counts["/api/choirs/visual-choir/usage"], 1, JSON.stringify(usageRequests));
       assert.equal(counts["/api/choirs/visual-choir/memberships"] ?? 0, 0);
+      await page.getByRole("button", { name: "返回", exact: true }).click();
+      await page.getByRole("button", { name: /^按.*排序/ }).waitFor();
       await page.clock.setFixedTime(new Date("2026-09-10T00:01:01Z"));
       await page.evaluate(() => { window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("online")); });
       await expect.poll(() => counts["/api/choirs/visual-choir/bootstrap"]).toBe(2);
-      await expect(page.getByRole("link", { name: "基本信息", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "云盘设置", exact: true })).toBeVisible();
       await expect(page.getByText("正在确认访问权限，已有内容可以继续浏览。")).toHaveCount(0);
       releaseBootstrap();
-      await expect(page.getByRole("button", { name: "刷新乐谱列表" })).not.toHaveAttribute("aria-disabled", "true");
+      await expect(page.getByRole("button", { name: /^按.*排序/ })).toBeEnabled();
       await page.screenshot({ path: `artifacts/verification/navigation-freshness/${name}/warm-return.png` });
     });
   });
