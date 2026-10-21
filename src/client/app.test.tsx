@@ -88,6 +88,35 @@ describe("AppRoutes", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([
+    ["/missing?from=link#section", false],
+    ["/choirs/choir-1/missing", true],
+    ["/choirs/choir-1/scores/score-1/missing", false],
+    ["/admin/missing", true],
+  ])("recovers from unknown route %s (signed in: %s)", async (path, signedIn) => {
+    if (signedIn) {
+      vi.mocked(authClient.useSession).mockReturnValue({
+        data: { user: { id: "user-1", email: "singer@example.test" } },
+        isPending: false,
+      } as ReturnType<typeof authClient.useSession>);
+    }
+    // An earlier unknown address must not become the recovery destination.
+    const router = createMemoryRouter([{ path: "*", element: <AppRoutes /> }], {
+      initialEntries: ["/another-missing-page", path],
+      initialIndex: 1,
+    });
+    render(<RouterProvider router={router} />);
+
+    expect(screen.getByRole("heading", { name: "页面不存在" })).toBeVisible();
+    const recovery = within(screen.getByRole("main")).getByRole("link", { name: "返回我的云盘" });
+    expect(recovery).toHaveAttribute("href", "/drives");
+    fireEvent.click(recovery);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/drives"));
+    expect(await screen.findByRole("heading", { name: signedIn ? "我已加入的云盘" : "Harmony begins on the Same Page" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "页面不存在" })).not.toBeInTheDocument();
+  });
+
   it("opens with the cloud-drive entry and keeps invitation admission focused", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>

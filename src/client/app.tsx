@@ -13,6 +13,7 @@ import { markRouteTransitionMilestones } from "./performance/loading-performance
 import { LocalIdentityObserver } from "./platform/local-identity-observer";
 import { ReaderPage } from "./reader/reader-runtime";
 import { HomePage } from "./routes/home-page";
+import { NotFoundPage } from "./routes/not-found-page";
 
 const AdminPage = lazy(() => import('./admin/admin-page'));
 const InstallPage = lazy(() => import("./install/install-page"));
@@ -92,6 +93,7 @@ export function AppRoutes() {
             path="/choirs/:choirId/scores/:scoreId"
             element={<RouteContent><ReaderPage /></RouteContent>}
           />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       <PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider>
 

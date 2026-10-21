@@ -1,0 +1,193 @@
+name: Controlled release 8909b33
+
+# One-off recovery entry. No branch/PR/push trigger and no arbitrary source input.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Confirm the full approved source SHA (superseded releases are rejected)
+        required: true
+        type: string
+
+permissions: {}
+
+env:
+  RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+
+jobs:
+  validate:
+    if: github.repository == 'clydian/same-page' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact_id: ${{ steps.transfer.outputs.artifact-id }}
+    steps:
+      - name: Checkout trusted controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Validate approved source CI and artifact
+        run: node scripts/controlled-release.mjs validate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Download the approved original ZIP
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: '12247185579'
+          repository: clydian/same-page
+          run-id: '39384186793'
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/release-incoming
+          skip-decompress: true
+          digest-mismatch: error
+
+      - name: Verify original bytes and sealed release
+        run: |
+          node scripts/controlled-release.mjs stage "$RUNNER_TEMP/release-incoming" "$RUNNER_TEMP/release-handoff"
+          node scripts/controlled-release.mjs extract "$RUNNER_TEMP/release-handoff/source.zip" "$RUNNER_TEMP/release-check"
+
+      - name: Transfer original ZIP to this run
+        id: transfer
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: approved-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-handoff/source.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  production:
+    needs: validate
+    if: github.repository == 'clydian/same-page' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: same-page-production
+      cancel-in-progress: false
+    environment: production
+    # Identical to the existing production job. No cross-run token here.
+    permissions:
+      contents: read
+      deployments: write
+    defaults:
+      run:
+        working-directory: release
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout trusted controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: control
+          persist-credentials: false
+
+      - name: Checkout approved source with release history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 8909b335284dd4affebc4ce26bccf76f2439f6ef
+          fetch-depth: 0
+          path: release
+          persist-credentials: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: release/package-lock.json
+
+      - name: Download this run's validated ZIP
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.validate.outputs.artifact_id }}
+          path: handoff
+          digest-mismatch: error
+
+      - name: Recheck pinned ZIP and release manifest before admission
+        run: node "$GITHUB_WORKSPACE/control/scripts/controlled-release.mjs" extract "$GITHUB_WORKSPACE/handoff/source.zip" .
+
+      - name: Admit approved release under production lock
+        id: admission
+        run: node "$GITHUB_WORKSPACE/control/scripts/controlled-release.mjs" admit .
+
+      - name: Install approved locked dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Recheck sealed bytes after installation
+        run: node "$GITHUB_WORKSPACE/control/scripts/controlled-release.mjs" verify .
+
+      - name: Record production recovery point and aggregate state
+        run: |
+          npx wrangler d1 time-travel info same-page-production --json
+          node scripts/verify-lifecycle-migration.mjs before "$RUNNER_TEMP/same-page-before-migration.json"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Detach retired image queue consumer
+        run: node scripts/retire-image-consumer.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Apply production database migrations
+        run: |
+          node scripts/verify-auth-schema.mjs before --remote
+          node scripts/prepare-drive-owners.mjs --remote
+          npx wrangler d1 migrations apply same-page-production --remote
+          node scripts/verify-auth-schema.mjs after --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Backfill production score filenames
+        run: node scripts/backfill-score-file-names.mjs --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify production score schema
+        run: >-
+          npx wrangler d1 execute same-page-production --remote
+          --command "SELECT scores.file_name, scores.file_name_key,
+          scores.trashed_at, scores.trash_expires_at,
+          scores.version_revision, scores.last_version_number,
+          annotation_layers.default_slot
+          FROM scores LEFT JOIN annotation_layers ON annotation_layers.score_id = scores.id
+          LIMIT 0"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify production lifecycle schema
+        run: node scripts/verify-lifecycle-migration.mjs after "$RUNNER_TEMP/same-page-before-migration.json"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Worker and assets
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: release
+          command: deploy --config dist/same_page/wrangler.json
+
+      - name: Verify production deployment
+        run: npm run verify:deployment -- https://samepage.clyapps.com "8909b335284dd4affebc4ce26bccf76f2439f6ef"
+
+      - name: Record release result
+        if: always() && steps.admission.outputs.deployment_id != ''
+        run: node "$GITHUB_WORKSPACE/control/scripts/controlled-release.mjs" status
+        env:
+          DEPLOYMENT_ID: ${{ steps.admission.outputs.deployment_id }}
+          RELEASE_STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
