@@ -395,6 +395,9 @@ it("keeps a single exit while the PDF never settles", async () => {
   });
 
   it("starts the confirmed cloud PDF when local verification stalls", async () => {
+    // Establish the confirmed version before the local-priority deadline. A cold
+    // bootstrap may legitimately start the unversioned cloud URL first.
+    rememberReaderScore("user-1", scoreSummary);
     vi.mocked(findVerifiedOfflineScore).mockReturnValueOnce(
       new Promise(() => {}) as never,
     );

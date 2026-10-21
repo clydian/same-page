@@ -20,6 +20,7 @@ it("disposal makes a delayed cloud result and a late PDF incapable of publishing
   session.subscribe(observer);
   session.open();
   await vi.waitFor(() => expect(loadPdfDocument).toHaveBeenCalled());
+  await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
   session.dispose();
   const last = session.getSnapshot();
   const count = observer.mock.calls.length;

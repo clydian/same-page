@@ -244,3 +244,7 @@ MPL 源码分发和回归边界见 [制品说明](chorus-player-0.1.19-samepage.
 ## 谱表时点记号与装饰音播放：player 0.1.19-samepage.10 / native samepage.11
 
 修复实际原谱的谱号/调号时点、八度线谱表范围、波音音程、和弦跳音和双音组震音子集；完整来源、精确制品身份及适用边界见[制品说明](chorus-player-0.1.19-samepage.10.md)。旧包和公开源码下载保留。
+
+## 原谱跨谱表弧、连音显示、无符干与单组震音：player 0.1.19-samepage.11 / native samepage.12
+
+修复实际谱例暴露的四项有限显示/播放问题，保留旧源码下载及用户数据；精确制品身份、验证和未支持范围见[制品说明](chorus-player-0.1.19-samepage.11.md)。
