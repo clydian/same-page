@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { chromium, webkit, expect } from '@playwright/test';
 import { zipSync, strToU8 } from 'fflate';
 import { startStorageFixture } from './storage-fixture.mjs';
-import { polyphonicMusicXmlFixture } from './musicxml-fixture.mjs';
+import { finiteBracketDirections, polyphonicMusicXmlFixture } from './musicxml-fixture.mjs';
 for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
  test(`MusicXML preparation Worker preserves its own response protocol (${engine})`, {timeout:60000}, async t => {
   const names = (await readdir('dist/client/assets')).filter(name => /^prepare\.worker-.*\.js$/.test(name));
@@ -21,13 +21,14 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
    worker.onerror = event => {worker.terminate();reject(new Error(event.message));};
    worker.onmessage = event => {
     worker.terminate();
-    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,wedges:event.data.prepared?.wedgeEventsByPart,words:event.data.prepared?.wordEventsByPart,creators:event.data.prepared?.creatorCredits,tempos:event.data.prepared?.tempoMeasures,glyphCompleteness:event.data.prepared?.dynamicGlyphsCompleteByPart,dynamics:event.data.prepared?.dynamicEventsByPart});
+    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,bracketTags:(new TextDecoder().decode(event.data.prepared?.bytes??new Uint8Array()).match(/<bracket\b/g)??[]).length,wedges:event.data.prepared?.wedgeEventsByPart,words:event.data.prepared?.wordEventsByPart,creators:event.data.prepared?.creatorCredits,tempos:event.data.prepared?.tempoMeasures,glyphCompleteness:event.data.prepared?.dynamicGlyphsCompleteByPart,dynamics:event.data.prepared?.dynamicEventsByPart});
    };
    const bytes = new TextEncoder().encode(xml);
    worker.postMessage(bytes,[bytes.buffer]);
-  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><identification><creator type="composer">Worker Composer</creator><creator type="arranger">Worker Arranger</creator></identification><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction><direction placement="above"><direction-type><dynamics><pp/></dynamics></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="diminuendo" number="1"/></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="stop" number="1"/></direction-type><offset>1.5</offset></direction><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes><direction><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><beat-unit>whole</beat-unit></metronome></direction-type></direction><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>'});
+  }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><identification><creator type="composer">Worker Composer</creator><creator type="arranger">Worker Arranger</creator></identification><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>'+finiteBracketDirections()+'<direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction><direction placement="above"><direction-type><dynamics><pp/></dynamics></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="diminuendo" number="1"/></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="stop" number="1"/></direction-type><offset>1.5</offset></direction><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes><direction><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><beat-unit>whole</beat-unit></metronome></direction-type></direction><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>'});
   assert.deepEqual(reply.keys,['prepared'],'no unrelated renderer/synth Worker initialization message may arrive first');
   assert.ok(reply.byteLength>0);
+  assert.equal(reply.bracketTags,6,'exact built prepare Worker retains all finite graphic endpoints');
   assert.deepEqual(reply.glyphCompleteness,[true]);
   assert.deepEqual(reply.dynamics[0].map(event=>[event.quarter,event.value,event.placement]),[[0.5,"pp","above"]]);
   assert.deepEqual(reply.words[0].map(word=>[word.text,word.fontFamilies]),[['SOLO or Div.',['serif']],['gently',['serif']]]);
@@ -43,6 +44,24 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   assert.equal((await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}})).status(),200);
   await context.addInitScript(() => {
     window.__audioAnalysers = [];
+    window.__sourceBracketTransfers = [];
+    const post = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function(message, ...args) {
+      const seen = new WeakSet(), counts = [];
+      function walk(value) {
+        if (value == null) return;
+        if (typeof value === 'string') { if (value.startsWith('{') || value.startsWith('[')) try { walk(JSON.parse(value)); } catch {} return; }
+        if (typeof value !== 'object' || seen.has(value) || ArrayBuffer.isView(value) || value instanceof ArrayBuffer) return;
+        seen.add(value);
+        for (const [key, child] of value instanceof Map ? value.entries() : Object.entries(value)) {
+          if (String(key).toLowerCase() === 'sourcebrackets' && Array.isArray(child)) counts.push(child.length);
+          walk(child);
+        }
+      }
+      walk(message);
+      if (counts.length) window.__sourceBracketTransfers.push(counts.reduce((sum,count)=>sum+count,0));
+      return post.call(this,message,...args);
+    };
     const connect = AudioNode.prototype.connect;
     AudioNode.prototype.connect = function(destination, ...args) {
       if (destination instanceof AudioDestinationNode) {
@@ -62,7 +81,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByRole('button',{name:'本地链路测试 更多操作',exact:true}).click();
   await page.getByRole('menuitem',{name:'添加附件',exact:true}).click();
   await page.getByRole('button',{name:'可播放乐谱',exact:true}).click();
-  const practiceXml = new TextDecoder().decode(polyphonicMusicXmlFixture()).replace('</attributes>', '</attributes><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction>');
+  const practiceXml = new TextDecoder().decode(polyphonicMusicXmlFixture()).replace('</attributes>', '</attributes>'+finiteBracketDirections()+'<direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction>');
   const bytes=zipSync({'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>'),'score.musicxml':strToU8(practiceXml)});
   await page.getByLabel('选择附件文件').setInputFiles({name:'分声部练习.mxl',mimeType:'application/vnd.recordare.musicxml',buffer:Buffer.from(bytes)});
   await page.getByRole('button',{name:'上传',exact:true}).click();
@@ -93,6 +112,12 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   assert.deepEqual(wordBoxes.map(word=>word.text).toSorted(),['SOLO or Div.','gently']);
   assert.ok(wordBoxes.every(word=>word.font==='serif'));
   assert.ok(Math.abs(wordBoxes[0].y-wordBoxes[1].y)>0,'independent same-time instructions must occupy separate lines');
+  assert.ok(await page.evaluate(()=>window.__sourceBracketTransfers.includes(3)), 'actual built renderer Worker receives all three finite source graphics');
+  await expect.poll(() => page.locator('.practice-notation .at-surface svg path').evaluateAll(paths=>paths.some(path=>{
+    const data=path.getAttribute('d')??'';
+    const y=[...data.matchAll(/ L[^,]+,([-\d.]+)/g)].map(match=>Number(match[1]));
+    return (data.match(/ M/g)?.length??0)===1 && y.length>=3 && (y[1]-y[0])*(y[2]-y[1])<0;
+  }))).toBe(true);
   const surface=await notation.elementHandle();
   assert.equal(await page.locator('.at-surface svg').evaluateAll(svgs => svgs.flatMap(svg => [...svg.querySelectorAll('path,text')]).some(element => /^rgba\(0, 0, 0, 0\./.test(getComputedStyle(element).fill))), false, 'secondary-voice notation stays opaque');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();

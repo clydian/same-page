@@ -9,3 +9,9 @@ export function polyphonicMusicXmlFixture(measureCount = 8) {
  const start = xml.indexOf('<part id="P1">');
  return Buffer.from(xml.slice(0, start) + xml.slice(start).replaceAll('</type></note>', '</type><voice>1</voice></note><backup><duration>4</duration></backup><note><pitch><step>G</step><octave>3</octave></pitch><duration>4</duration><type>whole</type><voice>2</voice></note>'));
 }
+
+
+// Owned modern graphic directions; no ornament or playback interpretation.
+export function finiteBracketDirections() {
+ return '<direction placement="above"><direction-type><bracket type="start" number="1" line-type="solid" line-end="down" default-y="10" end-length="65"/></direction-type><offset>0</offset></direction><direction placement="above"><direction-type><bracket type="stop" number="1" line-type="solid" line-end="down" default-y="10" end-length="65"/></direction-type><offset>2</offset></direction><direction placement="above"><direction-type><bracket type="start" number="2" line-type="solid" line-end="none" default-y="-55"/></direction-type><offset>0</offset></direction><direction placement="above"><direction-type><bracket type="stop" number="2" line-type="solid" line-end="none" default-y="-55"/></direction-type><offset>2</offset></direction><direction placement="above"><direction-type><bracket type="start" number="3" line-type="wavy" line-end="none" default-y="-20"/></direction-type><offset>2</offset></direction><direction placement="above"><direction-type><bracket type="stop" number="3" line-type="wavy" line-end="none" default-y="-20"/></direction-type><offset>3</offset></direction>';
+}
