@@ -8,6 +8,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { chromium, webkit } from "@playwright/test";
+import { observeInitialUpdateCheck, waitForInitialUpdateCheck } from "./pwa-update-readiness.mjs";
 
 const repositoryRoot = process.cwd();
 const temporaryRoot = await mkdtemp(path.join(tmpdir(), "same-page-pwa-update-"));
@@ -54,6 +55,7 @@ try {
 
   browser = await webkit.launch({ headless: true });
   const context = await browser.newContext({ serviceWorkers: "allow" });
+  await context.addInitScript(observeInitialUpdateCheck);
   const page = await context.newPage();
 
   await page.goto(origin, { waitUntil: "domcontentloaded" });
@@ -72,6 +74,9 @@ try {
   await editingWindow.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await page.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "检查更新", exact: true }).waitFor();
+  // A controller may precede this window's application registration callback.
+  // Finish both automatic checks against A before offering/gating candidate B.
+  await Promise.all([waitForInitialUpdateCheck(page, "about window"), waitForInitialUpdateCheck(editingWindow, "login window")]);
   activeBuild = builds.second;
   // Hold a required precache response to exercise the actual installing worker.
   preparationGate = new Promise(resolve => { releasePreparation = resolve; });
