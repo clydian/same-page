@@ -6,7 +6,7 @@ import { useUpdateStatus } from "../updates/update-status";
 import { buildId } from "../../shared/build";
 import { UpdateController } from "../updates/update-controller";
 import { ShellRecovery } from "../updates/shell-recovery";
-import { requestWorker } from "../updates/worker-request";
+import { requestWorker, watchControllerChanges } from "../updates/worker-request";
 import { rememberUpdateFailure } from "../updates/update-diagnostics";
 
 export function ReloadPrompt() {
@@ -31,6 +31,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     onRegisterError: () => setRegistrationError(true),
   });
   useLayoutEffect(() => setUpdateRoute(pathname), [pathname]);
+  useEffect(() => watchControllerChanges(onNeedReload), [onNeedReload]);
   useEffect(() => {
     const controller = new UpdateController(registration, registrationError, retryRegistration, value => { requested.current = value; });
     controller.start();

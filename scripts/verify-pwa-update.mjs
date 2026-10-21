@@ -163,6 +163,32 @@ try {
     "a prepared update must apply automatically after all old windows exit");
   await restarted.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await automatic.close();
+
+  // Apply in the installed statechange, before Workbox's delayed waiting
+  // notification can attach its controlling listener. The native event must
+  // still finish the guarded reload.
+  activeBuild = builds.first;
+  const fastContext = await browser.newContext({ serviceWorkers: "allow" });
+  const fast = await fastContext.newPage();
+  await fast.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
+  await waitForPage(fast, async () => (await navigator.serviceWorker.getRegistration())?.active?.state === "activated");
+  await fast.reload({ waitUntil: "domcontentloaded" });
+  await fast.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await fast.getByRole("button", { name: "检查更新", exact: true }).waitFor();
+  await fast.evaluate(async () => {
+    const registration = await navigator.serviceWorker.getRegistration();
+    registration.addEventListener("updatefound", () => {
+      const worker = registration.installing;
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "installed") window.dispatchEvent(new Event("same-page-apply-update"));
+      });
+    });
+  });
+  activeBuild = builds.second;
+  await fast.getByRole("button", { name: "检查更新", exact: true }).click();
+  await fast.waitForFunction(expected => document.documentElement.dataset.buildId === expected, buildIds.second);
+  await fastContext.close();
+  process.stdout.write("Verified immediate manual handover before library waiting notification\n");
   process.stdout.write("Verified automatic restart updates and optional live-window handover\n");
 } finally {
   releasePreparation?.();
