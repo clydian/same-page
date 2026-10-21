@@ -1,8 +1,10 @@
-import { AttachmentShell, AttachmentLoading } from "./attachment-shell";
+import { AttachmentModule } from "./attachment-module";
+import { AttachmentShell } from "./attachment-shell";
+import MarkdownAttachment from "./markdown-attachment";
 import { LoadingStatus } from "../../components/loading-status";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
-import { ChevronRight, FileAudio, FileText, Link as LinkIcon, Pencil, Upload } from "lucide-react";
+import { FileAudio, Pencil, Upload } from "lucide-react";
 import { attachmentAccept, attachmentFormat, attachmentNameSchema, attachmentUrlSchema, type ScoreAttachment } from "../../../shared/attachments";
 import { scoreDisplayName } from "../../../shared/score-display-name";
 import { UploadProgressView } from "../upload-progress-view";
@@ -12,45 +14,20 @@ import { attachmentFileUrl, attachmentMessage } from "./api";
 import { useAttachmentMutation } from "./use-attachment-mutation";
 import { attachmentActionTitle } from "./attachment-presentation";
 
-const MarkdownAttachment = lazy(() => import("./markdown-attachment"));
-const PdfPreview = lazy(() => import("./pdf-preview"));
+const loadPdf = () => import("./pdf-preview");
 
 
-type Props = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; writable: boolean; onClose: () => void; onChanged: () => Promise<void> };
+export type FileKind = "audio" | "pdf" | "markdown" | "musicxml";
+export type AttachmentDialogProps = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; writable: boolean; onClose: () => void; onChanged: () => Promise<void>; uploadKind?: FileKind; onBack?: () => void; onCompose?: () => void };
+type Props = AttachmentDialogProps;
 export default function AttachmentDialog(props: Props) {
   const { selection, choirId, onClose } = props;
   const { attachment, score, action } = selection;
-  if (action === "add") return <CreateAttachment {...props} />;
-  if (action === "markdown" || (action === "open" && attachment?.kind === "markdown")) return <Suspense fallback={<AttachmentLoading selection={selection} onClose={onClose} />}><MarkdownAttachment {...props} /></Suspense>;
+  if (action === "markdown" || (action === "open" && attachment?.kind === "markdown")) return <MarkdownAttachment {...props} />;
   if (action !== "open" || !attachment) return <AttachmentForm {...props} />;
   return <AttachmentShell title={attachment.name} subtitle={scoreDisplayName(score.fileName)} wide={attachment.kind === "pdf"} onClose={onClose}>
     {attachment.kind === "audio" ? <AudioPreview attachment={attachment} choirId={choirId} />
-      : <Suspense fallback={<LoadingStatus className="attachment-pdf">正在打开 PDF…</LoadingStatus>}><PdfPreview url={attachmentFileUrl(choirId, attachment)} /></Suspense>}
-  </AttachmentShell>;
-}
-
-type FileKind = "audio" | "pdf" | "markdown" | "musicxml";
-const attachmentChoices = [
-  { kind: "musicxml", title: "可播放乐谱", detail: ".musicxml · .xml · .mxl", Icon: FileAudio },
-  { kind: "audio", title: "音频", detail: attachmentAccept("audio").split(",").join(" · "), Icon: FileAudio },
-  { kind: "pdf", title: "PDF", detail: ".pdf", Icon: FileText },
-  { kind: "markdown", title: "文档（仅 .md）", detail: "上传已有文档，或直接编写", Icon: FileText },
-  { kind: "link", title: "链接", detail: "网页、视频等参考网址", Icon: LinkIcon },
-] as const;
-
-function CreateAttachment(props: Props) {
-  const [kind, setKind] = useState<FileKind | "link" | null>(null);
-  const [composing, setComposing] = useState(false);
-  const onBack = () => { setKind(null); setComposing(false); };
-  if (composing) return <Suspense fallback={<AttachmentLoading selection={{ score: props.selection.score, action: "markdown" }} onClose={props.onClose} />}>
-    <MarkdownAttachment {...props} selection={{ score: props.selection.score, action: "markdown" }} onBack={onBack} />
-  </Suspense>;
-  if (kind) return <AttachmentForm {...props} selection={{ score: props.selection.score, action: kind === "link" ? "link" : "upload" }}
-    uploadKind={kind === "link" ? undefined : kind} onBack={onBack} onCompose={() => setComposing(true)} />;
-  return <AttachmentShell picker title="添加附件" subtitle={scoreDisplayName(props.selection.score.fileName)} onClose={props.onClose}>
-    <div className="attachment-type-list">{attachmentChoices.map(({ kind, title, detail, Icon }) => <Button key={kind} className="attachment-type-option" aria-label={title} onPress={() => setKind(kind)}>
-      <Icon size={22} strokeWidth={1.5} aria-hidden="true" /><span><strong>{title}</strong><small>{detail}</small></span><ChevronRight size={17} aria-hidden="true" />
-    </Button>)}</div>
+      : <AttachmentModule load={loadPdf} props={{ url: attachmentFileUrl(choirId, attachment) }} fallback={<LoadingStatus className="attachment-pdf">正在打开 PDF…</LoadingStatus>} />}
   </AttachmentShell>;
 }
 

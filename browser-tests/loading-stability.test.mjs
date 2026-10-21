@@ -62,20 +62,33 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
       await page.getByRole("button", { name: "本地链路测试 更多操作", exact: true }).click();
       await page.getByRole("menuitem", { name, exact: true }).click();
     };
-    for (const [name, module] of [["添加附件", "attachment-dialog"], ["替换 PDF", "pdf-version-dialog"], ["分享 PDF", "library-export-dialog"]]) {
+    // The base attachment form now ships with the app shell. Holding its old
+    // chunk must not delay choosing or opening an upload form.
+    const attachmentChunk = chunk("attachment-dialog");
+    await page.route(attachmentChunk, route => route.abort());
+    await openAction("添加附件");
+    const attachment = page.getByRole("dialog", { name: "添加附件", exact: true });
+    for (const name of ["可播放乐谱", "音频", "PDF", "文档（仅 .md）", "链接"]) await expect(attachment.getByRole("button", { name, exact: true })).toBeVisible();
+    await attachment.getByRole("button", { name: "PDF", exact: true }).click();
+    await expect(page.getByLabel("选择附件文件")).toHaveAttribute("accept", ".pdf");
+    await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.unroute(attachmentChunk);
+
+    for (const [name, module] of [["替换 PDF", "pdf-version-dialog"], ["分享 PDF", "library-export-dialog"]]) {
       const gate = await hold(page, chunk(module));
       await openAction(name); await gate.wait();
       const dialog = page.getByRole("dialog");
       await expect(dialog.getByRole("heading", { name, exact: true })).toBeVisible();
       await expect(dialog.getByRole("button", { name: "关闭", exact: true })).toBeVisible();
-      if (name === "添加附件") {
+      if (name === "替换 PDF") {
         await dialog.getByRole("button", { name: "关闭", exact: true }).click();
         await expect(dialog).toHaveCount(0);
         const response = page.waitForResponse(response => chunk(module)(new URL(response.url())));
         await gate.release(); await (await response).finished();
         await expect(dialog).toHaveCount(0); // A late module cannot reopen a cancelled dialog.
         await openAction(name);
-        await expect(dialog.getByRole("button", { name: "音频", exact: true })).toBeVisible();
+        await expect(dialog.getByRole("status").filter({ hasText: "正在准备…" })).toHaveCount(0);
       } else {
         await gate.release();
         await expect(dialog.getByRole("status").filter({ hasText: "正在准备…" })).toHaveCount(0);

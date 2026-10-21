@@ -47,7 +47,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 it("replaces the default entry with the only membership, even with a remembered preview", async () => {
   rememberDriveSummary(driveCacheOwnerKey("user-a", "preview"), { id: "preview", name: "公开体验", guestAdmissionMode: "open" });
   render(tree(["/privacy", "/"]));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   expectPath("/choirs/one");
   fireEvent.click(screen.getByRole("button", { name: "返回测试" }));
   await screen.findByRole("heading", { name: "隐私政策" });
@@ -74,7 +74,7 @@ it("keeps explicit invitation intent and the switch picker accessible with one m
   expectPath("/?join=1");
   fireEvent.click(screen.getByRole("link", { name: "我的云盘" }));
   fireEvent.click(await screen.findByRole("link", { name: /云盘 one.*成员/ }));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   fireEvent.click(screen.getByRole("button", { name: "选择页测试" }));
   await screen.findByRole("link", { name: /云盘 one.*成员/ });
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -102,7 +102,7 @@ it("shows a retry instead of using cached metadata as membership authorization",
   expect(screen.queryByRole("link", { name: /云盘 one/ })).not.toBeInTheDocument();
   fail = false;
   fireEvent.click(screen.getByRole("button", { name: "重试" }));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
 });
 
 it("hides unresolved identity and ignores a previous user's late membership response", async () => {
@@ -146,7 +146,7 @@ it("continues a completed email login through the default entry without retainin
   fireEvent.click(screen.getByRole("button", { name: "继续" }));
   fireEvent.change(await screen.findByLabelText("密码"), { target: { value: "test-password" } });
   fireEvent.click(screen.getByRole("button", { name: "登录" }));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   fireEvent.click(screen.getByRole("button", { name: "返回测试" }));
   await screen.findByRole("heading", { name: "隐私政策" });
   expectPath("/privacy");
@@ -172,7 +172,7 @@ it("keeps the drive shell and search when the online session cannot be reached a
   vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false, error: { status: 503 }, refetch: vi.fn() } as unknown as ReturnType<typeof authClient.useSession>);
   vi.mocked(fetch).mockRejectedValue(new TypeError("network unavailable"));
   render(tree(["/choirs/one"]));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   expect(screen.getByRole("searchbox", { name: /搜索.*中的乐谱/ })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "按名称排序，升序" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "本机内容" })).not.toBeInTheDocument();
@@ -223,7 +223,7 @@ it("browser back to a selection entry does not become a new startup intent", asy
   memberships = [membership("one"), membership("two")];
   render(tree());
   fireEvent.click(await screen.findByRole("link", { name: /云盘 one.*成员/ }));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   fireEvent.click(screen.getByRole("button", { name: "返回测试" }));
   await screen.findByRole("heading", { name: "我已加入的云盘" });
   expectPath("/drives");
@@ -270,7 +270,7 @@ it("keeps an explicit homepage visit after a signed-in user clicks the brand", a
   expectPath("/");
   expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "我的云盘" })).toHaveAttribute("href", "/drives");
-  expect(screen.queryByRole("heading", { name: "云盘 one" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /^云盘 one/ })).not.toBeInTheDocument();
 });
 
 it("shows the homepage after startup confirms no memberships", async () => {
@@ -329,7 +329,7 @@ it("restores a saved member drive offline but stays home after an explicit retur
   vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false, error: { status: 503 }, refetch: vi.fn() } as unknown as ReturnType<typeof authClient.useSession>);
   vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
   render(tree());
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   expectPath("/choirs/one");
   fireEvent.click(screen.getByRole("button", { name: "选择页测试" }));
   await screen.findByRole("heading", { name: "我已加入的云盘" });
@@ -395,13 +395,13 @@ it("keeps the restored drive selection while the same user's online list is pend
   let finish!: (response: Response) => void;
   vi.mocked(fetch).mockImplementation((input, init) => input === "/api/choirs" ? new Promise(resolve => { finish = resolve; }) : original(input, init));
   const view = render(tree(["/drives"]));
-  const saved = await screen.findByRole("link", { name: "云盘 one" });
+  const saved = await screen.findByRole("link", { name: /^云盘 one/ });
   session("user-a"); view.rerender(tree(["/drives"]));
   await waitFor(() => expect(finish).toBeDefined());
   expect(saved).toBeInTheDocument();
   expect(screen.queryByText("正在加载已加入的云盘…")).not.toBeInTheDocument();
   await act(async () => finish(Response.json({ memberships: [] })));
-  expect(screen.queryByRole("link", { name: "云盘 one" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: /^云盘 one/ })).not.toBeInTheDocument();
   expect(screen.getByText(/还没有已加入的云盘/)).toBeInTheDocument();
 });
 
@@ -414,7 +414,7 @@ it("opens a remembered startup drive without showing marketing or awaiting onlin
   session(null, true);
   render(tree());
   expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
-  expect(await screen.findByRole("heading", { name: "云盘 one" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: /^云盘 one/ })).toBeInTheDocument();
   expectPath("/choirs/one");
   expect(fetch).not.toHaveBeenCalledWith("/api/choirs", expect.anything());
 });
@@ -449,7 +449,7 @@ it("joins from the library without a selection-page detour and can repeat admiss
     return original(input, init);
   });
   render(tree(["/choirs/one"]));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   for (let attempt = 0; attempt < 2; attempt++) {
     fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
     expect(screen.queryByRole("link", { name: "云盘列表" })).not.toBeInTheDocument();
@@ -468,7 +468,7 @@ it("creates from the library and navigates only after its dialog closes", async 
   vi.mocked(fetch).mockImplementation((input, init) => input === "/api/choirs" && init?.method === "POST"
     ? Promise.resolve(Response.json({ choirId: "new-drive" }, { status: 201 })) : original(input, init));
   render(tree(["/choirs/one"]));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
   fireEvent.click(screen.getByRole("button", { name: "创建云盘" }));
   expectPath("/choirs/one");
@@ -484,7 +484,7 @@ it("creates from the library and navigates only after its dialog closes", async 
 it("keeps the active guest credential when cancelling an untouched inline invitation", async () => {
   session(null);
   render(tree(["/choirs/one"]));
-  await screen.findByRole("heading", { name: "云盘 one" });
+  await screen.findByRole("heading", { name: /^云盘 one/ });
   fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
   fireEvent.click(screen.getByRole("button", { name: "进入其他云盘" }));
   await screen.findByRole("dialog", { name: "进入云盘" });

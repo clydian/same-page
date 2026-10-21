@@ -3,6 +3,7 @@ import { RouterProvider as AriaRouterProvider } from "react-aria-components";
 import { useContext, useEffect, useLayoutEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { UNSAFE_DataRouterContext, useBlocker, useLocation, useNavigate, useNavigationType, useHref } from "react-router-dom";
 
+import { DriveHistory } from "./drive-history";
 import { Context, type Exit } from "./navigation-context";
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
@@ -17,8 +18,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const type = useNavigationType();
   const navigate = useNavigate();
-  const history = useRef<{ key: string; path: string }[]>([]);
-  const historyIndex = useRef(-1);
+  const [history] = useState(() => new DriveHistory(["reload", "back_forward"].includes((performance.getEntriesByType?.("navigation")[0] as PerformanceNavigationTiming | undefined)?.type ?? "") ? { key: location.key, path: location.pathname } : undefined));
+  const obsoleteDrive = history.obsolete(location.key, location.pathname, type);
   const latestIntent = useRef(0);
   const checkpointOriginal = useRef<string | null>(null);
   const pendingFallback = useRef<string | null>(null);
@@ -41,16 +42,14 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   }, [location, navigate, type]);
   useLayoutEffect(() => {
     latestIntent.current++;
-    const index = history.current.findIndex(entry => entry.key === location.key);
-    const entry = { key: location.key, path: location.pathname + location.search + location.hash };
-    if (index >= 0) historyIndex.current = index;
-    else if (type === "REPLACE" && historyIndex.current >= 0) history.current[historyIndex.current] = entry;
-    else {
-      history.current.splice(historyIndex.current + 1);
-      history.current.push(entry);
-      historyIndex.current = history.current.length - 1;
+    if (obsoleteDrive) {
+      const delta = history.skip(location.key);
+      if (delta !== null) void navigate(delta);
+      else void navigate("/drives", { replace: true });
+      return;
     }
-  }, [location.key, location.pathname, location.search, location.hash, type]);
+    history.observe(location.key, location.pathname + location.search + location.hash, type);
+  }, [history, obsoleteDrive, location.key, location.pathname, location.search, location.hash, navigate, type]);
   const register = useCallback((exit: Exit) => {
     const releaseUpdate = holdUpdate();
     entries.current.push(exit); update(entries.current.length); setFormsOnly(entries.current.every(item => item.kind === "form"));
@@ -77,12 +76,11 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   };
   const leaveRoute = (fallback: string, destination?: "parent") => {
     if (destination === "parent") {
-      let parent = historyIndex.current - 1;
-      while (parent >= 0 && history.current[parent].path !== fallback) parent--;
-      if (parent >= 0) { void navigate(parent - historyIndex.current); return; }
+      const delta = history.parent(fallback);
+      if (delta !== null) { void navigate(delta); return; }
     }
     if (location.state?.exitCheckpoint) { pendingFallback.current = fallback; void navigate(-1); return; }
-    if (!destination && (historyIndex.current > 0 || (window.history.state?.idx ?? 0) > 0)) void navigate(-1);
+    if (!destination && (history.index > 0 || (window.history.state?.idx ?? 0) > 0)) void navigate(-1);
     else void navigate(fallback, { replace: true });
   };
   const back = (fallback: string, destination?: "parent") => {
@@ -97,7 +95,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   };
   return <AriaRouterProvider navigate={(to, options) => { void navigate(to, options); }} useHref={useHref}><Context value={{ register, back, afterEditing, returnState }}>
     {dataRouter && <HistoryExit routeExit={formsOnly} active={activeCount > 0} consume={consume} setRetry={setRetry} />}
-    {children}
+    {!obsoleteDrive && children}
     {message && <aside className="navigation-error" role="alert">{message}<button onClick={() => { if (retryAction.current) retryAction.current(); else void consume(false); }}>重试</button></aside>}
   </Context></AriaRouterProvider>;
 }

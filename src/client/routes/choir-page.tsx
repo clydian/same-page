@@ -3,7 +3,7 @@ import { readerHref } from "../reader/reader-entry";
 import { startPlayback } from "../playback/playback-store";
 import { DrivePreparation } from "../score-library/drive-preparation";
 import { useLibraryAttachmentPresentation } from "../score-library/attachments/use-library-attachment-presentation";
-import { AttachmentLoading } from "../score-library/attachments/attachment-shell";
+import { AttachmentEntry } from "../score-library/attachments/attachment-entry";
 import { LibraryTaskLoading } from "../score-library/library-task-dialog";
 import { AttachmentCount, AttachmentPending, AttachmentRows, type AttachmentSelection } from "../score-library/attachments/attachment-list";
 import { InstallSuggestion } from "../install/install-entry";
@@ -61,7 +61,7 @@ import type { LibrarySort, LibrarySortDirection } from "../score-library/library
 import { PullToRefresh } from "../score-library/pull-to-refresh";
 import { OfflineScoreControl } from "../score-library/offline-score-control";
 
-const AttachmentDialog = lazy(() => import("../score-library/attachments/attachment-dialog"));
+
 const LibraryExportDialog = lazy(() => import("../score-library/library-export-dialog").then(module => ({ default: module.LibraryExportDialog })));
 
 export default function ChoirPage() {
@@ -142,10 +142,10 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
     library.setSortDirection(value);
   };
 
-  const attachmentDialog = attachmentSelection && attachmentSessionCurrent && (access.kind === "loading" || (access.kind === "opened" && !access.retained)) && <Suspense fallback={<AttachmentLoading selection={attachmentSelection} onClose={() => setAttachmentSelection(null)} />}><AttachmentDialog
+  const attachmentDialog = attachmentSelection && attachmentSessionCurrent && (access.kind === "loading" || (access.kind === "opened" && !access.retained)) && <AttachmentEntry
         key={`${attachmentSelection.sessionId ?? "guest"}:${attachmentSelection.score.id}:${attachmentSelection.attachment?.id ?? attachmentSelection.action}`}
         selection={attachmentSelection} choirId={choirId} ownerKey={cacheOwner} canModify={access.kind === "opened" && access.result.permissions.capabilities.operations.operations.includes("modifyFiles")} writable={attachmentsEnabled}
-        onClose={() => setAttachmentSelection(null)} onChanged={async () => { setAttachmentGeneration(value => value + 1); await refreshAfterMutation(); }} /></Suspense>;
+        onClose={() => setAttachmentSelection(null)} onChanged={async () => { setAttachmentGeneration(value => value + 1); await refreshAfterMutation(); }} />;
 
   // Reset private task selections only at a definitive boundary; temporary
   // connection checks keep the same mounted form and its unsaved input.

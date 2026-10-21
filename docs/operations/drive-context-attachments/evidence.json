@@ -1,0 +1,91 @@
+{
+  "sourceCommit": "44469747e4cb25135c6f1ac82f87b867f31ebc7b",
+  "fixture": "visual-report/drive-context-attachments.test.mjs",
+  "scope": "Playwright Chromium/WebKit; synthetic authenticated memberships and scores; service worker blocked; phone 390x844, tablet 1024x768; not physical installed PWA acceptance",
+  "results": {
+    "chromium": [
+      {
+        "device": "phone",
+        "membershipReads": 2,
+        "stableTarget": {
+          "before": {
+            "x": 16,
+            "y": 642,
+            "width": 358,
+            "height": 88
+          },
+          "after": {
+            "x": 16,
+            "y": 642,
+            "width": 358,
+            "height": 88
+          }
+        },
+        "optionalFailures": 1,
+        "plainTextFallbackSaved": true
+      },
+      {
+        "device": "tablet",
+        "membershipReads": 2,
+        "stableTarget": {
+          "before": {
+            "x": 37,
+            "y": 375,
+            "width": 366,
+            "height": 88
+          },
+          "after": {
+            "x": 37,
+            "y": 375,
+            "width": 366,
+            "height": 88
+          }
+        },
+        "optionalFailures": 1,
+        "plainTextFallbackSaved": true
+      }
+    ],
+    "webkit": [
+      {
+        "device": "phone",
+        "membershipReads": 2,
+        "stableTarget": {
+          "before": {
+            "x": 16,
+            "y": 639,
+            "width": 358,
+            "height": 88
+          },
+          "after": {
+            "x": 16,
+            "y": 639,
+            "width": 358,
+            "height": 88
+          }
+        },
+        "optionalFailures": 1,
+        "plainTextFallbackSaved": true
+      },
+      {
+        "device": "tablet",
+        "membershipReads": 2,
+        "stableTarget": {
+          "before": {
+            "x": 37,
+            "y": 372,
+            "width": 366,
+            "height": 88
+          },
+          "after": {
+            "x": 37,
+            "y": 372,
+            "width": 366,
+            "height": 88
+          }
+        },
+        "optionalFailures": 1,
+        "plainTextFallbackSaved": true
+      }
+    ]
+  }
+}
