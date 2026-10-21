@@ -6,13 +6,14 @@ import { playbackAssets } from './playback-assets.ts';
 import { shellManifest } from './shell-manifest.ts';
 const directories=[];
 afterEach(async()=>{await Promise.all(directories.splice(0).map(dir=>rm(dir,{recursive:true,force:true})));});
-it('pins public roots without changing the vendored package and fails when its resource contract changes',()=>{
+it('pins public roots for the local workspace and fails when its resource contract changes',()=>{
  const plugin=playbackAssets('release-one');
  const original="const settings={font:'/font/',sf:'/soundfont/sonivox.sf2'}";
- const code=plugin.transform(original,'/node_modules/@clydian/chorus-player/dist/session.js');
+ const code=plugin.transform(original,'/node_modules/@same-page/player/dist/session.js');
+ expect(plugin.transform(original,'/repo/packages/player/dist/session.js')).toBe(code);
  expect(code).toContain('/playback/release-one/font/');expect(code).toContain('/playback/release-one/soundfont/sonivox.sf2');
  expect(plugin.transform(original,'/another/session.js')).toBeUndefined();
- expect(()=>plugin.transform('changed','/node_modules/@clydian/chorus-player/dist/session.js')).toThrow('player_resource_contract_changed');
+ expect(()=>plugin.transform('changed','/node_modules/@same-page/player/dist/session.js')).toThrow('player_resource_contract_changed');
 });
 it('includes the static player closure and worker/font/soundfont bytes, leaving shared dependencies to the verified shell',async()=>{
  const root=await mkdtemp(path.join(tmpdir(),'same-page-playback-bundle-'));directories.push(root);

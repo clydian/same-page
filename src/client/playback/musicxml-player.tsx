@@ -1,6 +1,6 @@
 import { captureMusicXmlWrite, prepareOfflineMusicXml, readOfflineMusicXml, revokeOfflineMusicXml } from './offline-musicxml';
 import { useEffect, useRef, useState } from 'react';
-import { createPlayerSession, type PlayerSession } from '@clydian/chorus-player';
+import { createPlayerSession, type PlayerSession } from '@same-page/player';
 import { attachmentFetch } from '../score-library/attachments/request';
 import { readAttachment, attachmentFileUrl } from '../score-library/attachments/api';
 import { stopPlayback, type PlaybackSource } from './playback-store';

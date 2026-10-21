@@ -42,7 +42,7 @@
 .practice-follow:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
 .practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 16px; }
 .practice-notation-paper { max-width: 1100px; margin: auto; padding: 12px; background: #fff; border-radius: 3px; box-shadow: 0 1px 5px #17352b0a; }
-/* Match Chorus: alphaTab supplies positions/classes; the host supplies their visible colors. */
+/* Player styling: alphaTab supplies positions/classes; the host supplies their visible colors. */
 /* WebKit can retain old transformed cursor overflow after reflow. Contain only
    the decorative layer within alphaTab's canvas; wide music still scrolls. */
 .practice-notation .at-cursors { overflow: clip; }
@@ -100,7 +100,7 @@
 }
 
 
-/* Chorus mixer hierarchy: a visible focus group and one compact row per part. */
+/* Mixer hierarchy: a visible focus group and one compact row per part. */
 .practice-popover { width: min(440px,calc(100vw - 24px)); }
 .practice-focus { display: grid; gap: 10px; padding: 14px; border: 1px solid #d3e1d6; border-radius: 12px; background: #eef4ee; }
 .practice-focus h3 { margin: 0; font-size: 14px; }

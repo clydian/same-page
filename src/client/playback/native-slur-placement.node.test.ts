@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml } from '@clydian/chorus-player/engine';
+import { loadMusicXml } from '@same-page/player/engine';
 
 // Owned one-bar input; no published score is embedded in this regression.
 function source(placement: 'above' | 'below' | undefined) {

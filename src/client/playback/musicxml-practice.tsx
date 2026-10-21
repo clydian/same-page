@@ -5,7 +5,7 @@ import {
   type RefObject,
 } from "react";
 import { Button, Switch } from "react-aria-components";
-import type { PlayerSession, PlayerState } from "@clydian/chorus-player";
+import type { PlayerSession, PlayerState } from "@same-page/player";
 import { playbackViewStore, type PlaybackSource } from "./playback-store";
 import { NotationZoom } from "./notation-zoom";
 import { useNotationPinch } from "./use-notation-pinch";

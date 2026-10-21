@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml, loadPreparedMusicXml } from '@clydian/chorus-player/engine';
-import { prepareMusicXmlForAlphaTabBytes } from '@clydian/chorus-player/musicxml-direction-timing';
+import { loadMusicXml, loadPreparedMusicXml } from '@same-page/player/engine';
+import { prepareMusicXmlForAlphaTabBytes } from '@same-page/player/musicxml-direction-timing';
 
 const source = (firstDirection = '', secondDirection = '<direction><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><beat-unit>whole</beat-unit></metronome></direction-type></direction>') => new TextEncoder().encode(`<score-partwise version="4.0"><work><work-title>Host source-credit fixture</work-title></work><identification><creator type="composer">Source Composer</creator><creator type="arranger">Source Arranger</creator><creator type="lyricist">Source Poet</creator></identification><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>${firstDirection}<note><pitch><step>C</step><octave>5</octave></pitch><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes>${secondDirection}<note><pitch><step>D</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>`);
 function tempos(score: alphaTab.model.Score) {

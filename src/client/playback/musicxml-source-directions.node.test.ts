@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml, loadPreparedMusicXml } from '@clydian/chorus-player/engine';
-import { prepareMusicXmlForAlphaTabBytes } from '@clydian/chorus-player/musicxml-direction-timing';
+import { loadMusicXml, loadPreparedMusicXml } from '@same-page/player/engine';
+import { prepareMusicXmlForAlphaTabBytes } from '@same-page/player/musicxml-direction-timing';
 
 const note = '<note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>';
 const words = (text: string, placement: string) => `<direction placement="${placement}"><direction-type><words>${text}</words></direction-type></direction>`;

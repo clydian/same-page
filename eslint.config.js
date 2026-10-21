@@ -6,7 +6,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["dist", "artifacts", "coverage", "worker-configuration.d.ts", "android/generated", "android/node_modules", "android/out"]),
+  globalIgnores(["dist", "artifacts", "coverage", "worker-configuration.d.ts", "android/generated", "android/node_modules", "android/out", "vendor/alphatab/modified-source"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [eslint.configs.recommended, ...tseslint.configs.recommended],

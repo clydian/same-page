@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml } from '@clydian/chorus-player/engine';
+import { loadMusicXml } from '@same-page/player/engine';
 
 // Owned minimal input: the third voice places an extreme head on the wrong
 // side for opposing-stem sharing. No published score is embedded here.

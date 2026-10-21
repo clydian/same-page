@@ -1,4 +1,4 @@
-import { validateMusicXmlSource } from "@clydian/chorus-player/format";
+import { validateMusicXmlSource } from "@same-page/player/format";
 import { attachmentFormat, attachmentSchema, type ScoreAttachment } from "../../src/shared/attachments";
 import type { Env } from "../env";
 import { operationPredicate } from "../permissions/access";

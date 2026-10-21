@@ -1,0 +1,1230 @@
+import type { ScoreSlurGlyph } from '@coderline/alphatab/rendering/glyphs/ScoreSlurGlyph';
+import type { EngravingSettings } from '@coderline/alphatab/EngravingSettings';
+import type { Bar } from '@coderline/alphatab/model/Bar';
+import type { Font } from '@coderline/alphatab/model/Font';
+import { MusicFontSymbol } from '@coderline/alphatab/model/MusicFontSymbol';
+import {
+    BracketExtendMode,
+    TrackNameMode,
+    TrackNameOrientation,
+    TrackNamePolicy
+} from '@coderline/alphatab/model/RenderStylesheet';
+import { type Track, TrackSubElement } from '@coderline/alphatab/model/Track';
+import { NotationElement } from '@coderline/alphatab/NotationSettings';
+import { CanvasHelper, type ICanvas, TextAlign, TextBaseline } from '@coderline/alphatab/platform/ICanvas';
+import type { RenderingResources } from '@coderline/alphatab/RenderingResources';
+import type { BarRendererBase } from '@coderline/alphatab/rendering/BarRendererBase';
+import type { LineBarRenderer } from '@coderline/alphatab/rendering/LineBarRenderer';
+import type { ScoreLayout } from '@coderline/alphatab/rendering/layout/ScoreLayout';
+import { BarLayoutingInfo } from '@coderline/alphatab/rendering/staves/BarLayoutingInfo';
+import { MasterBarsRenderers } from '@coderline/alphatab/rendering/staves/MasterBarsRenderers';
+import type { RenderStaff } from '@coderline/alphatab/rendering/staves/RenderStaff';
+import { StaffTrackGroup } from '@coderline/alphatab/rendering/staves/StaffTrackGroup';
+import { Bounds } from '@coderline/alphatab/rendering/utils/Bounds';
+import { ElementStyleHelper } from '@coderline/alphatab/rendering/utils/ElementStyleHelper';
+import { MasterBarBounds } from '@coderline/alphatab/rendering/utils/MasterBarBounds';
+import { StaffSystemBounds } from '@coderline/alphatab/rendering/utils/StaffSystemBounds';
+
+/**
+ * @internal
+ */
+export abstract class SystemBracket {
+    private _system: StaffSystem;
+    public firstStaffInBracket?: RenderStaff;
+    public lastStaffInBracket?: RenderStaff;
+    public firstVisibleStaffInBracket?: RenderStaff;
+    public lastVisibleStaffInBracket?: RenderStaff;
+    public drawAsBrace: boolean = false;
+    public braceScale: number = 1;
+    public width: number = 0;
+    public index: number = 0;
+
+    public canPaint = false;
+
+    public constructor(system: StaffSystem) {
+        this._system = system;
+    }
+
+    public abstract includesStaff(s: RenderStaff): boolean;
+
+    public updateCanPaint() {
+        let firstVisibleStaff: RenderStaff | undefined = undefined;
+        let lastVisibleStaff: RenderStaff | undefined = undefined;
+        for (let i = this.firstStaffInBracket!.index; i <= this.lastStaffInBracket!.index; i++) {
+            const staff = this._system.allStaves[i];
+            if (staff.isVisible) {
+                if (!firstVisibleStaff) {
+                    firstVisibleStaff = staff;
+                }
+                lastVisibleStaff = staff;
+            }
+        }
+        this.firstVisibleStaffInBracket = firstVisibleStaff;
+        this.lastVisibleStaffInBracket = lastVisibleStaff;
+
+        if (!firstVisibleStaff || !lastVisibleStaff) {
+            this.canPaint = false;
+            return;
+        }
+
+        // single staff brackets?
+        const singleStaffBrackets = this._system.layout.renderer.score!.stylesheet.showSingleStaffBrackets;
+        if (!singleStaffBrackets && firstVisibleStaff === lastVisibleStaff) {
+            this.canPaint = false;
+            return;
+        }
+
+        this.canPaint = true;
+    }
+
+    public finalizeBracket(smuflMetrics: EngravingSettings) {
+        if (!this.canPaint) {
+            this.width = 0;
+            return;
+        }
+
+        // SMUFL: The brace glyph should have a height of 1em, i.e. the height of a single five-line stave, and should be scaled proportionally
+        const bravuraBraceHeightAtMusicFontSize = smuflMetrics.glyphHeights.get(MusicFontSymbol.Brace)!;
+        const bravuraBraceWidthAtMusicFontSize = smuflMetrics.glyphWidths.get(MusicFontSymbol.Brace)!;
+
+        // normal bracket width
+        if (this.drawAsBrace) {
+            this.width = bravuraBraceWidthAtMusicFontSize;
+        } else {
+            this.width = smuflMetrics.bracketThickness;
+        }
+
+        if (!this.drawAsBrace) {
+            return;
+        }
+
+        const firstStart: number = this.firstVisibleStaffInBracket!.contentTop;
+        const lastEnd: number = this.lastVisibleStaffInBracket!.contentBottom;
+
+        const requiredHeight = lastEnd - firstStart;
+        const requiredScaleForBracket = requiredHeight / bravuraBraceHeightAtMusicFontSize;
+        this.braceScale = requiredScaleForBracket;
+        this.width = bravuraBraceWidthAtMusicFontSize * this.braceScale;
+    }
+}
+
+/**
+ * @internal
+ */
+class SingleTrackSystemBracket extends SystemBracket {
+    protected track: Track;
+
+    public constructor(system: StaffSystem, track: Track) {
+        super(system);
+        this.track = track;
+        this.drawAsBrace = SingleTrackSystemBracket.isTrackDrawAsBrace(track);
+    }
+
+    public override includesStaff(r: RenderStaff): boolean {
+        return r.modelStaff.track === this.track;
+    }
+
+    public static isTrackDrawAsBrace(track: Track) {
+        return track.staves.filter(s => s.showStandardNotation as boolean).length > 1;
+    }
+}
+
+/**
+ * @internal
+ */
+class SimilarInstrumentSystemBracket extends SingleTrackSystemBracket {
+    public override includesStaff(r: RenderStaff): boolean {
+        // allow merging on same track (for braces, percussion and items belonging together)
+        if (r.modelStaff.track === this.track) {
+            return true;
+        }
+
+        // braces are never cross-track
+        if (this.drawAsBrace) {
+            return false;
+        }
+
+        // we allow cross track merging of staffs when they have the same program
+        return this.track.playbackInfo.program === r.modelStaff.track.playbackInfo.program;
+    }
+}
+
+/**
+ * A StaffSystem consists of a list of different staves and groups
+ * them using an accolade.
+ * @internal
+ */
+export class StaffSystem {
+    private _accoladeSpacingCalculated: boolean = false;
+
+    private _brackets: SystemBracket[] = [];
+    private _staffToBracket = new Map<RenderStaff, SystemBracket>();
+    private _contentHeight = 0;
+    private _crossStaffSlurs = new Set<ScoreSlurGlyph>();
+
+    public registerCrossStaffSlur(slur: ScoreSlurGlyph): void {
+        this._crossStaffSlurs.add(slur);
+    }
+
+    private _reserveCrossStaffSlurPadding(): void {
+        let minY = 0;
+        let maxY = this._contentHeight;
+        for (const slur of this._crossStaffSlurs) {
+            if (!slur.isCrossStaffSameSystem) {
+                continue;
+            }
+            // Inter-staff geometry is only final after every staff has its Y.
+            slur.doLayout();
+            const staffY = slur.renderer.staff!.y;
+            minY = Math.min(minY, staffY + slur.getBoundingBoxTop());
+            maxY = Math.max(maxY, staffY + slur.getBoundingBoxBottom());
+        }
+        // Reserve only ink outside the complete system. Never insert the
+        // destination staff's height into an origin staff's own overflow.
+        this.topPadding = Math.max(this.topPadding, Math.ceil(-minY));
+        this.bottomPadding = Math.max(this.bottomPadding, Math.ceil(maxY - this._contentHeight));
+    }
+
+    private _hasSystemSeparator = false;
+
+    public x: number = 0;
+    public y: number = 0;
+    public index: number = 0;
+
+    /**
+     * The width of the whole accolade inclusive text and bar.
+     */
+    public accoladeWidth: number = 0;
+
+    /**
+     * Indicates whether this line is full or not. If the line is full the
+     * bars can be aligned to the maximum width. If the line is not full
+     * the bars will not get stretched.
+     */
+    public isFull: boolean = false;
+
+    /**
+     * The current width of the system to which the content is scaled.
+     * Includes accolade (tracknames, brackets etc) and the content.
+     *
+     * Used to determine the final size needed for rendering.
+     */
+    public width: number = 0;
+
+    /**
+     * The minimum/default width to which the system was sized
+     * when performing the layout. This is the size of the system if no
+     * fitting/resizing is performed.
+     *
+     * Includes accolade (tracknames, brackets etc) and the content.
+     *
+     * Used to perform a resizing/refitting of the system.
+     */
+    public computedWidth: number = 0;
+
+    /**
+     * This is the simple sum of all display scales of the bars in this system.
+     * This value is mainly used in the parchment style layout for correct scaling of the bars.
+     */
+    public totalBarDisplayScale: number = 0;
+
+    /**
+     * Sum of per-bar {@link MasterBarsRenderers.maxFixedOverhead} across the system. The layout-mode
+     * horizontal scaling pass subtracts this from the available staff width before distributing the
+     * remainder across bars.
+     */
+    public totalFixedOverhead: number = 0;
+
+    /**
+     * Sum of per-bar {@link MasterBarsRenderers.maxContentWidth} across the system. Used as the
+     * denominator when distributing staff width in modes that weight bars by natural content width
+     * (Page layout with `SystemsLayoutMode.Automatic`).
+     */
+    public totalContentWidth: number = 0;
+
+    /**
+     * Shortest note duration (in ticks) across every bar that has been added to this system, used
+     * as the common reference in the Gourlay stretch formula so that rhythmically-equivalent beats
+     * in different bars of the same system align column-wise.
+     *
+     * `-1` means "no bar added yet". The value only moves downward during system assembly; when a
+     * new bar introduces a shorter minimum, {@link isMinDurationDirty} is set so that
+     * {@link reconcileMinDurationIfDirty} can re-derive spring constants on the previously-added
+     * bars before layout distribution runs.
+     */
+    public minDuration: number = -1;
+
+    /**
+     * Set when a bar added to this system introduced a shorter {@link minDuration} than previously
+     * seen, leaving earlier bars' spring constants stale. Consumed by
+     * {@link reconcileMinDurationIfDirty} which is called from `VerticalLayoutBase._fitSystem`
+     * once the system is fully assembled.
+     */
+    public isMinDurationDirty: boolean = false;
+
+    /**
+     * Whether this system coordinates a shared minimum-duration reference across its bars for the
+     * Gourlay stretch formula. Defaults to `true` for page-style and parchment layouts where bars
+     * of a system fight for a common staff width. Set to `false` for horizontal layouts where each
+     * bar is sized independently (by `bar.displayWidth` or its intrinsic width) and there is no
+     * column-alignment concern - each bar keeps its local minimum so pre-existing rendering is
+     * preserved.
+     */
+    public shareMinDurationAcrossBars: boolean = true;
+
+    public isLast: boolean = false;
+    public masterBarsRenderers: MasterBarsRenderers[] = [];
+    public staves: StaffTrackGroup[] = [];
+    public layout!: ScoreLayout;
+
+    public topPadding: number;
+    public bottomPadding: number;
+    public allStaves: RenderStaff[] = [];
+    public firstVisibleStaff?: RenderStaff;
+
+    public constructor(layout: ScoreLayout) {
+        this.layout = layout;
+        this.topPadding = layout.renderer.settings.display.systemPaddingTop;
+        this.bottomPadding = layout.renderer.settings.display.systemPaddingBottom;
+    }
+
+    public get firstBarIndex(): number {
+        return this.masterBarsRenderers[0].masterBar.index;
+    }
+
+    public get lastBarIndex(): number {
+        return this.masterBarsRenderers[this.masterBarsRenderers.length - 1].lastMasterBarIndex;
+    }
+
+    public addMasterBarRenderers(tracks: Track[], renderers: MasterBarsRenderers): MasterBarsRenderers | null {
+        if (tracks.length === 0) {
+            return null;
+        }
+        this.masterBarsRenderers.push(renderers);
+        renderers.layoutingInfo.preBeatSize = 0;
+        let src: number = 0;
+
+        let firstVisibleStaff: RenderStaff | undefined = undefined;
+        let anyStaffVisible = false;
+
+        for (const g of this.staves) {
+            let firstVisibleStaffInGroup: RenderStaff | undefined = undefined;
+            let lastVisibleStaffInGroup: RenderStaff | undefined = undefined;
+
+            for (const s of g.staves) {
+                const renderer: BarRendererBase = renderers.renderers[src++];
+                s.addBarRenderer(renderer);
+
+                if (s.isVisible) {
+                    anyStaffVisible = true;
+                    if (!firstVisibleStaffInGroup) {
+                        firstVisibleStaffInGroup = s;
+                    }
+                    if (!firstVisibleStaff) {
+                        firstVisibleStaff = s;
+                    }
+
+                    lastVisibleStaffInGroup = s;
+                }
+            }
+
+            g.firstVisibleStaff = firstVisibleStaffInGroup;
+            g.lastVisibleStaff = lastVisibleStaffInGroup;
+            if (!firstVisibleStaff) {
+                firstVisibleStaff = firstVisibleStaffInGroup;
+            }
+        }
+
+        if (!anyStaffVisible) {
+            const group = this.staves[0];
+            const firstStaff = group.staves[0];
+            firstStaff.isVisible = true;
+            group.firstVisibleStaff = firstStaff;
+            group.lastVisibleStaff = firstStaff;
+            firstVisibleStaff = firstStaff;
+        }
+
+        this.firstVisibleStaff = firstVisibleStaff;
+        this._calculateAccoladeSpacing(tracks);
+
+        // On the resize path the layoutingInfo was finalized in a previous layout pass, so we
+        // only need to check whether its min-duration reference still matches the new system's.
+        this._trackSystemMinDuration(renderers.layoutingInfo);
+
+        this._applyLayoutAndUpdateWidth();
+        return renderers;
+    }
+
+    public addBars(
+        tracks: Track[],
+        barIndex: number,
+        additionalMultiBarRestIndexes: number[] | null
+    ): MasterBarsRenderers {
+        const result: MasterBarsRenderers = new MasterBarsRenderers();
+        result.additionalMultiBarRestIndexes = additionalMultiBarRestIndexes;
+        result.layoutingInfo = new BarLayoutingInfo();
+        result.masterBar = tracks[0].score.masterBars[barIndex];
+        this.masterBarsRenderers.push(result);
+
+        let firstVisibleStaff: RenderStaff | undefined = undefined;
+        let anyStaffVisible = false;
+        // add renderers
+        const barLayoutingInfo: BarLayoutingInfo = result.layoutingInfo;
+        for (const g of this.staves) {
+            let firstVisibleStaffInGroup: RenderStaff | undefined = undefined;
+            let lastVisibleStaffInGroup: RenderStaff | undefined = undefined;
+
+            for (const s of g.staves) {
+                const bar: Bar = g.track.staves[s.modelStaff.index].bars[barIndex];
+
+                const additionalMultiBarsRestBars: Bar[] | null =
+                    additionalMultiBarRestIndexes == null
+                        ? null
+                        : additionalMultiBarRestIndexes.map(b => g.track.staves[s.modelStaff.index].bars[b]);
+
+                s.addBar(bar, barLayoutingInfo, additionalMultiBarsRestBars);
+
+                if (s.isVisible) {
+                    anyStaffVisible = true;
+                    if (!firstVisibleStaffInGroup) {
+                        firstVisibleStaffInGroup = s;
+                    }
+                    lastVisibleStaffInGroup = s;
+                }
+
+                const renderer: BarRendererBase = s.barRenderers[s.barRenderers.length - 1];
+                result.renderers.push(renderer);
+                if (renderer.isLinkedToPrevious) {
+                    result.isLinkedToPrevious = true;
+                }
+                if (!renderer.canWrap) {
+                    result.canWrap = false;
+                }
+            }
+            g.firstVisibleStaff = firstVisibleStaffInGroup;
+            g.lastVisibleStaff = lastVisibleStaffInGroup;
+            if (!firstVisibleStaff) {
+                firstVisibleStaff = firstVisibleStaffInGroup;
+            }
+        }
+
+        if (!anyStaffVisible) {
+            const group = this.staves[0];
+            const firstStaff = group.staves[0];
+            firstStaff.isVisible = true;
+            group.firstVisibleStaff = firstStaff;
+            group.lastVisibleStaff = firstStaff;
+            firstVisibleStaff = firstStaff;
+        }
+
+        this.firstVisibleStaff = firstVisibleStaff;
+
+        this._calculateAccoladeSpacing(tracks);
+
+        barLayoutingInfo.finish();
+        // Reconcile against the system-wide minimum-duration reference now that springs are
+        // finalized. If this bar introduced a shorter note, earlier bars become stale (flagged
+        // for bulk reconcile at fit time). If the system already had a shorter min than this
+        // bar's local one, this bar's spring constants are recomputed immediately so the width
+        // we return below reflects the shared reference.
+        this._trackSystemMinDuration(barLayoutingInfo);
+
+        // ensure same widths of new renderer
+        result.width = this._applyLayoutAndUpdateWidth();
+
+        return result;
+    }
+
+    /**
+     * Updates {@link minDuration} and {@link isMinDurationDirty} when a bar is added, and brings
+     * the just-added bar's {@link BarLayoutingInfo} in line with the current system minimum if the
+     * system already saw a shorter reference. The bulk reconcile over previously-added bars is
+     * deferred to {@link reconcileMinDurationIfDirty} (called from `_fitSystem`) to avoid
+     * re-iterating the system every time a bar is appended.
+     */
+    private _trackSystemMinDuration(info: BarLayoutingInfo): void {
+        if (!this.shareMinDurationAcrossBars) {
+            return;
+        }
+        const localMin = info.localMinDuration;
+        if (this.minDuration === -1 || localMin < this.minDuration) {
+            // this bar shortens the system minimum; earlier bars (if any) are now stale
+            if (this.masterBarsRenderers.length > 1 && localMin !== this.minDuration) {
+                this.isMinDurationDirty = true;
+            }
+            this.minDuration = localMin;
+        }
+        if (info.computedWithMinDuration > this.minDuration) {
+            // this bar was initialized against a larger (local) min than the system carries; pull
+            // it down to the system reference so its computedWidth reflects the shared spacing.
+            info.recomputeSpringConstants(this.minDuration);
+        }
+    }
+
+    /**
+     * Re-derives spring constants on bars whose {@link BarLayoutingInfo.computedWithMinDuration}
+     * is out of sync with the current {@link minDuration}, and rebuilds the cached system totals
+     * (widths, {@link totalFixedOverhead}, {@link totalContentWidth}) from the refreshed bar
+     * widths. Called from `VerticalLayoutBase._fitSystem` after the system is fully assembled and
+     * before distribution runs. No-op when {@link isMinDurationDirty} is false.
+     */
+    public reconcileMinDurationIfDirty(): void {
+        if (!this.isMinDurationDirty) {
+            return;
+        }
+
+        let systemWidth = this.accoladeWidth;
+        let totalFixedOverhead = 0;
+        let totalContentWidth = 0;
+
+        for (const mb of this.masterBarsRenderers) {
+            if (mb.layoutingInfo.computedWithMinDuration > this.minDuration) {
+                mb.layoutingInfo.recomputeSpringConstants(this.minDuration);
+            }
+
+            let maxPrefix = 0;
+            let maxContent = 0;
+            let realWidth = 0;
+            for (const r of mb.renderers) {
+                r.applyLayoutingInfo();
+                if (r.computedWidth > realWidth) {
+                    realWidth = r.computedWidth;
+                }
+                const overhead = r.fixedOverhead;
+                if (overhead > maxPrefix) {
+                    maxPrefix = overhead;
+                }
+                const content = Math.max(0, r.computedWidth - overhead);
+                if (content > maxContent) {
+                    maxContent = content;
+                }
+            }
+
+            mb.maxFixedOverhead = maxPrefix;
+            mb.maxContentWidth = maxContent;
+            mb.width = realWidth;
+            systemWidth += realWidth;
+            totalFixedOverhead += maxPrefix;
+            totalContentWidth += maxContent;
+        }
+
+        this.width = systemWidth;
+        this.computedWidth = systemWidth;
+        this.totalFixedOverhead = totalFixedOverhead;
+        this.totalContentWidth = totalContentWidth;
+        this.isMinDurationDirty = false;
+    }
+
+    public getBarDisplayScale(renderer: BarRendererBase) {
+        return this.staves.length > 1 ? renderer.bar.masterBar.displayScale : renderer.bar.displayScale;
+    }
+
+    public revertLastBar(): MasterBarsRenderers | null {
+        if (this.masterBarsRenderers.length > 1) {
+            const toRemove: MasterBarsRenderers = this.masterBarsRenderers[this.masterBarsRenderers.length - 1];
+            this.masterBarsRenderers.splice(this.masterBarsRenderers.length - 1, 1);
+            let width: number = 0;
+            let barDisplayScale = 0;
+
+            let firstVisibleStaff: RenderStaff | undefined = undefined;
+            for (const g of this.staves) {
+                let firstVisibleStaffInGroup: RenderStaff | undefined = undefined;
+                let lastVisibleStaffInGroup: RenderStaff | undefined = undefined;
+
+                for (const s of g.staves) {
+                    const lastBar: BarRendererBase = s.revertLastBar();
+                    const computedWidth = lastBar.computedWidth;
+                    if (computedWidth > width) {
+                        width = computedWidth;
+                    }
+                    lastBar.afterReverted();
+
+                    barDisplayScale = this.getBarDisplayScale(lastBar);
+
+                    if (s.isVisible) {
+                        if (!firstVisibleStaffInGroup) {
+                            firstVisibleStaffInGroup = s;
+                        }
+                        lastVisibleStaffInGroup = s;
+                    }
+                }
+
+                g.firstVisibleStaff = firstVisibleStaffInGroup;
+                g.lastVisibleStaff = lastVisibleStaffInGroup;
+                if (!firstVisibleStaff) {
+                    firstVisibleStaff = firstVisibleStaffInGroup;
+                }
+            }
+            this.firstVisibleStaff = firstVisibleStaff;
+
+            this.width -= width;
+            this.computedWidth -= width;
+            this.totalBarDisplayScale -= barDisplayScale;
+            this.totalFixedOverhead -= toRemove.maxFixedOverhead;
+            this.totalContentWidth -= toRemove.maxContentWidth;
+            return toRemove;
+        }
+        return null;
+    }
+
+    private _applyLayoutAndUpdateWidth(): number {
+        let realWidth: number = 0;
+        let maxFixedOverhead: number = 0;
+        let maxContentWidth: number = 0;
+
+        let barDisplayScale = 0;
+        for (const s of this.allStaves) {
+            const last = s.barRenderers[s.barRenderers.length - 1];
+            last.applyLayoutingInfo();
+
+            barDisplayScale = this.getBarDisplayScale(last);
+
+            if (last.computedWidth > realWidth) {
+                realWidth = last.computedWidth;
+            }
+
+            const overhead = last.fixedOverhead;
+            if (overhead > maxFixedOverhead) {
+                maxFixedOverhead = overhead;
+            }
+            const content = Math.max(0, last.computedWidth - overhead);
+            if (content > maxContentWidth) {
+                maxContentWidth = content;
+            }
+        }
+
+        const renderers = this.masterBarsRenderers[this.masterBarsRenderers.length - 1];
+        renderers.maxFixedOverhead = maxFixedOverhead;
+        renderers.maxContentWidth = maxContentWidth;
+
+        this.totalBarDisplayScale += barDisplayScale;
+        this.totalFixedOverhead += maxFixedOverhead;
+        this.totalContentWidth += maxContentWidth;
+        this.width += realWidth;
+        this.computedWidth += realWidth;
+
+        return realWidth;
+    }
+
+    private _calculateAccoladeSpacing(tracks: Track[]): void {
+        const settings = this.layout.renderer.settings;
+        if (!this._accoladeSpacingCalculated) {
+            this._accoladeSpacingCalculated = true;
+
+            this.accoladeWidth = 0;
+
+            const stylesheet = this.layout.renderer.score!.stylesheet;
+            const hasTrackName = this.layout.renderer.settings.notation.isNotationElementVisible(
+                NotationElement.TrackNames
+            );
+
+            if (hasTrackName) {
+                const trackNamePolicy =
+                    this.layout.renderer.tracks!.length === 1
+                        ? stylesheet.singleTrackTrackNamePolicy
+                        : stylesheet.multiTrackTrackNamePolicy;
+
+                const trackNameMode =
+                    this.index === 0 ? stylesheet.firstSystemTrackNameMode : stylesheet.otherSystemsTrackNameMode;
+
+                const trackNameOrientation =
+                    this.index === 0
+                        ? stylesheet.firstSystemTrackNameOrientation
+                        : stylesheet.otherSystemsTrackNameOrientation;
+
+                let shouldRender = false;
+
+                switch (trackNamePolicy) {
+                    case TrackNamePolicy.Hidden:
+                        break;
+                    case TrackNamePolicy.FirstSystem:
+                        shouldRender = this.index === 0;
+                        break;
+                    case TrackNamePolicy.AllSystems:
+                        shouldRender = true;
+                        break;
+                }
+
+                let hasAnyTrackName = false;
+                if (shouldRender) {
+                    const canvas: ICanvas = this.layout.renderer.canvas!;
+                    const res: Font = settings.display.resources.elementFonts.get(NotationElement.TrackNames)!;
+                    canvas.font = res;
+                    for (const t of tracks) {
+                        let trackNameText = '';
+                        switch (trackNameMode) {
+                            case TrackNameMode.FullName:
+                                trackNameText = t.name;
+                                break;
+                            case TrackNameMode.ShortName:
+                                trackNameText = t.shortName;
+                                break;
+                        }
+
+                        if (trackNameText.length > 0) {
+                            hasAnyTrackName = true;
+                            const size = canvas.measureText(trackNameText);
+                            switch (trackNameOrientation) {
+                                case TrackNameOrientation.Horizontal:
+                                    this.accoladeWidth = Math.ceil(Math.max(this.accoladeWidth, size.width));
+                                    break;
+                                case TrackNameOrientation.Vertical:
+                                    this.accoladeWidth = Math.ceil(Math.max(this.accoladeWidth, size.height));
+                                    break;
+                            }
+                        }
+                    }
+
+                    this.accoladeWidth += settings.display.systemLabelPaddingLeft;
+                    if (hasAnyTrackName) {
+                        this.accoladeWidth += settings.display.systemLabelPaddingRight;
+                    }
+                }
+            }
+
+            // NOTE: we have a chicken-egg problem when it comes to scaling braces which we try to mitigate here:
+            // - The brace scales with the height of the system
+            // - The height of the system depends on the bars which can be fitted
+            // By taking another bar into the system, the height can grow and by this the width of the brace and then it doesn't fit anymore.
+            // It is not worth the complexity to align the height and width of the brace.
+            // So we do a rough approximation of the space needed for the brace based on the staves we have at this point.
+            // Additional Staff separations caused later are not respected.
+            // users can mitigate truncation with specfiying a systemLabelPaddingLeft.
+
+            // alternative idea for the future:
+            // - we could force the brace to the width we initially calculate here so it will not grow beyond that.
+            // - requires a feature to draw glyphs with a max-width or a horizontal stretch scale
+
+            let currentY: number = 0;
+            for (const staff of this.allStaves) {
+                staff.y = currentY;
+                staff.calculateHeightForAccolade();
+                currentY += staff.height;
+            }
+
+            let braceWidth = 0;
+            for (const b of this._brackets) {
+                b.updateCanPaint();
+                b.finalizeBracket(settings.display.resources.engravingSettings);
+                braceWidth = Math.max(braceWidth, b.width);
+            }
+
+            this.accoladeWidth += braceWidth;
+
+            this.width += this.accoladeWidth;
+            this.computedWidth += this.accoladeWidth;
+        } else {
+            for (const b of this._brackets) {
+                b.updateCanPaint();
+                b.finalizeBracket(settings.display.resources.engravingSettings);
+            }
+        }
+    }
+
+    private _getStaffTrackGroup(track: Track): StaffTrackGroup | null {
+        for (let i: number = 0, j: number = this.staves.length; i < j; i++) {
+            const g: StaffTrackGroup = this.staves[i];
+            if (g.track === track) {
+                return g;
+            }
+        }
+        return null;
+    }
+
+    public addStaff(staff: RenderStaff): void {
+        const track = staff.modelStaff.track;
+        let group: StaffTrackGroup | null = this._getStaffTrackGroup(track);
+        if (!group) {
+            group = new StaffTrackGroup(this, track);
+            this.staves.push(group);
+        }
+        staff.staffTrackGroup = group;
+        staff.system = this;
+        staff.index = this.allStaves.length;
+        this.allStaves.push(staff);
+        group.addStaff(staff);
+
+        let bracket = this._brackets.find(b => b.includesStaff(staff));
+        if (!bracket) {
+            switch (track.score.stylesheet.bracketExtendMode) {
+                case BracketExtendMode.NoBrackets:
+                    break;
+                case BracketExtendMode.GroupStaves:
+                    // when grouping staves, we create one bracket for the whole track across all staves
+                    bracket = new SingleTrackSystemBracket(this, track);
+                    bracket.index = this._brackets.length;
+                    this._brackets.push(bracket);
+                    break;
+                case BracketExtendMode.GroupSimilarInstruments:
+                    bracket = new SimilarInstrumentSystemBracket(this, track);
+                    bracket.index = this._brackets.length;
+                    this._brackets.push(bracket);
+                    break;
+            }
+        }
+
+        if (bracket) {
+            if (!bracket.firstStaffInBracket) {
+                bracket.firstStaffInBracket = staff;
+            }
+            bracket.lastStaffInBracket = staff;
+            // NOTE: one StaffTrackGroup can currently never have multiple brackets so we can safely keep the last known here
+            group.bracket = bracket;
+            this._staffToBracket.set(staff, bracket);
+        }
+    }
+
+    public get height(): number {
+        return Math.ceil(this._contentHeight + this.topPadding + this.bottomPadding);
+    }
+
+    public paint(cx: number, cy: number, canvas: ICanvas): void {
+        // const c = canvas.color;
+        // canvas.color = Color.random(255);
+        // canvas.strokeRect(cx + this.x, cy + this.y, this.width, this.height);
+        // canvas.color = c;
+
+        this.paintPartial(cx + this.x, cy + this.y + this.topPadding, canvas, 0, this.masterBarsRenderers.length);
+
+        if (this._hasSystemSeparator) {
+            using _ = ElementStyleHelper.track(
+                canvas,
+                TrackSubElement.SystemSeparator,
+                this.allStaves[0].modelStaff.track
+            );
+
+            // NOTE: the divider is currently not "nicely" centered between the systems as this would lead to cropping
+
+            // NOTE: Prevent cropping of separator if it overlaps
+            const smuflMetrics = this.layout.renderer.settings.display.resources.engravingSettings;
+            const overlap = Math.min(0, smuflMetrics.glyphBottom.get(MusicFontSymbol.SystemDivider) ?? 0);
+            CanvasHelper.fillMusicFontSymbolSafe(
+                canvas,
+                cx + this.x,
+                cy + this.y + this.height + overlap,
+                1,
+                MusicFontSymbol.SystemDivider,
+                false
+            );
+            CanvasHelper.fillMusicFontSymbolSafe(
+                canvas,
+                cx + this.x + this.width - smuflMetrics.glyphWidths.get(MusicFontSymbol.SystemDivider)!,
+                cy + this.y + this.height + overlap,
+                1,
+                MusicFontSymbol.SystemDivider,
+                false
+            );
+        }
+    }
+
+    public paintPartial(cx: number, cy: number, canvas: ICanvas, startIndex: number, count: number): void {
+        for (const s of this.allStaves) {
+            if (s.isVisible) {
+                s.paint(cx, cy, canvas, startIndex, count);
+            }
+        }
+
+        const res: RenderingResources = this.layout.renderer.settings.display.resources;
+
+        if (this.staves.length > 0 && startIndex === 0) {
+            //
+            // Draw start grouping
+            //
+            canvas.color = res.barSeparatorColor;
+
+            //
+            // Draw track names
+            const settings = this.layout.renderer.settings;
+            const hasTrackName = this.layout.renderer.settings.notation.isNotationElementVisible(
+                NotationElement.TrackNames
+            );
+            canvas.font = res.elementFonts.get(NotationElement.TrackNames)!;
+            if (hasTrackName) {
+                const stylesheet = this.layout.renderer.score!.stylesheet;
+
+                const trackNamePolicy =
+                    this.layout.renderer.tracks!.length === 1
+                        ? stylesheet.singleTrackTrackNamePolicy
+                        : stylesheet.multiTrackTrackNamePolicy;
+
+                const trackNameMode =
+                    this.index === 0 ? stylesheet.firstSystemTrackNameMode : stylesheet.otherSystemsTrackNameMode;
+
+                const trackNameOrientation =
+                    this.index === 0
+                        ? stylesheet.firstSystemTrackNameOrientation
+                        : stylesheet.otherSystemsTrackNameOrientation;
+
+                let shouldRender = false;
+
+                switch (trackNamePolicy) {
+                    case TrackNamePolicy.Hidden:
+                        break;
+                    case TrackNamePolicy.FirstSystem:
+                        shouldRender = this.index === 0;
+                        break;
+                    case TrackNamePolicy.AllSystems:
+                        shouldRender = true;
+                        break;
+                }
+
+                if (shouldRender) {
+                    const oldBaseLine = canvas.textBaseline;
+                    const oldTextAlign = canvas.textAlign;
+                    for (const g of this.staves) {
+                        if (g.firstVisibleStaff) {
+                            const firstStart: number = cy + g.firstVisibleStaff.contentTop;
+                            const lastEnd: number = cy + g.lastVisibleStaff!.contentBottom;
+
+                            let trackNameText = '';
+                            switch (trackNameMode) {
+                                case TrackNameMode.FullName:
+                                    trackNameText = g.track.name;
+                                    break;
+                                case TrackNameMode.ShortName:
+                                    trackNameText = g.track.shortName;
+                                    break;
+                            }
+
+                            using _trackNameStyle = ElementStyleHelper.track(
+                                canvas,
+                                TrackSubElement.TrackName,
+                                g.track
+                            );
+
+                            if (trackNameText.length > 0) {
+                                const textEndX =
+                                    // start at beginning of first renderer
+                                    cx +
+                                    g.staves[0].x -
+                                    // left side of the bracket
+                                    settings.display.accoladeBarPaddingRight -
+                                    (g.bracket?.width ?? 0) -
+                                    // padding between label and bracket
+                                    settings.display.systemLabelPaddingRight;
+
+                                switch (trackNameOrientation) {
+                                    case TrackNameOrientation.Horizontal:
+                                        canvas.textBaseline = TextBaseline.Middle;
+                                        canvas.textAlign = TextAlign.Right;
+                                        canvas.fillText(trackNameText, textEndX, (firstStart + lastEnd) / 2);
+                                        break;
+                                    case TrackNameOrientation.Vertical:
+                                        canvas.textBaseline = TextBaseline.Bottom;
+                                        canvas.textAlign = TextAlign.Center;
+
+                                        // -90° looks terrible in chrome, antialiasing seems to be disabled
+                                        // adding 0.1° to re-enable antialiasing at the cost of a slight angle
+                                        const chromeTextAntialiasingFix = 0.1;
+
+                                        canvas.beginRotate(
+                                            textEndX,
+                                            (firstStart + lastEnd) / 2,
+                                            -90 - chromeTextAntialiasingFix
+                                        );
+                                        canvas.fillText(trackNameText, 0, 0);
+                                        canvas.endRotate();
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    canvas.textBaseline = oldBaseLine;
+                    canvas.textAlign = oldTextAlign;
+                }
+            }
+
+            const needsSystemBarLine = !this.layout.renderer.score!.stylesheet.extendBarLines;
+            if (this.allStaves.length > 0 && needsSystemBarLine) {
+                let previousStaffInBracket: RenderStaff | null = null;
+                for (const s of this.allStaves) {
+                    if (!s.isVisible) {
+                        continue;
+                    }
+
+                    if (previousStaffInBracket !== null) {
+                        const previousBottom = previousStaffInBracket.contentBottom;
+                        const thisTop = s.contentTop;
+
+                        const accoladeX: number = cx + previousStaffInBracket.x;
+
+                        const firstLineBarRenderer = previousStaffInBracket.barRenderers[0] as LineBarRenderer;
+
+                        using _ = ElementStyleHelper.bar(
+                            canvas,
+                            firstLineBarRenderer.staffLineBarSubElement,
+                            firstLineBarRenderer.bar
+                        );
+                        const h = Math.ceil(thisTop - previousBottom);
+                        canvas.fillRect(accoladeX, cy + previousBottom, res.engravingSettings.thinBarlineThickness, h);
+                    }
+
+                    previousStaffInBracket = s;
+                }
+            }
+
+            //
+            // Draw brackets
+            this._paintBrackets(cx, cy, canvas);
+        }
+    }
+
+    private _paintBrackets(cx: number, cy: number, canvas: ICanvas) {
+        const settings = this.layout.renderer.settings;
+
+        for (const bracket of this._brackets!) {
+            if (bracket.canPaint) {
+                const barStartX: number = cx + bracket.firstVisibleStaffInBracket!.x;
+                const barSize: number = bracket.width;
+                const barOffset: number = settings.display.accoladeBarPaddingRight;
+                const firstStart: number = cy + bracket.firstVisibleStaffInBracket!.contentTop;
+                const lastEnd: number = cy + bracket.lastVisibleStaffInBracket!.contentBottom;
+                let accoladeStart: number = firstStart;
+                let accoladeEnd: number = lastEnd;
+
+                if (bracket.drawAsBrace) {
+                    CanvasHelper.fillMusicFontSymbolSafe(
+                        canvas,
+                        barStartX - barOffset - barSize,
+                        accoladeEnd,
+                        bracket.braceScale,
+                        MusicFontSymbol.Brace
+                    );
+                } else if (bracket.firstVisibleStaffInBracket !== bracket.lastVisibleStaffInBracket) {
+                    // brackets typically overflow by 1/4 staff-space
+                    const smuflMetrics = settings.display.resources.engravingSettings;
+
+                    const bracketOverflow = smuflMetrics.oneStaffSpace * 0.25;
+                    accoladeStart -= bracketOverflow;
+                    accoladeEnd += bracketOverflow;
+
+                    // we shift the bar slightly inward so that the spike will hide the edge
+                    // if we're precise we might see a slight light line on subpixel level
+                    const barShift = 3;
+                    canvas.fillRect(
+                        barStartX - barOffset - barSize,
+                        accoladeStart - barShift,
+                        barSize,
+                        Math.ceil(accoladeEnd - accoladeStart + barShift * 2)
+                    );
+
+                    const spikeX: number = barStartX - barOffset - barSize;
+                    CanvasHelper.fillMusicFontSymbolSafe(canvas, spikeX, accoladeStart, 1, MusicFontSymbol.BracketTop);
+                    CanvasHelper.fillMusicFontSymbolSafe(
+                        canvas,
+                        spikeX,
+                        Math.floor(accoladeEnd),
+                        1,
+                        MusicFontSymbol.BracketBottom
+                    );
+                }
+            }
+        }
+    }
+
+    public finalizeSystem(): void {
+        const settings = this.layout.renderer.settings;
+        if (this.index === 0) {
+            this.topPadding = settings.display.firstSystemPaddingTop;
+        }
+
+        if (this.isLast) {
+            this.bottomPadding = settings.display.lastSystemPaddingBottom;
+        } else if (
+            this.layout.renderer.score!.stylesheet.useSystemSignSeparator &&
+            this.layout.renderer.tracks!.length > 1
+        ) {
+            // NOTE: Reuse padding to place separato
+            const neededHeight = settings.display.resources.engravingSettings.glyphHeights.get(
+                MusicFontSymbol.SystemDivider
+            )!;
+            this.bottomPadding = Math.max(this.bottomPadding, neededHeight);
+            this._hasSystemSeparator = true;
+        }
+
+        this._crossStaffSlurs.clear();
+        const anyStaffVisible = this._finalizeTrackGroups();
+
+        // for now we always force one staff to be visible.
+        // making also whole systems invisible needs separate attention (also on player cursor handling)
+        if (!anyStaffVisible) {
+            const group = this.staves[0];
+            const firstStaff = group.staves[0];
+            firstStaff.isVisible = true;
+            this._finalizeTrackGroups(true);
+        }
+
+        this._reserveCrossStaffSlurPadding();
+
+        for (const b of this._brackets!) {
+            b.finalizeBracket(settings.display.resources.engravingSettings);
+        }
+    }
+
+    private _finalizeTrackGroups(onlyFirstGroup: boolean = false) {
+        let currentY: number = 0;
+        const settings = this.layout.renderer.settings;
+        const smufl = settings.display.resources.engravingSettings;
+        const topBracketSpikeHeight = smufl.glyphHeights.get(MusicFontSymbol.BracketTop)!;
+        const bottomBracketSpikeHeight = smufl.glyphHeights.get(MusicFontSymbol.BracketBottom)!;
+
+        let previousStaff: RenderStaff | undefined = undefined;
+
+        let endSpikeOverflow = 0;
+        let anyStaffVisible = false;
+        for (const group of this.staves) {
+            let firstVisibleStaffInGroup: RenderStaff | undefined = undefined;
+            let lastVisibleStaffInGroup: RenderStaff | undefined = undefined;
+            for (const staff of group.staves) {
+                // check if we need "in-between padding"
+                if (previousStaff !== undefined && previousStaff!.trackIndex !== staff.trackIndex) {
+                    currentY += settings.display.trackStaffPaddingBetween;
+                }
+
+                const bracket = this._staffToBracket.has(staff) ? this._staffToBracket.get(staff) : undefined;
+                const hasBracket = bracket && !bracket.drawAsBrace && bracket.canPaint;
+                if (hasBracket && bracket!.firstStaffInBracket === staff) {
+                    const spikeOverflow = topBracketSpikeHeight - staff.topOverflow;
+                    if (spikeOverflow > 0) {
+                        currentY += spikeOverflow;
+                    }
+                }
+
+                staff.x = this.accoladeWidth;
+                staff.y = currentY;
+                if (!onlyFirstGroup) {
+                    staff.finalizeStaff();
+                }
+
+                if (staff.isVisible) {
+                    currentY += staff.height;
+
+                    anyStaffVisible = true;
+                    previousStaff = staff;
+
+                    if (!firstVisibleStaffInGroup) {
+                        firstVisibleStaffInGroup = staff;
+                    }
+                    lastVisibleStaffInGroup = staff;
+                }
+
+                endSpikeOverflow = 0;
+                if (hasBracket && bracket!.lastStaffInBracket === staff) {
+                    const spikeOverflow = bottomBracketSpikeHeight - staff.bottomOverflow;
+                    if (spikeOverflow > 0) {
+                        if (staff.isVisible) {
+                            currentY += spikeOverflow;
+                        } else {
+                            endSpikeOverflow = spikeOverflow;
+                        }
+                    }
+                }
+            }
+
+            group.firstVisibleStaff = firstVisibleStaffInGroup;
+            group.lastVisibleStaff = lastVisibleStaffInGroup;
+
+            if (!this.firstVisibleStaff) {
+                this.firstVisibleStaff = firstVisibleStaffInGroup;
+            }
+
+            if (onlyFirstGroup) {
+                break;
+            }
+        }
+
+        // ensure we add overflow if last bracket is hidden
+        if (endSpikeOverflow) {
+            currentY += endSpikeOverflow;
+        }
+
+        this._contentHeight = currentY;
+
+        return anyStaffVisible;
+    }
+
+    public buildBoundingsLookup(cx: number, cy: number): void {
+        if (this.layout.renderer.boundsLookup!.isFinished) {
+            return;
+        }
+        const firstStaff = this.allStaves[0];
+        const lastStaff = this.allStaves[this.allStaves.length - 1];
+
+        cy += this.topPadding;
+
+        const visualTop: number = cy + this.y + firstStaff.y;
+        const visualBottom: number = cy + this.y + lastStaff.y + lastStaff.height;
+        const visualHeight = visualBottom - visualTop;
+
+        const realTop: number = cy + this.y;
+        const realBottom: number = cy + this.y + this.height;
+        const realHeight = realBottom - realTop;
+
+        const lineTop = cy + this.y + firstStaff.y + firstStaff.topPadding + firstStaff.topOverflow;
+        const lineBottom =
+            cy + this.y + lastStaff.y + lastStaff.height - lastStaff.bottomPadding - lastStaff.bottomOverflow;
+        const lineHeight = lineBottom - lineTop;
+
+        const x: number = this.x + firstStaff.x;
+        const staffSystemBounds = new StaffSystemBounds();
+        staffSystemBounds.visualBounds = new Bounds();
+        staffSystemBounds.visualBounds.x = cx + this.x;
+        staffSystemBounds.visualBounds.y = cy + this.y;
+        staffSystemBounds.visualBounds.w = this.width;
+        staffSystemBounds.visualBounds.h = this.height - this.topPadding - this.bottomPadding;
+        staffSystemBounds.realBounds = new Bounds();
+        staffSystemBounds.realBounds.x = cx + this.x;
+        staffSystemBounds.realBounds.y = cy + this.y;
+        staffSystemBounds.realBounds.w = this.width;
+        staffSystemBounds.realBounds.h = this.height;
+
+        this.layout.renderer.boundsLookup!.addStaffSystem(staffSystemBounds);
+        const masterBarBoundsLookup: Map<number, MasterBarBounds> = new Map<number, MasterBarBounds>();
+        for (let i: number = 0; i < this.staves.length; i++) {
+            for (const staff of this.staves[i].staves) {
+                if (!staff.isVisible) {
+                    continue;
+                }
+                for (const renderer of staff.barRenderers) {
+                    let masterBarBounds: MasterBarBounds;
+                    if (!masterBarBoundsLookup.has(renderer.bar.masterBar.index)) {
+                        masterBarBounds = new MasterBarBounds();
+                        masterBarBounds.index = renderer.bar.masterBar.index;
+                        masterBarBounds.isFirstOfLine = renderer.isFirstOfStaff;
+                        masterBarBounds.realBounds = new Bounds();
+                        masterBarBounds.realBounds.x = x + renderer.x;
+                        masterBarBounds.realBounds.y = realTop;
+                        masterBarBounds.realBounds.w = renderer.width;
+                        masterBarBounds.realBounds.h = realHeight;
+
+                        masterBarBounds.visualBounds = new Bounds();
+                        masterBarBounds.visualBounds.x = x + renderer.x;
+                        masterBarBounds.visualBounds.y = visualTop;
+                        masterBarBounds.visualBounds.w = renderer.width;
+                        masterBarBounds.visualBounds.h = visualHeight;
+
+                        masterBarBounds.lineAlignedBounds = new Bounds();
+                        masterBarBounds.lineAlignedBounds.x = x + renderer.x;
+                        masterBarBounds.lineAlignedBounds.y = lineTop;
+                        masterBarBounds.lineAlignedBounds.w = renderer.width;
+                        masterBarBounds.lineAlignedBounds.h = lineHeight;
+                        this.layout.renderer.boundsLookup!.addMasterBar(masterBarBounds);
+                        masterBarBoundsLookup.set(masterBarBounds.index, masterBarBounds);
+                    } else {
+                        masterBarBounds = masterBarBoundsLookup.get(renderer.bar.masterBar.index)!;
+                    }
+                    renderer.buildBoundingsLookup(masterBarBounds, x, cy + this.y + staff.y);
+                }
+            }
+        }
+    }
+
+    public getBarX(index: number): number {
+        if (this.allStaves.length === 0 || this.layout.renderer.tracks!.length === 0) {
+            return 0;
+        }
+        const bar: Bar = this.layout.renderer.tracks![0].staves[0].bars[index];
+        const renderer: BarRendererBase = this.layout.getRendererForBar(this.allStaves[0].staffId, bar)!;
+        return renderer.x;
+    }
+}

@@ -1,0 +1,3 @@
+# Preserve imported native source/patch bytes and focus reviews on product code.
+/vendor/alphatab/changes.patch -whitespace linguist-generated=true
+/vendor/alphatab/modified-source/** -whitespace linguist-vendored=true

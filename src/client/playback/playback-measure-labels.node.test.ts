@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { playbackMeasureLabels } from '@clydian/chorus-player/playback-measures';
+import { playbackMeasureLabels } from '@same-page/player/playback-measures';
 
 test('installed engine disambiguates every repeated visit, without treating printed numbering as sequence', () => {
   expect(playbackMeasureLabels(['0', '17', '18a'])).toEqual(['第 0 小节', '第 17 小节', '第 18a 小节']);

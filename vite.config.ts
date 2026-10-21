@@ -43,7 +43,7 @@ export default defineConfig(({ isPreview }) => ({
     // independent and much smaller.
     chunkSizeWarningLimit: 1500,
     rollupOptions: { output: { manualChunks(id) {
-      if (/node_modules\/(?:@coderline\/alphatab|@clydian\/chorus-player|fflate|saxes|xmlchars)/.test(id)) return "musicxml-engine";
+      if (id.replaceAll("\\", "/").includes("/packages/player/dist/") || /node_modules\/(?:@coderline\/alphatab|@same-page\/player|fflate|saxes|xmlchars)/.test(id)) return "musicxml-engine";
     } } },
   },
   plugins: [

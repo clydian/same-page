@@ -3,13 +3,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import MusicXmlPlayer from './musicxml-player';
 import { readAttachment } from '../score-library/attachments/api';
 import { attachmentFetch } from '../score-library/attachments/request';
-import { createPlayerSession } from '@clydian/chorus-player';
+import { createPlayerSession } from '@same-page/player';
 import type { PlaybackSource } from './playback-store';
 
 vi.mock('./use-playback-lifetime', () => ({ usePlaybackLifetime: vi.fn() }));
 vi.mock('../score-library/attachments/api', () => ({ readAttachment: vi.fn(), attachmentFileUrl: () => '/file' }));
 vi.mock('../score-library/attachments/request', () => ({ attachmentFetch: vi.fn() }));
-vi.mock('@clydian/chorus-player', () => ({ createPlayerSession: vi.fn() }));
+vi.mock('@same-page/player', () => ({ createPlayerSession: vi.fn() }));
 vi.mock('./offline-musicxml', () => ({ captureMusicXmlWrite: async () => null, readOfflineMusicXml: async () => null, revokeOfflineMusicXml: vi.fn(), prepareOfflineMusicXml: vi.fn() }));
 vi.mock('./musicxml-practice', () => ({ MusicXmlPractice: ({ error, retry, session, container, viewport }: { error: string | null; retry(): void; session: unknown; container: React.RefObject<HTMLDivElement>; viewport: React.RefObject<HTMLDivElement> }) => <div ref={viewport}><div ref={container} /><p>{error ?? (session ? '已就绪' : '准备中')}</p><button onClick={retry}>重试</button></div> }));
 const source = { choirId: 'drive', ownerKey: 'user:one', sessionId: 'session', score: { id: 'score' }, attachment: { id: 'xml', kind: 'musicxml', revision: 1 } } as PlaybackSource;

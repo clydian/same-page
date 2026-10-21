@@ -61,3 +61,7 @@ npm run test:browser-ui  # 浏览器布局与交互回归
 本项目原创代码采用 [GNU Affero General Public License v3.0](LICENSE)（SPDX：`AGPL-3.0-only`）。允许在遵守许可证的前提下使用、修改和商业运营。分发以及修改后提供网络服务时，应按许可证要求提供对应源码；完整权利和义务以 LICENSE 为准。
 
 第三方代码、字体及素材继续适用各自的许可证。代码许可不授予以本项目名称或标识冒充官方服务的权利，也不授予用户上传谱面或其他用户内容的使用权。
+
+## 播放器开发
+
+播放器源码和测试在 `packages/player`，通过私有 npm workspace 与产品一起维护。Node 24 下 `npm ci` 自动构建；`npm run test:player` 执行播放器回归，`npm run build` 构建产品。无需 Chorus checkout、发包或双产品验收。原生 alphaTab 修改与重建见 [维护说明](vendor/alphatab/README.md)。

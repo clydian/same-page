@@ -1,0 +1,207 @@
+import type { ICanvas } from '@coderline/alphatab/platform/ICanvas';
+import { GraceType } from '@coderline/alphatab/model/GraceType';
+import { SlurPlacement } from '@coderline/alphatab/model/SlurPlacement';
+import { type BarRendererBase, NoteXPosition, NoteYPosition } from '@coderline/alphatab/rendering/BarRendererBase';
+import { BeatXPosition } from '@coderline/alphatab/rendering/BeatXPosition';
+import { ScoreTieGlyph } from '@coderline/alphatab/rendering/glyphs/ScoreTieGlyph';
+import { type TieGlyphLabel, TieGlyphLabels } from '@coderline/alphatab/rendering/glyphs/TieGlyphLabel';
+import { BeamDirection } from '@coderline/alphatab/rendering/utils/BeamDirection';
+
+/**
+ * @internal
+ */
+export class ScoreSlurGlyph extends ScoreTieGlyph {
+    private _labels: TieGlyphLabel[] | null = null;
+
+    protected override isAcrossSystems(startRenderer: BarRendererBase, endRenderer: BarRendererBase): boolean {
+        if (!startRenderer.staff || !endRenderer.staff) {
+            return startRenderer.staff !== endRenderer.staff;
+        }
+        return startRenderer.staff.system !== endRenderer.staff.system;
+    }
+
+    public get isCrossStaffSameSystem(): boolean {
+        const endRenderer = this.lookupEndBeatRenderer();
+        return (
+            !!endRenderer &&
+            this.renderer.staff !== endRenderer.staff &&
+            !this.isAcrossSystems(this.renderer, endRenderer)
+        );
+    }
+
+    public override doLayout(): void {
+        super.doLayout();
+        if (!this.isForEnd && this.isCrossStaffSameSystem) {
+            this.renderer.staff!.system.registerCrossStaffSlur(this);
+        }
+    }
+
+    public override get checkForOverflow(): boolean {
+        const endRenderer = this.lookupEndBeatRenderer();
+        // A span between two staves must not reserve the other staff's full
+        // height as overflow on its origin staff. Both staves already exist.
+        if (
+            endRenderer &&
+            this.renderer.staff !== endRenderer.staff &&
+            !this.isAcrossSystems(this.renderer, endRenderer)
+        ) {
+            return false;
+        }
+        return super.checkForOverflow;
+    }
+
+    public override paint(cx: number, cy: number, canvas: ICanvas): void {
+        const endRenderer = this.lookupEndBeatRenderer();
+        if (
+            endRenderer &&
+            this.renderer.staff !== endRenderer.staff &&
+            !this.isAcrossSystems(this.renderer, endRenderer)
+        ) {
+            // Staff positions are finalized in vertical order. The destination
+            // staff may not have its final Y when an upper origin is laid out.
+            this.doLayout();
+        }
+        super.paint(cx, cy, canvas);
+    }
+
+    protected override calculateTieDirection(): BeamDirection {
+        switch (this.startNote.slurPlacement) {
+            case SlurPlacement.Above:
+                return BeamDirection.Up;
+            case SlurPlacement.Below:
+                return BeamDirection.Down;
+            default:
+                return super.calculateTieDirection();
+        }
+    }
+
+    public override getTieHeight(startX: number, startY: number, endX: number, endY: number): number {
+        const defaultHeight = (Math.log2(endX - startX + 1) * this.renderer.settings.notation.slurHeight) / 2;
+        const endRenderer = this.lookupEndBeatRenderer();
+        if (
+            endRenderer &&
+            this.renderer.staff !== endRenderer.staff &&
+            !this.isAcrossSystems(this.renderer, endRenderer)
+        ) {
+            return Math.max(defaultHeight, Math.abs(endY - startY) / 2);
+        }
+        return defaultHeight;
+    }
+
+    protected override getSlurLabels(): TieGlyphLabel[] | null {
+        if (this._labels === null) {
+            this._labels = [];
+            const slur = this.startNote.beat.effectSlur;
+            if (slur !== null) {
+                const notationSettings = this.renderer.settings.notation;
+                for (const s of slur.segments) {
+                    const label = TieGlyphLabels.build(s, s.toNote.realValue >= s.fromNote.realValue);
+                    if (notationSettings.isNotationElementVisible(label.element)) {
+                        this._labels.push(label);
+                    }
+                }
+            }
+        }
+        return this._labels.length > 0 ? this._labels : null;
+    }
+
+    protected override calculateStartX(): number {
+        return (
+            this.renderer.x +
+            (this._isStartCentered()
+                ? this.renderer!.getBeatX(this.startNote.beat, BeatXPosition.MiddleNotes)
+                : this.renderer!.getNoteX(this.startNote, NoteXPosition.Right))
+        );
+    }
+
+    protected override calculateStartY(): number {
+        if (this._isStartCentered()) {
+            switch (this.tieDirection) {
+                case BeamDirection.Up:
+                    return this.renderer.y + this.renderer!.getNoteY(this.startNote, NoteYPosition.Top);
+                default:
+                    return this.renderer.y + this.renderer!.getNoteY(this.startNote, NoteYPosition.Bottom);
+            }
+        }
+
+        return this.renderer.y + this.renderer!.getNoteY(this.startNote, NoteYPosition.Center);
+    }
+
+    protected override calculateEndX(): number {
+        const endNoteRenderer = this.lookupEndBeatRenderer();
+        if (!endNoteRenderer) {
+            return this.calculateStartX() + this.renderer.smuflMetrics.leftHandTabTieWidth;
+        }
+
+        if (this._isEndCentered()) {
+            if (this._isEndOnStem()) {
+                return endNoteRenderer.x + endNoteRenderer.getBeatX(this.endNote.beat, BeatXPosition.Stem);
+            }
+            return endNoteRenderer.x + endNoteRenderer.getNoteX(this.endNote, NoteXPosition.Center);
+        }
+        return endNoteRenderer.x + endNoteRenderer.getBeatX(this.endNote.beat, BeatXPosition.PreNotes);
+    }
+
+    protected override caclculateEndY(): number {
+        const y = this._calculateEndYWithinStaff();
+        const endRenderer = this.lookupEndBeatRenderer();
+        if (
+            endRenderer?.staff &&
+            this.renderer.staff &&
+            this.renderer.staff !== endRenderer.staff &&
+            !this.isAcrossSystems(this.renderer, endRenderer)
+        ) {
+            return y + endRenderer.staff.y - this.renderer.staff.y;
+        }
+        return y;
+    }
+
+    private _calculateEndYWithinStaff(): number {
+        const endNoteRenderer = this.lookupEndBeatRenderer();
+        if (!endNoteRenderer) {
+            return this.calculateStartY();
+        }
+
+        if (this._isEndCentered()) {
+            if (this._isEndOnStem()) {
+                switch (this.tieDirection) {
+                    case BeamDirection.Up:
+                        return endNoteRenderer.y + endNoteRenderer.getNoteY(this.endNote, NoteYPosition.TopWithStem);
+                    default:
+                        return endNoteRenderer.y + endNoteRenderer.getNoteY(this.endNote, NoteYPosition.BottomWithStem);
+                }
+            }
+            switch (this.tieDirection) {
+                case BeamDirection.Up:
+                    return endNoteRenderer.y + endNoteRenderer.getNoteY(this.endNote, NoteYPosition.Top);
+                default:
+                    return endNoteRenderer.y + endNoteRenderer.getNoteY(this.endNote, NoteYPosition.Bottom);
+            }
+        }
+        return endNoteRenderer.y + endNoteRenderer.getNoteY(this.endNote, NoteYPosition.Center);
+    }
+
+    private _isStartCentered() {
+        return (
+            (this.startNote === this.startNote.beat.maxNote && this.tieDirection === BeamDirection.Up) ||
+            (this.startNote === this.startNote.beat.minNote && this.tieDirection === BeamDirection.Down)
+        );
+    }
+    private _isEndCentered() {
+        return (
+            this.startNote.beat.graceType === GraceType.None &&
+            ((this.endNote === this.endNote.beat.maxNote && this.tieDirection === BeamDirection.Up) ||
+                (this.endNote === this.endNote.beat.minNote && this.tieDirection === BeamDirection.Down))
+        );
+    }
+
+    private _isEndOnStem() {
+        const startBeamDirection = this.lookupStartBeatRenderer().getBeatDirection(this.startNote.beat);
+        const endBeatRenderer = this.lookupEndBeatRenderer();
+        const endBeamDirection = endBeatRenderer
+            ? endBeatRenderer.getBeatDirection(this.endNote.beat)
+            : startBeamDirection;
+
+        return startBeamDirection !== endBeamDirection && this.startNote.beat!.graceType === GraceType.None;
+    }
+}

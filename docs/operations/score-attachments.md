@@ -55,7 +55,7 @@ MusicXML 默认支持的首次发布只需更新 Worker/客户端，无需批量
 
 新客户端在附件元数据及 bootstrap 请求发送 `X-Same-Page-Attachments: 2`。旧请求维持四类型列表、对应数量和回收站；新协议显示 musicxml。鉴权与现有文件权限不变，能力协商本身不授予权限。上传内容支持 .musicxml/.xml/.mxl、单个 score-partwise、UTF-8/UTF-16；原文件不修改，下载仍为原始字节。原文件、解压后的 XML 各最多 20 MiB，最多 256 容器条目、15 个 score-part、100000 音符和64层XML嵌套；只解包声明的入口与 container，校验目录/CRC，不获取外部实体和资源。客户端 Worker 提前检查并提供具体错误，服务端独立检查，不信任客户端结果。
 
-`@clydian/chorus-player` 由 Chorus 仓库维护；当前使用 vendor 中的固定安装包及 lockfile 完整性校验。升级从 Chorus 执行 workspace build/pack，再替换安装包、更新 lockfile并验证两个宿主；禁止生产依赖同级目录或动态 latest。播放器、解析 worker、音乐字体与音色不进入默认 PWA 预缓存。音色是合成练习参考，不演唱歌词。
+`@same-page/player` 由本仓库的 `packages/player` 维护，通过私有 npm workspace 构建，不依赖 Chorus checkout、发包或验证。`npm ci` 自动构建播放器；日常修改执行 `npm run test:player` 和产品回归。alphaTab 使用精确固定制品，其修改源码、补丁及独立重建流程见 [原生引擎维护](../../vendor/alphatab/README.md)。禁止生产依赖同级目录或动态 latest。播放器、解析 worker、音乐字体与音色不进入默认 PWA 预缓存。音色是合成练习参考，不演唱歌词。
 
 MusicXML 附件可播放、调速、关注声部、单独混音、小节定位和按播放次序设置 A–B 循环。返回所属 PDF 保留同一会话和紧凑控制，收起不销毁，结束/离开原谱/身份变化停止；已有原生音频会暂停 MusicXML，MusicXML 开始时暂停原生媒体。首次在线读取，断网不撤销已加载文件，但不保证刷新离线和锁屏持续播放。窗口恢复焦点重新核实附件权限。
 

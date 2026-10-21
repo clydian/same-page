@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import type { PlayerState } from '@clydian/chorus-player';
+import type { PlayerState } from '@same-page/player';
 
 type NotationPlayer = {
   getSnapshot(): Pick<PlayerState, 'status'>;

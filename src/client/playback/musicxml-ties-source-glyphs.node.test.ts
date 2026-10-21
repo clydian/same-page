@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml, loadPreparedMusicXml } from '@clydian/chorus-player/engine';
-import { prepareMusicXmlForAlphaTabBytes } from '@clydian/chorus-player/musicxml-direction-timing';
+import { loadMusicXml, loadPreparedMusicXml } from '@same-page/player/engine';
+import { prepareMusicXmlForAlphaTabBytes } from '@same-page/player/musicxml-direction-timing';
 
 const mixedTies = `<score-partwise version="4.0"><part-list><score-part id="T"><part-name>Tenor</part-name></score-part></part-list><part id="T"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line><clef-octave-change>-1</clef-octave-change></clef></attributes><note><pitch><step>G</step><octave>3</octave></pitch><duration>4</duration><tie type="start"/><voice>1</voice><type>half</type><notations><tied type="start" number="1"/></notations></note><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><tie type="stop"/><voice>1</voice><type>eighth</type><notations><tied type="stop" number="1"/></notations></note><note><rest/><duration>3</duration><voice>1</voice><type>quarter</type><dot/></note></measure><measure number="2"><note><pitch><step>G</step><octave>3</octave></pitch><duration>8</duration><tie type="start"/><voice>1</voice><type>whole</type><notations><tied type="start"/></notations></note></measure><measure number="3"><note><pitch><step>G</step><octave>3</octave></pitch><duration>4</duration><tie type="stop"/><voice>1</voice><type>half</type><notations><tied type="stop"/></notations></note><note><rest/><duration>4</duration><voice>1</voice><type>half</type></note></measure></part></score-partwise>`;
 function attacks(score: alphaTab.model.Score) {
