@@ -4,6 +4,7 @@ import { before, after, test } from "node:test";
 import { chromium, webkit, expect } from "@playwright/test";
 import { startVisualServer } from "./setup.mjs";
 import { createVisualFixtureSession } from "./fixtures.mjs";
+import { withBrowserEvidence } from "../browser-tests/browser-evidence.mjs";
 
 let app;
 before(async () => { app = await startVisualServer({ script: "dev" }); await mkdir("artifacts/verification/issue-485", { recursive: true }); });
@@ -13,6 +14,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`${name}: actual invitation card image joins through existing admission, versions and feedback remain accessible`, async t => {
     const browser = await engine.launch(); t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    await withBrowserEvidence(context, `artifacts/verification/issue-485/${name}-invitation-flow`, async () => {
     const page = await context.newPage(); page.setDefaultTimeout(15000);
     await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
     const fixture = createVisualFixtureSession({ id: "library-invite-active" });
@@ -75,6 +77,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     assert.equal(report.reader.interactionMode, "reading"); assert.equal(report.retentionDays, 180);
     assert.match(report.clientVersion, /^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/);
     await page.screenshot({ path: `artifacts/verification/issue-485/${name}-reader-feedback.png`, fullPage: true });
+    });
   });
 
   test(`${name}: support-only inbox filters, marks and deletes with confirmation on narrow screens`, async t => {

@@ -19,6 +19,8 @@
 
 一次同时运行浏览器与默认并发全量客户端时，3 项既有一秒等待超时；对应 122 项独立回归、四 worker 全量和随后原始默认全量均通过。没有放宽超时或新增自动重试；这些结果不能单独证明最初等待超时的根因。Linux 最终头 CI 在 PR 中另行呈现。
 
+首轮 Linux CI 另发现两处新行为相关的测试前提过时：附件已静态化，旧 loading-stability 用例仍等待 attachment-dialog 懒加载请求；以及保存回执预览先于目录刷新完成，立即 Back 会被既有 busy 保护取消。测试现改为验证静态入口不依赖旧 chunk、把迟到模块取消验证移到替换 PDF，并等待明确的保存完成标记再验证 Back。对应 Chromium/WebKit 2 项 smoke 和 2 项四视口新浏览器用例通过。邀请流程曾在 WebKit page.goto(load) 15 秒超时，独立 4 项回归通过但未证实根因，现仅补现有 withBrowserEvidence，不改变时限/行为/断言。
+
 ## 截图与证据
 
 以下为真实构建下的合成账户/谱目夹具；并非生产用户截图。[用例](../../../visual-report/drive-context-attachments.test.mjs)生成原始图片与几何记录，[结构化结果](evidence.json)保存四种组合的前后矩形。

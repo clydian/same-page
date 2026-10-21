@@ -23,6 +23,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
       context.on("request", request => { if (/markdown-(?:attachment|editor)/.test(request.url())) moduleEvents.push({ event: "request", path: new URL(request.url()).pathname }); });
       context.on("requestfailed", request => { if (/markdown-(?:attachment|editor)/.test(request.url())) moduleEvents.push({ event: "failed", path: new URL(request.url()).pathname, reason: request.failure()?.errorText }); });
       context.on("response", response => { if (/markdown-(?:attachment|editor)/.test(response.url())) moduleEvents.push({ event: "response", path: new URL(response.url()).pathname, status: response.status() }); });
+      let page;
       try {
         const fixture = createVisualFixtureSession();
         let gate = null, release, reads = 0, changed = false, optionalBlocked = false, optionalFailures = 0, savedDocument = null;
@@ -50,7 +51,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
           }
           return route.fulfill(result);
         });
-        const page = await context.newPage();
+        page = await context.newPage();
         await page.clock.setFixedTime(new Date("2026-10-21T16:00:00Z"));
         await page.goto(`${server.origin}/choirs/visual-choir`);
         await expect(page.locator(".file-row")).toHaveCount(3);
@@ -131,12 +132,19 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         assert.deepEqual(savedDocument, { name: "爱情排练笔记.md", size: Buffer.byteLength(source) });
         await expect.poll(() => page.evaluate(() => window.__attachmentUploadedText)).toBe(source);
         await expect(page.getByRole("alert")).toHaveCount(0);
+        // The receipt can paint before the directory refresh finishes. Back is
+        // intentionally guarded until that save workflow has settled.
+        await expect(page.locator(".attachment-dialog")).not.toHaveAttribute("data-update-busy", "true");
         await page.goBack();
         await expect(page.getByRole("dialog")).toBeHidden();
         await expect(page.getByRole("heading", { name: "爱情", exact: true })).toBeVisible();
         results.push({ device, membershipReads: reads, stableTarget: { before, after }, optionalFailures, plainTextFallbackSaved: true });
       } catch (error) {
         await writeFile(`${evidence}/${engineName}-${device}-module-events.json`, JSON.stringify(moduleEvents, null, 2));
+        if (page && !page.isClosed()) {
+          await page.screenshot({ path: `${evidence}/${engineName}-${device}-failure.png` }).catch(() => {});
+          await writeFile(`${evidence}/${engineName}-${device}-navigation.json`, JSON.stringify(await page.evaluate(() => ({ url: location.pathname, history: window.history.state, busy: document.querySelector(".attachment-dialog")?.getAttribute("data-update-busy") })).catch(() => null), null, 2)).catch(() => {});
+        }
         throw error;
       } finally { await context.close(); }
     }
