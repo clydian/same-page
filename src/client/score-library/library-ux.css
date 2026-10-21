@@ -144,8 +144,15 @@
 .drive-switch-actions button[disabled] { opacity: .5; cursor: default; }
 
 /* Reserve role/status space before background confirmation; pointer targets stay put. */
-.membership-status { min-height: 3rem; font-size: .875rem; color: var(--muted); }
+.membership-status { height: 1.5rem; min-height: 1.5rem; display: flex; align-items: center; gap: .35rem; font-size: .875rem; color: var(--muted); }
 .membership-row small { display: block; min-height: 1.25rem; }
 .membership-row[aria-disabled="true"] { opacity: .55; cursor: default; }
 .drive-switch-content .membership-row { height: 88px; }
 .drive-switch-content .membership-row strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* A sheet/popover cannot move a pressed control when its first directory arrives. */
+.drive-switch-content { height: min(32rem, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2rem)); display: flex; flex-direction: column; }
+.drive-switch-popover .drive-switch-content { height: min(32rem, var(--available-height, calc(var(--safe-height) - 3rem))); }
+.drive-switch-content .dialog-heading, .drive-switch-caption, .drive-switch-actions, .drive-switch-content .membership-status { flex-shrink: 0; }
+.drive-switch-content .membership-list { min-height: 0; flex: 1; overflow-y: auto; align-content: start; overflow-anchor: none; }
+
+.drive-switch-content > .drive-switch-actions { margin-top: auto; }

@@ -47,3 +47,10 @@ it("does not restore old directories after a confirmed empty membership snapshot
   await localDatabase.driveDirectories.put({ key: "old", ownerKey: workspace.authenticatedLocalOwnerKey("one"), choirId: "old", choir: { id: "old", name: "旧盘", guestAdmissionMode: "invite" }, scores: [], membership: true });
   expect(await restoreMembershipDirectory("one")).toEqual([]);
 });
+
+it("does not resurrect a revoked drive from an older complete membership snapshot", async () => {
+  await workspace.activateAuthenticatedLocalOwner("one");
+  await localDatabase.system.put({ key: membershipSnapshotKey("user:one"), value: JSON.stringify({ memberships }) });
+  await localDatabase.driveDirectories.put({ key: "revoked", ownerKey: workspace.authenticatedLocalOwnerKey("one"), choirId: "drive", choir: { id: "drive", name: "爱情", guestAdmissionMode: "invite" }, scores: [], membership: false, accessRevoked: true });
+  expect(await restoreMembershipDirectory("one")).toEqual([]);
+});

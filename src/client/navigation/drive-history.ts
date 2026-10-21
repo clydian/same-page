@@ -1,5 +1,5 @@
 type Entry = { key: string; path: string; context: number };
-export function driveForPath(path: string) { return /^\/choirs\/([^/]+)(?:\/|$)/.exec(path)?.[1] ?? null; }
+export function driveForPath(path: string) { return /^\/choirs\/([^/?#]+)(?:[/?#]|$)/.exec(path)?.[1] ?? null; }
 
 // Switching a drive retires its tasks, but keeps ordinary parent/forward history
 // inside the current drive. Unknown older entries fall back at that history slot
@@ -9,13 +9,13 @@ export class DriveHistory {
   index = -1;
   private drive: string | null = null;
   private context = 0;
-  constructor(initialKey?: string) {
-    if (!initialKey) return;
+  constructor(initial?: { key: string; path: string }) {
+    if (!initial) return;
     try {
       const saved = JSON.parse(sessionStorage.getItem("same-page:drive-history-v1") ?? "null");
       if (!saved || typeof saved.drive !== "string" || !Number.isSafeInteger(saved.context) || !Array.isArray(saved.entries) || saved.entries.length > 128) return;
       if (!saved.entries.every((entry: Entry) => typeof entry.key === "string" && typeof entry.path === "string" && entry.path.startsWith("/") && Number.isSafeInteger(entry.context))) return;
-      const index = saved.entries.findIndex((entry: Entry) => entry.key === initialKey);
+      const index = saved.entries.findIndex((entry: Entry) => entry.key === initial.key && entry.path === initial.path);
       if (index < 0) return;
       this.entries = saved.entries; this.index = index; this.drive = saved.drive; this.context = saved.context;
     } catch { /* Optional tab history must never block navigation. */ }

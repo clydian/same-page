@@ -2,13 +2,13 @@ import { choirMembershipsResponseSchema, type ChoirSummary } from "../../shared/
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
 import { localDatabase } from "../platform/local-database";
 import { authenticatedLocalOwnerKey, captureLocalWorkspaceSession, createLocalWorkspace, withLocalWorkspaceTransaction } from "../platform/local-workspace";
-import { captureNavigationIdentity, NAVIGATION_FRESH_MS, onMembershipDirectoryChange, onNavigationReset } from "../settings/navigation-events";
+import { captureNavigationIdentity, NAVIGATION_FRESH_MS, onMembershipDirectoryChange, onNavigationReset, onDriveAccessRevoked } from "../settings/navigation-events";
 import { SettingsRequestError } from "../settings/settings-request";
 import { getReadResource } from "../settings/read-resource";
 import { readLocalDriveDirectories } from "./local-drive-directory";
 import { driveCacheOwnerKey, rememberDriveSummary } from "./drive-library-cache";
 
-export type MembershipEntry = { choir: ChoirSummary; isOwner: boolean | null };
+export type MembershipEntry = { choir: ChoirSummary; isOwner: boolean | null; unavailable?: boolean };
 export const membershipDirectoryKey = (userId: string) => ({ owner: userId, driveId: "", kind: "memberships" as const });
 export const membershipSnapshotKey = (owner: string) => JSON.stringify(["membership-directory-v1", owner]);
 export const membershipFreshMs = NAVIGATION_FRESH_MS;
@@ -16,15 +16,26 @@ const observedUsers = new Set<string>();
 onNavigationReset(() => observedUsers.clear());
 onMembershipDirectoryChange(() => { for (const userId of observedUsers) getReadResource(membershipDirectoryKey(userId)).invalidate(); });
 
+onDriveAccessRevoked(driveId => {
+  for (const userId of observedUsers) {
+    const resource = getReadResource<MembershipEntry[]>(membershipDirectoryKey(userId));
+    const data = resource.getSnapshot().data;
+    if (data) resource.update(data.map(row => row.choir.id === driveId ? { ...row, unavailable: true } : row));
+    resource.invalidate();
+  }
+});
+
 export async function restoreMembershipDirectory(userId: string): Promise<MembershipEntry[]> {
   observedUsers.add(userId);
   const workspace = await captureLocalWorkspaceSession(createLocalWorkspace(authenticatedLocalOwnerKey(userId), "", ""));
+  const directories = await readLocalDriveDirectories(userId);
+  const revoked = new Set(directories.filter(row => row.accessRevoked).map(row => row.choirId));
   const saved = await withLocalWorkspaceTransaction(workspace, "r", [], () => localDatabase.system.get(membershipSnapshotKey(workspace.ownerKey)));
   if (saved) {
-    try { return choirMembershipsResponseSchema.parse(JSON.parse(saved.value)).memberships.filter(row => !row.choir.isPreviewEntry); }
+    try { return choirMembershipsResponseSchema.parse(JSON.parse(saved.value)).memberships.filter(row => !row.choir.isPreviewEntry && !revoked.has(row.choir.id)); }
     catch { /* Older/incomplete records fall back to independently saved drives. */ }
   }
-  return (await readLocalDriveDirectories(userId)).filter(row => row.membership && !row.accessRevoked && !row.choir.isPreviewEntry)
+  return directories.filter(row => row.membership && !row.accessRevoked && !row.choir.isPreviewEntry)
     .map(row => ({ choir: row.choir, isOwner: row.capabilities?.isOwner ?? null }));
 }
 
@@ -59,7 +70,7 @@ export function reconcileMembershipRows(previous: MembershipEntry[], next: Membe
   const rows = previous.map(row => {
     const updated = remaining.get(row.choir.id);
     remaining.delete(row.choir.id);
-    return { ...updated ?? row, unavailable: !updated };
+    return { ...updated ?? row, unavailable: !updated || updated.unavailable === true };
   });
   const added = [...remaining.values()].sort((a, b) => a.choir.name.localeCompare(b.choir.name, "zh-CN") || a.choir.id.localeCompare(b.choir.id));
   return [...rows, ...added.map(row => ({ ...row, unavailable: false }))];

@@ -38,7 +38,22 @@ it("keeps retired contexts across a refresh without persisting query credentials
   history.observe("a2", "/choirs/a", "PUSH");
   history.observe("b", "/choirs/b", "REPLACE");
   history.observe("a3", "/choirs/a", "REPLACE");
-  const restored = new DriveHistory("a3");
+  const restored = new DriveHistory({ key: "a3", path: "/choirs/a" });
   expect(restored.obsolete("as", "/choirs/a/settings", "POP")).toBe(true);
   expect(sessionStorage.getItem("same-page:drive-history-v1")).not.toContain("secret");
+});
+
+it("does not restore an unrelated deep link whose initial default key was reused", () => {
+  const history = new DriveHistory();
+  history.observe("default", "/choirs/a", "POP");
+  history.observe("b", "/choirs/b", "PUSH");
+  const direct = new DriveHistory({ key: "default", path: "/choirs/c" });
+  expect(direct.obsolete("default", "/choirs/c", "POP")).toBe(false);
+});
+
+it("keeps query and experience parameters out of drive context identity", () => {
+  const history = new DriveHistory();
+  history.observe("a", "/choirs/a?experience=1", "POP");
+  history.observe("reader", "/choirs/a/scores/one?experience=1", "PUSH");
+  expect(history.obsolete("a", "/choirs/a", "POP")).toBe(false);
 });

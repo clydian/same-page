@@ -1,5 +1,6 @@
 import { AttachmentModule } from "./attachment-module";
-import { AttachmentShell, AttachmentLoading } from "./attachment-shell";
+import { AttachmentShell } from "./attachment-shell";
+import MarkdownAttachment from "./markdown-attachment";
 import { LoadingStatus } from "../../components/loading-status";
 import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
@@ -13,7 +14,6 @@ import { attachmentFileUrl, attachmentMessage } from "./api";
 import { useAttachmentMutation } from "./use-attachment-mutation";
 import { attachmentActionTitle } from "./attachment-presentation";
 
-const loadMarkdown = () => import("./markdown-attachment");
 const loadPdf = () => import("./pdf-preview");
 
 
@@ -23,7 +23,7 @@ type Props = AttachmentDialogProps;
 export default function AttachmentDialog(props: Props) {
   const { selection, choirId, onClose } = props;
   const { attachment, score, action } = selection;
-  if (action === "markdown" || (action === "open" && attachment?.kind === "markdown")) return <AttachmentModule load={loadMarkdown} props={props} fallback={<AttachmentLoading selection={selection} onClose={onClose} />} />;
+  if (action === "markdown" || (action === "open" && attachment?.kind === "markdown")) return <MarkdownAttachment {...props} />;
   if (action !== "open" || !attachment) return <AttachmentForm {...props} />;
   return <AttachmentShell title={attachment.name} subtitle={scoreDisplayName(score.fileName)} wide={attachment.kind === "pdf"} onClose={onClose}>
     {attachment.kind === "audio" ? <AudioPreview attachment={attachment} choirId={choirId} />

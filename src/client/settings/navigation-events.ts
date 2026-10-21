@@ -2,6 +2,8 @@
 // A new effective session still clears private reads; local ownership grants no authority.
 export const NAVIGATION_FRESH_MS = 60_000;
 const resets = new Set<() => void>();
+const driveAccessRevocations = new Set<(driveId: string) => void>();
+export function onDriveAccessRevoked(listener: (driveId: string) => void) { driveAccessRevocations.add(listener); return () => { driveAccessRevocations.delete(listener); }; }
 let membershipRevision = 0;
 const membershipChanges = new Set<() => void>();
 export const membershipDirectoryRevision = () => membershipRevision;
@@ -82,6 +84,7 @@ export function observeNavigationResponse(input: RequestInfo | URL, init: Reques
   const match = /^\/api\/choirs\/([^/]+)\/(.+)$/.exec(path);
   if (!match) return;
   const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+  if (method === "GET" && match[2] === "bootstrap" && [403, 404].includes(response.status)) for (const listener of driveAccessRevocations) listener(match[1]);
   const permissions = response.status === 401 || response.status === 403;
   // Reads retain their endpoint-specific denial semantics; a failed mutation
   // invalidates remembered capabilities, without declaring the drive deleted.
