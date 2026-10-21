@@ -69,7 +69,6 @@ test("voice/staff scoped wedge cannot weaken independently marked otherstaff", (
       '<wedge type="stop" number="1"/></direction-type>',
       '<wedge type="stop" number="1"/></direction-type><voice>1</voice>',
     );
-  xml = xml.replaceAll("<staff>2</staff></note>", "<staff>2</staff></note>");
   xml = xml.replace(
     "<note>",
     "<direction><direction-type><dynamics><mf/></dynamics></direction-type><staff>2</staff></direction><note>",

@@ -241,7 +241,7 @@ The source app invokes the same helper from `packages/player/scripts` before its
 build. It validates the installed peer and enclosed archive checksum, uses
 content-addressed filenames, rejects altered existing snapshots, and retains old
 versions. Commit new snapshots and keep older ones when updating the native
-package. See [native distribution](../../docs/player/native-distribution.md) for
+package. See [native distribution](../../vendor/alphatab/README.md) for
 clean-build and source-replay requirements. A private repository URL alone is not
 the source distribution for a public browser runtime.
 
