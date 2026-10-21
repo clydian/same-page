@@ -6,6 +6,7 @@ import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
 import { zipSync, strToU8 } from 'fflate';
 import { startStorageFixture } from './storage-fixture.mjs';
+import { withBrowserEvidence } from './browser-evidence.mjs';
 import { polyphonicMusicXmlFixture } from './musicxml-fixture.mjs';
 
 test('MusicXML and MXL: verified optional bundle, closed-browser offline cold start, refresh, playback and recovery', {timeout:240000}, async t => {
@@ -57,6 +58,7 @@ test('MusicXML and MXL: verified optional bundle, closed-browser offline cold st
   window.__audioAnalysers=[];const connect=AudioNode.prototype.connect;
   AudioNode.prototype.connect=function(destination,...args){if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();window.__audioAnalysers.push(analyser);connect.call(this,analyser);connect.call(analyser,destination);return destination;}return connect.call(this,destination,...args);};
  });
+ await withBrowserEvidence(context,'artifacts/verification/musicxml-offline/cold-refresh',async()=>{
  const offline=await context.newPage();const errors=[];offline.on('pageerror',error=>errors.push(error.message));
  await offline.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
  await offline.getByRole('button',{name:'本地链路测试：2 个附件',exact:true}).click();
@@ -71,7 +73,10 @@ test('MusicXML and MXL: verified optional bundle, closed-browser offline cold st
  await player.getByRole('button',{name:'暂停',exact:true}).click();
  await mkdir('artifacts/verification/musicxml-offline',{recursive:true});
  await offline.screenshot({path:'artifacts/verification/musicxml-offline/chromium-cold-offline.png'});
- await offline.reload();await offline.locator('canvas[data-pdf-canvas-active]').first().waitFor();
+ await offline.reload();
+ // A refresh ends practice; capture that boundary separately from PDF rendering.
+ await expect(offline.getByTestId('musicxml-player')).toHaveCount(0);
+ await offline.locator('canvas[data-pdf-canvas-active]').first().waitFor();
  await offline.screenshot({path:'artifacts/verification/musicxml-offline/reader-after-refresh.png'});
  if (!await offline.getByRole('button',{name:'练习谱',exact:true}).isVisible()) await offline.locator('canvas[data-pdf-canvas-active]').first().click({position:{x:195,y:350}});
  await offline.getByRole('button',{name:'练习谱',exact:true}).click();
@@ -92,4 +97,5 @@ test('MusicXML and MXL: verified optional bundle, closed-browser offline cold st
  }))).toBe(1);
  await expect(offline.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
  assert.deepEqual(errors,[]);
+ });
 });
