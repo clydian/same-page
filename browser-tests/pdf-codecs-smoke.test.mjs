@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { chromium, webkit, expect } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
+import { withBrowserEvidence } from "./browser-evidence.mjs";
 
 for (const engine of [chromium, webkit]) {
   test(`${engine.name()}: legacy fills missing APIs in page and Worker and paints CCITT/JPEG2000 online and offline`, { timeout: 90000 }, async t => {
@@ -18,6 +19,7 @@ for (const engine of [chromium, webkit]) {
     assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
       headers: { origin: fixture.origin }, data: { email: account.email, password: account.password },
     })).status(), 200);
+    await withBrowserEvidence(context, `artifacts/verification/pdf-codecs-${engine.name()}`, async () => {
     await context.addInitScript(installCompatibilityProbe);
     await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
     const page = await context.newPage();
@@ -82,6 +84,7 @@ for (const engine of [chromium, webkit]) {
     const sheet = offlinePage.locator(".page-reader__sheet[data-page-turn-current]");
     await expect(sheet).toBeVisible();
     await assertSquare(offlinePage, Number(await sheet.getAttribute("data-page-number")));
+    });
   });
 }
 
