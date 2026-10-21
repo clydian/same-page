@@ -240,3 +240,7 @@ MPL 源码分发和回归边界见 [制品说明](chorus-player-0.1.19-samepage.
 ## 保留原谱音名拼写：player 0.1.19-samepage.9 / native samepage.10
 
 修复[#507](https://github.com/clydian/same-page/issues/507)，沿用临时记号的降 B 保持原写法，不重拼升 A；精确源与MPL/回归边界见[制品说明](chorus-player-0.1.19-samepage.9.md)。#508谱号、#510跨谱表八度线仍独立待修。
+
+## 谱表时点记号与装饰音播放：player 0.1.19-samepage.10 / native samepage.11
+
+修复实际原谱的谱号/调号时点、八度线谱表范围、波音音程、和弦跳音和双音组震音子集；完整来源、精确制品身份及适用边界见[制品说明](chorus-player-0.1.19-samepage.10.md)。旧包和公开源码下载保留。
