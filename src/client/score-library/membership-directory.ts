@@ -73,5 +73,5 @@ export function reconcileMembershipRows(previous: MembershipEntry[], next: Membe
     return { ...updated ?? row, unavailable: !updated || updated.unavailable === true };
   });
   const added = [...remaining.values()].sort((a, b) => a.choir.name.localeCompare(b.choir.name, "zh-CN") || a.choir.id.localeCompare(b.choir.id));
-  return [...rows, ...added.map(row => ({ ...row, unavailable: false }))];
+  return [...rows, ...added.map(row => ({ ...row, unavailable: row.unavailable === true }))];
 }

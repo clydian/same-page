@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { localDatabase } from "../platform/local-database";
 import * as workspace from "../platform/local-workspace";
-import { loadMembershipDirectory, membershipSnapshotKey, restoreMembershipDirectory } from "./membership-directory";
+import { loadMembershipDirectory, membershipSnapshotKey, reconcileMembershipRows, restoreMembershipDirectory } from "./membership-directory";
 import { clearPrivateLocalDataAfterLogout } from "../auth/logout-local-data";
 
 beforeEach(() => localDatabase.open());
 afterEach(() => vi.unstubAllGlobals());
 
-const memberships = [{ id: "member", displayName: "排练者", isOwner: true, choir: { id: "drive", name: "爱情", guestAdmissionMode: "invite" } }];
+const memberships = [{ id: "member", displayName: "排练者", isOwner: true, choir: { id: "drive", name: "爱情", guestAdmissionMode: "invite" as const } }];
 
 it("persists complete display membership and restores it without a schema change", async () => {
   await workspace.activateAuthenticatedLocalOwner("one");
@@ -53,4 +53,11 @@ it("does not resurrect a revoked drive from an older complete membership snapsho
   await localDatabase.system.put({ key: membershipSnapshotKey("user:one"), value: JSON.stringify({ memberships }) });
   await localDatabase.driveDirectories.put({ key: "revoked", ownerKey: workspace.authenticatedLocalOwnerKey("one"), choirId: "drive", choir: { id: "drive", name: "爱情", guestAdmissionMode: "invite" }, scores: [], membership: false, accessRevoked: true });
   expect(await restoreMembershipDirectory("one")).toEqual([]);
+});
+
+it("preserves confirmed revocation on first presentation and subsequent picker reopening", () => {
+  const denied = { choir: memberships[0].choir, isOwner: true, unavailable: true };
+  const first = reconcileMembershipRows([], [denied]);
+  expect(first[0].unavailable).toBe(true);
+  expect(reconcileMembershipRows([], first)[0].unavailable).toBe(true);
 });

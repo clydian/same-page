@@ -18,7 +18,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const type = useNavigationType();
   const navigate = useNavigate();
-  const [history] = useState(() => new DriveHistory((performance.getEntriesByType?.("navigation")[0] as PerformanceNavigationTiming | undefined)?.type === "reload" ? { key: location.key, path: location.pathname } : undefined));
+  const [history] = useState(() => new DriveHistory(["reload", "back_forward"].includes((performance.getEntriesByType?.("navigation")[0] as PerformanceNavigationTiming | undefined)?.type ?? "") ? { key: location.key, path: location.pathname } : undefined));
   const obsoleteDrive = history.obsolete(location.key, location.pathname, type);
   const latestIntent = useRef(0);
   const checkpointOriginal = useRef<string | null>(null);

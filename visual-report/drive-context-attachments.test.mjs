@@ -32,9 +32,9 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
           if (optionalBlocked && /(?:markdown-editor|pdf-preview)[^/]*\.(?:tsx|js)/.test(pathname)) { optionalFailures++; return route.fulfill({ status: 503, contentType: "text/javascript", headers: { "cache-control": "no-store" }, body: "" }); }
           if (!pathname.startsWith("/api/")) return route.continue();
           if (request.method() === "POST" && /\/attachments\/[^/]+\/file$/.test(pathname)) {
-            const name = new URL(request.url()).searchParams.get("name"), text = request.postData();
-            savedDocument = { name, text };
-            return route.fulfill({ json: { attachment: { id: pathname.split("/").at(-2), scoreId: pathname.split("/").at(-4), name, kind: "markdown", url: null, sizeBytes: Buffer.byteLength(text), revision: 1, updatedAt: 1, trashExpiresAt: null } } });
+            const query = new URL(request.url()).searchParams, name = query.get("name"), size = Number(query.get("size"));
+            savedDocument = { name, size };
+            return route.fulfill({ json: { attachment: { id: pathname.split("/").at(-2), scoreId: pathname.split("/").at(-4), name, kind: "markdown", url: null, sizeBytes: size, revision: 1, updatedAt: 1, trashExpiresAt: null } } });
           }
           if (pathname === "/api/choirs") {
             reads++; if (gate) await gate;
@@ -117,9 +117,19 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         const source = "# 排练提醒\n保留原文与草稿，弱网下也能继续编辑。";
         await page.getByRole("textbox", { name: "Markdown 正文", exact: true }).fill(source);
         await page.screenshot({ path: `${evidence}/${engineName}-${device}-attachment-plain-text.png` });
+        // WebKit's protocol omits Blob POST data from intercepted Request objects.
+        // Observe the bytes passed to native XHR without changing the upload.
+        await page.evaluate(() => {
+          const send = XMLHttpRequest.prototype.send;
+          XMLHttpRequest.prototype.send = function (body) {
+            if (body instanceof Blob) void body.text().then(text => { window.__attachmentUploadedText = text; });
+            return send.call(this, body);
+          };
+        });
         await page.getByRole("button", { name: "保存", exact: true }).click();
         await expect(page.getByRole("heading", { name: "排练提醒", exact: true })).toBeVisible();
-        assert.deepEqual(savedDocument, { name: "爱情排练笔记.md", text: source });
+        assert.deepEqual(savedDocument, { name: "爱情排练笔记.md", size: Buffer.byteLength(source) });
+        await expect.poll(() => page.evaluate(() => window.__attachmentUploadedText)).toBe(source);
         await expect(page.getByRole("alert")).toHaveCount(0);
         await page.goBack();
         await expect(page.getByRole("dialog")).toBeHidden();

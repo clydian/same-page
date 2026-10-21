@@ -45,6 +45,7 @@ export function MembershipList({ userId, currentChoirId, onSelect, localOnly = f
       const content = <span><strong title={row.choir.name}>{row.choir.name}</strong><small>{row.isOwner === null ? "身份待确认" : row.isOwner ? "拥有者" : "成员"}{current ? " · 当前云盘" : ""}{row.unavailable ? " · 已不可用" : ""}</small></span>;
       return row.unavailable ? <span className="membership-row" role="link" aria-disabled="true" key={row.choir.id}>{content}</span>
         : <Link className="membership-row" key={row.choir.id} replace={Boolean(currentChoirId)} to={`/choirs/${row.choir.id}`} aria-current={current ? "page" : undefined} onClick={event => {
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
           if (current) event.preventDefault();
           startLoadingJourney("enter-drive", "warm"); onSelect?.();
         }}>{content}<span aria-hidden="true">→</span></Link>;
