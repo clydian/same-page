@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { ShellRuntime, digest, shellBudget } from '../service-worker/shell-runtime.ts';
+import { ShellRuntime, digest, shellReleaseLimit } from '../service-worker/shell-runtime.ts';
 
 const origin = 'https://shell.example/';
 class MemoryCache {
@@ -45,6 +45,28 @@ async function complete(runtime) {
   const cache = await caches.open(id.cacheName);
   return (await Promise.all(record.entries.map(entry => cache.match(entry.url)))).every(Boolean);
 }
+async function presented(...runtimes) {
+  for (const runtime of runtimes) {
+    const own = await runtime.identity;
+    const saved = (await runtime.records()).find(r => r.cacheName === own.cacheName);
+    saved.activated = Date.now();
+    saved.candidateOnly = false;
+    const registry = await caches.open(runtime.registryName);
+    const key = new URL('__same_page_shell__/' + encodeURIComponent(saved.cacheName), origin).href;
+    await registry.delete(new URL('__same_page_candidate__/' + encodeURIComponent(saved.cacheName), origin).href);
+    await registry.put(key, Response.json(saved));
+  }
+}
+it('directly installs the latest release beside the four shells in the Android report', async () => {
+  const retained = [];
+  for (const [index, bytes] of [6601844, 6603293, 6607650, 6622743].entries()) {
+    retained.push(await release(`phone-${index}`, bytes / 2));
+  }
+  scope.registration.active = target(() => null);
+  const latest = await release('latest', 6764296 / 2);
+  expect(await complete(latest)).toBe(true);
+  for (const runtime of retained) expect(await complete(runtime)).toBe(true);
+});
 it('isolates overlapping installers from both legacy revision pruning and legacy namespace cleanup', async () => {
   const b = await release('B'), c = await release('C');
   const legacyName = 'workbox-precache-v2-' + origin;
@@ -61,6 +83,7 @@ it('isolates overlapping installers from both legacy revision pruning and legacy
 });
 it('rejects a changed deployment rather than storing its HTML under an old manifest', async () => {
   const b = await release('B'), c = await release('C');
+  await presented(b);
   await (await caches.open((await c.identity).cacheName)).delete(origin);
   server.set(origin, '<html>unverified D</html>');
   expect(await (await c.navigation()).text()).toContain('content="B"');
@@ -82,9 +105,10 @@ it('retains legacy hash assets for an old document after a controller switch', a
 });
 it('collects only unreferenced owned releases, preserving worker roles, displayed versions and one rollback', async () => {
   const a = await release('A'), b = await release('B'), c = await release('C'), d = await release('D');
+  await presented(a, b, c, d);
   scope.registration.active = target(() => d.identity); scope.registration.waiting = target(() => c.identity);
   scope.clients.matchAll = async () => [{ id: 'old', ...target(() => b.identity) }];
-  await d.collect(); expect(await complete(a)).toBe(true); expect(await complete(b)).toBe(true);
+  await d.collect(); expect(stores.has((await a.identity).cacheName)).toBe(false); expect(await complete(b)).toBe(true);
   scope.registration.waiting = null; scope.clients.matchAll = async () => [];
   await d.collect();
   expect(stores.has((await d.identity).cacheName)).toBe(true);
@@ -94,18 +118,19 @@ it('collects only unreferenced owned releases, preserving worker roles, displaye
 });
 it('unknown/suspended clients and legacy workers veto shell collection', async () => {
   const a = await release('A'), b = await release('B'), c = await release('C');
+  await presented(a, b);
   scope.registration.active = target(() => c.identity);
   scope.clients.matchAll = async () => [{ id: 'legacy', ...target(() => null) }];
   await c.collect(); expect(stores.has((await a.identity).cacheName)).toBe(true);
   scope.clients.matchAll = async () => []; scope.registration.active = target(() => null);
   await c.collect(); expect(stores.has((await b.identity).cacheName)).toBe(true);
 });
-it('caps protected shell storage without evicting the active release', async () => {
-  const allocated = [];
-  for (let i = 0; i < 4; i++) allocated.push(await release(String(i), shellBudget / 8));
-  scope.registration.active = target(() => null); // Legacy active worker cannot authorize collection.
-  await expect(release('overflow', shellBudget / 8)).rejects.toThrow('shell_capacity_protected');
-  expect(await complete(allocated[0])).toBe(true);
+it('rejects an oversized individual release before fetching or evicting the active shell', async () => {
+  const old = await release('old');
+  const calls = fetch.mock.calls.length;
+  await expect(release('oversized', shellReleaseLimit / 2 + 1)).rejects.toThrow('shell_release_too_large');
+  expect(fetch.mock.calls.length).toBe(calls);
+  expect(await complete(old)).toBe(true);
 });
 it('a quota failure cleans only the new candidate and preserves the usable release', async () => {
   const old = await release('old');
@@ -118,17 +143,75 @@ it('a quota failure cleans only the new candidate and preserves the usable relea
   expect((await old.records()).map(r => r.buildId)).toEqual(['old']);
   vi.restoreAllMocks();
 });
+it.each([0, 1])('retries quota writes only after owner collection reports actual removal (%i)', async removed => {
+  const old = await release('active');
+  let collection = 0;
+  scope.registration.active = { postMessage: (_message, ports) => {
+    collection++;
+    ports[0].postMessage({ buildId: 'active', cacheName: 'active', removed: collection > 1 ? removed : 0 });
+  } };
+  const put = MemoryCache.prototype.put;
+  let writes = 0;
+  vi.spyOn(MemoryCache.prototype, 'put').mockImplementation(async function(key, response) {
+    if (String(key).includes('main-retry.js') && ++writes === 1) throw new DOMException('quota', 'QuotaExceededError');
+    return put.call(this, key, response);
+  });
+  if (removed) expect(await complete(await release('retry'))).toBe(true);
+  else await expect(release('retry')).rejects.toThrow('quota');
+  expect(writes).toBe(removed ? 2 : 1);
+  expect(await complete(old)).toBe(true);
+});
 
-it('keeps recently activated history releases even when they are absent from live clients', async () => {
-  const a = await release('A'), b = await release('B'), c = await release('C');
-  const record = (await a.records()).find(r => r.buildId === 'A'); record.activated = Date.now();
-  const registry = await caches.open(a.registryName);
-  const key = (await registry.keys()).find(k => k.url.includes(encodeURIComponent(record.cacheName)));
-  await registry.put(key, Response.json(record));
-  scope.registration.active = target(() => c.identity);
-  await c.collect();
-  expect(stores.has((await a.identity).cacheName)).toBe(true);
-  expect(stores.has((await b.identity).cacheName)).toBe(true);
+it('keeps a steady current and one rollback across twenty same-day activations', async () => {
+  for (let i = 0; i < 20; i++) {
+    const runtime = await release(`day-${i}`);
+    scope.registration.active = target(() => runtime.identity);
+    await runtime.activate();
+    const records = await runtime.records();
+    expect(records.map(r => r.buildId)).toEqual(i ? [`day-${i - 1}`, `day-${i}`] : ['day-0']);
+    expect(await complete(runtime)).toBe(true);
+  }
+});
+it('reclaims twenty superseded candidates despite an unknown window, retaining displayed history', async () => {
+  const history = await release('history'); await presented(history);
+  const active = await release('active'); await presented(active);
+  scope.registration.active = target(() => active.identity);
+  scope.clients.matchAll = async () => [{ id: 'frozen', ...target(() => null) }];
+  for (let i = 0; i < 20; i++) {
+    const candidate = await release(`waiting-${i}`);
+    scope.registration.waiting = target(() => candidate.identity);
+    await active.collect();
+    expect((await active.records()).map(r => r.buildId)).toEqual(['history', 'active', `waiting-${i}`]);
+    expect(await complete(active)).toBe(true);
+  }
+});
+it('never displays an abandoned candidate as a navigation fallback', async () => {
+  const current = await release('current');
+  await release('never-displayed');
+  await (await caches.open((await current.identity).cacheName)).delete(origin);
+  server.clear();
+  expect((await current.navigation()).status).toBe(503);
+});
+it('preserves the fixed v1 legacy collection while retiring new history', async () => {
+  const old = await release('legacy');
+  const own = await old.identity;
+  const record = (await old.records())[0];
+  const legacyName = own.cacheName.replace('same-page-shell-v2:', 'same-page-shell-v1:');
+  const source = await caches.open(own.cacheName), dest = await caches.open(legacyName);
+  for (const key of await source.keys()) await dest.put(key, await source.match(key));
+  const registry = await caches.open(old.registryName);
+  const key = new URL('__same_page_shell__/' + encodeURIComponent(own.cacheName), origin).href; await registry.delete(key);
+  await registry.delete(new URL('__same_page_candidate__/' + encodeURIComponent(own.cacheName), origin).href);
+  record.cacheName = legacyName;
+  await registry.put(new URL('__same_page_shell__/' + encodeURIComponent(legacyName), origin).href, Response.json(record));
+  await caches.delete(own.cacheName);
+  for (let i = 0; i < 20; i++) {
+    const runtime = await release(`new-${i}`);
+    scope.registration.active = target(() => runtime.identity);
+    await runtime.activate();
+    expect(stores.has(legacyName)).toBe(true);
+    expect((await runtime.records()).length).toBeLessThanOrEqual(3);
+  }
 });
 
 it('serializes retiring a cache with an installer reusing the same immutable release', async () => {
@@ -194,6 +277,21 @@ it('serves a fully verified installed shell when quota prevents refreshing its r
   vi.restoreAllMocks();
 });
 
+it('does not mistake a displayed shell for an abandoned candidate when activation metadata cannot be written', async () => {
+  const old = await release('old');
+  scope.registration.active = target(() => old.identity);
+  const registry = await caches.open(old.registryName);
+  const put = vi.spyOn(registry, 'put').mockRejectedValue(new DOMException('quota', 'QuotaExceededError'));
+  await old.activate(); // Candidate seal removal still works at quota.
+  expect(await (await old.navigation()).text()).toContain('content="old"');
+  put.mockRestore();
+  const current = await release('current'); await presented(current);
+  scope.registration.active = target(() => current.identity);
+  scope.clients.matchAll = async () => [{ id: 'suspended-old', ...target(() => null) }];
+  await current.collect();
+  expect(await complete(old)).toBe(true);
+});
+
 it('always returns a Response when eviction races the final navigation read', async () => {
   const c = await release('C'); const cache = await caches.open((await c.identity).cacheName);
   await cache.delete(origin + 'assets/main-C.js'); // Require the repair path.
@@ -238,7 +336,7 @@ it('checks required keys and root integrity on wake without reading every asset 
 it('refreshes the asset catalogue when falling back to a release installed after worker startup', async () => {
   const a = await release('A');
   expect((await a.asset(new Request(origin + 'assets/main-A.js'))).status).toBe(200);
-  await release('B'); // New retained/waiting release, absent from A's first asset snapshot.
+  const b = await release('B'); await presented(b); // Historical fallback, absent from A's first asset snapshot.
   await (await caches.open((await a.identity).cacheName)).delete(origin);
   server.clear();
   expect(await (await a.navigation()).text()).toContain('content="B"');

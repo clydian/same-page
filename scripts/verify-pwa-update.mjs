@@ -17,8 +17,8 @@ const builds = {
   second: path.join(temporaryRoot, "second"),
 };
 const buildIds = {
-  first: "pwa-e2e-first",
-  second: "pwa-e2e-second",
+  first: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  second: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 };
 
 let activeBuild = builds.first;
@@ -105,10 +105,6 @@ try {
   await page.screenshot({ path: "artifacts/verification/update-feedback/webkit-blocked-mobile.png", fullPage: true });
 
   assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
-  await editingWindow.close();
-  // A prepared update must not reload a restored application just because it is idle.
-  await page.waitForTimeout(4000);
-  assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
   const legacySafe = await page.evaluate(async () => {
     const waiting = (await navigator.serviceWorker.getRegistration()).waiting;
     return new Promise((resolve, reject) => {
@@ -120,7 +116,9 @@ try {
   });
   assert.equal(legacySafe, false, "legacy idle requests must not activate a prepared update");
   assert.equal(await page.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
-  await page.getByRole("button", { name: "重新加载并更新" }).click();
+  // Closing the unsafe window makes the idle about page eligible for automatic
+  // handover. No update-button click is needed after that point.
+  await editingWindow.close();
   await page.waitForFunction(
     (expected) => document.documentElement.dataset.buildId === expected,
     buildIds.second,

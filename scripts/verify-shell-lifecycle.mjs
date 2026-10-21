@@ -146,7 +146,7 @@ try {
           // Legacy namespace cleanup and same-cache revision pruning have both run.
           const during = await (c ?? page).evaluate(async () => {
             const result = [];
-            for (const name of await caches.keys()) if (name.startsWith('same-page-shell-v1:')) result.push({ name, root: Boolean(await (await caches.open(name)).match(location.origin + '/')) });
+            for (const name of await caches.keys()) if (/^same-page-shell-v[12]:/.test(name)) result.push({ name, root: Boolean(await (await caches.open(name)).match(location.origin + '/')) });
             return result;
           });
           assert.ok(during.length && during.every(record => record.root), 'legacy activation must retain installing C root');
@@ -188,14 +188,14 @@ try {
           const api = await current.goto(origin + '/api/shell-test-missing'); assert.equal(api.status(), 404); assert.match(api.headers()['content-type'], /json/);
           await current.goBack(); await current.getByRole('heading', { name: '关于与更新', exact: true }).waitFor();
           // Fault injection is recovery coverage, separate from the overlap above.
-          await current.evaluate(async () => { for (const name of await caches.keys()) if (name.startsWith('same-page-shell-v1:')) await (await caches.open(name)).delete(location.origin + '/'); });
+          await current.evaluate(async () => { for (const name of await caches.keys()) if (/^same-page-shell-v[12]:/.test(name)) await (await caches.open(name)).delete(location.origin + '/'); });
           auditPhase = 'root-repair-reload';
           await current.reload(); await audit(current);
           observe({ type: 'before-offline', state: await current.evaluate(snapshotShellRegistration) });
           auditPhase = 'first-offline-reload';
           offline = true; if (engine === chromium) await context.setOffline(true);
           await current.reload(); await current.getByRole('heading', { name: '关于与更新', exact: true }).waitFor(); await audit(current);
-          await current.evaluate(async () => { for (const name of await caches.keys()) if (name.startsWith('same-page-shell-v1:')) await (await caches.open(name)).delete(location.origin + '/'); });
+          await current.evaluate(async () => { for (const name of await caches.keys()) if (/^same-page-shell-v[12]:/.test(name)) await (await caches.open(name)).delete(location.origin + '/'); });
           const retry = await current.reload(); assert.equal(retry.status(), 503);
           await current.getByRole('heading', { name: '暂时无法打开合谱', exact: true }).waitFor();
           await current.screenshot({ path: `${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}-offline-retry.png` });

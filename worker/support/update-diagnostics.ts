@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnvironment } from "../env";
 import { buildId } from "../../src/shared/build";
 import { safeBuildId } from "../../src/shared/diagnostics";
-import { applicationShellBudgetBytes } from "../../src/shared/update-diagnostics";
+import { applicationShellReleaseLimitBytes } from "../../src/shared/update-diagnostics";
 import html from "./update-diagnostics.html?raw";
 import script from "./update-diagnostics-browser.js?raw";
 
@@ -17,5 +17,5 @@ updateDiagnosticRoutes.use("/support/*", async (c, next) => {
 });
 // /api is deliberately excluded by released service workers. Old applications
 // can load this page and script without first accepting a new application shell.
-updateDiagnosticRoutes.get("/support/update", c => c.html(html.replace("__BUILD__", safeBuildId(buildId) ?? "development").replace("__BUDGET__", String(applicationShellBudgetBytes))));
+updateDiagnosticRoutes.get("/support/update", c => c.html(html.replace("__BUILD__", safeBuildId(buildId) ?? "development").replace("__LIMIT__", String(applicationShellReleaseLimitBytes))));
 updateDiagnosticRoutes.get("/support/update-diagnostics.js", c => c.body(script, 200, { "Content-Type": "text/javascript; charset=utf-8" }));

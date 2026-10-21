@@ -16,6 +16,7 @@ export class UpdateController {
   private checkTimer?: ReturnType<typeof setTimeout>;
   private installTimer?: ReturnType<typeof setTimeout>;
   private stopApply?: () => void;
+  private autoRetryAt = 0;
 
   constructor(
     private registration: ServiceWorkerRegistration | undefined,
@@ -134,7 +135,13 @@ export class UpdateController {
     if (this.phase !== "ready") void this.check();
   };
 
-  apply = () => {
+  autoApply = () => {
+    if (this.phase === "ready" && Date.now() >= this.autoRetryAt && canApplyUpdate()) this.beginApply(false);
+  };
+
+  apply = () => this.beginApply(true);
+
+  private beginApply(manual: boolean) {
     if (this.disposed || this.phase === "applying") return;
     const waiting = this.registration?.waiting;
     if (!waiting) {
@@ -142,12 +149,13 @@ export class UpdateController {
       return;
     }
     if (!navigator.onLine) { this.show("ready", "当前离线，请联网后再更新"); return; }
-    if (!canApplyUpdate(true)) {
+    if (!canApplyUpdate(manual)) {
+      if (!manual) return;
       this.show("ready", "请先完成当前操作并返回文件库，再重试更新");
       return;
     }
     this.endCheck();
-    this.setRequested(true);
+    this.setRequested(manual);
     this.show("applying", "正在确认并应用更新…");
     let channel: MessageChannel;
     try { channel = new MessageChannel(); } catch {
@@ -158,7 +166,8 @@ export class UpdateController {
       if (!active || this.disposed) return;
       this.stopApply?.(); this.stopApply = undefined;
       this.setRequested(false);
-      this.show(this.registration?.waiting ? "ready" : "error", message);
+      this.autoRetryAt = Date.now() + 10000;
+      this.show(this.registration?.waiting ? "ready" : "error", !manual && this.registration?.waiting ? prepared : message);
     };
     const timeout = setTimeout(() => finish("更新未完成，请检查其他合谱窗口后重试"), 10000);
     this.stopApply = () => { active = false; clearTimeout(timeout); channel.port1.close(); };
@@ -167,9 +176,9 @@ export class UpdateController {
       if (event.data?.safe === true) this.show("applying", "正在应用更新…");
       else finish(event.data?.reason === "incomplete" ? "更新资源暂不可用，请联网后重试" : blocked);
     };
-    try { waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE", requested: true }, [channel.port2]); }
+    try { waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE", requested: true, ...(!manual ? { automatic: true } : {}) }, [channel.port2]); }
     catch { finish("更新未能开始，请稍后重试，或关闭所有合谱窗口后重新打开"); }
-  };
+  }
 
   dispose() {
     this.disposed = true;

@@ -116,8 +116,12 @@ Service Worker 身份、Web Locks 能力、浏览器存储估算和数据库响�
 
 “重试更新并记录原因”是用户明确触发的 `registration.update()`，不激活 waiting
 worker、不重置数据库，也不执行额外缓存清理；安装沿用既有安全回收规则。新安装器在失败时向同源窗口报告固定分类：
-`capacity-protected` 是应用自身的 28 MiB 壳预算，`quota-exceeded` 是浏览器拒绝
-配额写入，两者必须分别判断；另有校验失败、下载超时、下载失败、存储失败和未知。
+`capacity-protected` 表示旧安装器的 28 MiB 总量限制；新 v2 安装器取消此总量准入，
+以 `shellPolicy=references-v2`、`shellBudgetBytes=null`、`shellReleaseLimitBytes=7340032`
+记录按角色保留及单版本 7 MiB 限制。旧报告仍接受原 28 MiB 值。诊断同时读取 v1/v2
+命名空间，但不会输出缓存名。`release-too-large` 是新版程序清单超过单版本大小限制；
+`quota-exceeded` 是浏览器实际拒绝写入，不可混为应用总预算。另有校验失败、下载超时、
+下载失败、存储失败和未知。
 旧安装器没有通知协议时保留未知。数据库、缓存与身份探测都有等待上限；超时只说明
 该探针未完成，不能证明数据丢失或设备磁盘已满。
 
