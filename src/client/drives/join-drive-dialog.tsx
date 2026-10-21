@@ -12,6 +12,7 @@ import type { ChoirSummary } from "../../shared/choirs";
 import { JoinCodeField } from "../components/join-code-field";
 import { readInviteLink } from "../components/invite-link";
 import { JOIN_CODE_LENGTH } from "../components/join-code";
+import { InviteScanner } from "./invite-scanner";
 
 type JoinStep = { kind: "invite" } | { kind: "display-name"; choir: ChoirSummary };
 
@@ -77,7 +78,7 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
   };
 
   const entryLifetimeRef = useSettingsLifetime();
-  const enterInviteDrive = async (event?: FormEvent) => {
+  const enterInviteDrive = async (event?: FormEvent, code = joinCode) => {
     event?.preventDefault();
     if (clearingGuestSession || submitting) return;
     setEntryDestination(null);
@@ -85,7 +86,7 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
     setSubmitting(true); setJoinMessage(null);
     const controller = new AbortController();
     entryAbortRef.current = controller;
-    const pending = enterDrive({ admission: "invite", joinCode }, Boolean(userId), controller.signal);
+    const pending = enterDrive({ admission: "invite", joinCode: code }, Boolean(userId), controller.signal);
     pendingEntryRef.current = pending;
     const result = await pending;
     if (generation !== entryLifetimeRef.current) return;
@@ -193,7 +194,8 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
                       className="invite-section"
                       aria-labelledby="invite-entry-title"
                     >
-                      <h3 id="invite-entry-title">使用邀请码进入新的云盘</h3>
+                      <h3 id="invite-entry-title">使用邀请卡或邀请码</h3>
+                      {open && <InviteScanner disabled={submitting || clearingGuestSession || session.isPending} onRead={code => { setJoinCode(code); void enterInviteDrive(undefined, code); }} />}
                       <Form
                         className="entry-form dialog-form"
                         onSubmit={enterInviteDrive}

@@ -53,6 +53,9 @@ diagnosticReportRoutes.post("/diagnostic-reports", async (context) => {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   const hash = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, "0")).join("");
   const now = Date.now();
+  if (await context.env.DB.prepare("SELECT id FROM diagnostic_report_tombstones WHERE id=?").bind(report.id).first()) {
+    return context.json({ error: "report_deleted" }, 410);
+  }
   const existing = await context.env.DB.prepare("SELECT payload_hash FROM diagnostic_reports WHERE id = ?").bind(report.id).first<{ payload_hash: string }>();
   if (existing) return existing.payload_hash === hash
     ? context.json({ id: report.id })
@@ -65,11 +68,14 @@ diagnosticReportRoutes.post("/diagnostic-reports", async (context) => {
   }
   await context.env.DB.prepare(`INSERT INTO diagnostic_reports
     (id, client_build, payload, payload_hash, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`)
-    .bind(report.id, report.clientBuild, payload, hash, now, now + diagnosticReportRetentionMs).run();
+    SELECT ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM diagnostic_report_tombstones WHERE id=?) ON CONFLICT(id) DO NOTHING`)
+    .bind(report.id, report.clientBuild, payload, hash, now, now + (report.retentionDays ? diagnosticReportRetentionMs : 30 * 24 * 60 * 60_000), report.id).run();
   // Concurrent duplicate submissions must not overwrite content or return a false receipt.
   const saved = await context.env.DB.prepare("SELECT payload_hash FROM diagnostic_reports WHERE id = ?").bind(report.id).first<{ payload_hash: string }>();
-  if (!saved) throw new Error("diagnostic_report_not_saved");
+  if (!saved) {
+    if (await context.env.DB.prepare("SELECT id FROM diagnostic_report_tombstones WHERE id=?").bind(report.id).first()) return context.json({ error: "report_deleted" }, 410);
+    throw new Error("diagnostic_report_not_saved");
+  }
   if (saved.payload_hash !== hash) return context.json({ error: "report_changed" }, 409);
   return context.json({ id: report.id }, 201);
 });
@@ -77,4 +83,5 @@ diagnosticReportRoutes.post("/diagnostic-reports", async (context) => {
 export async function cleanupDiagnosticReports(db: D1Database, now = Date.now()) {
   // The ingress cap bounds the daily volume; delete every expired report each hour.
   await db.prepare("DELETE FROM diagnostic_reports WHERE expires_at <= ?").bind(now).run();
+  await db.prepare("DELETE FROM diagnostic_report_audit WHERE created_at <= ?").bind(now - diagnosticReportRetentionMs).run();
 }

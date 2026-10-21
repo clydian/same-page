@@ -186,7 +186,7 @@ try {
           const missingAsset = await current.evaluate(async () => { const response = await fetch('/assets/shell-test-missing.js'); return { status: response.status, type: response.headers.get('content-type') }; });
           assert.equal(missingAsset.status, 404); assert.doesNotMatch(missingAsset.type ?? '', /html/);
           const api = await current.goto(origin + '/api/shell-test-missing'); assert.equal(api.status(), 404); assert.match(api.headers()['content-type'], /json/);
-          await current.goBack(); await current.getByRole('heading', { name: '关于合谱', exact: true }).waitFor();
+          await current.goBack(); await current.getByRole('heading', { name: '关于与更新', exact: true }).waitFor();
           // Fault injection is recovery coverage, separate from the overlap above.
           await current.evaluate(async () => { for (const name of await caches.keys()) if (name.startsWith('same-page-shell-v1:')) await (await caches.open(name)).delete(location.origin + '/'); });
           auditPhase = 'root-repair-reload';
@@ -194,7 +194,7 @@ try {
           observe({ type: 'before-offline', state: await current.evaluate(snapshotShellRegistration) });
           auditPhase = 'first-offline-reload';
           offline = true; if (engine === chromium) await context.setOffline(true);
-          await current.reload(); await current.getByRole('heading', { name: '关于合谱', exact: true }).waitFor(); await audit(current);
+          await current.reload(); await current.getByRole('heading', { name: '关于与更新', exact: true }).waitFor(); await audit(current);
           await current.evaluate(async () => { for (const name of await caches.keys()) if (name.startsWith('same-page-shell-v1:')) await (await caches.open(name)).delete(location.origin + '/'); });
           const retry = await current.reload(); assert.equal(retry.status(), 503);
           await current.getByRole('heading', { name: '暂时无法打开合谱', exact: true }).waitFor();

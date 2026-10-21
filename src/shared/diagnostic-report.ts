@@ -4,7 +4,8 @@ import { z } from "zod";
 import { diagnosticErrorCodes, diagnosticCategories, diagnosticOperations, diagnosticStages, diagnosticSteps, diagnosticErrorTypes } from "./diagnostics";
 
 export const diagnosticReportMaxBytes = 64 * 1024;
-export const diagnosticReportRetentionMs = 30 * 24 * 60 * 60_000;
+export const diagnosticReportRetentionDays = 180;
+export const diagnosticReportRetentionMs = diagnosticReportRetentionDays * 24 * 60 * 60_000;
 const build = z.string().regex(/^(?:[0-9a-f]{7,40}|development)$/).nullable();
 const version = z.string().regex(/^\d{1,4}(?:\.\d{1,6}){0,3}$/).nullable();
 const count = z.number().int().min(0).max(9999);
@@ -19,6 +20,8 @@ export const diagnosticReportSchema = z.object({
   id: z.uuidv4(),
   version: z.literal(1),
   clientBuild: build,
+  clientVersion: z.string().regex(/^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/).optional(),
+  retentionDays: z.literal(180).optional(),
   description: z.string().max(1000),
   environment: z.object({
     browser: z.enum(["edge", "firefox", "chrome", "safari", "unknown"]),

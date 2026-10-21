@@ -1,6 +1,6 @@
 import { useAppNavigation } from "../navigation/navigation-context";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "react-aria-components";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { loginHref } from "../auth/login-return";
@@ -9,6 +9,7 @@ import { adminSession, AdminRequestError, type AdminCapabilities } from "./api";
 import { Directory } from "./directory";
 import { ScoreReview } from "./score-review";
 import { Audit } from "./audit";
+import { DiagnosticInbox } from "./diagnostic-inbox";
 import "../score-library/attachments/attachments.css";
 import "./admin.css";
 type Capabilities = AdminCapabilities;
@@ -38,6 +39,9 @@ export default function AdminPage() {
 function AdminWorkspace() {
   const identity = useApplicationIdentity();
   const navigation = useAppNavigation();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const reports = location.pathname.startsWith("/admin/reports");
   const [cap, setCap] = useState<Capabilities | null>(null),
     [error, setError] = useState(""),
     [denied, setDenied] = useState(false),
@@ -90,21 +94,22 @@ function AdminWorkspace() {
         ) : (
           <>
             <nav className="admin-nav">
-              <Link className="admin-nav-item" aria-current={!audit ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
+              {!!cap.viewScores && <Link className="admin-nav-item" aria-current={!audit && !reports ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
                 乐谱工作台
-              </Link>
-              <Button
+              </Link>}
+              {!!cap.manageReports && <Link className="admin-nav-item" aria-current={reports || !cap.viewScores ? "page" : undefined} to="/admin/reports" onClick={() => setAudit(false)}>问题反馈</Link>}
+              {!!cap.viewScores && <Button
                 className="admin-nav-item"
                 aria-current={audit ? "page" : undefined}
                 onPress={() =>
-                  navigation.afterEditing(() => setAudit((a) => !a))
+                  navigation.afterEditing(() => { setAudit(a => reports ? true : !a); if (reports) void navigate("/admin"); })
                 }
               >
                 操作记录
-              </Button>
-              <span>草稿仅在后台可见</span>
+              </Button>}
+              {!!cap.viewScores && <span>草稿仅在后台可见</span>}
             </nav>
-            {audit ? (
+            {reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : audit ? (
               <Audit onError={report} />
             ) : scoreId ? (
               <ScoreReview

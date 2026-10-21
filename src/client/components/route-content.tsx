@@ -31,7 +31,7 @@ function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean
     : pathname === "/user" ? "账户"
     : pathname.includes("/settings/") ? driveSettingsTitle(pathname.split("/settings/")[1])
     : pathname === "/help" ? "使用手册"
-    : pathname === "/about" ? "关于合谱"
+    : pathname === "/about" ? "关于与更新"
     : pathname === "/diagnostics" ? "问题反馈"
     : pathname === "/privacy" ? "隐私政策" : drive ? "乐谱云盘" : "合谱";
   const home = pathname === "/" || pathname === "/drives";

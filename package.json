@@ -37,6 +37,7 @@
     "deploy": "node scripts/release-artifact.mjs verify \"$SAME_PAGE_RELEASE_SHA\" && node scripts/retire-image-consumer.mjs && wrangler deploy --config dist/same_page/wrangler.json",
     "test:smoke": "node scripts/run-browser-tests.mjs smoke",
     "diagnostics:inbox": "node scripts/diagnostic-reports.mjs",
+    "diagnostics:operators": "node scripts/diagnostic-operators.mjs",
     "admin:configure": "node scripts/product-admin.mjs",
     "copy:native-source": "node node_modules/@clydian/chorus-player/scripts/copy-native-source.mjs --output public/third-party/alphatab"
   },
@@ -54,6 +55,7 @@
     "dexie-react-hooks": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.8",
+    "jsqr": "1.4.0",
     "lucide-react": "^1.41.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",

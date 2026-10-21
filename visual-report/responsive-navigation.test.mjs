@@ -128,14 +128,14 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     await page.getByRole("heading", { name: "Harmony begins on the Same Page", exact: true }).waitFor();
     assert.equal(new URL(page.url()).pathname, "/");
     const footer = page.getByRole("contentinfo");
-    for (const name of ["使用手册", "关于合谱", "隐私政策"]) {
+    for (const name of ["使用手册", "关于与更新", "隐私政策"]) {
       const item = footer.getByRole("link", { name, exact: true });
       const box = await item.boundingBox();
       assert.ok(box.height >= 44 && box.width >= 44);
     }
     await page.evaluate(() => { window.__layoutDocumentMarker = "same-document"; });
     await record("marker-set");
-    for (const [name, pathname] of [["关于合谱", "/about"], ["隐私政策", "/privacy"]]) {
+    for (const [name, pathname] of [["关于与更新", "/about"], ["隐私政策", "/privacy"]]) {
       const link = footer.getByRole("link", { name, exact: true });
       await link.focus();
       await capture(page, `${engineName}-footer-${footerIdentity}-320`);

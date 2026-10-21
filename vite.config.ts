@@ -11,12 +11,15 @@ import { VitePWA } from "vite-plugin-pwa";
 import { playbackAssets } from "./scripts/playback-assets";
 import { shellManifest } from "./scripts/shell-manifest";
 import { pdfJsAssets } from "./scripts/pdfjs-assets-plugin.ts";
+import { formatBuildVersion } from "./scripts/build-version.mjs";
 
 const buildId = process.env.SAME_PAGE_BUILD_ID
   ?? process.env.GITHUB_SHA
   ?? execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 
-const buildPublishedDate = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Shanghai" });
+const builtAt = new Date();
+const buildPublishedDate = builtAt.toLocaleDateString("en-CA", { timeZone: "Asia/Shanghai" });
+const buildVersion = formatBuildVersion(builtAt);
 
 const buildRunId = process.env.GITHUB_RUN_ID ?? "";
 
@@ -32,6 +35,7 @@ export default defineConfig(({ isPreview }) => ({
     __SAME_PAGE_BUILD_ID__: JSON.stringify(buildId),
     __SAME_PAGE_BUILD_RUN_ID__: JSON.stringify(buildRunId),
     __SAME_PAGE_BUILD_PUBLISHED_DATE__: JSON.stringify(buildPublishedDate),
+    __SAME_PAGE_BUILD_VERSION__: JSON.stringify(buildVersion),
   },
   build: {
     // The lazy reader contains the PDF.js display API (about 170 KiB gzip).
@@ -64,7 +68,7 @@ export default defineConfig(({ isPreview }) => ({
           .filter((entry) => /\.(?:m?js)$/.test(entry.fileName))
           .map(async (entry) => [`/${entry.fileName}`, createHash("sha256")
             .update(await readFile(path.join(output, entry.fileName))).digest("hex")])));
-        await writeFile(path.join(output, "build.json"), `${JSON.stringify({ buildId, runId: buildRunId, scripts })}\n`);
+        await writeFile(path.join(output, "build.json"), `${JSON.stringify({ buildId, version: buildVersion, builtAt: builtAt.toISOString(), runId: buildRunId, scripts })}\n`);
       },
     },
     react(),

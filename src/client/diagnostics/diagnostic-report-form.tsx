@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { type DiagnosticReader } from "../../shared/diagnostic-report";
+import { diagnosticReportRetentionDays, type DiagnosticReader } from "../../shared/diagnostic-report";
 import { clearDiagnostics, exportDiagnostics, subscribeDiagnosticReset } from "./diagnostics";
 import { captureDiagnosticReport, getDiagnosticSubmission, resetDiagnosticSubmission, sendDiagnosticReport,
   setDiagnosticDescription, subscribeDiagnosticSubmission } from "./diagnostic-submission";
@@ -24,7 +24,7 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
     catch { setMessage("无法自动复制，请选中诊断信息或反馈编号手动复制。"); }
   };
   return <div className="diagnostic-report-form">
-    <p>点击“发送反馈”后，问题描述及诊断信息会发送给合谱维护人员，保存 30 天。不自动上传乐谱、笔记或登录凭据。</p>
+    <p>点击“发送反馈”后，问题描述及诊断信息会发送给合谱维护人员，最多保存 {diagnosticReportRetentionDays} 天；维护人员也可提前删除。不自动上传乐谱、笔记或登录凭据。</p>
     <label htmlFor="diagnostic-description">刚才遇到了什么问题？（选填）</label>
     <textarea id="diagnostic-description" rows={3} maxLength={1000} value={submission.description}
       readOnly={submission.report !== null} aria-describedby="diagnostic-description-hint"
@@ -51,6 +51,6 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
       <p>联系维护人员时提供此编号，便于查找；编号不提供报告访问权限。</p>
     </div>}
     <p role="status">{message || submission.message}</p>
-    <p className="diagnostic-hint">待发送内容仅保留在当前页面会话，关闭或刷新网页、切换身份后清空。发送失败不会影响乐谱与本机草稿。</p>
+    <p className="diagnostic-hint">请先发送反馈，再刷新重试。待发送内容仅保留在当前页面会话，关闭或刷新网页、切换身份后清空。发送失败不会影响乐谱与本机草稿。</p>
   </div>;
 }

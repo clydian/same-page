@@ -216,6 +216,12 @@ function verifyPdfTrashMigration() {
   assert.deepEqual(query("SELECT * FROM product_operators"), []);
   assert.deepEqual(query("SELECT * FROM product_admin_drives"), []);
   assert(query("SELECT source_pdf_version_id FROM score_attachments").every(row => row.source_pdf_version_id === null));
+  executeD1({ command: "INSERT INTO diagnostic_reports(id,payload,payload_hash,created_at,expires_at) VALUES ('legacy-report','{}','hash',1000,2592001000)", targetArgs });
+  const beforeInbox = queryNamed({ ...queries, reports: "SELECT * FROM diagnostic_reports" });
+  applyMigrations("0033_diagnostic_inbox.sql");
+  assert.deepEqual(queryNamed({ ...queries, reports: "SELECT * FROM diagnostic_reports" }), beforeInbox, "Feedback inbox preserves user content and the original report expiry");
+  assert.deepEqual(query("SELECT * FROM diagnostic_operators"), []);
+  assert.deepEqual(query("SELECT * FROM diagnostic_report_tombstones"), []);
 }
 
 function verifyAttachmentMigration() {

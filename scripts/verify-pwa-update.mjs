@@ -190,8 +190,8 @@ async function verifyAnimationCaching(browser, origin) {
     // Entering the viewport with motion enabled loads exactly the viewed demo.
     // Reduced-motion visibility already consumes the one-shot observer, so
     // remount the home route to exercise its ordinary automatic playback.
-    await page.getByRole("link", { name: "关于合谱", exact: true }).click();
-    await page.getByRole("heading", { name: "关于合谱", exact: true }).waitFor();
+    await page.getByRole("link", { name: "关于与更新", exact: true }).click();
+    await page.getByRole("heading", { name: "关于与更新", exact: true }).waitFor();
     await page.setViewportSize({ width: 320, height: 640 });
     const status = page.getByRole("status");
     await status.filter({ hasText: "检查完成，当前版本继续运行" }).waitFor();

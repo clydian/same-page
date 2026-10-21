@@ -3,6 +3,8 @@ export const adminCapabilitiesSchema = z.object({
   viewScores: z.number(),
   reviewXml: z.number(),
   publishXml: z.number(),
+  manageReports: z.number().default(0),
+  deleteReports: z.number().default(0),
 });
 export const adminScoreSchema = z.object({
   id: z.string(),

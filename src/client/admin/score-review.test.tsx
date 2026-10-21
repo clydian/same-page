@@ -33,7 +33,7 @@ beforeEach(() => {
   }));
 });
 function openReview() {
-  render(<MemoryRouter><ScoreReview id="score" cap={{ viewScores: 1, reviewXml: 1, publishXml: 1 }} onError={vi.fn()} onDenied={vi.fn()} /></MemoryRouter>);
+  render(<MemoryRouter><ScoreReview id="score" cap={{ viewScores: 1, reviewXml: 1, publishXml: 1, manageReports: 0, deleteReports: 0 }} onError={vi.fn()} onDenied={vi.fn()} /></MemoryRouter>);
 }
 it("keeps an explicit original PDF selection when metadata is refreshed", async () => {
   openReview();
