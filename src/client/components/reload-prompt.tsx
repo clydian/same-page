@@ -5,6 +5,7 @@ import { canApplyUpdate, noteUpdateInteraction, setUpdateRoute } from "../update
 import { useUpdateStatus } from "../updates/update-status";
 import { buildId } from "../../shared/build";
 import { UpdateController } from "../updates/update-controller";
+import { rememberUpdateFailure } from "../updates/update-diagnostics";
 
 export function ReloadPrompt() {
   const [attempt, setAttempt] = useState(0);
@@ -46,6 +47,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     const events = ["pointerdown", "pointerup", "keydown", "input", "focusin", "wheel", "scroll"] as const;
     events.forEach(event => document.addEventListener(event, noteUpdateInteraction, true));
     const probe = (event: MessageEvent) => {
+      if (event.data?.type === "SAME_PAGE_UPDATE_FAILURE") rememberUpdateFailure(event.data);
       if (event.data?.type === "SAME_PAGE_SHELL_PROBE") event.ports[0]?.postMessage({ buildId, cacheName: "" });
       if (event.data?.type === "SAME_PAGE_UPDATE_PROBE") event.ports[0]?.postMessage(event.data.requested === true && canApplyUpdate(requested.current));
     };
@@ -70,5 +72,6 @@ export function UpdateDetails() {
       onClick={() => window.dispatchEvent(new Event(ready ? "same-page-apply-update" : "same-page-check-update"))}>
       {label ?? (ready ? "重新加载并更新" : status.phase === "error" || status.phase === "offline" ? "重试检查更新" : "检查更新")}
     </button>
+    <p><a href="/api/support/update">更新失败？打开独立更新诊断</a></p>
   </section>;
 }

@@ -33,6 +33,7 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
     <details>
       <summary>查看诊断信息</summary>
       <p>包含最近 30 分钟最多 50 条错误、应用版本、浏览器与系统版本、窗口尺寸和网络/PWA 状态；阅读器内反馈还包含显示方式、编辑状态及待同步/冲突数量。未知信息留空，联网提示不代表服务可达。</p>
+      {!reader && <p>新版更新安装器还会提供失败分类。旧版应用更新失败时，可打开<a href="/api/support/update">独立更新诊断</a>检查本机缓存与数据库响应。</p>}
       <label htmlFor="diagnostic-report">可发送给维护人员的诊断信息</label>
       <textarea id="diagnostic-report" readOnly value={current} rows={12} />
     </details>

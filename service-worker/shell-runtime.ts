@@ -1,9 +1,10 @@
 import { playbackCacheName } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
+import { applicationShellBudgetBytes } from '../src/shared/update-diagnostics';
 export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number }
 export interface ShellRecord { cacheName: string; buildId: string; created: number; complete: boolean; installing?: number; activated?: number; entries: ManifestEntry[] }
 export interface ShellIdentity { cacheName: string; buildId: string }
-export const shellBudget = 4 * 7 * 1024 * 1024;
+export const shellBudget = applicationShellBudgetBytes;
 const probeType = 'SAME_PAGE_SHELL_IDENTITY';
 
 export async function digest(bytes: ArrayBuffer | Uint8Array<ArrayBuffer>) {

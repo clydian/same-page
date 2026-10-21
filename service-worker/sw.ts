@@ -1,12 +1,26 @@
 import { assetValid, parsePlaybackManifest, playbackManifestUrl } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
 import { ShellRuntime, type ManifestEntry } from './shell-runtime';
+import { updateFailureReason } from '../src/shared/update-diagnostics';
 declare const __SAME_PAGE_BUILD_ID__: string;
 const scope = self as unknown as ServiceWorkerGlobalScope & { __WB_MANIFEST: ManifestEntry[] };
 const manifest = (self as unknown as { __WB_MANIFEST: ManifestEntry[] }).__WB_MANIFEST;
 const runtime = new ShellRuntime(scope, manifest, __SAME_PAGE_BUILD_ID__);
 
-scope.addEventListener('install', event => event.waitUntil(runtime.install()));
+scope.addEventListener('install', event => event.waitUntil(runtime.install().catch(async error => {
+  // A standalone support page can observe a failed candidate even while an old
+  // application shell remains active. Never export raw exceptions or asset URLs.
+  const notification = scope.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    for (const client of clients) {
+      try { client.postMessage({ type: 'SAME_PAGE_UPDATE_FAILURE', buildId: __SAME_PAGE_BUILD_ID__, reason: updateFailureReason(error) }); }
+      catch { /* A closing window must not prevent another page's diagnosis. */ }
+    }
+  }).catch(() => undefined);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([notification, new Promise<void>(resolve => { timer = setTimeout(resolve, 1000); })]);
+  clearTimeout(timer);
+  throw error;
+})));
 scope.addEventListener('activate', event => event.waitUntil(runtime.activate()));
 scope.addEventListener('message', event => {
   const type = event.data?.type;
