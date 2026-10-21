@@ -49,11 +49,11 @@ ReaderSession 公开订阅快照、打开、重新确认、重试图层、下载
 | Worker HTTP / D1 | 长中文、百分号/下划线/反斜杠字面查询；到期前 1 ms、恰好到期、到期后；未清理到期拒绝恢复、清理后仍拒绝 |
 | 真实浏览器 / Worker / D1 / R2 / IndexedDB | access-smoke 的检索→下载→断网刷新→发布新版→失败保留旧版→重试成功；storage-smoke 的浏览器进程重启且后端关闭后断网读取；annotations-smoke 的离线编辑→重连同步和交错 |
 | PWA / 发布产物 | verify-pwa-update 保留用户确认更新、离线交接；每次 build 审计真实文件/Workbox 清单；改名设计来源重入和缺失 PDF worker 回归 |
-| 视觉 | 原有 31 项浏览器视觉回归保留；visual:report 重新生成并人工查看阅读控制、文本编辑、密集谱面截图 |
+| 视觉 | 原有 31 项浏览器视觉回归保留；人工查看阅读控制、文本编辑、密集谱面截图 |
 
 删除页面重复 bootstrap/来源/图层编排及仅比较 source 对象引用的内部测试。保留并修正路由离线 fixture 为完整 E/S/A/T/B + personal 模型，没有用部分图层冒充已验证副本。
 
-完整 npm run check:full 已通过：14 CI、37 node、276 client、7 Worker 单元、63 Worker/D1 集成、31 视觉回归、迁移、构建、真实浏览器 smoke、PWA 更新及加载预算。复审后的共享校验调整另跑相关 42 项路由/离线测试通过。最终两项访问浏览器测试均通过，包含已到期但未清理的回收站乐谱；产物审计与截图在本地 artifacts/verification，完整视觉报告位于 artifacts/visual-report/index.html。
+完整 npm run check:full 已通过：14 CI、37 node、276 client、7 Worker 单元、63 Worker/D1 集成、31 视觉回归、迁移、构建、真实浏览器 smoke、PWA 更新及加载预算。复审后的共享校验调整另跑相关 42 项路由/离线测试通过。最终两项访问浏览器测试均通过，包含已到期但未清理的回收站乐谱；产物审计与截图在本地 artifacts/verification。
 
 Standards review 原发现 2 项（不同 Blob 共用成功结果、缩页越界），已修正且复查无阻断；Spec review 原发现 2 项（只读快照被覆盖为失败、同一校验漏洞），已修正，另补共享读取入口以合并 IndexedDB 克隆前的读取任务。
 

@@ -27,7 +27,7 @@
 | `loading-performance` 缓存分类回填 1 项 | 删除相同输入输出枚举遍历 | `reader-reopen-tracker` 验证身份、乐谱及时间如何决定 cold/warm/reopen |
 | `annotations` 旧 scoreColorOverride 字段剥离 1 项 | 删除对 Zod 默认剥离额外属性的断言 | 保留订阅请求 schema、颜色/订阅优先级及 Worker 路由领域规则 |
 | `social-providers` 配置形状 1 项 | 删除和 Worker OAuth 流程重复的配置对象断言 | 保留缺失凭据时禁止启用；`auth-flow` 验证真实重定向、scope、state 与恢复 |
-| `visual-report` 场景 ID 清单、fixture 常量等 7 项 | 删除对测试数据自证的断言，fixture 错误在实际消费者失败 | 保留未知请求拒绝外发、报告 HTML 转义两个基础设施行为测试 |
+| `visual-report` 场景 ID 清单、fixture 常量等 7 项 | 删除对测试数据自证的断言，fixture 错误在实际消费者失败 | 保留未知请求拒绝外发的基础设施行为测试；人工报告移除后不再保留报告 HTML 转义测试 |
 | reader、join-code、overlay 中 class/SVG/装饰槽位结构 | 删除实现结构断言，保留用户可见状态、输入、可访问语义、操作结果 | 实际布局尺寸与组件交互测试 |
 | D1 批量操作精确 `11 SQL / 6 round trips` | 改为比较 1/100 个对象的 SQL/往返增长是否有界，仍验证所有操作成功 | 原真实 D1 批量流程；可发现 N+1，允许合法调整查询计划 |
 
