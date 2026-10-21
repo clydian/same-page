@@ -1,10 +1,10 @@
 import { playbackCacheName } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
-import { applicationShellBudgetBytes } from '../src/shared/update-diagnostics';
+import { applicationShellReleaseLimitBytes } from '../src/shared/update-diagnostics';
 export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number }
-export interface ShellRecord { cacheName: string; buildId: string; created: number; complete: boolean; installing?: number; activated?: number; entries: ManifestEntry[] }
+export interface ShellRecord { cacheName: string; buildId: string; created: number; complete: boolean; installing?: number; activated?: number; candidateOnly?: boolean; entries: ManifestEntry[] }
 export interface ShellIdentity { cacheName: string; buildId: string }
-export const shellBudget = applicationShellBudgetBytes;
+export const shellReleaseLimit = applicationShellReleaseLimitBytes;
 const probeType = 'SAME_PAGE_SHELL_IDENTITY';
 
 export async function digest(bytes: ArrayBuffer | Uint8Array<ArrayBuffer>) {
@@ -35,13 +35,15 @@ export async function identify(target: { postMessage(message: unknown, transfer:
 export class ShellRuntime {
   readonly prefix: string;
   readonly registryName: string;
+  readonly legacyPrefix: string;
   readonly identity: Promise<ShellIdentity>;
   private current: Promise<ShellRecord>;
   private repair?: Promise<void>;
   private assetRecords?: Promise<ShellRecord[]>;
   private audit?: Promise<void>;
   constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string) {
-    this.prefix = `same-page-shell-v1:${encodeURIComponent(scope.registration.scope)}:`;
+    this.prefix = `same-page-shell-v2:${encodeURIComponent(scope.registration.scope)}:`;
+    this.legacyPrefix = `same-page-shell-v1:${encodeURIComponent(scope.registration.scope)}:`;
     this.registryName = `same-page-shell-registry-v1:${encodeURIComponent(scope.registration.scope)}`;
     // vite-plugin-pwa appends its web manifest after transforms; discard an
     // untransformed duplicate only when a verified entry for that URL exists.
@@ -57,6 +59,7 @@ export class ShellRuntime {
       const saved = await caches.open(this.registryName).then(cache => cache.match(this.key(cacheName))).then(response => response?.json()).catch(() => undefined) as ShellRecord | undefined;
       return { cacheName, buildId, entries: normalized, complete: saved?.complete === true,
         created: Number.isFinite(saved?.created) ? saved!.created : Date.now(),
+        candidateOnly: Boolean(await caches.match(this.candidateKey(cacheName), { cacheName: this.registryName })),
         ...(Number.isFinite(saved?.activated) ? { activated: saved!.activated } : {}),
       };
     });
@@ -64,8 +67,17 @@ export class ShellRuntime {
     void this.identity.catch(() => undefined); // An install failure also rejects identity.
   }
   private key(name: string) { return new URL(`__same_page_shell__/${encodeURIComponent(name)}`, this.scope.registration.scope).href; }
+  private candidateKey(name: string) { return new URL(`__same_page_candidate__/${encodeURIComponent(name)}`, this.scope.registration.scope).href; }
   private async save(record: ShellRecord) {
-    await (await caches.open(this.registryName)).put(this.key(record.cacheName), Response.json(record));
+    // candidateOnly is derived from a deletion-only durable seal, not from a
+    // best-effort activation metadata rewrite that may fail at quota.
+    const saved = { ...record }; delete saved.candidateOnly;
+    await (await caches.open(this.registryName)).put(this.key(record.cacheName), Response.json(saved));
+  }
+  private async permitDisplay(record: ShellRecord) {
+    if (!record.candidateOnly) return;
+    await (await caches.open(this.registryName)).delete(this.candidateKey(record.cacheName));
+    record.candidateOnly = false;
   }
   async records() {
     const registry = await caches.open(this.registryName);
@@ -73,11 +85,14 @@ export class ShellRuntime {
     for (const key of await registry.keys()) {
       try {
         const record = await (await registry.match(key))!.json() as ShellRecord;
-        if (!record.cacheName.startsWith(this.prefix) || typeof record.buildId !== 'string' || !Number.isFinite(record.created) || !Array.isArray(record.entries)) continue;
-        if (!record.entries.some(entry => entry.url === this.scope.registration.scope)) continue;
+        if ((!record.cacheName.startsWith(this.prefix) && !record.cacheName.startsWith(this.legacyPrefix)) || typeof record.buildId !== 'string' || !Number.isFinite(record.created) || !Array.isArray(record.entries)) continue;
+        if (key.url !== this.key(record.cacheName) || !record.entries.some(entry => entry.url === this.scope.registration.scope)) continue;
         if (!record.entries.every(entry => /^sha256-[A-Za-z0-9+/]{43}=$/.test(entry.integrity) && Number.isFinite(entry.bytes) && entry.bytes >= 0 && new URL(entry.url).origin === this.scope.location.origin && !isApiPath(new URL(entry.url).pathname))) continue;
-        const expected = this.prefix + encodeURIComponent(record.buildId) + ':' + encodeURIComponent(await digest(new TextEncoder().encode(JSON.stringify(record.entries))));
-        if (record.cacheName === expected) result.push(record);
+        const expected = (record.cacheName.startsWith(this.prefix) ? this.prefix : this.legacyPrefix) + encodeURIComponent(record.buildId) + ':' + encodeURIComponent(await digest(new TextEncoder().encode(JSON.stringify(record.entries))));
+        if (record.cacheName === expected) {
+          record.candidateOnly = Boolean(await registry.match(this.candidateKey(record.cacheName)));
+          result.push(record);
+        }
       } catch { /* Unknown records never authorize deletion of unrelated caches. */ }
     }
     return result;
@@ -87,7 +102,7 @@ export class ShellRuntime {
     // revision bookkeeping. Legacy cleanup can then delete its copy safely.
     let response: Response | undefined;
     for (const name of await caches.keys()) {
-      if (!name.startsWith(this.prefix) && !(name.startsWith('workbox-') && name.includes('-precache-') && name.endsWith(this.scope.registration.scope))) continue;
+      if (!name.startsWith(this.prefix) && !name.startsWith(this.legacyPrefix) && !(name.startsWith('workbox-') && name.includes('-precache-') && name.endsWith(this.scope.registration.scope))) continue;
       const candidate = await caches.match(entry.url, { cacheName: name, ignoreSearch: true });
       if (candidate && await valid(candidate, entry)) { response = candidate; break; }
     }
@@ -128,39 +143,58 @@ export class ShellRuntime {
   }
   async install() {
     const record = await this.current;
-    let existing = false;
-    // Ask the active owner to reclaim only demonstrably unused releases. Legacy
-    // workers do not understand this message; their caches are never evicted.
+    if (record.entries.reduce((bytes, entry) => bytes + entry.bytes, 0) > shellReleaseLimit) throw new Error('shell_release_too_large');
+    // The new installer owns its admission. An old active worker's obsolete
+    // aggregate budget must not prevent a direct upgrade.
     if (this.scope.registration.active) await identify(this.scope.registration.active, 'SAME_PAGE_COLLECT_SHELLS');
-    await this.locked(async () => {
-    existing = (await caches.keys()).includes(record.cacheName);
-    const records = await this.records();
-    const names = (await caches.keys()).filter(name => name.startsWith(this.prefix));
-    const bytes = names.reduce((sum, name) => sum + (records.find(r => r.cacheName === name)?.entries.reduce((n, e) => n + e.bytes, 0) ?? shellBudget / 4), 0);
-    const size = record.entries.reduce((sum, entry) => sum + entry.bytes, 0);
-    if (!existing && bytes + size > shellBudget) throw new Error('shell_capacity_protected');
-    record.installing = Date.now();
-    await this.save(record);
-    });
+    let existing: boolean | undefined;
     try {
-      await this.check(record, true, true, AbortSignal.timeout(300_000));
-      // Other workers cannot prune this namespace. Recheck all entries before
-      // publishing readiness; a successful earlier put is not a commit marker.
       await this.locked(async () => {
-        await this.check(record, false, true);
-        delete record.installing; record.complete = true; await this.save(record);
+        existing = (await caches.keys()).includes(record.cacheName);
+        if (!existing) {
+          await (await caches.open(this.registryName)).put(this.candidateKey(record.cacheName), new Response('1'));
+          record.candidateOnly = true;
+        }
+        record.installing = Date.now();
+        await this.save(record);
       });
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await this.check(record, true, true, AbortSignal.timeout(300_000));
+          await this.locked(async () => {
+            await this.check(record, false, true);
+            delete record.installing; record.complete = true; await this.save(record);
+          });
+          break;
+        } catch (error) {
+          if (attempt || !error || typeof error !== 'object' || !('name' in error) || error.name !== 'QuotaExceededError' || !await this.requestCollection()) throw error;
+        }
+      }
     } catch (error) {
       await this.locked(async () => {
-        if (!existing) {
+        if (existing === false) {
           await caches.delete(record.cacheName);
           await (await caches.open(this.registryName)).delete(this.key(record.cacheName));
-        } else {
+          await (await caches.open(this.registryName)).delete(this.candidateKey(record.cacheName));
+        } else if (existing === true) {
           delete record.installing; record.complete = false; await this.save(record).catch(() => undefined);
         }
-      });
+      }).catch(() => undefined); // Preserve the original quota/download failure.
       throw error;
     }
+  }
+  private async requestCollection() {
+    const active = this.scope.registration.active;
+    if (!active) return false;
+    return new Promise<boolean>(resolve => {
+      const channel = new MessageChannel();
+      const timer = setTimeout(() => { channel.port1.close(); resolve(false); }, 1500);
+      channel.port1.onmessage = event => {
+        clearTimeout(timer); channel.port1.close(); resolve(event.data?.removed > 0);
+      };
+      try { active.postMessage({ type: 'SAME_PAGE_COLLECT_SHELLS' }, [channel.port2]); }
+      catch { clearTimeout(timer); channel.port1.close(); resolve(false); }
+    });
   }
   async ready(signal?: AbortSignal) {
     if (!this.repair) this.repair = (async () => {
@@ -178,17 +212,29 @@ export class ShellRuntime {
     const current = await this.current;
     if (current.buildId === buildId) return this.ready(signal);
     for (const record of await this.records()) {
-      if (record.buildId !== buildId || !record.complete) continue;
+      if (record.buildId !== buildId || !record.complete || !this.displayable(record)) continue;
       try { await this.check(record, false, true, signal); return; } catch { /* Try a retained matching shell. */ }
     }
     throw new Error('matching_shell_unavailable');
+  }
+  async availableBuild(buildId: string) {
+    const current = await this.current;
+    const records = [current, ...(await this.records()).filter(record => record.cacheName !== current.cacheName && this.displayable(record))];
+    for (const record of records) {
+      if (record.buildId !== buildId || !record.complete || !this.displayable(record) || !(await caches.keys()).includes(record.cacheName)) continue;
+      try {
+        await this.check(record, false, true);
+        return true;
+      } catch { /* A lost or unavailable shell is a recovery condition. */ }
+    }
+    return false;
   }
   async activate() {
     // If storage was externally lost after install, remain able to serve a
     // complete rollback shell or a retry page. Do not fail activation itself.
     await this.ready(AbortSignal.timeout(15_000)).catch(() => undefined);
-    const record = await this.current; record.activated = Date.now();
-    await this.save(record).catch(() => undefined);
+    const record = await this.current;
+    await this.locked(async () => { await this.permitDisplay(record); record.activated = Date.now(); await this.save(record); }).catch(() => undefined);
     await this.collect();
   }
   private async references() {
@@ -199,47 +245,55 @@ export class ShellRuntime {
     if (roles[0]?.cacheName !== own.cacheName) return null;
     const clients = await this.scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const pages = await Promise.all(clients.map(client => identify(client, 'SAME_PAGE_SHELL_PROBE')));
-    if (pages.some(page => !page)) return null;
+    const knownPages = pages.some(page => !page) ? null : pages as ShellIdentity[];
     const current = await this.scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (current.some(client => !clients.some(previous => previous.id === client.id))) return null;
-    return { roles: roles.filter(Boolean) as ShellIdentity[], pages: pages as ShellIdentity[] };
+    return { roles: roles.filter(Boolean) as ShellIdentity[], pages: knownPages };
   }
-  async collect() {
-    // Without an origin-wide lock, retain caches rather than race an installer
-    // reusing a retired immutable release. Admission stays bounded either way.
-    if (!this.scope.navigator?.locks) return;
+  private displayable(record: ShellRecord) {
+    return record.cacheName.startsWith(this.legacyPrefix) || record.candidateOnly !== true;
+  }
+  async collect(): Promise<number> {
+    if (!this.scope.navigator?.locks) return 0;
     return this.locked(() => this.collectLocked());
   }
   private async collectLocked() {
     const candidates = await this.records(); // Fixed snapshot excludes future installers.
     const references = await this.references();
-    if (!references) return;
+    if (!references) return 0;
+    const known = references.pages !== null && references.pages.every(page => candidates.some(record => record.buildId === page.buildId));
     const keep = new Set(references.roles.map(role => role.cacheName));
-    for (const page of references.pages) {
-      const matches = candidates.filter(record => record.buildId === page.buildId);
-      if (!matches.length) return; // Legacy/unknown displayed version: defer collection.
-      matches.forEach(record => keep.add(record.cacheName));
+    for (const page of references.pages ?? []) {
+      candidates.filter(record => record.buildId === page.buildId).forEach(record => keep.add(record.cacheName));
     }
     for (const record of candidates) {
-      if (record.installing && Date.now() - record.installing < 120_000) keep.add(record.cacheName);
-      // History/BFCache entries need not appear in clients.matchAll(). Give a
-      // displayed release a full day before it can become a GC candidate.
-      if (record.activated && Date.now() - record.activated < 86400000) keep.add(record.cacheName);
+      // Legacy pages cannot be retrofitted with restore guards. Preserve their
+      // fixed namespace; only v2 releases participate in the new retention rule.
+      if (record.cacheName.startsWith(this.legacyPrefix) ||
+          record.installing && Date.now() - record.installing < 120_000) keep.add(record.cacheName);
     }
-    for (const previous of candidates.filter(record => record.complete && !keep.has(record.cacheName)).sort((a, b) => b.created - a.created)) {
-      try { await this.check(previous, false, true); keep.add(previous.cacheName); break; } catch { /* An incomplete retired copy is not a rollback. */ }
+    const own = await this.identity;
+    // One historical rollback, even if already retained for a live page. Never
+    // count a complete but never-displayed waiting candidate as a rollback.
+    for (const previous of candidates.filter(record => record.complete && this.displayable(record) && record.cacheName !== own.cacheName).sort((a, b) => b.created - a.created)) {
+      try { await this.check(previous, false, true); keep.add(previous.cacheName); break; } catch { /* Try another verified historical release. */ }
     }
+    let removed = 0;
     for (const record of candidates.filter(record => !keep.has(record.cacheName))) {
-      // An update, a new tab or a restored old tab can race the earlier snapshot.
+      // Unknown windows defer historical retirement, but cannot have displayed
+      // a v2 abandoned candidate: v2 navigation never falls back to one.
+      if (!known && this.displayable(record)) continue;
       const latest = await this.references();
-      if (!latest || latest.pages.some(page => !candidates.some(record => record.buildId === page.buildId)) || latest.roles.some(role => role.cacheName === record.cacheName) || latest.pages.some(page => page.buildId === record.buildId)) return;
-      await caches.delete(record.cacheName);
-      // Optional public resources share the same live-document protection.
-      // Their collector never touches IndexedDB or another product cache.
+      if (!latest) return removed;
+      if (latest.roles.some(role => role.cacheName === record.cacheName) || latest.pages?.some(page => page.buildId === record.buildId)) continue;
+      if (this.displayable(record) && (latest.pages === null || latest.pages.some(page => !candidates.some(item => item.buildId === page.buildId)))) continue;
+      if (await caches.delete(record.cacheName)) removed++;
       if (!candidates.some(other => keep.has(other.cacheName) && other.buildId === record.buildId)) await caches.delete(playbackCacheName(record.buildId));
       await (await caches.open(this.registryName)).delete(this.key(record.cacheName));
+      await (await caches.open(this.registryName)).delete(this.candidateKey(record.cacheName));
       this.assetRecords = undefined;
     }
+    return removed;
   }
   async navigation() {
     const record = await this.current;
@@ -259,9 +313,10 @@ export class ShellRuntime {
       // Cache eviction can race the audit and this final read. Never let an
       // undefined value escape respondWith, even after successful readiness.
       if (!shell || !await valid(shell, root)) throw new Error('shell_disappeared');
+      if (record.candidateOnly) await this.locked(() => this.permitDisplay(record));
       return shell;
     } catch {
-      for (const previous of (await this.records().catch(() => [])).filter(r => r.complete && r.cacheName !== record.cacheName).sort((a, b) => b.created - a.created)) {
+      for (const previous of (await this.records().catch(() => [])).filter(r => r.complete && this.displayable(r) && r.cacheName !== record.cacheName).sort((a, b) => b.created - a.created)) {
         try {
           await this.check(previous, false, true);
           const shell = await (await caches.open(previous.cacheName)).match(this.scope.registration.scope);

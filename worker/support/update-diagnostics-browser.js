@@ -4,9 +4,9 @@
   const byId = id => document.getElementById(id);
   const safeBuild = value => typeof value === 'string' && /^(?:[0-9a-f]{7,40}|development)$/.test(value) ? value : null;
   const safeBytes = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
-  const reasons = ['capacity-protected', 'quota-exceeded', 'integrity-mismatch', 'download-timeout', 'download-failed', 'storage-failed', 'unknown'];
+  const reasons = ['release-too-large', 'capacity-protected', 'quota-exceeded', 'integrity-mismatch', 'download-timeout', 'download-failed', 'storage-failed', 'unknown'];
   const scope = location.origin + '/';
-  const prefix = 'same-page-shell-v1:' + encodeURIComponent(scope) + ':';
+  const prefixes = [1, 2].map(version => 'same-page-shell-v' + version + ':' + encodeURIComponent(scope) + ':');
   const registryName = 'same-page-shell-registry-v1:' + encodeURIComponent(scope);
   let registration, report, failure = null, frozen = null, busy = false;
 
@@ -75,7 +75,7 @@
     const empty = { cacheStatus: 'unavailable', shellCount: null, shellBytes: null, shellsTruncated: false, shells: [] };
     if (!('caches' in window)) return empty;
     const result = await timed(async () => {
-      const names = (await caches.keys()).filter(name => name.startsWith(prefix));
+      const names = (await caches.keys()).filter(name => prefixes.some(prefix => name.startsWith(prefix)));
       const shells = await Promise.all(names.slice(0, 16).map(async name => {
         const key = new URL('__same_page_shell__/' + encodeURIComponent(name), scope).href;
         // CacheStorage.match with a name does not create a cache on a miss.
@@ -110,12 +110,12 @@
     const update = { serverBuild: safeBuild(document.querySelector('meta[name="same-page-support-build"]').content),
       locksSupported: !!navigator.locks,
       ...(reg.status === 'ok' ? reg.value : { registration: reg.status, activeBuild: null, waitingBuild: null, installingState: null }),
-      ...cache, shellBudgetBytes: Number(document.querySelector('meta[name="same-page-shell-budget"]').content),
+      ...cache, shellBudgetBytes: null, shellPolicy: 'references-v2', shellReleaseLimitBytes: Number(document.querySelector('meta[name="same-page-shell-limit"]').content),
       storage: { status: storage.status, usage: safeBytes(storage.value?.usage), quota: safeBytes(storage.value?.quota) }, database, failure };
     report = { id: crypto.randomUUID(), version: 1, clientBuild: update.activeBuild, retentionDays: 180,
       description: '独立更新诊断', environment: environment(), reader: null, records: [], update };
     busy = false; byId('send').disabled = false;
-    const messages = { 'capacity-protected': '旧版本应用缓存仍受保护，本次更新被应用容量规则阻止。', 'quota-exceeded': '浏览器拒绝了存储写入，报告已记录存储估算。', 'integrity-mismatch': '更新资源未通过完整性校验。', 'download-timeout': '更新资源准备超时。', 'download-failed': '更新资源下载失败。', 'storage-failed': '应用缓存存储操作失败。', unknown: '更新安装失败，未取得更具体的分类。' };
+    const messages = { 'release-too-large': '新版程序资源超过单版本大小限制，请发送诊断反馈。', 'capacity-protected': '旧版本应用缓存仍受保护，本次更新被应用容量规则阻止。', 'quota-exceeded': '浏览器拒绝了存储写入，报告已记录存储估算。', 'integrity-mismatch': '更新资源未通过完整性校验。', 'download-timeout': '更新资源准备超时。', 'download-failed': '更新资源下载失败。', 'storage-failed': '应用缓存存储操作失败。', unknown: '更新安装失败，未取得更具体的分类。' };
     byId('status').textContent = failure ? messages[failure.reason] : database.status === 'timeout' ? '本机数据库未在限定时间内响应，请发送诊断反馈。' : cache.cacheStatus === 'timeout' ? '应用缓存未在限定时间内响应，请发送诊断反馈。' : '检查完成，请发送诊断反馈。';
     display();
   }

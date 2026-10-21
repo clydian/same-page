@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UpdateDetails } from "../components/reload-prompt";
 import { UpdateController } from "./update-controller";
-import { setUpdateRoute } from "./update-safety";
+import { canAcceptUpdate, holdUpdate, noteUpdateInteraction, setUpdateRoute } from "./update-safety";
 
 function deferred() {
   let resolve!: () => void;
@@ -206,6 +206,38 @@ describe("update lifecycle feedback", () => {
     expect(requested).toHaveBeenLastCalledWith(false);
     act(() => port.onmessage?.(new MessageEvent("message", { data: { safe: true } })));
     expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
+  });
+
+  it("automatically applies a ready release only after safe idle and preserves manual bypass of idle", async () => {
+    vi.useFakeTimers();
+    const waiting = worker(); Object.assign(registration, { waiting });
+    vi.stubGlobal("MessageChannel", class { port1 = { close: vi.fn() }; port2 = {}; });
+    start(); await act(async () => {});
+    act(() => controller.autoApply()); expect(waiting.postMessage).not.toHaveBeenCalled();
+    const release = holdUpdate();
+    act(() => { vi.advanceTimersByTime(3001); controller.autoApply(); });
+    expect(waiting.postMessage).not.toHaveBeenCalled();
+    release();
+    act(() => { noteUpdateInteraction(); controller.apply(); });
+    expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SAME_PAGE_SAFE_UPDATE", requested: true }, expect.any(Array));
+  });
+  it("keeps automatic application out of readers, focused inputs and hidden pages, then starts when safe", async () => {
+    vi.useFakeTimers();
+    const waiting = worker(); Object.assign(registration, { waiting });
+    vi.stubGlobal("MessageChannel", class { port1 = { close: vi.fn() }; port2 = {}; });
+    start(); await act(async () => {});
+    setUpdateRoute('/choirs/test/scores/score'); vi.advanceTimersByTime(4000);
+    controller.autoApply(); expect(waiting.postMessage).not.toHaveBeenCalled();
+    setUpdateRoute('/drives'); vi.advanceTimersByTime(4000);
+    const input = document.createElement('input'); document.body.append(input); input.focus();
+    controller.autoApply(); expect(waiting.postMessage).not.toHaveBeenCalled(); input.remove();
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    controller.autoApply(); expect(waiting.postMessage).not.toHaveBeenCalled();
+    expect(canAcceptUpdate()).toBe(true); // Safe hidden windows can acknowledge handover without reloading.
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    controller.autoApply();
+    expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SAME_PAGE_SAFE_UPDATE", requested: true, automatic: true }, expect.any(Array));
+    expect(requested).toHaveBeenLastCalledWith(false);
   });
 
   it("exposes registration timeout and retries registration rather than claiming there is no update", () => {

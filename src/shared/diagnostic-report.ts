@@ -1,7 +1,7 @@
 import { pdfRenderFactsSchema } from "./pdf-render-facts";
 import { readerOpeningSchema } from "./reader-opening";
 import { z } from "zod";
-import { applicationShellBudgetBytes, updateFailureReasons } from "./update-diagnostics";
+import { applicationShellBudgetBytes, applicationShellReleaseLimitBytes, updateFailureReasons } from "./update-diagnostics";
 import { diagnosticErrorCodes, diagnosticCategories, diagnosticOperations, diagnosticStages, diagnosticSteps, diagnosticErrorTypes } from "./diagnostics";
 
 export const diagnosticReportMaxBytes = 64 * 1024;
@@ -29,7 +29,10 @@ export const updateDiagnosticsSchema = z.object({
   cacheStatus: probe,
   shellCount: z.number().int().min(0).max(9999).nullable(),
   shellBytes: bytes,
-  shellBudgetBytes: z.literal(applicationShellBudgetBytes),
+  // Null means this installer has no cross-release aggregate admission cap.
+  shellBudgetBytes: z.union([z.literal(applicationShellBudgetBytes), z.null()]),
+  shellPolicy: z.literal("references-v2"),
+  shellReleaseLimitBytes: z.literal(applicationShellReleaseLimitBytes),
   shellsTruncated: z.boolean(),
   shells: z.array(z.object({ buildId: build, bytes, complete: z.boolean(), ageHours: z.number().nonnegative().max(1_000_000).nullable() }).strict()).max(16),
   storage: z.object({ status: probe, usage: bytes, quota: bytes }).strict(),

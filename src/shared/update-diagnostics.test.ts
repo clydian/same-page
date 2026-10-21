@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { updateFailureReason } from "./update-diagnostics";
+import { applicationShellReleaseLimitBytes, updateFailureReason } from "./update-diagnostics";
 import { updateDiagnosticsSchema } from "./diagnostic-report";
 
 it("distinguishes the application retention budget from browser storage quota and network failures", () => {
@@ -18,6 +18,8 @@ it("accepts a bounded observation without allowing cache names, URLs or database
     storage: { status: "ok", usage: 80000000, quota: 200000000 }, database: { status: "timeout", version: null },
     failure: { reason: "capacity-protected", buildId: "abcdef1" } };
   expect(updateDiagnosticsSchema.safeParse(value).success).toBe(true);
+  expect(updateDiagnosticsSchema.safeParse({ ...value, shellBudgetBytes: null, shellPolicy: "references-v2", shellReleaseLimitBytes: applicationShellReleaseLimitBytes }).success).toBe(true);
+  expect(updateDiagnosticsSchema.safeParse({ ...value, shellBudgetBytes: 112 * 1024 * 1024 }).success).toBe(false);
   expect(updateDiagnosticsSchema.safeParse({ ...value, database: { ...value.database, records: "private notes" } }).success).toBe(false);
   expect(updateDiagnosticsSchema.safeParse({ ...value, failure: { ...value.failure, message: "https://private.test" } }).success).toBe(false);
 });

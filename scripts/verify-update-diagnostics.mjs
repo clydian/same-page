@@ -6,7 +6,7 @@ import { chromium, webkit } from '@playwright/test';
 
 const oldBuild = 'fcb9631cab68ce3ffdeb77fcd75e91e1a49a825a';
 const candidateBuild = JSON.parse(await readFile('dist/client/build.json', 'utf8')).buildId;
-const supportHtml = (await readFile('worker/support/update-diagnostics.html', 'utf8')).replace('__BUILD__', /^[a-f0-9]{7,40}$/.test(candidateBuild) ? candidateBuild : 'development').replace('__BUDGET__', String(4 * 7 * 1024 * 1024));
+const supportHtml = (await readFile('worker/support/update-diagnostics.html', 'utf8')).replace('__BUILD__', /^[a-f0-9]{7,40}$/.test(candidateBuild) ? candidateBuild : 'development').replace('__LIMIT__', String(7 * 1024 * 1024));
 const supportScript = await readFile('worker/support/update-diagnostics-browser.js', 'utf8');
 const oldHtml = '<!doctype html><h1>旧应用</h1><script>navigator.serviceWorker.register("/sw.js")</script>';
 const oldWorker = `self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));
@@ -29,16 +29,24 @@ const server = createServer(async (request, response) => {
       response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ id: report.id })); return;
     }
     if (pathname === '/sw.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(candidate ? await readFile('dist/client/sw.js') : oldWorker); return; }
-    if (pathname === '/') { response.setHeader('Content-Type', 'text/html'); response.end(oldHtml); return; }
+    if (pathname === '/') { response.setHeader('Content-Type', 'text/html'); response.end(candidate ? await readFile('dist/client/index.html') : oldHtml); return; }
     const file = path.resolve('dist/client', '.' + pathname);
     if (!file.startsWith(path.resolve('dist/client') + path.sep) || !(await stat(file)).isFile()) throw new Error('missing');
-    response.setHeader('Content-Type', pathname.endsWith('.js') ? 'text/javascript' : 'application/octet-stream');
+    response.setHeader('Content-Type', /\.m?js$/.test(pathname) ? 'text/javascript' : pathname.endsWith('.css') ? 'text/css' : 'application/octet-stream');
     response.end(await readFile(file));
   } catch { response.statusCode = 404; response.end(); }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 await mkdir('artifacts/verification/update-diagnostics', { recursive: true });
+async function pollPage(page, predicate, argument) {
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    if (await page.evaluate(predicate, argument) === true) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error('Candidate lifecycle condition timed out');
+}
 try {
   for (const engine of [chromium, webkit]) {
     candidate = false;
@@ -90,10 +98,12 @@ try {
       assert.equal(reports.length, reportCount, 'opening diagnostics uploaded automatically');
       candidate = true;
       await page.getByRole('button', { name: '重试更新并记录原因' }).click();
-      await page.waitForFunction(() => {
-        const text = document.getElementById('report').value;
-        try { return JSON.parse(text).update.failure?.reason === 'capacity-protected' && !document.getElementById('send').disabled; } catch { return false; }
-      }, undefined, { timeout: 30000 });
+      await pollPage(page, async () => !!(await navigator.serviceWorker.getRegistration())?.waiting);
+      await page.waitForFunction(() => !document.getElementById('send').disabled);
+      await page.getByRole('button', { name: '重新检查', exact: true }).click();
+      await page.waitForFunction(build => {
+        try { return JSON.parse(document.getElementById('report').value).update.waitingBuild === build && !document.getElementById('send').disabled; } catch { return false; }
+      }, candidateBuild).catch(async error => { throw new Error(`${engine.name()} expected waiting ${candidateBuild}: ${await page.locator('#report').inputValue()}`, { cause: error }); });
       loseReceipt = true;
       await page.getByRole('button', { name: '发送诊断反馈' }).click();
       await page.getByText('尚未确认收到，请重试发送或复制诊断信息。', { exact: true }).waitFor();
@@ -102,8 +112,11 @@ try {
       assert.equal(reports.length, reportCount + 2);
       assert.deepEqual(reports.at(-1), reports.at(-2), 'uncertain retry changed the frozen payload');
       const report = reports.at(-1);
-      assert.equal(report.update.failure.reason, 'capacity-protected');
-      assert.equal(report.update.shellCount, 4);
+      assert.equal(report.update.failure, null);
+      assert.equal(report.update.waitingBuild, candidateBuild);
+      assert.equal(report.update.shellCount, 5);
+      assert.equal(report.update.shellBudgetBytes, null);
+      assert.equal(report.update.shellPolicy, 'references-v2');
       assert.ok(!JSON.stringify(report).includes('private-'), 'private business data escaped');
       const retained = await page.evaluate(async () => new Promise((resolve, reject) => {
         const request = indexedDB.open('same-page'); request.onerror = reject;
@@ -142,7 +155,21 @@ try {
       assert.equal(JSON.parse(await empty.locator('#report').inputValue()).update.database.status, 'missing');
       assert.equal(await empty.evaluate(async () => (await indexedDB.databases()).some(db => db.name === 'same-page')), false, 'read-only probe created an absent database');
       await fresh.close();
-      console.log(`${engine.name()}: old shell bypassed; candidate capacity failure captured; uncertain retry unchanged; stalled DB reported; drafts preserved; no absent DB created`);
+      await page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.getRegistration();
+        await new Promise((resolve, reject) => {
+          const channel = new MessageChannel(); const timer = setTimeout(() => reject(new Error('handover timeout')), 10000);
+          channel.port1.onmessage = event => { clearTimeout(timer); channel.port1.close(); event.data?.safe ? resolve() : reject(new Error('handover veto')); };
+          registration.waiting.postMessage({ type: 'SAME_PAGE_SAFE_UPDATE', requested: true }, [channel.port2]);
+        });
+      });
+      await pollPage(page, async build => {
+        const active = (await navigator.serviceWorker.getRegistration())?.active;
+        if (!active || active.state !== 'activated') return false;
+        return new Promise(resolve => { const channel = new MessageChannel(); const timer = setTimeout(() => { channel.port1.close(); resolve(false); }, 1000); channel.port1.onmessage = event => { clearTimeout(timer); channel.port1.close(); resolve(event.data?.buildId === build); }; active.postMessage({ type: 'SAME_PAGE_SHELL_IDENTITY' }, [channel.port2]); });
+      }, candidateBuild);
+      assert.equal(await page.evaluate(async () => (await caches.keys()).filter(name => name.startsWith('same-page-shell-v1:')).length), 4);
+      console.log(`${engine.name()}: old shell bypassed; latest candidate prepared beside four legacy shells; uncertain retry unchanged; stalled DB reported; drafts preserved; no absent DB created`);
     } finally { await browser.close(); }
   }
 } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

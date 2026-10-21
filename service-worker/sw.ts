@@ -25,8 +25,17 @@ scope.addEventListener('activate', event => event.waitUntil(runtime.activate()))
 scope.addEventListener('message', event => {
   const type = event.data?.type;
   if (type === 'SAME_PAGE_PLAYBACK_READY') { event.waitUntil(runtime.readyBuild(event.data.buildId, AbortSignal.timeout(15_000)).then(() => event.ports[0]?.postMessage({ buildId: event.data.buildId })).catch(() => event.ports[0]?.postMessage(null))); return; }
+  if (type === 'SAME_PAGE_CHECK_SHELL') {
+    if (typeof event.data.buildId !== 'string' || !/^(?:[a-f0-9]{7,40}|development)$/.test(event.data.buildId)) return;
+    event.waitUntil((async () => {
+      const own = await runtime.identity;
+      event.ports[0]?.postMessage({ available: await runtime.availableBuild(event.data.buildId), activeBuild: own.buildId, activeReady: await runtime.availableBuild(own.buildId) });
+      await runtime.collect();
+    })().catch(() => event.ports[0]?.postMessage(null)));
+    return;
+  }
   if (type === 'SAME_PAGE_SHELL_IDENTITY') { event.waitUntil(runtime.identity.then(value => event.ports[0]?.postMessage(value))); return; }
-  if (type === 'SAME_PAGE_COLLECT_SHELLS') { event.waitUntil(runtime.collect().then(() => runtime.identity).then(value => event.ports[0]?.postMessage(value))); return; }
+  if (type === 'SAME_PAGE_COLLECT_SHELLS') { event.waitUntil(runtime.collect().then(async removed => event.ports[0]?.postMessage({ ...await runtime.identity, removed }))); return; }
   if (type !== 'SAME_PAGE_SAFE_UPDATE') return;
   if (event.data.requested !== true) { event.ports[0]?.postMessage({ safe: false }); return; }
   event.waitUntil((async () => {
@@ -34,16 +43,21 @@ scope.addEventListener('message', event => {
       const signal = AbortSignal.timeout(8_000);
       await runtime.ready(signal);
       const clients = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      const approvals = await Promise.all(clients.map(client => new Promise(resolve => {
-        const channel = new MessageChannel();
-        const timer = setTimeout(() => { channel.port1.close(); resolve(false); }, 1500);
-        channel.port1.onmessage = reply => { clearTimeout(timer); channel.port1.close(); resolve(reply.data === true); };
-        client.postMessage({ type: 'SAME_PAGE_UPDATE_PROBE', requested: true }, [channel.port2]);
-      })));
-      const current = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      const safe = !signal.aborted && approvals.every(Boolean) && current.every(client => clients.some(previous => previous.id === client.id));
-      event.ports[0]?.postMessage({ safe });
+      const confirm = async () => {
+        const approvals = await Promise.all(clients.map(client => new Promise(resolve => {
+          const channel = new MessageChannel();
+          const timer = setTimeout(() => { channel.port1.close(); resolve(false); }, 1500);
+          channel.port1.onmessage = reply => { clearTimeout(timer); channel.port1.close(); resolve(reply.data === true); };
+          client.postMessage({ type: 'SAME_PAGE_UPDATE_PROBE', requested: true, automatic: event.data.automatic === true }, [channel.port2]);
+        })));
+        const current = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        return !signal.aborted && approvals.every(Boolean) && current.every(client => clients.some(previous => previous.id === client.id));
+      };
+      // Reconfirm after every window answered: editing or a new window may have
+      // appeared while another window was responding to the first round.
+      const safe = await confirm() && await confirm();
       if (safe) await scope.skipWaiting();
+      event.ports[0]?.postMessage({ safe });
     } catch { event.ports[0]?.postMessage({ safe: false, reason: 'incomplete' }); }
   })());
 });
