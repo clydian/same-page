@@ -2,6 +2,11 @@
 // A new effective session still clears private reads; local ownership grants no authority.
 export const NAVIGATION_FRESH_MS = 60_000;
 const resets = new Set<() => void>();
+let membershipRevision = 0;
+const membershipChanges = new Set<() => void>();
+export const membershipDirectoryRevision = () => membershipRevision;
+export function onMembershipDirectoryChange(listener: () => void) { membershipChanges.add(listener); return () => { membershipChanges.delete(listener); }; }
+function invalidateMembershipDirectory() { membershipRevision++; for (const listener of membershipChanges) listener(); }
 export type DriveReadKind = "settings" | "management" | "permission-contacts" | "memberships" | "usage" | "shared-layers" | "shared-layer" | "layer-access" | "reading-defaults";
 // In-memory identity only: never parse owner/drive/variant strings as dependencies.
 export interface DriveReadIdentity {
@@ -72,6 +77,8 @@ export function observeNavigationSession(next: string | null, owner: string | nu
 export function observeNavigationResponse(input: RequestInfo | URL, init: RequestInit | undefined, response: Response) {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const path = new URL(url, "https://same-page.invalid").pathname;
+  const write = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+  if (response.ok && write !== "GET" && write !== "HEAD" && (/^\/api\/choirs(?:\/(?:join|join-current-guest))?$/.test(path) || /^\/api\/choirs\/[^/]+\/(?:name|memberships|ownership|purge)(?:\/|$)/.test(path))) invalidateMembershipDirectory();
   const match = /^\/api\/choirs\/([^/]+)\/(.+)$/.exec(path);
   if (!match) return;
   const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();

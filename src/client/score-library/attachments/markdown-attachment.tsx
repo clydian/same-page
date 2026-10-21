@@ -1,5 +1,6 @@
+import { AttachmentModule } from "./attachment-module";
 import { LoadingStatus } from "../../components/loading-status";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Input, Label, MenuItem, MenuTrigger, Popover, TextField } from "react-aria-components";
 import Markdown from "react-markdown";
 import { MoreHorizontal, Pencil } from "lucide-react";
@@ -12,7 +13,7 @@ import { readMarkdown } from "./api";
 import { useAttachmentMutation, type AttachmentReceipt } from "./use-attachment-mutation";
 import { markdownDraftEpoch, readMarkdownDraft, removeMarkdownDraft, writeMarkdownDraft } from "./markdown-drafts";
 
-const Editor = lazy(() => import("./markdown-editor"));
+const loadEditor = () => import("./markdown-editor");
 type Props = { selection: AttachmentSelection; choirId: string; ownerKey: string; canModify: boolean; writable: boolean; onClose: () => void; onBack?: () => void; onChanged: () => Promise<void> };
 type Snapshot = { attachment: ScoreAttachment | null; text: string };
 
@@ -82,7 +83,7 @@ function MarkdownSession({ snapshot, selection: { score }, choirId, ownerKey, ca
     {!writable && <p className="attachment-help" role="status">连接尚未恢复，输入已保留；联网后可继续保存或核对结果。</p>}
     {editing ? <>
       <TextField className="attachment-name-field" value={name} onChange={setName} isDisabled={mutation.blocked} maxLength={255}><Label>文件名</Label><Input /></TextField>
-      <div className="attachment-editor-region"><Suspense fallback={<LoadingStatus>正在加载编辑器…</LoadingStatus>}><Editor initial={initial} disabled={mutation.blocked || parseFailed} onChange={setText} onError={source => { setText(source); setParseFailed(true); setValidation("这份 Markdown 包含暂不支持的格式，原文已保留。请下载原文，不会用空白内容覆盖。"); }} /></Suspense></div>
+      <div className="attachment-editor-region"><AttachmentModule load={loadEditor} props={{ initial, disabled: mutation.blocked || parseFailed, onChange: setText, onError: (source: string) => { setText(source); setParseFailed(true); setValidation("这份 Markdown 包含暂不支持的格式，原文已保留。请下载原文，不会用空白内容覆盖。"); } }} fallback={<LoadingStatus>正在加载编辑器…</LoadingStatus>} /></div>
       {parseFailed && <pre className="attachment-source">{text}</pre>}
       <div className="attachment-actions"><Button className="primary-button" isDisabled={mutation.blocked || parseFailed || (Boolean(base.attachment) && !dirty)} onPress={() => void save()}>{mutation.pending ? "正在保存…" : "保存"}</Button>
         <MenuTrigger><Button className="attachment-menu" aria-label="文档更多操作"><MoreHorizontal size={18} /></Button>

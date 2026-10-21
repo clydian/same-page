@@ -1,113 +1,56 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "react-aria-components";
 import { Link } from "react-router-dom";
-
-import {
-  choirMembershipsResponseSchema,
-  type MembershipSummary,
-} from "../../shared/choirs";
-import { SettingsRequestError } from "../settings/settings-request";
-import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
 import { startLoadingJourney } from "../performance/loading-performance";
-import { driveCacheOwnerKey, rememberDriveSummary } from "./drive-library-cache";
-import { readLocalDriveDirectories } from "./local-drive-directory";
+import { getReadResource } from "../settings/read-resource";
+import { useReadResource } from "../settings/use-read-resource";
+import { membershipDirectoryRevision, onMembershipDirectoryChange } from "../settings/navigation-events";
+import { loadMembershipDirectory, membershipDirectoryKey, membershipFreshMs, reconcileMembershipRows, restoreMembershipDirectory, type MembershipEntry } from "./membership-directory";
 import "./library-ux.css";
 
-type MembershipState =
-  | { userId: string; kind: "loading" | "failed" }
-  | { userId: string; kind: "loaded"; memberships: MembershipSummary[]; failed?: boolean };
-
-export function MembershipList({
-  userId,
-  currentChoirId,
-  onSelect,
-  localOnly = false,
-}: {
-  userId: string;
-  currentChoirId?: string;
-  onSelect?: () => void;
-  localOnly?: boolean;
+type Rows = ReturnType<typeof reconcileMembershipRows>;
+export function MembershipList({ userId, currentChoirId, onSelect, localOnly = false }: {
+  userId: string; currentChoirId?: string; onSelect?: () => void; localOnly?: boolean;
 }) {
-  const [state, setState] = useState<MembershipState>({ userId, kind: "loading" });
-  const [retry, setRetry] = useState(0);
-  const [local, setLocal] = useState<{ userId: string; drives: Awaited<ReturnType<typeof readLocalDriveDirectories>> | null } | null>(null);
+  const [localFailure, setLocalFailure] = useState<string | null>(null);
+  const resource = getReadResource<MembershipEntry[]>(membershipDirectoryKey(userId));
+  useEffect(() => { if (localOnly) resource.invalidate(); }, [localOnly, resource]);
+  const directory = useReadResource(membershipDirectoryKey(userId), signal => loadMembershipDirectory(userId, signal), async () => {
+    try { return await restoreMembershipDirectory(userId); }
+    catch { setLocalFailure(userId); return null; }
+  }, membershipFreshMs, !localOnly);
+  const revision = useSyncExternalStore(onMembershipDirectoryChange, membershipDirectoryRevision);
+  const seenRevision = useRef(revision);
+  const { refresh } = directory;
   useEffect(() => {
-    let active = true;
-    void readLocalDriveDirectories(userId).then(drives => { if (active) setLocal({ userId, drives }); }).catch(() => { if (active) setLocal({ userId, drives: null }); });
-    return () => { active = false; };
-  }, [userId]);
-
-  useEffect(() => {
-    if (localOnly) return;
-    const controller = new AbortController();
-    async function load() {
-      setState(previous => previous.userId === userId && previous.kind === "loaded" ? { ...previous, failed: false } : { userId, kind: "loading" });
-      try {
-        const response = await diagnosticFetch("/api/choirs", { signal: controller.signal });
-        if (!response.ok) throw new SettingsRequestError(response.status);
-        const responseData = await parseDiagnosticResponse(response, choirMembershipsResponseSchema);
-        const memberships = responseData.memberships.filter(member => !member.choir.isPreviewEntry);
-        if (controller.signal.aborted) return;
-        memberships.forEach(({ choir }) =>
-          rememberDriveSummary(driveCacheOwnerKey(userId, choir.id), choir),
-        );
-        setState({ userId, kind: "loaded", memberships });
-      } catch (error) {
-        if (!controller.signal.aborted) setState(previous => previous.userId === userId && previous.kind === "loaded" &&
-          !(error instanceof SettingsRequestError && [401, 403, 404].includes(error.status))
-          ? { ...previous, failed: true } : { userId, kind: "failed" });
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [userId, retry, localOnly]);
-
-  const retryNotice = state.userId === userId && (state.kind === "failed" || (state.kind === "loaded" && state.failed)) && !localOnly
-    ? <p role="status">暂时无法加载已加入的云盘。<Button onPress={() => setRetry(value => value + 1)}>重试</Button></p> : null;
-  if (state.userId !== userId || state.kind !== "loaded") {
-    const drives = local?.userId === userId ? local.drives === null ? null : local.drives.filter(entry => entry.membership && !entry.accessRevoked && !entry.choir.isPreviewEntry) : undefined;
-    return <>
-      {retryNotice}
-      {drives?.length ? <div className="membership-list">{drives.map(entry => <Link className="membership-row" key={entry.choirId} to={`/choirs/${entry.choirId}`} aria-current={entry.choirId === currentChoirId ? "page" : undefined} onClick={onSelect}><span><strong>{entry.choir.name}</strong></span></Link>)}</div>
-        : drives === null ? <p role="status">暂时无法读取本机目录，请重试连接。</p>
-        : localOnly && drives ? <p>本机尚未保存云盘目录，请联网后重试。</p>
-        : state.userId === userId && state.kind === "failed" && drives ? null
-        : <p role="status">{localOnly ? "正在读取本机目录…" : "正在加载已加入的云盘…"}</p>}
-    </>;
+    if (seenRevision.current === revision) return;
+    seenRevision.current = revision;
+    if (!localOnly) void refresh().catch(() => undefined);
+  }, [revision, localOnly, refresh]);
+  const [presentation, setPresentation] = useState<{ userId: string; data: MembershipEntry[] | null; rows: Rows }>({ userId, data: null, rows: [] });
+  let rows = presentation.rows;
+  if (presentation.userId !== userId || presentation.data !== directory.data) {
+    rows = reconcileMembershipRows(presentation.userId === userId ? presentation.rows : [], directory.data ?? []);
+    setPresentation({ userId, data: directory.data, rows });
   }
-  if (!state.memberships.length) {
-    return (
-      <>{retryNotice}<p className="membership-empty">
-        还没有已加入的云盘。请使用云盘提供的邀请码加入。
-      </p></>
-    );
-  }
-  return (
-    <>
-    {retryNotice}
-    <div className="membership-list">
-      {state.memberships.map((membership) => (
-        <Link
-          className="membership-row"
-          key={membership.id}
-          to={`/choirs/${membership.choir.id}`}
-          aria-current={membership.choir.id === currentChoirId ? "page" : undefined}
-          onClick={() => {
-            startLoadingJourney("enter-drive", "warm");
-            onSelect?.();
-          }}
-        >
-          <span>
-            <strong>{membership.choir.name}</strong>
-            <small>
-              {membership.isOwner ? "拥有者" : "成员"}
-              {membership.choir.id === currentChoirId ? " · 当前云盘" : ""}
-            </small>
-          </span>
-          <span aria-hidden="true">→</span>
-        </Link>
-      ))}
-    </div>
-    </>
-  );
+  // Endpoint denial clears protected presentation; temporary failures retain it.
+  if (directory.authority === "signed-out" || directory.authority === "revoked") rows = [];
+  const failed = Boolean(directory.error) && !localOnly;
+  const knownEmpty = directory.data !== null && !directory.data.length && (localOnly || directory.authority === "confirmed");
+  if (knownEmpty) rows = [];
+  return <>
+    <div className="membership-status" role="status">{failed && <>暂时无法加载已加入的云盘。<Button onPress={() => void directory.refresh().catch(() => undefined)}>重试</Button></>}</div>
+    {rows.length > 0 && <div className="membership-list">{rows.map(row => {
+      const current = row.choir.id === currentChoirId;
+      const content = <span><strong title={row.choir.name}>{row.choir.name}</strong><small>{row.isOwner === null ? "身份待确认" : row.isOwner ? "拥有者" : "成员"}{current ? " · 当前云盘" : ""}{row.unavailable ? " · 已不可用" : ""}</small></span>;
+      return row.unavailable ? <span className="membership-row" role="link" aria-disabled="true" key={row.choir.id}>{content}</span>
+        : <Link className="membership-row" key={row.choir.id} replace={Boolean(currentChoirId)} to={`/choirs/${row.choir.id}`} aria-current={current ? "page" : undefined} onClick={event => {
+          if (current) event.preventDefault();
+          startLoadingJourney("enter-drive", "warm"); onSelect?.();
+        }}>{content}<span aria-hidden="true">→</span></Link>;
+    })}</div>}
+    {!rows.length && (localFailure === userId && directory.data === null ? <p role="status">暂时无法读取本机目录，请重试连接。</p>
+      : knownEmpty ? <p className="membership-empty">{localOnly ? "本机尚未保存云盘目录，请联网后重试。" : "还没有已加入的云盘。请使用云盘提供的邀请码加入。"}</p>
+      : !failed && <p role="status">{localOnly ? "正在读取本机目录…" : "正在加载已加入的云盘…"}</p>)}
+  </>;
 }
