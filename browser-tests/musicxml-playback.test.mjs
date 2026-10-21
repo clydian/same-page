@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { chromium, webkit, expect } from '@playwright/test';
 import { zipSync, strToU8 } from 'fflate';
 import { startStorageFixture } from './storage-fixture.mjs';
-import { finiteBracketDirections, polyphonicMusicXmlFixture } from './musicxml-fixture.mjs';
+import { finiteBracketDirections, polyphonicMusicXmlFixture, sourceSpellingMusicXmlFixture } from './musicxml-fixture.mjs';
 for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
  test(`MusicXML preparation Worker preserves its own response protocol (${engine})`, {timeout:60000}, async t => {
   const names = (await readdir('dist/client/assets')).filter(name => /^prepare\.worker-.*\.js$/.test(name));
@@ -81,7 +81,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByRole('button',{name:'本地链路测试 更多操作',exact:true}).click();
   await page.getByRole('menuitem',{name:'添加附件',exact:true}).click();
   await page.getByRole('button',{name:'可播放乐谱',exact:true}).click();
-  const practiceXml = new TextDecoder().decode(polyphonicMusicXmlFixture()).replace('</attributes>', '</attributes>'+finiteBracketDirections()+'<direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction>');
+  const practiceXml = new TextDecoder().decode(sourceSpellingMusicXmlFixture()).replace('</attributes>', '</attributes>'+finiteBracketDirections()+'<direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction>');
   const bytes=zipSync({'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>'),'score.musicxml':strToU8(practiceXml)});
   await page.getByLabel('选择附件文件').setInputFiles({name:'分声部练习.mxl',mimeType:'application/vnd.recordare.musicxml',buffer:Buffer.from(bytes)});
   await page.getByRole('button',{name:'上传',exact:true}).click();
@@ -118,6 +118,10 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
     const y=[...data.matchAll(/ L[^,]+,([-\d.]+)/g)].map(match=>Number(match[1]));
     return (data.match(/ M/g)?.length??0)===1 && y.length>=3 && (y[1]-y[0])*(y[2]-y[1])<0;
   }))).toBe(true);
+  await expect.poll(() => page.locator('.practice-notation .at-surface svg').evaluateAll(svgs=>{
+    const text=svgs.map(svg=>svg.textContent).join('');
+    return {sharps:(text.match(/\uE262/g)??[]).length,flats:(text.match(/\uE260/g)??[]).length};
+  })).toEqual({sharps:0,flats:2});
   const surface=await notation.elementHandle();
   assert.equal(await page.locator('.at-surface svg').evaluateAll(svgs => svgs.flatMap(svg => [...svg.querySelectorAll('path,text')]).some(element => /^rgba\(0, 0, 0, 0\./.test(getComputedStyle(element).fill))), false, 'secondary-voice notation stays opaque');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();

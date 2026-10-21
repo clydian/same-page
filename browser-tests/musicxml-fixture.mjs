@@ -10,6 +10,13 @@ export function polyphonicMusicXmlFixture(measureCount = 8) {
  return Buffer.from(xml.slice(0, start) + xml.slice(start).replaceAll('</type></note>', '</type><voice>1</voice></note><backup><duration>4</duration></backup><note><pitch><step>G</step><octave>3</octave></pitch><duration>4</duration><type>whole</type><voice>2</voice></note>'));
 }
 
+// The last B-flat inherits its spelling without repeating the accidental glyph.
+export function sourceSpellingMusicXmlFixture(measureCount = 8) {
+ const notes = [['E',-1,4,true],['B',-1,3,true],['G',0,4,false],['B',-1,3,false]]
+  .map(([step,alter,octave,explicit])=>`<note><pitch><step>${step}</step><alter>${alter}</alter><octave>${octave}</octave></pitch><duration>1</duration><type>quarter</type>${explicit?'<accidental>flat</accidental>':''}</note>`).join('');
+ return Buffer.from(polyphonicMusicXmlFixture(measureCount).toString().replace(/<note>[\s\S]*?<\/note>/,notes));
+}
+
 
 // Owned modern graphic directions; no ornament or playback interpretation.
 export function finiteBracketDirections() {
