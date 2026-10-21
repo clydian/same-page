@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ShellRuntime, digest, shellBudget } from '../service-worker/shell-runtime.ts';
 
 const origin = 'https://shell.example/';
@@ -16,6 +16,10 @@ class MemoryCache {
 let stores, scope, server;
 const target = get => ({ postMessage: (_message, ports) => { Promise.resolve(get()).then(value => ports[0].postMessage(value)); } });
 beforeEach(() => {
+  // Tiny in-memory releases can share a real millisecond. Give fixtures an
+  // explicit creation order so rollback selection does not depend on host load.
+  let now = Date.now();
+  vi.spyOn(Date, 'now').mockImplementation(() => ++now);
   stores = new Map(); server = new Map();
   vi.stubGlobal('caches', {
     open: async name => { if (!stores.has(name)) stores.set(name, new MemoryCache()); return stores.get(name); },
@@ -26,6 +30,7 @@ beforeEach(() => {
   scope = { navigator: { locks: { request: (_name, action) => { const next = tail.then(action); tail = next.catch(() => undefined); return next; } } }, location: { origin: origin.slice(0, -1) }, registration: { scope: origin, active: null, waiting: null, installing: null }, clients: { matchAll: async () => [] } };
   vi.stubGlobal('fetch', vi.fn(async request => { const body = server.get(request.url); if (body === undefined) throw new TypeError('offline'); return new Response(body, { headers: { 'Content-Type': request.url.endsWith('.js') ? 'text/javascript' : 'text/html' } }); }));
 });
+afterEach(() => { vi.restoreAllMocks(); });
 async function release(id, bytes = 32, scriptCount = 1) {
   const html = `<meta name="same-page-build-id" content="${id}">`;
   const files = [['/', html], ...Array.from({ length: scriptCount }, (_, index) => [`/assets/main-${id}${index ? '-' + index : ''}.js`, `/* ${id}${index ? '-' + index : ''} */`])];

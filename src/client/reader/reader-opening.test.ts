@@ -23,11 +23,15 @@ it.each(["document-stalled", "local-validation-stalled"])("timeout preserves the
   }));
   const original = workspaceModule.assertLocalWorkspaceActive;
   vi.spyOn(workspaceModule, "assertLocalWorkspaceActive").mockImplementation((value) => documentLoaded ? new Promise(() => {}) : original(value));
-  vi.useFakeTimers();
+  // Control the display deadline without faking IndexedDB's setImmediate queue.
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date", "performance"] });
   const session = new ReaderSession(workspace, null);
   try {
     session.open();
-    await vi.advanceTimersByTimeAsync(45_000);
+    await vi.advanceTimersByTimeAsync(100);
+    const phase = mode === "document-stalled" ? "engine" : "local-check";
+    await vi.waitFor(() => expect(session.getSnapshot().opening?.phase).toBe(phase));
+    vi.advanceTimersByTime(45_000);
     const records = JSON.parse(exportDiagnostics()).records;
     expect(session.getSnapshot().error).toBe("加载用时较长，可以重试或返回云盘。这不代表设备不兼容。");
     expect(records).toEqual([expect.objectContaining({ operation: "pdf", category: "internal", stage: "prepare", step: "reader-document", opening: expect.objectContaining({ phase: mode === "document-stalled" ? "engine" : "local-check", source: "cloud" }), errorType: "TimeoutError", pdfReason: "timeout", requestId: null })]);
