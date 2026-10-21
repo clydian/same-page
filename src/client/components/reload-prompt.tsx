@@ -22,6 +22,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
   const requested = useRef(false);
   const [registrationError, setRegistrationError] = useState(false);
   const onNeedReload = useCallback(() => {
+    if (reloadPending.current) return;
     reloadPending.current = true;
     // Activation may come from another window. Recheck after the worker's probe.
     if (canApplyUpdate(requested.current)) window.location.reload();
