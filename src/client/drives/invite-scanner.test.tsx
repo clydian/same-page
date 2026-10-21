@@ -41,11 +41,15 @@ it("invalidates an album decode when manual admission disables the scanner, even
 
 it("reads only this origin's invitation and drops an image result after unmount", async () => {
   const onRead = vi.fn();
-  vi.mocked(decodeInviteImage).mockResolvedValueOnce("https://untrusted.test/?join=1#invite=ABCDEFGH").mockResolvedValueOnce(`${location.origin}/?join=1#invite=ABCDEFGH`);
+  let finishExternalDecode!: (value: string) => void;
+  vi.mocked(decodeInviteImage).mockImplementationOnce(() => new Promise(resolve => { finishExternalDecode = resolve; })).mockResolvedValueOnce(`${location.origin}/?join=1#invite=ABCDEFGH`);
   const view = render(<InviteScanner disabled={false} onRead={onRead} />);
   const file = new File(["image"], "card.png", { type: "image/png" });
   fireEvent.change(screen.getByLabelText("选择邀请卡图片"), { target: { files: [file] } });
-  expect(await screen.findByRole("status")).toHaveTextContent("未识别到本站邀请卡");
+  expect(screen.getByRole("status")).toHaveTextContent("正在识别邀请卡");
+  expect(onRead).not.toHaveBeenCalled();
+  await act(async () => finishExternalDecode("https://untrusted.test/?join=1#invite=ABCDEFGH"));
+  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("未识别到本站邀请卡"));
   expect(onRead).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText("选择邀请卡图片"), { target: { files: [file] } });
   await waitFor(() => expect(onRead).toHaveBeenCalledWith("ABCDEFGH"));
