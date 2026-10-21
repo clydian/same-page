@@ -1,9 +1,33 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { clearDiagnostics, recordFailure } from "./diagnostics";
 import { captureDiagnosticReport, diagnosticEnvironment, getDiagnosticSubmission, sendDiagnosticReport, setDiagnosticDescription } from "./diagnostic-submission";
+import { rememberUpdateFailure } from "../updates/update-diagnostics";
 
 beforeEach(() => { clearDiagnostics(); vi.spyOn(navigator, "onLine", "get").mockReturnValue(true); });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+it("captures a validated installer failure, clears it with the incident and never retains raw errors", () => {
+  rememberUpdateFailure({ reason: "capacity-protected", buildId: "abcdef1" });
+  expect(captureDiagnosticReport("", null).update?.failure).toEqual({ reason: "capacity-protected", buildId: "abcdef1" });
+  rememberUpdateFailure({ reason: "private raw exception", buildId: "https://private.test" });
+  expect(captureDiagnosticReport("", null).update?.failure?.reason).toBe("capacity-protected");
+  clearDiagnostics();
+  expect(captureDiagnosticReport("", null).update).toBeUndefined();
+});
+
+it("strips update diagnostics only after an explicit first legacy rejection", async () => {
+  rememberUpdateFailure({ reason: "quota-exceeded", buildId: "abcdef1" });
+  const bodies: Record<string, unknown>[] = [];
+  vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body)); bodies.push(body);
+    return bodies.length === 1 ? new Response(null, { status: 400 }) : Response.json({ id: body.id });
+  }));
+  await sendDiagnosticReport(null);
+  expect(getDiagnosticSubmission().phase).toBe("sent");
+  expect(bodies[0].update).toBeDefined();
+  expect(bodies[1].update).toBeUndefined();
+  expect(bodies[1].id).toBe(bodies[0].id);
+});
 
 it("captures only parsed environment tokens and fixed reader state, never raw UA/URLs", () => {
   const environment = diagnosticEnvironment("private-identity Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) Version/18.1 Mobile Safari/604.1 https://private.test/?token=secret");

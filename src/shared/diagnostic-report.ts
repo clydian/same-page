@@ -1,6 +1,7 @@
 import { pdfRenderFactsSchema } from "./pdf-render-facts";
 import { readerOpeningSchema } from "./reader-opening";
 import { z } from "zod";
+import { applicationShellBudgetBytes, updateFailureReasons } from "./update-diagnostics";
 import { diagnosticErrorCodes, diagnosticCategories, diagnosticOperations, diagnosticStages, diagnosticSteps, diagnosticErrorTypes } from "./diagnostics";
 
 export const diagnosticReportMaxBytes = 64 * 1024;
@@ -16,6 +17,26 @@ export const diagnosticReaderSchema = z.object({
   conflictCount: count.nullable(),
 }).strict();
 export type DiagnosticReader = z.infer<typeof diagnosticReaderSchema>;
+const bytes = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).nullable();
+const probe = z.enum(["ok", "timeout", "unavailable", "failed", "missing"]);
+export const updateDiagnosticsSchema = z.object({
+  serverBuild: build,
+  registration: probe,
+  activeBuild: build,
+  waitingBuild: build,
+  installingState: z.enum(["parsed", "installing", "installed", "activating", "activated", "redundant"]).nullable(),
+  locksSupported: z.boolean(),
+  cacheStatus: probe,
+  shellCount: z.number().int().min(0).max(9999).nullable(),
+  shellBytes: bytes,
+  shellBudgetBytes: z.literal(applicationShellBudgetBytes),
+  shellsTruncated: z.boolean(),
+  shells: z.array(z.object({ buildId: build, bytes, complete: z.boolean(), ageHours: z.number().nonnegative().max(1_000_000).nullable() }).strict()).max(16),
+  storage: z.object({ status: probe, usage: bytes, quota: bytes }).strict(),
+  database: z.object({ status: probe, version: z.number().int().min(0).max(1_000_000).nullable() }).strict(),
+  failure: z.object({ reason: z.enum(updateFailureReasons), buildId: build }).strict().nullable(),
+}).partial().strict();
+
 export const diagnosticReportSchema = z.object({
   id: z.uuidv4(),
   version: z.literal(1),
@@ -35,6 +56,7 @@ export const diagnosticReportSchema = z.object({
     onlineHint: z.boolean(),
   }).strict(),
   reader: diagnosticReaderSchema.nullable(),
+  update: updateDiagnosticsSchema.optional(),
   records: z.array(z.object({
     render: pdfRenderFactsSchema.optional(),
     opening: readerOpeningSchema.optional(),

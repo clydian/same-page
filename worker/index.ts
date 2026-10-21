@@ -1,4 +1,5 @@
 import { serveStaticAsset } from "./static-assets";
+import { updateDiagnosticRoutes } from "./support/update-diagnostics";
 import { adminRoutes } from './admin/routes';
 import { adminDiagnosticRoutes } from './admin/diagnostic-routes';
 import { cleanupAdminXml } from './admin/cleanup';
@@ -57,6 +58,7 @@ app.get("/api/health", (context) => {
 app.on(["GET", "POST"], "/api/auth/*", handleAuthRequest);
 
 app.route("/api", androidReleaseRoutes);
+app.route("/api", updateDiagnosticRoutes);
 
 app.use("/api/*", excludeDeletedResources);
 app.route("/api", adminRoutes);

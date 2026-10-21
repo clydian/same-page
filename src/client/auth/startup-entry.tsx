@@ -3,9 +3,9 @@ import { AppHeader } from "../components/app-header";
 import { guestSessionResponseSchema } from "../../shared/choirs";
 import { activateGuestLocalOwner } from "../platform/local-workspace";
 import { useEffect, useState, type ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { choirMembershipsResponseSchema } from "../../shared/choirs";
-import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
+import { diagnosticFetch, diagnosticScope, parseDiagnosticResponse } from "../diagnostics/diagnostics";
 import { driveCacheOwnerKey, rememberDriveSummary } from "../score-library/drive-library-cache";
 import { readLastDrive } from "../score-library/last-drive";
 import { readLocalDriveDirectories } from "../score-library/local-drive-directory";
@@ -25,19 +25,38 @@ function destination(userId: string, driveIds: string[]): EntryResult {
 export function StartupEntry({ identity, children }: { identity: ApplicationIdentity; children: ReactNode }) {
   const userId = identity.authenticatedUserId ?? identity.localUserId;
   const online = identity.onlineState === "authenticated";
-  const [result, setResult] = useState<{ userId: string; value: EntryResult } | null>(null);
+  const [result, setResult] = useState<{ userId: string | null; value: EntryResult } | null>(null);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId && !identity.restoring) return;
     const ownerId = userId;
     const controller = new AbortController();
-    async function resolve() {
-      const local = await localDestination(ownerId, false);
+    const report = diagnosticScope();
+    let localSettled = false;
+    let cloudSettled = !online;
+    const finish = (value: EntryResult) => {
       if (controller.signal.aborted) return;
-      let value: EntryResult;
-      if (typeof local === "object") value = local;
-      else if (online) {
+      clearTimeout(timer);
+      setResult({ userId: ownerId, value });
+      // Fence late local reads and cancel an unnecessary cloud request after
+      // a saved directory wins. Never cancel or clear business storage.
+      controller.abort();
+    };
+    const timer = setTimeout(() => {
+      if (!localSettled) report({ operation: "storage", category: "internal", stage: "prepare", errorType: "TimeoutError" });
+      if (!cloudSettled) report({ operation: "drive", category: "network", stage: "request", errorType: "TimeoutError" });
+      finish("failed");
+    }, 10_000);
+    if (ownerId) {
+      // Independent reads: a stalled IndexedDB transaction must not prevent an
+      // authenticated user from asking the server for their memberships.
+      const local = localDestination(ownerId);
+      void local.then(value => {
+        localSettled = true;
+        if (typeof value === "object" || !online) finish(value);
+      });
+      if (online) void (async () => {
         try {
           const response = await diagnosticFetch("/api/choirs", { signal: controller.signal });
           if (!response.ok) throw new Error("memberships_failed");
@@ -45,17 +64,18 @@ export function StartupEntry({ identity, children }: { identity: ApplicationIden
           if (controller.signal.aborted) return;
           const drives = memberships.filter(({ choir }) => !choir.isPreviewEntry);
           drives.forEach(({ choir }) => rememberDriveSummary(driveCacheOwnerKey(ownerId, choir.id), choir));
-          value = destination(ownerId, drives.map(({ choir }) => choir.id));
+          cloudSettled = true;
+          finish(destination(ownerId, drives.map(({ choir }) => choir.id)));
         } catch {
           if (controller.signal.aborted) return;
-          value = await localDestination(ownerId, true);
+          cloudSettled = true;
+          const value = await local;
+          finish(value === "home" ? "failed" : value);
         }
-      } else value = local;
-      if (!controller.signal.aborted) setResult({ userId: ownerId, value });
+      })();
     }
-    void resolve();
-    return () => controller.abort();
-  }, [userId, online, retry]);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [userId, online, retry, identity.restoring]);
 
   if (!userId && !identity.restoring) return identity.onlineState === "signed-out" ? <GuestStartupEntry>{children}</GuestStartupEntry> : children;
   if ((!result || result.userId !== userId) && userId) {
@@ -64,17 +84,17 @@ export function StartupEntry({ identity, children }: { identity: ApplicationIden
   }
   if (!result || result.userId !== userId) return <div className="app-page"><AppHeader /><p className="page-shell" role="status">正在恢复云盘…</p></div>;
   if (typeof result.value === "object") return <Navigate to={result.value.path} replace state={{ missingLastDrive: result.value.missingLastDrive }} />;
-  if (result.value === "failed") return <div className="app-page"><AppHeader /><p className="page-shell" role="status">暂时无法加载已加入的云盘。<button className="text-button" onClick={() => { setResult(null); setRetry(value => value + 1); }}>重试</button></p></div>;
+  if (result.value === "failed") return <div className="app-page"><AppHeader /><p className="page-shell" role="status">暂时无法加载已加入的云盘。<button className="text-button" onClick={() => { setResult(null); setRetry(value => value + 1); }}>重试</button> <Link to="/diagnostics">反馈问题</Link></p></div>;
   return children;
 }
 
-async function localDestination(userId: string, failedOnline: boolean): Promise<EntryResult> {
+async function localDestination(userId: string): Promise<EntryResult> {
   try {
     const drives = (await readLocalDriveDirectories(userId)).filter(entry => entry.membership && !entry.choir.isPreviewEntry);
     // No saved membership means there is no local startup to restore. Keep the
     // public homepage available even when the network or local database fails.
-    return drives.length ? destination(userId, drives.map(entry => entry.choirId)) : failedOnline ? "failed" : "home";
-  } catch { return failedOnline ? "failed" : "home"; }
+    return drives.length ? destination(userId, drives.map(entry => entry.choirId)) : "home";
+  } catch { return "home"; }
 }
 
 function GuestStartupEntry({ children }: { children: ReactNode }) {

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="same-page-support-build" content="__BUILD__">
+<meta name="same-page-shell-budget" content="__BUDGET__">
+<title>合谱更新诊断</title>
+<style>
+  body{font:16px/1.6 system-ui,sans-serif;max-width:680px;margin:auto;padding:24px;color:#202822;background:#fafbf8}button,a{font:inherit}button{padding:10px 16px;margin:6px 8px 6px 0}textarea{box-sizing:border-box;width:100%;font:13px/1.5 monospace}p{overflow-wrap:anywhere}details{margin:20px 0}label{display:block}h1{font-size:24px}
+</style>
+<main>
+<h1>合谱更新诊断</h1>
+<p>应用更新失败或一直显示“正在恢复云盘”时，可在这里检查。不需要重新登录。</p>
+<p>检查只读取版本、应用缓存占用和数据库能否响应；不读取乐谱、笔记、文件名或登录凭据，也不会清理本机数据。</p>
+<p id="status" role="status">正在检查…</p>
+<button id="inspect" type="button">重新检查</button>
+<button id="retry" type="button">重试更新并记录原因</button>
+<details><summary>查看诊断信息</summary><label for="report">本次检查</label><textarea id="report" readonly rows="14"></textarea></details>
+<p>点击发送后，将上面的诊断信息发送给合谱维护人员，最多保存 180 天。</p>
+<button id="send" type="button" disabled>发送诊断反馈</button>
+<button id="copy" type="button">复制诊断信息</button>
+<p id="receipt" role="status"></p>
+<p><a href="/drives">返回云盘列表</a></p>
+</main>
+<script src="/api/support/update-diagnostics.js" defer></script>
+</html>
