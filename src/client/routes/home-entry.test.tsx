@@ -275,9 +275,16 @@ it("keeps an explicit homepage visit after a signed-in user clicks the brand", a
 
 it("shows the homepage after startup confirms no memberships", async () => {
   memberships = [];
+  const original = vi.mocked(fetch).getMockImplementation()!;
+  let finish!: (response: Response) => void;
+  vi.mocked(fetch).mockImplementation((input, init) => input === "/api/choirs" ? new Promise(resolve => {
+    finish = resolve;
+  }) : original(input, init));
   render(tree());
   await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/choirs", expect.anything()));
-  expect(screen.getByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
+  await act(async () => finish(Response.json({ memberships: [] })));
+  expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
   expectPath("/");
 });
 
