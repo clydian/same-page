@@ -235,3 +235,8 @@ MPL 源码分发和回归边界见 [制品说明](chorus-player-0.1.19-samepage.
 ## 原谱有限方框与波浪延续线：player 0.1.19-samepage.8 / native samepage.9
 
 实现[#505](https://github.com/clydian/same-page/issues/505)的同谱表有限 solid/wavy direction bracket 显示子集，公开模型与 Worker JSON 保留图形，不推断颤音、反复次数或自由段演奏。未知属性/样式整 span 保守拒绝；缺省与旧音频/session保持。来源、制品和未解决源谱范围见[制品说明](chorus-player-0.1.19-samepage.8.md)。
+
+
+## 保留原谱音名拼写：player 0.1.19-samepage.9 / native samepage.10
+
+修复[#507](https://github.com/clydian/same-page/issues/507)，沿用临时记号的降 B 保持原写法，不重拼升 A；精确源与MPL/回归边界见[制品说明](chorus-player-0.1.19-samepage.9.md)。#508谱号、#510跨谱表八度线仍独立待修。
