@@ -21,31 +21,32 @@ test("bootstrap evidence rejects drift and excludes selection or extra response 
   }
 });
 
-test("loopback network gate transports only its target, then drops existing and new tunnels", async () => {
+test("loopback network gate transports only its target, then drops existing and new tunnels", { timeout: 5000 }, async t => {
+  const wait = (emitter, event) => once(emitter, event, { signal: t.signal });
   const target = createServer(socket => socket.pipe(socket));
-  target.listen(0, "127.0.0.1"); await once(target, "listening");
+  target.listen(0, "127.0.0.1"); await wait(target, "listening");
   const authority = `127.0.0.1:${target.address().port}`;
   const gate = await createNetworkGate(`https://${authority}`);
   const open = async destination => {
     const proxy = new URL(gate.server);
     const socket = connect(Number(proxy.port), proxy.hostname);
     socket.on("error", () => socket.destroy());
-    await once(socket, "connect");
+    await wait(socket, "connect");
     socket.write(`CONNECT ${destination} HTTP/1.1\r\nHost: ${destination}\r\n\r\n`);
     return socket;
   };
   let tunnel;
   try {
     const wrong = await open("other.invalid:443");
-    await once(wrong, "close");
+    await wait(wrong, "close");
     tunnel = await open(authority);
-    assert.match((await once(tunnel, "data"))[0].toString(), /^HTTP\/1.1 200/);
+    assert.match((await wait(tunnel, "data"))[0].toString(), /^HTTP\/1.1 200/);
     tunnel.write("original TLS bytes pass unchanged");
-    assert.equal((await once(tunnel, "data"))[0].toString(), "original TLS bytes pass unchanged");
-    const closed = once(tunnel, "close");
+    assert.equal((await wait(tunnel, "data"))[0].toString(), "original TLS bytes pass unchanged");
+    const closed = wait(tunnel, "close");
     gate.disconnect(); await closed;
     const offline = await open(authority);
-    await once(offline, "close");
+    await wait(offline, "close");
   } finally {
     tunnel?.destroy(); await gate.close();
     await new Promise(resolve => target.close(resolve));

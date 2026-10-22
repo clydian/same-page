@@ -205,6 +205,8 @@ repository variable `RELEASE_CHANNELS_ENABLED` 关闭，普通 main push 的 dep
 `same-page-frontend-releases` R2 bucket 已创建；关闭公共访问和全部 TTL／生命周期删除，
 部署 token 可访问该桶，不能与乐谱／APK bucket 共用清理规则。首次工作流只发布已验证产物及
 release metadata，不执行业务 migration、数据恢复、清理或发布人员授权。
+预检拒绝已启用的对象过期删除规则；中止未完成 multipart upload 的默认规则可以保留。
+旧、新封存包的 migration 清单必须相同；首次桥接不能夹带未部署的 schema 变化。
 
 1. 在 main 等待桥接提交的完整 CI 成功，记录该 run 的 SHA、attempt、artifact ID、大小、
    ZIP SHA256，以及封存 `release.json.runId`。CI 的 deploy skipped 是预期冻结状态，
