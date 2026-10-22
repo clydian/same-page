@@ -41,6 +41,7 @@ export class NoteCloner {
         clone.harmonicType = original.harmonicType;
         clone.harmonicValue = original.harmonicValue;
         clone.isGhost = original.isGhost;
+        clone.isNoteHeadParenthesized = original.isNoteHeadParenthesized;
         clone.isLetRing = original.isLetRing;
         clone.isPalmMute = original.isPalmMute;
         clone.isDead = original.isDead;
