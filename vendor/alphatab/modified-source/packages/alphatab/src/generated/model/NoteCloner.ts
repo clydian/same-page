@@ -13,6 +13,7 @@ export class NoteCloner {
         const clone = new Note();
         clone.index = original.index;
         clone.accentuated = original.accentuated;
+        clone.isTenuto = original.isTenuto;
         clone.tenutoPlacement = original.tenutoPlacement;
         clone.bendType = original.bendType;
         clone.bendStyle = original.bendStyle;

@@ -3911,7 +3911,10 @@ export class MusicXmlImporter extends ScoreImporter {
                     note.isStaccato = true;
                     break;
                 case 'tenuto':
-                    note.accentuated = AccentuationType.Tenuto;
+                    note.isTenuto = true;
+                    if (note.accentuated === AccentuationType.None) {
+                        note.accentuated = AccentuationType.Tenuto;
+                    }
                     note.tenutoPlacement =
                         c.getAttribute('placement') === 'above'
                             ? TenutoPlacement.Above

@@ -12,9 +12,11 @@ import { BeamDirection } from '@coderline/alphatab/rendering/utils/BeamDirection
  */
 export class AccentuationGlyph extends EffectGlyph {
     private _note: Note;
-    public constructor(x: number, y: number, note: Note) {
+    private _accentuation: AccentuationType;
+    public constructor(x: number, y: number, note: Note, accentuation: AccentuationType = note.accentuated) {
         super(x, y);
         this._note = note;
+        this._accentuation = accentuation;
     }
 
     private static _getSymbol(accentuation: AccentuationType, above: boolean): MusicFontSymbol {
@@ -32,8 +34,12 @@ export class AccentuationGlyph extends EffectGlyph {
         }
     }
 
-    public static isAbove(note: Note, stemDirection: BeamDirection): boolean {
-        if (note.accentuated === AccentuationType.Tenuto) {
+    public static isAbove(
+        note: Note,
+        stemDirection: BeamDirection,
+        accentuation: AccentuationType = note.accentuated
+    ): boolean {
+        if (accentuation === AccentuationType.Tenuto) {
             switch (note.tenutoPlacement) {
                 case TenutoPlacement.Above:
                     return true;
@@ -51,8 +57,8 @@ export class AccentuationGlyph extends EffectGlyph {
 
     public override paint(cx: number, cy: number, canvas: ICanvas): void {
         const dir = (this.renderer as LineBarRenderer).getBeatDirection(this._note.beat);
-        const above = AccentuationGlyph.isAbove(this._note, dir);
-        const symbol = AccentuationGlyph._getSymbol(this._note.accentuated, above);
+        const above = AccentuationGlyph.isAbove(this._note, dir, this._accentuation);
+        const symbol = AccentuationGlyph._getSymbol(this._accentuation, above);
 
         const y = above ? cy + this.y + this.height : cy + this.y;
         CanvasHelper.fillMusicFontSymbolSafe(canvas, cx + this.x, y, 1, symbol, true);
