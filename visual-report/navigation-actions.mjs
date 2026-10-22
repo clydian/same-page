@@ -5,6 +5,16 @@ export async function chooseLibrarySort(page, sort) {
 }
 
 export async function refreshLibrary(page) {
-  await page.getByRole("button", { name: /^(我的|访客选项)$/ }).click();
-  await page.getByRole("menuitem", { name: "刷新列表", exact: true }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator(".pull-refresh-area").evaluate(element => {
+    for (const [type, touches] of [
+      ["touchstart", [{ clientX: 50, clientY: 20 }]],
+      ["touchmove", [{ clientX: 50, clientY: 160 }]],
+      ["touchend", []],
+    ]) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "touches", { value: touches });
+      element.dispatchEvent(event);
+    }
+  });
 }

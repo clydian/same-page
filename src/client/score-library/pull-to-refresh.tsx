@@ -67,7 +67,7 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
     <div className="pull-refresh-status" data-refreshing={refreshing || undefined} style={{ height: refreshing ? 44 : distance }} role="status">
       {(refreshing || distance > 0) && <><RefreshCw size={18} aria-hidden="true" /><span>{refreshing ? "正在刷新乐谱列表…" : distance >= 54 ? "松开刷新" : "下拉刷新"}</span></>}
     </div>
-    {error && <p role="alert" className="pull-refresh-error">暂时无法刷新，请通过“我的”菜单重试。</p>}
+    {error && <p role="alert" className="pull-refresh-error">暂时无法更新乐谱列表，请稍后重试。</p>}
     {children}
   </div>;
 }

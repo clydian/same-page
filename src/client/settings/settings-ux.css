@@ -210,3 +210,12 @@
 
 .about-version { font-variant-numeric: tabular-nums; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .about-build pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.drive-identity-page { max-width: 42rem; }
+.membership-identity { margin: 1.5rem 0 2.5rem; padding: 1.5rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--surface); }
+.membership-identity h2, .drive-identity-page .membership-exit h2 { font-size: 1.125rem; margin-top: 0; }
+.membership-identity dl { display: grid; gap: 1rem; margin: 1.25rem 0; }
+.membership-identity dl > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 1rem; }
+.membership-identity dt { color: var(--muted); font-size: .875rem; }
+.membership-identity dd { margin: 0; overflow-wrap: anywhere; }
+.drive-identity-page .membership-exit { padding-top: 1.5rem; border-top: 1px solid var(--line); }

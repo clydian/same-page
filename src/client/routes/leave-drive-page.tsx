@@ -5,27 +5,36 @@ import { SettingsFeedback } from "../settings/settings-feedback";
 import { useState } from "react";
 import { Button } from "react-aria-components";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { authClient } from "../auth/auth-client";
+import { useApplicationIdentity } from "../auth/application-identity";
+import { DriveSettingsDialog } from "../score-library/drive-settings-dialog";
 import { TaskHeader } from "../components/task-header";
 import { ConfirmDialog, type Confirmation } from "../settings/confirm-dialog";
 import { useUserLifecycle } from "../settings/use-user-lifecycle";
 
 export default function LeaveDrivePage() {
   const { choirId = "" } = useParams();
-  const session = authClient.useSession();
-  return <LeaveDrive key={`${session.data?.user.id ?? "guest"}:${choirId}`} choirId={choirId} />;
+  const identity = useApplicationIdentity();
+  const [knownSession, setKnownSession] = useState(identity.authenticatedSessionId);
+  if (identity.authenticatedSessionId && knownSession !== identity.authenticatedSessionId) setKnownSession(identity.authenticatedSessionId);
+  const presentationSession = identity.onlineState === "signed-out" ? null : identity.authenticatedSessionId ?? knownSession;
+  return <LeaveDrive key={`${identity.localUserId ?? "guest"}:${choirId}:${presentationSession}`} choirId={choirId} userId={identity.localUserId} />;
 }
-function LeaveDrive({ choirId }: { choirId: string }) {
+function LeaveDrive({ choirId, userId }: { choirId: string; userId: string | null }) {
   const navigate = useNavigate();
-  const userId = authClient.useSession().data?.user.id;
   const { state, message, busy, loading, blocked, reload, perform } = useUserLifecycle();
   const member = state?.memberships.find(member => member.choirId === choirId);
+  const [editingName, setEditingName] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   return <div className="app-page">
-    <TaskHeader title={"退出云盘成员身份"} backTo={`/choirs/${choirId}`} />
-    <main className="page-shell settings-page settings-ux lifecycle-page">
-      <header className="settings-heading"><p>{member?.name}</p></header>
-      {state && <section className="membership-exit"><h2>成员身份</h2>
+    <TaskHeader title="云盘内身份" backTo={`/choirs/${choirId}`} />
+    <main className="page-shell settings-page settings-ux lifecycle-page drive-identity-page">
+      <header className="settings-heading"><p>{member?.name}</p><p className="settings-copy">管理你在这个云盘中的名称与成员身份。</p></header>
+      {member && <section className="membership-identity" aria-labelledby="membership-identity-heading">
+        <h2 id="membership-identity-heading">我在此云盘</h2>
+        <dl><div><dt>显示名</dt><dd>{member.displayName}</dd></div><div><dt>成员身份</dt><dd>{member.status === "removed" ? "已退出或移除" : member.isOwner === 1 ? "拥有者" : "成员"}</dd></div></dl>
+        {member.status === "active" && userId && <Button className="secondary-button" isDisabled={blocked} onPress={() => setEditingName(true)}>修改显示名</Button>}
+      </section>}
+      {state && <section className="membership-exit"><h2>退出此云盘</h2>
         {state.memberships.filter(member => member.choirId === choirId).map((member) => <article className="lifecycle-member" key={member.id}>
           <p className="settings-copy">{member.status === "removed" ? "已退出或移除" : member.isOwner === 1 ? "你是此云盘的拥有者。" : "退出会结束你与此云盘的成员关系。"}</p>
           {member.isOwner === 1 && member.status === "active" ? <><p>拥有者必须先转让拥有权，才能退出成员身份。</p><Link className="secondary-link" to={`/choirs/${member.choirId}/memberships`}>管理成员与交接</Link></> : null}
@@ -36,13 +45,14 @@ function LeaveDrive({ choirId }: { choirId: string }) {
               await rememberDriveAccessRevoked(workspace, new AbortController().signal);
             }
             await navigate("/drives");
-          }) })}>退出云盘成员身份</Button> : <p>三十天内可联系云盘拥有者恢复；个人层不向拥有者开放。</p>}
+          }) })}>退出此云盘</Button> : <p>三十天内可联系云盘拥有者恢复；个人层不向拥有者开放。</p>}
         </article>)}
       </section>}
 
       {state && !state.memberships.some(member => member.choirId === choirId) && <p>你在此云盘没有成员关系。</p>}
       <SettingsFeedback loading={loading} loadError={null} message={message} retry={() => void reload().catch(() => undefined)} />
       {message && <Button isDisabled={busy || loading} onPress={() => void reload().catch(() => undefined)}>重新读取状态</Button>}
+      {editingName && userId && <DriveSettingsDialog choirId={choirId} userId={userId} field="display-name" onClose={() => setEditingName(false)} onSaved={async () => { await reload().catch(() => undefined); }} />}
       <ConfirmDialog confirmation={confirmation} busy={busy} onClose={() => setConfirmation(null)} />
     </main>
   </div>;

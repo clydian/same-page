@@ -114,7 +114,7 @@ it("retries the original internal destination after a failed save", async () => 
 it("closes the transient picker before navigation and keeps it closed on return", async () => {
   const { DriveHeader } = await import("../score-library/drive-header");
   const router = createMemoryRouter([{ element: <NavigationProvider><Outlet /></NavigationProvider>, children: [
-    { path: "/choirs/one", element: <DriveHeader choirId="one" choirName="排练" search="" onSearch={() => {}} onRefresh={() => {}} /> },
+    { path: "/choirs/one", element: <DriveHeader choirId="one" choirName="排练" search="" onSearch={() => {}} /> },
     { path: "/drives", element: <h1>云盘列表内容</h1> },
   ] }], { initialEntries: ["/choirs/one"] });
   render(<RouterProvider router={router} />);
@@ -165,7 +165,7 @@ it("keeps a stable personal icon and known display name while membership is bein
   function RestoringHeader() {
     const [member, setMember] = useState(false);
     useEffect(() => { confirmMembership = () => setMember(true); }, []);
-    return <DriveHeader loading={!member} choirId="one" choirName="排练" userId="reader" search="" onSearch={() => {}} onRefresh={() => {}} onEditDisplayName={member ? () => {} : undefined} />;
+    return <DriveHeader loading={!member} choirId="one" choirName="排练" userId="reader" search="" onSearch={() => {}} canManageIdentity={member} />;
   }
   const router = createMemoryRouter([{ element: <NavigationProvider><Outlet /></NavigationProvider>, children: [
     { path: "/choirs/one", element: <RestoringHeader /> },
@@ -179,7 +179,7 @@ it("keeps a stable personal icon and known display name while membership is bein
   expect(screen.getByRole("menuitem", { name: "林老师" })).toBeVisible();
   await act(async () => { confirmMembership(); finishSettings(Response.json({ ...settings, displayName: "小林" })); });
   expect(screen.getByRole("menuitem", { name: "阅读偏好" })).toBeVisible();
-  expect(screen.getByRole("menuitem", { name: "云盘内显示名" })).toBeEnabled();
+  expect(screen.getByRole("menuitem", { name: "云盘内身份" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "我的", hidden: true })).toHaveTextContent("")
   expect(screen.getByRole("menuitem", { name: "小林" })).toBeVisible();
 });
