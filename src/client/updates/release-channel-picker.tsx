@@ -28,13 +28,13 @@ export function ReleaseChannelPicker() {
     </div>}
   </div>;
 }
-export function ReleaseChannelBadge() {
-  const state = useReleaseChannel();
+// Keep cross-window and foreground authority readback without a global visual label.
+export function ReleaseChannelMonitor() {
   useEffect(() => {
     if (!enabled()) return;
     const check = () => { void refreshReleaseChannel().catch(() => undefined); };
     check(); window.addEventListener("storage", check); window.addEventListener("online", check); window.addEventListener("focus", check);
     return () => { window.removeEventListener("storage", check); window.removeEventListener("online", check); window.removeEventListener("focus", check); };
   }, []);
-  return enabled() && (state.runningChannel === "beta" || state.target?.channel === "beta") ? <span className="release-channel-badge" title="测试通道，仍使用真实数据">测试版</span> : null;
+  return null;
 }
