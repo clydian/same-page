@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { chromium, webkit, expect } from '@playwright/test';
 import { startStorageFixture } from './storage-fixture.mjs';
 import { musicXmlFixture } from './musicxml-fixture.mjs';
@@ -27,10 +29,18 @@ function hasStoredOriginal(page, attachmentId) {
 for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
   test(`MusicXML startup reuses preparation and online raw bytes, with one MIDI generation (${engine})`, { timeout: 180000 }, async t => {
     const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
-    let browser;
-    t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
-    browser = await type.launch();
-    const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, serviceWorkers: 'block' });
+    let context, profile;
+    t.after(async () => {
+      try { await context?.close(); }
+      finally {
+        try { await fixture.stop(); }
+        finally { if (profile) await rm(profile, { recursive: true, force: true }); }
+      }
+    });
+    profile = await mkdtemp(path.join(tmpdir(), `same-page-xml-startup-${engine}-`));
+    // This scenario verifies persisted Blob originals. Local macOS WebKit's
+    // nonpersistent automation context rejects Blob/File IDB writes.
+    context = await type.launchPersistentContext(profile, { viewport: { width: 1024, height: 768 }, serviceWorkers: 'block' });
     const login = await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
       headers: { origin: fixture.origin }, data: { email: fixture.accounts[0].email, password: fixture.accounts[0].password },
     });
@@ -105,22 +115,29 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
       await open('local');
       await mkdir(evidence, { recursive: true });
       await page.screenshot({ path: `${evidence}/online-local.png` });
+      assert.deepEqual(errors, [], 'the XML document must finish without page errors');
+      // Retire the XML document before observing the audio document: its
+      // automatic public-asset preparation can still be in flight after ready.
+      await page.close();
       // A fresh document opening audio must retain the small common lifetime
       // module without importing the optional MusicXML/native/parser chunk.
       const audio = practiceWave();
       const audioUploaded = await context.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/attachments/${crypto.randomUUID()}/file?${new URLSearchParams({ name: '试听.wav', size: String(audio.length) })}`, { data: audio });
       assert.equal(audioUploaded.status(), 201);
-      const audioStart = requests.length;
-      await page.goto(library);
-      await page.getByRole('button', { name: '本地链路测试：2 个附件', exact: true }).click();
-      await page.getByRole('button', { name: '试听.wav', exact: true }).click();
-      await expect(page.locator('.practice-audio-preview').getByRole('button', { name: '播放', exact: true })).toBeEnabled();
-      assert.equal(requests.slice(audioStart).some(path => /musicxml-engine|alphaTab\.|soundfont/.test(path)), false, 'ordinary audio must not load the optional XML engine');
-      assert.deepEqual(errors, []);
+      const audioPage = await context.newPage(), audioErrors = [], audioRequests = [];
+      audioPage.on('pageerror', error => audioErrors.push(error.message));
+      audioPage.on('request', request => audioRequests.push(new URL(request.url()).pathname));
+      await audioPage.goto(library);
+      await audioPage.getByRole('button', { name: '本地链路测试：2 个附件', exact: true }).click();
+      await audioPage.getByRole('button', { name: '试听.wav', exact: true }).click();
+      await expect(audioPage.locator('.practice-audio-preview').getByRole('button', { name: '播放', exact: true })).toBeEnabled();
+      assert.deepEqual(audioRequests.filter(path => /musicxml-engine|alphaTab\.|soundfont|\.sf2$/.test(path)), [], 'ordinary audio must not load the optional XML engine');
+      assert.deepEqual(audioErrors, [], 'the audio document must finish without page errors');
       await mkdir(evidence, { recursive: true });
-      await page.screenshot({ path: `${evidence}/audio-without-xml-engine.png` });
+      await audioPage.screenshot({ path: `${evidence}/audio-without-xml-engine.png` });
       await writeFile(`${evidence}/timings.json`, JSON.stringify({
-        engine, scope: 'Owned 48-measure fixture, installed application bundle; local integration timing, not a physical-device budget', timings,
+        engine, browserVersion: context.browser()?.version(), persistentProfile: true,
+        scope: 'Owned 48-measure fixture, installed application bundle; local integration timing, not a physical-device budget', timings,
       }, null, 2));
     });
   });

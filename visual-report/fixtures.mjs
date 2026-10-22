@@ -522,7 +522,8 @@ export function createVisualFixtureSession(scenario = {}) {
     currentVersion: { ...score.currentVersion, pageCount: 8, sizeBytes: pdf.byteLength, sha256: createHash("sha256").update(pdf).digest("hex") },
   } : { ...score };
   const practice = scenario.id?.startsWith('reader-practice');
-  const practiceAttachments = practice ? [{ id:'practice-xml',scoreId:score.id,name:'声部练习版.musicxml',kind:'musicxml',url:null,sizeBytes:Buffer.byteLength(practiceMusicXml),revision:1,updatedAt:FIXED_TIME,trashExpiresAt:null },
+  const practiceXml = scenario.practiceXml ?? practiceMusicXml;
+  const practiceAttachments = practice ? [{ id:'practice-xml',scoreId:score.id,name:'声部练习版.musicxml',kind:'musicxml',url:null,sizeBytes:Buffer.byteLength(practiceXml),revision:1,updatedAt:FIXED_TIME,trashExpiresAt:null },
     ...(scenario.multipleSources ? [{id:'practice-audio',scoreId:score.id,name:'示范录音.wav',kind:'audio',url:null,sizeBytes:320044,revision:1,updatedAt:FIXED_TIME,trashExpiresAt:null}] : [])] : [];
   if (practice) {
     selectedScore.attachmentCount = practiceAttachments.length;
@@ -545,7 +546,7 @@ export function createVisualFixtureSession(scenario = {}) {
         if (pathname === `/api/choirs/${choir.id}/settings`) return json({ name: choir.name, nameRevision: 0, displayName: '周宁', membershipRevision: 0, canEditDriveInfo: false });
         if (pathname === `/api/choirs/${choir.id}/attachments`) return json({ attachments: practiceAttachments });
         const attachment = practiceAttachments.find(item => pathname.startsWith(`/api/choirs/${choir.id}/scores/${score.id}/attachments/${item.id}`));
-        if (attachment) return pathname.endsWith('/file') ? {status:200,contentType:attachment.kind==='musicxml'?'application/vnd.recordare.musicxml+xml':'audio/wav',body:attachment.kind==='musicxml'?practiceMusicXml:practiceWave(),headers:{'cache-control':'no-store'}} : json({attachment});
+        if (attachment) return pathname.endsWith('/file') ? {status:200,contentType:attachment.kind==='musicxml'?'application/vnd.recordare.musicxml+xml':'audio/wav',body:attachment.kind==='musicxml'?practiceXml:practiceWave(),headers:{'cache-control':'no-store','X-Attachment-Revision':String(attachment.revision)}} : json({attachment});
       }
       const failure = (status, reason) => {
         intentionalFailures.push({ method, pathname, status, reason });

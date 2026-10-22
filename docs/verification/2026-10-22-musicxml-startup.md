@@ -36,6 +36,14 @@ node --test --test-concurrency=1 browser-tests/musicxml-startup.test.mjs browser
 - 两份私有真实谱 The Sun Never Says（5 声部、70 小节）与 Jesu, meine Freude（5 声部、441 小节）：中间 native16 下新旧准备路径的完整模型及全部 MIDI 事件 deepEqual，原字节不变；谱文未提交。
 - 中间本地 `npm test` 的 player 338 项、Node 305 项通过；默认客户端并发下有 13 个界面等待超时。保留日志，不把受控重跑通过当作根因修复；最终客户端结果与 final-head CI 另列。
 
+### 浏览器测试环境与数据契约
+
+`f93f20e5` 的真实构建浏览器检查发现 WebKit 原文保存失败。独立探针确认本地步骤合计 38 ms（捕获 30 ms），原文保存已启动，失败是 IndexedDB 写入 Blob 的 `UnknownError: Error preparing Blob/File data to be stored in object store`。Playwright 1.62.1／macOS arm64 25.4.0／WebKit 26.5（rev 2336）下，非持久 `browser.newContext()` 可写 object／ArrayBuffer／Uint8Array，但七种 Blob／File 均失败；改用独立临时目录的 `launchPersistentContext()` 后全部十种写入成功。因此，验证持久原文的启动测试使用持久用户目录并在结束后清除；产品存储代码、250 ms 预算、清理围栏与失败提示不作放宽。此浏览器环境差分不等于实体 iOS／Android 验收。
+
+普通音频的资源检查改为关闭 XML 页后，独立新页从导航前记录所有请求及错误，继续禁止 XML 引擎、alphaTab、soundfont，并增加 `.sf2` 检查。原 CI 的 sanitized trace 没有网络记录，不能证实当次 Chromium 失败来自哪个请求；旧测试在 XML 仍活跃时开始计数，存在把后台资源准备纳入新文档统计的窗口。修正后 Chromium／WebKit 的真实启动测试 2 项通过，包括全部 network／prepared／local、每次一个 metadata／MIDI、原文保存、关闭前 XML 错误检查及新音频页全生命周期资源／错误检查。
+
+同轮 CI 的 practice-focus 失败来自旧视觉 fixture：文件响应缺少真实 API 的 `X-Attachment-Revision`，且仅覆写密集谱 body 导致 metadata size 不匹配。修正为 metadata 与响应共用同一 XML 输入及其 UTF-8 字节数，保留产品一致性校验及原视觉断言。旧 fixture 的修订／大小检查先失败；修正后的 fixture 单测 2 项、Chromium／WebKit 的实际 practice-focus 各 1 项通过。
+
 ## 独立 review
 
 ### Standards
