@@ -16,7 +16,13 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 | `smoke` | 下载并校验同份产物，2 个独立 runner 文件分片运行真实 Worker/D1/R2 流程 |
 | `verify` | 等待以上全部结束；被选中的 job 必须成功，未选中的必须为 skipped；失败、取消、意外跳过均不能通过 |
 
-部署仅在 `verify` 成功且本次 main 变更需要发布时运行。并行降低等待时间，但重复的 runner 启动和安装可能增加总执行分钟；不是降低账单的承诺。分片保持有限数量，避免为每个小测试创建 runner。visual 矩阵最多并行 4 份，smoke 最多 2 份；任一分片失败不会取消其余分片，但汇总失败会阻止 verify。
+日常部署仅在 `verify` 成功、本次 main 变更需要发布且 repository variable
+`RELEASE_CHANNELS_ENABLED=true` 时运行。首次通道桥接期间该变量保持关闭，main 继续完整验证并封存产物，
+`deploy` 明确跳过；只有手动 `bootstrap-release-channels.yml` 可以准备桥接版本。此冻结也防止后续 main
+覆盖尚待实机验收的基线。CI 成功和 deploy skipped 不表示已部署，首次流程见
+[首次桥接](production-release.md#首次桥接需另行授权)。
+
+并行降低等待时间，但重复的 runner 启动和安装可能增加总执行分钟；不是降低账单的承诺。分片保持有限数量，避免为每个小测试创建 runner。visual 矩阵最多并行 4 份，smoke 最多 2 份；任一分片失败不会取消其余分片，但汇总失败会阻止 verify。
 
 ## 范围选择
 
@@ -35,12 +41,12 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 | D1 migration | Worker、迁移、构建、smoke |
 | 视觉测试文件、视觉 setup | 视觉测试，不构建、不部署 |
 | 共享浏览器 fixture 代码 | 视觉、构建、加载预算、smoke |
-| 常规生产工作流 `.github/workflows/ci.yml` | 完整验证；main push 通过后执行部署，验证发布链路自身的修改 |
+| 常规生产工作流 `.github/workflows/ci.yml` | 完整验证；main push 选择部署，仍受首次桥接冻结与 runtime 开关限制 |
 | 依赖、构建配置或未知路径 | 完整验证 |
 
 多个路径取检查的并集。未知事件、缺失历史、空 diff、不可识别文件均回退完整验证。文档中的 JS、未知 JSON、运行时图片仍不属于轻量白名单。如果将来运行时或构建开始消费审查证据，必须先更新分类器。
 
-共享或未知验证脚本保守运行全部验证，但不自动部署。生产客户端、Worker、共享代码、静态资源、migration 和常规生产工作流 `ci.yml` 的 main push 进入部署；其他 CI 工作流、测试和验证脚本本身不触发部署。`ci.yml` 的注释修改也按同一文件级规则验证发布。完整规则以 `scripts/ci-scope.mjs` 为准。精确模块、消费者和 library 测试组见 [#174 审计](test-audit-174.md#模块与-ci-选择)。仅全部改动都属于展示叶子模块或文档时才收窄；混合其他路径回到 all。选择器自身变动执行完整验证。
+共享或未知验证脚本保守运行全部验证，但不自动部署。生产客户端、Worker、共享代码、静态资源、migration 和常规生产工作流 `ci.yml` 的 main push 选择部署；是否实际执行还受上述通道桥接冻结限制。其他 CI 工作流、测试和验证脚本本身不触发部署。`ci.yml` 的注释修改也按同一文件级规则验证发布。完整规则以 `scripts/ci-scope.mjs` 为准。精确模块、消费者和 library 测试组见 [#174 审计](test-audit-174.md#模块与-ci-选择)。仅全部改动都属于展示叶子模块或文档时才收窄；混合其他路径回到 all。选择器自身变动执行完整验证。
 
 ## 测试的职责
 
@@ -64,6 +70,14 @@ PWA 测试在 Chromium/WebKit 验证首页动画的按需缓存和静态离线�
 platform 的 PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实 Service Worker 交接。build 独立构建真实源码；platform 测量加载预算前移除合成 dist、下载并校验真实构建包。smoke 在另外两台 runner 使用同份包，与 PWA/加载检查并行；合成版本不得发布。`npm run test:loading-performance` 单独执行时仍先 build。
 
 需要构建或 smoke 的运行（包括 PR）封存并上传 `release-<SHA>`；两个 smoke 分片下载同次运行的包，提取后先校验 SHA256 清单与源码 SHA，再启动浏览器。PR 包只供本次验证，deploy 仍只允许需要部署的 main push，并等待 checks、全部 visual/smoke 分片及 build/platform 的汇总 `verify` 成功。部署下载同次运行的产物，校验 SHA256 清单，直接发布而不重建。产物保留 14 天；过期需重新验证生成。visual/smoke 各分片使用独立 artifact 名称，platform 也保留 `artifacts/verification/` 的已有合成证据，失败时也上传，不能放入生产会话或私人内容。
+
+build 固定 `SAME_PAGE_RELEASE_CHANNELS=1`，产物使用 `/_releases/<SHA>/` 并包含通道选择能力。
+这与 Worker runtime `RELEASE_CHANNELS_ENABLED` 分开控制；不能因为需要准备通道包就开启生产路由，
+也不能在重试时重建同一 SHA。首次手动流程从成功 main CI 下载两个原始 ZIP：桥接版本和明确支持的
+旧生产基线。无生产 secrets 的 validate job 核对完整 CI、artifact 归属、摘要与封存身份，并运行两份
+实际 storage probe 的 Chromium/WebKit 转换矩阵。production job 在既有生产锁内再次校验，
+以原字节完成归档、上传、runtime=false 部署、线上验收及 stable/beta 同版本初始化。
+该 workflow 只有 prepare，不提供 enable 入口；实机验收前保持普通 main 部署冻结。
 
 `npm run check` 运行所有常规检查；`npm run check:full` 再包含 PWA 更新及加载预算，是本地验证超集。生产身份、准入与锁见 [交付契约](delivery-contract.md) 和 [发布流程](production-release.md)。
 
@@ -90,10 +104,10 @@ node scripts/run-browser-tests.mjs smoke library 1/2
 npx playwright install chromium webkit
 ```
 
-CI 的 visual、smoke、platform、常规发布 job 及稳定性实验使用与锁文件同版、固定 digest 的官方
+CI 的 visual、smoke、platform、常规发布、首次桥接 job 及稳定性实验使用与锁文件同版、固定 digest 的官方
 Playwright Noble 容器，保留 Node 24；不在测试 job 临时执行 apt 或下载浏览器。
 安装 npm 依赖后执行 `.github/scripts/verify-browsers.mjs`，核对版本、Python 取证依赖和
-两引擎真实启动。Playwright 升级须同步更新 `ci.yml` 与 `browser-stability.yml` 的全部
+两引擎真实启动。Playwright 升级须同步更新 `ci.yml`、`bootstrap-release-channels.yml` 与 `browser-stability.yml` 的全部
 镜像版本和 digest。原始失败、取舍与验证边界见 [环境准备记录](browser-test-stability.md#ci-环境准备--391-与-2026-10-22-后续修复)。
 
 发布容器在 checkout 后、准入前，将当前 `$GITHUB_WORKSPACE` 精确登记到作业 HOME 的

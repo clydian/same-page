@@ -308,11 +308,15 @@ test("deployment follows the successful verification gate even when an ancestor 
     success: () => false,
     cancelled: () => false,
     github: { event_name: "push", ref: "refs/heads/main" },
+    vars: { RELEASE_CHANNELS_ENABLED: "true" },
     needs: { verify: { result: "success", outputs: { deploy: "true" } } },
     ...overrides,
   });
   assert.equal(evaluate(), true, "a skipped unselected ancestor must not suppress a verified release");
   assert.equal(evaluate({ cancelled: () => true }), false);
+  for (const enabled of ["false", "", undefined]) {
+    assert.equal(evaluate({ vars: { RELEASE_CHANNELS_ENABLED: enabled } }), false, "ordinary deployment stays frozen before mobile acceptance");
+  }
   for (const result of ["failure", "cancelled", "skipped"]) {
     assert.equal(evaluate({ needs: { verify: { result, outputs: { deploy: "true" } } } }), false, result);
   }

@@ -88,3 +88,32 @@ it('exposes an offline refresh error and clears it after a successful readback',
  await refreshReleaseChannel();
  expect(useReleaseChannel().error).toBe('');
 });
+
+it('starts readback before receipt storage can defer it past document navigation',async()=>{
+ const cache=await caches.open('receipt');
+ let finishRead!: (cache: Cache)=>void;
+ const reading=new Promise<Cache>(resolve=>{finishRead=resolve;});
+ vi.stubGlobal('caches',{open:()=>reading});
+ const fetcher=vi.fn(async()=>Response.json(stable));vi.stubGlobal('fetch',fetcher);
+ const refresh=refreshReleaseChannel();
+ const startedBeforeStorageSettled=fetcher.mock.calls.length;
+ finishRead(cache);await refresh;
+ expect(startedBeforeStorageSettled).toBe(1);
+});
+
+it('retains offline running-channel attribution when readback fails before storage settles',async()=>{
+ await writeReleaseReceipt(origin,{confirmed:beta,permitted:beta});
+ const cache=await caches.open('receipt');
+ let finishRead!: (cache: Cache)=>void;
+ const reading=new Promise<Cache>(resolve=>{finishRead=resolve;});
+ vi.stubGlobal('caches',{open:()=>reading});
+ vi.stubGlobal('navigator',{onLine:false,locks:{request:async(_key: string,fn: ()=>Promise<unknown>)=>fn()}});
+ vi.stubGlobal('fetch',vi.fn(async()=>{throw new TypeError('Failed to fetch');}));
+ const refresh=refreshReleaseChannel();
+ // Let the rejected readback settle while the independently valid receipt waits.
+ await new Promise(resolve=>setTimeout(resolve,0));
+ finishRead(cache);
+ await expect(refresh).rejects.toThrow('Failed to fetch');
+ expect(useReleaseChannel()).toMatchObject({runningChannel:'beta',error:'当前离线，请联网后重试。'});
+ expect(await readReleaseReceipt(origin)).toEqual({confirmed:beta,permitted:beta});
+});
