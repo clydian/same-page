@@ -518,6 +518,7 @@ export class Environment {
 
             { effect: new GolpeEffectInfo(GolpeType.Finger), mode: EffectBandMode.OwnedTop },
 
+            { effect: new FermataEffectInfo(true), mode: EffectBandMode.SharedBottom },
             { effect: new GolpeEffectInfo(GolpeType.Thumb), mode: EffectBandMode.OwnedBottom },
             { effect: new SourceWedgesEffectInfo(), mode: EffectBandMode.SharedBottom },
             { effect: new CrescendoEffectInfo(), mode: EffectBandMode.SharedBottom },

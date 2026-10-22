@@ -153,6 +153,11 @@ export class BeamingHelper {
         let add: boolean = false;
         if (this.beats.length === 0) {
             add = true;
+        } else if (
+            this.beats[this.beats.length - 1].sourceBeamGroup !== beat.sourceBeamGroup &&
+            (this.beats[this.beats.length - 1].sourceBeamGroup !== 0 || beat.sourceBeamGroup !== 0)
+        ) {
+            add = false;
         } else if (this.beats[this.beats.length - 1].doubleTremoloPartner === beat) {
             // Measured alternating groups share native stem geometry even when
             // their printed duration would normally prohibit ordinary beaming.

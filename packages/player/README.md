@@ -349,8 +349,16 @@ Requires native `1.8.4-samepage.13`, source `f931703ac15d583c50f6883288332daa7d7
 
 Explicit `note@time-only` controls one-based repeat passes without hiding printed notation. Ordinary pitched notes/chord members and plain ties within normally traversed repeats use a shared sounding-eligibility rule: excluded or cue endpoints neither prolong nor suppress ordinary notes. No caption inference is used. Complex slides, bends, rolls, grace, navigation-crossing ties and separate `tie@time-only` are not certified by this bounded change. Cue boxes/source x-y offsets and general optional-performance interpretations are not recreated.
 
+### 当前原生版本：源谱连梁与延长记号
+
+当前精确原生 peer 为 `1.8.4-samepage.14`，分发源码提交为 `c91004f04ec585fd588bdffc71f5c6d4f0dd02e9`。同一 MusicXML 逻辑声部中，完整、等时值、等附点且符干方向兼容的显式连梁组可以跨谱表绘制；休止、提示音、不完整组、hook 及不兼容的时值或符干保留原有回退。它不从连线推断连梁，也不复刻原谱的任意斜率或坐标。支持范围见原生覆盖层的 `docs/musicxml-cross-staff-beams.md`。
+
+MusicXML 延长记号按实际声明的拍与声部绘制，保留 normal、angled、square 形状及 upright／inverted 方向；倒置记号位于谱表下方，不再把小节级播放继承值复制成其他拍的印刷记号。新增归属和方向经 JSON／Worker 保留，旧 JSON 仍采用原有默认行为。此次没有增加延长记号的实际播放停留时长，不能据此宣称自由速度或整曲演奏已经验收。细节见 `docs/musicxml-fermata-scope.md`。
+
+播放器运行代码与既有版本相同；本地 workspace 更新精确 peer，不重新发布历史 Chorus 制品。旧原生包及公开源码快照继续保留。最终安装制品和实际产品 Worker 仍需分别验证。
+
 ### 迁入来源
 
 从 Chorus player 源提交 `bca8a0a5a1fe022dac0d3f323ce1c29af8deebd3` 原样迁入，对应既有 `0.1.19-samepage.11`。文档中的历史验证说明保留来源事实，不构成对 Chorus 的维护或交付要求。仅迁入播放器相关测试；房间、曲库和 Chorus 页面测试不属于本模块。
 
-当前维护基线沿用 #527：播放器运行源码与 samepage.11 相同，版本和精确原生 peer 更新为 samepage.12 / samepage.13，原生维护基线同步为 `f931703ac15d583c50f6883288332daa7d71ffe2`。
+播放器运行源码仍与 #527 的 samepage.12 相同；当前本地 workspace 的精确原生 peer 与源码身份以上方“当前原生版本”为准，历史版本说明保留各次交付时的事实。

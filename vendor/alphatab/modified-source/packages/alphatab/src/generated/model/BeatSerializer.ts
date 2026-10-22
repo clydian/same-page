@@ -6,6 +6,7 @@
 import { Beat } from "@coderline/alphatab/model/Beat";
 import { JsonHelper } from "@coderline/alphatab/io/JsonHelper";
 import { NoteSerializer } from "@coderline/alphatab/generated/model/NoteSerializer";
+import { FermataSerializer } from "@coderline/alphatab/generated/model/FermataSerializer";
 import { AutomationSerializer } from "@coderline/alphatab/generated/model/AutomationSerializer";
 import { LyricElementSerializer } from "@coderline/alphatab/generated/model/LyricElementSerializer";
 import { BendPointSerializer } from "@coderline/alphatab/generated/model/BendPointSerializer";
@@ -14,6 +15,7 @@ import { BeatStyleSerializer } from "@coderline/alphatab/generated/model/BeatSty
 import { Note } from "@coderline/alphatab/model/Note";
 import { BendStyle } from "@coderline/alphatab/model/BendStyle";
 import { Ottavia } from "@coderline/alphatab/model/Ottavia";
+import { Fermata } from "@coderline/alphatab/model/Fermata";
 import { Duration } from "@coderline/alphatab/model/Duration";
 import { Automation } from "@coderline/alphatab/model/Automation";
 import { FadeType } from "@coderline/alphatab/model/FadeType";
@@ -54,6 +56,10 @@ export class BeatSerializer {
         o.set("isempty", obj.isEmpty);
         o.set("whammystyle", obj.whammyStyle as number);
         o.set("ottava", obj.ottava as number);
+        o.set("hassourcefermatascope", obj.hasSourceFermataScope);
+        if (obj.sourceFermata) {
+            o.set("sourcefermata", FermataSerializer.toJson(obj.sourceFermata));
+        }
         o.set("islegatoorigin", obj.isLegatoOrigin);
         o.set("isrestvisible", obj.isRestVisible);
         o.set("duration", obj.duration as number);
@@ -89,6 +95,9 @@ export class BeatSerializer {
             o.set("tremolopicking", TremoloPickingEffectSerializer.toJson(obj.tremoloPicking));
         }
         o.set("sourcechordstaccato", obj.sourceChordStaccato);
+        o.set("sourcebeamgroup", obj.sourceBeamGroup);
+        o.set("sourcebeamgroupindex", obj.sourceBeamGroupIndex);
+        o.set("sourcebeamgroupsize", obj.sourceBeamGroupSize);
         o.set("crescendo", obj.crescendo as number);
         o.set("displaystart", obj.displayStart);
         o.set("playbackstart", obj.playbackStart);
@@ -134,6 +143,18 @@ export class BeatSerializer {
                 return true;
             case "ottava":
                 obj.ottava = JsonHelper.parseEnum<Ottavia>(v, Ottavia)!;
+                return true;
+            case "hassourcefermatascope":
+                obj.hasSourceFermataScope = v! as boolean;
+                return true;
+            case "sourcefermata":
+                if (v) {
+                    obj.sourceFermata = new Fermata();
+                    FermataSerializer.fromJson(obj.sourceFermata, v);
+                }
+                else {
+                    obj.sourceFermata = null;
+                }
                 return true;
             case "islegatoorigin":
                 obj.isLegatoOrigin = v! as boolean;
@@ -246,6 +267,15 @@ export class BeatSerializer {
                 return true;
             case "sourcechordstaccato":
                 obj.sourceChordStaccato = v! as boolean;
+                return true;
+            case "sourcebeamgroup":
+                obj.sourceBeamGroup = v! as number;
+                return true;
+            case "sourcebeamgroupindex":
+                obj.sourceBeamGroupIndex = v! as number;
+                return true;
+            case "sourcebeamgroupsize":
+                obj.sourceBeamGroupSize = v! as number;
                 return true;
             case "crescendo":
                 obj.crescendo = JsonHelper.parseEnum<CrescendoType>(v, CrescendoType)!;

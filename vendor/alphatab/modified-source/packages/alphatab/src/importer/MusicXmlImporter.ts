@@ -224,6 +224,8 @@ export class MusicXmlImporter extends ScoreImporter {
     private _divisionsPerQuarterNote: number = 1;
     private _currentDynamics = DynamicValue.F;
     private _sourceBracketSequence = 0;
+    private _openSourceBeams = new Map<string, { beats: Beat[]; levels: number; valid: boolean }>();
+    private _completeSourceBeams: { beats: Beat[]; levels: number; valid: boolean }[] = [];
     private _openSourceBrackets = new Map<string, { bar: Bar; tick: number; mark: SourceBracket }>();
 
     public get name(): string {
@@ -231,6 +233,8 @@ export class MusicXmlImporter extends ScoreImporter {
     }
 
     public readScore(): Score {
+        this._openSourceBeams.clear();
+        this._completeSourceBeams = [];
         this._openSourceBrackets.clear();
         this._sourceBracketSequence = 0;
         const xml: string = this._extractMusicXml();
@@ -245,8 +249,22 @@ export class MusicXmlImporter extends ScoreImporter {
 
         this._parseDom(dom);
         ModelUtils.consolidate(this._score);
+        // Scope notation after consolidation so alignment and empty beats also
+        // explicitly opt out of legacy master-bar fermata projection.
+        for (const track of this._score.tracks) {
+            for (const staff of track.staves) {
+                for (const bar of staff.bars) {
+                    for (const voice of bar.voices) {
+                        for (const beat of voice.beats) {
+                            beat.hasSourceFermataScope = true;
+                        }
+                    }
+                }
+            }
+        }
         this._score.finish(this.settings);
         this._score.rebuildRepeatGroups();
+        this._finishSourceBeams();
 
         return this._score;
     }
@@ -2670,6 +2688,7 @@ export class MusicXmlImporter extends ScoreImporter {
         let graceType = GraceType.None;
         let graceDurationInDivisions = 0;
         let beamMode: BeatBeamingMode | null = null;
+        const sourceBeams = new Map<number, string>();
         // let graceTimeStealPrevious = 0;
         // let graceTimeStealFollowing = 0;
 
@@ -2976,6 +2995,7 @@ export class MusicXmlImporter extends ScoreImporter {
                     staffIndex = Number.parseInt(c.innerText, 10) - 1;
                     break;
                 case 'beam':
+                    sourceBeams.set(Number(c.getAttribute('number', '1')), c.innerText);
                     // use the first beam as indicator whether to beam or split
                     if (c.getAttribute('number', '1') === '1') {
                         switch (c.innerText) {
@@ -3021,6 +3041,9 @@ export class MusicXmlImporter extends ScoreImporter {
         if (!isStemVisible) {
             beat!.isStemVisible = false;
         }
+        if (!isChord) {
+            this._readSourceBeamGroup(`${track.index}:${voiceIndex}`, beat!, sourceBeams);
+        }
 
         if (note !== null) {
             // Final note post-processing depends on the note already being attached to the
@@ -3035,6 +3058,66 @@ export class MusicXmlImporter extends ScoreImporter {
                 if (passes.every(p => Number.isSafeInteger(p))) {
                     note.repeatPasses = passes;
                 }
+            }
+        }
+    }
+
+    private _readSourceBeamGroup(key: string, beat: Beat, beams: Map<number, string>): void {
+        const primary = beams.get(1);
+        if (primary === 'begin') {
+            this._openSourceBeams.set(key, { beats: [], levels: beams.size, valid: true });
+        }
+        const group = this._openSourceBeams.get(key);
+        if (!group) {
+            return;
+        }
+        if (!['begin', 'continue', 'end'].includes(primary ?? '')) {
+            this._openSourceBeams.delete(key);
+            return;
+        }
+        group.beats.push(beat);
+        // Deliberately bounded: uniform complete beams, no hooks/mixed levels.
+        group.valid &&=
+            beams.size === group.levels &&
+            Array.from({ length: group.levels }, (_, i) => beams.get(i + 1)).every(b => b === primary);
+        if (primary === 'end') {
+            this._completeSourceBeams.push(group);
+            this._openSourceBeams.delete(key);
+        }
+    }
+
+    private _finishSourceBeams(): void {
+        let id = 0;
+        for (const group of this._completeSourceBeams) {
+            const first = group.beats[0];
+            if (
+                !group.valid ||
+                group.beats.length < 2 ||
+                new Set(group.beats.map(b => b.voice.bar.staff.index)).size < 2 ||
+                group.levels !== ModelUtils.getIndex(first.duration) - 2 ||
+                !group.beats.every(
+                    (b, i) =>
+                        !b.isRest &&
+                        !b.isEmpty &&
+                        b.isStemVisible &&
+                        b.graceType === GraceType.None &&
+                        !b.notes.some(n => n.isCue) &&
+                        b.duration === first.duration &&
+                        b.dots === first.dots &&
+                        b.preferredBeamDirection !== null &&
+                        b.preferredBeamDirection === first.preferredBeamDirection &&
+                        (i === 0 ||
+                            b.absoluteDisplayStart ===
+                                group.beats[i - 1].absoluteDisplayStart + group.beats[i - 1].displayDuration)
+                )
+            ) {
+                continue;
+            }
+            id++;
+            for (const [index, beat] of group.beats.entries()) {
+                beat.sourceBeamGroup = id;
+                beat.sourceBeamGroupIndex = index;
+                beat.sourceBeamGroupSize = group.beats.length;
             }
         }
     }
@@ -3810,8 +3893,9 @@ export class MusicXmlImporter extends ScoreImporter {
                 break;
         }
 
-        beat.fermata = new Fermata();
-        beat.fermata.type = fermata;
+        beat.sourceFermata = new Fermata();
+        beat.sourceFermata.type = fermata;
+        beat.sourceFermata.isInverted = element.getAttribute('type') === 'inverted';
     }
 
     private _parseArticulations(element: XmlNode, note: Note) {

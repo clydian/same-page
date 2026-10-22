@@ -5,6 +5,7 @@
 // </auto-generated>
 import { Beat } from "@coderline/alphatab/model/Beat";
 import { NoteCloner } from "@coderline/alphatab/generated/model/NoteCloner";
+import { FermataCloner } from "@coderline/alphatab/generated/model/FermataCloner";
 import { AutomationCloner } from "@coderline/alphatab/generated/model/AutomationCloner";
 import { LyricElementCloner } from "@coderline/alphatab/generated/model/LyricElementCloner";
 import { BendPointCloner } from "@coderline/alphatab/generated/model/BendPointCloner";
@@ -23,6 +24,8 @@ export class BeatCloner {
         clone.isEmpty = original.isEmpty;
         clone.whammyStyle = original.whammyStyle;
         clone.ottava = original.ottava;
+        clone.hasSourceFermataScope = original.hasSourceFermataScope;
+        clone.sourceFermata = original.sourceFermata ? FermataCloner.clone(original.sourceFermata) : null;
         clone.isLegatoOrigin = original.isLegatoOrigin;
         clone.isRestVisible = original.isRestVisible;
         clone.duration = original.duration;
@@ -67,6 +70,9 @@ export class BeatCloner {
         clone.pickStroke = original.pickStroke;
         clone.tremoloPicking = original.tremoloPicking ? TremoloPickingEffectCloner.clone(original.tremoloPicking) : undefined;
         clone.sourceChordStaccato = original.sourceChordStaccato;
+        clone.sourceBeamGroup = original.sourceBeamGroup;
+        clone.sourceBeamGroupIndex = original.sourceBeamGroupIndex;
+        clone.sourceBeamGroupSize = original.sourceBeamGroupSize;
         clone.crescendo = original.crescendo;
         clone.displayStart = original.displayStart;
         clone.playbackStart = original.playbackStart;
