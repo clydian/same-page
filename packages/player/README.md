@@ -351,7 +351,7 @@ Explicit `note@time-only` controls one-based repeat passes without hiding printe
 
 ### 当前原生版本：源谱连梁与延长记号
 
-当前精确原生 peer 为 `1.8.4-samepage.14`，分发源码提交为 `a242e8f100026905bf4b53eec420b2b445cea843`。同一 MusicXML 逻辑声部中，完整、等时值、等附点且符干方向兼容的显式连梁组可以跨谱表绘制；休止、提示音、不完整组、hook 及不兼容的时值或符干保留原有回退。它不从连线推断连梁，也不复刻原谱的任意斜率或坐标。支持范围见原生覆盖层的 `docs/musicxml-cross-staff-beams.md`。
+当前精确原生 peer 为 `1.8.4-samepage.14`，分发源码提交为 `c91004f04ec585fd588bdffc71f5c6d4f0dd02e9`。同一 MusicXML 逻辑声部中，完整、等时值、等附点且符干方向兼容的显式连梁组可以跨谱表绘制；休止、提示音、不完整组、hook 及不兼容的时值或符干保留原有回退。它不从连线推断连梁，也不复刻原谱的任意斜率或坐标。支持范围见原生覆盖层的 `docs/musicxml-cross-staff-beams.md`。
 
 MusicXML 延长记号按实际声明的拍与声部绘制，保留 normal、angled、square 形状及 upright／inverted 方向；倒置记号位于谱表下方，不再把小节级播放继承值复制成其他拍的印刷记号。新增归属和方向经 JSON／Worker 保留，旧 JSON 仍采用原有默认行为。此次没有增加延长记号的实际播放停留时长，不能据此宣称自由速度或整曲演奏已经验收。细节见 `docs/musicxml-fermata-scope.md`。
 
