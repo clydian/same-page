@@ -117,8 +117,8 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       assert.equal(await rightMenu, false);
       await page.keyboard.press("Escape");
       // Prove the application leaves native modifier activation intact once.
-      // Reader/decoder readiness is covered by the normal opens below and the
-      // dedicated storage/codecs suites, not repeated cold popup initialization.
+      // Reader readiness uses a separately controlled page below, so native
+      // background-target initialization is not also a decoder timing gate.
       const [other] = await Promise.all([
         context.waitForEvent("page", { timeout: 5_000 }),
         file.click({ modifiers: ["ControlOrMeta"] }),
@@ -126,6 +126,14 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await expect(other).toHaveURL(new RegExp(`${scorePath}$`));
       await expect(page).toHaveURL(library);
       await other.close();
+
+      // Preserve application-owned cross-window startup with the same account,
+      // real SW and storage, independently from native modifier activation.
+      const reader = await context.newPage();
+      await reader.goto(`${fixture.origin}${scorePath}`);
+      await expectSampleScoreContent(reader);
+      await reader.close();
+      await expect(page).toHaveURL(library);
       await file.tap();
       await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
       await expectSampleScoreContent(page);
