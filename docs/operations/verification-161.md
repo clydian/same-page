@@ -12,15 +12,9 @@ Scope: one isolated branch from `40aff5dfc34119b6ee0324238e88bfc50481dc6b`; PR d
 
 The first complete check run exposed stale UI assertions and one loading-placeholder label. Those were corrected and affected files rerun successfully. Backend unit/integration tests, migrations, typecheck and lint pass. Build/precache and browser smoke checks are recorded in the PR and CI.
 
-## Visual reproduction
+## Visual evidence
 
-Run `npm run build`, then:
-
-```sh
-VISUAL_REPORT_SCENARIO=home-guest,home-guest-mobile,home-guest-desktop,home-continue-reading,library-admin-management,shared-layer-management-mobile,shared-layer-grants,reader-tools-mobile,reader-offline-failure,reader-layers-mobile-personal node scripts/generate-visual-report.mjs
-```
-
-The generated report is under `artifacts/visual-report/index.html`; screenshots are local verification artifacts. Homepage imagery comes from a self-authored synthetic PDF rendered by the actual reader; see `design/README.md` for regeneration.
+Homepage imagery comes from a self-authored synthetic PDF rendered by the actual reader; see `design/README.md` for regeneration. Browser behavior checks remain available through `npm run test:browser-ui`; inspect screenshots for the pages affected by a UI change as needed.
 
 ## Standards
 

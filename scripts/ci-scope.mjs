@@ -160,9 +160,6 @@ function checksForPath(file) {
       file.startsWith("scripts/measure-loading-performance.")
       || file.startsWith("scripts/loading-performance-")
     ) return ["client", "performance", "build"];
-    if (file.startsWith("scripts/generate-visual-report.")) {
-      return ["client", "visual"];
-    }
     if (file.startsWith("scripts/backfill-score-file-names.")) {
       return ["client", "migration", "deploy"];
     }

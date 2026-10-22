@@ -147,7 +147,7 @@
 | [visual-report/update-safety.test.mjs](../../visual-report/update-safety.test.mjs) | 保留 | 表单失焦后和提交中仍不能热更新；等待越过应用 3 秒空闲阈值有业务意义，不能按 sleep 一律删除 |
 | [visual-report/upload-queue.test.mjs](../../visual-report/upload-queue.test.mjs) | 保留 | 真实文件输入/浏览器丢回执后串行队列和核对入口，组件测试不能替代文件输入集成 |
 | [visual-report/ux-refinement.test.mjs](../../visual-report/ux-refinement.test.mjs) | 保留 | 共享层排序刷新后保留及显式保存入口 |
-| [visual-report/visual-report.test.mjs](../../visual-report/visual-report.test.mjs) | 保留 | 未知 fixture 请求拒绝外发、报告 HTML 转义；基础设施失误影响隐私/可信证据 |
+| [visual-report/fixtures.test.mjs](../../visual-report/fixtures.test.mjs) | 保留 | 未知 fixture 请求拒绝外发；人工报告及 HTML 转义测试已移除，保留共享 fixture 的保护 |
 | [worker/annotations-flow.test.ts](../../worker/annotations-flow.test.ts) | 保留 | 真实 D1 上权限/OCC/幂等/跨谱层生命周期；保留长链路的事务关系与 N+1 增长检查 |
 | [worker/auth-flow.test.ts](../../worker/auth-flow.test.ts) | 保留 | 实际配置的 OAuth state、origin、邮箱验证/绑定/密码重置/限流；这些是应用配置的安全边界 |
 | [worker/auth/principal.test.ts](../../worker/auth/principal.test.ts) | 保留 | 无 cookie 不加载认证服务、正确消费认证会话与访客优先级 |

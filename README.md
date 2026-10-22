@@ -30,10 +30,10 @@ npm run test:worker       # Worker 单元与真实 D1/R2 集成
 npm run build            # 类型检查、生产构建、预缓存审计
 npm run check            # 常规全套，包含浏览器测试
 npm run check:full       # 再含原生渲染、PWA 更新和加载预算
-npm run visual:report    # 当前产品的视觉报告
+npm run test:browser-ui  # 浏览器布局与交互回归
 ```
 
-浏览器、Python 依赖及各测试职责见 [CI 检查与开发反馈](docs/operations/ci.md)。完整检查会多次构建，不应与其他构建命令在同一工作目录并行运行。测试和视觉报告不需要生产凭据，不执行生产迁移或部署。
+浏览器、Python 依赖及各测试职责见 [CI 检查与开发反馈](docs/operations/ci.md)。完整检查会多次构建，不应与其他构建命令在同一工作目录并行运行。测试不需要生产凭据，不执行生产迁移或部署。
 
 ## 文档导航
 
@@ -47,7 +47,7 @@ npm run visual:report    # 当前产品的视觉报告
 | PDF.js 解码资源与扫描 PDF 验证 | [PDF 解码资源 runbook](docs/runbooks/pdf-rendering-assets.md) |
 | 用户删除、成员退出与恢复 | [用户生命周期 runbook](docs/runbooks/user-lifecycle.md) |
 | 问题反馈与故障排查 | [问题反馈](docs/operations-diagnostics.md) |
-| 测试范围、视觉报告和本地全套检查 | [CI 检查与开发反馈](docs/operations/ci.md) |
+| 测试范围、浏览器回归和本地全套检查 | [CI 检查与开发反馈](docs/operations/ci.md) |
 | 发布产物与顺序约束 | [交付契约](docs/operations/delivery-contract.md) |
 | 生产配置、第三方登录、发布恢复、邮件与实机验收 | [发布 runbook](docs/operations/production-release.md) |
 | Issue 使用约定 | [Issue tracker](docs/agents/issue-tracker.md) |

@@ -195,7 +195,7 @@ B5 的笔记节点身份保留、C 的 Clipper 洞/岛映射和隐藏 canvas CSS
 | `visual-report/update-safety.test.mjs` | 保留 | 表单失焦后和提交中仍不能热更新；等待越过应用 3 秒空闲阈值有业务意义，不能按 sleep 一律删除 |
 | `visual-report/upload-queue.test.mjs` | 删除部分 | A2：删除上传/替换×双浏览器的四组 12MB 限速代理场景；受控 transport/dialog/version tests 保留进度/保存确认。小文件真实表单到请求仍保留。 |
 | `visual-report/ux-refinement.test.mjs` | 收敛/改名 | B8：shared-layer-management 只保留真实排序按钮和详情表单接线，删除 href、无 textbox、重复 reload 与字面形状。 |
-| `visual-report/visual-report.test.mjs` | 保留 | 未知 fixture 请求拒绝外发、报告 HTML 转义；基础设施失误影响隐私/可信证据 |
+| `visual-report/fixtures.test.mjs` | 保留 | 未知 fixture 请求拒绝外发；人工报告及 HTML 转义测试已移除，保留共享 fixture 的保护 |
 
 ### browser-tests
 

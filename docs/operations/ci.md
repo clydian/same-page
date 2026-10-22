@@ -34,7 +34,7 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 | 客户端/Worker 测试 | 对应测试，不构建、不部署 |
 | D1 migration | Worker、迁移、构建、smoke |
 | 视觉测试文件、视觉 setup | 视觉测试，不构建、不部署 |
-| 共享视觉 fixture/report 代码 | 视觉、构建、加载预算、smoke |
+| 共享浏览器 fixture 代码 | 视觉、构建、加载预算、smoke |
 | 依赖、构建配置或未知路径 | 完整验证 |
 
 多个路径取检查的并集。未知事件、缺失历史、空 diff、不可识别文件均回退完整验证。文档中的 JS、未知 JSON、运行时图片仍不属于轻量白名单。如果将来运行时或构建开始消费审查证据，必须先更新分类器。
@@ -51,7 +51,7 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 
 - `npm test`：Node 规则和 jsdom 组件。客户端纯逻辑文件用 `*.node.test.ts` 命名，由 `vitest.node.config.ts` 收集，不启动 DOM、React cleanup 或 IndexedDB setup。jsdom 使用单个 setup hook，先卸载 React 再清理 IndexedDB，保持逐用例数据库隔离。
 - `npm run test:worker`：纯认证配置/安全逻辑在 Node，真实路由、D1、R2、权限与生命周期在 workerd。保留实际迁移初始化和隔离，不为省时间改成共享可变数据库。MSW 3、Vitest 5 与 Cloudflare 测试插件保持兼容的 peer 组合；Worker 集成测试关闭 `fsModuleCache`，避免 Workerd 读取宿主机的模块缓存路径。
-- `npm run test:visual-report`：Node 原生 global setup 只启动一个隔离 Vite dev 服务，每台最多两个文件并行。各测试仍独立拥有浏览器 context、IndexedDB、API route 和 fixture session；没有重试。直接 `node --test visual-report/<file>.test.mjs` 仍可独立启动服务。
+- `npm run test:browser-ui`：Node 原生 global setup 只启动一个隔离 Vite dev 服务，每台最多两个文件并行。各测试仍独立拥有浏览器 context、IndexedDB、API route 和 fixture session；没有重试。直接 `node --test visual-report/<file>.test.mjs` 仍可独立启动服务。
 - `npm run test:smoke`：必须先 build。通过与 CI 相同的 runner 在每个分片内串行运行有状态文件，避免多个 Vite/workerd 优化器争用；每次 fixture 调用有独立真实 D1/R2，验证生产 API、PDF 字节、下载、浏览器关闭重开后的离线副本、批注并发和诊断提交；不改成 API mock。
 
 视觉回归保留两种浏览器引擎、最窄视口、关键断点两侧、横竖屏、200% 文本、44px 点击目标和真实内容溢出断言。相同完整流程不重复遍历每个设备商品名；这些都是模拟视口，不代表实机验收。
@@ -81,9 +81,9 @@ node scripts/run-browser-tests.mjs smoke library 1/2
 
 拆分保留全部测试、引擎、断言和原有同机并发，不代表减少总计算时间。独立 runner 重复安装环境；产物下载与 smoke 等待构建也会进入关键路径。修改后按 Actions 实际耗时和失败率评估，不承诺线性加速。
 
-## 本地浏览器检查与视觉报告
+## 本地浏览器检查
 
-首次运行浏览器测试或报告前安装两个引擎；Linux/CI 同时使用 `--with-deps` 安装系统依赖：
+首次运行浏览器测试前安装两个引擎；Linux/CI 同时使用 `--with-deps` 安装系统依赖：
 
 ```bash
 npx playwright install chromium webkit
@@ -91,20 +91,20 @@ npx playwright install chromium webkit
 
 完整检查会启动
 本地 workerd/Vite、临时 D1 和浏览器，并多次构建；不需要生产凭据，不操作生产数据。
-`check:full` 不应与其他构建命令在同一工作目录并行运行，也不生成完整视觉报告。
+`check:full` 不应与其他构建命令在同一工作目录并行运行。
 
 ```bash
-npm run visual:report
+npm run test:browser-ui
 ```
 
-报告直接运行当前生产构建的 React 路由、样式和 PDF.js，以浏览器请求 fixture 提供虚构
-身份、云盘和乐谱，不维护另一套页面。每次替换忽略提交的 `artifacts/visual-report/`：
-`index.html` 是报告，`screenshots/` 保存 PNG，`manifest.json` 记录 commit、场景与尺寸。
+浏览器布局与交互测试继续存放于 `visual-report/`，内部 runner 和 CI job 仍使用 `visual`
+标识。该目录不再生成供人工审阅的整套截图与 HTML 报告。共享请求数据由
+`visual-report/fixtures.mjs` 提供；未知 `/api/*` 请求返回 404，避免访问实际业务数据，
+由 `visual-report/fixtures.test.mjs` 保留回归保护。测试按需保存的截图与失败证据仍然保留。
 
-场景和完成条件在 `visual-report/scenarios.mjs` 声明，请求数据由 `visual-report/fixtures.mjs`
-统一提供；未知 `/api/*` 请求返回 404，避免访问实际业务数据。报告使用 Chromium，其他
-布局门禁同时覆盖 WebKit。iPad 仿真不证明 Safari 工具栏、虚拟键盘、PWA 全屏、安全区或
-Apple Pencil 的实机表现，设备验收见 [发布 runbook](production-release.md#人工验收脚本)。
+UI 改动可按涉及的页面临时截图检查。模拟视口不证明 Safari 工具栏、虚拟键盘、PWA
+全屏、安全区或 Apple Pencil 的实机表现，设备验收见
+[发布 runbook](production-release.md#人工验收脚本)。
 
 ## 安装与性能评估
 

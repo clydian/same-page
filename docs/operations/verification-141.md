@@ -21,7 +21,6 @@
 - `visual-report/layer-preferences.test.mjs`：Chromium / WebKit 均通过。阅读面板、目标面板、默认显示、颜色页覆盖 320×740、740×320、834×1194、1194×834、1440×1000；管理及授权覆盖手机、iPad 横竖屏和桌面。检查文档无水平溢出、整行及按钮至少 44px、滚动后关闭/返回可达；键盘 Space 操作显示复选框。
 - `check:full` 的全部检查阶段已完成：PWA 更新接管、14 项 CI scope、lint、typecheck、37 项 unit、288 项 client、73 项 Worker、33 项视觉回归、迁移、生产构建 / precache、6 项浏览器 smoke、加载性能。
 - 本地不是一次无重试的串行绿灯：完整运行先暴露新增整行点击测试的错误文本定位，修正后两引擎各自复跑通过，其余 31 项视觉回归通过。IndexedDB 重开 smoke 单独补跑通过。macOS 测试服务清理曾出现 `kill EPERM`，清理后加载性能再次运行以 exit 0 完成。这些环境/测试定位问题没有引入产品绕过逻辑。
-- 视觉报告生成器最终以 exit 0 完成 8 个相关场景，验证独立偏好页面、颜色恢复、默认显示持久化、失败保留原值、未显示层编辑与退出、授权保存；同步移除了脚本中的旧复选框名称。
 
 交互原始记录：[Chromium](evidence-141/chromium-interactions.json)、[WebKit](evidence-141/webkit-interactions.json)。记录仅含合成夹具的 URL、变更体与故意注入失败标记，不含真实用户数据或凭证。
 
