@@ -323,44 +323,109 @@ test("deployment follows the successful verification gate even when an ancestor 
   ]) assert.equal(evaluate({ github }), false);
 });
 
-test("container deployment trusts its workspace for release Git commands without trusting other repositories", t => {
-  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
-  const deploy = workflow.split("\n  deploy:\n")[1];
-  const configure = deploy.match(/- name: Trust checked-out repository in container\n\s+run: (.+)/)?.[1];
-  assert.ok(configure, "deployment must configure trust before release admission");
-  assert.ok(deploy.indexOf(configure) < deploy.indexOf("- name: Admit release under production lock"));
-
-  const repo = repository(t);
-  const runtimeConfig = path.join(repo.cwd, ".git", "runtime.gitconfig");
-  const checkoutConfig = path.join(repo.cwd, ".git", "checkout.gitconfig");
-  const env = {
-    ...process.env,
-    GIT_CONFIG_NOSYSTEM: "1",
-    GIT_CONFIG_GLOBAL: runtimeConfig,
-    GIT_CONFIG_COUNT: "0",
-    GIT_TEST_ASSUME_DIFFERENT_OWNER: "1",
-    GITHUB_WORKSPACE: repo.cwd,
+test("container deployment trusts only its workspace before real Git release admission", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "same-page-container git-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const cwd = path.join(root, "workspace with spaces");
+  const checkoutHome = path.join(root, "checkout-home");
+  const jobHome = path.join(root, "job-home");
+  const sibling = path.join(root, "another-repository");
+  for (const directory of [cwd, checkoutHome, jobHome, sibling]) mkdirSync(directory);
+  const environment = (home) => ({ PATH: process.env.PATH, HOME: home, GIT_CONFIG_NOSYSTEM: "1" });
+  const git = (...args) => execFileSync("git", args, { cwd, env: environment(checkoutHome), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  git("init", "-q");
+  git("config", "user.email", "release@example.invalid");
+  git("config", "user.name", "CI fixture");
+  const commit = (content) => {
+    writeFileSync(path.join(cwd, "product"), content);
+    git("add", ".");
+    git("commit", "-qm", "fixture");
+    return git("rev-parse", "HEAD");
   };
-  const runGit = (args, overrides = {}, cwd = repo.cwd) => spawnSync("git", args, {
-    cwd, env: { ...env, ...overrides }, encoding: "utf8",
-  });
-  assert.equal(runGit(["config", "--global", "--add", "safe.directory", repo.cwd], { GIT_CONFIG_GLOBAL: checkoutConfig }).status, 0);
-  assert.equal(runGit(["rev-parse", "HEAD"], { GIT_CONFIG_GLOBAL: checkoutConfig }).status, 0);
-  const before = runGit(["rev-parse", "HEAD"]);
-  assert.notEqual(before.status, 0);
-  assert.match(before.stderr, /detected dubious ownership/);
+  const base = commit("base");
+  const old = commit("old");
+  const current = commit("current");
+  git("checkout", "--detach", base);
+  const divergent = commit("divergent");
+  git("checkout", "--detach", current);
+  execFileSync("git", ["init", "-q", sibling], { env: environment(checkoutHome) });
 
-  const configured = spawnSync("sh", ["-e", "-c", configure], { cwd: repo.cwd, env, encoding: "utf8" });
-  assert.equal(configured.status, 0, configured.stderr);
-  const head = runGit(["rev-parse", "HEAD"]);
-  assert.equal(head.status, 0, head.stderr);
-  assert.equal(head.stdout.trim(), repo.base);
-  assert.equal(runGit(["merge-base", "--is-ancestor", repo.base, "HEAD"]).status, 0);
+  // actions/checkout trusts the mount only in its temporary HOME. Later run
+  // steps use the job HOME and encounter the container's different owner.
+  git("config", "--global", "--add", "safe.directory", cwd);
+  const env = { ...environment(jobHome), GIT_TEST_ASSUME_DIFFERENT_OWNER: "1", GITHUB_WORKSPACE: cwd };
+  const rawGit = (directory = cwd, overrides = {}) => spawnSync("git", ["rev-parse", "HEAD"], { cwd: directory, env: { ...env, ...overrides }, encoding: "utf8" });
+  assert.equal(rawGit(cwd, { HOME: checkoutHome }).status, 0);
+  assert.match(rawGit().stderr, /detected dubious ownership/);
 
-  const untrusted = repository(t);
-  const other = runGit(["rev-parse", "HEAD"], {}, untrusted.cwd);
-  assert.notEqual(other.status, 0, "trust must be limited to the deployment workspace");
-  assert.match(other.stderr, /detected dubious ownership/);
+  const callsFile = path.join(root, "github-calls.jsonl");
+  const hook = path.join(root, "github-fixture.mjs");
+  writeFileSync(hook, `
+    import assert from "node:assert/strict";
+    import { appendFileSync } from "node:fs";
+    globalThis.fetch = async (url, init = {}) => {
+      const target = new URL(url);
+      assert.equal(target.origin, "https://api.github.com");
+      assert.match(target.pathname, /^\\/repos\\/fixture\\/repo\\/deployments(?:\\/42\\/statuses)?$/);
+      const body = init.body ? JSON.parse(init.body) : undefined;
+      appendFileSync(process.env.CALLS_FILE, JSON.stringify({ method: init.method, body }) + "\\n");
+      if (init.method === "GET") return Response.json([{ sha: process.env.PREVIOUS_SHA }]);
+      assert.equal(init.method, "POST");
+      if (target.pathname.endsWith("/statuses")) assert.equal(body.state, "in_progress");
+      else assert.equal(body.ref, process.env.GITHUB_SHA);
+      return Response.json({ id: 42 });
+    };
+  `);
+  const admission = fileURLToPath(new URL("./release-admission.mjs", import.meta.url));
+  const admit = (sha = current, previous = base) => {
+    const output = path.join(root, "github-output");
+    writeFileSync(output, "");
+    writeFileSync(callsFile, "");
+    const result = spawnSync(process.execPath, ["--import", hook, admission, "admit"], {
+      cwd, encoding: "utf8", env: {
+        ...env, GITHUB_SHA: sha, PREVIOUS_SHA: previous, GITHUB_RUN_ID: "42",
+        GITHUB_REPOSITORY: "fixture/repo", GITHUB_TOKEN: "fixture", GITHUB_OUTPUT: output, CALLS_FILE: callsFile,
+      },
+    });
+    return { ...result, output: readFileSync(output, "utf8"), calls: readFileSync(callsFile, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line)) };
+  };
+  assert.match(admit().stderr, /detected dubious ownership/);
+
+  // Execute the workflow's actual bootstrap commands in separate shells, as
+  // Actions does. A YAML-only assertion would miss Git's protected config scope.
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const beforeAdmission = workflow.split("\n  deploy:\n")[1].split("      - name: Admit release under production lock\n")[0];
+  for (const [, command] of beforeAdmission.matchAll(/^ {8}run: (.+)$/gm)) {
+    execFileSync("sh", ["-e", "-c", command], { cwd, env });
+  }
+  const accepted = admit();
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.equal(accepted.output, "proceed=true\ndeployment_id=42\n");
+  assert.deepEqual(accepted.calls.map(call => call.method), ["GET", "POST", "POST"]);
+  const trusted = execFileSync("git", ["config", "--global", "--get-all", "safe.directory"], { cwd, env, encoding: "utf8" });
+  assert.equal(trusted, `${cwd}\n`);
+  assert.match(rawGit(sibling).stderr, /detected dubious ownership/);
+
+  const wrongSha = admit(base);
+  assert.notEqual(wrongSha.status, 0);
+  assert.match(wrongSha.stderr, /AssertionError/);
+  assert.deepEqual(wrongSha.calls, []);
+  git("checkout", "--detach", old);
+  const skipped = admit(old, current);
+  assert.equal(skipped.status, 0, skipped.stderr);
+  assert.equal(skipped.output, "proceed=false\ndeployment_id=\n");
+  assert.deepEqual(skipped.calls.map(call => call.method), ["GET"]);
+  git("checkout", "--detach", divergent);
+  const rejected = admit(divergent, current);
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /divergent release history/);
+  assert.deepEqual(rejected.calls.map(call => call.method), ["GET"]);
+
+  git("checkout", "--detach", current);
+  execFileSync("git", ["config", "--global", "--unset-all", "safe.directory"], { cwd, env });
+  const untrustedAgain = admit();
+  assert.match(untrustedAgain.stderr, /detected dubious ownership/);
+  assert.deepEqual(untrustedAgain.calls, []);
 });
 
 test("retired consumer deployment fix builds and deploys on main", t => {

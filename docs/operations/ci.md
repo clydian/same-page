@@ -96,9 +96,9 @@ Playwright Noble 容器，保留 Node 24；不在测试 job 临时执行 apt 或
 两引擎真实启动。Playwright 升级须同步更新 `ci.yml` 与 `browser-stability.yml` 的全部
 镜像版本和 digest。原始失败、取舍与验证边界见 [环境准备记录](browser-test-stability.md#ci-环境准备--391-与-2026-10-22-后续修复)。
 
-deploy 的 checkout 仅在它内部 Git 进程的临时配置中登记 `safe.directory`。后续普通步骤在
-发布准入前，将 `$GITHUB_WORKSPACE` 登记到当前容器用户的全局 Git 配置，供 HEAD 和祖先关系
-检查读取；只信任该工作目录，其他仓库仍受所有权检查保护。
+发布容器在 checkout 后、准入前，将当前 `$GITHUB_WORKSPACE` 精确登记到作业 HOME 的
+Git `safe.directory`；checkout 自身的登记只存在于它的临时 HOME，不能供后续发布脚本使用。
+`test:ci` 通过真实 Git 所有权检查和发布准入 CLI 验证此边界，其他目录仍保持不受信。
 
 完整检查会启动
 本地 workerd/Vite、临时 D1 和浏览器，并多次构建；不需要生产凭据，不操作生产数据。

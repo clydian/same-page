@@ -304,6 +304,7 @@ jobs:
           JS
 
   deploy:
+    # ci-scope includes this production workflow so pipeline repairs exercise deployment.
     # Unselected checks may be skipped. The verify gate decides whether every
     # selected check passed; do not inherit success() across skipped ancestors.
     if: ${{ !cancelled() && needs.verify.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true' }}
@@ -329,8 +330,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Checkout trusts this mount only in its temporary Git configuration.
-      - name: Trust checked-out repository in container
+      # checkout's safe.directory is scoped to its temporary HOME. Subsequent
+      # container steps need the same exact workspace in the job HOME.
+      - name: Trust checked-out workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Admit release under production lock
