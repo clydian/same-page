@@ -27,7 +27,7 @@ export function PersonalMenu({ email, drive }: { email?: string | null; drive?: 
         <MenuItem href="/user">账户</MenuItem>
         <MenuItem href="/help">使用手册</MenuItem>
         <MenuItem href="/diagnostics">问题反馈</MenuItem>
-        <MenuItem href="/about" textValue="关于与更新">关于与更新 <small>{buildVersion}</small></MenuItem>
+        <MenuItem className="personal-menu-about" href="/about" textValue="关于与更新"><span>关于与更新</span><small className="personal-menu-version" translate="no">{buildVersion}</small></MenuItem>
         <MenuItem onAction={() => void logout.request()}>退出登录</MenuItem>
       </MenuSection>
     </Menu></Popover>
