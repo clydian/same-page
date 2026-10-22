@@ -115,6 +115,11 @@ function checksForPath(file) {
   if (["vitest.client.config.ts", "vitest.node.config.ts"].includes(file)) return ["client"];
   if (["vitest.worker.config.ts", "vitest.worker-unit.config.ts"].includes(file)) return ["worker"];
 
+  if (file.startsWith("packages/player/")) {
+    if (file.endsWith(".md")) return [];
+    if (file.startsWith("packages/player/test/")) return ["client"];
+    return ["client", "worker", "visual", "pwa", "performance", "build", "smoke", "deploy"];
+  }
   if (file.startsWith("src/shared/")) {
     if (isTestPath(file)) return ["client"];
     return ["client", "worker", "visual", "performance", "build", "smoke", "deploy"];

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml, preparePianoPlaybackMidi } from '@clydian/chorus-player/engine';
+import { loadMusicXml, preparePianoPlaybackMidi } from '@same-page/player/engine';
 
 function fixture(name: string, repeat = false) {
   const note = (duration: number, voice: number) => `<note><pitch><step>G</step><octave>4</octave></pitch><duration>${duration}</duration><voice>${voice}</voice><type>${duration === 2 ? 'quarter' : 'eighth'}</type></note>`;

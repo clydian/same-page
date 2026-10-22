@@ -8,11 +8,11 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "npm run copy:native-source && tsc -b && vite build && node scripts/verify-precache.mjs",
+    "build": "npm run build:player && npm run copy:native-source && tsc -b && vite build && node scripts/verify-precache.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "typecheck": "tsc -b --pretty false",
-    "test": "npm run test:unit && npm run test:client",
+    "typecheck": "npm run build:player && tsc -b --pretty false",
+    "test": "npm run test:player && npm run test:unit && npm run test:client",
     "test:unit": "vitest run --config vitest.node.config.ts",
     "test:client": "vitest run --config vitest.client.config.ts",
     "test:watch": "vitest --config vitest.client.config.ts",
@@ -38,14 +38,18 @@
     "diagnostics:inbox": "node scripts/diagnostic-reports.mjs",
     "diagnostics:operators": "node scripts/diagnostic-operators.mjs",
     "admin:configure": "node scripts/product-admin.mjs",
-    "copy:native-source": "node node_modules/@clydian/chorus-player/scripts/copy-native-source.mjs --output public/third-party/alphatab"
+    "copy:native-source": "node packages/player/scripts/copy-native-source.mjs --output public/third-party/alphatab",
+    "build:player": "npm run build --workspace @same-page/player",
+    "prepare": "npm run build:player",
+    "test:player": "npm run build:player && npm test --workspace @same-page/player",
+    "build:native": "node vendor/alphatab/build.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",
-    "@clydian/chorus-player": "file:vendor/clydian-chorus-player-0.1.19-samepage.12.tgz",
     "@coderline/alphatab": "file:vendor/coderline-alphatab-1.8.4-samepage.13.tgz",
     "@coderline/alphatab-vite": "^1.8.4",
     "@mdxeditor/editor": "^4.2.5",
+    "@same-page/player": "0.1.19-samepage.12",
     "@tanstack/react-virtual": "^3.14.11",
     "better-auth": "1.7.10",
     "clipper2-ts": "2.0.1-18",
@@ -102,5 +106,8 @@
     "workbox-build": "7.4.1",
     "wrangler": "^4.147.0"
   },
-  "license": "AGPL-3.0-only"
+  "license": "AGPL-3.0-only",
+  "workspaces": [
+    "packages/player"
+  ]
 }

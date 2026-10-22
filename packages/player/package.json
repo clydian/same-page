@@ -1,0 +1,71 @@
+{
+  "name": "@same-page/player",
+  "version": "0.1.19-samepage.12",
+  "type": "module",
+  "license": "UNLICENSED",
+  "files": [
+    "dist",
+    "README.md",
+    "scripts/copy-native-source.mjs"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/session.d.ts",
+      "import": "./dist/session.js"
+    },
+    "./format": {
+      "types": "./dist/format.d.ts",
+      "import": "./dist/format.js"
+    },
+    "./engine": {
+      "types": "./dist/engine.d.ts",
+      "import": "./dist/engine.js"
+    },
+    "./musicxml-direction-timing": {
+      "types": "./dist/musicxml-direction-timing.d.ts",
+      "import": "./dist/musicxml-direction-timing.js"
+    },
+    "./alphatab-playback-dynamics": {
+      "types": "./dist/alphatab-playback-dynamics.d.ts",
+      "import": "./dist/alphatab-playback-dynamics.js"
+    },
+    "./timbre-profile": {
+      "types": "./dist/timbre-profile.d.ts",
+      "import": "./dist/timbre-profile.js"
+    },
+    "./practice-mix": {
+      "types": "./dist/practice-mix.d.ts",
+      "import": "./dist/practice-mix.js"
+    },
+    "./playback-measures": {
+      "types": "./dist/playback-measures.d.ts",
+      "import": "./dist/playback-measures.js"
+    },
+    "./score-follow": {
+      "types": "./dist/score-follow.d.ts",
+      "import": "./dist/score-follow.js"
+    },
+    "./solfege-degree": {
+      "types": "./dist/solfege-degree.d.ts",
+      "import": "./dist/solfege-degree.js"
+    },
+    "./musicxml-major-validation": {
+      "types": "./dist/musicxml-major-validation.d.ts",
+      "import": "./dist/musicxml-major-validation.js"
+    }
+  },
+  "dependencies": {
+    "fast-xml-parser": "5.10.1",
+    "fflate": "^0.8.3",
+    "saxes": "6.0.0"
+  },
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "test": "node --test --test-concurrency=2 test/*.test.mjs"
+  },
+  "peerDependencies": {
+    "@coderline/alphatab": "1.8.4-samepage.13"
+  }
+}

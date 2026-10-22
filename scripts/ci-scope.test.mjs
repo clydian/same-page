@@ -324,3 +324,11 @@ test("consumer retirement runs under release admission after artifact validation
   assert.match(step, /run: node scripts\/retire-image-consumer.mjs/);
   assert.doesNotMatch(step, /continue-on-error|\|\| true/);
 });
+
+
+test("local player source selects product, offline and deployment verification", t => {
+  const repo = repository(t);
+  repo.put("packages/player/src/session.ts"); repo.commit();
+  const scope = repo.scope("push", { before: repo.base });
+  for (const key of ["client", "worker", "visual", "pwa", "performance", "build", "smoke", "deploy"]) assert.equal(scope[key], true, key);
+});

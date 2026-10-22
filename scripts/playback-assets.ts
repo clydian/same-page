@@ -3,14 +3,14 @@ import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 
-// The host's pinned player currently has no resource URL options. Rewrite its
-// two public resource roots at build time, keeping the vendored artifact intact.
+// Give each build immutable resource URLs for offline playback. Match Vite's
+// real workspace path as well as the installed package path.
 export function playbackAssets(buildId: string): Plugin {
   const base = `/playback/${encodeURIComponent(buildId)}/`;
   return {
     name: 'same-page-playback-assets', enforce: 'pre',
     transform(code, id) {
-      if (!id.replaceAll('\\', '/').endsWith('/@clydian/chorus-player/dist/session.js')) return;
+      if (!/\/(?:packages\/player|node_modules\/@same-page\/player)\/dist\/session\.js$/.test(id.replaceAll('\\', '/'))) return;
       if (!code.includes("'/font/'") || !code.includes("'/soundfont/sonivox.sf2'")) throw new Error('player_resource_contract_changed');
       return code.replace("'/font/'", JSON.stringify(`${base}font/`)).replace("'/soundfont/sonivox.sf2'", JSON.stringify(`${base}soundfont/sonivox.sf2`));
     },

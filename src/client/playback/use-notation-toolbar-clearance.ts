@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from 'react';
-import type { PlayerSession } from '@clydian/chorus-player';
+import type { PlayerSession } from '@same-page/player';
 
 /** Host chrome must not cover the followed system. Manual browsing remains free. */
 export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | null>, session: PlayerSession | null, enabled: boolean) {

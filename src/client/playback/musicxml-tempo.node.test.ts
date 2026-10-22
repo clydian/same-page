@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml, loadPreparedMusicXml } from '@clydian/chorus-player/engine';
-import { prepareMusicXmlForAlphaTabBytes } from '@clydian/chorus-player/musicxml-direction-timing';
+import { loadMusicXml, loadPreparedMusicXml } from '@same-page/player/engine';
+import { prepareMusicXmlForAlphaTabBytes } from '@same-page/player/musicxml-direction-timing';
 
 const note = '<note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>quarter</type></note>';
 const direction = (unit: string, bpm: number, dots = 0, sound = '', offset = '') => `<direction><direction-type><metronome><beat-unit>${unit}</beat-unit>${'<beat-unit-dot/>'.repeat(dots)}<per-minute>${bpm}</per-minute></metronome></direction-type>${offset}${sound ? `<sound tempo="${sound}"/>` : ''}</direction>`;

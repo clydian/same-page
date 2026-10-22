@@ -1,0 +1,25 @@
+# MusicXML phrase-slur placement
+
+`Note.slurPlacement` and public `SlurPlacement` retain the notation side of an outgoing phrase slur. `Automatic` (0) preserves the existing stem-based layout; `Above` (1) and `Below` (2) request the corresponding side. Note cloning and Worker JSON retain this field. Older JSON without the field keeps `Automatic`.
+
+The MusicXML importer reads explicit `<slur placement="above|below">` on the start element. When the start omits placement, an explicit matching stop supplies the side. An explicit start remains authoritative when endpoint attributes disagree. The existing Note model still supports only one outgoing origin-to-destination phrase link. Two numbered outgoing slurs from a shared note head are not represented independently; SamePage issue #498 tracks this pre-existing limitation, with unchanged red controls on production and this fix. Do not duplicate source notes or change source sides to hide that limitation. This is one side for the existing origin-to-destination phrase model, including its continuation on later systems; it does not model an S-shaped slur with conflicting endpoint sides.
+
+The override belongs only to `ScoreSlurGlyph`. Pitch ties, note duration, MIDI generation, automatic unspecified slurs and effect-slur construction are unchanged. No source XML rewrite is required. Above/below placement differs from MusicXML `orientation` (overhand/underhand); custom orientation, continuation-specific shape and Bezier control-point overrides remain outside this change. Generic collision avoidance between an above phrase slur and another above notation is not provided by this side-retention fix.
+
+Regression tests: `test/rendering/MusicXmlSlurPlacement.test.ts` covers import, real native SVG geometry, public JSON, note clone, legacy JSON, Page/Horizontal, cross-system continuation, simultaneous voices, start/stop precedence and tie isolation. The original installed-package red repro and actual prepare/render Worker browser captures accompany SamePage issue #497.
+
+Reference: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/slur/
+
+## Cross-staff phrase endpoints
+
+A stop first uses its existing staff-local numbered origin. If that staff has no origin, the importer accepts one unambiguous pending origin with the same number on another staff of the same part. This also permits an explicitly numbered voice handoff; voice identity is not a substitute for the source slur number. It never searches another part and does not choose between two pending origins on different staves. Existing same-staff behavior has precedence, including older files that reuse numbers on separate staves.
+
+This bounded correction covers a start preceding its stop in document order. It does not add arbitrary stop-before-start resolution, multiple outgoing slurs from one note, `continue` shape overrides or general cross-staff collision avoidance. Those are separate representation/layout boundaries. Model note links and their existing public Worker JSON remain the same; source notes and MIDI are not rewritten.
+
+`MusicXmlCrossStaffSlur.test.ts` covers both staff directions, explicit cross-voice numbering, mismatched-number and other-part controls, ambiguous fallback, and native Page/Horizontal rendering after public JSON. MusicXML number-level is defined per overlapping objects in a part, not as a staff identifier: https://www.w3.org/2021/06/musicxml40/musicxml-reference/data-types/number-level/ .
+
+For phrase slurs only, two staff renderers in the same staff system now form one continuous span. Pitch-tie and other glyph continuation rules retain their legacy staff comparison. Cross-staff phrase endpoints are translated between staff-local Y coordinates; their geometry is refreshed for paint after both staff positions have finalized. This avoids treating two staves of one system as two systems, while preserving actual system-break continuation. It is not a collision-avoidance algorithm.
+
+A same-system cross-staff phrase does not contribute the destination staff's whole vertical distance to its origin staff's overflow. Its automatic curve height is at least half the endpoint vertical separation, so a steep rising/falling phrase retains an outward bow instead of collapsing towards a diagonal straight line. This is an engraving default, not source Bezier reproduction or a proof that the curve avoids every intervening note. An owned regression compares complete SVG dimensions with the same notes without a slur to catch artificial inter-staff expansion.
+
+After all staves have finalized their vertical positions, the staff system measures registered cross-staff phrase ink and reserves only any excess outside the complete system as outer padding. This preserves the inter-staff distance while keeping outer above/below curves inside the SVG. The set is cleared and rebuilt on each system finalization. Owned tests exercise actual painted Bezier bounds, both outer sides, the first and last painted system-break segments with note anchors, and the unchanged legacy pitch-tie segmentation rule.

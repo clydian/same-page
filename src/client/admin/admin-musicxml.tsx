@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   createPlayerSession,
   type PlayerSession,
-} from "@clydian/chorus-player";
+} from "@same-page/player";
 import { MusicXmlPractice } from "../playback/musicxml-practice";
 import { adminFetch, AdminRequestError } from "./api";
 // A review session has no reader source, local preferences, shared playback store

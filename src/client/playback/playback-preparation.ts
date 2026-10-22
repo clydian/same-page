@@ -1,4 +1,4 @@
-import type { PreparedMusicXml } from '@clydian/chorus-player/musicxml-direction-timing';
+import type { PreparedMusicXml } from '@same-page/player/musicxml-direction-timing';
 import { onNavigationReset, onDriveChange } from '../settings/navigation-events';
 import type { PlaybackSource } from './playback-store';
 const MAX_BYTES = 32 * 1024 * 1024, MAX_ITEMS = 4, TTL = 5 * 60_000;

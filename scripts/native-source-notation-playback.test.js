@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'vitest';
 import {readFileSync} from 'node:fs';
 import * as at from '@coderline/alphatab';
-import {loadMusicXml, assignPlaybackChannels, preparePianoPlaybackMidi} from '@clydian/chorus-player/engine';
+import {loadMusicXml, assignPlaybackChannels, preparePianoPlaybackMidi} from '@same-page/player/engine';
 
 // All fixtures here are short, independently authored controls, not score extracts.
 const scoreXml = measures => `<score-partwise version="4.0"><part-list><score-part id="P"><part-name>Piano</part-name></score-part></part-list><part id="P">${measures}</part></score-partwise>`;

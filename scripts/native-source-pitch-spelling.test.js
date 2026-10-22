@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'vitest';
 import * as at from '@coderline/alphatab';
-import {loadMusicXml,assignPlaybackChannels,preparePianoPlaybackMidi} from '@clydian/chorus-player/engine';
+import {loadMusicXml,assignPlaybackChannels,preparePianoPlaybackMidi} from '@same-page/player/engine';
 // Owned short pitch-spelling fixture with an inherited accidental, not a published score.
 const source="<?xml version='1.0' encoding='UTF-8'?>\n<score-partwise version=\"4.0\"><part-list><score-part id=\"P\"><part-name>Piano</part-name></score-part></part-list><part id=\"P\"><measure number=\"1\"><attributes><divisions>2</divisions><key><fifths>1</fifths></key><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>E</step><alter>-1</alter><octave>2</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><accidental>flat</accidental></note><note><pitch><step>B</step><alter>-1</alter><octave>2</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><accidental>flat</accidental></note><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type></note><note><pitch><step>B</step><alter>-1</alter><octave>2</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type></note><note><pitch><step>B</step><alter>-1</alter><octave>3</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><accidental>flat</accidental></note></measure></part></score-partwise>";
 function capture(xml,layout){

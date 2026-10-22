@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml } from '@clydian/chorus-player/engine';
+import { loadMusicXml } from '@same-page/player/engine';
 
 function source(word: string, value: 'mf' | 'f' = 'mf') {
   const dynamic = `<direction><direction-type><dynamics><${value}/></dynamics></direction-type></direction>`;
