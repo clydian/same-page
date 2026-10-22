@@ -20,6 +20,7 @@ import type { Glyph } from '@coderline/alphatab/rendering/glyphs/Glyph';
 import { KeySignatureGlyph } from '@coderline/alphatab/rendering/glyphs/KeySignatureGlyph';
 import { LeftToRightLayoutingGlyphGroup } from '@coderline/alphatab/rendering/glyphs/LeftToRightLayoutingGlyphGroup';
 import { ScoreTimeSignatureGlyph } from '@coderline/alphatab/rendering/glyphs/ScoreTimeSignatureGlyph';
+import { SourceBeamsGlyph } from '@coderline/alphatab/rendering/glyphs/SourceBeamsGlyph';
 import { SourceBracketsGlyph } from '@coderline/alphatab/rendering/glyphs/SourceBracketsGlyph';
 import { SpacingGlyph } from '@coderline/alphatab/rendering/glyphs/SpacingGlyph';
 import { LineBarRenderer } from '@coderline/alphatab/rendering/LineBarRenderer';
@@ -41,6 +42,7 @@ export class ScoreBarRenderer extends LineBarRenderer {
 
     public accidentalHelper: AccidentalHelper;
     private _sourceBrackets = new SourceBracketsGlyph(this);
+    private _sourceBeams = new SourceBeamsGlyph(this);
     private _hasEndNotationChanges: boolean = false;
     private _notationGlyphs: { displayStart: number; glyph: LeftToRightLayoutingGlyphGroup }[] = [];
 
@@ -59,9 +61,17 @@ export class ScoreBarRenderer extends LineBarRenderer {
         }
     }
 
+    public override finalizeRenderer(): boolean {
+        if (this.bar.voices.some(v => v.beats.some(b => b.sourceBeamGroup !== 0))) {
+            this.staff!.system.registerSourceBeams(this._sourceBeams);
+        }
+        return super.finalizeRenderer();
+    }
+
     protected override paintContent(cx: number, cy: number, canvas: ICanvas): void {
         super.paintContent(cx, cy, canvas);
         this._sourceBrackets.paint(cx + this.x, cy + this.y, canvas);
+        this._sourceBeams.paint(cx + this.x, cy + this.y, canvas);
         this._paintDoubleTremolos(cx + this.x, cy + this.y, canvas);
         for (const { displayStart, glyph } of this._notationGlyphs) {
             const spring = this.layoutingInfo.springs.get(this.bar.masterBar.start + displayStart);
@@ -212,6 +222,18 @@ export class ScoreBarRenderer extends LineBarRenderer {
         } else {
             return this.voiceContainer.getLowestNoteY(beat, position);
         }
+    }
+
+    public sourceBeamStemStartY(beat: Beat): number {
+        return beat.preferredBeamDirection === BeamDirection.Up
+            ? this.getFlagBottomY(beat, BeamDirection.Up)
+            : this.getFlagTopY(beat, BeamDirection.Down);
+    }
+
+    public sourceBeamStemEndY(beat: Beat): number {
+        return beat.preferredBeamDirection === BeamDirection.Up
+            ? this.getFlagTopY(beat, BeamDirection.Up)
+            : this.getFlagBottomY(beat, BeamDirection.Down);
     }
 
     protected override getBeamDirection(helper: BeamingHelper): BeamDirection {
@@ -602,6 +624,10 @@ export class ScoreBarRenderer extends LineBarRenderer {
                 return BeamDirection.Down;
         }
     }
+    protected override shouldPaintBeamingHelper(helper: BeamingHelper): boolean {
+        return !helper.beats.some(b => b.sourceBeamGroup !== 0) && super.shouldPaintBeamingHelper(helper);
+    }
+
     protected override paintBeamingStem(
         beat: Beat,
         _cy: number,
