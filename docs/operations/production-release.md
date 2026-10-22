@@ -89,7 +89,7 @@ authorization code、token、完整 profile 或 Secret。
 | 提供方确认后回到登录页并提示失败 | 先确认 `/api/health` 和邮箱登录正常，再按时间查 Worker 的非敏感状态日志；不要在日志或 Issue 中粘贴 callback URL。state 失效或重复回调应安全返回登录页，不能绕过重试。 |
 | 中国大陆网络下 Google 超时 | 记录网络、设备和时间，将 Google 判为该场景不可用；确认邮箱入口始终可见可用。不要通过放宽 OAuth 校验或增加代理回调规避。 |
 
-后续 `main` 发布必须先通过 CI 根据变更范围选择的门禁；无法识别范围时运行完整门禁，影响生产产物、migration 或常规生产工作流 `.github/workflows/ci.yml` 的变更进入 deploy job。正式发布或 migration 前，本地运行全量超集 `npm run check:full`；先运行 `npm ci` 和 `npx playwright install chromium webkit`（本地 Linux 可使用 `--with-deps`；常规 CI 使用固定预装镜像，见 [环境说明](ci.md#本地浏览器检查)）。`npm run check` 不包含 PWA 更新交接及加载性能，不能作为发布前的完整集合。
+后续 `main` 发布必须先通过 CI 根据变更范围选择的门禁；无法识别范围时运行完整门禁，影响生产产物、migration 或常规生产工作流 `.github/workflows/ci.yml` 的变更选择 deploy job。通道首次桥接期间 repository variable `RELEASE_CHANNELS_ENABLED` 保持关闭，普通 deploy 跳过，仅下述受控首次流程部署；实机验收后才恢复日常发布。正式发布或 migration 前，本地运行全量超集 `npm run check:full`；先运行 `npm ci` 和 `npx playwright install chromium webkit`（本地 Linux 可使用 `--with-deps`；常规 CI 使用固定预装镜像，见 [环境说明](ci.md#本地浏览器检查)）。`npm run check` 不包含 PWA 更新交接及加载性能，不能作为发布前的完整集合。
 deploy job 在生产锁内核对发布顺序，记录发布尝试，在汇总 verify 通过后，下载 integration 封存的原始产物并校验完整清单，再执行 D1 恢复点记录、旧图片 Queue consumer 定向解绑（见 [退役顺序](image-renderer-retirement.md#生产退役顺序)）、migrations、迁移后聚合/结构核查、Wrangler deploy 与线上机器验证。迁移或验证失败时 workflow 失败，不能记为发布成功。部署阶段不重新构建。
 
 构建身份、HTML meta、Worker 须匹配显式 expected SHA；实际脚本逐个核对已验证发布包 `dist/client/build.json` 中的 SHA256（包括入口、共享与延迟加载脚本及 PDF Worker）。独立验收需下载对应 artifact；CLI 第三个参数可指定该清单路径，不能使用另一版本的本地构建。全部返回同一个旧版本仍失败。验收最多 12 次、每次请求超时 15 秒、间隔 3 秒，超过传播窗口则保留失败。成功记录只能在这些检查全部完成后写入。迁移后的失败尝试仍推进发布边界；旧作业不能在它之后部署旧 Worker。
@@ -186,6 +186,7 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 ## 稳定版／测试版前端通道（#539）
 
 实现见 ADR-0021；本地开发和首次桥接默认 `RELEASE_CHANNELS_ENABLED=false`。
+CI 固定使用 `SAME_PAGE_RELEASE_CHANNELS=1` 封存唯一通道产物；构建能力与生产路由分开控制。
 这不是部署授权。不得直接打开开关而跳过以下过渡，也不得把仓库的 research
 探针当作生产验收。WebKit 的隔离持久 profile 已通过 Blob 回切探针；真实 Safari/iOS 与 Android TWA 实机仍必须单独记录。
 关闭 runtime flag 仍会部署配置中的 R2 binding 与 Worker-first 路由；首次合并部署前一并核对 bucket、IAM 与路由，不能把开关关闭等同于没有部署影响。
@@ -195,22 +196,43 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 
 ### 首次桥接（需另行授权）
 
-1. 创建专用私有 `same-page-frontend-releases` R2 bucket，关闭公共访问及所有 TTL／生命周期删除；
-   将部署 token 的 R2 权限纳入该桶，不与乐谱／APK bucket 共用清理规则。
-2. 按现有受控发布链路应用 `0034_release_channels.sql`（仅新建服务端表）；保留现有
-   当前 production 静态资源和旧 SW 地址作为明确支持的 legacy 基线。下载原始封存包后运行
-   `node scripts/frontend-release.mjs archive-legacy <旧SHA> --archive-supported-baseline`，
-   first-write 归档旧静态路径；不同摘要同路径必须人工处理兼容性，不能覆盖。不要回收已有应用壳。
-3. 使用 `SAME_PAGE_RELEASE_CHANNELS=1` 构建并封存桥接提交的原始产物。**不要重新构建重试**；
-   同 SHA 不同文件摘要必须拒绝。先执行 `node scripts/frontend-release.mjs upload <SHA> --initialize-stable`
-   上传完整候选，再部署该桥接包，保持 Worker routing flag 为 false，使已有客户端安全过渡。
-4. 下载并验证这一份完整发布包，`npm ci --prefix android` 提供已有 S3 SDK。
-   用 `node scripts/frontend-release.mjs initialize <完整SHA> --initialize-stable` 上传封存并验证固定
-   资源后，将 stable/beta 同时初始化为该 SHA。命令要求线上后端也为这份 SHA；
-   任何线上验收失败都不能初始化指针，不会自动恢复数据库。
-5. 完成 legacy active/waiting、直接深链、全新安装、离线恢复、Safari/iOS 和 TWA 验收，
-   再通过受控部署将 runtime `RELEASE_CHANNELS_ENABLED:true` 应用到**同一份产物**，
-   并设置 GitHub production 对应 repository variable `RELEASE_CHANNELS_ENABLED=true`。
+`bootstrap-release-channels.yml` 只提供准备流程，没有启用入口。执行必须有明确生产授权；
+合并 PR 和 CI 成功不自动执行它。整个准备及实机验收期间保留
+repository variable `RELEASE_CHANNELS_ENABLED` 关闭，普通 main push 的 deploy 会明确跳过，
+防止待验收版本被后续提交覆盖。不要为恢复普通发布而提前打开变量。
+
+准备前确认 `0034_release_channels.sql` 已通过既有发布链路应用，专用私有
+`same-page-frontend-releases` R2 bucket 已创建；关闭公共访问和全部 TTL／生命周期删除，
+部署 token 可访问该桶，不能与乐谱／APK bucket 共用清理规则。首次工作流只发布已验证产物及
+release metadata，不执行业务 migration、数据恢复、清理或发布人员授权。
+
+1. 在 main 等待桥接提交的完整 CI 成功，记录该 run 的 SHA、attempt、artifact ID、大小、
+   ZIP SHA256，以及封存 `release.json.runId`。CI 的 deploy skipped 是预期冻结状态，
+   不记为部署成功。另确定当前 production 的完整旧 SHA 及其成功 main CI 原始包；
+   这个明确支持的旧版是 legacy 基线，不能以本地重建包或另一版本代替。
+2. 从 main 手动执行 **Prepare release channel bridge**，只接受四项输入：
+   `ci_run` 为这份桥接产物的 main CI run；`legacy_run` 为旧基线 CI run；
+   `legacy_sha` 为旧基线完整 SHA；`confirmation` 必须等于此次 main workflow 的完整 SHA。
+   workflow 拒绝 PR、其他分支、非本仓库、错误身份、失败或不完整 CI、过期或被替换的 artifact。
+   validate job 没有 production environment 或生产 secrets，只使用短期 `actions: read`
+   下载两个原始 ZIP、校验封存清单，并在 Chromium/WebKit 用两份原始 storage probe 运行实际转换矩阵。
+3. production job 复用 `production` environment、既有 secrets 和 `same-page-production` 锁。
+   它从当前 run 的短期 handoff artifact 接收同一原始 ZIP，再次核对摘要和封存身份；
+   锁内核对线上仍为批准旧 SHA（同桥接 SHA 的重试除外）、桶和 release metadata 前置条件，
+   通过正常发布顺序准入，然后 first-write 归档旧资源、上传新候选、部署原桥接包。
+   Wrangler 明确指定 `RELEASE_CHANNELS_ENABLED:false`，不重新构建、不打开 repository variable。
+   同路径不同摘要会拒绝；保留旧静态地址、`/sw.js` 注册地址和已有本机应用壳。
+4. 对原始桥接包的固定前缀资源和独立后端 SHA 完成线上验收后，执行
+   `frontend-release.mjs initialize <完整SHA> --initialize-stable`，将 stable/beta 同时初始化为该 SHA。
+   网络丢响应后的同目标重试只能重验，不可改写已变化的指针；任何线上验证失败都不能初始化。
+   再验证线上通道、全新浏览器安装与离线恢复，保存 plan、原包身份、转换矩阵和线上报告。
+   部署到初始化之间，新通道 SW 可能暂时拒绝缺失指针；必须在初始化后验证安装／重试成功，
+   不能以脚本可下载代替 SW 可用。此时两个选项版本相同属于预期。
+5. 停在真实设备验收：记录 legacy active/waiting、直接深链、全新安装、离线恢复、
+   旧页面多窗口交接，以及真实 Safari/iOS PWA 和 Android TWA 的设备、系统、浏览器与结论。
+   桌面 Chromium/WebKit 报告不替代实机。验收通过后另行受控部署，将 runtime
+   `RELEASE_CHANNELS_ENABLED:true` 应用到**同一份产物**，再设置 repository variable
+   `RELEASE_CHANNELS_ENABLED=true` 恢复日常 CI。该首次准备 workflow 不执行这一步。
    新版本须通过下述持久格式边界检查及实际产物回切矩阵才准入 beta。
 6. `npm run admin:configure -- grant-release --remote <userId>` 单独授权发布人员；
    `revoke-release` 撤销。该 CLI 从不按邮箱授权、不修改成员关系；只在另行批准时运行。
