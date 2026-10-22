@@ -222,6 +222,32 @@ function verifyPdfTrashMigration() {
   assert.deepEqual(queryNamed({ ...queries, reports: "SELECT * FROM diagnostic_reports" }), beforeInbox, "Feedback inbox preserves user content and the original report expiry");
   assert.deepEqual(query("SELECT * FROM diagnostic_operators"), []);
   assert.deepEqual(query("SELECT * FROM diagnostic_report_tombstones"), []);
+  applyMigrations("0034_release_channels.sql");
+  executeD1({ command: `
+    INSERT INTO product_operators(user_id,publish_xml) VALUES('second-user',1);
+    INSERT INTO product_admin_drives(choir_id) VALUES('choir');
+    INSERT INTO session(id,expires_at,token,updated_at,user_id) VALUES('legacy-admin-session',4000000000000,'legacy-admin-token',1,'second-user');
+    INSERT INTO xml_candidates(id,choir_id,score_id,source_version_id,source_sha256,name,size_bytes,sha256,object_key,state,imported_by,created_at,expires_at,review,review_revision,technical_passed)
+      VALUES('legacy-candidate','choir','preserved-score','preserved-version','preserved-sha256','保留练习.musicxml',7,'xml-hash','admin/legacy-candidate','ready','second-user',1,4000000000000,'approved',1,1);
+    INSERT INTO xml_publish_staging(id,object_key,size_bytes,created_at) VALUES('legacy-published-file','legacy-published.musicxml',7,1);
+    INSERT INTO xml_publications(id,candidate_id,choir_id,score_id,source_version_id,operator_id,session_id,attachment_id,expected_attachment_revision,expected_review_revision,file_id,etag,created_at)
+      VALUES('legacy-publication','legacy-candidate','choir','preserved-score','preserved-version','second-user','legacy-admin-session','legacy-generated-attachment',0,1,'legacy-published-file','xml-etag',2);
+    INSERT INTO xml_publish_staging(id,object_key,size_bytes,created_at) VALUES('legacy-staging','legacy-staging.musicxml',3,3);
+  `, targetArgs });
+  const globalScopeQueries = { ...queries,
+    grants: "SELECT * FROM product_operators",
+    legacyScopes: "SELECT * FROM product_admin_drives",
+    candidates: "SELECT * FROM xml_candidates",
+    staging: "SELECT * FROM xml_publish_staging",
+    publications: "SELECT * FROM xml_publications",
+    audit: "SELECT * FROM product_admin_audit ORDER BY id",
+    files: "SELECT * FROM score_attachment_files ORDER BY id",
+    attachments: "SELECT * FROM score_attachments ORDER BY id",
+    limits: "SELECT * FROM product_admin_limits" };
+  const beforeGlobalScope = queryNamed(globalScopeQueries);
+  // 0035 belongs to the independent restricted-CLI change and is not required.
+  applyMigrations("0036_admin_global_score_scope.sql");
+  assert.deepEqual(queryNamed(globalScopeQueries), beforeGlobalScope, "Global operator scope preserves existing grants, legacy scopes, notes, candidates, publications, quota and audit without migration 0035");
 }
 
 function verifyAttachmentMigration() {

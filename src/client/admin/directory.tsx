@@ -85,7 +85,7 @@ export function Directory({ onError }: { onError(e: unknown): void }) {
             setAfter("");
           }}
         >
-          <option value="">全部试点云盘</option>
+          <option value="">全部云盘</option>
           {drives.map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
@@ -179,7 +179,7 @@ export function Directory({ onError }: { onError(e: unknown): void }) {
             </table>
           </div>
           {data.scores.length === 0 && (
-            <p>没有匹配的乐谱。仅显式纳入运营试点的云盘会在此显示。</p>
+            <p>没有匹配的有效乐谱。</p>
           )}
           <div className="admin-actions">
             <Button
