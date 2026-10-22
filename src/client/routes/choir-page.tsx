@@ -12,7 +12,6 @@ import { hasManagement, type Operation } from "../../shared/drive-permissions";
 import { BackButton } from "../navigation/back-button";
 import { PreparedScoreLink } from "../score-library/prepared-score-link";
 import { useNetworkStatus } from "../platform/use-network-status";
-import { DriveSettingsDialog } from "../score-library/drive-settings-dialog";
 import { rememberLastDrive, forgetLastDrive } from "../score-library/last-drive";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
@@ -84,8 +83,6 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const { library, snapshot } = useDriveLibrary(cacheOwner, choirId, Boolean(identity.authenticatedUserId), !identity.restoring && (Boolean(userId) || identity.onlineState !== "checking"), presentationSessionId);
   const { access, view: { search }, scores: visibleScores, refreshMessage: searchMessage, joining: busy } = snapshot;
   const [openAdmissionDisplayName, setOpenAdmissionDisplayName] = useState("");
-  const [displayName, setDisplayName] = useState<string>();
-  const [settingsField, setSettingsField] = useState<"display-name" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [quotaBlocked, setQuotaBlocked] = useState(false);
@@ -152,7 +149,6 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const sessionChanged = dialogSession !== presentationSessionId;
   if (sessionChanged) setDialogSession(presentationSessionId);
   if (sessionChanged || identity.onlineState === "signed-out" || (access.kind === "opened" && access.retained)) {
-    if (settingsField) setSettingsField(null);
     if (uploadOpen) setUploadOpen(false);
     if (scoreAction) setScoreAction(null);
     if (attachmentSelection) setAttachmentSelection(null);
@@ -224,7 +220,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   if (access.kind === "loading") {
     return (
-      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} localOnly={!identity.authenticatedUserId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} />} />{attachmentDialog}</>
+      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} localOnly={!identity.authenticatedUserId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} />} />{attachmentDialog}</>
     );
   }
 
@@ -244,7 +240,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const storageRatio = result.storage.usedBytes / result.storage.limitBytes;
 
   return (
-    <><DrivePage choirId={choirId} header={<DriveHeader displayName={displayName} choirId={choirId} choirName={choir.name} userId={userId} email={session.data?.user.email} localOnly={Boolean(access.local) || !online} onEditDisplayName={(access.isMember || access.rememberedMembership) ? () => setSettingsField("display-name") : undefined} search={search} onSearch={updateSearch} onRefresh={() => void refresh()} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
+    <><DrivePage choirId={choirId} header={<DriveHeader choirId={choirId} choirName={choir.name} userId={userId} email={session.data?.user.email} localOnly={Boolean(access.local) || !online} canManageIdentity={access.isMember || access.rememberedMembership} search={search} onSearch={updateSearch} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
       <PullToRefresh key={`${cacheOwner}:${choirId}`} onRefresh={refresh} disabled={!online}>
       <main className="page-shell file-library">
         {access.retained && <p role="status">已无法访问此云盘，以下为本机保留内容</p>}
@@ -332,7 +328,6 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
       </PullToRefresh>
 
       {exportScore && <Suspense fallback={<LibraryTaskLoading title="分享 PDF" size="tall" onClose={() => setExportScore(null)} />}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
-      {settingsField && userId && !access.retained && <DriveSettingsDialog key={`${choirId}:${userId}:${presentationSessionId}:${settingsField}`} choirId={choirId} userId={userId!} field={settingsField} onClose={() => setSettingsField(null)} onSaved={async value => { setDisplayName(value); setMessage(null); }} />}
       {visible("uploadFiles") && <UploadFab disabled={!online || Boolean(access.local)} onPress={() => setUploadOpen(true)} />}
 
 

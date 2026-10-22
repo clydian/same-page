@@ -116,7 +116,7 @@
       description: '独立更新诊断', environment: environment(), reader: null, records: [], update };
     busy = false; byId('send').disabled = false;
     const messages = { 'release-too-large': '新版程序资源超过单版本大小限制，请发送诊断反馈。', 'capacity-protected': '旧版本应用缓存仍受保护，本次更新被应用容量规则阻止。', 'quota-exceeded': '浏览器拒绝了存储写入，报告已记录存储估算。', 'integrity-mismatch': '更新资源未通过完整性校验。', 'download-timeout': '更新资源准备超时。', 'download-failed': '更新资源下载失败。', 'storage-failed': '应用缓存存储操作失败。', unknown: '更新安装失败，未取得更具体的分类。' };
-    byId('status').textContent = failure ? messages[failure.reason] : database.status === 'timeout' ? '本机数据库未在限定时间内响应，请发送诊断反馈。' : cache.cacheStatus === 'timeout' ? '应用缓存未在限定时间内响应，请发送诊断反馈。' : '检查完成，请发送诊断反馈。';
+    byId('status').textContent = failure ? messages[failure.reason] : database.status === 'timeout' ? '本机数据库未在限定时间内响应，请发送诊断反馈。' : cache.cacheStatus === 'timeout' ? '应用缓存未在限定时间内响应，请发送诊断反馈。' : update.waitingBuild ? '新版本已准备好。请关闭所有合谱窗口，再重新打开。' : update.registration === 'missing' ? '未找到本机应用更新服务。请联网返回合谱，重新打开后再试。' : '本次检查已完成，尚未确认更新故障原因。可以重试更新；若仍无法使用，请发送诊断反馈。';
     display();
   }
   navigator.serviceWorker?.addEventListener('message', event => {
@@ -172,7 +172,7 @@
       // Only an explicit first rejection permits a backwards-compatible retry.
       if (allowLegacy && response.status === 400 && frozen.update) { delete frozen.update; delete frozen.retentionDays; display(); response = await submit(); }
       if (!response.ok || (await response.json()).id !== frozen.id) throw new Error();
-      byId('receipt').textContent = '反馈编号：' + frozen.id + (frozen.retentionDays ? '' : '（旧服务保存 30 天；扩展诊断请另行复制。）');
+      byId('receipt').textContent = '反馈已收到，谢谢你。反馈编号：' + frozen.id + (frozen.retentionDays ? '' : '（旧服务保存 30 天；扩展诊断请另行复制。）');
     } catch { byId('receipt').textContent = '尚未确认收到，请重试发送或复制诊断信息。'; byId('send').disabled = false; }
     finally { clearTimeout(timer); busy = false; }
   };

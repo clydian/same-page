@@ -75,7 +75,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await trigger.click();
       await expect(page.getByRole("menuitem", { name: "阅读偏好", exact: true })).toBeVisible();
       await expect(page.getByRole("menuitem", { name: "本机存储", exact: true })).toBeVisible();
-      for (const name of ["账户", "使用手册", "问题反馈", "退出登录", "刷新列表"]) await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
+      for (const name of ["账户", "使用手册", "问题反馈", "退出登录", "云盘内身份"]) await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: "刷新列表", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("menuitem", { name: "云盘内显示名", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("menuitem", { name: "退出云盘成员身份", exact: true })).toHaveCount(0);
       await page.keyboard.press("Escape");
       await expect(trigger).toBeFocused();
       await page.getByRole("button", { name: /^切换云盘/ }).click();

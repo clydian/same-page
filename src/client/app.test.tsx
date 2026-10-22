@@ -1232,8 +1232,10 @@ describe("AppRoutes", () => {
     fetchMock.mockImplementationOnce(() =>
       Promise.resolve(Response.json({ error: "temporary" }, { status: 503 })),
     );
-    fireEvent.click(screen.getByRole("button", { name: "访客选项" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "刷新列表" }));
+    const refreshArea = scoreLink.closest(".pull-refresh-area")!;
+    fireEvent.touchStart(refreshArea, { touches: [{ clientX: 50, clientY: 20 }] });
+    fireEvent.touchMove(refreshArea, { touches: [{ clientX: 50, clientY: 160 }] });
+    fireEvent.touchEnd(refreshArea, { touches: [] });
     expect(
       await screen.findByText("暂时无法更新乐谱列表，当前内容已保留。请稍后重试。"),
     ).toBeInTheDocument();

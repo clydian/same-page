@@ -21,6 +21,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       if (pathname.endsWith("/management")) return route.fulfill({ json: { isMember: true, name: driveName, guestAdmissionMode: "invite", capabilities: { isOwner: true, operations: { operations: ["editDriveInfo"], sharedLayers: [] }, management: { operations: [], sharedLayers: [] } }, layers: [] } });
       if (pathname.endsWith("/memberships")) return route.fulfill({ json: { actorId: "owner", capabilities: { isOwner: true, operations: { operations: [], sharedLayers: [] }, management: { operations: [], sharedLayers: [] } }, memberships: [] } });
       if (failRefresh && pathname.endsWith("/bootstrap")) return route.fulfill({ status: 503, body: "injected refresh failure" });
+      if (pathname === "/api/user/lifecycle") return route.fulfill({ json: { userId: "visual-admin", reauthenticated: false, methods: [], deletion: null, memberships: [{ id: "owner", choirId: "visual-choir", name: driveName, displayName, isPreviewEntry: 0, isOwner: 1, status: "active", revision: 0, removedAt: null }] } });
       if (pathname.endsWith("/settings")) return route.fulfill({ json: { name: driveName, nameRevision: 0, displayName, membershipRevision: 0, canEditDriveInfo: true } });
       if (request.method() === "PATCH") {
         const data = request.postDataJSON();
@@ -41,16 +42,15 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.goto(`${app.origin}/choirs/visual-choir`);
     await page.getByRole("button", { name: "上传 PDF", exact: true }).waitFor();
     await page.getByRole("button", { name: "我的", exact: true }).click();
-    await page.getByRole("menuitem", { name: "云盘内显示名", exact: true }).click();
+    await page.getByRole("menuitem", { name: "云盘内身份", exact: true }).click();
+    await page.getByRole("button", { name: "修改显示名", exact: true }).click();
     await page.getByLabel("我在此云盘的显示名", { exact: true }).getByRole("textbox").fill("新名字");
     await mkdir("artifacts/verification/issue-170", { recursive: true });
     await page.screenshot({ path: `artifacts/verification/issue-170/${name}-display-name.png` });
     await page.getByRole("button", { name: "保存", exact: true }).click();
     await page.getByRole("dialog").waitFor({ state: "hidden" });
-    await expect(page.getByRole("button", { name: "我的", exact: true }).locator(".lucide-user-round")).toBeVisible();
-    await page.getByRole("button", { name: "我的", exact: true }).click();
-    await expect(page.getByRole("menuitem", { name: "新名字", exact: true })).toBeVisible();
-    await page.keyboard.press("Escape");
+    await expect(page.getByText("新名字", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "返回", exact: true }).click();
     await page.getByRole("link", { name: "云盘设置" }).click();
     await page.getByRole("link", { name: "基本信息", exact: true }).click();
     await page.getByRole("button", { name: "修改云盘名称", exact: true }).click();

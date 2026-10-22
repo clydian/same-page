@@ -104,6 +104,11 @@ export function resolveFixtureRequest({
 }) {
   const score = selectedScore;
   const samplePdf = pdf;
+  if (method === "GET" && pathname === "/api/user/lifecycle" && identity !== "guest") return json({
+    userId: session(identity).user.id, reauthenticated: false, methods: [], deletion: null,
+    memberships: [{ id: `visual-membership-${identity}`, choirId: choir.id, name: choir.name,
+      displayName: identity === "admin" ? "林老师" : "周宁", isPreviewEntry: 0, isOwner: identity === "admin" ? 1 : 0, status: "active", revision: 0, removedAt: null }],
+  });
   if (method === "GET" && pathname === `/api/choirs/${choir.id}/management`) {
     return json({ isMember: identity !== "guest", name: choir.name, guestAdmissionMode: choir.guestAdmissionMode, capabilities: capabilities(identity === "admin"),
       layers: layers.filter(layer => layer.kind === "shared").map(layer => ({ slot: layer.sharedSlot, name: layer.name, active: 1 })) });

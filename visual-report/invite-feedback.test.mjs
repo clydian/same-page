@@ -62,7 +62,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.goto(`${app.origin}/choirs/visual-choir`);
     await page.getByRole("button", { name: "我的", exact: true }).click();
     await page.getByRole("menuitem", { name: /关于与更新/ }).click();
-    await expect(page.getByRole("heading", { name: /^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "关于合谱", exact: true })).toBeVisible();
+    await expect(page.getByText(/^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/, { exact: true })).toBeVisible();
+    await page.getByText("版本与技术信息", { exact: true }).click();
     await expect(page.getByRole("button", { name: "复制版本信息" })).toBeVisible();
     await page.screenshot({ path: `artifacts/verification/issue-485/${name}-about.png`, fullPage: true });
     await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);
@@ -72,7 +74,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("button", { name: "问题反馈", exact: true }).click();
     const feedback = page.getByRole("dialog", { name: "问题反馈" });
     await expect(feedback).toBeVisible();
-    await feedback.getByText("查看诊断信息", { exact: true }).click();
+    await feedback.getByText("诊断信息与隐私说明", { exact: true }).click();
     const report = JSON.parse(await feedback.getByLabel("可发送给维护人员的诊断信息").inputValue());
     assert.equal(report.reader.interactionMode, "reading"); assert.equal(report.retentionDays, 180);
     assert.match(report.clientVersion, /^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/);
