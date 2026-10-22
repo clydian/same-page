@@ -96,6 +96,10 @@ jobs:
     needs: scope
     if: needs.scope.outputs.visual == 'true'
     runs-on: ubuntu-latest
+    # Match package-lock.json; browsers and OS dependencies are baked in.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      options: --init --ipc=host
     # Includes runner preparation, browser validation and evidence upload.
     timeout-minutes: 20
     steps:
@@ -108,9 +112,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Install Playwright Chromium and WebKit
-        timeout-minutes: 5
-        run: bash .github/scripts/install-browsers.sh
+      - name: Verify preinstalled browser environment
+        timeout-minutes: 1
+        run: node .github/scripts/verify-browsers.mjs
       - name: Browser layout and interaction regressions
         timeout-minutes: 12
         run: node scripts/run-browser-tests.mjs visual "${{ needs.scope.outputs.browserGroup }}" "${{ matrix.shard }}/4"
@@ -174,6 +178,9 @@ jobs:
       (needs.build.result == 'success' || needs.build.result == 'skipped') &&
       (needs.scope.outputs.pwa == 'true' || needs.scope.outputs.performance == 'true')
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      options: --init --ipc=host
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -185,9 +192,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Install Playwright Chromium and WebKit
-        timeout-minutes: 5
-        run: bash .github/scripts/install-browsers.sh
+      - name: Verify preinstalled browser environment
+        timeout-minutes: 1
+        run: node .github/scripts/verify-browsers.mjs
       - name: PWA update handover
         if: needs.scope.outputs.pwa == 'true'
         run: npm run test:pwa-update
@@ -225,6 +232,9 @@ jobs:
         # Full storage coverage needs three slices; the audited library scope has two files.
         shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1, 2]' || '[1, 2, 3]') }}
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      options: --init --ipc=host
     timeout-minutes: 12
     steps:
       - name: Checkout
@@ -244,9 +254,9 @@ jobs:
         run: |
           tar -xf release.tar
           node scripts/release-artifact.mjs verify "$GITHUB_SHA"
-      - name: Install Playwright Chromium and WebKit
-        timeout-minutes: 5
-        run: bash .github/scripts/install-browsers.sh
+      - name: Verify preinstalled browser environment
+        timeout-minutes: 1
+        run: node .github/scripts/verify-browsers.mjs
       - name: Real browser Worker storage smoke
         # Keep the six-minute aggregate budget and individual test deadlines.
         # Three full-suite slices leave room for fixture and runner variability.
@@ -299,6 +309,10 @@ jobs:
     if: ${{ !cancelled() && needs.verify.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true' }}
     needs: verify
     runs-on: ubuntu-latest
+    # Channel publication runs the same browser compatibility probe as platform.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      options: --init --ipc=host
     timeout-minutes: 25
     concurrency:
       group: same-page-production
@@ -342,10 +356,10 @@ jobs:
         if: steps.admission.outputs.proceed == 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Install release compatibility browsers
+      - name: Verify preinstalled release compatibility browsers
         if: steps.admission.outputs.proceed == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true'
-        timeout-minutes: 5
-        run: bash .github/scripts/install-browsers.sh
+        timeout-minutes: 1
+        run: node .github/scripts/verify-browsers.mjs
 
       - name: Prepare immutable frontend publication
         if: steps.admission.outputs.proceed == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true'

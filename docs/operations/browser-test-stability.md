@@ -73,10 +73,34 @@ Playwright 关闭 snapshots 仍会在 action trace 中保存 route.fulfill 参�
 普通 push 不触发十轮；再次实验需要重新添加标签。最终固定提交、首轮/全部十轮结果、
 常规 CI 与审查结果在关联 PR 中记录，不以实验代替完整 CI。
 
-## CI 环境准备预算 · #391
+## CI 环境准备 · #391 与 2026-10-22 后续修复
 
 Playwright 安装与浏览器回归共用十分钟 job 预算时，Ubuntu Azure 镜像下载系统依赖可能耗尽全部时间；2026-10-08 的隔离 Linux 实验再次观察到安装超过十分钟、测试尚未开始。默认镜像其他对照约52/63秒，官方 Ubuntu archive 对照约51秒，因此这不是固定的应用执行成本。
 
-visual/integration 的 CI 安装共用 `.github/scripts/install-browsers.sh`，仅将 Azure Ubuntu 源替换为官方 HTTPS archive，保留其余仓库与 apt 签名校验。安装步骤上限五分钟，visual 回归步骤上限十二分钟，两个 job 总上限二十分钟，为 checkout、依赖准备和证据上传留出余量。没有增加单项浏览器断言超时、重试或跳过验证；安装失败、测试失败与取消仍使 verify 失败。integration 的存储 smoke 五分钟上限保持不变。
+当时的修复共用 `.github/scripts/install-browsers.sh`，将 Azure Ubuntu 源替换为官方 HTTPS archive，并为安装步骤配置五分钟上限。这是仓库设置的步骤预算，不是 GitHub 或 Playwright 的硬限制；它保留了每个分片实时下载系统包的依赖。
+
+2026-10-22 main `daa0d43de92775604ecbcc08466c043c49b0be74` 的
+[CI 39762082391](https://github.com/clydian/same-page/actions/runs/39762082391)
+再次在环境准备失败：visual (3) 安装 181 个新包、升级 8 个包，下载 119 MB 花费
+5 分 1 秒（395 kB/s），解包时触发安装步骤期限。浏览器下载和测试均未开始。
+同次 visual (1)/(2)/(4) 下载同样系统包分别用时 34 秒、3 分 45 秒、1 分 45 秒；
+没有证据把原因细化为源站故障、网络路由或 runner 链路。`verify` 正确阻止部署。
+
+现在 visual、smoke、platform、常规发布通道兼容探针和有界稳定性实验均使用官方 Playwright Noble 镜像，
+固定与锁文件一致的 `v1.62.1` 及 manifest digest
+`sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e`。
+镜像预装浏览器、字体和系统依赖，job 不执行 apt 或 Playwright 浏览器安装。
+`.github/scripts/verify-browsers.mjs` 在一分钟预算内核对锁文件、已安装驱动与镜像版本，
+检查 Python 失败取证依赖，并真实启动 Chromium 和 WebKit。升级 Playwright 时须同时更新
+两个工作流中的全部镜像版本和 digest；版本不匹配直接失败，不在线补装。
+镜像拉取仍依赖 registry 网络，但不再每次由 apt 解析并串行下载、安装系统依赖。
+这是 [Playwright 官方支持的 CI 容器方式](https://playwright.dev/docs/ci#via-containers)，
+版本匹配要求见 [Docker 文档](https://playwright.dev/docs/docker#usage)。
+
+这次没有测试断言失败，不能据此删除某个用例。保留原有两引擎、分片、断言、单项期限、
+visual 十二分钟和 smoke 六分钟执行预算，以及 `verify` 与发布准入。重复尺寸与时序比较
+已有独立价值审查，见 [测试职责](ci.md#测试的职责)。没有新增网络吞吐模拟单测：它不能
+代表原 runner 网络条件。验证使用固定镜像中的真实浏览器、原完整 CI，以及受控失败取证；
+原失败运行保留为诊断证据，不通过重跑它宣称修复。
 
 #386 的 WebKit 权限刷新失败场景在最新 main 与历史 #385 提交的 Linux 实验各10/10通过；应用等待超时尚未重现。此 CI 修复不改变权限或云盘状态逻辑。

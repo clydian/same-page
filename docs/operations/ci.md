@@ -79,15 +79,21 @@ node scripts/run-browser-tests.mjs visual all 1/4
 node scripts/run-browser-tests.mjs smoke library 1/2
 ```
 
-拆分保留全部测试、引擎、断言和原有同机并发，不代表减少总计算时间。独立 runner 重复安装环境；产物下载与 smoke 等待构建也会进入关键路径。修改后按 Actions 实际耗时和失败率评估，不承诺线性加速。
+拆分保留全部测试、引擎、断言和原有同机并发，不代表减少总计算时间。独立 runner 拉取固定浏览器镜像并安装 npm 依赖；产物下载与 smoke 等待构建也会进入关键路径。修改后按 Actions 实际耗时和失败率评估，不承诺线性加速。
 
 ## 本地浏览器检查
 
-首次运行浏览器测试前安装两个引擎；Linux/CI 同时使用 `--with-deps` 安装系统依赖：
+本地首次运行浏览器测试前安装两个引擎；本地 Linux 可加 `--with-deps` 安装系统依赖：
 
 ```bash
 npx playwright install chromium webkit
 ```
+
+CI 的 visual、smoke、platform、常规发布 job 及稳定性实验使用与锁文件同版、固定 digest 的官方
+Playwright Noble 容器，保留 Node 24；不在测试 job 临时执行 apt 或下载浏览器。
+安装 npm 依赖后执行 `.github/scripts/verify-browsers.mjs`，核对版本、Python 取证依赖和
+两引擎真实启动。Playwright 升级须同步更新 `ci.yml` 与 `browser-stability.yml` 的全部
+镜像版本和 digest。原始失败、取舍与验证边界见 [环境准备记录](browser-test-stability.md#ci-环境准备--391-与-2026-10-22-后续修复)。
 
 完整检查会启动
 本地 workerd/Vite、临时 D1 和浏览器，并多次构建；不需要生产凭据，不操作生产数据。
