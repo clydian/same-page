@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "npm run copy:native-source && tsc -b && vite build && node scripts/verify-precache.mjs",
+    "build": "npm run copy:native-source && tsc -b && vite build && node scripts/verify-precache.mjs && node scripts/release-contract.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b --pretty false",
@@ -20,7 +20,7 @@
     "test:worker:unit": "vitest run --config vitest.worker-unit.config.ts",
     "test:worker:integration": "vitest run --config vitest.worker.config.ts",
     "test:browser-ui": "node scripts/run-browser-tests.mjs visual",
-    "test:pwa-update": "node scripts/verify-pwa-update.mjs && node scripts/verify-shell-lifecycle.mjs && node scripts/verify-shell-retention.mjs && node scripts/verify-update-diagnostics.mjs",
+    "test:pwa-update": "node scripts/verify-pwa-update.mjs && node scripts/verify-shell-lifecycle.mjs && node scripts/verify-shell-retention.mjs && node scripts/verify-update-diagnostics.mjs && npm run test:release-channels",
     "test:loading-performance": "npm run build && node scripts/measure-loading-performance.mjs",
     "measure:production-loading": "node scripts/measure-production-loading.mjs",
     "prepare:production-pwa": "node scripts/prepare-production-pwa-profile.mjs",
@@ -38,7 +38,8 @@
     "diagnostics:inbox": "node scripts/diagnostic-reports.mjs",
     "diagnostics:operators": "node scripts/diagnostic-operators.mjs",
     "admin:configure": "node scripts/product-admin.mjs",
-    "copy:native-source": "node node_modules/@clydian/chorus-player/scripts/copy-native-source.mjs --output public/third-party/alphatab"
+    "copy:native-source": "node node_modules/@clydian/chorus-player/scripts/copy-native-source.mjs --output public/third-party/alphatab",
+    "test:release-channels": "node scripts/verify-release-channels.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",

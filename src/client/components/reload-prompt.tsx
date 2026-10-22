@@ -1,6 +1,7 @@
+import { ReleaseChannelBadge } from "../updates/release-channel-picker";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { useRegisterSW } from "virtual:pwa-register/react";
+
 import { canAcceptUpdate, canApplyUpdate, noteUpdateInteraction, setUpdateRoute } from "../updates/update-safety";
 import { useUpdateStatus } from "../updates/update-status";
 import { buildId, buildVersion } from "../../shared/build";
@@ -28,9 +29,14 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     if (canApplyUpdate(requested.current)) window.location.reload();
   }, []);
   const onRegisteredSW = useCallback((_url: string, value?: ServiceWorkerRegistration) => setRegistration(value), []);
-  useRegisterSW({ onNeedReload, onRegisteredSW,
-    onRegisterError: () => setRegistrationError(true),
-  });
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    let disposed = false;
+    navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .then(value => { if (!disposed) onRegisteredSW("/sw.js", value); })
+      .catch(() => { if (!disposed) setRegistrationError(true); });
+    return () => { disposed = true; };
+  }, [onRegisteredSW]);
   useLayoutEffect(() => setUpdateRoute(pathname), [pathname]);
   useEffect(() => watchControllerChanges(onNeedReload), [onNeedReload]);
   useEffect(() => {
@@ -70,7 +76,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     }, 1000);
     return () => { clearInterval(timer); events.forEach(event => document.removeEventListener(event, noteUpdateInteraction, true)); navigator.serviceWorker?.removeEventListener("message", probe); };
   }, []);
-  return null;
+  return <ReleaseChannelBadge />;
 }
 
 export function UpdateDetails() {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 export const adminCapabilitiesSchema = z.object({
+  manageReleases: z.number().optional(),
   viewScores: z.number(),
   reviewXml: z.number(),
   publishXml: z.number(),

@@ -1,3 +1,4 @@
+import { assetUrl } from "../../shared/asset-url";
 import { AndroidInstallOption } from "./android-install-option";
 import { InstallCompletion } from "./install-completion";
 import { InstallSteps } from "./install-steps";
@@ -79,7 +80,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
     <ModalOverlay className="modal-overlay" isOpen={open && !runningInApp} onOpenChange={setOpen} isDismissable>
       <Modal className="app-modal install-modal"><Dialog className="app-dialog install-dialog">
         <div className="dialog-heading"><Heading slot="title">{guide === "android" ? "安装合谱" : "添加到桌面"}</Heading><Button className="icon-button" aria-label="关闭安装引导" onPress={() => setOpen(false)}><X size={22} /></Button></div>
-        <div className="install-intro"><img src="/icon-192.png" width="56" height="56" alt="" /><div><strong>下次排练，一点就能打开</strong><p>添加到桌面，随时开始排练。</p></div></div>
+        <div className="install-intro"><img src={assetUrl("icon-192.png")} width="56" height="56" alt="" /><div><strong>下次排练，一点就能打开</strong><p>添加到桌面，随时开始排练。</p></div></div>
         {requested ? <InstallCompletion guide={guide} /> : <>
         {external && <p className="install-platform-note">{ios ? "先用 Safari 打开，再添加到桌面。" : "先在浏览器中打开，再添加到桌面。"}</p>}
         {guide === "android" ? <AndroidInstallOption>

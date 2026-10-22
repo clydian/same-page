@@ -182,3 +182,57 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 6. GitHub 发布记录缺失或历史分叉时，先重建可信版本证据并恢复正常 main 历史；正常发布不提供强制忽略开关。首次启用记录时只读核对线上 Worker SHA，必须能在完整 Git 历史中解析。
 
 默认通过 CI 发布。手工恢复完成后须记录源码、artifact、D1、Worker deployment ID 和独立线上验收；恢复点、流水线通过、外部身份提供方成功和实机验收各自独立。
+
+## 稳定版／测试版前端通道（#539）
+
+实现见 ADR-0021；本地开发和首次桥接默认 `RELEASE_CHANNELS_ENABLED=false`。
+这不是部署授权。不得直接打开开关而跳过以下过渡，也不得把仓库的 research
+探针当作生产验收。当前 Safari/iOS Blob/离线回切和 Android TWA 实机必须单独记录。
+
+### 首次桥接（需另行授权）
+
+1. 创建专用私有 `same-page-frontend-releases` R2 bucket，关闭公共访问及所有 TTL／生命周期删除；
+   将部署 token 的 R2 权限纳入该桶，不与乐谱／APK bucket 共用清理规则。
+2. 按现有受控发布链路应用 `0034_release_channels.sql`（仅新建服务端表）；保留现有
+   当前 production 静态资源和旧 SW 地址作为明确支持的 legacy 基线。下载原始封存包后运行
+   `node scripts/frontend-release.mjs archive-legacy <旧SHA> --archive-supported-baseline`，
+   first-write 归档旧静态路径；不同摘要同路径必须人工处理兼容性，不能覆盖。不要回收已有应用壳。
+3. 使用 `SAME_PAGE_RELEASE_CHANNELS=1` 构建并封存桥接提交的原始产物。**不要重新构建重试**；
+   同 SHA 不同文件摘要必须拒绝。先执行 `node scripts/frontend-release.mjs upload <SHA> --initialize-stable`
+   上传完整候选，再部署该桥接包，保持 Worker routing flag 为 false，使已有客户端安全过渡。
+4. 下载并验证这一份完整发布包，`npm ci --prefix android` 提供已有 S3 SDK。
+   用 `node scripts/frontend-release.mjs initialize <完整SHA> --initialize-stable` 上传封存并验证固定
+   资源后，将 stable/beta 同时初始化为该 SHA。命令要求线上后端也为这份 SHA；
+   任何线上验收失败都不能初始化指针，不会自动恢复数据库。
+5. 完成 legacy active/waiting、直接深链、全新安装、离线恢复、Safari/iOS 和 TWA 验收，
+   再通过受控部署将 runtime `RELEASE_CHANNELS_ENABLED:true` 应用到**同一份产物**，
+   并设置 GitHub production 对应 repository variable `RELEASE_CHANNELS_ENABLED=true`。
+   新版本只有在冻结存储契约与当前 stable 完全一致时才准入 beta。
+6. `npm run admin:configure -- grant-release --remote <userId>` 单独授权发布人员；
+   `revoke-release` 撤销。该 CLI 从不按邮箱授权、不修改成员关系；只在另行批准时运行。
+   授权者在 `/admin/releases` 查看两通道、北京时间发布时间和审计，再提升明确显示的当前目标。
+
+初始 bridge 的旧根资源需要归档并保持原地址；新版本一律使用 `/_releases/<SHA>/`。
+缺失稳定目标返回错误／重试，禁止自动使用测试版。所有角色的 API、OAuth callback、
+`.well-known/assetlinks.json` 与 APK 端点保持原协议边界。
+
+### 日常发布与恢复
+
+CI 在生产锁内先校验完整包，再 `frontend-release.mjs upload <SHA>`：比对当前 stable 的
+存储契约、first-write claim、逐文件写入／读回与最终 seal。契约涵盖迁移、Dexie 和
+存储／同步实现依赖；任何变化在本阶段都阻断 beta，必须另审兼容桥接，不能通过忽略字段绕过。
+部署后以固定前端 URL 检查字节并独立核对后端 SHA，成功后 `frontend-release.mjs admit <SHA>`
+再次校验资源并 CAS 推进 beta。stable 保持不变；目标或 revision 变化则失败，重新验收。
+后台提升仅写 D1，既不重构建也不执行 migration。
+
+提升请求具备幂等 ID；网络丢响应可重试同一次操作。409 后必须重新读取并确认版本，
+不能重用旧按钮悄悄提升新 beta。管理员授权与 session 在提交时重新校验。
+
+事故时暂停后续 CI 发布，记录两个通道及后端身份；通过完整链路发布兼容的 revert／修复提交，
+验收后提升最新版。不得直接覆盖旧 R2 对象或回退 D1。若需停止故障 stable 新分发，
+由运维在明确事故授权下暂停入口并返回 no-store 维护响应，直至修复上线；已缓存／离线
+客户端无法即时撤回。此阶段不提供任意历史选择、自动 GC 或破坏性数据回退。
+
+本地验证：`npm run test:release-channels`、常规 `npm run check:full`，以及
+`SAME_PAGE_RELEASE_CHANNELS=1 npm run build` 的前缀资源完整性检查。生产桶、权限、移动端
+实机与线上流程不由这些命令代替。诊断同时记录所选通道、运行前端、准备目标和后端身份。

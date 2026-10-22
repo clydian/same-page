@@ -20,6 +20,7 @@
     }
   ],
   "r2_buckets": [
+    { "binding": "FRONTEND_RELEASES", "bucket_name": "same-page-frontend-releases" },
     { "binding": "ANDROID_RELEASES", "bucket_name": "same-page-android-releases" },
     {
       "binding": "SCORES_BUCKET",
@@ -27,19 +28,14 @@
     }
   ],
   "vars": {
+    "RELEASE_CHANNELS_ENABLED": "false",
     "BETTER_AUTH_URL": "https://samepage.clyapps.com",
     "AUTH_EMAIL_FROM": "Same Page <login@samepage.clyapps.com>"
   },
   "assets": {
     "not_found_handling": "single-page-application",
     "binding": "ASSETS",
-    "run_worker_first": [
-      "/api/*",
-      "/assets/*",
-      "/pdfjs/*",
-      "/font/*",
-      "/soundfont/*"
-    ]
+    "run_worker_first": true
   },
   "observability": {
     "enabled": true,

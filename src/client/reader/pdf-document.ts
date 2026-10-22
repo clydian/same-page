@@ -1,3 +1,4 @@
+import { assetUrl } from "../../shared/asset-url";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import type { PDFDocumentProxy, getDocument as GetDocument } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
@@ -77,7 +78,7 @@ export function loadPdfDocument(
     if (destroyed) throw new DOMException("PDF load cancelled", "AbortError");
     loadingTask = engine.getDocument({
       worker,
-      wasmUrl: new URL(`/${pdfJsWasmDirectory}`, window.location.href).href,
+      wasmUrl: new URL(assetUrl(pdfJsWasmDirectory), window.location.href).href,
       ...(typeof resolvedSource === "string"
         ? {
             url: resolvedSource,

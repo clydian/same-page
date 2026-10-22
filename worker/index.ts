@@ -1,3 +1,5 @@
+import { legacyAsset, serveReleaseAsset } from "./releases/assets";
+import { releaseRoutes } from "./releases/routes";
 import { serveStaticAsset } from "./static-assets";
 import { updateDiagnosticRoutes } from "./support/update-diagnostics";
 import { adminRoutes } from './admin/routes';
@@ -31,8 +33,23 @@ import { cleanupRateLimits } from "./security/rate-limit";
 
 const app = new Hono<AppEnvironment>();
 
-for (const path of ['/assets/*', '/pdfjs/*', '/font/*', '/soundfont/*']) {
-  app.all(path, context => serveStaticAsset(context.req.raw, context.env.ASSETS));
+app.use("*", async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  if ((c.env.RELEASE_CHANNELS_ENABLED === "true" || path.startsWith("/_releases/") && Boolean(c.env.FRONTEND_RELEASES) && !c.env.PERFORMANCE_TEST_DELAY_MS) && !path.startsWith("/api/") && path !== "/api" && !path.startsWith("/.well-known/")) return serveReleaseAsset(c.req.raw, c.env);
+  if (path.startsWith("/.well-known/")) return serveStaticAsset(c.req.raw, c.env.ASSETS);
+  await next();
+});
+for (const path of ['/assets/*', '/pdfjs/*', '/font/*', '/soundfont/*', '/playback/*', '/_releases/*']) {
+  app.all(path, async c => {
+    const url = new URL(c.req.url);
+    const match = /^\/_releases\/([a-f0-9]{40})\/(.*)$/.exec(url.pathname);
+    if (match) {
+      url.pathname = match[2] === 'index.html' ? '/' : '/' + match[2];
+      if (match[2] === 'index.html') return c.env.ASSETS.fetch(new Request(url, c.req.raw));
+    }
+    const response = await serveStaticAsset(new Request(url, c.req.raw), c.env.ASSETS);
+    return response.status === 404 ? await legacyAsset(c.req.raw, c.env) ?? response : response;
+  });
 }
 
 app.use("/api/*", diagnosticMiddleware, serverTimingMiddleware);
@@ -57,6 +74,7 @@ app.get("/api/health", (context) => {
 
 app.on(["GET", "POST"], "/api/auth/*", handleAuthRequest);
 
+app.route("/api", releaseRoutes);
 app.route("/api", androidReleaseRoutes);
 app.route("/api", updateDiagnosticRoutes);
 
@@ -73,7 +91,7 @@ app.route("/api", scoreRoutes);
 app.route("/api", attachmentRoutes);
 app.route("/api", annotationRoutes);
 
-app.notFound((context) => context.json({ error: "not_found" }, 404));
+app.notFound((c) => new URL(c.req.url).pathname.startsWith("/api/") ? c.json({ error: "not_found" }, 404) : c.env.ASSETS.fetch(c.req.raw));
 
 app.onError((error, context) => {
   if (error instanceof AttachmentError) return context.json({ error: error.code }, error.status);

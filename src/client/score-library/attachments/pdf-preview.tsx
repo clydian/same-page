@@ -1,3 +1,4 @@
+import { assetUrl } from "../../../shared/asset-url";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
 import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
@@ -25,7 +26,7 @@ export default function AttachmentPdfPreview({ url }: { url: string }) {
       const linkService = new components.PDFLinkService({ eventBus, externalLinkTarget: 2 });
       const instance = new components.PDFViewer({ container: container.current, eventBus, linkService, annotationEditorMode: -1 });
       linkService.setViewer(instance); viewer.current = instance;
-      const task = pdf.getDocument({ url, withCredentials: true, wasmUrl: `/${pdfJsWasmDirectory}` });
+      const task = pdf.getDocument({ url, withCredentials: true, wasmUrl: assetUrl(pdfJsWasmDirectory) });
       eventBus.on("pagesinit", () => { instance.currentScaleValue = "page-width"; });
       eventBus.on("pagechanging", ({ pageNumber }: { pageNumber: number }) => { if (!disposed) setPage(pageNumber); });
       cleanup = () => { viewer.current = null; linkService.setDocument(null); void task.destroy(); };

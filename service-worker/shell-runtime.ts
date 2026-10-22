@@ -1,7 +1,8 @@
+import { ReleasePermission } from "./release-permission";
 import { playbackCacheName } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
 import { applicationShellReleaseLimitBytes } from '../src/shared/update-diagnostics';
-export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number }
+export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number; networkUrl?: string }
 export interface ShellRecord { cacheName: string; buildId: string; created: number; complete: boolean; installing?: number; activated?: number; candidateOnly?: boolean; entries: ManifestEntry[] }
 export interface ShellIdentity { cacheName: string; buildId: string }
 export const shellReleaseLimit = applicationShellReleaseLimitBytes;
@@ -41,7 +42,7 @@ export class ShellRuntime {
   private repair?: Promise<void>;
   private assetRecords?: Promise<ShellRecord[]>;
   private audit?: Promise<void>;
-  constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string) {
+  constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string, private permission?: ReleasePermission) {
     this.prefix = `same-page-shell-v2:${encodeURIComponent(scope.registration.scope)}:`;
     this.legacyPrefix = `same-page-shell-v1:${encodeURIComponent(scope.registration.scope)}:`;
     this.registryName = `same-page-shell-registry-v1:${encodeURIComponent(scope.registration.scope)}`;
@@ -106,7 +107,7 @@ export class ShellRuntime {
       const candidate = await caches.match(entry.url, { cacheName: name, ignoreSearch: true });
       if (candidate && await valid(candidate, entry)) { response = candidate; break; }
     }
-    response ??= await fetch(new Request(entry.url, { credentials: 'same-origin', cache: 'reload', redirect: 'error', integrity: entry.integrity, signal }));
+    response ??= await fetch(new Request(entry.networkUrl ?? entry.url, { credentials: 'same-origin', cache: 'reload', redirect: 'error', integrity: entry.integrity, signal }));
     if (!await valid(response, entry)) throw new Error('shell_integrity_mismatch');
     // A constructed response cannot carry a network redirect flag or compressed
     // transfer headers after its decoded bytes have been read.
@@ -142,6 +143,7 @@ export class ShellRuntime {
     return locks ? locks.request(this.prefix + 'lifecycle', action) : action();
   }
   async install() {
+    await this.permission?.confirm();
     const record = await this.current;
     if (record.entries.reduce((bytes, entry) => bytes + entry.bytes, 0) > shellReleaseLimit) throw new Error('shell_release_too_large');
     // The new installer owns its admission. An old active worker's obsolete
@@ -163,6 +165,7 @@ export class ShellRuntime {
           await this.check(record, true, true, AbortSignal.timeout(300_000));
           await this.locked(async () => {
             await this.check(record, false, true);
+            await this.permission?.confirm();
             delete record.installing; record.complete = true; await this.save(record);
           });
           break;
@@ -232,7 +235,7 @@ export class ShellRuntime {
   async activate() {
     // If storage was externally lost after install, remain able to serve a
     // complete rollback shell or a retry page. Do not fail activation itself.
-    await this.ready(AbortSignal.timeout(15_000)).catch(() => undefined);
+    await this.ready(AbortSignal.timeout(15_000)).then(() => this.permission?.activate()).catch(() => undefined);
     const record = await this.current;
     await this.locked(async () => { await this.permitDisplay(record); record.activated = Date.now(); await this.save(record); }).catch(() => undefined);
     await this.collect();
@@ -298,6 +301,7 @@ export class ShellRuntime {
   async navigation() {
     const record = await this.current;
     try {
+      if (this.permission && !await this.permission.permits(record.buildId)) throw new Error("release_not_permitted");
       const cache = await caches.open(record.cacheName);
       // A sealed manifest was fully audited at install/activation. Check all
       // required keys before returning HTML, and verify the actual root bytes.
@@ -318,6 +322,7 @@ export class ShellRuntime {
     } catch {
       for (const previous of (await this.records().catch(() => [])).filter(r => r.complete && this.displayable(r) && r.cacheName !== record.cacheName).sort((a, b) => b.created - a.created)) {
         try {
+          if (this.permission && !await this.permission.permits(previous.buildId)) continue;
           await this.check(previous, false, true);
           const shell = await (await caches.open(previous.cacheName)).match(this.scope.registration.scope);
           if (shell) { this.assetRecords = undefined; return shell; }

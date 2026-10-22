@@ -20,6 +20,7 @@ export type DiagnosticReader = z.infer<typeof diagnosticReaderSchema>;
 const bytes = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).nullable();
 const probe = z.enum(["ok", "timeout", "unavailable", "failed", "missing"]);
 export const updateDiagnosticsSchema = z.object({
+  release: z.object({ channel: z.enum(["stable", "beta"]), running: build, target: build, backend: build }).strict().optional(),
   serverBuild: build,
   registration: probe,
   activeBuild: build,

@@ -17,6 +17,8 @@ export function adminErrorMessage(code: string) {
   return (
     (
       {
+        release_conflict: "版本已变化或操作冲突，请重新读取版本后确认。",
+        release_unavailable: "发布资源暂不可用，稳定版未被替换。",
         forbidden: "当前身份没有产品运营权限，或授权已撤销。",
         xml_publication_conflict:
           "来源 PDF、检查结果或用户的移除选择已变化，请重新读取后检查。",

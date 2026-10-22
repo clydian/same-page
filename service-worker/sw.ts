@@ -1,3 +1,4 @@
+import { ReleasePermission } from "./release-permission";
 import { assetValid, parsePlaybackManifest, playbackManifestUrl } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
 import { ShellRuntime, type ManifestEntry } from './shell-runtime';
@@ -5,7 +6,9 @@ import { updateFailureReason } from '../src/shared/update-diagnostics';
 declare const __SAME_PAGE_BUILD_ID__: string;
 const scope = self as unknown as ServiceWorkerGlobalScope & { __WB_MANIFEST: ManifestEntry[] };
 const manifest = (self as unknown as { __WB_MANIFEST: ManifestEntry[] }).__WB_MANIFEST;
-const runtime = new ShellRuntime(scope, manifest, __SAME_PAGE_BUILD_ID__);
+declare const __SAME_PAGE_RELEASE_CHANNELS__: boolean;
+const permission = new ReleasePermission(scope.location.origin, __SAME_PAGE_BUILD_ID__, typeof __SAME_PAGE_RELEASE_CHANNELS__ === "boolean" && __SAME_PAGE_RELEASE_CHANNELS__);
+const runtime = new ShellRuntime(scope, manifest, __SAME_PAGE_BUILD_ID__, permission);
 
 scope.addEventListener('install', event => event.waitUntil(runtime.install().catch(async error => {
   // A standalone support page can observe a failed candidate even while an old
@@ -41,6 +44,7 @@ scope.addEventListener('message', event => {
   event.waitUntil((async () => {
     try {
       const signal = AbortSignal.timeout(8_000);
+      await permission.confirm();
       await runtime.ready(signal);
       const clients = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const confirm = async () => {
@@ -56,7 +60,7 @@ scope.addEventListener('message', event => {
       // Reconfirm after every window answered: editing or a new window may have
       // appeared while another window was responding to the first round.
       const safe = await confirm() && await confirm();
-      if (safe) await scope.skipWaiting();
+      if (safe) { await permission.confirm(); await scope.skipWaiting(); }
       event.ports[0]?.postMessage({ safe });
     } catch { event.ports[0]?.postMessage({ safe: false, reason: 'incomplete' }); }
   })());
@@ -101,7 +105,7 @@ async function animation(request: Request) {
 scope.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== scope.location.origin || isApiPath(url.pathname)) return;
-  const staticAsset = /^\/(?:assets|pdfjs|font|soundfont|playback)\//.test(url.pathname) || /\.(?:m?js|css|wasm|pdf|xml|musicxml|mxl|png|webp|ico|woff2?|json|webmanifest|tgz|txt|map)$/i.test(url.pathname) || manifest.some(entry => new URL(entry.url, scope.registration.scope).pathname === url.pathname && url.pathname !== new URL(scope.registration.scope).pathname);
+  const staticAsset = url.pathname.startsWith("/_releases/") || /^\/(?:assets|pdfjs|font|soundfont|playback)\//.test(url.pathname) || /\.(?:m?js|css|wasm|pdf|xml|musicxml|mxl|png|webp|ico|woff2?|json|webmanifest|tgz|txt|map)$/i.test(url.pathname) || manifest.some(entry => new URL(entry.url, scope.registration.scope).pathname === url.pathname && url.pathname !== new URL(scope.registration.scope).pathname);
   if (animations.test(url.pathname)) event.respondWith(animation(event.request));
   else if (staticAsset) event.respondWith(playbackAsset(event.request));
   else if (event.request.mode === 'navigate') {

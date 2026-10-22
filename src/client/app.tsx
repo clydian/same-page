@@ -52,6 +52,7 @@ export function AppRoutes() {
 
         <Routes>
           <Route path="/admin" element={<RouteContent><AdminPage /></RouteContent>} />
+          <Route path="/admin/releases" element={<RouteContent><AdminPage /></RouteContent>} />
           <Route path="/admin/reports" element={<RouteContent><AdminPage /></RouteContent>} />
           <Route path="/admin/reports/:reportId" element={<RouteContent><AdminPage /></RouteContent>} />
           <Route path="/admin/scores/:scoreId" element={<RouteContent><AdminPage /></RouteContent>} />

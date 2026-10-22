@@ -1,3 +1,4 @@
+import { Releases } from "./releases";
 import { useAppNavigation } from "../navigation/navigation-context";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -41,6 +42,7 @@ function AdminWorkspace() {
   const navigation = useAppNavigation();
   const navigate = useNavigate();
   const location = useLocation();
+  const releases = location.pathname.startsWith("/admin/releases");
   const reports = location.pathname.startsWith("/admin/reports");
   const [cap, setCap] = useState<Capabilities | null>(null),
     [error, setError] = useState(""),
@@ -94,6 +96,7 @@ function AdminWorkspace() {
         ) : (
           <>
             <nav className="admin-nav">
+              {!!cap.manageReleases && <Link className="admin-nav-item" to="/admin/releases">发布通道</Link>}
               {!!cap.viewScores && <Link className="admin-nav-item" aria-current={!audit && !reports ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
                 乐谱工作台
               </Link>}
@@ -109,7 +112,7 @@ function AdminWorkspace() {
               </Button>}
               {!!cap.viewScores && <span>草稿仅在后台可见</span>}
             </nav>
-            {reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : audit ? (
+            {releases || (!cap.viewScores && !cap.manageReports && !!cap.manageReleases) ? <Releases onError={report} /> : reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : audit ? (
               <Audit onError={report} />
             ) : scoreId ? (
               <ScoreReview

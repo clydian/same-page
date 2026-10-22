@@ -26,13 +26,18 @@ const buildRunId = process.env.GITHUB_RUN_ID ?? "";
 const testState = process.env.SAME_PAGE_TEST_STATE;
 const testHeaders = testState ? { "x-same-page-test-server": process.env.SAME_PAGE_TEST_RUN! } : undefined;
 
-export default defineConfig(({ isPreview }) => ({
+export default defineConfig(({ isPreview, command }) => {
+  const assetBase = command === "build" && process.env.SAME_PAGE_RELEASE_CHANNELS === "1" ? `/_releases/${buildId}/` : "/";
+  return ({
+  base: assetBase,
   ...(testState && isPreview ? { root: testState } : {}),
   ...(testState ? { cacheDir: `${testState}/vite-cache`, envDir: testState } : {}),
   server: { headers: testHeaders },
   preview: { headers: testHeaders },
   define: {
     __SAME_PAGE_BUILD_ID__: JSON.stringify(buildId),
+    __SAME_PAGE_ASSET_BASE__: JSON.stringify(assetBase),
+    __SAME_PAGE_RELEASE_CHANNELS__: JSON.stringify(process.env.SAME_PAGE_RELEASE_CHANNELS === "1"),
     __SAME_PAGE_BUILD_RUN_ID__: JSON.stringify(buildRunId),
     __SAME_PAGE_BUILD_PUBLISHED_DATE__: JSON.stringify(buildPublishedDate),
     __SAME_PAGE_BUILD_VERSION__: JSON.stringify(buildVersion),
@@ -47,11 +52,12 @@ export default defineConfig(({ isPreview }) => ({
     } } },
   },
   plugins: [
-    playbackAssets(buildId),
+    playbackAssets(buildId, assetBase),
     pdfJsAssets(),
     alphaTab(),
     {
       name: "same-page-build-identity",
+      enforce: "post",
       configurePreviewServer(server) {
         if (testHeaders) server.middlewares.use((_request, response, next) => {
           response.setHeader("x-same-page-test-server", testHeaders["x-same-page-test-server"]);
@@ -66,9 +72,9 @@ export default defineConfig(({ isPreview }) => ({
         const output = options.dir!;
         const scripts = Object.fromEntries(await Promise.all(Object.values(bundle)
           .filter((entry) => /\.(?:m?js)$/.test(entry.fileName))
-          .map(async (entry) => [`/${entry.fileName}`, createHash("sha256")
+          .map(async (entry) => [`${assetBase}${entry.fileName}`, createHash("sha256")
             .update(await readFile(path.join(output, entry.fileName))).digest("hex")])));
-        await writeFile(path.join(output, "build.json"), `${JSON.stringify({ buildId, version: buildVersion, builtAt: builtAt.toISOString(), runId: buildRunId, scripts })}\n`);
+        await writeFile(path.join(output, "build.json"), `${JSON.stringify({ buildId, assetBase, version: buildVersion, builtAt: builtAt.toISOString(), runId: buildRunId, scripts })}\n`);
       },
     },
     react(),
@@ -76,6 +82,9 @@ export default defineConfig(({ isPreview }) => ({
       persistState: { path: testState }, inspectorPort: false, remoteBindings: false,
     } : {}),
     VitePWA({
+      base: "/",
+      scope: "/",
+      manifestFilename: "manifest.webmanifest",
       registerType: "prompt",
       injectRegister: false,
       strategies: "injectManifest",
@@ -89,22 +98,24 @@ export default defineConfig(({ isPreview }) => ({
         theme_color: "#014653",
         background_color: "#ffffff",
         display: "standalone",
+        id: "/",
+        scope: "/",
         start_url: "/",
         icons: [
           {
-            src: "/icon-192.png",
+            src: assetBase + "icon-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/icon-512.png",
+            src: assetBase + "icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/icon-maskable-512.png",
+            src: assetBase + "icon-maskable-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
@@ -112,7 +123,7 @@ export default defineConfig(({ isPreview }) => ({
         ],
       },
       injectManifest: {
-        manifestTransforms: [entries => shellManifest(entries, undefined, buildId)],
+        manifestTransforms: [entries => shellManifest(entries, undefined, buildId, assetBase)],
         globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2,webmanifest}"],
         // Prepare MusicXML resources on demand. Do not download optional viewers
         // and editor on every PWA install; the main PDF engine stays precached.
@@ -125,4 +136,5 @@ export default defineConfig(({ isPreview }) => ({
       },
     }),
   ],
-}));
+});
+});
