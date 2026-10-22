@@ -19,6 +19,15 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
     const fixture = createVisualFixtureSession({ id: "library-invite-active" });
     let admission = null;
+    const cancelInvitation = async () => {
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog", { name: "加入「受邀云盘」", exact: true })).toHaveCount(0);
+      const picker = page.getByRole("dialog", { name: "切换云盘", exact: true });
+      await expect(picker).toBeVisible();
+      await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
+      await expect(picker).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
+    };
     await context.route("**/api/**", async route => {
       const request = route.request(), pathname = new URL(request.url()).pathname;
       if (pathname === "/api/guest/session" && request.method() === "POST") {
@@ -39,10 +48,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByLabel("选择邀请卡图片").setInputFiles({ name: "invitation.png", mimeType: "image/png", buffer });
     await expect(page.getByRole("dialog", { name: "加入「受邀云盘」", exact: true })).toBeVisible();
     assert.deepEqual(admission, { admission: "invite", joinCode: "ABCDEFGH" });
-    await page.keyboard.press("Escape");
+    await cancelInvitation();
     if (name === "chromium") {
       // Real video frames + real decoder, with a synthetic camera source rather than hardware permission.
-      await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.evaluate(async source => {
         const image = new Image(); image.src = source; await image.decode();
         const canvas = document.createElement("canvas"); canvas.width = image.width; canvas.height = image.height;
@@ -57,9 +65,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.getByRole("button", { name: "扫一扫", exact: true }).click();
       await expect(page.getByRole("dialog", { name: "加入「受邀云盘」", exact: true })).toBeVisible();
       assert.ok(await page.evaluate(() => window.testCameraStops > 0), "successful scan releases the camera");
-      await page.keyboard.press("Escape");
+      await cancelInvitation();
     }
-    await page.goto(`${app.origin}/choirs/visual-choir`);
+    // Continue through the UI after cancellation. Reloading this same URL while
+    // the picker/history checkpoint is returning is unrelated to invitation coverage.
     await page.getByRole("button", { name: "我的", exact: true }).click();
     await page.getByRole("menuitem", { name: /关于与更新/ }).click();
     await expect(page.getByRole("heading", { name: "关于合谱", exact: true })).toBeVisible();
