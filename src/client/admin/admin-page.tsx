@@ -12,6 +12,7 @@ import { Directory } from "./directory";
 import { ScoreReview } from "./score-review";
 import { Audit } from "./audit";
 import { DiagnosticInbox } from "./diagnostic-inbox";
+import { CliTokens } from "./cli-tokens";
 import "../score-library/attachments/attachments.css";
 import "./admin.css";
 type Capabilities = AdminCapabilities;
@@ -48,7 +49,7 @@ function AdminWorkspace() {
   const [cap, setCap] = useState<Capabilities | null>(null),
     [error, setError] = useState(""),
     [denied, setDenied] = useState(false),
-    [audit, setAudit] = useState(false);
+    [panel, setPanel] = useState<"scores" | "audit" | "cli-tokens">("scores");
   const onDenied = useCallback(() => {
     setDenied(true);
     setCap(null);
@@ -98,22 +99,29 @@ function AdminWorkspace() {
           <>
             <nav className="admin-nav">
               {!!cap.manageReleases && <Link className="admin-nav-item" aria-current={releases || (!cap.viewScores && !cap.manageReports) ? "page" : undefined} to="/admin/releases">发布通道</Link>}
-              {!!cap.viewScores && <Link className="admin-nav-item" aria-current={!releases && !audit && !reports ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
+              {!!cap.viewScores && <Link className="admin-nav-item" aria-current={!releases && panel === "scores" && !reports ? "page" : undefined} to="/admin" onClick={() => setPanel("scores")}>
                 乐谱工作台
               </Link>}
-              {!!cap.manageReports && <Link className="admin-nav-item" aria-current={!releases && (reports || !cap.viewScores) ? "page" : undefined} to="/admin/reports" onClick={() => setAudit(false)}>问题反馈</Link>}
+              {!!cap.manageReports && <Link className="admin-nav-item" aria-current={!releases && (reports || !cap.viewScores) ? "page" : undefined} to="/admin/reports" onClick={() => setPanel("scores")}>问题反馈</Link>}
               {!!cap.viewScores && <Button
                 className="admin-nav-item"
-                aria-current={audit && !releases && !reports ? "page" : undefined}
+                aria-current={panel === "audit" && !releases && !reports ? "page" : undefined}
                 onPress={() =>
-                  navigation.afterEditing(() => { setAudit(a => reports ? true : !a); if (reports) void navigate("/admin"); })
+                  navigation.afterEditing(() => { setPanel(current => reports || releases || current !== "audit" ? "audit" : "scores"); if (reports || releases) void navigate("/admin"); })
                 }
               >
                 操作记录
               </Button>}
+              {!!cap.viewScores && <Button
+                className="admin-nav-item"
+                aria-current={panel === "cli-tokens" && !releases && !reports ? "page" : undefined}
+                onPress={() => navigation.afterEditing(() => { setPanel("cli-tokens"); if (reports || releases) void navigate("/admin"); })}
+              >CLI 令牌</Button>}
               {!!cap.viewScores && <span>草稿仅在后台可见</span>}
             </nav>
-            {releases || (!cap.viewScores && !cap.manageReports && !!cap.manageReleases) ? <Releases onError={report} /> : reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : audit ? (
+            {releases || (!cap.viewScores && !cap.manageReports && !!cap.manageReleases) ? <Releases onError={report} /> : reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : panel === "cli-tokens" ? (
+              <CliTokens canUpload={!!cap.reviewXml} onError={report} />
+            ) : panel === "audit" ? (
               <Audit onError={report} />
             ) : scoreId ? (
               <ScoreReview

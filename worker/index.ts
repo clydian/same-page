@@ -4,6 +4,8 @@ import { releaseRoutes } from "./releases/routes";
 import { serveStaticAsset } from "./static-assets";
 import { updateDiagnosticRoutes } from "./support/update-diagnostics";
 import { adminRoutes } from './admin/routes';
+import { cliTokenRoutes } from './admin/cli-token-routes';
+import { allowsCliBearer } from './admin/cli-access';
 import { adminDiagnosticRoutes } from './admin/diagnostic-routes';
 import { cleanupAdminXml } from './admin/cleanup';
 import { AttachmentError } from "./attachments/storage";
@@ -55,6 +57,9 @@ for (const path of ['/assets/*', '/pdfjs/*', '/font/*', '/soundfont/*', '/playba
 
 app.use("/api/*", diagnosticMiddleware, serverTimingMiddleware);
 app.use("/api/*", async (context, next) => {
+  if (context.req.raw.headers.has("Authorization") && !allowsCliBearer(context.req.method, context.req.path)) {
+    return context.json({ error: "forbidden" }, 403);
+  }
   const origin = context.req.header("Origin");
   if (!context.req.path.startsWith("/api/auth/") && !["GET", "HEAD", "OPTIONS"].includes(context.req.method) && origin && origin !== new URL(context.env.BETTER_AUTH_URL).origin) {
     return context.json({ error: "forbidden" }, 403);
@@ -81,6 +86,7 @@ app.route("/api", updateDiagnosticRoutes);
 
 app.use("/api/*", excludeDeletedResources);
 app.route("/api", adminRoutes);
+app.route("/api", cliTokenRoutes);
 app.route("/api", adminDiagnosticRoutes);
 app.route("/api", trialRoutes);
 app.route("/api", diagnosticReportRoutes);

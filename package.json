@@ -38,6 +38,7 @@
     "diagnostics:inbox": "node scripts/diagnostic-reports.mjs",
     "diagnostics:operators": "node scripts/diagnostic-operators.mjs",
     "admin:configure": "node scripts/product-admin.mjs",
+    "cli": "node scripts/samepage.mjs",
     "copy:native-source": "node packages/player/scripts/copy-native-source.mjs --output public/third-party/alphatab",
     "build:player": "npm run build --workspace @same-page/player",
     "prepare": "npm run build:player",

@@ -13,6 +13,7 @@ import {
 import { serveStoredFile } from "../scores/serve-file";
 import { limitDriveMutation } from "../security/drive-rate-limit";
 import { adminAuthority, requireAdmin } from "./access";
+import { cliDriveScope, cliUploadAuthority } from "./cli-access";
 import { readAdminSession } from "./diagnostic-access";
 export const adminRoutes = new Hono<AppEnvironment>();
 const live = `s.trashed_at IS NULL AND s.purged_at IS NULL AND c.purged_at IS NULL AND v.purged_at IS NULL AND v.state='ready' AND v.etag IS NOT NULL`;
@@ -40,7 +41,8 @@ async function score(context: Context<AppEnvironment>) {
       attachmentId: string | null;
       attachmentRevision: number | null;
     }>();
-  if (!row) throw new AttachmentError("score_not_found", 404);
+  const cliToken = context.get("adminCliToken");
+  if (!row || (cliToken && !cliToken.driveIds.includes(row.choirId))) throw new AttachmentError("score_not_found", 404);
   return row;
 }
 async function candidate(context: Context<AppEnvironment>) {
@@ -94,17 +96,19 @@ adminRoutes.get("/admin/session", async (c) => {
   return c.json(await readAdminSession(c));
 });
 adminRoutes.get("/admin/drives", async (c) => {
-  await requireAdmin(c);
+  await requireAdmin(c, "view_scores", true);
+  const scope = cliDriveScope(c);
   return c.json({
     drives: (
       await c.env.DB.prepare(
-        "SELECT c.id,c.name FROM choirs c JOIN product_admin_drives d ON d.choir_id=c.id WHERE c.purged_at IS NULL ORDER BY c.name,c.id",
-      ).all()
+        "SELECT c.id,c.name FROM choirs c JOIN product_admin_drives d ON d.choir_id=c.id WHERE c.purged_at IS NULL AND (? IS NULL OR c.id IN(SELECT value FROM json_each(?))) ORDER BY c.name,c.id",
+      ).bind(scope, scope).all()
     ).results,
   });
 });
 adminRoutes.get("/admin/scores", async (c) => {
-  const a = await requireAdmin(c);
+  const a = await requireAdmin(c, "view_scores", true);
+  const scope = cliDriveScope(c);
   const query = z
     .object({
       q: z.string().max(200).default(""),
@@ -127,9 +131,9 @@ adminRoutes.get("/admin/scores", async (c) => {
     disabled: "s.generated_xml_disabled=1",
   };
   const rows = await c.env.DB.prepare(
-    `${scoreSelect} WHERE ${live} AND s.id>? AND (?='' OR s.choir_id=?) AND instr(lower(s.file_name||' '||c.name),lower(?))>0 AND ${conditions[filter]} ORDER BY s.id LIMIT 31`,
+    `${scoreSelect} WHERE ${live} AND s.id>? AND (?='' OR s.choir_id=?) AND instr(lower(s.file_name||' '||c.name),lower(?))>0 AND ${conditions[filter]} AND (? IS NULL OR c.id IN(SELECT value FROM json_each(?))) ORDER BY s.id LIMIT 31`,
   )
-    .bind(after, drive, drive, q)
+    .bind(after, drive, drive, q, scope, scope)
     .all<{ id: string }>();
   await audit(c, a.userId, "list-scores");
   return c.json({
@@ -138,7 +142,7 @@ adminRoutes.get("/admin/scores", async (c) => {
   });
 });
 adminRoutes.get("/admin/scores/:scoreId", async (c) => {
-  const a = await requireAdmin(c);
+  const a = await requireAdmin(c, "view_scores", true);
   const s = await score(c);
   const cursor = z
     .string()
@@ -176,7 +180,7 @@ adminRoutes.get("/admin/scores/:scoreId", async (c) => {
   });
 });
 adminRoutes.on(["GET", "HEAD"], "/admin/scores/:scoreId/pdf", async (c) => {
-  const a = await requireAdmin(c);
+  const a = await requireAdmin(c, "view_scores", true);
   const s = await score(c);
   const version = c.req.query("versionId") || s.versionId;
   const now = Date.now();
@@ -200,7 +204,7 @@ adminRoutes.on(
   ["GET", "HEAD"],
   "/admin/scores/:scoreId/published",
   async (c) => {
-    const a = await requireAdmin(c);
+    const a = await requireAdmin(c, "view_scores", true);
     const s = await score(c);
     const file = await c.env.DB.prepare(
       `SELECT f.object_key,f.size_bytes,f.etag,f.content_type FROM score_attachments a JOIN score_attachment_files f ON f.id=a.current_file_id
@@ -228,7 +232,7 @@ adminRoutes.on(
   ["GET", "HEAD"],
   "/admin/scores/:scoreId/candidates/:candidateId/file",
   async (c) => {
-    const a = await requireAdmin(c);
+    const a = await requireAdmin(c, "view_scores", true);
     const { parent, row } = await candidate(c);
     if (row.state !== "ready")
       return c.json({ error: "candidate_unavailable" }, 409);
@@ -260,10 +264,15 @@ const importQuery = z.object({
 adminRoutes.post(
   "/admin/scores/:scoreId/candidates/:candidateId",
   async (c) => {
-    const a = await requireAdmin(c, "review_xml");
+    const a = await requireAdmin(c, "review_xml", true);
     const limited = await limitDriveMutation(c, a.userId, "admin-import", 20);
     if (limited) return limited;
     const s = await score(c);
+    const cliToken = c.get("adminCliToken");
+    const authority = cliToken ? cliUploadAuthority : adminAuthority("review_xml");
+    const authorityParams = () => cliToken
+      ? [s.choirId, cliToken.id, a.userId, Date.now()]
+      : [a.userId, a.sessionId, Date.now()];
     const input = importQuery.safeParse(c.req.query());
     const id = z.uuid().safeParse(c.req.param("candidateId"));
     if (!input.success || !id.success)
@@ -304,7 +313,7 @@ adminRoutes.post(
       key = `admin/xml/${id.data}/${crypto.randomUUID()}`;
     const reserved = await c.env.DB.prepare(
       `INSERT INTO xml_candidates(id,choir_id,score_id,source_version_id,source_sha256,name,size_bytes,sha256,object_key,tool,parameters,imported_by,created_at,expires_at)
- SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${adminAuthority("review_xml")} AND EXISTS(SELECT 1 ${parents} WHERE s.id=? AND ${live} AND s.current_version_id=? AND s.generated_xml_disabled=0)`,
+ SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${authority} AND EXISTS(SELECT 1 ${parents} WHERE s.id=? AND ${live} AND s.current_version_id=? AND s.generated_xml_disabled=0)`,
     )
       .bind(
         id.data,
@@ -321,9 +330,7 @@ adminRoutes.post(
         a.userId,
         now,
         now + 30 * 86400000,
-        a.userId,
-        a.sessionId,
-        now,
+        ...authorityParams(),
         s.id,
         s.versionId,
       )
@@ -368,16 +375,14 @@ adminRoutes.post(
       });
       if (!object) throw new Error("upload_failed");
       const committed = await c.env.DB.prepare(
-        `UPDATE xml_candidates SET state='ready',etag=? WHERE id=? AND state='pending' AND expires_at>? AND ${adminAuthority("review_xml")}
+        `UPDATE xml_candidates SET state='ready',etag=? WHERE id=? AND state='pending' AND expires_at>? AND ${authority}
    AND EXISTS(SELECT 1 ${parents} WHERE s.id=? AND ${live} AND s.current_version_id=? AND s.generated_xml_disabled=0) RETURNING id`,
       )
         .bind(
           object.httpEtag,
           id.data,
           Date.now(),
-          a.userId,
-          a.sessionId,
-          Date.now(),
+          ...authorityParams(),
           s.id,
           s.versionId,
         )
