@@ -56,14 +56,20 @@ export default defineConfig(({ isPreview, command }) => {
     pdfJsAssets(),
     alphaTab(),
     {
-      name: "same-page-build-identity",
-      enforce: "post",
+      // Run before Cloudflare's terminal preview middleware; artifact hashing
+      // below must still run after all build transforms.
+      name: "same-page-preview-test-identity",
+      enforce: "pre",
       configurePreviewServer(server) {
         if (testHeaders) server.middlewares.use((_request, response, next) => {
           response.setHeader("x-same-page-test-server", testHeaders["x-same-page-test-server"]);
           next();
         });
       },
+    },
+    {
+      name: "same-page-build-identity",
+      enforce: "post",
       transformIndexHtml() {
         return [{ tag: "meta", attrs: { name: "same-page-build-id", content: buildId }, injectTo: "head" }];
       },
