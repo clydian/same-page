@@ -464,6 +464,12 @@ export class Note {
     public isGhost: boolean = false;
 
     /**
+     * Gets or sets whether the notehead is shown in parentheses without changing playback.
+     * MusicXML notehead parentheses are appearance-only; use isGhost for legacy ghost-note performance.
+     */
+    public isNoteHeadParenthesized: boolean = false;
+
+    /**
      * Gets or sets whether this note has a let-ring effect.
      */
     public isLetRing: boolean = false;

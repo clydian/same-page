@@ -65,6 +65,7 @@ export class NoteSerializer {
         o.set("harmonictype", obj.harmonicType as number);
         o.set("harmonicvalue", obj.harmonicValue);
         o.set("isghost", obj.isGhost);
+        o.set("isnoteheadparenthesized", obj.isNoteHeadParenthesized);
         o.set("isletring", obj.isLetRing);
         o.set("ispalmmute", obj.isPalmMute);
         o.set("isdead", obj.isDead);
@@ -171,6 +172,9 @@ export class NoteSerializer {
                 return true;
             case "isghost":
                 obj.isGhost = v! as boolean;
+                return true;
+            case "isnoteheadparenthesized":
+                obj.isNoteHeadParenthesized = v! as boolean;
                 return true;
             case "isletring":
                 obj.isLetRing = v! as boolean;

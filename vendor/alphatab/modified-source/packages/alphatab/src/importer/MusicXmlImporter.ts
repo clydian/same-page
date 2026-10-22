@@ -3185,9 +3185,7 @@ export class MusicXmlImporter extends ScoreImporter {
     }
 
     private _parseNoteHead(element: XmlNode, note: Note, beatDuration: Duration, beamDirection: BeamDirection) {
-        if (element.getAttribute('parentheses', 'no') === 'yes') {
-            note.isGhost = true;
-        }
+        note.isNoteHeadParenthesized = element.getAttribute('parentheses', 'no') === 'yes';
 
         const filled = element.getAttribute('filled', '');
         let forceFill: boolean | undefined = undefined;
