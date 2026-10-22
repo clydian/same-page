@@ -28,3 +28,31 @@ it('recovers pending before POST, lost POST response and lost confirmation from 
   expect(fetcher.mock.calls.every(c=>c[1]?.method!=='POST')).toBe(true);
  }
 });
+
+it('keeps an already permitted release usable when receipt refresh exceeds quota',async()=>{
+ await writeReleaseReceipt(origin,{confirmed:beta,permitted:beta});
+ const cache=await caches.open('receipt');
+ const put=vi.fn(async()=>{throw new DOMException('Storage full','QuotaExceededError');});
+ vi.stubGlobal('caches',{open:async()=>({...cache,put})});
+ const fetcher=vi.fn(async()=>Response.json(beta));vi.stubGlobal('fetch',fetcher);
+ const permission=new ReleasePermission(origin,B,true);
+ await expect(permission.displayed(B)).resolves.toBeUndefined();
+ expect(put).not.toHaveBeenCalled();
+ fetcher.mockImplementation(async()=>Response.json({...beta,revision:2}));
+ await expect(permission.displayed(B)).resolves.toBeUndefined();
+ expect(put).toHaveBeenCalledOnce();
+ expect((await readReleaseReceipt(origin)).permitted).toEqual(beta);
+});
+
+it('still requires a durable receipt for a first release or a different channel',async()=>{
+ const cache=await caches.open('receipt');
+ vi.stubGlobal('caches',{open:async()=>({...cache,put:async()=>{throw new DOMException('Storage full','QuotaExceededError');}})});
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(beta)));
+ const permission=new ReleasePermission(origin,B,true);
+ await expect(permission.displayed(B)).rejects.toMatchObject({name:'QuotaExceededError'});
+ vi.stubGlobal('caches',{open:async()=>cache});
+ await writeReleaseReceipt(origin,{confirmed:beta,permitted:beta});
+ vi.stubGlobal('caches',{open:async()=>({...cache,put:async()=>{throw new DOMException('Storage full','QuotaExceededError');}})});
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({...stable,target:B})));
+ await expect(permission.displayed(B)).rejects.toMatchObject({name:'QuotaExceededError'});
+});

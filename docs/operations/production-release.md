@@ -188,6 +188,7 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 实现见 ADR-0021；本地开发和首次桥接默认 `RELEASE_CHANNELS_ENABLED=false`。
 这不是部署授权。不得直接打开开关而跳过以下过渡，也不得把仓库的 research
 探针当作生产验收。WebKit 的隔离持久 profile 已通过 Blob 回切探针；真实 Safari/iOS 与 Android TWA 实机仍必须单独记录。
+关闭 runtime flag 仍会部署配置中的 R2 binding 与 Worker-first 路由；首次合并部署前一并核对 bucket、IAM 与路由，不能把开关关闭等同于没有部署影响。
 
 手工执行 `upload` / `initialize` 前，运行 `npm ci`、`npm ci --prefix android` 和
 `npx playwright install --with-deps chromium webkit`，确保两引擎与系统依赖齐备。CI 的发布 job 独立安装同一环境。
@@ -210,7 +211,7 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 5. 完成 legacy active/waiting、直接深链、全新安装、离线恢复、Safari/iOS 和 TWA 验收，
    再通过受控部署将 runtime `RELEASE_CHANNELS_ENABLED:true` 应用到**同一份产物**，
    并设置 GitHub production 对应 repository variable `RELEASE_CHANNELS_ENABLED=true`。
-   新版本只有在冻结存储契约与当前 stable 完全一致时才准入 beta。
+   新版本须通过下述持久格式边界检查及实际产物回切矩阵才准入 beta。
 6. `npm run admin:configure -- grant-release --remote <userId>` 单独授权发布人员；
    `revoke-release` 撤销。该 CLI 从不按邮箱授权、不修改成员关系；只在另行批准时运行。
    授权者在 `/admin/releases` 查看两通道、北京时间发布时间和审计，再提升明确显示的当前目标。
@@ -222,8 +223,11 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 ### 日常发布与恢复
 
 CI 在生产锁内先校验完整包，再 `frontend-release.mjs upload <SHA>`：比对当前 stable 的
-存储契约、first-write claim、逐文件写入／读回与最终 seal。契约涵盖迁移、Dexie 和
-存储／同步实现依赖；任何变化在本阶段都阻断 beta，必须另审兼容桥接，不能通过忽略字段绕过。
+持久格式边界、first-write claim、逐文件写入／读回与最终 seal。边界仅涵盖明确列出的业务
+IndexedDB／共享同步表示及 Dexie、Zod 版本；UI、普通实现依赖和兼容 D1 migration 不再要求
+源码字节相等，具体清单见 `scripts/release-contract.mjs`。业务 schema 或共享同步表示变化
+仍须另审兼容桥接。旧版封存清单可按相同
+边界比较，不能重写旧 seal 或用手工忽略关键字段绕过。
 上传前另从 R2 下载当前 stable 的封存私有 storage probe，与 candidate 原始 probe 在
 Chromium/WebKit 全新持久 profile 中跑 `stable → beta → stable → beta`：实际草稿、队列、
 push/pull 合并器、Blob、冲突、已尝试操作和身份保留。报告绑定两个 probe 摘要与 stable 身份，
@@ -236,10 +240,33 @@ push/pull 合并器、Blob、冲突、已尝试操作和身份保留。报告绑
 提升请求具备幂等 ID；网络丢响应可重试同一次操作。409 后必须重新读取并确认版本，
 不能重用旧按钮悄悄提升新 beta。管理员授权与 session 在提交时重新校验。
 
-事故时暂停后续 CI 发布，记录两个通道及后端身份；通过完整链路发布兼容的 revert／修复提交，
-验收后提升最新版。不得直接覆盖旧 R2 对象或回退 D1。若需停止故障 stable 新分发，
-由运维在明确事故授权下暂停入口并返回 no-store 维护响应，直至修复上线；已缓存／离线
-客户端无法即时撤回。此阶段不提供任意历史选择、自动 GC 或破坏性数据回退。
+### 停止故障 beta 继续分发
+
+适用于 beta 已准入但出现前端故障、当前 stable 仍可正常使用的情况。沿用生产运维 token，
+不需要增加产品后台入口或发布权限体系；执行本步骤属于生产操作，仍须有明确事故授权。
+
+1. 暂停后续 CI 发布并等待当前生产发布结束。在已授权后台读取当前 stable、beta 和 revision，
+   记录操作者、原因、时间及后端身份；确认 stable 正常，不凭缓存页面中的旧值操作。
+   若 beta 已等于 stable，就不需要执行停止命令。
+2. 使用同一份受控源码及既有生产凭据执行：
+
+   ```sh
+   node scripts/frontend-release.mjs stop-beta <当前beta完整SHA> --expected-revision=<当前revision>
+   ```
+
+   命令只在 beta 与 revision 仍匹配、两通道目标不同、当前 stable 已 ready 且契约匹配时将 beta
+   指向 stable，并增加 revision。
+   条件变化时明确失败，重新读取后再决定；不能用强制更新覆盖新发布。它不构建、不迁移、不删
+   产物或业务数据，也不提供任意历史目标。
+3. 重新查询两个通道，确认 stable 未变、beta 已等于 stable，把结果与命令输出记入事故记录。
+   beta 偏好仍保留，在线客户端沿原安全交接流程准备 stable；正在编辑或播放的页面不强制刷新。
+   已缓存及离线客户端无法即时撤回，必要时直接通知少量受影响用户在安全时机联网更新。
+4. 仅放行新的兼容修复提交通过正常 CI 发布，验证成功后恢复后续常规发布；下一次合格版本
+   按原流程推进 beta。不要用 `admit` 重新准入故障旧 SHA。
+   若故障 stable 也不能继续分发，由运维在事故授权下暂停入口并返回 no-store 维护响应，直至
+   修复上线。不得覆盖旧 R2 对象或回退 D1。
+
+此阶段不提供任意历史选择、自动 GC 或破坏性数据回退。
 
 本地验证：`npm run test:release-channels`、常规 `npm run check:full`，以及
 `SAME_PAGE_RELEASE_CHANNELS=1 npm run build` 的前缀资源完整性检查。生产桶、权限、移动端

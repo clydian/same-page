@@ -1,38 +1,45 @@
+import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile, readdir, writeFile, stat } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
-async function sourceFiles(cwd, directory) {
-  const files=[];
-  for(const entry of await readdir(path.join(cwd,directory),{withFileTypes:true})) {
-    const file=path.posix.join(directory,entry.name);
-    if(entry.isDirectory()) files.push(...await sourceFiles(cwd,file));
-    else if(/\.tsx?$/.test(file)&&!/(?:\.test\.|\/test\/)/.test(file)) files.push(file);
-  }
-  return files;
-}
+
+// Freeze shared record/schema boundaries, not every caller's implementation.
+// The sealed artifact matrix separately checks actual round-trip behaviour.
+export const storageContractFiles = [
+  'src/client/platform/local-database.ts',
+  'src/client/platform/migrate-brush-styles.ts',
+  'src/client/platform/local-workspace.ts',
+  'src/client/auth/logout-fence.ts',
+  'src/client/reader/reading-preferences.ts',
+  'src/client/annotations/push-request.ts',
+  'src/shared/annotations.ts',
+  'src/shared/reader-sync.ts',
+  'src/shared/scores.ts',
+  'src/shared/choirs.ts',
+  'src/shared/drive-permissions.ts',
+].sort();
+
 export async function storageContract(cwd = process.cwd()) {
-  const sources=(await Promise.all(['src/client','src/shared','worker'].map(d=>sourceFiles(cwd,d)))).flat();
-  const texts=new Map(await Promise.all(sources.map(async f=>[f,await readFile(path.join(cwd,f),'utf8')])));
-  // Discover reverse consumers too: a writer can define a new serialized system
-  // key without becoming a dependency of the database class itself.
-  const pending=sources.filter(f=>/\b(?:localDatabase|SamePageDatabase|indexedDB|Dexie|localStorage|sessionStorage)\b|\.DB\b/.test(texts.get(f)));
-  const inputs=new Set();
-  while(pending.length){
-    const file=pending.pop();if(inputs.has(file))continue;inputs.add(file);
-    const info=ts.preProcessFile(texts.get(file)??await readFile(path.join(cwd,file),'utf8'),true,true);
-    for(const {fileName}of info.importedFiles){
-      if(!fileName.startsWith('.'))continue;
-      const base=path.posix.normalize(path.posix.join(path.posix.dirname(file),fileName));
-      for(const name of [base,base+'.ts',base+'.tsx',base+'/index.ts']) {
-        try { if((await stat(path.join(cwd,name))).isFile()&&/\.(?:tsx?|json)$/.test(name)){pending.push(name);break;} } catch { /* TypeScript extension probing */ }
-      }
-    }
-  }
-  for(const f of (await readdir(path.join(cwd,'migrations'))).filter(f=>f.endsWith('.sql'))) inputs.add('migrations/'+f);
-  const files=Object.fromEntries(await Promise.all([...inputs].sort().map(async f=>[f,createHash('sha256').update(await readFile(path.join(cwd,f))).digest('hex')])));
-  const lock=JSON.parse(await readFile(path.join(cwd,'package-lock.json'),'utf8'));
-  return {contract:'same-page-storage-v15-sync-v1',dexie:lock.packages['node_modules/dexie'].version,zod:lock.packages['node_modules/zod'].version,files};
+  const files = Object.fromEntries(await Promise.all(storageContractFiles.map(async file => [
+    file, createHash('sha256').update(await readFile(path.join(cwd, file))).digest('hex'),
+  ])));
+  const lock = JSON.parse(await readFile(path.join(cwd, 'package-lock.json'), 'utf8'));
+  return { contract: 'same-page-storage-v15-sync-v1', dexie: lock.packages['node_modules/dexie'].version, zod: lock.packages['node_modules/zod'].version, files };
 }
+
+export function assertStorageCompatibility(stable, candidate) {
+  assert.equal(candidate.contract, 'same-page-storage-v15-sync-v1', 'unsupported storage contract');
+  for (const field of ['contract', 'dexie', 'zod']) {
+    assert.ok(typeof candidate[field] === 'string' && candidate[field].length > 0, `missing ${field}`);
+    assert.equal(candidate[field], stable[field], `storage compatibility changed: ${field}`);
+  }
+  // Earlier sealed baselines include UI and every migration. Preserve their
+  // original bytes/digest and compare only these explicit shared boundaries.
+  for (const file of storageContractFiles) {
+    assert.match(candidate.files?.[file] ?? '', /^[a-f0-9]{64}$/, `missing storage boundary: ${file}`);
+    assert.equal(candidate.files[file], stable.files?.[file], `storage compatibility changed: ${file}`);
+  }
+}
+
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))await writeFile('dist/release-storage.json',JSON.stringify(await storageContract()));

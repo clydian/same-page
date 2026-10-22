@@ -8,10 +8,12 @@ const listeners = new Set<() => void>();
 function update(patch: Partial<typeof state>) { state = { ...state, ...patch }; listeners.forEach(fn => fn()); }
 export function useReleaseChannel() { return useSyncExternalStore(fn => { listeners.add(fn); return () => { listeners.delete(fn); }; }, () => state); }
 async function reconcileSelection() {
+  const receipt = await readReleaseReceipt(location.origin);
+  // The permitted running build can be identified offline; selection authority stays online.
+  update({ runningChannel: receipt.permitted?.target === buildId ? receipt.permitted.channel : null });
   const response = await fetch("/api/client-release", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error("发布通道暂不可用，请联网后重试。");
   const target = releaseTargetSchema.parse(await response.json());
-  const receipt = await readReleaseReceipt(location.origin);
   // Handles a crash before POST, lost POST response and crash before confirmation.
   // Never restores a beta Cookie from local metadata; online readback is authoritative.
   await writeReleaseReceipt(location.origin, { confirmed: target, ...(receipt.permitted ? { permitted: receipt.permitted } : {}) });

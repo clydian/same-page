@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyRelease } from './release-artifact.mjs';
+import { assertStorageCompatibility } from './release-contract.mjs';
 const hash = data => createHash('sha256').update(data instanceof ArrayBuffer ? new Uint8Array(data) : data).digest('hex');
 export function contentType(file) {
   return ({'.html':'text/html; charset=utf-8','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.webmanifest':'application/manifest+json','.wasm':'application/wasm','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon','.woff2':'font/woff2','.woff':'font/woff','.tgz':'application/gzip','.txt':'text/plain','.md':'text/plain'})[path.extname(file)] ?? 'application/octet-stream';
@@ -51,9 +52,21 @@ export function verifyCompatibilityReport(report, expected) {
   assert.equal(report.stableProbe,expected.stableProbe);assert.equal(report.candidateProbe,expected.candidateProbe);
   assert.deepEqual(report.engines,['chromium','webkit']);
 }
+export async function stopBetaRelease({ query, expectedBeta, expectedRevision }) {
+  assert.match(expectedBeta ?? '', /^[a-f0-9]{40}$/);
+  assert.ok(Number.isSafeInteger(expectedRevision) && expectedRevision > 0, 'Expected channel revision is required');
+  const result = await query(`UPDATE release_channels SET beta=stable,revision=revision+1
+    WHERE id=1 AND beta=? AND revision=? AND beta<>stable
+    AND EXISTS(SELECT 1 FROM frontend_releases WHERE build_id=release_channels.stable
+      AND ready=1 AND contract='same-page-storage-v15-sync-v1')
+    RETURNING stable,beta,revision`, [expectedBeta, expectedRevision]);
+  assert.ok(result.results?.length === 1, 'Beta changed, already matches stable, or stable is unavailable; reread channels before retrying');
+  return result.results[0];
+}
 async function main() {
   const [action,sha,baselineFlag]=process.argv.slice(2);
-  assert.ok(['upload','admit','initialize','archive-legacy'].includes(action));assert.match(sha??'',/^[a-f0-9]{40}$/);
+  assert.ok(['upload','admit','initialize','archive-legacy','stop-beta'].includes(action));assert.match(sha??'',/^[a-f0-9]{40}$/);
+  if(action==='stop-beta') assert.match(baselineFlag??'',/^--expected-revision=[1-9]\d*$/,'Pass the observed channel revision explicitly');
   const account=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN;
   assert.match(account??'',/^[a-f0-9]{32}$/);assert.ok(token);
   const config=JSON.parse(await readFile('wrangler.jsonc','utf8'));
@@ -62,6 +75,10 @@ async function main() {
     const response=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${db}/query`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({sql,params}),signal:AbortSignal.timeout(30000)});
     assert.ok(response.ok,'release catalog request failed');const data=await response.json();assert.ok(data.success,'release catalog query rejected');return data.result[0];
   };
+  if(action==='stop-beta') {
+    const pointer=await stopBetaRelease({query,expectedBeta:sha,expectedRevision:Number(baselineFlag.split('=')[1])});
+    console.log(JSON.stringify({action,previousBeta:sha,...pointer}));return;
+  }
   const pointer=(await query('SELECT stable,beta,revision FROM release_channels WHERE id=1')).results[0];
   if(action==='initialize') assert.equal(baselineFlag,'--initialize-stable','Explicit stable baseline confirmation is required');
   else if(action!=='archive-legacy') assert.ok(pointer||baselineFlag==='--initialize-stable','Initialize the stable bridge before ordinary releases');
@@ -98,7 +115,7 @@ async function main() {
     stableManifest=priorManifest;const probe=await bucket.get(`releases/${pointer.stable}/storage-probe.js`);assert.ok(probe);stableProbe=new Uint8Array(await probe.arrayBuffer());
     assert.equal(hash(stableProbe),priorManifest.probeDigest);
     assert.equal(hash(priorBytes),priorManifest.storageDigest,'stable storage contract was modified');
-    assert.deepEqual(contract,JSON.parse(new TextDecoder().decode(priorBytes)),'storage compatibility changed; a reviewed bridge is required before beta');
+    assertStorageCompatibility(JSON.parse(new TextDecoder().decode(priorBytes)),contract);
   }
   if(action==='upload'||action==='initialize') {
     const {verifyArtifactStorage}=await import('./verify-release-storage.mjs');

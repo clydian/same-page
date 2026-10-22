@@ -13,6 +13,11 @@ one business IndexedDB. A durable HttpOnly channel Cookie defaults to stable. It
 server readback is authoritative online. A separately owned public shell receipt
 permits offline display of the last successfully activated complete release; neither
 pending preference nor a waiting candidate grants display permission.
+An already permitted complete shell in the same channel remains readable when
+refreshing its receipt fails at quota; first permission for a different shell or
+channel still requires a successful durable write. Offline UI identifies the
+running channel from that build's permitted receipt, without restoring a Cookie
+or treating local metadata as online authority.
 
 Frontend artifacts live in a dedicated private R2 bucket at immutable build-prefixed
 paths. A full SHA identifies exactly one sealed artifact. The uploader claims the
@@ -31,9 +36,13 @@ its own immutable index URL, independently of the selected target. Candidate ins
 manual handover, activation and navigation enforce admission. Browser auto-activation
 without clients grants no exception. Existing cross-window vetoes continue to apply.
 
-The initial storage contract discovers every persistence consumer (including reverse
-consumers of system keys), fingerprints its relative dependencies,
-Dexie version and server migrations. A private probe built from each sealed artifact also runs actual draft/queue/push/pull
+For the current small user base and rapid iteration, the storage gate checks a
+small explicit set of business IndexedDB and shared sync representation boundaries
+listed in `scripts/release-contract.mjs`, plus Dexie and Zod versions. It does not freeze all callers, UI implementation or
+server migrations. This replaces the original transitive-source fingerprint, which
+also rejected harmless UI changes. Existing sealed artifacts remain immutable;
+comparison can read the same boundary entries from an older broad inventory.
+A private probe built from each sealed artifact also runs actual draft/queue/push/pull
 mergers and a Blob/outbox/conflict/owner fixture through stable → beta → stable → beta
 in isolated Chromium and WebKit persistent profiles. The report binds both probe
 digests and the current stable target; beta admission and stable promotion require
@@ -41,11 +50,20 @@ this recorded proof. The probes use parsed protocol responses; SQL/API validatio
 remains in the Worker integration suite. Neither the private probes nor reports are
 served through the frontend file inventory.
 
-Beta admission rejects differences against the
-actual stable artifact. This deliberately conservative first phase cannot introduce
-schema or sync representation changes. A future compatibility bridge requires a
-separate reviewed change; no override flag waives this gate. App-shell updates never
-copy, clear or downgrade business data.
+Beta admission compares those boundaries against the actual stable artifact and
+requires the artifact round trip above. UI changes, compatible backend changes and
+ordinary bug fixes can proceed without a new bridge. Business schema and shared
+sync representation changes still require a reviewed compatibility bridge; no
+override flag waives this gate. App-shell updates never copy, clear or downgrade
+business data.
+
+An incident operator may stop distributing a faulty beta by moving only beta back
+to the current ready stable release with an exact expected-beta/revision CAS. This
+uses the existing controlled operations CLI, adds no history picker, and leaves
+stable, artifacts and business data unchanged. Pause CI while doing this and record
+the operator, reason and before/after pointers in the incident record. Cached and
+offline clients cannot be immediately recalled; resumed normal CI admits a later
+verified repair commit through the usual gates, without readmitting the faulty SHA.
 
 No frontend object TTL or automatic server GC in this phase. Browser-owned caches
 continue ADR-0020 retention. Retiring server versions requires a separate supported
