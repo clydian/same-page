@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import type { AppEnvironment } from "../env";
 import { readContextSession } from "../auth/context-session";
 import { AuthorizationError } from "../auth/authorization";
+import { readCliAccess } from "./cli-access";
 export type AdminCapability = "view_scores" | "review_xml" | "publish_xml";
 export const adminAuthority = (
   capability: AdminCapability,
@@ -11,7 +12,12 @@ export const adminAuthority = (
 export async function requireAdmin(
   context: Context<AppEnvironment>,
   capability: AdminCapability = "view_scores",
+  allowCli = false,
 ) {
+  if (context.req.raw.headers.has("Authorization")) {
+    if (!allowCli || capability === "publish_xml") throw new AuthorizationError();
+    return readCliAccess(context, capability === "review_xml");
+  }
   const auth = await readContextSession(context);
   if (!auth) throw new AuthorizationError();
   const row = await context.env.DB.prepare(

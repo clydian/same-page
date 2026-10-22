@@ -19,6 +19,7 @@ export interface AppEnvironment {
   Bindings: Env;
   Variables: {
     serverTiming?: import("./performance/server-timing").RequestServerTiming;
+    adminCliToken?: { id: string; userId: string; driveIds: string[] };
   };
 }
 

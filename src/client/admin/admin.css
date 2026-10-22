@@ -30,7 +30,8 @@
 .admin-filters select,
 .admin-result-picker select,
 .admin-field input,
-.admin-field textarea {
+.admin-field textarea,
+.admin-field select {
   padding: 0.65rem;
   border: 1px solid var(--line);
   border-radius: 0.4rem;
@@ -111,7 +112,8 @@
   font-size: 0.9rem;
 }
 .admin-field input,
-.admin-field textarea {
+.admin-field textarea,
+.admin-field select {
   display: block;
   margin-top: 0.5rem;
   width: 100%;
@@ -119,6 +121,38 @@
 .admin-field textarea {
   min-height: 6rem;
   resize: vertical;
+}
+.admin-cli-tokens > p {
+  max-width: 65rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.admin-cli-fields {
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.admin-cli-drives {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+}
+.admin-cli-drives label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+}
+.admin-cli-secret input {
+  font-family: monospace;
+}
+.admin-cli-tokens .admin-table table {
+  min-width: 42rem;
+}
+.admin-cli-tokens .admin-table th,
+.admin-cli-tokens .admin-table button {
+  white-space: nowrap;
 }
 .admin-audit {
   list-style: none;
