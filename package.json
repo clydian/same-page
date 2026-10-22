@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",
-    "@coderline/alphatab": "file:vendor/coderline-alphatab-1.8.4-samepage.16.tgz",
+    "@coderline/alphatab": "file:vendor/coderline-alphatab-1.8.4-samepage.17.tgz",
     "@coderline/alphatab-vite": "^1.8.4",
     "@mdxeditor/editor": "^4.2.5",
     "@same-page/player": "0.1.19-samepage.12",

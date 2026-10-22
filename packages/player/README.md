@@ -357,11 +357,17 @@ MusicXML 延长记号按实际声明的拍与声部绘制，保留 normal、angl
 
 播放器运行代码与既有版本相同；本地 workspace 更新精确 peer，不重新发布历史 Chorus 制品。旧原生包及公开源码快照继续保留。最终安装制品和实际产品 Worker 仍需分别验证。
 
-### 当前原生版本：同会话 MIDI 准备
+### samepage.16：同会话 MIDI 准备
 
-当前精确原生 peer 为 `1.8.4-samepage.16`，分发源码提交为 `acb735a64769e1ea9d6bbbcdcdd31ec30fa9e448`，源码树为 `245587b339852413ec629568c6ea334ea9c55d55`。新 Score 只自动生成一次基础 MIDI；立即就绪或晚到的 synth 都复用同一个有效结果，重复 ready 不再重复生成和载入。早期 tick lookup、`midiLoad` 钢琴击键修正、同步点、tick shift 和移调继续保留。显式 `loadMidiForScore()` 仍强制重建，模式变更会重新准备，销毁后不接收迟到结果。该结果仅在当前原生 API 内保留，不共享活播放器或跨会话的可变播放状态。 Worker API 的 MIDI 状态 getter 返回私有缓存，修复继承的自递归，允许安全订阅尚未加载及加载后的 `midiLoaded` 事件。
+该版本精确原生 peer 为 `1.8.4-samepage.16`，分发源码提交为 `acb735a64769e1ea9d6bbbcdcdd31ec30fa9e448`，源码树为 `245587b339852413ec629568c6ea334ea9c55d55`。新 Score 只自动生成一次基础 MIDI；立即就绪或晚到的 synth 都复用同一个有效结果，重复 ready 不再重复生成和载入。早期 tick lookup、`midiLoad` 钢琴击键修正、同步点、tick shift 和移调继续保留。显式 `loadMidiForScore()` 仍强制重建，模式变更会重新准备，销毁后不接收迟到结果。该结果仅在当前原生 API 内保留，不共享活播放器或跨会话的可变播放状态。 Worker API 的 MIDI 状态 getter 返回私有缓存，修复继承的自递归，允许安全订阅尚未加载及加载后的 `midiLoaded` 事件。
 
 原生制品 SHA-256 为 `d1905cb0063b819358fe71a2c239478cc6e7e0c74653d7f94a45034234d053a7`，内含源码档案 SHA-256 为 `0d70a8c3ddf938d14fdfe01a4ed6e5c3e31e896d750900d72086850faa99dea1`。公开上游仍固定为 `022a45c8e42370f9e12e68949d11eada370da83d`；完整覆盖层、MPL 通知、历史制品和旧公开源码下载继续保留。
+
+### 当前原生版本：双标与同会话 MIDI 准备
+
+当前精确原生 peer 为 `1.8.4-samepage.17`，分发源码提交为 `9bcd697196c3f55ee21eeadb2b823e9b138482bb`，源码树为 `4da6c822953fcccbed84c0df47a100a6208dfe92`。它在同一制品中保留 samepage.15 的 accent／strong-accent 与 tenuto 双标、生成的 JSON／clone 兼容与单次重音力度，以及 samepage.16 的 MIDI 准备复用、显式重建和 Worker 状态 getter 修复。XML 子元素顺序不改变双标与 MIDI，缓存仍只属于当前原生 API；不新增 tenuto 时值或长期共享的可变播放器。
+
+原生制品 SHA-256 为 `594eeff31aeb762c19b4d2b2d2de89227cb73dc4045fd8999a817a4d98720aca`，内含源码档案 SHA-256 为 `e0e405e96f9f425f4278f22dce9ab1ac12676a167b9aa71f5168b9929a278a1e`。公开上游仍为 `022a45c8e42370f9e12e68949d11eada370da83d`；历史 `.15`、`.16` 包及公开源码／许可证快照继续保留。原生双标和 MIDI／getter 定向测试共同验证合并制品；最终真实产品 Worker、播放和离线验收由主项目另外执行。
 
 ### 迁入来源
 
