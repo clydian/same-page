@@ -11,7 +11,7 @@
 使用 Node 24，修改 `modified-source/` 后，在仓库根目录执行：
 
 ```sh
-npm run build:native -- --version 1.8.4-samepage.14 --output /tmp/same-page-native-14
+npm run build:native -- --version 1.8.4-samepage.15 --output /tmp/same-page-native-15
 ```
 
 命令从固定公开上游建立独立临时 Git checkout，应用补丁和当前覆盖层，提交源码快照，再构建并打包。它只访问公开 alphaTab 和 npm，不访问 Chorus。输出目录必须为空，临时 checkout 保留供检查和原生测试；路径打印在输出中。运行 checkout 内与修改相关的原生测试，再运行完整原生测试。打包成功不代表测试通过。
