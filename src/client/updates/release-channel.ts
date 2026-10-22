@@ -14,17 +14,26 @@ async function reconcileSelection() {
   const response = await fetch("/api/client-release", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error("发布通道暂不可用，请联网后重试。");
   const target = releaseTargetSchema.parse(await response.json());
+  // Identical running bytes already have display permission. A confirmed change
+  // of channel only updates that permission's attribution, not the running shell.
+  const permitted = receipt.permitted?.target === buildId && target.target === buildId ? target : receipt.permitted;
   // Handles a crash before POST, lost POST response and crash before confirmation.
   // Never restores a beta Cookie from local metadata; online readback is authoritative.
-  await writeReleaseReceipt(location.origin, { confirmed: target, ...(receipt.permitted ? { permitted: receipt.permitted } : {}) });
-  update({ target, runningChannel: receipt.permitted?.target === buildId ? receipt.permitted.channel : target.target === buildId ? target.channel : null, error: "" });
+  await writeReleaseReceipt(location.origin, { confirmed: target, ...(permitted ? { permitted } : {}) });
+  update({ target, runningChannel: permitted?.target === buildId ? permitted.channel : target.target === buildId ? target.channel : null, error: "" });
   return target;
 }
 export async function refreshReleaseChannel() {
-  return navigator.locks ? navigator.locks.request(releaseSelectionLock, reconcileSelection) : reconcileSelection();
+  try {
+    return await (navigator.locks ? navigator.locks.request(releaseSelectionLock, reconcileSelection) : reconcileSelection());
+  } catch (error) {
+    update({ error: navigator.onLine === false ? "当前离线，请联网后重试。" : "版本信息暂不可用，请稍后重试。" });
+    throw error;
+  }
 }
 export async function selectReleaseChannel(channel: ReleaseChannel) {
-  if (!navigator.locks || !navigator.onLine) { update({ error: "请联网并在支持安全切换的浏览器中重试。" }); return; }
+  if (!navigator.onLine) { update({ error: "当前离线，请联网后再切换版本。" }); return; }
+  if (!navigator.locks) { update({ error: "当前浏览器不支持安全切换版本，请更新浏览器后重试。" }); return; }
   update({ busy: true, error: "" });
   const release = holdUpdate();
   try {
@@ -37,7 +46,7 @@ export async function selectReleaseChannel(channel: ReleaseChannel) {
       if (target.channel !== channel || target.intent !== intent) throw new Error("通道选择尚未确认，请重试。");
       window.dispatchEvent(new Event("same-page-check-update"));
     });
-  } catch (error) { update({ error: error instanceof Error ? error.message : "切换未完成，当前版本继续运行。" }); }
+  } catch (error) { update({ error: error instanceof Error && !(error instanceof TypeError) ? error.message : "切换未完成，请检查网络后重试。当前版本继续运行。" }); }
   finally { release(); update({ busy: false }); }
 }
 export function releaseChannelDiagnostics() { return state.target ? { channel: state.target.channel, target: state.target.target, backend: state.target.backend } : null; }

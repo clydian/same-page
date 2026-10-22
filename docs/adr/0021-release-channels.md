@@ -18,6 +18,24 @@ refreshing its receipt fails at quota; first permission for a different shell or
 channel still requires a successful durable write. Offline UI identifies the
 running channel from that build's permitted receipt, without restoring a Cookie
 or treating local metadata as online authority.
+If both channels select the already-permitted running build, confirmed online
+readback may update its channel attribution without a reload or a new display grant.
+
+The about page combines channel selection, running version and update feedback.
+Ordinary updates within a channel retain normal update wording. Product operators
+enter the existing backend from the personal menu only after server confirmation;
+drive ownership does not confer backend or release authority. Release tables,
+promotion confirmation and audit history display the original version from the
+sealed build.json; hashes remain internal identities and collapsed diagnostics.
+Missing version metadata is explicit, never reconstructed from upload time.
+
+A prepared handover explicitly deferred by other windows may show one polite
+reminder per waiting worker in the current page lifetime. It appears only in a
+visible, idle drive file library after at least ten seconds of deferral, dismisses
+after eight seconds (paused during hover/focus), and links to the about page.
+Readers, playback, operations, inputs and overlays keep their existing vetoes.
+Resource failures and unknown handover failures do not trigger this reminder.
+The reminder never bypasses or holds the update safety gate.
 
 Frontend artifacts live in a dedicated private R2 bucket at immutable build-prefixed
 paths. A full SHA identifies exactly one sealed artifact. The uploader claims the

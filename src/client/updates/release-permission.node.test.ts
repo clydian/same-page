@@ -2,7 +2,9 @@ import { afterEach,beforeEach,expect,it,vi } from 'vitest';
 import { ReleasePermission } from '../../../service-worker/release-permission';
 import { type ReleaseTarget, releaseContract } from '../../shared/release-channels';
 import { readReleaseReceipt,writeReleaseReceipt } from '../../shared/release-receipt';
-import { refreshReleaseChannel } from './release-channel';
+import { refreshReleaseChannel, useReleaseChannel } from './release-channel';
+vi.mock('../../shared/build',()=>({buildId:'b'.repeat(40)}));
+vi.mock('react',()=>({useSyncExternalStore:(_subscribe: unknown,snapshot:()=>unknown)=>snapshot()}));
 const origin='https://same-page.test',A='a'.repeat(40),B='b'.repeat(40);
 const stable: ReleaseTarget={channel:'stable',target:A,intent:'default',revision:1,backend:A,contract:releaseContract};
 const beta: ReleaseTarget={...stable,channel:'beta',target:B,intent:'explicit-beta'};
@@ -55,4 +57,34 @@ it('still requires a durable receipt for a first release or a different channel'
  vi.stubGlobal('caches',{open:async()=>({...cache,put:async()=>{throw new DOMException('Storage full','QuotaExceededError');}})});
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({...stable,target:B})));
  await expect(permission.displayed(B)).rejects.toMatchObject({name:'QuotaExceededError'});
+});
+
+it('updates the running channel when an already permitted build is identical in both channels',async()=>{
+ await writeReleaseReceipt(origin,{confirmed:beta,permitted:beta});
+ const confirmed={...stable,target:B,intent:'confirmed-stable'};
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(confirmed)));
+ await refreshReleaseChannel();
+ expect((await readReleaseReceipt(origin)).permitted).toEqual(confirmed);
+ expect(useReleaseChannel()).toMatchObject({target:confirmed,runningChannel:'stable',error:''});
+});
+
+it('does not grant a first display permission or relabel another running build during reconciliation',async()=>{
+ for(const receipt of [{},{permitted:stable},{permitted:beta}]){
+  await writeReleaseReceipt(origin,receipt);
+  const target=receipt.permitted===beta?stable:{...stable,target:B};
+  vi.stubGlobal('fetch',vi.fn(async()=>Response.json(target)));
+  await refreshReleaseChannel();
+  expect((await readReleaseReceipt(origin)).permitted).toEqual(receipt.permitted);
+ }
+});
+
+it('exposes an offline refresh error and clears it after a successful readback',async()=>{
+ vi.stubGlobal('navigator',{onLine:false});
+ vi.stubGlobal('fetch',vi.fn(async()=>{throw new TypeError('Failed to fetch');}));
+ await expect(refreshReleaseChannel()).rejects.toThrow('Failed to fetch');
+ expect(useReleaseChannel().error).toBe('当前离线，请联网后重试。');
+ vi.stubGlobal('navigator',{onLine:true});
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(stable)));
+ await refreshReleaseChannel();
+ expect(useReleaseChannel().error).toBe('');
 });

@@ -22,6 +22,22 @@ export async function manifest(env: Env, id: string, staged = false): Promise<Re
   return parsed.success && parsed.data.buildId === id ? parsed.data : null;
 }
 
+// Display metadata comes from the same immutable bytes as the running app.
+// Older or unavailable metadata must not prevent viewing the release catalog.
+export async function releaseVersion(env: Env, id: string): Promise<string | null> {
+  try {
+    const release = await manifest(env, id), entry = release?.files["build.json"];
+    if (!entry || entry.bytes > 512 * 1024) return null;
+    const object = await env.FRONTEND_RELEASES!.get(`releases/${id}/build.json`);
+    if (!object || object.size !== entry.bytes) return null;
+    const bytes = await object.arrayBuffer();
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), b => b.toString(16).padStart(2, "0")).join("");
+    if (digest !== entry.sha256) return null;
+    const identity = JSON.parse(new TextDecoder().decode(bytes));
+    return identity?.buildId === id && typeof identity.version === "string" && /^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/.test(identity.version) ? identity.version : null;
+  } catch { return null; }
+}
+
 export async function compatibilityReady(env: Env, stable: string, candidate: string) {
   const proof = await releaseDB(env).prepare("SELECT report_digest AS digest FROM release_compatibility WHERE stable=? AND candidate=?").bind(stable,candidate).first<{ digest: string }>();
   if (!proof || !env.FRONTEND_RELEASES) return false;

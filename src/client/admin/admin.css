@@ -225,10 +225,20 @@
 .admin-header {
   gap: 0.8rem;
 }
-.admin-header strong {
-  font-size: 1.1rem;
+.admin-back {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 44px;
+  flex-shrink: 0;
+  color: var(--brand);
+  font-size: .875rem;
+  font-weight: 600;
+  text-decoration: none;
 }
+.admin-back:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: .25rem; }
 .admin-header > span {
+  white-space: nowrap;
   padding-left: 0.8rem;
   border-left: 1px solid var(--line);
   color: var(--muted);
@@ -326,6 +336,53 @@
 .diagnostic-inbox-payload { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; line-height: 1.6; }
 .diagnostic-inbox-filters button, .admin-actions button { min-height: 44px; }
 .diagnostic-inbox-table td { overflow-wrap: anywhere; }
+
+.release-admin {
+  max-width: 52rem;
+  padding-bottom: 3rem;
+}
+.release-admin-heading { margin-bottom: 1.75rem; }
+.release-admin .admin-title { font-size: 1.65rem; line-height: 1.3; margin: 0 0 .5rem; }
+.release-admin-heading p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.7; }
+.release-admin-table { width: 100%; border-collapse: collapse; text-align: left; }
+.release-admin-caption { padding-bottom: .65rem; color: var(--muted); font-size: .75rem; text-align: right; }
+.release-admin-table th, .release-admin-table td { padding: 1rem .75rem; border-bottom: 1px solid var(--line); vertical-align: middle; font-size: .875rem; }
+.release-admin-table thead th { padding-top: .65rem; padding-bottom: .65rem; color: var(--muted); font-size: .75rem; font-weight: 500; background: var(--brand-soft); }
+.release-admin-table th:first-child, .release-admin-table td:first-child { padding-left: 1rem; }
+.release-admin-table tbody th { font-weight: 600; }
+.release-admin-table small { display: block; color: var(--muted); font-size: .75rem; font-weight: 400; margin-top: .3rem; }
+.release-version { font-size: .8125rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.release-admin-table .release-version { white-space: nowrap; }
+.release-admin-table time, .release-admin-history time { font-variant-numeric: tabular-nums; }
+.release-admin-details { margin: .75rem 0 1.5rem; color: var(--muted); font-size: .8rem; }
+.release-admin-details summary { width: fit-content; min-height: 44px; padding: .6rem 0; cursor: pointer; }
+.release-admin-details dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .5rem .75rem; margin: .25rem 0 1rem; }
+.release-admin-details dd { margin: 0; overflow-wrap: anywhere; }
+.release-admin-details code { font-size: .75rem; }
+.release-admin-actions { gap: .75rem; margin: 0; }
+.release-admin-actions .primary-button, .release-admin-actions .secondary-button { min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--line); border-radius: .65rem; font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; touch-action: manipulation; }
+.release-admin-actions .primary-button { color: white; background: var(--brand); border-color: var(--brand); }
+.release-admin-actions .primary-button:hover:enabled { background: var(--brand-strong); }
+.release-admin-actions .secondary-button { color: var(--ink); background: var(--surface); }
+.release-admin-actions .secondary-button:hover:enabled { background: var(--brand-soft); }
+.release-admin-actions button:disabled { cursor: default; opacity: .55; }
+.release-admin :is(button, summary):focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.release-admin-status { margin: .75rem 0 0; color: var(--brand); font-size: .875rem; line-height: 1.7; }
+.release-admin-status:empty { margin: 0; }
+.release-admin-history { margin-top: 2.5rem; }
+.release-admin-history h2 { margin: 0 0 .75rem; font-size: 1rem; }
+.release-admin-history ul { list-style: none; padding: 0; margin: 0; }
+.release-admin-history li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .35rem 1rem; padding: .85rem 0; border-bottom: 1px solid var(--line); font-size: .875rem; }
+.release-admin-history time, .release-admin-history > p { color: var(--muted); font-size: .8rem; }
+
+@media (max-width: 600px) {
+  .release-admin .admin-title { font-size: 1.4rem; }
+  .release-admin-table th, .release-admin-table td { padding: .9rem .45rem; }
+  .release-admin-table th:first-child, .release-admin-table td:first-child { padding-left: .6rem; }
+  .release-admin-table time { display: block; max-width: 8rem; }
+  .release-admin-actions { align-items: stretch; }
+  .release-admin-actions button { flex: 1 1 auto; }
+}
 @media (max-width: 600px) {
   .diagnostic-inbox-table thead { display: none; }
   .diagnostic-inbox-table table, .diagnostic-inbox-table tbody { display: block; }

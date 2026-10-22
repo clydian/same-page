@@ -4,6 +4,7 @@ import { env } from "cloudflare:workers";
 import { beforeEach, expect, it } from "vitest";
 import worker from "../index";
 import { releaseContract } from "../../src/shared/release-channels";
+import { releaseVersion } from "./catalog";
 const A = "a".repeat(40), B = "b".repeat(40), C = "c".repeat(40);
 const digest = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), b => b.toString(16).padStart(2, "0")).join("");
 const call = async (path: string, init?: RequestInit) => {
@@ -11,11 +12,13 @@ const call = async (path: string, init?: RequestInit) => {
   const response = await worker.fetch(new Request(`https://same-page.test${path}`, init), { ...env, RELEASE_CHANNELS_ENABLED: "true" }, context);
   await waitOnExecutionContext(context); return response;
 };
-async function release(id: string, ready = 1) {
+async function release(id: string, ready = 1, identity: { buildId: string; version?: string } | null = { buildId: id, version: id === A ? "v26.10.22.1200" : "v26.10.22.1530" }) {
   const html = `<meta name="same-page-build-id" content="${id}">`;
-  const files = { "index.html": { sha256: await digest(html), bytes: html.length, contentType: "text/html" }, "app.js": { sha256: await digest(id), bytes: id.length, contentType: "text/javascript" }, "sw.js": { sha256: await digest(id), bytes: id.length, contentType: "text/javascript" } };
+  const files: Record<string, { sha256: string; bytes: number; contentType: string }> = { "index.html": { sha256: await digest(html), bytes: html.length, contentType: "text/html" }, "app.js": { sha256: await digest(id), bytes: id.length, contentType: "text/javascript" }, "sw.js": { sha256: await digest(id), bytes: id.length, contentType: "text/javascript" } };
+  const build = identity ? JSON.stringify(identity) : null;
+  if (build) files["build.json"] = { sha256: await digest(build), bytes: build.length, contentType: "application/json" };
   const sealed = JSON.stringify({ probeDigest: "0".repeat(64), storageDigest: "0".repeat(64), buildId: id, contract: releaseContract, files });
-  for (const [name,entry] of Object.entries(files)) await env.FRONTEND_RELEASES!.put(`releases/${id}/${name}`, name === "index.html" ? html : id, {customMetadata: {sha256: entry.sha256}});
+  for (const [name,entry] of Object.entries(files)) await env.FRONTEND_RELEASES!.put(`releases/${id}/${name}`, name === "index.html" ? html : name === "build.json" ? build! : id, {customMetadata: {sha256: entry.sha256}});
   await env.FRONTEND_RELEASES!.put(`releases/${id}/sealed.json`, sealed);
   await env.DB.prepare("INSERT INTO frontend_releases VALUES(?,?,?,?,?)").bind(id,await digest(sealed),releaseContract,Date.now(),ready).run();
 }
@@ -82,6 +85,20 @@ it("rejects different bytes for every immutable key including the claim and seal
   expect(await(await bucket.get("claim-probe"))!.text()).toBe("A");
 });
 
+it("reads only the sealed build version and tolerates legacy or invalid metadata", async () => {
+  expect(await releaseVersion(env, A)).toBe("v26.10.22.1200");
+  await release(C, 1, null);
+  expect(await releaseVersion(env, C)).toBeNull();
+  const mismatched = "d".repeat(40);
+  await release(mismatched, 1, { buildId: A, version: "v26.10.22.1200" });
+  expect(await releaseVersion(env, mismatched)).toBeNull();
+  const invalid = "e".repeat(40);
+  await release(invalid, 1, { buildId: invalid, version: "invented-version" });
+  expect(await releaseVersion(env, invalid)).toBeNull();
+  await env.FRONTEND_RELEASES!.put(`releases/${A}/build.json`, JSON.stringify({ buildId: A, version: "v26.10.22.1201" }));
+  expect(await releaseVersion(env, A)).toBeNull();
+});
+
 it("separates release authority from XML authority and retries exactly one audited promotion",async()=>{
   const user=crypto.randomUUID(),now=Date.now(),password='release-fixture-password';
   await env.DB.batch([
@@ -95,6 +112,12 @@ it("separates release authority from XML authority and retries exactly one audit
     const headers={Cookie:cookie,Origin:'https://same-page.test','Content-Type':'application/json'};
     expect((await call('/api/admin/releases',{headers})).status).toBe(403);
     await env.DB.prepare('INSERT INTO release_operators VALUES(?)').bind(user).run();
+    const catalog = await call('/api/admin/releases', { headers });
+    expect(catalog.status).toBe(200);
+    expect(await catalog.json()).toMatchObject({ releases: expect.arrayContaining([
+      expect.objectContaining({ buildId: A, version: 'v26.10.22.1200' }),
+      expect.objectContaining({ buildId: B, version: 'v26.10.22.1530' }),
+    ]) });
     const input={id:crypto.randomUUID(),expectedBeta:B,expectedRevision:1};
     const promote=()=>call('/api/admin/releases/promote',{method:'POST',headers,body:JSON.stringify(input)});
     expect((await promote()).status).toBe(503); // A ready artifact alone is not a compatibility proof.
@@ -103,6 +126,15 @@ it("separates release authority from XML authority and retries exactly one audit
     await env.DB.prepare('INSERT INTO release_compatibility VALUES(?,?,?,?,?)').bind(B,A,'0'.repeat(64),'0'.repeat(64),await digest(report)).run();
     expect((await promote()).status).toBe(204);expect((await promote()).status).toBe(204);
     expect((await env.DB.prepare('SELECT * FROM release_promotions').all()).results).toHaveLength(1);
+    const promoted = await (await call('/api/admin/releases', { headers })).json();
+    expect(promoted).toMatchObject({ stable: B, beta: B, releases: expect.arrayContaining([
+      expect.objectContaining({ buildId: A, version: 'v26.10.22.1200' }),
+      expect.objectContaining({ buildId: B, version: 'v26.10.22.1530' }),
+    ]), events: [expect.objectContaining({ previousStable: A, target: B })] });
+    await env.FRONTEND_RELEASES!.delete(`releases/${A}/build.json`);
+    const legacy = await call('/api/admin/releases', { headers });
+    expect(legacy.status).toBe(200);
+    expect(await legacy.json()).toMatchObject({ releases: expect.arrayContaining([expect.objectContaining({ buildId: A, version: null })]) });
     await env.DB.prepare('DELETE FROM release_operators WHERE user_id=?').bind(user).run();
     expect((await promote()).status).toBe(403);
   }finally{await env.DB.prepare('DELETE FROM user WHERE id=?').bind(user).run()}
