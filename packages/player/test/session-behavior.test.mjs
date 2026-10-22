@@ -3,21 +3,24 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { playbackMeasureLabels } from '../dist/playback-measures.js';
 import { ScoreFollowSession, isPointerDrag } from '../dist/score-follow.js';
+import { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from '../dist/musicxml-direction-timing.js';
 // Exercise the shipped session against deterministic engine/Worker adapters.
-const compiled = (await readFile(new URL('../dist/session.js', import.meta.url),'utf8')).replace(/^import .*$/mg,'').replace('export function createPlayerSession','function createPlayerSession').replace(/new URL\([^\n]+import.meta.url\)/,'"prepare.worker.js"');
-const factory = new Function('createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabels',compiled+'\nreturn createPlayerSession;');
+const compiled = (await readFile(new URL('../dist/session.js', import.meta.url),'utf8')).replace(/^(?:import|export \{).*$/mg,'').replace('export function createPlayerSession','function createPlayerSession').replace(/new URL\([^\n]+import.meta.url\)/,'"prepare.worker.js"');
+const factory = new Function('createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabels','isCompatibleMusicXmlPreparation',compiled+'\nreturn createPlayerSession;');
 function harness(options = {}) {
- let worker, workerCount = 0, ready;
- const previous = globalThis.Worker, previousParser = globalThis.DOMParser;
+ let worker, workerCount = 0, parses = 0, ready, observer;
+ const previous = globalThis.Worker, previousParser = globalThis.DOMParser, previousObserver = globalThis.MutationObserver;
  // XML parsing is an external browser adapter in these mixer/follow tests.
- globalThis.DOMParser = class { parseFromString() { return {documentElement:{children:[]}}; } };
- globalThis.Worker = class { constructor() { worker=this;workerCount++; } terminate() {} postMessage() {} };
- const event = () => ({on(){}});
- const api = {settings:{player:{}},isReadyForPlayback:true,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},pause(){},destroy(){},updateSettings(){},};
- const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels);
- const session = create({getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){}},new Uint8Array([1]),options);
+ globalThis.DOMParser = class { parseFromString() { parses++; return {documentElement:{children:[]}}; } };
+ globalThis.Worker = class { constructor() { worker=this;workerCount++; } terminate() {this.terminated=true;} postMessage(bytes) {this.bytes=bytes;} };
+ globalThis.MutationObserver = class { constructor(fn) {observer=this;this.notify=fn;} observe() {} disconnect() {this.disconnected=true;} };
+ const event = () => {const listeners=[];return {on(fn){listeners.push(fn);},emit(value){listeners.forEach(fn=>fn(value));}};};
+ const api = {settings:{player:{}},renderer:{partialRenderFinished:event()},isReadyForPlayback:true,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},pause(){},destroy(){},updateSettings(){},};
+ const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation);
+ const element={getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){},querySelector(){return null;}};
+ const session = create(element,new Uint8Array([1]),options);
  if(worker) worker.onmessage({data:{prepared:{bytes:new Uint8Array([1])}}});
- return {session,api,get workerCount(){return workerCount;},dispose(){session.dispose();globalThis.Worker=previous;globalThis.DOMParser=previousParser;}};
+ return {session,api,element,worker,observer,get parses(){return parses;},get workerCount(){return workerCount;},dispose(){session.dispose();globalThis.Worker=previous;globalThis.DOMParser=previousParser;globalThis.MutationObserver=previousObserver;}};
 }
 test('focus preserves independent faders and mute/solo while adjusting two volume groups',()=>{
  const h=harness();try {
@@ -49,4 +52,82 @@ test('public source-session coordinate seek and explicit follow suspension prese
   h.session.seekAt(NaN,34);assert.equal(h.api.tickPosition,2400);
   h.session.suspendFollow();assert.equal(h.session.getSnapshot().following,false);
  }finally{h.dispose();}
+});
+
+test('current prepared labels, including an empty array, skip the legacy DOM parse',async()=>{
+ const h=harness({prepared:{bytes:new Uint8Array([1]),measureLabels:[],importInputVersion:CURRENT_IMPORT_INPUT_VERSION}});
+ try {await Promise.resolve();assert.equal(h.workerCount,0);assert.equal(h.parses,0);assert.equal(h.session.getSnapshot().status,'ready');}
+ finally {h.dispose();}
+ const legacy=harness({prepared:{bytes:new Uint8Array([1])}});
+ try {await Promise.resolve();assert.equal(legacy.parses,1);assert.equal(legacy.workerCount,0);}
+ finally {legacy.dispose();}
+});
+
+test('unknown prepared input is rebuilt from original bytes rather than rendered or surfaced as a playback failure',()=>{
+ const replies=[];
+ const h=harness({prepared:{bytes:new Uint8Array([99]),importInputVersion:'future-v99'},onPrepared:value=>replies.push(value)});
+ try {assert.equal(h.workerCount,1);assert.deepEqual(h.worker.bytes,new Uint8Array([1]));assert.equal(replies.length,1);assert.equal(h.session.getSnapshot().status,'ready');}
+ finally {h.dispose();}
+});
+
+const musicPartial = {firstMasterBarIndex:0,lastMasterBarIndex:1,renderResult:'<svg><text>whole note</text><rect width="1" height="2"/></svg>'};
+const musicalBounds = () => [{bars:[{bars:[{beats:[{}]}]}]}];
+
+test('readable-system signal accepts pathless music after its partial and bounds, while rejecting title SVG alone',async()=>{
+ let reports=0;
+ const h=harness({prepared:{bytes:new Uint8Array([1]),measureLabels:[]},onFirstReadableSystem:()=>reports++});
+ try {
+  await Promise.resolve(); h.api.boundsLookup.staffSystems=[]; h.api.postRenderFinished.emit();assert.equal(reports,0);
+  h.element.querySelector=()=>({}); h.observer.notify();assert.equal(reports,0,'SVG alone cannot certify notation');
+  h.api.boundsLookup.staffSystems=musicalBounds();
+  h.api.renderer.partialRenderFinished.emit({firstMasterBarIndex:-1,lastMasterBarIndex:-1,renderResult:'<svg><text>Title</text></svg>'});
+  h.api.postRenderFinished.emit();assert.equal(reports,0,'title SVG plus whole-score bounds is not readable music');
+  h.api.renderer.partialRenderFinished.emit({...musicPartial,renderResult:null});assert.equal(reports,0,'a layout placeholder is not rendered notation');
+  h.api.renderer.partialRenderFinished.emit(musicPartial);assert.equal(reports,1,'whole-note SVG does not require a path');
+  h.observer.notify();h.api.postRenderFinished.emit();assert.equal(reports,1);assert.equal(h.observer.disconnected,true);
+ } finally {h.dispose();}
+ h.observer.notify();h.api.renderer.partialRenderFinished.emit(musicPartial);assert.equal(reports,1);
+});
+
+test('musical partial waits for both current bounds and installed SVG in either message order',async()=>{
+ for(const boundsFirst of [true,false]) {
+  let reports=0;const h=harness({prepared:{bytes:new Uint8Array([1]),measureLabels:[]},onFirstReadableSystem:()=>reports++});
+  try {
+   await Promise.resolve();h.api.boundsLookup.staffSystems=boundsFirst?musicalBounds():[];
+   h.api.renderer.partialRenderFinished.emit(musicPartial);assert.equal(reports,0,'no installed SVG');
+   h.element.querySelector=()=>({});h.observer.notify();assert.equal(reports,boundsFirst?1:0);
+   if(!boundsFirst){h.api.boundsLookup.staffSystems=musicalBounds();h.api.postRenderFinished.emit();assert.equal(reports,1);}
+  }finally{h.dispose();}
+ }
+});
+
+test('new layout cannot combine an old rendered partial with a title-only SVG',async()=>{
+ let reports=0;const h=harness({prepared:{bytes:new Uint8Array([1]),measureLabels:[]},onFirstReadableSystem:()=>reports++});
+ try {
+  await Promise.resolve();h.api.boundsLookup.staffSystems=[];h.api.renderer.partialRenderFinished.emit(musicPartial);
+  h.api.renderStarted.emit();h.element.querySelector=()=>({});h.api.boundsLookup.staffSystems=musicalBounds();
+  h.api.postRenderFinished.emit();assert.equal(reports,0);
+  h.api.renderer.partialRenderFinished.emit(musicPartial);assert.equal(reports,1);
+ }finally{h.dispose();}
+});
+
+test('disposal fences late Worker preparation and readiness callbacks',()=>{
+ const replies=[];const h=harness({onPrepared:value=>replies.push(value)});h.dispose();
+ h.worker.onmessage({data:{prepared:{bytes:new Uint8Array([9])}}});
+ assert.equal(replies.length,1);assert.equal(h.worker.terminated,true);
+});
+
+test('loading stages use actual engine events once, repeat playback starts, and isolate timing sink exceptions',async()=>{
+ const stages=[];
+ const h=harness({prepared:{bytes:new Uint8Array([1]),measureLabels:[]},onLoadingStage:stage=>{stages.push(stage);if(stage==='model-ready')throw new Error('failed timing sink');}});
+ try {
+  await Promise.resolve();assert.deepEqual(stages,['source-prepared','model-ready','ready']);assert.equal(h.session.getSnapshot().status,'ready');
+  h.api.midiLoaded.emit();h.api.midiLoaded.emit();h.api.soundFontLoaded.emit();h.api.soundFontLoaded.emit();
+  assert.deepEqual(stages.slice(3),['midi-ready','soundfont-ready']);
+  h.session.playPause();h.api.playerStateChanged.emit({state:1});h.session.playPause();h.api.playerStateChanged.emit({state:0});h.session.playPause();h.api.playerStateChanged.emit({state:1});
+  assert.deepEqual(stages.slice(5),['play-request','playing','play-request','playing']);
+  h.api.boundsLookup.staffSystems=musicalBounds();h.element.querySelector=()=>({});h.api.renderer.partialRenderFinished.emit(musicPartial);h.observer.notify();h.api.postRenderFinished.emit();
+  assert.equal(stages.filter(stage=>stage==='first-system').length,1);
+ } finally {h.dispose();}
+ const previous=stages.length;h.api.midiLoaded.emit();h.api.playerStateChanged.emit({state:1});assert.equal(stages.length,previous);
 });

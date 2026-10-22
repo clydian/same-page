@@ -5,6 +5,8 @@ import { applyTimbreProfile, classifyTimbreRoles } from './timbre-profile.ts';
 import { ScoreFollowSession, isPointerDrag } from './score-follow.ts';
 import { playbackMeasureLabels } from './playback-measures.ts';
 import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
+import { isCompatibleMusicXmlPreparation } from './preparation-format.ts';
+export { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 
 export interface PlayerPart { id: number; name: string; volume: number; baseVolume?: number; muted: boolean; solo: boolean }
 export interface PlayerMeasure { index: number; label: string; startTick: number; endTick: number }
@@ -27,12 +29,23 @@ export interface PlayerOptions {
   scrollElement?: HTMLElement;
   prepared?: PreparedMusicXml;
   onPrepared?(prepared: PreparedMusicXml): void;
+  /** Fired once after actual notation and its first system bounds are available. */
+  onFirstReadableSystem?(): void;
+  /** Local timing hooks contain no source names, content or persistent identity. */
+  onLoadingStage?(stage: PlayerLoadingStage): void;
 }
+export type PlayerLoadingStage = 'source-prepared' | 'model-ready' | 'midi-ready' | 'soundfont-ready' | 'first-system' | 'ready' | 'play-request' | 'playing';
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
 /** The host owns source authorization, bounded preparation reuse and navigation. */
 export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, options: PlayerOptions = {}): PlayerSession {
   let disposed = false;
+  const loadingStages = new Set<PlayerLoadingStage>();
+  const loadingStage = (stage: PlayerLoadingStage) => {
+    if (disposed || state.status === 'error' || loadingStages.has(stage)) return;
+    if (stage !== 'play-request' && stage !== 'playing') loadingStages.add(stage);
+    try { options.onLoadingStage?.(stage); } catch { /* A timing sink cannot affect practice playback. */ }
+  };
   let state: PlayerState = { status: 'preparing', message: '正在读取乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .6, solfegePart: null, focus: null, otherVolume: .25, following: true, loop: null };
   const listeners = new Set<() => void>();
   const update = (next: Partial<PlayerState>) => {
@@ -59,6 +72,23 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   };
   let measureLabels: string[] = [];
   let customMeasureLabels = false;
+  let readableSystemReported = false;
+  let musicalSystemRendered = false;
+  const reportReadableSystem = () => {
+    if (disposed || state.status === 'error' || readableSystemReported || !musicalSystemRendered || !(options.onFirstReadableSystem || options.onLoadingStage)) return;
+    const system = api.boundsLookup?.staffSystems[0];
+    if (!system?.bars.some(master => master.bars.some(bar => bar.beats.length > 0)) || !element.querySelector('.at-surface svg')) return;
+    readableSystemReported = true; notationObserver?.disconnect(); loadingStage('first-system');
+    try { options.onFirstReadableSystem?.(); } catch { /* Optional host scheduling cannot fail the session. */ }
+  };
+  // The native API installs this partial's DOM before notifying this listener.
+  // Header/footer SVGs have no master bars; notation may use text/rect with no paths.
+  api.renderer.partialRenderFinished.on(result => {
+    if (disposed || result.firstMasterBarIndex < 0 || typeof result.renderResult !== 'string' || !/<svg(?:\s|>)/.test(result.renderResult)) return;
+    musicalSystemRendered = true; reportReadableSystem();
+  });
+  const notationObserver = options.onFirstReadableSystem || options.onLoadingStage ? new MutationObserver(reportReadableSystem) : null;
+  notationObserver?.observe(element, { childList: true, subtree: true });
   let measureOverlay: HTMLDivElement | null = null;
   let degreeOverlay: HTMLDivElement | null = null;
   const renderDegrees = () => {
@@ -110,9 +140,10 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
     if (system?.bars[0]) anchor = { bar: system.bars[0].index, offset: origin + system.realBounds.y - top };
   };
-  api.renderStarted.on(() => { captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
+  api.renderStarted.on(() => { musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
   api.postRenderFinished.on(() => {
     renderDegrees(); renderMeasureLabels();
+    reportReadableSystem();
     if (disposed || !viewport) return;
     if (anchor) {
       const bounds = api.boundsLookup?.findMasterBarByIndex(anchor.bar)?.staffSystemBounds?.realBounds;
@@ -144,7 +175,10 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   viewport?.addEventListener('pointercancel', pointerUp);
   viewport?.addEventListener('scroll', scroll, { passive: true });
   let worker: Worker | null = null;
-  const fail = (message: string) => { clearTimeout(deadline); worker?.terminate(); api.pause(); update({ status: 'error', message, playing: false }); };
+  const fail = (message: string) => {
+    if (disposed) return;
+    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); api.pause(); update({ status: 'error', message, playing: false });
+  };
   const deadline = setTimeout(() => fail('准备播放超时，请重试。'), 60000);
   api.error.on(error => fail(error instanceof Error ? error.message : '播放资源加载失败，请重试。'));
   const applyMix = (parts: PlayerPart[], focus = state.focus, otherVolume = state.otherVolume ?? .25, focusVolume = state.focusVolume) => {
@@ -163,21 +197,30 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       const label = labels[index];
       return { index, label, startTick: item.start, endTick: item.end };
     });
-    clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures });
+    clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures }); loadingStage('ready');
   };
   element.addEventListener('alphaTab.midiFileLoaded', ready);
   api.playerReady.on(ready);
-  api.playerStateChanged.on(event => update({ playing: event.state === alphaTab.synth.PlayerState.Playing }));
+  api.midiLoaded.on(() => loadingStage('midi-ready'));
+  api.soundFontLoaded.on(() => loadingStage('soundfont-ready'));
+  api.playerStateChanged.on(event => {
+    const playing = event.state === alphaTab.synth.PlayerState.Playing;
+    update({ playing }); if (playing) loadingStage('playing');
+  });
   api.playerPositionChanged.on(event => {
     const index = state.measures.findLastIndex(item => item.startTick <= event.currentTick);
     if (index >= 0 && index !== state.measure) update({ measure: index });
   });
   const render = (prepared: PreparedMusicXml) => {
-    if (disposed) return;
+    if (disposed || state.status === 'error') return;
     try {
-      const document = new DOMParser().parseFromString(new TextDecoder().decode(prepared.bytes), 'application/xml');
-      const part = Array.from(document.documentElement.children).find(node => node.localName === 'part');
-      measureLabels = Array.from(part?.children ?? []).filter(node => node.localName === 'measure').map((node, index) => node.getAttribute('number')?.trim() || String(index + 1));
+      loadingStage('source-prepared');
+      if (prepared.measureLabels !== undefined) measureLabels = prepared.measureLabels;
+      else {
+        const document = new DOMParser().parseFromString(new TextDecoder().decode(prepared.bytes), 'application/xml');
+        const part = Array.from(document.documentElement.children).find(node => node.localName === 'part');
+        measureLabels = Array.from(part?.children ?? []).filter(node => node.localName === 'measure').map((node, index) => node.getAttribute('number')?.trim() || String(index + 1));
+      }
       customMeasureLabels = measureLabels.some((label, index) => label !== String(index + 1));
       const score = loadPreparedMusicXml(prepared, api.settings);
       // Reflow follows the viewport rather than print-system/page breaks from the source.
@@ -194,16 +237,16 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
         occurrences.set(key, occurrence);
         return { id, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
       }) });
-      api.renderScore(score, score.tracks.map(track => track.index));
+      loadingStage('model-ready'); api.renderScore(score, score.tracks.map(track => track.index));
     } catch (error) { fail(error instanceof Error ? error.message : '无法播放此乐谱。'); }
   };
-  if (options.prepared) queueMicrotask(() => render(options.prepared!));
+  if (options.prepared && isCompatibleMusicXmlPreparation(options.prepared)) queueMicrotask(() => render(options.prepared!));
   else {
     worker = new Worker(new URL('./prepare.worker.js', import.meta.url), { type: 'module' });
     worker.onerror = () => fail('无法准备乐谱，请重试。');
     worker.onmessage = (event: MessageEvent<{ error?: string; prepared?: PreparedMusicXml }>) => {
       worker?.terminate();
-      if (disposed) return;
+      if (disposed || state.status === 'error') return;
       if (event.data.error || !event.data.prepared) { fail(event.data.error ?? '读取失败。'); return; }
       options.onPrepared?.(event.data.prepared); render(event.data.prepared);
     };
@@ -212,7 +255,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   return {
     getSnapshot: () => state,
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    playPause() { if (!disposed && state.status === 'ready') api.playPause(); },
+    playPause() { if (!disposed && state.status === 'ready') { if (!state.playing) loadingStage('play-request'); api.playPause(); } },
     pause() { if (!disposed) api.pause(); },
     seek(index) { if (!disposed && state.status === 'ready' && state.measures[index]) { api.tickPosition = state.measures[index].startTick; if (state.following) scrollToMeasure(index); } },
     // Hosts normalize transformed viewport coordinates before crossing this seam.
@@ -252,7 +295,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       api.isLooping = true; api.tickPosition = state.measures[start].startTick; update({ loop: { start, end } });
     },
     dispose() {
-      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove();
+      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove();
       viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
       viewport?.removeEventListener('keydown', keyDown);
       viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy();

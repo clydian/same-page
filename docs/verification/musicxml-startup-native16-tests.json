@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-22",
+  "scope": "Full native source suite run locally with Node 24 and two workers; unchanged raster golden failures are retained, not accepted or hidden. This is not mobile-device or listening acceptance.",
+  "baselineProcedure": "Reconstructed native14 source and native16 use the same unchanged native14 overlays and upstream fixtures. Native14 runtime files were restored for a fresh full baseline run; the new native16 lifecycle test file was excluded only from that baseline.",
+  "baseline": {
+    "tests": {
+      "passed": 1801,
+      "failed": 64,
+      "total": 1865
+    },
+    "testFiles": {
+      "passed": 80,
+      "failed": 6,
+      "total": 86
+    },
+    "packageVersion": "1.8.4-samepage.14",
+    "distributedSourceCommit": "c91004f04ec585fd588bdffc71f5c6d4f0dd02e9",
+    "command": "npm exec --workspace=packages/alphatab -- vitest run --maxWorkers=2 --exclude test/audio/AlphaTabApiMidiLifecycle.test.ts",
+    "excludedNewTestFile": "test/audio/AlphaTabApiMidiLifecycle.test.ts"
+  },
+  "candidate": {
+    "tests": {
+      "passed": 1817,
+      "failed": 64,
+      "total": 1881
+    },
+    "testFiles": {
+      "passed": 81,
+      "failed": 6,
+      "total": 87
+    },
+    "packageVersion": "1.8.4-samepage.16",
+    "distributedSourceCommit": "acb735a64769e1ea9d6bbbcdcdd31ec30fa9e448",
+    "sourceTree": "245587b339852413ec629568c6ea334ea9c55d55",
+    "command": "npm exec --workspace=packages/alphatab -- vitest run --maxWorkers=2",
+    "newLifecycleTests": 16
+  },
+  "comparison": {
+    "sameFailureSet": true,
+    "sharedFailureCount": 64,
+    "addedFailures": [],
+    "removedFailures": [],
+    "addedPassingTests": 16,
+    "sharedFailureSetSha256": "87b4d332151353c904ac235a719771c821ea3e564202cbff86aefbabc38be489"
+  },
+  "runtimeSemanticDiff": {
+    "path": "docs/verification/musicxml-startup-native16.patch",
+    "sha256": "4ee6d9a19d9e115dd5a167331359f1ceebb65b194a01d8fe1949bad758758b90",
+    "sourceFiles": {
+      "packages/alphatab/src/AlphaTabApiBase.ts": {
+        "native14Sha256": "83f6681fa7e6bd7e79bc012e5f0fc4c0588094cd8c6bfb753e13f3eb623f3edc",
+        "native16Sha256": "86d7843cfb907ee1037f3133aef673947700a2c1600d45f5d306294053e87e4d"
+      },
+      "packages/alphatab/src/platform/worker/AlphaSynthWebWorkerApi.ts": {
+        "native14Sha256": "cad46782ccd0038316d39dab9a3e7c3a359382e4d9b97069531845fc00e4469f",
+        "native16Sha256": "a63ddf39be4f70636a760f3371feb4808b5f23e253816b081035c7c0f8a9a8b8"
+      }
+    }
+  },
+  "sharedFailures": [
+    "test/exporter/AlphaTexExporter.test.ts > AlphaTexExporterTest > visual-layout",
+    "test/exporter/AlphaTexExporter.test.ts > AlphaTexExporterTest > visual-music-notation",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > BeetAnGeSample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > Binchois",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > BrahWiMeSample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > BrookeWestSample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > Chant",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > DebuMandSample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > Dichterliebe01",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > Echigo",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > FaurReveSample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > MahlFaGe4Sample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > MozaChloSample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > MozaVeilSample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > MozartPianoSonata",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > MozartTrio",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > Saltarello",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > SchbAvMaSample",
+    "test/importer/MusicXmlImporterSamples.test.ts > MusicXmlImporterSamplesTests > Telemann",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 01c-Pitches-NoVoiceElement",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 13a-KeySignatures",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 13b-KeySignatures-ChurchModes",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 22a-Noteheads",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 22b-Staff-Notestyles",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 22c-Noteheads-Chords",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 23b-Tuplets-Styles",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 23c-Tuplet-Display-NonStandard",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 31a-Directions",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 31d-Directions-Compounds",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 32a-Notations",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 32d-Arpeggio",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 33a-Spanners",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 33c-Spanners-Slurs",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 33g-Slur-ChordedNotes",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 33h-Spanners-Glissando",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 33i-Ties-NotEnded",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 33j-Beams-Tremolos",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 34a-Print-Object-Spanners",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 34b-Colors",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 34c-Font-Size",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 42a-MultiVoice-TwoVoicesOnStaff-Lyrics",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 42b-MultiVoice-MidMeasureClefChange",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 43c-MultiStaff-DifferentKeysAfterBackup",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 43f-MultiStaff-Lyrics",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 46c-Midmeasure-Clef",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61a-Lyrics",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61b-MultipleLyrics",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61c-Lyrics-Pianostaff",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61d-Lyrics-Melisma",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61e-Lyrics-Chords",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61f-Lyrics-GracedNotes",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61g-Lyrics-NameNumber",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61h-Lyrics-BeamsMelismata",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61i-Lyrics-Chords",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61j-Lyrics-Elisions",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 61k-Lyrics-SpannersExtenders",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 71e-TabStaves",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 71f-AllChordTypes",
+    "test/importer/MusicXmlImporterTestSuite.test.ts > MusicXmlImporterTestSuiteTests > 99b-Lyrics-BeamsMelismata-IgnoreBeams",
+    "test/visualTests/features/EffectsAndAnnotations.test.ts > EffectsAndAnnotationsTests > lyrics > multi-line",
+    "test/visualTests/features/EffectsAndAnnotations.test.ts > EffectsAndAnnotationsTests > lyrics > multi-line-spacing",
+    "test/visualTests/features/EffectsAndAnnotations.test.ts > EffectsAndAnnotationsTests > lyrics > single-line",
+    "test/visualTests/features/General.test.ts > GeneralTests > font-fallback",
+    "test/visualTests/issues/BrokenRenders.test.ts > BrokenRendersTests > bottom-effect-band"
+  ]
+}

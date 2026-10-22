@@ -349,13 +349,19 @@ Requires native `1.8.4-samepage.13`, source `f931703ac15d583c50f6883288332daa7d7
 
 Explicit `note@time-only` controls one-based repeat passes without hiding printed notation. Ordinary pitched notes/chord members and plain ties within normally traversed repeats use a shared sounding-eligibility rule: excluded or cue endpoints neither prolong nor suppress ordinary notes. No caption inference is used. Complex slides, bends, rolls, grace, navigation-crossing ties and separate `tie@time-only` are not certified by this bounded change. Cue boxes/source x-y offsets and general optional-performance interpretations are not recreated.
 
-### 当前原生版本：源谱连梁与延长记号
+### samepage.14：源谱连梁与延长记号
 
 当前精确原生 peer 为 `1.8.4-samepage.15`，分发源码提交为 `80abe1dd2e4497718b57fa6987f0f01f60e3b80f`。同一 MusicXML 逻辑声部中，完整、等时值、等附点且符干方向兼容的显式连梁组可以跨谱表绘制；休止、提示音、不完整组、hook 及不兼容的时值或符干保留原有回退。它不从连线推断连梁，也不复刻原谱的任意斜率或坐标。支持范围见原生覆盖层的 `docs/musicxml-cross-staff-beams.md`。
 
 MusicXML 延长记号按实际声明的拍与声部绘制，保留 normal、angled、square 形状及 upright／inverted 方向；倒置记号位于谱表下方，不再把小节级播放继承值复制成其他拍的印刷记号。新增归属和方向经 JSON／Worker 保留，旧 JSON 仍采用原有默认行为。此次没有增加延长记号的实际播放停留时长，不能据此宣称自由速度或整曲演奏已经验收。细节见 `docs/musicxml-fermata-scope.md`。
 
 播放器运行代码与既有版本相同；本地 workspace 更新精确 peer，不重新发布历史 Chorus 制品。旧原生包及公开源码快照继续保留。最终安装制品和实际产品 Worker 仍需分别验证。
+
+### 当前原生版本：同会话 MIDI 准备
+
+当前精确原生 peer 为 `1.8.4-samepage.16`，分发源码提交为 `acb735a64769e1ea9d6bbbcdcdd31ec30fa9e448`，源码树为 `245587b339852413ec629568c6ea334ea9c55d55`。新 Score 只自动生成一次基础 MIDI；立即就绪或晚到的 synth 都复用同一个有效结果，重复 ready 不再重复生成和载入。早期 tick lookup、`midiLoad` 钢琴击键修正、同步点、tick shift 和移调继续保留。显式 `loadMidiForScore()` 仍强制重建，模式变更会重新准备，销毁后不接收迟到结果。该结果仅在当前原生 API 内保留，不共享活播放器或跨会话的可变播放状态。 Worker API 的 MIDI 状态 getter 返回私有缓存，修复继承的自递归，允许安全订阅尚未加载及加载后的 `midiLoaded` 事件。
+
+原生制品 SHA-256 为 `d1905cb0063b819358fe71a2c239478cc6e7e0c74653d7f94a45034234d053a7`，内含源码档案 SHA-256 为 `0d70a8c3ddf938d14fdfe01a4ed6e5c3e31e896d750900d72086850faa99dea1`。公开上游仍固定为 `022a45c8e42370f9e12e68949d11eada370da83d`；完整覆盖层、MPL 通知、历史制品和旧公开源码下载继续保留。
 
 ### 迁入来源
 

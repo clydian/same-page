@@ -17,6 +17,10 @@
       "types": "./dist/format.d.ts",
       "import": "./dist/format.js"
     },
+    "./preparation-format": {
+      "types": "./dist/preparation-format.d.ts",
+      "import": "./dist/preparation-format.js"
+    },
     "./engine": {
       "types": "./dist/engine.d.ts",
       "import": "./dist/engine.js"

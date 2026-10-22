@@ -1,0 +1,210 @@
+diff --git a/packages/alphatab/src/AlphaTabApiBase.ts b/packages/alphatab/src/AlphaTabApiBase.ts
+--- a/packages/alphatab/src/AlphaTabApiBase.ts
++++ b/packages/alphatab/src/AlphaTabApiBase.ts
+@@ -80,7 +80,7 @@
+ import { ActiveBeatsChangedEventArgs } from '@coderline/alphatab/synth/ActiveBeatsChangedEventArgs';
+ import { AlphaSynthWrapper } from '@coderline/alphatab/synth/AlphaSynthWrapper';
+ import { ExternalMediaPlayer } from '@coderline/alphatab/synth/ExternalMediaPlayer';
+-import type { IAlphaSynth } from '@coderline/alphatab/synth/IAlphaSynth';
++import type { BackingTrackSyncPoint, IAlphaSynth } from '@coderline/alphatab/synth/IAlphaSynth';
+ import {
+     AudioExportOptions,
+     type IAudioExporter,
+@@ -102,6 +102,20 @@
+ interface SelectionInfo {
+     beat: Beat;
+     bounds?: BeatBounds;
++}
++
++/**
++ * The current score's generated MIDI, including changes made by midiLoad listeners.
++ * Kept only within this API so a late player can receive it without generating it again.
++ * @internal
++ * @record
++ */
++interface PreparedMidi {
++    score: Score;
++    file: MidiFile;
++    tickShift: number;
++    syncPoints: BackingTrackSyncPoint[];
++    transpositionPitches: Map<number, number>;
+ }
+ 
+ /**
+@@ -169,6 +183,9 @@
+     private _tracks: Track[] = [];
+     private _actualPlayerMode: PlayerMode = PlayerMode.Disabled;
+     private _player!: AlphaSynthWrapper;
++    private _preparedMidi: PreparedMidi | null = null;
++    private _loadedMidi: PreparedMidi | null = null;
++    private _midiPlayer: IAlphaSynth | null = null;
+     private _renderer: ScoreRendererWrapper;
+ 
+     private _defaultScrollHandler?: IScrollHandler;
+@@ -444,7 +461,9 @@
+         const player = new AlphaSynthWrapper();
+         this._player = player;
+         player.ready.on(() => {
+-            this.loadMidiForScore();
++            if (player.isReady) {
++                this._ensureMidiForScore();
++            }
+         });
+         player.readyForPlayback.on(() => {
+             this._onPlayerReady();
+@@ -503,6 +522,9 @@
+      */
+     public destroy(): void {
+         this._isDestroyed = true;
++        this._preparedMidi = null;
++        this._loadedMidi = null;
++        this._midiPlayer = null;
+         this._player.destroy();
+         this.uiFacade.destroy();
+         this._renderer.destroy();
+@@ -756,7 +778,6 @@
+             }
+             this._trackIndexLookup = new Set<number>(this._trackIndexes);
+             this._onScoreLoaded(score);
+-            this.loadMidiForScore();
+             this.render(renderHints);
+         } else {
+             this._tracks = tracks;
+@@ -1659,6 +1680,11 @@
+ 
+     private _destroyPlayer(): void {
+         this._player.destroy();
++        // A mode change may accompany MIDI-related settings changes. The replacement
++        // player must get a fresh generation using those settings.
++        this._preparedMidi = null;
++        this._loadedMidi = null;
++        this._midiPlayer = null;
+         this._previousTick = 0;
+         this._destroyCursors();
+     }
+@@ -1714,7 +1740,19 @@
+ 
+         this._player.instance = newPlayer;
+ 
+-        return false;
++        return true;
++    }
++
++    private _ensureMidiForScore(): void {
++        if (this._isDestroyed || !this.score) {
++            return;
++        }
++        const prepared = this._preparedMidi;
++        if (!prepared || prepared.score !== this.score) {
++            this.loadMidiForScore();
++        } else {
++            this._loadPreparedMidi(prepared);
++        }
+     }
+ 
+     /**
+@@ -1725,7 +1763,7 @@
+      * @since 1.6.0
+      */
+     public loadMidiForScore(): void {
+-        if (!this.score) {
++        if (this._isDestroyed || !this.score) {
+             return;
+         }
+ 
+@@ -1747,14 +1785,47 @@
+         this._tickCache = generator.tickLookup;
+         this._tickCache.playbackRange = this.playbackRange;
+ 
++        const prepared: PreparedMidi = {
++            score,
++            file: midiFile,
++            tickShift: handler.tickShift,
++            syncPoints: generator.syncPoints,
++            transpositionPitches: generator.transpositionPitches
++        };
++        this._preparedMidi = prepared;
+         this._onMidiLoad(midiFile);
+-
+-        const player = this._player;
+-        player.midiTickShift = handler.tickShift;
+-        player.loadMidiFile(midiFile);
+-        player.loadBackingTrack(score);
+-        player.updateSyncPoints(generator.syncPoints);
+-        player.applyTranspositionPitches(generator.transpositionPitches);
++        if (!this._isDestroyed && this._preparedMidi === prepared) {
++            this._player.midiTickShift = prepared.tickShift;
++        }
++        this._loadPreparedMidi(prepared);
++    }
++
++    private _loadPreparedMidi(prepared: PreparedMidi): void {
++        const player = this._player.instance;
++        if (
++            this._isDestroyed ||
++            !player?.isReady ||
++            this._preparedMidi !== prepared ||
++            prepared.score !== this.score ||
++            (this._loadedMidi === prepared && this._midiPlayer === player)
++        ) {
++            return;
++        }
++
++        // Mark before dispatching: synchronous synth events can re-enter this API.
++        this._loadedMidi = prepared;
++        this._midiPlayer = player;
++        this._player.midiTickShift = prepared.tickShift;
++        player.loadMidiFile(prepared.file);
++        if (this._isDestroyed || this._preparedMidi !== prepared || this._player.instance !== player) {
++            return;
++        }
++        player.loadBackingTrack(prepared.score);
++        if (this._isDestroyed || this._preparedMidi !== prepared || this._player.instance !== player) {
++            return;
++        }
++        player.updateSyncPoints(prepared.syncPoints);
++        player.applyTranspositionPitches(prepared.transpositionPitches);
+     }
+ 
+     /**
+@@ -1769,7 +1840,11 @@
+ 
+         const score = this.score!;
+         const player = this._player;
+-        player.updateSyncPoints(MidiFileGenerator.generateSyncPoints(score));
++        const syncPoints = MidiFileGenerator.generateSyncPoints(score);
++        if (this._preparedMidi?.score === score) {
++            this._preparedMidi.syncPoints = syncPoints;
++        }
++        player.updateSyncPoints(syncPoints);
+     }
+ 
+     /**
+@@ -3414,10 +3489,11 @@
+         }
+         (this.scoreLoaded as EventEmitterOfT<Score>).trigger(score);
+         this.uiFacade.triggerEvent(this.container, 'scoreLoaded', score);
+-        if (!this._setupOrDestroyPlayer()) {
+-            // feed midi into current player (a new player will trigger a midi generation once the player is ready)
+-            this.loadMidiForScore();
+-        }
++        if (this._isDestroyed || this.score !== score) {
++            return;
++        }
++        this._setupOrDestroyPlayer();
++        this._ensureMidiForScore();
+     }
+ 
+     /**
+diff --git a/packages/alphatab/src/platform/worker/AlphaSynthWebWorkerApi.ts b/packages/alphatab/src/platform/worker/AlphaSynthWebWorkerApi.ts
+--- a/packages/alphatab/src/platform/worker/AlphaSynthWebWorkerApi.ts
++++ b/packages/alphatab/src/platform/worker/AlphaSynthWebWorkerApi.ts
+@@ -144,7 +144,7 @@
+     }
+ 
+     public get loadedMidiInfo(): PositionChangedEventArgs | undefined {
+-        return this.loadedMidiInfo;
++        return this._loadedMidiInfo;
+     }
+ 
+     public get currentPosition(): PositionChangedEventArgs {

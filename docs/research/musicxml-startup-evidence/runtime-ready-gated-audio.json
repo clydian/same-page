@@ -1,0 +1,488 @@
+{
+  "buildId": "f7920e7331a614d3d97a8096b3cc83c3ee75b289",
+  "version": "v26.10.22.1225",
+  "scope": "Production engine bytes with verified SHA256, local assets, 390x844 viewport; excludes host authorization/original download/offline preparation; CPU throttle is not physical-device validation",
+  "results": [
+    {
+      "browser": "chromium-4x-cpu",
+      "score": "sun",
+      "warm": false,
+      "importMs": 96.10000002384186,
+      "readyMs": 1245.3999999761581,
+      "preparedMs": 638.6999999284744,
+      "partsMs": 1125.0999999046326,
+      "firstSvgMs": 1418.6999999284744,
+      "events": [
+        {
+          "name": "alphaTab.soundFontLoaded",
+          "ms": 581.3999999761581
+        },
+        {
+          "name": "alphaTab.midiLoad",
+          "ms": 1178.5
+        },
+        {
+          "name": "alphaTab.midiFileLoaded",
+          "ms": 1243
+        },
+        {
+          "name": "alphaTab.playerReady",
+          "ms": 1243.7999999523163
+        },
+        {
+          "name": "alphaTab.renderStarted",
+          "ms": 1275.7999999523163
+        },
+        {
+          "name": "alphaTab.renderFinished",
+          "ms": 1372.2999999523163
+        },
+        {
+          "name": "alphaTab.postRenderFinished",
+          "ms": 1394
+        }
+      ],
+      "parsers": [
+        {
+          "start": 639.5,
+          "duration": 34.5,
+          "bytes": 438086
+        }
+      ],
+      "workers": [
+        {
+          "at": 29.199999928474426,
+          "url": "http://127.0.0.1:49492/assets/alphaTab.worker-MoNLkrb8.js"
+        },
+        {
+          "at": 41.5,
+          "url": "http://127.0.0.1:49492/assets/alphaTab.worker-MoNLkrb8.js"
+        },
+        {
+          "at": 231.79999995231628,
+          "url": "http://127.0.0.1:49492/assets/prepare.worker-hCXRj_E0.js"
+        }
+      ],
+      "tasks": [
+        {
+          "start": -3.100000023841858,
+          "duration": 487
+        },
+        {
+          "start": 637.7999999523163,
+          "duration": 602
+        }
+      ],
+      "resources": [
+        {
+          "path": "/playback/f7920e7331a614d3d97a8096b3cc83c3ee75b289/font/Bravura.woff2",
+          "start": 483.7999999523163,
+          "ms": 3.799999952316284,
+          "transfer": 313648,
+          "encoded": 313348
+        },
+        {
+          "path": "/assets/alphaTab.worker-MoNLkrb8.js",
+          "start": 506.7999999523163,
+          "ms": 3.5,
+          "transfer": 2371862,
+          "encoded": 2371562
+        },
+        {
+          "path": "/assets/alphaTab.worker-MoNLkrb8.js",
+          "start": 510,
+          "ms": 3.299999952316284,
+          "transfer": 0,
+          "encoded": 2371562
+        },
+        {
+          "path": "/assets/prepare.worker-hCXRj_E0.js",
+          "start": 512.5999999046326,
+          "ms": -277.5,
+          "transfer": 126264,
+          "encoded": 125964
+        },
+        {
+          "path": "/playback/f7920e7331a614d3d97a8096b3cc83c3ee75b289/soundfont/sonivox.sf2",
+          "start": 560.2999999523163,
+          "ms": 11.399999976158142,
+          "transfer": 1352196,
+          "encoded": 1351896
+        }
+      ],
+      "midiCpu": [
+        {
+          "start": 560.5999999046326,
+          "duration": 0.10000002384185791
+        },
+        {
+          "start": 1126.7999999523163,
+          "duration": 58.5
+        }
+      ],
+      "parts": 5,
+      "measures": 70,
+      "budgetMs": 1000,
+      "verdict": "SLOW",
+      "audio": {
+        "peak": 0.20488673448562622,
+        "playing": true,
+        "pausedAfter": true,
+        "contextStates": [
+          "running"
+        ]
+      }
+    },
+    {
+      "browser": "chromium-4x-cpu",
+      "score": "jesu",
+      "warm": false,
+      "importMs": 96.10000002384186,
+      "readyMs": 1803.8999999761581,
+      "preparedMs": 349.5,
+      "partsMs": 1580.3999999761581,
+      "firstSvgMs": 2458,
+      "events": [
+        {
+          "name": "alphaTab.soundFontLoaded",
+          "ms": 149.59999990463257
+        },
+        {
+          "name": "alphaTab.midiLoad",
+          "ms": 1622.3999999761581
+        },
+        {
+          "name": "alphaTab.midiFileLoaded",
+          "ms": 1802.0999999046326
+        },
+        {
+          "name": "alphaTab.playerReady",
+          "ms": 1802.0999999046326
+        },
+        {
+          "name": "alphaTab.renderStarted",
+          "ms": 1907.5999999046326
+        },
+        {
+          "name": "alphaTab.renderFinished",
+          "ms": 2360.1999999284744
+        },
+        {
+          "name": "alphaTab.postRenderFinished",
+          "ms": 2457.1999999284744
+        }
+      ],
+      "parsers": [
+        {
+          "start": 353.39999997615814,
+          "duration": 113.5,
+          "bytes": 1666003
+        }
+      ],
+      "workers": [
+        {
+          "at": 6.799999952316284,
+          "url": "http://127.0.0.1:49492/assets/alphaTab.worker-MoNLkrb8.js"
+        },
+        {
+          "at": 12.799999952316284,
+          "url": "http://127.0.0.1:49492/assets/alphaTab.worker-MoNLkrb8.js"
+        },
+        {
+          "at": 14.099999904632568,
+          "url": "http://127.0.0.1:49492/assets/prepare.worker-hCXRj_E0.js"
+        }
+      ],
+      "tasks": [
+        {
+          "start": 19,
+          "duration": 67
+        },
+        {
+          "start": 347.59999990463257,
+          "duration": 1452
+        },
+        {
+          "start": 2380.1999999284744,
+          "duration": 77
+        }
+      ],
+      "resources": [
+        {
+          "path": "/assets/alphaTab.worker-MoNLkrb8.js",
+          "start": 93.79999995231628,
+          "ms": 3.299999952316284,
+          "transfer": 0,
+          "encoded": 2371562
+        },
+        {
+          "path": "/assets/alphaTab.worker-MoNLkrb8.js",
+          "start": 93.89999997615814,
+          "ms": 3.399999976158142,
+          "transfer": 0,
+          "encoded": 2371562
+        },
+        {
+          "path": "/assets/prepare.worker-hCXRj_E0.js",
+          "start": 95.39999997615814,
+          "ms": -79.89999997615814,
+          "transfer": 0,
+          "encoded": 125964
+        },
+        {
+          "path": "/playback/f7920e7331a614d3d97a8096b3cc83c3ee75b289/soundfont/sonivox.sf2",
+          "start": 140.59999990463257,
+          "ms": 1.5,
+          "transfer": 0,
+          "encoded": 1351896
+        }
+      ],
+      "midiCpu": [
+        {
+          "start": 140.69999992847443,
+          "duration": 0
+        },
+        {
+          "start": 1580.5,
+          "duration": 70.5
+        }
+      ],
+      "parts": 5,
+      "measures": 465,
+      "budgetMs": 1000,
+      "verdict": "SLOW",
+      "audio": {
+        "peak": 0.37748897075653076,
+        "playing": true,
+        "pausedAfter": true,
+        "contextStates": [
+          "closed",
+          "running"
+        ]
+      },
+      "pageErrors": []
+    },
+    {
+      "browser": "webkit-desktop",
+      "score": "sun",
+      "warm": false,
+      "importMs": 65,
+      "readyMs": 493,
+      "preparedMs": 287,
+      "partsMs": 438,
+      "firstSvgMs": 671,
+      "events": [
+        {
+          "name": "alphaTab.soundFontLoaded",
+          "ms": 208
+        },
+        {
+          "name": "alphaTab.midiLoad",
+          "ms": 451
+        },
+        {
+          "name": "alphaTab.midiFileLoaded",
+          "ms": 489
+        },
+        {
+          "name": "alphaTab.playerReady",
+          "ms": 492
+        },
+        {
+          "name": "alphaTab.renderStarted",
+          "ms": 522
+        },
+        {
+          "name": "alphaTab.renderFinished",
+          "ms": 633
+        },
+        {
+          "name": "alphaTab.postRenderFinished",
+          "ms": 642
+        }
+      ],
+      "parsers": [
+        {
+          "start": 287,
+          "duration": 15,
+          "bytes": 438086
+        }
+      ],
+      "workers": [
+        {
+          "at": 21,
+          "url": "http://127.0.0.1:49492/assets/alphaTab.worker-MoNLkrb8.js"
+        },
+        {
+          "at": 35,
+          "url": "http://127.0.0.1:49492/assets/alphaTab.worker-MoNLkrb8.js"
+        },
+        {
+          "at": 43,
+          "url": "http://127.0.0.1:49492/assets/prepare.worker-hCXRj_E0.js"
+        }
+      ],
+      "tasks": [],
+      "resources": [
+        {
+          "path": "/assets/alphaTab.worker-MoNLkrb8.js",
+          "start": 23,
+          "ms": 7,
+          "transfer": 2371862,
+          "encoded": 2371562
+        },
+        {
+          "path": "/assets/prepare.worker-hCXRj_E0.js",
+          "start": 44,
+          "ms": 3,
+          "transfer": 126264,
+          "encoded": 125964
+        },
+        {
+          "path": "/playback/f7920e7331a614d3d97a8096b3cc83c3ee75b289/font/Bravura.woff2",
+          "start": 113,
+          "ms": 13,
+          "transfer": 313648,
+          "encoded": 313348
+        },
+        {
+          "path": "/playback/f7920e7331a614d3d97a8096b3cc83c3ee75b289/soundfont/sonivox.sf2",
+          "start": 193,
+          "ms": 6,
+          "transfer": 1352196,
+          "encoded": 1351896
+        }
+      ],
+      "midiCpu": [
+        {
+          "start": 192,
+          "duration": 0
+        },
+        {
+          "start": 438,
+          "duration": 17
+        }
+      ],
+      "parts": 5,
+      "measures": 70,
+      "budgetMs": 1000,
+      "verdict": "PASS",
+      "audio": {
+        "peak": 0.1587093025445938,
+        "playing": true,
+        "pausedAfter": true,
+        "contextStates": [
+          "running"
+        ]
+      }
+    },
+    {
+      "browser": "webkit-desktop",
+      "score": "jesu",
+      "warm": false,
+      "importMs": 65,
+      "readyMs": 970,
+      "preparedMs": 469,
+      "partsMs": 871,
+      "firstSvgMs": 1858,
+      "events": [
+        {
+          "name": "alphaTab.soundFontLoaded",
+          "ms": 158
+        },
+        {
+          "name": "alphaTab.midiLoad",
+          "ms": 885
+        },
+        {
+          "name": "alphaTab.midiFileLoaded",
+          "ms": 968
+        },
+        {
+          "name": "alphaTab.playerReady",
+          "ms": 968
+        },
+        {
+          "name": "alphaTab.renderStarted",
+          "ms": 1087
+        },
+        {
+          "name": "alphaTab.renderFinished",
+          "ms": 1789
+        },
+        {
+          "name": "alphaTab.postRenderFinished",
+          "ms": 1855
+        }
+      ],
+      "parsers": [
+        {
+          "start": 470,
+          "duration": 46,
+          "bytes": 1666003
+        }
+      ],
+      "workers": [
+        {
+          "at": 1,
+          "url": "http://127.0.0.1:49492/assets/alphaTab.worker-MoNLkrb8.js"
+        },
+        {
+          "at": 3,
+          "url": "http://127.0.0.1:49492/assets/alphaTab.worker-MoNLkrb8.js"
+        },
+        {
+          "at": 4,
+          "url": "http://127.0.0.1:49492/assets/prepare.worker-hCXRj_E0.js"
+        }
+      ],
+      "tasks": [],
+      "resources": [
+        {
+          "path": "/assets/alphaTab.worker-MoNLkrb8.js",
+          "start": -988,
+          "ms": 989,
+          "transfer": 0,
+          "encoded": 0
+        },
+        {
+          "path": "/assets/prepare.worker-hCXRj_E0.js",
+          "start": -967,
+          "ms": 971,
+          "transfer": 0,
+          "encoded": 0
+        },
+        {
+          "path": "/playback/f7920e7331a614d3d97a8096b3cc83c3ee75b289/soundfont/sonivox.sf2",
+          "start": -818,
+          "ms": 967,
+          "transfer": 0,
+          "encoded": 0
+        }
+      ],
+      "midiCpu": [
+        {
+          "start": 149,
+          "duration": 0
+        },
+        {
+          "start": 871,
+          "duration": 27
+        }
+      ],
+      "parts": 5,
+      "measures": 465,
+      "budgetMs": 1000,
+      "verdict": "PASS",
+      "audio": {
+        "peak": 0.2359851896762848,
+        "playing": true,
+        "pausedAfter": true,
+        "contextStates": [
+          "closed",
+          "running"
+        ]
+      }
+    }
+  ]
+}

@@ -120,3 +120,16 @@ XML 底栏只显示源小节号，定位面板分别说明源小节号与播放�
 
 
 Continuous editing now shares one `AnnotationPages` session across its mounted page overlays. This supersedes the earlier single-editable-page rule for continuous mode only. Each pointer note belongs to its origin page, ends at that page boundary, and cannot resume on re-entry or feed the same contact into another page. New contacts may edit either visible page. One reader editor retains the common write queue and per-layer undo history; input owner and viewport-center page are independent. Outgoing overlays remain pinned until their local queue settles. Text composition and active object gestures retain their owner, a second touch on another page joins the original object, and keyboard/properties/failure UI belong to one input page. Saving can queue released edits on another visible page, but failed local writes block leaving their input owner and retain all queued intent for explicit retry. Blank-page two-finger browsing interrupts unreleased ink/eraser previews through the shared session and still uses the existing local navigation admission. No saved-note, API or database format changes.
+
+
+## Reuse preparation while retaining independent practice sessions · #551
+
+An active practice session holds its immutable preparation; bounded idle retention
+begins when the last session releases it. Complete source normalization and printed
+measure labels can be reused, while every explicit open still creates a fresh
+Score, renderer and sound instance with the existing default practice state.
+Within that Score generation, the same MIDI and timing data are loaded when the
+synth becomes ready rather than generated again; an explicit MIDI rebuild remains
+available. This avoids retaining a live hidden player or sharing an old Score's
+position references across sessions. Prepared objects remain memory-only under
+ADR-0004; source files, annotations and practice preferences are unchanged.

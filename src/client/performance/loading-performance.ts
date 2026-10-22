@@ -1,6 +1,6 @@
 import { buildId } from "../../shared/build";
 
-export type LoadingJourney = "enter-drive" | "open-score" | "exit-score";
+export type LoadingJourney = "enter-drive" | "open-score" | "exit-score" | "open-musicxml";
 export type LoadingCacheCategory =
   | "cold"
   | "warm"

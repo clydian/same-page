@@ -3,6 +3,10 @@ import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 
+// alphaTab CoreSettings.buildDefaultSmuflFontSources uses these three formats.
+// Keep server-side legacy files; only the new optional offline manifest narrows.
+const playbackFonts = new Set(['Bravura.woff2', 'Bravura.woff', 'Bravura.otf']);
+
 // Give each build immutable resource URLs for offline playback. Match Vite's
 // real workspace path as well as the installed package path.
 export function playbackAssets(buildId: string, assetBase = "/"): Plugin {
@@ -32,7 +36,9 @@ export function playbackAssets(buildId: string, assetBase = "/"): Plugin {
         const dest = path.join(root, base, directory);
         await mkdir(dest, { recursive: true });
         await cp(path.join(root, directory), dest, { recursive: true });
-        for (const file of await readdir(dest)) if (!file.endsWith('.txt') && !file.endsWith('.sf3')) files.add(`${base}${directory}/${file}`);
+        for (const file of await readdir(dest)) {
+          if (directory === 'font' ? playbackFonts.has(file) : !file.endsWith('.txt') && !file.endsWith('.sf3')) files.add(`${base}${directory}/${file}`);
+        }
       }
       const entries = await Promise.all([...files].sort().map(async url => {
         const bytes = await readFile(path.join(root, url));
