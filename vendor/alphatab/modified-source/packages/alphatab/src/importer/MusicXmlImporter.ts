@@ -3895,6 +3895,7 @@ export class MusicXmlImporter extends ScoreImporter {
 
         beat.sourceFermata = new Fermata();
         beat.sourceFermata.type = fermata;
+        beat.sourceFermata.isInverted = element.getAttribute('type') === 'inverted';
     }
 
     private _parseArticulations(element: XmlNode, note: Note) {

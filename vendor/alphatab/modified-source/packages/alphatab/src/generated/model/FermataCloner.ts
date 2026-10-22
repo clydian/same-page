@@ -11,6 +11,7 @@ export class FermataCloner {
     public static clone(original: Fermata): Fermata {
         const clone = new Fermata();
         clone.type = original.type;
+        clone.isInverted = original.isInverted;
         clone.length = original.length;
         return clone;
     }

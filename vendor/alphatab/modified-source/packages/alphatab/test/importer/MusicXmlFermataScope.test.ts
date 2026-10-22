@@ -1,21 +1,24 @@
 import { readFileSync } from 'node:fs';
 import { BeatCloner } from '@coderline/alphatab/generated/model/BeatCloner';
 import { BeatSerializer } from '@coderline/alphatab/generated/model/BeatSerializer';
+import { FermataCloner } from '@coderline/alphatab/generated/model/FermataCloner';
+import { FermataSerializer } from '@coderline/alphatab/generated/model/FermataSerializer';
 import { MusicXmlImporter } from '@coderline/alphatab/importer/MusicXmlImporter';
 import { ByteBuffer } from '@coderline/alphatab/io/ByteBuffer';
+import { LayoutMode } from '@coderline/alphatab/LayoutMode';
 import { AlphaSynthMidiFileHandler } from '@coderline/alphatab/midi/AlphaSynthMidiFileHandler';
 import { MidiFile } from '@coderline/alphatab/midi/MidiFile';
 import { MidiFileGenerator } from '@coderline/alphatab/midi/MidiFileGenerator';
 import { Beat } from '@coderline/alphatab/model/Beat';
-import { FermataType } from '@coderline/alphatab/model/Fermata';
+import { Fermata, FermataType } from '@coderline/alphatab/model/Fermata';
 import { JsonConverter } from '@coderline/alphatab/model/JsonConverter';
-import { LayoutMode } from '@coderline/alphatab/LayoutMode';
 import type { Score } from '@coderline/alphatab/model/Score';
 import { FermataGlyph } from '@coderline/alphatab/rendering/glyphs/FermataGlyph';
 import { ScoreRenderer } from '@coderline/alphatab/rendering/ScoreRenderer';
 import { Settings } from '@coderline/alphatab/Settings';
 import { StaveProfile } from '@coderline/alphatab/StaveProfile';
 import { describe, expect, it, vi } from 'vitest';
+
 const xml = readFileSync('test-data/musicxml/source-owned-two-fermata.musicxml', 'utf8');
 function load(source = xml) {
     const importer = new MusicXmlImporter();
@@ -159,4 +162,80 @@ describe('MusicXML source fermata ownership', () => {
         expect(midi(copy)).toEqual(before);
         expect(midi(load(xml.replaceAll('<notations><fermata/></notations>', '')))).toEqual(before);
     });
+});
+
+it.each([
+    [LayoutMode.Page, '', 0xe4c1],
+    [LayoutMode.Horizontal, '', 0xe4c1],
+    [LayoutMode.Page, 'angled', 0xe4c5],
+    [LayoutMode.Horizontal, 'angled', 0xe4c5],
+    [LayoutMode.Page, 'square', 0xe4c7],
+    [LayoutMode.Horizontal, 'square', 0xe4c7]
+])('renders actual 42a secondary inverted fermata below upright after JSON layout=%s shape=%s', (mode, shape, below) => {
+    const source = readFileSync(
+        'test-data/musicxml-testsuite/42a-MultiVoice-TwoVoicesOnStaff-Lyrics.xml',
+        'utf8'
+    ).replace('<fermata type="inverted"/>', `<fermata type="inverted">${shape}</fermata>`);
+    const score = JsonConverter.jsObjectToScore(JsonConverter.scoreToJsObject(load(source)));
+    const settings = new Settings();
+    settings.core.engine = 'svg';
+    settings.core.enableLazyLoading = false;
+    settings.display.staveProfile = StaveProfile.Score;
+    settings.display.layoutMode = mode;
+    const renderer = new ScoreRenderer(settings);
+    renderer.width = 900;
+    const svg: string[] = [];
+    renderer.partialRenderFinished.on(event => {
+        if (typeof event.renderResult === 'string') {
+            svg.push(event.renderResult);
+        }
+    });
+    const painted: { symbol: number; y: number }[] = [];
+    const original = FermataGlyph.prototype.paint;
+    const spy = vi.spyOn(FermataGlyph.prototype, 'paint').mockImplementation(function (this: FermataGlyph, ...args) {
+        const canvas = args[2];
+        const fill = canvas.fillMusicFontSymbol;
+        const inner = vi.spyOn(canvas, 'fillMusicFontSymbol').mockImplementation((...values) => {
+            painted.push({ symbol: values[3], y: values[1] });
+            return fill.apply(canvas, values);
+        });
+        try {
+            return original.apply(this, args);
+        } finally {
+            inner.mockRestore();
+        }
+    });
+    try {
+        renderer.renderScore(score, [0]);
+    } finally {
+        spy.mockRestore();
+        renderer.destroy();
+    }
+    expect(painted.map(p => p.symbol).sort()).toEqual([0xe4c0, below]);
+    expect(painted.find(p => p.symbol === below)!.y).toBeGreaterThan(painted.find(p => p.symbol === 0xe4c0)!.y + 36);
+    const staffLines = [...svg.join('').matchAll(/<rect\b[^>]*>/g)]
+        .map(m => m[0])
+        .filter(
+            rect =>
+                Number(/width="([^"]+)"/.exec(rect)?.[1]) > 30 && Number(/height="([^"]+)"/.exec(rect)?.[1]) === 1.17
+        )
+        .map(rect => Number(/y="([^"]+)"/.exec(rect)![1]));
+    expect(staffLines.length).toBeGreaterThanOrEqual(5);
+    expect(painted.find(p => p.symbol === below)!.y - 0.04).toBeGreaterThan(Math.max(...staffLines));
+    expect(painted.find(p => p.symbol === 0xe4c0)!.y + 0.2).toBeLessThan(Math.min(...staffLines));
+    expect(midi(score)).toEqual(midi(load(source.replace('type="inverted"', 'type="upright"'))));
+});
+
+it('retains inverted source orientation through deep clone and defaults old Fermata JSON to upright', () => {
+    const score = load(xml.replaceAll('<fermata/>', '<fermata type="inverted"/>'));
+    const source = beats(score)[0];
+    expect(BeatCloner.clone(source).sourceFermata!.isInverted).toBe(true);
+    const clone = FermataCloner.clone(source.sourceFermata!);
+    expect(clone.isInverted).toBe(true);
+    clone.isInverted = false;
+    expect(source.sourceFermata!.isInverted).toBe(true);
+    const legacy = new Fermata();
+    FermataSerializer.fromJson(legacy, new Map([['type', FermataType.Medium]]));
+    expect(legacy.isInverted).toBe(false);
+    expect(midi(score)).toEqual(midi(load()));
 });

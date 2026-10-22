@@ -30,6 +30,9 @@ export class Fermata {
      */
     public type: FermataType = FermataType.Short;
 
+    /** Whether the source fermata is inverted and belongs below its staff. */
+    public isInverted: boolean = false;
+
     /**
      * Gets or sets the actual length of the fermata.
      */
