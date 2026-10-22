@@ -55,6 +55,20 @@ Worker unit（8 项）和 integration（181 项）通过；后续新增的 picke
 reader-presentation、reader-settlement 的双引擎 pinch，以及 uiux-return（WebKit 又单独重跑全部场景）。
 未放宽业务断言或超时，也未删除失败用例。
 
+默认构建的完整 smoke 通过 63 项；默认与启用通道构建的加载性能预算均通过。
+`SAME_PAGE_RELEASE_CHANNELS=1 npm run build` 最终生成 128 个唯一壳资源，
+6,921,215 bytes，小于 7 MiB 门槛。启用产物的代表性真实浏览器检查通过：
+Chromium 离线重启／撤销权限、实际 D1/R2 内容与 IndexedDB 重启恢复、
+WebKit API 中断新页面／撤销权限。WebKit 首轮有一次 SW ready 等待超时，
+诊断复跑及未修改原用例的单独重跑均通过，未放宽断言。
+
+CI 通道开关只作用于正式 build；dev 视觉与合成 PWA build 保持各自原来条件。
+smoke/performance 仍下载并校验同一份正式 artifact。隔离 preview 自动在自己的
+临时 D1/R2 目录准备同 SHA 的 bridge 控制元数据，前缀资源仍是原始 ASSETS 字节，
+真实 SW 继续校验它们。这不是生产 R2 托管全链验收；正式发布桶和路由仍需受控上线验证。
+通用视觉夹具明确响应对应构建身份的 release GET，不把新控制请求当作未知业务请求。
+CI 范围判断 21 项与视觉夹具测试在补修后通过。
+
 ## 尚待受控上线验收
 
 真实 iOS PWA、Android TWA 的启动／离线 Blob／回切／旧壳行为，以及生产 IAM、CDN、

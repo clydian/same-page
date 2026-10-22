@@ -1,8 +1,5 @@
 name: CI
 
-env:
-  SAME_PAGE_RELEASE_CHANNELS: ${{ vars.RELEASE_CHANNELS_ENABLED == 'true' && '1' || '0' }}
-
 on:
   pull_request:
   push:
@@ -146,6 +143,8 @@ jobs:
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Production build
         run: npm run build
+        env:
+          SAME_PAGE_RELEASE_CHANNELS: ${{ vars.RELEASE_CHANNELS_ENABLED == 'true' && '1' || '0' }}
       - name: Seal verified release
         run: |
           node scripts/release-artifact.mjs seal "$GITHUB_SHA"
