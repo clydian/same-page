@@ -103,7 +103,6 @@ describe('MusicXML source fermata ownership', () => {
     });
     it('preserves different source shapes at the same tick independently', () => {
         const source = xml
-            .replace('<backup><duration>2</duration></backup>', '<backup><duration>2</duration></backup>')
             .replace(/<note print-object="no">.*?<\/note>/, '')
             .replace(
                 '<fermata/></notations></note></measure>',
