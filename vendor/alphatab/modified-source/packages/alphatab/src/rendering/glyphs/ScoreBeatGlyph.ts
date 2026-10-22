@@ -432,19 +432,24 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
         if (n.isStaccato && !belowBeatEffects.has('Staccato')) {
             outsideBeatEffects.set('Staccato', new ArticStaccatoAboveGlyph(0, 0));
         }
+        // Tenuto is a separate mark and is stacked closer to the note than an accent.
+        if (n.isTenuto || n.accentuated === AccentuationType.Tenuto) {
+            const tenutoEffects = AccentuationGlyph.isAbove(
+                n,
+                sr.getBeatDirection(this.container.beat),
+                AccentuationType.Tenuto
+            )
+                ? aboveBeatEffects
+                : belowBeatEffects;
+            if (!tenutoEffects.has('Tenuto')) {
+                tenutoEffects.set('Tenuto', new AccentuationGlyph(0, 0, n, AccentuationType.Tenuto));
+            }
+        }
         if (n.accentuated === AccentuationType.Normal && !belowBeatEffects.has('Accent')) {
             outsideBeatEffects.set('Accent', new AccentuationGlyph(0, 0, n));
         }
         if (n.accentuated === AccentuationType.Heavy && !belowBeatEffects.has('HAccent')) {
             outsideBeatEffects.set('HAccent', new AccentuationGlyph(0, 0, n));
-        }
-        if (n.accentuated === AccentuationType.Tenuto) {
-            const tenutoEffects = AccentuationGlyph.isAbove(n, sr.getBeatDirection(this.container.beat))
-                ? aboveBeatEffects
-                : belowBeatEffects;
-            if (!tenutoEffects.has('Tenuto')) {
-                tenutoEffects.set('Tenuto', new AccentuationGlyph(0, 0, n));
-            }
         }
         if (n.showStringNumber && n.isStringed) {
             let container: StringNumberContainerGlyph;

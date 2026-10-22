@@ -40,6 +40,7 @@ export class NoteSerializer {
         const o = new Map<string, unknown>();
         o.set("id", obj.id);
         o.set("accentuated", obj.accentuated as number);
+        o.set("istenuto", obj.isTenuto);
         o.set("tenutoplacement", obj.tenutoPlacement as number);
         o.set("bendtype", obj.bendType as number);
         o.set("bendstyle", obj.bendStyle as number);
@@ -94,6 +95,9 @@ export class NoteSerializer {
                 return true;
             case "accentuated":
                 obj.accentuated = JsonHelper.parseEnum<AccentuationType>(v, AccentuationType)!;
+                return true;
+            case "istenuto":
+                obj.isTenuto = v! as boolean;
                 return true;
             case "tenutoplacement":
                 obj.tenutoPlacement = JsonHelper.parseEnum<TenutoPlacement>(v, TenutoPlacement)!;
