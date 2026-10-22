@@ -44,6 +44,10 @@ node --test --test-concurrency=1 browser-tests/musicxml-startup.test.mjs browser
 
 同轮 CI 的 practice-focus 失败来自旧视觉 fixture：文件响应缺少真实 API 的 `X-Attachment-Revision`，且仅覆写密集谱 body 导致 metadata size 不匹配。修正为 metadata 与响应共用同一 XML 输入及其 UTF-8 字节数，保留产品一致性校验及原视觉断言。旧 fixture 的修订／大小检查先失败；修正后的 fixture 单测 2 项、Chromium／WebKit 的实际 practice-focus 各 1 项通过。
 
+`85517b05` 的 CI 又在 WebKit XML 页关闭前捕获到附件目录的 access-control `pageerror`。定位到未改动的 `use-library-attachments` 请求；其 async 链及可选目录准备均已有终端 catch，不能将该报告称为应用漏接 Promise。真实构建的受控探针确认：恢复的缓存行先可见，持有 fresh 目录时点击 XML 或硬导航均会取消请求；错误被捕获，本机 `window.error`／`unhandledrejection`／Playwright `pageerror` 全为零。先释放并等待目录 200／`finished()` 再导航则不发生取消。本机未重现 Linux CI 的精确 access-control 报告；Playwright 1.62.1 的 WebKit 实现会将 JavaScript 来源的 error console 消息转成 `pageerror`，它不单指未处理拒绝。
+
+启动回归沿用 `preview-notes-smoke` 已有业务就绪契约：从缓存列表开谱前等待精确 fresh 目录响应完成，结束后先显露阅读器控件、再等待目录 `aria-busy=false`；使用受控持有／释放验证该次序，Chromium／WebKit 各通过。全部错误断言保留，不过滤取消报告，不使用固定延时或全局 network idle，也不以绿色重跑声称已在本机复现 Linux 报告。
+
 ## 独立 review
 
 ### Standards
