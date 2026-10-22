@@ -54,6 +54,8 @@ it("pins both original ZIP identities through read-only fixed GitHub endpoints",
   const fetchImpl = vi.fn(async () => Response.json(responses.shift()));
   await expect(bootstrapPlan(env(), fetchImpl)).resolves.toEqual(plan());
   expect(fetchImpl).toHaveBeenCalledTimes(6);
+  expect(fetchImpl.mock.calls[0][0]).toBe("https://api.github.com/repos/clydian/same-page/actions/runs/100");
+  expect(fetchImpl.mock.calls[3][0]).toBe("https://api.github.com/repos/clydian/same-page/actions/runs/200");
   for (const [url, options] of fetchImpl.mock.calls) {
     expect(url).toMatch(/^https:\/\/api\.github\.com\/repos\/clydian\/same-page\/actions\//);
     expect(options).toMatchObject({ redirect: "error", cache: "no-store" });
@@ -65,6 +67,16 @@ it("rejects a same-size ZIP replacement", () => {
   const file = path.join(directory(), "source.zip"); writeFileSync(file, "zip");
   expect(() => verifyOriginalZip(file, plan().source)).not.toThrow();
   writeFileSync(file, "bad"); expect(() => verifyOriginalZip(file, plan().source)).toThrow(/digest/);
+});
+
+it("rejects a rebuilt run even when its first attempt remains successful", async () => {
+  const fetchImpl = async url => {
+    const data = url.includes("/runs/200") ? evidence(old, 200, false) : evidence();
+    if (url.endsWith("/artifacts?per_page=100")) return Response.json({ total_count: 1, artifacts: [data.artifact] });
+    if (url.includes("/jobs?")) return Response.json(data.jobs);
+    return Response.json({ ...data.run, run_attempt: url.endsWith("/runs/100") ? 2 : 1 });
+  };
+  await expect(bootstrapPlan(env(), fetchImpl)).rejects.toThrow(/new commit/);
 });
 
 async function artifact(id, runId, bridge, patch = {}) {

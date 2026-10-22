@@ -82,7 +82,9 @@ export async function bootstrapPlan(env, fetchImpl = fetch) {
     assert.ok(response.ok, `CI evidence unavailable: HTTP ${response.status}`); return response.json();
   };
   const source = async (runId, sha, bridge) => {
-    const run = await get(`runs/${runId}/attempts/1`);
+    // Check the latest attempt too: a later rerun can replace this run's ZIP.
+    // Reading only /attempts/1 would hide that replacement behind old success.
+    const run = await get(`runs/${runId}`);
     const jobs = await get(`runs/${runId}/attempts/1/jobs?per_page=100`);
     const artifacts = await get(`runs/${runId}/artifacts?per_page=100`);
     assert.ok(artifacts.total_count <= 100 && artifacts.artifacts?.length === artifacts.total_count, "artifact pagination incomplete");
