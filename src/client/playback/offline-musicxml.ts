@@ -65,15 +65,22 @@ export async function captureMusicXmlWrite(source: PlaybackSource, signal: Abort
 }
 /** Used only after fresh online metadata authorization by the source resolver. */
 export function readStoredMusicXml(access: Awaited<ReturnType<typeof captureMusicXmlAccess>>) { return access.read(); }
-export async function readOfflineMusicXml(source: PlaybackSource, signal: AbortSignal = new AbortController().signal) {
+// Private: capture all protected-content eligibility and its read lifetime. The
+// caller separately establishes current public-bundle validity for this task.
+async function captureOfflineMusicXmlRead(source: PlaybackSource, signal: AbortSignal) {
   const access = await captureMusicXmlAccess(source, signal);
   const workspace = await playbackWorkspace(source);
   const directory = await readAttachmentDirectory(workspace, source.score, source.score.attachmentCount === undefined);
   if (!directory?.some(item => item.id === source.attachment.id && item.scoreId === source.score.id && item.revision === source.attachment.revision && item.sizeBytes === source.attachment.sizeBytes && item.kind === 'musicxml' && !item.trashExpiresAt)) return null;
-  // Only offline use requires retained PDF authority and the complete matching player bundle.
-  if (!await findVerifiedOfflineScore(workspace) || !await offlinePlayerAssetsReady()) return null;
-  await access.assertCurrent();
-  return readStoredMusicXml(access);
+  // Retained PDF authority is required in addition to original-byte integrity.
+  if (!await findVerifiedOfflineScore(workspace)) return null;
+  return async () => { await access.assertCurrent(); return readStoredMusicXml(access); };
+}
+export async function readOfflineMusicXml(source: PlaybackSource, signal: AbortSignal = new AbortController().signal) {
+  const read = await captureOfflineMusicXmlRead(source, signal);
+  // Independent reads always audit the currently stored public bundle.
+  if (!read || !await offlinePlayerAssetsReady()) return null;
+  return read();
 }
 export async function revokeOfflineMusicXml(source: PlaybackSource) {
   const current = captureNavigationIdentity();
@@ -92,5 +99,8 @@ export async function prepareOfflineMusicXml(source: PlaybackSource, save: () =>
   await save();
   signal?.throwIfAborted();
   await prepareOfflinePlayerAssets(signal);
-  if (!await readOfflineMusicXml(source, signal)) throw new Error('offline_musicxml_incomplete');
+  // Only this preparation may reuse the public audit it has just awaited. The
+  // private read still checks directory/PDF authority, raw SHA and all fences.
+  const read = await captureOfflineMusicXmlRead(source, signal ?? new AbortController().signal);
+  if (!read || !await read()) throw new Error('offline_musicxml_incomplete');
 }

@@ -141,7 +141,7 @@ it('retries saving downloaded bytes with fresh authorization and a new bounded w
  await expect(result.save!(result.bytes,signal())).rejects.toThrow('storage_unavailable');
  await result.save!(result.bytes,signal());
  expect(access.save).toHaveBeenCalledWith(bytes,expect.any(AbortSignal));
- expect(readAttachment).toHaveBeenCalledTimes(3);expect(attachmentFetch).toHaveBeenCalledOnce();
+ expect(readAttachment).toHaveBeenCalledTimes(2);expect(attachmentFetch).toHaveBeenCalledOnce();
  expect(result.assertCurrent).toBeUndefined();expect(result.cacheIdentity).toBeUndefined();
 });
 it.each(['revision','identity'])('does not save network bytes on a later %s change after the original local timeout',async change=>{
@@ -150,7 +150,7 @@ it.each(['revision','identity'])('does not save network bytes on a later %s chan
  if(change==='revision') vi.mocked(readAttachment).mockResolvedValue({...source.attachment,revision:2});
  else resetNavigation();
  await expect(result.save!(result.bytes,signal())).rejects.toThrow(change==='revision'?'附件已更新':'offline_identity_changed');
- expect(access.save).not.toHaveBeenCalled();expect(captureMusicXmlAccess).toHaveBeenCalledOnce();
+ expect(access.save).not.toHaveBeenCalled();expect(captureMusicXmlAccess).toHaveBeenCalledTimes(change==='revision'?2:1);
 });
 it.each(['offline_identity_changed','local_workspace_owner_changed'])('rejects a captured %s fence change while the original network request is in flight',async message=>{
  let complete!:(response:Response)=>void;

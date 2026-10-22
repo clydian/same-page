@@ -23,10 +23,34 @@ npm run build
 node --test --test-concurrency=1 browser-tests/musicxml-startup.test.mjs browser-tests/musicxml-playback.test.mjs browser-tests/musicxml-audio-startup.test.mjs browser-tests/musicxml-offline.test.mjs
 ```
 
-`musicxml-startup` 使用自有 48 小节谱验证真实构建的 network/prepared/local 三条来源、每次新开一次 metadata、一次 MIDI，以及加载完成前切换 PDF 仍能达到 ready、返回 XML 后完成真实首个系统与原文保存。首个系统按音乐渲染事件和真实 bounds 确认，不把标题 SVG 或特定 path 元素当作音符已出现。`musicxml-playback` 验证实际 Worker 协议、MXL、音乐修正、控制和非零 WebAudio；`musicxml-audio-startup` 覆盖暂停/结束/离开时取消初始化，`musicxml-offline` 覆盖完整壳、闭浏览器冷开、刷新与失权撤销。
+`musicxml-startup` 使用自有 48 小节谱验证真实构建的 network/prepared/local 三条来源、每次新开一次 metadata、一次 MIDI，以及加载完成前切换 PDF 仍能达到 ready、返回 XML 后完成真实首个系统与原文保存。首个系统按音乐渲染事件和真实 bounds 确认，不把标题 SVG 或特定 path 元素当作音符已出现。`musicxml-playback` 验证实际 Worker 协议、MXL、音乐修正、控制和非零 WebAudio，并按 animation frame 记录实际点击至首个非零 analyser 样本的延迟；数字输出测量不等于物理扬声器的声学延迟。产品 `playing` 只表示播放状态，早于 AudioWorklet 初始化完成，不作为声音终点；`musicxml-audio-startup` 覆盖暂停/结束/离开时取消初始化，`musicxml-offline` 覆盖完整壳、闭浏览器冷开、刷新与失权撤销。
 
 ## 验证状态
 
-实施中的记录；最终结果、native 制品身份和独立 review 将在提交前补齐。测试输出位于本工作区 `artifacts/verification/`，只包含合成测试谱。原型数值不作为实体设备结论。
+待最终提交补齐浏览器与 CI 结果。测试输出位于本工作区 `artifacts/verification/`，只包含合成测试谱。原型数值不作为实体设备结论。
+
+- native16 制品 SHA-256：`d1905cb0063b819358fe71a2c239478cc6e7e0c74653d7f94a45034234d053a7`。源码提交 `acb735a64769e1ea9d6bbbcdcdd31ec30fa9e448`，源码档案 SHA-256 `0d70a8c3ddf938d14fdfe01a4ed6e5c3e31e896d750900d72086850faa99dea1`。
+- Native14 → native16 的[精确源码差异](musicxml-startup-native16.patch)及[完整测试对照](musicxml-startup-native16-tests.json)：新增 16 个生命周期测试通过，139 项相关回归通过；全量 1817 pass / 64 fail，与 fresh native14 的 1801 pass / 64 fail 逐项相同。64 项既有视觉 golden 差异保留，未改 golden 或声称全量通过。
+- 两份私有真实谱 The Sun Never Says（5 声部、70 小节）与 Jesu, meine Freude（5 声部、441 小节）：最终 native16 下新旧准备路径的完整模型及全部 MIDI 事件 deepEqual，原字节不变；谱文未提交。
+- 中间本地 `npm test` 的 player 338 项、Node 305 项通过；默认客户端并发下有 13 个界面等待超时。保留日志，不把受控重跑通过当作根因修复；最终客户端结果与 final-head CI 另列。
+
+## 独立 review
+
+### Standards
+
+`144b9772` 初轮 1 项 P1：本地初始读取超时后惰性 writer 重新捕获清理围栏，会在用户清理之后迟到自动写回。修复禁止丢失原围栏的会话自动写入；明确重试才建立新意图，并在等待新鲜 metadata 前开始捕获围栏。验证使用真实 fake-indexeddb 与 `clearLocalFiles`，不只 stub guard。
+
+### Spec
+
+`144b9772` 初轮 2 项 P2：完整离线准备链仍重复审计整包；playing 未覆盖点击至真正音频输出。前者限定复用本任务刚完成的公共包验证，未来独立离线读取继续全审；后者增加真实浏览器的 click → 首非零 analyser 样本计时，并保留 playing 的状态语义。
+
+修复后的两路复核结果将随最终提交记录。
+
+清理围栏与同任务审计的新增回归先在修复前得到 4 fail，修复后全部通过。
+`musicxml-cleanup-intent.test.tsx` 使用真实 IndexedDB 原文与 `clearLocalFiles`，覆盖
+本地超时后网络／Worker 晚到不自动恢复已清理原文、明确重试可以建立新意图，以及
+重试 metadata 等待期间再次清理必须拒绝。`offline-musicxml.test.ts` 从完整
+`prepareOfflineMusicXml` 链验证不重复调用公共包审计；后续独立离线读取仍审计资源，
+资源缺失会拒绝认证。公开读取 API 没有跳过校验的开关或长期信任缓存。
 
 实体 iPhone/iPad 已安装版、Android 已安装版的 p50/p95、峰值内存、后台恢复与音频路由验收尚未进行；本 PR 不宣称已解决这些设备上的全部等待，也不创建整套播放器常驻或完整 Score 持久缓存。合并与部署另行授权。

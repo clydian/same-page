@@ -1,7 +1,7 @@
 import { selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdir, readdir, readFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { chromium, webkit, expect } from '@playwright/test';
 import { zipSync, strToU8 } from 'fflate';
@@ -137,12 +137,32 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await settings.getByRole('button',{name:'循环这一段',exact:true}).click();
   await expect(settings.getByRole('button',{name:'取消循环',exact:true})).toBeVisible();
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+  await player.getByRole('button',{name:'播放',exact:true}).evaluate(button => {
+    button.addEventListener('click', () => {
+      const timing = window.__firstAudioOutput = { requestMs: performance.now(), nonZeroMs: null };
+      const check = () => {
+        const audible = window.__audioAnalysers.some(analyser => {
+          const samples = new Float32Array(analyser.fftSize);
+          analyser.getFloatTimeDomainData(samples);
+          return samples.some(value => Math.abs(value) > 0.0001);
+        });
+        if (audible) timing.nonZeroMs = performance.now();
+        else if (performance.now() - timing.requestMs < 10000) requestAnimationFrame(check);
+      };
+      requestAnimationFrame(check);
+    }, { once: true });
+  });
   await player.getByRole('button',{name:'播放',exact:true}).click();
   await expect(player.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.__audioAnalysers.some(analyser => {
-    const samples = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(samples);
-    return samples.some(value => Math.abs(value) > 0.0001);
-  })), {timeout:10000}).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__firstAudioOutput?.nonZeroMs), {timeout:10000}).toBeGreaterThan(0);
+  const audioTiming = await page.evaluate(() => ({ ...window.__firstAudioOutput,
+    clickToNonZeroMs: window.__firstAudioOutput.nonZeroMs - window.__firstAudioOutput.requestMs,
+  }));
+  await mkdir('artifacts/verification/musicxml-startup', { recursive: true });
+  await writeFile(`artifacts/verification/musicxml-startup/${engine}-first-audio.json`, JSON.stringify({
+    engine, scope: 'Actual click to first non-zero digital analyser samples, observed once per animation frame; not acoustic latency or physical-device p50/p95. Playing is a separate earlier state.',
+    ...audioTiming,
+  }, null, 2));
   // The engine creates cursor/highlight nodes, but the host must give them visible styles.
   const beatCursor = page.locator('.practice-notation .at-cursor-beat');
   await expect.poll(() => beatCursor.evaluate(element => {

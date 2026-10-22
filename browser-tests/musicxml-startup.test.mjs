@@ -103,6 +103,8 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
       await page.goto(library);
       await page.getByRole('button', { name: '本地链路测试：1 个附件', exact: true }).click();
       await open('local');
+      await mkdir(evidence, { recursive: true });
+      await page.screenshot({ path: `${evidence}/online-local.png` });
       // A fresh document opening audio must retain the small common lifetime
       // module without importing the optional MusicXML/native/parser chunk.
       const audio = practiceWave();

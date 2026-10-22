@@ -14,7 +14,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const [session, setSession] = useState<PlayerSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState<'preparing' | 'ready' | 'failed'>('preparing');
-  const [preparation, setPreparation] = useState<{ bytes: Uint8Array; save: (bytes: Uint8Array, signal?: AbortSignal) => Promise<void>; signal: AbortSignal; source: PlaybackSource; loading: ReturnType<typeof musicXmlLoadingTracker> } | null>(null);
+  const [preparation, setPreparation] = useState<{ bytes: Uint8Array; save: (bytes: Uint8Array, signal?: AbortSignal) => Promise<void>; signal: AbortSignal; source: PlaybackSource; canSaveAutomatically: boolean; loading: ReturnType<typeof musicXmlLoadingTracker> } | null>(null);
   const [foregroundReady, setForegroundReady] = useState(false);
   const [offlineAttempt, retryOffline] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -38,7 +38,10 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
       abort.signal.throwIfAborted();
       loading.source(resolved.tier); loading.stage('raw-ready');
       if (resolved.tier === 'offline') { setOffline('ready'); loading.stage('offline-ready'); }
-      else if (resolved.save) setPreparation({ bytes: resolved.bytes, save: resolved.save, signal: abort.signal, source, loading });
+      else if (resolved.save) {
+        setPreparation({ bytes: resolved.bytes, save: resolved.save, signal: abort.signal, source, canSaveAutomatically: resolved.canSaveAutomatically, loading });
+        if (!resolved.canSaveAutomatically) setOffline('failed');
+      }
       else setOffline('failed');
       if (!container.current) return;
       clearTimeout(timeout);
@@ -73,8 +76,11 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
     });
     return () => { active = false; abort.abort(); clearTimeout(timeout); document.removeEventListener('play', pauseForAudio, true); unsubscribe?.(); player?.dispose(); lease.release(); loading.end('cancelled'); };
   }, [source, attempt]);
+  // A discarded opening access cannot be recaptured by an automatic task after
+  // cleanup. Only a new explicit retry may establish a new write intent.
+  const offlineIntent = preparation && (offlineAttempt > 0 ? offlineAttempt : preparation.canSaveAutomatically && foregroundReady ? 0 : null);
   useEffect(() => {
-    if (!preparation || preparation.source !== source || preparation.signal.aborted || !foregroundReady && !offlineAttempt) return;
+    if (!preparation || preparation.source !== source || preparation.signal.aborted || offlineIntent === null) return;
     const abort = new AbortController();
     const signal = AbortSignal.any([preparation.signal, abort.signal]);
     void prepareOfflineMusicXml(source, () => preparation.save(preparation.bytes, signal), signal).then(() => {
@@ -85,6 +91,6 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
       setOffline('failed');
     });
     return () => { abort.abort(); };
-  }, [source, preparation, foregroundReady, offlineAttempt]);
+  }, [source, preparation, offlineIntent]);
   return <MusicXmlPractice offlineStatus={offline} retryOffline={() => { setOffline('preparing'); retryOffline(value => value + 1); }} source={source} session={session} error={error} container={container} viewport={viewport} retry={() => { setError(null); setSession(null); setForegroundReady(false); setPreparation(null); setOffline('preparing'); retryOffline(0); setAttempt(value => value + 1); }} />;
 }

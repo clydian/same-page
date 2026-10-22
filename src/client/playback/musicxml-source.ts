@@ -126,9 +126,8 @@ function lazyOriginalSave(source: PlaybackSource, openingSignal: AbortSignal, cu
     try {
       signal.throwIfAborted();
       if (!current()) throw new Error('offline_identity_changed');
-      validateMusicXmlAttachment(source, await readPlaybackAttachment(source, signal));
-      signal.throwIfAborted();
-      if (!current()) throw new Error('offline_identity_changed');
+      // This is a new, explicit offline-preparation intent. Capture its cleanup
+      // and identity fences before waiting for fresh server authorization.
       const capture = async () => {
         const access = await captureMusicXmlAccess(source, signal);
         await access.assertCurrent(); signal.throwIfAborted();
@@ -143,6 +142,10 @@ function lazyOriginalSave(source: PlaybackSource, openingSignal: AbortSignal, cu
         }),
       ]);
       clearTimeout(timer); if (aborted) signal.removeEventListener('abort', aborted);
+      signal.throwIfAborted();
+      if (!current()) throw new Error('offline_identity_changed');
+      validateMusicXmlAttachment(source, await readPlaybackAttachment(source, signal));
+      await boundedFinalAccessGuard(access, signal, localAbort);
       signal.throwIfAborted();
       if (!current()) throw new Error('offline_identity_changed');
       await access.save(bytes, signal);
@@ -181,7 +184,7 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
     signal.throwIfAborted();
     if (!current()) throw new Error('offline_identity_changed', { cause: reason });
     if (!bytes) throw new Error('这份练习谱尚未完成离线准备，请联网打开后重试。', { cause: reason });
-    return { bytes, prepared: undefined, tier: 'offline' as const, save: null, cacheIdentity: undefined, assertCurrent: undefined };
+    return { bytes, prepared: undefined, tier: 'offline' as const, canSaveAutomatically: false, save: null, cacheIdentity: undefined, assertCurrent: undefined };
   }
   signal.throwIfAborted();
   if (!current()) throw new Error('offline_identity_changed');
@@ -191,8 +194,8 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
   const local = await boundedLocalPreparation(accessResult, preparation, signal, localAbort);
   assertNavigation();
   const access = local?.access;
-  if (local?.cached) return { bytes: local.cached.bytes, prepared: local.cached.prepared, tier: 'prepared' as const, save: access?.save ?? null, cacheIdentity: access?.cacheIdentity, assertCurrent: access?.assertCurrent };
-  if (local?.bytes) return { bytes: local.bytes, prepared: undefined, tier: 'local' as const, save: access?.save ?? null, cacheIdentity: access?.cacheIdentity, assertCurrent: access?.assertCurrent };
+  if (local?.cached) return { bytes: local.cached.bytes, prepared: local.cached.prepared, tier: 'prepared' as const, canSaveAutomatically: true, save: access?.save ?? null, cacheIdentity: access?.cacheIdentity, assertCurrent: access?.assertCurrent };
+  if (local?.bytes) return { bytes: local.bytes, prepared: undefined, tier: 'local' as const, canSaveAutomatically: true, save: access?.save ?? null, cacheIdentity: access?.cacheIdentity, assertCurrent: access?.assertCurrent };
   try {
     const url = attachmentFileUrl(source.choirId, fresh);
     const response = await attachmentFetch(`${url}${url.includes('?') ? '&' : '?'}revision=${fresh.revision}`, { signal });
@@ -203,7 +206,7 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
     if (bytes.byteLength !== fresh.sizeBytes) throw new Error('musicxml_size_mismatch');
     if (access) await boundedFinalAccessGuard(access, signal, localAbort);
     assertNavigation();
-    return { bytes, prepared: undefined, tier: 'network' as const, save: access?.save ?? lazyOriginalSave(source, signal, current), cacheIdentity: access?.cacheIdentity, assertCurrent: access?.assertCurrent };
+    return { bytes, prepared: undefined, tier: 'network' as const, canSaveAutomatically: Boolean(access), save: access?.save ?? lazyOriginalSave(source, signal, current), cacheIdentity: access?.cacheIdentity, assertCurrent: access?.assertCurrent };
   } catch (reason) {
     signal.throwIfAborted();
     if (!current()) throw new Error('offline_identity_changed', { cause: reason });
@@ -212,6 +215,6 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
     const bytes = await readOfflineMusicXml(source, signal);
     if (!current()) throw new Error('offline_identity_changed', { cause: reason });
     if (!bytes) throw new Error('这份练习谱尚未完成离线准备，请联网打开后重试。', { cause: reason });
-    return { bytes, prepared: undefined, tier: 'offline' as const, save: null, cacheIdentity: undefined, assertCurrent: undefined };
+    return { bytes, prepared: undefined, tier: 'offline' as const, canSaveAutomatically: false, save: null, cacheIdentity: undefined, assertCurrent: undefined };
   }
 }

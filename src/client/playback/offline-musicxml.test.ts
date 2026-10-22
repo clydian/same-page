@@ -127,3 +127,15 @@ it.each(['owner','epoch'])('guards online source selection against a persisted %
  await expect(access.save(bytes)).rejects.toThrow('local_workspace_owner_changed');
  expect(await musicXmlFiles({ownerKey:'user:one'}).count()).toBe(0);
 });
+it('reuses the completed public asset audit only inside one preparation while later offline reads audit independently',async()=>{
+ const save=await captureMusicXmlWrite(source,signal());
+ vi.mocked(prepareOfflinePlayerAssets).mockClear();vi.mocked(offlinePlayerAssetsReady).mockClear();
+ await prepareOfflineMusicXml(source,()=>save(bytes),signal());
+ expect(prepareOfflinePlayerAssets).toHaveBeenCalledOnce();
+ expect(offlinePlayerAssetsReady).not.toHaveBeenCalled();
+ expect(await readOfflineMusicXml(source)).toEqual(bytes);
+ expect(offlinePlayerAssetsReady).toHaveBeenCalledOnce();
+ vi.mocked(offlinePlayerAssetsReady).mockResolvedValue(false);
+ expect(await readOfflineMusicXml(source)).toBeNull();
+ expect(offlinePlayerAssetsReady).toHaveBeenCalledTimes(2);
+});
