@@ -55,17 +55,27 @@ try{
    },channel);
    const apply=()=>page.evaluate(async()=>{const waiting=window.waitingWorker;return await new Promise(resolve=>{const m=new MessageChannel();m.port1.onmessage=e=>resolve(e.data);waiting.postMessage({type:'SAME_PAGE_SAFE_UPDATE',requested:true},[m.port2])})});
    const active=async id=>{await page.waitForFunction(async id=>{const c=navigator.serviceWorker.controller;if(!c)return false;return await new Promise(resolve=>{const m=new MessageChannel();m.port1.onmessage=e=>resolve(e.data?.buildId===id);c.postMessage({type:'SAME_PAGE_SHELL_IDENTITY'},[m.port2])})},id);await page.reload();await page.waitForFunction(id=>window.fixtureBuild===id,id)};
-   await stage('beta');assert.equal(await page.evaluate(()=>window.fixtureBuild),A);
    const other=await context.newPage();await other.goto(origin+'/drives');await other.evaluate(()=>window.safe=false);
+   await stage('beta');assert.equal(await page.evaluate(()=>window.fixtureBuild),A);
    assert.equal((await apply()).safe,false);await other.close();
    assert.equal((await apply()).safe,true);await active(B);
-   await stage('stable');assert.equal((await apply()).safe,true);await active(A);
+   // Cookie expiry with no retained stable shell must recover without closing
+   // windows, and the recovery document must respect another editor's veto.
+   const busy=await context.newPage();await busy.goto(origin+'/drives');await busy.evaluate(()=>window.safe=false);
+   await page.evaluate(async()=>{for(const name of await caches.keys())if(name.startsWith('same-page-shell-v2:')&&name.includes('a'.repeat(40)))await caches.delete(name);await fetch('/api/select?channel=stable')});
+   await page.goto(origin+'/drives');await page.getByRole('heading',{name:'暂时无法打开合谱'}).waitFor();
+   await page.getByRole('button',{name:'重试'}).click();
+   await page.waitForFunction(()=>document.getElementById('status')?.textContent.includes('保存其他窗口'));
+   assert.equal(await busy.evaluate(()=>window.fixtureBuild),B);
+   await busy.evaluate(()=>window.safe=true);await page.getByRole('button',{name:'重试'}).click();
+   await page.waitForFunction(()=>window.fixtureBuild==='a'.repeat(40));await busy.close();
+
    await stage('beta');await page.evaluate(()=>fetch('/api/select?channel=stable'));assert.equal((await apply()).safe,false);
    // Force automatic activation of the now-stale beta by removing all clients.
    await page.close();const recovered=await context.newPage();await recovered.goto(origin+'/drives');
    await recovered.waitForFunction(()=>window.fixtureBuild==='a'.repeat(40));
    beta=C;const cold=await browser.newContext(),p=await cold.newPage();await p.goto(origin+'/choirs/new');await p.waitForFunction(()=>window.fixtureBuild==='a'.repeat(40));
-   await cold.close();await context.close();results.push({browser:name,version:browser.version(),coldStable:true,roundtrip:true,busyWindowVeto:true,staleCandidateRejected:true,staleAutomaticActivationCannotDisplayBeta:true});
+   await cold.close();await context.close();results.push({browser:name,version:browser.version(),coldStable:true,roundtrip:true,busyWindowVeto:true,missingStableRecovery:true,recoveryBusyVeto:true,staleCandidateRejected:true,staleAutomaticActivationCannotDisplayBeta:true});
   }finally{await browser.close()}
  }
  await mkdir('artifacts/verification',{recursive:true});await writeFile('artifacts/verification/release-channels.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results));

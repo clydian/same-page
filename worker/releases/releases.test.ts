@@ -1,3 +1,4 @@
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { hashPassword } from "better-auth/crypto";
 import { env } from "cloudflare:workers";
 import { beforeEach, expect, it } from "vitest";
@@ -5,7 +6,11 @@ import worker from "../index";
 import { releaseContract } from "../../src/shared/release-channels";
 const A = "a".repeat(40), B = "b".repeat(40), C = "c".repeat(40);
 const digest = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), b => b.toString(16).padStart(2, "0")).join("");
-const call = (path: string, init?: RequestInit) => worker.fetch(new Request(`https://same-page.test${path}`, init), { ...env, RELEASE_CHANNELS_ENABLED: "true" });
+const call = async (path: string, init?: RequestInit) => {
+  const context = createExecutionContext();
+  const response = await worker.fetch(new Request(`https://same-page.test${path}`, init), { ...env, RELEASE_CHANNELS_ENABLED: "true" }, context);
+  await waitOnExecutionContext(context); return response;
+};
 async function release(id: string, ready = 1) {
   const html = `<meta name="same-page-build-id" content="${id}">`;
   const files = { "index.html": { sha256: await digest(html), bytes: html.length, contentType: "text/html" }, "app.js": { sha256: await digest(id), bytes: id.length, contentType: "text/javascript" }, "sw.js": { sha256: await digest(id), bytes: id.length, contentType: "text/javascript" } };

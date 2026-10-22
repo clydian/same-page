@@ -1,10 +1,12 @@
 import { useEffect } from "react";
 import { buildId } from "../../shared/build";
 import { refreshReleaseChannel, selectReleaseChannel, useReleaseChannel } from "./release-channel";
+declare const __SAME_PAGE_RELEASE_CHANNELS__: boolean;
+const enabled = () => typeof __SAME_PAGE_RELEASE_CHANNELS__ === "boolean" && __SAME_PAGE_RELEASE_CHANNELS__;
 export function ReleaseChannelPicker() {
   const state = useReleaseChannel();
-  useEffect(() => { void refreshReleaseChannel().catch(() => undefined); }, []);
-  if (!state.target) return null;
+  useEffect(() => { if (enabled()) void refreshReleaseChannel().catch(() => undefined); }, []);
+  if (!enabled() || !state.target) return null;
   return <section className="support-update" aria-labelledby="release-channel-heading">
     <h2 id="release-channel-heading">发布通道</h2>
     <label>此浏览器使用 <select aria-label="发布通道" disabled={state.busy} value={state.target.channel} onChange={e => void selectReleaseChannel(e.target.value === "beta" ? "beta" : "stable")}>
@@ -18,9 +20,10 @@ export function ReleaseChannelPicker() {
 export function ReleaseChannelBadge() {
   const state = useReleaseChannel();
   useEffect(() => {
+    if (!enabled()) return;
     const check = () => { void refreshReleaseChannel().catch(() => undefined); };
     check(); window.addEventListener("storage", check); window.addEventListener("online", check); window.addEventListener("focus", check);
     return () => { window.removeEventListener("storage", check); window.removeEventListener("online", check); window.removeEventListener("focus", check); };
   }, []);
-  return (state.runningChannel === "beta" || state.target?.channel === "beta") ? <span className="release-channel-badge" title="测试通道，仍使用真实数据">测试版</span> : null;
+  return enabled() && (state.runningChannel === "beta" || state.target?.channel === "beta") ? <span className="release-channel-badge" title="测试通道，仍使用真实数据">测试版</span> : null;
 }

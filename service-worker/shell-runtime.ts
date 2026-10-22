@@ -1,3 +1,4 @@
+import { recoveryPage } from "./recovery-page";
 import { ReleasePermission } from "./release-permission";
 import { playbackCacheName } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
@@ -329,7 +330,7 @@ export class ShellRuntime {
           if (shell) { await this.permission?.displayed(previous.buildId); this.assetRecords = undefined; return shell; }
         } catch { /* Try another complete retained release; never a mixed shell. */ }
       }
-      return new Response('<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>合谱</title><body><main><h1>暂时无法打开合谱</h1><p>请联网后重试。此设备保存的内容仍然保留。</p><button onclick="navigator.serviceWorker.getRegistration().then(r=>r?.update()).catch(()=>{}).finally(()=>location.reload())">重试</button></main></body></html>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+      return new Response(recoveryPage, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
   }
   auditAfterNavigation() {

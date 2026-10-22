@@ -300,7 +300,7 @@ jobs:
     if: ${{ !cancelled() && needs.verify.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true' }}
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     concurrency:
       group: same-page-production
       cancel-in-progress: false
@@ -342,6 +342,11 @@ jobs:
       - name: Install dependencies
         if: steps.admission.outputs.proceed == 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Install release compatibility browsers
+        if: steps.admission.outputs.proceed == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true'
+        timeout-minutes: 5
+        run: bash .github/scripts/install-browsers.sh
 
       - name: Prepare immutable frontend publication
         if: steps.admission.outputs.proceed == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true'

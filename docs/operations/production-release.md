@@ -189,6 +189,9 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 这不是部署授权。不得直接打开开关而跳过以下过渡，也不得把仓库的 research
 探针当作生产验收。WebKit 的隔离持久 profile 已通过 Blob 回切探针；真实 Safari/iOS 与 Android TWA 实机仍必须单独记录。
 
+手工执行 `upload` / `initialize` 前，运行 `npm ci`、`npm ci --prefix android` 和
+`npx playwright install --with-deps chromium webkit`，确保两引擎与系统依赖齐备。CI 的发布 job 独立安装同一环境。
+
 ### 首次桥接（需另行授权）
 
 1. 创建专用私有 `same-page-frontend-releases` R2 bucket，关闭公共访问及所有 TTL／生命周期删除；
