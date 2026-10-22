@@ -102,6 +102,8 @@ function checksForPath(file) {
   if (isDocumentation(file)) return [];
   // Android has its own build workflow; shell-only changes never deploy the web app.
   if (file.startsWith("android/")) return [];
+  // Exercise changes to the production pipeline through its actual deploy job.
+  if (file === ".github/workflows/ci.yml") return checkNames;
   if (file.startsWith(".github/")) {
     return checkNames.filter((name) => name !== "deploy");
   }

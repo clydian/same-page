@@ -35,11 +35,12 @@ PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运�
 | D1 migration | Worker、迁移、构建、smoke |
 | 视觉测试文件、视觉 setup | 视觉测试，不构建、不部署 |
 | 共享浏览器 fixture 代码 | 视觉、构建、加载预算、smoke |
+| 常规生产工作流 `.github/workflows/ci.yml` | 完整验证；main push 通过后执行部署，验证发布链路自身的修改 |
 | 依赖、构建配置或未知路径 | 完整验证 |
 
 多个路径取检查的并集。未知事件、缺失历史、空 diff、不可识别文件均回退完整验证。文档中的 JS、未知 JSON、运行时图片仍不属于轻量白名单。如果将来运行时或构建开始消费审查证据，必须先更新分类器。
 
-共享或未知验证脚本保守运行全部验证，但不自动部署。生产客户端、Worker、共享代码、静态资源和 migration 的 main push 才进入部署；CI、测试和验证脚本本身不触发部署。完整规则以 `scripts/ci-scope.mjs` 为准。精确模块、消费者和 library 测试组见 [#174 审计](test-audit-174.md#模块与-ci-选择)。仅全部改动都属于展示叶子模块或文档时才收窄；混合其他路径回到 all。选择器自身变动执行完整验证。
+共享或未知验证脚本保守运行全部验证，但不自动部署。生产客户端、Worker、共享代码、静态资源、migration 和常规生产工作流 `ci.yml` 的 main push 进入部署；其他 CI 工作流、测试和验证脚本本身不触发部署。`ci.yml` 的注释修改也按同一文件级规则验证发布。完整规则以 `scripts/ci-scope.mjs` 为准。精确模块、消费者和 library 测试组见 [#174 审计](test-audit-174.md#模块与-ci-选择)。仅全部改动都属于展示叶子模块或文档时才收窄；混合其他路径回到 all。选择器自身变动执行完整验证。
 
 ## 测试的职责
 
@@ -94,6 +95,10 @@ Playwright Noble 容器，保留 Node 24；不在测试 job 临时执行 apt 或
 安装 npm 依赖后执行 `.github/scripts/verify-browsers.mjs`，核对版本、Python 取证依赖和
 两引擎真实启动。Playwright 升级须同步更新 `ci.yml` 与 `browser-stability.yml` 的全部
 镜像版本和 digest。原始失败、取舍与验证边界见 [环境准备记录](browser-test-stability.md#ci-环境准备--391-与-2026-10-22-后续修复)。
+
+deploy 的 checkout 仅在它内部 Git 进程的临时配置中登记 `safe.directory`。后续普通步骤在
+发布准入前，将 `$GITHUB_WORKSPACE` 登记到当前容器用户的全局 Git 配置，供 HEAD 和祖先关系
+检查读取；只信任该工作目录，其他仓库仍受所有权检查保护。
 
 完整检查会启动
 本地 workerd/Vite、临时 D1 和浏览器，并多次构建；不需要生产凭据，不操作生产数据。

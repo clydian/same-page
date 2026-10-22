@@ -88,7 +88,8 @@ test("test and CI changes run checks without deploying product code", (t) => {
     ["src/shared/annotations.test.ts", ["client"]],
     ["src/test/setup.ts", ["client"]],
     ["worker/index.test.ts", ["worker"]],
-    [".github/workflows/ci.yml", ["client", "worker", "visual", "pwa", "performance", "migration", "build"]],
+    [".github/workflows/browser-stability.yml", ["client", "worker", "visual", "pwa", "performance", "migration", "build"]],
+    [".github/scripts/verify-browsers.mjs", ["client", "worker", "visual", "pwa", "performance", "migration", "build"]],
   ]) {
     repo.git("reset", "--hard", repo.base);
     repo.put(name, "updated\n");
@@ -98,6 +99,21 @@ test("test and CI changes run checks without deploying product code", (t) => {
     assert.equal(scope.deploy, false, name);
     for (const check of enabled) assert.equal(scope[check], true, `${name}: ${check}`);
   }
+});
+
+test("production CI workflow changes receive full verification and deployment", t => {
+  const repo = repository(t);
+  repo.put(".github/workflows/ci.yml");
+  repo.commit();
+  for (const scope of [repo.scope(), repo.scope("push", { before: repo.base })]) {
+    for (const key of ["client", "worker", "visual", "pwa", "performance", "migration", "build", "smoke", "deploy"]) {
+      assert.equal(scope[key], true, key);
+    }
+  }
+  repo.put("docs/operations/ci.md");
+  repo.put("scripts/ci-scope.test.mjs");
+  repo.commit();
+  assert.equal(repo.scope("push", { before: repo.base }).deploy, true);
 });
 
 test("push scope includes every commit since before, not just the last commit", (t) => {
@@ -305,6 +321,46 @@ test("deployment follows the successful verification gate even when an ancestor 
     { event_name: "pull_request", ref: "refs/heads/main" },
     { event_name: "push", ref: "refs/heads/other" },
   ]) assert.equal(evaluate({ github }), false);
+});
+
+test("container deployment trusts its workspace for release Git commands without trusting other repositories", t => {
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const deploy = workflow.split("\n  deploy:\n")[1];
+  const configure = deploy.match(/- name: Trust checked-out repository in container\n\s+run: (.+)/)?.[1];
+  assert.ok(configure, "deployment must configure trust before release admission");
+  assert.ok(deploy.indexOf(configure) < deploy.indexOf("- name: Admit release under production lock"));
+
+  const repo = repository(t);
+  const runtimeConfig = path.join(repo.cwd, ".git", "runtime.gitconfig");
+  const checkoutConfig = path.join(repo.cwd, ".git", "checkout.gitconfig");
+  const env = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: runtimeConfig,
+    GIT_CONFIG_COUNT: "0",
+    GIT_TEST_ASSUME_DIFFERENT_OWNER: "1",
+    GITHUB_WORKSPACE: repo.cwd,
+  };
+  const runGit = (args, overrides = {}, cwd = repo.cwd) => spawnSync("git", args, {
+    cwd, env: { ...env, ...overrides }, encoding: "utf8",
+  });
+  assert.equal(runGit(["config", "--global", "--add", "safe.directory", repo.cwd], { GIT_CONFIG_GLOBAL: checkoutConfig }).status, 0);
+  assert.equal(runGit(["rev-parse", "HEAD"], { GIT_CONFIG_GLOBAL: checkoutConfig }).status, 0);
+  const before = runGit(["rev-parse", "HEAD"]);
+  assert.notEqual(before.status, 0);
+  assert.match(before.stderr, /detected dubious ownership/);
+
+  const configured = spawnSync("sh", ["-e", "-c", configure], { cwd: repo.cwd, env, encoding: "utf8" });
+  assert.equal(configured.status, 0, configured.stderr);
+  const head = runGit(["rev-parse", "HEAD"]);
+  assert.equal(head.status, 0, head.stderr);
+  assert.equal(head.stdout.trim(), repo.base);
+  assert.equal(runGit(["merge-base", "--is-ancestor", repo.base, "HEAD"]).status, 0);
+
+  const untrusted = repository(t);
+  const other = runGit(["rev-parse", "HEAD"], {}, untrusted.cwd);
+  assert.notEqual(other.status, 0, "trust must be limited to the deployment workspace");
+  assert.match(other.stderr, /detected dubious ownership/);
 });
 
 test("retired consumer deployment fix builds and deploys on main", t => {

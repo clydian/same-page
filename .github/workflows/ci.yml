@@ -329,6 +329,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Checkout trusts this mount only in its temporary Git configuration.
+      - name: Trust checked-out repository in container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Admit release under production lock
         id: admission
         run: node scripts/release-admission.mjs admit
