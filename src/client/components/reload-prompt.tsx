@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { canAcceptUpdate, canApplyUpdate, noteUpdateInteraction, setUpdateRoute } from "../updates/update-safety";
 import { useUpdateStatus } from "../updates/update-status";
-import { buildId } from "../../shared/build";
+import { buildId, buildVersion } from "../../shared/build";
 import { UpdateController } from "../updates/update-controller";
 import { ShellRecovery } from "../updates/shell-recovery";
 import { requestWorker, watchControllerChanges } from "../updates/worker-request";
@@ -91,12 +91,25 @@ export function UpdateDetails() {
   const ready = status.phase === "ready";
   const labels: Partial<Record<typeof status.phase, string>> = { registering: "准备中…", checking: "检查中…", preparing: "准备中…", applying: "更新中…" };
   const label = labels[status.phase];
-  return <section><h2>版本更新</h2><p role="status" aria-live="polite" aria-atomic="true">{status.message}</p>
+  const titles: Record<typeof status.phase, string> = {
+    registering: "正在连接更新服务", checking: "正在检查更新", preparing: "正在准备新版本",
+    current: "更新检查已完成", ready: "新版本已准备好", applying: "正在应用更新",
+    error: "暂时无法完成更新", offline: "联网后可检查更新", unsupported: "请重新打开合谱以更新",
+  };
+  return <section className="support-update" aria-labelledby="update-heading">
+    <div className="support-update-meta"><span>应用更新</span><span>当前版本 <span translate="no">{buildVersion}</span></span></div>
+    <h2 id="update-heading">{titles[status.phase]}</h2>
+    <p className="support-update-message" role="status" aria-live="polite" aria-atomic="true">{status.message}</p>
     <button className={ready ? "primary-button" : "secondary-button"} disabled={busy || status.phase === "unsupported"}
       onClick={() => window.dispatchEvent(new Event(ready ? "same-page-apply-update" : "same-page-check-update"))}>
       {label ?? (ready ? "重新加载并更新" : status.phase === "error" || status.phase === "offline" ? "重试检查更新" : "检查更新")}
     </button>
-    {status.phase === "ready" && preparedBuild?.status === status && <p>已准备版本：<code>{preparedBuild.buildId.slice(0, 7)}</code></p>}
-    <p><a href="/api/support/update">更新失败？打开独立更新诊断</a></p>
+    <p className="support-update-hint">{ready ? "更新将重新加载页面。也可以稍后关闭所有合谱窗口，下次打开时使用新版本。" : "合谱会在后台准备更新。关闭所有合谱窗口后，下次打开时使用已准备的新版本。"}</p>
+    {status.phase === "error" && <a className="support-recovery-link" href="/api/support/update">更新遇到困难？检查更新问题 →</a>}
+    <details className="support-details update-technical"><summary>更新帮助与详情</summary>
+      {ready && preparedBuild?.status === status && <p>已准备版本：<code>{preparedBuild.buildId.slice(0, 7)}</code></p>}
+      <p>更新不会要求你清除本机数据。如果无法完成更新，可使用独立检查页面排查。</p>
+      <a href="/api/support/update">检查更新问题</a>
+    </details>
   </section>;
 }

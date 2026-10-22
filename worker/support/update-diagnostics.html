@@ -6,20 +6,26 @@
 <meta name="same-page-shell-limit" content="__LIMIT__">
 <title>合谱更新诊断</title>
 <style>
-  body{font:16px/1.6 system-ui,sans-serif;max-width:680px;margin:auto;padding:24px;color:#202822;background:#fafbf8}button,a{font:inherit}button{padding:10px 16px;margin:6px 8px 6px 0}textarea{box-sizing:border-box;width:100%;font:13px/1.5 monospace}p{overflow-wrap:anywhere}details{margin:20px 0}label{display:block}h1{font-size:24px}
+:root{color-scheme:light;--ink:#17353a;--muted:#657579;--brand:#014653;--line:#dce4e1}*{box-sizing:border-box}body{font:16px/1.75 system-ui,sans-serif;margin:0;color:var(--ink);background:#f8faf9}main{max-width:656px;margin:auto;padding:48px 24px calc(40px + env(safe-area-inset-bottom))}a{color:var(--brand);text-underline-offset:4px}button{font:inherit;min-height:44px;padding:10px 18px;border:1px solid var(--line);border-radius:24px;color:var(--ink);background:white;cursor:pointer}button:hover:enabled{background:#e6efec}button:disabled{opacity:.55;cursor:default}button:focus-visible,a:focus-visible,summary:focus-visible,textarea:focus-visible{outline:2px solid var(--brand);outline-offset:4px}textarea{box-sizing:border-box;width:100%;font:12px/1.6 monospace;border:1px solid var(--line);border-radius:8px;padding:12px;resize:vertical;background:white;color:var(--ink)}p{overflow-wrap:anywhere}details{margin:24px 0;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}summary{cursor:pointer;min-height:44px;padding:14px 0}label{display:block;margin-bottom:8px}h1{font-size:30px;letter-spacing:-.03em;line-height:1.3;margin:12px 0}.kicker{font-size:12px;letter-spacing:.14em;color:var(--brand);margin:32px 0 0}.intro{color:var(--muted);font-size:15px}.check-result{padding:24px;background:#e6efec;border:1px solid #d4e2dc;border-radius:16px;margin:28px 0}.check-result h2{font-size:13px;font-weight:500;margin:0;color:var(--brand)}#status{font-size:17px;margin:12px 0 20px}#retry,#send{background:var(--brand);border-color:var(--brand);color:white}#retry:hover:enabled,#send:hover:enabled{background:#003640}.actions{display:flex;gap:8px;flex-wrap:wrap}.hint{font-size:13px;color:var(--muted)}#receipt:empty{display:none}#receipt{font-size:14px;padding:16px;background:#e6efec;border-radius:8px}.back{font-size:14px;text-decoration:none}.feedback h2{font-size:18px;margin:0}button,a,summary{touch-action:manipulation}@media(max-width:600px){main{padding-top:24px}.check-result{padding:20px}h1{font-size:26px}}
 </style>
 <main>
-<h1>合谱更新诊断</h1>
-<p>应用更新失败或一直显示“正在恢复云盘”时，可在这里检查。不需要重新登录。</p>
-<p>检查只读取版本、应用缓存占用和数据库能否响应；不读取乐谱、笔记、文件名或登录凭据，也不会清理本机数据。</p>
+<a class="back" href="/about">← 返回关于合谱</a>
+<p class="kicker">合谱 · 更新帮助</p>
+<h1>让更新顺利完成</h1>
+<p class="intro">更新失败或一直停在“正在恢复云盘”？这里可以独立检查，无需重新登录。</p>
+<section class="check-result" aria-labelledby="check-heading"><h2 id="check-heading">本机检查</h2>
 <p id="status" role="status">正在检查…</p>
-<button id="inspect" type="button">重新检查</button>
-<button id="retry" type="button">重试更新并记录原因</button>
-<details><summary>查看诊断信息</summary><label for="report">本次检查</label><textarea id="report" readonly rows="14"></textarea></details>
-<p>点击发送后，将上面的诊断信息发送给合谱维护人员，最多保存 180 天。</p>
+<div class="actions"><button id="inspect" type="button">重新检查</button>
+<button id="retry" type="button">重试更新并记录原因</button></div>
+<p class="hint">检查与重试不会清除乐谱或本机草稿。重试只准备更新，不会强制刷新其他合谱窗口。</p>
+</section>
+<section class="feedback"><h2>仍然无法更新？</h2>
+<p class="hint">把检查结果发送给合谱维护人员，帮助定位原因。</p>
+<details><summary>查看诊断信息</summary><p>检查只读取版本、应用缓存占用和数据库能否响应；不读取乐谱、笔记、文件名或登录凭据，也不会清理本机数据。</p><label for="report">本次检查</label><textarea id="report" readonly rows="14"></textarea><p><button id="copy" type="button">复制诊断信息</button></p></details>
+<p class="hint">点击发送后，将上面的诊断信息发送给合谱维护人员，最多保存 180 天。</p>
 <button id="send" type="button" disabled>发送诊断反馈</button>
-<button id="copy" type="button">复制诊断信息</button>
 <p id="receipt" role="status"></p>
+</section>
 <p><a href="/drives">返回云盘列表</a></p>
 </main>
 <script src="/api/support/update-diagnostics.js" defer></script>
