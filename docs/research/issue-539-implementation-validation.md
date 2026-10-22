@@ -159,3 +159,20 @@ A → 稳定版 B 回归。两路其余检查无确定未解决问题，未因�
 退回根路径。构建仍有既有 Vite／alphaTab 警告。PR CI 的 deploy job 仅允许 main push，
 提交本分支和创建 PR 不会触发该生产部署步骤。生产开关、资源、迁移、通道指针均未改变，
 本卡的受控上线验收项继续保持未勾选。
+
+## 2026-10-22 PR #540 CodeQL 告警复核
+
+`29c686d` 的业务 CI（checks、backend、build、platform、visual 四组、smoke 三组、verify）
+全部通过；唯一阻断为 `js/insufficient-password-hash`。SARIF 指向前端发布脚本读取
+`CLOUDFLARE_API_TOKEN`，经 `deriveR2Credentials` 进入既有的 SHA-256 派生。
+该实现也已存在于 main；输出仅在发布进程内作为 S3 `secretAccessKey` 使用。
+
+[Cloudflare 官方协议](https://developers.cloudflare.com/r2/api/tokens/#get-s3-api-credentials-from-an-api-token)
+明确要求 token ID 作为 Access Key ID、token value 的 SHA-256 作为 Secret Access Key。
+CodeQL 的密码名称启发式包含 API token，未区分此协议用途，因此仅将
+[告警 2](https://github.com/clydian/same-page/security/code-scanning/2) 按 `false positive` 处置并记录依据。
+没有关闭规则或扫描，也没有通过改名、换哈希 API 隐藏数据流；保留原有认证协议。
+
+干净安装 Android 脚本依赖后，`node --test android/publish.test.mjs` 的 14 项通过，
+覆盖精确派生、user/account token 校验及失败行为。原 PR 的 CodeQL 门禁随处置恢复为通过。
+此次源码仅补协议说明，不改变运行行为；没有新增重复测试、部署或生产变更。
