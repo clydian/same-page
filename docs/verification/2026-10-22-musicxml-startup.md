@@ -1,6 +1,6 @@
 # MusicXML 开谱优化 · #551
 
-工作从 `de7d2639e9bb44808b1fc154db14d4e31bc73ddd` 开始，保留 native14 谱面修正；实施期间整合主分支 `c3c36656` 的 native15 双标修复，最终组合版为 native17。相对最新 main，本 PR 不包含其 admin 或数据库迁移改动。研究基准见 [方案](../research/2026-10-22-musicxml-startup-optimization-plan.md)；其中 native13 原型计时与当前实现验证分别记录。本次不涉及数据库升级、原附件修改或服务端 API 变更。
+工作从 `de7d2639e9bb44808b1fc154db14d4e31bc73ddd` 开始，保留 native14 谱面修正；实施期间整合主分支 `c3c36656` 的 native15 双标修复，当时组合版为 native17；2026-10-23 rebase 最新 main 后更新为 native18，见文末记录。相对最新 main，本 PR 不包含其 admin 或数据库迁移改动。研究基准见 [方案](../research/2026-10-22-musicxml-startup-optimization-plan.md)；其中 native13 原型计时与当前实现验证分别记录。本次不涉及数据库升级、原附件修改或服务端 API 变更。
 
 ## 实现边界
 
@@ -29,8 +29,8 @@ node --test --test-concurrency=1 browser-tests/musicxml-startup.test.mjs browser
 
 浏览器与 final-head CI 结果以 [PR #555](https://github.com/clydian/same-page/pull/555) 的最新检查及 CI artifacts 为准。测试输出位于本工作区 `artifacts/verification/`，只包含合成测试谱。原型数值不作为实体设备结论。
 
-- 最终 native17：制品 SHA-256 `594eeff31aeb762c19b4d2b2d2de89227cb73dc4045fd8999a817a4d98720aca`，源码提交 `9bcd697196c3f55ee21eeadb2b823e9b138482bb`，源码档案 SHA-256 `e0e405e96f9f425f4278f22dce9ab1ac12676a167b9aa71f5168b9929a278a1e`。[精确差异](musicxml-startup-native17.patch)与[测试及安装审计](musicxml-startup-native17-tests.json)：163 项定向（含 24 双标及 16 生命周期）、TS/lint 通过；fresh15 1825 pass / 64 fail，native17 1841 pass / 64 fail，逐项相同的 64 项失败，无新增失败。645 个安装文件匹配制品，历史包及 68 个公开源码／许可证文件不变。
-- 最终 native17 的 player 338 项通过；Sun／Jesu 的完整模型及全部 MIDI 事件与旧准备路径一致，原文字节不变。原生全部失败已保留，不称全量通过。
+- 上轮 native17：制品 SHA-256 `594eeff31aeb762c19b4d2b2d2de89227cb73dc4045fd8999a817a4d98720aca`，源码提交 `9bcd697196c3f55ee21eeadb2b823e9b138482bb`，源码档案 SHA-256 `e0e405e96f9f425f4278f22dce9ab1ac12676a167b9aa71f5168b9929a278a1e`。[精确差异](musicxml-startup-native17.patch)与[测试及安装审计](musicxml-startup-native17-tests.json)：163 项定向（含 24 双标及 16 生命周期）、TS/lint 通过；fresh15 1825 pass / 64 fail，native17 1841 pass / 64 fail，逐项相同的 64 项失败，无新增失败。645 个安装文件匹配制品，历史包及 68 个公开源码／许可证文件不变。
+- 上轮 native17 的 player 338 项通过；Sun／Jesu 的完整模型及全部 MIDI 事件与旧准备路径一致，原文字节不变。原生全部失败已保留，不称全量通过。
 - 中间 native16 制品 SHA-256：`d1905cb0063b819358fe71a2c239478cc6e7e0c74653d7f94a45034234d053a7`。源码提交 `acb735a64769e1ea9d6bbbcdcdd31ec30fa9e448`，源码档案 SHA-256 `0d70a8c3ddf938d14fdfe01a4ed6e5c3e31e896d750900d72086850faa99dea1`。
 - Native14 → native16 的[精确源码差异](musicxml-startup-native16.patch)及[完整测试对照](musicxml-startup-native16-tests.json)：新增 16 个生命周期测试通过，139 项相关回归通过；全量 1817 pass / 64 fail，与 fresh native14 的 1801 pass / 64 fail 逐项相同。64 项既有视觉 golden 差异保留，未改 golden 或声称全量通过。
 - 两份私有真实谱 The Sun Never Says（5 声部、70 小节）与 Jesu, meine Freude（5 声部、441 小节）：中间 native16 下新旧准备路径的完整模型及全部 MIDI 事件 deepEqual，原字节不变；谱文未提交。
@@ -68,3 +68,9 @@ node --test --test-concurrency=1 browser-tests/musicxml-startup.test.mjs browser
 资源缺失会拒绝认证。公开读取 API 没有跳过校验的开关或长期信任缓存。
 
 实体 iPhone/iPad 已安装版、Android 已安装版的 p50/p95、峰值内存、后台恢复与音频路由验收尚未进行；本 PR 不宣称已解决这些设备上的全部等待，也不创建整套播放器常驻或完整 Score 持久缓存。合并与部署另行授权。
+
+## 2026-10-23：rebase 最新 main
+
+基于 `c015021e` 重放本 PR，保留受控发布流程及 main native16 的括号音头修复。main 的正式 native16 制品逐字节保留；本 PR 的历史 MIDI 候选也使用过 native16 编号，故不再用该文件名分发组合版。新组合版 native18 保留全部 main 覆盖层，源码差异严格限于既有的三个 MIDI 生命周期文件。
+
+[制品、源码身份与审计](musicxml-startup-native18-rebase.json)：645 个安装文件与新 tgz 一致；音头／双标／MIDI 定向测试 56 项通过。完整原生 suite 为 1857 pass／64 fail，与上轮 native17 的 64 项失败逐项相同，无新增失败。lint、typecheck、player 338 项及生产构建通过；真实 Chromium／WebKit 的 Worker、播放／PDF 切换、三种来源及源码分发检查共 7 项通过。新的最终 head CI 以 PR 最新检查为准，上轮 `c666f435` 的绿色 CI 不代表本次 rebase 已通过 CI。

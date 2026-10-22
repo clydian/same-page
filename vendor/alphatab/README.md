@@ -1,6 +1,6 @@
 # Same Page alphaTab 维护
 
-日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.17.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
+日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.18.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
 
 ## 修改并重建
 
@@ -35,3 +35,7 @@ npm run build:native -- --version 1.8.4-samepage.18 --output /tmp/same-page-nati
 ## samepage.17：合并双标与 MIDI 准备
 
 此制品完整保留已合入的 samepage.15 同音符 accent／strong-accent 与 tenuto 共存，以及 samepage.16 的单次基础 MIDI 生成和 Worker MIDI 状态 getter 修复。生成的 Note JSON／clone 字段与源谱双标测试一并保留；没有选择旧制品覆盖新显示能力。版本只更新本地固定原生依赖、精确 peer 和源码分发身份，历史 `.15`、`.16` 包与公开源码快照保留。
+
+## samepage.18：整合 main 的括号音头修复
+
+保留 main `c015021e` 发布的 native16 制品与全部音头源码，同时保留本 PR 的 MIDI 生命周期修复。上文 samepage.16 的 MIDI 说明指本 PR 历史候选，不能用来标识 main 的正式 native16；历史公开源码快照不变。当前组合制品为 native18。
