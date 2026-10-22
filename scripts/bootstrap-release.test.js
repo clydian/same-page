@@ -55,7 +55,7 @@ it("pins both original ZIP identities through read-only fixed GitHub endpoints",
   await expect(bootstrapPlan(env(), fetchImpl)).resolves.toEqual(plan());
   expect(fetchImpl).toHaveBeenCalledTimes(6);
   for (const [url, options] of fetchImpl.mock.calls) {
-    expect(url).toMatch(/^https:\/\/api.github.com\/repos\/clydian\/same-page\/actions\//);
+    expect(url).toMatch(/^https:\/\/api\.github\.com\/repos\/clydian\/same-page\/actions\//);
     expect(options).toMatchObject({ redirect: "error", cache: "no-store" });
   }
   await expect(bootstrapPlan(env(), async () => new Response(null, { status: 403 }))).rejects.toThrow("HTTP 403");
