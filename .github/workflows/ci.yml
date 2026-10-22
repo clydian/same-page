@@ -304,6 +304,7 @@ jobs:
           JS
 
   deploy:
+    # ci-scope includes this production workflow so pipeline repairs exercise deployment.
     # Unselected checks may be skipped. The verify gate decides whether every
     # selected check passed; do not inherit success() across skipped ancestors.
     if: ${{ !cancelled() && needs.verify.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true' }}

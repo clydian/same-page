@@ -88,7 +88,8 @@ test("test and CI changes run checks without deploying product code", (t) => {
     ["src/shared/annotations.test.ts", ["client"]],
     ["src/test/setup.ts", ["client"]],
     ["worker/index.test.ts", ["worker"]],
-    [".github/workflows/ci.yml", ["client", "worker", "visual", "pwa", "performance", "migration", "build"]],
+    [".github/workflows/browser-stability.yml", ["client", "worker", "visual", "pwa", "performance", "migration", "build"]],
+    [".github/scripts/verify-browsers.mjs", ["client", "worker", "visual", "pwa", "performance", "migration", "build"]],
   ]) {
     repo.git("reset", "--hard", repo.base);
     repo.put(name, "updated\n");
@@ -98,6 +99,21 @@ test("test and CI changes run checks without deploying product code", (t) => {
     assert.equal(scope.deploy, false, name);
     for (const check of enabled) assert.equal(scope[check], true, `${name}: ${check}`);
   }
+});
+
+test("production CI workflow changes receive full verification and deployment", t => {
+  const repo = repository(t);
+  repo.put(".github/workflows/ci.yml");
+  repo.commit();
+  for (const scope of [repo.scope(), repo.scope("push", { before: repo.base })]) {
+    for (const key of ["client", "worker", "visual", "pwa", "performance", "migration", "build", "smoke", "deploy"]) {
+      assert.equal(scope[key], true, key);
+    }
+  }
+  repo.put("docs/operations/ci.md");
+  repo.put("scripts/ci-scope.test.mjs");
+  repo.commit();
+  assert.equal(repo.scope("push", { before: repo.base }).deploy, true);
 });
 
 test("push scope includes every commit since before, not just the last commit", (t) => {
