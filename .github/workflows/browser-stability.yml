@@ -21,6 +21,9 @@ jobs:
   repeat:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'browser-stability'
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      options: --init --ipc=host
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,7 +34,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium webkit
+      - name: Verify preinstalled browser environment
+        timeout-minutes: 1
+        run: node .github/scripts/verify-browsers.mjs
       - run: npm run build
       - name: Ten consecutive runs of the selected scenario
         shell: bash
