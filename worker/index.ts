@@ -40,7 +40,7 @@ app.use("*", async (c, next) => {
   if (path.startsWith("/.well-known/")) return serveStaticAsset(c.req.raw, c.env.ASSETS);
   await next();
 });
-for (const path of ['/assets/*', '/pdfjs/*', '/font/*', '/soundfont/*', '/playback/*', '/_releases/*']) {
+for (const path of ['/assets/*', '/pdfjs/*', '/font/*', '/soundfont/*', '/playback/*', '/third-party/*', '/_releases/*']) {
   app.all(path, async c => {
     const url = new URL(c.req.url);
     const match = /^\/_releases\/([a-f0-9]{40})\/(.*)$/.exec(url.pathname);

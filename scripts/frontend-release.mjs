@@ -52,6 +52,41 @@ export function verifyCompatibilityReport(report, expected) {
   assert.equal(report.stableProbe,expected.stableProbe);assert.equal(report.candidateProbe,expected.candidateProbe);
   assert.deepEqual(report.engines,['chromium','webkit']);
 }
+export function assertInitialChannels(pointer, sha) {
+  assert.match(sha ?? '', /^[a-f0-9]{40}$/);
+  if (pointer == null) return;
+  assert.ok(pointer.stable === sha && pointer.beta === sha && pointer.revision === 1,
+    'Stable baseline differs from this exact first initialization');
+}
+export function assertPrivateReleaseBucket({ managed, custom, lifecycle }) {
+  assert.equal(managed?.enabled, false, 'Release bucket r2.dev access must be disabled');
+  assert.ok(Array.isArray(custom?.domains), 'Release bucket custom domain configuration is unavailable');
+  assert.ok(custom.domains.every(domain => domain.enabled === false), 'Release bucket custom domain access must be disabled');
+  assert.ok(lifecycle && (lifecycle.rules === undefined || Array.isArray(lifecycle.rules)), 'Release bucket lifecycle configuration is unavailable');
+  // R2's default rule aborts unfinished multipart uploads; it does not expire stored releases.
+  assert.ok((lifecycle.rules ?? []).every(rule => typeof rule.enabled === 'boolean' &&
+    !(rule.enabled && rule.deleteObjectsTransition)), 'Release bucket object expiration must be disabled');
+}
+export async function preflightReleaseBucket({ account, token, bucket = 'same-page-frontend-releases', fetchImpl = fetch }) {
+  const results = await Promise.all(['domains/managed', 'domains/custom', 'lifecycle'].map(async setting => {
+    const response = await fetchImpl(`https://api.cloudflare.com/client/v4/accounts/${account}/r2/buckets/${bucket}/${setting}`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30000),
+    });
+    assert.ok(response.ok, `Release bucket ${setting} check failed (HTTP ${response.status})`);
+    const data = await response.json();
+    assert.equal(data.success, true, `Release bucket ${setting} check rejected`);
+    return data.result;
+  }));
+  assertPrivateReleaseBucket({ managed: results[0], custom: results[1], lifecycle: results[2] });
+}
+export async function initializeReleaseChannels({ query, sha, pointer }) {
+  assertInitialChannels(pointer, sha);
+  if (!pointer) await query('INSERT INTO release_channels(id,stable,beta,revision) VALUES(1,?,?,1) ON CONFLICT(id) DO NOTHING', [sha, sha]);
+  const initialized = (await query('SELECT stable,beta,revision FROM release_channels WHERE id=1')).results[0];
+  assert.ok(initialized, 'Stable baseline initialization did not complete');
+  assertInitialChannels(initialized, sha);
+  return initialized;
+}
 export async function stopBetaRelease({ query, expectedBeta, expectedRevision }) {
   assert.match(expectedBeta ?? '', /^[a-f0-9]{40}$/);
   assert.ok(Number.isSafeInteger(expectedRevision) && expectedRevision > 0, 'Expected channel revision is required');
@@ -65,7 +100,7 @@ export async function stopBetaRelease({ query, expectedBeta, expectedRevision })
 }
 async function main() {
   const [action,sha,baselineFlag]=process.argv.slice(2);
-  assert.ok(['upload','admit','initialize','archive-legacy','stop-beta'].includes(action));assert.match(sha??'',/^[a-f0-9]{40}$/);
+  assert.ok(['preflight','upload','admit','initialize','archive-legacy','stop-beta'].includes(action));assert.match(sha??'',/^[a-f0-9]{40}$/);
   if(action==='stop-beta') assert.match(baselineFlag??'',/^--expected-revision=[1-9]\d*$/,'Pass the observed channel revision explicitly');
   const account=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN;
   assert.match(account??'',/^[a-f0-9]{32}$/);assert.ok(token);
@@ -80,6 +115,11 @@ async function main() {
     console.log(JSON.stringify({action,previousBeta:sha,...pointer}));return;
   }
   const pointer=(await query('SELECT stable,beta,revision FROM release_channels WHERE id=1')).results[0];
+  if(action==='preflight' || action==='initialize' || baselineFlag==='--initialize-stable') assertInitialChannels(pointer, sha);
+  if(action==='preflight') {
+    await preflightReleaseBucket({account,token});
+    console.log(`Release preflight passed for ${sha}; bucket private, stored objects retained, first initialization state verified`);return;
+  }
   if(action==='initialize') assert.equal(baselineFlag,'--initialize-stable','Explicit stable baseline confirmation is required');
   else if(action!=='archive-legacy') assert.ok(pointer||baselineFlag==='--initialize-stable','Initialize the stable bridge before ordinary releases');
   const sdk=createRequire(new URL('../android/package.json',import.meta.url))('@aws-sdk/client-s3');
@@ -117,7 +157,7 @@ async function main() {
     assert.equal(hash(priorBytes),priorManifest.storageDigest,'stable storage contract was modified');
     assertStorageCompatibility(JSON.parse(new TextDecoder().decode(priorBytes)),contract);
   }
-  if(action==='upload'||action==='initialize') {
+  if(action==='upload'||action==='initialize'&&!pointer) {
     const {verifyArtifactStorage}=await import('./verify-release-storage.mjs');
     const candidateProbe=await readFile('dist/release-storage-probe.js');
     const report=await verifyArtifactStorage({stable:{id:pointer?.stable??sha,bytes:stableProbe??candidateProbe,digest:stableManifest?.probeDigest??manifest.probeDigest},candidate:{id:sha,bytes:candidateProbe,digest:manifest.probeDigest}});
@@ -145,13 +185,15 @@ async function main() {
   const proofReport=JSON.parse(new TextDecoder().decode(proofBytes));
   verifyCompatibilityReport(proofReport,{stable:pointer?.stable??sha,candidate:sha,stableProbe:stableManifest?.probeDigest??manifest.probeDigest,candidateProbe:manifest.probeDigest});
   assert.equal(proof.candidate_probe,manifest.probeDigest);assert.equal(proof.stable_probe,proofReport.stableProbe);
-  await query('UPDATE frontend_releases SET ready=1 WHERE build_id=?',[sha]);
   if(action==='initialize') {
-    assert.ok(!pointer,'Stable baseline is already initialized');
-    await query('INSERT INTO release_channels(id,stable,beta,revision) VALUES(1,?,?,1)',[sha,sha]);
-  } else if (pointer.beta !== sha) {
-    const result=await query('UPDATE release_channels SET beta=?,revision=revision+1 WHERE id=1 AND revision=? AND stable=?',[sha,pointer.revision,pointer.stable]);
-    assert.ok(result.meta.changes,'Channel changed during admission; reverify against current stable');
+    if(!pointer) await query('UPDATE frontend_releases SET ready=1 WHERE build_id=?',[sha]);
+    await initializeReleaseChannels({query,sha,pointer});
+  } else {
+    await query('UPDATE frontend_releases SET ready=1 WHERE build_id=?',[sha]);
+    if (pointer.beta !== sha) {
+      const result=await query('UPDATE release_channels SET beta=?,revision=revision+1 WHERE id=1 AND revision=? AND stable=?',[sha,pointer.revision,pointer.stable]);
+      assert.ok(result.meta.changes,'Channel changed during admission; reverify against current stable');
+    }
   }
   console.log(`Admitted frontend ${sha}; stable changes only during explicit initialization or backend promotion`);
 }
