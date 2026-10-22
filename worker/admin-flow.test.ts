@@ -165,21 +165,13 @@ beforeEach(async () => {
   scoreId = s.id;
   versionId = s.v;
   otherScore = (await seedScore(other.choirId, "乙谱.pdf")).id;
-  await env.DB.batch([
-    env.DB.prepare(
-      "INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)",
-    ).bind(operatorId),
-    env.DB.prepare("INSERT INTO product_admin_drives(choir_id) VALUES(?)").bind(
-      choirId,
-    ),
-    env.DB.prepare("INSERT INTO product_admin_drives(choir_id) VALUES(?)").bind(
-      other.choirId,
-    ),
-  ]);
+  await env.DB.prepare(
+    "INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)",
+  ).bind(operatorId).run();
   ownerCookie = await login("owner-admin@example.test");
   cookie = await login("operator@example.test");
 });
-it("requires independent operational grants, scopes pilots, and leaves membership/activity untouched", async () => {
+it("covers every current drive without pilot rows or membership and requires an independent operational grant", async () => {
   expect(
     (await call("/api/admin/scores", { headers: { cookie: "" } })).status,
   ).toBe(403);
@@ -191,21 +183,56 @@ it("requires independent operational grants, scopes pilots, and leaves membershi
   const list = await call("/api/admin/scores");
   expect(list.status, await list.clone().text()).toBe(200);
   expect(((await list.json()) as { scores: unknown[] }).scores).toHaveLength(2);
+  expect(await env.DB.prepare("SELECT count(*) n FROM product_admin_drives").first()).toEqual({ n: 0 });
+  const drives = await (await call("/api/admin/drives")).json<{ drives: { id: string }[] }>();
+  expect(drives.drives).toHaveLength(2);
   expect(
     await env.DB.prepare("SELECT count(*) n FROM memberships WHERE user_id=?")
       .bind(operatorId)
       .first(),
   ).toEqual({ n: 0 });
   expect((await call(base() + "/pdf")).status).toBe(200);
-  await env.DB.prepare("DELETE FROM product_admin_drives WHERE choir_id=?")
-    .bind(choirId)
-    .run();
-  expect((await call(base())).status).toBe(404);
-  expect((await call(base() + "/pdf")).status).toBe(404);
+  expect((await call(base())).status).toBe(200);
+  const added = await provisionChoir({ binding: env.DB, ownerUserId: ownerId, ownerDisplayName: "拥有者", inviteSecret: env.INVITE_SECRET });
+  const addedScore = await seedScore(added.choirId, "新增云盘谱.pdf");
+  const updated = await (await call("/api/admin/scores")).json<{ scores: { id: string }[] }>();
+  expect(updated.scores.map(score => score.id)).toContain(addedScore.id);
+  const updatedDrives = await (await call("/api/admin/drives")).json<{ drives: { id: string }[] }>();
+  expect(updatedDrives.drives.map(drive => drive.id)).toContain(added.choirId);
+  const filtered = await (await call(`/api/admin/scores?drive=${added.choirId}`)).json<{ scores: { id: string }[] }>();
+  expect(filtered.scores.map(score => score.id)).toEqual([addedScore.id]);
+  const memberId = await user("member-admin@example.test");
+  await env.DB.prepare("INSERT INTO memberships(id,choir_id,user_id,display_name) VALUES(?,?,?,'普通成员')").bind(crypto.randomUUID(), choirId, memberId).run();
+  const memberCookie = await login("member-admin@example.test");
+  expect((await call("/api/admin/scores", { headers: { cookie: memberCookie } })).status).toBe(403);
   await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?")
     .bind(operatorId)
     .run();
   expect((await call("/api/admin/session")).status).toBe(403);
+});
+
+it("keeps view, review and publish capabilities separate across all drives", async () => {
+  const imported = await upload();
+  expect(imported.response.status).toBe(201);
+  expect((await approve(imported.id)).status).toBe(204);
+  await env.DB.prepare("UPDATE product_operators SET review_xml=0,publish_xml=0 WHERE user_id=?").bind(operatorId).run();
+  for (const path of ["/api/admin/drives", "/api/admin/scores", base(), base() + "/pdf", `${base()}/candidates/${imported.id}/file`]) {
+    expect((await call(path)).status).toBe(200);
+  }
+  expect((await upload()).response.status).toBe(403);
+  expect((await approve(imported.id, 1)).status).toBe(403);
+  expect((await publish(imported.id)).status).toBe(403);
+  await env.DB.prepare("UPDATE product_operators SET review_xml=1 WHERE user_id=?").bind(operatorId).run();
+  const reviewed = await upload();
+  expect(reviewed.response.status).toBe(201);
+  expect((await approve(reviewed.id)).status).toBe(204);
+  expect((await publish(reviewed.id)).status).toBe(403);
+  await env.DB.prepare("UPDATE product_operators SET review_xml=0,publish_xml=1 WHERE user_id=?").bind(operatorId).run();
+  expect((await publish(reviewed.id)).status).toBe(403);
+  await env.DB.prepare("UPDATE product_operators SET view_scores=0 WHERE user_id=?").bind(operatorId).run();
+  expect((await call("/api/admin/scores")).status).toBe(403);
+  expect((await call(base() + "/pdf")).status).toBe(403);
+  expect(await env.DB.prepare("SELECT count(*) n FROM score_attachments").first()).toEqual({ n: 0 });
 });
 it("isolates imported candidates and publishes idempotently into the existing generated slot without membership", async () => {
   const before = await env.DB.prepare(
@@ -408,15 +435,16 @@ it("enforces candidate budget and review capability, blocks unverified approval"
   expect((await approve(r.id)).status).toBe(403);
 });
 
-it("rechecks authority after copying bytes and leaves no visible file on revoked publication", async () => {
+it.each(["grant", "session", "user", "capability"])("rechecks %s authority after copying bytes and leaves no visible file", async (change) => {
   const r = await upload();
   await approve(r.id);
   const put = env.SCORES_BUCKET.put.bind(env.SCORES_BUCKET);
   vi.spyOn(env.SCORES_BUCKET, "put").mockImplementationOnce(async (...args) => {
     const stored = await put(...args);
-    await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?")
-      .bind(operatorId)
-      .run();
+    if (change === "grant") await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?").bind(operatorId).run();
+    if (change === "session") await env.DB.prepare("UPDATE session SET expires_at=? WHERE user_id=?").bind(Date.now() - 1, operatorId).run();
+    if (change === "user") await env.DB.prepare("INSERT INTO user_lifecycle(user_id,deletion_id,auth_method,deleted_at,expires_at) VALUES (?,?,'credential',?,?)").bind(operatorId, crypto.randomUUID(), Date.now(), Date.now() + 30 * 86400000).run();
+    if (change === "capability") await env.DB.prepare("UPDATE product_operators SET publish_xml=0 WHERE user_id=?").bind(operatorId).run();
     return stored;
   });
   const response = await publish(r.id);
@@ -427,6 +455,21 @@ it("rechecks authority after copying bytes and leaves no visible file on revoked
   expect(
     await env.DB.prepare("SELECT count(*) n FROM xml_publish_staging").first(),
   ).toEqual({ n: 0 });
+});
+it.each(["score-trash", "score-purged", "drive-purged", "pdf-purged"])("excludes %s resources from the global directory and all preview endpoints", async (change) => {
+  if (change === "score-trash") await env.DB.prepare("UPDATE scores SET trashed_at=?,trash_expires_at=? WHERE id=?").bind(Date.now(), Date.now() + 100000, scoreId).run();
+  if (change === "score-purged") await env.DB.prepare("UPDATE scores SET purged_at=? WHERE id=?").bind(Date.now(), scoreId).run();
+  if (change === "drive-purged") await env.DB.prepare("UPDATE choirs SET purged_at=? WHERE id=?").bind(Date.now(), choirId).run();
+  if (change === "pdf-purged") await env.DB.prepare("UPDATE score_versions SET purged_at=? WHERE id=?").bind(Date.now(), versionId).run();
+  const listed = await (await call("/api/admin/scores")).json<{ scores: { id: string }[] }>();
+  expect(listed.scores.map(score => score.id)).toEqual([otherScore]);
+  expect((await call(base())).status).toBe(404);
+  expect((await call(base() + "/pdf")).status).toBe(404);
+  expect((await upload()).response.status).toBe(404);
+  if (change === "drive-purged") {
+    const drives = await (await call("/api/admin/drives")).json<{ drives: { id: string }[] }>();
+    expect(drives.drives.map(drive => drive.id)).not.toContain(choirId);
+  }
 });
 it("deduplicates concurrent retries of exactly the same publication", async () => {
   const r = await upload();

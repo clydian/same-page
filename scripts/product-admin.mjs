@@ -24,6 +24,9 @@ if (action === "grant") {
     "disable-drive": `DELETE FROM product_admin_drives WHERE choir_id=${quoted};`,
   }[action];
   if (!sql) throw new Error("Unknown action");
+  if (["enable-drive", "disable-drive"].includes(action)) {
+    console.warn("Legacy pilot record only: this command does not change the product operator workbench scope. Use grant/revoke to manage operator access.");
+  }
 }
 const r = spawnSync(
   "npx",

@@ -52,13 +52,11 @@ export async function startStorageFixture({ authenticated = false, invite = fals
           const secondKey = `${adminDriveId}/${adminScoreId}/${adminVersionId}.pdf`;
           const secondObject = await SCORES_BUCKET.put(secondKey, pdf, { httpMetadata: { contentType: "application/pdf" } });
           await DB.batch([
-            DB.prepare("INSERT INTO choirs(id,owner_membership_id,name,guest_admission_mode,storage_used_bytes) VALUES(?,?,'第二个试点云盘','open',?)").bind(adminDriveId,adminOwnerMembershipId,pdf.length),
+            DB.prepare("INSERT INTO choirs(id,owner_membership_id,name,guest_admission_mode,storage_used_bytes) VALUES(?,?,'第二个云盘','open',?)").bind(adminDriveId,adminOwnerMembershipId,pdf.length),
             DB.prepare("INSERT INTO memberships(id,choir_id,user_id,display_name,status) VALUES(?,?,?,'拥有者','active')").bind(adminOwnerMembershipId,adminDriveId,accounts[0].id),
             DB.prepare("INSERT INTO scores(id,choir_id,file_name,file_name_key,current_version_id) VALUES(?,?,'另一份原谱.pdf','另一份原谱.pdf',?)").bind(adminScoreId,adminDriveId,adminVersionId),
             DB.prepare("INSERT INTO score_versions(id,choir_id,score_id,version_number,object_key,size_bytes,sha256,etag,page_count,state) VALUES(?,?,?,1,?,?,?,?,2,'ready')").bind(adminVersionId,adminDriveId,adminScoreId,secondKey,pdf.length,hash,secondObject.httpEtag),
             DB.prepare("INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)").bind(accounts[1].id),
-            DB.prepare("INSERT INTO product_admin_drives(choir_id) VALUES(?)").bind(choirId),
-            DB.prepare("INSERT INTO product_admin_drives(choir_id) VALUES(?)").bind(adminDriveId),
           ]);
         }
         if (joinCode) {

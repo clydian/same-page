@@ -16,7 +16,7 @@ import { adminAuthority, requireAdmin } from "./access";
 import { readAdminSession } from "./diagnostic-access";
 export const adminRoutes = new Hono<AppEnvironment>();
 const live = `s.trashed_at IS NULL AND s.purged_at IS NULL AND c.purged_at IS NULL AND v.purged_at IS NULL AND v.state='ready' AND v.etag IS NOT NULL`;
-const parents = `FROM scores s JOIN choirs c ON c.id=s.choir_id JOIN product_admin_drives d ON d.choir_id=c.id
+const parents = `FROM scores s JOIN choirs c ON c.id=s.choir_id
  JOIN score_versions v ON v.id=s.current_version_id AND v.score_id=s.id AND v.choir_id=c.id`;
 const scoreSelect = `SELECT s.id,s.choir_id AS choirId,c.name AS driveName,s.file_name AS fileName,s.current_version_id AS versionId,v.sha256,v.page_count AS pageCount,
  s.generated_xml_disabled AS disabled,a.id AS attachmentId,a.revision AS attachmentRevision,a.source_pdf_version_id AS publishedSource,
@@ -98,7 +98,7 @@ adminRoutes.get("/admin/drives", async (c) => {
   return c.json({
     drives: (
       await c.env.DB.prepare(
-        "SELECT c.id,c.name FROM choirs c JOIN product_admin_drives d ON d.choir_id=c.id WHERE c.purged_at IS NULL ORDER BY c.name,c.id",
+        "SELECT c.id,c.name FROM choirs c WHERE c.purged_at IS NULL ORDER BY c.name,c.id",
       ).all()
     ).results,
   });
