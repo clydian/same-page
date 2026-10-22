@@ -53,6 +53,7 @@ test("diagnostic feedback survives lost receipts and offline retries in Chromium
       assert.equal(attempts, 2);
       await context.setOffline(false);
       await page.unroute("**/api/diagnostic-reports");
+      await page.getByText("诊断信息与隐私说明", { exact: true }).click();
       await page.getByRole("button", { name: "清空诊断信息" }).click();
       await writeFile(`artifacts/verification/diagnostic-${name}.json`, JSON.stringify({ engine: name, viewport: { width, height }, realWorkerD1: true, receiptLostAfterPersistence: true, realDevice: false }, null, 2));
       await context.close();

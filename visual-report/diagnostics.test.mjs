@@ -24,7 +24,7 @@ test("real PDF.js permission and network failures reach private diagnostic repor
       assert.equal(await page.getByRole("button", { name: "反馈问题", exact: true }).isVisible(), false);
       await page.getByText("更多帮助", { exact: true }).click();
       await page.getByRole("button", { name: "反馈问题", exact: true }).click();
-      await page.getByText("查看诊断信息", { exact: true }).click();
+      await page.getByText("诊断信息与隐私说明", { exact: true }).click();
       assert.equal(await page.getByRole("link", {name: /下载原 PDF/}).count(), 0);
       assert.equal(await page.getByRole("button", {name: /下载原 PDF/}).count(), 0);
       const textbox = page.getByRole("textbox", { name: "可发送给维护人员的诊断信息" });

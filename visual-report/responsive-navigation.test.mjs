@@ -157,7 +157,7 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     await record("before-link", { name: "反馈问题" });
     await page.getByRole("link", { name: "反馈问题", exact: true }).press("Enter");
     await record("after-link", { name: "反馈问题" });
-    await page.getByText("查看诊断信息", { exact: true }).click();
+    await page.getByText("诊断信息与隐私说明", { exact: true }).click();
     await page.getByRole("textbox", { name: "可发送给维护人员的诊断信息" }).waitFor();
     assert.equal(new URL(page.url()).pathname, "/diagnostics");
     assert.equal(await page.evaluate(() => window.__layoutDocumentMarker), "same-document");
