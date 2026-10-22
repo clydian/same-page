@@ -113,10 +113,11 @@ it.each(["mouse", "pen", "unknown", "keyboard"])("preserves %s context menus and
   expect(open).toHaveBeenCalledTimes(1);
 });
 
-it("keeps modified link clicks and keyboard/assistive activation", () => {
+it.each(["ctrlKey", "metaKey"])("keeps %s link clicks and keyboard/assistive activation", modifier => {
   const open = vi.fn(); render(fixture("/score", open)); const file = screen.getByRole("link");
   pointer(file, "pointerdown"); now = 700; pointer(file, "pointerup");
-  fireEvent.click(file, { detail: 1, ctrlKey: true });
+  expect(fireEvent.click(file, { detail: 1, [modifier]: true })).toBe(true);
+  expect(screen.getByRole("status")).toHaveTextContent(/^\/$/);
   fireEvent.click(file, { detail: 0 });
   expect(open).toHaveBeenCalledTimes(2);
   expect(file).toHaveAttribute("href", "/score");

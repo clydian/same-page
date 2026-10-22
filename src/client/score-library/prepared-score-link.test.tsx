@@ -18,6 +18,15 @@ function pending() {
   return { promise, resolve };
 }
 beforeEach(() => { guest.owner = null; prepare.mockReset(); Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { getRegistration: async () => ({ active: {} }) } }); });
+it.each(["ctrlKey", "metaKey"])("leaves %s activation to the browser without preparing or navigating the opener", async modifier => {
+  const registration = vi.spyOn(navigator.serviceWorker, "getRegistration");
+  render(<MemoryRouter initialEntries={["/choirs/drive"]}>{row()}<Route /></MemoryRouter>);
+  expect(fireEvent.click(screen.getByRole("link", { name: "score" }), { detail: 1, [modifier]: true })).toBe(true);
+  await act(async () => {});
+  expect(registration).not.toHaveBeenCalled();
+  expect(prepare).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("当前位置")).toHaveTextContent(/^\/choirs\/drive$/);
+});
 it("never starts shell lookup or preparation after a withdrawn touch, but accepts the next tap", async () => {
   guest.owner = "guest:touch";
   const registration = vi.spyOn(navigator.serviceWorker, "getRegistration");
