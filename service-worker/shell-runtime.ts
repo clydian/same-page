@@ -1,7 +1,9 @@
+import { recoveryPage } from "./recovery-page";
+import { ReleasePermission } from "./release-permission";
 import { playbackCacheName } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
 import { applicationShellReleaseLimitBytes } from '../src/shared/update-diagnostics';
-export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number }
+export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number; networkUrl?: string }
 export interface ShellRecord { cacheName: string; buildId: string; created: number; complete: boolean; installing?: number; activated?: number; candidateOnly?: boolean; entries: ManifestEntry[] }
 export interface ShellIdentity { cacheName: string; buildId: string }
 export const shellReleaseLimit = applicationShellReleaseLimitBytes;
@@ -41,13 +43,13 @@ export class ShellRuntime {
   private repair?: Promise<void>;
   private assetRecords?: Promise<ShellRecord[]>;
   private audit?: Promise<void>;
-  constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string) {
+  constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string, private permission?: ReleasePermission) {
     this.prefix = `same-page-shell-v2:${encodeURIComponent(scope.registration.scope)}:`;
     this.legacyPrefix = `same-page-shell-v1:${encodeURIComponent(scope.registration.scope)}:`;
     this.registryName = `same-page-shell-registry-v1:${encodeURIComponent(scope.registration.scope)}`;
     // vite-plugin-pwa appends its web manifest after transforms; discard an
     // untransformed duplicate only when a verified entry for that URL exists.
-    const verifiedEntries = entries.filter(entry => entry.integrity || !entries.some(other => other.url === entry.url && other.integrity));
+    const verifiedEntries = entries.filter(entry => entry.integrity || !entries.some(other => other.integrity && (new URL(other.url, scope.registration.scope).href === new URL(entry.url, scope.registration.scope).href || entry.url === 'manifest.webmanifest' && /(?:^|\/)manifest\.webmanifest$/.test(other.url))));
     const normalized = [...new Map(verifiedEntries.map(entry => {
       const url = new URL(entry.url, scope.registration.scope);
       if (url.origin !== scope.location.origin || isApiPath(url.pathname) || !/^sha256-[A-Za-z0-9+/]{43}=$/.test(entry.integrity) || !(entry.bytes >= 0)) throw new Error('invalid_shell_manifest');
@@ -106,7 +108,7 @@ export class ShellRuntime {
       const candidate = await caches.match(entry.url, { cacheName: name, ignoreSearch: true });
       if (candidate && await valid(candidate, entry)) { response = candidate; break; }
     }
-    response ??= await fetch(new Request(entry.url, { credentials: 'same-origin', cache: 'reload', redirect: 'error', integrity: entry.integrity, signal }));
+    response ??= await fetch(new Request(entry.networkUrl ?? entry.url, { credentials: 'same-origin', cache: 'reload', redirect: 'error', integrity: entry.integrity, signal }));
     if (!await valid(response, entry)) throw new Error('shell_integrity_mismatch');
     // A constructed response cannot carry a network redirect flag or compressed
     // transfer headers after its decoded bytes have been read.
@@ -142,6 +144,7 @@ export class ShellRuntime {
     return locks ? locks.request(this.prefix + 'lifecycle', action) : action();
   }
   async install() {
+    await this.permission?.confirm();
     const record = await this.current;
     if (record.entries.reduce((bytes, entry) => bytes + entry.bytes, 0) > shellReleaseLimit) throw new Error('shell_release_too_large');
     // The new installer owns its admission. An old active worker's obsolete
@@ -163,6 +166,7 @@ export class ShellRuntime {
           await this.check(record, true, true, AbortSignal.timeout(300_000));
           await this.locked(async () => {
             await this.check(record, false, true);
+            await this.permission?.confirm();
             delete record.installing; record.complete = true; await this.save(record);
           });
           break;
@@ -232,9 +236,9 @@ export class ShellRuntime {
   async activate() {
     // If storage was externally lost after install, remain able to serve a
     // complete rollback shell or a retry page. Do not fail activation itself.
-    await this.ready(AbortSignal.timeout(15_000)).catch(() => undefined);
+    const permitted = await this.ready(AbortSignal.timeout(15_000)).then(() => this.permission ? this.permission.activate() : true).catch(() => false);
     const record = await this.current;
-    await this.locked(async () => { await this.permitDisplay(record); record.activated = Date.now(); await this.save(record); }).catch(() => undefined);
+    await this.locked(async () => { if (permitted) await this.permitDisplay(record); record.activated = Date.now(); await this.save(record); }).catch(() => undefined);
     await this.collect();
   }
   private async references() {
@@ -298,6 +302,7 @@ export class ShellRuntime {
   async navigation() {
     const record = await this.current;
     try {
+      if (this.permission && !await this.permission.permits(record.buildId)) throw new Error("release_not_permitted");
       const cache = await caches.open(record.cacheName);
       // A sealed manifest was fully audited at install/activation. Check all
       // required keys before returning HTML, and verify the actual root bytes.
@@ -313,17 +318,19 @@ export class ShellRuntime {
       // Cache eviction can race the audit and this final read. Never let an
       // undefined value escape respondWith, even after successful readiness.
       if (!shell || !await valid(shell, root)) throw new Error('shell_disappeared');
+      await this.permission?.displayed(record.buildId);
       if (record.candidateOnly) await this.locked(() => this.permitDisplay(record));
       return shell;
     } catch {
       for (const previous of (await this.records().catch(() => [])).filter(r => r.complete && this.displayable(r) && r.cacheName !== record.cacheName).sort((a, b) => b.created - a.created)) {
         try {
+          if (this.permission && !await this.permission.permits(previous.buildId)) continue;
           await this.check(previous, false, true);
           const shell = await (await caches.open(previous.cacheName)).match(this.scope.registration.scope);
-          if (shell) { this.assetRecords = undefined; return shell; }
+          if (shell) { await this.permission?.displayed(previous.buildId); this.assetRecords = undefined; return shell; }
         } catch { /* Try another complete retained release; never a mixed shell. */ }
       }
-      return new Response('<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>合谱</title><body><main><h1>暂时无法打开合谱</h1><p>请联网后重试。此设备保存的内容仍然保留。</p><button onclick="location.reload()">重试</button></main></body></html>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+      return new Response(recoveryPage, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
   }
   auditAfterNavigation() {

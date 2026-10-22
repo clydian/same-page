@@ -9,7 +9,7 @@ import { ReloadPrompt, UpdateDetails } from "./reload-prompt";
 describe("background updates", () => {
   beforeEach(() => {
     setUpdateStatus({ phase: "current", message: "后台检查更新，当前版本继续运行" });
-    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { addEventListener: vi.fn(), removeEventListener: vi.fn() } });
+    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { addEventListener: vi.fn(), removeEventListener: vi.fn(), register: vi.fn(async () => registration) } });
     Object.assign(registration, { installing: null });
     setShouldNeedRefresh(true); setRegistrationWaiting(true);
     registrationUpdateMock.mockReset();
@@ -20,6 +20,7 @@ describe("background updates", () => {
   it("prepares silently and exposes prepared versus running state only in update details", async () => {
     const view = render(<MemoryRouter><ReloadPrompt /></MemoryRouter>);
     await waitFor(() => expect(registrationUpdateMock).toHaveBeenCalled());
+    expect(navigator.serviceWorker.register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
     expect(screen.queryByText("有新版本可用")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     view.rerender(<MemoryRouter><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
@@ -85,7 +86,7 @@ it("vetoes legacy automatic probes while preserving explicit cross-window safety
   let probe!: (event: MessageEvent) => void;
   Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {
     addEventListener: (_name: string, listener: (event: MessageEvent) => void) => { probe = listener; },
-    removeEventListener: vi.fn(),
+    removeEventListener: vi.fn(), register: vi.fn(async () => registration),
   } });
   render(<MemoryRouter initialEntries={["/about"]}><ReloadPrompt /></MemoryRouter>);
   await waitFor(() => expect(registrationUpdateMock).toHaveBeenCalled());

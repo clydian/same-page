@@ -143,6 +143,8 @@ jobs:
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Production build
         run: npm run build
+        env:
+          SAME_PAGE_RELEASE_CHANNELS: ${{ vars.RELEASE_CHANNELS_ENABLED == 'true' && '1' || '0' }}
       - name: Seal verified release
         run: |
           node scripts/release-artifact.mjs seal "$GITHUB_SHA"
@@ -297,7 +299,7 @@ jobs:
     if: ${{ !cancelled() && needs.verify.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true' }}
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     concurrency:
       group: same-page-production
       cancel-in-progress: false
@@ -339,6 +341,20 @@ jobs:
       - name: Install dependencies
         if: steps.admission.outputs.proceed == 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Install release compatibility browsers
+        if: steps.admission.outputs.proceed == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true'
+        timeout-minutes: 5
+        run: bash .github/scripts/install-browsers.sh
+
+      - name: Prepare immutable frontend publication
+        if: steps.admission.outputs.proceed == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true'
+        run: |
+          npm ci --prefix android
+          node scripts/frontend-release.mjs upload "$GITHUB_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Record production recovery point and aggregate state
         if: steps.admission.outputs.proceed == 'true'
@@ -401,11 +417,18 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config dist/same_page/wrangler.json
+          command: deploy --config dist/same_page/wrangler.json --var RELEASE_CHANNELS_ENABLED:${{ vars.RELEASE_CHANNELS_ENABLED == 'true' && 'true' || 'false' }}
 
       - name: Verify production deployment
         if: steps.admission.outputs.proceed == 'true'
         run: npm run verify:deployment -- https://samepage.clyapps.com "$GITHUB_SHA"
+
+      - name: Admit verified frontend to beta
+        if: steps.admission.outputs.proceed == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true'
+        run: node scripts/frontend-release.mjs admit "$GITHUB_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Record release result
         if: always() && steps.admission.outputs.deployment_id != ''

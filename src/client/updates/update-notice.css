@@ -1,0 +1,9 @@
+.update-notice { position: fixed; z-index: 25; left: max(1rem, var(--safe-left)); bottom: calc(6.25rem + var(--safe-bottom)); display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: .5rem; width: min(24rem, calc(100vw - 2rem)); padding: 1rem 1rem .75rem; border: 1px solid var(--line); border-radius: .875rem; background: var(--surface); color: var(--ink); box-shadow: 0 .5rem 1.75rem rgb(0 45 52 / 12%); }
+.update-notice-copy { padding-top: .2rem; }
+.update-notice-copy strong { font-size: .9375rem; font-weight: 650; }
+.update-notice-copy p { margin: .45rem 0 0; color: var(--muted); font-size: .8125rem; line-height: 1.7; }
+.update-notice-close { display: inline-grid; align-self: start; place-items: center; width: 44px; height: 44px; margin-top: -.4rem; margin-right: -.4rem; border: 0; border-radius: .5rem; background: transparent; color: var(--muted); cursor: pointer; }
+.update-notice-close:hover { color: var(--ink); background: var(--brand-soft); }
+.update-notice-link { grid-column: 1; display: inline-flex; align-items: center; justify-self: start; min-height: 44px; margin-top: .2rem; color: var(--brand); font-size: .8125rem; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.update-notice :is(button, a) { touch-action: manipulation; }
+.update-notice :is(button, a):focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: .25rem; }

@@ -24,6 +24,7 @@ export async function readAdminSession(context: Context<AppEnvironment>) {
   const auth = await readContextSession(context);
   if (!auth) throw new AuthorizationError();
   const row = await context.env.DB.prepare(`SELECT
+    EXISTS(SELECT 1 FROM release_operators WHERE user_id=se.user_id) AS manageReleases,
     COALESCE((SELECT view_scores FROM product_operators WHERE user_id=se.user_id),0) AS viewScores,
     COALESCE((SELECT review_xml FROM product_operators WHERE user_id=se.user_id AND view_scores=1),0) AS reviewXml,
     COALESCE((SELECT publish_xml FROM product_operators WHERE user_id=se.user_id AND view_scores=1),0) AS publishXml,
@@ -32,7 +33,9 @@ export async function readAdminSession(context: Context<AppEnvironment>) {
     FROM session se WHERE se.id=? AND se.user_id=? AND se.expires_at>?
     AND NOT EXISTS(SELECT 1 FROM user_lifecycle WHERE user_id=se.user_id)`)
     .bind(auth.session.id, auth.user.id, Date.now())
-    .first<{ viewScores: number; reviewXml: number; publishXml: number; manageReports: number; deleteReports: number }>();
-  if (!row || (!row.viewScores && !row.manageReports)) throw new AuthorizationError();
-  return row;
+    .first<{ manageReleases: number; viewScores: number; reviewXml: number; publishXml: number; manageReports: number; deleteReports: number }>();
+  if (!row || (!row.viewScores && !row.manageReports && !row.manageReleases)) throw new AuthorizationError();
+  if (row.manageReleases) return row;
+  const legacy = { viewScores: row.viewScores, reviewXml: row.reviewXml, publishXml: row.publishXml, manageReports: row.manageReports, deleteReports: row.deleteReports };
+  return legacy;
 }

@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UpdateDetails } from "../components/reload-prompt";
 import { UpdateController } from "./update-controller";
 import { canAcceptUpdate, holdUpdate, noteUpdateInteraction, setUpdateRoute } from "./update-safety";
+import { useUpdateStatus } from "./update-status";
 
 function deferred() {
   let resolve!: () => void;
@@ -190,6 +191,73 @@ describe("update lifecycle feedback", () => {
     act(() => { controller.apply(); port.onmessage?.(new MessageEvent("message", { data: { safe: false, reason: "incomplete" } })); });
     expect(screen.getByText("更新资源暂不可用，请联网后重试")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
+  });
+
+  it("keeps one deferred timestamp across automatic retries and clears it after approval", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(0); setUpdateRoute("/about");
+    const ports: { onmessage?: (event: MessageEvent) => void; close: () => void }[] = [];
+    vi.stubGlobal("MessageChannel", class {
+      port1 = { close: vi.fn() }; port2 = {};
+      constructor() { ports.push(this.port1); }
+    });
+    const waiting = worker(); Object.assign(registration, { waiting });
+    start(); await act(async () => {});
+    const { result } = renderHook(useUpdateStatus);
+    act(() => { controller.apply(); ports[0].onmessage?.(new MessageEvent("message", { data: { safe: false } })); });
+    expect(result.current.deferred).toEqual({ worker: waiting, since: 0 });
+    act(() => { vi.advanceTimersByTime(11000); controller.autoApply(); });
+    expect(result.current.phase).toBe("applying");
+    expect(result.current.deferred).toEqual({ worker: waiting, since: 0 });
+    act(() => ports[1].onmessage?.(new MessageEvent("message", { data: { safe: false } })));
+    expect(result.current.deferred).toEqual({ worker: waiting, since: 0 });
+    act(() => { controller.apply(); ports[2].onmessage?.(new MessageEvent("message", { data: { safe: true } })); });
+    expect(result.current.deferred).toBeUndefined();
+  });
+
+  it("does not classify local busy work, incomplete resources, timeout or send failures as deferred windows", async () => {
+    vi.useFakeTimers();
+    const ports: { onmessage?: (event: MessageEvent) => void; close: () => void }[] = [];
+    vi.stubGlobal("MessageChannel", class {
+      port1 = { close: vi.fn() }; port2 = {};
+      constructor() { ports.push(this.port1); }
+    });
+    const waiting = worker(); Object.assign(registration, { waiting });
+    start(); await act(async () => {});
+    const { result } = renderHook(useUpdateStatus);
+    const release = holdUpdate();
+    try { act(() => controller.apply()); expect(ports).toHaveLength(0); expect(result.current.deferred).toBeUndefined(); }
+    finally { release(); }
+    act(() => { controller.apply(); ports[0].onmessage?.(new MessageEvent("message", { data: { safe: false } })); });
+    expect(result.current.deferred).toBeDefined();
+    act(() => { controller.apply(); ports[1].onmessage?.(new MessageEvent("message", { data: { safe: false, reason: "incomplete" } })); });
+    expect(result.current.deferred).toBeUndefined();
+    act(() => { controller.apply(); vi.advanceTimersByTime(10000); });
+    expect(result.current.deferred).toBeUndefined();
+    vi.mocked(waiting.postMessage).mockImplementationOnce(() => { throw new Error("send failed"); });
+    act(() => controller.apply());
+    expect(result.current.deferred).toBeUndefined();
+  });
+
+  it("clears deferred state when the waiting worker changes, disappears or a fresh check begins", async () => {
+    let port!: { onmessage?: (event: MessageEvent) => void; close: () => void };
+    vi.stubGlobal("MessageChannel", class {
+      port1 = { close: vi.fn() }; port2 = {};
+      constructor() { port = this.port1; }
+    });
+    Object.assign(registration, { waiting: worker() });
+    start(); await act(async () => {});
+    const { result } = renderHook(useUpdateStatus);
+    const veto = () => { controller.apply(); port.onmessage?.(new MessageEvent("message", { data: { safe: false } })); };
+    act(veto); expect(result.current.deferred).toBeDefined();
+    Object.assign(registration, { waiting: worker() });
+    act(() => controller.autoApply()); expect(result.current.deferred).toBeUndefined();
+    act(veto); expect(result.current.deferred).toBeDefined();
+    Object.assign(registration, { waiting: null });
+    act(() => controller.autoApply()); expect(result.current.deferred).toBeUndefined();
+    Object.assign(registration, { waiting: worker() });
+    act(veto); expect(result.current.deferred).toBeDefined();
+    await act(async () => { await controller.check(); });
+    expect(result.current.deferred).toBeUndefined();
   });
 
   it("reports a handover timeout and ignores its late acknowledgment", async () => {

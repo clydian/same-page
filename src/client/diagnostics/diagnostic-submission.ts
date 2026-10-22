@@ -1,6 +1,7 @@
+import { releaseChannelDiagnostics } from "../updates/release-channel";
 import { diagnosticReceiptSchema, diagnosticReportSchema, type DiagnosticReader, type DiagnosticReport } from "../../shared/diagnostic-report";
 import { exportDiagnostics, subscribeDiagnosticReset } from "./diagnostics";
-import { buildVersion } from "../../shared/build";
+import { buildId, buildVersion } from "../../shared/build";
 import { currentUpdateFailure } from "../updates/update-diagnostics";
 
 // Only parsed, bounded tokens leave this function; never retain a raw user agent.
@@ -33,7 +34,7 @@ export function diagnosticEnvironment(ua = navigator.userAgent): DiagnosticRepor
 export function captureDiagnosticReport(description: string, reader: DiagnosticReader | null, id = crypto.randomUUID()): DiagnosticReport {
   return diagnosticReportSchema.parse({ ...JSON.parse(exportDiagnostics()), id,
     ...(/^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/.test(buildVersion) ? { clientVersion: buildVersion } : {}),
-    ...(currentUpdateFailure() ? { update: { failure: currentUpdateFailure() } } : {}),
+    ...((currentUpdateFailure() || releaseChannelDiagnostics()) ? { update: { ...(currentUpdateFailure() ? { failure: currentUpdateFailure() } : {}), ...(releaseChannelDiagnostics() ? { release: { ...releaseChannelDiagnostics()!, running: buildId } } : {}) } } : {}),
     retentionDays: 180, description, environment: diagnosticEnvironment(), reader });
 }
 

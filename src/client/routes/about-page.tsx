@@ -1,3 +1,4 @@
+import { assetUrl } from "../../shared/asset-url";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, BookOpen, ChevronRight, MessageSquare, ShieldCheck } from "lucide-react";
@@ -16,7 +17,7 @@ export default function AboutPage() {
   return <div className="app-page support-page"><TaskHeader title="关于合谱" backTo="/drives" />
     <main className="support-shell about-shell">
       <header className="about-identity">
-        <img src="/icon-192.png" width="72" height="72" alt="" />
+        <img src={assetUrl("icon-192.png")} width="72" height="72" alt="" />
         <div><p className="support-kicker">SAME PAGE</p><h2>合谱</h2></div>
         <p className="about-tagline">同一份乐谱，一起练好每一段。</p>
         <p className="support-muted">合唱乐谱与排练笔记</p>

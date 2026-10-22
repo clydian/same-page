@@ -17,6 +17,8 @@ if (action === "grant") {
 } else {
   if (args.length) throw new Error("Unexpected argument");
   sql = {
+    "grant-release": `INSERT INTO release_operators(user_id) VALUES(${quoted}) ON CONFLICT DO NOTHING;`,
+    "revoke-release": `DELETE FROM release_operators WHERE user_id=${quoted};`,
     revoke: `DELETE FROM product_operators WHERE user_id=${quoted};`,
     "enable-drive": `INSERT INTO product_admin_drives(choir_id) VALUES(${quoted}) ON CONFLICT DO NOTHING;`,
     "disable-drive": `DELETE FROM product_admin_drives WHERE choir_id=${quoted};`,

@@ -35,7 +35,9 @@ export async function deriveR2Credentials(account, token, fetchImpl = fetch) {
     const verification = await response.json();
     assert.ok(verification.success && verification.result?.status === "active", `Cloudflare ${owner} token is not active`);
     assert.match(verification.result.id ?? "", /^[a-f0-9]{32}$/, "Cloudflare verification returned an invalid token ID");
-    // Official R2 derivation; credentials live only in memory.
+    // R2 requires SHA-256(API token) as the S3 secret, not a stored user-password hash.
+    // https://developers.cloudflare.com/r2/api/tokens/#get-s3-api-credentials-from-an-api-token
+    // Keep the protocol derivation intact; credentials live only in memory.
     return { accessKeyId: verification.result.id, secretAccessKey: createHash("sha256").update(token).digest("hex") };
   }
 }

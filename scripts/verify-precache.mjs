@@ -22,13 +22,14 @@ export async function verifyPrecache(root = "dist/client", designRoot = "design"
   let manifest;
   try { manifest = JSON.parse(await readFile(path.join(root, "shell-manifest.json"), "utf8")); }
   catch (error) { if (error.code !== "ENOENT") throw error; }
+  const localFile = url => url === "/" ? "index.html" : url.replace(/^\/_releases\/[a-f0-9]{7,40}\//, "").replace(/^\//, "");
   if (manifest) for (const entry of manifest) {
-    const bytes = await readFile(path.join(root, entry.url === "/" ? "index.html" : entry.url));
+    const bytes = await readFile(path.join(root, localFile(entry.url)));
     assert.equal(entry.integrity, `sha256-${createHash("sha256").update(bytes).digest("base64")}`, `Shell integrity mismatch: ${entry.url}`);
     assert.equal(entry.bytes, bytes.byteLength, `Shell size mismatch: ${entry.url}`);
     assert.ok(worker.includes(entry.integrity), `Shell entry not injected: ${entry.url}`);
   }
-  const entries = [...new Set(manifest ? manifest.map(entry => entry.url === "/" ? "index.html" : entry.url)
+  const entries = [...new Set(manifest ? manifest.map(entry => localFile(entry.url))
     : [...worker.matchAll(/\{url:"([^"]+)",revision:(?:"[^"]+"|null)\}/g)].map(match => match[1]))];
   assert.ok(entries.length > 0, "Generated precache manifest not found");
   for (const required of ["index.html", "favicon-32.png", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"]) assert.ok(entries.includes(required), `Missing offline dependency: ${required}`);

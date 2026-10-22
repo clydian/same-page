@@ -182,3 +182,92 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 6. GitHub 发布记录缺失或历史分叉时，先重建可信版本证据并恢复正常 main 历史；正常发布不提供强制忽略开关。首次启用记录时只读核对线上 Worker SHA，必须能在完整 Git 历史中解析。
 
 默认通过 CI 发布。手工恢复完成后须记录源码、artifact、D1、Worker deployment ID 和独立线上验收；恢复点、流水线通过、外部身份提供方成功和实机验收各自独立。
+
+## 稳定版／测试版前端通道（#539）
+
+实现见 ADR-0021；本地开发和首次桥接默认 `RELEASE_CHANNELS_ENABLED=false`。
+这不是部署授权。不得直接打开开关而跳过以下过渡，也不得把仓库的 research
+探针当作生产验收。WebKit 的隔离持久 profile 已通过 Blob 回切探针；真实 Safari/iOS 与 Android TWA 实机仍必须单独记录。
+关闭 runtime flag 仍会部署配置中的 R2 binding 与 Worker-first 路由；首次合并部署前一并核对 bucket、IAM 与路由，不能把开关关闭等同于没有部署影响。
+
+手工执行 `upload` / `initialize` 前，运行 `npm ci`、`npm ci --prefix android` 和
+`npx playwright install --with-deps chromium webkit`，确保两引擎与系统依赖齐备。CI 的发布 job 独立安装同一环境。
+
+### 首次桥接（需另行授权）
+
+1. 创建专用私有 `same-page-frontend-releases` R2 bucket，关闭公共访问及所有 TTL／生命周期删除；
+   将部署 token 的 R2 权限纳入该桶，不与乐谱／APK bucket 共用清理规则。
+2. 按现有受控发布链路应用 `0034_release_channels.sql`（仅新建服务端表）；保留现有
+   当前 production 静态资源和旧 SW 地址作为明确支持的 legacy 基线。下载原始封存包后运行
+   `node scripts/frontend-release.mjs archive-legacy <旧SHA> --archive-supported-baseline`，
+   first-write 归档旧静态路径；不同摘要同路径必须人工处理兼容性，不能覆盖。不要回收已有应用壳。
+3. 使用 `SAME_PAGE_RELEASE_CHANNELS=1` 构建并封存桥接提交的原始产物。**不要重新构建重试**；
+   同 SHA 不同文件摘要必须拒绝。先执行 `node scripts/frontend-release.mjs upload <SHA> --initialize-stable`
+   上传完整候选，再部署该桥接包，保持 Worker routing flag 为 false，使已有客户端安全过渡。
+4. 下载并验证这一份完整发布包，`npm ci --prefix android` 提供已有 S3 SDK。
+   用 `node scripts/frontend-release.mjs initialize <完整SHA> --initialize-stable` 上传封存并验证固定
+   资源后，将 stable/beta 同时初始化为该 SHA。命令要求线上后端也为这份 SHA；
+   任何线上验收失败都不能初始化指针，不会自动恢复数据库。
+5. 完成 legacy active/waiting、直接深链、全新安装、离线恢复、Safari/iOS 和 TWA 验收，
+   再通过受控部署将 runtime `RELEASE_CHANNELS_ENABLED:true` 应用到**同一份产物**，
+   并设置 GitHub production 对应 repository variable `RELEASE_CHANNELS_ENABLED=true`。
+   新版本须通过下述持久格式边界检查及实际产物回切矩阵才准入 beta。
+6. `npm run admin:configure -- grant-release --remote <userId>` 单独授权发布人员；
+   `revoke-release` 撤销。该 CLI 从不按邮箱授权、不修改成员关系；只在另行批准时运行。
+   授权者在 `/admin/releases` 查看两通道、北京时间发布时间和审计，再提升明确显示的当前目标。
+
+初始 bridge 的旧根资源需要归档并保持原地址；新版本一律使用 `/_releases/<SHA>/`。
+缺失稳定目标返回错误／重试，禁止自动使用测试版。所有角色的 API、OAuth callback、
+`.well-known/assetlinks.json` 与 APK 端点保持原协议边界。
+
+### 日常发布与恢复
+
+CI 在生产锁内先校验完整包，再 `frontend-release.mjs upload <SHA>`：比对当前 stable 的
+持久格式边界、first-write claim、逐文件写入／读回与最终 seal。边界仅涵盖明确列出的业务
+IndexedDB／共享同步表示及 Dexie、Zod 版本；UI、普通实现依赖和兼容 D1 migration 不再要求
+源码字节相等，具体清单见 `scripts/release-contract.mjs`。业务 schema 或共享同步表示变化
+仍须另审兼容桥接。旧版封存清单可按相同
+边界比较，不能重写旧 seal 或用手工忽略关键字段绕过。
+上传前另从 R2 下载当前 stable 的封存私有 storage probe，与 candidate 原始 probe 在
+Chromium/WebKit 全新持久 profile 中跑 `stable → beta → stable → beta`：实际草稿、队列、
+push/pull 合并器、Blob、冲突、已尝试操作和身份保留。报告绑定两个 probe 摘要与 stable 身份，
+写入 R2 和 D1 `release_compatibility`，缺失／篡改／目标不符均拒绝准入；报告不能以手写 passed
+替代执行。脚本未访问真实用户数据；WebKit 不能使用有原生 Blob 限制的 ephemeral context。
+部署后以固定前端 URL 检查字节并独立核对后端 SHA，成功后 `frontend-release.mjs admit <SHA>`
+再次校验资源并 CAS 推进 beta。stable 保持不变；目标或 revision 变化则失败，重新验收。
+后台提升仅写 D1，既不重构建也不执行 migration。
+
+提升请求具备幂等 ID；网络丢响应可重试同一次操作。409 后必须重新读取并确认版本，
+不能重用旧按钮悄悄提升新 beta。管理员授权与 session 在提交时重新校验。
+
+### 停止故障 beta 继续分发
+
+适用于 beta 已准入但出现前端故障、当前 stable 仍可正常使用的情况。沿用生产运维 token，
+不需要增加产品后台入口或发布权限体系；执行本步骤属于生产操作，仍须有明确事故授权。
+
+1. 暂停后续 CI 发布并等待当前生产发布结束。在已授权后台读取当前 stable、beta 和 revision，
+   记录操作者、原因、时间及后端身份；确认 stable 正常，不凭缓存页面中的旧值操作。
+   若 beta 已等于 stable，就不需要执行停止命令。
+2. 使用同一份受控源码及既有生产凭据执行：
+
+   ```sh
+   node scripts/frontend-release.mjs stop-beta <当前beta完整SHA> --expected-revision=<当前revision>
+   ```
+
+   命令只在 beta 与 revision 仍匹配、两通道目标不同、当前 stable 已 ready 且契约匹配时将 beta
+   指向 stable，并增加 revision。
+   条件变化时明确失败，重新读取后再决定；不能用强制更新覆盖新发布。它不构建、不迁移、不删
+   产物或业务数据，也不提供任意历史目标。
+3. 重新查询两个通道，确认 stable 未变、beta 已等于 stable，把结果与命令输出记入事故记录。
+   beta 偏好仍保留，在线客户端沿原安全交接流程准备 stable；正在编辑或播放的页面不强制刷新。
+   已缓存及离线客户端无法即时撤回，必要时直接通知少量受影响用户在安全时机联网更新。
+4. 仅放行新的兼容修复提交通过正常 CI 发布，验证成功后恢复后续常规发布；下一次合格版本
+   按原流程推进 beta。不要用 `admit` 重新准入故障旧 SHA。
+   若故障 stable 也不能继续分发，由运维在事故授权下暂停入口并返回 no-store 维护响应，直至
+   修复上线。不得覆盖旧 R2 对象或回退 D1。
+
+此阶段不提供任意历史选择、自动 GC 或破坏性数据回退。
+
+本地验证：`npm run test:release-channels`、常规 `npm run check:full`，以及
+`SAME_PAGE_RELEASE_CHANNELS=1 npm run build` 的前缀资源完整性检查。生产桶、权限、移动端
+实机与线上流程不由这些命令代替。诊断同时记录所选通道、运行前端、准备目标和后端身份。

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 const operations = ["uploadFiles", "modifyFiles", "trashFiles", "manageInvites", "removeMembers", "configureLayers", "editDriveInfo"];
 const emptyPermissions = () => ({ operations: [], sharedLayers: [] });
 const capabilities = (owner = false) => ({ isOwner: owner, operations: owner ? { operations, sharedLayers: "all" } : emptyPermissions(), management: owner ? { operations, sharedLayers: "all" } : emptyPermissions() });
@@ -102,6 +103,10 @@ export function resolveFixtureRequest({
   pdf = samplePdf,
   selectedScore = score,
 }) {
+  if (method === "GET" && pathname === "/api/client-release") {
+    const { buildId } = JSON.parse(readFileSync(new URL('../dist/client/build.json', import.meta.url), 'utf8'));
+    return json({ channel: "stable", intent: "default", revision: 1, target: buildId, backend: buildId, contract: "same-page-storage-v15-sync-v1" });
+  }
   const score = selectedScore;
   const samplePdf = pdf;
   if (method === "GET" && pathname === "/api/user/lifecycle" && identity !== "guest") return json({

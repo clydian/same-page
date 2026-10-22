@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:player && npm run copy:native-source && tsc -b && vite build && node scripts/verify-precache.mjs",
+    "build": "npm run build:player && npm run copy:native-source && tsc -b && vite build && node scripts/verify-precache.mjs && node scripts/release-contract.mjs && node scripts/build-storage-probe.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "npm run build:player && tsc -b --pretty false",
@@ -20,7 +20,7 @@
     "test:worker:unit": "vitest run --config vitest.worker-unit.config.ts",
     "test:worker:integration": "vitest run --config vitest.worker.config.ts",
     "test:browser-ui": "node scripts/run-browser-tests.mjs visual",
-    "test:pwa-update": "node scripts/verify-pwa-update.mjs && node scripts/verify-shell-lifecycle.mjs && node scripts/verify-shell-retention.mjs && node scripts/verify-update-diagnostics.mjs",
+    "test:pwa-update": "node scripts/verify-pwa-update.mjs && node scripts/verify-shell-lifecycle.mjs && node scripts/verify-shell-retention.mjs && node scripts/verify-update-diagnostics.mjs && npm run test:release-channels",
     "test:loading-performance": "npm run build && node scripts/measure-loading-performance.mjs",
     "measure:production-loading": "node scripts/measure-production-loading.mjs",
     "prepare:production-pwa": "node scripts/prepare-production-pwa-profile.mjs",
@@ -42,7 +42,8 @@
     "build:player": "npm run build --workspace @same-page/player",
     "prepare": "npm run build:player",
     "test:player": "npm run build:player && npm test --workspace @same-page/player",
-    "build:native": "node vendor/alphatab/build.mjs"
+    "build:native": "node vendor/alphatab/build.mjs",
+    "test:release-channels": "node scripts/verify-release-channels.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",

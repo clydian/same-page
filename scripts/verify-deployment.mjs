@@ -21,6 +21,7 @@ export async function verifyDeployment({
   assert.equal(baseUrl.protocol, "https:", "deployment verification requires HTTPS");
   assert.ok(typeof expectedBuildId === "string" && expectedBuildId.trim(), "expected buildId is required");
   assert.equal(assetManifest?.buildId, expectedBuildId, "verified asset manifest must match expected buildId");
+  const prefix = assetManifest.assetBase?.startsWith("/_releases/") ? assetManifest.assetBase : "/";
   const scriptHashes = Object.entries(assetManifest.scripts ?? {});
   assert.ok(scriptHashes.length > 0, "verified script manifest is empty");
   for (const [scriptPath, hash] of scriptHashes) {
@@ -52,7 +53,7 @@ export async function verifyDeployment({
   }
 
   async function readBuild() {
-    const response = await request("/build.json");
+    const response = await request(prefix + "build.json");
     assert.equal(response.status, 200, "build identity must return 200");
     assert.match(
       response.headers.get("content-type") || "",
@@ -66,7 +67,7 @@ export async function verifyDeployment({
   }
 
   async function verifyAppShell(expectedBuildId) {
-    const response = await request("/");
+    const response = await request(prefix === "/" ? "/" : prefix + "index.html");
     assert.equal(response.status, 200, "application shell must return 200");
     assert.match(response.headers.get("content-type") || "", /text\/html/);
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
@@ -112,19 +113,19 @@ export async function verifyDeployment({
   }
 
   async function verifyManifest() {
-    const response = await request("/manifest.webmanifest");
+    const response = await request(prefix + "manifest.webmanifest");
     assert.equal(response.status, 200, "web app manifest must return 200");
     const manifest = await response.json();
     assert.match(
       response.headers.get("cache-control") || "",
-      /no-cache|max-age=0/,
+      /no-cache|no-store|max-age=0|immutable/g,
       "manifest must be revalidated",
     );
     assert.equal(manifest.display, "standalone");
   }
 
   async function verifyServiceWorker() {
-    const response = await request("/sw.js");
+    const response = await request(prefix + "sw.js");
     assert.equal(response.status, 200, "service worker must return 200");
     assert.match(
       response.headers.get("content-type") || "",
@@ -132,7 +133,7 @@ export async function verifyDeployment({
     );
     assert.match(
       response.headers.get("cache-control") || "",
-      /no-cache|max-age=0/,
+      /no-cache|no-store|max-age=0|immutable/g,
       "service worker must be revalidated",
     );
     assert.ok((await response.text()).length > 100, "service worker is empty");

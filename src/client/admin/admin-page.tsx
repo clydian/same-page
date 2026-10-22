@@ -1,7 +1,9 @@
+import { Releases } from "./releases";
 import { useAppNavigation } from "../navigation/navigation-context";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "react-aria-components";
+import { ArrowLeft } from "lucide-react";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { loginHref } from "../auth/login-return";
 import { LoadingStatus } from "../components/loading-status";
@@ -41,6 +43,7 @@ function AdminWorkspace() {
   const navigation = useAppNavigation();
   const navigate = useNavigate();
   const location = useLocation();
+  const releases = location.pathname.startsWith("/admin/releases");
   const reports = location.pathname.startsWith("/admin/reports");
   const [cap, setCap] = useState<Capabilities | null>(null),
     [error, setError] = useState(""),
@@ -80,7 +83,7 @@ function AdminWorkspace() {
   return (
     <div className="app-page">
       <header className="task-header admin-header">
-        <strong>合谱</strong><span>产品后台</span>
+        <Link className="admin-back" to="/drives"><ArrowLeft size={18} aria-hidden="true" />返回合谱</Link><span>产品后台</span>
         <small className="admin-identity">{identity.session.data?.user.email}</small>
       </header>
       <main className="page-shell admin-page">
@@ -94,13 +97,14 @@ function AdminWorkspace() {
         ) : (
           <>
             <nav className="admin-nav">
-              {!!cap.viewScores && <Link className="admin-nav-item" aria-current={!audit && !reports ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
+              {!!cap.manageReleases && <Link className="admin-nav-item" aria-current={releases || (!cap.viewScores && !cap.manageReports) ? "page" : undefined} to="/admin/releases">发布通道</Link>}
+              {!!cap.viewScores && <Link className="admin-nav-item" aria-current={!releases && !audit && !reports ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
                 乐谱工作台
               </Link>}
-              {!!cap.manageReports && <Link className="admin-nav-item" aria-current={reports || !cap.viewScores ? "page" : undefined} to="/admin/reports" onClick={() => setAudit(false)}>问题反馈</Link>}
+              {!!cap.manageReports && <Link className="admin-nav-item" aria-current={!releases && (reports || !cap.viewScores) ? "page" : undefined} to="/admin/reports" onClick={() => setAudit(false)}>问题反馈</Link>}
               {!!cap.viewScores && <Button
                 className="admin-nav-item"
-                aria-current={audit ? "page" : undefined}
+                aria-current={audit && !releases && !reports ? "page" : undefined}
                 onPress={() =>
                   navigation.afterEditing(() => { setAudit(a => reports ? true : !a); if (reports) void navigate("/admin"); })
                 }
@@ -109,7 +113,7 @@ function AdminWorkspace() {
               </Button>}
               {!!cap.viewScores && <span>草稿仅在后台可见</span>}
             </nav>
-            {reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : audit ? (
+            {releases || (!cap.viewScores && !cap.manageReports && !!cap.manageReleases) ? <Releases onError={report} /> : reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : audit ? (
               <Audit onError={report} />
             ) : scoreId ? (
               <ScoreReview

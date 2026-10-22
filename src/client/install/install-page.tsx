@@ -1,3 +1,4 @@
+import { assetUrl } from "../../shared/asset-url";
 import { InstallCompletion } from "./install-completion";
 import { prepareInstallLink } from "./install-transfer";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -85,7 +86,7 @@ export default function InstallPage() {
 
   const ready = external ? Boolean(link) : Boolean(destination);
   return <main className="install-page page-shell">
-    <Link className="install-brand" to="/" state={{ home: true }}><img src="/icon-192.png" alt="" width="48" height="48" /><span>合谱</span></Link>
+    <Link className="install-brand" to="/" state={{ home: true }}><img src={assetUrl("icon-192.png")} alt="" width="48" height="48" /><span>合谱</span></Link>
     <div className="install-page-card">
       <p className="install-eyebrow">{external ? "第 1 步 · 换到浏览器" : "最后一步 · 添加到桌面"}</p>
       <h1>{external ? guide === "ios-external" ? "先用 Safari 打开" : "先在浏览器中打开" : "下次排练，点图标就能打开"}</h1>

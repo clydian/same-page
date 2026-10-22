@@ -1,5 +1,5 @@
 import { canApplyUpdate } from "./update-safety";
-import { setUpdateStatus, type UpdatePhase } from "./update-status";
+import { setUpdateStatus, type UpdatePhase, type UpdateStatus } from "./update-status";
 
 const prepared = "更新已准备好";
 const blocked = "请先在其他合谱窗口完成操作并返回文件库，或关闭那些窗口，再重试";
@@ -17,6 +17,7 @@ export class UpdateController {
   private installTimer?: ReturnType<typeof setTimeout>;
   private stopApply?: () => void;
   private autoRetryAt = 0;
+  private deferred: UpdateStatus["deferred"];
 
   constructor(
     private registration: ServiceWorkerRegistration | undefined,
@@ -47,8 +48,9 @@ export class UpdateController {
 
   private show(phase: UpdatePhase, message: string) {
     if (this.disposed) return;
+    if ((phase !== "ready" && phase !== "applying") || this.deferred?.worker !== this.registration?.waiting) this.deferred = undefined;
     this.phase = phase;
-    setUpdateStatus({ phase, message });
+    setUpdateStatus({ phase, message, ...(this.deferred ? { deferred: this.deferred } : {}) });
   }
 
   private endCheck() {
@@ -136,6 +138,9 @@ export class UpdateController {
   };
 
   autoApply = () => {
+    if (this.phase === "ready" && this.deferred && this.deferred.worker !== this.registration?.waiting) {
+      this.show(this.registration?.waiting ? "ready" : "error", this.registration?.waiting ? prepared : "已准备的更新暂不可用，请重新检查更新");
+    }
     if (this.phase === "ready" && Date.now() >= this.autoRetryAt && canApplyUpdate()) this.beginApply(false);
   };
 
@@ -151,6 +156,7 @@ export class UpdateController {
     if (!navigator.onLine) { this.show("ready", "当前离线，请联网后再更新"); return; }
     if (!canApplyUpdate(manual)) {
       if (!manual) return;
+      this.deferred = undefined;
       this.show("ready", "请先完成当前操作并返回文件库，再重试更新");
       return;
     }
@@ -159,11 +165,15 @@ export class UpdateController {
     this.show("applying", "正在确认并应用更新…");
     let channel: MessageChannel;
     try { channel = new MessageChannel(); } catch {
+      this.deferred = undefined;
       this.setRequested(false); this.show("ready", "更新未能开始，请重试"); return;
     }
     let active = true;
-    const finish = (message: string) => {
+    const finish = (message: string, windowDeferred = false) => {
       if (!active || this.disposed) return;
+      this.deferred = windowDeferred && this.registration?.waiting === waiting
+        ? this.deferred?.worker === waiting ? this.deferred : { worker: waiting, since: Date.now() }
+        : undefined;
       this.stopApply?.(); this.stopApply = undefined;
       this.setRequested(false);
       this.autoRetryAt = Date.now() + 10000;
@@ -173,8 +183,8 @@ export class UpdateController {
     this.stopApply = () => { active = false; clearTimeout(timeout); channel.port1.close(); };
     channel.port1.onmessage = event => {
       if (!active || this.disposed) return;
-      if (event.data?.safe === true) this.show("applying", "正在应用更新…");
-      else finish(event.data?.reason === "incomplete" ? "更新资源暂不可用，请联网后重试" : blocked);
+      if (event.data?.safe === true) { this.deferred = undefined; this.show("applying", "正在应用更新…"); }
+      else finish(event.data?.reason === "incomplete" ? "更新资源暂不可用，请联网后重试" : blocked, event.data?.safe === false && event.data?.reason !== "incomplete");
     };
     try { waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE", requested: true, ...(!manual ? { automatic: true } : {}) }, [channel.port2]); }
     catch { finish("更新未能开始，请稍后重试，或关闭所有合谱窗口后重新打开"); }
