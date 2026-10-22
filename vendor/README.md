@@ -1,3 +1,7 @@
+# 当前维护方式
+
+播放器已迁入 `packages/player`，根项目使用 `@same-page/player` 本地 workspace。后续播放器与 alphaTab 修复均在 Same Page 完成，无需维护或验证 Chorus。alphaTab 固定制品继续使用，编辑及重建见 [alphatab/README.md](alphatab/README.md)。以下安装包和记录保留为历史来源，不再作为当前播放器安装或发布流程。
+
 # Chorus Player artifact
 
 `clydian-chorus-player-0.1.0.tgz` 来自独立 Chorus 仓库的共享播放器包：
@@ -7,7 +11,7 @@
 - 构建：Node 24，源码仓库执行 `npm ci`，然后 `npm pack --workspace @clydian/chorus-player`
 - 安装：本仓库执行 `npm install ./vendor/clydian-chorus-player-0.1.0.tgz`
 
-包只含编译后的模块、类型及 README；不含曲库、房间或用户数据。锁文件固定压缩包完整性及传递依赖。生产构建不读取相邻仓库，也不调用 Chorus 网站。修复先在 Chorus 中完成，后续发布递增包版本并更新本文件与锁文件。
+包只含编译后的模块、类型及 README；不含曲库、房间或用户数据。锁文件固定压缩包完整性及传递依赖。生产构建不读取相邻仓库，也不调用 Chorus 网站。该流程为迁入前的历史约定，已由本仓库源码维护取代。
 
 0.1.6 修复首谱表反复结尾被后续声部覆盖；来源、构建和验证见 [chorus-player-0.1.6.md](chorus-player-0.1.6.md)。
 

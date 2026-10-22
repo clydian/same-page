@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml } from '@clydian/chorus-player/engine';
+import { loadMusicXml } from '@same-page/player/engine';
 
 // Owned input, independent of published score content.
 function source(placement: string | undefined, stem = 'up') {

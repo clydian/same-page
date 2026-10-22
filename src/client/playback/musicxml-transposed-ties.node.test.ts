@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml } from '@clydian/chorus-player/engine';
+import { loadMusicXml } from '@same-page/player/engine';
 
 const note = (step: string, types: string[], { voice = '1', number = '', chord = false, duration = 2 } = {}) => `<note>${chord?'<chord/>':''}<pitch><step>${step}</step><octave>4</octave></pitch><duration>${duration}</duration>${types.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice><type>${duration===4?'whole':'half'}</type><notations>${types.map(type=>`<tied type="${type}"${number?` number="${number}"`:''}/>`).join('')}</notations></note>`;
 const xml = (bars: string[], transpose = -2) => `<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Clarinet</part-name></score-part></part-list><part id="P1">${bars.map((bar,index)=>`<measure number="${index+1}">${index===0?`<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef>${transpose?`<transpose><diatonic>-1</diatonic><chromatic>${transpose}</chromatic></transpose>`:''}</attributes>`:''}${bar}</measure>`).join('')}</part></score-partwise>`;

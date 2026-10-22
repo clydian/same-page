@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { loadMusicXml, loadPreparedMusicXml } from '@clydian/chorus-player/engine';
-import { prepareMusicXmlForAlphaTabBytes } from '@clydian/chorus-player/musicxml-direction-timing';
+import { loadMusicXml, loadPreparedMusicXml } from '@same-page/player/engine';
+import { prepareMusicXmlForAlphaTabBytes } from '@same-page/player/musicxml-direction-timing';
 
 const xml = (family = 'serif') => new TextEncoder().encode(`<score-partwise version="4.0"><part-list><score-part id="P"><part-name>Soprano</part-name></score-part></part-list><part id="P"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>${['SOLO or Div.', 'gently'].map(text => `<direction placement="above"><direction-type><words font-family="${family}" font-size="9" font-style="italic">${text}</words></direction-type></direction>`).join('')}<note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>`);
 function render(score: alphaTab.model.Score, mode: alphaTab.LayoutMode) {

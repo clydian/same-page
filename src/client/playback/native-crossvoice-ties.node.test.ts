@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import * as at from '@coderline/alphatab';
-import {loadMusicXml,assignPlaybackChannels,preparePianoPlaybackMidi} from '@clydian/chorus-player/engine';
+import {loadMusicXml,assignPlaybackChannels,preparePianoPlaybackMidi} from '@same-page/player/engine';
 const rest=(v: number,d: number,type: string,dot='')=>`<note><rest/><duration>${d}</duration><voice>${v}</voice><type>${type}</type>${dot}</note>`;
 const note=(v: number,type: string,d: number)=>`<note><pitch><step>F</step><octave>4</octave></pitch><duration>${d}</duration><tie type="${type}"/><voice>${v}</voice><type>${d===1?'eighth':'quarter'}</type><notations><tied type="${type}" number="7"/></notations></note>`;
 // Polyphonic document order need not be musical order (MusicXML number-level).

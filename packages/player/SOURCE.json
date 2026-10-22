@@ -1,0 +1,10 @@
+{
+  "sourceRepository": "https://github.com/clydian/chorus-score-studio",
+  "sourceCommit": "bca8a0a5a1fe022dac0d3f323ce1c29af8deebd3",
+  "sourcePath": "packages/player",
+  "previousArtifact": "vendor/clydian-chorus-player-0.1.19-samepage.11.tgz",
+  "previousArtifactSha256": "364ef1359ab825b87738d2ae8bf40018460ea0a3e6c8f59c6b614a446cc06510",
+  "note": "Historical import provenance only; samepage.12 preserves the same runtime source with updated native peer and README. Source, tests and releases are now owned by Same Page.",
+  "currentBaselineArtifact": "vendor/clydian-chorus-player-0.1.19-samepage.12.tgz",
+  "currentBaselineArtifactSha256": "83c3c6f31f5003dfb902e3b1ac18cd1508bd29bec0032c5d45d53a026256f30a"
+}

@@ -1,3 +1,4 @@
+// Historical samepage.3 artifact reproducer; current player development uses packages/player.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';

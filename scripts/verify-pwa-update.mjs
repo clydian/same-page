@@ -161,7 +161,24 @@ try {
   await restarted.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
   assert.equal(await restarted.evaluate(() => document.documentElement.dataset.buildId), buildIds.second,
     "a prepared update must apply automatically after all old windows exit");
+  // WebKit can open this network-loaded B document while the last A client
+  // is still being released. Activation does not claim an uncontrolled page:
+  // our worker deliberately has no clients.claim(). Keep the immediate B
+  // assertion above, then verify control on the next navigation after activation.
+  await waitForPage(restarted, async () => {
+    const registration = await navigator.serviceWorker.getRegistration();
+    return !registration?.waiting && registration?.active?.state === "activated";
+  });
+  await restarted.reload({ waitUntil: "domcontentloaded" });
   await restarted.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  assert.equal(await restarted.evaluate(() => document.documentElement.dataset.buildId), buildIds.second);
+  const controllerBuild = await restarted.evaluate(() => new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timeout = setTimeout(() => { channel.port1.close(); reject(new Error("restarted controller unanswered")); }, 3000);
+    channel.port1.onmessage = event => { clearTimeout(timeout); channel.port1.close(); resolve(event.data?.buildId); };
+    navigator.serviceWorker.controller.postMessage({ type: "SAME_PAGE_SHELL_IDENTITY" }, [channel.port2]);
+  }));
+  assert.equal(controllerBuild, buildIds.second, "the restarted window must be controlled by B");
   await automatic.close();
 
   // Apply in the installed statechange, before Workbox's delayed waiting

@@ -186,6 +186,8 @@ try {
           const missingAsset = await current.evaluate(async () => { const response = await fetch('/assets/shell-test-missing.js'); return { status: response.status, type: response.headers.get('content-type') }; });
           assert.equal(missingAsset.status, 404); assert.doesNotMatch(missingAsset.type ?? '', /html/);
           const api = await current.goto(origin + '/api/shell-test-missing'); assert.equal(api.status(), 404); assert.match(api.headers()['content-type'], /json/);
+          // The loading fallback still says 关于与更新. Only the resolved route's
+          // heading proves the application is ready before cache/offline faults.
           await current.goBack(); await current.getByRole('heading', { name: '关于合谱', exact: true }).waitFor();
           // Fault injection is recovery coverage, separate from the overlap above.
           await current.evaluate(async () => { for (const name of await caches.keys()) if (/^same-page-shell-v[12]:/.test(name)) await (await caches.open(name)).delete(location.origin + '/'); });
