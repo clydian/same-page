@@ -3,6 +3,10 @@
 研究日期：2026-10-22。代码基线：`685a0eaf0b95a05f90ea38e927889033afce69ab`。
 范围：只读审查、官方资料及隔离的内存数据库探针；没有修改产品代码、连接生产或访问用户浏览器数据。
 
+## 实施期间补充：WebKit Blob 已定位并通过
+
+同日进一步隔离确认：本机 Playwright WebKit 26.5 的 `browser.newContext()` ephemeral 模式原生 IndexedDB Blob 首写失败；使用 `launchPersistentContext(全新系统临时目录, {headless:true})`，原生 PDF Blob 保存／关闭／重开读取以及真实 SamePageDatabase 的 Blob 往返均通过。profile 在 finally 关闭并删除，没有用户数据。正式产物矩阵采用这一隔离持久 profile，见 `scripts/verify-release-storage.mjs`；真实 Safari/iOS 产品实机验收仍须保留。下文最初失败记录是调查历史，不再是未定位原因。
+
 ## 结论
 
 **可行，但回切安全是每个发布产物之间必须验证的协议，不能从“可以打开数据库”推导。** 第一阶段让两个通道共用现有本机工作空间和数据库，不改数据库名，不按通道复制或清空草稿。#539 自身无需修改业务 schema；其发布通道偏好可沿用已有非业务偏好机制或独立命名键，不能借切换执行清理。

@@ -1,3 +1,4 @@
+import { isApiPath } from "../src/client/pwa-navigation";
 import { legacyAsset, serveReleaseAsset } from "./releases/assets";
 import { releaseRoutes } from "./releases/routes";
 import { serveStaticAsset } from "./static-assets";
@@ -35,7 +36,7 @@ const app = new Hono<AppEnvironment>();
 
 app.use("*", async (c, next) => {
   const path = new URL(c.req.url).pathname;
-  if ((c.env.RELEASE_CHANNELS_ENABLED === "true" || path.startsWith("/_releases/") && Boolean(c.env.FRONTEND_RELEASES) && !c.env.PERFORMANCE_TEST_DELAY_MS) && !path.startsWith("/api/") && path !== "/api" && !path.startsWith("/.well-known/")) return serveReleaseAsset(c.req.raw, c.env);
+  if ((c.env.RELEASE_CHANNELS_ENABLED === "true" || path.startsWith("/_releases/") && Boolean(c.env.FRONTEND_RELEASES) && !c.env.PERFORMANCE_TEST_DELAY_MS) && !isApiPath(path) && !path.startsWith("/.well-known/")) return serveReleaseAsset(c.req.raw, c.env);
   if (path.startsWith("/.well-known/")) return serveStaticAsset(c.req.raw, c.env.ASSETS);
   await next();
 });
@@ -91,7 +92,7 @@ app.route("/api", scoreRoutes);
 app.route("/api", attachmentRoutes);
 app.route("/api", annotationRoutes);
 
-app.notFound((c) => new URL(c.req.url).pathname.startsWith("/api/") ? c.json({ error: "not_found" }, 404) : c.env.ASSETS.fetch(c.req.raw));
+app.notFound((c) => isApiPath(new URL(c.req.url).pathname) ? c.json({ error: "not_found" }, 404) : c.env.ASSETS.fetch(c.req.raw));
 
 app.onError((error, context) => {
   if (error instanceof AttachmentError) return context.json({ error: error.code }, error.status);

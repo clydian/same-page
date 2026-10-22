@@ -7,7 +7,7 @@
 
 方案可进入实现准备。采用 **同一正式域名、同一根 scope 的 `/sw.js`、设备通道 Cookie、R2 不可变前端产物、D1 通道指针**。继续运行一套兼容后端。不采用两个子域、不按请求随机灰度、不依赖 Cloudflare 已部署版本的历史资源作为产品版本库。
 
-数据库结论见 [独立实证](issue-539-database-channel-feasibility.md)。数据库补充探针在 Chromium 通过 Blob 往返，WebKit 的普通记录与 schema 行为也验证成功，但该 WebKit 运行时原生 Blob 首写对照失败、原因未确定，真实 Safari／iOS Blob 回切仍为上线阻断门槛，详见独立数据库研究。
+数据库结论见 [独立实证](issue-539-database-channel-feasibility.md)。数据库补充探针在 Chromium 通过 Blob 往返，WebKit 的普通记录与 schema 行为也验证成功，但该 WebKit 运行时的 ephemeral context 原生 Blob 首写失败；后续全新临时 persistent context 的原生及实际数据库 Blob 均通过。真实 Safari／iOS 产品实机回切仍为上线门槛，详见独立数据库研究补充。
 
 本次只证明所需平台原语和路由机制可行；实际应用改造、实际 stable/candidate 矩阵、实机验收仍是 #539 的实施工作。
 

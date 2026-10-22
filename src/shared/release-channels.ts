@@ -17,6 +17,7 @@ export const releaseSelectionSchema = z.object({ channel: releaseChannelSchema, 
 export const releasePromotionSchema = z.object({ id: z.uuid(), expectedBeta: releaseIdSchema, expectedRevision: z.number().int().positive() });
 export const releaseFileSchema = z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().nonnegative(), contentType: z.string().max(100) });
 export const releaseManifestSchema = z.object({
+  probeDigest: z.string().regex(/^[a-f0-9]{64}$/),
   storageDigest: z.string().regex(/^[a-f0-9]{64}$/),
   buildId: releaseIdSchema, contract: z.literal(releaseContract),
   files: z.record(z.string().regex(/^(?!.*(?:^|\/)\.\.?\/)[a-zA-Z0-9_./@-]+$/), releaseFileSchema),

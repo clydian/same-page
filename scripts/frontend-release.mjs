@@ -19,7 +19,7 @@ export async function frontendManifest(cwd, sha) {
     files[file] = {sha256, bytes:(await readFile(path.join(cwd,name))).length, contentType:contentType(file)};
   }
   for(const required of ['index.html','sw.js','build.json','shell-manifest.json','manifest.webmanifest']) assert.ok(files[required],`missing ${required}`);
-  return { storageDigest: hash(await readFile(path.join(cwd,'dist/release-storage.json'))), buildId:sha, contract:'same-page-storage-v15-sync-v1', files };
+  return { probeDigest: hash(await readFile(path.join(cwd,'dist/release-storage-probe.js'))), storageDigest: hash(await readFile(path.join(cwd,'dist/release-storage.json'))), buildId:sha, contract:'same-page-storage-v15-sync-v1', files };
 }
 // Adapter is also used by the local R2 tests. Every key, including claim/seal, is immutable.
 export async function immutablePut(bucket,key,body,metadata={}) {
@@ -40,8 +40,16 @@ export async function uploadFrontend({bucket,cwd,manifest,contract}) {
     await immutablePut(bucket,base+file,body,{contentType:entry.contentType});
   }
   await immutablePut(bucket,base+'storage.json',JSON.stringify(contract));
+  const probe=await readFile(path.join(cwd,'dist/release-storage-probe.js'));assert.equal(hash(probe),manifest.probeDigest);
+  await immutablePut(bucket,base+'storage-probe.js',probe);
   await immutablePut(bucket,base+'sealed.json',bytes);
   return hash(bytes);
+}
+export function verifyCompatibilityReport(report, expected) {
+  assert.equal(report.version,1);assert.equal(report.passed,true);
+  assert.equal(report.stable,expected.stable);assert.equal(report.candidate,expected.candidate);
+  assert.equal(report.stableProbe,expected.stableProbe);assert.equal(report.candidateProbe,expected.candidateProbe);
+  assert.deepEqual(report.engines,['chromium','webkit']);
 }
 async function main() {
   const [action,sha,baselineFlag]=process.argv.slice(2);
@@ -78,18 +86,30 @@ async function main() {
   }
   const manifest=await frontendManifest(process.cwd(),sha),contract=JSON.parse(await readFile('dist/release-storage.json','utf8'));
   assert.equal(contract.contract,manifest.contract);
+  let stableManifest,stableProbe;
   if(pointer) {
     const prior=await bucket.get(`releases/${pointer.stable}/storage.json`);assert.ok(prior);
     const priorBytes=await prior.arrayBuffer();
     const priorSeal=await bucket.get(`releases/${pointer.stable}/sealed.json`);assert.ok(priorSeal);
     const priorManifest=JSON.parse(new TextDecoder().decode(await priorSeal.arrayBuffer()));
+    const stableCatalog=(await query('SELECT manifest_digest FROM frontend_releases WHERE build_id=? AND ready=1',[pointer.stable])).results[0];
+    const trustedSeal=await bucket.get(`releases/${pointer.stable}/sealed.json`);
+    assert.equal(hash(await trustedSeal.arrayBuffer()),stableCatalog?.manifest_digest,'stable seal was modified');
+    stableManifest=priorManifest;const probe=await bucket.get(`releases/${pointer.stable}/storage-probe.js`);assert.ok(probe);stableProbe=new Uint8Array(await probe.arrayBuffer());
+    assert.equal(hash(stableProbe),priorManifest.probeDigest);
     assert.equal(hash(priorBytes),priorManifest.storageDigest,'stable storage contract was modified');
     assert.deepEqual(contract,JSON.parse(new TextDecoder().decode(priorBytes)),'storage compatibility changed; a reviewed bridge is required before beta');
   }
   if(action==='upload'||action==='initialize') {
+    const {verifyArtifactStorage}=await import('./verify-release-storage.mjs');
+    const candidateProbe=await readFile('dist/release-storage-probe.js');
+    const report=await verifyArtifactStorage({stable:{id:pointer?.stable??sha,bytes:stableProbe??candidateProbe,digest:stableManifest?.probeDigest??manifest.probeDigest},candidate:{id:sha,bytes:candidateProbe,digest:manifest.probeDigest}});
     const digest=await uploadFrontend({bucket,cwd:process.cwd(),manifest,contract});
     await query('INSERT INTO frontend_releases(build_id,manifest_digest,contract,published_at,ready) VALUES(?,?,?,?,0) ON CONFLICT(build_id) DO NOTHING',[sha,digest,contract.contract,Date.now()]);
     const row=(await query('SELECT manifest_digest FROM frontend_releases WHERE build_id=?',[sha])).results[0];assert.equal(row.manifest_digest,digest);
+    const reportBytes=JSON.stringify(report);
+    await immutablePut(bucket,`compatibility/${sha}/${report.stable}.json`,reportBytes);
+    await query('INSERT INTO release_compatibility(candidate,stable,candidate_probe,stable_probe,report_digest) VALUES(?,?,?,?,?) ON CONFLICT(candidate,stable) DO NOTHING',[sha,report.stable,report.candidateProbe,report.stableProbe,hash(reportBytes)]);
     if(action==='upload') { console.log(`Staged immutable frontend ${sha}; channel pointers unchanged`);return; }
   }
   const record=(await query('SELECT manifest_digest FROM frontend_releases WHERE build_id=?',[sha])).results[0];
@@ -102,6 +122,12 @@ async function main() {
     const response=await fetch(new URL(`/_releases/${sha}/${file}`,origin),{redirect:'error',signal:AbortSignal.timeout(15000)});
     assert.equal(response.status,200,`candidate resource unavailable: ${file}`);assert.equal(hash(new Uint8Array(await response.arrayBuffer())),entry.sha256);
   }
+  const proof=(await query('SELECT * FROM release_compatibility WHERE candidate=? AND stable=?',[sha,pointer?.stable??sha])).results[0];assert.ok(proof,'artifact compatibility proof missing for current stable');
+  const proofObject=await bucket.get(`compatibility/${sha}/${pointer?.stable??sha}.json`);assert.ok(proofObject);
+  const proofBytes=await proofObject.arrayBuffer();assert.equal(hash(proofBytes),proof.report_digest);
+  const proofReport=JSON.parse(new TextDecoder().decode(proofBytes));
+  verifyCompatibilityReport(proofReport,{stable:pointer?.stable??sha,candidate:sha,stableProbe:stableManifest?.probeDigest??manifest.probeDigest,candidateProbe:manifest.probeDigest});
+  assert.equal(proof.candidate_probe,manifest.probeDigest);assert.equal(proof.stable_probe,proofReport.stableProbe);
   await query('UPDATE frontend_releases SET ready=1 WHERE build_id=?',[sha]);
   if(action==='initialize') {
     assert.ok(!pointer,'Stable baseline is already initialized');

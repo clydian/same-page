@@ -21,3 +21,19 @@ export async function manifest(env: Env, id: string, staged = false): Promise<Re
   const parsed = releaseManifestSchema.safeParse(JSON.parse(new TextDecoder().decode(bytes)));
   return parsed.success && parsed.data.buildId === id ? parsed.data : null;
 }
+
+export async function compatibilityReady(env: Env, stable: string, candidate: string) {
+  const proof = await releaseDB(env).prepare("SELECT report_digest AS digest FROM release_compatibility WHERE stable=? AND candidate=?").bind(stable,candidate).first<{ digest: string }>();
+  if (!proof || !env.FRONTEND_RELEASES) return false;
+  const object = await env.FRONTEND_RELEASES.get(`compatibility/${candidate}/${stable}.json`);
+  if (!object || object.size > 4096) return false;
+  const bytes = await object.arrayBuffer();
+  const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),b=>b.toString(16).padStart(2,"0")).join("");
+  if (digest !== proof.digest) return false;
+  try {
+    const report = JSON.parse(new TextDecoder().decode(bytes));
+    const [a,b] = await Promise.all([manifest(env,stable),manifest(env,candidate)]);
+    return report.version === 1 && report.passed === true && report.stable === stable && report.candidate === candidate &&
+      JSON.stringify(report.engines) === '["chromium","webkit"]' && report.stableProbe === a?.probeDigest && report.candidateProbe === b?.probeDigest;
+  } catch { return false; }
+}

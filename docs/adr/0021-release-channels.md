@@ -2,6 +2,12 @@
 
 Issue #539. Date: 2026-10-22. Extends ADR-0020 without changing business storage.
 
+The registry is one record containing pending choice, server confirmation and last
+permitted display. Selection and activation serialize through the same Web Lock;
+online reconciliation consumes interrupted pending state without recreating Cookies.
+New navigations consult server authority and only reuse an older permitted fallback
+within the same channel; Cookie expiry from beta to default stable cannot restore beta.
+
 Use one origin, one `/sw.js` registration with root scope, one compatible backend and
 one business IndexedDB. A durable HttpOnly channel Cookie defaults to stable. Its
 server readback is authoritative online. A separately owned public shell receipt
@@ -25,8 +31,17 @@ its own immutable index URL, independently of the selected target. Candidate ins
 manual handover, activation and navigation enforce admission. Browser auto-activation
 without clients grants no exception. Existing cross-window vetoes continue to apply.
 
-The initial storage contract fingerprints the transitive storage/sync implementation,
-Dexie version and server migrations. Beta admission rejects differences against the
+The initial storage contract discovers every persistence consumer (including reverse
+consumers of system keys), fingerprints its relative dependencies,
+Dexie version and server migrations. A private probe built from each sealed artifact also runs actual draft/queue/push/pull
+mergers and a Blob/outbox/conflict/owner fixture through stable → beta → stable → beta
+in isolated Chromium and WebKit persistent profiles. The report binds both probe
+digests and the current stable target; beta admission and stable promotion require
+this recorded proof. The probes use parsed protocol responses; SQL/API validation
+remains in the Worker integration suite. Neither the private probes nor reports are
+served through the frontend file inventory.
+
+Beta admission rejects differences against the
 actual stable artifact. This deliberately conservative first phase cannot introduce
 schema or sync representation changes. A future compatibility bridge requires a
 separate reviewed change; no override flag waives this gate. App-shell updates never

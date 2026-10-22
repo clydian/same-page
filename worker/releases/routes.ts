@@ -4,7 +4,7 @@ import { readContextSession } from "../auth/context-session";
 import { AuthorizationError } from "../auth/authorization";
 import { buildId } from "../../src/shared/build";
 import { releaseContract, releaseSelectionSchema, releasePromotionSchema } from "../../src/shared/release-channels";
-import { channels, manifest, preference, releaseDB } from "./catalog";
+import { channels, manifest, preference, releaseDB, compatibilityReady } from "./catalog";
 export const releaseRoutes = new Hono<AppEnvironment>();
 releaseRoutes.use("*", async (c, next) => { c.header("Cache-Control", "private, no-store"); await next(); });
 async function operator(c: Context<AppEnvironment>) {
@@ -45,7 +45,7 @@ releaseRoutes.post("/admin/releases/promote", async c => {
   const prior = await releaseDB(c.env).prepare("SELECT operator_id,expected_beta,expected_revision FROM release_promotions WHERE id=?").bind(d.id).first<{ operator_id: string; expected_beta: string; expected_revision: number }>();
   if (prior) return prior.operator_id === auth.user.id && prior.expected_beta === d.expectedBeta && prior.expected_revision === d.expectedRevision ? c.body(null, 204) : c.json({ error: "release_conflict" }, 409);
   const pointer = await channels(c.env);
-  if (!pointer || !await manifest(c.env, d.expectedBeta)) return c.json({ error: "release_unavailable" }, 503);
+  if (!pointer || !await manifest(c.env, d.expectedBeta) || !await compatibilityReady(c.env,pointer.stable,d.expectedBeta)) return c.json({ error: "release_unavailable" }, 503);
   try {
     await releaseDB(c.env).prepare("INSERT INTO release_promotions(id,operator_id,session_id,expected_beta,expected_revision,previous_stable,created_at) VALUES(?,?,?,?,?,?,?)")
       .bind(d.id, auth.user.id, auth.session.id, d.expectedBeta, d.expectedRevision, pointer.stable, Date.now()).run();

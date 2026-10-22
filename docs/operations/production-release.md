@@ -187,7 +187,7 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 
 实现见 ADR-0021；本地开发和首次桥接默认 `RELEASE_CHANNELS_ENABLED=false`。
 这不是部署授权。不得直接打开开关而跳过以下过渡，也不得把仓库的 research
-探针当作生产验收。当前 Safari/iOS Blob/离线回切和 Android TWA 实机必须单独记录。
+探针当作生产验收。WebKit 的隔离持久 profile 已通过 Blob 回切探针；真实 Safari/iOS 与 Android TWA 实机仍必须单独记录。
 
 ### 首次桥接（需另行授权）
 
@@ -221,6 +221,11 @@ PDF.js legacy 仍要求 `Promise.withResolvers`，缺失时须验证 `engine-una
 CI 在生产锁内先校验完整包，再 `frontend-release.mjs upload <SHA>`：比对当前 stable 的
 存储契约、first-write claim、逐文件写入／读回与最终 seal。契约涵盖迁移、Dexie 和
 存储／同步实现依赖；任何变化在本阶段都阻断 beta，必须另审兼容桥接，不能通过忽略字段绕过。
+上传前另从 R2 下载当前 stable 的封存私有 storage probe，与 candidate 原始 probe 在
+Chromium/WebKit 全新持久 profile 中跑 `stable → beta → stable → beta`：实际草稿、队列、
+push/pull 合并器、Blob、冲突、已尝试操作和身份保留。报告绑定两个 probe 摘要与 stable 身份，
+写入 R2 和 D1 `release_compatibility`，缺失／篡改／目标不符均拒绝准入；报告不能以手写 passed
+替代执行。脚本未访问真实用户数据；WebKit 不能使用有原生 Blob 限制的 ephemeral context。
 部署后以固定前端 URL 检查字节并独立核对后端 SHA，成功后 `frontend-release.mjs admit <SHA>`
 再次校验资源并 CAS 推进 beta。stable 保持不变；目标或 revision 变化则失败，重新验收。
 后台提升仅写 D1，既不重构建也不执行 migration。

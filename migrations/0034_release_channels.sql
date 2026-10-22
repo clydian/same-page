@@ -12,6 +12,12 @@ CREATE TABLE release_channels (
   beta TEXT NOT NULL REFERENCES frontend_releases(build_id),
   revision INTEGER NOT NULL CHECK(revision>0)
 );
+CREATE TABLE release_compatibility (
+  candidate TEXT NOT NULL REFERENCES frontend_releases(build_id),
+  stable TEXT NOT NULL REFERENCES frontend_releases(build_id),
+  candidate_probe TEXT NOT NULL, stable_probe TEXT NOT NULL, report_digest TEXT NOT NULL,
+  PRIMARY KEY(candidate,stable)
+);
 CREATE TABLE release_operators (user_id TEXT PRIMARY KEY REFERENCES user(id) ON DELETE CASCADE);
 CREATE TABLE release_promotions (
   id TEXT PRIMARY KEY, operator_id TEXT NOT NULL, session_id TEXT NOT NULL,
@@ -22,6 +28,7 @@ CREATE TRIGGER validate_release_promotion BEFORE INSERT ON release_promotions BE
   SELECT CASE WHEN NOT EXISTS (
     SELECT 1 FROM release_channels c JOIN frontend_releases r ON r.build_id=c.beta
     WHERE c.id=1 AND c.beta=NEW.expected_beta AND c.revision=NEW.expected_revision AND c.stable=NEW.previous_stable AND r.ready=1
+    AND EXISTS(SELECT 1 FROM release_compatibility p WHERE p.candidate=c.beta AND p.stable=c.stable)
   ) THEN RAISE(ABORT,'release_conflict') END;
   SELECT CASE WHEN NOT EXISTS (
     SELECT 1 FROM release_operators o JOIN session s ON s.user_id=o.user_id

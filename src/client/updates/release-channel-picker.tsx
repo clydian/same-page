@@ -22,5 +22,5 @@ export function ReleaseChannelBadge() {
     check(); window.addEventListener("storage", check); window.addEventListener("online", check); window.addEventListener("focus", check);
     return () => { window.removeEventListener("storage", check); window.removeEventListener("online", check); window.removeEventListener("focus", check); };
   }, []);
-  return state.target?.channel === "beta" ? <span className="release-channel-badge" title="测试通道，仍使用真实数据">测试版</span> : null;
+  return (state.runningChannel === "beta" || state.target?.channel === "beta") ? <span className="release-channel-badge" title="测试通道，仍使用真实数据">测试版</span> : null;
 }

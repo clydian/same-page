@@ -48,7 +48,7 @@ export class ShellRuntime {
     this.registryName = `same-page-shell-registry-v1:${encodeURIComponent(scope.registration.scope)}`;
     // vite-plugin-pwa appends its web manifest after transforms; discard an
     // untransformed duplicate only when a verified entry for that URL exists.
-    const verifiedEntries = entries.filter(entry => entry.integrity || !entries.some(other => other.url === entry.url && other.integrity));
+    const verifiedEntries = entries.filter(entry => entry.integrity || !entries.some(other => other.integrity && (new URL(other.url, scope.registration.scope).href === new URL(entry.url, scope.registration.scope).href || entry.url === 'manifest.webmanifest' && /(?:^|\/)manifest\.webmanifest$/.test(other.url))));
     const normalized = [...new Map(verifiedEntries.map(entry => {
       const url = new URL(entry.url, scope.registration.scope);
       if (url.origin !== scope.location.origin || isApiPath(url.pathname) || !/^sha256-[A-Za-z0-9+/]{43}=$/.test(entry.integrity) || !(entry.bytes >= 0)) throw new Error('invalid_shell_manifest');
@@ -235,9 +235,9 @@ export class ShellRuntime {
   async activate() {
     // If storage was externally lost after install, remain able to serve a
     // complete rollback shell or a retry page. Do not fail activation itself.
-    await this.ready(AbortSignal.timeout(15_000)).then(() => this.permission?.activate()).catch(() => undefined);
+    const permitted = await this.ready(AbortSignal.timeout(15_000)).then(() => this.permission ? this.permission.activate() : true).catch(() => false);
     const record = await this.current;
-    await this.locked(async () => { await this.permitDisplay(record); record.activated = Date.now(); await this.save(record); }).catch(() => undefined);
+    await this.locked(async () => { if (permitted) await this.permitDisplay(record); record.activated = Date.now(); await this.save(record); }).catch(() => undefined);
     await this.collect();
   }
   private async references() {
@@ -317,6 +317,7 @@ export class ShellRuntime {
       // Cache eviction can race the audit and this final read. Never let an
       // undefined value escape respondWith, even after successful readiness.
       if (!shell || !await valid(shell, root)) throw new Error('shell_disappeared');
+      await this.permission?.displayed(record.buildId);
       if (record.candidateOnly) await this.locked(() => this.permitDisplay(record));
       return shell;
     } catch {
@@ -325,10 +326,10 @@ export class ShellRuntime {
           if (this.permission && !await this.permission.permits(previous.buildId)) continue;
           await this.check(previous, false, true);
           const shell = await (await caches.open(previous.cacheName)).match(this.scope.registration.scope);
-          if (shell) { this.assetRecords = undefined; return shell; }
+          if (shell) { await this.permission?.displayed(previous.buildId); this.assetRecords = undefined; return shell; }
         } catch { /* Try another complete retained release; never a mixed shell. */ }
       }
-      return new Response('<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>合谱</title><body><main><h1>暂时无法打开合谱</h1><p>请联网后重试。此设备保存的内容仍然保留。</p><button onclick="location.reload()">重试</button></main></body></html>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+      return new Response('<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>合谱</title><body><main><h1>暂时无法打开合谱</h1><p>请联网后重试。此设备保存的内容仍然保留。</p><button onclick="navigator.serviceWorker.getRegistration().then(r=>r?.update()).catch(()=>{}).finally(()=>location.reload())">重试</button></main></body></html>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
   }
   auditAfterNavigation() {
