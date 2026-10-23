@@ -23,7 +23,11 @@ function fixture() {
   } });
   const registration = { update: vi.fn(async () => {}), waiting: null, installing: null };
   const serviceWorker = { getRegistration: vi.fn(async () => registration), addEventListener: vi.fn(), controller: null };
-  runInNewContext(recoveryPage.match(/<script>([\s\S]*)<\/script>/)[1], {
+  // This is the worker's fixed template, not HTML from a request. Extract its
+  // single script by exact delimiters rather than treating a regex as a parser.
+  const start = recoveryPage.indexOf('<script>') + '<script>'.length;
+  const end = recoveryPage.lastIndexOf('</script>');
+  runInNewContext(recoveryPage.slice(start, end), {
     document: { getElementById: id => id === 'retry' ? button : status },
     navigator: { serviceWorker }, location: { reload },
     Date, setTimeout, clearTimeout, MessageChannel: Channel,
@@ -112,4 +116,21 @@ test('late candidate identity after timeout cannot request activation during ano
   expect(f.messages.map(message => message.type)).toEqual(['SAME_PAGE_SHELL_IDENTITY']);
   expect(f.reload).toHaveBeenCalledTimes(1);
   expect(f.ports.every(port => port.close.mock.calls.length === 1)).toBe(true);
+});
+
+test('an elapsed deadline between identity and handover never sends an activation request', async () => {
+  const f = fixture(), started = Date.now();
+  f.registration.waiting = { state: 'installed', ...f.worker((message, port) => {
+    if (message.type === 'SAME_PAGE_SHELL_IDENTITY') {
+      vi.setSystemTime(started + 19_999);
+      port.postMessage({ buildId: 'candidate' });
+      // Let within accept the in-time reply, then cross the deadline before
+      // the caller continues. The browser message itself stays ordinary data.
+      queueMicrotask(() => queueMicrotask(() => vi.setSystemTime(started + 20_001)));
+    } else port.postMessage({ safe: true });
+  }) };
+  await f.button.onclick();
+  expect(f.messages.map(message => message.type)).toEqual(['SAME_PAGE_SHELL_IDENTITY']);
+  expect(f.button.disabled).toBe(false);
+  expect(f.reload).not.toHaveBeenCalled();
 });

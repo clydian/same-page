@@ -19,6 +19,9 @@ async function ask(worker, message, deadline) {
   const channel = new MessageChannel();
   try {
     return await within(new Promise(resolve => {
+      // The previous awaited reply can settle just before the deadline while
+      // this continuation runs after it. Never send a new handover then.
+      if (Date.now() >= deadline) throw new Error('timeout');
       channel.port1.onmessage = event => resolve(event.data);
       worker.postMessage(message, [channel.port2]);
     }), Math.min(deadline, Date.now() + 10000));
