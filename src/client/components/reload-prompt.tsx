@@ -1,4 +1,4 @@
-import { ReleaseChannelBadge, ReleaseChannelPicker } from "../updates/release-channel-picker";
+import { ReleaseChannelMonitor, ReleaseChannelPicker } from "../updates/release-channel-picker";
 import { useReleaseChannel } from "../updates/release-channel";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -79,7 +79,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     }, 1000);
     return () => { clearInterval(timer); events.forEach(event => document.removeEventListener(event, noteUpdateInteraction, true)); navigator.serviceWorker?.removeEventListener("message", probe); };
   }, []);
-  return <ReleaseChannelBadge />;
+  return <ReleaseChannelMonitor />;
 }
 
 export function UpdateDetails() {

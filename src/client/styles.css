@@ -3147,5 +3147,3 @@ h1 {
   .annotation-composer-styles { flex-wrap: wrap; width: max-content; }
   .annotation-composer-layer { order: -1; width: 100%; max-width: none; padding: 3px 8px; font-size: 11px; }
 }
-
-.release-channel-badge { position: fixed; right: max(12px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); z-index: 30; padding: 2px 7px; border-radius: 4px; background: #fff4d4; color: #755018; font-size: 11px; pointer-events: none; }
