@@ -20,14 +20,13 @@ const denseXml = practiceMusicXml.replace(/<note>[\s\S]*?<\/note>/g, note => not
 for (const name of engines) test(`${name}: floating tools, direct zoom, transport preference, safe areas and fullscreen`, { timeout: 180000 }, async t => {
   const browser = await ({ chromium, webkit })[name].launch({ headless: true, ...(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
   t.after(() => browser.close());
-  const fixture = createVisualFixtureSession({ id: 'reader-practice-focus' });
+  const fixture = createVisualFixtureSession({ id: 'reader-practice-focus', practiceXml: denseXml });
   const open = async (width, height) => {
     const page = await browser.newPage({ viewport: { width, height }, hasTouch: true, reducedMotion: 'reduce', locale: 'zh-CN' });
     await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
     await page.route('**/api/**', async route => {
       const request = route.request(), pathname = new URL(request.url()).pathname;
       const response = fixture.resolve({ pathname, method: request.method(), identity: 'member', cookie: request.headers().cookie ?? '' });
-      if (pathname.endsWith('/practice-xml/file')) response.body = denseXml;
       await route.fulfill(response);
     });
     await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score`);

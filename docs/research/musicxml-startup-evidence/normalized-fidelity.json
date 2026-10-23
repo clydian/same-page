@@ -1,0 +1,79 @@
+{
+  "scope": "Diagnostic copy moves only ties/repeats normalization ahead of importer, preserves original direction prep order and post-import corrections; checks complete generated MIDI including piano correction. Not visual/physical-device acceptance.",
+  "nativeVersion": "1.8.4-samepage.13",
+  "playerVersion": "0.1.19-samepage.12",
+  "rows": [
+    {
+      "name": "sun",
+      "parts": 5,
+      "measures": 70,
+      "originalBytes": 514357,
+      "preparedBytes": 439190,
+      "midiEqual": true
+    },
+    {
+      "name": "jesu",
+      "parts": 5,
+      "measures": 441,
+      "originalBytes": 2532176,
+      "preparedBytes": 1671214,
+      "midiEqual": true
+    },
+    {
+      "name": "mixed-numbered-unnumbered-ties",
+      "parts": 1,
+      "measures": 3,
+      "originalBytes": 1318,
+      "preparedBytes": 1336,
+      "midiEqual": true
+    },
+    {
+      "name": "offbeat-wedge-stop-grandstaff",
+      "parts": 1,
+      "measures": 2,
+      "originalBytes": 3386,
+      "preparedBytes": 3366,
+      "midiEqual": true
+    },
+    {
+      "name": "offbeat-wedge-stop-single",
+      "parts": 1,
+      "measures": 2,
+      "originalBytes": 2174,
+      "preparedBytes": 2154,
+      "midiEqual": true
+    },
+    {
+      "name": "gradual-word-same-mf",
+      "parts": 1,
+      "measures": 3,
+      "originalBytes": 4139,
+      "preparedBytes": 2589,
+      "midiEqual": true
+    },
+    {
+      "name": "hidden-time",
+      "parts": 1,
+      "measures": 3,
+      "originalBytes": 1559,
+      "preparedBytes": 1559,
+      "midiEqual": true
+    },
+    {
+      "name": "native-paired-tremolo",
+      "parts": 1,
+      "measures": 1,
+      "originalBytes": 1330,
+      "preparedBytes": 1329,
+      "midiEqual": true
+    },
+    {
+      "name": "native-paired-tremolo-control",
+      "parts": 1,
+      "measures": 1,
+      "originalBytes": 5830,
+      "preparedBytes": 5829,
+      "midiEqual": true
+    }
+  ]
+}

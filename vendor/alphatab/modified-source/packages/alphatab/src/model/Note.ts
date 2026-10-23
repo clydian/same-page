@@ -166,6 +166,12 @@ export class Note {
     public accentuated: AccentuationType = AccentuationType.None;
 
     /**
+     * Gets or sets whether this note has a tenuto independently of its accent.
+     * Legacy AccentuationType.Tenuto remains supported when this field is absent.
+     */
+    public isTenuto: boolean = false;
+
+    /**
      * Explicit side of a tenuto articulation. Automatic preserves legacy engraving.
      * This does not control accents, staccato, phrase slurs or pitch ties.
      */
@@ -456,6 +462,12 @@ export class Note {
      * Gets or sets whether the note is a ghost note and shown in parenthesis. Also this will make the note a bit more silent.
      */
     public isGhost: boolean = false;
+
+    /**
+     * Gets or sets whether the notehead is shown in parentheses without changing playback.
+     * MusicXML notehead parentheses are appearance-only; use isGhost for legacy ghost-note performance.
+     */
+    public isNoteHeadParenthesized: boolean = false;
 
     /**
      * Gets or sets whether this note has a let-ring effect.

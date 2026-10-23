@@ -47,6 +47,32 @@ it("never substitutes HTML for missing immutable resources or changes bytes base
   expect((await call("/missing.js")).status).toBe(404);
   expect((await call("/api/missing")).headers.get("content-type")).toContain("json");
 });
+it("retains archived third-party resources while bridge routing is disabled", async () => {
+  const file = 'third-party/alphatab/legacy-core.js', bytes = 'supported legacy decoder';
+  await env.FRONTEND_RELEASES!.put(`legacy/${file}`, bytes, { customMetadata: { sha256: await digest(bytes), contentType: 'text/javascript' } });
+  const bridgeCall = async (path: string, method = 'GET') => {
+    const context = createExecutionContext();
+    const response = await worker.fetch(new Request(`https://same-page.test/${path}`, { method }), {
+      ...env, RELEASE_CHANNELS_ENABLED: 'false',
+      // The static service's SPA fallback must not become a legacy script.
+      ASSETS: {
+        fetch: async () => new Response('<html>current shell</html>', { headers: { 'Content-Type': 'text/html' } }),
+        connect: () => { throw new Error('Static assets cannot open sockets'); },
+      },
+    }, context);
+    await waitOnExecutionContext(context);
+    return response;
+  };
+  const response = await bridgeCall(file);
+  expect(response.status).toBe(200);
+  expect(response.headers.get('content-type')).toBe('text/javascript');
+  expect(response.headers.get('cache-control')).toContain('immutable');
+  expect(await response.text()).toBe(bytes);
+  const head = await bridgeCall(file, 'HEAD');
+  expect(head.status).toBe(200);
+  expect(await head.text()).toBe('');
+  expect((await bridgeCall('third-party/alphatab/missing.js')).status).toBe(404);
+});
 it("allows fixed staged verification but never selects it through a pointer", async () => {
   await release(C,0);
   expect((await call(`/_releases/${C}/app.js`)).status).toBe(200);

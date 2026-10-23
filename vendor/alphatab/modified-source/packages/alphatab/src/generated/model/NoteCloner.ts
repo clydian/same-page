@@ -13,6 +13,7 @@ export class NoteCloner {
         const clone = new Note();
         clone.index = original.index;
         clone.accentuated = original.accentuated;
+        clone.isTenuto = original.isTenuto;
         clone.tenutoPlacement = original.tenutoPlacement;
         clone.bendType = original.bendType;
         clone.bendStyle = original.bendStyle;
@@ -40,6 +41,7 @@ export class NoteCloner {
         clone.harmonicType = original.harmonicType;
         clone.harmonicValue = original.harmonicValue;
         clone.isGhost = original.isGhost;
+        clone.isNoteHeadParenthesized = original.isNoteHeadParenthesized;
         clone.isLetRing = original.isLetRing;
         clone.isPalmMute = original.isPalmMute;
         clone.isDead = original.isDead;

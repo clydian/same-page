@@ -8,10 +8,17 @@ const listeners = new Set<() => void>();
 function update(patch: Partial<typeof state>) { state = { ...state, ...patch }; listeners.forEach(fn => fn()); }
 export function useReleaseChannel() { return useSyncExternalStore(fn => { listeners.add(fn); return () => { listeners.delete(fn); }; }, () => state); }
 async function reconcileSelection() {
+  // Start the independent online read while this document can still fetch.
+  // CacheStorage may settle after navigation starts. Capture rejection now,
+  // then preserve offline attribution and propagate the readback error below.
+  const readback = fetch("/api/client-release", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) })
+    .then(response => ({ response }), (error: unknown) => ({ error }));
   const receipt = await readReleaseReceipt(location.origin);
   // The permitted running build can be identified offline; selection authority stays online.
   update({ runningChannel: receipt.permitted?.target === buildId ? receipt.permitted.channel : null });
-  const response = await fetch("/api/client-release", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
+  const result = await readback;
+  if ("error" in result) throw result.error;
+  const response = result.response;
   if (!response.ok) throw new Error("发布通道暂不可用，请联网后重试。");
   const target = releaseTargetSchema.parse(await response.json());
   // Identical running bytes already have display permission. A confirmed change

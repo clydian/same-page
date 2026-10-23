@@ -349,8 +349,35 @@ Requires native `1.8.4-samepage.13`, source `f931703ac15d583c50f6883288332daa7d7
 
 Explicit `note@time-only` controls one-based repeat passes without hiding printed notation. Ordinary pitched notes/chord members and plain ties within normally traversed repeats use a shared sounding-eligibility rule: excluded or cue endpoints neither prolong nor suppress ordinary notes. No caption inference is used. Complex slides, bends, rolls, grace, navigation-crossing ties and separate `tie@time-only` are not certified by this bounded change. Cue boxes/source x-y offsets and general optional-performance interpretations are not recreated.
 
+### samepage.14：源谱连梁与延长记号
+
+该历史版本的精确原生 peer 为 `1.8.4-samepage.15`，分发源码提交为 `80abe1dd2e4497718b57fa6987f0f01f60e3b80f`。同一 MusicXML 逻辑声部中，完整、等时值、等附点且符干方向兼容的显式连梁组可以跨谱表绘制；休止、提示音、不完整组、hook 及不兼容的时值或符干保留原有回退。它不从连线推断连梁，也不复刻原谱的任意斜率或坐标。支持范围见原生覆盖层的 `docs/musicxml-cross-staff-beams.md`。
+
+MusicXML 延长记号按实际声明的拍与声部绘制，保留 normal、angled、square 形状及 upright／inverted 方向；倒置记号位于谱表下方，不再把小节级播放继承值复制成其他拍的印刷记号。新增归属和方向经 JSON／Worker 保留，旧 JSON 仍采用原有默认行为。此次没有增加延长记号的实际播放停留时长，不能据此宣称自由速度或整曲演奏已经验收。细节见 `docs/musicxml-fermata-scope.md`。
+
+播放器运行代码与既有版本相同；本地 workspace 更新精确 peer，不重新发布历史 Chorus 制品。旧原生包及公开源码快照继续保留。最终安装制品和实际产品 Worker 仍需分别验证。
+
+### samepage.16：同会话 MIDI 准备
+
+该版本精确原生 peer 为 `1.8.4-samepage.16`，分发源码提交为 `acb735a64769e1ea9d6bbbcdcdd31ec30fa9e448`，源码树为 `245587b339852413ec629568c6ea334ea9c55d55`。新 Score 只自动生成一次基础 MIDI；立即就绪或晚到的 synth 都复用同一个有效结果，重复 ready 不再重复生成和载入。早期 tick lookup、`midiLoad` 钢琴击键修正、同步点、tick shift 和移调继续保留。显式 `loadMidiForScore()` 仍强制重建，模式变更会重新准备，销毁后不接收迟到结果。该结果仅在当前原生 API 内保留，不共享活播放器或跨会话的可变播放状态。 Worker API 的 MIDI 状态 getter 返回私有缓存，修复继承的自递归，允许安全订阅尚未加载及加载后的 `midiLoaded` 事件。
+
+原生制品 SHA-256 为 `d1905cb0063b819358fe71a2c239478cc6e7e0c74653d7f94a45034234d053a7`，内含源码档案 SHA-256 为 `0d70a8c3ddf938d14fdfe01a4ed6e5c3e31e896d750900d72086850faa99dea1`。公开上游仍固定为 `022a45c8e42370f9e12e68949d11eada370da83d`；完整覆盖层、MPL 通知、历史制品和旧公开源码下载继续保留。
+
+### samepage.17：双标与同会话 MIDI 准备
+
+该历史候选精确原生 peer 为 `1.8.4-samepage.17`，分发源码提交为 `9bcd697196c3f55ee21eeadb2b823e9b138482bb`，源码树为 `4da6c822953fcccbed84c0df47a100a6208dfe92`。它在同一制品中保留 samepage.15 的 accent／strong-accent 与 tenuto 双标、生成的 JSON／clone 兼容与单次重音力度，以及 samepage.16 的 MIDI 准备复用、显式重建和 Worker 状态 getter 修复。XML 子元素顺序不改变双标与 MIDI，缓存仍只属于当前原生 API；不新增 tenuto 时值或长期共享的可变播放器。
+
+原生制品 SHA-256 为 `594eeff31aeb762c19b4d2b2d2de89227cb73dc4045fd8999a817a4d98720aca`，内含源码档案 SHA-256 为 `e0e405e96f9f425f4278f22dce9ab1ac12676a167b9aa71f5168b9929a278a1e`。公开上游仍为 `022a45c8e42370f9e12e68949d11eada370da83d`；历史 `.15`、`.16` 包及公开源码／许可证快照继续保留。原生双标和 MIDI／getter 定向测试共同验证合并制品；最终真实产品 Worker、播放和离线验收由主项目另外执行。
+
 ### 迁入来源
 
 从 Chorus player 源提交 `bca8a0a5a1fe022dac0d3f323ce1c29af8deebd3` 原样迁入，对应既有 `0.1.19-samepage.11`。文档中的历史验证说明保留来源事实，不构成对 Chorus 的维护或交付要求。仅迁入播放器相关测试；房间、曲库和 Chorus 页面测试不属于本模块。
 
-当前维护基线沿用 #527：播放器运行源码与 samepage.11 相同，版本和精确原生 peer 更新为 samepage.12 / samepage.13，原生维护基线同步为 `f931703ac15d583c50f6883288332daa7d71ffe2`。
+播放器迁入基线为 #527 的 samepage.12；后续在本地 workspace 维护源码，当前本地 workspace 的精确原生 peer 与源码身份以上方“当前原生版本”为准，历史版本说明保留各次交付时的事实。
+
+
+原生 `.15` 独立保存 MusicXML 的 tenuto 与 accent／strong-accent，共存时不因 XML 顺序覆盖。旧 Tenuto3 与缺失字段 JSON 保持兼容；同侧 tenuto 靠近音符，accent 保留既有自动侧，tenuto 保留显式 placement。播放仅恢复一次原有 accent 力度，不叠加 tenuto 力度或时值；不扩展 accent placement、AlphaTex／GP 双标交换或整谱认证。支持范围与回归见覆盖层 `docs/musicxml-dual-articulations.md`。
+
+### 当前原生版本：native18
+
+精确 peer 为 `1.8.4-samepage.18`，源码提交 `aa5e25f3d29eeab8dea85328eb38805b8b70bfef`，源码树 `1680cadf1d6ec004cb7ed4b4e9c0ab69cb8e5b11`。整合 main 的括号音头修复，保留双标和本 PR 的 MIDI 生命周期修复。main 的正式 native16 制品保持原样，历史候选版本说明不代表当前依赖。

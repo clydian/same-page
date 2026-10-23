@@ -75,7 +75,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await trigger.click();
       await expect(page.getByRole("menuitem", { name: "阅读偏好", exact: true })).toBeVisible();
       await expect(page.getByRole("menuitem", { name: "本机存储", exact: true })).toBeVisible();
-      for (const name of ["账户", "使用手册", "问题反馈", "退出登录", "云盘内身份"]) await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
+      for (const name of ["账户", "退出登录", "云盘内身份"]) await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: /^关于与更新/ })).toBeVisible();
+      for (const name of ["使用手册", "问题反馈"]) await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(0);
       await expect(page.getByRole("menuitem", { name: "刷新列表", exact: true })).toHaveCount(0);
       await expect(page.getByRole("menuitem", { name: "云盘内显示名", exact: true })).toHaveCount(0);
       await expect(page.getByRole("menuitem", { name: "退出云盘成员身份", exact: true })).toHaveCount(0);
@@ -91,6 +93,15 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
       await expect(picker).toBeHidden();
       await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
+      await trigger.click();
+      await page.getByRole("menuitem", { name: /^关于与更新/ }).click();
+      await expect(page.getByRole("heading", { name: "关于合谱", exact: true })).toBeVisible();
+      const information = page.getByRole("navigation", { name: "帮助与产品信息" });
+      await expect(information.getByRole("link", { name: /^使用手册/ })).toHaveAttribute("href", "/help");
+      await expect(information.getByRole("link", { name: /^问题反馈/ })).toHaveAttribute("href", "/diagnostics");
+      await information.getByRole("link", { name: /^产品介绍/ }).click();
+      await expect(page.getByRole("heading", { name: "Harmony begins on the Same Page", exact: true })).toBeVisible();
+      assert.equal(new URL(page.url()).pathname, "/", "Explicit product introduction must not restore the last drive");
     });
     await scenario("drawer-keyboard-focus", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);

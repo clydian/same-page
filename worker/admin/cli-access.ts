@@ -18,7 +18,9 @@ export async function readCliAccess(context: Context<AppEnvironment>, upload: bo
   const match = /^Bearer (sp_cli_[a-f0-9]{64})$/.exec(context.req.header("Authorization") ?? "");
   if (!match) throw new AuthorizationError();
   const now = Date.now();
-  const row = await context.env.DB.prepare(`SELECT t.id,t.user_id AS userId,t.drive_ids AS driveIds,
+  const row = await context.env.DB.prepare(`SELECT t.id,t.user_id AS userId,
+    (SELECT json_group_array(d.choir_id) FROM product_admin_drives d JOIN choirs c ON c.id=d.choir_id
+      WHERE c.purged_at IS NULL AND d.choir_id IN(SELECT value FROM json_each(t.drive_ids))) AS driveIds,
     o.view_scores AS viewScores,o.review_xml AS reviewXml,o.publish_xml AS publishXml
     FROM admin_cli_tokens t JOIN product_operators o ON o.user_id=t.user_id
     WHERE t.token_hash=? AND t.revoked_at IS NULL AND t.expires_at>? AND o.view_scores=1

@@ -49,7 +49,37 @@ older attachment revisions only after a successful write. Logout deletes these
 protected files rather than transferring them to a guest. File cleanup removes
 only matching raw files in addition to PDFs, leaving notes and directories intact.
 A cached attachment directory, verified retained-score authority, complete matching
-shell and fully verified optional bundle are required to use a stored original.
+shell and fully verified optional bundle are required for **offline use** of a stored original.
 Explicit HTTP 401/403/404 clears attachment authority and raw files; network errors
 and service failures may use a verified local copy. Prepared player objects remain
 memory-only. No playback position, mix or speed is persisted.
+
+
+Issue #551 separates authorized online source reuse from offline certification.
+Every explicit online open obtains fresh attachment metadata and verifies the
+expected revision before choosing a matching memory preparation, a size/checksum
+verified stored original, or a revision-locked network response. Local reads have
+a bounded budget; unavailable storage may forgo all local reuse and writes while
+continuing the freshly authorized network path. Local content never grants cloud
+authority. Confirmed denial, identity changes, cleanup and late writes retain the
+existing fences. No database version or stored-record format changes are needed.
+
+If opening loses its initially captured local access, it cannot automatically
+capture a replacement write lifetime after download or player preparation. It
+reports offline preparation as incomplete and offers an explicit retry. That
+retry is a new preparation intent: it captures a fresh, bounded local lifetime
+before requesting current attachment metadata, rechecks that lifetime after the
+metadata response, then may save the already downloaded matching original.
+Cleanup during the retry's authorization still rejects the write. Neither the
+fallback nor its retry retains the abandoned prepared-cache identity.
+
+Automatic MusicXML saving and optional-bundle preparation begin after the current
+session is playable and its first readable notation system has been produced.
+Saving the raw original succeeds independently of optional public assets; it does
+not certify offline readiness. Public bytes may be copied from a previous build
+only after target size/hash and MIME checks, into the destination build's own
+cache. The shell collector and all old-build URLs remain unchanged. Only the
+private completion path of that same preparation may reuse its just-completed
+public-bundle audit; it still checks attachment directory, retained-score
+authority, original-byte integrity and every local lifetime fence. A later
+independent offline read always audits current stored public bytes again.

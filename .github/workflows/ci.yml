@@ -36,7 +36,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: CI scope regression tests
-        run: node --test scripts/ci-scope.test.mjs
+        run: node --test scripts/ci-scope.test.mjs scripts/verify-bootstrap-online.test.mjs
       - name: Determine verification scope
         id: scope
         run: node scripts/ci-scope.mjs
@@ -148,7 +148,8 @@ jobs:
       - name: Production build
         run: npm run build
         env:
-          SAME_PAGE_RELEASE_CHANNELS: ${{ vars.RELEASE_CHANNELS_ENABLED == 'true' && '1' || '0' }}
+          # Seal one channel-capable artifact per source, independently of routing.
+          SAME_PAGE_RELEASE_CHANNELS: '1'
       - name: Seal verified release
         run: |
           node scripts/release-artifact.mjs seal "$GITHUB_SHA"
@@ -304,9 +305,12 @@ jobs:
           JS
 
   deploy:
+    # ci-scope includes this production workflow so pipeline repairs exercise deployment.
+    # Until the controlled bridge passes mobile acceptance, only the manual
+    # bootstrap workflow may deploy. Later main pushes cannot replace its baseline.
     # Unselected checks may be skipped. The verify gate decides whether every
     # selected check passed; do not inherit success() across skipped ancestors.
-    if: ${{ !cancelled() && needs.verify.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true' }}
+    if: ${{ !cancelled() && needs.verify.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.deploy == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true' }}
     needs: verify
     runs-on: ubuntu-latest
     # Channel publication runs the same browser compatibility probe as platform.
@@ -328,6 +332,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      # checkout's safe.directory is scoped to its temporary HOME. Subsequent
+      # container steps need the same exact workspace in the job HOME.
+      - name: Trust checked-out workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Admit release under production lock
         id: admission

@@ -292,6 +292,18 @@ export class Beat {
     public fermata: Fermata | null = null;
 
     /**
+     * Whether fermata notation belongs only to its source beat. False preserves
+     * legacy formats where master-bar fermatas apply to every staff at that tick.
+     */
+    public hasSourceFermataScope: boolean = false;
+
+    /**
+     * The fermata explicitly attached to this beat, independently of the shared
+     * master-bar timing hold. Null means no source fermata on this beat.
+     */
+    public sourceFermata: Fermata | null = null;
+
+    /**
      * Gets a value indicating whether this beat starts a legato slur.
      */
     public isLegatoOrigin: boolean = false;
@@ -579,6 +591,17 @@ export class Beat {
      * their existing note-specific behavior when this is false.
      */
     public sourceChordStaccato: boolean = false;
+
+    /**
+     * Explicit MusicXML cross-staff beam group within one part/logical voice.
+     * Zero keeps legacy automatic/staff-local beaming. Importers only assign
+     * complete supported groups; this identity does not affect playback.
+     */
+    public sourceBeamGroup: number = 0;
+    /** Zero-based position in the explicit logical beam group, not staff order. */
+    public sourceBeamGroupIndex: number = 0;
+    /** Complete source group size, allowing truncated/malformed JSON to fall back. */
+    public sourceBeamGroupSize: number = 0;
 
     /**
      * Adjacent, equally notated two-group tremolo partner on this staff/voice.

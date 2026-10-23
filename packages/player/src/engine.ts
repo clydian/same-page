@@ -4,23 +4,21 @@ import { restoreMusicXmlWedgeGlyphs } from './musicxml-wedge-glyphs.ts';
 import { applyMusicXmlTimeVisibility, readMusicXmlTimeVisibility } from './musicxml-hidden-time.ts';
 export { preparePianoPlaybackMidi } from './piano-shared-attacks.ts';
 import { bindPianoMidiCorrection } from './piano-shared-attacks.ts';
-import { normalizeMusicXmlTransposedTies } from './musicxml-transposed-ties.ts';
 import { readMusicXmlTempoMeasures } from './musicxml-metronome.ts';
 import { readMusicXmlCreatorCredits } from './musicxml-creator-credits.ts';
 import * as alphaTab from '@coderline/alphatab';
-import { normalizeMusicXmlRepeatEndings } from './musicxml-repeat-endings.ts';
-import { prepareMusicXmlSource } from './format.ts';
-import { prepareMusicXmlForAlphaTabBytes } from './musicxml-direction-timing.ts';
+import { musicXmlImportBytes, prepareMusicXmlForPlaybackBytes } from './musicxml-preparation.ts';
+export { IncompatibleMusicXmlPreparationError, prepareMusicXmlForPlaybackBytes } from './musicxml-preparation.ts';
 import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
 import { applyAlphaTabPlaybackDynamics } from './alphatab-playback-dynamics.ts';
 
 export function loadMusicXml(bytes: Uint8Array, settings: alphaTab.Settings): alphaTab.model.Score {
-  const prepared = prepareMusicXmlForAlphaTabBytes(prepareMusicXmlSource(bytes));
+  const prepared = prepareMusicXmlForPlaybackBytes(bytes);
   return loadPreparedMusicXml(prepared, settings);
 }
 
 export function loadPreparedMusicXml(prepared: PreparedMusicXml, settings: alphaTab.Settings): alphaTab.model.Score {
-  const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(normalizeMusicXmlRepeatEndings(normalizeMusicXmlTransposedTies(prepared.bytes)), settings);
+  const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(musicXmlImportBytes(prepared), settings);
   // MusicXML may repeat work-title as movement-title. alphaTab renders these
   // as title + subtitle; suppress only the identical imported display line.
   // Attachment bytes and prepared source metadata remain untouched.

@@ -42,8 +42,6 @@ export function PersonalMenu({ email, drive }: { email?: string | null; drive?: 
       <MenuSection><Header>用户</Header>
         <MenuItem isDisabled>{email || "已登录"}</MenuItem>
         <MenuItem href="/user">账户</MenuItem>
-        <MenuItem href="/help">使用手册</MenuItem>
-        <MenuItem href="/diagnostics">问题反馈</MenuItem>
         <MenuItem className="personal-menu-about" href="/about" textValue="关于与更新"><span>关于与更新</span><small className="personal-menu-version" translate="no">{buildVersion}</small></MenuItem>
       </MenuSection>
       {showAdmin && <MenuSection><Header>产品运营</Header>

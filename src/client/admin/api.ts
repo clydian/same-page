@@ -39,7 +39,7 @@ export function adminErrorMessage(code: string) {
         invalid_cli_token: "请填写令牌名称，并选择至少一个云盘及有效期。",
         source_unavailable: "原 PDF 已到期或不可用。",
         resource_deleted: "内容已删除，不再提供访问。",
-        score_not_found: "乐谱不可用，或不在运营试点范围内。",
+        score_not_found: "乐谱已回收、清理或暂不可用。",
         try_again_later: "操作过于频繁，请稍后重试。",
       } as Record<string, string>
     )[code] ?? "操作未完成，请检查网络后重试。"

@@ -40,6 +40,7 @@ export class NoteSerializer {
         const o = new Map<string, unknown>();
         o.set("id", obj.id);
         o.set("accentuated", obj.accentuated as number);
+        o.set("istenuto", obj.isTenuto);
         o.set("tenutoplacement", obj.tenutoPlacement as number);
         o.set("bendtype", obj.bendType as number);
         o.set("bendstyle", obj.bendStyle as number);
@@ -64,6 +65,7 @@ export class NoteSerializer {
         o.set("harmonictype", obj.harmonicType as number);
         o.set("harmonicvalue", obj.harmonicValue);
         o.set("isghost", obj.isGhost);
+        o.set("isnoteheadparenthesized", obj.isNoteHeadParenthesized);
         o.set("isletring", obj.isLetRing);
         o.set("ispalmmute", obj.isPalmMute);
         o.set("isdead", obj.isDead);
@@ -94,6 +96,9 @@ export class NoteSerializer {
                 return true;
             case "accentuated":
                 obj.accentuated = JsonHelper.parseEnum<AccentuationType>(v, AccentuationType)!;
+                return true;
+            case "istenuto":
+                obj.isTenuto = v! as boolean;
                 return true;
             case "tenutoplacement":
                 obj.tenutoPlacement = JsonHelper.parseEnum<TenutoPlacement>(v, TenutoPlacement)!;
@@ -167,6 +172,9 @@ export class NoteSerializer {
                 return true;
             case "isghost":
                 obj.isGhost = v! as boolean;
+                return true;
+            case "isnoteheadparenthesized":
+                obj.isNoteHeadParenthesized = v! as boolean;
                 return true;
             case "isletring":
                 obj.isLetRing = v! as boolean;

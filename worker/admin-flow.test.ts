@@ -4,7 +4,7 @@ import {
   createExecutionContext,
   waitOnExecutionContext,
 } from "cloudflare:test";
-import { beforeEach, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import worker from "./index";
 import { provisionChoir } from "./choirs/provision";
 import { cleanupAdminXml } from "./admin/cleanup";
@@ -169,21 +169,13 @@ beforeEach(async () => {
   scoreId = s.id;
   versionId = s.v;
   otherScore = (await seedScore(other.choirId, "乙谱.pdf")).id;
-  await env.DB.batch([
-    env.DB.prepare(
-      "INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)",
-    ).bind(operatorId),
-    env.DB.prepare("INSERT INTO product_admin_drives(choir_id) VALUES(?)").bind(
-      choirId,
-    ),
-    env.DB.prepare("INSERT INTO product_admin_drives(choir_id) VALUES(?)").bind(
-      other.choirId,
-    ),
-  ]);
+  await env.DB.prepare(
+    "INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)",
+  ).bind(operatorId).run();
   ownerCookie = await login("owner-admin@example.test");
   cookie = await login("operator@example.test");
 });
-it("requires independent operational grants, scopes pilots, and leaves membership/activity untouched", async () => {
+it("covers every current drive without pilot rows or membership and requires an independent operational grant", async () => {
   expect(
     (await call("/api/admin/scores", { headers: { cookie: "" } })).status,
   ).toBe(403);
@@ -195,21 +187,56 @@ it("requires independent operational grants, scopes pilots, and leaves membershi
   const list = await call("/api/admin/scores");
   expect(list.status, await list.clone().text()).toBe(200);
   expect(((await list.json()) as { scores: unknown[] }).scores).toHaveLength(2);
+  expect(await env.DB.prepare("SELECT count(*) n FROM product_admin_drives").first()).toEqual({ n: 0 });
+  const drives = await (await call("/api/admin/drives")).json<{ drives: { id: string }[] }>();
+  expect(drives.drives).toHaveLength(2);
   expect(
     await env.DB.prepare("SELECT count(*) n FROM memberships WHERE user_id=?")
       .bind(operatorId)
       .first(),
   ).toEqual({ n: 0 });
   expect((await call(base() + "/pdf")).status).toBe(200);
-  await env.DB.prepare("DELETE FROM product_admin_drives WHERE choir_id=?")
-    .bind(choirId)
-    .run();
-  expect((await call(base())).status).toBe(404);
-  expect((await call(base() + "/pdf")).status).toBe(404);
+  expect((await call(base())).status).toBe(200);
+  const added = await provisionChoir({ binding: env.DB, ownerUserId: ownerId, ownerDisplayName: "拥有者", inviteSecret: env.INVITE_SECRET });
+  const addedScore = await seedScore(added.choirId, "新增云盘谱.pdf");
+  const updated = await (await call("/api/admin/scores")).json<{ scores: { id: string }[] }>();
+  expect(updated.scores.map(score => score.id)).toContain(addedScore.id);
+  const updatedDrives = await (await call("/api/admin/drives")).json<{ drives: { id: string }[] }>();
+  expect(updatedDrives.drives.map(drive => drive.id)).toContain(added.choirId);
+  const filtered = await (await call(`/api/admin/scores?drive=${added.choirId}`)).json<{ scores: { id: string }[] }>();
+  expect(filtered.scores.map(score => score.id)).toEqual([addedScore.id]);
+  const memberId = await user("member-admin@example.test");
+  await env.DB.prepare("INSERT INTO memberships(id,choir_id,user_id,display_name) VALUES(?,?,?,'普通成员')").bind(crypto.randomUUID(), choirId, memberId).run();
+  const memberCookie = await login("member-admin@example.test");
+  expect((await call("/api/admin/scores", { headers: { cookie: memberCookie } })).status).toBe(403);
   await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?")
     .bind(operatorId)
     .run();
   expect((await call("/api/admin/session")).status).toBe(403);
+});
+
+it("keeps view, review and publish capabilities separate across all drives", async () => {
+  const imported = await upload();
+  expect(imported.response.status).toBe(201);
+  expect((await approve(imported.id)).status).toBe(204);
+  await env.DB.prepare("UPDATE product_operators SET review_xml=0,publish_xml=0 WHERE user_id=?").bind(operatorId).run();
+  for (const path of ["/api/admin/drives", "/api/admin/scores", base(), base() + "/pdf", `${base()}/candidates/${imported.id}/file`]) {
+    expect((await call(path)).status).toBe(200);
+  }
+  expect((await upload()).response.status).toBe(403);
+  expect((await approve(imported.id, 1)).status).toBe(403);
+  expect((await publish(imported.id)).status).toBe(403);
+  await env.DB.prepare("UPDATE product_operators SET review_xml=1 WHERE user_id=?").bind(operatorId).run();
+  const reviewed = await upload();
+  expect(reviewed.response.status).toBe(201);
+  expect((await approve(reviewed.id)).status).toBe(204);
+  expect((await publish(reviewed.id)).status).toBe(403);
+  await env.DB.prepare("UPDATE product_operators SET review_xml=0,publish_xml=1 WHERE user_id=?").bind(operatorId).run();
+  expect((await publish(reviewed.id)).status).toBe(403);
+  await env.DB.prepare("UPDATE product_operators SET view_scores=0 WHERE user_id=?").bind(operatorId).run();
+  expect((await call("/api/admin/scores")).status).toBe(403);
+  expect((await call(base() + "/pdf")).status).toBe(403);
+  expect(await env.DB.prepare("SELECT count(*) n FROM score_attachments").first()).toEqual({ n: 0 });
 });
 it("isolates imported candidates and publishes idempotently into the existing generated slot without membership", async () => {
   const before = await env.DB.prepare(
@@ -412,15 +439,16 @@ it("enforces candidate budget and review capability, blocks unverified approval"
   expect((await approve(r.id)).status).toBe(403);
 });
 
-it("rechecks authority after copying bytes and leaves no visible file on revoked publication", async () => {
+it.each(["grant", "session", "user", "capability"])("rechecks %s authority after copying bytes and leaves no visible file", async (change) => {
   const r = await upload();
   await approve(r.id);
   const put = env.SCORES_BUCKET.put.bind(env.SCORES_BUCKET);
   vi.spyOn(env.SCORES_BUCKET, "put").mockImplementationOnce(async (...args) => {
     const stored = await put(...args);
-    await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?")
-      .bind(operatorId)
-      .run();
+    if (change === "grant") await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?").bind(operatorId).run();
+    if (change === "session") await env.DB.prepare("UPDATE session SET expires_at=? WHERE user_id=?").bind(Date.now() - 1, operatorId).run();
+    if (change === "user") await env.DB.prepare("INSERT INTO user_lifecycle(user_id,deletion_id,auth_method,deleted_at,expires_at) VALUES (?,?,'credential',?,?)").bind(operatorId, crypto.randomUUID(), Date.now(), Date.now() + 30 * 86400000).run();
+    if (change === "capability") await env.DB.prepare("UPDATE product_operators SET publish_xml=0 WHERE user_id=?").bind(operatorId).run();
     return stored;
   });
   const response = await publish(r.id);
@@ -431,6 +459,21 @@ it("rechecks authority after copying bytes and leaves no visible file on revoked
   expect(
     await env.DB.prepare("SELECT count(*) n FROM xml_publish_staging").first(),
   ).toEqual({ n: 0 });
+});
+it.each(["score-trash", "score-purged", "drive-purged", "pdf-purged"])("excludes %s resources from the global directory and all preview endpoints", async (change) => {
+  if (change === "score-trash") await env.DB.prepare("UPDATE scores SET trashed_at=?,trash_expires_at=? WHERE id=?").bind(Date.now(), Date.now() + 100000, scoreId).run();
+  if (change === "score-purged") await env.DB.prepare("UPDATE scores SET purged_at=? WHERE id=?").bind(Date.now(), scoreId).run();
+  if (change === "drive-purged") await env.DB.prepare("UPDATE choirs SET purged_at=? WHERE id=?").bind(Date.now(), choirId).run();
+  if (change === "pdf-purged") await env.DB.prepare("UPDATE score_versions SET purged_at=? WHERE id=?").bind(Date.now(), versionId).run();
+  const listed = await (await call("/api/admin/scores")).json<{ scores: { id: string }[] }>();
+  expect(listed.scores.map(score => score.id)).toEqual([otherScore]);
+  expect((await call(base())).status).toBe(404);
+  expect((await call(base() + "/pdf")).status).toBe(404);
+  expect((await upload()).response.status).toBe(404);
+  if (change === "drive-purged") {
+    const drives = await (await call("/api/admin/drives")).json<{ drives: { id: string }[] }>();
+    expect(drives.drives.map(drive => drive.id)).not.toContain(choirId);
+  }
 });
 it("deduplicates concurrent retries of exactly the same publication", async () => {
   const r = await upload();
@@ -517,140 +560,155 @@ async function createToken(overrides: Record<string, unknown> = {}) {
 }
 const bearer = (token: string): RequestInit => ({ headers: { authorization: `Bearer ${token}` } });
 
-it("creates bounded CLI credentials, stores only their hash, and requires cookie plus same-origin management", async () => {
-  const created = await createToken();
-  expect(created.token).toMatch(/^sp_cli_[a-f0-9]{64}$/);
-  expect(created.credential).toMatchObject({ name: "本机识谱", canUpload: false, driveIds: [choirId], revokedAt: null, lastUsedAt: null });
-  expect(created.credential.expiresAt - created.credential.createdAt).toBe(7 * 86400000);
-  const stored = await env.DB.prepare("SELECT * FROM admin_cli_tokens WHERE id=?").bind(created.credential.id).first();
-  expect(stored?.token_hash).toBe(await hashCliToken(created.token));
-  expect(JSON.stringify(stored)).not.toContain(created.token);
-  const list = await (await call("/api/admin/cli-tokens")).json<{ tokens: CliTokenCredential[] }>();
-  expect(list.tokens).toEqual([created.credential]);
-  expect(JSON.stringify(list)).not.toContain("token_hash");
-  const blockedHeaders: HeadersInit[] = [{ cookie: "" }, { authorization: `Bearer ${created.token}` }];
-  for (const headers of blockedHeaders) {
-    expect((await call("/api/admin/cli-tokens", { headers })).status).toBe(403);
-  }
-  for (const origin of ["", "https://untrusted.test"]) {
-    expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "CSRF", driveIds: [choirId] }), headers: { origin, "content-type": "application/json" } })).status).toBe(403);
-    expect((await call(`/api/admin/cli-tokens/${created.credential.id}`, { method: "DELETE", headers: { origin } })).status).toBe(403);
-  }
-  expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "无cookie", driveIds: [choirId] }), headers: { cookie: "", "content-type": "application/json" } })).status).toBe(403);
-});
-
-it("rejects unbounded or unavailable CLI scopes and enforces the current operator upload grant", async () => {
-  for (const data of [{ driveIds: [] }, { name: " " }, { expiresInDays: 0 }, { expiresInDays: 31 }]) {
-    expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "校验", driveIds: [choirId], ...data }) })).status).toBe(400);
-  }
-  expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "未知盘", driveIds: [crypto.randomUUID()] }) })).status).toBe(403);
-  await env.DB.prepare("UPDATE product_operators SET review_xml=0 WHERE user_id=?").bind(operatorId).run();
-  expect((await createToken()).credential.canUpload).toBe(false);
-  expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "越权", driveIds: [choirId], canUpload: true }) })).status).toBe(403);
-});
-
-it("limits every CLI directory, score and file read to its explicit drives without changing browser access", async () => {
-  const other = await env.DB.prepare("SELECT choir_id,current_version_id FROM scores WHERE id=?").bind(otherScore).first<{ choir_id: string; current_version_id: string }>();
-  const inScope = await upload();
-  const outside = await upload(xml, crypto.randomUUID(), other!.current_version_id, {}, otherScore);
-  await approve(inScope.id);
-  const publicationData = publication();
-  expect((await publish(inScope.id, publicationData)).status).toBe(204);
-  const created = await createToken();
-  const auth = bearer(created.token);
-  const drives = await (await call("/api/admin/drives", auth)).json<{ drives: { id: string }[] }>();
-  expect(drives.drives.map((d) => d.id)).toEqual([choirId]);
-  const scores = await (await call("/api/admin/scores", auth)).json<{ scores: { id: string }[] }>();
-  expect(scores.scores.map((s) => s.id)).toEqual([scoreId]);
-  const filtered = await (await call(`/api/admin/scores?drive=${other!.choir_id}`, auth)).json<{ scores: unknown[] }>();
-  expect(filtered.scores).toEqual([]);
-  for (const path of [base(), `${base()}/pdf`, `${base()}/candidates/${inScope.id}/file`, `${base()}/published?revision=1`]) {
-    expect((await call(path, auth)).status).toBe(200);
-  }
-  expect((await call(`${base()}/pdf`, { headers: { cookie: "", authorization: `Bearer ${created.token}` } })).status).toBe(200);
-  for (const suffix of ["", "/pdf", `/candidates/${outside.id}/file`, "/published?revision=1"]) {
-    expect((await call(`/api/admin/scores/${otherScore}${suffix}`, auth)).status).toBe(404);
-  }
-  const detail = await (await call(`${base()}?selected=${outside.id}`, auth)).json<{ selectedCandidate: unknown }>();
-  expect(detail.selectedCandidate).toBeNull();
-  const browserScores = await (await call("/api/admin/scores")).json<{ scores: unknown[] }>();
-  expect(browserScores.scores).toHaveLength(2);
-  expect((await call("/api/admin/cli-tokens", auth)).status).toBe(403);
-  const uploader = await createToken({ canUpload: true });
-  expect((await upload(xml, crypto.randomUUID(), other!.current_version_id, bearer(uploader.token), otherScore)).response.status).toBe(404);
-});
-
-it("keeps readonly CLI tokens from upload and every CLI token from review, publication or unrelated APIs", async () => {
-  const readonly = await createToken();
-  expect((await upload(xml, crypto.randomUUID(), versionId, bearer(readonly.token))).response.status).toBe(403);
-  const created = await createToken({ canUpload: true });
-  const imported = await upload(xml, crypto.randomUUID(), versionId, { headers: { cookie: "", authorization: `Bearer ${created.token}` } });
-  expect(imported.response.status, await imported.response.clone().text()).toBe(201);
-  for (const [path, method] of [
-    [`${base()}/candidates/${imported.id}/review`, "POST"],
-    [`${base()}/candidates/${imported.id}/publish`, "POST"],
-    ["/api/admin/audit", "GET"], ["/api/admin/session", "GET"],
-    ["/api/admin/reports", "GET"], ["/api/auth/get-session", "GET"],
-    ["/api/user/lifecycle", "GET"], [`/api/choirs/${choirId}/scores`, "GET"],
-    ["/api/admin/cli-tokens", "GET"], ["/api/admin/cli-tokens", "POST"],
-    [`/api/admin/cli-tokens/${created.credential.id}`, "DELETE"],
-  ]) expect((await call(path, { ...bearer(created.token), method })).status).toBe(403);
-  expect((await approve(imported.id)).status).toBe(204);
-  expect((await publish(imported.id)).status).toBe(204);
-  expect((await call(base(), bearer("invalid-token"))).status).toBe(403);
-  expect((await call(base(), { headers: { authorization: "" } })).status).toBe(403);
-  expect((await upload(xml, crypto.randomUUID(), crypto.randomUUID(), bearer(created.token))).response.status).toBe(409);
-});
-
-it.each(["revoked", "expired", "operator", "pilot", "deleted"])("rejects CLI access after %s without falling back to the browser cookie", async (reason) => {
-  const created = await createToken({ canUpload: true });
-  if (reason === "revoked") {
-    expect((await call(`/api/admin/cli-tokens/${created.credential.id}`, { method: "DELETE" })).status).toBe(204);
-    expect((await call(`/api/admin/cli-tokens/${created.credential.id}`, { method: "DELETE" })).status).toBe(204);
-    const listed = await (await call("/api/admin/cli-tokens")).json<{ tokens: CliTokenCredential[] }>();
-    expect(listed.tokens[0].revokedAt).toBeTypeOf("number");
-  }
-  if (reason === "expired") await env.DB.prepare("UPDATE admin_cli_tokens SET expires_at=? WHERE id=?").bind(Date.now() - 1, created.credential.id).run();
-  if (reason === "operator") await env.DB.prepare("UPDATE product_operators SET view_scores=0 WHERE user_id=?").bind(operatorId).run();
-  if (reason === "pilot") await env.DB.prepare("DELETE FROM product_admin_drives WHERE choir_id=?").bind(choirId).run();
-  if (reason === "deleted") await env.DB.prepare("INSERT INTO user_lifecycle(user_id,deletion_id,auth_method,deleted_at,expires_at) VALUES(?,?,'credential',?,?)").bind(operatorId, crypto.randomUUID(), Date.now(), Date.now() + 86400000).run();
-  expect((await call(base(), bearer(created.token))).status).toBe(reason === "pilot" ? 404 : 403);
-  expect((await upload(xml, crypto.randomUUID(), versionId, bearer(created.token))).response.status).toBe(reason === "pilot" ? 404 : 403);
-});
-
-it("keeps revoked tokens private to their creator and denies upload after review permission is withdrawn", async () => {
-  const created = await createToken({ canUpload: true });
-  await env.DB.prepare("INSERT INTO product_operators(user_id) VALUES(?)").bind(ownerId).run();
-  const otherList = await (await call("/api/admin/cli-tokens", { headers: { cookie: ownerCookie } })).json<{ tokens: unknown[] }>();
-  expect(otherList.tokens).toEqual([]);
-  expect((await call(`/api/admin/cli-tokens/${created.credential.id}`, { method: "DELETE", headers: { cookie: ownerCookie } })).status).toBe(204);
-  expect((await call(base(), bearer(created.token))).status).toBe(200);
-  const listed = await (await call("/api/admin/cli-tokens")).json<{ tokens: CliTokenCredential[] }>();
-  expect(listed.tokens[0].lastUsedAt).toBeTypeOf("number");
-  await env.DB.prepare("UPDATE product_operators SET review_xml=0 WHERE user_id=?").bind(operatorId).run();
-  expect((await call(base(), bearer(created.token))).status).toBe(200);
-  expect((await upload(xml, crypto.randomUUID(), versionId, bearer(created.token))).response.status).toBe(403);
-});
-
-it.each(["revoke", "pilot", "operator", "source"])("rechecks CLI upload authority when %s changes during the R2 write", async (change) => {
-  const created = await createToken({ canUpload: true });
-  const put = env.SCORES_BUCKET.put.bind(env.SCORES_BUCKET);
-  vi.spyOn(env.SCORES_BUCKET, "put").mockImplementationOnce(async (...args) => {
-    const stored = await put(...args);
-    if (change === "revoke") await env.DB.prepare("UPDATE admin_cli_tokens SET revoked_at=? WHERE id=?").bind(Date.now(), created.credential.id).run();
-    if (change === "pilot") await env.DB.prepare("DELETE FROM product_admin_drives WHERE choir_id=?").bind(choirId).run();
-    if (change === "operator") await env.DB.prepare("UPDATE product_operators SET review_xml=0 WHERE user_id=?").bind(operatorId).run();
-    if (change === "source") {
-      const next = crypto.randomUUID();
-      await env.DB.prepare("INSERT INTO score_versions(id,score_id,choir_id,version_number,object_key,size_bytes,sha256,etag,page_count,state) SELECT ?,score_id,choir_id,2,?,size_bytes,sha256,etag,page_count,state FROM score_versions WHERE id=?")
-        .bind(next, crypto.randomUUID(), versionId).run();
-      await env.DB.prepare("UPDATE scores SET current_version_id=? WHERE id=?").bind(next, scoreId).run();
-    }
-    return stored;
+describe("restricted CLI credentials", () => {
+  beforeEach(async () => {
+    await env.DB.prepare("INSERT INTO product_admin_drives(choir_id) SELECT choir_id FROM scores").run();
   });
-  const result = await upload(xml, crypto.randomUUID(), versionId, bearer(created.token));
-  expect(result.response.status).toBe(409);
-  expect(await env.DB.prepare("SELECT state FROM xml_candidates WHERE id=?").bind(result.id).first()).toEqual({ state: "failed" });
-  expect(await env.DB.prepare("SELECT count(*) n FROM score_object_deletions").first()).toEqual({ n: 1 });
-  expect(await env.DB.prepare("SELECT count(*) n FROM score_attachments").first()).toEqual({ n: 0 });
+
+  it("creates bounded CLI credentials, stores only their hash, and requires cookie plus same-origin management", async () => {
+    const created = await createToken();
+    expect(created.token).toMatch(/^sp_cli_[a-f0-9]{64}$/);
+    expect(created.credential).toMatchObject({ name: "本机识谱", canUpload: false, driveIds: [choirId], revokedAt: null, lastUsedAt: null });
+    expect(created.credential.expiresAt - created.credential.createdAt).toBe(7 * 86400000);
+    const stored = await env.DB.prepare("SELECT * FROM admin_cli_tokens WHERE id=?").bind(created.credential.id).first();
+    expect(stored?.token_hash).toBe(await hashCliToken(created.token));
+    expect(JSON.stringify(stored)).not.toContain(created.token);
+    const list = await (await call("/api/admin/cli-tokens")).json<{ tokens: CliTokenCredential[] }>();
+    expect(list.tokens).toEqual([created.credential]);
+    expect(JSON.stringify(list)).not.toContain("token_hash");
+    const blockedHeaders: HeadersInit[] = [{ cookie: "" }, { authorization: `Bearer ${created.token}` }];
+    for (const headers of blockedHeaders) {
+      expect((await call("/api/admin/cli-tokens", { headers })).status).toBe(403);
+    }
+    for (const origin of ["", "https://untrusted.test"]) {
+      expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "CSRF", driveIds: [choirId] }), headers: { origin, "content-type": "application/json" } })).status).toBe(403);
+      expect((await call(`/api/admin/cli-tokens/${created.credential.id}`, { method: "DELETE", headers: { origin } })).status).toBe(403);
+    }
+    expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "无cookie", driveIds: [choirId] }), headers: { cookie: "", "content-type": "application/json" } })).status).toBe(403);
+  });
+
+  it("rejects unbounded or unavailable CLI scopes and enforces the current operator upload grant", async () => {
+    for (const data of [{ driveIds: [] }, { name: " " }, { expiresInDays: 0 }, { expiresInDays: 31 }]) {
+      expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "校验", driveIds: [choirId], ...data }) })).status).toBe(400);
+    }
+    expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "未知盘", driveIds: [crypto.randomUUID()] }) })).status).toBe(403);
+    await env.DB.prepare("UPDATE product_operators SET review_xml=0 WHERE user_id=?").bind(operatorId).run();
+    expect((await createToken()).credential.canUpload).toBe(false);
+    expect((await call("/api/admin/cli-tokens", { method: "POST", ...json({ name: "越权", driveIds: [choirId], canUpload: true }) })).status).toBe(403);
+  });
+
+  it("limits every CLI directory, score and file read to its explicit drives without changing browser access", async () => {
+    const other = await env.DB.prepare("SELECT choir_id,current_version_id FROM scores WHERE id=?").bind(otherScore).first<{ choir_id: string; current_version_id: string }>();
+    const inScope = await upload();
+    const outside = await upload(xml, crypto.randomUUID(), other!.current_version_id, {}, otherScore);
+    await approve(inScope.id);
+    const publicationData = publication();
+    expect((await publish(inScope.id, publicationData)).status).toBe(204);
+    const created = await createToken();
+    const auth = bearer(created.token);
+    const drives = await (await call("/api/admin/drives", auth)).json<{ drives: { id: string }[] }>();
+    expect(drives.drives.map((d) => d.id)).toEqual([choirId]);
+    const scores = await (await call("/api/admin/scores", auth)).json<{ scores: { id: string }[] }>();
+    expect(scores.scores.map((s) => s.id)).toEqual([scoreId]);
+    const filtered = await (await call(`/api/admin/scores?drive=${other!.choir_id}`, auth)).json<{ scores: unknown[] }>();
+    expect(filtered.scores).toEqual([]);
+    for (const path of [base(), `${base()}/pdf`, `${base()}/candidates/${inScope.id}/file`, `${base()}/published?revision=1`]) {
+      expect((await call(path, auth)).status).toBe(200);
+    }
+    expect((await call(`${base()}/pdf`, { headers: { cookie: "", authorization: `Bearer ${created.token}` } })).status).toBe(200);
+    for (const suffix of ["", "/pdf", `/candidates/${outside.id}/file`, "/published?revision=1"]) {
+      expect((await call(`/api/admin/scores/${otherScore}${suffix}`, auth)).status).toBe(404);
+    }
+    const detail = await (await call(`${base()}?selected=${outside.id}`, auth)).json<{ selectedCandidate: unknown }>();
+    expect(detail.selectedCandidate).toBeNull();
+    const browserScores = await (await call("/api/admin/scores")).json<{ scores: unknown[] }>();
+    expect(browserScores.scores).toHaveLength(2);
+    expect((await call("/api/admin/cli-tokens", auth)).status).toBe(403);
+    const uploader = await createToken({ canUpload: true });
+    expect((await upload(xml, crypto.randomUUID(), other!.current_version_id, bearer(uploader.token), otherScore)).response.status).toBe(404);
+  });
+
+  it("keeps readonly CLI tokens from upload and every CLI token from review, publication or unrelated APIs", async () => {
+    const readonly = await createToken();
+    expect((await upload(xml, crypto.randomUUID(), versionId, bearer(readonly.token))).response.status).toBe(403);
+    const created = await createToken({ canUpload: true });
+    const imported = await upload(xml, crypto.randomUUID(), versionId, { headers: { cookie: "", authorization: `Bearer ${created.token}` } });
+    expect(imported.response.status, await imported.response.clone().text()).toBe(201);
+    for (const [path, method] of [
+      [`${base()}/candidates/${imported.id}/review`, "POST"],
+      [`${base()}/candidates/${imported.id}/publish`, "POST"],
+      ["/api/admin/audit", "GET"], ["/api/admin/session", "GET"],
+      ["/api/admin/reports", "GET"], ["/api/auth/get-session", "GET"],
+      ["/api/user/lifecycle", "GET"], [`/api/choirs/${choirId}/scores`, "GET"],
+      ["/api/admin/cli-tokens", "GET"], ["/api/admin/cli-tokens", "POST"],
+      [`/api/admin/cli-tokens/${created.credential.id}`, "DELETE"],
+    ]) expect((await call(path, { ...bearer(created.token), method })).status).toBe(403);
+    expect((await approve(imported.id)).status).toBe(204);
+    expect((await publish(imported.id)).status).toBe(204);
+    expect((await call(base(), bearer("invalid-token"))).status).toBe(403);
+    expect((await call(base(), { headers: { authorization: "" } })).status).toBe(403);
+    expect((await upload(xml, crypto.randomUUID(), crypto.randomUUID(), bearer(created.token))).response.status).toBe(409);
+  });
+
+  it.each(["revoked", "expired", "operator", "pilot", "deleted"])("rejects CLI access after %s without falling back to the browser cookie", async (reason) => {
+    const created = await createToken({ canUpload: true });
+    if (reason === "revoked") {
+      expect((await call(`/api/admin/cli-tokens/${created.credential.id}`, { method: "DELETE" })).status).toBe(204);
+      expect((await call(`/api/admin/cli-tokens/${created.credential.id}`, { method: "DELETE" })).status).toBe(204);
+      const listed = await (await call("/api/admin/cli-tokens")).json<{ tokens: CliTokenCredential[] }>();
+      expect(listed.tokens[0].revokedAt).toBeTypeOf("number");
+    }
+    if (reason === "expired") await env.DB.prepare("UPDATE admin_cli_tokens SET expires_at=? WHERE id=?").bind(Date.now() - 1, created.credential.id).run();
+    if (reason === "operator") await env.DB.prepare("UPDATE product_operators SET view_scores=0 WHERE user_id=?").bind(operatorId).run();
+    if (reason === "pilot") await env.DB.prepare("DELETE FROM product_admin_drives WHERE choir_id=?").bind(choirId).run();
+    if (reason === "deleted") await env.DB.prepare("INSERT INTO user_lifecycle(user_id,deletion_id,auth_method,deleted_at,expires_at) VALUES(?,?,'credential',?,?)").bind(operatorId, crypto.randomUUID(), Date.now(), Date.now() + 86400000).run();
+    if (reason === "pilot") {
+      for (const path of ["/api/admin/drives", "/api/admin/scores"]) {
+        const response = await call(path, bearer(created.token));
+        expect(await response.json()).toMatchObject(path.endsWith("drives") ? { drives: [] } : { scores: [] });
+      }
+      expect((await call(base() + "/pdf", bearer(created.token))).status).toBe(404);
+      expect((await call(base())).status).toBe(200);
+    }
+    expect((await call(base(), bearer(created.token))).status).toBe(reason === "pilot" ? 404 : 403);
+    expect((await upload(xml, crypto.randomUUID(), versionId, bearer(created.token))).response.status).toBe(reason === "pilot" ? 404 : 403);
+  });
+
+  it("keeps revoked tokens private to their creator and denies upload after review permission is withdrawn", async () => {
+    const created = await createToken({ canUpload: true });
+    await env.DB.prepare("INSERT INTO product_operators(user_id) VALUES(?)").bind(ownerId).run();
+    const otherList = await (await call("/api/admin/cli-tokens", { headers: { cookie: ownerCookie } })).json<{ tokens: unknown[] }>();
+    expect(otherList.tokens).toEqual([]);
+    expect((await call(`/api/admin/cli-tokens/${created.credential.id}`, { method: "DELETE", headers: { cookie: ownerCookie } })).status).toBe(204);
+    expect((await call(base(), bearer(created.token))).status).toBe(200);
+    const listed = await (await call("/api/admin/cli-tokens")).json<{ tokens: CliTokenCredential[] }>();
+    expect(listed.tokens[0].lastUsedAt).toBeTypeOf("number");
+    await env.DB.prepare("UPDATE product_operators SET review_xml=0 WHERE user_id=?").bind(operatorId).run();
+    expect((await call(base(), bearer(created.token))).status).toBe(200);
+    expect((await upload(xml, crypto.randomUUID(), versionId, bearer(created.token))).response.status).toBe(403);
+  });
+
+  it.each(["revoke", "pilot", "operator", "source"])("rechecks CLI upload authority when %s changes during the R2 write", async (change) => {
+    const created = await createToken({ canUpload: true });
+    const put = env.SCORES_BUCKET.put.bind(env.SCORES_BUCKET);
+    vi.spyOn(env.SCORES_BUCKET, "put").mockImplementationOnce(async (...args) => {
+      const stored = await put(...args);
+      if (change === "revoke") await env.DB.prepare("UPDATE admin_cli_tokens SET revoked_at=? WHERE id=?").bind(Date.now(), created.credential.id).run();
+      if (change === "pilot") await env.DB.prepare("DELETE FROM product_admin_drives WHERE choir_id=?").bind(choirId).run();
+      if (change === "operator") await env.DB.prepare("UPDATE product_operators SET review_xml=0 WHERE user_id=?").bind(operatorId).run();
+      if (change === "source") {
+        const next = crypto.randomUUID();
+        await env.DB.prepare("INSERT INTO score_versions(id,score_id,choir_id,version_number,object_key,size_bytes,sha256,etag,page_count,state) SELECT ?,score_id,choir_id,2,?,size_bytes,sha256,etag,page_count,state FROM score_versions WHERE id=?")
+          .bind(next, crypto.randomUUID(), versionId).run();
+        await env.DB.prepare("UPDATE scores SET current_version_id=? WHERE id=?").bind(next, scoreId).run();
+      }
+      return stored;
+    });
+    const result = await upload(xml, crypto.randomUUID(), versionId, bearer(created.token));
+    expect(result.response.status).toBe(409);
+    expect(await env.DB.prepare("SELECT state FROM xml_candidates WHERE id=?").bind(result.id).first()).toEqual({ state: "failed" });
+    expect(await env.DB.prepare("SELECT count(*) n FROM score_object_deletions").first()).toEqual({ n: 1 });
+    expect(await env.DB.prepare("SELECT count(*) n FROM score_attachments").first()).toEqual({ n: 0 });
+  });
+
 });

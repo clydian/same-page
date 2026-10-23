@@ -1,3 +1,4 @@
+import type { SourceBeamsGlyph } from '@coderline/alphatab/rendering/glyphs/SourceBeamsGlyph';
 import type { ScoreSlurGlyph } from '@coderline/alphatab/rendering/glyphs/ScoreSlurGlyph';
 import type { EngravingSettings } from '@coderline/alphatab/EngravingSettings';
 import type { Bar } from '@coderline/alphatab/model/Bar';
@@ -161,6 +162,11 @@ export class StaffSystem {
     private _staffToBracket = new Map<RenderStaff, SystemBracket>();
     private _contentHeight = 0;
     private _crossStaffSlurs = new Set<ScoreSlurGlyph>();
+    private _sourceBeams = new Set<SourceBeamsGlyph>();
+
+    public registerSourceBeams(beams: SourceBeamsGlyph): void {
+        this._sourceBeams.add(beams);
+    }
 
     public registerCrossStaffSlur(slur: ScoreSlurGlyph): void {
         this._crossStaffSlurs.add(slur);
@@ -178,6 +184,11 @@ export class StaffSystem {
             const staffY = slur.renderer.staff!.y;
             minY = Math.min(minY, staffY + slur.getBoundingBoxTop());
             maxY = Math.max(maxY, staffY + slur.getBoundingBoxBottom());
+        }
+        for (const beams of this._sourceBeams) {
+            const bounds = beams.getBounds();
+            minY = Math.min(minY, bounds.top);
+            maxY = Math.max(maxY, bounds.bottom);
         }
         // Reserve only ink outside the complete system. Never insert the
         // destination staff's height into an origin staff's own overflow.
@@ -1043,6 +1054,7 @@ export class StaffSystem {
         }
 
         this._crossStaffSlurs.clear();
+        this._sourceBeams.clear();
         const anyStaffVisible = this._finalizeTrackGroups();
 
         // for now we always force one staff to be visible.
