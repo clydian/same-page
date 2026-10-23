@@ -15,6 +15,7 @@ import { ReaderPage } from "./reader/reader-runtime";
 import { HomePage } from "./routes/home-page";
 import { NotFoundPage } from "./routes/not-found-page";
 
+const DriveEntryPage = lazy(() => import("./drive-entry/drive-entry-page"));
 const AdminPage = lazy(() => import('./admin/admin-page'));
 const InstallPage = lazy(() => import("./install/install-page"));
 const HelpPage = lazy(() => import("./routes/help-page"));
@@ -58,7 +59,7 @@ export function AppRoutes() {
           <Route path="/admin/scores/:scoreId" element={<RouteContent><AdminPage /></RouteContent>} />
           <Route element={<PageWithFooter />}>
             <Route path="/" element={<RouteContent><HomePage startup={startup} /></RouteContent>} />
-            <Route path="/drives" element={<RouteContent><HomePage /></RouteContent>} />
+            <Route path="/drives" element={<RouteContent><DriveEntryPage /></RouteContent>} />
             <Route path="/choirs/:choirId/storage" element={<RouteContent><LocalStoragePage /></RouteContent>} />
             <Route path="/choirs/:choirId/me" element={<RouteContent><LeaveDrivePage /></RouteContent>} />
             <Route path="/install" element={<RouteContent><InstallPage /></RouteContent>} />
