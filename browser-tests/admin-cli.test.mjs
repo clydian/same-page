@@ -34,6 +34,7 @@ test("cookie admin creates, uses and revokes a drive-restricted CLI token (chrom
     nonMember: true,
     previewEntry: false,
     productAdmin: true,
+    cliPilot: true,
   });
   const directory = await mkdtemp(join(tmpdir(), "same-page-admin-cli-"));
   let browser;
@@ -61,12 +62,12 @@ test("cookie admin creates, uses and revokes a drive-restricted CLI token (chrom
   await expect(page.getByRole("link", { name: "打开", exact: true })).toHaveCount(2);
   await page.getByRole("button", { name: "CLI 令牌", exact: true }).click();
   const panel = page.getByRole("region", { name: "CLI 令牌", exact: true });
-  await expect(panel.getByRole("checkbox", { name: "第二个试点云盘", exact: true })).toBeEnabled();
+  await expect(panel.getByRole("checkbox", { name: "第二个云盘", exact: true })).toBeEnabled();
 
   async function createToken(name, access) {
     await panel.getByRole("textbox", { name: "名称", exact: true }).fill(name);
     await panel.getByRole("combobox", { name: "访问权限", exact: true }).selectOption(access);
-    await panel.getByRole("checkbox", { name: "第二个试点云盘", exact: true }).check();
+    await panel.getByRole("checkbox", { name: "第二个云盘", exact: true }).check();
     await panel.getByRole("button", { name: "创建令牌", exact: true }).click();
     const input = panel.getByRole("textbox", { name: "新建 CLI 令牌", exact: true });
     await expect(input).toBeVisible();
