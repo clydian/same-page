@@ -43,6 +43,8 @@ try {
   const arm={label,limit,preload,passed:0,failed:null};
   for(let i=1;i<=limit;i++) {
    let failure;
+   const {rm}=await import('node:fs/promises');
+   await rm('artifacts/verification/shell-lifecycle',{recursive:true,force:true});
    try {await run(`${label}-${i}`,process.execPath,['scripts/diagnostic-webkit-564-fresh.mjs'],{LD_PRELOAD:preload});}
    catch(error){failure=String(error);}
    const {cp}=await import('node:fs/promises');
