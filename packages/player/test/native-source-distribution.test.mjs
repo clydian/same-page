@@ -36,6 +36,10 @@ test('source copy binds installed archive hashes, keeps old snapshots and is rep
   assert.equal(first.status, 0, first.stderr);
   const report = JSON.parse(first.stdout);
   assert.equal(createHash('sha256').update(fs.readFileSync(report.archive)).digest('hex'), report.sha256);
+  const manifest = JSON.parse(fs.readFileSync(report.manifest, 'utf8'));
+  for (const [field, installed] of [['license', 'LICENSE'], ['notices', 'LICENSE.header']]) {
+    assert.deepEqual(fs.readFileSync(path.join(f.output, manifest[field])), fs.readFileSync(path.join(f.native, installed)));
+  }
   fs.writeFileSync(path.join(f.output, 'old-version.tgz'), 'preserved');
   assert.equal(f.run().status, 0);
   assert.equal(fs.readFileSync(path.join(f.output, 'old-version.tgz'), 'utf8'), 'preserved');
