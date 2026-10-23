@@ -61,7 +61,7 @@ for (const status of [429, 500, 503]) {
       calls++;
       return new Response(token, { status });
     }), error => error.message.includes(`HTTP ${status}`) && !error.message.includes(token));
-    assert.equal(calls, 1);
+    assert.equal(calls, 3);
   });
 }
 
@@ -94,4 +94,15 @@ test('network and malformed verification responses fail without fallback', async
     }));
     assert.equal(calls, 1);
   }
+});
+
+test('recovers a transient timeout on the same token verification endpoint', async () => {
+  const urls = [];
+  const credentials = await deriveR2Credentials(account, token, async url => {
+    urls.push(url);
+    if (urls.length === 1) throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    return active();
+  });
+  assert.equal(credentials.accessKeyId, tokenId);
+  assert.deepEqual(urls, Array(2).fill('https://api.cloudflare.com/client/v4/user/tokens/verify'));
 });
