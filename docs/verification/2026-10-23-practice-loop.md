@@ -16,6 +16,8 @@
 - `npm run test:client -- --maxWorkers=2`：148 个文件、1273 项。
 - `node --test --test-concurrency=1 browser-tests/playback-ux.test.mjs browser-tests/practice-measure-labels.test.mjs browser-tests/musicxml-playback.test.mjs browser-tests/practice-loop.test.mjs`：四个文件共 11 个测试，分别已运行通过。包含真实音频输出／PDF 切换、混音和首调数字、反复经过标签与第二次经过点击、普通／放大点击、前后定位、Home/End、单小节循环、播放中取消恢复、透视拖动、有效小节高亮和取消保留旧范围。
 
+`node --test browser-tests/admin-workbench.test.mjs` 的 Chromium/WebKit 两项也已通过。云端首轮 Smoke 第 2 组仅在后台两项测试中等待隐藏的“独奏 Soprano”超时；后台与成员入口共用新设置界面，测试需先展开“独立混音”。已同步该真实操作路径，保留原独奏／发布断言，未增加超时或重试。
+
 全套客户端首轮采用默认并发且与浏览器检查同时运行，出现三处非播放器页面的等待失败（AppRoutes、Home Entry、ReaderPage）。限制客户端 worker 数为 2 后全套通过；未放宽业务超时或修改这三处测试。此记录不将一次重跑通过当作已证明根因。
 
 ## 独立 review
