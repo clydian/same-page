@@ -76,7 +76,7 @@
     "zod": "^4.6.2"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.62.5",
+    "@cloudflare/vite-plugin": "^1.64.0",
     "@cloudflare/vitest-plugin": "^1.4.2",
     "@cloudflare/workers-types": "^5.20260907.1",
     "@eslint/js": "^10.0.1",
