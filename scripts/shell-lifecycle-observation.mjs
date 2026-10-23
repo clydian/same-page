@@ -36,7 +36,10 @@ export function observeShellLifecycleCalls(bindingName) {
 export async function snapshotShellRegistration() {
   const describe = worker => worker ? { scriptURL: worker.scriptURL, state: worker.state } : null;
   const registration = await navigator.serviceWorker.getRegistration();
-  return { path: location.pathname, online: navigator.onLine, controller: describe(navigator.serviceWorker.controller),
+  return { path: location.pathname, online: navigator.onLine,
+    build: document.documentElement.dataset.buildId ?? null,
+    recovery: { status: document.getElementById('status')?.textContent ?? null, retryDisabled: document.getElementById('retry')?.disabled ?? null },
+    controller: describe(navigator.serviceWorker.controller),
     registration: registration ? { scope: registration.scope, active: describe(registration.active), waiting: describe(registration.waiting), installing: describe(registration.installing) } : null,
     registrations: (await navigator.serviceWorker.getRegistrations()).map(value => ({ scope: value.scope, active: describe(value.active), waiting: describe(value.waiting), installing: describe(value.installing) })) };
 }

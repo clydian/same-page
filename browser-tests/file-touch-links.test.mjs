@@ -4,7 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { chromium, webkit, expect } from "@playwright/test";
+import { chromium, webkit, expect, request } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
 import { expectSampleScoreContent } from "./pdf-content.mjs";
 import { withBrowserEvidence } from "./browser-evidence.mjs";
@@ -32,25 +32,29 @@ async function hold(page, file, engine) {
   }
 }
 
-for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]) {
-  test(`file links retain navigation and withdraw held touch (${engine})`, { timeout: 120_000 }, async t => {
-    const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
+async function signIn(client, fixture) {
+  const account = fixture.accounts[0];
+  assert.equal((await client.post(`${fixture.origin}/api/auth/sign-in/email`, {
+    headers: { origin: fixture.origin }, data: { email: account.email, password: account.password },
+  })).status(), 200);
+}
+
+// The server's seeded score is shared read-only; every scenario owns its browser
+// profile, cookies, service worker and IndexedDB, and can fail independently.
+async function scenario(t, fixture, engine, browserType, name, run) {
+  await t.test(name, async t => {
     const profile = await mkdtemp(path.join(tmpdir(), "same-page-file-touch-"));
     let context;
-    t.after(async () => { try { await context?.close(); } finally { try { await fixture.stop(); } finally { await rm(profile, { recursive: true, force: true }); } } });
-    // Keep the existing full Chromium backend for native modifier activation.
-    const nativeTabBrowser = engine === "chromium" ? {channel: "chromium"} : {};
+    t.after(async () => { try { await context?.close(); } finally { await rm(profile, { recursive: true, force: true }); } });
+    const nativeTabBrowser = engine === "chromium" ? { channel: "chromium" } : {};
     const executablePath = engine === "chromium" ? process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH : undefined;
-    context = await browserType.launchPersistentContext(profile, { headless: true, ...nativeTabBrowser, ...(executablePath ? { executablePath } : {}), viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow" });
+    context = await browserType.launchPersistentContext(profile, {
+      headless: true, ...nativeTabBrowser, ...(executablePath ? { executablePath } : {}),
+      viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow",
+    });
     await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
-    const account = fixture.accounts[0];
-    assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } })).status(), 200);
-    await withBrowserEvidence(context, `artifacts/verification/file-touch-links/${engine}`, async () => {
-      const api = `${fixture.origin}/api/choirs/${fixture.choirId}`;
-      assert.equal((await context.request.post(`${api}/scores/${fixture.scoreId}/attachments/links`, { data: { id: crypto.randomUUID(), name: "参考外链", url: "https://example.org/reference" } })).status(), 201);
-      for (let index = 0; index < 10; index++) {
-        assert.equal((await context.request.post(api + "/scores", { multipart: { file: { name: `滚动测试${index}.pdf`, mimeType: "application/pdf", buffer: fixture.pdf } } })).status(), 201);
-      }
+    await signIn(context.request, fixture);
+    await withBrowserEvidence(context, `artifacts/verification/file-touch-links/${engine}/${name}`, async () => {
       const page = await context.newPage();
       const errors = []; page.on("pageerror", error => errors.push(error.name));
       const library = `${fixture.origin}/choirs/${fixture.choirId}`;
@@ -60,6 +64,30 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       const file = page.getByRole("link", { name: "本地链路测试", exact: true });
       await expect(file).toBeVisible();
       await expect(file).toHaveAttribute("href", scorePath);
+      await run({ page, context, library, scorePath, file });
+      assert.deepEqual(errors, []);
+    });
+  });
+}
+
+for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]) {
+  test(`file links retain navigation and withdraw held touch (${engine})`, { timeout: 120_000 }, async t => {
+    const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
+    t.after(() => fixture.stop());
+    const seed = await request.newContext();
+    try {
+      await signIn(seed, fixture);
+      const api = `${fixture.origin}/api/choirs/${fixture.choirId}`;
+      assert.equal((await seed.post(`${api}/scores/${fixture.scoreId}/attachments/links`, {
+        data: { id: crypto.randomUUID(), name: "参考外链", url: "https://example.org/reference" },
+      })).status(), 201);
+      for (let index = 0; index < 10; index++) {
+        assert.equal((await seed.post(api + "/scores", {
+          multipart: { file: { name: `滚动测试${index}.pdf`, mimeType: "application/pdf", buffer: fixture.pdf } },
+        })).status(), 201);
+      }
+    } finally { await seed.dispose(); }
+    await scenario(t, fixture, engine, browserType, "touch-and-context-menu", async ({ page, library, file }) => {
       await page.getByRole("button", { name: "本地链路测试：1 个附件", exact: true }).tap();
       const external = page.getByRole("link", { name: "参考外链", exact: true });
       await expect(external).toHaveAttribute("target", "_blank");
@@ -116,6 +144,11 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await file.click({ button: "right" });
       assert.equal(await rightMenu, false);
       await page.keyboard.press("Escape");
+    });
+    await scenario(t, fixture, engine, browserType, "native-modifier-navigation", async ({ page, context, library, scorePath, file }) => {
+      // A withdrawn hold must not swallow a later native modifier activation.
+      await hold(page, file, engine);
+      await expect(file).not.toHaveAttribute("data-touch-active");
       // Prove the application leaves native modifier activation intact once.
       // Reader readiness uses a separately controlled page below, so native
       // background-target initialization is not also a decoder timing gate.
@@ -127,6 +160,8 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await expect(page).toHaveURL(library);
       await other.close();
 
+    });
+    await scenario(t, fixture, engine, browserType, "reader-and-local-entry", async ({ page, context, library, scorePath, file }) => {
       // Preserve application-owned cross-window startup with the same account,
       // real SW and storage, independently from native modifier activation.
       const reader = await context.newPage();
@@ -154,7 +189,6 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await localFile.focus(); await page.keyboard.press("Enter");
       await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
       await expectSampleScoreContent(page);
-      assert.deepEqual(errors, []);
     });
   });
 }

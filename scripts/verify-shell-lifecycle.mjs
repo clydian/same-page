@@ -201,9 +201,11 @@ try {
           const retry = await current.reload(); assert.equal(retry.status(), 503);
           await current.getByRole('heading', { name: '暂时无法打开合谱', exact: true }).waitFor();
           await current.screenshot({ path: `${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}-offline-retry.png` });
+          auditPhase = 'manual-reconnect-recovery';
           offline = false; await context.setOffline(false);
           await current.getByRole('button', { name: '重试', exact: true }).click();
           await poll(() => current.evaluate(build => document.documentElement.dataset.buildId === build, currentBuild), 'manual reconnect recovery');
+          auditPhase = 'reconnected-current-audit';
           await audit(current);
           await current.screenshot({ path: `${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}.png` });
           await writeFile(`${output}/${engine.name()}-${explicit ? 'explicit' : 'automatic'}.json`, JSON.stringify({ versions: expected, before, during, complete, finalActivation: engine === webkit ? 'explicit (no background worker inspection)' : 'automatic', scenario: 'legacy A/B + isolated C; full manifest; API; Back; repair; offline; reconnect' }, null, 2));

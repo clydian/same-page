@@ -2,6 +2,16 @@
 
 PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运行。`main` push 验证实际合并结果；生产部署继续串行，迁移和部署不被后续 push 中断。原有 required check 名称 `verify` 保持不变。
 
+2026-10-23 已通过 GitHub branch protection 实际启用 `verify` 必需检查，来源固定为
+GitHub Actions（app id 15368），`strict=true` 要求 PR 基于最新 main 验证，管理员也受保护约束。
+其他审查与禁止 force push/删除的配置保持原值。工作流中的汇总 gate 不等同于 GitHub
+合并配置；可用 `gh api repos/clydian/same-page/branches/main/protection/required_status_checks`
+回读 `{strict, checks}`。新提交/取消/失败不能借旧的绿灯合并，日常合并保持串行。
+
+scope 的日志与 summary 记录实际 checkout SHA、Git tree、parents、比较 base、event、attempt
+和 Node 版本；squash 前后 SHA 不同是正常情况，判断同代码重跑必须比较 tree、scope 与运行环境。
+重跑不代表修复，首次失败单独保留；不为业务断言增加自动 retries 或放宽阈值。
+
 ## 流程
 
 `scope` 不安装依赖：运行 CI 范围回归测试，然后比较完整 Git diff。checks、backend、visual 和 build 同时启动；smoke/platform 等待 build 的统一构建产物（仅 PWA 时不需要构建产物），各自只执行选中的步骤：
