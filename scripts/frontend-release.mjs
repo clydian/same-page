@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { releaseRequest } from './release-request.mjs';
+import { readReleaseObject, releaseRequest } from './release-request.mjs';
 import { verifyRelease } from './release-artifact.mjs';
 import { assertStorageCompatibility } from './release-contract.mjs';
 const hash = data => createHash('sha256').update(data instanceof ArrayBuffer ? new Uint8Array(data) : data).digest('hex');
@@ -147,7 +147,7 @@ async function main() {
   const Bucket='same-page-frontend-releases';
   const bucket={
     async put(Key,Body,options){try{return await client.send(new sdk.PutObjectCommand({Bucket,Key,Body,IfNoneMatch:'*',ContentType:options.customMetadata.contentType??'application/json',Metadata:options.customMetadata}))}catch(e){if(e.$metadata?.httpStatusCode!==412)throw e;return null}},
-    async get(Key){try{const r=await client.send(new sdk.GetObjectCommand({Bucket,Key}));return {arrayBuffer:()=>r.Body.transformToByteArray()}}catch(e){if(e.$metadata?.httpStatusCode!==404)throw e;return null}},
+    async get(Key){return readReleaseObject(Key, signal => client.send(new sdk.GetObjectCommand({Bucket,Key}), {abortSignal:signal}));},
   };
   if(action==='archive-legacy') {
     assert.equal(baselineFlag,'--archive-supported-baseline');

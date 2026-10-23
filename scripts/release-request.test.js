@@ -91,3 +91,34 @@ it('keeps the timeout active through a real HTTP response body', async () => {
   expect(bytes).toBe('complete bytes'); expect(calls).toBe(2);
  } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
+
+it('retries complete R2 reads after body failure and labels persistent SDK failures', async () => {
+ const {readReleaseObject} = await import('./release-request.mjs');
+ const {Readable} = await import('node:stream');
+ let calls = 0;
+ const object = await readReleaseObject('releases/sha/sealed.json', async () => {
+  calls++;
+  const Body = calls === 1 ? new Readable({read() { this.destroy(Object.assign(new Error('secret'), {code:'ECONNRESET'})); }}) : Readable.from(['sealed bytes']);
+  return {Body};
+ }, {sleep:async () => {},warn:() => {}});
+ expect(new TextDecoder().decode(await object.arrayBuffer())).toBe('sealed bytes');
+ expect(calls).toBe(2);
+ await expect(readReleaseObject('compatibility/report.json', async () => {
+  throw Object.assign(new Error('private token'), {$metadata:{httpStatusCode:503}});
+ }, {sleep:async () => {},warn:() => {}})).rejects.toThrow('R2 release object compatibility/report.json failed after 3 attempts (HTTP 503)');
+ expect(await readReleaseObject('missing', async () => { throw {$metadata:{httpStatusCode:404}}; })).toBeNull();
+});
+
+it('destroys a stalled R2 SDK body on deadline before a complete retry', async () => {
+ const {readReleaseObject} = await import('./release-request.mjs');
+ const {Readable} = await import('node:stream');
+ let calls = 0, stalled;
+ const object = await readReleaseObject('storage-probe.js', async () => {
+  calls++;
+  const Body = calls === 1 ? (stalled = new Readable({read() {}})) : Readable.from(['complete']);
+  return {Body};
+ }, {timeoutMs:50,sleep:async () => {},warn:() => {}});
+ expect(stalled.destroyed).toBe(true);
+ expect(calls).toBe(2);
+ expect(new TextDecoder().decode(await object.arrayBuffer())).toBe('complete');
+});
