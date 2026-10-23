@@ -206,6 +206,34 @@ PWA 脚本另做两次完整合成 build，且营销动画先于更新安全检�
 
 本轮没有修改 schema/API/本地存储，无需迁移。后续任何测试重构都继续遵守 AGENTS 的已部署客户端与用户数据保护要求；发布开关和受控桥接不随 CI 清理自动开启。
 
+## 9. 实施中的新增失败：保留原始结果
+
+第一批 [CI 39902004036](https://github.com/clydian/same-page/actions/runs/39902004036)
+的 platform 在 WebKit 首次离线 reload 后严格失败：页面显示当前版本、controller 为 activated，
+但 `getRegistration()` 为空、`getRegistrations()` 为 `[]`。其余检查成功。
+失败前自动 `registration.update()` 约 22 秒后以 `TypeError: Internal error` 拒绝；
+生命周期观察没有应用 `unregister` 调用。原有“必须存在 registration 并验证完整 manifest”的断言保留。
+
+固定版本上游源码提供一个强候选机制：Playwright v1.62.1
+[锁定的 WebKit revision](https://github.com/microsoft/playwright/blob/v1.62.1/browser_patches/webkit/UPSTREAM_CONFIG.sh)
+中，[SWClientConnection::clearPendingJobs](https://github.com/WebKit/WebKit/blob/343e13bf22dca9d0ec227801419aab0f9001a32f/Source/WebCore/workers/service/SWClientConnection.cpp#L303)
+以相同文本拒绝 pending jobs；
+[NetworkProcessConnection::didClose](https://github.com/WebKit/WebKit/blob/343e13bf22dca9d0ec227801419aab0f9001a32f/Source/WebKit/WebProcess/Network/NetworkProcessConnection.cpp#L220)
+会关闭 SW 连接并进入该清理链。这支持优先调查原生进程/IPC 断开，**尚不能证明崩溃、OOM 或 GitHub runner 故障**。
+新增原生浏览器日志和可读取的 cgroup 内存快照，为下一次失败提供进程层证据；这是诊断补充，不是该故障的已验证修复。
+
+第二批 [CI 39902026201](https://github.com/clydian/same-page/actions/runs/39902026201)
+首轮全部成功，包括相同 lifecycle 脚本；它包含额外清理提交、不同运行环境实例，
+不抹去第一批失败，也不能据此宣布 WebKit 非确定性问题已解决。
+没有对这两个 run 发起重跑。
+
+WebKit 夹具目前以服务端断开连接模拟 origin 不可用，浏览器 `navigator.onLine` 仍可能为 true。
+不将它直接改为 `context.setOffline(true)`：官方
+[Playwright #42775](https://github.com/microsoft/playwright/issues/42775)
+记录 WebKit 模拟断网可能在 SW 响应前拒绝导航；它使用较新版本，不能当成本次故障根因。
+也不通过伪造 online 状态阻止自动更新来掩盖当前失败。下一步应以纯 SW 对照和原生进程证据区分
+普通网络失败、迁移长链状态与引擎进程失效，再作单变量修复。
+
 ## 附录：可复核的数据入口
 
 ```sh
