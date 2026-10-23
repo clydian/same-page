@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     # Match package-lock.json; browsers and OS dependencies are baked in.
     container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --init --ipc=host
     # Includes runner preparation, browser validation and evidence upload.
     timeout-minutes: 20
@@ -180,7 +180,7 @@ jobs:
       (needs.scope.outputs.pwa == 'true' || needs.scope.outputs.performance == 'true')
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --init --ipc=host
     timeout-minutes: 20
     steps:
@@ -251,7 +251,7 @@ jobs:
         shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1, 2]' || '[1, 2, 3]') }}
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --init --ipc=host
     timeout-minutes: 12
     steps:
@@ -332,7 +332,7 @@ jobs:
     runs-on: ubuntu-latest
     # Channel publication runs the same browser compatibility probe as platform.
     container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --init --ipc=host
     timeout-minutes: 25
     concurrency:
