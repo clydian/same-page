@@ -43,3 +43,16 @@ WebKit 随附的 libsoup 二进制版本，拒绝低于 3.6.6 的库，再实际
 
 这些调整不跳过更新请求、不伪造在线状态、不使用 controller 替代 registration 审计，
 也不将测试自动重跑视为通过。
+
+第二轮完整 CI `39911195819` 的界面、后端/迁移、PWA/性能和其余两个 smoke 分片均通过；
+smoke 第二分片在运营后台的“账户 → 后台”硬导航期间记录了 `/api/client-release` access-control
+pageerror 和一个空 stack。`reconcileSelection` 已立即捕获 fetch 拒绝，调用方也有终端 catch。
+当前 SDK 的 [WebKit console 映射](https://github.com/microsoft/playwright/blob/v1.64.1/packages/playwright-core/src/server/webkit/wkPage.ts#L538)
+会把 JavaScript 来源的错误 console 消息转为 pageerror，所以该事件不能单独证明应用漏接 Promise。
+
+本机原流程确认通道请求在该导航处 cancelled，window.error/unhandledrejection 为零，但未复现
+Linux 的精确 pageerror。运营后台用例现仅在通道构建下，等待该次启动 GET 的精确响应：
+必须 200 且 `response.finished()` 为 null，随后才离开账户页。带观察的双引擎实验确认
+响应在导航前 finished、不再取消，业务全流程与原页面错误断言均通过。
+`release-channel-navigation.test.mjs` 对跨导航收据准备/通道读取的专门受控回归不变，
+继续检查错误；没有通过过滤 access-control/空错误来放行。
