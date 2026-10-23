@@ -1,0 +1,58 @@
+# Playwright / Linux WebKit 更新（#564）
+
+本次将 `@playwright/test` 精确固定为 1.64.1，并同步更新 `ci.yml`、
+`browser-stability.yml`、`bootstrap-release-channels.yml` 的全部七处预装镜像：
+
+```
+mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+```
+
+[#564](https://github.com/itscly2026/same-page/issues/564) 的原生 Linux 复现中，
+离线后的更新请求先触发 libsoup session feature 对象断言，再出现 Internal error 和
+Service Worker 注册查询为空。相同失败在删除历史迁移链后仍能复现。
+[上游 Playwright #42803](https://github.com/microsoft/playwright/issues/42803) 与
+[WebKit 修复 #74619](https://github.com/WebKit/WebKit/pull/74619) 将同类对象生命周期缺陷
+关联到 libsoup 3.6.5；3.6.6 包含修复，Playwright 1.64 开始携带更新库。
+
+先前仅换库的对照中，旧库第 5 轮失败，3.6.6 连续 50 轮通过，恢复旧库后 20 轮也通过。
+因此升级针对已确认存在的上游缺陷，不把单次绿灯或这些样本当作所有偶发问题均已消失的证明。
+
+`.github/scripts/verify-browsers.mjs` 继续核对 SDK、锁文件与镜像版本一致，并读取 Linux
+WebKit 随附的 libsoup 二进制版本，拒绝低于 3.6.6 的库，再实际启动 Chromium/WebKit。
+这样 CI 会检查镜像里的实际库，而不只依赖版本标签。常规 CI 不安装替换库或使用 LD_PRELOAD。
+
+验证以 PR 的完整 Linux CI 为准：lint/类型检查、播放器与客户端单测、Worker 与迁移、
+四个界面分片、生产构建、双引擎完整 PWA、加载性能、三个真实存储 smoke 分片及最终 verify。
+每个浏览器容器首先执行上述版本检查。bootstrap 与稳定性工作流使用同一镜像和检查脚本；
+验证不运行生产通道初始化或发布操作。
+
+业务 schema、API、本机存储、已部署客户端协议没有变化，无需数据迁移。
+完整 manifest、更新身份、跨窗否决、未同步草稿、迁移兼容的原断言与期限保留。
+
+## 首轮完整验证暴露的夹具前置条件
+
+首轮 CI `39910077204` 保留了两个失败，未重跑：
+
+- 附件用例第一次收到预期 503 后恢复网络、重新打开编辑器；新环境实际重新请求并收到 200，
+  富文本编辑器已显示，用例却仍断言旧错误。现将故障保持到用户选择纯文本编辑之后，
+  保留两次错误提示、Back、原文上传与保存的全部断言，避免依赖失败导入是否被缓存。
+- WebKit 壳生命周期用例中，注册始终存在，恢复页按原 20 秒期限恢复按钮；失败是手动重连
+  未完成，不是 #564 的空注册审计。记录里最早悬挂的自动更新在离线前的在线跳转阶段已经开始。
+  夹具现复用 `pwa-update-readiness.mjs` 的只读原生 promise 观察，在每个在线当前版本页面离开前
+  等待该页面启动检查结束。历史 A/B/C 安装交错、离线阶段及恢复页自身的期限和行为不变。
+
+这些调整不跳过更新请求、不伪造在线状态、不使用 controller 替代 registration 审计，
+也不将测试自动重跑视为通过。
+
+第二轮完整 CI `39911195819` 的界面、后端/迁移、PWA/性能和其余两个 smoke 分片均通过；
+smoke 第二分片在运营后台的“账户 → 后台”硬导航期间记录了 `/api/client-release` access-control
+pageerror 和一个空 stack。`reconcileSelection` 已立即捕获 fetch 拒绝，调用方也有终端 catch。
+当前 SDK 的 [WebKit console 映射](https://github.com/microsoft/playwright/blob/v1.64.1/packages/playwright-core/src/server/webkit/wkPage.ts#L538)
+会把 JavaScript 来源的错误 console 消息转为 pageerror，所以该事件不能单独证明应用漏接 Promise。
+
+本机原流程确认通道请求在该导航处 cancelled，window.error/unhandledrejection 为零，但未复现
+Linux 的精确 pageerror。运营后台用例现仅在通道构建下，等待该次启动 GET 的精确响应：
+必须 200 且 `response.finished()` 为 null，随后才离开账户页。带观察的双引擎实验确认
+响应在导航前 finished、不再取消，业务全流程与原页面错误断言均通过。
+`release-channel-navigation.test.mjs` 对跨导航收据准备/通道读取的专门受控回归不变，
+继续检查错误；没有通过过滤 access-control/空错误来放行。

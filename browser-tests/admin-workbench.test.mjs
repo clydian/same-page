@@ -1,10 +1,12 @@
 import { changeNotationSize } from "./practice-controls.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { chromium, webkit, expect } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
 import { musicXmlFixture } from "./musicxml-fixture.mjs";
+const { assetBase } = JSON.parse(await readFile("dist/client/build.json", "utf8"));
+
 for (const [engine, type] of [
   ["chromium", chromium],
   ["webkit", webkit],
@@ -74,9 +76,19 @@ for (const [engine, type] of [
       await expect(entry.getByRole("heading", { name: "登录产品后台" })).toBeVisible();
       await expect(entry.getByRole("link", { name: "登录", exact: true })).toHaveAttribute("href", "/login?returnTo=%2Fadmin");
       await visitor.close();
+      const initialReleaseRead = assetBase === "/" ? null : page.waitForResponse(response =>
+        new URL(response.url()).pathname === "/api/client-release" && response.request().method() === "GET");
       await page.goto(f.origin + "/user");
       await expect(page.getByRole("heading", { name: "账户", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: /产品后台/ })).toHaveCount(0);
+      // This workflow tests admin import/publication. Settle the unrelated
+      // startup read before the hard navigation; cancellation is covered by
+      // release-channel-navigation.test.mjs, with its own controlled boundary.
+      if (initialReleaseRead) {
+        const response = await initialReleaseRead;
+        assert.equal(response.status(), 200, "startup release read must succeed");
+        assert.equal(await response.finished(), null, "startup read must finish before leaving the account document");
+      }
       await page.goto(f.origin + "/admin");
       await expect(
         page.getByRole("link", { name: "打开", exact: true }),

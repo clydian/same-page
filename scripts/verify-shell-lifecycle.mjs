@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { requireShellAuditResult } from './shell-audit-diagnostics.mjs';
 import { observeShellLifecycleCalls, snapshotShellRegistration } from './shell-lifecycle-observation.mjs';
+import { observeInitialUpdateCheck, waitForInitialUpdateCheck } from './pwa-update-readiness.mjs';
 import { createServer } from 'node:http';
 import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os'; import path from 'node:path';
@@ -122,6 +123,7 @@ try {
         const context = await browser.newContext({ serviceWorkers: 'allow', viewport: { width: 390, height: 844 } });
         await context.exposeBinding('__shellLifecycleObservation', (_, entry) => observe({ type: 'browser', ...entry }));
         await context.addInitScript(observeShellLifecycleCalls, '__shellLifecycleObservation');
+        await context.addInitScript(observeInitialUpdateCheck);
         const workers = [];
         context.on('serviceworker', worker => { workers.push(worker); void worker.evaluate(() => { self.__shellTestActivated = false; self.addEventListener('activate', () => { self.__shellTestActivated = true; }); }).catch(() => {}); });
         const page = await context.newPage();
@@ -171,9 +173,15 @@ try {
           await poll(() => current.evaluate(build => document.documentElement.dataset.buildId === build, currentBuild), 'C displayed');
           auditPhase = 'initial-current-audit';
           const complete = await audit(current);
+          // These scripted navigations test shell routing, not cancellation of
+          // an unfinished native startup check. Observe its original promise
+          // before leaving each online document, as the handover fixture does.
+          await waitForInitialUpdateCheck(current, 'initial current shell');
           await current.goto(origin + '/index.html?canonical=1');
           assert.equal(new URL(current.url()).pathname, '/'); assert.equal(new URL(current.url()).search, '?canonical=1');
+          await waitForInitialUpdateCheck(current, 'canonical shell');
           await current.goto(origin + '/about');
+          await waitForInitialUpdateCheck(current, 'about shell');
           // Chromium can replace an empty 404 document with its own error page;
           // this explicit missing static URL must never resolve to the SPA shell.
           const assetPage = await context.newPage();
@@ -189,10 +197,12 @@ try {
           // The loading fallback still says 关于与更新. Only the resolved route's
           // heading proves the application is ready before cache/offline faults.
           await current.goBack(); await current.getByRole('heading', { name: '关于合谱', exact: true }).waitFor();
+          await waitForInitialUpdateCheck(current, 'restored about shell');
           // Fault injection is recovery coverage, separate from the overlap above.
           await current.evaluate(async () => { for (const name of await caches.keys()) if (/^same-page-shell-v[12]:/.test(name)) await (await caches.open(name)).delete(location.origin + '/'); });
           auditPhase = 'root-repair-reload';
           await current.reload(); await audit(current);
+          await waitForInitialUpdateCheck(current, 'repaired current shell');
           observe({ type: 'before-offline', state: await current.evaluate(snapshotShellRegistration) });
           auditPhase = 'first-offline-reload';
           offline = true; if (engine === chromium) await context.setOffline(true);
