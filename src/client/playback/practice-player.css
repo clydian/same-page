@@ -309,3 +309,7 @@
 .practice-measure-preview { position: absolute; z-index: 5; box-sizing: border-box; border: 2px solid #547c68; border-radius: 4px; background: #547c6820; pointer-events: none; }
 .practice-loop-fine { display: grid; grid-template-columns: 1fr 1fr 44px 44px; gap: 4px; }
 .practice-loop-fine .practice-action { padding-inline: 4px; }
+.practice-popover[data-loop-previewing] .practice-loop-range { background: transparent; }
+.practice-loop-preview, .practice-loop-labels span { width: fit-content; padding: 3px 5px; border-radius: 6px; }
+.practice-popover[data-loop-previewing] .practice-loop-preview,
+.practice-popover[data-loop-previewing] .practice-loop-labels span { background: #fcfdfbe8; }

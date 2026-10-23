@@ -70,7 +70,7 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  await expect(page.locator('.practice-popover')).toHaveAttribute('data-loop-previewing','true');
  await expect(settings.locator('header')).toHaveCSS('opacity','0');await expect(page.locator('.practice-popover')).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
  await expect.poll(()=>viewport.evaluate(e=>e.scrollTop)).toBeGreaterThan(original);
- const marker=page.locator('.practice-measure-preview');await expect(marker).toBeVisible();const bounds=await marker.boundingBox();assert.ok(bounds.width>10 && bounds.height>10,'whole-note target has a real measure highlight');
+ const marker=page.locator('.practice-measure-preview');await expect(marker).toBeVisible();const bounds=await marker.boundingBox();assert.ok(bounds.width>10 && bounds.height>10,'whole-note target has a real measure highlight');const visible=await viewport.boundingBox();assert.ok(bounds.y>=visible.y && bounds.y+bounds.height<=visible.y+visible.height,'target measure is inside the score viewport');
  await mkdir('artifacts/verification/practice-loop',{recursive:true});await page.screenshot({path:`artifacts/verification/practice-loop/${engine}-mobile-drag.png`});
  await page.mouse.up();await expect(page.locator('.practice-popover')).not.toHaveAttribute('data-loop-previewing','true');
  await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 4 小节 至 第 4 小节');

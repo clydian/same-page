@@ -182,3 +182,18 @@ test('score taps resolve the repeated occurrence inside the active loop, preserv
   h.session.loop(null);h.session.seekAt(12,34);assert.equal(h.api.tickPosition,620,'unrestricted taps retain the closest repeat visit');
  }finally{h.dispose();}
 });
+
+test('preview marker refreshes after reflow even when a manual browsing anchor wins',async()=>{
+ const previousDocument=globalThis.document,markers=[];
+ globalThis.document={createElement:()=>({style:{},setAttribute(){},remove(){}})};
+ const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  await Promise.resolve();h.element.append=marker=>markers.push(marker);
+  let width=100;const bounds=()=>({realBounds:{x:10,y:400,w:width,h:80},staffSystemBounds:{realBounds:{y:100}}});
+  h.api.boundsLookup.findMasterBar=bounds;h.api.boundsLookup.findMasterBarByIndex=bounds;
+  h.api.boundsLookup.staffSystems=[{realBounds:{y:100,h:100},bars:[{index:0}]}];
+  h.session.suspendFollow();h.api.renderStarted.emit();h.session.previewMeasure(0);assert.equal(markers.at(-1).style.width,'100px');assert.equal(viewport.scrollTop,292,'preview scrolls to actual measure bounds rather than stale system bounds');
+  width=150;h.api.postRenderFinished.emit();assert.equal(markers.at(-1).style.width,'150px');assert.equal(viewport.scrollTop,292,'pending browse anchors cannot override endpoint preview');
+ }finally{h.dispose();globalThis.document=previousDocument;}
+});

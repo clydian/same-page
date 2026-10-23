@@ -13,7 +13,7 @@ export interface PlayerMeasure { index: number; label: string; startTick: number
 export interface PlayerState {
   status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
-  notationScale: number; solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
+  notationScale: number; previewing?: boolean; solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
   loop: { start: number; end: number } | null;
 }
 export interface PlayerSession {
@@ -71,7 +71,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   let preview: { playing: boolean; scrollTop: number; index: number } | null = null;
   const scrollToMeasure = (index: number, clearance = 16) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
-    const bounds = masterBar && api.boundsLookup?.findMasterBar(masterBar)?.staffSystemBounds?.realBounds;
+    const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
+    const bounds = measureBounds?.realBounds ?? measureBounds?.staffSystemBounds?.realBounds;
     if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - clearance;
   };
   let measureLabels: string[] = [];
@@ -147,15 +148,15 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   api.renderStarted.on(() => { musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
   api.postRenderFinished.on(() => {
     renderDegrees(); renderMeasureLabels();
-    if (!preview) highlightLoop();
+    if (preview) markMeasure(preview.index); else highlightLoop();
     reportReadableSystem();
     if (disposed || !viewport) return;
+    if (preview) { anchor = null; showPreview(preview.index); return; }
     if (anchor) {
       const bounds = api.boundsLookup?.findMasterBarByIndex(anchor.bar)?.staffSystemBounds?.realBounds;
       if (bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - anchor.offset;
       anchor = null;
-    } else if (preview) showPreview(preview.index);
-    else if (state.following && state.status === 'ready' && (state.measure > 0 || state.playing)) scrollToMeasure(state.measure);
+    } else if (state.following && state.status === 'ready' && (state.measure > 0 || state.playing)) scrollToMeasure(state.measure);
   });
 
   const setFollow = (enabled: boolean) => {
@@ -287,9 +288,13 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       else highlight(state.loop.start, state.loop.end);
     }
   };
+  const restoreScrollMode = () => {
+    api.settings.player.scrollMode = state.following && viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off;
+    api.updateSettings();
+  };
   const finishPreview = () => {
     if (!preview) return;
-    const previous = preview; preview = null; previewOverlay?.remove(); previewOverlay = null; highlightLoop();
+    const previous = preview; preview = null; previewOverlay?.remove(); previewOverlay = null; update({ previewing: false }); restoreScrollMode(); highlightLoop();
     if (viewport) viewport.scrollTop = previous.scrollTop;
     if (previous.playing) api.play();
   };
@@ -351,14 +356,18 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (disposed || state.status !== 'ready') return;
       if (index === null) { finishPreview(); return; }
       if (!state.measures[index]) return;
-      if (!preview) { preview = { playing: state.playing, scrollTop: viewport?.scrollTop ?? 0, index }; api.pause(); }
+      if (!preview) {
+        preview = { playing: state.playing, scrollTop: viewport?.scrollTop ?? 0, index };
+        update({ previewing: true });
+        api.settings.player.scrollMode = alphaTab.ScrollMode.Off; api.updateSettings(); api.pause();
+      }
       preview.index = index;
       showPreview(index);
     },
     loop(start, end) {
       if (disposed || state.status !== 'ready') return;
       if (start !== null && (end === undefined || end < start || !state.measures[start] || !state.measures[end])) return;
-      const resume = preview?.playing ?? false; preview = null; previewOverlay?.remove(); previewOverlay = null;
+      const resume = preview?.playing ?? false; preview = null; previewOverlay?.remove(); previewOverlay = null; update({ previewing: false }); restoreScrollMode();
       if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); }
       else {
         api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end!].endTick };
