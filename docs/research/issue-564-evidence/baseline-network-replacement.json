@@ -1,0 +1,117 @@
+{
+  "run": 39908210739,
+  "browserCleanupStartedAt": 1792734934637,
+  "note": "Network PID replacement observed before browser cleanup; polling does not record exit signal or prove a segfault.",
+  "snapshots": [
+    {
+      "time": 1792734933576,
+      "native": [
+        {
+          "pid": "3628",
+          "exe": "/ms-playwright/webkit-2336/minibrowser-wpe/bin/MiniBrowser",
+          "status": [
+            "Name:\tMiniBrowser",
+            "State:\tS (sleeping)",
+            "PPid:\t3622",
+            "VmPeak:\t134764112 kB",
+            "VmRSS:\t  160588 kB",
+            "Threads:\t13"
+          ]
+        },
+        {
+          "pid": "3639",
+          "exe": "/ms-playwright/webkit-2336/minibrowser-wpe/bin/WPENetworkProcess",
+          "libsoup": [
+            "7f6ada143000-7f6ada15b000 r--p 00000000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f6ada15b000-7f6ada1ab000 r-xp 00018000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f6ada1ab000-7f6ada1cf000 r--p 00068000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f6ada1cf000-7f6ada1d2000 r--p 0008b000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f6ada1d2000-7f6ada1d4000 rw-p 0008e000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4"
+          ],
+          "status": [
+            "Name:\tWPENetworkProce",
+            "State:\tS (sleeping)",
+            "PPid:\t3628",
+            "VmPeak:\t134493304 kB",
+            "VmRSS:\t  104936 kB",
+            "Threads:\t11"
+          ]
+        }
+      ],
+      "memory": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n"
+    },
+    {
+      "time": 1792734934077,
+      "native": [
+        {
+          "pid": "3628",
+          "exe": "/ms-playwright/webkit-2336/minibrowser-wpe/bin/MiniBrowser",
+          "status": [
+            "Name:\tMiniBrowser",
+            "State:\tS (sleeping)",
+            "PPid:\t3622",
+            "VmPeak:\t134764112 kB",
+            "VmRSS:\t  160588 kB",
+            "Threads:\t13"
+          ]
+        },
+        {
+          "pid": "3639",
+          "exe": "/ms-playwright/webkit-2336/minibrowser-wpe/bin/WPENetworkProcess",
+          "libsoup": [
+            "7f6ada143000-7f6ada15b000 r--p 00000000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f6ada15b000-7f6ada1ab000 r-xp 00018000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f6ada1ab000-7f6ada1cf000 r--p 00068000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f6ada1cf000-7f6ada1d2000 r--p 0008b000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f6ada1d2000-7f6ada1d4000 rw-p 0008e000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4"
+          ],
+          "status": [
+            "Name:\tWPENetworkProce",
+            "State:\tS (sleeping)",
+            "PPid:\t3628",
+            "VmPeak:\t134493304 kB",
+            "VmRSS:\t  104936 kB",
+            "Threads:\t11"
+          ]
+        }
+      ],
+      "memory": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n"
+    },
+    {
+      "time": 1792734934579,
+      "native": [
+        {
+          "pid": "3628",
+          "exe": "/ms-playwright/webkit-2336/minibrowser-wpe/bin/MiniBrowser",
+          "status": [
+            "Name:\tMiniBrowser",
+            "State:\tS (sleeping)",
+            "PPid:\t3622",
+            "VmPeak:\t134764112 kB",
+            "VmRSS:\t  160612 kB",
+            "Threads:\t12"
+          ]
+        },
+        {
+          "pid": "3765",
+          "exe": "/ms-playwright/webkit-2336/minibrowser-wpe/bin/WPENetworkProcess",
+          "libsoup": [
+            "7f5faffd2000-7f5faffea000 r--p 00000000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f5faffea000-7f5fb003a000 r-xp 00018000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f5fb003a000-7f5fb005e000 r--p 00068000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+            "7f5fb005e000-7f5fb0063000 rw-p 0008b000 00:31 9196624                    /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4"
+          ],
+          "status": [
+            "Name:\tWPENetworkProce",
+            "State:\tR (running)",
+            "PPid:\t3628",
+            "VmPeak:\t  275456 kB",
+            "VmRSS:\t   16168 kB",
+            "Threads:\t1"
+          ]
+        }
+      ],
+      "memory": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n"
+    }
+  ]
+}

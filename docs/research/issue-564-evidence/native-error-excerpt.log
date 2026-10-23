@@ -1,0 +1,8 @@
+2026-10-23T05:45:33.3988958Z 2026-10-23T05:45:33.398Z pw:browser [pid=3176][err] 
+2026-10-23T05:45:33.3992113Z 2026-10-23T05:45:33.398Z pw:browser [pid=3176][err] (process:3193): GLib-GObject-CRITICAL **: 05:45:33.396: g_object_ref: assertion 'G_IS_OBJECT (object)' failed
+2026-10-23T05:45:33.3994235Z 2026-10-23T05:45:33.398Z pw:browser [pid=3176][err] 
+2026-10-23T05:45:33.3995787Z 2026-10-23T05:45:33.398Z pw:browser [pid=3176][err] (process:3193): libsoup-CRITICAL **: 05:45:33.397: soup_session_feature_request_queued: assertion 'SOUP_IS_SESSION_FEATURE (feature)' failed
+2026-10-23T05:45:48.4120892Z 2026-10-23T05:45:48.409Z pw:browser [pid=3176][err] ERROR: WebKit encountered an internal error. This is a WebKit bug.
+2026-10-23T05:45:48.4123915Z 2026-10-23T05:45:48.410Z pw:browser [pid=3176][err] /home/pwuser/webkit/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp(696) : void WebKit::WebLoaderStrategy::internallyFailedLoadTimerFired()
+2026-10-23T05:45:48.5009580Z     throw new Error('Missing service worker audit target: ' + JSON.stringify(result.missingAuditTarget));
+2026-10-23T05:45:48.5015679Z Error: Missing service worker audit target: {"role":"active","url":"http://127.0.0.1:36905/about","scope":null,"controller":{"scriptURL":"http://127.0.0.1:36905/sw.js","state":"activated"},"registration":null,"registrations":[],"navigation":[{"name":"http://127.0.0.1:36905/about","type":"reload","workerStart":1,"responseStart":2}],"heading":"关于合谱"}

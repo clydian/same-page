@@ -1,0 +1,33 @@
+{
+  "run": 39906988320,
+  "job": 120261104366,
+  "networkPid": "3193",
+  "samplesWithNetworkPid": 44,
+  "firstSample": [
+    1792734326754,
+    "3193",
+    [
+      "Name:\tWPENetworkProce",
+      "State:\tS (sleeping)",
+      "PPid:\t3182",
+      "VmPeak:\t134493300 kB",
+      "VmRSS:\t   73156 kB",
+      "Threads:\t9"
+    ]
+  ],
+  "lastSample": [
+    1792734348290,
+    "3193",
+    [
+      "Name:\tWPENetworkProce",
+      "State:\tS (sleeping)",
+      "PPid:\t3182",
+      "VmPeak:\t134493300 kB",
+      "VmRSS:\t  101328 kB",
+      "Threads:\t12"
+    ]
+  ],
+  "memoryEventsBefore": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+  "memoryEventsAfter": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+  "note": "500ms polling, not an exit-status trace; process present during native assertion and Internal error"
+}

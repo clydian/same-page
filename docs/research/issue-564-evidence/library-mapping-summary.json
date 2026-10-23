@@ -1,0 +1,12 @@
+{
+  "run": 39908210739,
+  "commit": "5c9088266cc5305bfbc2836b4f02e0fe3f7f3ca5",
+  "bundledVersion": "libsoup/3.6.5",
+  "networkProcessesByLibrary": {
+    "/ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4": 26,
+    "/tmp/issue-564-libsoup-fixed/lib/x86_64-linux-gnu/libsoup-3.0.so.0.7.4": 50
+  },
+  "processesWithBothLibraries": [],
+  "oomBefore": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+  "oomAfter": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n"
+}

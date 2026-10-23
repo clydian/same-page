@@ -1,0 +1,492 @@
+{
+  "error": "Error: Missing service worker audit target: {\"role\":\"active\",\"url\":\"http://127.0.0.1:43375/about\",\"scope\":null,\"controller\":{\"scriptURL\":\"http://127.0.0.1:43375/sw.js\",\"state\":\"activated\"},\"registration\":null,\"registrations\":[],\"navigation\":[{\"name\":\"http://127.0.0.1:43375/about\",\"type\":\"reload\",\"workerStart\":1,\"responseStart\":1}],\"heading\":\"关于合谱\"}",
+  "phase": "first-offline-reload",
+  "observations": [
+    {
+      "time": 1792734602193,
+      "phase": "legacy-overlap",
+      "type": "browser",
+      "sequence": 1,
+      "path": "/about",
+      "call": "register",
+      "scriptURL": "/sw.js",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112754\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032\nHu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:118221\nVu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:117994"
+    },
+    {
+      "time": 1792734602197,
+      "phase": "legacy-overlap",
+      "type": "worker-script-request",
+      "offline": false,
+      "release": 2
+    },
+    {
+      "time": 1792734602200,
+      "phase": "legacy-overlap",
+      "type": "worker-script-response",
+      "offline": false,
+      "release": 2,
+      "status": 200
+    },
+    {
+      "time": 1792734602300,
+      "phase": "legacy-overlap",
+      "type": "browser",
+      "sequence": 2,
+      "path": "/about",
+      "resolved": "register"
+    },
+    {
+      "time": 1792734602302,
+      "phase": "legacy-overlap",
+      "type": "browser",
+      "sequence": 3,
+      "path": "/about",
+      "event": "updatefound",
+      "scope": "http://127.0.0.1:43375/",
+      "active": null,
+      "waiting": null,
+      "installing": {
+        "scriptURL": "http://127.0.0.1:43375/sw.js",
+        "state": "installing"
+      }
+    },
+    {
+      "time": 1792734602302,
+      "phase": "legacy-overlap",
+      "type": "browser",
+      "sequence": 4,
+      "path": "/about",
+      "call": "update",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:103808\nstart@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:101498\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112999\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032"
+    },
+    {
+      "time": 1792734602444,
+      "phase": "legacy-overlap",
+      "type": "worker-script-request",
+      "offline": false,
+      "release": 2
+    },
+    {
+      "time": 1792734602448,
+      "phase": "legacy-overlap",
+      "type": "browser",
+      "sequence": 5,
+      "path": "/about",
+      "event": "statechange",
+      "scope": "http://127.0.0.1:43375/",
+      "active": null,
+      "waiting": {
+        "scriptURL": "http://127.0.0.1:43375/sw.js",
+        "state": "installed"
+      },
+      "installing": null,
+      "changed": {
+        "scriptURL": "http://127.0.0.1:43375/sw.js",
+        "state": "installed"
+      }
+    },
+    {
+      "time": 1792734602449,
+      "phase": "legacy-overlap",
+      "type": "browser",
+      "sequence": 6,
+      "path": "/about",
+      "event": "statechange",
+      "scope": "http://127.0.0.1:43375/",
+      "active": {
+        "scriptURL": "http://127.0.0.1:43375/sw.js",
+        "state": "activating"
+      },
+      "waiting": null,
+      "installing": null,
+      "changed": {
+        "scriptURL": "http://127.0.0.1:43375/sw.js",
+        "state": "activating"
+      }
+    },
+    {
+      "time": 1792734602451,
+      "phase": "legacy-overlap",
+      "type": "worker-script-response",
+      "offline": false,
+      "release": 2,
+      "status": 200
+    },
+    {
+      "time": 1792734602725,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 1,
+      "path": "/about",
+      "call": "register",
+      "scriptURL": "/sw.js",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112754\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032\nHu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:118221\nVu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:117994"
+    },
+    {
+      "time": 1792734602745,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 2,
+      "path": "/about",
+      "resolved": "register"
+    },
+    {
+      "time": 1792734602828,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 3,
+      "path": "/about",
+      "call": "update",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:103808\nstart@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:101498\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112999\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032"
+    },
+    {
+      "time": 1792734602830,
+      "phase": "initial-current-audit",
+      "type": "worker-script-request",
+      "offline": false,
+      "release": 2
+    },
+    {
+      "time": 1792734602831,
+      "phase": "initial-current-audit",
+      "type": "worker-script-response",
+      "offline": false,
+      "release": 2,
+      "status": 200
+    },
+    {
+      "time": 1792734602833,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 4,
+      "path": "/about",
+      "resolved": "update"
+    },
+    {
+      "time": 1792734603009,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 1,
+      "path": "/",
+      "call": "register",
+      "scriptURL": "/sw.js",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112754\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032\nHu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:118221\nVu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:117994"
+    },
+    {
+      "time": 1792734603018,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 2,
+      "path": "/",
+      "resolved": "register"
+    },
+    {
+      "time": 1792734603100,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 1,
+      "path": "/about",
+      "call": "register",
+      "scriptURL": "/sw.js",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112754\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032\nHu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:118221\nVu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:117994"
+    },
+    {
+      "time": 1792734603113,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 2,
+      "path": "/about",
+      "resolved": "register"
+    },
+    {
+      "time": 1792734603126,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 3,
+      "path": "/about",
+      "call": "update",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:103808\nstart@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:101498\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112999\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032"
+    },
+    {
+      "time": 1792734603127,
+      "phase": "initial-current-audit",
+      "type": "worker-script-request",
+      "offline": false,
+      "release": 2
+    },
+    {
+      "time": 1792734603127,
+      "phase": "initial-current-audit",
+      "type": "worker-script-response",
+      "offline": false,
+      "release": 2,
+      "status": 200
+    },
+    {
+      "time": 1792734603132,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 4,
+      "path": "/about",
+      "resolved": "update"
+    },
+    {
+      "time": 1792734603347,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 1,
+      "path": "/about",
+      "call": "register",
+      "scriptURL": "/sw.js",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112754\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032\nHu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:118221\nVu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:117994"
+    },
+    {
+      "time": 1792734603374,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 2,
+      "path": "/about",
+      "resolved": "register"
+    },
+    {
+      "time": 1792734603376,
+      "phase": "initial-current-audit",
+      "type": "browser",
+      "sequence": 3,
+      "path": "/about",
+      "call": "update",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:103808\nstart@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:101498\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112999\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032"
+    },
+    {
+      "time": 1792734603378,
+      "phase": "initial-current-audit",
+      "type": "worker-script-request",
+      "offline": false,
+      "release": 2
+    },
+    {
+      "time": 1792734603381,
+      "phase": "initial-current-audit",
+      "type": "worker-script-response",
+      "offline": false,
+      "release": 2,
+      "status": 200
+    },
+    {
+      "time": 1792734603383,
+      "phase": "root-repair-reload",
+      "type": "browser",
+      "sequence": 4,
+      "path": "/about",
+      "resolved": "update"
+    },
+    {
+      "time": 1792734603480,
+      "phase": "root-repair-reload",
+      "type": "browser",
+      "sequence": 1,
+      "path": "/about",
+      "call": "register",
+      "scriptURL": "/sw.js",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112754\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032\nHu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:118221\nVu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:117994"
+    },
+    {
+      "time": 1792734603484,
+      "phase": "root-repair-reload",
+      "type": "browser",
+      "sequence": 2,
+      "path": "/about",
+      "resolved": "register"
+    },
+    {
+      "time": 1792734603486,
+      "phase": "root-repair-reload",
+      "type": "browser",
+      "sequence": 3,
+      "path": "/about",
+      "call": "update",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:103808\nstart@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:101498\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112999\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032"
+    },
+    {
+      "time": 1792734603487,
+      "phase": "root-repair-reload",
+      "type": "worker-script-request",
+      "offline": false,
+      "release": 2
+    },
+    {
+      "time": 1792734603488,
+      "phase": "root-repair-reload",
+      "type": "worker-script-response",
+      "offline": false,
+      "release": 2,
+      "status": 200
+    },
+    {
+      "time": 1792734603490,
+      "phase": "root-repair-reload",
+      "type": "browser",
+      "sequence": 4,
+      "path": "/about",
+      "resolved": "update"
+    },
+    {
+      "time": 1792734603528,
+      "phase": "root-repair-reload",
+      "type": "before-offline",
+      "state": {
+        "path": "/about",
+        "online": true,
+        "build": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "recovery": {
+          "status": null,
+          "retryDisabled": null
+        },
+        "controller": {
+          "scriptURL": "http://127.0.0.1:43375/sw.js",
+          "state": "activated"
+        },
+        "registration": {
+          "scope": "http://127.0.0.1:43375/",
+          "active": {
+            "scriptURL": "http://127.0.0.1:43375/sw.js",
+            "state": "activated"
+          },
+          "waiting": null,
+          "installing": null
+        },
+        "registrations": [
+          {
+            "scope": "http://127.0.0.1:43375/",
+            "active": {
+              "scriptURL": "http://127.0.0.1:43375/sw.js",
+              "state": "activated"
+            },
+            "waiting": null,
+            "installing": null
+          }
+        ]
+      }
+    },
+    {
+      "time": 1792734603591,
+      "phase": "first-offline-reload",
+      "type": "worker-script-request",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603592,
+      "phase": "first-offline-reload",
+      "type": "worker-script-connection-closed",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603592,
+      "phase": "first-offline-reload",
+      "type": "worker-script-request",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603593,
+      "phase": "first-offline-reload",
+      "type": "worker-script-connection-closed",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603593,
+      "phase": "first-offline-reload",
+      "type": "worker-script-request",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603594,
+      "phase": "first-offline-reload",
+      "type": "worker-script-connection-closed",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603594,
+      "phase": "first-offline-reload",
+      "type": "worker-script-request",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603594,
+      "phase": "first-offline-reload",
+      "type": "worker-script-connection-closed",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603594,
+      "phase": "first-offline-reload",
+      "type": "worker-script-request",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603594,
+      "phase": "first-offline-reload",
+      "type": "worker-script-connection-closed",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603595,
+      "phase": "first-offline-reload",
+      "type": "worker-script-request",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603595,
+      "phase": "first-offline-reload",
+      "type": "worker-script-connection-closed",
+      "offline": true,
+      "release": 2
+    },
+    {
+      "time": 1792734603612,
+      "phase": "first-offline-reload",
+      "type": "browser",
+      "sequence": 1,
+      "path": "/about",
+      "call": "register",
+      "scriptURL": "/sw.js",
+      "stack": "@web-inspector://bootstrap.js:715:104\n@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:12:112754\nCl@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:95032\nHu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:118221\nVu@http://127.0.0.1:43375/assets/index-D7Fx9Pr4.js:9:117994"
+    },
+    {
+      "time": 1792734627095,
+      "phase": "first-offline-reload",
+      "type": "browser",
+      "sequence": 2,
+      "path": "/about",
+      "rejected": "register",
+      "error": "TypeError: Internal error"
+    }
+  ],
+  "snapshots": [
+    {
+      "path": "/about",
+      "online": true,
+      "build": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "recovery": {
+        "status": null,
+        "retryDisabled": null
+      },
+      "controller": {
+        "scriptURL": "http://127.0.0.1:43375/sw.js",
+        "state": "activated"
+      },
+      "registration": null,
+      "registrations": []
+    }
+  ]
+}

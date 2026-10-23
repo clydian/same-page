@@ -1,0 +1,2 @@
+03d635a54478e3aefd5fb202e53c8897431a6c9aaaad0408698c4b2c3a1275a3  /ms-playwright/webkit-2336/minibrowser-wpe/sys/lib/libsoup-3.0.so.0
+7d38ff154f52492d8189ea1f642d56ad6b571bdd81475403d5cc3fdc6e1b19b8  /tmp/issue-564-libsoup-fixed/lib/x86_64-linux-gnu/libsoup-3.0.so.0

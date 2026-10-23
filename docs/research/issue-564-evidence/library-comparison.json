@@ -1,0 +1,26 @@
+[
+  {
+    "label": "baseline",
+    "limit": 20,
+    "preload": "",
+    "passed": 4,
+    "failed": {
+      "iteration": 5,
+      "error": "Error: baseline-5: exit 1, signal null"
+    }
+  },
+  {
+    "label": "fixed",
+    "limit": 50,
+    "preload": "/tmp/issue-564-libsoup-fixed/lib/x86_64-linux-gnu/libsoup-3.0.so.0",
+    "passed": 50,
+    "failed": null
+  },
+  {
+    "label": "restored",
+    "limit": 20,
+    "preload": "",
+    "passed": 20,
+    "failed": null
+  }
+]
