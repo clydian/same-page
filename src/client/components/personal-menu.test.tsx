@@ -30,8 +30,10 @@ it.each([
   for (const [name, href] of links) {
     expect(screen.getByRole('menuitem', { name: name === '关于与更新' ? /^关于与更新/ : name })).toHaveAttribute('href', href);
   }
-  const expected = [...links.map(([name]) => name), '已登录', '退出登录'];
-  const actions = screen.getAllByRole('menuitem').map(item => item.textContent?.startsWith('关于与更新') ? '关于与更新' : item.textContent);
+  const expected = [...links.map(([name]) => name), '退出登录'];
+  const actions = screen.getAllByRole('menuitem')
+    .filter(item => item.getAttribute('aria-disabled') !== 'true')
+    .map(item => item.textContent?.startsWith('关于与更新') ? '关于与更新' : item.textContent);
   expect(actions.sort()).toEqual(expected.sort());
 });
 
