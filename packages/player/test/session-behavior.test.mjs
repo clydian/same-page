@@ -157,15 +157,28 @@ test('range preview can leave the loop without seeking and cancel restores brows
   h.api.score.tracks[0].staves=[{bars:Array.from({length:8},(_,index)=>({voices:[{beats:[{index}]}]}))}];
   const highlights=[];let pauses=0,resumes=0;
   h.api.highlightPlaybackRange=(a,b)=>highlights.push([a.index,b.index]);h.api.clearPlaybackRangeHighlight=()=>{};
-  h.api.pause=()=>pauses++;h.api.playPause=()=>resumes++;
+  h.api.pause=()=>pauses++;h.api.play=()=>resumes++;
   await Promise.resolve();h.session.loop(2,4);h.session.suspendFollow();viewport.scrollTop=40;
   h.api.playerStateChanged.emit({state:1});
   h.session.previewMeasure(7);assert.equal(pauses,1);assert.equal(h.api.tickPosition,200);
-  assert.deepEqual(highlights.at(-1),[7,7]);assert.notEqual(viewport.scrollTop,40);
+  assert.deepEqual(highlights.at(-1),[2,4]);assert.notEqual(viewport.scrollTop,40);
   h.session.previewMeasure(6);h.session.seek(3);assert.equal(pauses,1);assert.equal(h.api.tickPosition,200);
   h.session.previewMeasure(null);assert.equal(viewport.scrollTop,40);assert.equal(resumes,1);assert.equal(h.session.getSnapshot().following,false);
   assert.deepEqual(h.api.playbackRange,{startTick:200,endTick:500});
   h.session.previewMeasure(7);h.session.loop(5,7);assert.equal(h.api.tickPosition,500);assert.equal(resumes,2);
   assert.deepEqual(h.api.playbackRange,{startTick:500,endTick:800});
+ }finally{h.dispose();}
+});
+
+test('score taps resolve the repeated occurrence inside the active loop, preserving beat offset',async()=>{
+ const h=harness({prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.api.tickCache.masterBars=Array.from({length:8},(_,index)=>({masterBar:{index:index%4},start:index*100,end:(index+1)*100}));
+  await Promise.resolve();h.session.loop(4,7);
+  const beat={voice:{bar:{masterBar:{index:2}}}};
+  h.api.boundsLookup.getBeatAtPos=()=>beat;h.api.tickCache.getBeatStart=()=>220;
+  h.api.tickCache.getRelativeBeatPlaybackRange=()=>({startTick:20,endTick:80});
+  h.session.seekAt(12,34);assert.equal(h.api.tickPosition,620);assert.equal(h.session.getSnapshot().measure,6);
+  h.session.loop(null);h.session.seekAt(12,34);assert.equal(h.api.tickPosition,620,'unrestricted taps retain the closest repeat visit');
  }finally{h.dispose();}
 });

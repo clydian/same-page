@@ -137,9 +137,6 @@ export function MusicXmlPractice({
       >
         <section className="practice-focus" aria-label="声部关注">
           <h3>声部关注</h3>
-          <p className="practice-hint">
-            选一个声部，分别调整它和其他声部的音量。
-          </p>
           <label className="practice-field">
             关注声部
             <select
@@ -339,7 +336,7 @@ export function MusicXmlPractice({
           )}
           <p className="practice-hint">
             {view !== "pdf"
-              ? "按当前调号，可标注全部或指定声部；不改变播放混音。"
+              ? "按当前调号标注，不改变混音。"
               : "切换到重排谱面后可设置。"}
           </p>
         </section>

@@ -34,9 +34,13 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  await expect(progress).toHaveAttribute('min','2');await expect(progress).toHaveAttribute('max','4');
  await expect(bar.getByRole('button',{name:'前一小节',exact:true})).toBeDisabled();
  const tap=async number=>{
-  const label=page.locator('.at-surface svg text').filter({hasText:new RegExp(`^${number}$`)}).first();
-  const rect=await label.boundingBox();assert.ok(rect);
-  await page.mouse.click(rect.x+8,rect.y+24);
+  const label=page.locator('.at-surface svg text').filter({hasText:new RegExp(`^${number}\\s*$`)}).first();
+
+  const rect=await label.evaluate(element=>{
+   const texts=[...element.ownerSVGElement.querySelectorAll('text')],index=texts.indexOf(element);
+   const note=texts.slice(index+1).find(e=>e.textContent==='\uE0A2');
+   return note?.getBoundingClientRect().toJSON();
+  });assert.ok(rect);await page.mouse.click(rect.x+rect.width/2,rect.y+rect.height/2);
  };
  await tap(8);await expect(progress).toHaveValue('4');
  await expect(bar.getByRole('button',{name:'后一小节',exact:true})).toBeDisabled();
@@ -44,13 +48,17 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  // The same visual point under magnification must use exactly the same seek rule.
  await page.locator('.practice-notation-scroll').dispatchEvent('wheel',{deltaY:-60,ctrlKey:true,clientX:100,clientY:200});
  await tap(8);await expect(progress).toHaveValue('4');
- await page.getByRole('button',{name:'适合宽度',exact:true}).click();
+ await page.getByRole('button',{name:'恢复查看比例',exact:true}).click();
  const commands=await page.evaluate(()=>window.__loopCommands);
  assert.ok(!commands.some(c=>c.cmd==='alphaSynth.setPlaybackRange' && c.value===null),'score taps retain the active engine loop');
  assert.deepEqual(commands.filter(c=>c.cmd==='alphaSynth.setTickPosition').slice(-3).map(c=>c.value),[15360,7680,15360]);
  await progress.press('Home');await expect(progress).toHaveValue('2');await progress.press('End');await expect(progress).toHaveValue('4');
  await bar.getByRole('button',{name:'定位小节',exact:true}).click();const locator=page.getByRole('slider',{name:'目标小节',exact:true});
  await expect(locator).toHaveAttribute('min','2');await expect(locator).toHaveAttribute('max','4');await locator.fill('3');await page.getByRole('button',{name:'跳转',exact:true}).click();await expect(progress).toHaveValue('3');
+ await bar.getByRole('button',{name:'播放',exact:true}).click();await expect(bar.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+ await open();await draftLoopRange(page,2,4);await expect(bar.locator('.practice-play')).toHaveAttribute('aria-label','播放');
+ await settings.getByRole('button',{name:'取消调整',exact:true}).click();await close();await expect(bar.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+ await bar.getByRole('button',{name:'暂停',exact:true}).click();
  await open();await draftLoopRange(page,3,3);await settings.getByRole('button',{name:'应用范围',exact:true}).click();await close();
  await expect(progress).toHaveAttribute('min','3');await expect(progress).toHaveAttribute('max','3');await tap(8);await expect(progress).toHaveValue('3');
  await page.setViewportSize({width:390,height:844});await open();await draftLoopRange(page,3,6);
@@ -62,7 +70,7 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  await expect(page.locator('.practice-popover')).toHaveAttribute('data-loop-previewing','true');
  await expect(settings.locator('header')).toHaveCSS('opacity','0');await expect(page.locator('.practice-popover')).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
  await expect.poll(()=>viewport.evaluate(e=>e.scrollTop)).toBeGreaterThan(original);
- await expect(page.locator('.at-selection')).not.toHaveCount(0);
+ const marker=page.locator('.practice-measure-preview');await expect(marker).toBeVisible();const bounds=await marker.boundingBox();assert.ok(bounds.width>10 && bounds.height>10,'whole-note target has a real measure highlight');
  await mkdir('artifacts/verification/practice-loop',{recursive:true});await page.screenshot({path:`artifacts/verification/practice-loop/${engine}-mobile-drag.png`});
  await page.mouse.up();await expect(page.locator('.practice-popover')).not.toHaveAttribute('data-loop-previewing','true');
  await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 4 小节 至 第 4 小节');

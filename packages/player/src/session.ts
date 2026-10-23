@@ -67,11 +67,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
   });
   api.masterVolume = .72;
+  let previewOverlay: HTMLDivElement | null = null;
   let preview: { playing: boolean; scrollTop: number; index: number } | null = null;
-  const scrollToMeasure = (index: number) => {
+  const scrollToMeasure = (index: number, clearance = 16) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
     const bounds = masterBar && api.boundsLookup?.findMasterBar(masterBar)?.staffSystemBounds?.realBounds;
-    if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - 16;
+    if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - clearance;
   };
   let measureLabels: string[] = [];
   let customMeasureLabels = false;
@@ -146,13 +147,14 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   api.renderStarted.on(() => { musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
   api.postRenderFinished.on(() => {
     renderDegrees(); renderMeasureLabels();
+    if (!preview) highlightLoop();
     reportReadableSystem();
     if (disposed || !viewport) return;
     if (anchor) {
       const bounds = api.boundsLookup?.findMasterBarByIndex(anchor.bar)?.staffSystemBounds?.realBounds;
       if (bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - anchor.offset;
       anchor = null;
-    } else if (preview) scrollToMeasure(preview.index);
+    } else if (preview) showPreview(preview.index);
     else if (state.following && state.status === 'ready' && (state.measure > 0 || state.playing)) scrollToMeasure(state.measure);
   });
 
@@ -264,15 +266,32 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const to = last === undefined ? undefined : bars?.[last]?.voices[0]?.beats.at(-1);
     if (from && to) api.highlightPlaybackRange(from, to);
   };
+  const markMeasure = (index: number) => {
+    previewOverlay?.remove(); previewOverlay = null;
+    const master = api.tickCache?.masterBars[index]?.masterBar;
+    const bounds = master && api.boundsLookup?.findMasterBar(master)?.realBounds;
+    if (bounds && bounds.w > 0 && bounds.h > 0) {
+      const marker = document.createElement('div'); marker.className = 'practice-measure-preview'; marker.setAttribute('aria-hidden', 'true');
+      Object.assign(marker.style, { left: `${bounds.x}px`, top: `${bounds.y}px`, width: `${bounds.w}px`, height: `${bounds.h}px` });
+      element.append(marker); previewOverlay = marker;
+    }
+  };
+  const showPreview = (index: number) => {
+    markMeasure(index); scrollToMeasure(index, Math.max(72, (viewport?.clientHeight ?? 0) * .18));
+  };
   const highlightLoop = () => {
     api.clearPlaybackRangeHighlight?.();
-    if (state.loop) highlight(state.loop.start, state.loop.end);
+    previewOverlay?.remove(); previewOverlay = null;
+    if (state.loop) {
+      if (state.loop.start === state.loop.end) markMeasure(state.loop.start);
+      else highlight(state.loop.start, state.loop.end);
+    }
   };
-  const finishPreview = (restore: boolean) => {
+  const finishPreview = () => {
     if (!preview) return;
-    const previous = preview; preview = null; highlightLoop();
-    if (restore && viewport) viewport.scrollTop = previous.scrollTop;
-    if (previous.playing) api.playPause();
+    const previous = preview; preview = null; previewOverlay?.remove(); previewOverlay = null; highlightLoop();
+    if (viewport) viewport.scrollTop = previous.scrollTop;
+    if (previous.playing) api.play();
   };
   const seekTick = (requested: number) => {
     if (!Number.isFinite(requested) || preview) return;
@@ -296,7 +315,14 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     seekAt(x, y) {
       if (disposed || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
       const beat = api.boundsLookup?.getBeatAtPos(x, y);
-      if (beat && api.tickCache) seekTick(api.tickCache.getBeatStart(beat));
+      if (beat && api.tickCache) {
+        const relative = api.tickCache.getRelativeBeatPlaybackRange?.(beat);
+        const sourceIndex = beat.voice?.bar.masterBar.index;
+        const occurrences = api.tickCache.masterBars.map((bar, index) => ({ bar, index })).filter(item => item.bar.masterBar.index === sourceIndex);
+        const inside = occurrences.filter(item => !state.loop || item.index >= state.loop.start && item.index <= state.loop.end);
+        const nearest = (inside.length ? inside : occurrences).sort((a, b) => Math.abs(a.index - state.measure) - Math.abs(b.index - state.measure))[0];
+        seekTick(nearest && relative ? nearest.bar.start + relative.startTick : api.tickCache.getBeatStart(beat));
+      }
     },
     speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
     mix(id, value) {
@@ -323,25 +349,25 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     suspendFollow() { if (!disposed && state.following) setFollow(false); },
     previewMeasure(index) {
       if (disposed || state.status !== 'ready') return;
-      if (index === null) { finishPreview(true); return; }
+      if (index === null) { finishPreview(); return; }
       if (!state.measures[index]) return;
       if (!preview) { preview = { playing: state.playing, scrollTop: viewport?.scrollTop ?? 0, index }; api.pause(); }
       preview.index = index;
-      highlight(index, index); scrollToMeasure(index);
+      showPreview(index);
     },
     loop(start, end) {
       if (disposed || state.status !== 'ready') return;
       if (start !== null && (end === undefined || end < start || !state.measures[start] || !state.measures[end])) return;
-      const resume = preview?.playing ?? false; preview = null;
+      const resume = preview?.playing ?? false; preview = null; previewOverlay?.remove(); previewOverlay = null;
       if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); }
       else {
         api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end!].endTick };
         api.isLooping = true; update({ loop: { start, end: end! } }); seekTick(state.measures[start].startTick);
       }
-      highlightLoop(); if (resume) api.playPause();
+      highlightLoop(); if (resume) api.play();
     },
     dispose() {
-      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove();
+      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); previewOverlay?.remove();
       viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
       viewport?.removeEventListener('keydown', keyDown);
       viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy();

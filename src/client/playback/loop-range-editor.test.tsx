@@ -40,3 +40,12 @@ it('Escape discards keyboard edits and window blur releases the preview',()=>{
  expect(screen.queryByRole('slider')).not.toBeInTheDocument();expect(session.loop).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole('button',{name:'调整范围'}));fireEvent.blur(window);expect(session.previewMeasure).toHaveBeenLastCalledWith(null);
 });
+it('provides exact touch adjustments and prevents endpoints from crossing',()=>{
+ const {session}=setup();fireEvent.click(screen.getByRole('button',{name:'调整范围'}));
+ fireEvent.click(screen.getByRole('button',{name:'终点 B'}));
+ fireEvent.click(screen.getByRole('button',{name:'循环终点前一小节'}));
+ expect(session.previewMeasure).toHaveBeenLastCalledWith(3);
+ fireEvent.click(screen.getByRole('button',{name:'循环终点前一小节'}));expect(session.previewMeasure).toHaveBeenLastCalledWith(2);
+ expect(screen.getByRole('button',{name:'循环终点前一小节'})).toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'应用范围'}));expect(session.loop).toHaveBeenCalledExactlyOnceWith(2,2);
+});

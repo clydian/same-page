@@ -306,3 +306,6 @@
 .practice-popover[data-loop-previewing] .practice-loop > :not(.practice-loop-range) { opacity: 0; pointer-events: none; }
 .practice-popover[data-loop-previewing] .practice-loop { border-color: transparent; }
 .practice-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.practice-measure-preview { position: absolute; z-index: 5; box-sizing: border-box; border: 2px solid #547c68; border-radius: 4px; background: #547c6820; pointer-events: none; }
+.practice-loop-fine { display: grid; grid-template-columns: 1fr 1fr 44px 44px; gap: 4px; }
+.practice-loop-fine .practice-action { padding-inline: 4px; }

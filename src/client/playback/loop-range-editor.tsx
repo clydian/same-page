@@ -45,7 +45,11 @@ export function LoopRangeEditor({ session, state, ready, onPreview, onPreviewing
         </Slider>
         <div className="practice-loop-labels"><span>A · {label(range[0])}</span><span>B · {label(range[1])}</span></div>
       </div>
-      <p className="practice-hint">拖动端点看谱定位；方向键逐小节调整，包含终点整小节。</p>
+      <div className="practice-loop-fine" role="group" aria-label="逐小节微调">
+        {[0, 1].map(index => <Button key={index} className="practice-action" aria-pressed={endpoint === index} onPress={() => { setEndpoint(index); session?.previewMeasure(range[index]); }}>{index === 0 ? '起点 A' : '终点 B'}</Button>)}
+        {[-1, 1].map(delta => <Button key={delta} className="practice-action" aria-label={`${endpoint === 0 ? '循环起点' : '循环终点'}${delta < 0 ? '前一小节' : '后一小节'}`} isDisabled={range[endpoint] + delta < (endpoint === 0 ? 0 : range[0]) || range[endpoint] + delta > (endpoint === 0 ? range[1] : state.measures.length - 1)} onPress={() => change(range.map((value, index) => index === endpoint ? value + delta : value))}>{delta < 0 ? '−' : '+'}</Button>)}
+      </div>
+      <p className="practice-hint">拖动时透视看谱；支持逐小节微调，包含终点整小节。</p>
       <div className="practice-fields"><Button className="practice-action" onPress={() => { session?.loop(range[0], range[1]); setEditing(false); onPreviewingChange(false); }}>应用范围</Button><Button className="practice-action" onPress={cancel}>取消调整</Button></div>
     </>}
   </section>;
