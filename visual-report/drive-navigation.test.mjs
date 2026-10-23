@@ -69,25 +69,17 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.getByRole("link", { name: /示例云盘/ }).click();
       await page.getByRole("dialog").waitFor({ state: "hidden" });
     });
-    await scenario("personal-menu-scope", async page => {
+    await scenario("personal-menu-navigation-and-focus", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       const trigger = page.getByRole("button", { name: "我的", exact: true });
       await trigger.click();
-      await expect(page.getByRole("menuitem", { name: "阅读偏好", exact: true })).toBeVisible();
-      await expect(page.getByRole("menuitem", { name: "本机存储", exact: true })).toBeVisible();
-      for (const name of ["账户", "退出登录", "云盘内身份"]) await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
-      await expect(page.getByRole("menuitem", { name: /^关于与更新/ })).toBeVisible();
-      for (const name of ["使用手册", "问题反馈"]) await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(0);
-      await expect(page.getByRole("menuitem", { name: "刷新列表", exact: true })).toHaveCount(0);
-      await expect(page.getByRole("menuitem", { name: "云盘内显示名", exact: true })).toHaveCount(0);
-      await expect(page.getByRole("menuitem", { name: "退出云盘成员身份", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("menu", { name: "我的", exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(trigger).toBeFocused();
       await page.getByRole("button", { name: /^切换云盘/ }).click();
       const picker = page.getByRole("dialog", { name: "切换云盘" });
       // A bottom sheet grows upward when its async directory arrives. Wait for
-      // the loaded row before pressing its moving close button; absence of the
-      // personal-menu links below is not a readiness signal.
+      // the loaded row before pressing its moving close button.
       await expect(picker.getByRole("link", { name: /示例云盘.*拥有者/ })).toBeVisible();
       for (const name of ["阅读偏好", "本机存储", "使用手册"]) await expect(picker.getByRole("link", { name, exact: true })).toHaveCount(0);
       await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();

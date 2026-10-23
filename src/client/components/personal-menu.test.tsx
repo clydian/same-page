@@ -14,6 +14,29 @@ afterEach(() => {
   identity.authenticatedUserId = 'operator'; identity.authenticatedSessionId = 'session-a';
 });
 
+it.each([
+  { label: 'outside a drive', drive: undefined, driveLinks: [] },
+  { label: 'inside a drive', drive: { choirId: 'drive-a', choirName: '排练云盘', localOnly: false }, driveLinks: [
+    ['阅读偏好', '/choirs/drive-a/preferences'], ['本机存储', '/choirs/drive-a/storage'],
+  ] },
+  { label: 'with membership identity management', drive: { choirId: 'drive-a', choirName: '排练云盘', localOnly: false, canManageIdentity: true }, driveLinks: [
+    ['云盘内身份', '/choirs/drive-a/me'], ['阅读偏好', '/choirs/drive-a/preferences'], ['本机存储', '/choirs/drive-a/storage'],
+  ] },
+])('routes personal actions in their correct scope $label', async ({ drive, driveLinks }) => {
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json(capabilities)));
+  render(<MemoryRouter><PersonalMenu drive={drive} /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: '我的' }));
+  const links = [...driveLinks, ['账户', '/user'], ['关于与更新', '/about']];
+  for (const [name, href] of links) {
+    expect(screen.getByRole('menuitem', { name: name === '关于与更新' ? /^关于与更新/ : name })).toHaveAttribute('href', href);
+  }
+  const expected = [...links.map(([name]) => name), '退出登录'];
+  const actions = screen.getAllByRole('menuitem')
+    .filter(item => item.getAttribute('aria-disabled') !== 'true')
+    .map(item => item.textContent?.startsWith('关于与更新') ? '关于与更新' : item.textContent);
+  expect(actions.sort()).toEqual(expected.sort());
+});
+
 it.each(['manageReleases', 'viewScores', 'manageReports'])('shows the app entry after confirming %s authority', async capability => {
   const fetch = vi.fn(async () => Response.json({ ...capabilities, [capability]: 1 }));
   vi.stubGlobal('fetch', fetch);

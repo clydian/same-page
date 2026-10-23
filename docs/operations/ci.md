@@ -79,6 +79,34 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 纯策略层的二十次循环保留。缓存数量上限、真实 BFCache、跨窗否决、草稿与 lazy chunk 断言未放宽。
 关闭回收的临时错误注入在第三个候选时仍会失败，避免以减少次数制造空转门禁。
 
+### 体验笔记与练习谱的独立场景
+
+`preview-notes-smoke` 按访客登录/PDF、连接提示变化、已登录 XML、已登录音频、
+无 experience 参数的直接链接分为五项；每项独立 browser context、IndexedDB、请求/错误记录和失败证据。
+保留实际登录的身份转换，明确断言访客笔记不会出现在已登录体验中；每项仍执行真实 PDF
+落笔、刷新后可见、云端仅有不可编辑共享层，以及无笔记/个人层写请求、无页面错误的验证。
+
+`musicxml-startup` 按准备中切换 PDF、prepared 复用、刷新后 local 原文/目录边界、
+普通音频分为四项，每项独立持久化 profile。prepared/local 场景自行完成首次网络准备，
+不依赖前一项留下的缓存；每次打开仍验证真实音符、一次 MIDI 生成、一次新授权及精确原文请求次数。
+普通音频从全新 profile 打开，仍禁止加载 XML 引擎/音色资源。两文件只共享本引擎只读后端种子数据
+和正常登录所得 cookie，不共享本机数据。保留每引擎原有 180 秒总预算、两种引擎和原等待上限。
+
+失败证据分别位于 `preview-notes/<engine>-<scenario>/` 与
+`musicxml-startup/<engine>-<scenario>/`。用 Node 原生完整名称过滤可单独运行，例如：
+
+```sh
+# 先准备与 smoke 一样的生产构建；以下过滤只用于本地定位，CI 默认全量运行。
+SAME_PAGE_RELEASE_CHANNELS=1 npm run build
+node --test --test-name-pattern='^webkit: MusicXML startup local-directory-boundary$' browser-tests/musicxml-startup.test.mjs
+node --test --test-name-pattern='^chromium: preview notes stay local signed-in-direct-link$' browser-tests/preview-notes-smoke.test.mjs
+```
+
+个人菜单的云盘内/外及可管理身份的条目和链接合同集中到 `personal-menu.test.tsx`；
+两个浏览器文件删除重复条目全集与旧入口缺席检查。浏览器仍验证实际关于页/首页跳转、Escape
+焦点恢复、云盘选择器边界、长邮箱窄屏无溢出及 End 键可达退出操作。
+本批不改 PWA 更新/生命周期脚本、共享存储 fixture、浏览器分片或范围选择，避免改变 #564 的调查条件。
+
 - `npm test`：Node 规则和 jsdom 组件。客户端纯逻辑文件用 `*.node.test.ts` 命名，由 `vitest.node.config.ts` 收集，不启动 DOM、React cleanup 或 IndexedDB setup。jsdom 使用单个 setup hook，先卸载 React 再清理 IndexedDB，保持逐用例数据库隔离。
 - `npm run test:worker`：纯认证配置/安全逻辑在 Node，真实路由、D1、R2、权限与生命周期在 workerd。保留实际迁移初始化和隔离，不为省时间改成共享可变数据库。MSW 3、Vitest 5 与 Cloudflare 测试插件保持兼容的 peer 组合；Worker 集成测试关闭 `fsModuleCache`，避免 Workerd 读取宿主机的模块缓存路径。
 - `npm run test:browser-ui`：Node 原生 global setup 只启动一个隔离 Vite dev 服务，每台最多两个文件并行。各测试仍独立拥有浏览器 context、IndexedDB、API route 和 fixture session；没有重试。直接 `node --test visual-report/<file>.test.mjs` 仍可独立启动服务。
