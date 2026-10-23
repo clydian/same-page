@@ -107,7 +107,8 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         await page.goBack();
         await expect(page.getByRole("dialog")).toBeHidden();
         await expect(page.getByRole("heading", { name: "爱情", exact: true })).toBeVisible();
-        optionalBlocked = false;
+        // Keep the fault active while asserting the fallback. A failed dynamic
+        // import may be retried when the editor is reopened after navigation.
         await page.getByRole("button", { name: /更多操作/ }).first().click();
         await page.getByRole("menuitem", { name: "添加附件", exact: true }).click();
         await page.getByRole("button", { name: "文档（仅 .md）", exact: true }).click();
@@ -115,6 +116,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         await expect(page.getByRole("alert")).toContainText("编辑器暂时无法打开");
         await page.getByRole("textbox", { name: "文件名", exact: true }).fill("爱情排练笔记.md");
         await page.getByRole("button", { name: "使用纯文本编辑", exact: true }).click();
+        optionalBlocked = false;
         const source = "# 排练提醒\n保留原文与草稿，弱网下也能继续编辑。";
         await page.getByRole("textbox", { name: "Markdown 正文", exact: true }).fill(source);
         await page.screenshot({ path: `${evidence}/${engineName}-${device}-attachment-plain-text.png` });
