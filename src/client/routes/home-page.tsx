@@ -37,6 +37,7 @@ import {
 } from "../score-library/drive-library-cache";
 
 import { MembershipList } from "../score-library/membership-list";
+import { DriveEntryPrototype } from "./drive-entry.prototype";
 
 const productFeatures = [
   {
@@ -125,6 +126,8 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
     setStartupDismissed(true);
     setJoinOpen(false);
   };
+
+  if (import.meta.env.DEV && location.pathname === "/drives" && searchParams.has("variant")) return <DriveEntryPrototype identity={identity} />;
 
   const content = (
     <div className="marketing-page">

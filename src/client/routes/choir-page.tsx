@@ -70,7 +70,7 @@ export default function ChoirPage() {
   return <ChoirLibrary key={`${choirId}:${cacheOwner}`} choirId={choirId} identity={identity} cacheOwner={cacheOwner} />;
 }
 
-function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; identity: ApplicationIdentity; cacheOwner: DriveCacheOwnerKey }) {
+export function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; identity: ApplicationIdentity; cacheOwner: DriveCacheOwnerKey }) {
   const navigate = useNavigate(), location = useLocation();
   const { session } = identity;
   // A remembered session scopes the mounted view; only authenticatedUserId grants authority.

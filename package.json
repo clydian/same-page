@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "npm run build:player && npm run copy:native-source && tsc -b && vite build && node scripts/verify-precache.mjs && node scripts/release-contract.mjs && node scripts/build-storage-probe.mjs",
     "preview": "vite preview",
+    "preview:drive-entry": "node scripts/preview-drive-entry.prototype.mjs",
     "lint": "eslint .",
     "typecheck": "npm run build:player && tsc -b --pretty false",
     "test": "npm run test:player && npm run test:unit && npm run test:client",
