@@ -381,3 +381,14 @@ MusicXML 延长记号按实际声明的拍与声部绘制，保留 normal、angl
 ### 当前原生版本：native18
 
 精确 peer 为 `1.8.4-samepage.18`，源码提交 `aa5e25f3d29eeab8dea85328eb38805b8b70bfef`，源码树 `1680cadf1d6ec004cb7ed4b4e9c0ab69cb8e5b11`。整合 main 的括号音头修复，保留双标和本 PR 的 MIDI 生命周期修复。main 的正式 native16 制品保持原样，历史候选版本说明不代表当前依赖。
+
+
+Practice-session hosts route all notation taps through `seekAt` after normalizing
+visual transforms; native pointer selection is disabled because it can clear the
+engine range independently of session state. `seek` and `seekAt` clamp to the
+active loop, retaining beat precision inside it and resolving outside taps to
+the nearest boundary measure's start. `previewMeasure(index)` pauses once and
+scrolls/highlights notation without seeking audio or modifying the loop; `null`
+cancels, restoring the original viewport and prior playing state. `loop(start,
+end)` applies the draft (inclusive whole measures), seeks its start, and restores
+prior playing state. Dispose fences preview cleanup rather than restarting audio.

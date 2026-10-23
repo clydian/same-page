@@ -2,14 +2,15 @@ import { useEffect, type RefObject } from 'react';
 import type { PlayerSession } from '@same-page/player';
 
 /** Host chrome must not cover the followed system. Manual browsing remains free. */
-export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | null>, session: PlayerSession | null, enabled: boolean) {
+export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | null>, session: Pick<PlayerSession, 'getSnapshot' | 'subscribe'> | null, enabled: boolean) {
   useEffect(() => {
     const scroll = viewport.current;
     if (!scroll || !session || !enabled) return;
     let frame = 0;
     const place = () => {
       frame = 0;
-      if (session.getSnapshot().following === false) return;
+      const state = session.getSnapshot();
+      if (state.following === false || state.previewing) return;
       const toolbar = scroll.closest('.practice-notation')?.querySelector<HTMLElement>('.practice-notation-tools') ?? document.querySelector<HTMLElement>('.practice-header[data-floating]');
       const cursor = scroll.querySelector<HTMLElement>('.at-cursor-bar');
       if (!toolbar || !cursor) return;

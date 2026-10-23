@@ -1,3 +1,4 @@
+import { draftLoopRange } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chromium, webkit, expect } from '@playwright/test';
@@ -28,6 +29,20 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     await expect(range).toHaveAttribute('aria-valuetext',label);
   }
   await page.getByRole('button',{name:'练习设置',exact:true}).click();
-  await page.locator('summary').filter({hasText:'片段循环'}).click();
-  assert.deepEqual(await page.getByLabel('循环起点',{exact:true}).locator('option').allTextContents(),['第 1 小节 · 第 1 次经过','第 2 小节 · 第 1 次经过','第 1 小节 · 第 2 次经过','第 2 小节 · 第 2 次经过','第 3 小节','第 4 小节']);
+  await page.getByRole('button',{name:'选择循环片段',exact:true}).click();
+  const start=page.getByRole('slider',{name:/^循环起点/}),end=page.getByRole('slider',{name:/^循环终点/});
+  await end.fill('5');
+  for (const [index,label] of ['第 1 小节 · 第 1 次经过','第 2 小节 · 第 1 次经过','第 1 小节 · 第 2 次经过','第 2 小节 · 第 2 次经过','第 3 小节','第 4 小节'].entries()) {
+    await start.fill(String(index));await expect(start).toHaveAttribute('aria-valuetext',label);
+  }
+  await page.getByRole('button',{name:'取消调整',exact:true}).click();
+  await draftLoopRange(page,2,3);await page.getByRole('button',{name:'应用范围',exact:true}).click();
+  await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+  const point=await page.locator('.at-surface svg text').filter({hasText:/^2\s*$/}).first().evaluate(label=>{
+    const texts=[...label.ownerSVGElement.querySelectorAll('text')],index=texts.indexOf(label);
+    const bounds=texts.slice(index+1).find(e=>e.textContent==='\uE0A2').getBoundingClientRect();
+    return {x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2};
+  });
+  await page.mouse.click(point.x,point.y);await expect(range).toHaveValue('3');
+  await expect(range).toHaveAttribute('aria-valuetext','第 2 小节 · 第 2 次经过');
 });

@@ -6,11 +6,12 @@ import {
 } from "react";
 import { Button, Switch } from "react-aria-components";
 import type { PlayerSession, PlayerState } from "@same-page/player";
-import { playbackViewStore, type PlaybackSource } from "./playback-store";
+import { setPlaybackView, playbackViewStore, type PlaybackSource } from "./playback-store";
 import { NotationZoom } from "./notation-zoom";
 import { useNotationPinch } from "./use-notation-pinch";
 import { useNotationToolbarClearance } from "./use-notation-toolbar-clearance";
 import { PracticePlayerShell } from "./practice-player-shell";
+import { LoopRangeEditor } from "./loop-range-editor";
 const preparing: PlayerState = {
   status: "preparing",
   message: "正在准备播放…",
@@ -61,8 +62,7 @@ export function MusicXmlPractice({
   const view = embedded ? "xml" : readerView;
   const visual = useNotationPinch(viewport, session, view !== "pdf" && !error);
   useNotationToolbarClearance(viewport, session, !embedded && view !== "pdf");
-  const [loopStart, setLoopStart] = useState(0),
-    [loopEnd, setLoopEnd] = useState(0);
+  const [loopPreviewing, setLoopPreviewing] = useState(false);
   useEffect(() => {
     onReady?.(state.status === "ready" && !error);
   }, [state.status, error, onReady]);
@@ -73,10 +73,6 @@ export function MusicXmlPractice({
     session?.playPause();
   };
   const ready = state.status === "ready" && !error;
-  const loopPending = Boolean(
-    state.loop &&
-    (state.loop.start !== loopStart || state.loop.end !== loopEnd),
-  );
   const measureLabel = (index: number) => state.measures[index]?.label ?? "—";
   const notationZoom = { scale: state.notationScale, ready, onChange: (value: number) => { visual.reset(); session?.notationScale(value); } };
   return (
@@ -108,6 +104,7 @@ export function MusicXmlPractice({
       </section>
       <PracticePlayerShell
         source={source}
+        loopPreviewing={loopPreviewing}
         embedded={embedded}
         notationZoom={view !== "pdf" && view !== "compare" ? notationZoom : undefined}
         loopStatus={state.loop ? `${measureLabel(state.loop.start)} 至 ${measureLabel(state.loop.end)}` : undefined}
@@ -117,7 +114,9 @@ export function MusicXmlPractice({
         failed={Boolean(error) || state.status === "error"}
         timeline={{
           value: state.measure,
-          max: Math.max(0, state.measures.length - 1),
+          min: state.loop?.start ?? 0,
+          max: state.loop?.end ?? Math.max(0, state.measures.length - 1),
+          loop: Boolean(state.loop),
           disabled: !ready,
           label: (value) => state.measures[value]?.label ?? "准备中",
           seek: (value) => session?.seek(value),
@@ -129,8 +128,8 @@ export function MusicXmlPractice({
             ? state.measures[state.measure].label.split(" · ")[0].replace(/^第\s*/, "").replace(/\s*小节$/, "")
             : "—"
         }
-        previousDisabled={state.measure <= 0}
-        nextDisabled={state.measure >= state.measures.length - 1}
+        previousDisabled={state.measure <= (state.loop?.start ?? 0)}
+        nextDisabled={state.measure >= (state.loop?.end ?? state.measures.length - 1)}
         play={play}
         previous={() => session?.seek(state.measure - 1)}
         next={() => session?.seek(state.measure + 1)}
@@ -138,9 +137,6 @@ export function MusicXmlPractice({
       >
         <section className="practice-focus" aria-label="声部关注">
           <h3>声部关注</h3>
-          <p className="practice-hint">
-            选一个声部，分别调整它和其他声部的音量。
-          </p>
           <label className="practice-field">
             关注声部
             <select
@@ -228,8 +224,8 @@ export function MusicXmlPractice({
             </p>
           )}
         </section>
-        <section className="practice-volumes" aria-label="各声部音量">
-          <h3>各声部音量</h3>
+        <details className="practice-volumes practice-mixer" aria-label="各声部音量">
+          <summary>独立混音</summary>
           <p className="practice-hint practice-mixer-legend">
             静音：关闭该声部 · 独奏：只听选中的声部
           </p>
@@ -295,7 +291,8 @@ export function MusicXmlPractice({
               </Button>
             </div>
           ))}
-        </section>
+        </details>
+        <LoopRangeEditor session={session} state={state} ready={ready} onPreviewingChange={setLoopPreviewing} onPreview={() => { visual.reset(); if (view === "pdf") setPlaybackView("xml"); }} />
         <section className="practice-notation-options" aria-label="谱面辅助">
           <h3>谱面辅助</h3>
           <Switch
@@ -339,75 +336,13 @@ export function MusicXmlPractice({
           )}
           <p className="practice-hint">
             {view !== "pdf"
-              ? "按当前调号，可标注全部或指定声部；不改变播放混音。"
+              ? "按当前调号标注，不改变混音。"
               : "切换到重排谱面后可设置。"}
           </p>
         </section>
-        <details className="practice-mixer">
-          <summary>{state.loop ? "片段循环 · 已开启" : "片段循环"}</summary>
-          <p className="practice-hint" role="status">
-            {state.loop
-              ? `正在循环：${measureLabel(state.loop.start)} 至 ${measureLabel(state.loop.end)}`
-              : "未开启循环"}
-          </p>
-          {loopPending && (
-            <p className="practice-loop-pending">新范围尚未应用</p>
-          )}
-          <div className="practice-fields">
-            <label className="practice-field">
-              循环起点
-              <select
-                aria-label="循环起点"
-                disabled={!ready}
-                value={loopStart}
-                onChange={(event) => setLoopStart(Number(event.target.value))}
-              >
-                {state.measures.map((m) => (
-                  <option key={m.index} value={m.index}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="practice-field">
-              循环终点
-              <select
-                aria-label="循环终点"
-                disabled={!ready}
-                value={loopEnd}
-                onChange={(event) => setLoopEnd(Number(event.target.value))}
-              >
-                {state.measures.map((m) => (
-                  <option key={m.index} value={m.index}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {(!state.loop || loopPending) && (
-            <Button
-              className="practice-action"
-              isDisabled={!ready || loopEnd < loopStart}
-              onPress={() => session?.loop(loopStart, loopEnd)}
-            >
-              {state.loop ? "应用新范围" : "循环这一段"}
-            </Button>
-          )}
-          {state.loop && (
-            <Button
-              className="practice-action"
-              isDisabled={!ready}
-              onPress={() => session?.loop(null)}
-            >
-              取消循环
-            </Button>
-          )}
-        </details>
         {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? '此练习谱可离线打开与播放。' : offlineStatus === 'preparing' ? '正在准备离线播放…' : <>离线准备未完成。<Button onPress={retryOffline}>重试离线准备</Button></>}</p>}
         <p className="practice-hint">
-          声音来自 MusicXML，可能与原谱不同。合成音色不演唱歌词；原 PDF
-          可手动翻页。
+          MusicXML 合成播放，不演唱歌词；原 PDF 需手动翻页。
         </p>
       </PracticePlayerShell>
     </>
