@@ -126,8 +126,10 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             await signIn(context, fixture, fixture.accounts[1]);
             await openLibrary();
             await page.locator(".file-row__open").click();
-            await expect(page.locator(".annotation-text").filter({ hasText: "未登录的本机体验" })).toHaveCount(0);
             await checkExperience("已登录体验 pdf");
+            // Check after the signed-in note has survived a reload, never on an
+            // empty loading frame that could hide a late identity leak.
+            await expect(page.locator(".annotation-text").filter({ hasText: "未登录的本机体验" })).toHaveCount(0);
           } else if (scenario === "connectivity-hint") {
             // A connectivity hint can refresh while opening. Pin the shell lookup so
             // this exercises the accepted-click lifetime instead of relying on timing.
