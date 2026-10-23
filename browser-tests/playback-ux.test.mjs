@@ -1,4 +1,4 @@
-import { selectPracticeView } from './practice-controls.mjs';
+import { draftLoopRange, selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {mkdir} from 'node:fs/promises';
@@ -47,6 +47,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await page.setViewportSize({width:1024,height:768});
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
  await expect(settings.getByLabel('关注声部',{exact:true})).toBeVisible();
+ await settings.getByText('独立混音',{exact:true}).click();
  const row=settings.locator('.practice-part').first();const rowControls=await row.locator('input,button').evaluateAll(elements=>elements.map(e=>e.getBoundingClientRect().toJSON()));
  assert.ok(rowControls.every(r=>Math.abs(r.y-rowControls[0].y)<2 && r.height>=44),'volume, mute and solo share one touch-friendly row');
  await settings.getByRole('button',{name:'静音 Alto',exact:true}).click();
@@ -56,7 +57,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await settings.getByRole('slider',{name:'Alto 音量',exact:true}).fill('0.6');await settings.getByLabel('关注声部',{exact:true}).selectOption('0');await settings.getByRole('slider',{name:'其他声部音量',exact:true}).fill('0.15');
  await expect(settings.getByRole('slider',{name:'Alto 音量',exact:true})).toHaveValue('0.15');await expect(settings.getByRole('slider',{name:'Alto 音量',exact:true})).toBeDisabled();
  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mix.png`});
- await settings.getByRole('button',{name:'退出声部关注',exact:true}).click();await expect(settings.getByRole('slider',{name:'Alto 音量',exact:true})).toHaveValue('0.6');await settings.locator('summary').filter({hasText:'片段循环'}).click();await settings.getByLabel('循环终点',{exact:true}).selectOption('2');await settings.getByRole('button',{name:'循环这一段',exact:true}).click();await expect(bar.getByRole('button',{name:'练习设置',exact:true})).toHaveAttribute('data-loop','true');await expect(bar.getByRole('button',{name:'练习设置',exact:true})).toContainText('循环');await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 3 小节');await settings.getByLabel('循环终点',{exact:true}).selectOption('4');await expect(settings.getByText('新范围尚未应用')).toBeVisible();await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 3 小节');await settings.getByRole('button',{name:'应用新范围',exact:true}).click();await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 5 小节');await settings.getByRole('button',{name:'取消循环',exact:true}).click();await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+ await settings.getByRole('button',{name:'退出声部关注',exact:true}).click();await expect(settings.getByRole('slider',{name:'Alto 音量',exact:true})).toHaveValue('0.6');await draftLoopRange(page,0,2);await settings.getByRole('button',{name:'应用范围',exact:true}).click();await expect(bar.getByRole('button',{name:'练习设置',exact:true})).toHaveAttribute('data-loop','true');await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 3 小节');await draftLoopRange(page,0,4);await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 3 小节');await settings.getByRole('button',{name:'应用范围',exact:true}).click();await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 5 小节');await settings.getByRole('button',{name:'关闭循环',exact:true}).click();await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-player.png`});
  const initialReads=fileReads,initialWorkers=workers;
  await page.getByRole('button',{name:'结束练习',exact:true}).click();await expect(bar).toHaveCount(0);await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();

@@ -28,6 +28,11 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     await expect(range).toHaveAttribute('aria-valuetext',label);
   }
   await page.getByRole('button',{name:'练习设置',exact:true}).click();
-  await page.locator('summary').filter({hasText:'片段循环'}).click();
-  assert.deepEqual(await page.getByLabel('循环起点',{exact:true}).locator('option').allTextContents(),['第 1 小节 · 第 1 次经过','第 2 小节 · 第 1 次经过','第 1 小节 · 第 2 次经过','第 2 小节 · 第 2 次经过','第 3 小节','第 4 小节']);
+  await page.getByRole('button',{name:'选择循环片段',exact:true}).click();
+  const start=page.getByRole('slider',{name:/^循环起点/}),end=page.getByRole('slider',{name:/^循环终点/});
+  await end.fill('5');
+  for (const [index,label] of ['第 1 小节 · 第 1 次经过','第 2 小节 · 第 1 次经过','第 1 小节 · 第 2 次经过','第 2 小节 · 第 2 次经过','第 3 小节','第 4 小节'].entries()) {
+    await start.fill(String(index));await expect(start).toHaveAttribute('aria-valuetext',label);
+  }
+
 });

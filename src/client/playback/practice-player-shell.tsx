@@ -14,7 +14,7 @@ import { PlaybackTimeline, type Timeline } from './playback-timeline';
 
 type Props = {
   source?: PlaybackSource; embedded?: boolean; notationZoom?: NotationZoomProps; ready: boolean; playing: boolean; message?: string; failed?: boolean;
-  position: string; loopStatus?: string; timeline: Timeline; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
+  loopPreviewing?: boolean; position: string; loopStatus?: string; timeline: Timeline; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
   play(): void; previous(): void; next(): void; retry(): void; children: ReactNode;
 };
 
@@ -107,7 +107,7 @@ export function PracticePlayerShell(props: Props) {
       </section>
     </div>
     {focus.notice && <div className="practice-focus-notice" role="status">{focus.notice}<Button className="practice-icon" aria-label="关闭全屏提示" onPress={focus.dismissNotice}><X size={16} aria-hidden="true" /></Button></div>}
-    {panel && <Popover triggerRef={panel === 'settings' ? settingsTrigger : positionTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" offset={10}>
+    {panel && <Popover triggerRef={panel === 'settings' ? settingsTrigger : positionTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
       <Dialog className="practice-panel" aria-label={panel === 'settings' ? '练习设置' : isXml ? '定位小节' : '定位时间'}>
         <header><div><strong>{panel === 'settings' ? '练习设置' : isXml ? '定位小节' : '定位时间'}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? '关闭练习设置' : '关闭定位'} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
         {panel === 'settings' ? props.children : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}
@@ -120,7 +120,7 @@ function PositionLocator({ timeline, isXml, close }: { timeline: Timeline; isXml
   const [value, setValue] = useState(timeline.value);
   return <>
     <label className="practice-field"><span>{timeline.label(value)}</span>
-      <input aria-label={isXml ? '目标小节' : '目标时间'} type="range" min="0" max={timeline.max} step={timeline.step ?? 1} value={value} aria-valuetext={timeline.label(value)} disabled={timeline.disabled} onChange={event => setValue(Number(event.target.value))} />
+      <input aria-label={isXml ? '目标小节' : '目标时间'} type="range" min={timeline.min ?? 0} max={timeline.max} step={timeline.step ?? 1} value={value} aria-valuetext={timeline.label(value)} disabled={timeline.disabled} onChange={event => setValue(Number(event.target.value))} />
     </label>
     <Button className="practice-action" isDisabled={timeline.disabled} onPress={() => { timeline.seek(value); close(); }}>跳转</Button>
   </>;

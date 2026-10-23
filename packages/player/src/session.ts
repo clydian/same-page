@@ -22,6 +22,8 @@ export interface PlayerSession {
   notationScale(value: number): void;
   solfege(visible: boolean, part?: number | null): void;
   focus(id: number | null): void; focusOther(volume: number): void; follow(): void; suspendFollow(): void;
+  /** Preview notation outside the active loop without moving the audio position. Null cancels. */
+  previewMeasure(index: number | null): void;
   loop(start: number | null, end?: number): void;
   getSnapshot(): PlayerState; subscribe(listener: () => void): () => void; dispose(): void;
 }
@@ -61,10 +63,11 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     importer: { mergePartGroupsInMusicXml: false },
     display: { scale: .6, resources: { secondaryGlyphColor: '#000000', barNumberColor: '#78867b' } },
     player: { playerMode: alphaTab.PlayerMode.EnabledSynthesizer, soundFont: '/soundfont/sonivox.sf2', enableCursor: true,
-      enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: true,
+      enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: false,
       scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
   });
   api.masterVolume = .72;
+  let preview: { playing: boolean; scrollTop: number; index: number } | null = null;
   const scrollToMeasure = (index: number) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
     const bounds = masterBar && api.boundsLookup?.findMasterBar(masterBar)?.staffSystemBounds?.realBounds;
@@ -149,7 +152,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       const bounds = api.boundsLookup?.findMasterBarByIndex(anchor.bar)?.staffSystemBounds?.realBounds;
       if (bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - anchor.offset;
       anchor = null;
-    } else if (state.following && state.status === 'ready' && (state.measure > 0 || state.playing)) scrollToMeasure(state.measure);
+    } else if (preview) scrollToMeasure(preview.index);
+    else if (state.following && state.status === 'ready' && (state.measure > 0 || state.playing)) scrollToMeasure(state.measure);
   });
 
   const setFollow = (enabled: boolean) => {
@@ -252,17 +256,47 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     };
     const copy = bytes.slice(); worker.postMessage(copy, [copy.buffer]);
   }
+  const highlight = (start: number, end: number) => {
+    const first = api.tickCache?.masterBars[start]?.masterBar.index;
+    const last = api.tickCache?.masterBars[end]?.masterBar.index;
+    const bars = api.score?.tracks[0]?.staves?.[0]?.bars;
+    const from = first === undefined ? undefined : bars?.[first]?.voices[0]?.beats[0];
+    const to = last === undefined ? undefined : bars?.[last]?.voices[0]?.beats.at(-1);
+    if (from && to) api.highlightPlaybackRange(from, to);
+  };
+  const highlightLoop = () => {
+    api.clearPlaybackRangeHighlight?.();
+    if (state.loop) highlight(state.loop.start, state.loop.end);
+  };
+  const finishPreview = (restore: boolean) => {
+    if (!preview) return;
+    const previous = preview; preview = null; highlightLoop();
+    if (restore && viewport) viewport.scrollTop = previous.scrollTop;
+    if (previous.playing) api.playPause();
+  };
+  const seekTick = (requested: number) => {
+    if (!Number.isFinite(requested) || preview) return;
+    const first = state.measures[state.loop?.start ?? 0], last = state.measures[state.loop?.end ?? state.measures.length - 1];
+    if (!first || !last) return;
+    const tick = requested < first.startTick ? first.startTick : requested >= last.endTick ? last.startTick : requested;
+    const index = state.measures.findLastIndex(item => item.startTick <= tick);
+    api.tickPosition = tick; update({ measure: index });
+    if (state.following) scrollToMeasure(index);
+  };
   return {
     getSnapshot: () => state,
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     playPause() { if (!disposed && state.status === 'ready') { if (!state.playing) loadingStage('play-request'); api.playPause(); } },
     pause() { if (!disposed) api.pause(); },
-    seek(index) { if (!disposed && state.status === 'ready' && state.measures[index]) { api.tickPosition = state.measures[index].startTick; if (state.following) scrollToMeasure(index); } },
+    seek(index) { if (!disposed && state.status === 'ready' && Number.isInteger(index)) {
+      const bounded = Math.max(state.loop?.start ?? 0, Math.min(state.loop?.end ?? state.measures.length - 1, index));
+      if (state.measures[bounded]) seekTick(state.measures[bounded].startTick);
+    } },
     // Hosts normalize transformed viewport coordinates before crossing this seam.
     seekAt(x, y) {
       if (disposed || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
       const beat = api.boundsLookup?.getBeatAtPos(x, y);
-      if (beat && api.tickCache) api.tickPosition = api.tickCache.getBeatStart(beat);
+      if (beat && api.tickCache) seekTick(api.tickCache.getBeatStart(beat));
     },
     speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
     mix(id, value) {
@@ -287,12 +321,24 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     } },
     follow() { if (!disposed) setFollow(true); },
     suspendFollow() { if (!disposed && state.following) setFollow(false); },
+    previewMeasure(index) {
+      if (disposed || state.status !== 'ready') return;
+      if (index === null) { finishPreview(true); return; }
+      if (!state.measures[index]) return;
+      if (!preview) { preview = { playing: state.playing, scrollTop: viewport?.scrollTop ?? 0, index }; api.pause(); }
+      preview.index = index;
+      highlight(index, index); scrollToMeasure(index);
+    },
     loop(start, end) {
       if (disposed || state.status !== 'ready') return;
-      if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); return; }
-      if (end === undefined || end < start || !state.measures[start] || !state.measures[end]) return;
-      api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end].endTick };
-      api.isLooping = true; api.tickPosition = state.measures[start].startTick; update({ loop: { start, end } });
+      if (start !== null && (end === undefined || end < start || !state.measures[start] || !state.measures[end])) return;
+      const resume = preview?.playing ?? false; preview = null;
+      if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); }
+      else {
+        api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end!].endTick };
+        api.isLooping = true; update({ loop: { start, end: end! } }); seekTick(state.measures[start].startTick);
+      }
+      highlightLoop(); if (resume) api.playPause();
     },
     dispose() {
       if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove();
