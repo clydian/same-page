@@ -113,7 +113,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await expect(page.getByRole("heading", { name: "云盘设置", level: 1 })).toBeVisible();
     await page.getByRole("button", { name: "返回", exact: true }).click();
     await page.getByRole("button", { name: "我的", exact: true }).click();
-    for (const item of ["阅读偏好", "本机存储", "账户", "问题反馈", "退出登录"]) await expect(page.getByRole("menuitem", { name: item, exact: true })).toBeVisible();
+    for (const item of ["阅读偏好", "本机存储", "账户", "退出登录"]) await expect(page.getByRole("menuitem", { name: item, exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /^关于与更新/ })).toBeVisible();
+    for (const name of ["使用手册", "问题反馈"]) await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(0);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "Long account names must fit the personal menu");
     await page.setViewportSize({ width: 740, height: 320 });
     await expect.poll(async () => {
