@@ -1,7 +1,7 @@
 import { selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdir, readdir, readFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { chromium, webkit, expect } from '@playwright/test';
 import { zipSync, strToU8 } from 'fflate';
@@ -21,13 +21,15 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
    worker.onerror = event => {worker.terminate();reject(new Error(event.message));};
    worker.onmessage = event => {
     worker.terminate();
-    resolve({keys:Object.keys(event.data),visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,bracketTags:(new TextDecoder().decode(event.data.prepared?.bytes??new Uint8Array()).match(/<bracket\b/g)??[]).length,wedges:event.data.prepared?.wedgeEventsByPart,words:event.data.prepared?.wordEventsByPart,creators:event.data.prepared?.creatorCredits,tempos:event.data.prepared?.tempoMeasures,glyphCompleteness:event.data.prepared?.dynamicGlyphsCompleteByPart,dynamics:event.data.prepared?.dynamicEventsByPart});
+    resolve({keys:Object.keys(event.data),importInputVersion:event.data.prepared?.importInputVersion,measureLabels:event.data.prepared?.measureLabels,visibility:event.data.prepared?.timeVisibility,byteLength:event.data.prepared?.bytes?.byteLength,bracketTags:(new TextDecoder().decode(event.data.prepared?.bytes??new Uint8Array()).match(/<bracket\b/g)??[]).length,wedges:event.data.prepared?.wedgeEventsByPart,words:event.data.prepared?.wordEventsByPart,creators:event.data.prepared?.creatorCredits,tempos:event.data.prepared?.tempoMeasures,glyphCompleteness:event.data.prepared?.dynamicGlyphsCompleteByPart,dynamics:event.data.prepared?.dynamicEventsByPart});
    };
    const bytes = new TextEncoder().encode(xml);
    worker.postMessage(bytes,[bytes.buffer]);
   }),{url:`/assets/${names[0]}`,xml:'<score-partwise version="4.0"><identification><creator type="composer">Worker Composer</creator><creator type="arranger">Worker Arranger</creator></identification><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>'+finiteBracketDirections()+'<direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">SOLO or Div.</words></direction-type></direction><direction placement="above"><direction-type><words font-family="serif" font-size="9" font-style="italic">gently</words></direction-type></direction><direction placement="above"><direction-type><dynamics><pp/></dynamics></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="diminuendo" number="1"/></direction-type><offset>0.5</offset></direction><direction><direction-type><wedge type="stop" number="1"/></direction-type><offset>1.5</offset></direction><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes><direction><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><beat-unit>whole</beat-unit></metronome></direction-type></direction><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>'});
   assert.deepEqual(reply.keys,['prepared'],'no unrelated renderer/synth Worker initialization message may arrive first');
   assert.ok(reply.byteLength>0);
+  assert.equal(reply.importInputVersion,'direction-timing-ties-repeat-v1');
+  assert.deepEqual(reply.measureLabels,['1','2']);
   assert.equal(reply.bracketTags,6,'exact built prepare Worker retains all finite graphic endpoints');
   assert.deepEqual(reply.glyphCompleteness,[true]);
   assert.deepEqual(reply.dynamics[0].map(event=>[event.quarter,event.value,event.placement]),[[0.5,"pp","above"]]);
@@ -135,12 +137,32 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await settings.getByRole('button',{name:'循环这一段',exact:true}).click();
   await expect(settings.getByRole('button',{name:'取消循环',exact:true})).toBeVisible();
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+  await player.getByRole('button',{name:'播放',exact:true}).evaluate(button => {
+    button.addEventListener('click', () => {
+      const timing = window.__firstAudioOutput = { requestMs: performance.now(), nonZeroMs: null };
+      const check = () => {
+        const audible = window.__audioAnalysers.some(analyser => {
+          const samples = new Float32Array(analyser.fftSize);
+          analyser.getFloatTimeDomainData(samples);
+          return samples.some(value => Math.abs(value) > 0.0001);
+        });
+        if (audible) timing.nonZeroMs = performance.now();
+        else if (performance.now() - timing.requestMs < 10000) requestAnimationFrame(check);
+      };
+      requestAnimationFrame(check);
+    }, { once: true });
+  });
   await player.getByRole('button',{name:'播放',exact:true}).click();
   await expect(player.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.__audioAnalysers.some(analyser => {
-    const samples = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(samples);
-    return samples.some(value => Math.abs(value) > 0.0001);
-  })), {timeout:10000}).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__firstAudioOutput?.nonZeroMs), {timeout:10000}).toBeGreaterThan(0);
+  const audioTiming = await page.evaluate(() => ({ ...window.__firstAudioOutput,
+    clickToNonZeroMs: window.__firstAudioOutput.nonZeroMs - window.__firstAudioOutput.requestMs,
+  }));
+  await mkdir('artifacts/verification/musicxml-startup', { recursive: true });
+  await writeFile(`artifacts/verification/musicxml-startup/${engine}-first-audio.json`, JSON.stringify({
+    engine, scope: 'Actual click to first non-zero digital analyser samples, observed once per animation frame; not acoustic latency or physical-device p50/p95. Playing is a separate earlier state.',
+    ...audioTiming,
+  }, null, 2));
   // The engine creates cursor/highlight nodes, but the host must give them visible styles.
   const beatCursor = page.locator('.practice-notation .at-cursor-beat');
   await expect.poll(() => beatCursor.evaluate(element => {

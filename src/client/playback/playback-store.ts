@@ -1,3 +1,4 @@
+import { startMusicXmlLoading, stopMusicXmlLoading } from './musicxml-loading';
 import type { ScoreAttachment } from '../../shared/attachments';
 import type { ScoreSummary } from '../../shared/scores';
 import { onNavigationReset } from '../settings/navigation-events';
@@ -22,9 +23,10 @@ export const playbackStore = {
   getGeneration: () => generation,
   subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
 };
-export function stopPlayback() { source = null; setPlaybackView('pdf'); listeners.forEach(listener => listener()); }
+export function stopPlayback() { stopMusicXmlLoading(); source = null; setPlaybackView('pdf'); listeners.forEach(listener => listener()); }
 export function startPlayback(next: PlaybackSource) {
   // Each explicit opening is a new session; view switching uses setPlaybackView.
+  if (next.attachment.kind === 'musicxml') startMusicXmlLoading(); else stopMusicXmlLoading();
   source = { ...next };
   generation += 1;
   setPlaybackView(next.attachment.kind === 'musicxml' ? 'xml' : 'pdf');

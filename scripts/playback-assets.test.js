@@ -2,6 +2,7 @@ import { afterEach, expect, it } from 'vitest';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { CoreSettings } from '@coderline/alphatab';
 import { playbackAssets } from './playback-assets.ts';
 import { shellManifest } from './shell-manifest.ts';
 const directories=[];
@@ -25,10 +26,17 @@ it.each(['/', '/_releases/release-one/'])('includes the static player closure un
   'assets/prepare.worker-one.js':{type:'asset'},
   'assets/alphaTab.worklet-one.js':{type:'asset'},
  };
- for(const file of ['index.html',...Object.keys(bundle),'font/Bravura.woff2','soundfont/sonivox.sf2']) await writeFile(path.join(root,file),file);
+ for(const file of ['index.html',...Object.keys(bundle),'font/Bravura.woff2','font/Bravura.woff','font/Bravura.otf','font/Bravura.eot','font/Bravura.svg','font/bravura_metadata.json','soundfont/sonivox.sf2']) await writeFile(path.join(root,file),file);
  await playbackAssets('release-one',assetBase).writeBundle({dir:root},bundle);
  const filename=path.join(root,'playback/release-one/manifest.json');
  let player=JSON.parse(await readFile(filename,'utf8'));
+ const fonts=[...CoreSettings.buildDefaultSmuflFontSources('/font/').values()];
+ expect(fonts.sort()).toEqual(['/font/Bravura.otf','/font/Bravura.woff','/font/Bravura.woff2']);
+ for(const font of fonts) expect(player.entries.some(entry=>entry.url.endsWith(font))).toBe(true);
+ for(const unused of ['Bravura.eot','Bravura.svg','bravura_metadata.json']) {
+  expect(player.entries.some(entry=>entry.url.endsWith(unused))).toBe(false);
+  expect(await readFile(path.join(root,'playback/release-one/font',unused),'utf8')).toContain(unused);
+ }
  expect(player.entries.some(entry=>entry.url.includes('admin'))).toBe(false);
  expect(player.entries.some(entry=>entry.url.includes('common'))).toBe(true);
  expect(player.entries.some(entry=>entry.url.endsWith('sonivox.sf2'))).toBe(true);

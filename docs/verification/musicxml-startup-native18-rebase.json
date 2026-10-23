@@ -1,0 +1,35 @@
+{
+  "packageVersion": "1.8.4-samepage.18",
+  "sourceCommit": "aa5e25f3d29eeab8dea85328eb38805b8b70bfef",
+  "sourceTree": "1680cadf1d6ec004cb7ed4b4e9c0ab69cb8e5b11",
+  "sourceArchive": "alphatab-source-aa5e25f3d29eeab8dea85328eb38805b8b70bfef.tgz",
+  "sourceSha256": "8ab3ad30caa5b70d528ab5418a9dc17b743abd16ff4b761ee8c1b5fb133661b2",
+  "artifact": "coderline-alphatab-1.8.4-samepage.18.tgz",
+  "artifactSha256": "19166bfa87b6abad2b3d152abb4cc31e8fa90fe1acafc5d0d7ea83e09c388e7f",
+  "artifactIntegrity": "sha512-hf4DUOFgADm0PotH9+jioXQusKwDS0CZNOamp8RQ+m+bjYyPZE+IpxBkUdO6LL9uYbuucCPg7Oq52ABD5VVx0A==",
+  "audit": {
+    "installedFilesMatched": 645,
+    "mainNative16Unchanged": true,
+    "sourceDeltaFromMain": [
+      "packages/alphatab/src/AlphaTabApiBase.ts",
+      "packages/alphatab/src/platform/worker/AlphaSynthWebWorkerApi.ts",
+      "packages/alphatab/test/audio/AlphaTabApiMidiLifecycle.test.ts"
+    ],
+    "targetedTestsPassed": 56
+  },
+  "fullNativeSuite": {
+    "passed": 1857,
+    "failed": 64,
+    "same64FailureSetAsNative17": true,
+    "addedFailures": [],
+    "removedFailures": [],
+    "failureSetSha256": "66025a62aa81632100001cf6a2480fb2b3cb5b682d7bf881e398d92ee072fdb6"
+  },
+  "checks": {
+    "lint": true,
+    "typecheck": true,
+    "productionBuild": true,
+    "playerTestsPassed": 338,
+    "chromiumWebkitBrowserTestsPassed": 7
+  }
+}

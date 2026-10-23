@@ -1,0 +1,742 @@
+{
+  "native": "1.8.4-samepage.13",
+  "player": "0.1.19-samepage.12",
+  "scope": "Node local exact installed artifacts; structuredClone(Map scoreToJsObject), jsObjectToScore, native MIDI generation, no browser/worker timing claim",
+  "results": [
+    {
+      "name": "hairpin-and-unmarked",
+      "bytes": 1621,
+      "scoreJsonBytes": 10621,
+      "hydrateMs": 1.8316670000000101,
+      "noteCount": 5,
+      "noteDiffCount": 3,
+      "noteDiffExamples": [
+        {
+          "index": 1,
+          "before": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": 3,
+            "playbackStart": 960,
+            "playbackDuration": 960,
+            "realValue": 62
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 960,
+            "playbackDuration": 960,
+            "realValue": 62
+          }
+        },
+        {
+          "index": 2,
+          "before": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 64
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 64
+          }
+        },
+        {
+          "index": 4,
+          "before": {
+            "at": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 0,
+            "playbackDuration": 3840,
+            "realValue": 48
+          },
+          "after": {
+            "at": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 0,
+            "playbackDuration": 3840,
+            "realValue": 48
+          }
+        }
+      ],
+      "midiDiffCount": 6,
+      "midiDiffExamples": [
+        {
+          "index": 45,
+          "before": "{\"track\":1,\"tick\":0,\"type\":128,\"channel\":2,\"noteKey\":48,\"noteVelocity\":79}",
+          "after": "{\"track\":1,\"tick\":0,\"type\":128,\"channel\":2,\"noteKey\":48,\"noteVelocity\":1}"
+        },
+        {
+          "index": 48,
+          "before": "{\"track\":0,\"tick\":960,\"type\":128,\"channel\":0,\"noteKey\":62,\"noteVelocity\":63}",
+          "after": "{\"track\":0,\"tick\":960,\"type\":128,\"channel\":0,\"noteKey\":62,\"noteVelocity\":1}"
+        },
+        {
+          "index": 49,
+          "before": "{\"track\":0,\"tick\":1920,\"type\":144,\"channel\":0,\"noteKey\":62,\"noteVelocity\":63}",
+          "after": "{\"track\":0,\"tick\":1920,\"type\":144,\"channel\":0,\"noteKey\":62,\"noteVelocity\":1}"
+        }
+      ],
+      "wholeSerializedSameBeforeRepair": false,
+      "wholeSerializedSameAfterRepair": true,
+      "noteDiffCountAfterRepair": 0,
+      "midiDiffCountAfterRepair": 0,
+      "residualSerializedDiffCount": 0,
+      "residualSerializedDiffExamples": []
+    },
+    {
+      "name": "Sun",
+      "bytes": 514357,
+      "scoreJsonBytes": 2544552,
+      "hydrateMs": 10.442499999999995,
+      "noteCount": 1422,
+      "noteDiffCount": 1358,
+      "noteDiffExamples": [
+        {
+          "index": 1,
+          "before": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": 1,
+            "playbackStart": 1440,
+            "playbackDuration": 480,
+            "realValue": 72
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1440,
+            "playbackDuration": 480,
+            "realValue": 72
+          }
+        },
+        {
+          "index": 2,
+          "before": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": 2,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 72
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 72
+          }
+        },
+        {
+          "index": 3,
+          "before": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": 2,
+            "playbackStart": 0,
+            "playbackDuration": 1440,
+            "realValue": 63
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 0,
+            "playbackDuration": 1440,
+            "realValue": 63
+          }
+        },
+        {
+          "index": 4,
+          "before": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": 1,
+            "playbackStart": 1440,
+            "playbackDuration": 480,
+            "realValue": 65
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1440,
+            "playbackDuration": 480,
+            "realValue": 65
+          }
+        },
+        {
+          "index": 5,
+          "before": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": 2,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 65
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 65
+          }
+        },
+        {
+          "index": 6,
+          "before": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": 2,
+            "playbackStart": 0,
+            "playbackDuration": 1440,
+            "realValue": 68
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 0,
+            "playbackDuration": 1440,
+            "realValue": 68
+          }
+        },
+        {
+          "index": 7,
+          "before": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": 2,
+            "playbackStart": 1440,
+            "playbackDuration": 480,
+            "realValue": 72
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1440,
+            "playbackDuration": 480,
+            "realValue": 72
+          }
+        },
+        {
+          "index": 8,
+          "before": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": 2,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 72
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 72
+          }
+        }
+      ],
+      "midiDiffCount": 2216,
+      "midiDiffExamples": [
+        {
+          "index": 116,
+          "before": "{\"track\":4,\"tick\":0,\"type\":128,\"channel\":8,\"noteKey\":49,\"noteVelocity\":47}",
+          "after": "{\"track\":4,\"tick\":0,\"type\":128,\"channel\":8,\"noteKey\":49,\"noteVelocity\":1}"
+        },
+        {
+          "index": 118,
+          "before": "{\"track\":4,\"tick\":0,\"type\":128,\"channel\":8,\"noteKey\":56,\"noteVelocity\":47}",
+          "after": "{\"track\":4,\"tick\":0,\"type\":128,\"channel\":8,\"noteKey\":56,\"noteVelocity\":1}"
+        },
+        {
+          "index": 121,
+          "before": "{\"track\":0,\"tick\":1440,\"type\":128,\"channel\":0,\"noteKey\":72,\"noteVelocity\":31}",
+          "after": "{\"track\":0,\"tick\":1440,\"type\":128,\"channel\":0,\"noteKey\":72,\"noteVelocity\":1}"
+        }
+      ],
+      "wholeSerializedSameBeforeRepair": false,
+      "wholeSerializedSameAfterRepair": false,
+      "noteDiffCountAfterRepair": 0,
+      "midiDiffCountAfterRepair": 0,
+      "residualSerializedDiffCount": 1,
+      "residualSerializedDiffExamples": [
+        {
+          "path": "$.tracks.1.staves.0.bars.28.voices.0.beats.0.notes.0.slurdestinationnoteid",
+          "before": 247,
+          "after": 246
+        }
+      ]
+    },
+    {
+      "name": "Jesu",
+      "bytes": 2532176,
+      "scoreJsonBytes": 13515069,
+      "hydrateMs": 48.3498340000001,
+      "noteCount": 7694,
+      "noteDiffCount": 7588,
+      "noteDiffExamples": [
+        {
+          "index": 0,
+          "before": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 0,
+            "playbackDuration": 960,
+            "realValue": 71
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 0,
+            "playbackDuration": 960,
+            "realValue": 71
+          }
+        },
+        {
+          "index": 1,
+          "before": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 960,
+            "playbackDuration": 960,
+            "realValue": 71
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 960,
+            "playbackDuration": 960,
+            "realValue": 71
+          }
+        },
+        {
+          "index": 2,
+          "before": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 69
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1920,
+            "playbackDuration": 960,
+            "realValue": 69
+          }
+        },
+        {
+          "index": 3,
+          "before": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 2880,
+            "playbackDuration": 960,
+            "realValue": 67
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 2880,
+            "playbackDuration": 960,
+            "realValue": 67
+          }
+        },
+        {
+          "index": 4,
+          "before": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 0,
+            "playbackDuration": 1920,
+            "realValue": 66
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 0,
+            "playbackDuration": 1920,
+            "realValue": 66
+          }
+        },
+        {
+          "index": 5,
+          "before": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 1920,
+            "playbackDuration": 1920,
+            "realValue": 64
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 1920,
+            "playbackDuration": 1920,
+            "realValue": 64
+          }
+        },
+        {
+          "index": 6,
+          "before": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 0,
+            "playbackDuration": 960,
+            "realValue": 71
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 0,
+            "playbackDuration": 960,
+            "realValue": 71
+          }
+        },
+        {
+          "index": 7,
+          "before": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": 4,
+            "playbackStart": 960,
+            "playbackDuration": 960,
+            "realValue": 73
+          },
+          "after": {
+            "at": [
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            "beat": -1,
+            "note": -1,
+            "playbackStart": 960,
+            "playbackDuration": 960,
+            "realValue": 73
+          }
+        }
+      ],
+      "midiDiffCount": 15542,
+      "midiDiffExamples": [
+        {
+          "index": 103,
+          "before": "{\"track\":0,\"tick\":0,\"type\":128,\"channel\":0,\"noteKey\":71,\"noteVelocity\":79}",
+          "after": "{\"track\":0,\"tick\":0,\"type\":128,\"channel\":0,\"noteKey\":71,\"noteVelocity\":1}"
+        },
+        {
+          "index": 105,
+          "before": "{\"track\":1,\"tick\":0,\"type\":128,\"channel\":2,\"noteKey\":71,\"noteVelocity\":79}",
+          "after": "{\"track\":1,\"tick\":0,\"type\":128,\"channel\":2,\"noteKey\":71,\"noteVelocity\":1}"
+        },
+        {
+          "index": 107,
+          "before": "{\"track\":2,\"tick\":0,\"type\":128,\"channel\":4,\"noteKey\":67,\"noteVelocity\":79}",
+          "after": "{\"track\":2,\"tick\":0,\"type\":128,\"channel\":4,\"noteKey\":67,\"noteVelocity\":1}"
+        }
+      ],
+      "wholeSerializedSameBeforeRepair": false,
+      "wholeSerializedSameAfterRepair": true,
+      "noteDiffCountAfterRepair": 0,
+      "midiDiffCountAfterRepair": 0,
+      "residualSerializedDiffCount": 0,
+      "residualSerializedDiffExamples": []
+    }
+  ]
+}

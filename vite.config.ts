@@ -47,9 +47,18 @@ export default defineConfig(({ isPreview, command }) => {
     // Keep the warning threshold explicit while the home/auth chunks remain
     // independent and much smaller.
     chunkSizeWarningLimit: 1500,
-    rollupOptions: { output: { manualChunks(id) {
-      if (id.replaceAll("\\", "/").includes("/packages/player/dist/") || /node_modules\/(?:@coderline\/alphatab|@same-page\/player|fflate|saxes|xmlchars)/.test(id)) return "musicxml-engine";
-    } } },
+    rollupOptions: { output: { codeSplitting: { groups: [
+      {
+        // Rolldown's groups capture dependencies recursively. Claim this pure
+        // shared format first so audio lifetimes cannot pull in the XML engine.
+        name: "playback-format", priority: 1,
+        test: id => /\/(?:packages\/player|node_modules\/@same-page\/player)\/dist\/preparation-format\.js$/.test(id.replaceAll("\\", "/")),
+      },
+      {
+        name: "musicxml-engine",
+        test: id => id.replaceAll("\\", "/").includes("/packages/player/dist/") || /node_modules\/(?:@coderline\/alphatab|@same-page\/player|fflate|saxes|xmlchars)/.test(id),
+      },
+    ] } } },
   },
   plugins: [
     playbackAssets(buildId, assetBase),

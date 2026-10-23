@@ -5,6 +5,7 @@ import type { MusicXmlTempoMeasure } from './musicxml-metronome.ts';
 import { collectMusicXmlCreatorCredits } from './musicxml-creator-credits.ts';
 import type { MusicXmlCreatorCredits } from './musicxml-creator-credits.ts';
 import { XMLBuilder, XMLParser } from "fast-xml-parser";
+export { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 
 type OrderedNode = Record<string, unknown>;
 
@@ -28,6 +29,10 @@ interface MovedDirection {
 
 export interface PreparedMusicXml {
   bytes: Uint8Array;
+  /** Absent preserves the original direction-only preparation contract. */
+  importInputVersion?: string;
+  /** First-part printed numbers. Empty is distinct from legacy missing metadata. */
+  measureLabels?: string[];
   tempoMeasures?: MusicXmlTempoMeasure[];
   creatorCredits?: MusicXmlCreatorCredits;
   timeVisibility?: MusicXmlTimeVisibility;
@@ -545,6 +550,11 @@ export const prepareMusicXmlForAlphaTabBytes = (bytes: Uint8Array): PreparedMusi
   const wordEventsByPart: (MusicXmlWordEvent[] | null)[] = [];
   const partsWithExplicitDynamics: boolean[] = [];
   const partsWithVoiceScopedDynamics: boolean[] = [];
+  const firstPart = document.flatMap(node => childNodes(node, 'score-partwise')).find(node => tagName(node) === 'part');
+  const measureLabels = childNodes(firstPart ?? {}, 'part').filter(node => tagName(node) === 'measure').map((node, index) => {
+    const attributes = node[':@'] as Record<string, string> | undefined;
+    return attributes?.['@_number']?.trim() || String(index + 1);
+  });
 
   for (const rootNode of document) {
     const scoreChildren = childNodes(rootNode, "score-partwise");
@@ -571,6 +581,7 @@ export const prepareMusicXmlForAlphaTabBytes = (bytes: Uint8Array): PreparedMusi
 
   return {
     bytes: new TextEncoder().encode(builder.build(document)),
+    measureLabels,
     tempoMeasures,
     creatorCredits: collectMusicXmlCreatorCredits(document),
     timeVisibility: collectMusicXmlTimeVisibility(document),
