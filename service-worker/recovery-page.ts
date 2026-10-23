@@ -6,34 +6,50 @@ const status = document.getElementById('status');
 navigator.serviceWorker.addEventListener('message', event => {
   if (event.data?.type === 'SAME_PAGE_UPDATE_PROBE') event.ports[0]?.postMessage(true);
 });
-function ask(worker, message) {
-  return new Promise(resolve => {
-    const channel = new MessageChannel();
-    const timer = setTimeout(() => { channel.port1.close(); resolve(null); }, 10000);
-    channel.port1.onmessage = event => { clearTimeout(timer); channel.port1.close(); resolve(event.data); };
-    worker.postMessage(message, [channel.port2]);
+function within(promise, deadline) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), Math.max(0, deadline - Date.now()));
+    Promise.resolve(promise).then(
+      value => { clearTimeout(timer); Date.now() < deadline ? resolve(value) : reject(new Error('timeout')); },
+      error => { clearTimeout(timer); reject(error); }
+    );
   });
 }
+async function ask(worker, message, deadline) {
+  const channel = new MessageChannel();
+  try {
+    return await within(new Promise(resolve => {
+      // The previous awaited reply can settle just before the deadline while
+      // this continuation runs after it. Never send a new handover then.
+      if (Date.now() >= deadline) throw new Error('timeout');
+      channel.port1.onmessage = event => resolve(event.data);
+      worker.postMessage(message, [channel.port2]);
+    }), Math.min(deadline, Date.now() + 10000));
+  } finally { channel.port1.onmessage = null; channel.port1.close(); }
+}
 button.onclick = async () => {
+  if (button.disabled) return;
   button.disabled = true;
   status.textContent = '正在准备可用版本…';
+  const deadline = Date.now() + 20000;
   try {
-    const registration = await navigator.serviceWorker.getRegistration();
+    const registration = await within(navigator.serviceWorker.getRegistration(), deadline);
     if (!registration) { location.reload(); return; }
-    await registration.update();
-    const deadline = Date.now() + 20000;
+    // Bound each awaited step, rather than racing the whole async operation:
+    // a timed-out native update cannot later resume this attempt and activate.
+    await within(registration.update(), deadline);
     while (Date.now() < deadline) {
       const waiting = registration.waiting;
       if (waiting?.state === 'installed') {
-        const identity = await ask(waiting, { type: 'SAME_PAGE_SHELL_IDENTITY' });
+        const identity = await ask(waiting, { type: 'SAME_PAGE_SHELL_IDENTITY' }, deadline);
         if (!identity?.buildId) throw new Error('identity');
         // The worker rechecks the authoritative channel before and after all
         // window approvals. A stale candidate cannot activate through recovery.
-        const result = await ask(waiting, { type: 'SAME_PAGE_SAFE_UPDATE', requested: true });
+        const result = await ask(waiting, { type: 'SAME_PAGE_SAFE_UPDATE', requested: true }, deadline);
         if (!result?.safe) throw new Error('busy');
         while (Date.now() < deadline) {
           const controller = navigator.serviceWorker.controller;
-          const active = controller && await ask(controller, { type: 'SAME_PAGE_SHELL_IDENTITY' });
+          const active = controller && await ask(controller, { type: 'SAME_PAGE_SHELL_IDENTITY' }, deadline);
           if (active?.buildId === identity.buildId) { location.reload(); return; }
           await new Promise(resolve => setTimeout(resolve, 100));
         }

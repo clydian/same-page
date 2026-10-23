@@ -195,6 +195,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     execFileSync("git", ["diff", "--check", scope.base, "HEAD", "--"], { stdio: "inherit" });
   }
   console.log(scope.reason);
+  const identity = {
+    source: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+    tree: execFileSync("git", ["rev-parse", "HEAD^{tree}"], { encoding: "utf8" }).trim(),
+    parents: execFileSync("git", ["show", "-s", "--format=%P", "HEAD"], { encoding: "utf8" }).trim(),
+    base: scope.base ?? "unavailable (full verification)",
+    event: process.env.GITHUB_EVENT_NAME ?? "local",
+    attempt: process.env.GITHUB_RUN_ATTEMPT ?? "1",
+    node: process.version,
+  };
+  console.log(`Verification identity: ${JSON.stringify(identity)}`);
   if (process.env.GITHUB_OUTPUT) {
     const output = ["full", ...checkNames, "browserGroup"]
       .map((name) => `${name}=${scope[name]}`)
@@ -205,7 +215,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const selected = checkNames.filter((name) => scope[name]);
     appendFileSync(
       process.env.GITHUB_STEP_SUMMARY,
-      `CI scope: ${scope.full ? selected.join(", ") || "fast checks" : "documentation"}. ${scope.reason}\n`,
+      `CI scope: ${scope.full ? selected.join(", ") || "fast checks" : "documentation"}. ${scope.reason}\n\n`
+      + `Verification identity:\n\n\`\`\`json\n${JSON.stringify(identity, null, 2)}\n\`\`\`\n`,
     );
   }
 }

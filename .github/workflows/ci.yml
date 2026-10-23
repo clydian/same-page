@@ -198,7 +198,24 @@ jobs:
         run: node .github/scripts/verify-browsers.mjs
       - name: PWA update handover
         if: needs.scope.outputs.pwa == 'true'
-        run: npm run test:pwa-update
+        shell: bash
+        env:
+          # Include browser child-process failures in the synthetic evidence.
+          DEBUG: pw:browser
+        run: |
+          mkdir -p artifacts/verification/platform-runtime
+          snapshot_memory() {
+            for metric in memory.current memory.peak memory.events; do
+              if [ -r "/sys/fs/cgroup/$metric" ]; then
+                echo "$metric"
+                cat "/sys/fs/cgroup/$metric"
+              fi
+            done
+          }
+          snapshot_memory > artifacts/verification/platform-runtime/memory-before.txt
+          trap 'snapshot_memory > artifacts/verification/platform-runtime/memory-after.txt' EXIT
+          # bash pipefail preserves a test failure; tee never turns it green.
+          npm run test:pwa-update 2>&1 | tee artifacts/verification/platform-runtime/pwa-browser.log
       # Replace PWA's synthetic builds with the verified production bytes.
       - name: Download verified release
         if: needs.scope.outputs.performance == 'true'
