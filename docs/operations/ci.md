@@ -12,6 +12,11 @@ scope 的日志与 summary 记录实际 checkout SHA、Git tree、parents、比�
 和 Node 版本；squash 前后 SHA 不同是正常情况，判断同代码重跑必须比较 tree、scope 与运行环境。
 重跑不代表修复，首次失败单独保留；不为业务断言增加自动 retries 或放宽阈值。
 
+platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr 与退出信息，
+以及可读取的 cgroup 内存计数前后快照，位于 artifact 的 `platform-runtime/`。
+这用于区分脚本网络失败与浏览器进程/IPC 异常；没有进程或 OOM 证据时不能归因于 runner。
+日志管道保留原始非零退出码，不增加重试。生命周期失败的严格缓存审计仍然阻止 `verify`。
+
 ## 流程
 
 `scope` 不安装依赖：运行 CI 范围回归测试，然后比较完整 Git diff。checks、backend、visual 和 build 同时启动；smoke/platform 等待 build 的统一构建产物（仅 PWA 时不需要构建产物），各自只执行选中的步骤：
