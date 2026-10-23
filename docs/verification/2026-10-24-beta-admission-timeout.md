@@ -9,13 +9,13 @@
 
 ## Repair and boundaries
 
-Explicit safe reads retry at most three times, with fresh per-attempt deadlines and 1/2 second backoff. The deadline covers response-body consumption. R2 reads include the complete Node response stream; an expired deadline destroys that stream before retrying the GET. Retryable failures are fetch network/timeout errors and HTTP 429/500/502/503/504. Errors identify the stage or candidate file and attempt count without raw response bodies, credentials or raw exception messages.
+Explicit safe reads perform at most three complete attempts (R2 attempts may also include bounded SDK request retries), with fresh per-attempt deadlines and 1/2 second backoff. The deadline covers response-body consumption. R2 reads include the complete Node response stream; an expired deadline destroys that stream before retrying the GET. Retryable failures are fetch network/timeout errors and HTTP 429/500/502/503/504. Errors identify the stage or candidate file and attempt count without raw response bodies, credentials or raw exception messages.
 
-Token verification retries the same owner endpoint; only the existing authentication-rejection rules permit switching owner endpoints. D1 SQL reads opt in; mutations never retry after an ambiguous response. Backend identity, every resource hash, compatibility proof and channel CAS remain required. Persistent network failures still prevent admission. This does not rebuild/rewrite the original artifact, promote stable, or change user data.
+Token verification retries the same owner endpoint; only the existing authentication-rejection rules permit switching owner endpoints. D1 SQL reads opt in; mutations never retry after an ambiguous response. Backend identity, every resource hash, compatibility proof and channel CAS remain required. Persistent network failures still prevent admission. CI scope now recognizes these three deployment runtime scripts, so an eventual main merge runs the ordinary gated deploy/admission job instead of leaving the failed release unreplayed. Test-only changes retain their existing scope. This does not rebuild/rewrite the original artifact, promote stable, or change user data.
 
 ## Validation
 
 - Regression first failed on the production `deriveR2Credentials` timeout path, then passed with bounded same-endpoint recovery.
-- Node 24: 344 Node unit tests; 15 Android publication boundary tests; lint and whitespace checks passed.
-- Request tests include a real local HTTP response that stalls after headers, plus R2 body resets/stalls, permanent HTTP failures, bounded exhaustion, body disconnects, lost mutation responses, malformed JSON and redacted diagnostics.
+- Node 24: 345 Node unit tests; 16 Android publication boundary tests; lint and whitespace checks passed.
+- Request tests include a real local HTTP response that stalls after headers, plus R2 body resets/stalls and late SDK responses, permanent HTTP failures, bounded exhaustion, body disconnects, lost mutation responses, malformed JSON and redacted diagnostics.
 - Online candidate verification checks every original sealed file; a passing read-only check does not itself change channel pointers.

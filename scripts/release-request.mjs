@@ -60,10 +60,12 @@ export function readReleaseObject(key, getObject, options) {
     let object;
     try { object = await getObject(signal); }
     catch (error) { if (error.$metadata?.httpStatusCode === 404) return null; throw error; }
+    // A late SDK response has no consumer yet: destroy without emitting an
+    // unhandled stream error, then propagate the already-recorded deadline.
+    if (signal.aborted) { object.Body.destroy(); throw signal.reason; }
     const abort = () => object.Body.destroy(signal.reason);
     signal.addEventListener('abort', abort, { once: true });
     try {
-      if (signal.aborted) { abort(); throw signal.reason; }
       const bytes = await buffer(object.Body);
       return { arrayBuffer: async () => bytes };
     } finally { signal.removeEventListener('abort', abort); }

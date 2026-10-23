@@ -122,3 +122,20 @@ it('destroys a stalled R2 SDK body on deadline before a complete retry', async (
  expect(calls).toBe(2);
  expect(new TextDecoder().decode(await object.arrayBuffer())).toBe('complete');
 });
+
+it('safely destroys SDK bodies that arrive after their request deadline', async () => {
+ const {readReleaseObject} = await import('./release-request.mjs');
+ const {Readable} = await import('node:stream');
+ let calls = 0, late;
+ const object = await readReleaseObject('late-seal', async () => {
+  if (++calls === 1) {
+   await new Promise(resolve => setTimeout(resolve, 20));
+   late = Readable.from(['stale']);
+   return {Body:late};
+  }
+  return {Body:Readable.from(['complete'])};
+ }, {timeoutMs:5,sleep:async () => new Promise(resolve => setTimeout(resolve, 30)),warn:() => {}});
+ expect(late.destroyed).toBe(true);
+ expect(new TextDecoder().decode(await object.arrayBuffer())).toBe('complete');
+ expect(calls).toBe(2);
+});

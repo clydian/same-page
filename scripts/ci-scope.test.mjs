@@ -457,3 +457,13 @@ test("local player source selects product, offline and deployment verification",
   const scope = repo.scope("push", { before: repo.base });
   for (const key of ["client", "worker", "visual", "pwa", "performance", "build", "smoke", "deploy"]) assert.equal(scope[key], true, key);
 });
+
+test('production beta admission fixes exercise the deploy job after merge', t => {
+  for (const name of ['scripts/frontend-release.mjs', 'scripts/release-request.mjs', 'android/publish.mjs']) {
+    const repo = repository(t);
+    repo.put(name); repo.commit();
+    const scope = repo.scope('push', { before: repo.base });
+    assert.equal(scope.deploy, true, name);
+    assert.equal(scope.build, true, name);
+  }
+});
