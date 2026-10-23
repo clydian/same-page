@@ -41,7 +41,7 @@ export function DriveEntryPrototype({ identity }: { identity: ApplicationIdentit
   const [expanded, setExpanded] = useState(false);
   const offline = scenario === "offline";
   const libraryIdentity: ApplicationIdentity = offline ? { ...identity, onlineState: "unreachable", authenticatedUserId: null, authenticatedSessionId: null } : identity;
-  const change = (key: string, value: string) => { const next = new URLSearchParams(params); next.set(key, value); setParams(next, { replace: true }); setEntered(null); setAdded([]); setAction(null); setExpanded(false); };
+  const change = (key: string, value: string) => { const next = new URLSearchParams(params); next.set(key, value); setParams(next, { replace: true }); setEntered(null); setAdded([]); setAction(null); setExpanded(false); window.scrollTo({ top: 0, behavior: "instant" }); };
   const cycle = (step: number) => change("variant", variants[(variants.indexOf(variant) + step + 3) % 3]);
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
