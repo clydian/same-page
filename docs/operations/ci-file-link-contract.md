@@ -37,8 +37,9 @@ Node 单元 290 项通过；客户端固定四 worker 全量 1168 项通过。�
 ## 2026-10-23：将不同失败阶段隔离
 
 同一引擎下现在有三个独立持久化 profile：`touch-and-context-menu`、
-`native-modifier-navigation`、`reader-and-local-entry`。每个 profile 独立登录、拥有自己的
-Service Worker、IndexedDB 和失败 trace；只共享已种子的真实 Worker 服务。
+`native-modifier-navigation`、`reader-and-local-entry`。通过一次正常登录的 fixture Cookie
+初始化每个独立 profile，各自拥有 Service Worker、IndexedDB 和失败 trace；只共享已种子的
+真实 Worker 服务与同一测试身份，不关闭或放宽认证限流。
 触摸场景失败不会遮蔽原生新标签或实际 PDF/本机入口，失败报告能指明责任阶段。
 修饰键前仍执行一次按住再释放，防止旧触摸取消状态吞掉正常激活。
 

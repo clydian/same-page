@@ -53,7 +53,9 @@ async function scenario(t, fixture, engine, browserType, name, run) {
       viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow",
     });
     await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
-    await signIn(context.request, fixture);
+    // Clone one real fixture login into isolated profiles. Repeating login for
+    // every browser scenario would test auth rate limits instead of file links.
+    await context.addCookies(fixture.sessionCookies);
     await withBrowserEvidence(context, `artifacts/verification/file-touch-links/${engine}/${name}`, async () => {
       const page = await context.newPage();
       const errors = []; page.on("pageerror", error => errors.push(error.name));
@@ -86,8 +88,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           multipart: { file: { name: `滚动测试${index}.pdf`, mimeType: "application/pdf", buffer: fixture.pdf } },
         })).status(), 201);
       }
+      fixture.sessionCookies = (await seed.storageState()).cookies;
     } finally { await seed.dispose(); }
-    await scenario(t, fixture, engine, browserType, "touch-and-context-menu", async ({ page, library, file }) => {
+    await scenario(t, fixture, engine, browserType, "touch-and-context-menu", async ({ page, context, library, file }) => {
       await page.getByRole("button", { name: "本地链路测试：1 个附件", exact: true }).tap();
       const external = page.getByRole("link", { name: "参考外链", exact: true });
       await expect(external).toHaveAttribute("target", "_blank");
