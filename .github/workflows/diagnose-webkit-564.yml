@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sample: [pure, fresh-current]
+        sample: [library-ab]
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
       options: --init --ipc=host
@@ -22,6 +22,12 @@ jobs:
           node-version: 24.21.0
       - run: npm ci --prefer-offline --no-audit --no-fund
       - run: node .github/scripts/verify-browsers.mjs
+      - name: Build only the fixed libsoup library
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential meson ninja-build pkg-config libglib2.0-dev libnghttp2-dev libsqlite3-dev libpsl-dev zlib1g-dev
+          bash .github/diagnostics/webkit-564-build-libsoup.sh
       - run: node .github/diagnostics/webkit-564-run.mjs
         env:
           DIAGNOSTIC_CASE: ${{ matrix.sample }}
