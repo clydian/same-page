@@ -62,10 +62,8 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
       await page.getByRole("button", { name: "本地链路测试 更多操作", exact: true }).click();
       await page.getByRole("menuitem", { name, exact: true }).click();
     };
-    // The base attachment form now ships with the app shell. Holding its old
-    // chunk must not delay choosing or opening an upload form.
-    const attachmentChunk = chunk("attachment-dialog");
-    await page.route(attachmentChunk, route => route.abort());
+    // The base attachment form ships in the app shell, with no lazy chunk to
+    // fault. Keep the real form entry/format wiring; lazy failures are below.
     await openAction("添加附件");
     const attachment = page.getByRole("dialog", { name: "添加附件", exact: true });
     for (const name of ["可播放乐谱", "音频", "PDF", "文档（仅 .md）", "链接"]) await expect(attachment.getByRole("button", { name, exact: true })).toBeVisible();
@@ -73,7 +71,6 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
     await expect(page.getByLabel("选择附件文件")).toHaveAttribute("accept", ".pdf");
     await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.unroute(attachmentChunk);
 
     for (const [name, module] of [["替换 PDF", "pdf-version-dialog"], ["分享 PDF", "library-export-dialog"]]) {
       const gate = await hold(page, chunk(module));

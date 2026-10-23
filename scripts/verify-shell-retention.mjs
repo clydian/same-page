@@ -6,7 +6,8 @@ import { build } from 'esbuild';
 import { chromium, webkit } from '@playwright/test';
 
 // Bundle the production SW and recovery guard, rather than a second lifecycle
-// implementation. Tiny verified manifests let us exercise forty real updates.
+// implementation. Three replacements cross the current/rollback/candidate bound;
+// repeated policy stress remains in shell-runtime.test.js, without browser churn.
 const workerCode = (await build({ entryPoints: ['service-worker/sw.ts'], bundle: true, write: false, format: 'iife', platform: 'browser', target: 'es2022' })).outputFiles[0].text;
 const recoveryCode = (await build({ stdin: { contents: `
   import { ShellRecovery } from './src/client/updates/shell-recovery';
@@ -21,6 +22,10 @@ const recoveryCode = (await build({ stdin: { contents: `
 const digest = text => 'sha256-' + createHash('sha256').update(text).digest('base64');
 let version = 1;
 const buildId = number => number.toString(16).padStart(7, '0');
+const replacements = 3;
+const candidateVersion = 1 + replacements;
+const historyVersion = candidateVersion + replacements;
+const restoredVersion = historyVersion + 2;
 function probes(own) {
   return `navigator.serviceWorker.addEventListener('message',async event=>{
     if(window.unknown)return;
@@ -128,12 +133,12 @@ try {
         request.onsuccess = () => { const db = request.result, tx = db.transaction('annotationOutbox', 'readwrite'); tx.objectStore('annotationOutbox').put('unsynced-retained-draft', 'draft'); tx.oncomplete = () => { db.close(); resolve(); }; };
       }));
       await page.evaluate(() => { window.unknown = true; });
-      for (version = 2; version <= 21; version++) {
+      for (version = 2; version <= candidateVersion; version++) {
         await waiting(page, buildId(version));
         assert.ok((await shells(page)).length <= 3, 'unknown window caused abandoned candidates to accumulate');
       }
-      console.log(`${engine.name()}: twenty unknown-window candidate replacements verified`);
-      version = 21;
+      console.log(`${engine.name()}: ${replacements} unknown-window candidate replacements verified`);
+      version = candidateVersion;
       await page.evaluate(() => { window.unknown = false; window.safe = false; });
       assert.equal(await apply(page), false, 'unsafe window allowed activation');
       await page.evaluate(() => { window.safe = true; window.rejectSecond = true; window.probeCount = 0; });
@@ -142,37 +147,37 @@ try {
       await page.evaluate(() => { window.rejectSecond = false; });
       assert.equal(await apply(page), true); await active(page, buildId(version));
       await page.reload(); assert.equal(await page.evaluate(() => window.fixtureBuild), buildId(version));
-      for (version = 22; version <= 41; version++) {
+      for (version = candidateVersion + 1; version <= historyVersion; version++) {
         await waiting(page, buildId(version)); assert.equal(await apply(page), true);
         await active(page, buildId(version)); await page.reload();
         assert.equal(await page.evaluate(() => window.fixtureBuild), buildId(version));
         assert.ok((await shells(page)).length <= 2, 'same-day history grew beyond current and rollback');
       }
-      version = 41;
+      version = historyVersion;
       await page.goto(origin + '/api/outside'); await page.goBack({ waitUntil: 'commit' }); await page.waitForFunction(() => typeof window.fixtureBuild === 'string');
       const baselineRestored = await page.evaluate(() => window.restores.includes(true));
       if (!baselineRestored) console.log(engine.name(), 'BFCache not restored:', await page.evaluate(() => JSON.stringify(performance.getEntriesByType('navigation')[0]?.notRestoredReasons)));
       if (engine === chromium) assert.equal(baselineRestored, true, 'BFCache baseline did not really restore; do not count a fresh navigation as BFCache coverage');
       await page.evaluate(() => window.setRecoverySafe(false));
       await page.goto(origin + '/api/outside');
-      for (version = 42; version <= 43; version++) {
+      for (version = historyVersion + 1; version <= restoredVersion; version++) {
         await waiting(page, buildId(version)); assert.equal(await apply(page), true); await active(page, buildId(version));
       }
-      version = 43;
+      version = restoredVersion;
       await page.goBack({ waitUntil: 'commit' }); await page.waitForFunction(() => typeof window.fixtureBuild === 'string');
       const restoredBuild = await page.evaluate(() => window.fixtureBuild);
-      if (restoredBuild === buildId(41)) {
+      if (restoredBuild === buildId(historyVersion)) {
         assert.ok(await page.evaluate(() => window.restores.includes(true)), 'old page came from ordinary navigation');
-        assert.equal(await page.evaluate(() => sessionStorage.getItem('same-page-shell-recovery:000002b')), null, 'recovery reloaded while local work was held');
+        assert.equal(await page.evaluate(build => sessionStorage.getItem('same-page-shell-recovery:' + build), buildId(restoredVersion)), null, 'recovery reloaded while local work was held');
         await page.evaluate(() => window.setRecoverySafe(true));
       }
-      await page.waitForFunction(expected => window.fixtureBuild === expected, buildId(43));
+      await page.waitForFunction(expected => window.fixtureBuild === expected, buildId(restoredVersion));
       const draft = await page.evaluate(() => new Promise(resolve => { const r = indexedDB.open('same-page'); r.onsuccess = () => { const db = r.result; const get = db.transaction('annotationOutbox').objectStore('annotationOutbox').get('draft'); get.onsuccess = () => { db.close(); resolve(get.result); }; }; }));
       assert.equal(draft, 'unsynced-retained-draft');
-      await page.evaluate(async expected => { const response = await fetch('/assets/' + expected + '.js'); if (!response.ok) throw new Error('lazy chunk unavailable'); await response.text(); }, buildId(43));
-      const evidence = { browser: browser.version(), baselineRestored, afterActivationRestoredBuild: restoredBuild, finalBuild: buildId(43), unknownCandidates: 20, activeUpdates: 20, finalShells: (await shells(page)).length, draftPreserved: true, restores: await page.evaluate(() => JSON.parse(localStorage.getItem('fixture-restores'))) };
+      await page.evaluate(async expected => { const response = await fetch('/assets/' + expected + '.js'); if (!response.ok) throw new Error('lazy chunk unavailable'); await response.text(); }, buildId(restoredVersion));
+      const evidence = { browser: browser.version(), baselineRestored, afterActivationRestoredBuild: restoredBuild, finalBuild: buildId(restoredVersion), unknownCandidates: replacements, activeUpdates: replacements, finalShells: (await shells(page)).length, draftPreserved: true, restores: await page.evaluate(() => JSON.parse(localStorage.getItem('fixture-restores'))) };
       await writeFile(`artifacts/verification/shell-retention/${engine.name()}.json`, JSON.stringify(evidence, null, 2));
-      console.log(`${engine.name()}: twenty superseded candidates and twenty activations stayed bounded; BFCache baseline=${baselineRestored ? 'real persisted restore' : 'not observed (ordinary return only)'}; restoration=${restoredBuild}; drafts preserved`);
+      console.log(`${engine.name()}: ${replacements} superseded candidates and ${replacements} activations stayed bounded; BFCache baseline=${baselineRestored ? 'real persisted restore' : 'not observed (ordinary return only)'}; restoration=${restoredBuild}; drafts preserved`);
     } finally { await browser.close(); }
   }
 } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

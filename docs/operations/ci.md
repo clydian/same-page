@@ -66,6 +66,14 @@ scope 的日志与 summary 记录实际 checkout SHA、Git tree、parents、比�
 
 测试是否保留，以可观察错误及独立覆盖为标准，不以 TDD 来源、用例数量或覆盖率百分比为标准。清理结论与保留风险见 [测试审查记录](test-audit-2026-09-06.md)。
 
+2026-10-23 后续清理删除五个只比较退役 player/native tarball 的历史差分测试；
+历史制品与源码归档保留。当前包行为、release-artifact、迁移和兼容检查继续运行，
+`packages/player/test/native-source-distribution.test.mjs` 保护当前安装包 peer、源码摘要、
+不可变输出，并核对实际发布的 license/notice 原字节。
+浏览器 retention 每组保留三次更新，足以跨过 current/rollback/candidate 回收边界；
+纯策略层的二十次循环保留。缓存数量上限、真实 BFCache、跨窗否决、草稿与 lazy chunk 断言未放宽。
+关闭回收的临时错误注入在第三个候选时仍会失败，避免以减少次数制造空转门禁。
+
 - `npm test`：Node 规则和 jsdom 组件。客户端纯逻辑文件用 `*.node.test.ts` 命名，由 `vitest.node.config.ts` 收集，不启动 DOM、React cleanup 或 IndexedDB setup。jsdom 使用单个 setup hook，先卸载 React 再清理 IndexedDB，保持逐用例数据库隔离。
 - `npm run test:worker`：纯认证配置/安全逻辑在 Node，真实路由、D1、R2、权限与生命周期在 workerd。保留实际迁移初始化和隔离，不为省时间改成共享可变数据库。MSW 3、Vitest 5 与 Cloudflare 测试插件保持兼容的 peer 组合；Worker 集成测试关闭 `fsModuleCache`，避免 Workerd 读取宿主机的模块缓存路径。
 - `npm run test:browser-ui`：Node 原生 global setup 只启动一个隔离 Vite dev 服务，每台最多两个文件并行。各测试仍独立拥有浏览器 context、IndexedDB、API route 和 fixture session；没有重试。直接 `node --test visual-report/<file>.test.mjs` 仍可独立启动服务。
