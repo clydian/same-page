@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sample: [1, 2]
+        sample: [pure, fresh-current]
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
       options: --init --ipc=host
@@ -23,6 +23,8 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - run: node .github/scripts/verify-browsers.mjs
       - run: node .github/diagnostics/webkit-564-run.mjs
+        env:
+          DIAGNOSTIC_CASE: ${{ matrix.sample }}
       - name: Preserve every diagnostic result
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

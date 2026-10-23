@@ -20,7 +20,7 @@ try {
    if(mode==='reset')offline=true;
    if(mode==='refused'){await new Promise(r=>server.close(r));serverClosed=true;}
    await page.reload();
-   if(update) await page.evaluate(()=>{window.updateResult='pending';navigator.serviceWorker.getRegistration().then(reg=>reg.update()).then(()=>window.updateResult='resolved',e=>window.updateResult=String(e));});
+   if(update) await page.evaluate(()=>{window.updateResult='pending';navigator.serviceWorker.register('/sw.js').then(reg=>reg.update()).then(()=>window.updateResult='resolved',e=>window.updateResult=String(e));});
    // Read registration before and after a pending update has had the same 22s
    // window as the original failure. Never repair/re-register after the trigger.
    const sample=()=>page.evaluate(async()=>({controller:navigator.serviceWorker.controller?.state??null,registration:!!await navigator.serviceWorker.getRegistration(),registrations:(await navigator.serviceWorker.getRegistrations()).length,heading:document.querySelector('h1')?.textContent,updateResult:window.updateResult??null}));

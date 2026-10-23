@@ -1,0 +1,14 @@
+import { readFile, writeFile } from 'node:fs/promises';
+const path='scripts/verify-shell-lifecycle.mjs';
+let source=await readFile(path,'utf8');
+const start=source.indexOf("          await page.goto(origin + '/about');");
+const end=source.indexOf('          const current = await context.newPage();',start);
+if(start<0||end<0)throw new Error('Pinned fixture anchors changed');
+source=source.slice(0,start)+`          active = 2;
+          await page.goto(origin + '/about');
+          await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+          await page.close();
+          const before = {}, during = [];
+`+source.slice(end);
+source=source.replace("process.env.SAME_PAGE_BROWSER === 'chromium' ? [chromium] : [chromium, webkit]",'[webkit]');
+await writeFile('scripts/diagnostic-webkit-564-fresh.mjs',source);

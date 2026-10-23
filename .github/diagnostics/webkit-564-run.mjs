@@ -34,16 +34,18 @@ async function run(label,command,args,extra={}) {
 }
 try {
  await snapshot();
- // Original pipeline, including the real synthetic builds and its first failure.
- await run('original-pwa-pipeline','npm',['run','test:pwa-update']);
- // Independent diagnostic iterations. Stop at the first failure and preserve it.
- for(let i=1;i<=10;i++) {
-  await run(`lifecycle-${i}`,process.execPath,['scripts/verify-shell-lifecycle.mjs']);
-  await mkdir(`${root}/lifecycle-${i}`,{recursive:true});
-  const {cp}=await import('node:fs/promises');
-  await cp('artifacts/verification/shell-lifecycle',`${root}/lifecycle-${i}`,{recursive:true});
+ await run('build', 'npm', ['run','build'], {SAME_PAGE_BUILD_ID:'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'});
+ if(process.env.DIAGNOSTIC_CASE==='pure') {
+  await run('pure-sw',process.execPath,['.github/diagnostics/webkit-564-probe.mjs'],{ROUNDS:'50',OBSERVE_MS:'0'});
+ } else {
+  await run('prepare-fresh',process.execPath,['.github/diagnostics/webkit-564-minimize.mjs']);
+  for(let i=1;i<=20;i++) {
+   await run(`fresh-${i}`,process.execPath,['scripts/diagnostic-webkit-564-fresh.mjs']);
+   await mkdir(`${root}/fresh-${i}`,{recursive:true});
+   const {cp}=await import('node:fs/promises');
+   await cp('artifacts/verification/shell-lifecycle',`${root}/fresh-${i}`,{recursive:true});
+  }
  }
- await run('pure-sw',process.execPath,['.github/diagnostics/webkit-564-probe.mjs'],{ROUNDS:'1',OBSERVE_MS:'23000'});
 } finally {
  clearInterval(timer);while(busy)await new Promise(r=>setTimeout(r,10));await snapshot();
  await writeFile(`${root}/process-memory.json`,JSON.stringify(snapshots));
