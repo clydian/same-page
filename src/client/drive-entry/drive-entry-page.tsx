@@ -1,4 +1,4 @@
-import { KeyRound, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "react-aria-components";
 import { Link, Navigate, useLocation } from "react-router-dom";
@@ -69,9 +69,8 @@ function MemberEntry({ identity, userId, create, onJoin, admissionOpen }: {
   const target = missingLastDrive ? null : available.find(row => row.choir.id === lastDrive) ?? (available.length === 1 ? available[0] : null);
   if (target && !admissionOpen) return <Navigate to={`/choirs/${target.choir.id}`} replace />;
   return <section className="drive-entry-chooser" aria-labelledby="drive-entry-title">
-    <p className="drive-entry-eyebrow">一起排练，从这里继续</p>
     <h1 id="drive-entry-title">选择云盘</h1>
-    <p className="drive-entry-copy">打开一个云盘，继续查看乐谱与笔记。</p>
+    <p className="drive-entry-copy">选择要打开的云盘。</p>
     {missingLastDrive && <p className="drive-entry-notice" role="status">上次使用的云盘已不在可访问列表中，请选择其他云盘。</p>}
     <MembershipDirectoryList membership={membership} localOnly={localOnly} replace />
     <div className="drive-entry-actions"><Button className="text-button" isDisabled={!identity.authenticatedUserId} onPress={onJoin}><Plus size={16} aria-hidden="true" />加入云盘</Button>{create}</div>
@@ -80,11 +79,9 @@ function MemberEntry({ identity, userId, create, onJoin, admissionOpen }: {
 
 function FirstDrive({ identity, create }: { identity: ApplicationIdentity; create: ReactNode }) {
   return <section className="drive-entry-welcome" aria-labelledby="drive-entry-title">
-    <span className="drive-entry-symbol"><KeyRound size={26} aria-hidden="true" /></span>
-    <p className="drive-entry-eyebrow">欢迎来到合谱</p>
     <h1 id="drive-entry-title">先加入你的云盘</h1>
-    <p className="drive-entry-copy">向云盘管理员索取邀请卡或邀请码，<br />和大家在同一份谱上开始排练。</p>
+    <p className="drive-entry-copy">使用管理员发来的邀请卡或邀请码加入。</p>
     <JoinDrivePanel identity={identity} onClose={() => undefined} />
-    <div className="drive-entry-create"><p>准备为大家建立一个新的乐谱空间？</p>{create}</div>
+    <div className="drive-entry-create"><p>想为团队创建云盘？</p>{create}</div>
   </section>;
 }

@@ -210,9 +210,10 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
 
                     <section
                       className="invite-section"
-                      aria-labelledby={inviteTitleId}
+                      aria-labelledby={inline ? undefined : inviteTitleId}
+                      aria-label={inline ? "加入云盘" : undefined}
                     >
-                      <h3 id={inviteTitleId}>使用邀请卡或邀请码</h3>
+                      {!inline && <h3 id={inviteTitleId}>使用邀请卡或邀请码</h3>}
                       {open && <InviteScanner disabled={submitting || clearingGuestSession || admissionPaused} onRead={code => { setJoinCode(code); void enterInviteDrive(undefined, code); }} />}
                       <Form
                         className="entry-form dialog-form"
@@ -232,7 +233,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                             admissionPaused
                           }
                         >
-                          {submitting || clearingGuestSession ? "正在验证…" : "进入"}
+                          {submitting || clearingGuestSession ? "正在验证…" : inline ? "进入云盘" : "进入"}
                         </Button>
                       </Form>
                     </section>
