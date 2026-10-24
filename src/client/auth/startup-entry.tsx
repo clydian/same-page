@@ -17,7 +17,7 @@ function destination(userId: string, driveIds: string[]): EntryResult {
   const lastDrive = readLastDrive(userId);
   if (lastDrive && !driveIds.includes(lastDrive)) return { path: "/drives", missingLastDrive: true };
   const driveId = lastDrive ?? (driveIds.length === 1 ? driveIds[0] : null);
-  return driveId ? { path: `/choirs/${driveId}` } : driveIds.length ? { path: "/drives" } : "home";
+  return driveId ? { path: `/choirs/${driveId}` } : { path: "/drives" };
 }
 
 // This component only exists for a startup intent. Explicit home visits never

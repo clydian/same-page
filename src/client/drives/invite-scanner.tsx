@@ -79,7 +79,6 @@ export function InviteScanner({ onRead, disabled }: { onRead(code: string): void
     </div>
     <input ref={fileInput} type="file" accept="image/*" aria-label="选择邀请卡图片" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void readImage(file); }} />
     {scanning && !disabled && <video className="invite-scanner-video" ref={video} muted playsInline aria-label="邀请卡扫描画面" />}
-    <p className="invite-scanner-hint">扫描合谱邀请卡，或选择保存在这台设备上的图片。图片仅在本机识别。</p>
     {message && <p role="status">{message}</p>}
   </div>;
 }

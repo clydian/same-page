@@ -104,7 +104,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await scenario("direct-help-fallback", async page => {
       await page.goto(`${app.origin}/help`);
       await page.getByRole("button", { name: "返回", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "我已加入的云盘" })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeVisible();
       await expect(page.getByRole("dialog")).toHaveCount(0);
     });
   });

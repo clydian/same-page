@@ -1,0 +1,23 @@
+.drive-entry-main { width: min(100%, 680px); margin: 0 auto; padding: clamp(32px, 5vh, 56px) 28px 64px; }
+.drive-entry-page h1 { font-size: clamp(28px, 5vw, 38px); font-weight: 600; line-height: 1.3; letter-spacing: -.035em; margin: 0; }
+.drive-entry-copy { color: var(--muted); font-size: 15px; line-height: 1.9; margin: 12px 0 24px; }
+.drive-entry-welcome { max-width: 440px; margin: 0 auto; }
+.drive-entry-welcome .invite-section { border: 0; padding: 0; margin: 0; }
+.drive-entry-welcome .dialog-form { margin-top: 20px; }
+.drive-entry-welcome .entry-form > button[type="submit"] { min-height: 46px; }
+.drive-entry-welcome .join-drive-panel h2 { font-size: 21px; }
+.drive-entry-create { border-top: 1px solid var(--line); margin-top: 30px; padding-top: 20px; }
+.drive-entry-create > p { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+.drive-entry-create .text-button, .drive-entry-actions .text-button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+.drive-entry-actions { display: flex; justify-content: center; align-items: center; gap: 28px; margin-top: 20px; }
+.drive-entry-chooser .membership-list { margin-top: 20px; }
+.drive-entry-chooser .membership-row { border-radius: 0; border-width: 0 0 1px; padding: 16px 8px; background: transparent; }
+.drive-entry-chooser .membership-row:first-child { border-top: 1px solid var(--line); }
+.drive-entry-chooser .membership-row:hover { background: var(--brand-soft); }
+.drive-entry-notice { font-size: 14px; color: var(--muted); line-height: 1.8; }
+@media (max-width: 480px) {
+  .drive-entry-main { padding: 28px 24px 40px; }
+  .drive-entry-copy { margin-bottom: 24px; }
+}
+
+.drive-entry-chooser .drive-entry-copy { margin-bottom: 12px; }
