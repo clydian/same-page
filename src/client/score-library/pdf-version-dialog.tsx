@@ -166,7 +166,7 @@ export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId,
         <p>当前 {currentPages} 页 → 新 PDF {selected.pageCount} 页。</p>
         {selected.pageCount < currentPages ? <p role="alert">页数减少：超出新 PDF 页数的笔记会保留，但暂时不可见。</p> : null}
         <PdfVersionPreview key={selected.id} scorePath={path} choirId={choirId} scoreId={score.id} versionId={selected.id} onReady={setReady} />
-        <label className="confirmation-checkbox"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>我已检查预览，理解排版变化不会迁移笔记，笔记仍保留原页码和位置。</span></label>
+        <label className="confirmation-checkbox"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>我已检查预览，理解已有笔记会保留在原页码和位置，不会随新 PDF 的排版自动调整。</span></label>
         {history?.hasGeneratedXml && <label className="confirmation-checkbox"><input type="checkbox" checked={keepGeneratedXml}
           disabled={!canWrite || busy || !history.canTrashFiles} onChange={event => setKeepGeneratedXml(event.target.checked)} />
           <span>保留自动生成的练习版</span></label>}
