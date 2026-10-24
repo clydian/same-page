@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { S3Client, HeadObjectCommand, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { releaseRequest } from "../scripts/release-request.mjs";
 
 export function admitRelease(previous, candidate) {
   assert.ok(candidate.signed && /^[a-f0-9]{40}$/.test(candidate.sourceSha), "Only a verified signed artifact may publish");
@@ -23,16 +24,20 @@ export async function deriveR2Credentials(account, token, fetchImpl = fetch) {
   // or credentials, and never interpret a service failure as a token mismatch.
   const endpoints = ["user/tokens/verify", `accounts/${account}/tokens/verify`];
   for (const [index, endpoint] of endpoints.entries()) {
-    const response = await fetchImpl(`https://api.cloudflare.com/client/v4/${endpoint}`, {
-      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000),
+    const owner = index === 0 ? "user" : "account";
+    const response = await releaseRequest(`Cloudflare ${owner} token verification`, `https://api.cloudflare.com/client/v4/${endpoint}`, {
+      init: { headers: { Authorization: `Bearer ${token}` } }, fetchImpl, retryRead: true,
+      read: async response => {
+        const verification = response.ok ? await response.json() : null;
+        if (!response.ok) await response.body?.cancel();
+        return { ok: response.ok, status: response.status, verification };
+      },
     });
     if (index === 0 && [400, 401, 403].includes(response.status)) {
-      await response.body?.cancel();
       continue;
     }
-    const owner = index === 0 ? "user" : "account";
     assert.ok(response.ok, `Cloudflare ${owner} token verification failed (HTTP ${response.status}); check token ownership, validity and account`);
-    const verification = await response.json();
+    const verification = response.verification;
     assert.ok(verification.success && verification.result?.status === "active", `Cloudflare ${owner} token is not active`);
     assert.match(verification.result.id ?? "", /^[a-f0-9]{32}$/, "Cloudflare verification returned an invalid token ID");
     // R2 requires SHA-256(API token) as the S3 secret, not a stored user-password hash.

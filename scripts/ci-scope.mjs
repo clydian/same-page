@@ -100,6 +100,9 @@ function selectChecks(files) {
 
 function checksForPath(file) {
   if (isDocumentation(file)) return [];
+  // These tools execute the web deployment and beta admission. Their fixes must
+  // reach that job on main, even when the product source itself is unchanged.
+  if (["scripts/frontend-release.mjs", "scripts/release-request.mjs", "android/publish.mjs"].includes(file)) return checkNames;
   // Android has its own build workflow; shell-only changes never deploy the web app.
   if (file.startsWith("android/")) return [];
   // Exercise changes to the production pipeline through its actual deploy job.

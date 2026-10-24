@@ -61,7 +61,7 @@ for (const status of [429, 500, 503]) {
       calls++;
       return new Response(token, { status });
     }), error => error.message.includes(`HTTP ${status}`) && !error.message.includes(token));
-    assert.equal(calls, 1);
+    assert.equal(calls, 3);
   });
 }
 
@@ -93,5 +93,40 @@ test('network and malformed verification responses fail without fallback', async
       return respond();
     }));
     assert.equal(calls, 1);
+  }
+});
+
+test('recovers a transient timeout on the same token verification endpoint', async () => {
+  const urls = [];
+  const credentials = await deriveR2Credentials(account, token, async url => {
+    urls.push(url);
+    if (urls.length === 1) throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    return active();
+  });
+  assert.equal(credentials.accessKeyId, tokenId);
+  assert.deepEqual(urls, Array(2).fill('https://api.cloudflare.com/client/v4/user/tokens/verify'));
+});
+
+test('release R2 reader bounds the actual SDK response body and retries a complete GET', async () => {
+  const { createServer } = await import('node:http');
+  const { once } = await import('node:events');
+  const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
+  const { readReleaseObject } = await import('../scripts/release-request.mjs');
+  let calls = 0;
+  const server = createServer((_request, response) => {
+    calls++;
+    response.writeHead(200, {'Content-Length': 8});
+    if (calls === 1) { response.write('part'); return; }
+    response.end('complete');
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const client = new S3Client({region:'auto',endpoint:`http://127.0.0.1:${server.address().port}`,forcePathStyle:true,maxAttempts:1,credentials:{accessKeyId:'fixture',secretAccessKey:'fixture'}});
+  try {
+    const object = await readReleaseObject('sealed.json', signal => client.send(new GetObjectCommand({Bucket:'fixture',Key:'sealed.json'}), {abortSignal:signal}), {timeoutMs:250,sleep:async () => {},warn:() => {}});
+    assert.equal(new TextDecoder().decode(await object.arrayBuffer()), 'complete');
+    assert.equal(calls, 2);
+  } finally {
+    client.destroy(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
   }
 });
