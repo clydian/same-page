@@ -35,9 +35,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(page.getByRole("button", { name: "扫一扫", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "从相册识别", exact: true })).toBeVisible();
       await expect(page.locator(".join-code-slot")).toHaveCount(8);
-      await expect(page.getByRole("button", { name: "进入", exact: true })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "进入云盘", exact: true })).toBeDisabled();
       await page.getByRole("textbox", { name: "邀请码", exact: true }).fill("abcd-efgh");
-      await page.getByRole("button", { name: "进入", exact: true }).click();
+      await page.getByRole("button", { name: "进入云盘", exact: true }).click();
       await expect(page.getByRole("heading", { name: "加入「受邀云盘」", exact: true })).toBeVisible();
       assert.deepEqual(admission, { admission: "invite", joinCode: "ABCDEFGH" });
       await page.getByRole("textbox", { name: "显示名", exact: true }).fill("小花");
