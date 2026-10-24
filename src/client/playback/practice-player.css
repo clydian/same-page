@@ -41,6 +41,8 @@
 .practice-notation-scroll:focus-visible { outline: 2px solid #769787; outline-offset: -2px; }
 .practice-follow:focus-visible { outline: 2px solid #769787; outline-offset: 2px; }
 .practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 16px; }
+/* Long presses belong to score interaction, including Safari's native callout. */
+.practice-notation-scroll, .practice-notation-scroll * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .practice-notation-paper { max-width: 1100px; margin: auto; padding: 12px; background: #fff; border-radius: 3px; box-shadow: 0 1px 5px #17352b0a; }
 /* Player styling: alphaTab supplies positions/classes; the host supplies their visible colors. */
 /* WebKit can retain old transformed cursor overflow after reflow. Contain only
