@@ -93,6 +93,7 @@ export function MusicXmlPractice({
         <div
           ref={viewport}
           className="practice-notation-scroll"
+          onContextMenu={(event) => event.preventDefault()}
           role="region"
           aria-label="滚动谱面"
           tabIndex={0}
