@@ -133,3 +133,12 @@ synth becomes ready rather than generated again; an explicit MIDI rebuild remain
 available. This avoids retaining a live hidden player or sharing an old Score's
 position references across sessions. Prepared objects remain memory-only under
 ADR-0004; source files, annotations and practice preferences are unchanged.
+
+
+## 循环选段与统一定位 · #567
+
+循环范围以小节为单位，由 A/B 双端点选择，包含终点完整小节，允许单小节并保留反复经过标签。编辑为独立草稿：进入时暂停，拖动时只保留范围条与端点位置，其他设置及面板背景淡出，让用户透视重排谱面；松手恢复面板，应用后启用新范围并从 A 开始，取消或关闭恢复原范围及原浏览位置。应用与取消都恢复进入编辑前的播放状态。预览可超出旧循环范围，但不寻址音频；原 PDF 没有位置映射，开始选段时转到重排谱面。
+
+所有实际定位通过同一会话边界：进度条、前后小节、定位面板、普通与放大点击都限制在循环区间；范围外点击吸附最近边界小节起点，不能取消引擎范围。底栏将有效片段作为完整进度范围，显示 A/B；手动滚动浏览仍可越出范围，不改变播放位置。引擎原生的点击／划选会自行修改播放范围，因此由宿主统一处理命中并保留引擎的谱面、游标和范围高亮，避免出现界面与实际循环各持一份状态。
+
+练习设置依次保留声部关注、折叠的独立混音、始终可见的循环状态与范围、谱面辅助和简短资源状态。本次不改变源文件、云数据、权限或持久偏好格式；关闭会话仍重置练习设置。此节补充 #431 的拖动契约：播放进度仍释放寻址，选段拖动只预览谱面，明确应用才改变循环。

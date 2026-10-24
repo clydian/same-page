@@ -185,6 +185,10 @@ for (const [engine, type] of [
         page.getByRole("dialog", { name: "练习设置", exact: true }),
       ).toBeVisible();
       await page
+        .getByRole("dialog", { name: "练习设置", exact: true })
+        .getByText("独立混音", { exact: true })
+        .click();
+      await page
         .getByRole("button", { name: "独奏 Soprano", exact: true })
         .click();
       await page

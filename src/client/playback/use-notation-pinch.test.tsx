@@ -56,7 +56,8 @@ it('rolls canceled gestures back and suppresses a pinch tap, preserving keyboard
   expect(fireEvent.click(element, { detail: 1 })).toBe(false);
   expect(fireEvent.click(element, { detail: 0 })).toBe(true);
   fireEvent.touchStart(element, { touches: touches(100).slice(0, 1) });
-  expect(fireEvent.click(element, { detail: 1 })).toBe(true);
+  expect(fireEvent.click(element, { detail: 1 })).toBe(false);
+  expect(player.seekAt).toHaveBeenCalled();
   expect(player.notationScale).not.toHaveBeenCalled();
 });
 it('routes trackpad pinch to visual magnification while retaining native ordinary wheel scrolling', () => {

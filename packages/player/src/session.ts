@@ -13,7 +13,7 @@ export interface PlayerMeasure { index: number; label: string; startTick: number
 export interface PlayerState {
   status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
-  notationScale: number; solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
+  notationScale: number; previewing?: boolean; solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
   loop: { start: number; end: number } | null;
 }
 export interface PlayerSession {
@@ -22,6 +22,8 @@ export interface PlayerSession {
   notationScale(value: number): void;
   solfege(visible: boolean, part?: number | null): void;
   focus(id: number | null): void; focusOther(volume: number): void; follow(): void; suspendFollow(): void;
+  /** Preview notation outside the active loop without moving the audio position. Null cancels. */
+  previewMeasure(index: number | null): void;
   loop(start: number | null, end?: number): void;
   getSnapshot(): PlayerState; subscribe(listener: () => void): () => void; dispose(): void;
 }
@@ -61,14 +63,17 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     importer: { mergePartGroupsInMusicXml: false },
     display: { scale: .6, resources: { secondaryGlyphColor: '#000000', barNumberColor: '#78867b' } },
     player: { playerMode: alphaTab.PlayerMode.EnabledSynthesizer, soundFont: '/soundfont/sonivox.sf2', enableCursor: true,
-      enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: true,
+      enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: false,
       scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
   });
   api.masterVolume = .72;
-  const scrollToMeasure = (index: number) => {
+  let previewOverlay: HTMLDivElement | null = null;
+  let preview: { playing: boolean; scrollTop: number; index: number } | null = null;
+  const scrollToMeasure = (index: number, clearance = 16) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
-    const bounds = masterBar && api.boundsLookup?.findMasterBar(masterBar)?.staffSystemBounds?.realBounds;
-    if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - 16;
+    const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
+    const bounds = measureBounds?.realBounds ?? measureBounds?.staffSystemBounds?.realBounds;
+    if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - clearance;
   };
   let measureLabels: string[] = [];
   let customMeasureLabels = false;
@@ -143,8 +148,10 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   api.renderStarted.on(() => { musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
   api.postRenderFinished.on(() => {
     renderDegrees(); renderMeasureLabels();
+    if (preview) markMeasure(preview.index); else highlightLoop();
     reportReadableSystem();
     if (disposed || !viewport) return;
+    if (preview) { anchor = null; showPreview(preview.index); return; }
     if (anchor) {
       const bounds = api.boundsLookup?.findMasterBarByIndex(anchor.bar)?.staffSystemBounds?.realBounds;
       if (bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - anchor.offset;
@@ -252,17 +259,75 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     };
     const copy = bytes.slice(); worker.postMessage(copy, [copy.buffer]);
   }
+  const highlight = (start: number, end: number) => {
+    const first = api.tickCache?.masterBars[start]?.masterBar.index;
+    const last = api.tickCache?.masterBars[end]?.masterBar.index;
+    const bars = api.score?.tracks[0]?.staves?.[0]?.bars;
+    const from = first === undefined ? undefined : bars?.[first]?.voices[0]?.beats[0];
+    const to = last === undefined ? undefined : bars?.[last]?.voices[0]?.beats.at(-1);
+    if (from && to) api.highlightPlaybackRange(from, to);
+  };
+  const markMeasure = (index: number) => {
+    previewOverlay?.remove(); previewOverlay = null;
+    const master = api.tickCache?.masterBars[index]?.masterBar;
+    const bounds = master && api.boundsLookup?.findMasterBar(master)?.realBounds;
+    if (bounds && bounds.w > 0 && bounds.h > 0) {
+      const marker = document.createElement('div'); marker.className = 'practice-measure-preview'; marker.setAttribute('aria-hidden', 'true');
+      Object.assign(marker.style, { left: `${bounds.x}px`, top: `${bounds.y}px`, width: `${bounds.w}px`, height: `${bounds.h}px` });
+      element.append(marker); previewOverlay = marker;
+    }
+  };
+  const showPreview = (index: number) => {
+    markMeasure(index); scrollToMeasure(index, Math.max(72, (viewport?.clientHeight ?? 0) * .18));
+  };
+  const highlightLoop = () => {
+    api.clearPlaybackRangeHighlight?.();
+    previewOverlay?.remove(); previewOverlay = null;
+    if (state.loop) {
+      if (state.loop.start === state.loop.end) markMeasure(state.loop.start);
+      else highlight(state.loop.start, state.loop.end);
+    }
+  };
+  const restoreScrollMode = () => {
+    api.settings.player.scrollMode = state.following && viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off;
+    api.updateSettings();
+  };
+  const finishPreview = () => {
+    if (!preview) return;
+    const previous = preview; preview = null; previewOverlay?.remove(); previewOverlay = null; update({ previewing: false }); restoreScrollMode(); highlightLoop();
+    if (viewport) viewport.scrollTop = previous.scrollTop;
+    if (previous.playing) api.play();
+  };
+  const seekTick = (requested: number) => {
+    if (!Number.isFinite(requested) || preview) return;
+    const first = state.measures[state.loop?.start ?? 0], last = state.measures[state.loop?.end ?? state.measures.length - 1];
+    if (!first || !last) return;
+    const tick = requested < first.startTick ? first.startTick : requested >= last.endTick ? last.startTick : requested;
+    const index = state.measures.findLastIndex(item => item.startTick <= tick);
+    api.tickPosition = tick; update({ measure: index });
+    if (state.following) scrollToMeasure(index);
+  };
   return {
     getSnapshot: () => state,
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     playPause() { if (!disposed && state.status === 'ready') { if (!state.playing) loadingStage('play-request'); api.playPause(); } },
     pause() { if (!disposed) api.pause(); },
-    seek(index) { if (!disposed && state.status === 'ready' && state.measures[index]) { api.tickPosition = state.measures[index].startTick; if (state.following) scrollToMeasure(index); } },
+    seek(index) { if (!disposed && state.status === 'ready' && Number.isInteger(index)) {
+      const bounded = Math.max(state.loop?.start ?? 0, Math.min(state.loop?.end ?? state.measures.length - 1, index));
+      if (state.measures[bounded]) seekTick(state.measures[bounded].startTick);
+    } },
     // Hosts normalize transformed viewport coordinates before crossing this seam.
     seekAt(x, y) {
       if (disposed || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
       const beat = api.boundsLookup?.getBeatAtPos(x, y);
-      if (beat && api.tickCache) api.tickPosition = api.tickCache.getBeatStart(beat);
+      if (beat && api.tickCache) {
+        const relative = api.tickCache.getRelativeBeatPlaybackRange?.(beat);
+        const sourceIndex = beat.voice?.bar.masterBar.index;
+        const occurrences = api.tickCache.masterBars.map((bar, index) => ({ bar, index })).filter(item => item.bar.masterBar.index === sourceIndex);
+        const inside = occurrences.filter(item => !state.loop || item.index >= state.loop.start && item.index <= state.loop.end);
+        const nearest = (inside.length ? inside : occurrences).sort((a, b) => Math.abs(a.index - state.measure) - Math.abs(b.index - state.measure))[0];
+        seekTick(nearest && relative ? nearest.bar.start + relative.startTick : api.tickCache.getBeatStart(beat));
+      }
     },
     speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
     mix(id, value) {
@@ -287,15 +352,31 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     } },
     follow() { if (!disposed) setFollow(true); },
     suspendFollow() { if (!disposed && state.following) setFollow(false); },
+    previewMeasure(index) {
+      if (disposed || state.status !== 'ready') return;
+      if (index === null) { finishPreview(); return; }
+      if (!state.measures[index]) return;
+      if (!preview) {
+        preview = { playing: state.playing, scrollTop: viewport?.scrollTop ?? 0, index };
+        update({ previewing: true });
+        api.settings.player.scrollMode = alphaTab.ScrollMode.Off; api.updateSettings(); api.pause();
+      }
+      preview.index = index;
+      showPreview(index);
+    },
     loop(start, end) {
       if (disposed || state.status !== 'ready') return;
-      if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); return; }
-      if (end === undefined || end < start || !state.measures[start] || !state.measures[end]) return;
-      api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end].endTick };
-      api.isLooping = true; api.tickPosition = state.measures[start].startTick; update({ loop: { start, end } });
+      if (start !== null && (end === undefined || end < start || !state.measures[start] || !state.measures[end])) return;
+      const resume = preview?.playing ?? false; preview = null; previewOverlay?.remove(); previewOverlay = null; update({ previewing: false }); restoreScrollMode();
+      if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); }
+      else {
+        api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end!].endTick };
+        api.isLooping = true; update({ loop: { start, end: end! } }); seekTick(state.measures[start].startTick);
+      }
+      highlightLoop(); if (resume) api.play();
     },
     dispose() {
-      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove();
+      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); previewOverlay?.remove();
       viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
       viewport?.removeEventListener('keydown', keyDown);
       viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy();

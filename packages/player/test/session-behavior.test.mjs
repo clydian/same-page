@@ -46,7 +46,7 @@ test('prepared input skips Worker and manual browsing suspends follow until rest
 
 test('public source-session coordinate seek and explicit follow suspension preserve the shipped behavior',async()=>{
  const h=harness({prepared:{bytes:new Uint8Array([1])}});try{
-  await Promise.resolve(); const beat={index:3}; h.api.boundsLookup.getBeatAtPos=(x,y)=>{assert.equal(x,12);assert.equal(y,34);return beat;};
+  h.api.tickCache.masterBars[0].end=4000; await Promise.resolve(); const beat={index:3}; h.api.boundsLookup.getBeatAtPos=(x,y)=>{assert.equal(x,12);assert.equal(y,34);return beat;};
   h.api.tickCache.getBeatStart=value=>{assert.equal(value,beat);return 2400;};
   h.session.seekAt(12,34);assert.equal(h.api.tickPosition,2400);
   h.session.seekAt(NaN,34);assert.equal(h.api.tickPosition,2400);
@@ -130,4 +130,70 @@ test('loading stages use actual engine events once, repeat playback starts, and 
   assert.equal(stages.filter(stage=>stage==='first-system').length,1);
  } finally {h.dispose();}
  const previous=stages.length;h.api.midiLoaded.emit();h.api.playerStateChanged.emit({state:1});assert.equal(stages.length,previous);
+});
+
+test('all seek entry points retain the loop and resolve to the same nearest boundary',async()=>{
+ const viewport={scrollTop:0,getBoundingClientRect:()=>({top:0}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.api.tickCache.masterBars=Array.from({length:8},(_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
+  await Promise.resolve();h.session.loop(2,4);
+  h.session.seek(7);assert.equal(h.api.tickPosition,400);assert.equal(h.session.getSnapshot().measure,4);
+  h.session.seek(0);assert.equal(h.api.tickPosition,200);assert.equal(h.session.getSnapshot().measure,2);
+  h.api.boundsLookup.getBeatAtPos=()=>({});h.api.tickCache.getBeatStart=()=>750;
+  h.session.seekAt(12,34);assert.equal(h.api.tickPosition,400);
+  h.api.tickCache.getBeatStart=()=>350;h.session.seekAt(12,34);assert.equal(h.api.tickPosition,350);
+  assert.deepEqual(h.api.playbackRange,{startTick:200,endTick:500});
+  h.session.loop(3,3);h.session.seek(7);assert.equal(h.api.tickPosition,300);
+  h.session.loop(null);h.session.seek(7);assert.equal(h.api.tickPosition,700);
+ }finally{h.dispose();}
+});
+
+test('range preview can leave the loop without seeking and cancel restores browsing and playback',async()=>{
+ const viewport={scrollTop:40,getBoundingClientRect:()=>({top:0}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.api.tickCache.masterBars=Array.from({length:8},(_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
+  h.api.score.tracks[0].staves=[{bars:Array.from({length:8},(_,index)=>({voices:[{beats:[{index}]}]}))}];
+  const highlights=[];let pauses=0,resumes=0;
+  h.api.highlightPlaybackRange=(a,b)=>highlights.push([a.index,b.index]);h.api.clearPlaybackRangeHighlight=()=>{};
+  h.api.pause=()=>pauses++;h.api.play=()=>resumes++;
+  await Promise.resolve();h.session.loop(2,4);h.session.suspendFollow();viewport.scrollTop=40;
+  h.api.playerStateChanged.emit({state:1});
+  h.session.previewMeasure(7);assert.equal(pauses,1);assert.equal(h.api.tickPosition,200);
+  assert.deepEqual(highlights.at(-1),[2,4]);assert.notEqual(viewport.scrollTop,40);
+  h.session.previewMeasure(6);h.session.seek(3);assert.equal(pauses,1);assert.equal(h.api.tickPosition,200);
+  h.session.previewMeasure(null);assert.equal(viewport.scrollTop,40);assert.equal(resumes,1);assert.equal(h.session.getSnapshot().following,false);
+  assert.deepEqual(h.api.playbackRange,{startTick:200,endTick:500});
+  h.session.previewMeasure(7);h.session.loop(5,7);assert.equal(h.api.tickPosition,500);assert.equal(resumes,2);
+  assert.deepEqual(h.api.playbackRange,{startTick:500,endTick:800});
+ }finally{h.dispose();}
+});
+
+test('score taps resolve the repeated occurrence inside the active loop, preserving beat offset',async()=>{
+ const h=harness({prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.api.tickCache.masterBars=Array.from({length:8},(_,index)=>({masterBar:{index:index%4},start:index*100,end:(index+1)*100}));
+  await Promise.resolve();h.session.loop(4,7);
+  const beat={voice:{bar:{masterBar:{index:2}}}};
+  h.api.boundsLookup.getBeatAtPos=()=>beat;h.api.tickCache.getBeatStart=()=>220;
+  h.api.tickCache.getRelativeBeatPlaybackRange=()=>({startTick:20,endTick:80});
+  h.session.seekAt(12,34);assert.equal(h.api.tickPosition,620);assert.equal(h.session.getSnapshot().measure,6);
+  h.session.loop(null);h.session.seekAt(12,34);assert.equal(h.api.tickPosition,620,'unrestricted taps retain the closest repeat visit');
+ }finally{h.dispose();}
+});
+
+test('preview marker refreshes after reflow even when a manual browsing anchor wins',async()=>{
+ const previousDocument=globalThis.document,markers=[];
+ globalThis.document={createElement:()=>({style:{},setAttribute(){},remove(){}})};
+ const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  await Promise.resolve();h.element.append=marker=>markers.push(marker);
+  let width=100;const bounds=()=>({realBounds:{x:10,y:400,w:width,h:80},staffSystemBounds:{realBounds:{y:100}}});
+  h.api.boundsLookup.findMasterBar=bounds;h.api.boundsLookup.findMasterBarByIndex=bounds;
+  h.api.boundsLookup.staffSystems=[{realBounds:{y:100,h:100},bars:[{index:0}]}];
+  h.session.suspendFollow();h.api.renderStarted.emit();h.session.previewMeasure(0);assert.equal(markers.at(-1).style.width,'100px');assert.equal(viewport.scrollTop,292,'preview scrolls to actual measure bounds rather than stale system bounds');
+  width=150;h.api.postRenderFinished.emit();assert.equal(markers.at(-1).style.width,'150px');assert.equal(viewport.scrollTop,292,'pending browse anchors cannot override endpoint preview');
+ }finally{h.dispose();globalThis.document=previousDocument;}
 });

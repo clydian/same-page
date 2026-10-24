@@ -1,4 +1,4 @@
-import { selectPracticeView } from './practice-controls.mjs';
+import { draftLoopRange, selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -132,10 +132,9 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByLabel('速度',{exact:true}).selectOption('0.75');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
-  await settings.locator('summary').filter({hasText:'片段循环'}).click();
-  await settings.getByLabel('循环终点').selectOption('2');
-  await settings.getByRole('button',{name:'循环这一段',exact:true}).click();
-  await expect(settings.getByRole('button',{name:'取消循环',exact:true})).toBeVisible();
+  await draftLoopRange(page,0,2);
+  await settings.getByRole('button',{name:'应用范围',exact:true}).click();
+  await expect(settings.getByRole('button',{name:'关闭循环',exact:true})).toBeVisible();
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByRole('button',{name:'播放',exact:true}).evaluate(button => {
     button.addEventListener('click', () => {
@@ -192,8 +191,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.screenshot({path:`artifacts/verification/musicxml-350/${engine}-player.png`});
   await player.getByRole('button',{name:'暂停',exact:true}).click();
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
-  await settings.locator('summary').filter({hasText:'片段循环'}).click();
-  await settings.getByRole('button',{name:'取消循环',exact:true}).click();
+  await settings.getByRole('button',{name:'关闭循环',exact:true}).click();
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByLabel('播放进度',{exact:true}).fill('4');
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('4');

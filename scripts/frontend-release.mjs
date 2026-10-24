@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readReleaseObject, releaseRequest } from './release-request.mjs';
 import { verifyRelease } from './release-artifact.mjs';
 import { assertStorageCompatibility } from './release-contract.mjs';
 const hash = data => createHash('sha256').update(data instanceof ArrayBuffer ? new Uint8Array(data) : data).digest('hex');
@@ -98,6 +99,19 @@ export async function stopBetaRelease({ query, expectedBeta, expectedRevision })
   assert.ok(result.results?.length === 1, 'Beta changed, already matches stable, or stable is unavailable; reread channels before retrying');
   return result.results[0];
 }
+export async function verifyOnlineFrontend({origin,sha,files,fetchImpl=fetch}) {
+  const health = await releaseRequest('Backend health before beta admission', new URL('/api/health',origin), {
+    retryRead: true, fetchImpl, read: async response => { assert.equal(response.status, 200); return response.json(); },
+  });
+  assert.equal(health.buildId,sha,'backend deployment must verify before beta admission');
+  for(const [file,entry]of Object.entries(files)) {
+    const bytes = await releaseRequest(`Candidate resource ${file}`, new URL(`/_releases/${sha}/${file}`,origin), {
+      init: {redirect:'error'}, retryRead: true, fetchImpl,
+      read: async response => { assert.equal(response.status,200); return response.arrayBuffer(); },
+    });
+    assert.equal(hash(new Uint8Array(bytes)),entry.sha256, `candidate resource hash mismatch: ${file}`);
+  }
+}
 async function main() {
   const [action,sha,baselineFlag]=process.argv.slice(2);
   assert.ok(['preflight','upload','admit','initialize','archive-legacy','stop-beta'].includes(action));assert.match(sha??'',/^[a-f0-9]{40}$/);
@@ -107,8 +121,13 @@ async function main() {
   const config=JSON.parse(await readFile('wrangler.jsonc','utf8'));
   const db=config.d1_databases[0].database_id;
   const query=async(sql,params=[])=>{
-    const response=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${db}/query`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({sql,params}),signal:AbortSignal.timeout(30000)});
-    assert.ok(response.ok,'release catalog request failed');const data=await response.json();assert.ok(data.success,'release catalog query rejected');return data.result[0];
+    const reading = sql.startsWith('SELECT ');
+    const data = await releaseRequest(`Release catalog ${reading ? 'read' : 'write'}`, `https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${db}/query`, {
+      init: {method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({sql,params})},
+      retryRead: reading, timeoutMs: 30000,
+      read: async response => { assert.ok(response.ok, `release catalog request failed (HTTP ${response.status})`); return response.json(); },
+    });
+    assert.ok(data.success,'release catalog query rejected');return data.result[0];
   };
   if(action==='stop-beta') {
     const pointer=await stopBetaRelease({query,expectedBeta:sha,expectedRevision:Number(baselineFlag.split('=')[1])});
@@ -128,7 +147,7 @@ async function main() {
   const Bucket='same-page-frontend-releases';
   const bucket={
     async put(Key,Body,options){try{return await client.send(new sdk.PutObjectCommand({Bucket,Key,Body,IfNoneMatch:'*',ContentType:options.customMetadata.contentType??'application/json',Metadata:options.customMetadata}))}catch(e){if(e.$metadata?.httpStatusCode!==412)throw e;return null}},
-    async get(Key){try{const r=await client.send(new sdk.GetObjectCommand({Bucket,Key}));return {arrayBuffer:()=>r.Body.transformToByteArray()}}catch(e){if(e.$metadata?.httpStatusCode!==404)throw e;return null}},
+    async get(Key){return readReleaseObject(Key, signal => client.send(new sdk.GetObjectCommand({Bucket,Key}), {abortSignal:signal}));},
   };
   if(action==='archive-legacy') {
     assert.equal(baselineFlag,'--archive-supported-baseline');
@@ -173,12 +192,7 @@ async function main() {
   assert.equal(record?.manifest_digest,hash(JSON.stringify(manifest)),'candidate catalog mismatch');
   // This command is only called after online verification; it verifies every fixed byte again.
   const origin=process.env.SAME_PAGE_RELEASE_ORIGIN??'https://samepage.clyapps.com';
-  const health=await fetch(new URL('/api/health',origin),{signal:AbortSignal.timeout(15000)});
-  assert.equal((await health.json()).buildId,sha,'backend deployment must verify before beta admission');
-  for(const [file,entry]of Object.entries(manifest.files)) {
-    const response=await fetch(new URL(`/_releases/${sha}/${file}`,origin),{redirect:'error',signal:AbortSignal.timeout(15000)});
-    assert.equal(response.status,200,`candidate resource unavailable: ${file}`);assert.equal(hash(new Uint8Array(await response.arrayBuffer())),entry.sha256);
-  }
+  await verifyOnlineFrontend({origin,sha,files:manifest.files});
   const proof=(await query('SELECT * FROM release_compatibility WHERE candidate=? AND stable=?',[sha,pointer?.stable??sha])).results[0];assert.ok(proof,'artifact compatibility proof missing for current stable');
   const proofObject=await bucket.get(`compatibility/${sha}/${pointer?.stable??sha}.json`);assert.ok(proofObject);
   const proofBytes=await proofObject.arrayBuffer();assert.equal(hash(proofBytes),proof.report_digest);

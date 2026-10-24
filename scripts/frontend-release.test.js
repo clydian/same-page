@@ -156,3 +156,25 @@ globalThis.fetch = async (url, options) => {
   }
  } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+it('rechecks backend identity and every sealed resource after a transient download failure', async () => {
+ const {verifyOnlineFrontend} = await import('./frontend-release.mjs');
+ const {createHash} = await import('node:crypto');
+ const sha = 'a'.repeat(40), calls = [];
+ const bytes = 'sealed candidate bytes';
+ const files = {'assets/example.js': {sha256:createHash('sha256').update(bytes).digest('hex')}};
+ await verifyOnlineFrontend({origin:'https://example.test',sha,files,fetchImpl:async url => {
+  calls.push(url.pathname);
+  if (url.pathname === '/api/health') return Response.json({buildId:sha});
+  if (calls.length === 2) throw new DOMException('private response', 'TimeoutError');
+  return new Response(bytes);
+ }});
+ expect(calls).toEqual(['/api/health',`/_releases/${sha}/assets/example.js`,`/_releases/${sha}/assets/example.js`]);
+ let downloads = 0;
+ await expect(verifyOnlineFrontend({origin:'https://example.test',sha,files,fetchImpl:async url => {
+  if (url.pathname === '/api/health') return Response.json({buildId:sha});
+  downloads++; return new Response('wrong bytes');
+ }})).rejects.toThrow('candidate resource hash mismatch: assets/example.js');
+ expect(downloads).toBe(1);
+ await expect(verifyOnlineFrontend({origin:'https://example.test',sha,files,fetchImpl:async () => Response.json({buildId:'other'})})).rejects.toThrow('backend deployment must verify');
+});

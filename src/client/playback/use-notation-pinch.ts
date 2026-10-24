@@ -85,17 +85,15 @@ export function useNotationPinch(viewport: RefObject<HTMLDivElement | null>, pla
       if (tapStart && Math.hypot(event.clientX - tapStart.x, event.clientY - tapStart.y) > 6) tapMoved = true;
       if (pinch && event.pointerType === 'touch') event.stopPropagation();
     };
-    // alphaTab's native hit test uses untransformed CSS pixels. Keep it for normal
-    // viewing; magnified taps cross the engine seam with normalized coordinates.
+    // All taps cross the session's loop-aware seek seam, including magnified taps.
     const mouse = (event: MouseEvent) => { if (scale > 1) event.stopPropagation(); };
     const click = (event: MouseEvent) => {
+      if (event.detail === 0) return;
       if (suppressClick && event.detail !== 0) { event.preventDefault(); event.stopImmediatePropagation(); return; }
-      if (scale > 1) {
-        event.preventDefault(); event.stopImmediatePropagation();
-        if (!tapMoved) {
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (!tapMoved) {
           const engraving = paper.firstElementChild?.getBoundingClientRect() ?? paper.getBoundingClientRect();
           player.seekAt((event.clientX - engraving.left) / scale, (event.clientY - engraving.top) / scale);
-        }
       }
     };
     const wheel = (event: WheelEvent) => {
