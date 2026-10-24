@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  cliTokenListSchema,
+  createCliTokenSchema,
+  createdCliTokenSchema,
+} from "../../shared/cli-tokens";
+import {
   adminCapabilitiesSchema,
   adminDetailSchema,
   adminScoreSchema,
@@ -31,6 +36,7 @@ export function adminErrorMessage(code: string) {
         candidate_unavailable: "候选结果已到期或不可用，请重新导入。",
         invalid_musicxml: "无法识别此 MusicXML，请检查文件。",
         invalid_review: "检查尚未完成，无法标记通过。",
+        invalid_cli_token: "请填写令牌名称，并选择至少一个云盘及有效期。",
         source_unavailable: "原 PDF 已到期或不可用。",
         resource_deleted: "内容已删除，不再提供访问。",
         score_not_found: "乐谱已回收、清理或暂不可用。",
@@ -93,5 +99,17 @@ export const jsonPost = (data: unknown): RequestInit => ({
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(data),
 });
+
+export const readCliTokens = async (signal?: AbortSignal) =>
+  cliTokenListSchema.parse(
+    await (await adminFetch("/cli-tokens", { signal })).json(),
+  );
+export const createCliToken = async (input: z.input<typeof createCliTokenSchema>, signal?: AbortSignal) =>
+  createdCliTokenSchema.parse(
+    await (await adminFetch("/cli-tokens", { ...jsonPost(input), signal })).json(),
+  );
+export const revokeCliToken = async (id: string, signal?: AbortSignal) => {
+  await adminFetch(`/cli-tokens/${encodeURIComponent(id)}`, { method: "DELETE", signal });
+};
 
 export type AdminCapabilities = Awaited<ReturnType<typeof adminSession>>;
