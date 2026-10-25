@@ -80,10 +80,15 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   let seekReplyTick: number | null = null;
   let countInActive = false;
   let countInRequest = 0;
+  let heldCursor: typeof api.customCursorHandler;
   let tempoMeasures: MusicXmlTempoMeasure[] = [];
   const tempoAt = (tick: number) => playbackTempo(api.tickCache?.masterBars ?? [], tick, tempoMeasures);
   const stopCountIn = () => {
     countInActive = false; api.countInVolume = 0;
+    if (heldCursor) {
+      if (api.customCursorHandler === heldCursor) api.customCursorHandler = undefined;
+      heldCursor = undefined;
+    }
     update({ countInBeat: 0, countInBeats: 0 });
   };
   const start = () => {
@@ -93,7 +98,30 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const count = pendingCountIn && state.countIn && (state.beatVolume ?? .5) > 0;
     pendingCountIn = false; countInActive = Boolean(count); if (count) countInRequest++;
     api.countInVolume = count ? state.beatVolume ?? .5 : 0;
-    if (count) update({ countInBeat: 1, countInBeats: api.tickCache?.masterBars[state.measure]?.masterBar.timeSignatureNumerator ?? 4 });
+    if (count) {
+      const request = countInRequest;
+      // Seek replies can schedule a native forward animation before count-in
+      // starts. Hold its public cursor handler until actual main audio begins.
+      heldCursor = {
+        onAttach() {}, onDetach() {},
+        placeBarCursor(cursor, bounds) {
+          if (!countInActive || request !== countInRequest) return;
+          const bar = bounds.barBounds.masterBarBounds.visualBounds;
+          cursor.setBounds(bar.x, bar.y, bar.w, bar.h);
+        },
+        placeBeatCursor(cursor, bounds) {
+          if (!countInActive || request !== countInRequest) return;
+          const bar = bounds.barBounds.masterBarBounds.visualBounds;
+          cursor.transitionToX(0, bounds.onNotesX);
+          cursor.setBounds(bounds.onNotesX, bar.y, 1, bar.h);
+        },
+        transitionBeatCursor(cursor, bounds, startX) {
+          this.placeBeatCursor(cursor, bounds, startX);
+        },
+      };
+      api.customCursorHandler = heldCursor;
+      update({ countInBeat: 1, countInBeats: api.tickCache?.masterBars[state.measure]?.masterBar.timeSignatureNumerator ?? 4 });
+    }
     loadingStage('play-request'); api.play();
   };
   let previewOverlay: HTMLDivElement | null = null;

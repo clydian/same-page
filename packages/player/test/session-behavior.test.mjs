@@ -286,3 +286,36 @@ test('pending seeks retain only the last destination and respect pause, resume a
   } finally {h.dispose();}
  }
 });
+
+// Drive the shipped native cursor handler and its deferred animation frame.
+function cursorFrame(h) {
+ const frames=[],transitions=[];
+ const bounds={onNotesX:100,realBounds:{x:100,w:50},barBounds:{masterBarBounds:{index:3,visualBounds:{x:80,y:20,w:200,h:100}}}};
+ const native={settings:{player:{enableAnimatedBeatCursor:true,enableElementHighlighting:false,scrollMode:0}},_player:{state:1},
+  _beatCursor:{transitionToX(duration,x){transitions.push({duration,x});},setBounds(){}},_barCursor:{setBounds(){}},
+  _previousTick:300,_currentBeatBounds:null,
+  get customCursorHandler(){return h.api.customCursorHandler;},
+  uiFacade:{beginInvoke(fn){frames.push(fn);},removeHighlights(){}},_onPlayedBeatChanged(){},_onActiveBeatsChanged(){}
+ };
+ AlphaTabApiBase.prototype._updateCursorHandler.call(native);
+ AlphaTabApiBase.prototype._internalCursorUpdateBeat.call(native,{beat:{voice:{bar:{index:3}}},duration:600,start:300,tickDuration:100,beatLookup:{highlightedBeats:[]},cursorMode:0},false,{},bounds,false,1,true);
+ return {transitions,flush(){while(frames.length)frames.shift()();}};
+}
+test('count-in holds the real native cursor at the target until main audio and fences late animation frames',async()=>{
+ const h=harness({prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.api.tickCache.masterBars=Array.from({length:4},(_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
+  await Promise.resolve();h.session.rhythm({countIn:true});h.session.seek(3);h.session.playPause();
+  const counting=cursorFrame(h);counting.flush();
+  assert.ok(counting.transitions.length>0);
+  assert.ok(counting.transitions.every(item=>item.duration===0&&item.x===100),'preparatory beats cannot start the native forward animation');
+  const late=cursorFrame(h);const before=late.transitions.length;
+  h.api.playerPositionChanged.emit({currentTick:320,countInId:1,countInFinished:true});
+  late.flush();assert.equal(late.transitions.length,before,'a queued count-in frame cannot freeze resumed music');
+  const main=cursorFrame(h);main.flush();assert.ok(main.transitions.some(item=>item.duration>0),'ordinary playback restores the native smooth cursor');
+  h.session.seek(2); // A new count-in owns a different cursor generation.
+  h.api.playerStateChanged.emit({state:0});
+  const cancelled=cursorFrame(h);const placed=cancelled.transitions.length;
+  h.session.pause();cancelled.flush();assert.equal(cancelled.transitions.length,placed,'cancelled count-in cannot replay a queued cursor transition');
+ } finally {h.dispose();}
+});
