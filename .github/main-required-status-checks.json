@@ -1,9 +1,0 @@
-{
-  "strict": false,
-  "checks": [
-    {
-      "context": "verify",
-      "app_id": 15368
-    }
-  ]
-}
