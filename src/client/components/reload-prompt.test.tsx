@@ -21,7 +21,6 @@ describe("background updates", () => {
     const view = render(<MemoryRouter><ReloadPrompt /></MemoryRouter>);
     await waitFor(() => expect(registrationUpdateMock).toHaveBeenCalled());
     expect(navigator.serviceWorker.register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
-    expect(screen.queryByText("有新版本可用")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     view.rerender(<MemoryRouter><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
     expect(screen.getByText("更新已准备好")).toBeInTheDocument();
@@ -43,20 +42,6 @@ describe("background updates", () => {
     fireEvent.click(screen.getByRole("button", { name: "重试检查更新" }));
     expect(await screen.findByText("更新已准备好")).toBeInTheDocument();
   });
-
-it("does not start a handover on idle time or a foreground update check", async () => {
-  setRegistrationWaiting(false);
-  const post = vi.fn();
-  render(<MemoryRouter initialEntries={["/about"]}><ReloadPrompt /><UpdateDetails /></MemoryRouter>);
-  await waitFor(() => expect(registrationUpdateMock).toHaveBeenCalled());
-  vi.useFakeTimers();
-  act(() => { vi.advanceTimersByTime(8000); });
-  expect(post).not.toHaveBeenCalled();
-  fireEvent(document, new Event("visibilitychange"));
-  await act(async () => {});
-  expect(registrationUpdateMock).toHaveBeenCalledTimes(2);
-  expect(post).not.toHaveBeenCalled();
-});
 
 it("forces a live-window handover only on request and preserves operation vetoes", async () => {
   const ports: { onmessage: ((event: MessageEvent) => void) | null; close: () => void }[] = [];

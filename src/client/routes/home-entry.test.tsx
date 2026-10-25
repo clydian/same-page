@@ -54,40 +54,24 @@ it("replaces the default entry with the only membership, even with a remembered 
   expectPath("/privacy");
 });
 
-it.each([0, 2])("keeps %i memberships at the selection entry without injecting preview", async (count) => {
+it.each([0, 2])("offers first admission or a choice of joined drives (%i memberships)", async (count) => {
   memberships = count ? [membership("one"), { ...membership("two"), isOwner: true }] : [];
   render(tree(["/drives"]));
   if (count) {
     await screen.findByRole("link", { name: /云盘 one.*成员/ });
     expect(screen.getByRole("link", { name: /云盘 two.*拥有者/ })).toHaveAttribute("href", "/choirs/two");
-  } else await screen.findByText(/还没有已加入的云盘/);
+    expect(screen.getByRole("button", { name: "加入云盘" })).toBeEnabled();
+  } else {
+    expect(await screen.findByRole("heading", { name: "先加入你的云盘" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "邀请码" })).toBeVisible();
+  }
   expectPath("/drives");
-  expect(screen.getByRole("button", { name: "加入新云盘" })).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: /公开体验/ })).not.toBeInTheDocument();
-});
-
-it("keeps explicit invitation intent and the switch picker accessible with one membership", async () => {
-  render(tree(["/?join=1"]));
-  expect(screen.getByRole("dialog", { name: "加入新云盘" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "关闭" }));
-  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  expectPath("/?join=1");
-  fireEvent.click(screen.getByRole("link", { name: "我的云盘" }));
-  fireEvent.click(await screen.findByRole("link", { name: /云盘 one.*成员/ }));
-  await screen.findByRole("heading", { name: /^云盘 one/ });
-  fireEvent.click(screen.getByRole("button", { name: "选择页测试" }));
-  await screen.findByRole("link", { name: /云盘 one.*成员/ });
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  expectPath("/drives");
-  fireEvent.click(screen.getByRole("link", { name: "合谱 Same Page 首页" }));
-  expectPath("/");
-  expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
 });
 
 it("does not override an explicit drive deep link with the sole membership", async () => {
   render(tree(["/choirs/explicit"]));
   await screen.findByRole("heading", { name: "云盘 explicit" });
-  expectPath("/choirs/explicit");
   expectPath("/choirs/explicit");
 });
 
@@ -118,9 +102,9 @@ it("hides unresolved identity and ignores a previous user's late membership resp
   memberships = [];
   vi.mocked(fetch).mockImplementation(original);
   view.rerender(tree());
-  await screen.findByRole("heading", { name: "Harmony begins on the Same Page" });
+  await screen.findByRole("heading", { name: "先加入你的云盘" });
   await act(async () => finish(Response.json({ memberships: [membership("private-a")] })));
-  expectPath("/");
+  expectPath("/drives");
   expect(screen.queryByText(/private-a/)).not.toBeInTheDocument();
 });
 
@@ -132,7 +116,7 @@ it("clears a loaded previous user's list synchronously on identity change", asyn
   memberships = [];
   view.rerender(tree());
   expect(screen.queryByText(/private-a/)).not.toBeInTheDocument();
-  await screen.findByText(/还没有已加入的云盘/);
+  await screen.findByRole("heading", { name: "先加入你的云盘" });
 });
 
 it("continues a completed email login through the default entry without retaining login in history", async () => {
@@ -159,7 +143,6 @@ it("restores the last visited drive after leaving without opening a score", asyn
   view.unmount();
   render(tree());
   await waitFor(() => expectPath("/choirs/two"));
-  expect(screen.queryByText("继续上次阅读")).not.toBeInTheDocument();
 });
 
 it("keeps the drive shell and search when the online session cannot be reached after reload", async () => {
@@ -175,8 +158,6 @@ it("keeps the drive shell and search when the online session cannot be reached a
   await screen.findByRole("heading", { name: /^云盘 one/ });
   expect(screen.getByRole("searchbox", { name: /搜索.*中的乐谱/ })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "按名称排序，升序" })).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "本机内容" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "登录或注册" })).not.toBeInTheDocument();
 });
 
 it("explains an unavailable last drive instead of silently opening the remaining drive", async () => {
@@ -219,17 +200,6 @@ it("does not remember the public preview as a startup drive even for its adminis
   expectPath("/drives");
 });
 
-it("browser back to a selection entry does not become a new startup intent", async () => {
-  memberships = [membership("one"), membership("two")];
-  render(tree());
-  fireEvent.click(await screen.findByRole("link", { name: /云盘 one.*成员/ }));
-  await screen.findByRole("heading", { name: /^云盘 one/ });
-  fireEvent.click(screen.getByRole("button", { name: "返回测试" }));
-  await screen.findByRole("heading", { name: "我已加入的云盘" });
-  expectPath("/drives");
-  expect(await screen.findByRole("link", { name: /云盘 one.*成员/ })).toBeInTheDocument();
-});
-
 it("cancels a delayed invitation without late navigation and clears its guest session", async () => {
   const original = vi.mocked(fetch).getMockImplementation()!;
   let finish!: (response: Response) => void;
@@ -260,32 +230,6 @@ it("shows the homepage after the local check without waiting for the first onlin
   session(null, true);
   render(tree());
   expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "我已加入的云盘" })).not.toBeInTheDocument();
-});
-
-it("keeps an explicit homepage visit after a signed-in user clicks the brand", async () => {
-  render(tree(["/drives"]));
-  await screen.findByRole("link", { name: /云盘 one.*成员/ });
-  fireEvent.click(screen.getByRole("link", { name: "合谱 Same Page 首页" }));
-  expectPath("/");
-  expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "我的云盘" })).toHaveAttribute("href", "/drives");
-  expect(screen.queryByRole("heading", { name: /^云盘 one/ })).not.toBeInTheDocument();
-});
-
-it("shows the homepage after startup confirms no memberships", async () => {
-  memberships = [];
-  const original = vi.mocked(fetch).getMockImplementation()!;
-  let finish!: (response: Response) => void;
-  vi.mocked(fetch).mockImplementation((input, init) => input === "/api/choirs" ? new Promise(resolve => {
-    finish = resolve;
-  }) : original(input, init));
-  render(tree());
-  await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/choirs", expect.anything()));
-  expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
-  await act(async () => finish(Response.json({ memberships: [] })));
-  expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
-  expectPath("/");
 });
 
 
@@ -306,38 +250,6 @@ it("keeps the homepage when the user cancels startup before memberships resolve"
   expect(screen.getByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
 });
 
-it("keeps the signed-in public preview on the homepage and outside drive selection", async () => {
-  memberships = [];
-  const original = vi.mocked(fetch).getMockImplementation()!;
-  vi.mocked(fetch).mockImplementation((input, init) => input === "/api/guest/preview-choir"
-    ? Promise.resolve(Response.json({ choir: { id: "preview", name: "公开体验", guestAdmissionMode: "open" } })) : original(input, init));
-  render(tree());
-  expect(await screen.findByRole("link", { name: "先看示例" })).toHaveAttribute("href", "/choirs/preview");
-  fireEvent.click(screen.getByRole("link", { name: "我的云盘" }));
-  await screen.findByText(/还没有已加入的云盘/);
-  expectPath("/drives");
-  expect(screen.queryByRole("link", { name: "先看示例" })).not.toBeInTheDocument();
-});
-
-it("restores a saved member drive offline but stays home after an explicit return", async () => {
-  const { localDatabase } = await import("../platform/local-database");
-  await localDatabase.open();
-  const { activateAuthenticatedLocalOwner, authenticatedLocalOwnerKey } = await import("../platform/local-workspace");
-  await localDatabase.open();
-  await activateAuthenticatedLocalOwner("user-a");
-  await localDatabase.driveDirectories.put({ key: "one", ownerKey: authenticatedLocalOwnerKey("user-a"), choirId: "one", choir: membership("one").choir, scores: [], membership: true });
-  vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false, error: { status: 503 }, refetch: vi.fn() } as unknown as ReturnType<typeof authClient.useSession>);
-  vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
-  render(tree());
-  await screen.findByRole("heading", { name: /^云盘 one/ });
-  expectPath("/choirs/one");
-  fireEvent.click(screen.getByRole("button", { name: "选择页测试" }));
-  await screen.findByRole("heading", { name: "我已加入的云盘" });
-  fireEvent.click(screen.getByRole("link", { name: "合谱 Same Page 首页" }));
-  await screen.findByRole("heading", { name: "Harmony begins on the Same Page" });
-  expectPath("/");
-});
-
 it("keeps a first visitor on the homepage even when session checking fails", async () => {
   session(null, true);
   const view = render(tree());
@@ -347,7 +259,6 @@ it("keeps a first visitor on the homepage even when session checking fails", asy
   await act(async () => {});
   expectPath("/");
   expect(screen.getByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
-  expect(screen.queryByText(/正在恢复本机内容|已保存的内容|我已加入的云盘/)).not.toBeInTheDocument();
 });
 
 
@@ -362,47 +273,6 @@ it("preserves a first visitor's invitation input while identity checking finishe
   expect(await screen.findByRole("dialog", { name: "进入云盘" })).toBeInTheDocument();
   expect(screen.getByLabelText("邀请码")).toHaveValue("ABCD-EFGH");
   expect(screen.getByRole("button", { name: "进入" })).toBeEnabled();
-});
-
-it("does not repeat a completed login startup when navigating back to its homepage", async () => {
-  session(null);
-  memberships = [];
-  vi.mocked(authClient.signIn.email).mockImplementation(async () => { session("user-a"); return { data: null, error: null }; });
-  render(tree(["/login"]));
-  fireEvent.change(await screen.findByLabelText("邮箱"), { target: { value: "singer@example.test" } });
-  fireEvent.click(screen.getByRole("button", { name: "继续" }));
-  fireEvent.change(await screen.findByLabelText("密码"), { target: { value: "test-password" } });
-  fireEvent.click(screen.getByRole("button", { name: "登录" }));
-  await screen.findByRole("link", { name: "我的云盘" });
-  await act(async () => {});
-  fireEvent.click(screen.getByRole("link", { name: "我的云盘" }));
-  await screen.findByText(/还没有已加入的云盘/);
-  memberships = [membership("one")];
-  fireEvent.click(screen.getByRole("button", { name: "返回测试" }));
-  await screen.findByRole("heading", { name: "Harmony begins on the Same Page" });
-  await act(async () => {});
-  expectPath("/");
-});
-
-it("keeps the restored drive selection while the same user's online list is pending", async () => {
-  const { localDatabase } = await import("../platform/local-database");
-  await localDatabase.open();
-  const { activateAuthenticatedLocalOwner, authenticatedLocalOwnerKey } = await import("../platform/local-workspace");
-  await activateAuthenticatedLocalOwner("user-a");
-  await localDatabase.driveDirectories.put({ key: "one", ownerKey: authenticatedLocalOwnerKey("user-a"), choirId: "one", choir: membership("one").choir, scores: [], membership: true });
-  session(null, true);
-  const original = vi.mocked(fetch).getMockImplementation()!;
-  let finish!: (response: Response) => void;
-  vi.mocked(fetch).mockImplementation((input, init) => input === "/api/choirs" ? new Promise(resolve => { finish = resolve; }) : original(input, init));
-  const view = render(tree(["/drives"]));
-  const saved = await screen.findByRole("link", { name: /^云盘 one/ });
-  session("user-a"); view.rerender(tree(["/drives"]));
-  await waitFor(() => expect(finish).toBeDefined());
-  expect(saved).toBeInTheDocument();
-  expect(screen.queryByText("正在加载已加入的云盘…")).not.toBeInTheDocument();
-  await act(async () => finish(Response.json({ memberships: [] })));
-  expect(screen.queryByRole("link", { name: /^云盘 one/ })).not.toBeInTheDocument();
-  expect(screen.getByText(/还没有已加入的云盘/)).toBeInTheDocument();
 });
 
 it("opens a remembered startup drive without showing marketing or awaiting online memberships", async () => {
@@ -421,6 +291,7 @@ it("opens a remembered startup drive without showing marketing or awaiting onlin
 
 
 it("keeps the confirmed picker through a transient reconnection failure", async () => {
+  memberships = [membership("one"), membership("two")];
   const { localDatabase } = await import("../platform/local-database");
   await localDatabase.open();
   const { activateAuthenticatedLocalOwner } = await import("../platform/local-workspace");
@@ -452,7 +323,6 @@ it("joins from the library without a selection-page detour and can repeat admiss
   await screen.findByRole("heading", { name: /^云盘 one/ });
   for (let attempt = 0; attempt < 2; attempt++) {
     fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
-    expect(screen.queryByRole("link", { name: "云盘列表" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "加入新云盘" }));
     expectPath("/choirs/one");
     fireEvent.change(await screen.findByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });

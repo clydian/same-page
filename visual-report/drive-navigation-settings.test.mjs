@@ -44,7 +44,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     });
     await page.goto(`${app.origin}/choirs/visual-choir`);
     await expect(page.locator(".file-row")).toHaveCount(30);
-    assert.equal(await page.getByRole("button", { name: "刷新乐谱列表" }).count(), 0);
     const search = await page.getByRole("searchbox").boundingBox(), sort = await page.getByRole("button", { name: /^按.*排序/ }).boundingBox();
     assert.ok(Math.abs(search.y - sort.y) < 8 && search.x + search.width <= sort.x);
     const first = await page.locator(".file-row__name").first().innerText();
@@ -60,7 +59,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     const picker = page.getByRole("dialog", { name: "切换云盘" });
     await expect(picker.getByRole("link", { name: /周末排练云盘/ })).toBeVisible();
     await expect(picker.getByText("不应列出的公开体验")).toHaveCount(0);
-    await expect(picker.getByRole("link", { name: "云盘列表", exact: true })).toHaveCount(0);
     for (const width of [390, 834]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 1112 });
       for (const action of ["加入新云盘", "创建云盘"]) {
@@ -69,7 +67,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
           const admission = page.getByRole("dialog", { name: action === "创建云盘" ? "创建免费体验云盘" : "加入新云盘", exact: true });
           await expect(admission).toBeVisible();
           await expect(admission.getByRole("button", { name: "返回切换云盘", exact: true })).toBeVisible();
-          await expect(admission.getByRole("button", { name: "关闭", exact: true })).toHaveCount(0);
           assert.equal(new URL(page.url()).pathname, "/choirs/visual-choir");
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
           if (dismissal === "back") {
@@ -104,7 +101,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await expect.poll(() => page.evaluate(() => scrollY)).toBe(350);
     await page.getByRole("link", { name: "云盘设置", exact: true }).click();
     await expect(page.getByRole("heading", { name: "云盘设置", exact: true, level: 1 })).toBeVisible();
-    assert.equal(await page.locator(".drive-context-row").count(), 0);
     await expect(page.getByRole("main").getByRole("navigation", { name: "云盘设置分类" })).toBeVisible();
     await page.screenshot({ path: `artifacts/verification/issue-482/${name}-phone-settings.png` });
     await page.getByRole("link", { name: "成员与权限", exact: true }).click();

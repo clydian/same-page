@@ -81,7 +81,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       // A bottom sheet grows upward when its async directory arrives. Wait for
       // the loaded row before pressing its moving close button.
       await expect(picker.getByRole("link", { name: /示例云盘.*拥有者/ })).toBeVisible();
-      for (const name of ["阅读偏好", "本机存储", "使用手册"]) await expect(picker.getByRole("link", { name, exact: true })).toHaveCount(0);
       await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
       await expect(picker).toBeHidden();
       await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();

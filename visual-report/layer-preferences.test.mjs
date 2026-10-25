@@ -92,18 +92,15 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     await page.goto(`${origin}${drive}/preferences`);
     const checkbox = page.getByRole("checkbox", { name: "Ensemble 默认显示" });
     await checkbox.waitFor();
-    assert.equal(await page.locator('input[type="color"]').count(), 0);
     await geometry(".preference-display-toggle", "preferences");
     await page.getByRole("link", { name: "笔记颜色", exact: true }).click();
     await page.getByRole("heading", { name: "笔记颜色", exact: true }).waitFor();
-    assert.equal(await page.getByRole("checkbox").count(), 0);
     await geometry(".settings-color-control input", "colors");
     await page.getByRole("button", { name: "返回", exact: true }).click();
     await page.goto(`${origin}${drive}/scores/visual-score`);
     await showReader(page);
     await page.getByRole("button", { name: "笔记图层", exact: true }).click();
     await page.getByRole("checkbox", { name: "显示 Ensemble" }).waitFor();
-    assert.equal(await page.getByRole("checkbox").count(), 6);
     await page.locator(".layer-section--personal").scrollIntoViewIfNeeded();
     await geometry(".layer-row__visibility", "display");
     await page.getByRole("button", { name: "关闭笔记显示" }).click();

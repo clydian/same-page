@@ -39,7 +39,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
   const userId = session.data?.user.id;
   const inviteTitleId = useId();
   const membershipTitleId = useId();
-  const admissionPaused = session.isPending || (Boolean(identity.localUserId) && !identity.authenticatedUserId);
+  const admissionPaused = session.isPending || (Boolean(identity.localUserId) && !identity.authenticatedUserId && identity.onlineState !== "signed-out");
   const linkHandled = useRef(false);
   const [joinStep, setJoinStep] = useState<JoinStep>({ kind: "invite" });
   const [joinCode, setJoinCode] = useState(invitation?.code ?? "");

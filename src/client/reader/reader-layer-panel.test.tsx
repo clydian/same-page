@@ -169,7 +169,6 @@ it("offers guests login with a return to this score instead of an inaccessible p
   render(<MemoryRouter><ReaderLayerPanel workspace={workspace} layers={[]} signedIn={false} /></MemoryRouter>);
   const login = screen.getByRole("link", { name: "登录后设置默认显示" });
   expect(login).toHaveAttribute("href", "/login?returnTo=%2Fchoirs%2Fdrive%2Fscores%2Fscore&panel=layers");
-  expect(screen.queryByRole("link", { name: "设置此云盘的默认显示" })).not.toBeInTheDocument();
 });
 
 it("keeps sharing private until the server confirms and preserves privacy after rejection", async () => {

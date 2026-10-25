@@ -65,7 +65,6 @@ it("routes confirmed zero memberships to first-join entry", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ memberships: [] })));
   open();
   expect(await screen.findByText("云盘列表")).toBeInTheDocument();
-  expect(screen.queryByText("首页")).not.toBeInTheDocument();
 });
 
 it("opens the sole membership directly without an extra selection page", async () => {

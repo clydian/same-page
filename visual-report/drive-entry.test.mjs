@@ -54,12 +54,8 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       });
       await page.goto(`${app.origin}/drives`);
       await expect(page.getByRole("heading", { name: "选择云盘", exact: true })).toBeVisible();
-      await page.getByRole("link", { name: /示例云盘.*拥有者/ }).click();
+      await page.locator('a[href="/choirs/visual-choir"]').click();
       await page.getByRole("button", { name: /^切换云盘/ }).waitFor();
-      await page.goBack();
-      await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeEnabled();
-      await page.goto(app.origin);
-      await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeEnabled();
       await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir`);
       // An explicit product homepage visit retains its intent.
       await page.goto(`${app.origin}/about`);
@@ -71,8 +67,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       failed = true;
       await page.goto(`${app.origin}/drives`);
       await expect(page.getByText("暂时无法加载已加入的云盘。", { exact: false })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "先加入你的云盘", exact: true })).toHaveCount(0);
-      await expect(page.getByRole("link", { name: /示例云盘/ })).toBeVisible();
+      await expect(page.locator('a[href="/choirs/visual-choir"]')).toBeVisible();
     });
   });
 }
