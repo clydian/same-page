@@ -59,7 +59,7 @@
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.13.8",
+    "hono": "^4.13.11",
     "jsqr": "1.4.0",
     "lucide-react": "^1.41.0",
     "pdf-lib": "^1.17.1",
