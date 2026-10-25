@@ -6,7 +6,7 @@ import { LoopRangeEditor } from './loop-range-editor';
 afterEach(cleanup);
 function setup() {
   const state: PlayerState = { status:'ready', message:'', playing:false, parts:[], measures:Array.from({length:8},(_,index)=>({index,label:`第 ${index + 1} 小节`,startTick:index*100,endTick:(index+1)*100})),measure:2,speed:1,notationScale:.6,focus:null,loop:{start:2,end:4} };
-  const session: PlayerSession = { playPause:vi.fn(),pause:vi.fn(),seek:vi.fn(),seekAt:vi.fn(),previewMeasure:vi.fn(),speed:vi.fn(),mix:vi.fn(),notationScale:vi.fn(),solfege:vi.fn(),focus:vi.fn(),focusOther:vi.fn(),follow:vi.fn(),suspendFollow:vi.fn(),loop:vi.fn(),getSnapshot:()=>state,subscribe:()=>()=>{},dispose:vi.fn() };
+  const session: PlayerSession = { rhythm:vi.fn(),playPause:vi.fn(),pause:vi.fn(),seek:vi.fn(),seekAt:vi.fn(),previewMeasure:vi.fn(),speed:vi.fn(),mix:vi.fn(),notationScale:vi.fn(),solfege:vi.fn(),focus:vi.fn(),focusOther:vi.fn(),follow:vi.fn(),suspendFollow:vi.fn(),loop:vi.fn(),getSnapshot:()=>state,subscribe:()=>()=>{},dispose:vi.fn() };
   const fading=vi.fn();
   const result=render(<LoopRangeEditor session={session} state={state} ready onPreview={vi.fn()} onPreviewingChange={fading} />);
   return {...result,session,fading};

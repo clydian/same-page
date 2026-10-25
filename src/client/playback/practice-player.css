@@ -315,3 +315,8 @@
 .practice-loop-preview, .practice-loop-labels span { width: fit-content; padding: 3px 5px; border-radius: 6px; }
 .practice-popover[data-loop-previewing] .practice-loop-preview,
 .practice-popover[data-loop-previewing] .practice-loop-labels span { background: #fcfdfbe8; }
+
+.practice-speed-panel { display: grid; gap: 12px; }
+.practice-speed-actions { display: flex; gap: 6px; }
+.practice-speed-actions .practice-action { flex: 1; padding-inline: 6px; min-height: 44px; }
+.practice-tempo { margin: 0; line-height: 1.7; font-variant-numeric: tabular-nums; }

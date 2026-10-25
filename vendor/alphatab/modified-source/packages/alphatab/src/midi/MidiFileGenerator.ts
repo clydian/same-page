@@ -584,18 +584,9 @@ export class MidiFileGenerator {
         currentTempo: number,
         _barOccurence: number
     ): void {
-        // time signature
-        if (
-            !previousMasterBar ||
-            previousMasterBar.timeSignatureDenominator !== masterBar.timeSignatureDenominator ||
-            previousMasterBar.timeSignatureNumerator !== masterBar.timeSignatureNumerator
-        ) {
-            this._handler.addTimeSignature(
-                currentTick,
-                masterBar.timeSignatureNumerator,
-                masterBar.timeSignatureDenominator
-            );
-        }
+        // Emit every bar boundary so pickup/repeat/changed-meter clicks restart
+        // at the real downbeat rather than an absolute tick modulo.
+        this._handler.addTimeSignature(currentTick, masterBar.timeSignatureNumerator, masterBar.timeSignatureDenominator);
 
         const masterBarDuration = masterBar.calculateDuration();
         const masterBarLookup: MasterBarTickLookup = new MasterBarTickLookup();

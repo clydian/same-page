@@ -1,6 +1,6 @@
 # Same Page alphaTab 维护
 
-日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.18.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
+日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.19.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
 
 ## 修改并重建
 
@@ -11,7 +11,7 @@
 使用 Node 24，修改 `modified-source/` 后，在仓库根目录执行：
 
 ```sh
-npm run build:native -- --version 1.8.4-samepage.18 --output /tmp/same-page-native-18
+npm run build:native -- --version 1.8.4-samepage.19 --output /tmp/same-page-native-19
 ```
 
 命令从固定公开上游建立独立临时 Git checkout，应用补丁和当前覆盖层，提交源码快照，再构建并打包。它只访问公开 alphaTab 和 npm，不访问 Chorus。输出目录必须为空，临时 checkout 保留供检查和原生测试；路径打印在输出中。运行 checkout 内与修改相关的原生测试，再运行完整原生测试。打包成功不代表测试通过。
@@ -39,3 +39,10 @@ npm run build:native -- --version 1.8.4-samepage.18 --output /tmp/same-page-nati
 ## samepage.18：整合 main 的括号音头修复
 
 保留 main `c015021e` 发布的 native16 制品与全部音头源码，同时保留本 PR 的 MIDI 生命周期修复。上文 samepage.16 的 MIDI 说明指本 PR 历史候选，不能用来标识 main 的正式 native16；历史公开源码快照不变。当前组合制品为 native18。
+
+
+## samepage.19：练习节拍与跳转预备拍 · #575
+
+原生 synth 按分母拍打高／低木鱼拍声，首拍重音、复拍子三拍分组次重音。MIDI 每个小节写入拍号元数据，使弱起和反复后的拍点重置在真实小节边界；小节内变速按同一时间轴重新计算拍点。
+预备拍读取寻址目标（含边界同刻的拍号与速度），暂停时重置预备序列并保留主音乐位置。`PositionChangedEventArgs` 新增预备拍次、总拍数、序号与完成标记；Worker 原样传递，谱面游标不跟随预备的独立 tick。会话据序号隔离连续寻址的旧回调。
+新增 `PracticeRhythm` 实际 sequencer/synth 回归；更新 MIDI 装饰音测试对重复小节元数据的处理及变更拍声的 PCM 参考。完整原生测试与未修改基线均有同样的 64 个视觉基线失败，当前 1860 项通过（基线 1857），无新增失败。相关 68 项音频测试全部通过。

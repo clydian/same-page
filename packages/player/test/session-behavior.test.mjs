@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { playbackTempo } from '../dist/practice-tempo.js';
 import { playbackMeasureLabels } from '../dist/playback-measures.js';
 import { ScoreFollowSession, isPointerDrag } from '../dist/score-follow.js';
 import { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from '../dist/musicxml-direction-timing.js';
 // Exercise the shipped session against deterministic engine/Worker adapters.
 const compiled = (await readFile(new URL('../dist/session.js', import.meta.url),'utf8')).replace(/^(?:import|export \{).*$/mg,'').replace('export function createPlayerSession','function createPlayerSession').replace(/new URL\([^\n]+import.meta.url\)/,'"prepare.worker.js"');
-const factory = new Function('createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabels','isCompatibleMusicXmlPreparation',compiled+'\nreturn createPlayerSession;');
+const factory = new Function('createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabels','isCompatibleMusicXmlPreparation','playbackTempo','readMusicXmlTempoMeasures',compiled+'\nreturn createPlayerSession;');
 function harness(options = {}) {
  let worker, workerCount = 0, parses = 0, ready, observer;
  const previous = globalThis.Worker, previousParser = globalThis.DOMParser, previousObserver = globalThis.MutationObserver;
@@ -15,8 +16,8 @@ function harness(options = {}) {
  globalThis.Worker = class { constructor() { worker=this;workerCount++; } terminate() {this.terminated=true;} postMessage(bytes) {this.bytes=bytes;} };
  globalThis.MutationObserver = class { constructor(fn) {observer=this;this.notify=fn;} observe() {} disconnect() {this.disconnected=true;} };
  const event = () => {const listeners=[];return {on(fn){listeners.push(fn);},emit(value){listeners.forEach(fn=>fn(value));}};};
- const api = {settings:{player:{}},renderer:{partialRenderFinished:event()},isReadyForPlayback:true,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},pause(){},destroy(){},updateSettings(){},};
- const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation);
+ const api = {settings:{player:{}},renderer:{partialRenderFinished:event()},isReadyForPlayback:true,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},updateSettings(){},};
+ const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation,playbackTempo,()=>[]);
  const element={getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){},querySelector(){return null;}};
  const session = create(element,new Uint8Array([1]),options);
  if(worker) worker.onmessage({data:{prepared:{bytes:new Uint8Array([1])}}});
@@ -48,8 +49,8 @@ test('public source-session coordinate seek and explicit follow suspension prese
  const h=harness({prepared:{bytes:new Uint8Array([1])}});try{
   h.api.tickCache.masterBars[0].end=4000; await Promise.resolve(); const beat={index:3}; h.api.boundsLookup.getBeatAtPos=(x,y)=>{assert.equal(x,12);assert.equal(y,34);return beat;};
   h.api.tickCache.getBeatStart=value=>{assert.equal(value,beat);return 2400;};
-  h.session.seekAt(12,34);assert.equal(h.api.tickPosition,2400);
-  h.session.seekAt(NaN,34);assert.equal(h.api.tickPosition,2400);
+  h.session.seekAt(12,34);assert.equal(h.api.tickPosition,0);
+  h.session.seekAt(NaN,34);assert.equal(h.api.tickPosition,0);
   h.session.suspendFollow();assert.equal(h.session.getSnapshot().following,false);
  }finally{h.dispose();}
 });
@@ -142,7 +143,7 @@ test('all seek entry points retain the loop and resolve to the same nearest boun
   h.session.seek(0);assert.equal(h.api.tickPosition,200);assert.equal(h.session.getSnapshot().measure,2);
   h.api.boundsLookup.getBeatAtPos=()=>({});h.api.tickCache.getBeatStart=()=>750;
   h.session.seekAt(12,34);assert.equal(h.api.tickPosition,400);
-  h.api.tickCache.getBeatStart=()=>350;h.session.seekAt(12,34);assert.equal(h.api.tickPosition,350);
+  h.api.tickCache.getBeatStart=()=>350;h.session.seekAt(12,34);assert.equal(h.api.tickPosition,300);
   assert.deepEqual(h.api.playbackRange,{startTick:200,endTick:500});
   h.session.loop(3,3);h.session.seek(7);assert.equal(h.api.tickPosition,300);
   h.session.loop(null);h.session.seek(7);assert.equal(h.api.tickPosition,700);
@@ -170,7 +171,7 @@ test('range preview can leave the loop without seeking and cancel restores brows
  }finally{h.dispose();}
 });
 
-test('score taps resolve the repeated occurrence inside the active loop, preserving beat offset',async()=>{
+test('score taps resolve the repeated occurrence inside the active loop, starting at the measure boundary',async()=>{
  const h=harness({prepared:{bytes:new Uint8Array([1])}});
  try {
   h.api.tickCache.masterBars=Array.from({length:8},(_,index)=>({masterBar:{index:index%4},start:index*100,end:(index+1)*100}));
@@ -178,8 +179,8 @@ test('score taps resolve the repeated occurrence inside the active loop, preserv
   const beat={voice:{bar:{masterBar:{index:2}}}};
   h.api.boundsLookup.getBeatAtPos=()=>beat;h.api.tickCache.getBeatStart=()=>220;
   h.api.tickCache.getRelativeBeatPlaybackRange=()=>({startTick:20,endTick:80});
-  h.session.seekAt(12,34);assert.equal(h.api.tickPosition,620);assert.equal(h.session.getSnapshot().measure,6);
-  h.session.loop(null);h.session.seekAt(12,34);assert.equal(h.api.tickPosition,620,'unrestricted taps retain the closest repeat visit');
+  h.session.seekAt(12,34);assert.equal(h.api.tickPosition,600);assert.equal(h.session.getSnapshot().measure,6);
+  h.session.loop(null);h.session.seekAt(12,34);assert.equal(h.api.tickPosition,600,'unrestricted taps retain the closest repeat visit');
  }finally{h.dispose();}
 });
 
@@ -196,4 +197,43 @@ test('preview marker refreshes after reflow even when a manual browsing anchor w
   h.session.suspendFollow();h.api.renderStarted.emit();h.session.previewMeasure(0);assert.equal(markers.at(-1).style.width,'100px');assert.equal(viewport.scrollTop,292,'preview scrolls to actual measure bounds rather than stale system bounds');
   width=150;h.api.postRenderFinished.emit();assert.equal(markers.at(-1).style.width,'150px');assert.equal(viewport.scrollTop,292,'pending browse anchors cannot override endpoint preview');
  }finally{h.dispose();globalThis.document=previousDocument;}
+});
+
+
+test('rhythm controls and seek-only count-in preserve ordinary pause/resume and the latest destination', async () => {
+ const h=harness({prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.api.tickCache.masterBars=Array.from({length:4},(_,index)=>({masterBar:{index,timeSignatureNumerator:index===2?3:4},start:index*100,end:(index+1)*100,tempoChanges:[{tick:index*100,tempo:80+index*10}]}));
+  await Promise.resolve(); const starts=[];
+  h.api.play=()=>starts.push({tick:h.api.tickPosition,volume:h.api.countInVolume});
+  h.session.rhythm({countIn:true,volume:.4});h.session.playPause();assert.equal(starts.at(-1).volume,0,'first start is immediate');
+  h.session.seek(2);assert.equal(h.session.getSnapshot().playing,false);h.session.playPause();assert.deepEqual(starts.at(-1),{tick:200,volume:.4});
+  assert.equal(h.session.getSnapshot().countInBeats,3);
+  // Worker seek replies can arrive after the host has requested count-in.
+  h.api.playerPositionChanged.emit({currentTick:200});assert.equal(h.api.countInVolume,.4);
+  h.api.playerPositionChanged.emit({currentTick:100,countInId:0});assert.equal(h.session.getSnapshot().measure,2,'late main replies cannot move the new target');
+  h.api.playerPositionChanged.emit({currentTick:0,countInId:1,countInBeat:2,countInBeats:3});assert.equal(h.session.getSnapshot().measure,2);assert.equal(h.session.getSnapshot().countInBeat,2);
+  h.session.seek(3);assert.equal(starts.at(-1).tick,300);assert.equal(h.session.getSnapshot().countInBeats,4);
+  h.session.pause();assert.equal(h.session.getSnapshot().countInBeats,0);h.session.playPause();assert.equal(starts.at(-1).volume,0,'cancelled count-in does not reappear on ordinary resume');
+  h.session.rhythm({metronome:true,volume:.23});assert.equal(h.api.metronomeVolume,.23);
+  h.session.rhythm({metronome:false});assert.equal(h.api.metronomeVolume,0);
+  h.session.speed(.834);assert.equal(h.api.playbackSpeed,.83);h.session.speed(9);assert.equal(h.api.playbackSpeed,2);
+  h.session.speed(NaN);assert.equal(h.api.playbackSpeed,2);
+ } finally {h.dispose();}
+});
+test('completed count-in clears progress at main audio entry, while ordinary looping does not arm another', async () => {
+ const h=harness();try {
+  h.api.play=()=>{};h.session.rhythm({countIn:true});h.session.seek(0);h.session.playPause();
+  h.api.playerPositionChanged.emit({currentTick:1,countInId:1,countInBeat:1,countInBeats:4});
+  h.api.playerPositionChanged.emit({currentTick:0,countInId:1,countInFinished:true});assert.equal(h.session.getSnapshot().countInBeats,0);assert.equal(h.api.countInVolume,0);
+  h.api.playerPositionChanged.emit({currentTick:0});assert.equal(h.api.countInVolume,0);
+ }finally{h.dispose();}
+});
+
+test('a seek immediately after pause does not resume while the Worker still reports playing', () => {
+ const h=harness();try {
+  let starts=0;h.api.play=()=>starts++;
+  h.api.playerStateChanged.emit({state:1});h.session.pause();h.session.seek(0);
+  assert.equal(starts,0);h.session.playPause();assert.equal(starts,1);
+ }finally{h.dispose();}
 });

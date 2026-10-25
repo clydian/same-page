@@ -140,7 +140,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await bar.getByRole('button',{name:'后一小节',exact:true}).click(); await expect(range).toHaveValue(target);
 
   await bar.getByRole('button',{name:'练习设置',exact:true}).click();
-  await page.locator('.practice-switch').click();
+  await page.locator('.practice-switch').filter({hasText:'首调数字'}).click();
   await expect(page.getByLabel('标注范围',{exact:true})).toHaveValue('all');
   const degrees = page.locator('.solfege-degree-label'); await expect(degrees).toHaveCount(256);
   await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();

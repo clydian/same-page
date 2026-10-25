@@ -42,13 +42,15 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(progress).toHaveValue('10');
   await expect(bar.getByRole('button', { name: '定位小节', exact: true })).toBeFocused();
   await progress.fill('8');
-  await bar.getByRole('combobox', { name: '速度', exact: true }).selectOption('0.75');
+  await bar.getByRole('button', { name: '调节速度', exact: true }).click();
+  await page.getByRole('slider', { name: '播放速度', exact: true }).fill('0.75');
+  await page.getByRole('button', { name: '关闭速度调节', exact: true }).click();
   for (const [device, width, height] of [['mobile',390,844], ['desktop',1440,1000], ['small-mobile',320,740]]) {
     await page.setViewportSize({ width, height });
     for (const [view, name] of [['pdf','原始 PDF'], ['xml','重排谱面'], ['compare','对照']]) {
       await selectPracticeView(page, name);
       await expect(progress).toHaveValue('8');
-      await expect(bar.getByRole('combobox', { name: '速度', exact: true })).toHaveValue('0.75');
+      await expect(bar.getByRole('button', { name: '调节速度', exact: true })).toHaveText('0.75×');
       await expect.poll(async () => { const b = await bar.getByRole('button', { name: '播放', exact: true }).boundingBox(); return Math.abs(b.x + b.width / 2 - width / 2); }).toBeLessThan(1);
       assert.ok((await header.boundingBox()).height <= 56, 'the shared header never wraps');
       if (view === 'compare') {

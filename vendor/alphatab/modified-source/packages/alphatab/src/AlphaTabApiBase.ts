@@ -4121,6 +4121,7 @@ export class AlphaTabApiBase<TSettings> {
             return;
         }
 
+        if (e.countInBeats > 0) return; // Count-in uses its own ticks; retain the target cursor.
         this.uiFacade.beginInvoke(() => {
             const cursorSpeed = e.modifiedTempo / e.originalTempo;
             this._cursorUpdateTick(e.currentTick, false, cursorSpeed, false, e.isSeek);

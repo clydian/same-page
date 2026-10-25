@@ -70,6 +70,6 @@
     "test": "node --test --test-concurrency=2 test/*.test.mjs"
   },
   "peerDependencies": {
-    "@coderline/alphatab": "1.8.4-samepage.18"
+    "@coderline/alphatab": "1.8.4-samepage.19"
   }
 }

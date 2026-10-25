@@ -3,6 +3,8 @@ import { solfegeDegreeLabel } from './solfege-degree.ts';
 import * as alphaTab from '@coderline/alphatab';
 import { applyTimbreProfile, classifyTimbreRoles } from './timbre-profile.ts';
 import { ScoreFollowSession, isPointerDrag } from './score-follow.ts';
+import { playbackTempo } from './practice-tempo.ts';
+import { readMusicXmlTempoMeasures, type MusicXmlTempoMeasure } from './musicxml-metronome.ts';
 import { playbackMeasureLabels } from './playback-measures.ts';
 import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
 import { isCompatibleMusicXmlPreparation } from './preparation-format.ts';
@@ -13,11 +15,13 @@ export interface PlayerMeasure { index: number; label: string; startTick: number
 export interface PlayerState {
   status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
+  tempo?: { bpm: number; unit: number }; metronome?: boolean; beatVolume?: number; countIn?: boolean; countInBeat?: number; countInBeats?: number;
   notationScale: number; previewing?: boolean; solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
   loop: { start: number; end: number } | null;
 }
 export interface PlayerSession {
   playPause(): void; pause(): void; seek(index: number): void; seekAt(x: number, y: number): void; speed(value: number): void;
+  rhythm(value: { metronome?: boolean; countIn?: boolean; volume?: number }): void;
   mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
   notationScale(value: number): void;
   solfege(visible: boolean, part?: number | null): void;
@@ -67,6 +71,25 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
   });
   api.masterVolume = .72;
+  api.metronomeVolume = 0; api.countInVolume = 0;
+  let pendingCountIn = false;
+  let pauseRequested = false;
+  let countInActive = false;
+  let countInRequest = 0;
+  let tempoMeasures: MusicXmlTempoMeasure[] = [];
+  const tempoAt = (tick: number) => playbackTempo(api.tickCache?.masterBars ?? [], tick, tempoMeasures);
+  const stopCountIn = () => {
+    countInActive = false; api.countInVolume = 0;
+    update({ countInBeat: 0, countInBeats: 0 });
+  };
+  const start = () => {
+    pauseRequested = false;
+    const count = pendingCountIn && state.countIn && (state.beatVolume ?? .5) > 0;
+    pendingCountIn = false; countInActive = Boolean(count); if (count) countInRequest++;
+    api.countInVolume = count ? state.beatVolume ?? .5 : 0;
+    if (count) update({ countInBeat: 1, countInBeats: api.tickCache?.masterBars[state.measure]?.masterBar.timeSignatureNumerator ?? 4 });
+    loadingStage('play-request'); api.play();
+  };
   let previewOverlay: HTMLDivElement | null = null;
   let preview: { playing: boolean; scrollTop: number; index: number } | null = null;
   const scrollToMeasure = (index: number, clearance = 16) => {
@@ -184,7 +207,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   let worker: Worker | null = null;
   const fail = (message: string) => {
     if (disposed) return;
-    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); api.pause(); update({ status: 'error', message, playing: false });
+    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); update({ status: 'error', message, playing: false });
   };
   const deadline = setTimeout(() => fail('准备播放超时，请重试。'), 60000);
   api.error.on(error => fail(error instanceof Error ? error.message : '播放资源加载失败，请重试。'));
@@ -204,7 +227,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       const label = labels[index];
       return { index, label, startTick: item.start, endTick: item.end };
     });
-    clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures }); loadingStage('ready');
+    clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures, tempo: tempoAt(0), metronome: false, beatVolume: .5, countIn: false }); loadingStage('ready');
   };
   element.addEventListener('alphaTab.midiFileLoaded', ready);
   api.playerReady.on(ready);
@@ -215,13 +238,24 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     update({ playing }); if (playing) loadingStage('playing');
   });
   api.playerPositionChanged.on(event => {
+    if (disposed) return;
+    if (event.countInBeats > 0) {
+      if (countInActive && event.countInId === countInRequest) { update({ countInBeat: event.countInBeat, countInBeats: event.countInBeats }); }
+      return;
+    }
+    if (countInActive) {
+      if (event.countInFinished && event.countInId === countInRequest) stopCountIn();
+      else return; // Ignore old main-position replies while the new target is counting in.
+    }
     const index = state.measures.findLastIndex(item => item.startTick <= event.currentTick);
-    if (index >= 0 && index !== state.measure) update({ measure: index });
+    const tempo = tempoAt(event.currentTick);
+    if (index >= 0 && (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit)) update({ measure: index, tempo });
   });
   const render = (prepared: PreparedMusicXml) => {
     if (disposed || state.status === 'error') return;
     try {
       loadingStage('source-prepared');
+      tempoMeasures = prepared.tempoMeasures ?? readMusicXmlTempoMeasures(prepared.bytes);
       if (prepared.measureLabels !== undefined) measureLabels = prepared.measureLabels;
       else {
         const document = new DOMParser().parseFromString(new TextDecoder().decode(prepared.bytes), 'application/xml');
@@ -298,20 +332,29 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     if (viewport) viewport.scrollTop = previous.scrollTop;
     if (previous.playing) api.play();
   };
-  const seekTick = (requested: number) => {
+  const seekTick = (requested: number, manual = true) => {
     if (!Number.isFinite(requested) || preview) return;
     const first = state.measures[state.loop?.start ?? 0], last = state.measures[state.loop?.end ?? state.measures.length - 1];
     if (!first || !last) return;
     const tick = requested < first.startTick ? first.startTick : requested >= last.endTick ? last.startTick : requested;
     const index = state.measures.findLastIndex(item => item.startTick <= tick);
-    api.tickPosition = tick; update({ measure: index });
+    const resume = manual && (state.playing && !pauseRequested || countInActive);
+    if (manual) {
+      stopCountIn(); api.pause();
+      pendingCountIn = Boolean(state.countIn);
+    }
+    const startTick = state.measures[index].startTick;
+    api.tickPosition = startTick; update({ measure: index, tempo: tempoAt(startTick) });
+    if (resume) start();
     if (state.following) scrollToMeasure(index);
   };
   return {
     getSnapshot: () => state,
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    playPause() { if (!disposed && state.status === 'ready') { if (!state.playing) loadingStage('play-request'); api.playPause(); } },
-    pause() { if (!disposed) api.pause(); },
+    playPause() { if (!disposed && state.status === 'ready' && !preview) {
+      if (state.playing && !pauseRequested || countInActive) { pauseRequested = true; stopCountIn(); api.pause(); } else start();
+    } },
+    pause() { if (!disposed) { pauseRequested = true; stopCountIn(); api.pause(); } },
     seek(index) { if (!disposed && state.status === 'ready' && Number.isInteger(index)) {
       const bounded = Math.max(state.loop?.start ?? 0, Math.min(state.loop?.end ?? state.measures.length - 1, index));
       if (state.measures[bounded]) seekTick(state.measures[bounded].startTick);
@@ -321,15 +364,29 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (disposed || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
       const beat = api.boundsLookup?.getBeatAtPos(x, y);
       if (beat && api.tickCache) {
-        const relative = api.tickCache.getRelativeBeatPlaybackRange?.(beat);
         const sourceIndex = beat.voice?.bar.masterBar.index;
         const occurrences = api.tickCache.masterBars.map((bar, index) => ({ bar, index })).filter(item => item.bar.masterBar.index === sourceIndex);
         const inside = occurrences.filter(item => !state.loop || item.index >= state.loop.start && item.index <= state.loop.end);
         const nearest = (inside.length ? inside : occurrences).sort((a, b) => Math.abs(a.index - state.measure) - Math.abs(b.index - state.measure))[0];
-        seekTick(nearest && relative ? nearest.bar.start + relative.startTick : api.tickCache.getBeatStart(beat));
+        seekTick(nearest ? nearest.bar.start : api.tickCache.getBeatStart(beat));
       }
     },
-    speed(value) { if (!disposed && Number.isFinite(value)) { const speed = Math.max(.5, Math.min(1.5, value)); api.playbackSpeed = speed; update({ speed }); } },
+    speed(value) { if (!disposed && Number.isFinite(value)) {
+      const speed = Math.max(.5, Math.min(2, Math.round(value * 100) / 100));
+      const restart = countInActive;
+      if (restart) { stopCountIn(); api.pause(); api.tickPosition = state.measures[state.measure].startTick; }
+      api.playbackSpeed = speed; update({ speed });
+      if (restart) { pendingCountIn = true; start(); }
+    } },
+    rhythm(value) {
+      if (disposed || state.status !== 'ready' || value.volume !== undefined && !Number.isFinite(value.volume)) return;
+      const beatVolume = value.volume === undefined ? state.beatVolume ?? .5 : clamp(value.volume);
+      update({ metronome: value.metronome ?? state.metronome, countIn: value.countIn ?? state.countIn, beatVolume });
+      api.metronomeVolume = state.metronome ? beatVolume : 0;
+      if (!state.countIn) pendingCountIn = false;
+      // During count-in keep its volume independent from the sustained metronome.
+      api.countInVolume = countInActive ? beatVolume : 0;
+    },
     mix(id, value) {
       if (disposed || state.status !== 'ready' || !api.score?.tracks[id] || value.volume !== undefined && !Number.isFinite(value.volume)) return;
       const parts = state.parts.map(part => part.id === id ? { ...part, ...value, baseVolume: value.volume === undefined || typeof state.focus === 'number' ? part.baseVolume : clamp(value.volume) } : part);
@@ -357,7 +414,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (index === null) { finishPreview(); return; }
       if (!state.measures[index]) return;
       if (!preview) {
-        preview = { playing: state.playing, scrollTop: viewport?.scrollTop ?? 0, index };
+        const wasPlaying = state.playing || countInActive; stopCountIn();
+        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, index };
         update({ previewing: true });
         api.settings.player.scrollMode = alphaTab.ScrollMode.Off; api.updateSettings(); api.pause();
       }
@@ -371,12 +429,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); }
       else {
         api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end!].endTick };
-        api.isLooping = true; update({ loop: { start, end: end! } }); seekTick(state.measures[start].startTick);
+        api.isLooping = true; update({ loop: { start, end: end! } }); seekTick(state.measures[start].startTick, false);
       }
       highlightLoop(); if (resume) api.play();
     },
     dispose() {
-      if (disposed) return; disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); previewOverlay?.remove();
+      if (disposed) return; stopCountIn(); disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); previewOverlay?.remove();
       viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
       viewport?.removeEventListener('keydown', keyDown);
       viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy();

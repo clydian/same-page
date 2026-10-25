@@ -110,8 +110,8 @@ export function MusicXmlPractice({
         notationZoom={view !== "pdf" && view !== "compare" ? notationZoom : undefined}
         loopStatus={state.loop ? `${measureLabel(state.loop.start)} 至 ${measureLabel(state.loop.end)}` : undefined}
         ready={ready}
-        playing={state.playing}
-        message={error ?? state.message}
+        playing={state.playing || Boolean(state.countInBeats)}
+        message={error ?? (state.countInBeats ? `预备：${state.countInBeat} / ${state.countInBeats}` : state.message)}
         failed={Boolean(error) || state.status === "error"}
         timeline={{
           value: state.measure,
@@ -122,6 +122,7 @@ export function MusicXmlPractice({
           label: (value) => state.measures[value]?.label ?? "准备中",
           seek: (value) => session?.seek(value),
         }}
+        tempo={state.tempo}
         speed={state.speed}
         setSpeed={(value) => session?.speed(value)}
         position={
@@ -296,6 +297,16 @@ export function MusicXmlPractice({
         <LoopRangeEditor session={session} state={state} ready={ready} onPreviewingChange={setLoopPreviewing} onPreview={() => { visual.reset(); if (view === "pdf") setPlaybackView("xml"); }} />
         <section className="practice-notation-options" aria-label="谱面辅助">
           <h3>谱面辅助</h3>
+          <Switch className="practice-switch" isSelected={Boolean(state.metronome)} isDisabled={!ready} onChange={metronome => session?.rhythm({ metronome })}>
+            <span className="practice-switch-label">节拍器</span><span className="practice-switch-state" aria-hidden="true">{state.metronome ? '开' : '关'}</span><span className="practice-switch-track" aria-hidden="true" />
+          </Switch>
+          <Switch className="practice-switch" isSelected={Boolean(state.countIn)} isDisabled={!ready} onChange={countIn => session?.rhythm({ countIn })}>
+            <span className="practice-switch-label">跳转后预备一小节</span><span className="practice-switch-state" aria-hidden="true">{state.countIn ? '开' : '关'}</span><span className="practice-switch-track" aria-hidden="true" />
+          </Switch>
+          <label className="practice-field">拍声音量 · {Math.round((state.beatVolume ?? .5) * 100)}%
+            <input aria-label="拍声音量" type="range" min="0" max="1" step="0.01" value={state.beatVolume ?? .5} disabled={!ready} onChange={event => session?.rhythm({ volume: Number(event.target.value) })} />
+          </label>
+          <p className="practice-hint">节拍器与预备拍共用音量。跳转后按目标小节打拍，普通暂停继续与循环衔接不加预备拍。</p>
           <Switch
             className="practice-switch"
             isSelected={Boolean(state.solfege)}
