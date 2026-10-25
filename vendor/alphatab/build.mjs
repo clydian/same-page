@@ -69,7 +69,7 @@ for (const relative of changed) {
   fs.writeFileSync(target, bytes);
   modifiedSource[relative] = hash(bytes);
 }
-fs.writeFileSync(path.join(sourceRoot, 'changes.patch'), execFileSync('git', ['diff', '--binary', upstreamCommit, commit], { cwd: checkout }));
+fs.writeFileSync(path.join(sourceRoot, 'changes.patch'), execFileSync('git', ['diff', '--binary', upstreamCommit, commit], { cwd: checkout, maxBuffer: 64 * 1024 * 1024 }));
 for (const name of ['LICENSE', 'LICENSE.header']) {
   fs.copyFileSync(path.join(checkout, 'packages/alphatab', name), path.join(sourceRoot, name));
 }

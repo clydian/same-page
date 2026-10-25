@@ -110,8 +110,8 @@ export function MusicXmlPractice({
         notationZoom={view !== "pdf" && view !== "compare" ? notationZoom : undefined}
         loopStatus={state.loop ? `${measureLabel(state.loop.start)} 至 ${measureLabel(state.loop.end)}` : undefined}
         ready={ready}
-        playing={state.playing}
-        message={error ?? state.message}
+        playing={state.playing || Boolean(state.countInBeats)}
+        message={error ?? (state.countInBeats ? `预备：${state.countInBeat} / ${state.countInBeats}` : state.message)}
         failed={Boolean(error) || state.status === "error"}
         timeline={{
           value: state.measure,
@@ -122,6 +122,7 @@ export function MusicXmlPractice({
           label: (value) => state.measures[value]?.label ?? "准备中",
           seek: (value) => session?.seek(value),
         }}
+        tempo={state.tempo}
         speed={state.speed}
         setSpeed={(value) => session?.speed(value)}
         position={
@@ -296,6 +297,12 @@ export function MusicXmlPractice({
         <LoopRangeEditor session={session} state={state} ready={ready} onPreviewingChange={setLoopPreviewing} onPreview={() => { visual.reset(); if (view === "pdf") setPlaybackView("xml"); }} />
         <section className="practice-notation-options" aria-label="谱面辅助">
           <h3>谱面辅助</h3>
+          <Switch className="practice-switch" isSelected={Boolean(state.metronome)} isDisabled={!ready} onChange={metronome => session?.rhythm({ metronome })}>
+            <span className="practice-switch-label">节拍器</span><span className="practice-switch-state" aria-hidden="true">{state.metronome ? '开' : '关'}</span><span className="practice-switch-track" aria-hidden="true" />
+          </Switch>
+          <Switch className="practice-switch" isSelected={Boolean(state.countIn)} isDisabled={!ready} onChange={countIn => session?.rhythm({ countIn })}>
+            <span className="practice-switch-label">跳转后预备一小节</span><span className="practice-switch-state" aria-hidden="true">{state.countIn ? '开' : '关'}</span><span className="practice-switch-track" aria-hidden="true" />
+          </Switch>
           <Switch
             className="practice-switch"
             isSelected={Boolean(state.solfege)}
@@ -335,16 +342,17 @@ export function MusicXmlPractice({
               </select>
             </label>
           )}
-          <p className="practice-hint">
-            {view !== "pdf"
-              ? "按当前调号标注，不改变混音。"
-              : "切换到重排谱面后可设置。"}
-          </p>
+          {view === "pdf" && <p className="practice-hint">切换到重排谱面后可设置首调数字。</p>}
         </section>
         {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? '此练习谱可离线打开与播放。' : offlineStatus === 'preparing' ? '正在准备离线播放…' : <>离线准备未完成。<Button onPress={retryOffline}>重试离线准备</Button></>}</p>}
-        <p className="practice-hint">
-          MusicXML 合成播放，不演唱歌词；原 PDF 需手动翻页。
-        </p>
+        <details className="practice-help">
+          <summary>使用说明</summary>
+          <div className="practice-help-content">
+            <p className="practice-hint">开启预备拍后，跳转会按目标小节的拍号预备一小节；普通暂停继续与循环衔接不加预备拍。</p>
+            <p className="practice-hint">首调数字按当前调号标注，不改变混音。</p>
+            <p className="practice-hint">MusicXML 合成播放，不演唱歌词；原 PDF 需手动翻页。</p>
+          </div>
+        </details>
       </PracticePlayerShell>
     </>
   );

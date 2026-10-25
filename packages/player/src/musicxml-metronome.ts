@@ -1,7 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 
 type Node = Record<string, unknown>;
-export interface MusicXmlTempoEvent { quarter: number; bpm: number; visible: boolean }
+export interface MusicXmlTempoEvent { quarter: number; bpm: number; visible: boolean; unitQuarters?: number }
 export interface MusicXmlTempoMeasure { events: MusicXmlTempoEvent[]; complete: boolean }
 const tag = (node: Node) => Object.keys(node).find(key => key !== ':@') ?? '';
 const children = (node: Node, name: string): Node[] => Array.isArray(node[name]) ? node[name] as Node[] : [];
@@ -17,7 +17,7 @@ function positiveNumber(value: string | undefined): number | null {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : null;
 }
-type TempoValue = { kind: 'absolute'; bpm: number } | { kind: 'relative'; factor: number };
+type TempoValue = { kind: 'absolute'; bpm: number; unitQuarters?: number } | { kind: 'relative'; factor: number };
 function metronomeValue(mark: Node): TempoValue | null {
   const items = children(mark, 'metronome');
   let cursor = 0;
@@ -36,7 +36,7 @@ function metronomeValue(mark: Node): TempoValue | null {
   if (items[cursor] && tag(items[cursor]) === 'per-minute') {
     const rate = positiveNumber(text(items[cursor++], 'per-minute'));
     return cursor === items.length && rate !== null && Number.isFinite(rate * before)
-      ? { kind: 'absolute', bpm: rate * before } : null;
+      ? { kind: 'absolute', bpm: rate * before, ...(before !== 1 ? { unitQuarters: before } : {}) } : null;
   }
   const after = unit();
   return after !== null && cursor === items.length
@@ -123,7 +123,8 @@ export function collectMusicXmlTempoMeasures(document: Node[]): MusicXmlTempoMea
       // it came from the source. Rendering the original mark independently is
       // outside this numeric automation model, so its absence stays explicit.
       const visible = group.some(event => event.visible && event.kind === 'absolute' && event.bpm === bpm);
-      measure.events.push({ quarter, bpm, visible });
+      const unitQuarters = group.filter((event): event is TempoInstruction & { kind: 'absolute' } => event.kind === 'absolute').find(event => event.bpm === bpm && event.unitQuarters)?.unitQuarters;
+      measure.events.push({ quarter, bpm, visible, ...(unitQuarters ? { unitQuarters } : {}) });
     }
   });
   return measures;

@@ -14,7 +14,7 @@ import { PlaybackTimeline, type Timeline } from './playback-timeline';
 
 type Props = {
   source?: PlaybackSource; embedded?: boolean; notationZoom?: NotationZoomProps; ready: boolean; playing: boolean; message?: string; failed?: boolean;
-  loopPreviewing?: boolean; position: string; loopStatus?: string; timeline: Timeline; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
+  loopPreviewing?: boolean; position: string; loopStatus?: string; timeline: Timeline; tempo?: { bpm: number; unit: number }; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
   play(): void; previous(): void; next(): void; retry(): void; children: ReactNode;
 };
 
@@ -30,9 +30,10 @@ export function PracticePlayerShell(props: Props) {
   });
   const readerView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
   const view = props.embedded ? 'xml' : readerView;
-  const [panel, setPanel] = useState<'settings' | 'position' | null>(null);
+  const [panel, setPanel] = useState<'settings' | 'position' | 'speed' | null>(null);
   const positionTrigger = useRef<HTMLButtonElement>(null);
   const settingsTrigger = useRef<HTMLButtonElement>(null);
+  const speedTrigger = useRef<HTMLButtonElement>(null);
   const dock = useRef<HTMLDivElement>(null), header = useRef<HTMLElement>(null);
   const location = useLocation(), navigate = useNavigate(), navigation = useAppNavigation();
   const isXml = props.embedded || source?.attachment.kind === 'musicxml';
@@ -87,7 +88,7 @@ export function PracticePlayerShell(props: Props) {
 
         <div className="practice-bar-meta" hidden={bottomCollapsed}>
           <Button ref={positionTrigger} className="practice-position" aria-label={isXml ? '定位小节' : '定位时间'} aria-expanded={panel === 'position'} isDisabled={props.timeline.disabled} onPress={() => setPanel(panel === 'position' ? null : 'position')} aria-description={props.timeline.label(props.timeline.value)}>{props.position}</Button>
-          {props.setSpeed && <select className="practice-speed" aria-label="速度" value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select>}
+          {props.setSpeed && (isXml ? <Button ref={speedTrigger} className="practice-speed" aria-label="调节速度" aria-expanded={panel === 'speed'} isDisabled={!props.ready} onPress={() => setPanel(panel === 'speed' ? null : 'speed')}>{(props.speed ?? 1).toFixed(2)}×</Button> : <select className="practice-speed" aria-label="速度" value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select>)}
         </div>
         <div className="practice-transport">
         {!bottomCollapsed && icon(isXml ? '前一小节' : '后退 10 秒', <span className="practice-skip" aria-hidden="true"><RotateCcw size={26} /><span>{isXml ? 1 : 10}</span></span>, props.previous, !props.ready || props.previousDisabled)}
@@ -107,10 +108,10 @@ export function PracticePlayerShell(props: Props) {
       </section>
     </div>
     {focus.notice && <div className="practice-focus-notice" role="status">{focus.notice}<Button className="practice-icon" aria-label="关闭全屏提示" onPress={focus.dismissNotice}><X size={16} aria-hidden="true" /></Button></div>}
-    {panel && <Popover triggerRef={panel === 'settings' ? settingsTrigger : positionTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
-      <Dialog className="practice-panel" aria-label={panel === 'settings' ? '练习设置' : isXml ? '定位小节' : '定位时间'}>
-        <header><div><strong>{panel === 'settings' ? '练习设置' : isXml ? '定位小节' : '定位时间'}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? '关闭练习设置' : '关闭定位'} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
-        {panel === 'settings' ? props.children : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}
+    {panel && <Popover triggerRef={panel === 'settings' ? settingsTrigger : panel === 'speed' ? speedTrigger : positionTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
+      <Dialog className="practice-panel" aria-label={panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}>
+        <header><div><strong>{panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? '关闭练习设置' : panel === 'speed' ? '关闭速度调节' : '关闭定位'} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
+        {panel === 'settings' ? props.children : panel === 'speed' ? <PracticeSpeed speed={props.speed ?? 1} tempo={props.tempo} ready={props.ready} setSpeed={value => props.setSpeed?.(value)} /> : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}
       </Dialog>
     </Popover>}
   </>;
@@ -124,4 +125,23 @@ function PositionLocator({ timeline, isXml, close }: { timeline: Timeline; isXml
     </label>
     <Button className="practice-action" isDisabled={timeline.disabled} onPress={() => { timeline.seek(value); close(); }}>跳转</Button>
   </>;
+}
+
+const tempoUnits = new Map<number, string>([[4, '全音符'], [3, '附点二分音符'], [2, '二分音符'], [1.5, '附点四分音符'], [1, '♩'], [.75, '附点八分音符'], [.5, '♪'], [.25, '十六分音符']]);
+const tempoUnitLabel = (unit: number) => tempoUnits.get(unit) ?? `${unit} 个四分音符`;
+function PracticeSpeed({ speed, tempo, ready, setSpeed }: { speed: number; tempo?: { bpm: number; unit: number }; ready: boolean; setSpeed(value: number): void }) {
+  const unit = tempo?.unit ?? 1;
+  const bpm = tempo ? tempo.bpm / unit : undefined;
+  const rate = (value: number) => Number(value.toFixed(1)).toString();
+  return <section className="practice-speed-panel" aria-label="播放速度">
+    <label className="practice-field"><span>速度 <output>{speed.toFixed(2)}×</output></span>
+      <input aria-label="播放速度" aria-valuetext={`${speed.toFixed(2)} 倍${bpm ? `，当前速度 ${rate(bpm * speed)}` : ''}`} type="range" min="0.5" max="2" step="0.01" value={speed} disabled={!ready} onChange={event => setSpeed(Number(event.target.value))} />
+    </label>
+    {bpm !== undefined && <p className="practice-tempo" aria-live="polite">当前位置原速 {tempoUnitLabel(unit)} = {rate(bpm)}<br />调整后 {tempoUnitLabel(unit)} = {rate(bpm * speed)}</p>}
+    <div className="practice-speed-actions">
+      <Button className="practice-action" aria-label="速度减少 0.01 倍" isDisabled={!ready || speed <= .5} onPress={() => setSpeed(speed - .01)}>− 0.01</Button>
+      <Button className="practice-action" isDisabled={!ready} onPress={() => setSpeed(1)}>恢复 1.00×</Button>
+      <Button className="practice-action" aria-label="速度增加 0.01 倍" isDisabled={!ready || speed >= 2} onPress={() => setSpeed(speed + .01)}>＋ 0.01</Button>
+    </div>
+  </section>;
 }

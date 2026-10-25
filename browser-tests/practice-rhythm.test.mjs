@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { mkdir } from 'node:fs/promises';
+import { chromium, webkit, expect } from '@playwright/test';
+import { startStorageFixture } from './storage-fixture.mjs';
+import { musicXmlFixture } from './musicxml-fixture.mjs';
+
+for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(`XML rhythm, count-in and precise speed (${engine})`, {timeout:180000}, async t => {
+ const fixture=await startStorageFixture({authenticated:true,previewEntry:false});let browser;
+ t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
+ browser=await type.launch(engine==='chromium'&&process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{});
+ const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'});
+ await context.addInitScript(()=>localStorage.setItem('reader-gesture-hint-seen','true'));
+ await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}});
+ const bytes=musicXmlFixture(16),id=crypto.randomUUID();
+ assert.equal((await context.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/attachments/${id}/file?name=rhythm.xml&size=${bytes.length}`,{data:bytes,headers:{'content-length':String(bytes.length)}})).status(),201);
+ const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
+ await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:20000});
+ await page.locator('.page-reader__viewport').click({position:{x:180,y:200}});
+ await page.getByRole('button',{name:'练习谱',exact:true}).click();await page.getByRole('button',{name:'rhythm.xml',exact:true}).click();
+ const bar=page.getByTestId('musicxml-player');
+ await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+ await bar.getByRole('button',{name:'调节速度',exact:true}).click();
+ const speed=page.getByRole('dialog',{name:'调节速度',exact:true});
+ await speed.getByRole('slider',{name:'播放速度',exact:true}).fill('0.83');
+ await expect(speed).toContainText('当前位置原速 ♩ = 80');await expect(speed).toContainText('调整后 ♩ = 66.4');
+ if(engine==='chromium'){await mkdir('artifacts/verification/issue-575',{recursive:true});await page.screenshot({path:'artifacts/verification/issue-575/mobile-speed.png'});}
+ await speed.getByRole('button',{name:'速度增加 0.01 倍',exact:true}).click();await expect(speed.locator('output')).toHaveText('0.84×');
+ await speed.getByRole('slider',{name:'播放速度',exact:true}).fill('2');await expect(speed.getByRole('button',{name:'速度增加 0.01 倍',exact:true})).toBeDisabled();
+ await speed.getByRole('button',{name:'恢复 1.00×',exact:true}).click();await page.getByRole('button',{name:'关闭速度调节',exact:true}).click();
+ await bar.getByRole('button',{name:'练习设置',exact:true}).click();
+ const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
+ await expect(settings.getByRole('switch',{name:'节拍器',exact:true})).not.toBeChecked();
+ await settings.getByText('跳转后预备一小节',{exact:true}).click();
+ await settings.getByText('节拍器',{exact:true}).click();
+ if(engine==='chromium') await page.screenshot({path:'artifacts/verification/issue-575/mobile-rhythm.png'});
+ await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+ const progress=bar.getByRole('slider',{name:'播放进度',exact:true});await progress.fill('4');
+ await bar.getByRole('button',{name:'播放',exact:true}).click();
+ await expect(page.locator('.practice-notice')).toContainText('预备：');await expect(progress).toHaveValue('4');
+ await bar.getByRole('button',{name:'暂停',exact:true}).click();await expect(page.locator('.practice-notice')).toHaveCount(0);
+ await bar.getByRole('button',{name:'播放',exact:true}).click();await expect(page.locator('.practice-notice')).toHaveCount(0);
+ await expect(progress).not.toHaveValue('4',{timeout:7000});
+ // Rapid playback seeks retain the latest target throughout count-in, then enter music.
+ await progress.fill('8');await progress.fill('10');await expect(page.locator('.practice-notice')).toContainText('预备：');
+ await expect(progress).toHaveValue('10');await expect(page.locator('.practice-notice')).toHaveCount(0,{timeout:6000});
+ await expect(progress).not.toHaveValue('10',{timeout:7000});
+ await page.getByRole('button',{name:'结束练习',exact:true}).click();await expect(bar).toHaveCount(0);assert.deepEqual(errors,[]);
+});

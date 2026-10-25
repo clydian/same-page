@@ -63,7 +63,6 @@ test('MusicXML and MXL: verified optional bundle, closed-browser offline cold st
  await offline.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
  await offline.getByRole('button',{name:'本地链路测试：2 个附件',exact:true}).click();
  let player=await open(offline,'mxl');
- await player.getByLabel('速度',{exact:true}).selectOption('0.75');
  await player.getByRole('button',{name:'练习设置',exact:true}).click();
  await offline.getByRole('dialog',{name:'练习设置',exact:true}).getByLabel('关注声部',{exact:true}).selectOption('1');
  await offline.getByRole('button',{name:'关闭练习设置',exact:true}).click();
@@ -80,7 +79,7 @@ test('MusicXML and MXL: verified optional bundle, closed-browser offline cold st
  await offline.screenshot({path:'artifacts/verification/musicxml-offline/reader-after-refresh.png'});
  if (!await offline.getByRole('button',{name:'练习谱',exact:true}).isVisible()) await offline.locator('canvas[data-pdf-canvas-active]').first().click({position:{x:195,y:350}});
  await offline.getByRole('button',{name:'练习谱',exact:true}).click();
- player=await open(offline,'xml');await expect(player.getByLabel('速度',{exact:true})).toHaveValue('1');
+ player=await open(offline,'xml');
  await player.getByRole('button',{name:'播放',exact:true}).click();await expect(player.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
  await expect.poll(()=>offline.evaluate(()=>window.__audioAnalysers.some(analyser=>{const samples=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(samples);return samples.some(value=>Math.abs(value)>.0001);})),{timeout:15000}).toBe(true);
  await player.getByRole('button',{name:'暂停',exact:true}).click();
