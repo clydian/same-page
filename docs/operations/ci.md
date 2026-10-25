@@ -2,11 +2,46 @@
 
 PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运行。`main` push 验证实际合并结果；生产部署继续串行，迁移和部署不被后续 push 中断。原有 required check 名称 `verify` 保持不变。
 
-2026-10-23 已通过 GitHub branch protection 实际启用 `verify` 必需检查，来源固定为
-GitHub Actions（app id 15368），`strict=true` 要求 PR 基于最新 main 验证，管理员也受保护约束。
-其他审查与禁止 force push/删除的配置保持原值。工作流中的汇总 gate 不等同于 GitHub
-合并配置；可用 `gh api repos/clydian/same-page/branches/main/protection/required_status_checks`
-回读 `{strict, checks}`。新提交/取消/失败不能借旧的绿灯合并，日常合并保持串行。
+2026-10-23 实际启用了 GitHub branch protection：必需检查为 GitHub Actions
+（app id 15368）的 `verify`，并开启 `strict=true` 和管理员约束。2026-10-25 调整策略目标为
+**保留必需的 `verify`，关闭必须跟上最新 main 的要求**（`strict=false`，GitHub 的 loose 模式）。
+这样一批 PR 的当前版本各自通过必需检查且满足其他合并条件后，可以逐个合并；前一个 PR
+使 main 前进，不再仅因此要求后面的 PR 更新分支并重跑。新增提交仍须满足检查，失败或取消
+不作为成功放行；冲突和未解决讨论仍需处理，管理员约束及禁止 force push/删除的配置保留。
+
+这个取舍允许两个单独通过检查的 PR 在组合后出现问题。main push 的 CI 继续验证实际合并结果，
+部署继续受 `verify`、发布范围和通道开关控制；main 失败时暂停后续批量合并，修复或回退问题提交。
+关闭 strict 不保证 main 始终为绿，也不等于 GitHub auto-merge 或合并队列。
+
+### 应用 GitHub 合并配置
+
+目标配置保存在 [main-required-status-checks.json](../../.github/main-required-status-checks.json)。
+**合并配置文件不会自动改变 GitHub 设置**；本次变更准备时 API 回读仍为 `strict=true`。
+PR 合并后，由有仓库管理权限的维护者在仓库根目录执行以下命令，再回读确认生效：
+
+```sh
+# 先确认当前必需检查仍为 GitHub Actions 的 verify；若配置有新增检查，先同步配置文件。
+gh api repos/clydian/same-page/branches/main/protection/required_status_checks
+
+# 只更新 required_status_checks 子资源，不重建整个分支保护。
+gh api --method PATCH repos/clydian/same-page/branches/main/protection/required_status_checks \
+  --input .github/main-required-status-checks.json
+
+gh api repos/clydian/same-page/branches/main/protection/required_status_checks \
+  --jq '{strict, checks}'
+```
+
+预期结果为 `strict: false`，`checks` 中仍只有 `{"context":"verify","app_id":15368}`。
+需要恢复严格模式时，只更新同一端点的 `strict` 字段：
+
+```sh
+gh api --method PATCH repos/clydian/same-page/branches/main/protection/required_status_checks \
+  -F strict=true
+```
+
+GitHub 官方说明：[strict 与 loose 必需检查](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging)。
+
+### 诊断证据
 
 scope 的日志与 summary 记录实际 checkout SHA、Git tree、parents、比较 base、event、attempt
 和 Node 版本；squash 前后 SHA 不同是正常情况，判断同代码重跑必须比较 tree、scope 与运行环境。
