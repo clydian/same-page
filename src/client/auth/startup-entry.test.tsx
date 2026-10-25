@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
+import { rememberLastDrive } from "../score-library/last-drive";
 import { StartupEntry } from "./startup-entry";
 import type { ApplicationIdentity } from "./application-identity";
 import { readLocalDriveDirectories } from "../score-library/local-drive-directory";
@@ -14,6 +15,7 @@ function open() {
   return render(<MemoryRouter><Routes>
     <Route path="/" element={<StartupEntry identity={identity}><p>首页</p></StartupEntry>} />
     <Route path="/drives" element={<p>云盘列表</p>} />
+    <Route path="/choirs/:id" element={<p>乐谱库</p>} />
   </Routes></MemoryRouter>);
 }
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); window.localStorage.clear(); });
@@ -55,4 +57,27 @@ it("offers a recovery action when local identity cannot finish restoring", async
   expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "反馈问题" })).toHaveAttribute("href", "/diagnostics");
   expect(screen.queryByText("正在恢复云盘…")).not.toBeInTheDocument();
+});
+
+
+it("routes confirmed zero memberships to first-join entry", async () => {
+  vi.mocked(readLocalDriveDirectories).mockResolvedValue([]);
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ memberships: [] })));
+  open();
+  expect(await screen.findByText("云盘列表")).toBeInTheDocument();
+});
+
+it("opens the sole membership directly without an extra selection page", async () => {
+  vi.mocked(readLocalDriveDirectories).mockResolvedValue([]);
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ memberships: memberships.slice(0, 1) })));
+  open();
+  expect(await screen.findByText("乐谱库")).toBeInTheDocument();
+});
+
+it("keeps selection explicit when the remembered drive has disappeared", async () => {
+  rememberLastDrive("user-a", "gone");
+  vi.mocked(readLocalDriveDirectories).mockResolvedValue([]);
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ memberships: memberships.slice(0, 1) })));
+  open();
+  expect(await screen.findByText("云盘列表")).toBeInTheDocument();
 });

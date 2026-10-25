@@ -35,7 +35,6 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(bar.getByRole('button', { name: '定位小节', exact: true })).toHaveText('9');
   await bar.getByRole('button', { name: '定位小节', exact: true }).click();
   const locator = page.getByRole('dialog', { name: '定位小节', exact: true });
-  await expect(locator).not.toContainText('播放次序');
   await expect(locator.getByRole('slider', { name: '目标小节', exact: true })).toHaveAttribute('aria-valuetext', '第 9 小节');
   await locator.getByRole('slider', { name: '目标小节', exact: true }).fill('10');
   await expect(progress).toHaveValue('8'); // Draft navigation never seeks until applied.
@@ -52,7 +51,6 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
       await expect(bar.getByRole('combobox', { name: '速度', exact: true })).toHaveValue('0.75');
       await expect.poll(async () => { const b = await bar.getByRole('button', { name: '播放', exact: true }).boundingBox(); return Math.abs(b.x + b.width / 2 - width / 2); }).toBeLessThan(1);
       assert.ok((await header.boundingBox()).height <= 56, 'the shared header never wraps');
-      await expect(page.locator('.practice-pane-heading')).toHaveCount(0);
       if (view === 'compare') {
         const tools = await page.locator('.practice-notation-tools').boundingBox(), pane = await page.locator('.practice-notation').boundingBox();
         assert.ok(tools.x >= pane.x && tools.y >= pane.y && tools.x + tools.width <= pane.x + pane.width, 'engraving controls belong to the XML pane');

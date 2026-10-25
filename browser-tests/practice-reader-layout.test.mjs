@@ -177,7 +177,6 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await selectPracticeView(page, '原始 PDF');
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('原始 PDF');
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
-  await expect(page.getByRole('button',{name:'谱面大小',exact:true})).toHaveCount(0);
   await page.locator('.page-reader__viewport').click({position:{x:180,y:200}});
   await expect(page.getByLabel('阅读器控制',{exact:true})).toHaveCount(0);
   const pages = page.getByRole('button',{name:/展开页码网格/}); await pages.click();

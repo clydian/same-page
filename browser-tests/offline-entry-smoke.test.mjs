@@ -77,7 +77,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         assert.equal(new URL(offline.url()).pathname, `/choirs/${fixture.choirId}`);
         await offline.getByRole("searchbox", { name: /搜索.*中的乐谱/ }).waitFor();
         await offline.goto(`${fixture.origin}/drives`);
-        await offline.getByRole("link").filter({ hasText: "本地链路云盘" }).click();
+        await expect(offline).toHaveURL(`${fixture.origin}/choirs/${fixture.choirId}`);
         await offline.getByRole("heading", { name: "本地链路云盘" }).waitFor();
         await offline.getByRole("link").filter({ hasText: fixture.fileName.replace(/\.pdf$/i, "") }).click();
         await expectSampleScoreContent(offline);

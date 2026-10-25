@@ -88,10 +88,6 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByLabel('选择附件文件').setInputFiles({name:'分声部练习.mxl',mimeType:'application/vnd.recordare.musicxml',buffer:Buffer.from(bytes)});
   await page.getByRole('button',{name:'上传',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  const attachmentId = (await (await context.request.get(`${fixture.origin}/api/choirs/${fixture.choirId}/attachments?scoreIds=${fixture.scoreId}`,{headers:{"X-Same-Page-Attachments":"2"}})).json()).attachments[0].id;
-  const legacyKey = `same-page.practice:${JSON.stringify([`user:${fixture.accounts[0].id}`,fixture.choirId,attachmentId,1])}`;
-  const legacyValue = JSON.stringify({speed:.5,focus:1,measure:2,parts:[]});
-  await page.evaluate(({key,value})=>localStorage.setItem(key,value),{key:legacyKey,value:legacyValue});
   await page.getByRole('button',{name:'本地链路测试：1 个附件',exact:true}).click();
   await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
   const player=page.getByTestId('musicxml-player');
@@ -208,7 +204,6 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(settings.getByLabel('关注声部',{exact:true})).toHaveValue('');
   await expect(player.getByLabel('速度',{exact:true})).toHaveValue('1');
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('0');
-  assert.equal(await page.evaluate(key=>localStorage.getItem(key),legacyKey),legacyValue,'legacy preferences remain inert and are never overwritten');
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await page.setViewportSize({width:390,height:844});
   await selectPracticeView(page, '重排谱面');

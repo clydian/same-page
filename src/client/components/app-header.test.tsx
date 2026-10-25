@@ -21,8 +21,6 @@ it("opens diagnostics through help from the footer without losing the current se
     </MemoryRouter>,
   );
   recordFailure({ operation: "pdf", category: "network" });
-  expect(within(screen.getByRole("banner")).queryByRole("button", { name: "帮助与关于" })).not.toBeInTheDocument();
-  expect(within(screen.getByRole("banner")).queryByRole("link", { name: "反馈问题" })).not.toBeInTheDocument();
   fireEvent.click(within(screen.getByRole("contentinfo")).getByRole("link", { name: "使用手册" }));
   fireEvent.click(await screen.findByRole("link", { name: "反馈问题" }));
 

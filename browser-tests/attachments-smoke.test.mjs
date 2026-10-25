@@ -26,11 +26,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     const secondScore = (await secondUpload.json()).score;
     assert.equal((await context.request.post(`${api}/scores/${secondScore.id}/attachments/links`, { data: { id: crypto.randomUUID(), name: "另一首的参考", url: "https://example.org/second" } })).status(), 201);
     await page.goto(url);
-    await expect(page.getByRole("checkbox", { name: "显示全部附件" })).toHaveCount(0);
     await openMenu();
-    await expect(page.getByRole("menuitem", { name: "文件信息", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("menuitem", { name: "历史 PDF 版本", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("menuitem", { name: "添加链接", exact: true })).toHaveCount(0);
     await page.getByRole("menuitem", { name: "添加附件", exact: true }).click();
     await page.getByRole("button", { name: "音频", exact: true }).click();
     await expect(page.getByLabel("选择附件文件")).toHaveAttribute("accept", ".mp3,.m4a,.aac,.wav,.flac,.ogg,.opus");

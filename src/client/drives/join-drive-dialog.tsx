@@ -4,9 +4,10 @@ import { activateGuestLocalOwner } from "../platform/local-workspace";
 import { enterDrive, joinDrive, cancelDriveEntry, type DriveEntryResult } from "../auth/drive-entry";
 import { invalidateSettingsLifetime, useSettingsLifetime } from "../settings/use-settings-lifetime";
 import type { ApplicationIdentity } from "../auth/application-identity";
-import { type FormEvent, useEffect, useEffectEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { Button, Form, Heading, Input, Label, Modal, ModalOverlay, TextField } from "react-aria-components";
 import { Dialog } from "../navigation/overlays";
+import { useExitLayer } from "../navigation/navigation-context";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { ChoirSummary } from "../../shared/choirs";
 import { JoinCodeField } from "../components/join-code-field";
@@ -18,13 +19,27 @@ type JoinStep = { kind: "invite" } | { kind: "display-name"; choir: ChoirSummary
 
 // Keep the controller mounted when closed so admission can unregister its
 // dialog before navigating; cancellation still owns pending entry cleanup.
-export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = null }: {
+type JoinDriveProps = {
   open: boolean; onClose(): void; onBack?(): void; identity: ApplicationIdentity; invitation?: ReturnType<typeof readInviteLink>;
-}) {
+};
+
+export function JoinDriveDialog(props: JoinDriveProps) {
+  return <JoinDriveFlow {...props} />;
+}
+
+// The page and dialog share admission, scanning, display-name and cancellation.
+export function JoinDrivePanel(props: Omit<JoinDriveProps, "open" | "onBack">) {
+  return <JoinDriveFlow {...props} open inline />;
+}
+
+function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inline = false }: JoinDriveProps & { inline?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = identity;
   const userId = session.data?.user.id;
+  const inviteTitleId = useId();
+  const membershipTitleId = useId();
+  const admissionPaused = session.isPending || (Boolean(identity.localUserId) && !identity.authenticatedUserId && identity.onlineState !== "signed-out");
   const linkHandled = useRef(false);
   const [joinStep, setJoinStep] = useState<JoinStep>({ kind: "invite" });
   const [joinCode, setJoinCode] = useState(invitation?.code ?? "");
@@ -36,9 +51,9 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
   // Let the dialog unregister its exit guard before completing admission.
   useEffect(() => {
     if (entryDestination) {
-      void navigate(entryDestination);
+      void navigate(entryDestination, { replace: inline });
     }
-  }, [entryDestination, navigate]);
+  }, [entryDestination, navigate, inline]);
 
   const resetJoinFlow = () => {
     setJoinStep({ kind: "invite" });
@@ -60,7 +75,11 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
 
   const pendingEntryRef = useRef<Promise<DriveEntryResult> | null>(null);
   const entryAbortRef = useRef<AbortController | null>(null);
-  useEffect(() => () => entryAbortRef.current?.abort(), []);
+  useEffect(() => () => {
+    entryAbortRef.current?.abort();
+    const pending = pendingEntryRef.current;
+    if (inline && pending) { pendingEntryRef.current = null; void cancelDriveEntry(pending); }
+  }, [inline]);
   const dismissJoinDialog = () => {
     invalidateSettingsLifetime(entryLifetimeRef);
     entryAbortRef.current?.abort();
@@ -78,9 +97,18 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
   };
 
   const entryLifetimeRef = useSettingsLifetime();
+  useExitLayer(inline && (submitting || clearingGuestSession || joinStep.kind === "display-name"), "form", async () => {
+    if (submitting || clearingGuestSession) return false;
+    invalidateSettingsLifetime(entryLifetimeRef);
+    const pending = pendingEntryRef.current;
+    pendingEntryRef.current = null;
+    if (pending) await cancelDriveEntry(pending);
+    resetJoinFlow();
+    return true;
+  });
   const enterInviteDrive = async (event?: FormEvent, code = joinCode) => {
     event?.preventDefault();
-    if (clearingGuestSession || submitting) return;
+    if (admissionPaused || clearingGuestSession || submitting) return;
     setEntryDestination(null);
     const generation = entryLifetimeRef.current;
     setSubmitting(true); setJoinMessage(null);
@@ -125,7 +153,7 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
     // StrictMode disconnects and reconnects effects before this microtask.
     // Start only the committed lifetime, keeping automatic admission single-shot.
     void Promise.resolve().then(() => {
-      if (!active || !open || session.isPending || !invitation || linkHandled.current) return;
+      if (!active || !open || admissionPaused || !invitation || linkHandled.current) return;
       // Router navigation can complete asynchronously. Admit only on the next
       // committed location, once the shared credential has left the address bar.
       if (location.hash) {
@@ -136,11 +164,11 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
       enterLinkedDrive();
     });
     return () => { active = false; };
-  }, [open, session.isPending, invitation, navigate, location.pathname, location.search, location.hash]);
+  }, [open, admissionPaused, invitation, navigate, location.pathname, location.search, location.hash]);
 
   const joinValidatedDrive = async (event: FormEvent) => {
     event.preventDefault();
-    if (joinStep.kind !== "display-name" || submitting) return;
+    if (joinStep.kind !== "display-name" || submitting || admissionPaused) return;
     setEntryDestination(null);
     const generation = entryLifetimeRef.current;
     setSubmitting(true); setJoinMessage(null);
@@ -158,20 +186,9 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
     }
   };
 
-  return (
-      <ModalOverlay
-        className="modal-overlay"
-        isOpen={open && !(invitation && location.hash)}
-        onOpenChange={(open) => {
-          if (!open) dismissJoinDialog();
-        }}
-        isDismissable
-      >
-        <Modal className="app-modal">
-          <Dialog className="app-dialog">
-            {({ close }) => (
+  const content = (close: () => void) => (
               <>
-                <div className={onBack ? "dialog-heading dialog-heading--back" : "dialog-heading"}>
+                {!inline && <div className={onBack ? "dialog-heading dialog-heading--back" : "dialog-heading"}>
                   {onBack && <Button className="icon-button" aria-label="返回切换云盘" onPress={close}><ArrowLeft size={20} aria-hidden="true" /></Button>}
                   <div>
                     {!onBack && <p className="dialog-eyebrow">合谱 · Same Page</p>}
@@ -184,24 +201,26 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
                   {!onBack && <Button className="icon-button" aria-label="关闭" onPress={close}>
                     <X size={20} aria-hidden="true" />
                   </Button>}
-                </div>
+                </div>}
+                {inline && joinStep.kind === "display-name" && <h2>加入「{joinStep.choir.name}」</h2>}
 
                 {joinStep.kind === "invite" ? (
                   <>
-                    {!userId ? <section className="membership-picker" aria-labelledby="membership-title"><h3 id="membership-title">我已加入的云盘</h3><Link className="membership-login" to="/login" onClick={finishJoinDialog}>登录后查看</Link></section> : null}
+                    {!inline && !userId ? <section className="membership-picker" aria-labelledby={membershipTitleId}><h3 id={membershipTitleId}>我已加入的云盘</h3><Link className="membership-login" to="/login" onClick={finishJoinDialog}>登录后查看</Link></section> : null}
 
                     <section
                       className="invite-section"
-                      aria-labelledby="invite-entry-title"
+                      aria-labelledby={inline ? undefined : inviteTitleId}
+                      aria-label={inline ? "加入云盘" : undefined}
                     >
-                      <h3 id="invite-entry-title">使用邀请卡或邀请码</h3>
-                      {open && <InviteScanner disabled={submitting || clearingGuestSession || session.isPending} onRead={code => { setJoinCode(code); void enterInviteDrive(undefined, code); }} />}
+                      {!inline && <h3 id={inviteTitleId}>使用邀请卡或邀请码</h3>}
+                      {open && <InviteScanner disabled={submitting || clearingGuestSession || admissionPaused} onRead={code => { setJoinCode(code); void enterInviteDrive(undefined, code); }} />}
                       <Form
                         className="entry-form dialog-form"
                         onSubmit={enterInviteDrive}
                       >
                         <JoinCodeField
-                          autoFocus
+                          autoFocus={!inline}
                           value={joinCode}
                           onChange={setJoinCode}
                         />
@@ -211,10 +230,10 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
                             joinCode.length !== JOIN_CODE_LENGTH ||
                             submitting ||
                             clearingGuestSession ||
-                            session.isPending
+                            admissionPaused
                           }
                         >
-                          {submitting || clearingGuestSession ? "正在验证…" : "进入"}
+                          {submitting || clearingGuestSession ? "正在验证…" : inline ? "进入云盘" : "进入"}
                         </Button>
                       </Form>
                     </section>
@@ -234,7 +253,7 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
                         <Label>显示名</Label>
                         <Input autoComplete="nickname" placeholder="例如：小花" autoFocus />
                       </TextField>
-                      <Button type="submit" isDisabled={submitting}>
+                      <Button type="submit" isDisabled={submitting || admissionPaused}>
                         {submitting ? "正在加入…" : "加入并进入"}
                       </Button>
                       <Button
@@ -259,9 +278,10 @@ export function JoinDriveDialog({ open, onClose, identity, onBack, invitation = 
                   </p>
                 ) : null}
               </>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
   );
+  if (inline) return <div className="join-drive-panel">{content(() => undefined)}</div>;
+  return <ModalOverlay className="modal-overlay" isOpen={open && !(invitation && location.hash)}
+    onOpenChange={open => { if (!open) dismissJoinDialog(); }} isDismissable>
+    <Modal className="app-modal"><Dialog className="app-dialog">{({ close }) => content(close)}</Dialog></Modal>
+  </ModalOverlay>;
 }

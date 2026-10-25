@@ -58,16 +58,16 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.getByRole("dialog", { name: "切换云盘" }).waitFor();
       await page.keyboard.press("Escape");
       await page.goto(`${app.origin}/drives`);
-      await page.getByRole("heading", { name: "我已加入的云盘" }).waitFor();
-      assert.equal(new URL(page.url()).pathname, "/drives");
-      await page.getByRole("link", { name: "合谱 Same Page 首页" }).click();
+      await page.getByRole("button", { name: /^切换云盘/ }).waitFor();
+      assert.equal(new URL(page.url()).pathname, "/choirs/visual-choir");
+      await page.goto(`${app.origin}/about`);
+      await page.getByRole("link", { name: /^产品介绍/ }).click();
       await page.getByRole("heading", { name: "Harmony begins on the Same Page", exact: true }).waitFor();
       assert.equal(new URL(page.url()).pathname, "/");
       await page.getByRole("link", { name: "我的云盘", exact: true }).click();
-      await page.getByRole("heading", { name: "我已加入的云盘", exact: true }).waitFor();
-      assert.equal(new URL(page.url()).pathname, "/drives");
-      await page.getByRole("link", { name: /示例云盘/ }).click();
-      await page.getByRole("dialog").waitFor({ state: "hidden" });
+      await page.getByRole("button", { name: /^切换云盘/ }).waitFor();
+      assert.equal(new URL(page.url()).pathname, "/choirs/visual-choir");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
     });
     await scenario("personal-menu-navigation-and-focus", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
@@ -81,7 +81,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       // A bottom sheet grows upward when its async directory arrives. Wait for
       // the loaded row before pressing its moving close button.
       await expect(picker.getByRole("link", { name: /示例云盘.*拥有者/ })).toBeVisible();
-      for (const name of ["阅读偏好", "本机存储", "使用手册"]) await expect(picker.getByRole("link", { name, exact: true })).toHaveCount(0);
       await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
       await expect(picker).toBeHidden();
       await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();

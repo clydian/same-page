@@ -14,6 +14,7 @@ test("real Worker: create trial, upload, permanently clear trash and close drive
   assert.equal(login.status(),200);
   const page=await context.newPage();
   await page.goto(`${fixture.origin}/drives`);
+  await page.getByRole("button", { name: /^切换云盘/ }).click();
   await page.getByRole("button",{name:"创建云盘",exact:true}).click();
   await page.getByLabel("云盘名称",{exact:true}).fill("周末排练");
   await page.getByLabel("你在云盘内的显示名").fill("指挥");
@@ -45,6 +46,7 @@ test("real Worker: create trial, upload, permanently clear trash and close drive
   await page.getByRole("button",{name:"彻底删除云盘",exact:true}).click();
   await page.getByLabel("输入云盘名称“周末排练”确认").fill("周末排练");
   await page.getByRole("button",{name:"确认彻底删除",exact:true}).click();
-  await expect(page).toHaveURL(`${fixture.origin}/drives`);
+  await expect(page.getByRole("heading", { name: "选择云盘", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /本地链路云盘/ })).toBeVisible();
   assert.equal((await context.request.get(`${fixture.origin}/api/choirs/${driveId}/bootstrap`)).status(),404);
 });

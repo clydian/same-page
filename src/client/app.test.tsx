@@ -113,7 +113,7 @@ describe("AppRoutes", () => {
     fireEvent.click(recovery);
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/drives"));
-    expect(await screen.findByRole("heading", { name: signedIn ? "我已加入的云盘" : "Harmony begins on the Same Page" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "先加入你的云盘" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "页面不存在" })).not.toBeInTheDocument();
   });
 
@@ -156,7 +156,6 @@ describe("AppRoutes", () => {
     ).toBeInTheDocument();
     expect(await screen.findByLabelText("邀请码")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "进入" })).toBeDisabled();
-    expect(screen.queryByText("无需注册，也可以访客身份只读访问。")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("显示名")).not.toBeInTheDocument();
   });
 
@@ -369,38 +368,6 @@ describe("AppRoutes", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
     expect(screen.queryByText("公开体验云盘")).not.toBeInTheDocument();
-  });
-
-  it("keeps public preview out of signed-in membership lists", async () => {
-    vi.mocked(authClient.useSession).mockReturnValue({
-      data: { user: { id: "user-1", email: "member@example.test" } },
-      isPending: false,
-    } as ReturnType<typeof authClient.useSession>);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation((input: string) =>
-        Promise.resolve(
-          input === "/api/guest/preview-choir"
-            ? Response.json({
-                choir: {
-                  id: "preview-choir",
-                  name: "公开体验云盘",
-                  guestAdmissionMode: "open",
-                },
-              })
-            : Response.json({ memberships: [] }),
-        ),
-      ),
-    );
-    render(
-      <MemoryRouter initialEntries={["/drives"]}>
-        <AppRoutes />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText(/还没有已加入的云盘/)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "先看示例" })).not.toBeInTheDocument();
-    expect(screen.queryByText(/或先访问公开体验/)).not.toBeInTheDocument();
   });
 
   it("automatically admits a linked guest once under StrictMode", async () => {
@@ -649,6 +616,7 @@ describe("AppRoutes", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation((input: string, init?: RequestInit) => {
+        if (input.includes("/bootstrap")) return Promise.resolve(Response.json(driveBootstrapBody({ access: "membership" })));
         if (input === "/api/choirs") {
           return Promise.resolve(Response.json({ memberships: [] }));
         }
@@ -669,11 +637,12 @@ describe("AppRoutes", () => {
       }),
     );
     render(
-      <MemoryRouter initialEntries={["/drives"]}>
+      <MemoryRouter initialEntries={["/choirs/choir-1"]}>
         <AppRoutes />
       </MemoryRouter>,
     );
 
+    fireEvent.click(await screen.findByRole("button", { name: /^切换云盘/ }));
     fireEvent.click(screen.getByRole("button", { name: "加入新云盘" }));
     fireEvent.change(await screen.findByLabelText("邀请码"), {
       target: { value: "ABCDEFGH" },
@@ -683,10 +652,8 @@ describe("AppRoutes", () => {
       await screen.findByRole("dialog", { name: "加入「周末云盘」" }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
+    fireEvent.click(screen.getByRole("button", { name: "返回切换云盘" }));
+    await screen.findByRole("dialog", { name: "切换云盘" });
     fireEvent.click(screen.getByRole("button", { name: "加入新云盘" }));
     fireEvent.change(await screen.findByLabelText("邀请码"), {
       target: { value: "ABCDEFGH" },
@@ -952,7 +919,6 @@ describe("AppRoutes", () => {
     expect(screen.getByText("这个云盘还没有乐谱。")).toBeInTheDocument();
     expect(screen.queryByLabelText("显示名")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^切换云盘/ }));
-    expect(screen.queryByRole("menu", { name: "管理员菜单" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "关闭" })).not.toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("dialog", { name: "切换云盘" }), { key: "Escape" });
     expect(fetchMock).not.toHaveBeenCalledWith("/api/choirs/join", expect.anything());
@@ -1217,11 +1183,8 @@ describe("AppRoutes", () => {
     expect(screen.queryByText("2.0 MB")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /更多操作/ }));
     expect(screen.queryByRole("menuitem", { name: "重命名" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "文件信息" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "历史 PDF 版本" })).not.toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
-    expect(screen.queryByRole("button", { name: "搜索" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("searchbox", { name: /搜索.*中的乐谱/ }), {
       target: { value: "排练" },

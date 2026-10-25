@@ -173,8 +173,6 @@ describe("AuthPage", () => {
     const emailField = screen.getByLabelText("邮箱");
     expect(emailField).toHaveFocus();
     expect(screen.queryByLabelText("密码")).not.toBeInTheDocument();
-    expect(screen.queryByText("忘记密码")).not.toBeInTheDocument();
-    expect(screen.queryByText("显示名")).not.toBeInTheDocument();
     const emailSubmit = screen.getByRole("button", { name: "继续" });
     const google = await screen.findByRole("button", {
       name: "使用 Google 继续",

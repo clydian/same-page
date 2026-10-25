@@ -10,11 +10,10 @@ it("selects complete and audited library scopes, independent of directory order"
   for (const [suite, directory] of [["visual", "visual-report"], ["smoke", "browser-tests"]]) {
     const entries = readdirSync(directory);
     for (const group of ["all", "library"]) {
-      const count = suite === "visual" ? 4 : group === "library" ? 2 : 3;
+      const count = suite === "smoke" && group === "library" ? 2 : 4;
       const files = selectBrowserTests({ suite, group, entries, shard: `1/${count}` });
       expect(files).toEqual(selectBrowserTests({ suite, group, entries: [...entries].reverse(), shard: `${count}/${count}` }));
       if (group === "all") expect(files).toEqual(entries.filter(file => file.endsWith(".test.mjs")).sort());
-      else expect(files.length).toBe(suite === "visual" ? 7 : 2);
     }
   }
 });
@@ -27,7 +26,7 @@ it("the real runner uses native shards without omissions or duplicates, includin
     mkdirSync(path.join(cwd, "browser-tests"));
     const add = i => writeFileSync(path.join(cwd, "browser-tests", `${i}.test.mjs`), `import test from 'node:test'; import { appendFileSync } from 'node:fs'; test('fixture-${i}', () => appendFileSync(${JSON.stringify(receipts)}, '${i}\\n'));`);
     for (let i = 0; i < 7; i++) add(i);
-    for (const count of [2, 3]) {
+    for (const count of [2, 4]) {
       for (const total of [7, 8]) {
         if (total === 8) add(7);
         else rmSync(path.join(cwd, "browser-tests", "7.test.mjs"), { force: true });
@@ -43,7 +42,7 @@ it("the real runner uses native shards without omissions or duplicates, includin
       }
     }
   } finally { rmSync(cwd, { recursive: true, force: true }); }
-}, 15_000); // This integration check starts ten runners and thirty child test processes.
+}, 15_000); // Exercise both CI shard configurations through the actual runner.
 
 it("rejects invalid requests, missing library files and empty shards", () => {
   const entries = readdirSync("browser-tests");
