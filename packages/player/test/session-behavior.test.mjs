@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { AlphaTabApiBase } from '@coderline/alphatab';
 import { playbackTempo } from '../dist/practice-tempo.js';
 import { playbackMeasureLabels } from '../dist/playback-measures.js';
 import { ScoreFollowSession, isPointerDrag } from '../dist/score-follow.js';
@@ -205,9 +206,10 @@ test('rhythm controls and seek-only count-in preserve ordinary pause/resume and 
  try {
   h.api.tickCache.masterBars=Array.from({length:4},(_,index)=>({masterBar:{index,timeSignatureNumerator:index===2?3:4},start:index*100,end:(index+1)*100,tempoChanges:[{tick:index*100,tempo:80+index*10}]}));
   await Promise.resolve(); const starts=[];
-  h.api.play=()=>starts.push({tick:h.api.tickPosition,volume:h.api.countInVolume});
+  h.api.play=()=>{starts.push({tick:h.api.tickPosition,volume:h.api.countInVolume});h.api.playerStateChanged.emit({state:1});};
+  h.api.pause=()=>h.api.playerStateChanged.emit({state:0});
   h.session.rhythm({countIn:true,volume:.4});h.session.playPause();assert.equal(starts.at(-1).volume,0,'first start is immediate');
-  h.session.seek(2);assert.equal(h.session.getSnapshot().playing,false);h.session.playPause();assert.deepEqual(starts.at(-1),{tick:200,volume:.4});
+  h.session.pause();h.session.seek(2);assert.equal(h.session.getSnapshot().playing,false);h.session.playPause();assert.deepEqual(starts.at(-1),{tick:200,volume:.4});
   assert.equal(h.session.getSnapshot().countInBeats,3);
   // Worker seek replies can arrive after the host has requested count-in.
   h.api.playerPositionChanged.emit({currentTick:200});assert.equal(h.api.countInVolume,.4);
@@ -234,6 +236,53 @@ test('a seek immediately after pause does not resume while the Worker still repo
  const h=harness();try {
   let starts=0;h.api.play=()=>starts++;
   h.api.playerStateChanged.emit({state:1});h.session.pause();h.session.seek(0);
-  assert.equal(starts,0);h.session.playPause();assert.equal(starts,1);
+  assert.equal(starts,0);h.session.playPause();assert.equal(starts,0,'resume waits for the pending pause');h.api.playerStateChanged.emit({state:0});assert.equal(starts,1);
  }finally{h.dispose();}
+});
+
+// Preserve the native asynchronous pause callback, including its cursor rewind.
+function asyncTransport(h) {
+ const commands=[];let playing=false,tick=0,starts=[];
+ Object.defineProperty(h.api,'tickPosition',{get:()=>tick,set:value=>commands.push(()=>{tick=value;h.api.playerPositionChanged.emit({currentTick:tick,isSeek:true});})});
+ const native={_isDestroyed:false,_currentBeat:{beat:{}},_tickCache:{getBeatStart:()=>0},_player:h.api,scrollToCursor(){},uiFacade:{triggerEvent(){}},container:{}};
+ h.api.play=()=>commands.push(()=>{if(playing)return;playing=true;starts.push({tick,volume:h.api.countInVolume});h.api.playerStateChanged.emit({state:1});});
+ h.api.pause=()=>commands.push(()=>{if(!playing)return;playing=false;AlphaTabApiBase.prototype._onPlayerStateChanged.call(native,{stopped:false,state:0});h.api.playerStateChanged.emit({state:0});});
+ return {drain(){let limit=100;while(commands.length){assert.ok(limit--,'transport must settle');commands.shift()();}},get tick(){return tick;},get playing(){return playing;},starts};
+}
+test('playing score taps survive the native asynchronous pause rewind with or without count-in',async()=>{
+ for(const countIn of [false,true]) {
+  const h=harness({prepared:{bytes:new Uint8Array([1])}});
+  try {
+   h.api.tickCache.masterBars=Array.from({length:4},(_,index)=>({masterBar:{index,timeSignatureNumerator:index===2?3:4},start:index*100,end:(index+1)*100}));
+   await Promise.resolve();const transport=asyncTransport(h);
+   h.api.boundsLookup.getBeatAtPos=()=>({voice:{bar:{masterBar:{index:2}}}});
+   h.session.rhythm({countIn});h.session.playPause();transport.drain();
+   h.session.seekAt(12,34);transport.drain();
+   assert.equal(transport.tick,200,'the native pause reply must not restore the old beat');
+   assert.equal(h.session.getSnapshot().measure,2);assert.equal(transport.playing,true);
+   assert.deepEqual(transport.starts.at(-1),{tick:200,volume:countIn?.5:0});
+   if(countIn){h.api.playerPositionChanged.emit({currentTick:200,countInId:1,countInFinished:true});assert.equal(h.session.getSnapshot().measure,2);}
+  } finally {h.dispose();}
+ }
+});
+
+test('pending seeks retain only the last destination and respect pause, resume and disposal',async()=>{
+ for(const action of ['continue','pause','resume','dispose']) {
+  const h=harness({prepared:{bytes:new Uint8Array([1])}});
+  try {
+   h.api.tickCache.masterBars=Array.from({length:4},(_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
+   await Promise.resolve();const transport=asyncTransport(h);
+   h.session.rhythm({countIn:true});h.session.playPause();transport.drain();
+   h.session.seek(1);h.session.seek(3);
+   h.api.playerPositionChanged.emit({currentTick:0});assert.equal(h.session.getSnapshot().measure,3);
+   if(action==='pause'||action==='resume')h.session.pause();
+   if(action==='resume')h.session.playPause();
+   if(action==='dispose')h.session.dispose();
+   transport.drain();
+   assert.equal(transport.tick,action==='dispose'?0:300);
+   assert.equal(transport.playing,action==='continue'||action==='resume');
+   assert.equal(transport.starts.length,action==='continue'||action==='resume'?2:1);
+   if(action==='resume')assert.equal(transport.starts.at(-1).volume,0,'ordinary resume after a cancelled seek does not add count-in');
+  } finally {h.dispose();}
+ }
 });

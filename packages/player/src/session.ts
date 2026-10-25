@@ -74,6 +74,10 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   api.metronomeVolume = 0; api.countInVolume = 0;
   let pendingCountIn = false;
   let pauseRequested = false;
+  let playRequested = false;
+  let pendingSeek: { tick: number; resume: boolean } | null = null;
+  let awaitingPause = false;
+  let seekReplyTick: number | null = null;
   let countInActive = false;
   let countInRequest = 0;
   let tempoMeasures: MusicXmlTempoMeasure[] = [];
@@ -84,6 +88,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   };
   const start = () => {
     pauseRequested = false;
+    if (pendingSeek) { pendingSeek.resume = true; return; }
+    playRequested = true;
     const count = pendingCountIn && state.countIn && (state.beatVolume ?? .5) > 0;
     pendingCountIn = false; countInActive = Boolean(count); if (count) countInRequest++;
     api.countInVolume = count ? state.beatVolume ?? .5 : 0;
@@ -235,13 +241,29 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   api.soundFontLoaded.on(() => loadingStage('soundfont-ready'));
   api.playerStateChanged.on(event => {
     const playing = event.state === alphaTab.synth.PlayerState.Playing;
+    if (disposed || state.status === 'error') return;
+    playRequested = playing;
     update({ playing }); if (playing) loadingStage('playing');
+    if (!playing && awaitingPause) {
+      awaitingPause = false;
+      const seek = pendingSeek; pendingSeek = null;
+      if (seek) {
+        // alphaTab's earlier pause listener queues a rewind to the old beat.
+        // Queue our destination after that rewind, then resume from this seek.
+        seekReplyTick = seek.tick; api.tickPosition = seek.tick;
+        if (seek.resume) start();
+      }
+    }
   });
   api.playerPositionChanged.on(event => {
-    if (disposed) return;
+    if (disposed || pendingSeek) return;
     if (event.countInBeats > 0) {
       if (countInActive && event.countInId === countInRequest) { update({ countInBeat: event.countInBeat, countInBeats: event.countInBeats }); }
       return;
+    }
+    if (seekReplyTick !== null) {
+      if (Math.abs(event.currentTick - seekReplyTick) < 1) seekReplyTick = null;
+      else return; // Stale positions, including the native pause rewind, cannot move the destination.
     }
     if (countInActive) {
       if (event.countInFinished && event.countInId === countInRequest) stopCountIn();
@@ -338,23 +360,31 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     if (!first || !last) return;
     const tick = requested < first.startTick ? first.startTick : requested >= last.endTick ? last.startTick : requested;
     const index = state.measures.findLastIndex(item => item.startTick <= tick);
-    const resume = manual && (state.playing && !pauseRequested || countInActive);
+    const resume = manual && (pendingSeek?.resume ?? ((state.playing || playRequested) && !pauseRequested || countInActive));
+    const pauseFirst = manual && (awaitingPause || state.playing || playRequested || countInActive);
     if (manual) {
-      stopCountIn(); api.pause();
+      stopCountIn();
       pendingCountIn = Boolean(state.countIn);
     }
     const startTick = state.measures[index].startTick;
-    api.tickPosition = startTick; update({ measure: index, tempo: tempoAt(startTick) });
-    if (resume) start();
+    update({ measure: index, tempo: tempoAt(startTick) });
+    if (pauseFirst) {
+      pendingSeek = { tick: startTick, resume };
+      if (!awaitingPause) { awaitingPause = true; api.pause(); }
+    } else {
+      seekReplyTick = startTick; api.tickPosition = startTick;
+      if (resume) start();
+    }
     if (state.following) scrollToMeasure(index);
   };
   return {
     getSnapshot: () => state,
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     playPause() { if (!disposed && state.status === 'ready' && !preview) {
-      if (state.playing && !pauseRequested || countInActive) { pauseRequested = true; stopCountIn(); api.pause(); } else start();
+      if (pendingSeek) { pendingSeek.resume = !pendingSeek.resume; pauseRequested = !pendingSeek.resume; if (pauseRequested) pendingCountIn = false; }
+      else if ((state.playing || playRequested) && !pauseRequested || countInActive) { pauseRequested = true; stopCountIn(); api.pause(); } else start();
     } },
-    pause() { if (!disposed) { pauseRequested = true; stopCountIn(); api.pause(); } },
+    pause() { if (!disposed) { pauseRequested = true; if (pendingSeek) { pendingSeek.resume = false; pendingCountIn = false; } stopCountIn(); if (!awaitingPause) api.pause(); } },
     seek(index) { if (!disposed && state.status === 'ready' && Number.isInteger(index)) {
       const bounded = Math.max(state.loop?.start ?? 0, Math.min(state.loop?.end ?? state.measures.length - 1, index));
       if (state.measures[bounded]) seekTick(state.measures[bounded].startTick);
@@ -374,9 +404,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     speed(value) { if (!disposed && Number.isFinite(value)) {
       const speed = Math.max(.5, Math.min(2, Math.round(value * 100) / 100));
       const restart = countInActive;
-      if (restart) { stopCountIn(); api.pause(); api.tickPosition = state.measures[state.measure].startTick; }
       api.playbackSpeed = speed; update({ speed });
-      if (restart) { pendingCountIn = true; start(); }
+      if (restart) seekTick(state.measures[state.measure].startTick);
     } },
     rhythm(value) {
       if (disposed || state.status !== 'ready' || value.volume !== undefined && !Number.isFinite(value.volume)) return;

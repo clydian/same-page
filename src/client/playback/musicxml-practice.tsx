@@ -306,7 +306,6 @@ export function MusicXmlPractice({
           <label className="practice-field">拍声音量 · {Math.round((state.beatVolume ?? .5) * 100)}%
             <input aria-label="拍声音量" type="range" min="0" max="1" step="0.01" value={state.beatVolume ?? .5} disabled={!ready} onChange={event => session?.rhythm({ volume: Number(event.target.value) })} />
           </label>
-          <p className="practice-hint">节拍器与预备拍共用音量。跳转后按目标小节打拍，普通暂停继续与循环衔接不加预备拍。</p>
           <Switch
             className="practice-switch"
             isSelected={Boolean(state.solfege)}
@@ -346,16 +345,18 @@ export function MusicXmlPractice({
               </select>
             </label>
           )}
-          <p className="practice-hint">
-            {view !== "pdf"
-              ? "按当前调号标注，不改变混音。"
-              : "切换到重排谱面后可设置。"}
-          </p>
+          {view === "pdf" && <p className="practice-hint">切换到重排谱面后可设置首调数字。</p>}
         </section>
         {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? '此练习谱可离线打开与播放。' : offlineStatus === 'preparing' ? '正在准备离线播放…' : <>离线准备未完成。<Button onPress={retryOffline}>重试离线准备</Button></>}</p>}
-        <p className="practice-hint">
-          MusicXML 合成播放，不演唱歌词；原 PDF 需手动翻页。
-        </p>
+        <details className="practice-help">
+          <summary>使用说明</summary>
+          <div className="practice-help-content">
+            <p className="practice-hint">节拍器与预备拍共用拍声音量。</p>
+            <p className="practice-hint">开启预备拍后，跳转会按目标小节的拍号预备一小节；普通暂停继续与循环衔接不加预备拍。</p>
+            <p className="practice-hint">首调数字按当前调号标注，不改变混音。</p>
+            <p className="practice-hint">MusicXML 合成播放，不演唱歌词；原 PDF 需手动翻页。</p>
+          </div>
+        </details>
       </PracticePlayerShell>
     </>
   );

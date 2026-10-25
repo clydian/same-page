@@ -2,8 +2,8 @@
 .practice-transport { position: relative; display: flex; align-items: center; gap: 0; justify-content: center; }
 .practice-settings { justify-self: end; }
 .practice-play { border-radius: 50%; }
-.practice-mixer summary::after { content: "+"; margin-left: auto; color: #718077; }
-.practice-mixer[open] summary::after { content: "−"; }
+.practice-help summary::after, .practice-mixer summary::after { content: "+"; margin-left: auto; color: #718077; }
+.practice-help[open] summary::after, .practice-mixer[open] summary::after { content: "−"; }
 .practice-icon { display: inline-flex; justify-content: center; align-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
 .practice-icon[data-hovered], .practice-icon[data-active] { background: #eaf0ea; }
 .practice-icon[data-disabled] { opacity: .35; cursor: default; }
@@ -320,3 +320,8 @@
 .practice-speed-actions { display: flex; gap: 6px; }
 .practice-speed-actions .practice-action { flex: 1; padding-inline: 6px; min-height: 44px; }
 .practice-tempo { margin: 0; line-height: 1.7; font-variant-numeric: tabular-nums; }
+
+.practice-help { border-top: 1px solid #e4eae4; font-size: 12px; color: #718077; }
+.practice-help summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
+.practice-help summary:focus-visible { outline: 2px solid #769787; outline-offset: 2px; border-radius: 6px; }
+.practice-help-content { display: grid; gap: 8px; padding-bottom: 4px; }
