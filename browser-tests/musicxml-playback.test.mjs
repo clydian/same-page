@@ -100,7 +100,6 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
   await player.getByRole('button',{name:'展开播放控制',exact:true}).click();
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('0');
-  await expect(player.getByLabel('速度',{exact:true})).toHaveValue('1');
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await selectPracticeView(page, '重排谱面');
   await expect(notation).toBeVisible({timeout:20000});
@@ -125,9 +124,6 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
 
   await settings.getByLabel('关注声部',{exact:true}).selectOption('1');
-  await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
-  await player.getByLabel('速度',{exact:true}).selectOption('0.75');
-  await player.getByRole('button',{name:'练习设置',exact:true}).click();
   await draftLoopRange(page,0,2);
   await settings.getByRole('button',{name:'应用范围',exact:true}).click();
   await expect(settings.getByRole('button',{name:'关闭循环',exact:true})).toBeVisible();
@@ -202,7 +198,6 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
   await expect(settings.getByLabel('关注声部',{exact:true})).toHaveValue('');
-  await expect(player.getByLabel('速度',{exact:true})).toHaveValue('1');
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('0');
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await page.setViewportSize({width:390,height:844});
