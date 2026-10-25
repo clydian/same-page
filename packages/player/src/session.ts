@@ -261,13 +261,15 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (countInActive && event.countInId === countInRequest) { update({ countInBeat: event.countInBeat, countInBeats: event.countInBeats }); }
       return;
     }
-    if (seekReplyTick !== null) {
-      if (Math.abs(event.currentTick - seekReplyTick) < 1) seekReplyTick = null;
-      else return; // Stale positions, including the native pause rewind, cannot move the destination.
-    }
     if (countInActive) {
-      if (event.countInFinished && event.countInId === countInRequest) stopCountIn();
-      else return; // Ignore old main-position replies while the new target is counting in.
+      if (event.countInFinished && event.countInId === countInRequest) {
+        // The synthesizer may already have buffered beyond the exact start tick.
+        seekReplyTick = null; stopCountIn();
+      } else return; // Ignore old main-position replies while the new target is counting in.
+    }
+    if (seekReplyTick !== null) {
+      if (event.isSeek && Math.abs(event.currentTick - seekReplyTick) > 1) return;
+      seekReplyTick = null;
     }
     const index = state.measures.findLastIndex(item => item.startTick <= event.currentTick);
     const tempo = tempoAt(event.currentTick);

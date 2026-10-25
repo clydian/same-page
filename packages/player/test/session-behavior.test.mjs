@@ -261,7 +261,7 @@ test('playing score taps survive the native asynchronous pause rewind with or wi
    assert.equal(transport.tick,200,'the native pause reply must not restore the old beat');
    assert.equal(h.session.getSnapshot().measure,2);assert.equal(transport.playing,true);
    assert.deepEqual(transport.starts.at(-1),{tick:200,volume:countIn?.5:0});
-   if(countIn){h.api.playerPositionChanged.emit({currentTick:200,countInId:1,countInFinished:true});assert.equal(h.session.getSnapshot().measure,2);}
+   if(countIn){h.api.playerPositionChanged.emit({currentTick:220,countInId:1,countInFinished:true});assert.equal(h.session.getSnapshot().measure,2);assert.equal(h.session.getSnapshot().countInBeats,0);h.api.playerPositionChanged.emit({currentTick:310});assert.equal(h.session.getSnapshot().measure,3,'position updates continue after buffered count-in completion');}
   } finally {h.dispose();}
  }
 });
