@@ -2,11 +2,39 @@
 
 PR 更新触发按变更范围选择的检查，同一 PR 新运行取消旧运行。`main` push 验证实际合并结果；生产部署继续串行，迁移和部署不被后续 push 中断。原有 required check 名称 `verify` 保持不变。
 
-2026-10-23 已通过 GitHub branch protection 实际启用 `verify` 必需检查，来源固定为
-GitHub Actions（app id 15368），`strict=true` 要求 PR 基于最新 main 验证，管理员也受保护约束。
-其他审查与禁止 force push/删除的配置保持原值。工作流中的汇总 gate 不等同于 GitHub
-合并配置；可用 `gh api repos/clydian/same-page/branches/main/protection/required_status_checks`
-回读 `{strict, checks}`。新提交/取消/失败不能借旧的绿灯合并，日常合并保持串行。
+2026-10-23 实际启用了 GitHub branch protection：必需检查为 GitHub Actions
+（app id 15368）的 `verify`，并开启 `strict=true` 和管理员约束。2026-10-25 已通过 GitHub API 调整为
+**保留必需的 `verify`，关闭必须跟上最新 main 的要求**（`strict=false`，GitHub 的 loose 模式）。
+这样一批 PR 的当前版本各自通过必需检查且满足其他合并条件后，可以逐个合并；前一个 PR
+使 main 前进，不再仅因此要求后面的 PR 更新分支并重跑。新增提交仍须满足检查，失败或取消
+不作为成功放行；冲突和未解决讨论仍需处理，管理员约束及禁止 force push/删除的配置保留。
+
+这个取舍允许两个单独通过检查的 PR 在组合后出现问题。main push 的 CI 继续验证实际合并结果，
+部署继续受 `verify`、发布范围和通道开关控制；main 失败时暂停后续批量合并，修复或回退问题提交。
+关闭 strict 不保证 main 始终为绿，也不等于 GitHub auto-merge 或合并队列。
+
+### GitHub 设置与回读
+
+分支保护保存在 GitHub 仓库设置中，提交或合并仓库文件不会自动改变这些设置。
+2026-10-25 已实际执行以下 PATCH，并回读确认 `strict=false`、必需检查仍为
+GitHub Actions 的 `verify`（app id 15368）；管理员约束、讨论解决要求及禁止强推/删除保持原值。
+
+```sh
+# 只修改 strict 字段，保留现有必需检查及其来源。
+gh api --method PATCH repos/clydian/same-page/branches/main/protection/required_status_checks \
+  -F strict=false
+
+gh api repos/clydian/same-page/branches/main/protection/required_status_checks \
+  --jq '{strict, checks}'
+```
+
+预期结果为 `strict: false`，`checks` 为 `[{"context":"verify","app_id":15368}]`。
+需要恢复严格模式时，对同一端点执行 `PATCH -F strict=true`，再回读确认。
+这份文档记录已应用的策略及操作方法，不会由 CI 自动同步或覆盖 GitHub 设置。
+
+GitHub 官方说明：[strict 与 loose 必需检查](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging)。
+
+### 诊断证据
 
 scope 的日志与 summary 记录实际 checkout SHA、Git tree、parents、比较 base、event、attempt
 和 Node 版本；squash 前后 SHA 不同是正常情况，判断同代码重跑必须比较 tree、scope 与运行环境。
