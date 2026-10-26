@@ -1,7 +1,7 @@
 import { completeLoadingJourney, markLoadingMilestone, startLoadingJourney } from '../performance/loading-performance';
 import type { PlayerLoadingStage } from '@same-page/player';
 export type MusicXmlSourceTier = 'prepared' | 'local' | 'network' | 'offline';
-type Stage = PlayerLoadingStage | 'authorized' | 'raw-ready' | 'offline-ready';
+type Stage = PlayerLoadingStage | 'authorized' | 'raw-ready' | 'offline-ready' | 'offline-retry-required';
 interface MusicXmlLoading {
   stage(stage: Stage): void;
   source(tier: MusicXmlSourceTier): void;

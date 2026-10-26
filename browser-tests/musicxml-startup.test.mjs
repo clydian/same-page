@@ -148,7 +148,18 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
             await page.goto(library);
             await expandDirectory(page, 2);
             await open('network', scenario === 'hidden-notation');
-            await expect.poll(() => hasStoredOriginal(page, attachmentId), { timeout: 20000 }).toBe(true);
+            try {
+              await expect.poll(() => hasStoredOriginal(page, attachmentId), { timeout: 20000 }).toBe(true);
+            } catch (error) {
+              const stages = await page.evaluate(() => window.__xmlStartup.metrics
+                .filter(record => ['authorized', 'raw-ready', 'ready', 'first-system', 'offline-ready', 'offline-retry-required']
+                  .some(stage => record.name === `musicxml:${stage}`))
+                .map(({ name, startTime }) => ({ name, startTime })));
+              await mkdir(evidence, { recursive: true }).then(() =>
+                writeFile(`${evidence}/original-save-stages.json`, JSON.stringify(stages, null, 2)),
+              ).catch(() => undefined);
+              throw error;
+            }
             if (scenario === 'prepared-reopen') {
               await endPractice();
               await page.getByRole('button', { name: '练习谱', exact: true }).click();
