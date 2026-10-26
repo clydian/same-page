@@ -26,6 +26,33 @@ function hasStoredOriginal(page, attachmentId) {
   }), attachmentId);
 }
 
+async function holdOriginalStorage(page) {
+  return page.evaluateHandle(async () => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('same-page');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const transaction = db.transaction('system', 'readwrite'), store = transaction.objectStore('system');
+    let holding = true;
+    const finished = new Promise(resolve => {
+      transaction.oncomplete = transaction.onabort = () => { db.close(); resolve(); };
+    });
+    await new Promise(resolve => {
+      let started = false;
+      const pump = () => {
+        const request = store.get('xml-save-test-lock');
+        request.onsuccess = () => {
+          if (!started) { started = true; resolve(); }
+          if (holding) pump();
+        };
+      };
+      pump();
+    });
+    return { release: () => { holding = false; return finished; } };
+  });
+}
+
 for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
   describe(`${engine}: MusicXML startup`, { timeout: 180000 }, () => {
     let fixture, cookies, attachmentId, base;
@@ -51,14 +78,16 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
     });
     after(async () => fixture?.stop());
 
-    for (const scenario of ['hidden-notation', 'prepared-reopen', 'local-directory-boundary', 'audio-only']) {
+    for (const scenario of ['hidden-notation', 'prepared-reopen', 'local-directory-boundary', 'local-storage-timeout', 'audio-only']) {
       test(scenario, async t => {
         const profile = await mkdtemp(path.join(tmpdir(), `same-page-xml-startup-${engine}-${scenario}-`));
-        let context;
+        let context, storageLock;
         const directoryHeld = Promise.withResolvers(), directoryReleased = Promise.withResolvers();
         const originalRequested = Promise.withResolvers(), originalReleased = Promise.withResolvers();
         t.after(async () => {
           directoryReleased.resolve(); originalReleased.resolve();
+          await storageLock?.evaluate(lock => lock.release()).catch(() => {});
+          await storageLock?.dispose().catch(() => {});
           try { await context?.close(); } finally { await rm(profile, { recursive: true, force: true }); }
         });
         // Actual Blob originals need a persistent WebKit profile on local macOS.
@@ -97,6 +126,12 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
         if (scenario === 'hidden-notation') await context.route(url => url.pathname === `${base}/file`, async route => {
           originalRequested.resolve(); await originalReleased.promise; await route.continue();
         });
+        if (scenario === 'local-storage-timeout') await context.route(url => url.pathname === `${base}/file`, async route => {
+          // The source can request network bytes only after abandoning the
+          // blocked local access. Let the old capture finish before rendering.
+          await storageLock.evaluate(lock => lock.release());
+          await route.continue();
+        });
         await withBrowserEvidence(context, evidence, async () => {
           const open = async (tier, switchBeforeReady = false) => {
             await page.evaluate(() => { window.__xmlStartup.metrics = []; window.__xmlStartup.midi = 0; });
@@ -115,15 +150,41 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
             await expect.poll(() => page.evaluate(() => window.__xmlStartup.metrics.some(record => record.name === 'musicxml:first-system')), { timeout: 20000 }).toBe(true);
             await expect(page.locator('.practice-notation .at-surface svg text').filter({ hasText: '\uE0A2' }).first()).toBeVisible();
             const result = await page.evaluate(() => window.__xmlStartup);
+            const retryRequired = result.metrics.some(record => record.name === 'musicxml:offline-retry-required');
+            // ADR-0004 permits a fresh network open when local reuse exceeds
+            // its budget. Only this explicit loss of automatic-save eligibility
+            // changes source expectations; render/write failures still fail.
+            const actualTier = retryRequired ? 'network' : tier;
             assert.equal(result.midi, 1, 'one generated playback payload per new score');
-            assert.ok(result.metrics.some(record => record.name === `musicxml:source:${tier}`));
+            assert.ok(result.metrics.some(record => record.name === `musicxml:source:${actualTier}`));
             assert.equal(requests.slice(start).filter(path => path === base).length, 1, 'one freshly authorized metadata read per explicit opening');
-            assert.equal(requests.slice(start).filter(path => path === `${base}/file`).length, tier === 'network' ? 1 : 0, 'local/prepared paths do not request the original again');
+            assert.equal(requests.slice(start).filter(path => path === `${base}/file`).length, actualTier === 'network' ? 1 : 0, 'only a network source requests the original');
             const intent = result.metrics.find(record => record.name === 'open-musicxml:start')?.startTime;
             timings.push({
-              tier, midiGenerations: result.midi,
+              tier: actualTier, expectedTier: tier, retryRequired, midiGenerations: result.midi,
               milestones: result.metrics.filter(record => record.name.startsWith('musicxml:')).map(record => ({ name: record.name, milliseconds: Math.max(0, record.startTime - (intent ?? record.startTime)) })),
             });
+            return { retryRequired };
+          };
+          const saveOriginal = async retryRequired => {
+            if (retryRequired) {
+              assert.equal(await hasStoredOriginal(page, attachmentId), false, 'abandoned access cannot automatically save later');
+              const start = requests.length, midi = await page.evaluate(() => window.__xmlStartup.midi);
+              await page.getByTestId('musicxml-player').getByRole('button', { name: '练习设置', exact: true }).click();
+              const retry = page.getByRole('button', { name: '重试离线准备', exact: true });
+              await expect(retry).toBeVisible();
+              assert.equal(await hasStoredOriginal(page, attachmentId), false, 'opening settings is not a new save intent');
+              await retry.click();
+              await expect.poll(() => hasStoredOriginal(page, attachmentId), { timeout: 20000 }).toBe(true);
+              assert.equal(requests.slice(start).filter(path => path === base).length, 1, 'explicit retry obtains fresh authorization');
+              assert.equal(requests.slice(start).filter(path => path === `${base}/file`).length, 0, 'retry saves the already downloaded original');
+              assert.equal(await page.evaluate(() => window.__xmlStartup.midi), midi, 'retry does not restart playback preparation');
+              await page.getByRole('button', { name: '关闭练习设置', exact: true }).click();
+            } else {
+              // Automatic saving remains mandatory when the opening retained
+              // its original local access; do not retry a failed write here.
+              await expect.poll(() => hasStoredOriginal(page, attachmentId), { timeout: 20000 }).toBe(true);
+            }
           };
           const endPractice = async () => {
             await page.getByRole('button', { name: '结束练习', exact: true }).click();
@@ -147,22 +208,43 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
           } else {
             await page.goto(library);
             await expandDirectory(page, 2);
-            await open('network', scenario === 'hidden-notation');
-            try {
-              await expect.poll(() => hasStoredOriginal(page, attachmentId), { timeout: 20000 }).toBe(true);
-            } catch (error) {
-              const stages = await page.evaluate(() => window.__xmlStartup.metrics
-                .filter(record => ['authorized', 'raw-ready', 'ready', 'first-system', 'offline-ready', 'offline-retry-required']
-                  .some(stage => record.name === `musicxml:${stage}`))
-                .map(({ name, startTime }) => ({ name, startTime })));
-              await mkdir(evidence, { recursive: true }).then(() =>
-                writeFile(`${evidence}/original-save-stages.json`, JSON.stringify(stages, null, 2)),
-              ).catch(() => undefined);
-              throw error;
+            if (scenario === 'local-storage-timeout') storageLock = await holdOriginalStorage(page);
+            const initial = await open('network', scenario === 'hidden-notation');
+            if (scenario === 'local-storage-timeout') assert.equal(initial.retryRequired, true, 'a stalled store must not block authorized playback');
+            await saveOriginal(initial.retryRequired);
+            if (scenario === 'local-storage-timeout') {
+              const saved = await page.evaluate(id => new Promise((resolve, reject) => {
+                const request = indexedDB.open('same-page');
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                  const db = request.result, store = db.transaction('system').objectStore('system');
+                  const keys = store.getAllKeys();
+                  keys.onsuccess = () => {
+                    const key = keys.result.find(key => String(key).startsWith('["offline-musicxml",') && String(key).includes(id));
+                    if (key === undefined) { db.close(); reject(new Error('saved_original_missing')); return; }
+                    const record = store.get(key);
+                    record.onerror = () => { db.close(); reject(record.error); };
+                    record.onsuccess = () => {
+                      db.close();
+                      if (!record.result?.blob) { reject(new Error('saved_original_blob_missing')); return; }
+                      record.result.blob.arrayBuffer().then(bytes => resolve(Array.from(new Uint8Array(bytes))), reject);
+                    };
+                  };
+                  keys.onerror = () => { db.close(); reject(keys.error); };
+                };
+              }), attachmentId);
+              assert.deepEqual(Buffer.from(saved), musicXmlFixture(48), 'explicit retry preserves the exact downloaded original');
             }
-            if (scenario === 'prepared-reopen') {
+            if (scenario === 'prepared-reopen' || scenario === 'local-storage-timeout') {
               await endPractice();
               await page.getByRole('button', { name: '练习谱', exact: true }).click();
+              if (initial.retryRequired) {
+                // The abandoned opening cannot retain a prepared-cache identity.
+                // A later local open establishes its own authorized preparation.
+                await open('local');
+                await endPractice();
+                await page.getByRole('button', { name: '练习谱', exact: true }).click();
+              }
               await open('prepared');
             } else if (scenario === 'local-directory-boundary') {
               await endPractice();

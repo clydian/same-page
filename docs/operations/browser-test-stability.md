@@ -81,6 +81,17 @@ Playwright 关闭 snapshots 仍会在 action trace 中保存 route.fulfill 参�
 仅将当前 `$GITHUB_WORKSPACE` 登记到 job HOME 的 `safe.directory`，避免 checkout 临时 HOME
 中的设置失效而在测试前退出。
 
+`xml-original-save` 使用默认构建复验最初在非通道构建中出现的 #586，串行运行 WebKit 的
+`prepared-reopen` 与 `local-storage-timeout` 三十轮；main 通道构建和两引擎仍由常规 CI 保护。
+后者在独立 profile 中持有真实 IndexedDB 事务，等已授权的网络原文请求出现后释放，
+确定性触发 ADR-0004 的本地访问降级。测试要求播放就绪、旧访问不能迟到保存，显式重试重新授权，
+按原字节保存且不重复下载或生成 MIDI，再验证新的 local/prepared 打开。
+
+启动测试仅在 `musicxml:offline-retry-required` 明确表示初始自动保存资格已丢失时，验证界面上的
+显式离线重试路径并记录该降级；不会循环重试。保留资格的打开仍须在原期限内自动保存，
+保存或渲染失败不能走此分支变绿。后续 local/prepared 读取若也因本地访问不可用退回网络，
+仍必须有同一降级标记、一次新授权和精确的原文请求次数，不能把网络来源报告为缓存命中。
+
 ## CI 环境准备 · #391 与 2026-10-22 后续修复
 
 Playwright 安装与浏览器回归共用十分钟 job 预算时，Ubuntu Azure 镜像下载系统依赖可能耗尽全部时间；2026-10-08 的隔离 Linux 实验再次观察到安装超过十分钟、测试尚未开始。默认镜像其他对照约52/63秒，官方 Ubuntu archive 对照约51秒，因此这不是固定的应用执行成本。
