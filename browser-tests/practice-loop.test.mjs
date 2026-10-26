@@ -30,6 +30,19 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  const settings=page.getByRole('dialog',{name:'练习设置',exact:true}),progress=bar.getByRole('slider',{name:'播放进度',exact:true});
  const open=()=>bar.getByRole('button',{name:'练习设置',exact:true}).click();
  const close=()=>page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+ for (const [width,height] of [[320,740],[390,844],[1024,768]]) {
+  await page.setViewportSize({width,height});
+  const geometry=()=>bar.evaluate(element=>['.practice-timeline','.practice-play','.practice-settings'].map(selector=>element.querySelector(selector).getBoundingClientRect().toJSON()).concat(element.getBoundingClientRect().toJSON()));
+  const before=await geometry();
+  await open();await setLoopRange(page,2,4);await close();
+  const trigger=bar.getByRole('button',{name:'练习设置',exact:true});
+  await expect(trigger).toHaveText('练习');await expect(trigger).toHaveAttribute('data-loop','true');
+  assert.deepEqual(await geometry(),before,'enabling loop keeps the timeline, buttons and dock fixed');
+  await open();await settings.getByRole('switch',{name:'片段循环',exact:true}).locator('xpath=ancestor::label').click();await close();
+  await expect(trigger).toHaveText('练习');await expect(trigger).not.toHaveAttribute('data-loop','true');
+  assert.deepEqual(await geometry(),before,'disabling loop keeps the timeline, buttons and dock fixed');
+ }
+ await page.evaluate(()=>{window.__loopCommands=[];});
  await open();await setLoopRange(page,2,4);await close();
  await expect(progress).toHaveAttribute('min','2');await expect(progress).toHaveAttribute('max','4');
  await expect(bar.getByRole('button',{name:'前一小节',exact:true})).toBeDisabled();

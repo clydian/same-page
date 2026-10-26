@@ -38,9 +38,8 @@ it('keeps pointer preview through WebKit native range blur and commits on releas
  fireEvent.change(input,{target:{value:'7'}});fireEvent.pointerUp(window);
  expect(seek).toHaveBeenCalledExactlyOnceWith(7);
 });
-it('uses the active loop as the full timeline extent and labels both boundaries',()=>{
- const seek=vi.fn();render(<PlaybackTimeline timeline={{value:3,min:2,max:4,loop:true,disabled:false,label:value=>`第 ${value+1} 小节`,seek}} />);
+it('uses the active loop as the full timeline extent',()=>{
+ const seek=vi.fn();render(<PlaybackTimeline timeline={{value:3,min:2,max:4,disabled:false,label:value=>`第 ${value+1} 小节`,seek}} />);
  const slider=screen.getByRole('slider');expect(slider).toHaveAttribute('min','2');expect(slider).toHaveAttribute('max','4');
- expect(screen.getByText('A · 第 3 小节')).toBeVisible();expect(screen.getByText('B · 第 5 小节')).toBeVisible();
  expect(slider.parentElement?.style.getPropertyValue('--practice-progress')).toBe('50%');
 });

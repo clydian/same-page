@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-export type Timeline = { value: number; min?: number; loop?: boolean; max: number; step?: number; disabled: boolean; label(value: number): string; seek(value: number): void };
+export type Timeline = { value: number; min?: number; max: number; step?: number; disabled: boolean; label(value: number): string; seek(value: number): void };
 export function PlaybackTimeline({ timeline }: { timeline: Timeline }) {
   const [draft, setDraft] = useState<number | null>(null);
   const bubble = useRef<HTMLOutputElement>(null);
@@ -32,7 +32,6 @@ export function PlaybackTimeline({ timeline }: { timeline: Timeline }) {
   const min = timeline.min ?? 0;
   const percent = timeline.max > min ? ((draft ?? timeline.value) - min) / (timeline.max - min) * 100 : 0;
   return <div className="practice-timeline-track" style={{ '--practice-progress': `${percent}%` } as CSSProperties}>
-    {timeline.loop && <div className="practice-timeline-bounds"><span>A · {timeline.label(min)}</span><span>B · {timeline.label(timeline.max)}</span></div>}
     {draft !== null && <output ref={bubble} className="practice-timeline-preview" style={{ left: `clamp(${halfWidth}px, calc(${percent}% + ${10 - percent * .2}px), calc(100% - ${halfWidth}px))` }}>{label}</output>}
     <input className="practice-timeline" aria-label="播放进度" aria-valuetext={label}
       type="range" min={min} max={timeline.max} step={timeline.step ?? 1} disabled={timeline.disabled} value={draft ?? timeline.value}

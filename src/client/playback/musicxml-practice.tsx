@@ -120,7 +120,6 @@ export function MusicXmlPractice({
           value: state.measure,
           min: state.loop?.start ?? 0,
           max: state.loop?.end ?? Math.max(0, state.measures.length - 1),
-          loop: Boolean(state.loop),
           disabled: !ready,
           label: (value) => state.measures[value]?.label ?? "准备中",
           seek: (value) => session?.seek(value),
