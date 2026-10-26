@@ -11,6 +11,7 @@ on:
         options:
           - navigation-offline
           - reader-touch
+          - practice-reopen
   pull_request:
     types: [labeled]
 
@@ -54,6 +55,9 @@ jobs:
               ;;
             reader-touch)
               test_args=(--test-name-pattern='continuous native touch|continuous touch pinch' visual-report/reader-immersive.test.mjs)
+              ;;
+            practice-reopen)
+              test_args=(--test-name-pattern='^(chromium|webkit): MusicXML startup prepared-reopen$' browser-tests/musicxml-startup.test.mjs)
               ;;
             *) echo "Unknown stability scenario" >&2; exit 1 ;;
           esac
