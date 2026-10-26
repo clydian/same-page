@@ -62,6 +62,9 @@ it('prepares a host-only alternate credential, preserves the exact session and r
   expect(credential).toContain('Secure; HttpOnly; SameSite=Lax');
   expect(credential).not.toMatch(/domain=/i);
   expect(jars.backup.has('__Secure-better-auth.session_token')).toBe(false);
+  const ready = await call('backup', '/connection/status');
+  expect(ready.headers.getSetCookie().some(cookie => cookie.startsWith('__Secure-better-auth.session_token='))).toBe(true);
+  expect(await ready.json()).toMatchObject({ sessionId, productAccess: true });
   const original = await env.DB.prepare('SELECT created_at FROM session WHERE id = ?').bind(sessionId).first<{ created_at: number }>();
   const result = await call('backup', '/auth/get-session');
   expect(result.status).toBe(200);

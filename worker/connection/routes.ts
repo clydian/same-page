@@ -3,6 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import { getSessionCookie } from "better-auth/cookies";
 import { z } from "zod";
 import { createAuth } from "../auth/create-auth";
+import { readContextSession } from "../auth/context-session";
 import type { AppEnvironment } from "../env";
 import { consumeRateLimit, hashRateLimitIdentity } from "../security/rate-limit";
 import { connectionOrigins } from "./config";
@@ -27,7 +28,10 @@ connectionRoutes.use("*", async (c, next) => {
 });
 
 connectionRoutes.get("/status", async c => {
-  const session = await createAuth(c.env, c.executionCtx).api.getSession({ headers: c.req.raw.headers, query: { disableRefresh: true } });
+  // Preparation is authenticated foreground activity too. Forward the normal
+  // renewal cookie, so an unused entry does not silently age out while the
+  // shared session remains active through the other entry.
+  const session = await readContextSession(c);
   const deleted = session && await c.env.DB.prepare("SELECT 1 FROM user_lifecycle WHERE user_id = ?").bind(session.user.id).first();
   // A recovery-only native session is still a credential, but grants no
   // product access and cannot be exchanged. Lifecycle reauthentication needs
