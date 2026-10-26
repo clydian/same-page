@@ -132,7 +132,9 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
               try {
                 await canvas.click({ position: { x: 195, y: 350 } });
               } catch (error) {
-                const geometry = await canvas.evaluate(element => {
+                const geometry = await page.evaluate(() => {
+                  const element = document.querySelector('canvas[data-pdf-canvas-active]');
+                  if (!element) return { canvas: null };
                   const rect = element.getBoundingClientRect();
                   const shell = element.closest('.reader-shell');
                   const hit = document.elementFromPoint(rect.x + 195, rect.y + 350);
@@ -146,7 +148,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
                     practicing: shell?.hasAttribute('data-practicing'),
                     playbackView: shell?.getAttribute('data-playback-view'),
                   };
-                });
+                }).catch(() => ({ unavailable: true }));
                 await mkdir(evidence, { recursive: true });
                 await writeFile(`${evidence}/reader-hit-target.json`, JSON.stringify(geometry, null, 2));
                 throw error;
