@@ -65,3 +65,20 @@ Chromium / WebKit 的 `musicxml-playback.test.mjs` 和 `playback-ux.test.mjs` �
 - Escape、失焦、指针取消或面板卸载取消未完成拖动；取消后即使继续移动并释放旧手势，也不能提交。真实浏览器回归覆盖按住指针时 Escape／blur 后继续移动的情形。
 
 验证入口：`npm run lint`、`npm run typecheck`、`npm run build`、播放器与客户端测试；浏览器 `practice-settings`、`practice-loop`、`practice-measure-labels`、`playback-ux`、`practice-rhythm`。截图保存在 `artifacts/verification/practice-settings/` 和 `artifacts/verification/practice-loop/`，覆盖 320px、390px、1440px 以及跨行透视。自动化不代替实际设备手势和听感验收。
+
+## #582 CI 页面错误修复（2026-10-26）
+
+原 CI [40250560043](https://github.com/clydian/same-page/actions/runs/40250560043)
+在后台工作台 WebKit 用例末尾报 `['']`。用其原始封存构建复现后，补记 message 确认为
+`ResizeObserver loop completed with undelivered notifications.`：展开混音时弹层高度变化，
+React Aria 在观察器回调中回写 maxHeight，再次触发尺寸通知。该机制也有
+[上游讨论](https://github.com/adobe/react-spectrum/pull/7742)。
+
+宿主现根据触发按钮上下可用空间独立约束弹层高度，首次挂载前测量，窗口、visual viewport
+及按钮尺寸变化通过下一帧更新；CSS 保持该约束优先于库在回调里的临时内联高度。
+原 Popover 继续负责定位、翻转、焦点、遮罩及关闭。卸载会取消帧并移除观察和监听。
+页面错误仍全部阻止测试通过，并同时记录 message 与 stack，不过滤空 stack 或尺寸错误。
+
+验证：原产物在修改前稳定复现；修复后的通道构建通过 Chromium/WebKit 后台导入、试听、
+混音与发布，以及 320/390/1440px 设置展开、帮助和循环操作，共 4 项真实浏览器回归。
+新增几何断言检查可滚动弹层外框在视口内，保留全部错误断言；生产构建与类型检查通过。

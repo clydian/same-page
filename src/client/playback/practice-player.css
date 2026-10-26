@@ -9,7 +9,8 @@
 .practice-play { border-radius: 50%; background: #365747; color: #fff; }
 .practice-play[data-hovered] { background: #264737; }
 .practice-tooltip { z-index: 110; padding: 6px 10px; background: #fcfdfb; color: #31463a; border-radius: 8px; box-shadow: 0 2px 12px #17352b22; font-size: 12px; }
-.practice-popover { z-index: 100; width: min(340px,calc(100vw - 24px)); max-height: var(--available-height); overflow: auto; border: 1px solid #dce4de; border-radius: 18px; box-shadow: 0 14px 45px #0a171c26; background: #fcfdfb; color: #31463a; }
+/* Override Aria's temporary inline maxHeight writes during ResizeObserver delivery. */
+.practice-popover { z-index: 100; width: min(340px,calc(100vw - 24px)); max-height: var(--practice-popover-height,calc(100dvh - 24px)) !important; overflow: auto; border: 1px solid #dce4de; border-radius: 18px; box-shadow: 0 14px 45px #0a171c26; background: #fcfdfb; color: #31463a; }
 .practice-panel { display: grid; gap: 16px; padding: 16px; outline: none; }
 .practice-panel header { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
 .practice-panel header > div { display: grid; gap: 4px; min-width: 0; }

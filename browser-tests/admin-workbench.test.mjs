@@ -69,7 +69,7 @@ for (const [engine, type] of [
       });
       const page = await context.newPage(),
         errors = [];
-      page.on("pageerror", (e) => errors.push(e.stack));
+      page.on("pageerror", (e) => errors.push({ message: e.message, stack: e.stack }));
       const visitor = await browser.newContext({ serviceWorkers: "block" });
       const entry = await visitor.newPage();
       await entry.goto(f.origin + "/admin");

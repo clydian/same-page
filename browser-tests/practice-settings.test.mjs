@@ -30,11 +30,19 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await page.setViewportSize({width,height});
   await expect(settings).toBeVisible();
   const bounds=await settings.boundingBox();assert.ok(bounds.x>=0 && bounds.x+bounds.width<=width);
+  await expect.poll(async()=>{
+   const bounds=await page.locator('.practice-popover').boundingBox();
+   return bounds!==null && bounds.y>=0 && bounds.y+bounds.height<=height;
+  }).toBe(true);
   await page.screenshot({path:`artifacts/verification/practice-settings/${engine}-${name}-overview.png`});
   const helpColumns=await settings.locator('.practice-setting-row > .practice-help-button').evaluateAll(buttons=>buttons.map(button=>button.getBoundingClientRect().x));
   assert.ok(helpColumns.every(x=>Math.abs(x-helpColumns[0])<1),'help buttons share one column');
   await settings.getByRole('button',{name:'声部混音',exact:true}).click();
   await expect(settings.getByRole('slider',{name:'Alto 音量',exact:true})).toBeVisible();
+  await expect.poll(async()=>{
+   const bounds=await page.locator('.practice-popover').boundingBox();
+   return bounds!==null && bounds.y>=0 && bounds.y+bounds.height<=height;
+  }).toBe(true);
   assert.ok(await settings.evaluate(element=>element.scrollWidth<=element.clientWidth),'expanded mixer does not overflow');
   const faders=await settings.locator('.practice-part-volume input').evaluateAll(inputs=>inputs.map(input=>input.getBoundingClientRect().width));
   assert.ok(faders.every(width=>width>=90),'each mixer fader has enough space for touch adjustment');
