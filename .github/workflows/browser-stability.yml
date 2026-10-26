@@ -39,6 +39,10 @@ jobs:
         timeout-minutes: 1
         run: node .github/scripts/verify-browsers.mjs
       - run: npm run build
+      # checkout trusts the workspace in a temporary HOME. The experiment's
+      # identity capture runs in the job HOME, like production admission.
+      - name: Trust checked-out workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Ten consecutive runs of the selected scenario
         shell: bash
         env:
