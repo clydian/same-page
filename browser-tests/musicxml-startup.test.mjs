@@ -236,16 +236,18 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
               assert.deepEqual(Buffer.from(saved), musicXmlFixture(48), 'explicit retry preserves the exact downloaded original');
             }
             if (scenario === 'prepared-reopen' || scenario === 'local-storage-timeout') {
+              let reopenTier = 'prepared';
               await endPractice();
               await page.getByRole('button', { name: '练习谱', exact: true }).click();
               if (initial.retryRequired) {
                 // The abandoned opening cannot retain a prepared-cache identity.
                 // A later local open establishes its own authorized preparation.
-                await open('local');
+                const local = await open('local');
+                reopenTier = local.retryRequired ? 'local' : 'prepared';
                 await endPractice();
                 await page.getByRole('button', { name: '练习谱', exact: true }).click();
               }
-              await open('prepared');
+              await open(reopenTier);
             } else if (scenario === 'local-directory-boundary') {
               await endPractice();
               // A new document has no in-memory preparation, but retains the raw record.
