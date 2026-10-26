@@ -2,6 +2,7 @@ import { test } from "node:test";
 import { chromium, webkit, expect } from "@playwright/test";
 import { startVisualServer } from "./setup.mjs";
 import { createVisualFixtureSession } from "./fixtures.mjs";
+import { withBrowserEvidence } from "../browser-tests/browser-evidence.mjs";
 
 for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`${name}: drawer and reader settings return to their source, and changed forms require a decision`, async t => {
@@ -27,7 +28,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         });
         await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
         const drive = `${app.origin}/choirs/visual-choir`;
-        await run(page, drive);
+        await withBrowserEvidence(page.context(), `artifacts/verification/uiux-return/${name}/${label}`, () => run(page, drive));
       });
     }
     await scenario("settings-return-and-member-filter", async (page, drive) => {
