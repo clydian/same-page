@@ -11,6 +11,7 @@ import { NotationZoom, type NotationZoomProps } from './notation-zoom';
 import { usePracticeFocus } from './use-practice-focus';
 import { PracticeSplit } from './practice-split';
 import { PlaybackTimeline, type Timeline } from './playback-timeline';
+import { usePracticePopoverHeight } from './use-practice-popover-height';
 
 type Props = {
   source?: PlaybackSource; embedded?: boolean; notationZoom?: NotationZoomProps; ready: boolean; playing: boolean; message?: string; failed?: boolean;
@@ -34,6 +35,9 @@ export function PracticePlayerShell(props: Props) {
   const positionTrigger = useRef<HTMLButtonElement>(null);
   const settingsTrigger = useRef<HTMLButtonElement>(null);
   const speedTrigger = useRef<HTMLButtonElement>(null);
+  const panelTrigger = panel === 'settings' ? settingsTrigger : panel === 'speed' ? speedTrigger : positionTrigger;
+  const popover = useRef<HTMLElement>(null);
+  usePracticePopoverHeight(popover, panelTrigger, panel !== null);
   const dock = useRef<HTMLDivElement>(null), header = useRef<HTMLElement>(null);
   const location = useLocation(), navigate = useNavigate(), navigation = useAppNavigation();
   const isXml = props.embedded || source?.attachment.kind === 'musicxml';
@@ -108,7 +112,7 @@ export function PracticePlayerShell(props: Props) {
       </section>
     </div>
     {focus.notice && <div className="practice-focus-notice" role="status">{focus.notice}<Button className="practice-icon" aria-label="关闭全屏提示" onPress={focus.dismissNotice}><X size={16} aria-hidden="true" /></Button></div>}
-    {panel && <Popover triggerRef={panel === 'settings' ? settingsTrigger : panel === 'speed' ? speedTrigger : positionTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
+    {panel && <Popover ref={popover} triggerRef={panelTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
       <Dialog className="practice-panel" aria-label={panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}>
         <header><div><strong>{panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? '关闭练习设置' : panel === 'speed' ? '关闭速度调节' : '关闭定位'} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
         {panel === 'settings' ? props.children : panel === 'speed' ? <PracticeSpeed speed={props.speed ?? 1} tempo={props.tempo} ready={props.ready} setSpeed={value => props.setSpeed?.(value)} /> : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}

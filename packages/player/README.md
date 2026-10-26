@@ -392,3 +392,6 @@ scrolls/highlights notation without seeking audio or modifying the loop; `null`
 cancels, restoring the original viewport and prior playing state. `loop(start,
 end)` applies the draft (inclusive whole measures), seeks its start, and restores
 prior playing state. Dispose fences preview cleanup rather than restarting audio.
+
+
+`previewMeasure(index, { start, end })` optionally previews a complete loop draft while scrolling to the active endpoint. Whole measure bounds are merged per notation row and repeated visits are deduplicated; reflow rebuilds the markers. Omitting the range retains single measure preview compatibility. Preview does not seek or change the active playback range; `previewMeasure(null)` restores its highlight and previous browsing/play state.

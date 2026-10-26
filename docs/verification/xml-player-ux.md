@@ -53,3 +53,32 @@ Chromium / WebKit 的 `musicxml-playback.test.mjs` 和 `playback-ux.test.mjs` �
 本次验证（2026-10-25）：类型、lint、生产构建通过；348 项 player、345 项 Node、1273 项客户端测试通过；Chromium/WebKit 共 10 项浏览器回归通过，包括上述节拍、循环、跨视图、首调与布局。正式 SONiVOX 实际 PCM 测试确认高低重音可听、声部静音不影响拍声。完整原生测试当前 1860 项通过、64 项失败；未修改基线 1857 项通过、64 项失败，失败名称完全一致，无新增失败。原生相关 68 项音频测试全部通过。
 
 本机证据：`artifacts/verification/issue-575/results.json`、`mobile-speed.png`、`mobile-rhythm.png` 及相应测试日志。浏览器夹具首次需先完成 `npm run build`。真机音频时延、混音音量平衡和主观拍声听感待试听，不以自动测试替代。
+
+
+## 2026-10-26 · 练习设置与完整循环范围预览
+
+- 六个入口平铺，名称、问号和右侧开关／展开箭头固定列对齐；关注、混音、数字标注采用统一展开样式。
+- 问号可触控打开，不切换功能；Esc／关闭说明后保留设置面板。静音、独奏及离线状态直接可见。
+- 声部关注关闭恢复独立音量并保留静音、独奏；声部混音折叠后继续生效。320px 窄屏将名称与控制分两行，每条音量滑块至少 90px。
+- 循环首次开启即选中整曲；范围始终可调，拖动释放后提交，逐小节微调即时提交。关闭再开启复用本次范围，面板卸载不丢失记忆，新会话重置。
+- 预览覆盖整个 A/B 范围，反复经过同一谱面小节只标一次，同一行相邻边界合并，跨行分别显示。视图跟随当前端点，松手前不改变音频范围或位置，重排后重建高亮。
+- Escape、失焦、指针取消或面板卸载取消未完成拖动；取消后即使继续移动并释放旧手势，也不能提交。真实浏览器回归覆盖按住指针时 Escape／blur 后继续移动的情形。
+
+验证入口：`npm run lint`、`npm run typecheck`、`npm run build`、播放器与客户端测试；浏览器 `practice-settings`、`practice-loop`、`practice-measure-labels`、`playback-ux`、`practice-rhythm`。截图保存在 `artifacts/verification/practice-settings/` 和 `artifacts/verification/practice-loop/`，覆盖 320px、390px、1440px 以及跨行透视。自动化不代替实际设备手势和听感验收。
+
+## #582 CI 页面错误修复（2026-10-26）
+
+原 CI [40250560043](https://github.com/clydian/same-page/actions/runs/40250560043)
+在后台工作台 WebKit 用例末尾报 `['']`。用其原始封存构建复现后，补记 message 确认为
+`ResizeObserver loop completed with undelivered notifications.`：展开混音时弹层高度变化，
+React Aria 在观察器回调中回写 maxHeight，再次触发尺寸通知。该机制也有
+[上游讨论](https://github.com/adobe/react-spectrum/pull/7742)。
+
+宿主现根据触发按钮上下可用空间独立约束弹层高度，首次挂载前测量，窗口、visual viewport
+及按钮尺寸变化通过下一帧更新；CSS 保持该约束优先于库在回调里的临时内联高度。
+原 Popover 继续负责定位、翻转、焦点、遮罩及关闭。卸载会取消帧并移除观察和监听。
+页面错误仍全部阻止测试通过，并同时记录 message 与 stack，不过滤空 stack 或尺寸错误。
+
+验证：原产物在修改前稳定复现；修复后的通道构建通过 Chromium/WebKit 后台导入、试听、
+混音与发布，以及 320/390/1440px 设置展开、帮助和循环操作，共 4 项真实浏览器回归。
+新增几何断言检查可滚动弹层外框在视口内，保留全部错误断言；生产构建与类型检查通过。

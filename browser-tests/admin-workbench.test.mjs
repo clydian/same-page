@@ -69,7 +69,7 @@ for (const [engine, type] of [
       });
       const page = await context.newPage(),
         errors = [];
-      page.on("pageerror", (e) => errors.push(e.stack));
+      page.on("pageerror", (e) => errors.push({ message: e.message, stack: e.stack }));
       const visitor = await browser.newContext({ serviceWorkers: "block" });
       const entry = await visitor.newPage();
       await entry.goto(f.origin + "/admin");
@@ -186,7 +186,7 @@ for (const [engine, type] of [
       ).toBeVisible();
       await page
         .getByRole("dialog", { name: "练习设置", exact: true })
-        .getByText("独立混音", { exact: true })
+        .getByText("声部混音", { exact: true })
         .click();
       await page
         .getByRole("button", { name: "独奏 Soprano", exact: true })

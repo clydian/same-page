@@ -26,8 +26,8 @@ export interface PlayerSession {
   notationScale(value: number): void;
   solfege(visible: boolean, part?: number | null): void;
   focus(id: number | null): void; focusOther(volume: number): void; follow(): void; suspendFollow(): void;
-  /** Preview notation outside the active loop without moving the audio position. Null cancels. */
-  previewMeasure(index: number | null): void;
+  /** Preview a notation range, scrolling to index without seeking audio. Null cancels. */
+  previewMeasure(index: number | null, range?: { start: number; end: number }): void;
   loop(start: number | null, end?: number): void;
   getSnapshot(): PlayerState; subscribe(listener: () => void): () => void; dispose(): void;
 }
@@ -124,8 +124,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     }
     loadingStage('play-request'); api.play();
   };
-  let previewOverlay: HTMLDivElement | null = null;
-  let preview: { playing: boolean; scrollTop: number; index: number } | null = null;
+  let previewOverlays: HTMLDivElement[] = [];
+  const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
+  let preview: { playing: boolean; scrollTop: number; index: number; range: { start: number; end: number } } | null = null;
   const scrollToMeasure = (index: number, clearance = 16) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
     const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
@@ -205,7 +206,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   api.renderStarted.on(() => { musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
   api.postRenderFinished.on(() => {
     renderDegrees(); renderMeasureLabels();
-    if (preview) markMeasure(preview.index); else highlightLoop();
+    if (preview) markRange(preview.range.start, preview.range.end); else highlightLoop();
     reportReadableSystem();
     if (disposed || !viewport) return;
     if (preview) { anchor = null; showPreview(preview.index); return; }
@@ -353,22 +354,39 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const to = last === undefined ? undefined : bars?.[last]?.voices[0]?.beats.at(-1);
     if (from && to) api.highlightPlaybackRange(from, to);
   };
-  const markMeasure = (index: number) => {
-    previewOverlay?.remove(); previewOverlay = null;
-    const master = api.tickCache?.masterBars[index]?.masterBar;
-    const bounds = master && api.boundsLookup?.findMasterBar(master)?.realBounds;
-    if (bounds && bounds.w > 0 && bounds.h > 0) {
+  const markRange = (start: number, end: number) => {
+    clearPreviewMarkers();
+    const seen = new Set<number>();
+    const rectangles: { x: number; y: number; w: number; h: number }[] = [];
+    for (let index = start; index <= end; index++) {
+      const master = api.tickCache?.masterBars[index]?.masterBar;
+      if (!master || seen.has(master.index)) continue;
+      seen.add(master.index);
+      const bounds = api.boundsLookup?.findMasterBar(master)?.realBounds;
+      if (bounds && bounds.w > 0 && bounds.h > 0) rectangles.push({ x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h });
+    }
+    rectangles.sort((a, b) => a.y - b.y || a.x - b.x);
+    const rows: typeof rectangles = [];
+    for (const rectangle of rectangles) {
+      const last = rows.at(-1);
+      if (last && Math.abs(last.y - rectangle.y) < 1 && Math.abs(last.h - rectangle.h) < 1 && rectangle.x <= last.x + last.w + 1) last.w = Math.max(last.x + last.w, rectangle.x + rectangle.w) - last.x;
+      else rows.push({ ...rectangle });
+    }
+    for (const bounds of rows) {
       const marker = document.createElement('div'); marker.className = 'practice-measure-preview'; marker.setAttribute('aria-hidden', 'true');
       Object.assign(marker.style, { left: `${bounds.x}px`, top: `${bounds.y}px`, width: `${bounds.w}px`, height: `${bounds.h}px` });
-      element.append(marker); previewOverlay = marker;
+      element.append(marker); previewOverlays.push(marker);
     }
   };
+  const markMeasure = (index: number) => markRange(index, index);
   const showPreview = (index: number) => {
-    markMeasure(index); scrollToMeasure(index, Math.max(72, (viewport?.clientHeight ?? 0) * .18));
+    api.clearPlaybackRangeHighlight?.();
+    const range = preview?.range ?? { start: index, end: index };
+    markRange(range.start, range.end); scrollToMeasure(index, Math.max(72, (viewport?.clientHeight ?? 0) * .18));
   };
   const highlightLoop = () => {
     api.clearPlaybackRangeHighlight?.();
-    previewOverlay?.remove(); previewOverlay = null;
+    clearPreviewMarkers();
     if (state.loop) {
       if (state.loop.start === state.loop.end) markMeasure(state.loop.start);
       else highlight(state.loop.start, state.loop.end);
@@ -380,7 +398,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   };
   const finishPreview = () => {
     if (!preview) return;
-    const previous = preview; preview = null; previewOverlay?.remove(); previewOverlay = null; update({ previewing: false }); restoreScrollMode(); highlightLoop();
+    const previous = preview; preview = null; clearPreviewMarkers(); update({ previewing: false }); restoreScrollMode(); highlightLoop();
     if (viewport) viewport.scrollTop = previous.scrollTop;
     if (previous.playing) api.play();
   };
@@ -468,23 +486,23 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     } },
     follow() { if (!disposed) setFollow(true); },
     suspendFollow() { if (!disposed && state.following) setFollow(false); },
-    previewMeasure(index) {
+    previewMeasure(index, range) {
       if (disposed || state.status !== 'ready') return;
       if (index === null) { finishPreview(); return; }
-      if (!state.measures[index]) return;
+      if (!state.measures[index] || range && (range.end < range.start || !state.measures[range.start] || !state.measures[range.end])) return;
       if (!preview) {
         const wasPlaying = state.playing || countInActive; stopCountIn();
-        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, index };
+        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, index, range: range ?? { start: index, end: index } };
         update({ previewing: true });
         api.settings.player.scrollMode = alphaTab.ScrollMode.Off; api.updateSettings(); api.pause();
       }
-      preview.index = index;
+      preview.index = index; preview.range = range ?? { start: index, end: index };
       showPreview(index);
     },
     loop(start, end) {
       if (disposed || state.status !== 'ready') return;
       if (start !== null && (end === undefined || end < start || !state.measures[start] || !state.measures[end])) return;
-      const resume = preview?.playing ?? false; preview = null; previewOverlay?.remove(); previewOverlay = null; update({ previewing: false }); restoreScrollMode();
+      const resume = preview?.playing ?? false; preview = null; clearPreviewMarkers(); update({ previewing: false }); restoreScrollMode();
       if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); }
       else {
         api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end!].endTick };
@@ -493,7 +511,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       highlightLoop(); if (resume) api.play();
     },
     dispose() {
-      if (disposed) return; stopCountIn(); disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); previewOverlay?.remove();
+      if (disposed) return; stopCountIn(); disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); clearPreviewMarkers();
       viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
       viewport?.removeEventListener('keydown', keyDown);
       viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy();
