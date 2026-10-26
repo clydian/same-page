@@ -40,7 +40,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
       if (resolved.tier === 'offline') { setOffline('ready'); loading.stage('offline-ready'); }
       else if (resolved.save) {
         setPreparation({ bytes: resolved.bytes, save: resolved.save, signal: abort.signal, source, canSaveAutomatically: resolved.canSaveAutomatically, loading });
-        if (!resolved.canSaveAutomatically) setOffline('failed');
+        if (!resolved.canSaveAutomatically) { setOffline('failed'); loading.stage('offline-retry-required'); }
       }
       else setOffline('failed');
       if (!container.current) return;

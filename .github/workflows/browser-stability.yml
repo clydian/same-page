@@ -12,6 +12,7 @@ on:
           - navigation-offline
           - reader-touch
           - practice-reopen
+          - xml-original-save
   pull_request:
     types: [labeled]
 
@@ -66,6 +67,10 @@ jobs:
               ;;
             practice-reopen)
               test_args=(--test-name-pattern='^webkit: MusicXML startup prepared-reopen$' browser-tests/musicxml-startup.test.mjs)
+              attempts=30
+              ;;
+            xml-original-save)
+              test_args=(--test-name-pattern='^webkit: MusicXML startup (prepared-reopen|local-storage-timeout)$' browser-tests/musicxml-startup.test.mjs)
               attempts=30
               ;;
             *) echo "Unknown stability scenario" >&2; exit 1 ;;
