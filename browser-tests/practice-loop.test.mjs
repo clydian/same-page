@@ -73,6 +73,18 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  await mkdir('artifacts/verification/practice-loop',{recursive:true});await page.screenshot({path:`artifacts/verification/practice-loop/${engine}-mobile-drag.png`});
  await page.mouse.up();await expect(page.locator('.practice-popover')).not.toHaveAttribute('data-loop-previewing','true');
  await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 4 小节 至 第 48 小节');
+ await expect(progress).toHaveAttribute('max','47');
+ for (const cancel of [()=>page.keyboard.press('Escape'),()=>page.evaluate(()=>window.dispatchEvent(new Event('blur')))]) {
+  const endpoint=await settings.locator('.practice-range-thumb').nth(1).boundingBox(),line=await track.boundingBox();
+  await page.mouse.move(endpoint.x+endpoint.width/2,endpoint.y+endpoint.height/2);await page.mouse.down();
+  await page.mouse.move(line.x+line.width*.65,endpoint.y+endpoint.height/2,{steps:5});
+  await expect(page.locator('.practice-popover')).toHaveAttribute('data-loop-previewing','true');
+  await cancel();
+  await page.mouse.move(line.x+line.width*.4,endpoint.y+endpoint.height/2,{steps:5});await page.mouse.up();
+  await expect(settings.getByRole('slider',{name:/循环终点/})).toHaveValue('47');
+  await expect(progress).toHaveAttribute('max','47');
+  await expect(page.locator('.practice-popover')).not.toHaveAttribute('data-loop-previewing','true');
+ }
  await close();
  await expect(progress).toHaveValue('3');await expect(progress).toHaveAttribute('max','47');
  await open();await page.screenshot({path:`artifacts/verification/practice-loop/${engine}-mobile-settings.png`});

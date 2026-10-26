@@ -12,7 +12,7 @@ export function PracticeSetting({ title, help, selected, disabled, onChange }: {
 export function PracticeDisclosure({ title, help, children }: { title: string; help: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const id = useId();
-  return <section className="practice-disclosure"><div className="practice-setting-row"><Button className="practice-disclosure-trigger" aria-expanded={open} aria-controls={id} onPress={() => setOpen(!open)}><span>{title}</span><span className="practice-disclosure-arrow" aria-hidden="true">{open ? '⌃' : '⌄'}</span></Button><PracticeHelp title={title}>{help}</PracticeHelp></div>{open && <div id={id} className="practice-setting-content practice-mixer">{children}</div>}</section>;
+  return <section className="practice-disclosure"><div className="practice-setting-row"><Button className="practice-disclosure-trigger" aria-expanded={open} aria-controls={open ? id : undefined} onPress={() => setOpen(!open)}><span>{title}</span><span className="practice-disclosure-arrow" aria-hidden="true">{open ? '⌃' : '⌄'}</span></Button><PracticeHelp title={title}>{help}</PracticeHelp></div>{open && <div id={id} className="practice-setting-content practice-mixer">{children}</div>}</section>;
 }
 
 export function PracticeVolume({ title, value, disabled, onChange }: { title: string; value: number; disabled?: boolean; onChange(value: number): void }) {

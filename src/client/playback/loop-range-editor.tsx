@@ -8,22 +8,28 @@ type Props = { rememberedRange?: number[] | null; onRememberRange?(values: numbe
 export function LoopRangeEditor({ rememberedRange, onRememberRange, session, state, ready, onPreview, onPreviewingChange }: Props) {
   const [draft, setDraft] = useState<number[] | null>(null);
   const pending = useRef<number[] | null>(null);
+  const cancelled = useRef(false);
+  const pointerActive = useRef(false);
   const localRange = useRef<number[] | null>(null);
   const remember = (values: number[]) => { localRange.current = [...values]; onRememberRange?.([...values]); };
   const [endpoint, setEndpoint] = useState(0);
   const range = draft ?? (state.loop ? [state.loop.start, state.loop.end] : [0, 0]);
   const label = (index: number) => state.measures[index]?.label ?? '准备中';
-  const cancel = useCallback(() => { pending.current = null; setDraft(null); session?.previewMeasure(null); onPreviewingChange(false); }, [session, onPreviewingChange]);
+  const cancel = useCallback(() => { cancelled.current = true; pending.current = null; setDraft(null); session?.previewMeasure(null); onPreviewingChange(false); }, [session, onPreviewingChange]);
   const apply = (values: number[]) => {
     pending.current = null; remember(values);
     session?.loop(values[0], values[1]); setDraft(null); onPreviewingChange(false);
   };
-  const commit = () => { if (pending.current) apply(pending.current); else { session?.previewMeasure(null); onPreviewingChange(false); } };
+  const commit = () => { if (cancelled.current) return; if (pending.current) apply(pending.current); else { session?.previewMeasure(null); onPreviewingChange(false); } };
   useEffect(() => {
+    const releasePointer = () => { pointerActive.current = false; };
+    window.addEventListener('pointerup', releasePointer);
+    window.addEventListener('pointercancel', releasePointer);
     window.addEventListener('blur', cancel);
-    return () => { window.removeEventListener('blur', cancel); session?.previewMeasure(null); onPreviewingChange(false); };
+    return () => { cancelled.current = true; pending.current = null; window.removeEventListener('pointerup', releasePointer); window.removeEventListener('pointercancel', releasePointer); window.removeEventListener('blur', cancel); session?.previewMeasure(null); onPreviewingChange(false); };
   }, [cancel, session, onPreviewingChange]);
   const change = (values: number[]) => {
+    if (cancelled.current) return;
     const index = values[0] !== range[0] ? 0 : values[1] !== range[1] ? 1 : endpoint;
     setEndpoint(index); pending.current = values; setDraft(values); onPreview(); session?.previewMeasure(values[index], { start: values[0], end: values[1] });
   };
@@ -34,8 +40,8 @@ export function LoopRangeEditor({ rememberedRange, onRememberRange, session, sta
     }} />
     {state.loop && <div className="practice-loop-content practice-setting-content">
       <div className="practice-loop-range"
-          onPointerDownCapture={event => { const thumb = (event.target as Element).closest('[data-loop-endpoint]'); const active = thumb ? Number(thumb.getAttribute('data-loop-endpoint')) : endpoint; setEndpoint(active); onPreview(); session?.previewMeasure(range[active], { start: range[0], end: range[1] }); onPreviewingChange(true); }} onPointerUpCapture={commit} onPointerCancelCapture={cancel}
-          onKeyDownCapture={event => { if (event.key === 'Escape') { event.stopPropagation(); cancel(); } else if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)) onPreviewingChange(true); }} onKeyUpCapture={commit}>
+          onPointerDownCapture={event => { cancelled.current = false; pointerActive.current = true; const thumb = (event.target as Element).closest('[data-loop-endpoint]'); const active = thumb ? Number(thumb.getAttribute('data-loop-endpoint')) : endpoint; setEndpoint(active); onPreview(); session?.previewMeasure(range[active], { start: range[0], end: range[1] }); onPreviewingChange(true); }} onPointerUpCapture={commit} onPointerCancelCapture={cancel}
+          onKeyDownCapture={event => { if (event.key === 'Escape') { event.stopPropagation(); cancel(); } else if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)) { if (!pointerActive.current) cancelled.current = false; if (!cancelled.current) onPreviewingChange(true); } }} onKeyUpCapture={commit}>
         <p className="practice-loop-preview" role="status">{draft ? `正在调整${endpoint === 0 ? '起点 A' : '终点 B'} · ${label(range[endpoint])}` : `正在循环：${label(state.loop.start)} 至 ${label(state.loop.end)}`}</p>
         <Slider aria-label="循环范围" isDisabled={!ready} minValue={0} maxValue={Math.max(0, state.measures.length - 1)} step={1} value={range} onChange={change}
           onChangeEnd={commit} className="practice-range-slider">

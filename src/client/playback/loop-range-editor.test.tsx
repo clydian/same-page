@@ -30,7 +30,7 @@ it('previews a drag and commits on release without an extra action',()=>{
 it('pointer cancellation, Escape and blur discard only the unfinished drag',()=>{
  const {session}=setup();const end=screen.getByRole('slider',{name:/循环终点/});
  for(const stop of [()=>fireEvent.pointerCancel(end),()=>fireEvent.keyDown(end,{key:'Escape'}),()=>fireEvent.blur(window)]){
-  fireEvent.change(end,{target:{value:'7'}});stop();expect(session.loop).not.toHaveBeenCalled();expect(session.previewMeasure).toHaveBeenLastCalledWith(null);expect(end).toHaveValue('4');expect(screen.getByRole('switch')).toBeChecked();
+  fireEvent.pointerDown(end);fireEvent.change(end,{target:{value:'7'}});stop();fireEvent.change(end,{target:{value:'6'}});fireEvent.pointerUp(end);expect(session.loop).not.toHaveBeenCalled();expect(session.previewMeasure).toHaveBeenLastCalledWith(null);expect(end).toHaveValue('4');expect(screen.getByRole('switch')).toBeChecked();
  }
 });
 it('applies fine adjustments immediately and prevents crossed endpoints',()=>{
