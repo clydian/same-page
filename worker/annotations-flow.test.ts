@@ -309,9 +309,17 @@ describe("annotation layers and object synchronization", () => {
     const guest = await createGuestCookie(fixture.joinCode!);
     expect((await list(guest)).some(layer => layer.id === personal.id)).toBe(false);
     expect(await pull(guest)).toMatchObject({ objects: [] });
-    const upload = await callWorker(`/api/choirs/${fixture.choirId}/scores`, uploadRequest(fixture.adminCookie, "未分享.pdf"));
-    const { score } = await upload.json() as { score: { id: string } };
-    const otherPersonal = (await list(author.cookie, `/api/choirs/${fixture.choirId}/scores/${score.id}`)).find(layer => layer.kind === "personal")!;
+    // This boundary concerns sharing between scores, not the PDF upload parser.
+    // Seed the second real stored score just like createFixture does.
+    const owner = await env.DB.prepare("SELECT id FROM memberships WHERE choir_id = ? AND user_id = ?")
+      .bind(fixture.choirId, fixture.ownerUserId).first<{ id: string }>();
+    const data = new Uint8Array(createMinimalPdf()).buffer;
+    const { scoreId } = await createScoreVersion({
+      env, choirId: fixture.choirId, membershipId: owner!.id,
+      fileName: "未分享.pdf", fileNameKey: "未分享.pdf",
+      pdf: { data, sizeBytes: data.byteLength, pageCount: 1, sha256: await sha256(data) },
+    });
+    const otherPersonal = (await list(author.cookie, `/api/choirs/${fixture.choirId}/scores/${scoreId}`)).find(layer => layer.kind === "personal")!;
     expect(otherPersonal.sharing).toBe(false);
     expect((await share(false)).status).toBe(200);
     expect((await list(reader.cookie)).some(layer => layer.id === personal.id)).toBe(false);
