@@ -2,7 +2,8 @@ import { connectionPrefix, isPublicConnectionPath } from "../../src/shared/conne
 import type { Env, WaitUntilContext } from "../env";
 import { connectionOrigins } from "./config";
 import { createAuth } from "../auth/create-auth";
-import { cookieAttributes, ENTRY_COOKIE, entryRequest, FLOW_COOKIE } from "./credential";
+import { getSessionCookie } from "better-auth/cookies";
+import { cookieAttributes, createEntryCredential, credentialSeconds, ENTRY_COOKIE, entryRequest, FLOW_COOKIE } from "./credential";
 
 const allowedHeaders = new Set(["content-type", "range", "if-range", "if-none-match", "x-same-page-attachments", "x-same-page-owner-user-id", "x-same-page-session"]);
 const methods = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS";
@@ -44,7 +45,11 @@ export async function connectionBoundary(request: Request, env: Env, ctx: WaitUn
     // alternate callback or silently navigate away from the current origin.
     ...(match[1] === "backup" || origin && origin !== origins[0] ? { GOOGLE_CLIENT_ID: undefined, GOOGLE_CLIENT_SECRET: undefined } : {}) };
   try {
-    const adapted = await entryRequest(new Request(effective, request), audience, routedEnv, ctx);
+    const routed = new Request(effective, request);
+    const adapted = await entryRequest(routed, audience, routedEnv, ctx);
+    const usedBridge = adapted !== routed;
+    const auth = createAuth(routedEnv, ctx);
+    const bridgeSession = usedBridge ? await auth.api.getSession({ headers: adapted.headers, query: { disableRefresh: true } }) : null;
     if (!isPublicConnectionPath(effective.pathname)) {
       if (!expectedSession || expectedSession.length > 256) return Response.json({ error: "entry_session_required" }, { status: 428, headers });
       const session = await createAuth(routedEnv, ctx).api.getSession({ headers: adapted.headers, query: { disableRefresh: true } });
@@ -66,6 +71,28 @@ export async function connectionBoundary(request: Request, env: Env, ctx: WaitUn
       response = Response.json(redact(body), { status: response.status, headers: response.headers });
     }
     const result = new Response(response.body, response);
+    if (usedBridge) {
+      // A bridge must never turn a delayed read/renewal into a native login
+      // cookie that can overwrite a newer explicit login in another window.
+      // New explicit sign-in cookies are preserved; renewals of the adapted
+      // old token rotate only the separate entry credential.
+      const { authCookies } = await auth.$context;
+      const adaptedToken = getSessionCookie(adapted.headers);
+      const cookies = result.headers.getSetCookie();
+      let renewed = false;
+      result.headers.delete("Set-Cookie");
+      for (const cookie of cookies) {
+        const pair = cookie.split(";", 1)[0];
+        const native = pair.startsWith(`${authCookies.sessionToken.name}=`);
+        const token = native ? getSessionCookie(new Headers({ Cookie: pair })) : null;
+        if (native && (!token || token === adaptedToken)) { renewed ||= Boolean(token); continue; }
+        result.headers.append("Set-Cookie", cookie);
+      }
+      if (renewed && bridgeSession) {
+        const credential = await createEntryCredential(bridgeSession.session.id, audience, getSessionCookie(routed.headers), routedEnv);
+        result.headers.append("Set-Cookie", `${ENTRY_COOKIE}=${credential}; Max-Age=${credentialSeconds}; ${cookieAttributes}`);
+      }
+    }
     for (const [key, value] of headers) {
       if (key === "vary") result.headers.append(key, value);
       else result.headers.set(key, value);
