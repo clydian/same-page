@@ -1,0 +1,23 @@
+{
+  "buildId": "521b3469f734ef396094a585993c7835e2ad59ae",
+  "runId": 39914879622,
+  "artifactId": 12484143687,
+  "storage": {
+    "contract": "same-page-storage-v15-sync-v1",
+    "dexie": "4.4.5",
+    "zod": "4.6.2",
+    "files": {
+      "src/client/annotations/push-request.ts": "8847fab97b882bd6308548ec5c350f4ef2e5f9e8a409e1c42fa5ecbc43011ae5",
+      "src/client/auth/logout-fence.ts": "28324f4df41d61e480d9539e029542bd7daf64c528a0eda227ad1759ea45baca",
+      "src/client/platform/local-database.ts": "ffd10aac47356cb12fc52f71f74eca268ca053067b68b44f9fba24fff1238167",
+      "src/client/platform/local-workspace.ts": "c2914e9b55b8b02d29b816584a37f04685588232d460064ab70196377aa4ac60",
+      "src/client/platform/migrate-brush-styles.ts": "7ef1316b4ceacce1c65ee7026bdb5ffca5ba93dc618a572a7b6eabf5287b568b",
+      "src/client/reader/reading-preferences.ts": "71b3589e64e46035c69fe462f613413c779b727514bf6988dab030f4e7d34bcd",
+      "src/shared/annotations.ts": "6aad48a810113de06eec0612c8ac1f4b08df44e7290244025a9d79ae67180f84",
+      "src/shared/choirs.ts": "b4d86fbd51948baf413950c0d0c6094cc90f0d99a329180402f70513cd08b628",
+      "src/shared/drive-permissions.ts": "11a6ca0789964ce35022682f6a6bb9bb973e8fc0ab340de465b775c970c20584",
+      "src/shared/reader-sync.ts": "6727d2cba573a634f0f95c235f84cb939840078624e2bce856acb0e58a4ac2a9",
+      "src/shared/scores.ts": "34d14b1dfaaff64851d3ec07a076c16856133e1a96705c05e4a0039e10dc78cf"
+    }
+  }
+}

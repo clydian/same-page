@@ -26,7 +26,7 @@
     "measure:production-loading": "node scripts/measure-production-loading.mjs",
     "prepare:production-pwa": "node scripts/prepare-production-pwa-profile.mjs",
     "test:migrations": "node scripts/verify-score-schema-migration.mjs && node scripts/verify-auth-migration.mjs",
-    "test:ci": "node --test scripts/ci-scope.test.mjs",
+    "test:ci": "node --test scripts/ci-scope.test.mjs scripts/verify-release-contract.test.mjs",
     "check": "npm run test:ci && npm run lint && npm run typecheck && npm run test && npm run test:worker && npm run test:browser-ui && npm run test:migrations && npm run build && npm run test:smoke",
     "check:full": "npm run test:pwa-update && npm run check && node scripts/measure-loading-performance.mjs",
     "auth:schema": "auth generate --config scripts/better-auth-schema.ts --adapter drizzle --dialect sqlite --output worker/db/auth-schema.generated.ts --yes",
@@ -56,7 +56,7 @@
     "better-auth": "1.7.10",
     "clipper2-ts": "2.0.1-18",
     "d3-polygon": "^3.0.1",
-    "dexie": "^4.4.5",
+    "dexie": "4.4.5",
     "dexie-react-hooks": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.11",
@@ -74,7 +74,7 @@
     "react-router-dom": "^7.18.3",
     "resend": "^6.26.0",
     "unpdf": "^1.8.1",
-    "zod": "^4.6.6"
+    "zod": "4.6.2"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.64.0",

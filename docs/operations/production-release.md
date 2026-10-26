@@ -246,6 +246,16 @@ release metadata，不执行业务 migration、数据恢复、清理或发布人
 
 ### 日常发布与恢复
 
+PR 的 `checks` 在安装依赖前执行 `node scripts/verify-release-contract.mjs` 及其回归测试。
+它使用 `scripts/release-storage-baseline.json` 中经审查的稳定版边界清单，调用与发布相同的
+兼容性比较，并要求 `package.json` 的 Dexie/Zod 声明精确固定到基线版本。当前清单来自
+stable `521b3469f734ef396094a585993c7835e2ad59ae` 的原始 CI
+[39914879622](https://github.com/clydian/same-page/actions/runs/39914879622)、artifact
+`12484143687`，提取前已通过封存产物逐文件校验。此检查无需生产凭据，也不访问或修改用户数据。
+不能仅为升级依赖而重生成或放宽清单；更换基线须有兼容性桥接的审查及对应原始产物证据。
+本地 `npm run test:ci` 执行同一组回归。它是提前反馈；stable 后续可能提升，发布阶段仍核对
+生产锁内读取的实际 stable，而不会用仓库清单替代在线准入。
+
 CI 在生产锁内先校验完整包，再 `frontend-release.mjs upload <SHA>`：比对当前 stable 的
 持久格式边界、first-write claim、逐文件写入／读回与最终 seal。边界仅涵盖明确列出的业务
 IndexedDB／共享同步表示及 Dexie、Zod 版本；UI、普通实现依赖和兼容 D1 migration 不再要求

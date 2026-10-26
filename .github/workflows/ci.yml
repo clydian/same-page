@@ -54,6 +54,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Release storage compatibility preflight
+        run: |
+          node --test scripts/verify-release-contract.test.mjs
+          node scripts/verify-release-contract.mjs
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Lint

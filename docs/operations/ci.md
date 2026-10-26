@@ -59,6 +59,10 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 | `smoke` | 下载并校验同份产物，2 个独立 runner 文件分片运行真实 Worker/D1/R2 流程 |
 | `verify` | 等待以上全部结束；被选中的 job 必须成功，未选中的必须为 skipped；失败、取消、意外跳过均不能通过 |
 
+`checks` 在安装依赖前先运行发布存储边界预检及其回归，用经审查的 stable 封存清单
+提前发现 Dexie/Zod 或共享持久格式边界变更。预检不使用生产凭据；部署仍核对实际 stable。
+基线来源和更新约束见[发布说明](production-release.md#日常发布与恢复)。
+
 日常部署仅在 `verify` 成功、本次 main 变更需要发布且 repository variable
 `RELEASE_CHANNELS_ENABLED=true` 时运行。首次通道桥接期间该变量保持关闭，main 继续完整验证并封存产物，
 `deploy` 明确跳过；只有手动 `bootstrap-release-channels.yml` 可以准备桥接版本。此冻结也防止后续 main
