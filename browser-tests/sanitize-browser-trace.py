@@ -19,6 +19,11 @@ with zipfile.ZipFile(source) as raw, zipfile.ZipFile(destination, "w", zipfile.Z
                 if event["type"] == "context-options":
                     event["options"] = {key: value for key, value in event.get("options", {}).items()
                                         if key in ("viewport", "deviceScaleFactor", "isMobile", "hasTouch")}
+                elif event["type"] == "input":
+                    # Numeric action geometry explains protocol/layout mismatches.
+                    # Keep no event payload, DOM, request or user-entered values.
+                    event = {key: value for key, value in event.items()
+                             if key in ("type", "callId", "point", "box")}
                 elif event["type"] in ("before", "after"):
                     event.pop("result", None)
                     event.pop("error", None)

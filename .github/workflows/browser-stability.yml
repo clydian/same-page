@@ -65,7 +65,7 @@ jobs:
               test_args=(--test-name-pattern='continuous native touch|continuous touch pinch' visual-report/reader-immersive.test.mjs)
               ;;
             practice-reopen)
-              test_args=(--test-name-pattern='^(chromium|webkit): MusicXML startup prepared-reopen$' browser-tests/musicxml-startup.test.mjs)
+              test_args=(--test-name-pattern='^webkit: MusicXML startup prepared-reopen$' browser-tests/musicxml-startup.test.mjs)
               attempts=30
               ;;
             *) echo "Unknown stability scenario" >&2; exit 1 ;;

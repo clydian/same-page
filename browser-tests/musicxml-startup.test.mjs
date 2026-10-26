@@ -132,14 +132,17 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
               try {
                 await canvas.click({ position: { x: 195, y: 350 } });
               } catch (error) {
-                const geometry = await page.evaluate(() => {
+                const protocolBox = await canvas.boundingBox({ timeout: 1000 }).catch(() => null);
+                const geometry = await page.evaluate(protocolBox => {
                   const element = document.querySelector('canvas[data-pdf-canvas-active]');
                   if (!element) return { canvas: null };
                   const rect = element.getBoundingClientRect();
                   const shell = element.closest('.reader-shell');
+                  const hits = document.elementsFromPoint(rect.x + 195, rect.y + 350).map(element => element.tagName);
                   const hit = document.elementFromPoint(rect.x + 195, rect.y + 350);
                   return {
-                    canvas: rect.toJSON(), viewport: { width: innerWidth, height: innerHeight },
+                    canvas: rect.toJSON(), protocolBox, viewport: { width: innerWidth, height: innerHeight },
+                    hits,
                     hitTag: hit?.tagName, hitsCanvas: hit === element,
                     inert: Boolean(element.closest('[inert]')),
                     visibility: getComputedStyle(element).visibility,
@@ -148,9 +151,10 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
                     practicing: shell?.hasAttribute('data-practicing'),
                     playbackView: shell?.getAttribute('data-playback-view'),
                   };
-                }).catch(() => ({ unavailable: true }));
-                await mkdir(evidence, { recursive: true });
-                await writeFile(`${evidence}/reader-hit-target.json`, JSON.stringify(geometry, null, 2));
+                }, protocolBox).catch(() => ({ unavailable: true }));
+                await mkdir(evidence, { recursive: true }).then(() =>
+                  writeFile(`${evidence}/reader-hit-target.json`, JSON.stringify(geometry, null, 2)),
+                ).catch(() => undefined);
                 throw error;
               }
             }
