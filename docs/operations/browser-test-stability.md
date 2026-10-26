@@ -64,14 +64,22 @@ WebKit 仍是新页面的 API 中断注入，静态资源在线；Chromium 仍�
 
 Playwright 关闭 snapshots 仍会在 action trace 中保存 route.fulfill 参数，
 所以原始 zip 只写临时目录，`sanitize-browser-trace.py` 用 Python 3 标准库清理后发布，
-最后删除原始文件。清理后的 trace 保留操作时序/定位器，故意没有 DOM/network 快照。
+最后删除原始文件。清理后的 trace 保留操作时序/定位器和 input 的数值坐标、目标矩形，
+用于核对自动化点击位置与实际布局；input 其它字段不透传，故意没有 DOM/network 快照。
 不为该低风险包装添加镜像单测；交付时用强制失败的临时测试实际生成并检查证据，探针不提交。
 
 `Browser stability experiment` 仅在手动 dispatch 或 PR 添加 `browser-stability` 标签时运行。
-固定 checkout PR head SHA，十轮串行记录每轮退出码、完整 TAP、耗时、环境和失败证据；
+固定 checkout PR head SHA，默认十轮串行记录每轮退出码、完整 TAP、耗时、环境和失败证据；
 失败继续收集剩余轮次，最终任意一轮失败都会令工作流失败，不挑选成功重跑。
-普通 push 不触发十轮；再次实验需要重新添加标签。最终固定提交、首轮/全部十轮结果、
+普通 push 不触发实验；再次实验需要重新添加标签或手动 dispatch。最终固定提交、首轮/全部轮次结果、
 常规 CI 与审查结果在关联 PR 中记录，不以实验代替完整 CI。
+
+手动选择 `practice-reopen` 时，按 main 的 `SAME_PAGE_RELEASE_CHANNELS=1` 构建，
+只重复 WebKit 的 `MusicXML startup / prepared-reopen` 三十轮；常规 CI 仍保留两引擎全部场景。
+该启动测试通过阅读器手势视口显示工具，验证入口可见后重开练习；不把后台可切换的 PDF
+画布节点当作固定点击锚点，不绕过 Playwright 的命中检查。实验容器在记录 Git 身份前，
+仅将当前 `$GITHUB_WORKSPACE` 登记到 job HOME 的 `safe.directory`，避免 checkout 临时 HOME
+中的设置失效而在测试前退出。
 
 ## CI 环境准备 · #391 与 2026-10-22 后续修复
 
