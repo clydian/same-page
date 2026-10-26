@@ -1,4 +1,4 @@
-import { draftLoopRange, selectPracticeView } from './practice-controls.mjs';
+import { setLoopRange, selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -123,10 +123,10 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   assert.equal(await page.locator('.at-surface svg').evaluateAll(svgs => svgs.flatMap(svg => [...svg.querySelectorAll('path,text')]).some(element => /^rgba\(0, 0, 0, 0\./.test(getComputedStyle(element).fill))), false, 'secondary-voice notation stays opaque');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
 
-  await settings.getByLabel('关注声部',{exact:true}).selectOption('1');
-  await draftLoopRange(page,0,2);
-  await settings.getByRole('button',{name:'应用范围',exact:true}).click();
-  await expect(settings.getByRole('button',{name:'关闭循环',exact:true})).toBeVisible();
+  await settings.getByRole('switch',{name:'声部关注',exact:true}).locator('xpath=ancestor::label').click();await settings.getByLabel('关注声部',{exact:true}).selectOption('1');
+  await setLoopRange(page,0,2);
+
+  await expect(settings.getByRole('switch',{name:'片段循环',exact:true})).toBeVisible();
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByRole('button',{name:'播放',exact:true}).evaluate(button => {
     button.addEventListener('click', () => {
@@ -183,7 +183,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.screenshot({path:`artifacts/verification/musicxml-350/${engine}-player.png`});
   await player.getByRole('button',{name:'暂停',exact:true}).click();
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
-  await settings.getByRole('button',{name:'关闭循环',exact:true}).click();
+  await settings.getByRole('switch',{name:'片段循环',exact:true}).locator('xpath=ancestor::label').click();
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByLabel('播放进度',{exact:true}).fill('4');
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('4');
@@ -197,7 +197,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await player.getByRole('button',{name:'展开播放控制',exact:true}).click();
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
-  await expect(settings.getByLabel('关注声部',{exact:true})).toHaveValue('');
+  await expect(settings.getByRole('switch',{name:'声部关注',exact:true})).not.toBeChecked();
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('0');
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await page.setViewportSize({width:390,height:844});

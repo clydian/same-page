@@ -64,6 +64,7 @@ test('MusicXML and MXL: verified optional bundle, closed-browser offline cold st
  await offline.getByRole('button',{name:'本地链路测试：2 个附件',exact:true}).click();
  let player=await open(offline,'mxl');
  await player.getByRole('button',{name:'练习设置',exact:true}).click();
+ await offline.getByRole('dialog',{name:'练习设置',exact:true}).getByRole('switch',{name:'声部关注',exact:true}).locator('xpath=ancestor::label').click();
  await offline.getByRole('dialog',{name:'练习设置',exact:true}).getByLabel('关注声部',{exact:true}).selectOption('1');
  await offline.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  await player.getByRole('button',{name:'播放',exact:true}).click();

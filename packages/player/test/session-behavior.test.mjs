@@ -319,3 +319,26 @@ test('count-in holds the real native cursor at the target until main audio and f
   h.session.pause();cancelled.flush();assert.equal(cancelled.transitions.length,placed,'cancelled count-in cannot replay a queued cursor transition');
  } finally {h.dispose();}
 });
+
+test('draft range preview merges whole bars per row, deduplicates repeat visits, and survives reflow',async()=>{
+ const previousDocument=globalThis.document,markers=[];
+ globalThis.document={createElement:()=>({style:{},setAttribute(){},remove(){this.removed=true;}})};
+ const viewport={scrollTop:40,clientHeight:600,getBoundingClientRect:()=>({top:0}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.element.append=marker=>markers.push(marker);
+  h.api.tickCache.masterBars=[0,1,0,1,2,3].map((index,visit)=>({masterBar:{index},start:visit*100,end:(visit+1)*100}));
+  let width=100,paused=0,resumed=0,cleared=0;
+  h.api.boundsLookup.findMasterBar=master=>({realBounds:{x:10+(master.index%2)*width,y:100+Math.floor(master.index/2)*200,w:width,h:80}});
+  h.api.pause=()=>paused++;h.api.play=()=>resumed++;h.api.clearPlaybackRangeHighlight=()=>cleared++;
+  await Promise.resolve();h.session.loop(0,1);h.session.suspendFollow();viewport.scrollTop=40;h.api.playerStateChanged.emit({state:1});
+  h.session.previewMeasure(4,{start:1,end:4});
+  const visible=()=>markers.filter(marker=>!marker.removed);
+  assert.deepEqual(visible().map(marker=>[marker.style.left,marker.style.top,marker.style.width,marker.style.height]),[['10px','100px','200px','80px'],['10px','300px','100px','80px']]);
+  assert.equal(paused,1);assert.ok(cleared>0);assert.equal(h.api.tickPosition,0);assert.deepEqual(h.api.playbackRange,{startTick:0,endTick:200});
+  assert.equal(viewport.scrollTop,192,'scrolling follows the active endpoint while the whole range stays highlighted');
+  h.session.previewMeasure(3,{start:3,end:3});assert.equal(visible().length,1);assert.equal(visible()[0].style.width,'100px');
+  width=150;h.api.postRenderFinished.emit();assert.equal(visible().length,1);assert.equal(visible()[0].style.left,'160px');assert.equal(visible()[0].style.width,'150px');
+  h.session.previewMeasure(null);assert.equal(visible().length,0);assert.equal(viewport.scrollTop,40);assert.equal(resumed,1);assert.deepEqual(h.session.getSnapshot().loop,{start:0,end:1});
+ }finally{h.dispose();globalThis.document=previousDocument;}
+});

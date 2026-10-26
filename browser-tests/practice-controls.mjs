@@ -10,12 +10,12 @@ export async function changeNotationSize(page, operation, count = 1) {
   else for (let i = 0; i < count; i++) await page.getByRole('button', { name: operation, exact: true }).click();
 }
 
-export async function draftLoopRange(page, start, end) {
+export async function setLoopRange(page, start, end) {
   const editor=page.getByRole('region',{name:'片段循环',exact:true});
-  const begin=editor.getByRole('button',{name:/^(选择循环片段|调整范围)$/});
-  if(await begin.count()) await begin.click();
+  if (!(await editor.getByRole('switch',{name:'片段循环',exact:true}).isChecked())) await editor.getByRole('switch',{name:'片段循环',exact:true}).locator('xpath=ancestor::label').click();
   const from=editor.getByRole('slider',{name:/^循环起点/}),to=editor.getByRole('slider',{name:/^循环终点/});
-  if(start>Number(await to.inputValue())) {await to.fill(String(end));await from.fill(String(start));}
-  else {await from.fill(String(start));await to.fill(String(end));}
+  const set=async (input,value)=>{await input.fill(String(value));await input.dispatchEvent('pointerup');};
+  if(start>Number(await to.inputValue())) {await set(to,end);await set(from,start);}
+  else {await set(from,start);await set(to,end);}
   await expect(from).toHaveValue(String(start));await expect(to).toHaveValue(String(end));
 }

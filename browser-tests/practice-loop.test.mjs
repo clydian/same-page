@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium, webkit, expect } from '@playwright/test';
 import { startStorageFixture } from './storage-fixture.mjs';
 import { musicXmlFixture } from './musicxml-fixture.mjs';
-import { draftLoopRange } from './practice-controls.mjs';
+import { setLoopRange } from './practice-controls.mjs';
 
 for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loop bounds unify score taps, transport, and transparent range preview (${engine})`,{timeout:120000},async t=>{
  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});let browser;
@@ -30,7 +30,7 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  const settings=page.getByRole('dialog',{name:'练习设置',exact:true}),progress=bar.getByRole('slider',{name:'播放进度',exact:true});
  const open=()=>bar.getByRole('button',{name:'练习设置',exact:true}).click();
  const close=()=>page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
- await open();await draftLoopRange(page,2,4);await settings.getByRole('button',{name:'应用范围',exact:true}).click();await close();
+ await open();await setLoopRange(page,2,4);await close();
  await expect(progress).toHaveAttribute('min','2');await expect(progress).toHaveAttribute('max','4');
  await expect(bar.getByRole('button',{name:'前一小节',exact:true})).toBeDisabled();
  const tap=async number=>{
@@ -56,12 +56,11 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  await bar.getByRole('button',{name:'定位小节',exact:true}).click();const locator=page.getByRole('slider',{name:'目标小节',exact:true});
  await expect(locator).toHaveAttribute('min','2');await expect(locator).toHaveAttribute('max','4');await locator.fill('3');await page.getByRole('button',{name:'跳转',exact:true}).click();await expect(progress).toHaveValue('3');
  await bar.getByRole('button',{name:'播放',exact:true}).click();await expect(bar.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
- await open();await draftLoopRange(page,2,4);await expect(bar.locator('.practice-play')).toHaveAttribute('aria-label','播放');
- await settings.getByRole('button',{name:'取消调整',exact:true}).click();await close();await expect(bar.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+ await open();await setLoopRange(page,2,5);await close();await expect(bar.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
  await bar.getByRole('button',{name:'暂停',exact:true}).click();
- await open();await draftLoopRange(page,3,3);await settings.getByRole('button',{name:'应用范围',exact:true}).click();await close();
+ await open();await setLoopRange(page,3,3);await close();
  await expect(progress).toHaveAttribute('min','3');await expect(progress).toHaveAttribute('max','3');await tap(8);await expect(progress).toHaveValue('3');
- await page.setViewportSize({width:390,height:844});await open();await draftLoopRange(page,3,6);
+ await page.setViewportSize({width:390,height:844});await open();await setLoopRange(page,3,6);
  const viewport=page.locator('.practice-notation-scroll');const original=await viewport.evaluate(e=>e.scrollTop);
  const thumb=settings.locator('.practice-range-thumb').nth(1),track=settings.locator('.practice-range-track');
  const grip=await thumb.boundingBox(),rail=await track.boundingBox();assert.ok(grip&&rail);
@@ -70,12 +69,12 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  await expect(page.locator('.practice-popover')).toHaveAttribute('data-loop-previewing','true');
  await expect(settings.locator('header')).toHaveCSS('opacity','0');await expect(page.locator('.practice-popover')).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
  await expect.poll(()=>viewport.evaluate(e=>e.scrollTop)).toBeGreaterThan(original);
- const marker=page.locator('.practice-measure-preview');await expect(marker).toBeVisible();const bounds=await marker.boundingBox();assert.ok(bounds.width>10 && bounds.height>10,'whole-note target has a real measure highlight');const visible=await viewport.boundingBox();assert.ok(bounds.y>=visible.y && bounds.y+bounds.height<=visible.y+visible.height,'target measure is inside the score viewport');
+ const markers=page.locator('.practice-measure-preview');assert.ok(await markers.count()>1,'draft highlight spans multiple score rows');const marker=markers.last();await expect(marker).toBeVisible();const bounds=await marker.boundingBox();assert.ok(bounds.width>10 && bounds.height>10,'whole-note target has a real measure highlight');const visible=await viewport.boundingBox();assert.ok(bounds.y>=visible.y && bounds.y+bounds.height<=visible.y+visible.height,'target measure is inside the score viewport');
  await mkdir('artifacts/verification/practice-loop',{recursive:true});await page.screenshot({path:`artifacts/verification/practice-loop/${engine}-mobile-drag.png`});
  await page.mouse.up();await expect(page.locator('.practice-popover')).not.toHaveAttribute('data-loop-previewing','true');
- await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 4 小节 至 第 4 小节');
- await settings.getByRole('button',{name:'取消调整',exact:true}).click();await close();
- await expect(progress).toHaveValue('3');await expect(progress).toHaveAttribute('max','3');
+ await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 4 小节 至 第 48 小节');
+ await close();
+ await expect(progress).toHaveValue('3');await expect(progress).toHaveAttribute('max','47');
  await open();await page.screenshot({path:`artifacts/verification/practice-loop/${engine}-mobile-settings.png`});
- await settings.getByRole('button',{name:'关闭循环',exact:true}).click();await close();await expect(progress).toHaveAttribute('min','0');await expect(progress).toHaveAttribute('max','47');
+ await settings.getByRole('switch',{name:'片段循环',exact:true}).locator('xpath=ancestor::label').click();await close();await expect(progress).toHaveAttribute('min','0');await expect(progress).toHaveAttribute('max','47');
 });
