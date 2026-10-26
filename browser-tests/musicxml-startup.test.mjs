@@ -128,35 +128,10 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
           const endPractice = async () => {
             await page.getByRole('button', { name: '结束练习', exact: true }).click();
             if (!await page.getByRole('button', { name: '练习谱', exact: true }).isVisible()) {
-              const canvas = page.locator('canvas[data-pdf-canvas-active]').first();
-              try {
-                await canvas.click({ position: { x: 195, y: 350 } });
-              } catch (error) {
-                const protocolBox = await canvas.boundingBox({ timeout: 1000 }).catch(() => null);
-                const geometry = await page.evaluate(protocolBox => {
-                  const element = document.querySelector('canvas[data-pdf-canvas-active]');
-                  if (!element) return { canvas: null };
-                  const rect = element.getBoundingClientRect();
-                  const shell = element.closest('.reader-shell');
-                  const hits = document.elementsFromPoint(rect.x + 195, rect.y + 350).map(element => element.tagName);
-                  const hit = document.elementFromPoint(rect.x + 195, rect.y + 350);
-                  return {
-                    canvas: rect.toJSON(), protocolBox, viewport: { width: innerWidth, height: innerHeight },
-                    hits,
-                    hitTag: hit?.tagName, hitsCanvas: hit === element,
-                    inert: Boolean(element.closest('[inert]')),
-                    visibility: getComputedStyle(element).visibility,
-                    pointerEvents: getComputedStyle(element).pointerEvents,
-                    readerVisibility: shell && getComputedStyle(shell).visibility,
-                    practicing: shell?.hasAttribute('data-practicing'),
-                    playbackView: shell?.getAttribute('data-playback-view'),
-                  };
-                }, protocolBox).catch(() => ({ unavailable: true }));
-                await mkdir(evidence, { recursive: true }).then(() =>
-                  writeFile(`${evidence}/reader-hit-target.json`, JSON.stringify(geometry, null, 2)),
-                ).catch(() => undefined);
-                throw error;
-              }
+              // The reader owns the tap gesture; its double-buffered PDF canvases
+              // can change while a background render completes after practice.
+              await page.locator('.reader-shell .page-reader__viewport').click();
+              await expect(page.getByRole('button', { name: '练习谱', exact: true })).toBeVisible();
             }
             // Reader chrome mounts its own directory consumer after practice ends.
             await expect(page.locator('.reader-playback-entries')).toHaveAttribute('aria-busy', 'false');
