@@ -27,22 +27,28 @@ export async function withBrowserEvidence(context, directory, run) {
   try {
     return await run();
   } catch (error) {
-    await mkdir(directory, { recursive: true });
-    const pages = context.pages().filter(page => !page.isClosed());
-    await writeFile(`${directory}/failure.json`, JSON.stringify({
-      // Strip queries/fragments (which can contain credentials), never dump DOM text.
-      urls: pages.map(page => { const url = new URL(page.url()); return `${url.origin}${url.pathname}`; }),
-      pageErrors: errors,
-    }, null, 2));
-    for (const [index, page] of pages.entries()) {
-      await page.screenshot({ path: `${directory}/page-${index}.png`, mask: [page.locator("input, textarea, [contenteditable], .annotation-overlay")] }).catch(() => {});
-    }
-    const temporary = await mkdtemp(path.join(tmpdir(), "same-page-trace-"));
     try {
-      const raw = path.join(temporary, "raw.zip");
-      await context.tracing.stop({ path: raw });
-      execFileSync("python3", [fileURLToPath(new URL("./sanitize-browser-trace.py", import.meta.url)), raw, `${directory}/trace.zip`]);
-    } finally { await rm(temporary, { recursive: true, force: true }); }
+      await mkdir(directory, { recursive: true });
+      const pages = context.pages().filter(page => !page.isClosed());
+      await writeFile(`${directory}/failure.json`, JSON.stringify({
+        // Strip queries/fragments (which can contain credentials), never dump DOM text.
+        urls: pages.map(page => { const url = new URL(page.url()); return `${url.origin}${url.pathname}`; }),
+        pageErrors: errors,
+      }, null, 2));
+      for (const [index, page] of pages.entries()) {
+        await page.screenshot({ path: `${directory}/page-${index}.png`, mask: [page.locator("input, textarea, [contenteditable], .annotation-overlay")] }).catch(() => {});
+      }
+      const temporary = await mkdtemp(path.join(tmpdir(), "same-page-trace-"));
+      try {
+        const raw = path.join(temporary, "raw.zip");
+        await context.tracing.stop({ path: raw });
+        execFileSync("python3", [fileURLToPath(new URL("./sanitize-browser-trace.py", import.meta.url)), raw, `${directory}/trace.zip`]);
+      } finally { await rm(temporary, { recursive: true, force: true }); }
+    } catch {
+      // Evidence is best-effort: a closed page, disk or sanitizer failure must
+      // never replace the assertion that caused the test to fail.
+      console.warn("Browser failure evidence capture failed; preserving the original test error.");
+    }
     throw error;
   } finally {
     context.off("page", observe);
