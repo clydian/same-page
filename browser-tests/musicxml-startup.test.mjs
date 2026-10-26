@@ -128,7 +128,29 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
           const endPractice = async () => {
             await page.getByRole('button', { name: '结束练习', exact: true }).click();
             if (!await page.getByRole('button', { name: '练习谱', exact: true }).isVisible()) {
-              await page.locator('canvas[data-pdf-canvas-active]').first().click({ position: { x: 195, y: 350 } });
+              const canvas = page.locator('canvas[data-pdf-canvas-active]').first();
+              try {
+                await canvas.click({ position: { x: 195, y: 350 } });
+              } catch (error) {
+                const geometry = await canvas.evaluate(element => {
+                  const rect = element.getBoundingClientRect();
+                  const shell = element.closest('.reader-shell');
+                  const hit = document.elementFromPoint(rect.x + 195, rect.y + 350);
+                  return {
+                    canvas: rect.toJSON(), viewport: { width: innerWidth, height: innerHeight },
+                    hitTag: hit?.tagName, hitsCanvas: hit === element,
+                    inert: Boolean(element.closest('[inert]')),
+                    visibility: getComputedStyle(element).visibility,
+                    pointerEvents: getComputedStyle(element).pointerEvents,
+                    readerVisibility: shell && getComputedStyle(shell).visibility,
+                    practicing: shell?.hasAttribute('data-practicing'),
+                    playbackView: shell?.getAttribute('data-playback-view'),
+                  };
+                });
+                await mkdir(evidence, { recursive: true });
+                await writeFile(`${evidence}/reader-hit-target.json`, JSON.stringify(geometry, null, 2));
+                throw error;
+              }
             }
             // Reader chrome mounts its own directory consumer after practice ends.
             await expect(page.locator('.reader-playback-entries')).toHaveAttribute('aria-busy', 'false');
