@@ -128,7 +128,10 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
           const endPractice = async () => {
             await page.getByRole('button', { name: '结束练习', exact: true }).click();
             if (!await page.getByRole('button', { name: '练习谱', exact: true }).isVisible()) {
-              await page.locator('canvas[data-pdf-canvas-active]').first().click({ position: { x: 195, y: 350 } });
+              // The reader owns the tap gesture; its double-buffered PDF canvases
+              // can change while a background render completes after practice.
+              await page.locator('.reader-shell .page-reader__viewport').click();
+              await expect(page.getByRole('button', { name: '练习谱', exact: true })).toBeVisible();
             }
             // Reader chrome mounts its own directory consumer after practice ends.
             await expect(page.locator('.reader-playback-entries')).toHaveAttribute('aria-busy', 'false');

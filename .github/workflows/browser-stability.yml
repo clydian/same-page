@@ -11,6 +11,7 @@ on:
         options:
           - navigation-offline
           - reader-touch
+          - practice-reopen
   pull_request:
     types: [labeled]
 
@@ -38,7 +39,14 @@ jobs:
         timeout-minutes: 1
         run: node .github/scripts/verify-browsers.mjs
       - run: npm run build
-      - name: Ten consecutive runs of the selected scenario
+        env:
+          # Match main CI's channel-capable artifact for this release regression.
+          SAME_PAGE_RELEASE_CHANNELS: ${{ inputs.scenario == 'practice-reopen' && '1' || '' }}
+      # checkout trusts the workspace in a temporary HOME. The experiment's
+      # identity capture runs in the job HOME, like production admission.
+      - name: Trust checked-out workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Consecutive runs of the selected scenario
         shell: bash
         env:
           STABILITY_SCENARIO: ${{ inputs.scenario || 'navigation-offline' }}
@@ -48,6 +56,7 @@ jobs:
           node --version > artifacts/stability/node.txt
           cp /etc/os-release artifacts/stability/os-release.txt
           npx playwright --version > artifacts/stability/playwright.txt
+          attempts=10
           case "$STABILITY_SCENARIO" in
             navigation-offline)
               test_args=(visual-report/drive-navigation.test.mjs browser-tests/offline-entry-smoke.test.mjs)
@@ -55,11 +64,15 @@ jobs:
             reader-touch)
               test_args=(--test-name-pattern='continuous native touch|continuous touch pinch' visual-report/reader-immersive.test.mjs)
               ;;
+            practice-reopen)
+              test_args=(--test-name-pattern='^webkit: MusicXML startup prepared-reopen$' browser-tests/musicxml-startup.test.mjs)
+              attempts=30
+              ;;
             *) echo "Unknown stability scenario" >&2; exit 1 ;;
           esac
           printf '%s\n' "$STABILITY_SCENARIO" > artifacts/stability/scenario.txt
           failed=0
-          for attempt in $(seq 1 10); do
+          for attempt in $(seq 1 "$attempts"); do
             started=$(date +%s)
             status=0
             node --test --test-reporter=tap --test-concurrency=1 \
