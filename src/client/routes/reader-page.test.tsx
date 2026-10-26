@@ -1968,7 +1968,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     expect(screen.queryByRole("button", { name: "画笔" })).not.toBeInTheDocument();
     fireEvent.keyDown(screen.getByLabelText("笔记文本"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("textbox", { name: "笔记文本" })).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "完成编辑" }));
+    fireEvent.click(await screen.findByRole("button", { name: "完成编辑" }));
     expect(await screen.findByLabelText("连续滚动阅读")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "编辑" }));
     expect(await screen.findByText("连续布局退出前保存的文字")).toBeInTheDocument();
