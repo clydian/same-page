@@ -1,6 +1,6 @@
 # #580：双入口连接控制与受控上线
 
-需求以 [已确认方案](https://github.com/clydian/same-page/issues/580#issuecomment-6420913816) 为准。
+本次测试与评审见 [验证记录](verification-580.md)。需求以 [已确认方案](https://github.com/clydian/same-page/issues/580#issuecomment-6420913816) 为准。
 [ESA 试验记录](issue-580-esa-backup.md) 和 [原始脱敏结果](issue-580-esa-evidence.json) 记录的是公开读取验证；本变更的本地测试不替代生产和大陆网络验收。
 
 ## 页面入口与业务线路
@@ -41,6 +41,7 @@ sequenceDiagram
 - `connection_exchanges` 是增量表；短凭证只在 POST body 与页面内存传递。数据库只保存码和浏览器随机数的 SHA-256 摘要，定时清理过期项。
 - 入口凭证是服务端签名的 session ID、目标 audience、到期时间及原生 Cookie 指纹。它不包含 Better Auth 原始 session token。每次实际使用均查 D1 原会话，再在后端适配给 Better Auth；不创建新会话，不修改 `createdAt` 或重新认证方式。原会话撤销、过期、密码重置、删除后立即拒绝。
 - 优先采用有效的显式登录 Cookie。原生 Cookie 已变化时，旧兑换凭证即使迟到也不能恢复更早身份；目标已有不同有效 session 时兑换返回 409，不能覆盖。页面另有代际检查，退出、切换用户或模式时隔离迟到读取和准备。
+- 明确密码登录后仅为传输校验识别新的原生会话；本机归属仍须通过原有 logout fence 接受。恢复专用原生会话可以读取用户恢复页，但不授予产品访问，也不能兑换另一入口凭证。
 - 正常请求仍按 Better Auth 原有 180 天 idle 策略续期，续期 Cookie 由当前主机保存；入口凭证的 180 天寿命不是独立会话有效期。目标凭证丢失或过期时，在有效源入口重新准备，不延长已撤销会话。
 - 仅备用可用时退出会撤销共同 session，原端残留 Cookie 不能再授权；两路均断遵守原有“服务端退出未完成，不清本机数据”的行为。
 - 新业务请求携带预期 session ID，服务端每次核对实际身份。原生音频／文件不能设置自定义请求头，因此以 `_sp_session` query 传递这一非秘密 ID，并在业务派发前移除。它只用于拒绝身份不一致，不能替代 Cookie 认证。即使另一窗口在备用网站切换用户，已缓存的“就绪”状态也不会放行另一用户数据。
@@ -74,7 +75,7 @@ sequenceDiagram
 1. 先在测试环境应用 `0037_connection_exchanges.sql`，再部署向后兼容后端。确认 `CONNECTION_BACKUP_ORIGIN` 与证书／ESA 回源一致，仍使用原 `BETTER_AUTH_SECRET`，不需要把秘密发给 ESA。
 2. 在受控环境启用后端开关。确认 ESA 对新增前缀、OPTIONS、POST、Set-Cookie、Range、Content-Range 及 Origin 原样转发，并继续绕过所有业务缓存。不要改变源站 Host/SNI 或关闭证书验证。
 3. 按现有 beta release 流程构建 `VITE_CONNECTIONS_ENABLED=true` 的客户端；可用 `VITE_CONNECTION_PRIMARY_ORIGIN`、`VITE_CONNECTION_BACKUP_ORIGIN` 覆盖本地测试网址。生产默认是上面的两个正式域名。不要仅启前端，否则新路由返回 404。
-4. 在真实 ESA、Chromium／WebKit、移动设备／PWA 上验收双向登录、冷启动直连断开、仅备用退出、密码重置／用户删除／失权、PDF 分片、音频拖动、上传及笔记。用大陆无代理的 Wi-Fi 和手机网络收集收益。公开健康检查双通不代表业务已通过。
+4. 在真实 ESA、Chromium／WebKit、移动设备／PWA 上验收双向登录、冷启动直连断开、仅备用退出、密码重置／用户删除／失权、PDF 分片、音频拖动、上传及笔记。原站 get-session 只读限额为每分钟 60 次，密码／验证码限额保持原值；连接检查仅在需要恢复或实际换路时重新获取产品会话。用大陆无代理的 Wi-Fi 和手机网络收集收益。公开健康检查双通不代表业务已通过。
 5. 确认 beta 与稳定版升级、降级保留草稿，再考虑默认开启。此 PR 不执行生产部署、续费或扩大流量额度。
 
 回退时先发布／指定关闭功能的客户端，等待已启用客户端退出受控窗口，再关闭后端新路由；可保留增量表待以后清理。不要先关后端让仍启用的客户端持续 404。旧客户端继续原路径工作；紧急时可回退到上一客户端 release。回退不复制或删除本机草稿，不主动删用户或共同 session。

@@ -106,7 +106,7 @@ it('restores the expected session from backup when the first host cookie is abse
   const send = vi.fn<typeof fetch>(async input => {
     const path = requestPath(input).pathname;
     if (path.endsWith('/get-session')) return Response.json(path.includes('/backup/') ? { user: { id: 'user' }, session: { id: 'expected' } } : null);
-    return Response.json({ sessionId: 'expected' });
+    return Response.json({ sessionId: path.includes('/backup/') ? 'expected' : null });
   });
   const controller = make(send, { sessionId: 'expected' });
   const body = await (await controller.fetch('/api/auth/get-session')).json();
@@ -144,13 +144,160 @@ it('fails over a stalled connection but disarms setup timers after headers for a
 });
 
 it('carries an exact-session guard even after cached readiness, and surfaces a changed target cookie', async () => {
-  const send = vi.fn<typeof fetch>(async (_input, init) => {
+  const send = vi.fn<typeof fetch>(async (input, init) => {
+    if (requestPath(input).pathname.endsWith('/status')) return Response.json({ sessionId: 'expected' });
     expect(new Headers(init?.headers).get('X-Same-Page-Session')).toBe('expected');
     return Response.json({ error: 'entry_identity_conflict' }, { status: 409, headers: { 'X-Same-Page-Entry-Conflict': '1' } });
   });
   const controller = make(send, { sessionId: 'expected' });
   // A native file uses the same non-secret guard; it is not an auth token.
   expect(controller.nativeEndpoint('/api/file')).toContain('/connection/unprepared');
-  expect((await controller.fetch('/api/auth/get-session')).status).toBe(409);
+  expect((await controller.fetch('/api/choirs')).status).toBe(409);
   expect(controller.getSnapshot().identity.direct).toBe('conflict');
+});
+
+it('can recover an expired common session by password or social login without clearing local storage', async () => {
+  const changedIdentity = vi.fn();
+  const send = vi.fn<typeof fetch>(async input => {
+    const path = requestPath(input).pathname;
+    if (path.endsWith('/flow')) return Response.json({ flow: 'sign-in' });
+    if (path.endsWith('/sign-in/email') || path.endsWith('/sign-in/social')) return Response.json({ url: 'https://accounts.google.test/' });
+    if (path.endsWith('/get-session')) return Response.json({ user: { id: 'user' }, session: { id: 'fresh' } });
+    throw new Error('old session must not authorize a new login');
+  });
+  const controller = make(send, { sessionId: 'expired', changedIdentity });
+  controller.setMode('backup');
+  expect((await controller.fetch('/api/auth/flow', { method: 'POST' })).ok).toBe(true);
+  expect((await controller.fetch('/api/auth/sign-in/email', { method: 'POST' })).ok).toBe(true);
+  expect(changedIdentity).toHaveBeenCalledWith(null);
+  expect((await (await controller.fetch('/api/auth/get-session')).json()).session.id).toBe('fresh');
+  controller.invalidateIdentity('previous-google-session');
+  expect((await controller.fetch('/api/auth/sign-in/social', { method: 'POST' })).ok).toBe(true);
+  expect((await (await controller.fetch('/api/auth/get-session')).json()).session.id).toBe('fresh');
+});
+
+it('does not automatically restore a prepared route whose cookie changed to another session', async () => {
+  let now = 1_000;
+  let direct = 'original';
+  const controller = make(async input => {
+    const path = requestPath(input).pathname;
+    return path.endsWith('/health') ? Response.json({ status: 'ok' }) : Response.json({ sessionId: path.includes('/direct/') ? direct : 'original' });
+  }, { sessionId: 'original', now: () => now });
+  await controller.prepare('backup');
+  controller.reportFailure('direct'); controller.setMode('auto');
+  direct = 'another-user';
+  await controller.check(); now += 20_000; await controller.check();
+  expect(controller.getSnapshot().active).toBe('backup');
+  expect(controller.getSnapshot().identity.direct).toBe('conflict');
+});
+
+it('reverse-prepares from a valid backup after pinning an unprepared direct route', async () => {
+  const sessions: Record<string, string | null> = { direct: null, backup: 'original' };
+  const controller = make(async input => {
+    const path = requestPath(input).pathname, route = path.includes('/direct/') ? 'direct' : 'backup';
+    if (path.endsWith('/health')) return Response.json({ status: 'ok' });
+    if (path.endsWith('/status')) return Response.json({ sessionId: sessions[route] });
+    if (path.endsWith('/get-session')) return Response.json(sessions[route] ? { session: { id: sessions[route] } } : null);
+    if (path.endsWith('/begin')) return Response.json({ flow: 'flow' });
+    if (path.endsWith('/issue')) return Response.json({ code: 'code' });
+    if (path.endsWith('/redeem')) { sessions[route] = 'original'; return Response.json({ ready: true }); }
+    throw new Error('unexpected');
+  }, { sessionId: 'original' });
+  controller.setMode('direct');
+  expect((await controller.fetch('/api/auth/get-session')).status).toBe(503);
+  await controller.check();
+  expect(controller.getSnapshot().mode).toBe('direct');
+  expect(controller.getSnapshot().active).toBe('direct');
+  expect(controller.getSnapshot().identity.direct).toBe('ready');
+  expect((await (await controller.fetch('/api/auth/get-session')).json()).session.id).toBe('original');
+});
+
+it.each(['/api/auth/social-providers', '/api/guest/session', '/api/android-release', '/api/diagnostic-reports'])('keeps public recovery path %s available after common-session expiry', async path => {
+  const send = vi.fn<typeof fetch>(async () => Response.json({ ok: true }));
+  const controller = make(send, { sessionId: 'expired' });
+  controller.setMode('backup');
+  const init = path.endsWith('/diagnostic-reports') ? { method: 'POST', credentials: 'omit' as const } : undefined;
+  expect((await controller.fetch(path, init)).ok).toBe(true);
+  expect(send).toHaveBeenCalledTimes(1);
+  if (init) { expect(send.mock.calls[0][1]?.credentials).toBe('omit'); expect(new Headers(send.mock.calls[0][1]?.headers).has('X-Same-Page-Session')).toBe(false); }
+});
+
+it('clears an obsolete expected ID only after both absent sessions, then reads admitted guest files', async () => {
+  const changedIdentity = vi.fn();
+  const controller = make(async (input, init) => {
+    const path = requestPath(input).pathname;
+    if (path.endsWith('/get-session')) return Response.json(null);
+    if (path.endsWith('/status')) return Response.json({ sessionId: null });
+    if (path.endsWith('/guest/session')) return Response.json({ choir: { id: 'preview' } });
+    expect(new Headers(init?.headers).get('X-Same-Page-Session')).toBe('none');
+    return Response.json({ scores: [] });
+  }, { sessionId: 'expired', changedIdentity });
+  expect(await (await controller.fetch('/api/auth/get-session')).json()).toBeNull();
+  expect(changedIdentity).toHaveBeenCalledWith(null);
+  await controller.fetch('/api/guest/session', { method: 'POST', body: '{"admission":"open","choirId":"preview"}' });
+  expect((await controller.fetch('/api/choirs/preview/bootstrap')).ok).toBe(true);
+  expect(new URL(controller.nativeEndpoint('/api/choirs/preview/pdf')).searchParams.get('_sp_session')).toBe('none');
+});
+
+it('preserves a recovery-only credential while product get-session is intentionally null', async () => {
+  const controller = make(async (input, init) => {
+    const path = requestPath(input).pathname;
+    if (path.endsWith('/sign-in/email')) return Response.json({ user: { id: 'recovering-user' } });
+    if (path.endsWith('/status')) return Response.json({ sessionId: 'recovery-session', productAccess: false });
+    if (path.endsWith('/get-session')) return Response.json(null);
+    expect(new Headers(init?.headers).get('X-Same-Page-Session')).toBe('recovery-session');
+    return Response.json({ deletion: { deletionId: 'deletion' } });
+  }, { sessionId: 'old' });
+  controller.setMode('backup');
+  await controller.fetch('/api/auth/sign-in/email', { method: 'POST' });
+  expect(await (await controller.fetch('/api/auth/get-session')).json()).toBeNull();
+  expect((await controller.fetch('/api/user/lifecycle')).ok).toBe(true);
+});
+
+it('prepares a cold native file URL through bounded HEAD failover before exposing it to PDF.js', async () => {
+  const controller = make(async (input, init) => {
+    const path = requestPath(input).pathname;
+    if (path.includes('/direct/')) throw new TypeError('Failed to fetch');
+    if (path.endsWith('/status')) return Response.json({ sessionId: 'expected' });
+    expect(init?.method).toBe('HEAD');
+    return new Response(null, { headers: { 'Content-Length': '100' } });
+  }, { sessionId: 'expected' });
+  const url = await controller.readEndpoint('/api/choirs/drive/versions/version/pdf', new AbortController().signal);
+  expect(url).toContain('/_entry/backup/choirs/drive/versions/version/pdf');
+  expect(new URL(url).searchParams.get('_sp_session')).toBe('expected');
+});
+
+it('rejects a late absent-session probe without clearing a newer identity', async () => {
+  let finish!: (response: Response) => void;
+  const changedIdentity = vi.fn();
+  const controller = make(async input => {
+    const path = requestPath(input).pathname;
+    if (path.endsWith('/get-session')) return Response.json(null);
+    if (path.includes('/direct/')) return Response.json({ sessionId: null });
+    return new Promise(resolve => { finish = resolve; });
+  }, { sessionId: 'old', changedIdentity });
+  const request = controller.fetch('/api/auth/get-session');
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+  controller.invalidateIdentity('new-user-session');
+  finish(Response.json({ sessionId: null }));
+  await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  expect(changedIdentity).not.toHaveBeenCalledWith(null);
+});
+
+it('keeps an old guest acknowledgement but does not prepare its cookie after a new login', async () => {
+  let finish!: (response: Response) => void;
+  const send = vi.fn<typeof fetch>(async input => {
+    if (requestPath(input).pathname.endsWith('/guest/session')) return Response.json({ choir: { id: 'guest-drive' } });
+    return new Promise(resolve => { finish = resolve; });
+  });
+  const changedIdentity = vi.fn();
+  const controller = make(send, { sessionId: 'old', changedIdentity });
+  const request = controller.fetch('/api/guest/session', { method: 'POST', body: '{}' });
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+  controller.invalidateIdentity('new-user-session');
+  finish(Response.json({ sessionId: null }));
+  expect((await request).ok).toBe(true);
+  expect(controller.getSnapshot().identity).toEqual({ direct: 'unknown', backup: 'unknown' });
+  expect(changedIdentity).not.toHaveBeenCalledWith(null);
+  expect(send.mock.calls.filter(([input]) => requestPath(input).pathname.endsWith('/guest/session'))).toHaveLength(1);
 });

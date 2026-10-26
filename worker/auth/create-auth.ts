@@ -96,6 +96,10 @@ export function createAuth(env: Env, executionContext: WaitUntilContext) {
       enabled: true,
       window: 60,
       max: 10,
+      // Connection recovery may inspect the same live session from two entry
+      // hosts. Keep credential/OTP limits strict; session reads are not login
+      // guesses and must not lock a shared-network user out during recovery.
+      customRules: { "/get-session": { window: 60, max: 60 } },
       customStorage: {
         async consume(key, rule) {
           const protectedKey = await hashRateLimitIdentity(

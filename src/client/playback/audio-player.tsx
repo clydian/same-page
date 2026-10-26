@@ -21,7 +21,7 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
   const audio = useRef<HTMLAudioElement>(null);
   const connection = useSyncExternalStore(connections.subscribe, connections.getSnapshot);
   const route = connection.active, entryReady = connection.identity[route];
-  const resume = useRef<{ source: PlaybackSource; time: number; playing: boolean } | null>(null);
+  const resume = useRef<{ source: PlaybackSource; time: number; playing: boolean; speed: number; volume: number } | null>(null);
   const recoveredAutomatically = useRef(false);
   const [ready, setReady] = useState(false), [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0), [duration, setDuration] = useState(0), [speed, setSpeed] = useState(1);
@@ -37,7 +37,7 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
     player.crossOrigin = 'use-credentials';
     player.src = connectionUrl(attachmentFileUrl(source.choirId, source.attachment)); player.load();
     return () => {
-      if (player.readyState >= HTMLMediaElement.HAVE_METADATA || resume.current?.source !== source) resume.current = { source, time: player.currentTime, playing: !player.paused };
+      if (player.readyState >= HTMLMediaElement.HAVE_METADATA || resume.current?.source !== source) resume.current = { source, time: player.currentTime, playing: !player.paused, speed: player.playbackRate, volume: player.volume };
       document.removeEventListener('play', pauseForOther, true); player.pause(); player.removeAttribute('src'); player.load();
     };
   }, [source, attempt, route, entryReady]);
@@ -50,7 +50,7 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
     else { document.querySelectorAll('audio,video').forEach(other => { if (other !== player && other instanceof HTMLMediaElement) other.pause(); }); void player.play().catch(() => setError('暂时无法开始播放，请重试或下载音频。')); }
   };
   return <>
-    <audio ref={audio} preload="metadata" onLoadedMetadata={() => { const player = audio.current; const value = player?.duration ?? 0; setDuration(Number.isFinite(value) ? value : 0); setCanSeek(Boolean(player?.seekable.length)); if (player) { player.playbackRate = speed; player.volume = volume; if (resume.current?.source === source) { player.currentTime = resume.current.time; if (resume.current.playing) void player.play().catch(() => setError('请点击播放继续。')); resume.current = null; } } setReady(true); setError(null); }}
+    <audio ref={audio} preload="metadata" onLoadedMetadata={() => { const player = audio.current; const value = player?.duration ?? 0; setDuration(Number.isFinite(value) ? value : 0); setCanSeek(Boolean(player?.seekable.length)); if (player) { player.playbackRate = speed; player.volume = volume; if (resume.current?.source === source) { player.currentTime = resume.current.time; player.playbackRate = resume.current.speed; player.volume = resume.current.volume; setSpeed(resume.current.speed); setVolume(resume.current.volume); if (resume.current.playing) void player.play().catch(() => setError('请点击播放继续。')); resume.current = null; } } setReady(true); setError(null); }}
       onProgress={() => { const player = audio.current; const value = player?.duration ?? 0; if (Number.isFinite(value)) setDuration(value); setCanSeek(Boolean(player?.seekable.length)); }}
       onTimeUpdate={() => setPosition(audio.current?.currentTime ?? 0)} onPlay={() => { setError(null); setPlaying(true); }} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
       onError={() => { setReady(false); setError('音频暂不可用，请检查网络或从附件菜单下载。'); if (connectionsEnabled && !recoveredAutomatically.current && audio.current?.error?.code === MediaError.MEDIA_ERR_NETWORK) { recoveredAutomatically.current = true; void connections.recoverMedia(route); } }} />

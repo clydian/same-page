@@ -1,4 +1,4 @@
-import { connectionPath, connectionRoutes, type ConnectionMode, type ConnectionRoute } from "../../shared/connection";
+import { connectionPath, connectionRoutes, isPublicConnectionPath, type ConnectionMode, type ConnectionRoute } from "../../shared/connection";
 
 export type EntryReadiness = "unknown" | "ready" | "unprepared" | "conflict";
 export interface RouteHealth { state: "unknown" | "reachable" | "unreachable"; checkedAt: number | null; latency: number | null }
@@ -40,6 +40,7 @@ export class ConnectionController {
   private preparation: Promise<void> | null = null;
   private preparationAbort = new AbortController();
   private probe: Promise<void> | null = null;
+  private probeGeneration = 0;
   private guestPreparation: Promise<void> | null = null;
   private lastForegroundProbe = 0;
   private now: () => number;
@@ -74,6 +75,7 @@ export class ConnectionController {
     return `${this.options.origins[route]}${connectionPath(route, url.pathname)}${url.search}`;
   }
   nativeEndpoint(path: string) {
+    if (isPublicConnectionPath(new URL(path, this.options.pageOrigin).pathname)) return this.endpoint(path);
     // Native media/download requests cannot inspect a credential response. Do
     // not send them to an unverified identity while manual preparation runs.
     if (this.snapshot.identity[this.snapshot.active] !== "ready") return this.endpoint("/api/connection/unprepared");
@@ -90,13 +92,22 @@ export class ConnectionController {
     if (this.snapshot.mode === "auto" && route !== this.snapshot.active) this.update({ active: route });
     return this.nativeEndpoint(path);
   }
+  async readEndpoint(path: string, signal: AbortSignal) {
+    const url = new URL(path, this.options.pageOrigin);
+    if (url.origin !== this.options.pageOrigin || !url.pathname.startsWith("/api/")) return path;
+    if (this.snapshot.identity[this.snapshot.active] !== "ready") {
+      const response = await this.fetch(path, { method: "HEAD", signal });
+      if (!response.ok) throw Object.assign(new Error("native_file_unavailable"), { status: response.status });
+    }
+    return this.nativeEndpoint(path);
+  }
   async recoverMedia(route: ConnectionRoute, signal?: AbortSignal) {
     this.reportFailure(route);
     const generation = this.generation;
     if (this.snapshot.mode !== "auto") return false;
     const target = other(route);
     try {
-      await this.authorize(target, AbortSignal.any([AbortSignal.timeout(3000), ...(signal ? [signal] : [])]));
+      await this.authorize(target, AbortSignal.any([AbortSignal.timeout(3000), ...(signal ? [signal] : [])]), true);
       if (generation !== this.generation || signal?.aborted || this.snapshot.mode !== "auto") return false;
       this.update({ active: target });
       return true;
@@ -140,8 +151,8 @@ export class ConnectionController {
     if (!body || typeof body !== "object" || !("sessionId" in body) || body.sessionId !== null && typeof body.sessionId !== "string") throw new Error("invalid_entry_status");
     return body.sessionId;
   }
-  private async authorize(route: ConnectionRoute, signal: AbortSignal) {
-    if (this.snapshot.identity[route] === "ready") return;
+  private async authorize(route: ConnectionRoute, signal: AbortSignal, fresh = false) {
+    if (!fresh && this.snapshot.identity[route] === "ready") return;
     const expected = this.sessionId, started = this.generation;
     const actual = await this.status(route, signal);
     if (started !== this.generation) throw abortError();
@@ -191,10 +202,16 @@ export class ConnectionController {
     this.preparation = work;
     return work;
   }
-  check = () => {
-    if (this.probe) return this.probe;
+  check = (): Promise<void> => {
+    if (this.probe) {
+      const requestedGeneration = this.generation;
+      return this.probe.then((): void | Promise<void> => {
+        if (requestedGeneration === this.generation && this.probeGeneration !== requestedGeneration) return this.check();
+      });
+    }
     this.update({ checking: true });
     const generation = this.generation;
+    this.probeGeneration = generation;
     this.probe = Promise.all(connectionRoutes.map(async route => {
       const start = this.now();
       let healthConfirmed = false;
@@ -204,7 +221,7 @@ export class ConnectionController {
         if (!body || typeof body !== "object" || !("status" in body) || body.status !== "ok") throw new Error("unhealthy");
         this.reachable(route, this.now() - start);
         healthConfirmed = true;
-        if (generation === this.generation) await this.authorize(route, AbortSignal.timeout(2000));
+        if (generation === this.generation) await this.authorize(route, AbortSignal.timeout(2000), true);
       } catch (error) {
         if (error instanceof EntryIdentityConflictError) return;
         if (healthConfirmed) this.update({ identity: { ...this.snapshot.identity, [route]: "unprepared" } });
@@ -222,7 +239,11 @@ export class ConnectionController {
           else if (this.recovery === null) this.recovery = this.now();
         }
       }
-      if (this.sessionId && this.snapshot.identity[this.snapshot.active] === "ready") await this.prepare(this.snapshot.active);
+      // Authentication preparation is control-plane work, independent of a
+      // pinned business route. A missing direct cookie can be prepared from a
+      // still-valid backup even when the user has just pinned direct.
+      const source = connectionRoutes.find(route => this.snapshot.identity[route] === "ready" && this.snapshot.health[route].state === "reachable");
+      if (this.sessionId && source) await this.prepare(source);
     }).finally(() => { this.probe = null; this.update({ checking: false }); });
     return this.probe;
   };
@@ -251,6 +272,7 @@ export class ConnectionController {
     const choices = this.snapshot.mode === "auto" && read && this.cooldown[other(route)] <= this.now() ? [route, other(route)] : [route];
     const budget = new AbortController();
     const budgetTimer = read ? setTimeout(() => budget.abort(new DOMException("Connection deadline", "TimeoutError")), 9000) : undefined;
+    let missingSessions = 0;
     try {
     for (let index = 0; index < choices.length; index++) {
       const chosen = choices[index];
@@ -260,14 +282,25 @@ export class ConnectionController {
       const start = this.now();
       try {
         if (index > 0 && this.guestPreparation) await this.guestPreparation;
-        if (chosen !== this.snapshot.active || this.snapshot.identity[chosen] !== "ready") {
-          if (!sessionRead && (this.sessionId || chosen !== "direct")) await this.authorize(chosen, signal ?? AbortSignal.timeout(3000));
+        if (!this.sessionId && url.pathname === "/api/user/lifecycle" && this.options.origins[chosen] === this.options.pageOrigin) {
+          // The product get-session intentionally hides recovery-only users.
+          // Inspect this page's own native credential for the lifecycle screen;
+          // this never accepts a local workspace owner or bypasses permission.
+          const credential = await this.status(chosen, signal ?? AbortSignal.timeout(2000));
+          if (generation !== this.generation) throw abortError();
+          if (credential) this.sessionId = credential;
         }
+        if (chosen !== this.snapshot.active || this.snapshot.identity[chosen] !== "ready") {
+          if (!isPublicConnectionPath(url.pathname) && (this.sessionId || chosen !== "direct")) await this.authorize(chosen, signal ?? AbortSignal.timeout(3000));
+        }
+        if (generation !== this.generation) throw abortError();
         const endpoint = this.endpoint(`${url.pathname}${url.search}`, chosen);
         const source = input instanceof Request ? new Request(endpoint, input) : endpoint;
         const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-        headers.set("X-Same-Page-Session", this.sessionId ?? "none");
-        const response = await this.options.send(source, { ...init, headers, credentials: init?.credentials === "omit" ? "omit" : "include", redirect: "error", ...(signal ? { signal } : {}) });
+        if (isPublicConnectionPath(url.pathname)) headers.delete("X-Same-Page-Session");
+        else headers.set("X-Same-Page-Session", this.sessionId ?? "none");
+        const credentials = init?.credentials ?? (input instanceof Request ? input.credentials : undefined);
+        const response = await this.options.send(source, { ...init, headers, credentials: credentials === "omit" ? "omit" : "include", redirect: "error", ...(signal ? { signal } : {}) });
         // Bound connection setup, not an entire 20 MB file transfer. After
         // headers, the caller retains its own body/download deadline.
         clearTimeout(attemptTimer);
@@ -278,26 +311,57 @@ export class ConnectionController {
         if (response.headers.get("X-Same-Page-Entry-Conflict") === "1") this.reportIdentityConflict(chosen);
         if (sessionRead && response.ok) {
           const body: unknown = await response.clone().json();
+          if (generation !== this.generation) throw abortError();
           const id = body && typeof body === "object" && "session" in body && body.session && typeof body.session === "object" && "id" in body.session && typeof body.session.id === "string" ? body.session.id : null;
           if (this.sessionId && id && id !== this.sessionId) throw new EntryIdentityConflictError();
           if (!this.sessionId && index > 0 && id) throw new EntryIdentityConflictError();
+          if (!id && this.sessionId) {
+            const credential = await this.status(chosen, signal ?? AbortSignal.timeout(2000));
+            if (generation !== this.generation) throw abortError();
+            if (credential === this.sessionId) {
+              this.update({ identity: { ...this.snapshot.identity, [chosen]: "ready" } });
+              if (this.snapshot.mode === "auto" && this.snapshot.active === activeAtStart) this.update({ active: chosen });
+              return response;
+            }
+          }
           // A missing cookie on one entry is not proof that the common session
           // was revoked. Recover only the previously accepted exact session.
+          if (!id) missingSessions++;
           if (!id && this.sessionId && index + 1 < choices.length) continue;
+          if (!id && this.sessionId && missingSessions < 2) {
+            this.update({ identity: { ...this.snapshot.identity, [chosen]: "unprepared" } });
+            return Response.json({ error: "entry_session_unprepared" }, { status: 503 });
+          }
+          if (!id && this.sessionId && missingSessions === 2) { this.invalidateIdentity(); this.options.changedIdentity?.(null); }
           if (id === this.sessionId && id) this.update({ identity: { ...this.snapshot.identity, [chosen]: "ready" } });
           // LocalIdentityObserver prepares credentials only after the existing
           // logout fence has accepted the session and its workspace ownership.
         }
-        if (this.snapshot.mode === "auto" && this.snapshot.active === activeAtStart && chosen !== activeAtStart) this.update({ active: chosen });
-        if (authMutation && response.ok && /\/(sign-out|sign-in\/email|registration\/complete)$/.test(url.pathname)) {
+        if (generation === this.generation && this.snapshot.mode === "auto" && this.snapshot.active === activeAtStart && chosen !== activeAtStart) this.update({ active: chosen });
+        if (authMutation && generation === this.generation && response.ok && /\/(sign-out|sign-in\/(?:email|social)|registration\/complete)$/.test(url.pathname)) {
           this.invalidateIdentity(); this.options.changedIdentity?.(null);
+          if (/\/(?:sign-in\/email|registration\/complete)$/.test(url.pathname)) {
+            const establishedGeneration = this.generation;
+            const credential = await this.status(chosen, AbortSignal.timeout(2000)).catch(() => null);
+            if (credential && establishedGeneration === this.generation) {
+              this.sessionId = credential;
+              this.update({ identity: { ...this.snapshot.identity, [chosen]: "ready" } });
+            }
+          }
         }
         // This endpoint issues only a stateless guest cookie. It neither joins
         // a membership nor creates business data, so preparing both entries is
         // safe. Never generalize this exception to arbitrary POSTs.
-        if (url.pathname === "/api/guest/session" && method === "POST" && response.ok && typeof init?.body === "string") {
+        if (generation === this.generation && url.pathname === "/api/guest/session" && method === "POST" && response.ok && typeof init?.body === "string") {
+          if (this.sessionId) {
+            // Explicit, validated guest admission may leave an expired login;
+            // it must not make guest files carry that obsolete session guard.
+            const actual = await this.status(chosen, AbortSignal.timeout(2000)).catch(() => undefined);
+            if (generation !== this.generation) return response;
+            if (actual === null) { this.invalidateIdentity(); this.options.changedIdentity?.(null); }
+          }
           this.update({ identity: { ...this.snapshot.identity, [chosen]: "ready" } });
-          this.guestPreparation = this.raw(other(chosen), url.pathname, { ...init, signal: AbortSignal.timeout(3000) })
+          this.guestPreparation = this.raw(other(chosen), url.pathname, { ...init, signal: AbortSignal.any([this.preparationAbort.signal, AbortSignal.timeout(3000)]) })
             .then(() => undefined, () => undefined).finally(() => { this.guestPreparation = null; });
         }
         if (url.pathname === "/api/guest/session" && method === "DELETE" && response.ok) {

@@ -166,3 +166,29 @@ it('guards every business request against a target cookie changed by another win
   const ownSession = await (await call('backup', '/auth/get-session')).json<{ session: Record<string, unknown> }>();
   expect(ownSession.session).not.toHaveProperty('token');
 });
+
+it('rejects bridged lifecycle access after deletion but permits a freshly verified native recovery session', async () => {
+  const first = await login();
+  await exchange('direct', first.sessionId);
+  const deletionId = crypto.randomUUID(), now = Date.now();
+  await env.DB.prepare('INSERT INTO user_lifecycle (user_id, deletion_id, auth_method, deleted_at, expires_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(first.id, deletionId, 'credential', now, now + 86400_000).run();
+  // The old bridge cannot authorize product access, even though its signature
+  // and original session row still exist.
+  expect((await (await call('backup', '/connection/status')).json<{ sessionId: string | null }>()).sessionId).toBeNull();
+  const nativeToken = crypto.randomUUID(), nativeId = crypto.randomUUID();
+  await env.DB.prepare('INSERT INTO session (id, token, user_id, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(nativeId, nativeToken, first.id, now + 60_000, now + 1, now + 1).run();
+  await env.DB.prepare('INSERT INTO session_auth_methods (session_id, method) VALUES (?, ?)').bind(nativeId, 'credential').run();
+  jars.backup.set('__Secure-better-auth.session_token', encodeURIComponent(`${nativeToken}.${await makeSignature(nativeToken, env.BETTER_AUTH_SECRET)}`));
+  const status = await (await call('backup', '/connection/status')).json<{ sessionId: string; productAccess: boolean }>();
+  expect(status).toMatchObject({ sessionId: nativeId, productAccess: false });
+  expect(await (await call('backup', '/auth/get-session')).json()).toBeNull();
+  const context = ctx();
+  const cookie = [...jars.backup].map(([name, value]) => `${name}=${value}`).join('; ');
+  const read = await worker.fetch(new Request(`${origins.direct}/api/_entry/backup/user/lifecycle`, { headers: { origin: origins.direct, cookie, 'x-same-page-session': nativeId } }), bindings, context);
+  expect(read.status).toBe(200);
+  expect(await read.json()).toMatchObject({ userId: first.id, deletion: { deletionId } });
+  const restored = await worker.fetch(new Request(`${origins.direct}/api/_entry/backup/user/lifecycle/restore`, { method: 'POST', headers: { origin: origins.direct, cookie, 'x-same-page-session': nativeId, 'content-type': 'application/json' }, body: JSON.stringify({ confirm: true, deletionId }) }), bindings, ctx());
+  expect(restored.status).toBe(204);
+});

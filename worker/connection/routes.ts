@@ -29,7 +29,10 @@ connectionRoutes.use("*", async (c, next) => {
 connectionRoutes.get("/status", async c => {
   const session = await createAuth(c.env, c.executionCtx).api.getSession({ headers: c.req.raw.headers, query: { disableRefresh: true } });
   const deleted = session && await c.env.DB.prepare("SELECT 1 FROM user_lifecycle WHERE user_id = ?").bind(session.user.id).first();
-  return c.json({ sessionId: session && !deleted ? session.session.id : null, userId: session && !deleted ? session.user.id : null });
+  // A recovery-only native session is still a credential, but grants no
+  // product access and cannot be exchanged. Lifecycle reauthentication needs
+  // its exact ID without pretending it is a normal signed-in product user.
+  return c.json({ sessionId: session?.session.id ?? null, userId: session?.user.id ?? null, productAccess: Boolean(session && !deleted) });
 });
 
 connectionRoutes.post("/begin", async c => {

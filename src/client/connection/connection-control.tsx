@@ -1,7 +1,7 @@
 import { LoaderCircle, Wifi, WifiOff } from "lucide-react";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { connectionRoutes, type ConnectionMode } from "../../shared/connection";
 import { authClient } from "../auth/auth-client";
 import { Dialog } from "../navigation/overlays";
@@ -28,11 +28,13 @@ function ConnectionButton() {
   const working = state.checking || state.preparing;
   const visible = scrollingVisible || attention || working || open;
   const refetch = session.refetch;
+  const needsSessionRecovery = Boolean(session.error) || !session.data?.user;
   const check = useCallback(async () => {
+    const previousRoute = connections.getSnapshot().active;
     await connections.check();
     // Health alone cannot establish identity, permissions or completed writes.
-    await refetch();
-  }, [refetch]);
+    if (needsSessionRecovery || previousRoute !== connections.getSnapshot().active) await refetch();
+  }, [refetch, needsSessionRecovery]);
   useEffect(() => {
     let last = 0;
     const recover = () => {
@@ -72,6 +74,7 @@ function ConnectionButton() {
         })}</ul>
         <Button className="secondary-button" isDisabled={working || session.isRefetching} onPress={() => void check()}>{working ? "正在检测…" : "重新检测"}</Button>
         {connectionRoutes.some(route => state.identity[route] === "conflict") && <p role="status" className="connection-copy">请在另一网站核对登录，退出不同的登录后再检测。不要清除站点数据，未同步草稿仍需保留。</p>}
+        {state.identity[state.active] === "unprepared" && !session.data?.user && <p className="connection-copy">当前入口登录未就绪。可重新检测，或<Link to="/login" onClick={() => setOpen(false)}>重新登录</Link>；本机内容仍然保留。</p>}
         <p className="connection-copy">线路恢复后，仍以各项操作的保存与同步结果为准。</p>
         <details className="connection-help"><summary>页面打不开时怎么办？</summary>
           <p>可另开<a href={connectionWebsites.backup} target="_blank" rel="noopener noreferrer">备用网站</a>。两个网址的本机草稿、离线文件和安装应用分别保存，未同步内容不会随网址搬迁。日常在当前页面切线即可。</p>

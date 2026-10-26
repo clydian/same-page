@@ -1,3 +1,4 @@
+import { connectionFetch } from "../connection/connection";
 import { releaseChannelDiagnostics } from "../updates/release-channel";
 import { diagnosticReceiptSchema, diagnosticReportSchema, type DiagnosticReader, type DiagnosticReport } from "../../shared/diagnostic-report";
 import { exportDiagnostics, subscribeDiagnosticReset } from "./diagnostics";
@@ -123,4 +124,3 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
     if (started === epoch) pending = null;
   }
 }
-import { connectionFetch } from "../connection/connection";

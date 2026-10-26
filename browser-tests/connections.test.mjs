@@ -56,6 +56,49 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     assert.equal(network.uploads, 2, 'a lost acknowledgement must not submit a second write');
     assert.ok(network.traffic.some(entry => entry.path.includes('/backup/choirs/') && entry.method === 'POST'));
     await page.screenshot({ path: `artifacts/verification/issue-580/${name}-uncertain-upload.png` });
+    // Native Range/credentials and media state follow the same route controller.
+    await page.goto(`${origins.direct}/choirs/${fixture.choirId}`);
+    await page.getByRole('button', { name: '本地链路测试 更多操作', exact: true }).click();
+    await page.getByRole('menuitem', { name: '添加附件', exact: true }).click();
+    await page.getByRole('button', { name: '音频', exact: true }).click();
+    const wav = Buffer.alloc(44 + 8000 * 20 * 2);
+    wav.write('RIFF', 0); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(8000, 24); wav.writeUInt32LE(16000, 28);
+    wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(wav.length - 44, 40);
+    await page.getByLabel('选择附件文件').setInputFiles({ name: '线路录音.wav', mimeType: 'audio/wav', buffer: wav });
+    await page.getByRole('button', { name: '上传', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.getByRole('button', { name: '本地链路测试：1 个附件', exact: true }).click();
+    await page.getByRole('button', { name: '线路录音.wav', exact: true }).click();
+    await expect.poll(() => page.locator('audio').evaluate(audio => audio.readyState)).toBeGreaterThanOrEqual(1);
+    await page.getByRole('button', { name: '播放', exact: true }).click();
+    await page.locator('audio').evaluate(audio => { audio.currentTime = 3; audio.playbackRate = 1.25; audio.volume = .4; });
+    const range = await page.locator('audio').evaluate(async audio => {
+      const result = await fetch(audio.src, { credentials: 'include', headers: { Range: 'bytes=0-127' } });
+      return { status: result.status, bytes: (await result.arrayBuffer()).byteLength, range: result.headers.get('Content-Range') };
+    });
+    assert.deepEqual(range, { status: 206, bytes: 128, range: `bytes 0-127/${wav.length}` });
+    network.directBroken = false;
+    await page.evaluate(async () => {
+      const { connections, setConnectionMode } = await import('/src/client/connection/connection.ts');
+      setConnectionMode('direct'); await connections.check();
+    });
+    await expect.poll(() => page.locator('audio').evaluate(audio => audio.src.includes('/_entry/direct/'))).toBe(true);
+    await expect.poll(() => page.locator('audio').evaluate(audio => audio.currentTime)).toBeGreaterThanOrEqual(3);
+    assert.equal(await page.locator('audio').evaluate(audio => audio.playbackRate), 1.25);
+    assert.ok(Math.abs(await page.locator('audio').evaluate(audio => audio.volume) - .4) < .01);
+    await expect.poll(() => page.locator('audio').evaluate(audio => audio.paused)).toBe(false);
+    await page.screenshot({ path: `artifacts/verification/issue-580/${name}-audio-state.png` });
+    // Main PDF uses credentialed native requests on backup, including its version guard.
+    await page.goto(`${origins.direct}/choirs/${fixture.choirId}`);
+    await page.getByRole('button', { name: '连接线路', exact: true }).click();
+    await page.getByRole('radio', { name: '备用', exact: true }).check();
+    await expect(page.getByRole('button', { name: '重新检测', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: '关闭连接面板' }).click();
+    await page.goto(`${origins.direct}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
+    await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
+    assert.ok(network.traffic.some(entry => entry.path.includes('/_entry/backup/choirs/') && entry.path.includes('/pdf?_sp_session=')));
+    network.directBroken = true;
     // First access through the emergency page, with a new browser storage area.
     const emergency = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block', ignoreHTTPSErrors: true }); t.after(() => emergency.close());
     const alternate = await emergency.newPage();

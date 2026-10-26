@@ -77,6 +77,8 @@ export function loadPdfDocument(
       resolvedSource = versionedPdfUrl(source, actualVersionId);
     }
     if (destroyed) throw new DOMException("PDF load cancelled", "AbortError");
+    if (connectionsEnabled && typeof resolvedSource === "string") await connections.readEndpoint(resolvedSource, abortController.signal);
+    if (destroyed) throw new DOMException("PDF load cancelled", "AbortError");
     const startDocument = () => engine.getDocument({
       worker: worker ?? undefined,
       wasmUrl: new URL(assetUrl(pdfJsWasmDirectory), window.location.href).href,

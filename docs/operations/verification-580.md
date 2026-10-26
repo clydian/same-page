@@ -1,0 +1,44 @@
+# #580 连接控制验证与评审
+
+基线：`450d44127e58d3d06525145bad8f98c3f516f9db`。分支：`codex/issue-580-connections`。
+此记录对应本 PR 的本地代码验证，不代表生产开关已打开或 ESA／大陆网络收益已验收。
+
+## 两轴评审
+
+依 `code-review` 流程，由两个独立 reviewer 检查 Standards 与 Spec。
+
+Standards 初审发现过期会话阻塞重新登录、Google 回调与旧预期 ID 冲突、公开／访客请求错误依赖旧登录；复审再发现迟到空会话探测能清掉新身份。均已修复：共享公开路径分类、明确认证意图、双路缺失／明确访客转换、每次异步身份探测后的代际检查。旧写入仍保留确认结果，不用丢弃已完成写入来隔离旧状态。最终复核：遗留阻断项 0。
+
+Spec 初审发现缓存的 ready 状态会错误自动切回另一用户，以及手动选择尚未准备的直连不能从有效备用反向准备。显式探测现在读取实时 session；准备的有效源与手动业务路线独立。单路缺 Cookie 返回未就绪，不当成共同会话退出。最终逻辑复核及新增回归：遗留阻断项 0。
+
+另验证生命周期恢复：备用凭证不能绕过停用或重新认证；明确密码登录后可用新原生会话读取恢复状态。恢复专用会话的 `productAccess=false` 不授予产品访问或兑换资格。诊断的 `credentials: omit` 仍生效，公开请求不附带预期 session ID。
+
+## 已运行的检查
+
+- lint、TypeScript、默认构建与 `VITE_CONNECTIONS_ENABLED=true` 构建；预缓存预算及现有 storage contract 检查通过。
+- Node 规则：56 个文件、283 项；Worker unit：4 个文件、8 项；Worker D1/R2 集成：19 个文件、199 项。
+- 完整 client/jsdom：150 个文件、1298 项通过，另有连接控制的过期、恢复、手动、冷启动、取消及迟到响应回归。
+- 本地旧 schema 与认证迁移验证通过；CI／release-contract 29 项通过。
+- 完整 browser UI 首轮 206/208；两个 reader context-lost 诊断记录断言未通过，稳定代码后单独复跑该文件 Chromium／WebKit 2/2 通过。记录首轮失败，不将其写成一次全绿。
+- 真实 Worker 浏览器 access、storage、offline-entry 场景通过；附件 Chromium／WebKit 首轮暴露 legacy PDF viewer 先于 engine 加载的问题，修复后 2/2 通过。
+- 双主机真实 HTTPS 连接场景 Chromium／WebKit 2/2 通过，覆盖下表。TLS 使用临时自签证书及本机 workerd／D1／R2，无生产用户或云端数据写入。
+
+| 场景 | 断言 |
+| --- | --- |
+| 直连登录并准备备用 | 两条身份与 session ID 相同；host-only、Secure、HttpOnly Cookie |
+| 关闭页面后直连 API 故障 | 已有页面 origin 保持，恢复备用用户／云盘；本机标记保留 |
+| 手动直连／备用 | 指定直连故障时不暗改；选备用可恢复 |
+| XHR 上传 | 成功上传；后台保存后响应正文断开时仅提交一次，队列保留待核对 |
+| PDF | 备用原生凭据请求可绘制主谱 |
+| 音频 | 真实 WAV 元数据、Range 206／128 bytes、切线后位置／播放／速度／音量保持 |
+| 应急网页首次登录 | 原站不可达时备用密码登录；直连恢复后反向准备，可手动直连且不改页面 origin |
+| 两个网页 origin | 本机标记互不共用；备用网站明确提示本机数据边界 |
+| 浮动按钮 | 与上传共用下滑隐藏、上滑显示；保留键盘焦点与需要处理时的入口 |
+
+浏览器截图保存在本工作区忽略的 `artifacts/verification/issue-580/`，未提交测试 Cookie、凭证或原始网络正文。
+
+## 尚待受控上线验收
+
+真实 ESA 的新路径／OPTIONS／Set-Cookie／Range 转发、原站 Google 实际回调、PWA／移动实机与大陆无代理多网络收益继续由 #580 跟踪。备用 Google provider 保持禁用。前后端开关默认关闭，不自动部署、不改变原站 DNS，不清本机数据。
+
+上线顺序及回退见 [操作说明](issue-580-connections.md)。

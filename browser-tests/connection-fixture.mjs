@@ -39,7 +39,8 @@ export async function startConnectionFixture() {
             response.write('{"score":', () => response.destroy()); return;
           }
           const resultHeaders = Object.fromEntries(upstream.headers);
-          delete resultHeaders['set-cookie']; delete resultHeaders['content-encoding']; delete resultHeaders['content-length'];
+          delete resultHeaders['set-cookie']; delete resultHeaders['transfer-encoding'];
+          if (resultHeaders['content-encoding']) { delete resultHeaders['content-encoding']; delete resultHeaders['content-length']; }
           const cookies = upstream.headers.getSetCookie();
           if (cookies.length) resultHeaders['set-cookie'] = cookies;
           response.writeHead(upstream.status, resultHeaders);

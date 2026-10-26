@@ -1,3 +1,4 @@
+import { connectionFetch } from "../connection/connection";
 import { assetUrl } from "../../shared/asset-url";
 import { InstallCompletion } from "./install-completion";
 import { prepareInstallLink } from "./install-transfer";
@@ -101,4 +102,3 @@ export default function InstallPage() {
     </div>
   </main>;
 }
-import { connectionFetch } from "../connection/connection";

@@ -16,6 +16,9 @@ export default function AttachmentPdfPreview({ url }: { url: string }) {
     let disposed = false;
     let cleanup = () => {};
     void (async () => {
+      // The legacy viewer captures globalThis.pdfjsLib at import time. Load
+      // its matching engine first, even though the document loader owns it.
+      await import("pdfjs-dist/legacy/build/pdf.mjs");
       const components = await import("pdfjs-dist/legacy/web/pdf_viewer.mjs");
       if (disposed || !container.current) return;
       const eventBus = new components.EventBus();

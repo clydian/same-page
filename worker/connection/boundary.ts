@@ -1,4 +1,4 @@
-import { connectionPrefix } from "../../src/shared/connection";
+import { connectionPrefix, isPublicConnectionPath } from "../../src/shared/connection";
 import type { Env, WaitUntilContext } from "../env";
 import { connectionOrigins } from "./config";
 import { createAuth } from "../auth/create-auth";
@@ -45,8 +45,7 @@ export async function connectionBoundary(request: Request, env: Env, ctx: WaitUn
     ...(match[1] === "backup" || origin && origin !== origins[0] ? { GOOGLE_CLIENT_ID: undefined, GOOGLE_CLIENT_SECRET: undefined } : {}) };
   try {
     const adapted = await entryRequest(new Request(effective, request), audience, routedEnv, ctx);
-    const publicPath = /^\/api\/(?:auth\/(?!sign-out(?:$|\/))|connection\/|guest\/|health$|diagnostic-reports$|android-release)/.test(effective.pathname);
-    if (!publicPath) {
+    if (!isPublicConnectionPath(effective.pathname)) {
       if (!expectedSession || expectedSession.length > 256) return Response.json({ error: "entry_session_required" }, { status: 428, headers });
       const session = await createAuth(routedEnv, ctx).api.getSession({ headers: adapted.headers, query: { disableRefresh: true } });
       if ((session?.session.id ?? "none") !== expectedSession) {
