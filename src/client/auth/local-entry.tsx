@@ -1,9 +1,11 @@
 import "./local-entry.css";
 import { Link } from "react-router-dom";
 import type { ApplicationIdentity } from "./application-identity";
+import { connectionsEnabled } from "../connection/connection";
 
-export function IdentityNotice({ identity }: { identity: ApplicationIdentity }) {
+export function IdentityNotice({ identity, connectionControl = false }: { identity: ApplicationIdentity; connectionControl?: boolean }) {
   if (identity.onlineState === "authenticated" || (!identity.localUserId && identity.onlineState === "signed-out")) return null;
+  if (connectionControl && connectionsEnabled && ["checking", "unreachable"].includes(identity.onlineState)) return null;
   return <p role="status">{identity.onlineState === "checking" ? "正在连接，已保存的内容可以继续使用。"
     : identity.onlineState === "local-unavailable" ? "本机身份校验暂时未完成，已保存的内容仍然保留。"
     : identity.onlineState === "unreachable" ? "暂时无法连接，已保存的内容仍然保留。"

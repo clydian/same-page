@@ -30,6 +30,8 @@
   "vars": {
     "RELEASE_CHANNELS_ENABLED": "false",
     "BETTER_AUTH_URL": "https://samepage.clyapps.com",
+    "CONNECTIONS_ENABLED": "false",
+    "CONNECTION_BACKUP_ORIGIN": "https://samepage-alt.clyapps.com",
     "AUTH_EMAIL_FROM": "Same Page <login@samepage.clyapps.com>"
   },
   "assets": {

@@ -1,4 +1,5 @@
 import { PlaybackGate } from "./playback/playback-gate";
+import { ConnectionControl } from "./connection/connection-control";
 import { InstallProvider } from "./install/install-provider";
 import { LogoutProvider } from "./auth/logout";
 import { NavigationProvider } from "./navigation/navigation";
@@ -97,7 +98,7 @@ export function AppRoutes() {
           />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      <PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider>
+      <ConnectionControl /><PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider>
 
     </>
   );

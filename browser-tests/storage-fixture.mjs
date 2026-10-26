@@ -1,6 +1,6 @@
 import { hashPassword } from "better-auth/crypto";
 import { createHash, createHmac, randomUUID, randomBytes } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { readD1Migrations } from "@cloudflare/vitest-plugin";
 import { getPlatformProxy } from "wrangler";
@@ -9,7 +9,7 @@ import { startViteServer } from "../scripts/vite-server.mjs";
 
 // Each call owns a fresh local Worker store. Bindings are disposed before Vite
 // opens them, so the seed and server never contend for the same SQLite files.
-export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), productAdmin = false } = {}) {
+export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), productAdmin = false, connectionOrigins } = {}) {
   const accounts = authenticated ? [0, 1].map(() => ({ id: randomUUID(), email: `${randomUUID()}@example.test`, password: randomBytes(24).toString("hex") })) : [];
   const joinCode = invite ? Array.from(randomBytes(8), value => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[value & 31]).join("") : null;
   const choirId = randomUUID(), scoreId = randomUUID(), versionId = randomUUID();
@@ -18,7 +18,13 @@ export async function startStorageFixture({ authenticated = false, invite = fals
   const hash = createHash("sha256").update(pdf).digest("hex");
   const server = await startViteServer({
     script, timeoutMs: 30_000,
+    env: { ...process.env, ...(connectionOrigins ? { VITE_CONNECTIONS_ENABLED: "true", VITE_CONNECTION_PRIMARY_ORIGIN: connectionOrigins.direct, VITE_CONNECTION_BACKUP_ORIGIN: connectionOrigins.backup } : {}) },
     prepare: async ({ statePath, configPath, signal }) => {
+      if (connectionOrigins) {
+        const config = JSON.parse(await readFile(configPath, "utf8"));
+        Object.assign(config.vars, { CONNECTIONS_ENABLED: "true", BETTER_AUTH_URL: connectionOrigins.direct, CONNECTION_BACKUP_ORIGIN: connectionOrigins.backup });
+        await writeFile(configPath, JSON.stringify(config));
+      }
       const platform = await getPlatformProxy({ configPath, persist: { path: path.join(statePath, "v3") } });
       try {
         signal.throwIfAborted();

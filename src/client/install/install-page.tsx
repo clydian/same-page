@@ -65,8 +65,8 @@ export default function InstallPage() {
         if (token) await navigate("/install", { replace: true });
         controller.signal.throwIfAborted();
         const response = token
-          ? await fetch("/api/guest/install-handoff/redeem", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) })
-          : await fetch("/api/guest/session", { cache: "no-store", signal: controller.signal });
+          ? await connectionFetch("/api/guest/install-handoff/redeem", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) })
+          : await connectionFetch("/api/guest/session", { cache: "no-store", signal: controller.signal });
         if (!token && driveId && response.status === 401) {
           if (active) { setNeedsLogin(true); setDestination(`/choirs/${encodeURIComponent(driveId)}`); }
           return;
@@ -101,3 +101,4 @@ export default function InstallPage() {
     </div>
   </main>;
 }
+import { connectionFetch } from "../connection/connection";

@@ -4,6 +4,8 @@
 
 生产站点：[samepage.clyapps.com](https://samepage.clyapps.com)。项目仍在快速开发；当前工作与验收进度见 [GitHub Issues](https://github.com/clydian/same-page/issues)。合并、部署和真实设备验收分别以对应 PR 的记录为准。
 
+应急页面入口：[samepage-alt.clyapps.com](https://samepage-alt.clyapps.com)。它与原网址的本机草稿、离线文件和 PWA 分别保存，未同步内容不会自动搬迁。双线路功能的启用条件、验证及回退见 [连接控制说明](docs/operations/issue-580-connections.md)。
+
 ## 开发入口
 
 使用 Node.js 24 与 npm。客户端为 React/TypeScript/Vite；同源 API 使用 Cloudflare Worker/Hono、Better Auth、D1 和 R2。PDF 阅读统一使用 PDF.js legacy；本地草稿与离线副本使用 Dexie/IndexedDB。

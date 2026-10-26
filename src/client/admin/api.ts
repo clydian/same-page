@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { connectionFetch } from "../connection/connection";
 import {
   adminCapabilitiesSchema,
   adminDetailSchema,
@@ -40,7 +41,7 @@ export function adminErrorMessage(code: string) {
   );
 }
 export async function adminFetch(path: string, init?: RequestInit) {
-  const response = await fetch(`/api/admin${path}`, {
+  const response = await connectionFetch(`/api/admin${path}`, {
     ...init,
     credentials: "same-origin",
     cache: "no-store",

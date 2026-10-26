@@ -6,7 +6,7 @@ export function AndroidInstallOption({ children }: { children: ReactNode }) {
   const [release, setRelease] = useState<AndroidRelease | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/android-release", { cache: "no-store", signal: controller.signal })
+    void connectionFetch("/api/android-release", { cache: "no-store", signal: controller.signal })
       .then(async response => {
         if (!response.ok) return;
         const data: { release?: unknown } = await response.json();
@@ -36,3 +36,4 @@ export function AndroidInstallOption({ children }: { children: ReactNode }) {
     </details>
   </section></div>;
 }
+import { connectionFetch } from "../connection/connection";

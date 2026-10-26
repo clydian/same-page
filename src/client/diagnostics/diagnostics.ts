@@ -1,4 +1,5 @@
 import { pdfRenderFactsSchema, type PdfRenderFacts } from "../../shared/pdf-render-facts";
+import { connectionFetch } from "../connection/connection";
 import { readerOpeningSchema, type ReaderOpeningFacts } from "../../shared/reader-opening";
 import { captureNavigationIdentity, observeNavigationResponse } from "../settings/navigation-events";
 import pdfPackage from "pdfjs-dist/package.json";
@@ -206,9 +207,9 @@ function prune(now: number) {
   }
 }
 
-// Same fetch contract: no retries, response consumption, request mutation, or
-// global monkey patch. Callers retain their existing recovery/authorization flow.
-export const diagnosticFetch: typeof fetch = (...args) => diagnosticRequest(args[0], args[1], () => globalThis.fetch(...args));
+// Route transport owns bounded read failover; diagnostics records the final
+// outcome. Callers retain their existing write reconciliation/authorization flow.
+export const diagnosticFetch: typeof fetch = (...args) => diagnosticRequest(args[0], args[1], () => connectionFetch(...args));
 
 export async function diagnosticRequest(input: RequestInfo | URL, init: RequestInit | undefined, send: () => Promise<Response>): Promise<Response> {
   const currentNavigation = captureNavigationIdentity();

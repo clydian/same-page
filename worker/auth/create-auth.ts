@@ -1,4 +1,5 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { connectionOrigins } from "../connection/config";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins";
 
@@ -24,7 +25,7 @@ export function createAuth(env: Env, executionContext: WaitUntilContext) {
     appName: "Same Page",
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [env.BETTER_AUTH_URL],
+    trustedOrigins: connectionOrigins(env) ?? [env.BETTER_AUTH_URL],
     disabledPaths: [
       "/account-info",
       "/get-access-token",

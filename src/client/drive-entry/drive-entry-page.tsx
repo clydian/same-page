@@ -40,7 +40,7 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
   return <div className="app-page drive-entry-page">
     <AppHeader actions={identity.session.data?.user ? <><InstallButton className="header-action" /><PersonalMenu email={identity.session.data.user.email} /></> : !identity.session.isPending && <Link className="header-action" to="/login">登录</Link>} />
     <main className="drive-entry-main">
-      <IdentityNotice identity={identity} />
+      <IdentityNotice identity={identity} connectionControl />
       {identity.localUserId ? <MemberEntry identity={identity} userId={identity.localUserId} create={create} onJoin={() => { setManualEntry(true); setJoinOpen(true); }} admissionOpen={manualEntry || joinOpen || createOpen} />
         : identity.restoring || identity.onlineState === "checking" ? <p role="status">正在恢复本机内容…</p>
         : identity.onlineState === "signed-out" ? <FirstDrive identity={identity} create={create} />

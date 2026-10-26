@@ -2,7 +2,8 @@ import { AttachmentModule } from "./attachment-module";
 import { AttachmentShell } from "./attachment-shell";
 import MarkdownAttachment from "./markdown-attachment";
 import { LoadingStatus } from "../../components/loading-status";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { connections, connectionUrl } from "../../connection/connection";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
 import { FileAudio, Pencil, Upload } from "lucide-react";
 import { attachmentAccept, attachmentFormat, attachmentNameSchema, attachmentUrlSchema, type ScoreAttachment } from "../../../shared/attachments";
@@ -34,14 +35,16 @@ export default function AttachmentDialog(props: Props) {
 function AudioPreview({ attachment, choirId }: { attachment: ScoreAttachment; choirId: string }) {
   const [failed, setFailed] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
-  const source = attachmentFileUrl(choirId, attachment);
+  const resume = useRef<{ time: number; playing: boolean; speed: number; volume: number } | null>(null);
+  useSyncExternalStore(connections.subscribe, connections.getSnapshot);
+  const source = connectionUrl(attachmentFileUrl(choirId, attachment));
   useEffect(() => {
     const player = audio.current;
     if (player) player.src = source;
-    return () => { if (player) { player.pause(); player.removeAttribute("src"); player.load(); } };
+    return () => { if (player) { if (player.readyState >= HTMLMediaElement.HAVE_METADATA) resume.current = { time: player.currentTime, playing: !player.paused, speed: player.playbackRate, volume: player.volume }; player.pause(); player.removeAttribute("src"); player.load(); } };
   }, [source]);
   return <div className="attachment-audio"><div className="attachment-audio-art"><FileAudio size={36} strokeWidth={1.3} /></div>
-    <p>{formatBytes(attachment.sizeBytes)}</p><audio ref={audio} controls controlsList="nodownload" preload="metadata" onError={() => setFailed(true)} />
+    <p>{formatBytes(attachment.sizeBytes)}</p><audio ref={audio} crossOrigin="use-credentials" controls controlsList="nodownload" preload="metadata" onLoadedMetadata={() => { setFailed(false); if (resume.current && audio.current) { const player = audio.current; player.currentTime = resume.current.time; player.playbackRate = resume.current.speed; player.volume = resume.current.volume; if (resume.current.playing) void player.play().catch(() => setFailed(true)); resume.current = null; } }} onError={() => setFailed(true)} />
     {failed && <p role="status">当前设备无法播放或文件暂不可用，可从附件的“⋯”菜单下载后打开。</p>}
   </div>;
 }

@@ -1,5 +1,6 @@
 import { assetUrl } from "../../shared/asset-url";
-import { diagnosticFetch } from "../diagnostics/diagnostics";
+import { connections, connectionsEnabled, connectionUrl } from "../connection/connection";
+import { diagnosticFetch, pdfFailureCategory } from "../diagnostics/diagnostics";
 import type { PDFDocumentProxy, getDocument as GetDocument } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
 import { pdfJsWasmDirectory } from "../../shared/pdfjs-assets";
@@ -76,23 +77,35 @@ export function loadPdfDocument(
       resolvedSource = versionedPdfUrl(source, actualVersionId);
     }
     if (destroyed) throw new DOMException("PDF load cancelled", "AbortError");
-    loadingTask = engine.getDocument({
-      worker,
+    const startDocument = () => engine.getDocument({
+      worker: worker ?? undefined,
       wasmUrl: new URL(assetUrl(pdfJsWasmDirectory), window.location.href).href,
       ...(typeof resolvedSource === "string"
         ? {
-            url: resolvedSource,
+            url: connectionUrl(resolvedSource),
             withCredentials: true,
             rangeChunkSize: 64 * 1024,
           }
         : { data: new Uint8Array(resolvedSource) }),
     });
-    loadingTask.onProgress = ({ loaded, total }: { loaded: number; total: number }) => {
+    const onProgress = ({ loaded, total }: { loaded: number; total: number }) => {
       const totalBytes = Number.isSafeInteger(total) && total > 0 ? total : null;
       const loadedBytes = Number.isSafeInteger(loaded) && loaded >= 0 ? (totalBytes ? Math.min(loaded, totalBytes) : loaded) : null;
       report({ phase: totalBytes !== null && loadedBytes === totalBytes ? "document" : "file", loadedBytes, totalBytes });
     };
-    const document = await loadingTask.promise;
+    const route = connections.getSnapshot().active;
+    loadingTask = startDocument();
+    loadingTask.onProgress = onProgress;
+    let document: PDFDocumentProxy;
+    try { document = await loadingTask.promise; }
+    catch (error) {
+      if (destroyed || !connectionsEnabled || typeof resolvedSource !== "string" || pdfFailureCategory(error) !== "network" || !await connections.recoverMedia(route, abortController.signal)) throw error;
+      await loadingTask.destroy();
+      if (destroyed) throw new DOMException("PDF load cancelled", "AbortError");
+      loadingTask = startDocument();
+      loadingTask.onProgress = onProgress;
+      document = await loadingTask.promise;
+    }
     documentReady = true;
     return { document, versionId: actualVersionId };
   })();

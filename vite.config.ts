@@ -25,6 +25,11 @@ const buildRunId = process.env.GITHUB_RUN_ID ?? "";
 
 const testState = process.env.SAME_PAGE_TEST_STATE;
 const testHeaders = testState ? { "x-same-page-test-server": process.env.SAME_PAGE_TEST_RUN! } : undefined;
+// Vite handles development preflights ahead of workerd. HTTPS sibling-host
+// browser fixtures need the same exact origins as the Worker (never '*').
+const testCors = testState && process.env.VITE_CONNECTIONS_ENABLED === "true" ? {
+  origin: [process.env.VITE_CONNECTION_PRIMARY_ORIGIN!, process.env.VITE_CONNECTION_BACKUP_ORIGIN!], credentials: true,
+} : undefined;
 
 export default defineConfig(({ isPreview, command }) => {
   const assetBase = command === "build" && process.env.SAME_PAGE_RELEASE_CHANNELS === "1" ? `/_releases/${buildId}/` : "/";
@@ -32,8 +37,8 @@ export default defineConfig(({ isPreview, command }) => {
   base: assetBase,
   ...(testState && isPreview ? { root: testState } : {}),
   ...(testState ? { cacheDir: `${testState}/vite-cache`, envDir: testState } : {}),
-  server: { headers: testHeaders },
-  preview: { headers: testHeaders },
+  server: { headers: testHeaders, ...(testCors ? { cors: testCors } : {}) },
+  preview: { headers: testHeaders, ...(testCors ? { cors: testCors } : {}) },
   define: {
     __SAME_PAGE_BUILD_ID__: JSON.stringify(buildId),
     __SAME_PAGE_ASSET_BASE__: JSON.stringify(assetBase),

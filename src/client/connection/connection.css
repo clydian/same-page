@@ -1,0 +1,25 @@
+.connection-fab { position: fixed; z-index: 20; left: max(1.25rem, var(--safe-left)); bottom: calc(1.25rem + var(--safe-bottom)); display: grid; place-items: center; width: 52px; height: 52px; border: 1px solid var(--border, #dce4de); border-radius: 1.1rem; background: var(--surface, #fff); color: var(--brand); box-shadow: 0 .2rem .8rem #17352b20; cursor: pointer; transition: opacity 160ms, transform 160ms, visibility 160ms; }
+.connection-fab[data-visible="false"] { opacity: 0; transform: translateY(1rem) scale(.9); visibility: hidden; pointer-events: none; }
+.connection-fab[data-disconnected] { color: #9b442b; background: #fff8f2; border-color: #ddbaa5; }
+.connection-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.connection-heading h2 { margin: 0; }
+.connection-current { font-size: .95rem; color: var(--brand); }
+.connection-modes { display: flex; gap: .4rem; padding: 0; border: 0; margin: 1rem 0 .5rem; }
+.connection-modes legend { font-size: .85rem; margin-bottom: .5rem; color: #586a62; }
+.connection-modes label { display: flex; gap: .4rem; align-items: center; justify-content: center; flex: 1; min-height: 44px; padding: .45rem; border: 1px solid #dce4de; border-radius: .6rem; cursor: pointer; }
+.connection-modes label[data-selected="true"] { border-color: var(--brand); background: #edf5f2; }
+.connection-modes input { accent-color: var(--brand); }
+.connection-copy, .connection-help { font-size: .85rem; line-height: 1.65; color: #586a62; }
+.connection-routes { list-style: none; margin: 1rem 0; padding: 0; border-block: 1px solid #e2e8e3; }
+.connection-routes li { padding: .9rem 0; }
+.connection-routes li + li { border-top: 1px solid #e2e8e3; }
+.connection-routes li > div { display: flex; justify-content: space-between; align-items: center; }
+.connection-routes small { display: block; margin-top: .35rem; font-size: .75rem; color: #66756e; }
+.connection-routes p { margin: .35rem 0 0; font-size: .8rem; }
+.connection-health { font-size: .8rem; color: #66756e; }
+.connection-health--reachable { color: #1d6b48; }
+.connection-health--unreachable { color: #9b442b; }
+.connection-help summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; }
+.connection-spinner { animation: connection-spin 1s linear infinite; }
+@keyframes connection-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .connection-fab { transition: none; } .connection-spinner { animation: none; } }

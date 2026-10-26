@@ -246,7 +246,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         {access.retained && <p role="status">已无法访问此云盘，以下为本机保留内容</p>}
         {(!online || (Boolean(userId) && identity.onlineState === "signed-out") || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || searchMessage) && <div className="drive-connection-notice">
           {!online && <p role="status">当前离线，已保存的乐谱可以继续打开。</p>}
-          <IdentityNotice identity={identity} />
+          <IdentityNotice identity={identity} connectionControl />
           {searchMessage && <p role="status">{searchMessage}<Button onPress={() => void refresh()}>重试</Button></p>}
         </div>}
         {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
