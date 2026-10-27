@@ -222,6 +222,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                         <JoinCodeField
                           autoFocus={!inline}
                           value={joinCode}
+                          isReadOnly={submitting || clearingGuestSession}
                           onChange={setJoinCode}
                         />
                         <Button

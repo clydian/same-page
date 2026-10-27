@@ -8,11 +8,11 @@ import { startStorageFixture } from './storage-fixture.mjs';
 
 // Real HTTPS sibling hosts: no browser cookie jars or CORS responses are mocked.
 // nip.io resolves these names to loopback; business data stays in local workerd.
-export async function startConnectionFixture() {
+export async function startConnectionFixture({ invite = false } = {}) {
   const temporary = await mkdtemp(path.join(tmpdir(), 'same-page-connections-'));
   let fixture;
   const servers = [];
-  const network = { directBroken: false, loseUploadResponse: false, uploads: 0, traffic: [] };
+  const network = { directBroken: false, loseUploadResponse: false, uploads: 0, traffic: [], admissionFaults: { direct: null, backup: null } };
   try {
     execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', path.join(temporary, 'key.pem'), '-out', path.join(temporary, 'cert.pem'), '-days', '1', '-subj', '/CN=*.127.0.0.1.nip.io'], { stdio: 'ignore' });
     const tls = { key: await readFile(path.join(temporary, 'key.pem')), cert: await readFile(path.join(temporary, 'cert.pem')) };
@@ -20,7 +20,11 @@ export async function startConnectionFixture() {
     for (const entry of ['direct', 'backup']) {
       const server = createServer(tls, async (request, response) => {
         if (!fixture || entry === 'direct' && network.directBroken && request.url.startsWith('/api/')) { response.destroy(); return; }
-        const upload = new URL(request.url, 'https://fixture.invalid').pathname.endsWith('/scores') && request.method === 'POST';
+        const pathname = new URL(request.url, 'https://fixture.invalid').pathname;
+        const admission = pathname.endsWith('/guest/session') && request.method === 'POST';
+        const fault = admission ? network.admissionFaults[entry] : null;
+        if (fault === 'headers') { network.traffic.push({ path: request.url, method: request.method }); request.resume(); return; }
+        const upload = pathname.endsWith('/scores') && request.method === 'POST';
         if (upload) network.uploads++;
         if (request.url.startsWith('/api/')) network.traffic.push({ path: request.url, method: request.method });
         try {
@@ -43,6 +47,11 @@ export async function startConnectionFixture() {
           if (resultHeaders['content-encoding']) { delete resultHeaders['content-encoding']; delete resultHeaders['content-length']; }
           const cookies = upstream.headers.getSetCookie();
           if (cookies.length) resultHeaders['set-cookie'] = cookies;
+          if (fault === 'body') {
+            await upstream.arrayBuffer();
+            resultHeaders['content-length'] = '1000';
+            response.writeHead(upstream.status, resultHeaders); response.write('{"choir":'); return;
+          }
           response.writeHead(upstream.status, resultHeaders);
           if (upstream.body) Readable.fromWeb(upstream.body).on('error', () => response.destroy()).pipe(response);
           else response.end();
@@ -53,7 +62,7 @@ export async function startConnectionFixture() {
       const host = entry === 'direct' ? 'app' : 'alt';
       origins[entry] = `https://${host}.127.0.0.1.nip.io:${server.address().port}`;
     }
-    fixture = await startStorageFixture({ authenticated: true, previewEntry: false, script: 'dev', connectionOrigins: origins });
+    fixture = await startStorageFixture({ authenticated: true, previewEntry: false, invite, script: 'dev', connectionOrigins: origins });
     return { ...fixture, origins, network, stop: async () => {
       for (const server of servers) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
       await fixture.stop(); await rm(temporary, { recursive: true, force: true });

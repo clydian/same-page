@@ -228,7 +228,7 @@ it('clears an obsolete expected ID only after both absent sessions, then reads a
     const path = requestPath(input).pathname;
     if (path.endsWith('/get-session')) return Response.json(null);
     if (path.endsWith('/status')) return Response.json({ sessionId: null });
-    if (path.endsWith('/guest/session')) return Response.json({ choir: { id: 'preview' } });
+    if (path.endsWith('/guest/session')) return Response.json({ choir: { id: 'preview', name: 'Preview', guestAdmissionMode: 'open' }, entryKind: 'preview' });
     expect(new Headers(init?.headers).get('X-Same-Page-Session')).toBe('none');
     return Response.json({ scores: [] });
   }, { sessionId: 'expired', changedIdentity });
@@ -284,19 +284,20 @@ it('rejects a late absent-session probe without clearing a newer identity', asyn
   expect(changedIdentity).not.toHaveBeenCalledWith(null);
 });
 
-it('keeps an old guest acknowledgement but does not prepare its cookie after a new login', async () => {
+it('cancels an old stateless admission confirmation without preparing its cookie after a new login', async () => {
   let finish!: (response: Response) => void;
   const send = vi.fn<typeof fetch>(async input => {
-    if (requestPath(input).pathname.endsWith('/guest/session')) return Response.json({ choir: { id: 'guest-drive' } });
+    if (requestPath(input).pathname.endsWith('/guest/session')) return Response.json({ choir: { id: 'guest-drive', name: 'Guest', guestAdmissionMode: 'open' }, entryKind: 'admission' });
     return new Promise(resolve => { finish = resolve; });
   });
   const changedIdentity = vi.fn();
   const controller = make(send, { sessionId: 'old', changedIdentity });
   const request = controller.fetch('/api/guest/session', { method: 'POST', body: '{}' });
+  const outcome = request.then(response => ({ response, error: null }), error => ({ response: null, error }));
   await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
   controller.invalidateIdentity('new-user-session');
   finish(Response.json({ sessionId: null }));
-  expect((await request).ok).toBe(true);
+  expect((await outcome).error).toMatchObject({ name: 'AbortError' });
   expect(controller.getSnapshot().identity).toEqual({ direct: 'unknown', backup: 'unknown' });
   expect(changedIdentity).not.toHaveBeenCalledWith(null);
   expect(send.mock.calls.filter(([input]) => requestPath(input).pathname.endsWith('/guest/session'))).toHaveLength(1);

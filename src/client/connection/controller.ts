@@ -1,5 +1,8 @@
 import { connectionPath, connectionRoutes, isPublicConnectionPath, type ConnectionMode, type ConnectionRoute } from "../../shared/connection";
 
+import { completeGuestAdmission, guestEntryBudgetMs } from "./guest-admission";
+import { untilAborted } from "../platform/abortable";
+
 export type EntryReadiness = "unknown" | "ready" | "unprepared" | "conflict";
 export interface RouteHealth { state: "unknown" | "reachable" | "unreachable"; checkedAt: number | null; latency: number | null }
 export interface ConnectionSnapshot {
@@ -27,7 +30,8 @@ export class EntryIdentityConflictError extends Error {
 }
 
 // One controller per page. Business callers keep ownership of reconciliation
-// and idempotency; this layer retries only GET/HEAD, never a submitted write.
+// and idempotency; only reads and the explicitly stateless guest admission
+// endpoint can fail over. Submitted business writes are never replayed.
 export class ConnectionController {
   private snapshot: ConnectionSnapshot = { mode: "auto", active: "direct", checking: false, preparing: false,
     health: { direct: emptyHealth(), backup: emptyHealth() }, identity: { direct: "unknown", backup: "unknown" } };
@@ -42,6 +46,7 @@ export class ConnectionController {
   private probe: Promise<void> | null = null;
   private probeGeneration = 0;
   private guestPreparation: Promise<void> | null = null;
+  private admissionAbort = new AbortController();
   private lastForegroundProbe = 0;
   private now: () => number;
   private random: () => number;
@@ -253,11 +258,19 @@ export class ConnectionController {
     if (url.origin !== this.options.pageOrigin || !url.pathname.startsWith("/api/") || url.pathname.startsWith("/api/_entry/")) return this.options.send(input, init);
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const read = method === "GET" || method === "HEAD";
+    const admission = method === "POST" && url.pathname === "/api/guest/session";
+    const bounded = read || admission;
+    const callerSignal = init?.signal ?? (input instanceof Request ? input.signal : null);
+    callerSignal?.throwIfAborted();
+    if (admission || method === "DELETE" && url.pathname === "/api/guest/session") {
+      this.admissionAbort.abort();
+      this.admissionAbort = new AbortController();
+      this.guestPreparation = null;
+    }
+    const admissionSignal = this.admissionAbort.signal;
     const authMutation = url.pathname.startsWith("/api/auth/") && !read;
     if (authMutation) this.invalidateIdentity(this.sessionId);
     const generation = this.generation;
-    const callerSignal = init?.signal ?? (input instanceof Request ? input.signal : null);
-    callerSignal?.throwIfAborted();
     const sessionRead = url.pathname === "/api/auth/get-session";
     const activeAtStart = this.snapshot.active;
     if (read && this.snapshot.mode === "auto" && activeAtStart === "backup" && this.cooldown.direct <= this.now() && this.now() - this.lastForegroundProbe >= 30_000) {
@@ -269,19 +282,19 @@ export class ConnectionController {
     const route = sessionRead && !this.sessionId && this.snapshot.mode === "auto"
       ? this.options.pageOrigin === this.options.origins.backup ? "backup" : "direct"
       : this.snapshot.mode === "auto" ? this.availableRoute() : this.snapshot.mode;
-    const choices = this.snapshot.mode === "auto" && read && this.cooldown[other(route)] <= this.now() ? [route, other(route)] : [route];
+    const choices = this.snapshot.mode === "auto" && bounded && this.cooldown[other(route)] <= this.now() ? [route, other(route)] : [route];
     const budget = new AbortController();
-    const budgetTimer = read ? setTimeout(() => budget.abort(new DOMException("Connection deadline", "TimeoutError")), 9000) : undefined;
+    const budgetTimer = bounded ? setTimeout(() => budget.abort(new DOMException("Connection deadline", "TimeoutError")), guestEntryBudgetMs) : undefined;
     let missingSessions = 0;
     try {
     for (let index = 0; index < choices.length; index++) {
       const chosen = choices[index];
       const attempt = new AbortController();
-      const attemptTimer = read ? setTimeout(() => attempt.abort(new DOMException("Connection timeout", "TimeoutError")), 4000) : undefined;
-      const signal = read ? AbortSignal.any([budget.signal, attempt.signal, ...(callerSignal ? [callerSignal] : [])]) : callerSignal;
+      const attemptTimer = bounded ? setTimeout(() => attempt.abort(new DOMException("Connection timeout", "TimeoutError")), 4000) : undefined;
+      const signal = bounded ? AbortSignal.any([budget.signal, attempt.signal, ...(callerSignal ? [callerSignal] : []), ...(admission ? [admissionSignal, this.preparationAbort.signal] : [])]) : callerSignal;
       const start = this.now();
       try {
-        if (index > 0 && this.guestPreparation) await this.guestPreparation;
+        if (read && index > 0 && this.guestPreparation) await this.guestPreparation;
         if (!this.sessionId && url.pathname === "/api/user/lifecycle" && this.options.origins[chosen] === this.options.pageOrigin) {
           // The product get-session intentionally hides recovery-only users.
           // Inspect this page's own native credential for the lifecycle screen;
@@ -295,16 +308,23 @@ export class ConnectionController {
         }
         if (generation !== this.generation) throw abortError();
         const endpoint = this.endpoint(`${url.pathname}${url.search}`, chosen);
-        const source = input instanceof Request ? new Request(endpoint, input) : endpoint;
+        // Admission has a small JSON payload, so recreate it as text rather
+        // than forwarding a consumed Request stream when trying the fallback.
+        const source = input instanceof Request ? admission
+          ? new Request(endpoint, { method, headers: input.headers, body: await untilAborted(input.clone().text(), signal!) })
+          : new Request(endpoint, input) : endpoint;
         const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
         if (isPublicConnectionPath(url.pathname)) headers.delete("X-Same-Page-Session");
         else headers.set("X-Same-Page-Session", this.sessionId ?? "none");
         const credentials = init?.credentials ?? (input instanceof Request ? input.credentials : undefined);
-        const response = await this.options.send(source, { ...init, headers, credentials: credentials === "omit" ? "omit" : "include", redirect: "error", ...(signal ? { signal } : {}) });
-        // Bound connection setup, not an entire 20 MB file transfer. After
-        // headers, the caller retains its own body/download deadline.
+        const sending = this.options.send(source, { ...init, headers, credentials: credentials === "omit" ? "omit" : "include", redirect: "error", ...(signal ? { signal } : {}) });
+        let response = await (admission ? untilAborted(sending, signal!) : sending);
+        if (admission && response.ok) response = await completeGuestAdmission(response, signal!);
+        // Reads bound connection setup, not an entire 20 MB file transfer.
+        // Stateless admission also bounds its small, validated JSON body.
         clearTimeout(attemptTimer);
-        if (read && generation !== this.generation) throw abortError();
+        if (bounded && generation !== this.generation) throw abortError();
+        if (admission) signal!.throwIfAborted();
         // Any HTTP response is proof of a route, including permission errors.
         // A shared backend 5xx does not justify replaying a business operation.
         this.reachable(chosen, this.now() - start);
@@ -352,17 +372,27 @@ export class ConnectionController {
         // This endpoint issues only a stateless guest cookie. It neither joins
         // a membership nor creates business data, so preparing both entries is
         // safe. Never generalize this exception to arbitrary POSTs.
-        if (generation === this.generation && url.pathname === "/api/guest/session" && method === "POST" && response.ok && typeof init?.body === "string") {
+        if (generation === this.generation && admission && response.ok) {
+          const body = init?.body ?? (input instanceof Request ? await untilAborted(input.clone().text(), signal!) : undefined);
+          signal!.throwIfAborted();
           if (this.sessionId) {
             // Explicit, validated guest admission may leave an expired login;
             // it must not make guest files carry that obsolete session guard.
-            const actual = await this.status(chosen, AbortSignal.timeout(2000)).catch(() => undefined);
+            const actual = await untilAborted(this.status(chosen, AbortSignal.any([signal!, AbortSignal.timeout(2000)])), signal!).catch(() => undefined);
+            signal!.throwIfAborted();
             if (generation !== this.generation) return response;
             if (actual === null) { this.invalidateIdentity(); this.options.changedIdentity?.(null); }
           }
           this.update({ identity: { ...this.snapshot.identity, [chosen]: "ready" } });
-          this.guestPreparation = this.raw(other(chosen), url.pathname, { ...init, signal: AbortSignal.any([this.preparationAbort.signal, AbortSignal.timeout(3000)]) })
-            .then(() => undefined, () => undefined).finally(() => { this.guestPreparation = null; });
+          // Prepare a healthy second entry, but do not immediately retry the
+          // just-failed route again after a successful failover.
+          if (this.cooldown[other(chosen)] <= this.now()) {
+            const preparation = this.raw(other(chosen), url.pathname, { ...init, body, headers,
+              signal: AbortSignal.any([admissionSignal, this.preparationAbort.signal, AbortSignal.timeout(3000)]) })
+              .then(() => undefined, () => undefined);
+            this.guestPreparation = preparation;
+            void preparation.finally(() => { if (this.guestPreparation === preparation) this.guestPreparation = null; });
+          }
         }
         if (url.pathname === "/api/guest/session" && method === "DELETE" && response.ok) {
           await this.raw(other(chosen), url.pathname, { method: "DELETE", signal: AbortSignal.timeout(3000) }).catch(() => undefined);

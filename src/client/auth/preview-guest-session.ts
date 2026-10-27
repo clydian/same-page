@@ -1,8 +1,8 @@
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { guestSessionResponseSchema } from "../../shared/choirs";
 
-export async function clearGuestSession() {
-  await diagnosticFetch("/api/guest/session", { method: "DELETE" }).catch(() => null);
+export async function clearGuestSession(signal?: AbortSignal) {
+  await diagnosticFetch("/api/guest/session", { method: "DELETE", ...(signal ? { signal } : {}) }).catch(() => null);
 }
 
 export async function clearPreviewGuestSession({
