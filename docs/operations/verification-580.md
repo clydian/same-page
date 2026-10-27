@@ -84,3 +84,13 @@ CI run `40447868486` 的唯一测试失败在 `invite-entry-smoke.test.mjs`：�
 本地强制失败验证已实际生成上述 JSON／截图并保留原错误；5.5 秒慢响应对照在新等待预算下通过。临时故障注入脚本不提交，远端最终状态以 PR #594 最新 head 检查为准。
 
 追加 Standards 复核发现 DOM 状态读取无独立上限，已给整个快照设置 2.5 秒上限；超时仍写 `stateUnavailable` 和已有请求时序，截图另限 3 秒。模拟快照永不返回时约 7 秒结束、保留原断言，没有耗尽 90 秒总预算。两轴最终遗留 0 项。
+
+## 合并 #594 后的启用配置
+
+本轮基于 main `0f2ab2f`，按用户确认补齐启用配置：CI Production build 设置 `VITE_CONNECTIONS_ENABLED=true`，部署配置 `CONNECTIONS_ENABLED=true`。新前端仍只有一份不可变产物，沿用原 beta 准入与后台 stable 提升机制，没有新增按通道的功能分支、数据迁移或本地生产部署。
+
+与 CI 相同变量的生产构建、预缓存预算、storage contract 和 CI／release-contract 29 项、Worker 连接 8 项通过。另用实际生产构建产物和正式域名的浏览器上下文转发到本机 workerd／D1／R2，验证按钮存在、双主机专属凭证准备，以及阻断直连后冷重载继续经备用读取文件库；此验证不访问真实用户或线上后端，不能替代 ESA 实网验收。首轮代理使用浏览器请求上下文复用了中间层 Cookie，改为不持有 Cookie jar 的转发后通过，保留本地记录。
+
+Standards 与 Spec 独立复核均为 0 项；具体浏览器回归与远端 CI 状态见本轮启用 PR。真实 ESA 的 OPTIONS／Set-Cookie／Range、移动 PWA 和大陆网络收益仍须在新版本成为 beta 后验收，再决定 stable 提升。
+
+现有双主机浏览器流程首轮因本机 DNS 将 nip.io 测试主机解析到非 loopback 地址，在页面加载前出现连接／TLS 失败。仅在测试进程中使用限定两个 fixture 主机的本地 CONNECT 转发后，Chromium／WebKit 2/2 通过：冷启动切线、严格手动、响应丢失的 XHR、PDF、音频 Range／播放状态和备用首次登录；未修改系统网络配置。远端 CI 使用原测试命令，结果在 PR 跟踪。
