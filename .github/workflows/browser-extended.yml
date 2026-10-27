@@ -1,0 +1,194 @@
+name: Extended browser verification
+
+on:
+  # Exercise this workflow when its own selection/runner changes. Ordinary PRs
+  # need only the fast gate; test-only PRs run their full suite in CI.
+  pull_request:
+    paths:
+      - .github/workflows/browser-extended.yml
+      - scripts/browser-test-selection.mjs
+      - scripts/run-browser-tests.mjs
+      - scripts/extended-run-plan.mjs
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  plan:
+    if: ${{ github.event_name == 'pull_request' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      proceed: ${{ steps.admission.outputs.proceed }}
+      manifest: ${{ steps.identity.outputs.manifest }}
+      sha: ${{ steps.identity.outputs.sha }}
+      artifact: ${{ steps.identity.outputs.artifact }}
+      artifact-run: ${{ steps.identity.outputs.artifact-run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Check actual beta admission
+        id: admission
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            echo 'proceed=true' >> "$GITHUB_OUTPUT"
+          else
+            node scripts/extended-run-plan.mjs
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Download source run's verified candidate
+        if: github.event_name == 'workflow_run' && steps.admission.outputs.proceed == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ steps.admission.outputs.artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Build isolated candidate for workflow changes
+        if: github.event_name == 'pull_request'
+        run: |
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run build
+          node scripts/release-artifact.mjs seal "$GITHUB_SHA"
+          tar -cf release.tar dist migrations wrangler.jsonc package-lock.json release.json
+        env:
+          SAME_PAGE_RELEASE_CHANNELS: '1'
+          VITE_CONNECTIONS_ENABLED: 'true'
+      - name: Save isolated candidate for PR verification
+        if: github.event_name == 'pull_request'
+        id: pr-artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: extended-release-${{ github.run_id }}
+          overwrite: true
+          path: release.tar
+          retention-days: 1
+          if-no-files-found: error
+      - name: Verify and bind the original artifact
+        if: steps.admission.outputs.proceed == 'true'
+        id: identity
+        env:
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_RUN: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
+          ARTIFACT_ID: ${{ github.event_name == 'workflow_run' && steps.admission.outputs.artifact || steps.pr-artifact.outputs.artifact-id }}
+        run: |
+          tar -xf release.tar
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { appendFile } from 'node:fs/promises';
+          import { createHash } from 'node:crypto';
+          import { verifyRelease } from './scripts/release-artifact.mjs';
+          import { frontendManifest } from './scripts/frontend-release.mjs';
+          const seal = await verifyRelease({cwd: process.cwd(), sha: process.env.SOURCE_SHA});
+          assert.equal(String(seal.runId), process.env.SOURCE_RUN);
+          const manifest = await frontendManifest(process.cwd(), process.env.SOURCE_SHA);
+          const digest = createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
+          assert.match(process.env.ARTIFACT_ID, /^[1-9]\d*$/);
+          await appendFile(process.env.GITHUB_OUTPUT, `manifest=${digest}\nsha=${process.env.SOURCE_SHA}\nartifact=${process.env.ARTIFACT_ID}\nartifact-run=${process.env.SOURCE_RUN}\n`);
+          JS
+
+  visual:
+    needs: plan
+    if: needs.plan.outputs.proceed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      options: --init --ipc=host
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: node .github/scripts/verify-browsers.mjs
+      - run: node scripts/run-browser-tests.mjs visual extended "${{ matrix.shard }}/2"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: extended-visual-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: artifacts/verification/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  smoke:
+    needs: plan
+    if: needs.plan.outputs.proceed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      options: --init --ipc=host
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.plan.outputs.artifact }}
+          run-id: ${{ needs.plan.outputs.artifact-run }}
+          github-token: ${{ github.token }}
+      - name: Verify exact candidate
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          tar -xf release.tar
+          node scripts/release-artifact.mjs verify "$SOURCE_SHA"
+      - run: node .github/scripts/verify-browsers.mjs
+      - run: node scripts/run-browser-tests.mjs smoke extended "${{ matrix.shard }}/2"
+        timeout-minutes: 12
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: extended-smoke-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: artifacts/verification/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  report:
+    needs: [plan, visual, smoke]
+    if: ${{ always() && github.event_name == 'workflow_run' && needs.plan.result == 'success' && needs.plan.outputs.proceed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Record result for the admitted artifact
+        run: |
+          node scripts/release-verification.mjs "$SOURCE_SHA" "$RESULT" "$MANIFEST"
+          test "$RESULT" = success
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+          MANIFEST: ${{ needs.plan.outputs.manifest }}
+          RESULT: ${{ needs.visual.result == 'success' && needs.smoke.result == 'success' && 'success' || (needs.visual.result == 'cancelled' || needs.smoke.result == 'cancelled') && 'cancelled' || 'failure' }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

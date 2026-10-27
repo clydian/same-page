@@ -96,7 +96,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1, 2]' || needs.scope.outputs.deploy == 'true' && '[1, 2]' || '[1, 2, 3, 4]') }}
     needs: scope
     if: needs.scope.outputs.visual == 'true'
     runs-on: ubuntu-latest
@@ -121,7 +121,8 @@ jobs:
         run: node .github/scripts/verify-browsers.mjs
       - name: Browser layout and interaction regressions
         timeout-minutes: 12
-        run: node scripts/run-browser-tests.mjs visual "${{ needs.scope.outputs.browserGroup }}" "${{ matrix.shard }}/4"
+        # Test-only changes do not publish beta, so verify their complete suite.
+        run: node scripts/run-browser-tests.mjs visual "${{ needs.scope.outputs.browserGroup == 'library' && 'library' || needs.scope.outputs.deploy == 'true' && 'gate' || 'all' }}" "${{ matrix.shard }}/${{ needs.scope.outputs.browserGroup == 'library' && '2' || needs.scope.outputs.deploy == 'true' && '2' || '4' }}"
       - name: Preserve synthetic test evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -279,8 +280,8 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        # Keep full browser coverage within each slice's six-minute budget.
-        shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1, 2]' || '[1, 2, 3, 4]') }}
+        # Full test-only runs retain four slices; the product gate needs two.
+        shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1, 2]' || needs.scope.outputs.deploy == 'true' && '[1, 2]' || '[1, 2, 3, 4]') }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
@@ -309,9 +310,8 @@ jobs:
         run: node .github/scripts/verify-browsers.mjs
       - name: Real browser Worker storage smoke
         # Keep each shard's six-minute budget and individual test deadlines.
-        # Four full-suite slices leave room for fixture and runner variability.
         timeout-minutes: 6
-        run: node scripts/run-browser-tests.mjs smoke "${{ needs.scope.outputs.browserGroup }}" "${{ matrix.shard }}/${{ needs.scope.outputs.browserGroup == 'library' && '2' || '4' }}"
+        run: node scripts/run-browser-tests.mjs smoke "${{ needs.scope.outputs.browserGroup == 'library' && 'library' || needs.scope.outputs.deploy == 'true' && 'gate' || 'all' }}" "${{ matrix.shard }}/${{ needs.scope.outputs.browserGroup == 'library' && '2' || needs.scope.outputs.deploy == 'true' && '2' || '4' }}"
       - name: Preserve synthetic test evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -496,8 +496,17 @@ jobs:
         run: npm run verify:deployment -- https://samepage.clyapps.com "$GITHUB_SHA"
 
       - name: Admit verified frontend to beta
+        id: admit
         if: steps.admission.outputs.proceed == 'true' && vars.RELEASE_CHANNELS_ENABLED == 'true'
         run: node scripts/frontend-release.mjs admit "$GITHUB_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Record pending extended verification
+        if: steps.admit.outcome == 'success' && steps.admission.outputs.proceed == 'true'
+        continue-on-error: true
+        run: node scripts/release-verification.mjs "$GITHUB_SHA" running
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

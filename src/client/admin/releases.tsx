@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { adminFetch, AdminRequestError } from "./api";
 import { ConfirmDialog } from "../settings/confirm-dialog";
-const schema = z.object({ stable: z.string(), beta: z.string(), revision: z.number(), releases: z.array(z.object({ buildId: z.string(), publishedAt: z.number(), version: z.string().nullable().optional() })), events: z.array(z.object({ id: z.string(), previousStable: z.string(), target: z.string(), createdAt: z.number() })) });
+const schema = z.object({ stable: z.string(), beta: z.string(), revision: z.number(), releases: z.array(z.object({ buildId: z.string(), publishedAt: z.number(), version: z.string().nullable().optional() })), events: z.array(z.object({ id: z.string(), previousStable: z.string(), target: z.string(), createdAt: z.number() })), storageCompatible: z.boolean().optional(), verification: z.object({ buildId: z.string(), status: z.enum(['running', 'success', 'failure', 'cancelled']), updatedAt: z.number(), runId: z.number().int().positive() }).nullable().optional() });
 const dateFormat = new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Shanghai" });
 export function Releases({ onError }: { onError(error: unknown): void }) {
   const [data, setData] = useState<z.infer<typeof schema> | null>(null);
@@ -12,6 +12,8 @@ export function Releases({ onError }: { onError(error: unknown): void }) {
   const [confirmPromote, setConfirmPromote] = useState(false);
   const request = useRef<{ id: string; expectedBeta: string; expectedRevision: number } | null>(null);
   const version = (id: string) => data?.releases.find(release => release.buildId === id)?.version ?? "版本号未记录";
+  const verification = data && data.verification?.buildId === data.beta ? data.verification : null;
+  const verificationStatus = verification ? { running: '进行中', success: '通过', failure: '失败', cancelled: '已取消' }[verification.status] : '暂无结果或暂不可用';
   const report = useCallback((error: unknown) => {
     setError(error instanceof Error ? error.message : "操作未完成，请重试。");
     onError(error);
@@ -66,6 +68,14 @@ export function Releases({ onError }: { onError(error: unknown): void }) {
           </tr>;
         })}</tbody>
       </table>
+      <section className="release-admin-verification" aria-labelledby="release-verification-heading">
+        <h2 id="release-verification-heading">当前测试版的验证</h2>
+        <p>发布前所选 CI 检查：<strong>{verification ? '通过' : '暂无记录'}</strong></p>
+        {data.beta !== data.stable && <p>与当前稳定版的存储兼容检查：<strong>{data.storageCompatible ? '通过' : '暂未确认'}</strong>（提升时必须通过）</p>}
+        <p>发布后的扩展浏览器检查（最近记录）：<strong>{verificationStatus}</strong></p>
+        <p>扩展检查不阻止测试版发布，也不能代替真实设备体验；失败或缺少结果时请先调查。</p>
+        {verification && <p>更新时间：<time dateTime={new Date(verification.updatedAt).toISOString()}>{dateFormat.format(verification.updatedAt)}</time> · <a href={`https://github.com/clydian/same-page/actions/runs/${verification.runId}`} target="_blank" rel="noreferrer">查看运行详情</a></p>}
+      </section>
       <details className="release-admin-details"><summary>技术详情 · 构建标识</summary><dl>
         {data.releases.map(release => <Fragment key={release.buildId}><dt>{release.buildId === data.stable ? "稳定版 · " : release.buildId === data.beta ? "测试版 · " : "历史版本 · "}<span translate="no">{version(release.buildId)}</span></dt><dd><code translate="no">{release.buildId}</code></dd></Fragment>)}
       </dl></details>
@@ -87,7 +97,7 @@ export function Releases({ onError }: { onError(error: unknown): void }) {
     </section>}
     <ConfirmDialog busy={!!busy} onClose={() => setConfirmPromote(false)} confirmation={confirmPromote && data ? {
       title: "将测试版设为稳定版？",
-      message: <><p>稳定版将从 <span translate="no">{version(data.stable)}</span> 更新到 <span translate="no">{version(data.beta)}</span>。</p><p>稳定版用户将在安全更新时机收到此版本。</p></>,
+      message: <><p>稳定版将从 <span translate="no">{version(data.stable)}</span> 更新到 <span translate="no">{version(data.beta)}</span>。</p><p>扩展浏览器检查：{verificationStatus}。请确认测试版体验。</p><p>稳定版用户将在安全更新时机收到此版本。</p></>,
       action: "确认设为稳定版", onConfirm: promote,
     } : null} />
   </section>;

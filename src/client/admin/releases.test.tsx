@@ -84,3 +84,22 @@ it('does not invent a version number for an older response without version metad
   expect(table).not.toHaveTextContent('v26.10.22');
   expect(table).not.toHaveTextContent(A.slice(0, 7));
 });
+
+it('shows only the current beta verification and warns in the promotion dialog', async () => {
+  let current = { ...snapshot(), verification: { buildId: B, status: 'failure', runId: 123, updatedAt: Date.parse('2026-10-22T08:00:00Z') } };
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json(current)));
+  render(<Releases onError={vi.fn()} />);
+  const status = await screen.findByRole('region', { name: '当前测试版的验证' });
+  expect(status).toHaveTextContent('发布前所选 CI 检查：通过');
+  expect(status).toHaveTextContent('扩展浏览器检查（最近记录）：失败');
+  expect(within(status).getByRole('link', { name: '查看运行详情' })).toHaveAttribute('href', 'https://github.com/clydian/same-page/actions/runs/123');
+  fireEvent.click(screen.getByRole('button', { name: '将 v26.10.22.1500 设为稳定版' }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('扩展浏览器检查：失败');
+  fireEvent.click(screen.getByRole('button', { name: '取消' }));
+  current = { ...snapshot(A, C, 2), verification: current.verification };
+  fireEvent.click(screen.getByRole('button', { name: '重新读取版本' }));
+  await screen.findByRole('button', { name: '将 v26.10.22.1600 设为稳定版' });
+  expect(status).toHaveTextContent('扩展浏览器检查（最近记录）：暂无结果或暂不可用');
+  expect(status).toHaveTextContent('发布前所选 CI 检查：暂无记录');
+  expect(within(status).queryByRole('link')).toBeNull();
+});

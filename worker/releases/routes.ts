@@ -4,7 +4,7 @@ import { readContextSession } from "../auth/context-session";
 import { AuthorizationError } from "../auth/authorization";
 import { buildId } from "../../src/shared/build";
 import { releaseContract, releaseSelectionSchema, releasePromotionSchema } from "../../src/shared/release-channels";
-import { channels, manifest, preference, releaseDB, compatibilityReady, releaseVersion } from "./catalog";
+import { channels, manifest, preference, releaseDB, compatibilityReady, releaseVersion, extendedVerification } from "./catalog";
 export const releaseRoutes = new Hono<AppEnvironment>();
 releaseRoutes.use("*", async (c, next) => { c.header("Cache-Control", "private, no-store"); await next(); });
 async function operator(c: Context<AppEnvironment>) {
@@ -37,7 +37,11 @@ releaseRoutes.get("/admin/releases", async c => {
   const ids = [...new Set([...(pointer ? [pointer.stable, pointer.beta] : []), ...events.flatMap(event => [event.previousStable, event.target])])];
   const rows = ids.length ? (await releaseDB(c.env).prepare(`SELECT build_id AS buildId,published_at AS publishedAt FROM frontend_releases WHERE build_id IN (${ids.map(() => "?").join(",")}) AND ready=1`).bind(...ids).all<{ buildId: string; publishedAt: number }>()).results : [];
   const releases = await Promise.all(rows.map(async release => ({ ...release, version: await releaseVersion(c.env, release.buildId) })));
-  return c.json({ ...pointer, releases, events });
+  const [verification, storageCompatible] = pointer ? await Promise.all([
+    extendedVerification(c.env, pointer.beta),
+    compatibilityReady(c.env, pointer.stable, pointer.beta).catch(() => false),
+  ]) : [null, false];
+  return c.json({ ...pointer, releases, events, verification, storageCompatible });
 });
 releaseRoutes.post("/admin/releases/promote", async c => {
   const auth = await operator(c);

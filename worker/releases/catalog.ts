@@ -53,3 +53,19 @@ export async function compatibilityReady(env: Env, stable: string, candidate: st
       JSON.stringify(report.engines) === '["chromium","webkit"]' && report.stableProbe === a?.probeDigest && report.candidateProbe === b?.probeDigest;
   } catch { return false; }
 }
+
+// Optional advisory data must never make the release catalog unavailable during
+// rolling deployment, migration failures, or for releases made before it existed.
+export async function extendedVerification(env: Env, candidate: string) {
+  try {
+    const row = await releaseDB(env).prepare(`SELECT v.status, v.updated_at AS updatedAt, v.run_id AS runId
+      FROM release_verification v JOIN frontend_releases r ON r.build_id=v.build_id
+      WHERE v.build_id=? AND r.ready=1 AND v.manifest_digest=r.manifest_digest`).bind(candidate)
+      .first<{ status: string; updatedAt: number; runId: number }>();
+    if (!row || !['running', 'success', 'failure', 'cancelled'].includes(row.status) ||
+      !Number.isSafeInteger(row.runId) || row.runId <= 0 || !Number.isSafeInteger(row.updatedAt) || row.updatedAt <= 0) return null;
+    // A cancelled workflow or failed reporter must not appear to run forever.
+    if (row.status === 'running' && Date.now() - row.updatedAt > 60 * 60 * 1000) return null;
+    return { buildId: candidate, status: row.status, updatedAt: row.updatedAt, runId: row.runId };
+  } catch { return null; }
+}
