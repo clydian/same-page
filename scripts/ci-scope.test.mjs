@@ -284,7 +284,7 @@ test("the workflow gate rejects failure, cancellation and unexpected skips of se
       backend: { result: ["worker", "migration"].some(key => outputs[key] === "true") ? "success" : "skipped" },
       visual: { result: outputs.visual === "true" ? "success" : "skipped" },
       build: { result: ["build", "smoke"].some(key => outputs[key] === "true") ? "success" : "skipped" },
-      platform: { result: ["pwa", "performance"].some(key => outputs[key] === "true") ? "success" : "skipped" },
+      platform: { result: ["pwa", "performance", "build", "smoke"].some(key => outputs[key] === "true") ? "success" : "skipped" },
       smoke: { result: outputs.smoke === "true" ? "success" : "skipped" },
     };
     assert.equal(run(jobs), 0);
@@ -294,6 +294,22 @@ test("the workflow gate rejects failure, cancellation and unexpected skips of se
       }
     }
   }
+});
+
+test("platform runs real artifact checks for build-only and smoke scopes, while PWA-only may skip the build", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const condition = workflow.match(/\n  platform:[\s\S]*?\n    if: >-\n([\s\S]*?)\n    permissions:/)[1].trim();
+  const evaluate = (build, pwa = "false", scope = "success", cancelled = false) => runInNewContext(condition, {
+    cancelled: () => cancelled,
+    needs: { scope: { result: scope, outputs: { pwa } }, build: { result: build } },
+  });
+  assert.equal(evaluate("success"), true, "a build alone must execute its actual probe");
+  assert.equal(evaluate("skipped", "true"), true);
+  assert.equal(evaluate("skipped"), false);
+  assert.equal(evaluate("failure", "true"), false);
+  assert.equal(evaluate("cancelled", "true"), false);
+  assert.equal(evaluate("success", "true", "failure"), false);
+  assert.equal(evaluate("success", "true", "success", true), false);
 });
 
 test("deployment follows the successful verification gate even when an ancestor is skipped", () => {

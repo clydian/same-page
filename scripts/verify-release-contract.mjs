@@ -9,6 +9,7 @@ import { assertStorageCompatibility, storageContract } from "./release-contract.
 export async function verifyReleaseContract(cwd = process.cwd()) {
   const baseline = JSON.parse(await readFile(path.join(cwd, "scripts/release-storage-baseline.json"), "utf8"));
   assert.match(baseline.buildId ?? "", /^[a-f0-9]{40}$/);
+  assert.match(baseline.sealDigest ?? "", /^[a-f0-9]{64}$/, "reviewed baseline seal digest required");
   assert.ok(Number.isSafeInteger(baseline.runId) && baseline.runId > 0);
   assert.ok(Number.isSafeInteger(baseline.artifactId) && baseline.artifactId > 0);
   assertStorageCompatibility(baseline.storage, await storageContract(cwd));

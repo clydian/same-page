@@ -249,12 +249,26 @@ release metadata，不执行业务 migration、数据恢复、清理或发布人
 PR 的 `checks` 在安装依赖前执行 `node scripts/verify-release-contract.mjs` 及其回归测试。
 它使用 `scripts/release-storage-baseline.json` 中经审查的稳定版边界清单，调用与发布相同的
 兼容性比较，并要求 `package.json` 的 Dexie/Zod 声明精确固定到基线版本。当前清单来自
-stable `521b3469f734ef396094a585993c7835e2ad59ae` 的原始 CI
-[39914879622](https://github.com/clydian/same-page/actions/runs/39914879622)、artifact
-`12484143687`，提取前已通过封存产物逐文件校验。此检查无需生产凭据，也不访问或修改用户数据。
-不能仅为升级依赖而重生成或放宽清单；更换基线须有兼容性桥接的审查及对应原始产物证据。
+stable `839c6776d543201906fe871065eb19c4997b03e6` 的原始 CI
+[40423108394](https://github.com/clydian/same-page/actions/runs/40423108394)、artifact
+`12699256626`；其持久格式清单与此前基线完全相同，另固定原始 release seal 的 SHA-256。此检查无需生产凭据，也不访问或修改用户数据。
+不能仅为升级依赖而重生成或放宽清单；更换基线须记录兼容性审查及对应原始产物证据；持久格式变化仍须另审兼容桥接。
 本地 `npm run test:ci` 执行同一组回归。它是提前反馈；stable 后续可能提升，发布阶段仍核对
 生产锁内读取的实际 stable，而不会用仓库清单替代在线准入。
+
+每次 CI 生成生产产物时，platform job 都下载 build job 封存的原始包，并使用仅有
+`actions:read` 的 GitHub token 下载仓库固定的稳定版 artifact，不访问生产 R2／D1 或用户数据。
+`scripts/verify-built-storage.mjs` 校验候选包、基线 seal／来源／run、probe 与存储清单摘要，
+再在 Chromium／WebKit 的独立持久 profile 中执行实际 `stable → candidate → stable → candidate`。
+这包含 build-only／smoke 范围，不依赖是否选择性能检查；汇总 verify 要求该 job 成功。
+PWA-only 且没有构建时仍只跑原交接检查。报告保存在 platform artifact 的
+`release-storage/reviewed-baseline.json`。基线 artifact 缺失／过期或校验失败时直接失败，
+必须另审原始稳定产物并更新基线，不能静默改为 candidate 自测或重建旧 SHA。
+
+私有 storage probe 由 esbuild 独立构建，显式提供关闭网络切线的 `import.meta.env`，
+避免本地存储依赖间接导入请求模块时因缺少 Vite 替换而在启动阶段崩溃。
+正常网页仍按现有生产构建参数启用双线路。本检查使用测试数据，不执行真实网络业务；
+PR 报告仅用于提前反馈，不写入线上兼容证明，也不替代部署时针对当时 stable 的检查。
 
 CI 在生产锁内先校验完整包，再 `frontend-release.mjs upload <SHA>`：比对当前 stable 的
 持久格式边界、first-write claim、逐文件写入／读回与最终 seal。边界仅涵盖明确列出的业务
