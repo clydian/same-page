@@ -58,3 +58,5 @@
 Review 修正冻结后，完整客户端使用 `npx vitest run --config vitest.client.config.ts --maxWorkers=1` 单独运行：**154 文件、1346 项全部通过**（179.96 秒）。所有用例及原有等待门槛不变，单 worker 用于限制本地资源竞争；不是将单文件复跑视为整套通过。两项 review 发现的回归也包含在这次整套结果中。
 
 本环境 Playwright 固定版本运行包下载返回 `403 Domain forbidden`，改用本机 Chromium，并仅在本地测试启动器对 loopback 测试域名禁用代理和固定解析。WebKit、整套 visual/smoke、完整 PWA/性能门禁未在本地执行，需要 PR CI 补齐。屏幕阅读器语义由 DOM 可访问名称和状态测试覆盖；未手动运行 VoiceOver/NVDA。
+
+首轮官方 CI 中，WebKit 轨迹验收通过，Chromium 的合成“旧业务失败”断言失败；该验收此前只等直连响应落点，未保证备用采样轮结束。已改为等待两路轮次完成，并在构造故障前 await 整轮采样；新增业务失败与证据时间顺序的明确前置断言。保留原有 UI 断言和超时，不更改产品逻辑。最终官方 CI 结果记录在 PR。

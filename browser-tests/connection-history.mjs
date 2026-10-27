@@ -54,7 +54,7 @@ export async function verifyConnectionHistory(page, name) {
   await expect(page.locator('.connection-samples').first().locator('time').first()).toHaveAttribute('datetime', new Date(history.direct.at(-1).at).toISOString());
   await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-mixed-stale-details.png` });
   held = null; release();
-  await expect.poll(async () => (await samples()).direct.length).toBe(startCount + 7);
+  await expect.poll(async () => { const state = await samples(); return [state.direct.length, state.backup.length]; }).toEqual([startCounts.direct + 7, startCounts.backup + 7]);
   const resumed = await samples();
   assert.ok(resumed.direct.at(-1).at - resumed.direct.at(-2).at >= 65_000);
   await expect(page.getByText('结果已过期', { exact: true })).toHaveCount(0);
@@ -64,9 +64,22 @@ export async function verifyConnectionHistory(page, name) {
   // display evidence from an old business failure without clearing cooldown.
   await page.getByRole('radio', { name: '备用', exact: true }).check();
   await expect(page.locator('.connection-spinner')).toHaveCount(0);
+  // A route sample records each completed response separately. Await the
+  // whole round so an older in-flight response cannot become newer evidence
+  // after the synthetic business failure below. This preserves the assertion.
+  await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.sample(new AbortController().signal); });
   await page.route('**/api/_entry/backup/choirs', route => route.abort('failed'));
   await page.clock.fastForward(1000);
-  await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.fetch('/api/choirs').catch(() => {}); });
+  const failure = await page.evaluate(async () => {
+    const { connections } = await import('/src/client/connection/connection.ts');
+    let failed = false;
+    await connections.fetch('/api/choirs').catch(() => { failed = true; });
+    const state = connections.getSnapshot();
+    return { failed, active: state.active, mode: state.mode, attempting: state.attempting, business: state.health.backup, sample: state.samples.backup.at(-1) };
+  });
+  assert.equal(failure.failed, true, JSON.stringify(failure));
+  assert.equal(failure.business.state, 'unreachable', JSON.stringify(failure));
+  assert.ok(failure.business.checkedAt >= failure.sample.at, JSON.stringify(failure));
   await expect(page.getByText('当前线路：备用（暂时连不上）', { exact: true })).toBeVisible();
   await page.clock.fastForward(1000);
   await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.sample(new AbortController().signal); });
