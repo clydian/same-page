@@ -11,9 +11,7 @@
 .connection-heading h2 { margin: 0; }
 .connection-heading .icon-button { flex: none; width: 44px; height: 44px; min-width: 44px; }
 .connection-dialog { overscroll-behavior: contain; }
-.connection-summary { margin: 1.25rem 0; }
-.connection-current { margin: 0; font-size: .95rem; font-weight: 600; color: var(--ink); }
-.connection-recovery { margin-top: .75rem; }
+.connection-current { margin: 1.25rem 0; font-size: .95rem; font-weight: 600; color: var(--ink); }
 .connection-origin-note { padding-left: .75rem; border-left: 2px solid var(--line); color: var(--muted); font-size: .85rem; line-height: 1.6; }
 .connection-modes { display: flex; gap: .4rem; padding: 0; border: 0; margin: 1rem 0 .5rem; }
 .connection-modes legend { font-size: .85rem; margin-bottom: .5rem; color: var(--muted); }
@@ -22,16 +20,18 @@
 .connection-modes input { accent-color: var(--brand); margin: 0; }
 .connection-mode-label { display: inline-flex; align-items: center; gap: .2rem; white-space: nowrap; }
 .connection-recommended { font-size: .7rem; font-weight: 400; color: var(--muted); }
-.connection-copy, .connection-notice { font-size: .85rem; line-height: 1.65; color: var(--muted); }
+.connection-copy, .connection-help { font-size: .85rem; line-height: 1.65; color: var(--muted); }
 .connection-routes { list-style: none; margin: 1rem 0; padding: 0; border-block: 1px solid var(--line); }
 .connection-routes li { padding: .9rem 0; }
 .connection-routes li + li { border-top: 1px solid var(--line); }
 .connection-routes li > div { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
-.connection-routes small { display: block; margin-top: .35rem; font-size: .75rem; color: var(--muted);  }
+.connection-routes small { display: block; margin-top: .35rem; font-size: .75rem; color: var(--muted); }
 .connection-health { font-size: .8rem; color: var(--muted); }
 .connection-health--reachable { color: #1d6b48; }
 .connection-health--unreachable, .connection-health--conflict { color: #8d402a; }
-.connection-notice { margin: 1rem 0 0; }
+.connection-help { margin-top: .75rem; }
+.connection-help summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; }
+.connection-help p { margin: .6rem 0; }
 .connection-spinner { animation: connection-spin 1s linear infinite; }
 @keyframes connection-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .connection-fab { transition: none; } .connection-spinner { animation: none; } }
