@@ -100,3 +100,11 @@ Standards 与 Spec 独立复核均为 0 项；具体浏览器回归与远端 CI 
 CI run `40458836898` 仅 visual (2) 中 Chromium 的 `drive-entry.test.mjs` 失败：第 57 行等待云盘选择链接 30 秒超时；现场截图与 URL 已在目标云盘，且没有页面脚本异常。原样独立 Chromium／WebKit 2/2 通过。受控暂缓旧云盘 bootstrap 后，在测试修改 last-drive 后放行旧响应，复现同一个选择链接 30 秒超时：旧页面加载完成的 effect 覆盖了人为写入的 `gone`，导致下次访问自动进入云盘。
 
 修复只调整测试数据准备：sessionStorage 中的独立一次性 marker 在下一文档 addInitScript 中消费并删除，再设置缺失 last-drive，确保应用脚本开始前种子已准备好；后续页面不再持续重置，保留显式主页场景。没有修改产品跳转逻辑、业务断言或任何等待期限。修复后的原始用例 Chromium／WebKit 2/2 通过，Standards／Spec 独立复核均 0 项；受控延迟对照中旧写法同断言失败，修复后 Chromium／WebKit 2/2 通过；远端 CI 结果在 PR #595 更新。
+
+## main 部署 storage probe 构建修复与 PR 实际产物门禁
+
+#594 合并后的 main run `40457397436` 所有验证 job 通过，但 deploy 的 Prepare immutable frontend publication 在导入 candidate probe 时失败：`import.meta.env` 未定义。原始封存产物的 probe 摘要核对一致；依赖链为 storage-probe → annotation-state → reading-preferences → diagnostics → connection，独立 esbuild 没有 Vite env 替换。仅关闭功能 flag 仍失败。探针构建现在显式定义关闭切线的 env，正常网页仍启用双线路。
+
+新增 `verify-built-storage.mjs` 在 PR CI 校验 build job 的完整原始封存产物，并与经审查的 stable 原始 probe 执行双引擎四阶段矩阵。基线出处从 521b3469 刷新到当前 stable 839c6776 的原始 run `40423108394`／artifact `12699256626`，固定 seal 摘要；两者的 storage 对象完全一致，没有修改任何边界。GitHub 只读 actions token 下载原包，基线缺失／过期失败，不重建旧包、不用候选自测替代。所有 build 含 build-only／smoke 均要求 platform 成功；生产锁内针对实时 stable 的原检查仍保留。
+
+本地先通过新增 gate 对原 #594 封存坏包复现同一个 phase=1 导入异常。与 CI 相同参数构建并封存修复候选 `c7579f4` 后，用同一个 gate 对原 stable 839c6776 检查通过（Chromium／WebKit，真实持久 profile，Blob／草稿／队列／push/pull／冲突／身份均校验）。生产构建／预缓存／storage contract、完整 Node 57 文件／288 项、scope／contract 30 项通过；完整性新增 4 项包含替换 seal、probe／storage 被修改、错误来源／run／存储边界。Standards／Spec 两轴均 0 项。上述产物仅本地验证，未上传、覆盖旧版本或变更生产。远端状态见后续修复 PR。
