@@ -130,13 +130,22 @@ test("valid invitations automatically admit guests, existing members and named n
         const redact = text => [fixture.joinCode, ...fixture.accounts.flatMap(account => [account.email, account.password])]
           .filter(Boolean).reduce((value, secret) => value.replaceAll(secret, "<REDACTED>"), text)
           .replaceAll(fixture.joinCode.slice(0, 4) + "-" + fixture.joinCode.slice(4), "<REDACTED>");
-        const state = page && !page.isClosed() ? {
-          pathname: new URL(page.url()).pathname,
-          invitationFragmentCleared: new URL(page.url()).hash === "",
-          headings: (await page.getByRole("heading").allTextContents()).map(redact),
-          alerts: (await page.getByRole("alert").allTextContents()).map(redact),
-          buttons: (await page.getByRole("button").allTextContents()).map(redact),
-        } : { pageClosed: true };
+        let stateTimer;
+        let state;
+        try {
+          // A stuck renderer can also stall DOM diagnostics. Bound the whole
+          // snapshot so evidence collection cannot consume the test deadline.
+          state = await Promise.race([
+            (async () => page && !page.isClosed() ? {
+              pathname: new URL(page.url()).pathname,
+              invitationFragmentCleared: new URL(page.url()).hash === "",
+              headings: (await page.getByRole("heading").allTextContents()).map(redact),
+              alerts: (await page.getByRole("alert").allTextContents()).map(redact),
+              buttons: (await page.getByRole("button").allTextContents()).map(redact),
+            } : { pageClosed: true })().catch(() => ({ stateUnavailable: "capture failed" })),
+            new Promise(resolve => { stateTimer = setTimeout(() => resolve({ stateUnavailable: "capture timed out" }), 2500); }),
+          ]);
+        } finally { clearTimeout(stateTimer); }
         await writeFile(`${directory}/${mode}-failure.json`, JSON.stringify({ mode, elapsedMs: Math.round(performance.now() - started), state, timeline }, null, 2));
         if (page && !page.isClosed()) await page.screenshot({
           path: `${directory}/${mode}-failure.png`,
