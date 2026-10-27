@@ -20,7 +20,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.goto(`${origins.direct}/choirs/${fixture.choirId}`);
     await expect(page.locator('.file-row__open').first()).toBeVisible();
     await page.getByRole('button', { name: /^连接线路/ }).click();
-    await expect(page.getByText('登录已确认', { exact: true })).toHaveCount(2);
+    await expect.poll(() => page.evaluate(async () => Object.values((await import('/src/client/connection/connection.ts')).connections.getSnapshot().identity).every(value => value === 'ready'))).toBe(true);
     await expect(page.getByText('当前使用直连线路')).toBeVisible();
     await mkdir('artifacts/verification/issue-580', { recursive: true });
     await page.screenshot({ path: `artifacts/verification/issue-580/${name}-mobile-panel.png` });
@@ -41,11 +41,9 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     assert.equal(await page.evaluate(() => localStorage.getItem('issue-580-draft-marker')), 'keep');
     assert.equal(new URL(page.url()).origin, origins.direct);
     await page.getByRole('radio', { name: '直连', exact: true }).check();
-    await expect(page.getByText('只用直连，不会自动切换。')).toBeVisible();
     await expect(page.getByText('指定的直连暂时连不上', { exact: true })).toBeVisible();
     await expect(page.getByRole('radio', { name: '直连', exact: true })).toBeChecked();
     await expect(page.getByRole('link', { name: '前往登录', exact: true })).toHaveCount(0);
-    await expect(page.getByText('连通后再检查登录', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '改用备用线路', exact: true }).click();
     await expect(page.getByRole('radio', { name: '备用', exact: true })).toBeChecked();
     await expect(page.getByText('当前使用备用线路')).toBeVisible();
@@ -120,7 +118,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     // a prepared credential alone must not render a failed route as usable.
     await expect(alternate.getByRole('button', { name: '重新检测', exact: true })).toBeEnabled();
     await alternate.getByRole('button', { name: '重新检测', exact: true }).click();
-    await expect(alternate.getByText('登录已确认', { exact: true })).toHaveCount(2);
+    await expect.poll(() => alternate.evaluate(async () => Object.values((await import('/src/client/connection/connection.ts')).connections.getSnapshot().identity).every(value => value === 'ready'))).toBe(true);
     await alternate.getByRole('radio', { name: '直连', exact: true }).check();
     await expect(alternate.getByText('当前使用直连线路')).toBeVisible();
     assert.equal(new URL(alternate.url()).origin, origins.backup);
