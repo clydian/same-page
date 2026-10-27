@@ -94,3 +94,9 @@ CI run `40447868486` 的唯一测试失败在 `invite-entry-smoke.test.mjs`：�
 Standards 与 Spec 独立复核均为 0 项；具体浏览器回归与远端 CI 状态见本轮启用 PR。真实 ESA 的 OPTIONS／Set-Cookie／Range、移动 PWA 和大陆网络收益仍须在新版本成为 beta 后验收，再决定 stable 提升。
 
 现有双主机浏览器流程首轮因本机 DNS 将 nip.io 测试主机解析到非 loopback 地址，在页面加载前出现连接／TLS 失败。仅在测试进程中使用限定两个 fixture 主机的本地 CONNECT 转发后，Chromium／WebKit 2/2 通过：冷启动切线、严格手动、响应丢失的 XHR、PDF、音频 Range／播放状态和备用首次登录；未修改系统网络配置。远端 CI 使用原测试命令，结果在 PR 跟踪。
+
+### PR #595 的云盘入口测试时序修复
+
+CI run `40458836898` 仅 visual (2) 中 Chromium 的 `drive-entry.test.mjs` 失败：第 57 行等待云盘选择链接 30 秒超时；现场截图与 URL 已在目标云盘，且没有页面脚本异常。原样独立 Chromium／WebKit 2/2 通过。受控暂缓旧云盘 bootstrap 后，在测试修改 last-drive 后放行旧响应，复现同一个选择链接 30 秒超时：旧页面加载完成的 effect 覆盖了人为写入的 `gone`，导致下次访问自动进入云盘。
+
+修复只调整测试数据准备：sessionStorage 中的独立一次性 marker 在下一文档 addInitScript 中消费并删除，再设置缺失 last-drive，确保应用脚本开始前种子已准备好；后续页面不再持续重置，保留显式主页场景。没有修改产品跳转逻辑、业务断言或任何等待期限。修复后的原始用例 Chromium／WebKit 2/2 通过，Standards／Spec 独立复核均 0 项；受控延迟对照中旧写法同断言失败，修复后 Chromium／WebKit 2/2 通过；远端 CI 结果在 PR #595 更新。
