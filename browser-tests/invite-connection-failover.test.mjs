@@ -25,7 +25,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
           } else {
             await page.goto(origins.direct + '/drives');
             if (scenario === 'manual') {
-              await page.getByRole('button', { name: '连接线路', exact: true }).click();
+              await page.getByRole('button', { name: /^连接线路/ }).click();
               await page.getByRole('radio', { name: '直连', exact: true }).check();
               await page.getByRole('button', { name: '关闭连接面板' }).click();
             }
