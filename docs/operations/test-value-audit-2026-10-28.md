@@ -16,6 +16,11 @@
 改动的 PR 会额外运行扩展工作流。若扩展耗时或失败率仍高，应按本记录进一步处理，
 而不是靠增加分片、重试或延长时限隐藏。
 
+对照首次调整后的 [PR CI 40540307919](https://github.com/clydian/same-page/actions/runs/40540307919)：
+从 scope 开始到 verify 完成约 5 分 56 秒；四个浏览器门禁 job 共 14 分 22 秒，所有 CI job
+共约 28 分 37 秒。旧 CI 同口径分别约 12 分 58 秒、40 分 38 秒和 52 分 16 秒。
+这是各一次运行，受 runner 排队和环境影响；扩展工作流的成本另计。
+
 ## 保留在发布前
 
 `browser-tests` 的核心组保留 access、annotations、attachments、connections、free-trial、
@@ -61,6 +66,7 @@ practice-reader-layout、practice-rhythm、practice-score-entry、practice-unifi
 | `playback-measure-labels.node.test.ts` | 与播放器包 `playback-measures.test.mjs` 的同一导出与样本重复。 |
 | `fixtures.test.mjs` 中固定 fixture 自校验；历史假耗时分片测试 | 前者不验证产品行为，保留未知请求失败关闭；后者依赖旧 CI 时长且重复模拟调度。保留真实 runner 的无遗漏/无重复验证。 |
 | `highlighter-regression` 四轮同场景往返改为一轮 | 两引擎、两种笔迹（含预算降级）、页面往返及错误断言保留；去除常态截图和同状态重复三轮。 |
+| `home-entry.test.tsx` 的默认入口和返回历史用例 | 原用例在已跳转到正确路由后仍等待云盘独立加载，实测会在默认 1 秒内偶发超时；改为等待目标路由后验证返回历史，保留跳转和 replace 行为。云盘加载由其他场景验证。 |
 
 视觉目录从 47 个文件到 46（其中 15 核心、31 扩展）；smoke 从 37 到 35（15 核心、
 20 扩展）。数量不等同用例数或节省时间，且本次 #599 新增的 sampling 已计入。

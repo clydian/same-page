@@ -47,8 +47,9 @@ afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 it("replaces the default entry with the only membership, even with a remembered preview", async () => {
   rememberDriveSummary(driveCacheOwnerKey("user-a", "preview"), { id: "preview", name: "公开体验", guestAdmissionMode: "open" });
   render(tree(["/privacy", "/"]));
-  await screen.findByRole("heading", { name: /^云盘 one/ });
-  expectPath("/choirs/one");
+  // This test verifies entry routing and history, not the destination's
+  // independent asynchronous bootstrap.
+  await waitFor(() => expectPath("/choirs/one"));
   fireEvent.click(screen.getByRole("button", { name: "返回测试" }));
   await screen.findByRole("heading", { name: "隐私政策" });
   expectPath("/privacy");
