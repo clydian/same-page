@@ -17,6 +17,9 @@ import { driveSettingsRoutes } from "./choirs/settings";
 import { cleanupLifecycles } from "./lifecycle/cleanup";
 import { lifecycleRoutes } from "./lifecycle/routes";
 import { Hono } from "hono";
+import { connectionBoundary } from "./connection/boundary";
+import { connectionRoutes } from "./connection/routes";
+import { connectionOrigins } from "./connection/config";
 
 import { buildId } from "../src/shared/build";
 import { healthResponseSchema } from "../src/shared/health";
@@ -24,7 +27,7 @@ import { annotationRoutes } from "./annotations/routes";
 import { AuthorizationError } from "./auth/authorization";
 import { handleAuthRequest } from "./auth/handler";
 import { choirRoutes } from "./choirs/routes";
-import type { AppEnvironment } from "./env";
+import type { AppEnvironment, Env } from "./env";
 import { diagnosticReportRoutes, cleanupDiagnosticReports } from "./diagnostic-reports";
 import { diagnosticMiddleware, logFailure } from "./diagnostics";
 import { serverTimingMiddleware } from "./performance/server-timing";
@@ -56,7 +59,8 @@ for (const path of ['/assets/*', '/pdfjs/*', '/font/*', '/soundfont/*', '/playba
 app.use("/api/*", diagnosticMiddleware, serverTimingMiddleware);
 app.use("/api/*", async (context, next) => {
   const origin = context.req.header("Origin");
-  if (!context.req.path.startsWith("/api/auth/") && !["GET", "HEAD", "OPTIONS"].includes(context.req.method) && origin && origin !== new URL(context.env.BETTER_AUTH_URL).origin) {
+  const allowedOrigins = connectionOrigins(context.env) ?? [new URL(context.env.BETTER_AUTH_URL).origin];
+  if (!context.req.path.startsWith("/api/auth/") && !["GET", "HEAD", "OPTIONS"].includes(context.req.method) && origin && !allowedOrigins.includes(origin)) {
     return context.json({ error: "forbidden" }, 403);
   }
   await next();
@@ -74,6 +78,7 @@ app.get("/api/health", (context) => {
 });
 
 app.on(["GET", "POST"], "/api/auth/*", handleAuthRequest);
+app.route("/api/connection", connectionRoutes);
 
 app.route("/api", releaseRoutes);
 app.route("/api", androidReleaseRoutes);
@@ -114,8 +119,11 @@ app.onError((error, context) => {
 });
 
 export default {
-  fetch: app.fetch,
+  fetch(request: Request, env: Env, context?: ExecutionContext) {
+    return connectionBoundary(request, env, context, async (routed, bindings) => app.fetch(routed, bindings, context));
+  },
   scheduled(_controller, env, context) {
+    context.waitUntil(env.DB.prepare("DELETE FROM connection_exchanges WHERE expires_at <= ?").bind(Date.now()).run());
     context.waitUntil(cleanupAnnotationLayers(env.DB).catch(() => {
       logFailure("storage", "cleanup", 500, crypto.randomUUID());
       throw new Error("annotation_layer_cleanup_failed");

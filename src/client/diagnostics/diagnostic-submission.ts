@@ -1,3 +1,4 @@
+import { connectionFetch } from "../connection/connection";
 import { releaseChannelDiagnostics } from "../updates/release-channel";
 import { diagnosticReceiptSchema, diagnosticReportSchema, type DiagnosticReader, type DiagnosticReport } from "../../shared/diagnostic-report";
 import { exportDiagnostics, subscribeDiagnosticReset } from "./diagnostics";
@@ -82,7 +83,7 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
     const allowLegacy = !reportDispatched;
     const submit = () => {
       reportDispatched = true;
-      return fetch("/api/diagnostic-reports", { method: "POST", credentials: "omit", cache: "no-store",
+      return connectionFetch("/api/diagnostic-reports", { method: "POST", credentials: "omit", cache: "no-store",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify(report), signal: controller.signal });
     };
     let response = await submit();

@@ -1,0 +1,345 @@
+{
+  "recordedAt": "2026-10-26T15:26:37.232956+00:00",
+  "scope": "public-preview-only; independent synthetic guest cookies; no authenticated user session",
+  "network": "current desktop routing; not verified mainland without proxy",
+  "publicChecks": [
+    {
+      "origin": "https://samepage.clyapps.com",
+      "checks": [
+        {
+          "path": "/api/health",
+          "status": 200,
+          "bytes": 120,
+          "sha256": "b2d3f607461b73f0087cf1b93af5f3b998dcaa2fb8cf578e16894fdb110e8722",
+          "elapsed": 1.268,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "120",
+            "X-Same-Page-Request-Id": "a85b45fd-2333-405a-98a0-d03320bf8ada"
+          }
+        },
+        {
+          "path": "/api/guest/preview-choir",
+          "status": 200,
+          "bytes": 111,
+          "sha256": "6f7191fc718082634f6111317acbfc794b3cf4d0f3f50121b10b21f4bb960bf6",
+          "elapsed": 1.724,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "111",
+            "Cache-Control": "private, no-store",
+            "X-Same-Page-Request-Id": "23f11edd-af11-47ee-9b03-33a70f9c3b69"
+          }
+        },
+        {
+          "path": "/api/guest/session",
+          "status": 200,
+          "bytes": 133,
+          "sha256": "fe4d2d5cc4e207a3a8d78ca93fbc11c2b84102a12262e5743e8a041c2de8048b",
+          "elapsed": 1.488,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "133",
+            "Cache-Control": "private, no-store",
+            "X-Same-Page-Request-Id": "d1a86d02-e71a-4b9e-8182-c208a7c2c91f"
+          }
+        },
+        {
+          "path": "/api/choirs/ff6904d8-1aa9-4a36-b80d-3b33f4e16a12/scores",
+          "status": 200,
+          "bytes": 689,
+          "sha256": "18a8d11f68e521cba58f236053248d21e53828f3a6a2eccacdeaa9350ab9e428",
+          "elapsed": 1.57,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "689",
+            "Cache-Control": "private, no-store",
+            "X-Same-Page-Request-Id": "f6c97a91-a11c-4f47-9768-422c5f6c6efb"
+          }
+        },
+        {
+          "path": "/api/choirs/ff6904d8-1aa9-4a36-b80d-3b33f4e16a12/scores/20fdcaa4-1dac-4e95-9326-20bf5303c958/pdf",
+          "status": 200,
+          "bytes": 41007,
+          "sha256": "c543babca727a69e953839611e49aeac712fc43d5f06985363bda6c15dd66cad",
+          "elapsed": 3.474,
+          "headers": {
+            "Content-Type": "application/pdf",
+            "Content-Length": "41007",
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "private, no-cache",
+            "X-Content-SHA256": "c543babca727a69e953839611e49aeac712fc43d5f06985363bda6c15dd66cad",
+            "X-Same-Page-Request-Id": "104c508d-47c4-4c7d-8729-0314c10a93f1"
+          }
+        },
+        {
+          "path": "/api/choirs/ff6904d8-1aa9-4a36-b80d-3b33f4e16a12/scores/20fdcaa4-1dac-4e95-9326-20bf5303c958/pdf",
+          "status": 206,
+          "bytes": 128,
+          "sha256": "5688ed51da1f7e53efb77f59ee37c0b6a49e72ab3aa4d7adab5fa42896c8488d",
+          "elapsed": 1.578,
+          "headers": {
+            "Content-Type": "application/pdf",
+            "Content-Length": "128",
+            "Content-Range": "bytes 0-127/41007",
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "private, no-cache",
+            "X-Content-SHA256": "c543babca727a69e953839611e49aeac712fc43d5f06985363bda6c15dd66cad",
+            "X-Same-Page-Request-Id": "43506f83-4638-4094-bad0-1b9d060e8658"
+          }
+        },
+        {
+          "path": "/api/choirs/ff6904d8-1aa9-4a36-b80d-3b33f4e16a12/attachments?scoreIds=20fdcaa4-1dac-4e95-9326-20bf5303c958",
+          "status": 200,
+          "bytes": 316,
+          "sha256": "2612763da27c52d3211df39ca4d45441898e0bd406f4b0efdf8aeddd8cd16e18",
+          "elapsed": 1.698,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "316",
+            "Cache-Control": "private, no-store",
+            "X-Same-Page-Request-Id": "74c0a4f7-72fa-4b3e-8934-eed808b9e161"
+          }
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "service": "same-page",
+        "runtime": "cloudflare-worker",
+        "buildId": "d82d852c13754c0c2151beda0cf23ab02a577fae"
+      },
+      "guest_cookie_received": true,
+      "score_count": 1,
+      "pdf_matches_directory_hash": true,
+      "pdf_range_matches": true,
+      "attachment_kinds": [
+        "musicxml"
+      ]
+    },
+    {
+      "origin": "https://samepage-alt.clyapps.com",
+      "checks": [
+        {
+          "path": "/api/health",
+          "status": 200,
+          "bytes": 120,
+          "sha256": "b2d3f607461b73f0087cf1b93af5f3b998dcaa2fb8cf578e16894fdb110e8722",
+          "elapsed": 1.3,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "120",
+            "via": "ens-cache38.l2hk12[44,0,DP], ens-cache7.l2jp2[122,0,DP], ens-cache37.l2us4[226,0,DP], ens-cache11.us22[226,0,DP], ens-cache11.us22[253,0]",
+            "X-Same-Page-Request-Id": "f7fcb2b2-77e4-4bf8-9630-d7b0e6ab88fa"
+          }
+        },
+        {
+          "path": "/api/guest/preview-choir",
+          "status": 200,
+          "bytes": 111,
+          "sha256": "6f7191fc718082634f6111317acbfc794b3cf4d0f3f50121b10b21f4bb960bf6",
+          "elapsed": 1.826,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "111",
+            "Cache-Control": "private, no-store",
+            "via": "ens-cache4.l2hk12[116,0,DP], ens-cache24.l2jp2[352,0,DP], ens-cache35.l2us4[463,0,DP], ens-cache1.us22[464,0,DP], ens-cache1.us22[489,0]",
+            "X-Same-Page-Request-Id": "1ca74a27-fac4-4693-8e16-47c3f7bdeb0d"
+          }
+        },
+        {
+          "path": "/api/guest/session",
+          "status": 200,
+          "bytes": 133,
+          "sha256": "fe4d2d5cc4e207a3a8d78ca93fbc11c2b84102a12262e5743e8a041c2de8048b",
+          "elapsed": 1.401,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "133",
+            "Cache-Control": "private, no-store",
+            "via": "ens-cache21.l2hk12[128,0,DP], ens-cache1.l2jp2[179,0,DP], ens-cache39.l2us4[287,0,DP], ens-cache15.us22[287,0,DP], ens-cache15.us22[288,0]",
+            "X-Same-Page-Request-Id": "08db79a7-720d-4b66-8557-15580299c2b8"
+          }
+        },
+        {
+          "path": "/api/choirs/ff6904d8-1aa9-4a36-b80d-3b33f4e16a12/scores",
+          "status": 200,
+          "bytes": 689,
+          "sha256": "18a8d11f68e521cba58f236053248d21e53828f3a6a2eccacdeaa9350ab9e428",
+          "elapsed": 1.741,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "689",
+            "Cache-Control": "private, no-store",
+            "via": "ens-cache38.l2hk12[628,0,DP], ens-cache23.l2jp2[678,0,DP], ens-cache33.l2us4[790,0,DP], ens-cache16.us22[790,0,DP], ens-cache16.us22[816,0]",
+            "X-Same-Page-Request-Id": "969c1b6a-5fb5-4bcd-a852-efac74d3ac11"
+          }
+        },
+        {
+          "path": "/api/choirs/ff6904d8-1aa9-4a36-b80d-3b33f4e16a12/scores/20fdcaa4-1dac-4e95-9326-20bf5303c958/pdf",
+          "status": 200,
+          "bytes": 41007,
+          "sha256": "c543babca727a69e953839611e49aeac712fc43d5f06985363bda6c15dd66cad",
+          "elapsed": 2.313,
+          "headers": {
+            "Content-Type": "application/pdf",
+            "Content-Length": "41007",
+            "Cache-Control": "private, no-cache",
+            "via": "ens-cache1.l2hk12[888,0,DP], ens-cache23.l2jp2[962,0,DP], ens-cache39.l2us4[1076,0,DP], ens-cache4.us22[1085,0,DP], ens-cache4.us22[1112,0]",
+            "Accept-Ranges": "bytes",
+            "X-Content-SHA256": "c543babca727a69e953839611e49aeac712fc43d5f06985363bda6c15dd66cad",
+            "X-Same-Page-Request-Id": "0a0dcaa5-40c0-4fd7-abf9-8c1ea08e56b5"
+          }
+        },
+        {
+          "path": "/api/choirs/ff6904d8-1aa9-4a36-b80d-3b33f4e16a12/scores/20fdcaa4-1dac-4e95-9326-20bf5303c958/pdf",
+          "status": 206,
+          "bytes": 128,
+          "sha256": "5688ed51da1f7e53efb77f59ee37c0b6a49e72ab3aa4d7adab5fa42896c8488d",
+          "elapsed": 2.09,
+          "headers": {
+            "Content-Type": "application/pdf",
+            "Content-Length": "128",
+            "Cache-Control": "private, no-cache",
+            "Content-Range": "bytes 0-127/41007",
+            "via": "ens-cache24.l2hk12[851,0,DP], ens-cache26.l2jp2[921,0,DP], ens-cache38.l2us4[1030,0,DP], ens-cache8.us22[1031,0,DP], ens-cache8.us22[1031,0]",
+            "Accept-Ranges": "bytes",
+            "X-Content-SHA256": "c543babca727a69e953839611e49aeac712fc43d5f06985363bda6c15dd66cad",
+            "X-Same-Page-Request-Id": "ff1a014f-54f6-43ac-b9c8-9ec79e2a1faa"
+          }
+        },
+        {
+          "path": "/api/choirs/ff6904d8-1aa9-4a36-b80d-3b33f4e16a12/attachments?scoreIds=20fdcaa4-1dac-4e95-9326-20bf5303c958",
+          "status": 200,
+          "bytes": 316,
+          "sha256": "2612763da27c52d3211df39ca4d45441898e0bd406f4b0efdf8aeddd8cd16e18",
+          "elapsed": 2.643,
+          "headers": {
+            "Content-Type": "application/json",
+            "Content-Length": "316",
+            "Cache-Control": "private, no-store",
+            "via": "ens-cache33.l2hk12[815,0,DP], ens-cache18.l2jp2[862,0,DP], ens-cache35.l2us4[972,0,DP], ens-cache1.us22[972,0,DP], ens-cache1.us22[973,0]",
+            "X-Same-Page-Request-Id": "532fcab8-2e88-4e4b-a4c9-99a699c803ad"
+          }
+        }
+      ],
+      "health": {
+        "status": "ok",
+        "service": "same-page",
+        "runtime": "cloudflare-worker",
+        "buildId": "d82d852c13754c0c2151beda0cf23ab02a577fae"
+      },
+      "guest_cookie_received": true,
+      "score_count": 1,
+      "pdf_matches_directory_hash": true,
+      "pdf_range_matches": true,
+      "attachment_kinds": [
+        "musicxml"
+      ]
+    }
+  ],
+  "isolationAndXml": [
+    {
+      "origin": "https://samepage.clyapps.com",
+      "xml": {
+        "status": 200,
+        "bytes": 123741,
+        "declared_bytes": 123741,
+        "sha256": "999fed569322d0525ab8693eee514b38be7da0d5bcbff84c4bd5459a631e278b",
+        "cache_control": "private, no-cache"
+      },
+      "anonymous_pdf_status": 403
+    },
+    {
+      "origin": "https://samepage-alt.clyapps.com",
+      "xml": {
+        "status": 200,
+        "bytes": 123741,
+        "declared_bytes": 123741,
+        "sha256": "999fed569322d0525ab8693eee514b38be7da0d5bcbff84c4bd5459a631e278b",
+        "cache_control": "private, no-cache"
+      },
+      "anonymous_pdf_status": 403
+    }
+  ],
+  "healthTimingSamples": [
+    {
+      "path": "direct",
+      "iteration": 0,
+      "exit_code": 0,
+      "http": 200,
+      "first_byte": 1.561594,
+      "total": 1.562082,
+      "headers": {
+        "x-same-page-request-id": "c8e3abb4-a044-4d7f-9058-7bb4d3f9efdd"
+      }
+    },
+    {
+      "path": "esa",
+      "iteration": 0,
+      "exit_code": 0,
+      "http": 200,
+      "first_byte": 3.165616,
+      "total": 3.166646,
+      "headers": {
+        "via": "ens-cache29.l2hk12[406,0,DP], ens-cache19.l2jp2[454,0,DP], ens-cache37.l2us4[562,0,DP], ens-cache10.us22[564,0,DP], ens-cache10.us22[592,0]",
+        "x-site-cache-status": "DYNAMIC",
+        "x-same-page-request-id": "737ceb67-3618-4e61-b845-3154ead3f62a"
+      }
+    },
+    {
+      "path": "direct",
+      "iteration": 1,
+      "exit_code": 0,
+      "http": 200,
+      "first_byte": 2.186808,
+      "total": 2.187369,
+      "headers": {
+        "x-same-page-request-id": "b2199105-71e5-4652-96af-6946cb03cc04"
+      }
+    },
+    {
+      "path": "esa",
+      "iteration": 1,
+      "exit_code": 0,
+      "http": 200,
+      "first_byte": 1.514342,
+      "total": 1.514964,
+      "headers": {
+        "via": "ens-cache29.l2hk12[75,0,DP], ens-cache4.l2jp2[121,0,DP], ens-cache36.l2us4[225,0,DP], ens-cache9.us22[226,0,DP], ens-cache9.us22[230,0]",
+        "x-site-cache-status": "DYNAMIC",
+        "x-same-page-request-id": "23805c33-be89-4d96-9215-b99ebecb3fd8"
+      }
+    },
+    {
+      "path": "direct",
+      "iteration": 2,
+      "exit_code": 0,
+      "http": 200,
+      "first_byte": 1.306702,
+      "total": 1.306892,
+      "headers": {
+        "x-same-page-request-id": "90ba10cb-e782-4137-ad30-73d240a50fef"
+      }
+    },
+    {
+      "path": "esa",
+      "iteration": 2,
+      "exit_code": 0,
+      "http": 200,
+      "first_byte": 1.695737,
+      "total": 1.696361,
+      "headers": {
+        "via": "ens-cache27.l2hk12[54,0,DP], ens-cache1.l2jp2[101,0,DP], ens-cache32.l2us4[207,0,DP], ens-cache8.us22[209,0,DP], ens-cache8.us22[235,0]",
+        "x-site-cache-status": "DYNAMIC",
+        "x-same-page-request-id": "146f20ce-0f3f-44e6-af38-6dd39b16b4ae"
+      }
+    }
+  ],
+  "limits": [
+    "No public audio sample: media playback and seek untested",
+    "No upload or business-write retry testing",
+    "No browser cross-origin session handoff or automatic fallback",
+    "Small PDF sample only: 41007 bytes",
+    "Not a mainland multi-operator measurement"
+  ]
+}

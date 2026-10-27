@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useSyncExternalStore } from "react";
+import { connections, connectionUrl } from "../../connection/connection";
 import { FileAudio, FileText, Link as LinkIcon, MoreHorizontal, Paperclip } from "lucide-react";
 import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
@@ -24,6 +26,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
   onSelect: (selection: AttachmentSelection) => void;
 }) {
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  useSyncExternalStore(connections.subscribe, connections.getSnapshot);
   const rows = items.filter(item => item.scoreId === score.id && item.source !== "generated");
   const list = useAttachmentReveal(revealRequest, onRevealHandled);
   if (!rows.length) return null;
@@ -37,7 +40,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
         {!available && unavailableId === attachment.id && <span className="attachment-help attachment-feedback" role="status">连接网络后可打开此附件。</span>}
         {(attachment.kind !== "link" || canModify || canTrash) && <MenuTrigger><Button className="attachment-menu" aria-label={`${attachment.name} 更多操作`}><MoreHorizontal size={18} /></Button>
           <Popover className="file-menu-popover"><Menu aria-label={`${attachment.name} 操作`} onAction={key => { if (key === "rename" || key === "trash") onSelect({ score, attachment, action: key }); }}>
-            {attachment.kind !== "link" && <MenuItem id="download" isDisabled={!available} href={available ? attachmentFileUrl(choirId, attachment, true) : undefined} download={attachment.name}>下载</MenuItem>}
+            {attachment.kind !== "link" && <MenuItem id="download" isDisabled={!available} href={available ? connectionUrl(attachmentFileUrl(choirId, attachment, true)) : undefined} download={attachment.name}>下载</MenuItem>}
             {canModify && <MenuItem isDisabled={!available} id="rename">{attachment.kind === "link" ? "修改链接" : "重命名"}</MenuItem>}
             {canTrash && <MenuItem isDisabled={!available} id="trash">移到回收站</MenuItem>}
           </Menu></Popover></MenuTrigger>}

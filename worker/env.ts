@@ -7,6 +7,10 @@ export interface Env {
   ANDROID_RELEASES?: R2Bucket;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
+  CONNECTIONS_ENABLED?: string;
+  CONNECTION_BACKUP_ORIGIN?: string;
+  // Request-local public entry routing; never read from a forwarding header.
+  CONNECTION_PRIMARY_ORIGIN?: string;
   RESEND_API_KEY_SAMEPAGE: string;
   AUTH_EMAIL_FROM: string;
   INVITE_SECRET: string;

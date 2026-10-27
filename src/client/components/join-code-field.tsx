@@ -16,6 +16,7 @@ export function JoinCodeField(props: {
   value: string;
   onChange: (value: string) => void;
   autoFocus?: boolean;
+  isReadOnly?: boolean;
 }) {
   const activeIndex = Math.min(props.value.length, JOIN_CODE_LENGTH - 1);
 
@@ -23,6 +24,7 @@ export function JoinCodeField(props: {
     <TextField
       className="join-code-field"
       isRequired
+      isReadOnly={props.isReadOnly}
       value={formatJoinCodeInput(props.value)}
       onChange={(value) => props.onChange(normalizeJoinCodeInput(value))}
     >

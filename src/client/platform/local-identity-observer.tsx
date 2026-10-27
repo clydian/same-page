@@ -1,4 +1,5 @@
 import { useSessionRecovery } from "../auth/session-recovery";
+import { connections, connectionsEnabled } from "../connection/connection";
 import { observeNavigationSession } from "../settings/navigation-events";
 import { ReadingPreferenceRecovery } from "../reader/reading-preference-recovery";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -17,6 +18,9 @@ export function LocalIdentityObserver() {
   useEffect(observeMarkdownDraftLogout, []);
   const identity = useApplicationIdentity();
   const userId = identity.authenticatedUserId ?? undefined;
+  useLayoutEffect(() => {
+    if (connectionsEnabled && identity.authenticatedSessionId) connections.acceptIdentity(identity.authenticatedSessionId);
+  }, [identity.authenticatedSessionId]);
   useSessionRecovery(identity.onlineState, identity.session.isRefetching, identity.session.error?.status);
   useLayoutEffect(() => {
     observeNavigationSession(identity.authenticatedUserId ? `${identity.authenticatedUserId}:${identity.authenticatedSessionId ?? ""}` : null, identity.localUserId, identity.onlineState === "checking" || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable");

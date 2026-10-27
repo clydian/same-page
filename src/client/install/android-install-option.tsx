@@ -1,3 +1,4 @@
+import { connectionFetch, connectionUrl } from "../connection/connection";
 import { useEffect, useState, type ReactNode } from "react";
 import { androidReleaseSchema, type AndroidRelease } from "../../shared/android-release";
 
@@ -6,7 +7,7 @@ export function AndroidInstallOption({ children }: { children: ReactNode }) {
   const [release, setRelease] = useState<AndroidRelease | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/android-release", { cache: "no-store", signal: controller.signal })
+    void connectionFetch("/api/android-release", { cache: "no-store", signal: controller.signal })
       .then(async response => {
         if (!response.ok) return;
         const data: { release?: unknown } = await response.json();
@@ -27,7 +28,7 @@ export function AndroidInstallOption({ children }: { children: ReactNode }) {
     <section className="install-choice" aria-label="Android 安装包">
     <h3>通过安装包安装</h3>
     <p className="install-choice-description">下载安装包，按手机提示完成安装。</p>
-    <a className="primary-button install-native" href="/api/android-release/apk" download>下载 Android 安装包</a>
+    <a className="primary-button install-native" href={connectionUrl("/api/android-release/apk")} download>下载 Android 安装包</a>
     <p className="install-note">版本 {release.versionName} · {(release.size / 1024 / 1024).toFixed(1)} MB</p>
 
     <details className="install-fallback"><summary>安装包使用说明</summary>

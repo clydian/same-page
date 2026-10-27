@@ -1,4 +1,5 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { connectionOrigins } from "../connection/config";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins";
 
@@ -24,7 +25,7 @@ export function createAuth(env: Env, executionContext: WaitUntilContext) {
     appName: "Same Page",
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [env.BETTER_AUTH_URL],
+    trustedOrigins: connectionOrigins(env) ?? [env.BETTER_AUTH_URL],
     disabledPaths: [
       "/account-info",
       "/get-access-token",
@@ -95,6 +96,10 @@ export function createAuth(env: Env, executionContext: WaitUntilContext) {
       enabled: true,
       window: 60,
       max: 10,
+      // Connection recovery may inspect the same live session from two entry
+      // hosts. Keep credential/OTP limits strict; session reads are not login
+      // guesses and must not lock a shared-network user out during recovery.
+      customRules: { "/get-session": { window: 60, max: 60 } },
       customStorage: {
         async consume(key, rule) {
           const protectedKey = await hashRateLimitIdentity(
