@@ -138,3 +138,19 @@ it('已取消的新验证不打断正在进行的有效验证', async () => {
   finish(success());
   expect((await first).ok).toBe(true);
 });
+
+it('迟到的旧访客清理不能再删除新准入的备用凭证', async () => {
+  let finishCleanup!: (value: Response) => void;
+  const send = vi.fn<typeof fetch>(async (_input, init) => init?.method === 'DELETE'
+    ? new Promise(resolve => { finishCleanup = resolve; }) : success());
+  const controller = new ConnectionController({ origins, pageOrigin: origins.direct, send });
+  const cancel = new AbortController();
+  const oldCleanup = controller.fetch('/api/guest/session', { method: 'DELETE', signal: cancel.signal });
+  cancel.abort();
+  expect((await controller.fetch('/api/guest/session', { method: 'POST', body: '{}' })).ok).toBe(true);
+  finishCleanup(new Response(null, { status: 204 }));
+  await oldCleanup;
+  expect(send.mock.calls.map(([input, init]) => `${init?.method} ${path(input)}`)).toEqual([
+    'DELETE /api/_entry/direct/guest/session', 'POST /api/_entry/direct/guest/session', 'POST /api/_entry/backup/guest/session',
+  ]);
+});

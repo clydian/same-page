@@ -720,9 +720,9 @@ describe("AppRoutes", () => {
 
     await screen.findByRole("searchbox", { name: /搜索.*中的乐谱/ });
     expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith("/api/guest/session", {
+    expect(fetchMock).toHaveBeenCalledWith("/api/guest/session", expect.objectContaining({
       method: "DELETE",
-    });
+    }));
     expect(screen.queryByLabelText("显示名")).not.toBeInTheDocument();
   });
 

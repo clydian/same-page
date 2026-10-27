@@ -394,8 +394,10 @@ export class ConnectionController {
             void preparation.finally(() => { if (this.guestPreparation === preparation) this.guestPreparation = null; });
           }
         }
-        if (url.pathname === "/api/guest/session" && method === "DELETE" && response.ok) {
-          await this.raw(other(chosen), url.pathname, { method: "DELETE", signal: AbortSignal.timeout(3000) }).catch(() => undefined);
+        if (url.pathname === "/api/guest/session" && method === "DELETE" && response.ok &&
+          !callerSignal?.aborted && !admissionSignal.aborted && generation === this.generation) {
+          await this.raw(other(chosen), url.pathname, { method: "DELETE",
+            signal: AbortSignal.any([admissionSignal, this.preparationAbort.signal, ...(callerSignal ? [callerSignal] : []), AbortSignal.timeout(3000)]) }).catch(() => undefined);
         }
         return response;
       } catch (error) {
