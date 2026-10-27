@@ -29,6 +29,14 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         return route.fulfill(fixture.resolve({ pathname, method: request.method(), identity: "admin", cookie: "" }));
       });
       const page = await context.newPage();
+      const missingDriveSeed = "visual-report:seed-missing-drive";
+      await page.addInitScript(key => {
+        if (sessionStorage.getItem(key) !== "pending") return;
+        sessionStorage.removeItem(key);
+        // Seed only the next document, before application effects can run.
+        // The previous library may still finish loading and remember its drive.
+        for (const key of Object.keys(localStorage)) if (key.startsWith("same-page:last-drive:")) localStorage.setItem(key, "gone");
+      }, missingDriveSeed);
       await page.goto(app.origin);
       await expect(page.getByRole("heading", { name: "先加入你的云盘", exact: true })).toBeVisible();
       assert.equal(new URL(page.url()).pathname, "/drives");
@@ -49,9 +57,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeEnabled();
       await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir`);
       // A missing remembered target requires an explicit choice even with one remaining drive.
-      await page.evaluate(() => {
-        for (const key of Object.keys(localStorage)) if (key.startsWith("same-page:last-drive:")) localStorage.setItem(key, "gone");
-      });
+      await page.evaluate(key => sessionStorage.setItem(key, "pending"), missingDriveSeed);
       await page.goto(`${app.origin}/drives`);
       await expect(page.getByRole("heading", { name: "选择云盘", exact: true })).toBeVisible();
       await page.locator('a[href="/choirs/visual-choir"]').click();
@@ -61,9 +67,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.goto(`${app.origin}/about`);
       await page.getByRole("link", { name: /^产品介绍/ }).click();
       await expect(page.getByRole("heading", { name: "Harmony begins on the Same Page", exact: true })).toBeVisible();
-      await page.evaluate(() => {
-        for (const key of Object.keys(localStorage)) if (key.startsWith("same-page:last-drive:")) localStorage.setItem(key, "gone");
-      });
+      await page.evaluate(key => sessionStorage.setItem(key, "pending"), missingDriveSeed);
       failed = true;
       await page.goto(`${app.origin}/drives`);
       await expect(page.getByText("暂时无法加载已加入的云盘。", { exact: false })).toBeVisible();
