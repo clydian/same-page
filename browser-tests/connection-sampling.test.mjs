@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import test from 'node:test';
+import { chromium, webkit, expect } from '@playwright/test';
+import { startConnectionFixture } from './connection-fixture.mjs';
+
+for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+  test(`${name}: restrained live samples, confirmed routing, failure and keyboard details`, { timeout: 120_000 }, async t => {
+    const fixture = await startConnectionFixture(); t.after(() => fixture.stop());
+    const browser = await engine.launch(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}); t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 320, height: 760 }, ignoreHTTPSErrors: true, serviceWorkers: 'block', reducedMotion: 'reduce', isMobile: true, hasTouch: true }); t.after(() => context.close());
+    const page = await context.newPage();
+    await page.goto(fixture.origins.direct + '/login');
+    assert.equal(await page.evaluate(async account => (await fetch('/api/_entry/direct/auth/sign-in/email', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(account) })).status, fixture.accounts[0]), 200);
+    await page.goto(`${fixture.origins.direct}/choirs/${fixture.choirId}`);
+    await expect(page.locator('.file-row__open').first()).toBeVisible();
+    await page.getByRole('button', { name: /^连接线路/ }).click();
+    const snapshot = () => page.evaluate(async () => (await import('/src/client/connection/connection.ts')).connections.getSnapshot());
+    await expect.poll(async () => (await snapshot()).samples.direct.length).toBe(1);
+    await expect.poll(async () => (await snapshot()).identity.backup).toBe('ready');
+    await expect(page.getByText('当前线路：直连', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '重新检测', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '恢复连接', exact: true })).toHaveCount(0);
+    assert.equal(await page.locator('.connection-dialog').evaluate(el => el.scrollWidth <= el.clientWidth), true);
+    await expect(page.locator('.connection-spinner')).toHaveCount(0);
+    assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), true);
+    await mkdir('artifacts/verification/connection-sampling', { recursive: true });
+    await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-320.png` });
+    const details = page.getByLabel(/^直连检测详情/);
+    await details.focus(); await page.keyboard.press('Enter');
+    await expect(page.getByText(/仅代表各次检测/).first()).toBeVisible();
+    await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-details.png` });
+    await page.keyboard.press('Enter');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-desktop.png` });
+    let release;
+    await page.route('**/api/_entry/backup/choirs', async route => { await new Promise(resolve => { release = resolve; }); await route.continue(); });
+    fixture.network.directBroken = true;
+    await page.evaluate(() => { void import('/src/client/connection/connection.ts').then(({ connections }) => connections.fetch('/api/choirs')).catch(() => {}); });
+    await expect(page.getByText('正在尝试备用…', { exact: true })).toBeVisible();
+    assert.equal((await snapshot()).active, 'direct');
+    await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-attempting.png` });
+    await expect.poll(() => typeof release).toBe('function'); release();
+    await expect(page.getByText('当前线路：备用', { exact: true })).toBeVisible();
+    await page.unroute('**/api/_entry/backup/choirs');
+    fixture.network.backupBroken = true;
+    await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.fetch('/api/choirs').catch(() => {}); await connections.sample(new AbortController().signal); });
+    await expect(page.getByText('当前线路：备用（暂时连不上）', { exact: true })).toBeVisible();
+    await expect(page.locator('.connection-health').filter({ hasText: '暂时连不上' })).toHaveCount(2);
+    await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-both-failed.png` });
+    await page.getByRole('button', { name: '关闭连接面板' }).click();
+    fixture.network.directBroken = false; fixture.network.backupBroken = false;
+    // Closing the panel leaves business recovery intact.
+    await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.fetch('/api/choirs'); });
+    await page.getByRole('button', { name: /^连接线路/ }).click();
+    await expect.poll(async () => (await snapshot()).samples.direct.at(-1)?.state).toBe('reachable');
+    await page.getByRole('radio', { name: '备用', exact: true }).check();
+    await expect.poll(async () => (await snapshot()).checking).toBe(false);
+    await expect.poll(async () => (await snapshot()).samples.direct.length, { timeout: 15_000 }).toBeGreaterThan(3);
+    assert.equal((await snapshot()).mode, 'backup'); assert.equal((await snapshot()).active, 'backup');
+    // Exercise the visibility event using the real mounted panel and scheduler.
+    await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });
+    await expect(page.getByText('检测已暂停', { exact: true })).toHaveCount(2);
+    const pausedSamples = (await snapshot()).samples.direct.length;
+    await page.waitForTimeout(11_000);
+    assert.equal((await snapshot()).samples.direct.length, pausedSamples);
+    await page.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
+    await expect.poll(async () => (await snapshot()).samples.direct.length).toBeGreaterThan(pausedSamples);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: '连接线路', exact: true })).toHaveCount(0);
+    const samples = (await snapshot()).samples.direct.length;
+    await page.waitForTimeout(11_000);
+    assert.equal((await snapshot()).samples.direct.length, samples);
+  });
+}

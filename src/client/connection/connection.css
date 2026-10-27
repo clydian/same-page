@@ -24,7 +24,7 @@
 .connection-routes { list-style: none; margin: 1rem 0; padding: 0; border-block: 1px solid var(--line); }
 .connection-routes li { padding: .9rem 0; }
 .connection-routes li + li { border-top: 1px solid var(--line); }
-.connection-routes li > div { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.connection-routes li > div, .connection-observation { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
 .connection-routes small { display: block; margin-top: .35rem; font-size: .75rem; color: var(--muted); }
 .connection-health { font-size: .8rem; color: var(--muted); }
 .connection-health--reachable { color: #1d6b48; }
@@ -35,3 +35,16 @@
 .connection-spinner { animation: connection-spin 1s linear infinite; }
 @keyframes connection-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .connection-fab { transition: none; } .connection-spinner { animation: none; } }
+.connection-observation { margin-top: .55rem; }
+.connection-observation small { margin: 0; white-space: nowrap; }
+.connection-trail { display: flex; gap: 3px; min-width: 0; }
+.connection-trail i { width: 4px; height: 4px; border-radius: 50%; background: var(--line); flex: none; }
+.connection-trail i[data-result="reachable"] { background: #1d6b48; }
+.connection-trail i[data-result="unreachable"] { background: transparent; border: 1px solid #8d402a; box-sizing: border-box; }
+.connection-samples { color: var(--muted); font-size: .75rem; line-height: 1.6; }
+.connection-samples summary { cursor: pointer; min-height: 44px; list-style: none; }
+.connection-samples summary::-webkit-details-marker { display: none; }
+.connection-samples summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: .25rem; }
+.connection-samples p { margin: .25rem 0; }
+.connection-samples ol { list-style: none; padding: 0; max-height: 9rem; overflow: auto; }
+.connection-samples li { padding: .2rem 0; border: 0 !important; }
