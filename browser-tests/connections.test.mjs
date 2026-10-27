@@ -10,7 +10,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const fixture = await startConnectionFixture();
     const { origins, network } = fixture;
     t.after(() => fixture.stop());
-    const browser = await engine.launch(); t.after(() => browser.close());
+    const browser = await engine.launch(name === "chromium" && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}); t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', ignoreHTTPSErrors: true }); t.after(() => context.close());
     const page = await context.newPage();
     await page.goto(origins.direct + '/login');
@@ -101,7 +101,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.goto(`${origins.direct}/choirs/${fixture.choirId}`);
     await page.getByRole('button', { name: /^连接线路/ }).click();
     await page.getByRole('radio', { name: '备用', exact: true }).check();
-    await expect(page.getByRole('button', { name: '重新检测', exact: true })).toBeEnabled();
+    await expect.poll(() => page.evaluate(async () => (await import('/src/client/connection/connection.ts')).connections.getSnapshot().identity.backup)).toBe('ready');
     await page.getByRole('button', { name: '关闭连接面板' }).click();
     await page.goto(`${origins.direct}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
     await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
@@ -119,11 +119,8 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await expect(alternate.locator('.file-row__open').first()).toBeVisible();
     network.directBroken = false;
     await alternate.getByRole('button', { name: /^连接线路/ }).click();
-    // Opening can join a probe that began while direct was still broken.
-    // Confirm its restored network state with a fresh user-requested check;
-    // a prepared credential alone must not render a failed route as usable.
-    await expect(alternate.getByRole('button', { name: '重新检测', exact: true })).toBeEnabled();
-    await alternate.getByRole('button', { name: '重新检测', exact: true }).click();
+    // Foreground sampling refreshes network state independently of identity.
+    await expect.poll(() => alternate.evaluate(async () => (await import('/src/client/connection/connection.ts')).connections.getSnapshot().samples.direct.at(-1)?.state), { timeout: 15_000 }).toBe('reachable');
     await expect.poll(() => alternate.evaluate(async () => Object.values((await import('/src/client/connection/connection.ts')).connections.getSnapshot().identity).every(value => value === 'ready'))).toBe(true);
     await alternate.getByRole('radio', { name: '直连', exact: true }).check();
     await expect(alternate.getByRole('radio', { name: '直连', exact: true })).toBeChecked();

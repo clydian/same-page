@@ -12,14 +12,14 @@ export async function startConnectionFixture({ invite = false } = {}) {
   const temporary = await mkdtemp(path.join(tmpdir(), 'same-page-connections-'));
   let fixture;
   const servers = [];
-  const network = { directBroken: false, loseUploadResponse: false, uploads: 0, traffic: [], admissionFaults: { direct: null, backup: null } };
+  const network = { directBroken: false, backupBroken: false, loseUploadResponse: false, uploads: 0, traffic: [], admissionFaults: { direct: null, backup: null } };
   try {
     execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', path.join(temporary, 'key.pem'), '-out', path.join(temporary, 'cert.pem'), '-days', '1', '-subj', '/CN=*.127.0.0.1.nip.io'], { stdio: 'ignore' });
     const tls = { key: await readFile(path.join(temporary, 'key.pem')), cert: await readFile(path.join(temporary, 'cert.pem')) };
     const origins = {};
     for (const entry of ['direct', 'backup']) {
       const server = createServer(tls, async (request, response) => {
-        if (!fixture || entry === 'direct' && network.directBroken && request.url.startsWith('/api/')) { response.destroy(); return; }
+        if (!fixture || (entry === 'direct' ? network.directBroken : network.backupBroken) && request.url.startsWith('/api/')) { response.destroy(); return; }
         const pathname = new URL(request.url, 'https://fixture.invalid').pathname;
         const admission = pathname.endsWith('/guest/session') && request.method === 'POST';
         const fault = admission ? network.admissionFaults[entry] : null;

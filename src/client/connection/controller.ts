@@ -5,7 +5,10 @@ import { untilAborted } from "../platform/abortable";
 
 export type EntryReadiness = "unknown" | "ready" | "unprepared" | "conflict";
 export interface RouteHealth { state: "unknown" | "reachable" | "unreachable"; checkedAt: number | null; latency: number | null }
+export interface HealthSample { at: number; state: "reachable" | "unreachable"; latency: number | null }
 export interface ConnectionSnapshot {
+  samples: Record<ConnectionRoute, readonly HealthSample[]>;
+  attempting: ConnectionRoute | null;
   mode: ConnectionMode;
   active: ConnectionRoute;
   checking: boolean;
@@ -33,8 +36,12 @@ export class EntryIdentityConflictError extends Error {
 // and idempotency; only reads and the explicitly stateless guest admission
 // endpoint can fail over. Submitted business writes are never replayed.
 export class ConnectionController {
-  private snapshot: ConnectionSnapshot = { mode: "auto", active: "direct", checking: false, preparing: false,
+  private snapshot: ConnectionSnapshot = { samples: { direct: [], backup: [] }, attempting: null, mode: "auto", active: "direct", checking: false, preparing: false,
     health: { direct: emptyHealth(), backup: emptyHealth() }, identity: { direct: "unknown", backup: "unknown" } };
+  private routeRevision = 0;
+  private attemptToken: object | null = null;
+  private sampling: Promise<void> | null = null;
+  private samplingSignal: AbortSignal | null = null;
   private listeners = new Set<() => void>();
   private failures = { direct: 0, backup: 0 };
   private cooldown = { direct: 0, backup: 0 };
@@ -59,11 +66,30 @@ export class ConnectionController {
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private update(change: Partial<ConnectionSnapshot>) {
+    // Confirmation wins over every still-running attempt to that same route.
+    // An attempt towards a different target remains meaningful.
+    if (change.active && change.active === this.snapshot.attempting) {
+      this.attemptToken = null;
+      change = { ...change, attempting: null };
+    }
+    if (change.active && change.active !== this.snapshot.active) this.routeRevision++;
     this.snapshot = { ...this.snapshot, ...change };
     this.listeners.forEach(listener => listener());
   }
+  private beginAttempt(route: ConnectionRoute) {
+    if (route === this.snapshot.active) return null;
+    const token = {};
+    this.attemptToken = token;
+    this.update({ attempting: route });
+    return token;
+  }
+  private endAttempt(token: object | null) {
+    if (token && this.attemptToken === token) { this.attemptToken = null; this.update({ attempting: null }); }
+  }
   setMode(mode: ConnectionMode) {
     this.generation++;
+    this.attemptToken = null;
+    this.update({ attempting: null });
     this.preparationAbort.abort();
     this.preparationAbort = new AbortController();
     this.preparation = null;
@@ -91,11 +117,15 @@ export class ConnectionController {
   }
   async writeEndpoint(path: string, signal: AbortSignal) {
     const generation = this.generation;
+    const revision = this.routeRevision;
     const route = this.snapshot.mode === "auto" ? this.availableRoute() : this.snapshot.mode;
-    await this.authorize(route, AbortSignal.any([signal, AbortSignal.timeout(3000)]));
-    if (generation !== this.generation) throw abortError();
-    if (this.snapshot.mode === "auto" && route !== this.snapshot.active) this.update({ active: route });
-    return this.nativeEndpoint(path);
+    const token = this.beginAttempt(route);
+    try {
+      await this.authorize(route, AbortSignal.any([signal, AbortSignal.timeout(3000)]));
+      if (generation !== this.generation || revision !== this.routeRevision || signal.aborted) throw abortError();
+      if (this.snapshot.mode === "auto" && route !== this.snapshot.active) this.update({ active: route });
+      return this.nativeEndpoint(path);
+    } finally { this.endAttempt(token); }
   }
   async readEndpoint(path: string, signal: AbortSignal) {
     const url = new URL(path, this.options.pageOrigin);
@@ -110,13 +140,14 @@ export class ConnectionController {
     this.reportFailure(route);
     const generation = this.generation;
     if (this.snapshot.mode !== "auto") return false;
-    const target = other(route);
+    const target = other(route), revision = this.routeRevision;
+    const token = this.beginAttempt(target);
     try {
       await this.authorize(target, AbortSignal.any([AbortSignal.timeout(3000), ...(signal ? [signal] : [])]), true);
-      if (generation !== this.generation || signal?.aborted || this.snapshot.mode !== "auto") return false;
+      if (generation !== this.generation || revision !== this.routeRevision || signal?.aborted || this.snapshot.mode !== "auto") return false;
       this.update({ active: target });
       return true;
-    } catch { return false; }
+    } catch { return false; } finally { this.endAttempt(token); }
   }
   reportFailure(route: ConnectionRoute) {
     this.failures[route]++;
@@ -134,6 +165,8 @@ export class ConnectionController {
   }
   invalidateIdentity(sessionId: string | null = null) {
     this.generation++;
+    this.attemptToken = null;
+    this.update({ attempting: null });
     this.sessionId = sessionId;
     this.preparationAbort.abort();
     this.preparationAbort = new AbortController();
@@ -207,6 +240,30 @@ export class ConnectionController {
     this.preparation = work;
     return work;
   }
+  // Health samples never authorize, prepare credentials, alter cooldowns or
+  // select a route. Business observations are deliberately kept out of this history.
+  sample = (signal: AbortSignal): Promise<void> => {
+    if (signal.aborted) return Promise.resolve();
+    if (this.sampling) return this.samplingSignal?.aborted ? this.sampling.then(() => this.sample(signal)) : this.sampling;
+    this.samplingSignal = signal;
+    const generation = this.generation;
+    const work = Promise.all(connectionRoutes.map(async route => {
+      const started = this.now();
+      const deadline = AbortSignal.any([signal, AbortSignal.timeout(3000)]);
+      let state: HealthSample["state"] = "unreachable";
+      try {
+        const response = await untilAborted(this.raw(route, "/api/health", { signal: deadline }), deadline);
+        const body: unknown = response.ok ? await untilAborted(response.json(), deadline) : null;
+        if (body && typeof body === "object" && "status" in body && body.status === "ok") state = "reachable";
+      } catch { /* A timeout is a failed discrete sample, not a business failure. */ }
+      if (signal.aborted || generation !== this.generation) return;
+      const sample: HealthSample = { at: this.now(), state, latency: state === "reachable" ? this.now() - started : null };
+      this.update({ samples: { ...this.snapshot.samples, [route]: [...this.snapshot.samples[route].slice(-19), sample] } });
+    })).then(() => undefined).finally(() => { if (this.sampling === work) this.sampling = null; });
+    this.sampling = work;
+    return work;
+  };
+
   check = (): Promise<void> => {
     if (this.probe) {
       const requestedGeneration = this.generation;
@@ -224,11 +281,12 @@ export class ConnectionController {
         const response = await this.raw(route, "/api/health", { signal: AbortSignal.timeout(3000) });
         const body: unknown = response.ok ? await response.json() : null;
         if (!body || typeof body !== "object" || !("status" in body) || body.status !== "ok") throw new Error("unhealthy");
+        if (generation !== this.generation) return;
         this.reachable(route, this.now() - start);
         healthConfirmed = true;
         if (generation === this.generation) await this.authorize(route, AbortSignal.timeout(2000), true);
       } catch (error) {
-        if (error instanceof EntryIdentityConflictError) return;
+        if (generation !== this.generation || error instanceof EntryIdentityConflictError) return;
         if (healthConfirmed) this.update({ identity: { ...this.snapshot.identity, [route]: "unprepared" } });
         else this.reportFailure(route);
       }
@@ -238,6 +296,7 @@ export class ConnectionController {
         const { health, identity } = this.snapshot;
         const usable = (route: ConnectionRoute) => health[route].state === "reachable" && identity[route] === "ready";
         if (this.snapshot.active === "direct" && !usable("direct") && usable("backup")) this.update({ active: "backup" });
+        else if (this.snapshot.active === "backup" && !usable("direct")) this.recovery = null;
         else if (this.snapshot.active === "backup" && usable("direct")) {
           // Two foreground confirmations separated by at least 10 seconds.
           if (this.recovery !== null && this.now() - this.recovery >= 10_000) { this.update({ active: "direct" }); this.recovery = null; }
@@ -293,6 +352,7 @@ export class ConnectionController {
       const attemptTimer = bounded ? setTimeout(() => attempt.abort(new DOMException("Connection timeout", "TimeoutError")), 4000) : undefined;
       const signal = bounded ? AbortSignal.any([budget.signal, attempt.signal, ...(callerSignal ? [callerSignal] : []), ...(admission ? [admissionSignal, this.preparationAbort.signal] : [])]) : callerSignal;
       const start = this.now();
+      const token = this.beginAttempt(chosen);
       try {
         if (read && index > 0 && this.guestPreparation) await this.guestPreparation;
         if (!this.sessionId && url.pathname === "/api/user/lifecycle" && this.options.origins[chosen] === this.options.pageOrigin) {
@@ -407,6 +467,7 @@ export class ConnectionController {
         this.reportFailure(chosen);
         if (index + 1 === choices.length || budget.signal.aborted) throw error;
       } finally {
+        this.endAttempt(token);
         clearTimeout(attemptTimer);
       }
     }

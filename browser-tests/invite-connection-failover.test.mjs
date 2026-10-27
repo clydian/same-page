@@ -6,7 +6,7 @@ import { startConnectionFixture } from './connection-fixture.mjs';
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   test(`${name}: invitation entry survives a stalled direct response and bounds two failed routes`, { timeout: 120_000 }, async t => {
     const fixture = await startConnectionFixture({ invite: true }); t.after(() => fixture.stop());
-    const browser = await engine.launch(); t.after(() => browser.close());
+    const browser = await engine.launch(name === "chromium" && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}); t.after(() => browser.close());
     const { origins, network } = fixture;
     const posts = route => network.traffic.filter(item => item.method === 'POST' && item.path.startsWith(`/api/_entry/${route}/guest/session`)).length;
     for (const scenario of ['recheck', 'headers', 'body', 'both', 'manual', 'cancel']) {

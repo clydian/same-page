@@ -302,3 +302,136 @@ it('cancels an old stateless admission confirmation without preparing its cookie
   expect(changedIdentity).not.toHaveBeenCalledWith(null);
   expect(send.mock.calls.filter(([input]) => requestPath(input).pathname.endsWith('/guest/session'))).toHaveLength(1);
 });
+
+it('distinguishes a fallback attempt from a confirmed route and clears attempts after both routes fail', async () => {
+  let finish!: (response: Response) => void;
+  const send = vi.fn<typeof fetch>(async input => {
+    const path = requestPath(input).pathname;
+    if (path.includes('/direct/')) throw new TypeError('offline');
+    if (path.endsWith('/status')) return Response.json({ sessionId: null });
+    return new Promise(resolve => { finish = resolve; });
+  });
+  const controller = make(send);
+  const request = controller.fetch('/api/choirs');
+  await vi.waitFor(() => expect(controller.getSnapshot().attempting).toBe('backup'));
+  expect(controller.getSnapshot().active).toBe('direct');
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+  finish(Response.json({ ok: true })); await request;
+  expect(controller.getSnapshot()).toMatchObject({ active: 'backup', attempting: null });
+  send.mockRejectedValue(new TypeError('offline'));
+  await expect(controller.fetch('/api/choirs')).rejects.toThrow();
+  expect(controller.getSnapshot()).toMatchObject({ attempting: null, health: { backup: { state: 'unreachable' } } });
+});
+
+it('does not let superseded check failures overwrite a new identity', async () => {
+  const failures: ((reason: Error) => void)[] = [];
+  const send = vi.fn<typeof fetch>(async input => {
+    if (requestPath(input).pathname.endsWith('/health')) return Response.json({ status: 'ok' });
+    return new Promise((_resolve, reject) => { failures.push(reject); });
+  });
+  const controller = make(send);
+  const check = controller.check();
+  await vi.waitFor(() => expect(failures).toHaveLength(2));
+  controller.invalidateIdentity('new');
+  failures.forEach(fail => fail(new TypeError('late failure')));
+  await check;
+  expect(controller.getSnapshot().identity).toEqual({ direct: 'unknown', backup: 'unknown' });
+});
+
+it('does not let delayed write preparation replace a newer confirmed route in the same identity generation', async () => {
+  let finish!: (response: Response) => void;
+  const controller = make(async input => requestPath(input).pathname.endsWith('/status')
+    ? new Promise(resolve => { finish = resolve; }) : Response.json({ ok: true }));
+  controller.reportFailure('direct');
+  const write = controller.writeEndpoint('/api/choirs/x/scores', new AbortController().signal);
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+  await controller.fetch('/api/health');
+  expect(controller.getSnapshot().active).toBe('backup');
+  finish(Response.json({ sessionId: null }));
+  await expect(write).rejects.toMatchObject({ name: 'AbortError' });
+  expect(controller.getSnapshot().active).toBe('backup');
+});
+
+it('does not let delayed media recovery replace a newer route confirmation', async () => {
+  let finish!: (response: Response) => void;
+  const controller = make(async input => requestPath(input).pathname.endsWith('/status')
+    ? new Promise(resolve => { finish = resolve; }) : Response.json({ ok: true }));
+  const recovery = controller.recoverMedia('direct');
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+  await controller.fetch('/api/health');
+  finish(Response.json({ sessionId: null }));
+  expect(await recovery).toBe(false);
+  expect(controller.getSnapshot().active).toBe('backup');
+});
+
+it('requires fresh consecutive confirmations after a temporary success is interrupted by identity conflict', async () => {
+  let now = 1000, conflict = false;
+  const controller = make(async input => Response.json(requestPath(input).pathname.endsWith('/status')
+    ? { sessionId: conflict && requestPath(input).pathname.includes('/direct/') ? 'someone-else' : null }
+    : { status: 'ok' }), { now: () => now });
+  controller.reportFailure('direct'); controller.setMode('auto');
+  await controller.check(); expect(controller.getSnapshot().active).toBe('backup');
+  now += 11_000; conflict = true; await controller.check();
+  now += 11_000; conflict = false; await controller.check();
+  expect(controller.getSnapshot().active).toBe('backup');
+  now += 11_000; await controller.check(); expect(controller.getSnapshot().active).toBe('direct');
+});
+
+it.each([
+  [0, 'success'], [1, 'success'], [0, 'failure'], [1, 'failure'], [0, 'cancel'], [1, 'cancel'],
+] as const)('confirmation from concurrent fallback %s stays visible while the other request ends with %s', async (first, ending) => {
+  const pending = new Map<string, { resolve: (response: Response) => void; reject: (reason: unknown) => void }>();
+  const controller = make(async (input, init) => {
+    const path = requestPath(input).pathname;
+    if (path.endsWith('/status')) return Response.json({ sessionId: null });
+    if (path.includes('/direct/')) throw new TypeError('offline');
+    return new Promise((resolve, reject) => {
+      pending.set(path.at(-1)!, { resolve, reject });
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+    });
+  });
+  const impossibleStates: unknown[] = [];
+  const unsubscribe = controller.subscribe(() => {
+    const state = controller.getSnapshot();
+    if (state.active === 'backup' && state.attempting === 'backup') impossibleStates.push(state);
+  });
+  const aborts = [new AbortController(), new AbortController()];
+  const reads = aborts.map((abort, i) => controller.fetch(`/api/choirs/${i}`, { signal: abort.signal }).catch(error => error));
+  await vi.waitFor(() => expect(pending.size).toBe(2));
+  expect(controller.getSnapshot()).toMatchObject({ active: 'direct', attempting: 'backup' });
+  pending.get(String(first))!.resolve(Response.json({ ok: true }));
+  expect(await reads[first]).toBeInstanceOf(Response);
+  expect(controller.getSnapshot()).toMatchObject({ active: 'backup', attempting: null });
+  const second = 1 - first;
+  if (ending === 'success') pending.get(String(second))!.resolve(Response.json({ ok: true }));
+  else if (ending === 'failure') pending.get(String(second))!.reject(new TypeError('offline'));
+  else aborts[second].abort();
+  const result = await reads[second];
+  expect(result).toBeInstanceOf(ending === 'success' ? Response : Error);
+  expect(controller.getSnapshot()).toMatchObject({ active: 'backup', attempting: null });
+  expect(impossibleStates).toEqual([]);
+  unsubscribe();
+});
+
+it('does not clear a newer different-target attempt when an older concurrent fallback finishes', async () => {
+  const pending = new Map<string, (response: Response) => void>();
+  let finishDirect!: (response: Response) => void;
+  const controller = make(async input => {
+    const path = requestPath(input).pathname;
+    if (path.endsWith('/status')) return path.includes('/direct/')
+      ? new Promise(resolve => { finishDirect = resolve; }) : Response.json({ sessionId: null });
+    if (path.includes('/direct/')) throw new TypeError('offline');
+    return new Promise(resolve => { pending.set(path.at(-1)!, resolve); });
+  });
+  const first = controller.fetch('/api/choirs/a'), second = controller.fetch('/api/choirs/b');
+  await vi.waitFor(() => expect(pending.size).toBe(2));
+  pending.get('a')!(Response.json({ ok: true })); await first;
+  expect(controller.getSnapshot()).toMatchObject({ active: 'backup', attempting: null });
+  const media = controller.recoverMedia('backup');
+  await vi.waitFor(() => expect(finishDirect).toBeTypeOf('function'));
+  expect(controller.getSnapshot().attempting).toBe('direct');
+  pending.get('b')!(Response.json({ ok: true })); await second;
+  expect(controller.getSnapshot()).toMatchObject({ active: 'backup', attempting: 'direct' });
+  finishDirect(Response.json({ sessionId: null })); expect(await media).toBe(true);
+  expect(controller.getSnapshot()).toMatchObject({ active: 'direct', attempting: null });
+});
