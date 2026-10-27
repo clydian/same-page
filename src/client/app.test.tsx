@@ -431,6 +431,44 @@ describe("AppRoutes", () => {
     expect(vi.mocked(fetch).mock.calls.filter(([url, init]) => url === "/api/guest/session" && init?.method === "POST")).toHaveLength(1);
   });
 
+  it("preserves a typed first-drive invitation through anonymous session rechecks", async () => {
+    const tree = () => <MemoryRouter initialEntries={["/drives"]}><AppRoutes /></MemoryRouter>;
+    const view = render(tree());
+    const input = await screen.findByLabelText("邀请码");
+    fireEvent.change(input, { target: { value: "abcd-efgh" } });
+    vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: true, isRefetching: true } as ReturnType<typeof authClient.useSession>);
+    view.rerender(tree());
+    expect(screen.getByLabelText("邀请码")).toBe(input);
+    expect(input).toHaveValue("ABCD-EFGH");
+    expect(screen.getByRole("button", { name: "进入云盘" })).toBeDisabled();
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => url === "/api/guest/session" && init?.method === "POST")).toBe(false);
+    vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false, error: { status: 503 } } as ReturnType<typeof authClient.useSession>);
+    view.rerender(tree());
+    expect(screen.getByLabelText("邀请码")).toBe(input);
+    expect(input).toHaveValue("ABCD-EFGH");
+    vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false } as ReturnType<typeof authClient.useSession>);
+    view.rerender(tree());
+    expect(screen.getByLabelText("邀请码")).toBe(input);
+    expect(screen.getByRole("button", { name: "进入云盘" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "进入云盘" }));
+    expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeVisible();
+  });
+
+  it("waits for the initial identity check and resets invitation input for a newly signed-in user", async () => {
+    vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: true } as ReturnType<typeof authClient.useSession>);
+    const tree = () => <MemoryRouter initialEntries={["/drives"]}><AppRoutes /></MemoryRouter>;
+    const view = render(tree());
+    expect(screen.queryByLabelText("邀请码")).not.toBeInTheDocument();
+    vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false } as ReturnType<typeof authClient.useSession>);
+    view.rerender(tree());
+    const input = await screen.findByLabelText("邀请码");
+    fireEvent.change(input, { target: { value: "abcd-efgh" } });
+    vi.mocked(authClient.useSession).mockReturnValue({ data: { user: { id: "new-user", email: "new@example.test" } }, isPending: false } as ReturnType<typeof authClient.useSession>);
+    view.rerender(tree());
+    expect(input).not.toBeInTheDocument();
+    expect(await screen.findByLabelText("邀请码")).toHaveValue("");
+  });
+
   it("keeps a malformed invitation available for manual correction", async () => {
     render(<MemoryRouter initialEntries={["/?join=1#invite=bad"]}><AppRoutes /></MemoryRouter>);
     expect(await screen.findByText("邀请链接无效，请输入当前邀请码。")).toBeInTheDocument();

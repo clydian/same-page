@@ -9,14 +9,23 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const browser = await engine.launch(); t.after(() => browser.close());
     const { origins, network } = fixture;
     const posts = route => network.traffic.filter(item => item.method === 'POST' && item.path.startsWith(`/api/_entry/${route}/guest/session`)).length;
-    for (const scenario of ['headers', 'body', 'both', 'manual', 'cancel']) {
+    for (const scenario of ['recheck', 'headers', 'body', 'both', 'manual', 'cancel']) {
       await t.test(scenario, async () => {
         const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', ignoreHTTPSErrors: true });
+        let releaseRecheck;
         try {
           network.admissionFaults.direct = scenario === 'body' ? 'body' : 'headers';
           network.admissionFaults.backup = scenario === 'both' ? 'headers' : null;
           network.traffic.length = 0;
           const page = await context.newPage();
+          let sessionReads = 0;
+          if (scenario === 'recheck') {
+            const held = new Promise(resolve => { releaseRecheck = resolve; });
+            await page.route(/\/auth\/get-session(?:\?|$)/, async route => {
+              if (route.request().method() === 'GET' && ++sessionReads > 1) await held;
+              await route.continue();
+            });
+          }
           if (scenario === 'body') {
             // This is the same invitation URL encoded by a QR card. Its secret
             // fragment is cleared before admission; never log or screenshot it.
@@ -29,7 +38,20 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
               await page.getByRole('radio', { name: '直连', exact: true }).check();
               await page.getByRole('button', { name: '关闭连接面板' }).click();
             }
-            await page.getByRole('textbox', { name: '邀请码', exact: true }).fill(fixture.joinCode);
+            const input = page.getByRole('textbox', { name: '邀请码', exact: true });
+            await input.fill(fixture.joinCode);
+            if (scenario === 'recheck') {
+              const entered = await input.inputValue();
+              await page.getByRole('button', { name: /^连接线路/ }).click();
+              await expect.poll(() => sessionReads).toBeGreaterThan(1);
+              await page.getByRole('button', { name: '关闭连接面板' }).click();
+              assert.equal(await input.inputValue() === entered, true, 'pending recheck must retain the invitation');
+              await expect(page.getByRole('button', { name: '进入云盘', exact: true })).toBeDisabled();
+              assert.equal(posts('direct') + posts('backup'), 0);
+              releaseRecheck();
+              await expect(page.getByRole('button', { name: '进入云盘', exact: true })).toBeEnabled();
+              assert.equal(await input.inputValue() === entered, true, 'settled recheck must retain the invitation');
+            }
             await page.getByRole('button', { name: '进入云盘', exact: true }).click();
           }
           if (scenario === 'cancel') {
@@ -39,7 +61,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
             assert.equal(new URL(page.url()).pathname, '/about');
           } else if (scenario === 'both' || scenario === 'manual') {
             await expect(page.getByRole('alert')).toContainText('连接超时', { timeout: 10_000 });
-            assert.equal((await page.getByRole('textbox', { name: '邀请码', exact: true }).inputValue()).replace('-', ''), fixture.joinCode);
+            assert.equal((await page.getByRole('textbox', { name: '邀请码', exact: true }).inputValue()).replace('-', '') === fixture.joinCode, true, 'failed admission must retain the invitation');
             await expect(page.getByRole('button', { name: '进入云盘', exact: true })).toBeEnabled();
             assert.equal(posts('direct'), 1);
             assert.equal(posts('backup'), scenario === 'manual' ? 0 : 1);
@@ -50,7 +72,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
             assert.equal(posts('direct'), 1); assert.equal(posts('backup'), 1);
             assert.equal(await page.evaluate(async () => (await import('/src/client/connection/connection.ts')).connections.getSnapshot().active), 'backup');
           }
-        } finally { await context.close(); }
+        } finally { releaseRecheck?.(); await context.close(); }
       });
     }
   });

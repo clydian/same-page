@@ -32,6 +32,12 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
   const [joinOpen, setJoinOpen] = useState(new URLSearchParams(location.search).get("join") === "1" || Boolean(invitation));
   const [createOpen, setCreateOpen] = useState(false);
   const [manualEntry, setManualEntry] = useState(joinOpen);
+  const firstDriveReady = !identity.localUserId && !identity.restoring && identity.onlineState === "signed-out";
+  const [firstDriveShown, setFirstDriveShown] = useState(firstDriveReady);
+  if (firstDriveReady && !firstDriveShown) setFirstDriveShown(true);
+  // A transient anonymous session recheck must not unmount the entered code.
+  // The owner/invitation key above still resets this form on identity changes;
+  // JoinDriveFlow continues to block admission while identity is pending.
   const userId = identity.authenticatedUserId;
   const create = userId
     ? <Button className="text-button" onPress={() => { setManualEntry(true); setCreateOpen(true); }}><Plus size={16} aria-hidden="true" />创建云盘</Button>
@@ -42,8 +48,8 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
     <main className="drive-entry-main">
       <IdentityNotice identity={identity} connectionControl />
       {identity.localUserId ? <MemberEntry identity={identity} userId={identity.localUserId} create={create} onJoin={() => { setManualEntry(true); setJoinOpen(true); }} admissionOpen={manualEntry || joinOpen || createOpen} />
+        : firstDriveShown ? <FirstDrive identity={identity} create={create} />
         : identity.restoring || identity.onlineState === "checking" ? <p role="status">正在恢复本机内容…</p>
-        : identity.onlineState === "signed-out" ? <FirstDrive identity={identity} create={create} />
         : <p role="status">暂时无法确认云盘目录，请连接网络后重试。</p>}
     </main>
     <JoinDriveDialog open={joinOpen} onClose={finishJoin} identity={identity} invitation={invitation} />
