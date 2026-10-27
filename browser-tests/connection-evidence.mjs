@@ -33,7 +33,10 @@ export async function withConnectionEvidence(page, { directory, origins, network
     if (id) record({ event: 'failed', id });
     requests.delete(value);
   };
-  const pageError = () => record({ event: 'page-error' });
+  const pageError = error => {
+    const type = ['Error', 'TypeError', 'ReferenceError', 'RangeError', 'SyntaxError'].includes(error.name) ? error.name : 'OtherError';
+    record({ event: 'page-error', type });
+  };
   const crash = () => record({ event: 'page-crash' });
   const navigated = frame => {
     if (frame === page.mainFrame()) record({ event: 'navigation', pathname: new URL(frame.url()).pathname });
