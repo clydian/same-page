@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import test from 'node:test';
 import { chromium, webkit, expect } from '@playwright/test';
 import { startConnectionFixture } from './connection-fixture.mjs';
+import { withConnectionEvidence } from './connection-evidence.mjs';
 
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   test(`${name}: real same-session cookies, cold failover, pinned choice and uncertain XHR write`, { timeout: 120_000 }, async t => {
@@ -33,21 +34,27 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await expect(page.locator('.upload-fab')).toHaveAttribute('data-visible', 'false');
     await page.evaluate(() => window.scrollTo(0, 100));
     await expect(page.locator('.connection-fab')).toHaveAttribute('data-visible', 'true');
-    network.directBroken = true;
-    await page.reload();
-    await expect(page.locator('.file-row__open').first()).toBeVisible();
-    await page.getByRole('button', { name: /^连接线路/ }).click();
-    await expect(page.getByText('当前线路：备用')).toBeVisible();
-    assert.equal(await page.evaluate(() => localStorage.getItem('issue-580-draft-marker')), 'keep');
-    assert.equal(new URL(page.url()).origin, origins.direct);
-    await page.getByRole('radio', { name: '直连', exact: true }).check();
-    await expect(page.locator('.connection-routes li').filter({ has: page.getByText('直连', { exact: true }) }).getByText('暂时连不上', { exact: true })).toBeVisible();
-    await expect(page.getByRole('radio', { name: '直连', exact: true })).toBeChecked();
-    await expect(page.getByRole('link', { name: '前往登录', exact: true })).toHaveCount(0);
-    await page.getByRole('radio', { name: '备用', exact: true }).check();
-    await expect(page.getByRole('radio', { name: '备用', exact: true })).toBeChecked();
-    await page.getByRole('button', { name: '关闭连接面板' }).click();
-    await expect(page.getByRole('button', { name: '上传 PDF', exact: true })).toBeEnabled();
+    await withConnectionEvidence(page, { directory: `artifacts/verification/issue-580/${name}-switch-to-upload`, origins, network }, async mark => {
+      network.directBroken = true;
+      mark('cold-reload');
+      await page.reload();
+      await expect(page.locator('.file-row__open').first()).toBeVisible();
+      await page.getByRole('button', { name: /^连接线路/ }).click();
+      await expect(page.getByText('当前线路：备用')).toBeVisible();
+      assert.equal(await page.evaluate(() => localStorage.getItem('issue-580-draft-marker')), 'keep');
+      assert.equal(new URL(page.url()).origin, origins.direct);
+      mark('select-direct');
+      await page.getByRole('radio', { name: '直连', exact: true }).check();
+      await expect(page.locator('.connection-routes li').filter({ has: page.getByText('直连', { exact: true }) }).getByText('暂时连不上', { exact: true })).toBeVisible();
+      await expect(page.getByRole('radio', { name: '直连', exact: true })).toBeChecked();
+      await expect(page.getByRole('link', { name: '前往登录', exact: true })).toHaveCount(0);
+      mark('select-backup');
+      await page.getByRole('radio', { name: '备用', exact: true }).check();
+      await expect(page.getByRole('radio', { name: '备用', exact: true })).toBeChecked();
+      await page.getByRole('button', { name: '关闭连接面板' }).click();
+      mark('await-upload-enabled');
+      await expect(page.getByRole('button', { name: '上传 PDF', exact: true })).toBeEnabled();
+    });
     await page.getByRole('button', { name: '上传 PDF', exact: true }).click();
     await page.getByLabel('选择 PDF 文件').setInputFiles({ name: 'alternate-upload.pdf', mimeType: 'application/pdf', buffer: fixture.pdf });
     await expect(page.locator('.upload-list li[data-status="success"]')).toHaveCount(1);

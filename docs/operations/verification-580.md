@@ -108,3 +108,13 @@ CI run `40458836898` 仅 visual (2) 中 Chromium 的 `drive-entry.test.mjs` 失�
 新增 `verify-built-storage.mjs` 在 PR CI 校验 build job 的完整原始封存产物，并与经审查的 stable 原始 probe 执行双引擎四阶段矩阵。基线出处从 521b3469 刷新到当前 stable 839c6776 的原始 run `40423108394`／artifact `12699256626`，固定 seal 摘要；两者的 storage 对象完全一致，没有修改任何边界。GitHub 只读 actions token 下载原包，基线缺失／过期失败，不重建旧包、不用候选自测替代。所有 build 含 build-only／smoke 均要求 platform 成功；生产锁内针对实时 stable 的原检查仍保留。
 
 本地先通过新增 gate 对原 #594 封存坏包复现同一个 phase=1 导入异常。与 CI 相同参数构建并封存修复候选 `c7579f4` 后，用同一个 gate 对原 stable 839c6776 检查通过（Chromium／WebKit，真实持久 profile，Blob／草稿／队列／push/pull／冲突／身份均校验）。生产构建／预缓存／storage contract、完整 Node 57 文件／288 项、scope／contract 30 项通过；完整性新增 4 项包含替换 seal、probe／storage 被修改、错误来源／run／存储边界。Standards／Spec 两轴均 0 项。上述产物仅本地验证，未上传、覆盖旧版本或变更生产。远端状态见后续修复 PR。
+
+## 匿名邀请码保留与上传入口失败取证
+
+#595 的 main run `40462585996` 在 Chromium 的邀请码 manual 场景和上传入口场景失败，尚未部署。邀请码侧正常用户操作已复现：填 8 位后打开连接检测，匿名 get-session refetch 使身份短暂 checking，原 FirstDrive 被卸载，输入变为空。新增 app 回归在修改前失败；现仅在匿名身份与本机恢复已确认后保留 FirstDrive 挂载，检查中仍禁止准入，初次身份未知仍等待，owner／invitation key 变化仍重建表单。不写持久草稿，不改权限／会话协议。
+
+app 41 项及完整 client 151 文件／1315 项通过，TypeScript／lint 通过。真实 HTTPS 浏览器回归新增 held get-session：pending 时邀请码保留且不能提交，释放后恢复并经备用完成进入；Chromium／WebKit 合计 14/14 通过，原连接完整流程 2/2 通过。本机测试仅在进程内使用限定 fixture 域名的 loopback CONNECT 代理，避免系统 DNS 的 fake-IP 解析；未改系统网络或生产。
+
+上传按钮历史失败的根因仍未确认，原 5 秒断言和切线策略不变。新增失败取证覆盖 cold-reload／select-direct／select-backup／await-upload：记录有界 API 路径／状态／完成或失败时序、页面错误／导航、认证 pending/refetching 布尔状态、两路健康与准备状态、页面加载／错误边界、按钮是否存在／inert／aria-hidden／disabled／CSS 可见性／几何信息，以及遮挡输入框的截图。状态采集限 2.5 秒、截图限 3 秒，取证失败不覆盖原断言。日志不含 Cookie、请求头／正文、query／fragment、原始 user/session ID 或输入值；页面错误仅记录固定类别，不读取错误消息、stack 或来源 URL。失败 artifact 路径为 `issue-580/<browser>-switch-to-upload/failure.json` 与 `page.png`，由现有 smoke artifact 上传。成功路径只监听事件和记阶段，不等待快照，避免用取证等待掩盖竞争。
+
+受控隐藏按钮在两引擎均留下正确存在／CSS 隐藏状态，并核实原断言对象未被替换；额外模拟页面状态采集永不返回，超时仍保存时序与原错。运行时断言验证查询标记、测试账号、用户 ID、认证 Cookie 值均不在 JSON 中；错误消息内嵌应用路径与 stack 查询标记也未写入，最终受控取证 3/3 通过。生产构建／预缓存预算通过。模拟只验证取证工具，不作为历史上传故障根因。临时故障脚本与数据仅存忽略的 verification 目录，未加入正式测试分片。Standards／Spec 独立复核均 0 项。
