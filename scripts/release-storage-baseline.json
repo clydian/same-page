@@ -1,7 +1,7 @@
 {
-  "buildId": "521b3469f734ef396094a585993c7835e2ad59ae",
-  "runId": 39914879622,
-  "artifactId": 12484143687,
+  "buildId": "839c6776d543201906fe871065eb19c4997b03e6",
+  "runId": 40423108394,
+  "artifactId": 12699256626,
   "storage": {
     "contract": "same-page-storage-v15-sync-v1",
     "dexie": "4.4.5",
@@ -19,5 +19,6 @@
       "src/shared/reader-sync.ts": "6727d2cba573a634f0f95c235f84cb939840078624e2bce856acb0e58a4ac2a9",
       "src/shared/scores.ts": "34d14b1dfaaff64851d3ec07a076c16856133e1a96705c05e4a0039e10dc78cf"
     }
-  }
+  },
+  "sealDigest": "f2c3483b4d2e067e9f00a2ff1e153fbe5f7face2b1818ae77cc462f4dbddb863"
 }
