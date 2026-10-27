@@ -66,6 +66,12 @@ export class ConnectionController {
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private update(change: Partial<ConnectionSnapshot>) {
+    // Confirmation wins over every still-running attempt to that same route.
+    // An attempt towards a different target remains meaningful.
+    if (change.active && change.active === this.snapshot.attempting) {
+      this.attemptToken = null;
+      change = { ...change, attempting: null };
+    }
     if (change.active && change.active !== this.snapshot.active) this.routeRevision++;
     this.snapshot = { ...this.snapshot, ...change };
     this.listeners.forEach(listener => listener());

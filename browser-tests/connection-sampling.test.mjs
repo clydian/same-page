@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import test from 'node:test';
 import { chromium, webkit, expect } from '@playwright/test';
 import { startConnectionFixture } from './connection-fixture.mjs';
+import { verifyConnectionHistory } from './connection-history.mjs';
 
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   test(`${name}: restrained live samples, confirmed routing, failure and keyboard details`, { timeout: 120_000 }, async t => {
@@ -10,6 +11,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const browser = await engine.launch(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}); t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width: 320, height: 760 }, ignoreHTTPSErrors: true, serviceWorkers: 'block', reducedMotion: 'reduce', isMobile: true, hasTouch: true }); t.after(() => context.close());
     const page = await context.newPage();
+    await page.clock.install();
     await page.goto(fixture.origins.direct + '/login');
     assert.equal(await page.evaluate(async account => (await fetch('/api/_entry/direct/auth/sign-in/email', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(account) })).status, fixture.accounts[0]), 200);
     await page.goto(`${fixture.origins.direct}/choirs/${fixture.choirId}`);
@@ -62,14 +64,15 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });
     await expect(page.getByText('检测已暂停', { exact: true })).toHaveCount(2);
     const pausedSamples = (await snapshot()).samples.direct.length;
-    await page.waitForTimeout(11_000);
+    await page.clock.fastForward(11_000);
     assert.equal((await snapshot()).samples.direct.length, pausedSamples);
     await page.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
     await expect.poll(async () => (await snapshot()).samples.direct.length).toBeGreaterThan(pausedSamples);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: '连接线路', exact: true })).toHaveCount(0);
     const samples = (await snapshot()).samples.direct.length;
-    await page.waitForTimeout(11_000);
+    await page.clock.fastForward(11_000);
     assert.equal((await snapshot()).samples.direct.length, samples);
+    await verifyConnectionHistory(page, name);
   });
 }

@@ -30,6 +30,7 @@ const smokeCosts = {
   "attachments-recovery": 30,
   "attachments-smoke": 40,
   "connections": 70,
+  "connection-sampling": 50,
   "diagnostic-reports": 20,
   "file-touch-links": 40,
   "free-trial-smoke": 15,
