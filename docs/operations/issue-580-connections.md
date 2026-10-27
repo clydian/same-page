@@ -71,16 +71,20 @@ sequenceDiagram
 
 ## 上线与回退
 
-两个开关默认均关闭：后端 `CONNECTIONS_ENABLED=false`，前端不设置 `VITE_CONNECTIONS_ENABLED`。
+PR #594 最初交付时两个开关均关闭。本轮启用配置改为：后端部署配置 `CONNECTIONS_ENABLED=true`；CI 的 Production build 设置 `VITE_CONNECTIONS_ENABLED=true`，将功能编入同一份经验证、封存的前端产物。普通本地构建仍须显式传入该前端变量，不依赖控制台临时覆盖。
+
+沿用 ADR-0021 的现有版本渠道：新产物通过线上验证和兼容性门槛后，原发布流程仅更新 beta 指向；stable 保持原已选产物，之后由具备发布权限的用户在产品后台提升。没有按通道分支的双线路逻辑，也不额外构建两个版本。后端为两通道共用，旧 stable 继续使用原 `/api/*`；启用新增路由不改变其客户端行为。
 旧客户端、现有存储版本和已部署的稳定／测试版协议继续工作，本地数据库无升级或清理。
+
+下列步骤是部署顺序与验收要求；本轮只提交配置，不从本地执行生产部署、修改渠道指向或扩大 ESA 配额。
 
 1. 先在测试环境应用 `0037_connection_exchanges.sql`，再部署向后兼容后端。确认 `CONNECTION_BACKUP_ORIGIN` 与证书／ESA 回源一致，仍使用原 `BETTER_AUTH_SECRET`，不需要把秘密发给 ESA。
 2. 在受控环境启用后端开关。确认 ESA 对新增前缀、OPTIONS、POST、Set-Cookie、Range、Content-Range 及 Origin 原样转发，并继续绕过所有业务缓存。不要改变源站 Host/SNI 或关闭证书验证。
-3. 按现有 beta release 流程构建 `VITE_CONNECTIONS_ENABLED=true` 的客户端；可用 `VITE_CONNECTION_PRIMARY_ORIGIN`、`VITE_CONNECTION_BACKUP_ORIGIN` 覆盖本地测试网址。生产默认是上面的两个正式域名。不要仅启前端，否则新路由返回 404。
+3. CI 已按现有 release 流程构建 `VITE_CONNECTIONS_ENABLED=true` 的客户端；可用 `VITE_CONNECTION_PRIMARY_ORIGIN`、`VITE_CONNECTION_BACKUP_ORIGIN` 覆盖本地测试网址。生产默认是上面的两个正式域名。不要仅启前端，否则新路由返回 404。
 4. 在真实 ESA、Chromium／WebKit、移动设备／PWA 上验收双向登录、冷启动直连断开、仅备用退出、密码重置／用户删除／失权、PDF 分片、音频拖动、上传及笔记。原站 get-session 只读限额为每分钟 60 次，密码／验证码限额保持原值；连接检查仅在需要恢复或实际换路时重新获取产品会话。用大陆无代理的 Wi-Fi 和手机网络收集收益。公开健康检查双通不代表业务已通过。
-5. 确认 beta 与稳定版升级、降级保留草稿，再考虑默认开启。此 PR 不执行生产部署、续费或扩大流量额度。
+5. 确认 beta 与稳定版升级、降级保留草稿，再在产品后台将已验收的新版本提升为 stable。此 PR 不执行生产部署、续费或扩大流量额度。
 
-回退时先发布／指定关闭功能的客户端，等待已启用客户端退出受控窗口，再关闭后端新路由；可保留增量表待以后清理。不要先关后端让仍启用的客户端持续 404。旧客户端继续原路径工作；紧急时可回退到上一客户端 release。回退不复制或删除本机草稿，不主动删用户或共同 session。
+回退时优先沿用现有 stop-beta 流程让 beta 回到已知兼容的 stable，或发布前端开关关闭的修复版本；旧离线／缓存客户端不能立即召回。等待已启用客户端退出受控窗口，再关闭后端新路由（将仓库部署配置改回 `CONNECTIONS_ENABLED=false`）；可保留增量表待以后清理。不要先关后端让仍启用的客户端持续 404。旧客户端继续原路径工作；紧急时可回退到上一客户端 release。回退不复制或删除本机草稿，不主动删用户或共同 session。
 
 ESA 基础套餐到期与 1 GB 试验限速仍按原试验记录管理；未完成生产验证前不扩大试验范围。
 
