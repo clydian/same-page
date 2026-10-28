@@ -16,7 +16,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await engine.launch(); t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
   page.setDefaultTimeout(15000);
-  const fixture = createVisualFixtureSession({ id: 'reader-practice-loading' });
+  const fixture = createVisualFixtureSession({ id: 'reader-practice-loading', buildId: app.buildId });
   let resumeDownload;
   await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen','true'));
   await page.route('**/api/**', async route => {
@@ -56,7 +56,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
    const browser = await engine.launch(); t.after(() => browser.close());
    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
    page.setDefaultTimeout(15000);
-   const fixture = createVisualFixtureSession({ id: 'reader-practice-recovery', multipleSources: true });
+   const fixture = createVisualFixtureSession({ id: 'reader-practice-recovery', multipleSources: true, buildId: app.buildId });
    await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
    await page.route('**/api/**', route => {
     const request = route.request();
