@@ -14,13 +14,13 @@ it("validates stored values and keeps old or malformed storage usable", () => {
 it("switches separate light/dark paper choices live and restores them across mounts", () => {
   const view = render(settings());
   expect(document.documentElement.dataset).toMatchObject({ uiTheme: "light", paperTheme: "original" });
-  fireEvent.change(screen.getByLabelText("深色界面下的谱面"), { target: { value: "inverted" } });
+  fireEvent.click(screen.getByRole("radio", { name: "深色界面下的谱面：反色" }));
   expect(document.documentElement.dataset.paperTheme).toBe("original");
-  fireEvent.change(screen.getByLabelText("界面主题"), { target: { value: "dark" } });
+  fireEvent.click(screen.getByRole("radio", { name: "深色" }));
   expect(document.documentElement.dataset).toMatchObject({ uiTheme: "dark", paperTheme: "inverted", invertAnnotations: "false" });
-  fireEvent.change(screen.getByLabelText("谱面反色时的批注"), { target: { value: "invert" } });
+  fireEvent.click(screen.getByRole("radio", { name: "跟随反色" }));
   view.unmount(); render(settings());
-  expect(screen.getByLabelText("界面主题")).toHaveValue("dark");
+  expect(screen.getByRole("radio", { name: "深色" })).toBeChecked();
   expect(document.documentElement.dataset.invertAnnotations).toBe("true");
 });
 it("reacts to system theme and storage events without changing independent paper choices", () => {
@@ -45,7 +45,7 @@ it("isolates users and experience, and clears private appearance on logout", () 
 it("keeps changes usable and explains when storage cannot persist", () => {
   const view = render(settings());
   const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("quota"); });
-  fireEvent.change(screen.getByLabelText("界面主题"), { target: { value: "dark" } });
+  fireEvent.click(screen.getByRole("radio", { name: "深色" }));
   expect(document.documentElement.dataset.uiTheme).toBe("dark");
   expect(screen.getByRole("status")).toHaveTextContent("无法保存");
   spy.mockRestore(); view.unmount(); clearUserAppearance("appearance-user");
@@ -54,15 +54,15 @@ it("keeps changes usable and explains when storage cannot persist", () => {
 it("guest settings and guest experience share choices while signed-in experience stays separate", () => {
   identity.localUserId = "";
   const view = render(settings());
-  fireEvent.change(screen.getByLabelText("界面主题"), { target: { value: "dark" } });
+  fireEvent.click(screen.getByRole("radio", { name: "深色" }));
   view.unmount();
   const preview = render(settings("/user?experience=1"));
-  expect(screen.getByLabelText("界面主题")).toHaveValue("dark");
+  expect(screen.getByRole("radio", { name: "深色" })).toBeChecked();
   preview.unmount();
   identity.localUserId = "appearance-user";
   render(settings("/user?experience=1"));
-  expect(screen.getByLabelText("界面主题")).toHaveValue("system");
-  fireEvent.change(screen.getByLabelText("界面主题"), { target: { value: "dark" } });
+  expect(screen.getByRole("radio", { name: "跟随系统" })).toBeChecked();
+  fireEvent.click(screen.getByRole("radio", { name: "深色" }));
   expect(readAppearance("experience:appearance-user").interfaceTheme).toBe("dark");
   expect(readAppearance("user:appearance-user").interfaceTheme).toBe("system");
 });

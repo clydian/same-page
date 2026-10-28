@@ -1,7 +1,8 @@
+import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useApplicationIdentity } from "../auth/application-identity";
-import { appearanceOwnerKey, readAppearance, saveAppearance, subscribeAppearance, type AppearancePreferences } from "./appearance-store";
+import { appearanceOwnerKey, readAppearance, saveAppearance, subscribeAppearance, type AppearancePreferences, type PaperTheme } from "./appearance-store";
 import "./appearance.css";
 
 import { AppearanceContext, useAppearance } from "./appearance-context";
@@ -33,22 +34,64 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   return <AppearanceContext value={{ preferences, owner, dark }}>{children}</AppearanceContext>;
 }
 export function AppearanceSettings() {
-  const { preferences, owner } = useAppearance();
+  const { preferences, owner, dark } = useAppearance();
   const [error, setError] = useState(false);
   const change = (patch: Partial<AppearancePreferences>) => setError(!saveAppearance(owner, { ...readAppearance(owner), ...patch }));
   return <section className="appearance-settings" aria-labelledby="appearance-title">
-    <h2 id="appearance-title">外观</h2>
-    <p className="settings-copy">{owner.startsWith("experience:") ? "当前为体验外观，与登录用户的外观分别保存。" : "仅保存在本机，应用于所有云盘和乐谱。"}</p>
-    <label className="appearance-setting"><span>界面主题</span><select aria-label="界面主题" value={preferences.interfaceTheme} onChange={event => change({ interfaceTheme: event.target.value as AppearancePreferences["interfaceTheme"] })}>
-      <option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option>
-    </select></label>
-    {(["lightPaper", "darkPaper"] as const).map((key) => <label className="appearance-setting" key={key}><span>{key === "lightPaper" ? "浅色界面下的谱面" : "深色界面下的谱面"}</span><select aria-label={key === "lightPaper" ? "浅色界面下的谱面" : "深色界面下的谱面"} value={preferences[key]} onChange={event => change({ [key]: event.target.value })}>
-      <option value="original">原始</option><option value="soft">柔和</option><option value="inverted">反色</option>
-    </select></label>)}
-    <label className="appearance-setting"><span>谱面反色时的批注</span><select aria-label="谱面反色时的批注" value={preferences.invertAnnotations ? "invert" : "preserve"} onChange={event => change({ invertAnnotations: event.target.value === "invert" })}>
-      <option value="preserve">颜色不变</option><option value="invert">跟随反色</option>
-    </select></label>
-    <p className="settings-copy">反色会改变彩色原谱、封面和插图的显示颜色，可切回原始。批注选项仅在谱面反色时生效；不改变保存或导出的颜色。</p>
+    <header className="appearance-heading"><h2 id="appearance-title">外观</h2>
+      <p>{owner.startsWith("experience:") ? "体验外观，与登录用户的选择分别保存" : "仅此设备 · 应用于所有云盘与乐谱"}</p>
+    </header>
+    <div className="appearance-panel">
+      <fieldset className="appearance-fieldset" aria-label="界面主题">
+        <legend>界面主题</legend>
+        <div className="appearance-segments">
+          {([{ value: "system", label: "跟随系统", icon: Monitor }, { value: "light", label: "浅色", icon: Sun }, { value: "dark", label: "深色", icon: Moon }] as const).map(({ value, label, icon: Icon }) => <label className="appearance-segment" key={value}>
+            <input type="radio" name="interface-theme" value={value} checked={preferences.interfaceTheme === value} onChange={() => change({ interfaceTheme: value })} />
+            <span><Icon size={17} aria-hidden="true" />{label}</span>
+          </label>)}
+        </div>
+      </fieldset>
+      <div className="appearance-paper-section">
+        <div className="appearance-section-heading"><h3>谱面外观</h3><p>随浅色、深色界面自动切换</p></div>
+        <div className="appearance-paper-groups">
+          <PaperChoices label="浅色界面下的谱面" title="浅色界面" name="light-paper" value={preferences.lightPaper} active={!dark} invertAnnotations={preferences.invertAnnotations} onChange={lightPaper => change({ lightPaper })} />
+          <PaperChoices label="深色界面下的谱面" title="深色界面" name="dark-paper" value={preferences.darkPaper} active={dark} invertAnnotations={preferences.invertAnnotations} onChange={darkPaper => change({ darkPaper })} />
+        </div>
+      </div>
+      <fieldset className="appearance-fieldset appearance-annotations" aria-label="谱面反色时的批注">
+        <legend>谱面反色时的批注</legend>
+        <div className="appearance-segments">
+          {([{ value: false, label: "颜色不变" }, { value: true, label: "跟随反色" }] as const).map(({ value, label }) => <label className="appearance-segment" key={label}>
+            <input type="radio" name="annotation-appearance" checked={preferences.invertAnnotations === value} onChange={() => change({ invertAnnotations: value })} />
+            <span><i className="appearance-note-dot" data-inverted={value || undefined} aria-hidden="true" />{label}</span>
+          </label>)}
+        </div>
+        <p className="appearance-field-help">仅影响反色谱面的显示，保存与导出保留原色。</p>
+      </fieldset>
+    </div>
+    <p className="appearance-footnote">反色也会改变原谱中的彩色内容与封面；需要时可切回原始。</p>
     {error && <p role="status">外观已在本次使用中生效，但无法保存到本机。</p>}
   </section>;
+}
+
+function PaperChoices({ label, title, name, value, active, invertAnnotations, onChange }: {
+  label: string; title: string; name: string; value: PaperTheme; active: boolean; invertAnnotations: boolean; onChange(value: PaperTheme): void;
+}) {
+  return <fieldset className="appearance-fieldset appearance-paper-group" aria-label={label}>
+    <legend>{title}{active && <span className="appearance-current">当前使用</span>}</legend>
+    <div className="appearance-paper-options">
+      {([{ value: "original", label: "原始" }, { value: "soft", label: "柔和" }, { value: "inverted", label: "反色" }] as const).map(option => <label className="appearance-paper-option" key={option.value}>
+        <input type="radio" name={name} aria-label={`${label}：${option.label}`} checked={value === option.value} onChange={() => onChange(option.value)} />
+        <span className="appearance-paper-preview" data-paper={option.value} aria-hidden="true">
+          <svg viewBox="0 0 100 64" fill="none"><g className="appearance-preview-score" stroke="currentColor" strokeWidth=".65">
+            {[23, 27, 31, 35, 39].map(y => <path key={y} d={`M12 ${y}H88`} />)}
+            <path d="M30 34V15M53 30V11M76 26V7" strokeWidth="1.2" />
+          </g><g className="appearance-preview-score" fill="currentColor"><ellipse cx="27" cy="34" rx="3.6" ry="2.4" transform="rotate(-20 27 34)" /><ellipse cx="50" cy="30" rx="3.6" ry="2.4" transform="rotate(-20 50 30)" /><ellipse cx="73" cy="26" rx="3.6" ry="2.4" transform="rotate(-20 73 26)" /></g>
+          <path className="appearance-preview-note" data-inverted={option.value === "inverted" && invertAnnotations || undefined} d="M39 48Q48 43 59 47" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </span>
+        <span className="appearance-paper-caption">{option.label}<Check size={13} aria-hidden="true" /></span>
+      </label>)}
+    </div>
+  </fieldset>;
 }

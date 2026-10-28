@@ -19,15 +19,29 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   });
   await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
   await page.goto(`${server.origin}/user`);
-  await page.getByLabel('界面主题', { exact: true }).selectOption('dark');
+  await page.getByRole('radio', { name: '深色', exact: true }).check();
   await expect(page.locator('html')).toHaveAttribute('data-paper-theme', 'soft');
-  await page.getByLabel('深色界面下的谱面').selectOption('inverted');
-  await page.getByLabel('谱面反色时的批注').selectOption('invert');
+  await page.getByRole('radio', { name: '深色界面下的谱面：反色' }).check();
+  await page.getByRole('radio', { name: '跟随反色' }).check();
   await page.reload();
-  await expect(page.getByLabel('界面主题', { exact: true })).toHaveValue('dark');
-  await expect(page.getByLabel('深色界面下的谱面')).toHaveValue('inverted');
+  await expect(page.getByRole('radio', { name: '深色', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '深色界面下的谱面：反色' })).toBeChecked();
   await mkdir('artifacts/verification/appearance', { recursive: true });
   await page.screenshot({ path: `artifacts/verification/appearance/${name}-settings-dark.png`, fullPage: true });
+  await page.getByRole('radio', { name: '浅色', exact: true }).check();
+  await page.screenshot({ path: `artifacts/verification/appearance/${name}-settings-light.png`, fullPage: true });
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole('radio', { name: '深色', exact: true }).check();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: `artifacts/verification/appearance/${name}-settings-mobile.png`, fullPage: true });
+  await page.setViewportSize({ width: 320, height: 740 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // Native radios retain arrow-key navigation in the visual segmented control.
+  await page.getByRole('radio', { name: '跟随系统' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('radio', { name: '浅色', exact: true })).toBeChecked();
+  await page.getByRole('radio', { name: '深色', exact: true }).check();
+  await page.setViewportSize({ width: 820, height: 1180 });
   const set = async patch => page.evaluate(patch => {
     const key = 'same-page:appearance:user:visual-user-member';
     localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key)), ...patch }));
