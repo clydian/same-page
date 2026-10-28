@@ -14,7 +14,7 @@ export interface PersonalDriveActions {
   canManageIdentity?: boolean;
 }
 
-export function PersonalMenu({ email, drive }: { email?: string | null; drive?: PersonalDriveActions }) {
+export function PersonalMenu({ drive }: { email?: string | null; drive?: PersonalDriveActions }) {
   const logout = useLogout();
   const experience = new URLSearchParams(useLocation().search).get("experience") === "1";
   const identity = useApplicationIdentity();
@@ -38,9 +38,6 @@ export function PersonalMenu({ email, drive }: { email?: string | null; drive?: 
       {drive && <MenuSection className="personal-menu-group">
         <Header className="personal-menu-scope">
           <span className="personal-menu-scope-title"><FolderOpen size={15} aria-hidden="true" />当前云盘</span>
-          <strong className="personal-menu-scope-name">{drive.choirName}</strong>
-          <span className="personal-menu-scope-description">此云盘中的身份与阅读设置</span>
-          {drive.displayName && <span className="personal-menu-context-identity">云盘内显示名 · {drive.displayName}</span>}
         </Header>
         {drive.canManageIdentity && <MenuItem href={`/choirs/${drive.choirId}/me`} textValue="云盘内身份"><UserRound size={17} aria-hidden="true" /><span>云盘内身份</span></MenuItem>}
         <MenuItem href={`/choirs/${drive.choirId}/preferences`} textValue="阅读偏好"><Layers size={17} aria-hidden="true" /><span>阅读偏好</span></MenuItem>
@@ -49,8 +46,6 @@ export function PersonalMenu({ email, drive }: { email?: string | null; drive?: 
       <MenuSection className="personal-menu-group">
         <Header className="personal-menu-scope">
           <span className="personal-menu-scope-title"><Settings2 size={15} aria-hidden="true" />应用设置</span>
-          <span className="personal-menu-scope-description">账户、外观与应用信息</span>
-          {email && <span className="personal-menu-context-identity">{email}</span>}
         </Header>
         <MenuItem href="/user" textValue="账户"><UserRound size={17} aria-hidden="true" /><span>账户</span></MenuItem>
         <MenuItem href={experience ? "/appearance?experience=1" : "/appearance"} textValue="外观"><Palette size={17} aria-hidden="true" /><span>外观</span></MenuItem>

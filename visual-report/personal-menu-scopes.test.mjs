@@ -22,9 +22,9 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
     await trigger.click();
     const menu = page.getByRole('menu', { name: '我的', exact: true });
     await expect(menu.getByText('当前云盘', { exact: true })).toBeVisible();
-    await expect(menu.getByText('此云盘中的身份与阅读设置', { exact: true })).toBeVisible();
+    await expect(menu.getByText('示例云盘', { exact: true })).toHaveCount(0);
     await expect(menu.getByText('应用设置', { exact: true })).toBeVisible();
-    await expect(menu.getByText('账户、外观与应用信息', { exact: true })).toBeVisible();
+    await expect(menu.getByText('member@visual.invalid', { exact: true })).toHaveCount(0);
     for (const [label, href] of [['阅读偏好','/choirs/visual-choir/preferences'],['本机存储','/choirs/visual-choir/storage'],['账户','/user'],['外观','/appearance']]) {
       await expect(menu.getByRole('menuitem', { name: label, exact: true })).toHaveAttribute('href', href);
     }

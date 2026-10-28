@@ -16,7 +16,7 @@ afterEach(() => {
 
 it.each([
   { label: 'outside a drive', drive: undefined, driveLinks: [] },
-  { label: 'inside a drive', drive: { choirId: 'drive-a', choirName: '排练云盘', localOnly: false }, driveLinks: [
+  { label: 'inside a drive', drive: { choirId: 'drive-a', choirName: '排练云盘', displayName: '云盘昵称', localOnly: false }, driveLinks: [
     ['阅读偏好', '/choirs/drive-a/preferences'], ['本机存储', '/choirs/drive-a/storage'],
   ] },
   { label: 'with membership identity management', drive: { choirId: 'drive-a', choirName: '排练云盘', localOnly: false, canManageIdentity: true }, driveLinks: [
@@ -24,15 +24,15 @@ it.each([
   ] },
 ])('routes personal actions in their correct scope $label', async ({ drive, driveLinks }) => {
   vi.stubGlobal('fetch', vi.fn(async () => Response.json(capabilities)));
-  render(<MemoryRouter><PersonalMenu drive={drive} /></MemoryRouter>);
+  render(<MemoryRouter><PersonalMenu email="reader@example.invalid" drive={drive} /></MemoryRouter>);
   fireEvent.click(screen.getByRole('button', { name: '我的' }));
   const appGroup = screen.getByRole('group', { name: /应用设置/ });
-  expect(within(appGroup).getByText('账户、外观与应用信息')).toBeVisible();
+  expect(screen.queryByText('reader@example.invalid')).toBeNull();
+  expect(screen.queryByText('云盘昵称')).toBeNull();
   expect(within(appGroup).getByRole('menuitem', { name: '账户' })).toHaveAttribute('href', '/user');
   if (drive) {
     const driveGroup = screen.getByRole('group', { name: /当前云盘/ });
-    expect(within(driveGroup).getByText(drive.choirName)).toBeVisible();
-    expect(within(driveGroup).getByText('此云盘中的身份与阅读设置')).toBeVisible();
+    expect(within(driveGroup).queryByText(drive.choirName)).toBeNull();
     expect(within(driveGroup).getByRole('menuitem', { name: '阅读偏好' })).toHaveAttribute('href', `/choirs/${drive.choirId}/preferences`);
     expect(within(appGroup).queryByRole('menuitem', { name: '阅读偏好' })).toBeNull();
   } else expect(screen.queryByRole('group', { name: /当前云盘/ })).toBeNull();
