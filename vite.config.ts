@@ -48,6 +48,13 @@ export default defineConfig(({ isPreview, command }) => {
     __SAME_PAGE_BUILD_VERSION__: JSON.stringify(buildVersion),
   },
   build: {
+    modulePreload: {
+      // WebKit can retain a failed modulepreload even across page reloads.
+      // Native imports keep the optional player graph recoverable; Vite still
+      // loads its CSS. Keep normal preloading for the application shell/routes.
+      resolveDependencies: (filename, dependencies, context) => context.hostType === 'js'
+        && /(?:^|\/)(?:musicxml-player|audio-player)-[^/]+\.js$/.test(filename) ? [] : dependencies,
+    },
     // The lazy reader contains the PDF.js display API (about 170 KiB gzip).
     // Keep the warning threshold explicit while the home/auth chunks remain
     // independent and much smaller.

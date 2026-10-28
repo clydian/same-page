@@ -16,7 +16,7 @@ declare const __SAME_PAGE_RELEASE_CHANNELS__: boolean;
 export function ReloadPrompt() {
   const [attempt, setAttempt] = useState(0);
   const retryRegistration = useCallback(() => setAttempt(value => value + 1), []);
-  return <><RegisteredReloadPrompt key={attempt} retryRegistration={retryRegistration} /><UpdateNotice /></>;
+  return <><PageRecovery /><RegisteredReloadPrompt key={attempt} retryRegistration={retryRegistration} /><UpdateNotice /></>;
 }
 
 function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): void }) {
@@ -45,20 +45,13 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
   useEffect(() => {
     const controller = new UpdateController(registration, registrationError, retryRegistration, value => { requested.current = value; });
     controller.start();
-    const recovery = new ShellRecovery(() => window.location.reload());
-    const visible = () => { if (document.visibilityState === "visible") { noteUpdateInteraction(); controller.foregroundCheck(); void recovery.check(); } };
-    const restored = (event: PageTransitionEvent) => { if (event.persisted) void recovery.check(); };
-    const preloadFailed = () => { void recovery.check(); };
-    const idle = setInterval(() => { recovery.tick(); controller.autoApply(); }, 1000);
-    window.addEventListener("pageshow", restored);
-    window.addEventListener("vite:preloadError", preloadFailed);
+    const visible = () => { if (document.visibilityState === "visible") { noteUpdateInteraction(); controller.foregroundCheck(); } };
+    const idle = setInterval(() => controller.autoApply(), 1000);
     document.addEventListener("visibilitychange", visible);
     window.addEventListener("same-page-check-update", controller.check);
     window.addEventListener("same-page-apply-update", controller.apply);
     return () => {
-      controller.dispose(); recovery.dispose(); clearInterval(idle);
-      window.removeEventListener("pageshow", restored);
-      window.removeEventListener("vite:preloadError", preloadFailed);
+      controller.dispose(); clearInterval(idle);
       document.removeEventListener("visibilitychange", visible);
       window.removeEventListener("same-page-check-update", controller.check);
       window.removeEventListener("same-page-apply-update", controller.apply);
@@ -80,6 +73,30 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     return () => { clearInterval(timer); events.forEach(event => document.removeEventListener(event, noteUpdateInteraction, true)); navigator.serviceWorker?.removeEventListener("message", probe); };
   }, []);
   return <ReleaseChannelMonitor />;
+}
+
+function PageRecovery() {
+  // Page recovery belongs to this document, not to an SW registration attempt.
+  // A late registration must not lose an explicitly requested, deferred reload.
+  useEffect(() => {
+    const recovery = new ShellRecovery(() => window.location.reload());
+    const visible = () => { if (document.visibilityState === "visible") void recovery.check(); };
+    const restored = (event: PageTransitionEvent) => { if (event.persisted) void recovery.check(); };
+    const preloadFailed = () => { void recovery.check(); };
+    const timer = setInterval(recovery.tick, 1000);
+    window.addEventListener("pageshow", restored);
+    window.addEventListener("vite:preloadError", preloadFailed);
+    window.addEventListener("same-page-recover-page", recovery.requestReload);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      recovery.dispose(); clearInterval(timer);
+      window.removeEventListener("pageshow", restored);
+      window.removeEventListener("vite:preloadError", preloadFailed);
+      window.removeEventListener("same-page-recover-page", recovery.requestReload);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, []);
+  return null;
 }
 
 export function UpdateDetails() {

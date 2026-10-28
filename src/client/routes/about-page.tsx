@@ -1,6 +1,6 @@
 import { assetUrl } from "../../shared/asset-url";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ArrowUpRight, BookOpen, ChevronRight, Globe, MessageSquare, ShieldCheck } from "lucide-react";
 import { buildId, buildRunId, buildVersion } from "../../shared/build";
 import { TaskHeader } from "../components/task-header";
@@ -8,6 +8,7 @@ import { UpdateDetails } from "../components/reload-prompt";
 import "../support-pages.css";
 
 export default function AboutPage() {
+  const { state } = useLocation();
   const [message, setMessage] = useState("");
   const information = `合谱 ${buildVersion}\n构建：${buildId}${buildRunId ? `\n流水线：${buildRunId}` : ""}`;
   async function copy() {
@@ -22,6 +23,7 @@ export default function AboutPage() {
         <p className="about-tagline">同一份乐谱，一起练好每一段。</p>
         <p className="support-muted">合唱乐谱与排练笔记</p>
       </header>
+      {state?.recoverPlayer === true && <PlaybackRecovery />}
       <UpdateDetails />
       <nav className="support-links" aria-label="帮助与产品信息">
         <Link to="/" state={{ home: true }}><Globe size={20} aria-hidden="true" /><span>产品介绍<small>了解合谱与排练功能</small></span><ChevronRight size={18} aria-hidden="true" /></Link>
@@ -38,4 +40,17 @@ export default function AboutPage() {
       </details>
     </main>
   </div>;
+}
+
+function PlaybackRecovery() {
+  const [requested, setRequested] = useState(false);
+  return <section className="support-update app-version-panel" aria-labelledby="playback-recovery-heading">
+    <h2 id="playback-recovery-heading">恢复播放器</h2>
+    <p>重新加载页面，让播放器重新获取资源。笔记和本机内容会保留。</p>
+    <button className="primary-button" type="button" disabled={requested} onClick={() => {
+      setRequested(true);
+      window.dispatchEvent(new Event('same-page-recover-page'));
+    }}>重新加载页面</button>
+    {requested && <p role="status">将在当前操作完成、联网后重新加载页面。</p>}
+  </section>;
 }
