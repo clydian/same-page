@@ -209,8 +209,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   };
   console.log(`Verification identity: ${JSON.stringify(identity)}`);
   if (process.env.GITHUB_OUTPUT) {
-    const output = ["full", ...checkNames, "browserGroup"]
-      .map((name) => `${name}=${scope[name]}`)
+    const output = ["full", ...checkNames, "browserGroup", "base"]
+      .map((name) => `${name}=${scope[name] ?? ""}`)
       .join("\n");
     appendFileSync(process.env.GITHUB_OUTPUT, `${output}\n`);
   }

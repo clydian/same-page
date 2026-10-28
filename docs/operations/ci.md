@@ -53,10 +53,10 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 | --- | --- |
 | `checks` | lint、typecheck、Node/组件测试 |
 | `backend` | 按 scope 顺序运行 Worker 与迁移验证；与前端检查并行，数据库保持独立隔离 |
-| `visual` | 产品改动使用 2 个 runner 执行双引擎核心交互；纯测试改动执行完整套件 |
+| `visual` | 使用 2 个 runner 执行所选核心交互及本次变更的核心用例，相关扩展独立报告 |
 | `build` | 统一生产构建、封存校验产物；不等待浏览器环境安装 |
 | `platform` | PWA 双版本交接、下载并校验生产产物后测量加载预算 |
-| `smoke` | 下载并校验同份产物，产品改动以 2 个 runner 执行真实 Worker/D1/R2 核心流程；纯测试改动执行完整套件 |
+| `smoke` | 下载并校验同份产物，以 2 个 runner 执行真实 Worker/D1/R2 核心流程；相关扩展独立报告 |
 | `verify` | 等待以上全部结束；被选中的 job 必须成功，未选中的必须为 skipped；失败、取消、意外跳过均不能通过 |
 
 `checks` 在安装依赖前先运行发布存储边界预检及其回归，用经审查的 stable 封存清单
@@ -69,17 +69,36 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 覆盖尚待实机验收的基线。CI 成功和 deploy skipped 不表示已部署，首次流程见
 [首次桥接](production-release.md#首次桥接需另行授权)。
 
-产品变更的视觉和 smoke 各两片并行；纯测试范围的全量执行保持四片，smoke 同时最多两片。任一必跑分片失败都阻止 verify。独立扩展工作流不阻止发布，但其失败必须被调查；不要把非阻塞等同于被忽略。
+视觉和 smoke 的核心检查各两片，不再以是否部署产品代码决定 gate／all。任一必跑分片失败都阻止 verify。PR 的相关扩展和测试版发布后的完整扩展由独立工作流报告，不阻止发布，但其失败必须被调查。
 
 ## 测试版发布后的扩展检查
 
-按 [测试精简审计](test-value-audit-2026-10-28.md) 的文件责任，产品 PR 与 main 的
-视觉/真实 Worker smoke 都只跑核心组；耗时较高的详细界面、播放器和失败组合在测试版
-准入后由独立 `Extended browser verification` 工作流运行。这样不会让后台检查延长
-PR 所见的 CI 或阻塞测试版发布。纯测试改动不发布，仍在 CI 运行完整选中套件；修改
-扩展工作流或选择器的 PR 会另外自动运行独立扩展工作流。新增未分类测试默认进入
-核心组，不能悄悄脱离门禁。视觉测试使用该提交的开发服务器；扩展 smoke 下载并校验
-原始发布构建，均不能代替真实设备验收。
+核心／扩展分类表示失败是否阻止测试版，不表示扩展测试只能在发布后运行。
+按[测试精简审计](test-value-audit-2026-10-28.md)保留核心门禁；PR 另运行本次相关扩展，
+测试版准入后仍运行完整扩展，供稳定版提升时查看。
+
+PR 使用现有比较基准，由 `scripts/browser-test-plan.mjs` 生成两份清单：
+
+- 必跑：范围内核心测试，加新增／修改的核心测试，即使后者原本不在 library 范围内。
+- 相关扩展：新增／修改且归于 extended 的测试；在独立 `Extended browser verification`
+  工作流显示真实结果，不纳入 required `verify`，不通过 `continue-on-error` 隐藏失败。
+- 套件内非测试文件（含二进制 fixture）、共享测试脚本、runner、依赖和相关 workflow
+  变化时，保守扩大两套浏览器检查：现有 fixture 存在跨目录消费者，不维护易漂移的逐文件映射。
+  比较历史不可用也扩大验证，不能解释成没有改动。删除的测试不会作为可执行文件传给 runner。
+
+选择与发布布尔值分离，纯测试 PR 不再默认跑全套。两个清单共用分类器，去重后交给现有
+Node runner；计划与执行都使用同一比较 base，PR 先取 merge-base，push 按 before→HEAD。
+PR summary 记录清单及选择原因。普通源码改动不能自动精确推断全部 E2E 影响：修复应补充
+回归；已有用例无需改动时，可用 `node --test <测试文件>` 明确补验，不维护源码→E2E 大表。
+
+独立工作流对每个 PR 先执行轻量计划，没有相关用例时不安装浏览器或构建。
+只有 visual 时直接运行开发服务器测试；只有选中 smoke 才构建并封存该 PR 的隔离产物，
+不等待主 CI，因而不会延长核心门禁关键路径。相关分片最多两片，单文件使用一片；
+后续 PR 提交取消旧 PR 扩展运行，main 的实际发布及发布后取证不被取消。
+
+合并 main 后，核心门禁重新验证实际合并结果。成功准入测试版后，独立工作流校验原始
+封存产物并运行完整扩展。PR 的相关结果不写线上验证记录，不能代替该候选发布后的完整
+结果；相关 smoke 构建与 main 原始产物均不能代替真实设备验收。
 
 准入成功后记录 `running`，扩展 job 完成后记录 success/failure/cancelled；结果附到该
 build_id 和已准入 manifest digest。独立工作流先验证原 CI 的指定 attempt 确实成功准入
@@ -184,6 +203,7 @@ node --test --test-name-pattern='^chromium: preview notes stay local signed-in-d
 
 加入场景共用 `join-keyboard-cases.mjs`，只按场景分组，避免两套测试实现漂移。
 分类由 `scripts/browser-test-selection.mjs` 执行，选择器回归保护核心与扩展归属及分片完整性。
+`join-keyboard-extended.test.mjs` 新增或修改时也自动在 PR 提前验证，仍保持非阻塞扩展属性。
 此安排不改变真实 Worker 的邀请准入、权限和数据隔离检查。
 
 自动化模拟键盘视口变化；原生 Chromium 缩放检查也不等同 iPhone 系统键盘。
@@ -210,7 +230,7 @@ build 固定 `SAME_PAGE_RELEASE_CHANNELS=1`，产物使用 `/_releases/<SHA>/` �
 
 ## 浏览器分片
 
-`scripts/run-browser-tests.mjs` 自动扫描文件，通过 `scripts/browser-test-selection.mjs` 选择 all/library 范围并排序，随后交给 Node 原生 `--test-shard=index/count` 按文件均分。没有耗时权重、历史数据或手工分片名单。新文件自动加入 all；library 仍是按消费者审计的显式范围名单。非法参数、缺失 library 文件或文件数少于分片数都会失败，不能静默空跑。
+`scripts/run-browser-tests.mjs` 自动扫描文件，通过分类器及变更计划选择 all/library/gate/extended/related 范围并排序，随后交给 Node 原生 `--test-shard=index/count` 按文件均分。没有耗时权重、历史数据或手工分片名单。新文件自动加入 all；library 仍是按消费者审计的显式范围名单。非法参数、缺失 library 文件或文件数少于分片数都会失败，不能静默空跑。
 
 文件数量均分不保证运行时间相同；接受这一差异以减少维护成本。各 runner 使用相同源码、同一排序后的候选列表，Node 负责分配。回归通过真实 runner 验证分片并集完整且互不重复，包括新增文件。
 
@@ -219,6 +239,9 @@ build 固定 `SAME_PAGE_RELEASE_CHANNELS=1`，产物使用 `/_releases/<SHA>/` �
 ```bash
 node scripts/run-browser-tests.mjs visual all 1/4
 node scripts/run-browser-tests.mjs smoke library 1/2
+# 给定 CI 规范化后的比较 SHA：必跑核心／相关扩展。无相关用例时 related 明确空跑退出。
+node scripts/run-browser-tests.mjs visual gate 1/2 "$TEST_BASE"
+node scripts/run-browser-tests.mjs visual related 1/1 "$TEST_BASE"
 ```
 
 拆分保留全部测试、引擎、断言和原有同机并发，不代表减少总计算时间。独立 runner 拉取固定浏览器镜像并安装 npm 依赖；产物下载与 smoke 等待构建也会进入关键路径。修改后按 Actions 实际耗时和失败率评估，不承诺线性加速。

@@ -1,17 +1,15 @@
 name: Extended browser verification
 
 on:
-  # Exercise this workflow when its own selection/runner changes. Ordinary PRs
-  # need only the fast gate; test-only PRs run their full suite in CI.
+  # PR results are advisory and independent of the required CI workflow.
   pull_request:
-    paths:
-      - .github/workflows/browser-extended.yml
-      - scripts/browser-test-selection.mjs
-      - scripts/run-browser-tests.mjs
-      - scripts/extended-run-plan.mjs
   workflow_run:
     workflows: [CI]
     types: [completed]
+
+concurrency:
+  group: extended-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   actions: read
@@ -24,6 +22,13 @@ jobs:
     timeout-minutes: 8
     outputs:
       proceed: ${{ steps.admission.outputs.proceed }}
+      base: ${{ steps.related.outputs.base }}
+      visual: ${{ steps.related.outputs.visual }}
+      smoke: ${{ steps.related.outputs.smoke }}
+      visual-shards: ${{ steps.related.outputs.visual-shards }}
+      smoke-shards: ${{ steps.related.outputs.smoke-shards }}
+      visual-count: ${{ steps.related.outputs.visual-count }}
+      smoke-count: ${{ steps.related.outputs.smoke-count }}
       manifest: ${{ steps.identity.outputs.manifest }}
       sha: ${{ steps.identity.outputs.sha }}
       artifact: ${{ steps.identity.outputs.artifact }}
@@ -32,9 +37,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+      - name: Select related PR browser tests
+        if: github.event_name == 'pull_request'
+        id: related
+        run: |
+          comparison_base=$(git merge-base "$TEST_BASE" HEAD) || comparison_base=''
+          echo "base=$comparison_base" >> "$GITHUB_OUTPUT"
+          node scripts/browser-test-plan.mjs "$comparison_base"
+        env:
+          TEST_BASE: ${{ github.event.pull_request.base.sha }}
       - name: Check actual beta admission
         id: admission
         run: |
@@ -53,7 +68,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
       - name: Build isolated candidate for workflow changes
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.related.outputs.smoke == 'true'
         run: |
           npm ci --prefer-offline --no-audit --no-fund
           npm run build
@@ -63,7 +78,7 @@ jobs:
           SAME_PAGE_RELEASE_CHANNELS: '1'
           VITE_CONNECTIONS_ENABLED: 'true'
       - name: Save isolated candidate for PR verification
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.related.outputs.smoke == 'true'
         id: pr-artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -73,7 +88,7 @@ jobs:
           retention-days: 1
           if-no-files-found: error
       - name: Verify and bind the original artifact
-        if: steps.admission.outputs.proceed == 'true'
+        if: steps.admission.outputs.proceed == 'true' && (github.event_name == 'workflow_run' || steps.related.outputs.smoke == 'true')
         id: identity
         env:
           SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
@@ -97,11 +112,11 @@ jobs:
 
   visual:
     needs: plan
-    if: needs.plan.outputs.proceed == 'true'
+    if: needs.plan.outputs.proceed == 'true' && (github.event_name == 'workflow_run' || needs.plan.outputs.visual == 'true')
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: ${{ fromJSON(needs.plan.outputs.visual-shards || '[1, 2]') }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
@@ -110,14 +125,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.plan.outputs.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.sha || needs.plan.outputs.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - run: node .github/scripts/verify-browsers.mjs
-      - run: node scripts/run-browser-tests.mjs visual extended "${{ matrix.shard }}/2"
+      - run: node scripts/run-browser-tests.mjs visual "$BROWSER_GROUP" "${{ matrix.shard }}/$SHARDS" "$TEST_BASE"
+        env:
+          BROWSER_GROUP: ${{ github.event_name == 'pull_request' && 'related' || 'extended' }}
+          TEST_BASE: ${{ needs.plan.outputs.base }}
+          SHARDS: ${{ github.event_name == 'pull_request' && needs.plan.outputs.visual-count || '2' }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -128,11 +148,11 @@ jobs:
 
   smoke:
     needs: plan
-    if: needs.plan.outputs.proceed == 'true'
+    if: needs.plan.outputs.proceed == 'true' && (github.event_name == 'workflow_run' || needs.plan.outputs.smoke == 'true')
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: ${{ fromJSON(needs.plan.outputs.smoke-shards || '[1, 2]') }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
@@ -141,7 +161,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.plan.outputs.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.sha || needs.plan.outputs.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -159,7 +180,11 @@ jobs:
           tar -xf release.tar
           node scripts/release-artifact.mjs verify "$SOURCE_SHA"
       - run: node .github/scripts/verify-browsers.mjs
-      - run: node scripts/run-browser-tests.mjs smoke extended "${{ matrix.shard }}/2"
+      - run: node scripts/run-browser-tests.mjs smoke "$BROWSER_GROUP" "${{ matrix.shard }}/$SHARDS" "$TEST_BASE"
+        env:
+          BROWSER_GROUP: ${{ github.event_name == 'pull_request' && 'related' || 'extended' }}
+          TEST_BASE: ${{ needs.plan.outputs.base }}
+          SHARDS: ${{ github.event_name == 'pull_request' && needs.plan.outputs.smoke-count || '2' }}
         timeout-minutes: 12
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -178,7 +203,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.plan.outputs.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.sha || needs.plan.outputs.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
