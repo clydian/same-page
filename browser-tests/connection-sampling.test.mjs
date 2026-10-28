@@ -37,6 +37,11 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-desktop.png` });
     let release;
     await page.route('**/api/_entry/backup/choirs', async route => { await new Promise(resolve => { release = resolve; }); await route.continue(); });
+    // Switching routes now restarts the mounted library read (#623). Finish
+    // that successful business observation before simulating the next outage;
+    // otherwise its late 200 can legitimately mark backup reachable again.
+    const backupLibraryResponse = page.waitForResponse(response =>
+      new URL(response.url()).pathname === `/api/_entry/backup/choirs/${fixture.choirId}/bootstrap` && response.status() === 200);
     fixture.network.directBroken = true;
     await page.evaluate(() => { void import('/src/client/connection/connection.ts').then(({ connections }) => connections.fetch('/api/choirs')).catch(() => {}); });
     await expect(page.getByText('正在尝试备用…', { exact: true })).toBeVisible();
@@ -45,6 +50,8 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await expect.poll(() => typeof release).toBe('function'); release();
     await expect(page.getByText('当前线路：备用', { exact: true })).toBeVisible();
     await page.unroute('**/api/_entry/backup/choirs');
+    assert.equal(await (await backupLibraryResponse).finished(), null);
+    await expect(page.getByRole('button', { name: '上传 PDF', exact: true })).toBeEnabled();
     fixture.network.backupBroken = true;
     await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.fetch('/api/choirs').catch(() => {}); await connections.sample(new AbortController().signal); });
     await expect(page.getByText('当前线路：备用（暂时连不上）', { exact: true })).toBeVisible();
