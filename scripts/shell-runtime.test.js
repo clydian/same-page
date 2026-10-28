@@ -31,6 +31,38 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async request => { const body = server.get(request.url); if (body === undefined) throw new TypeError('offline'); return new Response(body, { headers: { 'Content-Type': request.url.endsWith('.js') ? 'text/javascript' : 'text/html' } }); }));
 });
 afterEach(() => { vi.restoreAllMocks(); });
+
+it('finishes the worker install even when advisory progress delivery never settles', async () => {
+  const seed = await release('abc1234');
+  const record = (await seed.records())[0];
+  const listeners = new Map();
+  scope.__WB_MANIFEST = record.entries;
+  scope.addEventListener = (type, listener) => listeners.set(type, listener);
+  scope.clients.matchAll = () => new Promise(() => {});
+  vi.stubGlobal('self', scope);
+  vi.stubGlobal('__SAME_PAGE_BUILD_ID__', 'abc1234');
+  vi.stubGlobal('__SAME_PAGE_RELEASE_CHANNELS__', false);
+  vi.useFakeTimers();
+  try {
+    vi.resetModules();
+    await import('../service-worker/sw.ts');
+    let installation, completed = false;
+    listeners.get('install')({ waitUntil: promise => { installation = promise.then(() => { completed = true; }); } });
+    await vi.waitFor(() => {
+      let progress;
+      listeners.get('message')({ data: {type:'SAME_PAGE_INSTALL_PROGRESS'}, ports:[{postMessage:value=>{progress=value;}}] });
+      expect(progress?.stage).toBe('ready');
+    });
+    expect(completed).toBe(false);
+    await vi.advanceTimersByTimeAsync(1000);
+    await installation;
+    expect(completed).toBe(true);
+    expect(await complete(seed)).toBe(true);
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
+});
 async function release(id, bytes = 32, scriptCount = 1) {
   const html = `<meta name="same-page-build-id" content="${id}">`;
   const files = [['/', html], ...Array.from({ length: scriptCount }, (_, index) => [`/assets/main-${id}${index ? '-' + index : ''}.js`, `/* ${id}${index ? '-' + index : ''} */`])];
@@ -358,4 +390,101 @@ it('keeps verified candidate resources across a failed download and resumes only
   const resumed = await release('next');
   expect(await complete(resumed)).toBe(true);
   expect(fetch.mock.calls.map(([request]) => request.url)).not.toContain(origin);
+});
+
+async function fullPlayerRelease(id, onProgress) {
+  const files = [
+    ['/', `<meta name="same-page-build-id" content="${id}">`, 'text/html'],
+    [`/_releases/${id}/assets/musicxml-player-test.js`, '/* player */', 'text/javascript'],
+    [`/_releases/${id}/assets/prepare.worker-test.js`, '/* preparation */', 'text/javascript'],
+    [`/_releases/${id}/playback/${id}/soundfont/sonivox.sf2`, 'soundfont bytes', 'application/octet-stream'],
+  ];
+  const entries = await Promise.all(files.map(async ([url, body]) => ({url,revision:null,bytes:Buffer.byteLength(body),integrity:`sha256-${await digest(new TextEncoder().encode(body))}`})));
+  for (const [url, body] of files) server.set(new URL(url,origin).href,body);
+  const send = vi.fn(async (url, validate, _signal, _policy, received) => {
+    const file=files.find(([name])=>new URL(name,origin).href===url);
+    if (!file || !server.has(url)) throw new TypeError('offline');
+    received?.(0); received?.(Buffer.byteLength(server.get(url)));
+    const response=new Response(server.get(url),{headers:{'Content-Type':file[2],Vary:'Origin, Accept-Encoding'}});
+    if (!await validate(response)) throw new Error('shell_integrity_mismatch');
+    return response;
+  });
+  return {runtime:new ShellRuntime(scope,entries,id,undefined,send,onProgress),entries,files,send};
+}
+it('migrates verified legacy player bytes into the required shell across release prefixes',async()=>{
+  const old=await release('previous'); await presented(old);
+  const previous=await fullPlayerRelease('previous');
+  const cache=await caches.open('same-page-playback-v1:previous');
+  await cache.put(origin+'_releases/previous/playback/previous/manifest.json',Response.json({buildId:'previous',entries:previous.entries.slice(1)}));
+  for(const [url,body,type] of previous.files.slice(1)) await cache.put(new URL(url,origin).href,new Response(body,{headers:{'Content-Type':type}}));
+  const next=await fullPlayerRelease('next'); await next.runtime.install();
+  expect(next.send.mock.calls.map(call=>call[0])).toEqual([origin]);
+  await caches.delete('same-page-playback-v1:previous'); server.clear();
+  await next.runtime.ready();
+  for(const entry of next.entries.slice(1)) {
+    const response=await next.runtime.asset(new Request(new URL(entry.url,origin)));
+    expect(response.status).toBe(200); expect(response.headers.get('Vary')).toBeNull();
+  }
+  expect(await complete(old)).toBe(true);
+});
+it.each(['corrupt','wrong-mime','unreadable'])('downloads only the invalid legacy player target (%s)',async kind=>{
+  const old=await fullPlayerRelease('previous');
+  const cache=await caches.open('same-page-playback-v1:previous');
+  await cache.put(origin+'_releases/previous/playback/previous/manifest.json',Response.json({buildId:'previous',entries:old.entries.slice(1)}));
+  for(const [url,body,type] of old.files.slice(1)) await cache.put(new URL(url,origin).href,new Response(body,{headers:{'Content-Type':type}}));
+  const sf=old.entries.at(-1);
+  if(kind==='corrupt') await cache.put(new URL(sf.url,origin).href,new Response('corrupt',{headers:{'Content-Type':'application/octet-stream'}}));
+  if(kind==='wrong-mime') await cache.put(new URL(sf.url,origin).href,new Response('soundfont bytes',{headers:{'Content-Type':'font/woff2'}}));
+  if(kind==='unreadable') {
+    const original=cache.match.bind(cache);
+    cache.match=async(key,options)=>String(key).endsWith('.sf2')?new Response(new ReadableStream({start(controller){controller.error(new Error('unreadable'));}})):original(key,options);
+  }
+  const next=await fullPlayerRelease('next'); await next.runtime.install();
+  expect(next.send.mock.calls.map(call=>call[0])).toEqual([origin,new URL(next.entries.at(-1).url,origin).href]);
+});
+it('a missing required player prevents installation and preserves the old displayed release',async()=>{
+  const old=await release('old'); await presented(old);
+  const next=await fullPlayerRelease('next'); server.delete(new URL(next.entries.at(-1).url,origin).href);
+  await expect(next.runtime.install()).rejects.toThrow('offline');
+  expect(await next.runtime.availableBuild('next')).toBe(false);
+  expect(await complete(old)).toBe(true);
+  expect(await(await next.runtime.navigation()).text()).toContain('content="old"');
+});
+it('reuses unchanged required player resources on the following upgrade and detects offline eviction',async()=>{
+  const first=await fullPlayerRelease('first'); await first.runtime.install(); await presented(first.runtime);
+  const second=await fullPlayerRelease('second'); await second.runtime.install(); await presented(second.runtime);
+  expect(second.send.mock.calls.map(call=>call[0])).toEqual([origin]);
+  server.clear(); await second.runtime.ready();
+  const own=await second.runtime.identity;
+  await(await caches.open(own.cacheName)).delete(new URL(second.entries.at(-1).url,origin).href);
+  await caches.delete((await first.runtime.identity).cacheName);
+  expect(await second.runtime.availableBuild('second')).toBe(false);
+  await expect(second.runtime.ready()).rejects.toThrow('offline');
+});
+it('retires legacy player bundles with their old shell without deleting migrated playback or business storage',async()=>{
+  const old=await release('old'); await presented(old);
+  await caches.open('same-page-playback-v1:old');
+  const unrelated=await caches.open('business-files'); await unrelated.put(origin+'private',new Response('retained'));
+  const current=await fullPlayerRelease('current'); await current.runtime.install(); await presented(current.runtime);
+  const latest=await fullPlayerRelease('latest'); await latest.runtime.install(); await presented(latest.runtime);
+  scope.registration.active=target(()=>latest.runtime.identity);
+  await latest.runtime.collect();
+  expect(stores.has((await old.identity).cacheName)).toBe(false);
+  expect(stores.has('same-page-playback-v1:old')).toBe(false);
+  server.clear(); await latest.runtime.ready();
+  expect(await complete(current.runtime)).toBe(true);
+  expect(await(await unrelated.match(origin+'private')).text()).toBe('retained');
+});
+
+it('reports preparation as ready only after the entire release has been verified and committed',async()=>{
+ const snapshots=[];
+ const full=await fullPlayerRelease('abc1234',p=>snapshots.push(p));
+ await full.runtime.install();
+ const total=full.entries.reduce((n,e)=>n+e.bytes,0);
+ expect(snapshots[0]).toMatchObject({stage:'checking',preparedBytes:0,totalBytes:total});
+ expect(snapshots.some(p=>p.stage==='verifying')).toBe(true);
+ expect(snapshots.at(-1)).toMatchObject({stage:'ready',preparedBytes:total,downloadedBytes:total,reusedBytes:0});
+ expect(await complete(full.runtime)).toBe(true);
+ const next=await fullPlayerRelease('def5678',p=>snapshots.push(p)); await next.runtime.install();
+ expect(snapshots.at(-1).reusedBytes).toBe(full.entries.slice(1).reduce((n,e)=>n+e.bytes,0));
 });

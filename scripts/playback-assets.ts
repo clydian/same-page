@@ -31,7 +31,7 @@ export function playbackAssets(buildId: string, assetBase = "/"): Plugin {
           for (const css of (entry as typeof entry & { viteMetadata?: { importedCss?: Set<string> } }).viteMetadata?.importedCss ?? []) add(css);
         }
       };
-      for (const name of Object.keys(bundle)) if (/musicxml-player-|musicxml-engine-|prepare\.worker-|alphaTab\./.test(name)) add(name);
+      for (const name of Object.keys(bundle)) if (/musicxml-player-|audio-player-|musicxml-engine-|prepare\.worker-|alphaTab\./.test(name)) add(name);
       for (const directory of ['font', 'soundfont']) {
         const dest = path.join(root, base, directory);
         await mkdir(dest, { recursive: true });

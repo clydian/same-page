@@ -49,8 +49,8 @@ function PlaybackFailure() {
   const navigation = useAppNavigation();
   const navigate = useNavigate();
   return <aside className="playback-loading" aria-label="播放器加载失败" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: '#fcfdfb', color: '#31463a', padding: 8 }}>
-    <p role="alert">播放器加载失败，乐谱和笔记仍可继续使用。请检查网络，或保存当前操作后重新加载页面以恢复播放器。</p>
-    <p role="status">{update.message}</p>
+    <p role="alert">播放器加载失败，乐谱和笔记仍可继续使用。请保存当前操作，再进入恢复播放器检查本机资源并重新加载。</p>
+    <p role="status">版本更新：{update.message}</p>
     <Button onPress={stopPlayback}>关闭播放器</Button>
     <Button onPress={() => navigation.afterEditing(() => {
       stopPlayback();

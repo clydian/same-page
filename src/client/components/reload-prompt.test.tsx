@@ -68,10 +68,12 @@ it("forces a live-window handover only on request and preserves operation vetoes
   expect(post).toHaveBeenCalledTimes(2);
 });
 it("vetoes legacy automatic probes while preserving explicit cross-window safety checks", async () => {
-  let probe!: (event: MessageEvent) => void;
+  // ServiceWorkerContainer supports independent safety and progress listeners.
+  const probes = new Set<(event: MessageEvent) => void>();
+  const probe = (event: MessageEvent) => probes.forEach(listener => listener(event));
   Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {
-    addEventListener: (_name: string, listener: (event: MessageEvent) => void) => { probe = listener; },
-    removeEventListener: vi.fn(), register: vi.fn(async () => registration),
+    addEventListener: (_name: string, listener: (event: MessageEvent) => void) => { probes.add(listener); },
+    removeEventListener: (_name: string, listener: (event: MessageEvent) => void) => { probes.delete(listener); }, register: vi.fn(async () => registration),
   } });
   render(<MemoryRouter initialEntries={["/about"]}><ReloadPrompt /></MemoryRouter>);
   await waitFor(() => expect(registrationUpdateMock).toHaveBeenCalled());

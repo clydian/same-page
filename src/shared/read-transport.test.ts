@@ -213,3 +213,14 @@ it.each([502, 504])('keeps a pinned gateway HTTP %i on its chosen line', async s
   await expect(publicAssetReader({ origin: origins.direct, origins, send, routes: () => ['direct'] })(path, verify)).rejects.toThrow('public_asset_unavailable');
   expect(send).toHaveBeenCalledTimes(1);
 });
+
+it('reports decoded body bytes during streaming and resets reception when falling back', async () => {
+  const progress: number[] = [];
+  const send = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({
+    start(controller) { controller.enqueue(new Uint8Array([1,2])); },
+    pull(controller) { controller.error(new TypeError('broken stream')); },
+  }))).mockResolvedValueOnce(new Response(new Uint8Array([3,4,5]), {headers:{'Content-Length':'1'}}));
+  const response = await publicAssetReader({origin:origins.direct,origins,send})(path,async()=>true,undefined,'asset',bytes=>progress.push(bytes));
+  expect([...new Uint8Array(await response.arrayBuffer())]).toEqual([3,4,5]);
+  expect(progress).toEqual([0,2,0,3]);
+});

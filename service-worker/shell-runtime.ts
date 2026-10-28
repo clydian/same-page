@@ -1,14 +1,17 @@
 import { shellDownloadTimeoutMs } from "../src/shared/update-timing";
+import { InstallProgressTracker } from './install-progress';
+import type { InstallProgress } from '../src/shared/update-progress';
 import { configuredAssetReader } from "../src/shared/public-asset-fetch";
 import { networkFailure } from "../src/shared/read-transport";
 import { recoveryPage } from "./recovery-page";
 import { ReleasePermission } from "./release-permission";
-import { playbackCacheName } from '../src/shared/playback-assets';
+import { assetValid, cachedPlaybackManifest, playbackAssetTypeValid, playbackCacheName, playbackCachePrefix, type PlaybackAsset } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
 import { applicationShellReleaseLimitBytes } from '../src/shared/update-diagnostics';
 export interface ManifestEntry { url: string; revision: string | null; integrity: string; bytes: number; networkUrl?: string }
 export interface ShellRecord { cacheName: string; buildId: string; created: number; complete: boolean; installing?: number; activated?: number; candidateOnly?: boolean; entries: ManifestEntry[] }
 export interface ShellIdentity { cacheName: string; buildId: string }
+type ReusableAsset = { cacheName: string; entry: ManifestEntry | PlaybackAsset; player: boolean };
 export const shellReleaseLimit = applicationShellReleaseLimitBytes;
 const probeType = 'SAME_PAGE_SHELL_IDENTITY';
 
@@ -17,8 +20,10 @@ export async function digest(bytes: ArrayBuffer | Uint8Array<ArrayBuffer>) {
 }
 export async function valid(response: Response | undefined, entry: ManifestEntry) {
   const type = response?.headers.get('Content-Type') ?? '';
+  if (response?.redirected) return false;
   if (/\.(?:m?js)$/.test(entry.url) && !/(?:javascript|ecmascript)/i.test(type)) return false;
   if (/\.css$/.test(entry.url) && !/text\/css/i.test(type)) return false;
+  if (/\.(?:woff2?|otf|eot|sf2)$/.test(entry.url) && (!response || !playbackAssetTypeValid(response, entry.url))) return false;
   return Boolean(response?.status === 200 && entry.integrity === `sha256-${await digest(await response.clone().arrayBuffer())}`);
 }
 export async function identify(target: { postMessage(message: unknown, transfer: Transferable[]): void } | null | undefined, type = probeType): Promise<ShellIdentity | null | undefined> {
@@ -36,7 +41,8 @@ export async function identify(target: { postMessage(message: unknown, transfer:
   });
 }
 
-// This manager owns shell caches, their optional public player bundles and its registry, never business storage.
+// This manager owns complete application/player releases and legacy public
+// player bundles, never business storage.
 export class ShellRuntime {
   readonly prefix: string;
   readonly registryName: string;
@@ -46,7 +52,28 @@ export class ShellRuntime {
   private repair?: Promise<void>;
   private assetRecords?: Promise<ShellRecord[]>;
   private audit?: Promise<void>;
-  constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string, private permission?: ReleasePermission, private readAsset = configuredAssetReader(scope.location.origin)) {
+  private progressSequence = 0;
+  private progressSnapshot: InstallProgress | null = null;
+  private progressPublishedAt = 0;
+  private progressTimer?: ReturnType<typeof setTimeout>;
+  private flushProgress = () => {
+    clearTimeout(this.progressTimer); this.progressTimer = undefined;
+    if (!this.progressSnapshot) return;
+    this.progressPublishedAt = Date.now();
+    try { this.notifyProgress(this.progressSnapshot); } catch { /* Presentation cannot fail installation. */ }
+  };
+  get installProgress() { return this.progressSnapshot; }
+  private publishProgress = (value: Omit<InstallProgress, 'sequence'>) => {
+    const changed = value.stage !== this.progressSnapshot?.stage;
+    this.progressSnapshot = {...value,sequence:++this.progressSequence};
+    if (changed || Date.now() - this.progressPublishedAt >= 200) {
+      this.flushProgress();
+    } else if (this.progressTimer === undefined) {
+      this.progressTimer = setTimeout(this.flushProgress, 200 - (Date.now() - this.progressPublishedAt));
+    }
+  };
+  private reuseIndex?: Promise<Map<string, ReusableAsset[]>>;
+  constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string, private permission?: ReleasePermission, private readAsset = configuredAssetReader(scope.location.origin), private notifyProgress: (progress: InstallProgress) => void = () => {}) {
     this.prefix = `same-page-shell-v2:${encodeURIComponent(scope.registration.scope)}:`;
     this.legacyPrefix = `same-page-shell-v1:${encodeURIComponent(scope.registration.scope)}:`;
     this.registryName = `same-page-shell-registry-v1:${encodeURIComponent(scope.registration.scope)}`;
@@ -102,38 +129,77 @@ export class ShellRuntime {
     }
     return result;
   }
-  private async obtain(entry: ManifestEntry, signal?: AbortSignal) {
+  private async obtain(entry: ManifestEntry, signal?: AbortSignal, progress?: InstallProgressTracker) {
     // Copy matching immutable bytes, never cache handles or another release's
     // revision bookkeeping. Legacy cleanup can then delete its copy safely.
     let response: Response | undefined;
     for (const name of await caches.keys()) {
       if (!name.startsWith(this.prefix) && !name.startsWith(this.legacyPrefix) && !(name.startsWith('workbox-') && name.includes('-precache-') && name.endsWith(this.scope.registration.scope))) continue;
-      const candidate = await caches.match(entry.url, { cacheName: name, ignoreSearch: true });
-      if (candidate && await valid(candidate, entry)) { response = candidate; break; }
+      try {
+        const candidate = await caches.match(entry.url, { cacheName: name, ignoreSearch: true });
+        if (candidate && await valid(candidate, entry)) { response = candidate; break; }
+      } catch { signal?.throwIfAborted(); /* A corrupt retained response is a miss. */ }
     }
-    response ??= await this.readAsset(entry.networkUrl ?? entry.url, response => valid(response, entry), signal);
+    if (!response) {
+      // Snapshot legacy cache keys under the collector's lock so opening a
+      // source cannot recreate a namespace concurrently retired by collection.
+      this.reuseIndex ??= this.locked(() => this.indexReusableAssets());
+      const names = await caches.keys();
+      for (const candidate of (await this.reuseIndex).get(entry.integrity) ?? []) {
+        signal?.throwIfAborted();
+        if (candidate.entry.bytes !== entry.bytes || !names.includes(candidate.cacheName)) continue;
+        try {
+          const cached = await caches.match(new URL(candidate.entry.url, this.scope.location.origin).href, { cacheName: candidate.cacheName });
+          if (cached && (candidate.player ? playbackAssetTypeValid(cached, entry.url) && await assetValid(cached, entry) : await valid(cached, entry))) {
+            response = cached; break;
+          }
+        } catch { signal?.throwIfAborted(); /* An unreadable old entry is a miss. */ }
+      }
+    }
+    const reused = Boolean(response);
+    response ??= await this.readAsset(entry.networkUrl ?? entry.url, response => valid(response, entry), signal, 'asset',
+      progress ? bytes => progress.receive(entry, bytes) : undefined);
     if (!await valid(response, entry)) throw new Error('shell_integrity_mismatch');
     // A constructed response cannot carry a network redirect flag or compressed
     // transfer headers after its decoded bytes have been read.
     const headers = new Headers(response.headers);
-    headers.delete('content-encoding'); headers.delete('content-length');
-    return new Response(await response.arrayBuffer(), { status: 200, headers });
+    headers.delete('content-encoding'); headers.delete('content-length'); headers.delete('vary');
+    const normalized = new Response(await response.arrayBuffer(), { status: 200, headers });
+    return { response: normalized, reused };
   }
-  private async check(record: ShellRecord, repair: boolean, verify: boolean, signal?: AbortSignal) {
+  private async indexReusableAssets() {
+    const result = new Map<string, ReusableAsset[]>();
+    const add = (cacheName: string, entry: ManifestEntry | PlaybackAsset, player: boolean) => {
+      const candidates = result.get(entry.integrity) ?? [];
+      candidates.push({ cacheName, entry, player }); result.set(entry.integrity, candidates);
+    };
+    for (const record of await this.records()) for (const entry of record.entries) add(record.cacheName, entry, false);
+    for (const name of await caches.keys()) {
+      if (!name.startsWith(playbackCachePrefix)) continue;
+      try {
+        const build = decodeURIComponent(name.slice(playbackCachePrefix.length));
+        const manifest = await cachedPlaybackManifest(await caches.open(name), build);
+        for (const entry of manifest?.entries ?? []) add(name, entry, true);
+      } catch { /* Legacy manifests are reuse hints, never readiness receipts. */ }
+    }
+    return result;
+  }
+  private async check(record: ShellRecord, repair: boolean, verify: boolean, signal?: AbortSignal, progress?: InstallProgressTracker) {
     const cache = await caches.open(record.cacheName);
     const checkEntry = async (entry: ManifestEntry) => {
       const response = await cache.match(entry.url);
       const correctVersion = async (value: Response) => entry.url !== this.scope.registration.scope ||
         /text\/html/i.test(value.headers.get('Content-Type') ?? '') && (await value.clone().text()).includes(`<meta name="same-page-build-id" content="${record.buildId}">`);
-      if (response && (!verify || await valid(response, entry)) && await correctVersion(response)) return;
+      if (response && (!verify || await valid(response, entry)) && await correctVersion(response)) { progress?.prepared(entry, true); return; }
       if (!repair) throw new Error('shell_incomplete');
-      const replacement = await this.obtain(entry, signal);
+      const {response: replacement, reused} = await this.obtain(entry, signal, progress);
       if (!await correctVersion(replacement)) throw new Error('shell_version_mismatch');
       // After a failed WebKit install, put alone may resolve without a usable
       // entry. Delete the invalid record before repair; the full audit still
       // verifies that the replacement was actually stored.
       await cache.delete(entry.url);
       await cache.put(entry.url, replacement);
+      progress?.prepared(entry, reused);
     };
     // Bound network/crypto work without making mobile installation pay one RTT
     // per manifest entry. Finish in-flight writes before cleanup on failure.
@@ -152,6 +218,7 @@ export class ShellRuntime {
     return locks ? locks.request(this.prefix + 'lifecycle', action) : action();
   }
   async install() {
+    this.reuseIndex = undefined;
     await this.permission?.confirm();
     const record = await this.current;
     if (record.entries.reduce((bytes, entry) => bytes + entry.bytes, 0) > shellReleaseLimit) throw new Error('shell_release_too_large');
@@ -172,18 +239,22 @@ export class ShellRuntime {
       if (this.scope.registration.active) await identify(this.scope.registration.active, 'SAME_PAGE_COLLECT_SHELLS');
       for (let attempt = 0; ; attempt++) {
         try {
-          await this.check(record, true, true, AbortSignal.timeout(shellDownloadTimeoutMs));
+          const progress = new InstallProgressTracker(record.buildId, record.entries.reduce((n,e)=>n+e.bytes,0), this.publishProgress);
+          await this.check(record, true, true, AbortSignal.timeout(shellDownloadTimeoutMs), progress);
+          progress.finish('verifying');
           await this.locked(async () => {
             await this.check(record, false, true);
             await this.permission?.confirm();
             delete record.installing; record.complete = true; await this.save(record);
           });
+          progress.finish('ready');
           break;
         } catch (error) {
           if (attempt || !error || typeof error !== 'object' || !('name' in error) || error.name !== 'QuotaExceededError' || !await this.requestCollection()) throw error;
         }
       }
     } catch (error) {
+      clearTimeout(this.progressTimer); this.progressTimer = undefined;
       await this.locked(async () => {
         if (existing === false && !networkFailure(error)) {
           await caches.delete(record.cacheName);
@@ -211,6 +282,7 @@ export class ShellRuntime {
   }
   async ready(signal?: AbortSignal) {
     if (!this.repair) this.repair = (async () => {
+      this.reuseIndex = undefined;
       const record = await this.current;
       try { await this.check(record, true, true, signal); }
       catch (error) { record.complete = false; throw error; }
@@ -361,7 +433,7 @@ export class ShellRuntime {
       if (cached && await valid(cached, entry)) return cached;
       if (record.cacheName === current.cacheName) {
         try {
-          const repaired = await this.obtain(entry, AbortSignal.timeout(10_000));
+          const {response: repaired} = await this.obtain(entry, AbortSignal.timeout(10_000));
           await (await caches.open(record.cacheName)).put(url.href, repaired.clone());
           return repaired;
         } catch { /* Retained/legacy assets can still satisfy an old document. */ }

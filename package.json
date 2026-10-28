@@ -21,7 +21,7 @@
     "test:worker:unit": "vitest run --config vitest.worker-unit.config.ts",
     "test:worker:integration": "vitest run --config vitest.worker.config.ts",
     "test:browser-ui": "node scripts/run-browser-tests.mjs visual",
-    "test:pwa-update": "node scripts/verify-pwa-update.mjs && node scripts/verify-shell-lifecycle.mjs && node scripts/verify-shell-retention.mjs && node scripts/verify-update-diagnostics.mjs && npm run test:release-channels",
+    "test:pwa-update": "node scripts/verify-pwa-update.mjs && node scripts/verify-playback-upgrade.mjs && node scripts/verify-shell-lifecycle.mjs && node scripts/verify-shell-retention.mjs && node scripts/verify-update-diagnostics.mjs && npm run test:release-channels",
     "test:loading-performance": "npm run build && node scripts/measure-loading-performance.mjs",
     "measure:production-loading": "node scripts/measure-production-loading.mjs",
     "prepare:production-pwa": "node scripts/prepare-production-pwa-profile.mjs",

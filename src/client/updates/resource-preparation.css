@@ -1,0 +1,4 @@
+.resource-preparation { margin-block: 12px; font-size: .875rem; overflow-wrap: anywhere; }
+.resource-preparation p { margin-block: 6px; }
+.resource-preparation progress { display: block; width: 100%; height: 8px; accent-color: #315f49; }
+.resource-preparation-percent { float: right; margin-inline-start: 12px; font-variant-numeric: tabular-nums; }

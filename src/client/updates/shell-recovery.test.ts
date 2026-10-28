@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { createElement } from 'react';
+import { act, render, screen } from '@testing-library/react';
+import { usePageRecoveryStatus } from './page-recovery-status';
 import { ShellRecovery } from './shell-recovery';
 import { holdUpdate, setUpdateRoute } from './update-safety';
 
@@ -97,4 +100,53 @@ it('an old in-flight shell check cannot erase a newer explicit recovery request'
   recovery.requestReload(); respond({ available: true }); await checking;
   expect(reload).not.toHaveBeenCalled();
   release(); recovery.tick(); expect(reload).toHaveBeenCalledOnce();
+});
+
+it('explicit recovery can reload offline only after the current and active shells pass a fresh audit',async()=>{
+  setUpdateRoute('/about');
+  Object.defineProperty(navigator,'onLine',{configurable:true,value:false});
+  reply={available:true,activeReady:true,activeBuild:'abcdef1'};
+  recovery.requestReload();
+  expect(reload).not.toHaveBeenCalled();
+  await Promise.resolve(); await Promise.resolve();
+  expect(reload).toHaveBeenCalledOnce();
+});
+it('does not reload offline with an incomplete shell or a controller change during the audit',async()=>{
+  setUpdateRoute('/about');
+  Object.defineProperty(navigator,'onLine',{configurable:true,value:false});
+  reply={available:false,activeReady:true,activeBuild:'abcdef1'};
+  recovery.requestReload(); await Promise.resolve(); await Promise.resolve();
+  expect(reload).not.toHaveBeenCalled();
+  let respond!: (data: unknown) => void;
+  const worker={postMessage:(_message: unknown, ports: { receive(data: unknown): void }[])=>{respond=ports[0].receive;}};
+  Object.defineProperty(navigator,'serviceWorker',{configurable:true,value:{controller:worker}});
+  recovery.requestReload();
+  Object.defineProperty(navigator,'serviceWorker',{configurable:true,value:{controller:{}}});
+  respond({available:true,activeReady:true}); await Promise.resolve(); await Promise.resolve();
+  expect(reload).not.toHaveBeenCalled();
+});
+it('rechecks local work after an offline audit completes',async()=>{
+  setUpdateRoute('/about');
+  Object.defineProperty(navigator,'onLine',{configurable:true,value:false});
+  reply={available:true,activeReady:true,activeBuild:'abcdef1'};
+  recovery.requestReload();
+  const release=holdUpdate();
+  await Promise.resolve(); await Promise.resolve(); expect(reload).not.toHaveBeenCalled();
+  release(); recovery.tick(); await Promise.resolve(); await Promise.resolve();
+  expect(reload).toHaveBeenCalledOnce();
+});
+
+it('restores the actionable offline message after a temporary local task blocks recovery',async()=>{
+  function Feedback() { return createElement('p',{role:'status'},usePageRecoveryStatus().message); }
+  render(createElement(Feedback));
+  setUpdateRoute('/about');
+  Object.defineProperty(navigator,'onLine',{configurable:true,value:false});
+  reply={available:false,activeReady:false};
+  await act(async()=>{recovery.requestReload();});
+  expect(screen.getByRole('status')).toHaveTextContent('请联网后重试');
+  const release=holdUpdate(); act(()=>recovery.tick());
+  expect(screen.getByRole('status')).toHaveTextContent('本机保存');
+  release(); act(()=>recovery.tick());
+  expect(screen.getByRole('status')).toHaveTextContent('请联网后重试');
+  expect(reload).not.toHaveBeenCalled();
 });

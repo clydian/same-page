@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { applicationShellReleaseLimitBytes } from '../src/shared/update-diagnostics.ts';
 import { createServer } from 'node:http';
 import { readFile, stat, mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -6,7 +7,7 @@ import { chromium, webkit } from '@playwright/test';
 
 const oldBuild = 'fcb9631cab68ce3ffdeb77fcd75e91e1a49a825a';
 const candidateBuild = JSON.parse(await readFile('dist/client/build.json', 'utf8')).buildId;
-const supportHtml = (await readFile('worker/support/update-diagnostics.html', 'utf8')).replace('__BUILD__', /^[a-f0-9]{7,40}$/.test(candidateBuild) ? candidateBuild : 'development').replace('__LIMIT__', String(7 * 1024 * 1024));
+const supportHtml = (await readFile('worker/support/update-diagnostics.html', 'utf8')).replace('__BUILD__', /^[a-f0-9]{7,40}$/.test(candidateBuild) ? candidateBuild : 'development').replace('__LIMIT__', String(applicationShellReleaseLimitBytes));
 const supportScript = await readFile('worker/support/update-diagnostics-browser.js', 'utf8');
 const oldHtml = '<!doctype html><h1>旧应用</h1><script>navigator.serviceWorker.register("/sw.js")</script>';
 const oldWorker = `self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));
@@ -29,6 +30,9 @@ const server = createServer(async (request, response) => {
       response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ id: report.id })); return;
     }
     if (pathname === '/sw.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(candidate ? await readFile('dist/client/sw.js') : oldWorker); return; }
+    // The IndexedDB blocker needs a real same-origin document. An empty 404
+    // can become the browser's own error page instead of this fixture origin.
+    if (pathname === '/api/empty') { response.setHeader('Content-Type', 'text/html'); response.end('<!doctype html><title>Diagnostic storage fixture</title>'); return; }
     if (pathname === '/') { response.setHeader('Content-Type', 'text/html'); response.end(candidate ? await readFile('dist/client/index.html') : oldHtml); return; }
     const file = path.resolve('dist/client', '.' + pathname);
     if (!file.startsWith(path.resolve('dist/client') + path.sep) || !(await stat(file)).isFile()) throw new Error('missing');

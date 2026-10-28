@@ -6,6 +6,8 @@ it("distinguishes the application retention budget from browser storage quota an
   expect(updateFailureReason(new Error("shell_capacity_protected"))).toBe("capacity-protected");
   expect(updateFailureReason(new DOMException("private details", "QuotaExceededError"))).toBe("quota-exceeded");
   expect(updateFailureReason(new Error("shell_integrity_mismatch"))).toBe("integrity-mismatch");
+  expect(updateFailureReason(new Error("public_asset_integrity"))).toBe("integrity-mismatch");
+  expect(updateFailureReason(new Error("public_asset_unavailable"))).toBe("download-failed");
   expect(updateFailureReason(new DOMException("private details", "TimeoutError"))).toBe("download-timeout");
   expect(updateFailureReason(new TypeError("private URL"))).toBe("download-failed");
   expect(updateFailureReason(new Error("private details"))).toBe("unknown");

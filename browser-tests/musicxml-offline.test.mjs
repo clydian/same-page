@@ -9,7 +9,7 @@ import { startStorageFixture } from './storage-fixture.mjs';
 import { withBrowserEvidence } from './browser-evidence.mjs';
 import { polyphonicMusicXmlFixture } from './musicxml-fixture.mjs';
 
-test('MusicXML and MXL: verified optional bundle, closed-browser offline cold start, refresh, playback and recovery', {timeout:240000}, async t => {
+test('MusicXML and MXL: required player release, closed-browser offline cold start, refresh, playback and recovery', {timeout:240000}, async t => {
  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});
  const profile=await mkdtemp(path.join(tmpdir(),'same-page-xml-offline-'));
  const options={headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),serviceWorkers:'allow',viewport:{width:1024,height:768}};
@@ -23,6 +23,8 @@ test('MusicXML and MXL: verified optional bundle, closed-browser offline cold st
  await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
  await page.getByRole('button',{name:'本地链路测试 更多操作',exact:true}).waitFor();
  await page.evaluate(()=>navigator.serviceWorker.ready.then(()=>undefined));
+ await page.reload();
+ await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
  assert.equal(requests.some(url=>/musicxml-engine|soundfont/.test(url)),false);
  // Download both supported original formats through the ordinary attachment UI.
  for(const ext of ['xml','mxl']) {

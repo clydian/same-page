@@ -3,15 +3,15 @@ import { createHash } from "node:crypto";
 import { readFile, readdir, stat, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pdfJsDecoderFiles, pdfJsLicenseFiles, pdfJsWasmDirectory } from "../src/shared/pdfjs-assets.ts";
+import { applicationShellReleaseLimitBytes } from "../src/shared/update-diagnostics.ts";
 
 async function files(root) {
   const entries = await readdir(root, { withFileTypes: true });
   return (await Promise.all(entries.map(async (entry) => entry.isDirectory() ? files(path.join(root, entry.name)) : [path.join(root, entry.name)]))).flat();
 }
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
-// Keep headroom above the ~6.5 MB shell after removing optional animations.
-// Review the offline dependencies before deliberately raising this budget.
-export const precacheBudgetBytes = 7 * 1024 * 1024;
+// Match installer admission: the required shell now includes playback.
+export const precacheBudgetBytes = applicationShellReleaseLimitBytes;
 export async function verifyPrecache(root = "dist/client", designRoot = "design") {
   const designHashes = new Set(await Promise.all((await files(designRoot)).filter((file) => !file.endsWith(".md")).map(async (file) => digest(await readFile(file)))));
   const published = await files(root);
@@ -41,7 +41,22 @@ export async function verifyPrecache(root = "dist/client", designRoot = "design"
     assert.ok(published.includes(path.join(root, pdfJsWasmDirectory, name)), `PDF decoder license not published: ${name}`);
   }
   for (const file of published.filter((file) => file.endsWith(".woff2") && !file.includes("/font/"))) assert.ok(entries.includes(path.relative(root, file)), `Font not precached: ${file}`);
-  assert.ok(!entries.some(file => /musicxml-|validate-musicxml-|alphaTab\.|prepare\.worker-|^font\/|^soundfont\//.test(file)), "MusicXML resources must remain on demand");
+  const playerManifests = published.filter(file => /\/playback\/[^/]+\/manifest\.json$/.test(file));
+  assert.equal(playerManifests.length, 1, "Expected one required playback manifest");
+  for (const file of playerManifests) {
+    assert.ok(entries.includes(path.relative(root, file)), "Playback manifest not precached");
+    const player = JSON.parse(await readFile(file, "utf8"));
+    assert.ok(player.entries.some(entry => /musicxml-player-/.test(entry.url)), "MusicXML player missing from release");
+    assert.ok(entries.some(file => /audio-player-/.test(file)), "Audio player missing from release");
+    assert.ok(player.entries.some(entry => /prepare\.worker-/.test(entry.url)), "Playback preparation worker missing from release");
+    assert.ok(player.entries.some(entry => entry.url.endsWith("/sonivox.sf2")), "Playback soundfont missing from release");
+    for (const entry of player.entries) {
+      assert.ok(entries.includes(localFile(entry.url)), `Playback resource not precached: ${entry.url}`);
+      const bytes = await readFile(path.join(root, localFile(entry.url)));
+      assert.equal(entry.bytes, bytes.byteLength, `Playback size mismatch: ${entry.url}`);
+      assert.equal(entry.integrity, `sha256-${createHash("sha256").update(bytes).digest("base64")}`, `Playback integrity mismatch: ${entry.url}`);
+    }
+  }
   assert.ok(!entries.some(file => /^third-party\//.test(file)), "Third-party sources must remain on demand");
   assert.ok(!entries.some(file => /(?:^|\/)admin-/.test(file)), "Product admin resources must remain on demand");
   assert.ok(!entries.some(file => /-animation-[^/]+\.webp$/.test(file)), "Homepage animations must remain on demand");

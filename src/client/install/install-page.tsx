@@ -1,3 +1,4 @@
+import { ResourcePreparation } from "../updates/resource-preparation";
 import { connectionFetch } from "../connection/connection";
 import { assetUrl } from "../../shared/asset-url";
 import { InstallCompletion } from "./install-completion";
@@ -91,6 +92,7 @@ export default function InstallPage() {
     <div className="install-page-card">
       <p className="install-eyebrow">{external ? "第 1 步 · 换到浏览器" : "最后一步 · 添加到桌面"}</p>
       <h1>{external ? guide === "ios-external" ? "先用 Safari 打开" : "先在浏览器中打开" : "下次排练，点图标就能打开"}</h1>
+      {!external && <ResourcePreparation install />}
       {!ready && !error && <p role="status">正在准备，请稍候…</p>}
       {error && <div role="alert"><p>{error}</p><Button className="secondary-button" onPress={() => { setError(""); setAttempt(value => value + 1); }}>重试</Button></div>}
       {ready && !install?.hidden && !install?.requested && <>

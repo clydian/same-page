@@ -1,5 +1,7 @@
 import { shellDownloadTimeoutMs } from "../../shared/update-timing";
 import { UpdateCheckSchedule } from "./update-check-schedule";
+import { parseInstallProgress, type InstallProgress } from '../../shared/update-progress';
+import { requestWorker } from './worker-request';
 import { canApplyUpdate } from "./update-safety";
 import { setUpdateStatus, type UpdatePhase, type UpdateStatus } from "./update-status";
 
@@ -20,6 +22,9 @@ export class UpdateController {
   private stopApply?: () => void;
   private autoRetryAt = 0;
   private deferred: UpdateStatus["deferred"];
+  private progress?: InstallProgress;
+  private initialInstall = false;
+  private slowPreparation = false;
 
   constructor(
     private registration: ServiceWorkerRegistration | undefined,
@@ -30,12 +35,13 @@ export class UpdateController {
   ) {}
 
   start() {
+    navigator.serviceWorker?.addEventListener?.('message', this.progressMessage);
     if (!("serviceWorker" in navigator)) {
       this.show("unsupported", "当前浏览器不支持应用内更新，请关闭页面后重新打开");
     } else if (this.registration) {
       this.registration.addEventListener("updatefound", this.updateFound);
-      if (!navigator.onLine || document.visibilityState === "visible") void this.check();
-      else if (this.registration.installing) this.observe(this.registration.installing);
+      if (this.registration.installing) this.observe(this.registration.installing);
+      else if (!navigator.onLine || document.visibilityState === "visible") void this.check();
       else if (this.registration.waiting) this.show("ready", prepared);
     } else if (!navigator.onLine) {
       this.registrationError = true;
@@ -56,7 +62,7 @@ export class UpdateController {
     if (this.disposed) return;
     if ((phase !== "ready" && phase !== "applying") || this.deferred?.worker !== this.registration?.waiting) this.deferred = undefined;
     this.phase = phase;
-    setUpdateStatus({ phase, message, ...(this.deferred ? { deferred: this.deferred } : {}) });
+    setUpdateStatus({ phase, message, ...(this.initialInstall ? {initialInstall:true} : {}), ...((phase === "preparing" || phase === "current" && this.initialInstall) && this.progress ? {progress:this.progress} : {}), ...(this.deferred ? { deferred: this.deferred } : {}) });
   }
 
   private failedCheck(message: string) {
@@ -82,6 +88,8 @@ export class UpdateController {
     this.stopWorker?.();
     clearTimeout(this.installTimer);
     this.worker = worker;
+    this.progress = undefined; this.slowPreparation = false;
+    this.initialInstall = navigator.serviceWorker?.controller === null && !this.registration?.active;
     const changed = () => {
       if (this.disposed || this.worker !== worker || this.phase === "applying") return;
       if (worker.state === "redundant") {
@@ -105,9 +113,25 @@ export class UpdateController {
       if (this.disposed || this.worker !== worker || this.phase !== "preparing") return;
       // This is feedback, not a worker deadline: final verification, storage
       // and a quota-recovery attempt may still be running. Keep observing it.
+      this.slowPreparation = true;
       this.show("preparing", "更新准备较慢，仍在后台进行，可以继续使用");
     }, shellDownloadTimeoutMs);
     changed();
+    void requestWorker(worker, {type:'SAME_PAGE_INSTALL_PROGRESS'}).then(value => this.acceptProgress(worker, value));
+  }
+
+  private progressMessage = (event: MessageEvent) => {
+    if (event.data?.type === 'SAME_PAGE_INSTALL_PROGRESS' && event.source === this.worker) this.acceptProgress(this.worker, event.data.progress);
+  };
+  private acceptProgress(worker: ServiceWorker | undefined, value: unknown) {
+    const initialCompleted = this.initialInstall && this.phase === 'current';
+    if (this.disposed || this.phase !== 'preparing' && !initialCompleted || !worker || this.worker !== worker) return;
+    const progress = parseInstallProgress(value);
+    if (initialCompleted && progress?.stage !== 'ready') return;
+    if (!progress || this.progress && (progress.buildId !== this.progress.buildId || progress.sequence <= this.progress.sequence)) return;
+    this.progress = progress;
+    if (initialCompleted) this.show('current', '应用和播放器资源已准备好。');
+    else this.show('preparing', this.slowPreparation ? '更新准备较慢，仍在后台进行，可以继续使用' : this.initialInstall ? '正在准备离线资源，可以继续使用合谱。' : '正在准备更新…，可以继续使用');
   }
 
   check = async () => {
@@ -122,6 +146,7 @@ export class UpdateController {
       return;
     }
     this.schedule.started();
+    this.initialInstall = false; this.progress = undefined;
     this.checking = true;
     const id = ++this.checkId;
     this.show("checking", "正在检查更新…");
@@ -221,6 +246,7 @@ export class UpdateController {
     this.disposed = true;
     ++this.checkId;
     this.registration?.removeEventListener("updatefound", this.updateFound);
+    navigator.serviceWorker?.removeEventListener?.("message", this.progressMessage);
     this.stopWorker?.(); this.stopApply?.();
     clearTimeout(this.checkTimer); clearTimeout(this.installTimer);
     this.setRequested(false);
