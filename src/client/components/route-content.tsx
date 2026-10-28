@@ -28,6 +28,7 @@ function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean
     : pathname === "/login" ? "登录"
     : pathname === "/user/lifecycle" ? "用户删除与恢复"
     : pathname.endsWith("/me") ? "云盘内身份"
+    : pathname === "/appearance" ? "外观"
     : pathname === "/user" ? "账户"
     : pathname.includes("/settings/") ? driveSettingsTitle(pathname.split("/settings/")[1])
     : pathname === "/help" ? "使用手册"

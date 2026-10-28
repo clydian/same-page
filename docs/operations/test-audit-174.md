@@ -11,7 +11,7 @@
 | app 的缓存恢复、搜索竞态两项 | DriveLibrary 状态边界、useDriveLibrary 和 drive-library-lifecycle 的真实历史返回/滚动恢复；app 仍验证成员文件名搜索不发网络查询 |
 | app 的逐文件上传一项 | upload-dialog 保留非法文本、PDF 错误、重名、FIFO、失败重试、身份切换和丢失响应；upload-queue 浏览器保留路由入口 |
 | join-code-field 的“键盘删除”一项 | 原测试只 fireEvent.change 写入值，没有模拟键盘；规范化和完整输入行为仍保留 |
-| reader-layout-canvas 两项及伪造 paged/continuous HTML 用例 | mock 自己规定宽度后再比较 style 不能证明渲染正确；reader-immersive 两引擎实际 PDF canvas、批注 overlay、页面四边对齐，覆盖分页 fit/zoom 和连续 zoom；原有横竖屏与缩放流程保留 |
+| reader-layout-canvas 两项及伪造 paged/continuous HTML 用例 | mock 自己规定宽度后再比较 style 不能证明渲染正确；reader-immersive 两引擎实际 PDF canvas、笔记 overlay、页面四边对齐，覆盖分页 fit/zoom 和连续 zoom；原有横竖屏与缩放流程保留 |
 | 整个 drive-entry-library 文件（两引擎） | 成员数量转交 home-entry；搜索/排序、长文件名 100 行、44px 和键盘文件信息并入 responsive-navigation；真实缓存、重启、失败恢复由 lifecycle/offline 控件及 storage/offline-entry smoke 保留 |
 | ux-refinement 的完成编辑流程 | layer-preferences、reader-immersive、reader-mobile-editing 已覆盖进入/退出、缩放保留及重新打开页面导航；层排序与显式保存用例仍保留 |
 | diagnostics 的无效 JSON 浏览器循环 | diagnostics.node 的真实解码和 ReaderPage 错误 UI 已覆盖；保留实际 PDF.js HTTP 403 及网络中断到私密诊断报告的两种链路，mock 异常不足以替代 PDF.js 实际错误分类 |
@@ -22,7 +22,7 @@
 | homepage flex/grid、云盘固定间距断言 | 保留实际阅读顺序、溢出、触控目标、焦点和键盘交互；responsive-navigation 同页调整 320/390/600/768/834/1194/1440 |
 | auth-methods / reader-status 成功截图 | 默认不写，无差异判定的截图仅在 LAYOUT_CAPTURE_DIR 显式报告模式生成；行为和几何断言仍执行 |
 | 每个迁移文件单独启动 Wrangler | 同一数据检查点之间合并执行；真实 D1、旧数据、外键、文件名 backfill 幂等断言全部保留 |
-| storage/offline-entry 仅 canvas 可见 | 增加实际 PDF 深色谱面与浅色底色像素证明，排除 UI/批注及透明、全白、全黑 |
+| storage/offline-entry 仅 canvas 可见 | 增加实际 PDF 深色谱面与浅色底色像素证明，排除 UI/笔记及透明、全白、全黑 |
 
 没有改产品代码，没有新增 skip/todo、重试或加宽超时。身份隔离、个人层、OCC/outbox、版本/会话竞态、真实 D1/R2、codec、PWA、发布产物门禁保留。减少测试声明数不等于减少风险覆盖：文字矩阵等仍执行所有有意义的数据边界。
 
@@ -55,7 +55,7 @@
 
 原基线及第一轮：Node/客户端合计 437，Worker 95，visual 46，smoke 11；scope 从 16 增至 19。第一轮最终本机 check:full 全部通过，visual 78.91 秒；原本机 visual 105.43 秒。第二轮本机统一 Node 24。Node/客户端 427（78+349），Worker 95，visual 38；scope 19 与真实 smoke 11 保留。测试与执行代码相对原 main 净减 591 行，相对首轮最终净减 754 行，均不计文档。
 
-错误注入证明（临时修改已恢复）：library 漏选 smoke 会使范围回归失败；真实 storage smoke 离线重开的 PDF canvas 涂白会使像素证明失败。实际批注层横移 8px 时新对齐断言失败，恢复后 reader-immersive 与 diagnostics 共 8 项通过。Spec 审查要求恢复实际 PDF.js 网络中断分类，已修复复核；两轴无未解决发现。
+错误注入证明（临时修改已恢复）：library 漏选 smoke 会使范围回归失败；真实 storage smoke 离线重开的 PDF canvas 涂白会使像素证明失败。实际笔记层横移 8px 时新对齐断言失败，恢复后 reader-immersive 与 diagnostics 共 8 项通过。Spec 审查要求恢复实际 PDF.js 网络中断分类，已修复复核；两轴无未解决发现。
 
 浏览器模拟与 WebKit API 故障不等于 iOS PWA 实机断网重启验收；本 PR 不部署产品。
 

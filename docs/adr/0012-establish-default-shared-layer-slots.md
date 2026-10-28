@@ -29,10 +29,10 @@ creates a score override. Edit locks therefore belong only to shared-layer
 buttons in the editing toolbar.
 
 The UI follows the same separation. A score's layer panel owns score
-subscription overrides and read-only effective colors under “显示哪些批注”.
+subscription overrides and read-only effective colors under “显示哪些笔记”.
 “恢复默认显示” exists only while score overrides exist. Personal is an
 always-visible status row. “我的偏好” opens “阅读偏好”: display defaults come
-first, with “批注颜色” as a separate secondary screen in the same drive context.
+first, with “笔记颜色” as a separate secondary screen in the same drive context.
 Color overrides have one state, either drive default or custom, and only custom
 colors offer a reset. All slots retain their English names without fixed Chinese
 voice-part translations. “写到哪里” identifies shared and personal audiences,

@@ -1,8 +1,8 @@
-# #135 批注编辑与同步
+# #135 笔记编辑与同步
 
 ## 命令边界与事务不变量
 
-`src/client/annotations/annotation-state.ts` 是批注内容、历史意图、outbox、冲突、确认、pull 的持久化写入边界。传输模块只负责请求和 scope 锁；跨谱恢复仍由应用层驱动。
+`src/client/annotations/annotation-state.ts` 是笔记内容、历史意图、outbox、冲突、确认、pull 的持久化写入边界。传输模块只负责请求和 scope 锁；跨谱恢复仍由应用层驱动。
 
 - `saveAnnotationDraft/saveDraftWithHistory/undoAnnotationEdit/redoAnnotationEdit` 产生内容意图。历史不保存 version、pending、opId 等同步元数据。草稿入队由 `queueScoreDrafts` 明确发布。
 - 每对象最多一个已尝试操作和一个未尝试后继；发送时先处理已尝试操作，后继只能在确认前驱后发送。已尝试操作保持原 opId 与请求内容。
@@ -35,7 +35,7 @@
 
 - `npm run check:full` 通过：PWA 更新、14 CI 测试、36 shared/node 测试、267 client 测试、7 Worker 单元与 58 Worker/D1 集成测试、31 视觉回归、迁移、构建、2 项真实浏览器存储冒烟，以及加载性能门禁。
 - 审查追加的删除冲突、后台 busy 轮转与 Web Locks 非阻塞回归分别通过对应单文件测试；真实 Chromium + IndexedDB + Worker/D1 再次验证上传中编辑/撤销/重做、关库重开、A→B→A 迟到响应、混合层权限、恢复权限后重试与双标签持锁。
-- [浏览器测试](../../browser-tests/annotations-smoke.test.mjs) 使用真实密码登录和产品命令，不预置批注数据，不伪造 API 响应；只延迟真实响应以确定性触发竞态。另一独立浏览器上下文通过真实 pull 验证云端结果。截图输出 `artifacts/verification/annotations-135.png`。
+- [浏览器测试](../../browser-tests/annotations-smoke.test.mjs) 使用真实密码登录和产品命令，不预置笔记数据，不伪造 API 响应；只延迟真实响应以确定性触发竞态。另一独立浏览器上下文通过真实 pull 验证云端结果。截图输出 `artifacts/verification/annotations-135.png`。
 - Standards 审查发现快照/退出清理绕过状态边界，已迁入命令；Spec 审查发现状态探测及后台 Web Lock 可无限等待，已加入请求超时与非阻塞取锁，busy 后继续轮转。
 - 本次仅完成本地实现、提交和验证；没有生产部署或真实移动设备验收。
 

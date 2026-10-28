@@ -10,7 +10,7 @@ Same Page 增加「可播放乐谱附件」，支持 `.musicxml`、`.xml`、`.mx
 
 ## 依据与实测范围
 
-- Same Page 的 `CONTEXT.md` 将 Score 定义为稳定身份的 PDF 谱面及笔记集合，附件依附 Score；此次保持该身份与 PDF 版本、批注坐标语义。
+- Same Page 的 `CONTEXT.md` 将 Score 定义为稳定身份的 PDF 谱面及笔记集合，附件依附 Score；此次保持该身份与 PDF 版本、笔记坐标语义。
 - `docs/operations/score-attachments.md`：附件目前在线使用，同源鉴权读取；已有上传预留、配额、不可变对象、回收站和清理队列。
 - `src/shared/attachments.ts` 的四种类型枚举、`use-library-attachments.ts` 的整批解析，以及迁移 0027 的 SQL CHECK，需要一起考虑新增类型兼容性。
 - 同级 `../music-ocr/package.json` 项目名为 `chorus-score-studio`，使用 alphaTab 1.8.4。`src/main.ts` 为 2,892 行，混合播放器、DOM、房间、目录、OMR 入口和导航；不能直接作为嵌入接口。

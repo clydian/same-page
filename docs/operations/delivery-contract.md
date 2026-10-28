@@ -14,7 +14,7 @@
 
 每个自动化 Vite 服务拥有一个临时目录和一个独立进程组；D1/R2 状态、Vite 缓存均在该目录。启动前可用本地绑定 API 准备合成 fixture，必须先释放准备进程再启动 Vite。prepare 接收 AbortSignal，在 await 边界检查取消，并在 finally 释放绑定；退出时先取消并等待准备过程结束。调用者拥有浏览器 context，并在 finally/after 清理；服务停止、启动失败和信号退出释放进程组及目录。不读取本机开发凭据，不接触日常 `.wrangler/state`。
 
-现有视觉/性能测试保留 API fixtures。新增真实链路 smoke 使用生产 API 和本地 D1/R2，浏览器通过产品操作保存并重新打开 IndexedDB 离线副本；无需新增测试 HTTP 后门。产品票可复用同一 fixture 生命周期扩展批注场景。
+现有视觉/性能测试保留 API fixtures。新增真实链路 smoke 使用生产 API 和本地 D1/R2，浏览器通过产品操作保存并重新打开 IndexedDB 离线副本；无需新增测试 HTTP 后门。产品票可复用同一 fixture 生命周期扩展笔记场景。
 
 ## 回归边界
 

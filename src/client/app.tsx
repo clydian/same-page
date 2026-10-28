@@ -23,6 +23,7 @@ const InstallPage = lazy(() => import("./install/install-page"));
 const HelpPage = lazy(() => import("./routes/help-page"));
 const DriveManagementPage = lazy(() => import("./routes/drive-management-page"));
 const AboutPage = lazy(() => import("./routes/about-page"));
+const AppearancePage = lazy(() => import("./routes/appearance-page"));
 const PersonalSettingsPage = lazy(() => import("./routes/personal-settings-page"));
 const LeaveDrivePage = lazy(() => import("./routes/leave-drive-page"));
 const UserLifecyclePage = lazy(() => import("./routes/user-lifecycle-page"));
@@ -69,6 +70,7 @@ export function AppRoutes() {
             <Route path="/choirs/:choirId/settings" element={<RouteContent><DriveManagementPage section="info" index /></RouteContent>} />
             {(["info", "admission", "trash"] as const).map(section => <Route key={section} path={`/choirs/:choirId/settings/${section}`} element={<RouteContent><DriveManagementPage section={section} /></RouteContent>} />)}
             <Route path="/about" element={<RouteContent><AboutPage /></RouteContent>} />
+            <Route path="/appearance" element={<RouteContent><AppearancePage /></RouteContent>} />
             <Route path="/user" element={<RouteContent><PersonalSettingsPage /></RouteContent>} />
             <Route path="/user/lifecycle" element={<RouteContent><UserLifecyclePage /></RouteContent>} />
             <Route path="/choirs/:choirId/memberships" element={<RouteContent><MembershipManagementPage /></RouteContent>} />

@@ -2,7 +2,7 @@
 
 ## 实施边界
 
-基线：5204197。前置 #135 的 annotation-state 是批注持久化命令边界，跨谱恢复留在应用层。
+基线：5204197。前置 #135 的 annotation-state 是笔记持久化命令边界，跨谱恢复留在应用层。
 
 ReaderSession 公开订阅快照、打开、重新确认、重试图层、下载与释放命令。会话固定 scope 并拥有 PDF 身份和来源；快照包含加载结果、云端状态、图层能力及下载结果。页面保留渲染、手势、编辑交互；不得暴露会话内部 setter 或 I/O。每个会话独立失效标记；释放后所有迟到结果无效；重复前台事件合并。云端确认版本优先，旧离线版本保留但不能冒充新版。
 
@@ -19,7 +19,7 @@ ReaderSession 公开订阅快照、打开、重新确认、重试图层、下载
 ### 模块及释放规则
 
 - ReaderSession 的 open/refresh/retryLayers/download/dispose 是命令；getSnapshot/subscribe 是观察接口。会话拥有 scope、已确认 PDF 版本、来源代次、文档租约、能力与下载结果。页面仅消费结果，编辑模式、手势与 PDF canvas 仍独立。
-- annotation-state 的 readAnnotationLayers/readScoreAnnotationState 在 owner 事务中提供快照及 layersReady；页面不直接访问批注表。图层落盘尚未被订阅者观察时，编辑能力仍处于准备中。
+- annotation-state 的 readAnnotationLayers/readScoreAnnotationState 在 owner 事务中提供快照及 layersReady；页面不直接访问笔记表。图层落盘尚未被订阅者观察时，编辑能力仍处于准备中。
 - 活动 workspace 捕获 sessionEpoch；prepareOfflineScore 再次捕获，激活事务校验 owner 和 epoch。因此 A→B→A 不会让旧下载复活。退出阅读器后结果不再挂载；已经启动的完整离线下载可以完成其持久化事务，失败或身份失效不会激活半成品。
 - inspectOfflineScore 合并同 scope/epoch 的在途读取和校验；Dexie storagemutated 使共享结果失效，覆盖跨标签写入。验证器最多并发两项，只有同一不可变 Blob 实例可共用 hash 结果。观察查询使用 scope 索引 count 注册变更，不读取 PDF；首次观察、打开仍检查实际 Blob。
 - 更新离线版本在一个事务内比较下载开始时的活动记录，再删除旧记录并写新记录；另一个阅读器先完成的激活不能被迟到旧下载覆盖。另一个阅读会话已读出的 Blob/ArrayBuffer 仍持有内容，不会受 IndexedDB 引用删除影响。PDF.js 旧租约最后释放才 destroy。注销/身份清理会强制清除对应内存文档，普通换版不强制销毁其它阅读者。

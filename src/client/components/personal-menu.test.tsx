@@ -26,7 +26,7 @@ it.each([
   vi.stubGlobal('fetch', vi.fn(async () => Response.json(capabilities)));
   render(<MemoryRouter><PersonalMenu drive={drive} /></MemoryRouter>);
   fireEvent.click(screen.getByRole('button', { name: '我的' }));
-  const links = [...driveLinks, ['账户', '/user'], ['关于与更新', '/about']];
+  const links = [...driveLinks, ['账户', '/user'], ['外观', '/appearance'], ['关于与更新', '/about']];
   for (const [name, href] of links) {
     expect(screen.getByRole('menuitem', { name: name === '关于与更新' ? /^关于与更新/ : name })).toHaveAttribute('href', href);
   }
@@ -91,4 +91,12 @@ it('rereads permissions when reopening the menu after authority is revoked', asy
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   await act(async () => undefined);
   expect(screen.queryByRole('menuitem', { name: '产品后台' })).toBeNull();
+});
+
+it('keeps experience appearance separate when opening its independent entry', () => {
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json(capabilities)));
+  render(<MemoryRouter initialEntries={['/choirs/preview/scores/score?experience=1']}><PersonalMenu /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: '我的' }));
+  expect(screen.getByRole('menuitem', { name: '外观' })).toHaveAttribute('href', '/appearance?experience=1');
+  expect(screen.getByRole('menuitem', { name: '账户' })).toHaveAttribute('href', '/user');
 });

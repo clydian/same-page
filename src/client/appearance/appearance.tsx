@@ -37,8 +37,8 @@ export function AppearanceSettings() {
   const { preferences, owner, dark } = useAppearance();
   const [error, setError] = useState(false);
   const change = (patch: Partial<AppearancePreferences>) => setError(!saveAppearance(owner, { ...readAppearance(owner), ...patch }));
-  return <section className="appearance-settings" aria-labelledby="appearance-title">
-    <header className="appearance-heading"><h2 id="appearance-title">外观</h2>
+  return <section className="appearance-settings" aria-label="外观设置">
+    <header className="appearance-heading">
       <p>{owner.startsWith("experience:") ? "体验外观，与登录用户的选择分别保存" : "仅此设备 · 应用于所有云盘与乐谱"}</p>
     </header>
     <div className="appearance-panel">
@@ -58,8 +58,8 @@ export function AppearanceSettings() {
           <PaperChoices label="深色界面下的谱面" title="深色界面" name="dark-paper" value={preferences.darkPaper} active={dark} invertAnnotations={preferences.invertAnnotations} onChange={darkPaper => change({ darkPaper })} />
         </div>
       </div>
-      <fieldset className="appearance-fieldset appearance-annotations" aria-label="谱面反色时的批注">
-        <legend>谱面反色时的批注</legend>
+      <fieldset className="appearance-fieldset appearance-annotations" aria-label="谱面反色时的笔记">
+        <legend>谱面反色时的笔记</legend>
         <div className="appearance-segments">
           {([{ value: false, label: "颜色不变" }, { value: true, label: "跟随反色" }] as const).map(({ value, label }) => <label className="appearance-segment" key={label}>
             <input type="radio" name="annotation-appearance" checked={preferences.invertAnnotations === value} onChange={() => change({ invertAnnotations: value })} />

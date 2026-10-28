@@ -6,7 +6,7 @@ import { clearUserAppearance, defaultAppearance, parseAppearance, readAppearance
 const identity = vi.hoisted(() => ({ localUserId: "appearance-user", restoring: false }));
 vi.mock("../auth/application-identity", () => ({ useApplicationIdentity: () => identity }));
 beforeEach(() => { localStorage.clear(); identity.localUserId = "appearance-user"; identity.restoring = false; });
-function settings(path = "/user") { return <MemoryRouter initialEntries={[path]}><AppearanceProvider><AppearanceSettings /></AppearanceProvider></MemoryRouter>; }
+function settings(path = "/appearance") { return <MemoryRouter initialEntries={[path]}><AppearanceProvider><AppearanceSettings /></AppearanceProvider></MemoryRouter>; }
 it("validates stored values and keeps old or malformed storage usable", () => {
   for (const raw of [null, "broken", "null", "{}", '{"interfaceTheme":"other","darkPaper":3,"invertAnnotations":"true"}']) expect(parseAppearance(raw)).toEqual(defaultAppearance);
   expect(parseAppearance('{"interfaceTheme":"dark","lightPaper":"inverted","unknown":true}')).toMatchObject({ interfaceTheme: "dark", lightPaper: "inverted", darkPaper: "soft" });
@@ -56,11 +56,11 @@ it("guest settings and guest experience share choices while signed-in experience
   const view = render(settings());
   fireEvent.click(screen.getByRole("radio", { name: "深色" }));
   view.unmount();
-  const preview = render(settings("/user?experience=1"));
+  const preview = render(settings("/appearance?experience=1"));
   expect(screen.getByRole("radio", { name: "深色" })).toBeChecked();
   preview.unmount();
   identity.localUserId = "appearance-user";
-  render(settings("/user?experience=1"));
+  render(settings("/appearance?experience=1"));
   expect(screen.getByRole("radio", { name: "跟随系统" })).toBeChecked();
   fireEvent.click(screen.getByRole("radio", { name: "深色" }));
   expect(readAppearance("experience:appearance-user").interfaceTheme).toBe("dark");

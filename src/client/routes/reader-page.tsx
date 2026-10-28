@@ -553,7 +553,7 @@ function ReaderPageContent() {
                 </>}
               </section>
               </>}
-              <Link to={experience ? "/user?experience=1" : "/user"}>外观设置</Link>
+              <Link to={experience ? "/appearance?experience=1" : "/appearance"}>外观设置</Link>
               <Button className="secondary-button" onPress={() => { setMoreOpen(false); setFeedbackOpen(true); }}>问题反馈</Button>
               <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
                 <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>查看操作指引</Button>

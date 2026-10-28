@@ -5,7 +5,7 @@
 ## 判断边界
 
 - 保留应用自己的规则：权限、隐私、可靠落盘、幂等、版本/会话隔离、离线可达、迁移和发布身份。
-- 保留平台接缝：真实触摸能穿过应用覆盖层滚动、PDF 与批注坐标一致、实际构建的 decoder 和 SW 可用。
+- 保留平台接缝：真实触摸能穿过应用覆盖层滚动、PDF 与笔记坐标一致、实际构建的 decoder 和 SW 可用。
 - 删除平台内部细节：惯性位移/松手停顿的精确阈值。#227 对照实验有诊断价值，但不自动成为长期门禁。
 - 删除装饰实现与重复链路：固定圆角、12px 边距、图文左右顺序、重复 UI 导航及仅自证的合法 schema/标签形状。
 - 精确数字不一律删除：笔记坐标、到期/重试期限、权限修订号和触控边界有实际含义；浏览器物理和单次 runner 耗时没有同等确定性。
@@ -23,7 +23,7 @@
 | ui-simplification 的用户设置/阅读器/分享/导出/存储长尾 | user-lifecycle-page、reader-layer-panel、Worker annotations-flow、pdf-export、local-storage-page、真实 storage smoke；权限编辑浏览器接缝保留 |
 | reader-status 中用被屏蔽 SW 自造的下载失败 | offline-score-control 的失败/旧版状态，access-smoke 的失败替换及 storage/offline-entry 的真实可用性；保留本机写入失败与同步恢复 |
 | 离线失权场景的搜索/排序及多余 goto，管理页后的帮助往返 | drive-library/lifecycle 的视图恢复和 responsive-navigation 的帮助；保留真实失权后找谱与像素证明，去掉会掩盖返回失败的 goto |
-| 手拼两份 HTML 比较 pinch preview 与 committed | reader-immersive 中实际阅读器 pinch 前后同时比较 PDF 与批注几何；文字 CSS 的热区/不裁切仍用隔离布局检查 |
+| 手拼两份 HTML 比较 pinch preview 与 committed | reader-immersive 中实际阅读器 pinch 前后同时比较 PDF 与笔记几何；文字 CSS 的热区/不裁切仍用隔离布局检查 |
 | schema 三种合法输入、性能标签词汇快照、modulepreload 标签形状 | Worker preference 实际路由、完整加载脚本真实资源请求；保留领域默认值优先级、中位数报告、预加载取消行为 |
 | 加载脚本单次 return <=200ms 与 reopen <=cold | 保留粗粒度 15s 默认预算、测量身份和冷/重开记录；drive-library-lifecycle 挂住响应证明内容先返回，reader-document-cache 证明实际复用 |
 
@@ -136,7 +136,7 @@
 | [visual-report/layer-preferences.test.mjs](../../visual-report/layer-preferences.test.mjs) | 保留 | 实际默认值/本谱覆盖、颜色、编辑显示隔离和共享层回收；配套 #225 正在改语义，本基线不混入其实现 |
 | [visual-report/pdf-export.test.mjs](../../visual-report/pdf-export.test.mjs) | 合并覆盖 | 接回“取消全部”不改变阅读订阅的独立断言；保留源 PDF 几何与文字/墨迹/透明度保真、订阅范围及失权/离线拒绝 |
 | [visual-report/reader-canvas-layering.test.mjs](../../visual-report/reader-canvas-layering.test.mjs) | 保留 | 应用 CSS 可能覆盖 hidden 导致旧 canvas 遮住新画布；elementFromPoint 验证实际遮挡，不只是属性快照 |
-| [visual-report/reader-immersive.test.mjs](../../visual-report/reader-immersive.test.mjs) | 收敛 | 删除 2 个精确惯性场景，换 1 个触点按下期间的原生滚动集成检查；保留原生 pinch、错位/编辑锁页与 safe-area；真实批注 pinch 取代手拼 HTML 预览比较；删除圆角断言 |
+| [visual-report/reader-immersive.test.mjs](../../visual-report/reader-immersive.test.mjs) | 收敛 | 删除 2 个精确惯性场景，换 1 个触点按下期间的原生滚动集成检查；保留原生 pinch、错位/编辑锁页与 safe-area；真实笔记 pinch 取代手拼 HTML 预览比较；删除圆角断言 |
 | [visual-report/reader-mobile-editing.test.mjs](../../visual-report/reader-mobile-editing.test.mjs) | 收敛 | 同一阅读器 resize 取代 7 次重开；保留可达/不重叠/触控区域、编辑和双击回归；删除 12px、中心点对齐和 textarea rows/overflow 实现 |
 | [visual-report/reader-status.test.mjs](../../visual-report/reader-status.test.mjs) | 收敛 | 保留真实 IndexedDB 写失败/草稿/同步恢复；删除依赖 mock SW 导致失败的离线下载尾段，改由 offline 控件和真实 storage smoke 覆盖 |
 | [visual-report/reader-text-layout.test.mjs](../../visual-report/reader-text-layout.test.mjs) | 收敛 | 保留应用文字 CSS 的真实换行比例/不裁切和点击热区；不规定每行汉字数；删除只比较手拼缩放 HTML 的 pinch 证明 |

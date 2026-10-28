@@ -37,7 +37,11 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
     await route.fulfill(fixture.resolve({ pathname: new URL(request.url()).pathname, method: request.method(), identity: 'member', cookie: request.headers().cookie ?? '' }));
   });
   await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
-  await page.goto(`${server.origin}/user`);
+  await page.goto(`${server.origin}/choirs/visual-choir`);
+  await page.getByRole('button', { name: '我的', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: '外观', exact: true })).toHaveAttribute('href', '/appearance');
+  await page.getByRole('menuitem', { name: '外观', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '外观', level: 1 })).toBeVisible();
   await page.getByRole('radio', { name: '深色', exact: true }).check();
   await expect(page.locator('html')).toHaveAttribute('data-paper-theme', 'soft');
   await page.getByRole('radio', { name: '深色界面下的谱面：反色' }).check();
@@ -96,7 +100,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   await expect(page.getByRole('button', { name: '返回云盘', exact: true })).toHaveCSS('background-color', 'rgb(32, 47, 42)');
   await expect(page.locator('.reader-playback-entry')).toHaveCSS('background-color', 'rgba(32, 47, 42, 0.96)');
   await page.getByRole('button', { name: '更多', exact: true }).click();
-  await expect(page.getByRole('link', { name: '外观设置', exact: true })).toHaveAttribute('href', '/user');
+  await expect(page.getByRole('link', { name: '外观设置', exact: true })).toHaveAttribute('href', '/appearance');
   await expect(page.getByRole('dialog', { name: '更多阅读选项' })).toHaveCSS('background-color', 'rgb(32, 47, 42)');
   await page.getByRole('button', { name: '关闭更多阅读选项' }).click();
   await page.getByRole('button', { name: '练习谱', exact: true }).click();
@@ -123,6 +127,9 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   await expect(page.getByRole('button', { name: '播放', exact: true })).toBeVisible();
   await set({ darkPaper: 'original' });
   await expect(notation).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await page.goto(`${server.origin}/user`);
+  await expect(page.getByRole('heading', { name: '账户', level: 1 })).toBeVisible();
+  await expect(page.locator('.appearance-settings')).toHaveCount(0);
   // A new identity/experience never inherits the member's explicit choices.
   await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score?experience=1`);
   await expect(page.locator('html')).toHaveAttribute('data-paper-theme', 'soft');

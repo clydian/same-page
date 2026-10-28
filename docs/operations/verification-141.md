@@ -1,6 +1,6 @@
-# #141 批注显示与阅读偏好验证
+# #141 笔记显示与阅读偏好验证
 
-实现范围：[简化批注显示、编辑目标与云盘阅读偏好](https://github.com/clydian/same-page/issues/141)。独立 worktree 分支 `codex/issue-141`，基线 `6de48820dd506a0983462700b936acdd5129009f`。没有迁移、合并或生产部署。
+实现范围：[简化笔记显示、编辑目标与云盘阅读偏好](https://github.com/clydian/same-page/issues/141)。独立 worktree 分支 `codex/issue-141`，基线 `6de48820dd506a0983462700b936acdd5129009f`。没有迁移、合并或生产部署。
 
 ## 行为与证据
 
@@ -9,10 +9,10 @@
 | 阅读偏好入口 | 第一组为五个共享层的默认显示；所属云盘可见，颜色进入独立次级页面。[手机](evidence-141/webkit-320-preferences.png)、[桌面](evidence-141/chromium-1440-preferences.png) |
 | 本谱显示 | 五个完整行标签绑定原生 checkbox；个人层独立显示“始终显示 / 仅自己可见”。只在有覆盖时出现整体恢复。[手机展开](evidence-141/webkit-320-display.png)、[iPad 竖屏](evidence-141/webkit-834-display.png)、[本谱覆盖](evidence-141/webkit-score-override.png) |
 | 默认 → 覆盖 → 恢复 | 先关闭云盘 E 默认显示；进入乐谱后 E 不显示；整行点击创建本谱覆盖，恢复后重新采用云盘默认。请求记录确认写入本谱端点，恢复发送 `subscribed: null`。 |
-| 颜色自定义 → 恢复 | 颜色页独立显示批注预览，每层仅有“云盘默认”或“自定义”一种状态。自定义后才出现恢复动作；恢复后刷新仍沿用默认。[颜色页面](evidence-141/webkit-320-colors.png)、[自定义](evidence-141/webkit-color-custom.png) |
+| 颜色自定义 → 恢复 | 颜色页独立显示笔记预览，每层仅有“云盘默认”或“自定义”一种状态。自定义后才出现恢复动作；恢复后刷新仍沿用默认。[颜色页面](evidence-141/webkit-320-colors.png)、[自定义](evidence-141/webkit-color-custom.png) |
 | 自动保存失败 / 重试 | 云盘显示、颜色、本谱显示分别注入一次 503，保留已确认值并显示重试。重试发送原变更，成功后更新控件。不同层同时保存时，各行反馈互不覆盖。[颜色失败](evidence-141/webkit-color-save-failure.png) |
 | 写入目标 / 无编辑权 | 展示完整英文层名、共享受众和个人隐私；无权限行显示授权原因，点击可查看说明。[手机](evidence-141/webkit-320-target.png)、[手机横屏滚动后](evidence-141/webkit-740-target.png)、[iPad 横屏](evidence-141/webkit-1194-target.png)、[权限说明](evidence-141/webkit-permission.png) |
-| 编辑未显示层 / 退出恢复 | 有 E 编辑权的成员选择未显示的 E 后，只显示 E 批注，页面位置控件禁用，工具栏持续显示当前目标；退出后 E 隐藏，Personal 恢复。编辑全过程没有偏好写入。[编辑 E](evidence-141/webkit-edit-hidden-layer.png) |
+| 编辑未显示层 / 退出恢复 | 有 E 编辑权的成员选择未显示的 E 后，只显示 E 笔记，页面位置控件禁用，工具栏持续显示当前目标；退出后 E 隐藏，Personal 恢复。编辑全过程没有偏好写入。[编辑 E](evidence-141/webkit-edit-hidden-layer.png) |
 | 云盘管理 / 授权 | 保留五个固定英文层名、云盘默认色与独立编辑授权；不提供 Personal 管理或订阅。[管理](evidence-141/webkit-320-management.png)、[授权](evidence-141/webkit-320-grants.png) |
 
 ## 自动化验证

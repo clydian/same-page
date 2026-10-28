@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Header, MenuItem, MenuSection, MenuTrigger, Popover } from "react-aria-components";
@@ -15,6 +16,7 @@ export interface PersonalDriveActions {
 
 export function PersonalMenu({ email, drive }: { email?: string | null; drive?: PersonalDriveActions }) {
   const logout = useLogout();
+  const experience = new URLSearchParams(useLocation().search).get("experience") === "1";
   const identity = useApplicationIdentity();
   const online = useNetworkStatus();
   const [open, setOpen] = useState(false);
@@ -42,6 +44,7 @@ export function PersonalMenu({ email, drive }: { email?: string | null; drive?: 
       <MenuSection><Header>用户</Header>
         <MenuItem isDisabled>{email || "已登录"}</MenuItem>
         <MenuItem href="/user">账户</MenuItem>
+        <MenuItem href={experience ? "/appearance?experience=1" : "/appearance"}>外观</MenuItem>
         <MenuItem className="personal-menu-about" href="/about" textValue="关于与更新"><span>关于与更新</span><small className="personal-menu-version" translate="no">{buildVersion}</small></MenuItem>
       </MenuSection>
       {showAdmin && <MenuSection><Header>产品运营</Header>
