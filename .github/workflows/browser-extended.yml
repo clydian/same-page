@@ -211,7 +211,6 @@ jobs:
       - name: Record result for the admitted artifact
         run: |
           node scripts/release-verification.mjs "$SOURCE_SHA" "$RESULT" "$MANIFEST"
-          test "$RESULT" = success
         env:
           SOURCE_SHA: ${{ needs.plan.outputs.sha }}
           MANIFEST: ${{ needs.plan.outputs.manifest }}

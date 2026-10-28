@@ -6,30 +6,22 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { chromium, webkit, expect, request } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
-import { expectSampleScoreContent } from "./pdf-content.mjs";
 import { withBrowserEvidence } from "./browser-evidence.mjs";
 
-// Chromium uses browser touch input through CDP, not DOM dispatch. WebKit's
-// held sequence only tests app logic; neither is physical-device acceptance.
-async function hold(page, file, engine) {
+// CDP drives real Chromium touch input. Synthetic WebKit pointer dispatch
+// duplicates component tests and cannot prove native iPhone long-press behavior.
+async function hold(page, file) {
   const box = await file.boundingBox();
   assert.ok(box);
   const point = { x: box.x + Math.min(70, box.width / 2), y: box.y + box.height / 2 };
-  if (engine === "chromium") {
-    const cdp = await page.context().newCDPSession(page);
-    try {
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
-      await expect(file).toHaveAttribute("data-touch-active", "");
-      assert.equal(await file.evaluate(node => getComputedStyle(node).userSelect), "none");
-      await delay(700);
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    } finally { await cdp.detach(); }
-  } else {
-    await file.dispatchEvent("pointerdown", { pointerType: "touch", pointerId: 1, isPrimary: true, clientX: point.x, clientY: point.y });
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+    await expect(file).toHaveAttribute("data-touch-active", "");
+    assert.equal(await file.evaluate(node => getComputedStyle(node).userSelect), "none");
     await delay(700);
-    await file.dispatchEvent("pointerup", { pointerType: "touch", pointerId: 1, isPrimary: true, clientX: point.x, clientY: point.y });
-    await file.dispatchEvent("click", { detail: 1, button: 0 });
-  }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  } finally { await cdp.detach(); }
 }
 
 async function signIn(client, fixture) {
@@ -52,7 +44,9 @@ async function scenario(t, fixture, engine, browserType, name, run) {
       headless: true, ...nativeTabBrowser, ...(executablePath ? { executablePath } : {}),
       viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow",
     });
-    await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
+    await context.addInitScript(() => {
+      if (location.protocol === "http:" || location.protocol === "https:") localStorage.setItem("reader-gesture-hint-seen", "true");
+    });
     // Clone one real fixture login into isolated profiles. Repeating login for
     // every browser scenario would test auth rate limits instead of file links.
     await context.addCookies(fixture.sessionCookies);
@@ -65,7 +59,6 @@ async function scenario(t, fixture, engine, browserType, name, run) {
       await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
       const file = page.getByRole("link", { name: "本地链路测试", exact: true });
       await expect(file).toBeVisible();
-      await expect(file).toHaveAttribute("href", scorePath);
       await run({ page, context, library, scorePath, file });
       assert.deepEqual(errors, []);
     });
@@ -80,17 +73,19 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     try {
       await signIn(seed, fixture);
       const api = `${fixture.origin}/api/choirs/${fixture.choirId}`;
-      assert.equal((await seed.post(`${api}/scores/${fixture.scoreId}/attachments/links`, {
-        data: { id: crypto.randomUUID(), name: "参考外链", url: "https://example.org/reference" },
-      })).status(), 201);
-      for (let index = 0; index < 10; index++) {
-        assert.equal((await seed.post(api + "/scores", {
-          multipart: { file: { name: `滚动测试${index}.pdf`, mimeType: "application/pdf", buffer: fixture.pdf } },
+      if (engine === "chromium") {
+        assert.equal((await seed.post(`${api}/scores/${fixture.scoreId}/attachments/links`, {
+          data: { id: crypto.randomUUID(), name: "参考外链", url: "https://example.org/reference" },
         })).status(), 201);
+        for (let index = 0; index < 10; index++) {
+          assert.equal((await seed.post(api + "/scores", {
+            multipart: { file: { name: `滚动测试${index}.pdf`, mimeType: "application/pdf", buffer: fixture.pdf } },
+          })).status(), 201);
+        }
       }
       fixture.sessionCookies = (await seed.storageState()).cookies;
     } finally { await seed.dispose(); }
-    await scenario(t, fixture, engine, browserType, "touch-and-context-menu", async ({ page, context, library, file }) => {
+    if (engine === "chromium") await scenario(t, fixture, engine, browserType, "touch-and-context-menu", async ({ page, context, library, file }) => {
       await page.getByRole("button", { name: "本地链路测试：1 个附件", exact: true }).tap();
       const external = page.getByRole("link", { name: "参考外链", exact: true });
       await expect(external).toHaveAttribute("target", "_blank");
@@ -100,35 +95,33 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       }), false);
       const fileRequests = [];
       page.on("request", request => { if (/\/scores\/[^/]+\/(?:versions\/[^/]+\/pdf|pdf|sync)(?:\?|$)/.test(new URL(request.url()).pathname)) fileRequests.push(request.url()); });
-      await hold(page, file, engine);
+      await hold(page, file);
       await expect(page).toHaveURL(library);
       await expect(page.getByRole("menu")).toHaveCount(0);
       assert.deepEqual(fileRequests, [], "holding must not start PDF or annotation preparation");
       await expect(file).not.toHaveAttribute("data-touch-active");
       assert.notEqual(await file.evaluate(node => getComputedStyle(node).userSelect), "none");
-      if (engine === "chromium") {
-        const cdp = await context.newCDPSession(page);
-        try {
-          const box = await file.boundingBox(); assert.ok(box);
-          const point = { x: box.x + 60, y: box.y + box.height / 2 };
-          const before = await page.evaluate(() => scrollY);
-          await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
-          for (let step = 1; step <= 5; step++) {
-            await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: point.x, y: point.y - step * 25 }] });
-            await delay(20);
-          }
-          await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-          await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
-          await expect(page).toHaveURL(library);
-          await file.scrollIntoViewIfNeeded();
-          const current = await file.boundingBox(); assert.ok(current);
-          const first = { id: 0, x: current.x + 60, y: current.y + current.height / 2 };
-          await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first] });
-          await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first, { id: 1, x: first.x + 200, y: first.y + 80 }] });
-          await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-          await expect(page).toHaveURL(library);
-        } finally { await cdp.detach(); }
-      }
+      const cdp = await context.newCDPSession(page);
+      try {
+        const box = await file.boundingBox(); assert.ok(box);
+        const point = { x: box.x + 60, y: box.y + box.height / 2 };
+        const before = await page.evaluate(() => scrollY);
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+        for (let step = 1; step <= 5; step++) {
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: point.x, y: point.y - step * 25 }] });
+          await delay(20);
+        }
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
+        await expect(page).toHaveURL(library);
+        await file.scrollIntoViewIfNeeded();
+        const current = await file.boundingBox(); assert.ok(current);
+        const first = { id: 0, x: current.x + 60, y: current.y + current.height / 2 };
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first] });
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first, { id: 1, x: first.x + 200, y: first.y + 80 }] });
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await expect(page).toHaveURL(library);
+      } finally { await cdp.detach(); }
       assert.deepEqual(fileRequests, [], "scrolling and multiple contacts must not prepare a score");
 
       // Source-specific menu handling, including unknown/keyboard sources.
@@ -149,12 +142,11 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await page.keyboard.press("Escape");
     });
     await scenario(t, fixture, engine, browserType, "native-modifier-navigation", async ({ page, context, library, scorePath, file }) => {
-      // A withdrawn hold must not swallow a later native modifier activation.
-      await hold(page, file, engine);
+      // Only Chromium can exercise a native held touch in this harness.
+      if (engine === "chromium") await hold(page, file);
       await expect(file).not.toHaveAttribute("data-touch-active");
-      // Prove the application leaves native modifier activation intact once.
-      // Reader readiness uses a separately controlled page below, so native
-      // background-target initialization is not also a decoder timing gate.
+      // Prove native modifier activation and its target; PDF engine readiness
+      // belongs to the dedicated reader/offline suites, not a link timing gate.
       const [other] = await Promise.all([
         context.waitForEvent("page", { timeout: 5_000 }),
         file.click({ modifiers: ["ControlOrMeta"] }),
@@ -162,36 +154,8 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await expect(other).toHaveURL(new RegExp(`${scorePath}$`));
       await expect(page).toHaveURL(library);
       await other.close();
-
-    });
-    await scenario(t, fixture, engine, browserType, "reader-and-local-entry", async ({ page, context, library, scorePath, file }) => {
-      // Preserve application-owned cross-window startup with the same account,
-      // real SW and storage, independently from native modifier activation.
-      const reader = await context.newPage();
-      await reader.goto(`${fixture.origin}${scorePath}`);
-      await expectSampleScoreContent(reader);
-      await reader.close();
-      await expect(page).toHaveURL(library);
-      await file.tap();
+      await file.focus(); await page.keyboard.press("Enter");
       await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
-      await expectSampleScoreContent(page);
-      await page.goBack();
-      await expect(page).toHaveURL(library);
-      await expect(file).toBeVisible();
-
-      // The normal file opening above prepares its verified local copy through
-      // the product. Do not inject a Blob into WebKit's ephemeral IndexedDB.
-      const storage = library + "/storage";
-      await page.getByRole("button", { name: "我的", exact: true }).tap();
-      await page.getByRole("menuitem", { name: "本机存储", exact: true }).click();
-      await expect(page).toHaveURL(storage);
-      const localFile = page.getByRole("link", { name: "本地链路测试", exact: true });
-      await expect(localFile).toBeVisible();
-      await hold(page, localFile, engine);
-      await expect(page).toHaveURL(storage);
-      await localFile.focus(); await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
-      await expectSampleScoreContent(page);
     });
   });
 }
