@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { Context } from '../navigation/navigation-context';
+import { clearDiagnostics, exportDiagnostics } from '../diagnostics/diagnostics';
 import { afterEach, expect, it, vi } from 'vitest';
 import { setUpdateStatus } from '../updates/update-status';
 import { PlaybackGate } from './playback-gate';
@@ -33,4 +35,22 @@ it('contains a rejected player import without unmounting the reader, draft or up
   expect(playbackStore.getSnapshot()).toBeNull();
   expect(input).toHaveValue('尚未保存的文字');
  } finally { window.removeEventListener('same-page-check-update', check); }
+});
+
+it('records module loading separately and waits for guarded saving before offering page recovery', async () => {
+ clearDiagnostics(); vi.spyOn(console, 'error').mockImplementation(() => {});
+ let finishSaving: (() => void) | undefined;
+ const afterEditing = vi.fn((action: () => void) => { finishSaving = action; });
+ function Location() { const location = useLocation(); return <output aria-label="位置">{location.pathname}:{String(location.state?.recoverPlayer === true)}</output>; }
+ render(<MemoryRouter initialEntries={['/choirs/drive/scores/score']}><Context value={{ register: () => () => {}, back: () => {}, afterEditing, returnState: new Map() }}><label>笔记草稿<input defaultValue="保留的草稿" /></label><Location /><PlaybackGate /></Context></MemoryRouter>);
+ act(() => startPlayback(source)); await screen.findByRole('alert');
+ expect(JSON.parse(exportDiagnostics()).records).toEqual(expect.arrayContaining([expect.objectContaining({ stage: 'request', step: 'attachment-entry', errorType: 'TypeError' })]));
+ fireEvent.click(screen.getByRole('button', { name: '恢复播放器' }));
+ expect(afterEditing).toHaveBeenCalledOnce();
+ expect(screen.getByLabelText('位置')).toHaveTextContent('/choirs/drive/scores/score:false');
+ expect(screen.getByRole('textbox')).toHaveValue('保留的草稿');
+ expect(playbackStore.getSnapshot()).not.toBeNull();
+ act(() => finishSaving?.());
+ expect(screen.getByLabelText('位置')).toHaveTextContent('/about:true');
+ expect(playbackStore.getSnapshot()).toBeNull();
 });

@@ -56,3 +56,45 @@ it('does not turn an unresponsive legacy worker into permission to reload', asyn
   await vi.advanceTimersByTimeAsync(1501); await checking;
   expect(reload).not.toHaveBeenCalled();
 });
+
+it('explicit module recovery reloads an intact page only after editing and local work finish', async () => {
+  reply = { available: true, activeReady: true, activeBuild: 'abcdef1' };
+  setUpdateRoute('/choirs/test/scores/score');
+  const release = holdUpdate();
+  recovery.requestReload();
+  await recovery.check();
+  expect(reload).not.toHaveBeenCalled();
+  setUpdateRoute('/about'); recovery.tick(); expect(reload).not.toHaveBeenCalled();
+  release(); recovery.tick(); expect(reload).toHaveBeenCalledOnce();
+  recovery.tick(); expect(reload).toHaveBeenCalledOnce();
+});
+it('explicit recovery never skips offline, hidden or focused-input vetoes', () => {
+  setUpdateRoute('/about');
+  const input = document.createElement('input'); document.body.append(input); input.focus();
+  recovery.requestReload(); expect(reload).not.toHaveBeenCalled();
+  input.remove();
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+  recovery.tick(); expect(reload).not.toHaveBeenCalled();
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+  recovery.tick(); expect(reload).not.toHaveBeenCalled();
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+  recovery.tick(); expect(reload).toHaveBeenCalledOnce();
+});
+it('explicitly requested recovery needs neither a service worker nor persistent storage', () => {
+  Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {} });
+  const storage = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('unavailable'); });
+  try { recovery.requestReload(); expect(reload).toHaveBeenCalledOnce(); }
+  finally { storage.mockRestore(); }
+});
+it('an old in-flight shell check cannot erase a newer explicit recovery request', async () => {
+  let respond!: (data: unknown) => void;
+  Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { controller: {
+    postMessage: (_message: unknown, ports: { receive: (data: unknown) => void }[]) => { respond = ports[0].receive; },
+  } } });
+  const release = holdUpdate();
+  const checking = recovery.check();
+  recovery.requestReload(); respond({ available: true }); await checking;
+  expect(reload).not.toHaveBeenCalled();
+  release(); recovery.tick(); expect(reload).toHaveBeenCalledOnce();
+});

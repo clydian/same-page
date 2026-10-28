@@ -30,7 +30,7 @@ it('turns a read timeout into a retryable failure, and a retry creates only one 
   vi.mocked(readAttachment).mockImplementationOnce(stallUntilAbort).mockResolvedValue({ ...source.attachment, trashExpiresAt: null });
   render(<MusicXmlPlayer source={source} />);
   await act(async () => {});
-  await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(180000); });
   expect(screen.getByText('读取附件超时，请重试。')).toBeInTheDocument();
   expect(createPlayerSession).not.toHaveBeenCalled();
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重试' })); });
@@ -43,7 +43,7 @@ it('abandoning an in-flight read is silent and never creates a late session', as
   const { unmount } = render(<MusicXmlPlayer source={source} />);
   await act(async () => {});
   unmount();
-  await act(async () => { resolve({ ...source.attachment, trashExpiresAt: null }); await vi.advanceTimersByTimeAsync(60000); });
+  await act(async () => { resolve({ ...source.attachment, trashExpiresAt: null }); await vi.advanceTimersByTimeAsync(180000); });
   expect(createPlayerSession).not.toHaveBeenCalled();
 });
 
@@ -52,7 +52,7 @@ it('shows the deadline even when a reader ignores abort, and rejects its late re
   vi.mocked(readAttachment).mockImplementationOnce(() => new Promise(done => { resolveOld = done; })).mockResolvedValue({ ...source.attachment, trashExpiresAt: null });
   render(<MusicXmlPlayer source={source} />);
   await act(async () => {});
-  await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(180000); });
   expect(screen.getByText('读取附件超时，请重试。')).toBeInTheDocument();
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重试' })); });
   expect(screen.getByText('已就绪')).toBeInTheDocument();
@@ -66,7 +66,7 @@ it('keeps an early failure instead of replacing it with a later timeout', async 
   render(<MusicXmlPlayer source={source} />);
   await act(async () => {});
   expect(screen.getByText('附件已更新，请重新打开。')).toBeInTheDocument();
-  await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(180000); });
   expect(screen.getByText('附件已更新，请重新打开。')).toBeInTheDocument();
 });
 
@@ -125,4 +125,14 @@ it('keeps one automatic offline task through playback and pause snapshot changes
  await act(async()=>{state={status:'ready',playing:true};notify();});
  await act(async()=>{state={status:'ready',playing:false};notify();});
  expect(prepareOfflineMusicXml).toHaveBeenCalledOnce();expect(taskSignal?.aborted).toBe(false);
+});
+
+it('allows a slow read past one minute and still opens only its current session', async () => {
+ let resolve!: (value: Awaited<ReturnType<typeof readAttachment>>) => void;
+ vi.mocked(readAttachment).mockImplementation(() => new Promise(done => { resolve = done; }));
+ render(<MusicXmlPlayer source={source} />);await act(async () => {});
+ await act(async () => { await vi.advanceTimersByTimeAsync(90000); });
+ expect(screen.queryByText('读取附件超时，请重试。')).not.toBeInTheDocument();
+ await act(async () => resolve({ ...source.attachment, trashExpiresAt: null }));
+ expect(screen.getByText('已就绪')).toBeInTheDocument();expect(createPlayerSession).toHaveBeenCalledOnce();
 });

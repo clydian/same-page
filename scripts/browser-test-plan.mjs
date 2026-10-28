@@ -14,7 +14,9 @@ const sharedInfrastructure = new Set([
 export function changedBrowserPaths({ cwd = process.cwd(), base }) {
   try {
     if (!/^[a-f0-9]{40}$/.test(base ?? "")) return null;
-    return execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", base, "HEAD", "--"],
+    // Container checkout ownership can differ from the job user. Scope trust
+    // to this read, so valid history does not silently become a full-suite run.
+    return execFileSync("git", ["-c", `safe.directory=${cwd}`, "diff", "--name-only", "--no-renames", "-z", base, "HEAD", "--"],
       { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).split("\0").filter(Boolean);
   } catch { return null; }
 }

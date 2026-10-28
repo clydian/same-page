@@ -1,17 +1,14 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 import { chromium, webkit, expect } from '@playwright/test';
-import { startViteServer } from '../scripts/vite-server.mjs';
+import { startProductionPreview } from './production-preview.mjs';
 import { createVisualFixtureSession } from './fixtures.mjs';
 import { practiceMusicXml } from './practice-fixture.mjs';
 
 let server;
 before(async () => {
-  await promisify(execFile)('npm', ['run', 'build'], { cwd: process.cwd(), timeout: 180000, maxBuffer: 4 * 1024 * 1024 });
-  server = await startViteServer({ script: 'preview', cwd: process.cwd() });
+  server = await startProductionPreview();
 }, { timeout: 240000 });
 after(async () => { await server?.stop(); });
 const engines = process.env.PRACTICE_TEST_ENGINES?.split(',') ?? ['chromium', 'webkit'];
@@ -20,7 +17,7 @@ const denseXml = practiceMusicXml.replace(/<note>[\s\S]*?<\/note>/g, note => not
 for (const name of engines) test(`${name}: floating tools, direct zoom, transport preference, safe areas and fullscreen`, { timeout: 180000 }, async t => {
   const browser = await ({ chromium, webkit })[name].launch({ headless: true, ...(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
   t.after(() => browser.close());
-  const fixture = createVisualFixtureSession({ id: 'reader-practice-focus', practiceXml: denseXml });
+  const fixture = createVisualFixtureSession({ id: 'reader-practice-focus', practiceXml: denseXml, buildId: server.buildId });
   const open = async (width, height) => {
     const page = await browser.newPage({ viewport: { width, height }, hasTouch: true, reducedMotion: 'reduce', locale: 'zh-CN' });
     await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));

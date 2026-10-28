@@ -6,13 +6,14 @@ import { SettingsRequestError } from '../settings/settings-request';
 import { MusicXmlPractice } from './musicxml-practice';
 import { acquirePlaybackPreparation, clearPlaybackPreparation } from './playback-preparation';
 import { usePlaybackLifetime } from './use-playback-lifetime';
-import { resolveMusicXmlSource } from './musicxml-source';
+import { resolveMusicXmlSource, MUSICXML_READ_TIMEOUT_MS, type MusicXmlReadProgress } from './musicxml-source';
 import { musicXmlLoadingTracker } from './musicxml-loading';
 
 export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
   const container = useRef<HTMLDivElement>(null), viewport = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<PlayerSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [readProgress, setReadProgress] = useState<MusicXmlReadProgress>({ phase: 'access' });
   const [offline, setOffline] = useState<'preparing' | 'ready' | 'failed'>('preparing');
   const [preparation, setPreparation] = useState<{ bytes: Uint8Array; save: (bytes: Uint8Array, signal?: AbortSignal) => Promise<void>; signal: AbortSignal; source: PlaybackSource; canSaveAutomatically: boolean; loading: ReturnType<typeof musicXmlLoadingTracker> } | null>(null);
   const [foregroundReady, setForegroundReady] = useState(false);
@@ -30,11 +31,11 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
       const reason = new Error('读取附件超时，请重试。');
       abort.abort(reason);
       if (active) setError(reason.message);
-    }, 60000);
+    }, MUSICXML_READ_TIMEOUT_MS);
     const pauseForAudio = (event: Event) => { if (event.target instanceof HTMLMediaElement) player?.pause(); };
     document.addEventListener('play', pauseForAudio, true);
     void (async () => {
-      const resolved = await resolveMusicXmlSource(source, abort.signal, lease, () => loading.stage('authorized'));
+      const resolved = await resolveMusicXmlSource(source, abort.signal, lease, () => loading.stage('authorized'), progress => { if (active && !abort.signal.aborted) setReadProgress(progress); });
       abort.signal.throwIfAborted();
       loading.source(resolved.tier); loading.stage('raw-ready');
       if (resolved.tier === 'offline') { setOffline('ready'); loading.stage('offline-ready'); }
@@ -92,5 +93,5 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
     });
     return () => { abort.abort(); };
   }, [source, preparation, offlineIntent]);
-  return <MusicXmlPractice offlineStatus={offline} retryOffline={() => { setOffline('preparing'); retryOffline(value => value + 1); }} source={source} session={session} error={error} container={container} viewport={viewport} retry={() => { setError(null); setSession(null); setForegroundReady(false); setPreparation(null); setOffline('preparing'); retryOffline(0); setAttempt(value => value + 1); }} />;
+  return <MusicXmlPractice offlineStatus={offline} retryOffline={() => { setOffline('preparing'); retryOffline(value => value + 1); }} source={source} session={session} preparation={{ message: readProgress.phase === 'access' ? '正在确认乐谱…' : readProgress.phase === 'local' ? '正在读取本机乐谱…' : '正在下载乐谱…', loaded: readProgress.loaded, total: readProgress.total }} error={error} container={container} viewport={viewport} retry={() => { setError(null); setSession(null); setReadProgress({ phase: 'access' }); setForegroundReady(false); setPreparation(null); setOffline('preparing'); retryOffline(0); setAttempt(value => value + 1); }} />;
 }

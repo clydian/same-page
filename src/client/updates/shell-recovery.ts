@@ -10,15 +10,25 @@ export class ShellRecovery {
   private disposed = false;
   private checking = false;
   private pending: string | null = null;
+  private requested = false;
   constructor(private reload: () => void) {}
+
+  // Explicitly reopen this page under the active worker. This never activates
+  // a waiting update, and the same editor/operation vetoes still apply.
+  requestReload = () => {
+    if (this.disposed) return;
+    this.requested = true;
+    this.pending = buildId;
+    this.tick();
+  };
 
   check = async () => {
     const worker = navigator.serviceWorker?.controller;
-    if (this.disposed || this.checking || document.visibilityState !== 'visible' || !worker) return;
+    if (this.disposed || this.requested || this.checking || document.visibilityState !== 'visible' || !worker) return;
     this.checking = true;
     try {
       const reply = await requestWorker(worker, { type: 'SAME_PAGE_CHECK_SHELL', buildId });
-      if (this.disposed || navigator.serviceWorker?.controller !== worker || !reply || typeof reply !== 'object' || !('available' in reply)) return;
+      if (this.disposed || this.requested || navigator.serviceWorker?.controller !== worker || !reply || typeof reply !== 'object' || !('available' in reply)) return;
       if (reply.available === true) { this.pending = null; return; }
       if (reply.available !== false) return;
       this.pending = 'activeReady' in reply && reply.activeReady === true && 'activeBuild' in reply &&
@@ -31,9 +41,9 @@ export class ShellRecovery {
   };
 
   tick = () => {
-    if (this.disposed || !this.pending || !canApplyUpdate()) return;
-    const key = `same-page-shell-recovery:${this.pending}`;
-    try {
+    if (this.disposed || !this.pending || !canApplyUpdate(this.requested)) return;
+    if (!this.requested) try {
+      const key = `same-page-shell-recovery:${this.pending}`;
       // Persist before reload. If storage is unavailable, offer recovery rather
       // than risk a reload loop; one attempt per target build per browser tab.
       if (sessionStorage.getItem(key)) return;

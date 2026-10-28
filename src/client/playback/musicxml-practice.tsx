@@ -10,6 +10,7 @@ import { setPlaybackView, playbackViewStore, type PlaybackSource } from "./playb
 import { NotationZoom } from "./notation-zoom";
 import { useNotationPinch } from "./use-notation-pinch";
 import { useNotationToolbarClearance } from "./use-notation-toolbar-clearance";
+import type { PlaybackPreparationProgress } from './playback-preparation-notice';
 import { PracticePlayerShell } from "./practice-player-shell";
 import { PracticeDisclosure, PracticeSetting, PracticeVolume } from "./practice-setting";
 import { LoopRangeEditor } from "./loop-range-editor";
@@ -34,6 +35,7 @@ export function MusicXmlPractice({
   offlineStatus,
   retryOffline,
   session,
+  preparation,
   error,
   retry,
   container,
@@ -45,6 +47,7 @@ export function MusicXmlPractice({
   offlineStatus?: "preparing" | "ready" | "failed";
   retryOffline?(): void;
   session: PlayerSession | null;
+  preparation?: PlaybackPreparationProgress;
   error: string | null;
   retry(): void;
   container: RefObject<HTMLDivElement | null>;
@@ -114,7 +117,8 @@ export function MusicXmlPractice({
         loopStatus={state.loop ? `${measureLabel(state.loop.start)} 至 ${measureLabel(state.loop.end)}` : undefined}
         ready={ready}
         playing={state.playing || Boolean(state.countInBeats)}
-        message={error ?? (state.countInBeats ? `预备：${state.countInBeat} / ${state.countInBeats}` : state.message)}
+        preparation={session ? state.loadingProgress : preparation && preparation.loaded !== undefined && preparation.total !== undefined ? { loaded: preparation.loaded, total: preparation.total } : undefined}
+        message={error ?? (!session && preparation ? preparation.message : state.countInBeats ? `预备：${state.countInBeat} / ${state.countInBeats}` : state.message)}
         failed={Boolean(error) || state.status === "error"}
         timeline={{
           value: state.measure,

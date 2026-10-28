@@ -111,7 +111,7 @@ it('expires a hung shared metadata request even when a lifetime consumer remains
  vi.mocked(readAttachment).mockImplementationOnce(()=>new Promise(()=>{})).mockResolvedValue(source.attachment);
  const lifetime=readPlaybackAttachment(source,signal()).catch(reason=>reason);
  const opening=readPlaybackAttachment(source,signal()).catch(reason=>reason);
- await vi.advanceTimersByTimeAsync(60_000);
+ await vi.advanceTimersByTimeAsync(180_000);
  await expect(lifetime).resolves.toMatchObject({message:'读取附件超时，请重试。'});
  await expect(opening).resolves.toMatchObject({message:'读取附件超时，请重试。'});
  await expect(readPlaybackAttachment(source,signal())).resolves.toEqual(source.attachment);
@@ -168,4 +168,32 @@ it('bounds a captured final network identity guard and rejects instead of silent
  await expect(opening).resolves.toMatchObject({message:'本机状态校验未完成，请重试。'});
  expect(readOfflineMusicXml).not.toHaveBeenCalled();expect(access.save).not.toHaveBeenCalled();
  expect(vi.mocked(captureMusicXmlAccess).mock.calls[0][1].aborted).toBe(true);
+});
+
+it('reports authorized original download progress from received bytes', async () => {
+ const updates: unknown[] = [];
+ vi.mocked(attachmentFetch).mockImplementation(async () => new Response(new ReadableStream({start(controller) {
+  controller.enqueue(new Uint8Array([1,2]));controller.enqueue(new Uint8Array([3,4]));controller.close();
+ }}), {headers:{'X-Attachment-Revision':'1'}}));
+ const lease=acquirePlaybackPreparation(source);leases.push(lease);
+ const result=await resolveMusicXmlSource(source,signal(),lease,undefined,progress=>updates.push(progress));
+ expect(result.bytes).toEqual(bytes);
+ expect(updates).toEqual([{phase:'access'},{phase:'local'},{phase:'download',loaded:0,total:4},{phase:'download',loaded:2,total:4},{phase:'download',loaded:4,total:4}]);
+});
+it('cancels a stalled original stream without accepting bytes or offline fallback', async () => {
+ const cancel = vi.fn(), abort = new AbortController();
+ let stream!: ReadableStreamDefaultController<Uint8Array>;
+ vi.mocked(attachmentFetch).mockImplementation(async () => new Response(new ReadableStream<Uint8Array>({
+  start(controller) { stream = controller; }, cancel,
+ }), { headers: { 'X-Attachment-Revision': '1' } }));
+ const updates: unknown[] = [], lease = acquirePlaybackPreparation(source); leases.push(lease);
+ const result = resolveMusicXmlSource(source, abort.signal, lease, undefined, progress => updates.push(progress));
+ const rejection = expect(result).rejects.toThrow('cancelled');
+ await vi.waitFor(() => expect(updates).toContainEqual({ phase: 'download', loaded: 0, total: 4 }));
+ stream.enqueue(new Uint8Array([1, 2]));
+ await vi.waitFor(() => expect(updates).toContainEqual({ phase: 'download', loaded: 2, total: 4 }));
+ abort.abort(new Error('cancelled'));
+ await rejection;
+ expect(cancel).toHaveBeenCalledOnce(); expect(readOfflineMusicXml).not.toHaveBeenCalled();
+ expect(updates).not.toContainEqual({ phase: 'download', loaded: 4, total: 4 });
 });

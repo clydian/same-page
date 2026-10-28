@@ -14,6 +14,7 @@ export interface PlayerPart { id: number; name: string; volume: number; baseVolu
 export interface PlayerMeasure { index: number; label: string; startTick: number; endTick: number }
 export interface PlayerState {
   status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
+  loadingProgress?: { loaded: number; total: number };
   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
   tempo?: { bpm: number; unit: number }; metronome?: boolean; beatVolume?: number; countIn?: boolean; countInBeat?: number; countInBeats?: number;
   notationScale: number; previewing?: boolean; solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
@@ -52,7 +53,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     if (stage !== 'play-request' && stage !== 'playing') loadingStages.add(stage);
     try { options.onLoadingStage?.(stage); } catch { /* A timing sink cannot affect practice playback. */ }
   };
-  let state: PlayerState = { status: 'preparing', message: '正在读取乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .6, solfegePart: null, focus: null, otherVolume: .25, following: true, loop: null };
+  let state: PlayerState = { status: 'preparing', message: '正在处理乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .6, solfegePart: null, focus: null, otherVolume: .25, following: true, loop: null };
   const listeners = new Set<() => void>();
   const update = (next: Partial<PlayerState>) => {
     if (disposed) return;
@@ -241,11 +242,29 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   viewport?.addEventListener('scroll', scroll, { passive: true });
   let worker: Worker | null = null;
   const fail = (message: string) => {
-    if (disposed) return;
+    if (disposed || state.status === 'error') return;
     clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); update({ status: 'error', message, playing: false });
   };
-  const deadline = setTimeout(() => fail('准备播放超时，请重试。'), 60000);
+  // Soundfont transfer and synthesis preparation can exceed a minute on slow links.
+  // Still bound each attempt; disposal and explicit retry cancel the old session.
+  const deadline = setTimeout(() => fail('准备播放用时过长，请检查网络后重试。'), 180_000);
   api.error.on(error => fail(error instanceof Error ? error.message : '播放资源加载失败，请重试。'));
+  let modelReady = false, midiReady = false, soundfontReady = false;
+  let soundfontProgress: PlayerState['loadingProgress'];
+  const reportPreparation = () => {
+    if (disposed || state.status !== 'preparing') return;
+    update({ message: !modelReady ? '正在处理乐谱…' : !soundfontReady ? '正在加载音色…'
+      : !midiReady ? '正在生成播放数据…' : '正在完成谱面排版…',
+      loadingProgress: modelReady && !soundfontReady ? soundfontProgress : undefined });
+  };
+  api.soundFontLoad.on(event => {
+    if (Number.isFinite(event.loaded) && Number.isFinite(event.total) && event.total > 0 && event.loaded >= 0) {
+      const next = { loaded: Math.min(event.loaded, event.total), total: event.total };
+      if (soundfontProgress && Math.floor(next.loaded / next.total * 100) === Math.floor(soundfontProgress.loaded / soundfontProgress.total * 100)) return;
+      soundfontProgress = next;
+    }
+    reportPreparation();
+  });
   const applyMix = (parts: PlayerPart[], focus = state.focus, otherVolume = state.otherVolume ?? .25, focusVolume = state.focusVolume) => {
     const effective = parts.map(part => ({ ...part, volume: typeof focus === 'number' ? part.id !== focus ? otherVolume : focusVolume ?? part.baseVolume ?? part.volume : part.baseVolume ?? part.volume }));
     if (api.score) for (const part of effective) {
@@ -262,12 +281,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       const label = labels[index];
       return { index, label, startTick: item.start, endTick: item.end };
     });
-    clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', measures, tempo: tempoAt(0), metronome: false, beatVolume: .5, countIn: false }); loadingStage('ready');
+    clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', loadingProgress: undefined, measures, tempo: tempoAt(0), metronome: false, beatVolume: .5, countIn: false }); loadingStage('ready');
   };
   element.addEventListener('alphaTab.midiFileLoaded', ready);
   api.playerReady.on(ready);
-  api.midiLoaded.on(() => loadingStage('midi-ready'));
-  api.soundFontLoaded.on(() => loadingStage('soundfont-ready'));
+  api.midiLoaded.on(() => { midiReady = true; loadingStage('midi-ready'); reportPreparation(); });
+  api.soundFontLoaded.on(() => { soundfontReady = true; loadingStage('soundfont-ready'); reportPreparation(); });
   api.playerStateChanged.on(event => {
     const playing = event.state === alphaTab.synth.PlayerState.Playing;
     if (disposed || state.status === 'error') return;
@@ -326,11 +345,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       applyTimbreProfile(score.tracks, 'choir', classifyTimbreRoles(score.tracks, []));
       const names = score.tracks.map((track, index) => track.name || `声部 ${index + 1}`);
       const occurrences = new Map<string, number>();
-      update({ message: '正在准备音色与谱面…', parts: score.tracks.map((track, id) => {
+      update({ parts: score.tracks.map((track, id) => {
         const name = names[id], key = name.trim().toLowerCase(), occurrence = (occurrences.get(key) ?? 0) + 1;
         occurrences.set(key, occurrence);
         return { id, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
       }) });
+      modelReady = true; reportPreparation();
       loadingStage('model-ready'); api.renderScore(score, score.tracks.map(track => track.index));
     } catch (error) { fail(error instanceof Error ? error.message : '无法播放此乐谱。'); }
   };

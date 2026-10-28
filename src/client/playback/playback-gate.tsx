@@ -1,11 +1,16 @@
 import { Component, lazy, Suspense, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from 'react-aria-components';
-import { diagnosticErrorType, recordFailure } from '../diagnostics/diagnostics';
+import { diagnosticCauseType, diagnosticErrorType, recordFailure } from '../diagnostics/diagnostics';
 import { useUpdateStatus } from '../updates/update-status';
+import { useAppNavigation } from '../navigation/navigation-context';
 import { playbackStore, setPlaybackView, stopPlayback } from './playback-store';
-const MusicXmlPlayer = lazy(() => import('./musicxml-player'));
-const AudioPlayer = lazy(() => import('./audio-player'));
+class PlayerModuleLoadError extends Error {}
+function loadPlayer<T>(load: () => Promise<T>) {
+  return load().catch(cause => { throw new PlayerModuleLoadError('player_module_load_failed', { cause }); });
+}
+const MusicXmlPlayer = lazy(() => loadPlayer(() => import('./musicxml-player')));
+const AudioPlayer = lazy(() => loadPlayer(() => import('./audio-player')));
 export function PlaybackGate() {
   const source = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
   const { pathname } = useLocation();
@@ -32,18 +37,25 @@ class PlaybackErrorBoundary extends Component<{ children: ReactNode }, { failed:
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(error: unknown) {
     setPlaybackView('pdf');
-    recordFailure({ operation: 'other', category: 'internal', stage: 'decode',
-      errorType: diagnosticErrorType(error) });
+    const moduleFailure = error instanceof PlayerModuleLoadError;
+    recordFailure({ operation: 'other', category: 'internal', stage: moduleFailure ? 'request' : 'decode',
+      step: 'attachment-entry', errorType: moduleFailure ? diagnosticCauseType(error) ?? diagnosticErrorType(error.cause) : diagnosticErrorType(error) });
   }
   render() { return this.state.failed ? <PlaybackFailure /> : this.props.children; }
 }
 
 function PlaybackFailure() {
   const update = useUpdateStatus();
+  const navigation = useAppNavigation();
+  const navigate = useNavigate();
   return <aside className="playback-loading" aria-label="播放器加载失败" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: '#fcfdfb', color: '#31463a', padding: 8 }}>
-    <p role="alert">播放器加载失败，乐谱和笔记仍可继续使用。请先完成当前操作，再到关于合谱应用更新。</p>
+    <p role="alert">播放器加载失败，乐谱和笔记仍可继续使用。请检查网络，或保存当前操作后重新加载页面以恢复播放器。</p>
     <p role="status">{update.message}</p>
     <Button onPress={stopPlayback}>关闭播放器</Button>
+    <Button onPress={() => navigation.afterEditing(() => {
+      stopPlayback();
+      void navigate('/about', { state: { recoverPlayer: true } });
+    })}>恢复播放器</Button>
     <Button isDisabled={["registering", "checking", "preparing", "applying", "unsupported"].includes(update.phase)} onPress={() => window.dispatchEvent(new Event('same-page-check-update'))}>检查更新</Button>
     <Link to="/about">关于合谱与版本更新</Link>
   </aside>;

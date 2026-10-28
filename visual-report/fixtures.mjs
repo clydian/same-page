@@ -102,10 +102,11 @@ export function resolveFixtureRequest({
   cookie = "",
   pdf = samplePdf,
   selectedScore = score,
+  buildId,
 }) {
   if (method === "GET" && pathname === "/api/client-release") {
-    const { buildId } = JSON.parse(readFileSync(new URL('../dist/client/build.json', import.meta.url), 'utf8'));
-    return json({ channel: "stable", intent: "default", revision: 1, target: buildId, backend: buildId, contract: "same-page-storage-v15-sync-v1" });
+    const id = buildId ?? JSON.parse(readFileSync(new URL('../dist/client/build.json', import.meta.url), 'utf8')).buildId;
+    return json({ channel: "stable", intent: "default", revision: 1, target: id, backend: id, contract: "same-page-storage-v15-sync-v1" });
   }
   const score = selectedScore;
   const samplePdf = pdf;
@@ -591,7 +592,7 @@ export function createVisualFixtureSession(scenario = {}) {
         scores.push(uploaded);
         return json({ score: uploaded }, 201);
       }
-      const response = resolveFixtureRequest({ ...request, scenarioId: scenario.id ?? request.scenarioId, pdf, selectedScore });
+      const response = resolveFixtureRequest({ ...request, scenarioId: scenario.id ?? request.scenarioId, pdf, selectedScore, buildId: scenario.buildId });
       if (!response.contentType.startsWith("application/json")) return response;
       const payload = JSON.parse(response.body);
       if (!payload) return response;

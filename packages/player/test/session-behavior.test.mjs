@@ -17,7 +17,7 @@ function harness(options = {}) {
  globalThis.Worker = class { constructor() { worker=this;workerCount++; } terminate() {this.terminated=true;} postMessage(bytes) {this.bytes=bytes;} };
  globalThis.MutationObserver = class { constructor(fn) {observer=this;this.notify=fn;} observe() {} disconnect() {this.disconnected=true;} };
  const event = () => {const listeners=[];return {on(fn){listeners.push(fn);},emit(value){listeners.forEach(fn=>fn(value));}};};
- const api = {settings:{player:{}},renderer:{partialRenderFinished:event()},isReadyForPlayback:true,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},updateSettings(){},};
+ const api = {settings:{player:{}},renderer:{partialRenderFinished:event()},isReadyForPlayback:options.playbackReady !== false,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),soundFontLoad:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},updateSettings(){},};
  const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation,playbackTempo,()=>[]);
  const element={getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){},querySelector(){return null;}};
  const session = create(element,new Uint8Array([1]),options);
@@ -341,4 +341,36 @@ test('draft range preview merges whole bars per row, deduplicates repeat visits,
   width=150;h.api.postRenderFinished.emit();assert.equal(visible().length,1);assert.equal(visible()[0].style.left,'160px');assert.equal(visible()[0].style.width,'150px');
   h.session.previewMeasure(null);assert.equal(visible().length,0);assert.equal(viewport.scrollTop,40);assert.equal(resumed,1);assert.deepEqual(h.session.getSnapshot().loop,{start:0,end:1});
  }finally{h.dispose();globalThis.document=previousDocument;}
+});
+
+
+test('a slow but live playback preparation can finish after the old one-minute deadline', async t => {
+ t.mock.timers.enable({apis:['setTimeout']});
+ const h=harness({playbackReady:false,prepared:{bytes:new Uint8Array([1]),measureLabels:[]}});
+ try {
+  await Promise.resolve();t.mock.timers.tick(61000);
+  assert.equal(h.session.getSnapshot().status,'preparing');
+  h.api.isReadyForPlayback=true;h.api.playerReady.emit();
+  assert.equal(h.session.getSnapshot().status,'ready');
+ } finally {h.dispose();}
+});
+
+test('preparation reports actual download progress and independently completed engine work', async () => {
+ const h=harness({playbackReady:false,prepared:{bytes:new Uint8Array([1]),measureLabels:[]}});
+ try {
+  await Promise.resolve();assert.equal(h.session.getSnapshot().message,'正在加载音色…');
+  h.api.soundFontLoad.emit({loaded:20,total:100});assert.deepEqual(h.session.getSnapshot().loadingProgress,{loaded:20,total:100});
+  h.api.soundFontLoaded.emit();assert.equal(h.session.getSnapshot().message,'正在生成播放数据…');
+  assert.equal(h.session.getSnapshot().loadingProgress,undefined);
+  h.api.midiLoaded.emit();assert.equal(h.session.getSnapshot().message,'正在完成谱面排版…');
+  h.api.isReadyForPlayback=true;h.api.playerReady.emit();assert.equal(h.session.getSnapshot().status,'ready');
+ } finally {h.dispose();}
+});
+test('a stalled attempt still ends at the extended deadline and ignores late readiness', async t => {
+ t.mock.timers.enable({apis:['setTimeout']});
+ const h=harness({playbackReady:false,prepared:{bytes:new Uint8Array([1]),measureLabels:[]}});
+ try {
+  await Promise.resolve();t.mock.timers.tick(180000);assert.equal(h.session.getSnapshot().status,'error');
+  h.api.isReadyForPlayback=true;h.api.playerReady.emit();assert.equal(h.session.getSnapshot().status,'error');
+ } finally {h.dispose();}
 });
