@@ -41,6 +41,16 @@ it("partitions both browser suites without gaps; new tests default to the gate",
   }
 });
 
+it("blocks on keyboard admission regressions while deferring the alternate layout matrix", () => {
+  const entries = readdirSync("visual-report");
+  const gate = selectBrowserTests({ suite: "visual", group: "gate", entries });
+  const extended = selectBrowserTests({ suite: "visual", group: "extended", entries });
+  expect(gate).toEqual(expect.arrayContaining(["auth-keyboard.test.mjs", "join-keyboard.test.mjs"]));
+  expect(extended).toContain("join-keyboard-extended.test.mjs");
+  expect(gate).not.toContain("join-keyboard-extended.test.mjs");
+  expect(selectBrowserTests({ suite: "visual", group: "library", entries })).toContain("join-keyboard.test.mjs");
+});
+
 it("the real smoke runner partitions without omissions or duplicates, including new files", () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "same-page-native-shards-"));
   const runner = fileURLToPath(new URL("./run-browser-tests.mjs", import.meta.url));
