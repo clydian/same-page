@@ -1,4 +1,3 @@
-import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { before, after, test } from 'node:test';
 import { chromium, webkit, expect } from '@playwright/test';
@@ -40,8 +39,10 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   const popover = page.locator('.account-menu-popover');
   await expect.poll(async () => { const box=await popover.boundingBox(); return box.y >= 0 && box.y + box.height <= 320; }).toBe(true);
   await page.keyboard.press('End');
-  const logout = await page.getByRole('menuitem', { name: '退出登录', exact: true }).boundingBox();
-  assert.ok(logout.y >= 0 && logout.y + logout.height <= 320);
+  const logout = page.getByRole('menuitem', { name: '退出登录', exact: true });
+  await expect(logout).toBeFocused();
+  // Keyboard focus can settle before the browser finishes scrolling its menu.
+  await expect.poll(async () => { const box = await logout.boundingBox(); return box.y >= 0 && box.y + box.height <= 320; }).toBe(true);
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 390, height: 844 });
   await trigger.click();
