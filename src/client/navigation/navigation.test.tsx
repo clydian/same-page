@@ -153,7 +153,7 @@ it("asks before losing a changed form, keeps failed saves and returns after conf
   expect(await screen.findByRole("heading", { name: "云盘" })).toBeInTheDocument();
 });
 
-it("keeps a stable personal icon and known display name while membership is being restored", async () => {
+it("keeps a stable personal icon and cached membership while restoring scoped menu permissions", async () => {
   const { DriveHeader } = await import("../score-library/drive-header");
   const { rememberResource, readResource } = await import("../settings/read-resource");
   const key = { owner: "reader", driveId: "one", kind: "settings" } as const;
@@ -176,10 +176,12 @@ it("keeps a stable personal icon and known display name while membership is bein
   expect(readResource(key)).toEqual(settings);
   fireEvent.click(screen.getByRole("button", { name: "我的" }));
   await screen.findByRole("menuitem", { name: "阅读偏好" });
-  expect(screen.getByRole("menuitem", { name: "林老师" })).toBeVisible();
+  expect(screen.queryByText("林老师")).toBeNull();
+  expect(screen.queryByRole("menuitem", { name: "云盘内身份" })).toBeNull();
   await act(async () => { confirmMembership(); finishSettings(Response.json({ ...settings, displayName: "小林" })); });
   expect(screen.getByRole("menuitem", { name: "阅读偏好" })).toBeVisible();
   expect(screen.getByRole("menuitem", { name: "云盘内身份" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "我的", hidden: true })).toHaveTextContent("")
-  expect(screen.getByRole("menuitem", { name: "小林" })).toBeVisible();
+  expect(screen.queryByText("小林")).toBeNull();
+  expect(readResource(key)).toEqual({ ...settings, displayName: "小林" });
 });

@@ -12,7 +12,10 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   const browser = await engine.launch({ headless: true });
   let completed = false;
   const networkErrors = [];
-  const page = await browser.newPage({ viewport: { width: 820, height: 1180 }, hasTouch: true, colorScheme: 'light', locale: 'zh-CN' });
+  // This suite mocks business APIs. A controlling WebKit service worker can
+  // bypass page.route and reach the unseeded preview backend; real PWA/offline
+  // behavior belongs to browser-tests/musicxml-offline.test.mjs.
+  const page = await browser.newPage({ viewport: { width: 820, height: 1180 }, hasTouch: true, colorScheme: 'light', locale: 'zh-CN', serviceWorkers: 'block' });
   t.after(async () => {
     if (!completed) {
       console.error(name, 'appearance network errors', networkErrors);
@@ -47,6 +50,8 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   await page.getByRole('radio', { name: '深色界面下的谱面：反色' }).check();
   await page.getByRole('radio', { name: '跟随反色' }).check();
   await page.reload();
+  // Catch fixture leakage even if the cached identity still lets the UI render.
+  assert.equal(await page.evaluate(async () => (await (await fetch('/api/auth/get-session')).json())?.user?.id), 'visual-user-member');
   await expect(page.getByRole('radio', { name: '深色', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: '深色界面下的谱面：反色' })).toBeChecked();
   await mkdir('artifacts/verification/appearance', { recursive: true });
