@@ -1,4 +1,4 @@
-import { useAuthInputVisibility } from "../auth/use-auth-input-visibility";
+import { useInputVisibility } from "../platform/use-input-visibility";
 import { loginReturn } from "../auth/login-return";
 import { joinDrive, resumeDriveEntry, cancelDriveEntry, type DriveEntryResult } from "../auth/drive-entry";
 import { invalidateSettingsLifetime, useSettingsLifetime, captureSettingsLifetime } from "../settings/use-settings-lifetime";
@@ -51,7 +51,7 @@ type AuthView =
 const SOCIAL_EMAIL_DRAFT_KEY = "same-page:social-auth-email-draft";
 
 export default function AuthPage() {
-  const authPageRef = useAuthInputVisibility();
+  const authPageRef = useInputVisibility("page");
   const navigate = useNavigate();
   const location = useLocation();
   const initialOauthResult = new URLSearchParams(location.search).get("oauth");

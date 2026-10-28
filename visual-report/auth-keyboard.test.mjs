@@ -61,7 +61,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       window.visualViewport.offsetTop = 0;
       window.visualViewport.dispatchEvent(new Event("resize"));
     });
-    await expect.poll(() => page.locator(".auth-page").evaluate(element => element.style.getPropertyValue("--auth-keyboard-inset"))).toBe("0px");
+    await expect.poll(() => page.locator(".auth-page").evaluate(element => element.style.getPropertyValue("--input-keyboard-inset"))).toBe("0px");
     await expect(otp).toBeFocused();
     await expect(otp).toHaveValue("12");
     assert.equal(await page.evaluate(() => document.documentElement.scrollHeight), 844, "closing the keyboard must remove the temporary scroll space");
@@ -104,7 +104,7 @@ test("chromium: native visual viewport pan recovers OTP at document scroll zero"
     return bounds.top >= viewport.offsetTop && bounds.bottom <= viewport.offsetTop + viewport.height;
   }), { message: "native visual viewport pan must recover the OTP even at document scroll zero", timeout: 2000 }).toBe(true);
   assert.equal(await page.evaluate(() => scrollY), 0);
-  assert.equal(await page.locator(".auth-page").evaluate(element => element.style.getPropertyValue("--auth-keyboard-inset")), "0px", "pinch zoom must not create keyboard padding");
+  assert.equal(await page.locator(".auth-page").evaluate(element => element.style.getPropertyValue("--input-keyboard-inset")), "0px", "pinch zoom must not create keyboard padding");
   await expect(otp).toBeFocused();
   await expect(otp).toHaveValue("12");
 });

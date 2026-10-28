@@ -1,11 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
-/** Keep the current auth input visible when a mobile keyboard returns with the app. */
-export function useAuthInputVisibility() {
-  const containerRef = useRef<HTMLDivElement>(null);
+/** Keep focused form inputs visible across keyboard, viewport and app changes. */
+export function useInputVisibility(layout: "page" | "overlay") {
+  // Portaled overlays mount on open, so subscribe when the actual node appears.
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const container = containerRef.current;
     if (!container) return;
     const viewport = window.visualViewport;
     let frame: number | undefined;
@@ -21,19 +21,30 @@ export function useAuthInputVisibility() {
       // A pinch zoom also shrinks the visual viewport. Leave zoomed scrolling
       // to the browser rather than treating that difference as keyboard space.
       const zoomed = (viewport?.scale ?? 1) !== 1;
-      container.style.setProperty("--auth-keyboard-inset", `${zoomed ? 0 : Math.max(0, window.innerHeight - height)}px`);
+      if (layout === "page") {
+        container.style.setProperty("--input-keyboard-inset", `${zoomed ? 0 : Math.max(0, window.innerHeight - height)}px`);
+      } else if (zoomed) {
+        container.style.removeProperty("--input-viewport-height");
+        container.style.removeProperty("--input-viewport-top");
+      } else {
+        // A fixed modal cannot be lifted by document scrolling. Fit its overlay
+        // and internal scroll area to the visible region instead.
+        container.style.setProperty("--input-viewport-height", `${height}px`);
+        container.style.setProperty("--input-viewport-top", `${top}px`);
+      }
       const input = document.activeElement;
       if (!(input instanceof HTMLInputElement) || !container.contains(input) || input.disabled) return;
       let bounds = input.getBoundingClientRect();
       if (bounds.height <= 0) return;
-      if (bounds.top < top || bounds.bottom > top + height) {
-        // Native scrolling can pan the visual viewport even when document
-        // scrollY is already zero and a negative scrollBy would be clamped.
-        input.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+      if (layout === "overlay" || bounds.top < top || bounds.bottom > top + height) {
+        // Nearest scrolling in overlays also checks their internal clipping,
+        // which can be smaller than the visual viewport (for example landscape).
+        // Native scrolling can pan the visual viewport when scrollY is zero.
+        input.scrollIntoView({ block: layout === "page" ? "center" : "nearest", inline: "nearest", behavior: "instant" });
         bounds = input.getBoundingClientRect();
         top = viewport?.offsetTop ?? 0;
       }
-      if (zoomed) return;
+      if (zoomed || layout === "overlay") return;
       const gap = Math.min(12, Math.max(0, (height - bounds.height) / 2));
       // scrollIntoView's layout-viewport center may still be behind the keyboard.
       // Use the visual viewport's bounds, including its pan after app switching.
@@ -64,9 +75,11 @@ export function useAuthInputVisibility() {
       window.removeEventListener("resize", schedule);
       viewport?.removeEventListener("resize", schedule);
       viewport?.removeEventListener("scroll", schedule);
-      container.style.removeProperty("--auth-keyboard-inset");
+      container.style.removeProperty("--input-keyboard-inset");
+      container.style.removeProperty("--input-viewport-height");
+      container.style.removeProperty("--input-viewport-top");
     };
-  }, []);
+  }, [container, layout]);
 
-  return containerRef;
+  return setContainer;
 }
