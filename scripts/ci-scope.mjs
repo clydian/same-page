@@ -127,7 +127,10 @@ function checksForPath(file) {
   }
   if (file.startsWith("src/shared/")) {
     if (isTestPath(file)) return ["client"];
-    return ["client", "worker", "visual", "performance", "build", "smoke", "deploy"];
+    const selected = ["client", "worker", "visual", "performance", "build", "smoke", "deploy"];
+    // Both modules are bundled into the production Service Worker.
+    if (["src/shared/read-transport.ts", "src/shared/public-asset-fetch.ts"].includes(file)) selected.push("pwa");
+    return selected;
   }
   if (file.startsWith("src/test/")) return ["client"];
   if (file.startsWith("src/client/")) {

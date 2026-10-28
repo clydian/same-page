@@ -14,7 +14,9 @@ import { chromium, webkit } from '@playwright/test';
 const ids = { A: 'a'.repeat(40), B: 'b'.repeat(40) };
 const files = new Map(), workers = new Map(), requests = [];
 const optionalPath = '/_releases/' + ids.A + '/assets/musicxml-player-optional.js';
-let optionalManifest;
+let optionalManifest, transportScript;
+const cancelledBodies = [];
+const manifestPath = `/_releases/${ids.A}/playback/${ids.A}/manifest.json`;
 let temporary, main, backup, origins, current = 'A', fault, sockets;
 const prefix = id => `/_releases/${id}/`;
 function html(id) {
@@ -26,10 +28,28 @@ function html(id) {
 async function serve(route, request, response) {
  const pathname = new URL(request.url, origins.direct).pathname;
  requests.push({ route, pathname, cookie: request.headers.cookie ?? '' });
+ if (pathname === '/transport.html') { response.writeHead(200, {'Content-Type':'text/html'}); response.end('<script src="/transport.js"></script>'); return; }
+ if (pathname === '/transport.js') { response.writeHead(200, {'Content-Type':'text/javascript'}); response.end(transportScript); return; }
+ if (pathname === manifestPath && route === 'direct' && fault === 'manifest-body') {
+  response.on('close', () => { if (!response.writableFinished) cancelledBodies.push(pathname); });
+  response.writeHead(200, {'Content-Type':'application/json'}); response.write('{'); return;
+ }
  if (route === 'direct' && pathname === '/sw.js') { response.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }); response.end(workers.get(current)); return; }
  if (pathname === optionalPath && fault?.startsWith('optional') && route === 'direct') { response.destroy(); return; }
  if (pathname.startsWith(prefix(ids.B))) {
   if (fault === 'both' && pathname.endsWith('two.js') || route === 'direct' && fault && fault !== 'both') {
+   if (fault === 'gateway502' || fault === 'gateway504') { response.writeHead(fault === 'gateway502' ? 502 : 504); response.end('gateway'); return; }
+   if (fault === 'idle-body') {
+    response.on('close', () => { if (!response.writableFinished) cancelledBodies.push(pathname); });
+    response.writeHead(200, {'Content-Type': files.get(pathname).type}); response.write('partial'); return;
+   }
+   if (fault === 'slow-body') {
+    const value = files.get(pathname), size = Math.ceil(value.bytes.length / 4);
+    response.writeHead(200, {'Content-Type':value.type});
+    let offset = 0;
+    const write = () => { response.write(value.bytes.slice(offset, offset + size)); offset += size; if (offset >= value.bytes.length) { clearInterval(timer); response.end(); } };
+    const timer = setInterval(write, 4000); response.on('close', () => clearInterval(timer)); write(); return;
+   }
    if (fault === 'stall') return; // Caller must abandon the connection itself.
    if (fault === 'body') { response.writeHead(200, { 'Content-Type': 'text/javascript', 'Content-Length': '99999' }); response.write('partial'); setTimeout(() => response.destroy(), 30); return; }
    response.destroy(); return;
@@ -57,6 +77,19 @@ before(async () => {
  files.set(optionalPath, {bytes:optionalBytes,type:'text/javascript'});
  const optionalEntry = {url:optionalPath,bytes:Buffer.byteLength(optionalBytes),integrity:'sha256-'+createHash('sha256').update(optionalBytes).digest('base64')};
  optionalManifest = {buildId:ids.A,entries:[optionalEntry,{...optionalEntry,url:prefix(ids.A)+'assets/prepare.worker-optional.js'},{...optionalEntry,url:prefix(ids.A)+'playback/'+ids.A+'/soundfont/sonivox.sf2'}]};
+ files.set(manifestPath, { bytes: JSON.stringify(optionalManifest), type: 'application/json' });
+ const transport = await build({ stdin: { contents: `
+  import {publicAssetReader} from './src/shared/read-transport';
+  import {parsePlaybackManifest} from './src/shared/playback-assets';
+  const read = publicAssetReader({origin:location.origin,origins:${JSON.stringify(origins)}});
+  window.readManifest = async () => {
+   const response = await read(${JSON.stringify(manifestPath)}, async response => {
+    parsePlaybackManifest(await response.json(), ${JSON.stringify(ids.A)}); return true;
+   }, undefined, 'manifest');
+   return (await response.json()).buildId;
+  };
+ `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'iife' });
+ transportScript = transport.outputFiles[0].text;
  for (const [label, id] of Object.entries(ids)) {
   const entries = [];
   for (const [file, bytes, type] of [['index.html', html(id), 'text/html'], ['one.js', `/* ${id} one */`, 'text/javascript'], ['two.js', `/* ${id} two */`, 'text/javascript']]) {
@@ -85,9 +118,20 @@ async function waitFor(page, condition, label) {
  throw new Error(`Timed out: ${label}`);
 }
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
- for (const failure of ['network', 'body', 'stall', 'both', 'corrupt', 'cors']) {
+ test(`${name}: manifest body stall leaves time for alternate completion`, { timeout: 30000 }, async t => {
+  current = 'A'; fault = 'manifest-body'; requests.length = 0; cancelledBodies.length = 0;
+  const browser = await engine.launch(); t.after(() => browser.close());
+  const page = await browser.newPage();
+  await page.goto(origins.direct + '/transport.html');
+  const id = await page.evaluate(() => window.readManifest());
+  assert.equal(id, ids.A);
+  assert.ok(requests.some(item => item.route === 'backup' && item.pathname === manifestPath));
+  assert.ok(cancelledBodies.includes(manifestPath), 'old response stream is closed');
+ });
+
+ for (const failure of ['network', 'body', 'stall', 'idle-body', 'slow-body', 'gateway502', 'gateway504', 'both', 'corrupt', 'cors']) {
   test(`${name}: immutable update survives ${failure} without replacing a usable shell`, { timeout: 60000 }, async t => {
-   current = 'A'; fault = undefined; requests.length = 0;
+   current = 'A'; fault = undefined; requests.length = 0; cancelledBodies.length = 0;
    const browser = await engine.launch(); t.after(() => browser.close());
    const context = await browser.newContext({ serviceWorkers: 'allow' });
    const page = await context.newPage();
@@ -130,7 +174,9 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     } else return;
    } else {
     await waitFor(page, async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting), 'B completes using backup');
-    assert.ok(requests.some(item => item.route === 'backup' && item.pathname.startsWith(prefix(ids.B))), JSON.stringify({requests, states: await page.evaluate(async () => { const r=await navigator.serviceWorker.getRegistration(); return {states:window.installStates,waiting:r.waiting?.state,installing:r.installing?.state}; })}));
+    if (failure === 'slow-body') assert.ok(!requests.some(item => item.route === 'backup' && item.pathname.startsWith(prefix(ids.B))), 'steady slow progress stays on direct');
+    else assert.ok(requests.some(item => item.route === 'backup' && item.pathname.startsWith(prefix(ids.B))), JSON.stringify({requests, states: await page.evaluate(async () => { const r=await navigator.serviceWorker.getRegistration(); return {states:window.installStates,waiting:r.waiting?.state,installing:r.installing?.state}; })}));
+    if (failure === 'idle-body') assert.ok(cancelledBodies.length > 0, 'abandoned direct bodies are cancelled');
     assert.ok(requests.filter(item => item.route === 'backup').every(item => item.cookie === ''), 'public fallback never sends cookies');
    }
    const result = await page.evaluate(async () => {
@@ -146,6 +192,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
 }
 
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+
  test(`${name}: optional player repair shares fallback and cannot bypass failed integrity`, { timeout: 45000 }, async t => {
   current = 'A'; fault = undefined; requests.length = 0;
   const browser = await engine.launch(); t.after(() => browser.close());

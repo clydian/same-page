@@ -61,6 +61,8 @@ test("runtime areas select only their relevant expensive checks", (t) => {
     ["src/client/updates/update-controller.ts", ["client", "visual", "pwa", "performance", "build", "smoke", "deploy"]],
     ["worker/index.ts", ["worker", "build", "smoke", "deploy"]],
     ["src/shared/health.ts", ["client", "worker", "visual", "performance", "build", "smoke", "deploy"]],
+    ["src/shared/read-transport.ts", ["client", "worker", "visual", "pwa", "performance", "build", "smoke", "deploy"]],
+    ["src/shared/public-asset-fetch.ts", ["client", "worker", "visual", "pwa", "performance", "build", "smoke", "deploy"]],
     ["migrations/0002.sql", ["worker", "migration", "build", "smoke", "deploy"]],
     ["visual-report/layout.test.mjs", ["visual"]],
     ["browser-tests/browser-evidence.mjs", ["visual", "build", "smoke"]],
