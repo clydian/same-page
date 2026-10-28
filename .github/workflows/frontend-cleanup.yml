@@ -1,0 +1,92 @@
+name: One-off frontend release cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preview first; apply only the reviewed exact plan
+        type: choice
+        options: [preview, apply]
+        default: preview
+      preview_run:
+        description: Successful preview run ID (apply only)
+        type: string
+      plan_sha256:
+        description: Reviewed plan.json SHA256 from preview report (apply only)
+        type: string
+
+permissions: {}
+
+jobs:
+  cleanup:
+    if: github.repository == 'clydian/same-page' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: same-page-production
+      cancel-in-progress: false
+    environment: production
+    permissions:
+      contents: read
+      actions: read
+    env:
+      PREVIEW_RUN_ID: ${{ inputs.preview_run }}
+      PLAN_SHA256: ${{ inputs.plan_sha256 }}
+    steps:
+      - name: Checkout trusted main controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Verify preview provenance before downloading
+        if: inputs.mode == 'apply'
+        id: preview
+        run: node scripts/frontend-cleanup-cli.mjs validate-run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Download reviewed preview only
+        if: inputs.mode == 'apply'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ steps.preview.outputs.artifact_id }}
+          repository: clydian/same-page
+          run-id: ${{ inputs.preview_run }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/frontend-cleanup
+          digest-mismatch: error
+
+      - name: Install locked operations dependencies
+        run: |
+          npm ci --prefer-offline --no-audit --no-fund
+          npm ci --prefix android --prefer-offline --no-audit --no-fund
+
+      - name: Preview or apply exact plan under the production lock
+        env:
+          CLEANUP_MODE: ${{ inputs.mode }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/frontend-cleanup-cli.mjs "$CLEANUP_MODE" "$RUNNER_TEMP/frontend-cleanup"
+
+      - name: Preserve successful preview
+        if: success() && inputs.mode == 'preview'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-cleanup-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/frontend-cleanup/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Preserve apply audit including partial failure
+        if: always() && inputs.mode == 'apply'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-cleanup-result-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/frontend-cleanup/
+          if-no-files-found: ignore
+          retention-days: 90
