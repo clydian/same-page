@@ -65,3 +65,33 @@ it('respects an explicitly pinned route', async () => {
   expect(send).toHaveBeenCalledTimes(1);
   expect((send.mock.calls[0][0] as Request).url).toBe(origins.backup + path);
 });
+
+it('never treats a validator TypeError as a network failure', async () => {
+  const send = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({ buildId: 'a'.repeat(40), entries: [null] }));
+  const { parsePlaybackManifest } = await import('./playback-assets');
+  const read = publicAssetReader({ origin: origins.direct, origins, send });
+  await expect(read(path, async response => {
+    parsePlaybackManifest(await response.json(), 'a'.repeat(40));
+    return true;
+  })).rejects.toThrow('public_asset_integrity');
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it('rejects resource paths belonging to another release or playback build while retaining legacy paths', async () => {
+  const { parsePlaybackManifest } = await import('./playback-assets');
+  const id = 'a'.repeat(40), other = 'b'.repeat(40);
+  const entry = (url: string) => ({url,bytes:1,integrity:'sha256-'+ 'A'.repeat(43)+'='});
+  const paths = ['/assets/musicxml-player-one.js','/assets/prepare.worker-one.js',`/playback/${id}/soundfont/sonivox.sf2`];
+  const manifest = {buildId:id,entries:paths.map(entry)};
+  expect(parsePlaybackManifest(manifest,id)).toEqual(manifest);
+  expect(() => parsePlaybackManifest({...manifest,entries:paths.map(url=>entry(`/_releases/${other}${url}`))},id)).toThrow('invalid_playback_manifest');
+  expect(() => parsePlaybackManifest({...manifest,entries:[...manifest.entries.slice(0,2),entry(`/playback/${other}/soundfont/sonivox.sf2`)]},id)).toThrow('invalid_playback_manifest');
+  const fixed = {...manifest,entries:paths.map(url=>entry(`/_releases/${id}${url}`))};
+  expect(parsePlaybackManifest(fixed,id)).toEqual(fixed);
+});
+
+it('does not retry validator implementation errors through another origin', async () => {
+  const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response('verified'));
+  await expect(publicAssetReader({ origin: origins.direct, origins, send })(path, async () => { throw new TypeError('invalid structure'); })).rejects.toThrow('public_asset_integrity');
+  expect(send).toHaveBeenCalledTimes(1);
+});

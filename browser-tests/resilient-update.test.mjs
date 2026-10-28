@@ -13,6 +13,8 @@ import { chromium, webkit } from '@playwright/test';
 // channel routing and injects only tiny immutable manifests to isolate transport.
 const ids = { A: 'a'.repeat(40), B: 'b'.repeat(40) };
 const files = new Map(), workers = new Map(), requests = [];
+const optionalPath = '/_releases/' + ids.A + '/assets/musicxml-player-optional.js';
+let optionalManifest;
 let temporary, main, backup, origins, current = 'A', fault, sockets;
 const prefix = id => `/_releases/${id}/`;
 function html(id) {
@@ -25,6 +27,7 @@ async function serve(route, request, response) {
  const pathname = new URL(request.url, origins.direct).pathname;
  requests.push({ route, pathname, cookie: request.headers.cookie ?? '' });
  if (route === 'direct' && pathname === '/sw.js') { response.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }); response.end(workers.get(current)); return; }
+ if (pathname === optionalPath && fault?.startsWith('optional') && route === 'direct') { response.destroy(); return; }
  if (pathname.startsWith(prefix(ids.B))) {
   if (fault === 'both' && pathname.endsWith('two.js') || route === 'direct' && fault && fault !== 'both') {
    if (fault === 'stall') return; // Caller must abandon the connection itself.
@@ -34,10 +37,10 @@ async function serve(route, request, response) {
  }
  const value = pathname === '/' ? { bytes: html(ids[current]), type: 'text/html' } : files.get(pathname);
  if (!value) { response.writeHead(404); response.end(); return; }
- const headers = { 'Content-Type': value.type, 'Cache-Control': 'no-store' };
+ const headers = { 'Content-Type': value.type, 'Cache-Control': 'no-store', 'Cross-Origin-Resource-Policy': 'same-origin' };
  if (route === 'backup' && fault !== 'cors') headers['Access-Control-Allow-Origin'] = origins.direct;
  response.writeHead(200, headers);
- response.end(route === 'backup' && fault === 'corrupt' ? 'different version' : value.bytes);
+ response.end(route === 'backup' && ['corrupt', 'optional-corrupt'].includes(fault) ? 'different version' : value.bytes);
 }
 before(async () => {
  temporary = await mkdtemp(path.join(tmpdir(), 'same-page-resilient-update-'));
@@ -50,6 +53,10 @@ before(async () => {
  };
  main = await start('direct'); backup = await start('backup');
  origins = { direct: `http://127.0.0.1:${main.address().port}`, backup: `http://127.0.0.1:${backup.address().port}` };
+ const optionalBytes = '/* optional player */';
+ files.set(optionalPath, {bytes:optionalBytes,type:'text/javascript'});
+ const optionalEntry = {url:optionalPath,bytes:Buffer.byteLength(optionalBytes),integrity:'sha256-'+createHash('sha256').update(optionalBytes).digest('base64')};
+ optionalManifest = {buildId:ids.A,entries:[optionalEntry,{...optionalEntry,url:prefix(ids.A)+'assets/prepare.worker-optional.js'},{...optionalEntry,url:prefix(ids.A)+'playback/'+ids.A+'/soundfont/sonivox.sf2'}]};
  for (const [label, id] of Object.entries(ids)) {
   const entries = [];
   for (const [file, bytes, type] of [['index.html', html(id), 'text/html'], ['one.js', `/* ${id} one */`, 'text/javascript'], ['two.js', `/* ${id} two */`, 'text/javascript']]) {
@@ -136,4 +143,28 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
    assert.equal(await page.locator('h1').textContent(), ids.B);
   });
  }
+}
+
+for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+ test(`${name}: optional player repair shares fallback and cannot bypass failed integrity`, { timeout: 45000 }, async t => {
+  current = 'A'; fault = undefined; requests.length = 0;
+  const browser = await engine.launch(); t.after(() => browser.close());
+  const page = await browser.newPage({ serviceWorkers: 'allow' });
+  await page.goto(origins.direct);
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await waitFor(page, () => Boolean(navigator.serviceWorker.controller), 'A controls player requests');
+  await page.evaluate(async ({id,manifest}) => {
+   const cache = await caches.open('same-page-playback-v1:'+id);
+   await cache.put('/playback/'+id+'/manifest.json',Response.json(manifest));
+  }, {id:ids.A,manifest:optionalManifest});
+  fault = 'optional'; requests.length = 0;
+  const repaired = await page.evaluate(async url => { const response=await fetch(url);return {status:response.status,body:await response.text()}; }, optionalPath);
+  assert.equal(repaired.status,200); assert.equal(repaired.body,'/* optional player */');
+  assert.ok(requests.some(item=>item.route==='backup' && item.pathname===optionalPath));
+  fault = 'optional-corrupt'; requests.length = 0;
+  const rejected = await page.evaluate(async url => { const response=await fetch(url);return {status:response.status,body:await response.text()}; }, optionalPath);
+  assert.deepEqual(rejected,{status:503,body:''});
+  assert.ok(requests.some(item=>item.route==='backup' && item.pathname===optionalPath));
+ });
 }

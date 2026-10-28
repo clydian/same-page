@@ -61,13 +61,16 @@ export function publicAssetReader(options: PublicAssetOptions) {
           // HTTP errors are application responses, not evidence of a broken
           // network route. Never replace missing files with another version.
           if (response.status !== 200) throw new Error('public_asset_unavailable');
-          if (!await verify(response)) throw new Error('public_asset_integrity');
-          // Verification may consume a clone; retain a fully read body so late
-          // network failures cannot escape outside this attempt's deadline.
+          // Finish network I/O before validating. A validator's TypeError is
+          // damaged content, not evidence that another route should be tried.
           const bytes = await response.arrayBuffer();
           attempt.throwIfAborted();
           const headers = new Headers(response.headers);
           headers.delete('content-encoding'); headers.delete('content-length'); headers.delete('vary');
+          try {
+            if (!await verify(new Response(bytes, { status: 200, headers }))) throw new Error('invalid_asset');
+          } catch (cause) { throw new Error('public_asset_integrity', { cause }); }
+          attempt.throwIfAborted();
           return new Response(bytes, { status: 200, headers });
         }, signal, options.timeoutMs ?? 60_000);
         preferred = route; succeeded = true;

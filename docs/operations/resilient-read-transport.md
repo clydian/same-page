@@ -12,7 +12,7 @@
 
 Worker 仅为固定版本公开资源、GET/HEAD、配置中的 Origin 添加 CORS；不开放凭证、发布通道接口、动态 HTML 或 `/sw.js` 的跨域读取。`Vary: Origin` 同时覆盖未携带 Origin 的响应，防止中间缓存混用响应头。已有前后端连接开关继续生效。
 
-调用者负责提供版本绑定的验证规则：应用壳使用内嵌清单的 SHA-256/MIME 和 HTML build ID；播放器清单核对 build ID 与路径结构，文件核对字节数、SHA-256 和类型。两条线路只能完成同一个版本，不拼装不同发布。缓存键仍是当前 origin 的原始 URL，不写入备用 origin 的 CacheStorage 或业务 IndexedDB。
+调用者负责提供版本绑定的验证规则：应用壳使用内嵌清单的 SHA-256/MIME 和 HTML build ID；播放器清单核对 build ID、发布前缀与音色／字体内部目录的版本绑定，文件核对字节数、SHA-256 和类型。两条线路只能完成同一个版本，不拼装不同发布。缓存键仍是当前 origin 的原始 URL，不写入备用 origin 的 CacheStorage 或业务 IndexedDB。
 
 ## 更新与缓存生命周期
 
@@ -39,4 +39,4 @@ Worker 仅为固定版本公开资源、GET/HEAD、配置中的 Origin 添加 CO
 - `node --test browser-tests/resilient-update.test.mjs`
 - `npm run typecheck`、`npm run lint`、`npm run build`、`npm run test:pwa-update`
 
-新浏览器测试默认进入 PR 与发布前的阻塞组，使用实际 `service-worker/sw.ts`，仅注入小型固定版本清单并关闭发布通道来隔离线路行为；原 PWA 矩阵继续覆盖真实发布授权与多窗口交接。Chromium / WebKit 分别验证断连接、响应体中断、连接挂起、双线失败后恢复、错误内容与 CORS 拒绝。测试站点仅为本机两个随机端口，不访问真实用户数据。
+新浏览器测试默认进入 PR 与发布前的阻塞组，使用实际 `service-worker/sw.ts`，仅注入小型固定版本清单并关闭发布通道来隔离线路行为；原 PWA 矩阵继续覆盖真实发布授权与多窗口交接。Chromium / WebKit 分别验证断连接、响应体中断、连接挂起、双线失败后恢复、错误内容与 CORS 拒绝，并验证可选播放器资源的备用修复与完整性拒绝（共 14 个用例）。测试站点仅为本机两个随机端口，不访问真实用户数据。
