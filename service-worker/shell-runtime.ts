@@ -1,3 +1,5 @@
+import { configuredAssetReader } from "../src/shared/public-asset-fetch";
+import { networkFailure } from "../src/shared/read-transport";
 import { recoveryPage } from "./recovery-page";
 import { ReleasePermission } from "./release-permission";
 import { playbackCacheName } from '../src/shared/playback-assets';
@@ -43,7 +45,7 @@ export class ShellRuntime {
   private repair?: Promise<void>;
   private assetRecords?: Promise<ShellRecord[]>;
   private audit?: Promise<void>;
-  constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string, private permission?: ReleasePermission) {
+  constructor(private scope: ServiceWorkerGlobalScope, entries: ManifestEntry[], buildId: string, private permission?: ReleasePermission, private readAsset = configuredAssetReader(scope.location.origin)) {
     this.prefix = `same-page-shell-v2:${encodeURIComponent(scope.registration.scope)}:`;
     this.legacyPrefix = `same-page-shell-v1:${encodeURIComponent(scope.registration.scope)}:`;
     this.registryName = `same-page-shell-registry-v1:${encodeURIComponent(scope.registration.scope)}`;
@@ -108,7 +110,7 @@ export class ShellRuntime {
       const candidate = await caches.match(entry.url, { cacheName: name, ignoreSearch: true });
       if (candidate && await valid(candidate, entry)) { response = candidate; break; }
     }
-    response ??= await fetch(new Request(entry.networkUrl ?? entry.url, { credentials: 'same-origin', cache: 'reload', redirect: 'error', integrity: entry.integrity, signal }));
+    response ??= await this.readAsset(entry.networkUrl ?? entry.url, response => valid(response, entry), signal);
     if (!await valid(response, entry)) throw new Error('shell_integrity_mismatch');
     // A constructed response cannot carry a network redirect flag or compressed
     // transfer headers after its decoded bytes have been read.
@@ -126,6 +128,10 @@ export class ShellRuntime {
       if (!repair) throw new Error('shell_incomplete');
       const replacement = await this.obtain(entry, signal);
       if (!await correctVersion(replacement)) throw new Error('shell_version_mismatch');
+      // After a failed WebKit install, put alone may resolve without a usable
+      // entry. Delete the invalid record before repair; the full audit still
+      // verifies that the replacement was actually stored.
+      await cache.delete(entry.url);
       await cache.put(entry.url, replacement);
     };
     // Bound network/crypto work without making mobile installation pay one RTT
@@ -139,6 +145,7 @@ export class ShellRuntime {
     }));
     if (failure) throw failure.error;
   }
+
   private locked<T>(action: () => Promise<T>) {
     const locks = this.scope.navigator?.locks;
     return locks ? locks.request(this.prefix + 'lifecycle', action) : action();
@@ -149,7 +156,6 @@ export class ShellRuntime {
     if (record.entries.reduce((bytes, entry) => bytes + entry.bytes, 0) > shellReleaseLimit) throw new Error('shell_release_too_large');
     // The new installer owns its admission. An old active worker's obsolete
     // aggregate budget must not prevent a direct upgrade.
-    if (this.scope.registration.active) await identify(this.scope.registration.active, 'SAME_PAGE_COLLECT_SHELLS');
     let existing: boolean | undefined;
     try {
       await this.locked(async () => {
@@ -161,6 +167,8 @@ export class ShellRuntime {
         record.installing = Date.now();
         await this.save(record);
       });
+      // Protect a resumed candidate before asking the active worker to collect.
+      if (this.scope.registration.active) await identify(this.scope.registration.active, 'SAME_PAGE_COLLECT_SHELLS');
       for (let attempt = 0; ; attempt++) {
         try {
           await this.check(record, true, true, AbortSignal.timeout(300_000));
@@ -176,11 +184,11 @@ export class ShellRuntime {
       }
     } catch (error) {
       await this.locked(async () => {
-        if (existing === false) {
+        if (existing === false && !networkFailure(error)) {
           await caches.delete(record.cacheName);
           await (await caches.open(this.registryName)).delete(this.key(record.cacheName));
           await (await caches.open(this.registryName)).delete(this.candidateKey(record.cacheName));
-        } else if (existing === true) {
+        } else if (existing !== undefined) {
           delete record.installing; record.complete = false; await this.save(record).catch(() => undefined);
         }
       }).catch(() => undefined); // Preserve the original quota/download failure.
@@ -274,7 +282,7 @@ export class ShellRuntime {
       // Legacy pages cannot be retrofitted with restore guards. Preserve their
       // fixed namespace; only v2 releases participate in the new retention rule.
       if (record.cacheName.startsWith(this.legacyPrefix) ||
-          record.installing && Date.now() - record.installing < 120_000) keep.add(record.cacheName);
+          record.installing && Date.now() - record.installing < 330_000) keep.add(record.cacheName);
     }
     const own = await this.identity;
     // One historical rollback, even if already retained for a live page. Never

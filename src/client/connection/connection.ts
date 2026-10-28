@@ -1,10 +1,10 @@
 import { ConnectionController } from "./controller";
 import type { ConnectionMode } from "../../shared/connection";
 
-const primary = import.meta.env.VITE_CONNECTION_PRIMARY_ORIGIN ?? "https://samepage.clyapps.com";
-const backup = import.meta.env.VITE_CONNECTION_BACKUP_ORIGIN ?? "https://samepage-alt.clyapps.com";
+import { configuredAssetReader, connectionOrigins, connectionsEnabledFor } from "../../shared/public-asset-fetch";
+const { direct: primary, backup } = connectionOrigins;
 export const connectionWebsites = { direct: primary, backup };
-export const connectionsEnabled = import.meta.env.VITE_CONNECTIONS_ENABLED === "true" && typeof location !== "undefined" && [primary, backup].includes(location.origin);
+export const connectionsEnabled = typeof location !== "undefined" && connectionsEnabledFor(location.origin);
 const modeKey = "same-page.connection-mode.v1", sessionKey = "same-page.connection-session.v1";
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
 const write = (key: string, value: string | null) => { try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch { /* Preferences cannot prevent access. */ } };
@@ -24,3 +24,5 @@ if (connectionsEnabled) {
 }
 export const connectionFetch: typeof fetch = (...args) => connectionsEnabled ? connections.fetch(...args) : globalThis.fetch(...args);
 export const connectionUrl = (path: string) => connectionsEnabled ? connections.nativeEndpoint(path) : path;
+
+export const readPublicAsset = configuredAssetReader(typeof location !== "undefined" ? location.origin : primary, () => connections.readRoutes());

@@ -24,7 +24,7 @@ beforeEach(async () => {
  }});
  vi.stubGlobal('MessageChannel',class { port1={onmessage:null as null|((event:{data:unknown})=>void),close:()=>{}};port2={reply:(data:unknown)=>this.port1.onmessage?.({data})}; });
  vi.stubGlobal('navigator',{serviceWorker:{getRegistration:async()=>({active:{postMessage:(_message:unknown,ports:{reply(data:unknown):void}[])=>queueMicrotask(()=>ports[0].reply({buildId:build}))}})}});
- vi.stubGlobal('fetch',vi.fn(async(input:string)=>input.endsWith('/manifest.json')?Response.json(manifest):new Response(bodies.get(input),{headers:{'Content-Type':input.endsWith('.js')?'application/javascript':'application/octet-stream',Vary:'Origin, Accept-Encoding'}})));
+ vi.stubGlobal('fetch',vi.fn(async(input: RequestInfo | URL)=>{const path=cacheKey(input);return path.endsWith('/manifest.json')?Response.json(manifest):new Response(bodies.get(path),{headers:{'Content-Type':path.endsWith('.js')?'application/javascript':'application/octet-stream',Vary:'Origin, Accept-Encoding'}});}));
 });
 afterEach(()=>vi.unstubAllGlobals());
 it('deduplicates repeated preparation, verifies every asset and detects system eviction or corruption',async()=>{
@@ -72,7 +72,7 @@ async function storePreviousBundle(typeFor: (entry: PlaybackManifest['entries'][
 it('reuses verified public bytes across build URLs without depending on the old bundle after copying',async()=>{
  const {rows,previous}=await storePreviousBundle();
  await prepareOfflinePlayerAssets();
- expect(vi.mocked(fetch).mock.calls.map(call=>call[0])).toEqual([playbackManifestUrl(build)]);
+ expect(vi.mocked(fetch).mock.calls.map(call=>cacheKey(call[0]))).toEqual([playbackManifestUrl(build)]);
  expect(await offlinePlayerAssetsReady()).toBe(true);
  expect(rows.has(previous.entries[0].url)).toBe(true);
  stores.delete(playbackCacheName('previous'));
@@ -82,7 +82,7 @@ it('rejects corrupt old bytes and inappropriate MIME, downloading only the missi
  const {rows,previous}=await storePreviousBundle(entry=>entry.url.endsWith('.js')?'text/plain':'application/octet-stream');
  rows.set(previous.entries[3].url,new Response('corrupt',{headers:{'Content-Type':'application/octet-stream'}}));
  await prepareOfflinePlayerAssets();
- const downloaded=vi.mocked(fetch).mock.calls.map(call=>call[0]).filter(url=>url!==playbackManifestUrl(build));
+ const downloaded=vi.mocked(fetch).mock.calls.map(call=>cacheKey(call[0])).filter(url=>url!==playbackManifestUrl(build));
  expect(downloaded).toEqual([manifest.entries[0].url,manifest.entries[1].url,manifest.entries[3].url]);
  expect(await offlinePlayerAssetsReady()).toBe(true);
 });
@@ -101,7 +101,7 @@ it('canceling one consumer leaves shared preparation available to another',async
  const original=vi.mocked(fetch).getMockImplementation()!;
  let release!:(value:Response)=>void;
  vi.mocked(fetch).mockImplementation(async (input,init)=>{
-  if(input===manifest.entries[0].url) return new Promise<Response>((resolve,reject)=>{release=resolve;init?.signal?.addEventListener('abort',()=>reject(init.signal?.reason),{once:true});});
+  if(cacheKey(input)===manifest.entries[0].url) return new Promise<Response>((resolve,reject)=>{release=resolve;const signal=input instanceof Request?input.signal:init?.signal;signal?.addEventListener('abort',()=>reject(signal.reason),{once:true});});
   return original(input,init);
  });
  const firstAbort=new AbortController(),secondAbort=new AbortController();
@@ -115,7 +115,7 @@ it('canceling the last consumer aborts the underlying fetch and permits a fresh 
  const original=vi.mocked(fetch).getMockImplementation()!;
  let pendingSignal:AbortSignal|undefined;
  vi.mocked(fetch).mockImplementation(async (input,init)=>{
-  if(input===manifest.entries[0].url) return new Promise<Response>((_resolve,reject)=>{pendingSignal=init?.signal??undefined;pendingSignal?.addEventListener('abort',()=>reject(pendingSignal?.reason),{once:true});});
+  if(cacheKey(input)===manifest.entries[0].url) return new Promise<Response>((_resolve,reject)=>{pendingSignal=(input instanceof Request?input.signal:init?.signal)??undefined;pendingSignal?.addEventListener('abort',()=>reject(pendingSignal?.reason),{once:true});});
   return original(input,init);
  });
  const abort=new AbortController(),preparation=prepareOfflinePlayerAssets(abort.signal);
@@ -130,7 +130,7 @@ it('treats an unreadable old response body as a miss and downloads the current t
  const broken=new ReadableStream<Uint8Array>({start(controller){controller.error(new TypeError('old_cache_body_unreadable'));}});
  rows.set(previous.entries[0].url,new Response(broken,{headers:{'Content-Type':'application/javascript'}}));
  await prepareOfflinePlayerAssets();
- expect(vi.mocked(fetch).mock.calls.map(call=>call[0]).filter(url=>url!==playbackManifestUrl(build))).toEqual([manifest.entries[0].url]);
+ expect(vi.mocked(fetch).mock.calls.map(call=>cacheKey(call[0])).filter(url=>url!==playbackManifestUrl(build))).toEqual([manifest.entries[0].url]);
  expect(await offlinePlayerAssetsReady()).toBe(true);
 });
 it('repairs an unreadable current response instead of repeatedly failing explicit preparation',async()=>{
@@ -139,12 +139,12 @@ it('repairs an unreadable current response instead of repeatedly failing explici
  stores.get(playbackCacheName(build))!.set(manifest.entries[0].url,new Response(broken,{headers:{'Content-Type':'application/javascript'}}));
  vi.mocked(fetch).mockClear();
  await prepareOfflinePlayerAssets();
- expect(vi.mocked(fetch).mock.calls.map(call=>call[0]).filter(url=>url!==playbackManifestUrl(build))).toEqual([manifest.entries[0].url]);
+ expect(vi.mocked(fetch).mock.calls.map(call=>cacheKey(call[0])).filter(url=>url!==playbackManifestUrl(build))).toEqual([manifest.entries[0].url]);
  expect(await offlinePlayerAssetsReady()).toBe(true);
 });
 it('checks a reused response MIME against the destination resource type',async()=>{
  await storePreviousBundle(entry=>entry.url.endsWith('.js')?'application/javascript':entry.url.endsWith('.sf2')?'font/woff2':'application/octet-stream');
  await prepareOfflinePlayerAssets();
- expect(vi.mocked(fetch).mock.calls.map(call=>call[0]).filter(url=>url!==playbackManifestUrl(build))).toEqual([manifest.entries[3].url]);
+ expect(vi.mocked(fetch).mock.calls.map(call=>cacheKey(call[0])).filter(url=>url!==playbackManifestUrl(build))).toEqual([manifest.entries[3].url]);
  expect(await offlinePlayerAssetsReady()).toBe(true);
 });

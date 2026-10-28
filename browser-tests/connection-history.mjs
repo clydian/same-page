@@ -64,10 +64,15 @@ export async function verifyConnectionHistory(page, name) {
   // display evidence from an old business failure without clearing cooldown.
   await page.getByRole('radio', { name: '备用', exact: true }).check();
   await expect(page.locator('.connection-spinner')).toHaveCount(0);
-  // A route sample records each completed response separately. Await the
-  // whole round so an older in-flight response cannot become newer evidence
-  // after the synthetic business failure below. This preserves the assertion.
-  await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.sample(new AbortController().signal); });
+  // Visibility restoration also starts a full foreground check. Drain that
+  // check as well as the discrete samples before injecting a business failure;
+  // otherwise its late successful health response can legitimately replace
+  // the synthetic failure while this test is asserting sample-only behavior.
+  await page.evaluate(async () => {
+    const { connections } = await import('/src/client/connection/connection.ts');
+    await connections.check();
+    await connections.sample(new AbortController().signal);
+  });
   await page.route('**/api/_entry/backup/choirs', route => route.abort('failed'));
   await page.clock.fastForward(1000);
   const failure = await page.evaluate(async () => {

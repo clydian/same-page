@@ -1,10 +1,14 @@
+import { readPublicAsset } from "../connection/connection";
 import { assetValid, parsePlaybackManifest, playbackCacheName, playbackCachePrefix, playbackManifestUrl, type PlaybackAsset, type PlaybackManifest } from '../../shared/playback-assets';
 declare const __SAME_PAGE_BUILD_ID__: string;
 const buildId = typeof __SAME_PAGE_BUILD_ID__ === 'string' ? __SAME_PAGE_BUILD_ID__ : 'development';
 type Preparation = { controller: AbortController; promise: Promise<void>; consumers: Set<symbol> };
 let preparing: Preparation | undefined;
 async function manifest(signal?: AbortSignal) {
-  const response = await fetch(playbackManifestUrl(buildId), { cache: 'no-cache', redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000) });
+  const response = await readPublicAsset(playbackManifestUrl(buildId), async response => {
+    parsePlaybackManifest(await response.clone().json(), buildId);
+    return true;
+  }, signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000));
   if (!response.ok) throw new Error('playback_manifest_unavailable');
   return parsePlaybackManifest(await response.json(), buildId);
 }
@@ -101,7 +105,7 @@ async function prepare(signal: AbortSignal) {
     previous ??= await previousBundles(signal);
     let response = await reuseAsset(previous, entry, signal);
     if (!response) {
-      response = await fetch(entry.url, { cache: 'reload', redirect: 'error', integrity: entry.integrity, signal });
+      response = await readPublicAsset(entry.url, response => assetValid(response, entry), signal);
       if (!await assetValid(response, entry)) throw new Error('playback_asset_integrity');
     }
     const bytes = await response.arrayBuffer();

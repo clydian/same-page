@@ -1,3 +1,4 @@
+import { configuredAssetReader } from "../src/shared/public-asset-fetch";
 import { ReleasePermission } from "./release-permission";
 import { assetValid, parsePlaybackManifest, playbackManifestUrl } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
@@ -66,6 +67,7 @@ scope.addEventListener('message', event => {
   })());
 });
 
+const readPublicAsset = configuredAssetReader(scope.location.origin);
 async function playbackAsset(request: Request) {
   for (const name of await caches.keys()) {
     if (!name.startsWith('same-page-playback-v1:')) continue;
@@ -81,6 +83,8 @@ async function playbackAsset(request: Request) {
         // verified public bytes have one representation per immutable URL.
         const cached = await cache.match(entry.url);
         if (await assetValid(cached, entry)) return cached!;
+        return await readPublicAsset(request.url, response => assetValid(response, entry), request.signal)
+          .catch(() => new Response(null, { status: 503, headers: { 'Cache-Control': 'no-store' } }));
       }
     } catch { /* Unknown or incomplete bundles do not authorize a response. */ }
   }
