@@ -33,7 +33,7 @@ it('bounds stalled downloads and does not wait for an operation that ignores can
   expect((send.mock.calls[0][0] as Request).signal.aborted).toBe(true);
   expect(vi.getTimerCount()).toBe(0);
 });
-it.each([404, 403, 500])('does not replay an HTTP %i through another route', async status => {
+it.each([401, 403, 404, 409, 429, 500, 503])('does not replay an HTTP %i through another route', async status => {
   const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('unavailable', { status }));
   await expect(publicAssetReader({ origin: origins.direct, origins, send })(path, verify)).rejects.toThrow('public_asset_unavailable');
   expect(send).toHaveBeenCalledTimes(1);
@@ -93,5 +93,123 @@ it('rejects resource paths belonging to another release or playback build while 
 it('does not retry validator implementation errors through another origin', async () => {
   const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response('verified'));
   await expect(publicAssetReader({ origin: origins.direct, origins, send })(path, async () => { throw new TypeError('invalid structure'); })).rejects.toThrow('public_asset_integrity');
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it.each([502, 504])('tries the alternate immutable route once for HTTP %i', async status => {
+  const send = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response('gateway', { status })).mockResolvedValueOnce(new Response('verified'));
+  const response = await publicAssetReader({ origin: origins.direct, origins, send })(path, verify);
+  expect(await response.text()).toBe('verified');
+  expect(send).toHaveBeenCalledTimes(2);
+});
+
+it('reserves the remaining manifest budget after headers succeed but the body stalls', async () => {
+  vi.useFakeTimers();
+  const caller = new AbortController();
+  let cancelled = false;
+  const send = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(new ReadableStream({
+    start(controller) { controller.enqueue(new TextEncoder().encode('partial')); },
+    cancel() { cancelled = true; },
+  }))).mockResolvedValueOnce(new Response('verified'));
+  const read = publicAssetReader({ origin: origins.direct, origins, send });
+  const outcome = read(path, verify, caller.signal, 'manifest').then(response => response.text(), error => error);
+  try {
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(cancelled).toBe(true);
+    expect(await outcome).toBe('verified');
+    expect(vi.getTimerCount()).toBe(0);
+  } finally { caller.abort(); await outcome; }
+});
+
+it('abandons a body with no progress for ten seconds and cancels the old stream', async () => {
+  vi.useFakeTimers();
+  const caller = new AbortController();
+  let cancelled = false;
+  const send = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(new ReadableStream({ cancel() { cancelled = true; } })))
+    .mockResolvedValueOnce(new Response('verified'));
+  const outcome = publicAssetReader({ origin: origins.direct, origins, send })(path, verify, caller.signal).then(response => response.text(), error => error);
+  try {
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(cancelled).toBe(true);
+    expect(await outcome).toBe('verified');
+  } finally { caller.abort(); await outcome; }
+});
+
+it('allows a slow body to continue while bytes arrive within the idle deadline', async () => {
+  vi.useFakeTimers();
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(new ReadableStream({ start(controller) { stream = controller; } })));
+  const outcome = publicAssetReader({ origin: origins.direct, origins, send })(path, async response => await response.text() === 'abc');
+  for (const character of 'abc') {
+    await vi.advanceTimersByTimeAsync(6000);
+    stream.enqueue(new TextEncoder().encode(character));
+    await vi.advanceTimersByTimeAsync(0);
+  }
+  stream.close();
+  expect(await (await outcome).text()).toBe('abc');
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('keeps two stalled manifest bodies within one fifteen-second budget', async () => {
+  vi.useFakeTimers();
+  let cancelled = 0;
+  const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response(new ReadableStream({ cancel() { cancelled++; } })));
+  const outcome = publicAssetReader({ origin: origins.direct, origins, send })(path, verify, undefined, 'manifest').then(() => null, error => error);
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(send).toHaveBeenCalledTimes(2);
+  await vi.advanceTimersByTimeAsync(9000);
+  expect(await outcome).toMatchObject({ name: 'TimeoutError' });
+  expect(cancelled).toBe(2);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('lets a pinned manifest use the full budget without scheduling another route', async () => {
+  vi.useFakeTimers();
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(new ReadableStream({ start(controller) { stream = controller; } })));
+  const outcome = publicAssetReader({ origin: origins.direct, origins, send, routes: () => ['direct'] })(path, verify, undefined, 'manifest');
+  await vi.advanceTimersByTimeAsync(8000);
+  stream.enqueue(new TextEncoder().encode('verified')); stream.close();
+  expect(await (await outcome).text()).toBe('verified');
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('does not treat empty chunks as download progress or await a stalled cancel', async () => {
+  vi.useFakeTimers();
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  let cancelled = false;
+  const send = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(new ReadableStream({
+    start(controller) { stream = controller; },
+    cancel() { cancelled = true; return new Promise(() => {}); },
+  }))).mockResolvedValueOnce(new Response('verified'));
+  const outcome = publicAssetReader({ origin: origins.direct, origins, send })(path, verify);
+  await vi.advanceTimersByTimeAsync(6000);
+  stream.enqueue(new Uint8Array());
+  await vi.advanceTimersByTimeAsync(4000);
+  expect(await (await outcome).text()).toBe('verified');
+  expect(cancelled).toBe(true);
+  expect(send).toHaveBeenCalledTimes(2);
+});
+
+it('cancels the active body immediately on caller cancellation without fallback', async () => {
+  const caller = new AbortController();
+  let cancelled = false;
+  const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(new ReadableStream({ cancel() { cancelled = true; } })));
+  const outcome = publicAssetReader({ origin: origins.direct, origins, send })(path, verify, caller.signal).then(() => null, error => error);
+  await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+  await Promise.resolve();
+  caller.abort();
+  expect(await outcome).toMatchObject({ name: 'AbortError' });
+  await vi.waitFor(() => expect(cancelled).toBe(true));
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it.each([502, 504])('keeps a pinned gateway HTTP %i on its chosen line', async status => {
+  const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response('gateway', { status }));
+  await expect(publicAssetReader({ origin: origins.direct, origins, send, routes: () => ['direct'] })(path, verify)).rejects.toThrow('public_asset_unavailable');
   expect(send).toHaveBeenCalledTimes(1);
 });

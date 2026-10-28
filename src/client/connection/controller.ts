@@ -1,4 +1,4 @@
-import { readRoutes, networkFailure } from "../../shared/read-transport";
+import { readRoutes, networkFailure, gatewayFailure } from "../../shared/read-transport";
 import { connectionPath, connectionRoutes, isPublicConnectionPath, type ConnectionMode, type ConnectionRoute } from "../../shared/connection";
 
 import { completeGuestAdmission, guestEntryBudgetMs } from "./guest-admission";
@@ -391,8 +391,18 @@ export class ConnectionController {
         clearTimeout(attemptTimer);
         if (bounded && generation !== this.generation) throw abortError();
         if (admission) signal!.throwIfAborted();
+        // Only ordinary business reads gain HTTP failover. Auth/control work and
+        // the existing stateless POST exception do not gain new replay behavior.
+        if (read && this.snapshot.mode === "auto" && !url.pathname.startsWith("/api/auth/") && !isPublicConnectionPath(url.pathname) && gatewayFailure(response.status)) {
+          this.reportFailure(chosen);
+          if (index + 1 < choices.length && !budget.signal.aborted) {
+            void response.body?.cancel().catch(() => {});
+            continue;
+          }
+          return response;
+        }
         // Any HTTP response is proof of a route, including permission errors.
-        // A shared backend 5xx does not justify replaying a business operation.
+        // Other shared-backend errors do not justify replaying an operation.
         this.reachable(chosen, this.now() - start);
         if (response.headers.get("X-Same-Page-Entry-Conflict") === "1") this.reportIdentityConflict(chosen);
         if (sessionRead && response.ok) {

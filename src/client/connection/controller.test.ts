@@ -18,7 +18,7 @@ it('fails over only a safe read after network failure, shares cooldown and remai
   expect(send.mock.calls[1][1]).toMatchObject({ credentials: 'include', redirect: 'error' });
 });
 
-it.each([401, 403, 404, 409, 429, 502, 503])('does not change route for an HTTP %s response', async status => {
+it.each([401, 403, 404, 409, 429, 500, 503])('does not change route for an HTTP %s response', async status => {
   const send = vi.fn<typeof fetch>(async () => new Response(null, { status }));
   const controller = make(send);
   expect((await controller.fetch('/api/choirs')).status).toBe(status);
@@ -434,4 +434,48 @@ it('does not clear a newer different-target attempt when an older concurrent fal
   expect(controller.getSnapshot()).toMatchObject({ active: 'backup', attempting: 'direct' });
   finishDirect(Response.json({ sessionId: null })); expect(await media).toBe(true);
   expect(controller.getSnapshot()).toMatchObject({ active: 'direct', attempting: null });
+});
+
+it.each([502, 504])('fails over a business read once after gateway HTTP %s', async status => {
+  const send = vi.fn<typeof fetch>(async input => {
+    const pathname = requestPath(input).pathname;
+    if (pathname.endsWith('/status')) return Response.json({ sessionId: null });
+    if (pathname.includes('/direct/')) return new Response('gateway', { status });
+    return Response.json({ saved: true });
+  });
+  const controller = make(send);
+  expect((await controller.fetch('/api/choirs')).status).toBe(200);
+  expect(controller.getSnapshot().active).toBe('backup');
+  expect(send.mock.calls.filter(([input]) => requestPath(input).pathname.endsWith('/choirs'))).toHaveLength(2);
+});
+
+it.each(['POST', 'PUT', 'DELETE'])('does not replay %s on gateway errors', async method => {
+  const send = vi.fn<typeof fetch>(async () => new Response('gateway', { status: 502 }));
+  expect((await make(send).fetch('/api/choirs', { method })).status).toBe(502);
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it.each(['/api/auth/get-session', '/api/auth/other', '/api/connection/status', '/api/guest/session'])('does not expand gateway replay for control request %s', async path => {
+  const send = vi.fn<typeof fetch>(async () => new Response(null, { status: 502 }));
+  expect((await make(send).fetch(path)).status).toBe(502);
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it('returns the last gateway response after two failures without marking fallback successful', async () => {
+  const send = vi.fn<typeof fetch>(async input => requestPath(input).pathname.endsWith('/status')
+    ? Response.json({ sessionId: null }) : new Response('gateway', { status: 504 }));
+  const controller = make(send);
+  const response = await controller.fetch('/api/choirs');
+  expect(response.status).toBe(504);
+  expect(await response.text()).toBe('gateway');
+  expect(send.mock.calls.filter(([input]) => requestPath(input).pathname.endsWith('/choirs'))).toHaveLength(2);
+  expect(controller.getSnapshot().active).toBe('direct');
+  expect(controller.getSnapshot().health.backup.state).toBe('unreachable');
+});
+
+it('preserves a pinned line on HTTP 502 without fallback', async () => {
+  const send = vi.fn<typeof fetch>(async () => new Response('gateway', { status: 502 }));
+  const controller = make(send); controller.setMode('direct');
+  expect((await controller.fetch('/api/choirs')).status).toBe(502);
+  expect(send).toHaveBeenCalledTimes(1);
 });

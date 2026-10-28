@@ -8,7 +8,7 @@ async function manifest(signal?: AbortSignal) {
   const response = await readPublicAsset(playbackManifestUrl(buildId), async response => {
     parsePlaybackManifest(await response.clone().json(), buildId);
     return true;
-  }, signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000));
+  }, signal, 'manifest');
   if (!response.ok) throw new Error('playback_manifest_unavailable');
   return parsePlaybackManifest(await response.json(), buildId);
 }
