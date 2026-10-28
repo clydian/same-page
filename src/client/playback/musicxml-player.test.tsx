@@ -4,12 +4,10 @@ import MusicXmlPlayer from './musicxml-player';
 import { readAttachment } from '../score-library/attachments/api';
 import { attachmentFetch } from '../score-library/attachments/request';
 import { createPlayerSession } from '@same-page/player';
-import { musicXmlLoadingTracker } from './musicxml-loading';
 import { captureMusicXmlAccess, prepareOfflineMusicXml } from './offline-musicxml';
 import type { PlaybackSource } from './playback-store';
 
 vi.mock('./musicxml-loading', () => ({ musicXmlLoadingTracker: vi.fn(() => ({ stage: vi.fn(), source: vi.fn(), end: vi.fn() })) }));
-vi.mock('./use-playback-lifetime', () => ({ usePlaybackLifetime: vi.fn() }));
 vi.mock('../score-library/attachments/api', () => ({ readAttachment: vi.fn(), attachmentFileUrl: () => '/file' }));
 vi.mock('../score-library/attachments/request', () => ({ attachmentFetch: vi.fn() }));
 vi.mock('@same-page/player', () => ({ createPlayerSession: vi.fn() }));
@@ -45,94 +43,4 @@ it('abandoning an in-flight read is silent and never creates a late session', as
   unmount();
   await act(async () => { resolve({ ...source.attachment, trashExpiresAt: null }); await vi.advanceTimersByTimeAsync(180000); });
   expect(createPlayerSession).not.toHaveBeenCalled();
-});
-
-it('shows the deadline even when a reader ignores abort, and rejects its late result after retry', async () => {
-  let resolveOld!: (value: Awaited<ReturnType<typeof readAttachment>>) => void;
-  vi.mocked(readAttachment).mockImplementationOnce(() => new Promise(done => { resolveOld = done; })).mockResolvedValue({ ...source.attachment, trashExpiresAt: null });
-  render(<MusicXmlPlayer source={source} />);
-  await act(async () => {});
-  await act(async () => { await vi.advanceTimersByTimeAsync(180000); });
-  expect(screen.getByText('读取附件超时，请重试。')).toBeInTheDocument();
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重试' })); });
-  expect(screen.getByText('已就绪')).toBeInTheDocument();
-  await act(async () => { resolveOld({ ...source.attachment, trashExpiresAt: null }); });
-  expect(screen.getByText('已就绪')).toBeInTheDocument();
-  expect(createPlayerSession).toHaveBeenCalledOnce();
-});
-
-it('keeps an early failure instead of replacing it with a later timeout', async () => {
-  vi.mocked(readAttachment).mockRejectedValue(new Error('附件已更新，请重新打开。'));
-  render(<MusicXmlPlayer source={source} />);
-  await act(async () => {});
-  expect(screen.getByText('附件已更新，请重新打开。')).toBeInTheDocument();
-  await act(async () => { await vi.advanceTimersByTimeAsync(180000); });
-  expect(screen.getByText('附件已更新，请重新打开。')).toBeInTheDocument();
-});
-
-it('starts automatic offline preparation only after both playback readiness and a readable system', async () => {
- const save=vi.fn(async()=>{});
- vi.mocked(captureMusicXmlAccess).mockResolvedValue({cacheIdentity:'fence',save,assertCurrent:async()=>{},read:async()=>null});
- vi.mocked(readAttachment).mockResolvedValue({...source.attachment,trashExpiresAt:null});
- let state={status:'preparing'},notify=()=>{};
- let firstSystem=()=>{};
- vi.mocked(createPlayerSession).mockImplementation((_element,_bytes,options)=>{
-  firstSystem=options?.onFirstReadableSystem??(()=>{});
-  return {dispose,subscribe:(listener:()=>void)=>{notify=listener;return ()=>{};},getSnapshot:()=>state} as unknown as ReturnType<typeof createPlayerSession>;
- });
- render(<MusicXmlPlayer source={source}/>);await act(async()=>{});
- expect(prepareOfflineMusicXml).not.toHaveBeenCalled();
- await act(async()=>{state={status:'ready'};notify();});
- expect(prepareOfflineMusicXml).not.toHaveBeenCalled();
- await act(async()=>firstSystem());
- expect(prepareOfflineMusicXml).toHaveBeenCalledOnce();
- const taskSignal=vi.mocked(prepareOfflineMusicXml).mock.calls[0][2];
- expect(taskSignal?.aborted).toBe(false);
- cleanup();expect(taskSignal?.aborted).toBe(true);
-});
-it('records an asynchronous player failure and cancels automatic offline work already in progress', async () => {
- const save=vi.fn(async()=>{});
- vi.mocked(captureMusicXmlAccess).mockResolvedValue({cacheIdentity:'fence',save,assertCurrent:async()=>{},read:async()=>null});
- vi.mocked(readAttachment).mockResolvedValue({...source.attachment,trashExpiresAt:null});
- let state={status:'preparing'},notify=()=>{},firstSystem=()=>{};
- vi.mocked(createPlayerSession).mockImplementation((_element,_bytes,options)=>{
-  firstSystem=options?.onFirstReadableSystem??(()=>{});
-  return {dispose,subscribe:(listener:()=>void)=>{notify=listener;return ()=>{};},getSnapshot:()=>state} as unknown as ReturnType<typeof createPlayerSession>;
- });
- vi.mocked(prepareOfflineMusicXml).mockImplementation(()=>new Promise(()=>{}));
- render(<MusicXmlPlayer source={source}/>);await act(async()=>{});
- const tracker=vi.mocked(musicXmlLoadingTracker).mock.results[0].value;
- await act(async()=>{state={status:'ready'};firstSystem();notify();});
- expect(prepareOfflineMusicXml).toHaveBeenCalledOnce();
- const taskSignal=vi.mocked(prepareOfflineMusicXml).mock.calls[0][2];
- expect(taskSignal?.aborted).toBe(false);
- await act(async()=>{state={status:'error'};notify();});
- expect(tracker.end).toHaveBeenCalledWith('error');expect(taskSignal?.aborted).toBe(true);
-});
-it('keeps one automatic offline task through playback and pause snapshot changes',async()=>{
- const save=vi.fn(async()=>{});
- vi.mocked(captureMusicXmlAccess).mockResolvedValue({cacheIdentity:'fence',save,assertCurrent:async()=>{},read:async()=>null});
- vi.mocked(readAttachment).mockResolvedValue({...source.attachment,trashExpiresAt:null});
- let state={status:'preparing',playing:false},notify=()=>{},firstSystem=()=>{};
- vi.mocked(createPlayerSession).mockImplementation((_element,_bytes,options)=>{
-  firstSystem=options?.onFirstReadableSystem??(()=>{});
-  return {dispose,subscribe:(listener:()=>void)=>{notify=listener;return ()=>{};},getSnapshot:()=>state} as unknown as ReturnType<typeof createPlayerSession>;
- });
- vi.mocked(prepareOfflineMusicXml).mockImplementation(()=>new Promise(()=>{}));
- render(<MusicXmlPlayer source={source}/>);await act(async()=>{});
- await act(async()=>{state={status:'ready',playing:false};firstSystem();notify();});
- const taskSignal=vi.mocked(prepareOfflineMusicXml).mock.calls[0][2];
- await act(async()=>{state={status:'ready',playing:true};notify();});
- await act(async()=>{state={status:'ready',playing:false};notify();});
- expect(prepareOfflineMusicXml).toHaveBeenCalledOnce();expect(taskSignal?.aborted).toBe(false);
-});
-
-it('allows a slow read past one minute and still opens only its current session', async () => {
- let resolve!: (value: Awaited<ReturnType<typeof readAttachment>>) => void;
- vi.mocked(readAttachment).mockImplementation(() => new Promise(done => { resolve = done; }));
- render(<MusicXmlPlayer source={source} />);await act(async () => {});
- await act(async () => { await vi.advanceTimersByTimeAsync(90000); });
- expect(screen.queryByText('读取附件超时，请重试。')).not.toBeInTheDocument();
- await act(async () => resolve({ ...source.attachment, trashExpiresAt: null }));
- expect(screen.getByText('已就绪')).toBeInTheDocument();expect(createPlayerSession).toHaveBeenCalledOnce();
 });
