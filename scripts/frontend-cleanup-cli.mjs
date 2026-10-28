@@ -94,6 +94,7 @@ async function cloudflareStore() {
     },
     async list(cursor) {
       const result = await send(new sdk.ListObjectsV2Command({ Bucket: BUCKET, ContinuationToken: cursor, MaxKeys: 1000 }), true);
+      assert.equal(typeof result.IsTruncated, 'boolean', 'R2 truncation status missing');
       if (result.IsTruncated) assert.ok(result.NextContinuationToken, 'Truncated R2 response without cursor');
       return {
         objects: (result.Contents ?? []).map(item => ({ key: item.Key, bytes: item.Size, etag: item.ETag })),
@@ -101,8 +102,13 @@ async function cloudflareStore() {
       };
     },
     async get(Key) {
-      const object = await readReleaseObject(Key, signal => client.send(new sdk.GetObjectCommand({ Bucket: BUCKET, Key }), { abortSignal: signal }));
-      return object ? Buffer.from(await object.arrayBuffer()) : null;
+      let metadata;
+      const object = await readReleaseObject(Key, async signal => {
+        const response = await client.send(new sdk.GetObjectCommand({ Bucket: BUCKET, Key }), { abortSignal: signal });
+        metadata = response.Metadata;
+        return response;
+      });
+      return object ? { body: Buffer.from(await object.arrayBuffer()), sha256: metadata?.sha256 } : null;
     },
     async deleteBatch(keys) {
       const result = await send(new sdk.DeleteObjectsCommand({ Bucket: BUCKET, Delete: { Objects: keys.map(Key => ({ Key })), Quiet: false } }));

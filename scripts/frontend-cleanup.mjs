@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { verifyCompatibilityReport } from './frontend-release.mjs';
+import { releaseManifestSchema, releaseContract as contract } from '../src/shared/release-channels.ts';
 
 export const BUCKET = 'same-page-frontend-releases';
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const sha = /^[a-f0-9]{40}$/;
 const hash = /^[a-f0-9]{64}$/;
-const contract = 'same-page-storage-v15-sync-v1';
 const releaseKey = /^releases\/([a-f0-9]{40})\/.+$/;
 const requiredFiles = ['index.html', 'sw.js', 'build.json', 'shell-manifest.json', 'manifest.webmanifest'];
 
@@ -40,10 +40,14 @@ export async function inventory(store) {
 }
 
 async function checkedBytes(store, key, expected, bytes) {
-  const body = await store.get(key);
-  assert.ok(body, `Missing protected object: ${key}`);
+  const object = await store.get(key);
+  assert.ok(object, `Missing protected object: ${key}`);
+  const body = object.body;
   assert.equal(digest(body), expected, `Protected object hash mismatch: ${key}`);
-  if (bytes !== undefined) assert.equal(body.length, bytes, `Protected object size mismatch: ${key}`);
+  if (bytes !== undefined) {
+    assert.equal(body.length, bytes, `Protected object size mismatch: ${key}`);
+    assert.equal(object.sha256, expected, `Protected serving metadata mismatch: ${key}`);
+  }
   return body;
 }
 
@@ -64,17 +68,13 @@ export async function verifyProtected(store, catalog) {
     const prefix = `releases/${id}/`;
     const sealed = await checkedBytes(store, prefix + 'sealed.json', row.manifest_digest);
     assert.ok(sealed.length <= 512 * 1024, 'Oversized manifest');
-    const manifest = JSON.parse(sealed);
+    const manifest = releaseManifestSchema.parse(JSON.parse(sealed));
     assert.equal(manifest.buildId, id);
-    assert.equal(manifest.contract, contract);
-    assert.ok(manifest.files && typeof manifest.files === 'object' && !Array.isArray(manifest.files));
     for (const file of requiredFiles) assert.ok(Object.hasOwn(manifest.files, file), `Missing sealed ${file}`);
     const files = Object.entries(manifest.files);
-    for (const [file, entry] of files) {
+    for (const [file] of files) {
       assert.match(file, /^(?!.*(?:^|\/)\.\.?($|\/))[a-zA-Z0-9_./@-]+$/);
       assert.ok(!file.startsWith('/') && !['sealed.json', 'claim.json', 'storage.json', 'storage-probe.js'].includes(file), 'Unsafe manifest path');
-      assert.match(entry.sha256 ?? '', hash);
-      assert.ok(Number.isSafeInteger(entry.bytes) && entry.bytes >= 0);
     }
     await checkedBytes(store, prefix + 'claim.json', row.manifest_digest);
     await checkedBytes(store, prefix + 'storage.json', manifest.storageDigest);

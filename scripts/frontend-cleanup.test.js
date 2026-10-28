@@ -5,7 +5,7 @@ import { assertApplyEnvironment, validatePreviewRun } from './frontend-cleanup-c
 
 const stable = 'a'.repeat(40), beta = 'b'.repeat(40), old = 'c'.repeat(40), source = 'd'.repeat(40);
 function fixture({ same = false, oldCount = 2 } = {}) {
-  const data = new Map();
+  const data = new Map(), metadata = new Map();
   const put = (key, body) => data.set(key, Buffer.from(body));
   const manifests = new Map();
   const releases = [];
@@ -34,7 +34,7 @@ function fixture({ same = false, oldCount = 2 } = {}) {
   const batches = [];
   const store = {
     async catalog() { return structuredClone(catalog); },
-    async get(key) { return data.get(key) ?? null; },
+    async get(key) { const body = data.get(key); return body ? { body, sha256: metadata.has(key) ? metadata.get(key) : digest(body) } : null; },
     async list(cursor) {
       const objects = [...data].sort(([a], [b]) => a.localeCompare(b, 'en')).map(([key, bytes]) => ({ key, bytes: bytes.length, etag: digest(bytes) }));
       const offset = Number(cursor ?? 0), limit = 7;
@@ -42,7 +42,7 @@ function fixture({ same = false, oldCount = 2 } = {}) {
     },
     async deleteBatch(keys) { batches.push(keys); keys.forEach(key => data.delete(key)); return { deleted: keys, errors: [] }; },
   };
-  return { store, data, put, catalog, batches, manifests };
+  return { store, data, put, catalog, batches, manifests, metadata };
 }
 
 describe('one-off frontend release cleanup', () => {
@@ -77,6 +77,13 @@ describe('one-off frontend release cleanup', () => {
     await expect(applyCleanup(f.store, plan, { source })).rejects.toThrow();
     expect(f.batches).toHaveLength(0);
     await expect(previewCleanup(f.store, source)).rejects.toThrow();
+  });
+  it.each([undefined, 'incorrect'])('rejects intact bytes with missing or wrong serving metadata: %s', async value => {
+    const f = fixture(), plan = await previewCleanup(f.store, source);
+    f.metadata.set(`releases/${stable}/sw.js`, value);
+    await expect(previewCleanup(f.store, source)).rejects.toThrow('serving metadata mismatch');
+    await expect(applyCleanup(f.store, plan, { source })).rejects.toThrow('serving metadata mismatch');
+    expect(f.batches).toHaveLength(0);
   });
   it('refuses missing/current incompatible proof and unready catalog entries', async () => {
     const f = fixture();
