@@ -111,6 +111,14 @@ it("the real runner executes only related files across shards and propagates fai
   });
   for (const shard of ["1/2", "2/2"]) { const result = run(shard); expect(result.status, result.stdout + result.stderr).toBe(0); }
   expect(readFileSync(receipts, "utf8").trim().split("\n").map(url => path.basename(url)).sort()).toEqual(selected.sort());
+  const containerReceipts = path.join(repo.cwd, ".git", "container-receipts");
+  const containerRun = spawnSync(process.execPath, [runner, "smoke", "related", "1/1", base], {
+    cwd: repo.cwd, encoding: "utf8",
+    env: { ...process.env, GIT_TEST_ASSUME_DIFFERENT_OWNER: "1", PLAN_RECEIPTS: containerReceipts },
+  });
+  expect(containerRun.status, containerRun.stdout + containerRun.stderr).toBe(0);
+  expect(containerRun.stdout).not.toContain("Comparison unavailable");
+  expect(readFileSync(containerReceipts, "utf8").trim().split("\n").map(url => path.basename(url)).sort()).toEqual(selected.sort());
   expect(run("0/2").status).not.toBe(0);
   repo.put("browser-tests/practice-loop.test.mjs", "import test from 'node:test'; test('failure', () => { throw Error('sentinel'); });\n"); repo.commit();
   expect(run("1/1").status).not.toBe(0);

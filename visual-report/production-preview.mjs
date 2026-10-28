@@ -11,7 +11,9 @@ export async function startProductionPreview() {
  const root = process.cwd(), temporary = await mkdtemp(path.join(tmpdir(), 'same-page-production-visual-'));
  const run = promisify(execFile);
  try {
-  const { stdout } = await run('git', ['rev-parse', 'HEAD'], { cwd: root });
+  // Checkout and the test container can have different owners. Trust only this
+  // invocation's workspace, without changing global Git configuration.
+  const { stdout } = await run('git', ['-c', `safe.directory=${root}`, 'rev-parse', 'HEAD'], { cwd: root });
   const env = { ...process.env, SAME_PAGE_BUILD_ID: stdout.trim(), SAME_PAGE_RELEASE_CHANNELS: '1' };
   const files = (await readdir(root)).filter(name => /^(?:package(?:-lock)?\.json|tsconfig(?:\.[\w-]+)?\.json|(?:vite|vitest[\w.-]*|eslint)\.config\.[jt]s|wrangler\.jsonc|index\.html)$/.test(name));
   await Promise.all([...files, 'src', 'worker', 'service-worker', 'scripts', 'public', 'design', 'migrations', 'packages'].map(name => cp(path.join(root, name), path.join(temporary, name), { recursive: true })));
