@@ -8,6 +8,7 @@
   --ui-ink: #e0e9e3; --ui-muted: #a6b7ae; --ui-line: #45574f;
   --reader-surface: #202f2a; --reader-ink: #e0e9e3; --reader-muted: #a6b7ae;
   --reader-line: #45574f; --reader-selected: #354d40; --reader-shadow: 0 4px 20px #0005;
+  --ui-line-rgb: 69 87 79;
   --ui-surface: #202f2a; --ui-surface-rgb: 32 47 42; --ui-soft: #2c3c35;
   --ui-canvas: #172321; --ui-accent: #a4d5c5; --ui-accent-fill: #365747;
   --ui-switch-off: #56675e; --ui-switch-on: #4b8066; --ui-switch-thumb: #edf6ef;
@@ -45,3 +46,9 @@
 :root[data-ui-theme="dark"] .playback-loading { background: var(--surface) !important; color: var(--ink) !important; }
 
 :root[data-ui-theme="dark"] .offline-score-tooltip, :root[data-ui-theme="dark"] .diagnostics-actions .diagnostic-send { background: #365747; color: #edf6ef; }
+
+:root[data-paper-theme="inverted"] .annotation-overlay [data-ink-selection] { stroke: #e3c383; }
+/* These markers sit inside filtered content. A dark source marker becomes a
+   light selection outline when annotation inversion is active. */
+:root[data-paper-theme="inverted"][data-invert-annotations="true"] .annotation-overlay [data-ink-selection] { stroke: #014653; }
+:root[data-paper-theme="inverted"][data-invert-annotations="true"] .annotation-overlay .annotation-text[data-selected] { outline-color: #014653; }

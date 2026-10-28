@@ -11,6 +11,7 @@ after(async () => { await server?.stop(); });
 for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}: appearance preferences, PDF/annotation separation and live practice rendering`, { timeout: 180000 }, async t => {
   const browser = await engine.launch({ headless: true }); t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 820, height: 1180 }, hasTouch: true, colorScheme: 'light', locale: 'zh-CN' });
+  page.setDefaultTimeout(10000);
   const fixture = createVisualFixtureSession({ id: `reader-practice-appearance-${name}`, practiceXml: practiceMusicXml, buildId: server.buildId });
   await page.route('**/api/**', async route => {
     const request = route.request();
@@ -77,9 +78,14 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   await set({ darkPaper: 'inverted' });
   await expect(page.getByRole('button', { name: '调节速度', exact: true })).toHaveText('0.99×');
   await expect(notation).toHaveCSS('background-color', 'rgb(26, 26, 26)');
-  await expect.poll(() => page.locator('.at-surface').innerHTML()).toContain('#e6e6e6');
+  await expect.poll(() => page.locator('.at-surface [fill="#E6E6E6"]').count()).toBeGreaterThan(0);
   await expect(page.getByRole('button', { name: '播放', exact: true })).toBeEnabled();
   await page.screenshot({ path: `artifacts/verification/appearance/${name}-practice-inverted.png` });
+  await page.getByRole('button', { name: '显示谱面', exact: true }).click();
+  await page.locator('.practice-view-option').filter({ hasText: '对照' }).click();
+  const comparison = page.locator('.practice-comparison-pdf');
+  await expect(comparison.locator('[data-pdf-canvas-active]').first()).toHaveCSS('filter', 'invert(0.9)');
+  await expect(comparison.locator('.reader-page-indicator')).toHaveCSS('background-color', 'rgba(32, 47, 42, 0.91)');
   await page.setViewportSize({ width: 1180, height: 820 });
   await expect(page.getByRole('button', { name: '播放', exact: true })).toBeVisible();
   await set({ darkPaper: 'original' });

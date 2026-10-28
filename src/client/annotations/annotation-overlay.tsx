@@ -444,7 +444,7 @@ export function AnnotationOverlay({
               ) : null}
               {inkSvgPaths(payload, aspectRatio).map((path, index) => <path key={index} data-ink-stroke d={path} fill={color} fillRule={inkFillRule(payload, aspectRatio)} opacity={payload.opacity ?? 1} />)}
               {inkRenderingDegraded(payload, aspectRatio) && <text x={payload.points[0]!.x * 1000} y={payload.points[0]!.y * 1000 - 12} fontSize="14" fill="#92400e" role="status">此笔迹已简化显示</text>}
-              {selectedId === annotation.id && tool === "select" && <path d={inkSvgPaths(payload, aspectRatio).join("")} fill="none" stroke="#014653" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />}
+              {selectedId === annotation.id && tool === "select" && <path data-ink-selection d={inkSvgPaths(payload, aspectRatio).join("")} fill="none" stroke="#014653" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />}
 
             </g>
           );
