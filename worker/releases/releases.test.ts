@@ -179,3 +179,19 @@ it("separates release authority from XML authority and retries exactly one audit
     expect((await promote()).status).toBe(403);
   }finally{await env.DB.prepare('DELETE FROM user WHERE id=?').bind(user).run()}
 });
+
+it('allows credential-free immutable reads only from the configured sibling origins', async () => {
+  const context = createExecutionContext();
+  const configured = { ...env, RELEASE_CHANNELS_ENABLED: 'true', CONNECTIONS_ENABLED: 'true', CONNECTION_PRIMARY_ORIGIN: 'https://same-page.test', CONNECTION_BACKUP_ORIGIN: 'https://backup.test' };
+  for (const origin of ['https://backup.test', 'https://evil.test']) {
+    const response = await worker.fetch(new Request(`https://same-page.test/_releases/${A}/app.js`, { headers: { Origin: origin } }), configured, context);
+    expect(response.headers.get('access-control-allow-origin')).toBe(origin === 'https://backup.test' ? origin : null);
+    expect(response.headers.has('access-control-allow-credentials')).toBe(false);
+    expect(await response.text()).toBe(A);
+  }
+  for (const path of ['/', '/sw.js', '/api/client-release']) {
+    const response = await worker.fetch(new Request(`https://same-page.test${path}`, { headers: { Origin: 'https://backup.test' } }), configured, context);
+    expect(response.headers.has('access-control-allow-origin')).toBe(false);
+  }
+  await waitOnExecutionContext(context);
+});

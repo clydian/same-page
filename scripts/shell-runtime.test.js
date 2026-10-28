@@ -343,3 +343,19 @@ it('refreshes the asset catalogue when falling back to a release installed after
   const script = await a.asset(new Request(origin + 'assets/main-B.js'));
   expect(script.status).toBe(200); expect(await script.text()).toBe('/* B */');
 });
+
+it('keeps verified candidate resources across a failed download and resumes only missing files', async () => {
+  const old = await release('old'); await presented(old);
+  const send = fetch.getMockImplementation();
+  fetch.mockImplementation(request => request.url.endsWith('main-next.js') ? Promise.reject(new TypeError('network interrupted')) : send(request));
+  await expect(release('next')).rejects.toThrow('network interrupted');
+  expect(await complete(old)).toBe(true);
+  const partial = (await old.records()).find(record => record.buildId === 'next');
+  expect(partial).toMatchObject({ complete: false, candidateOnly: true });
+  expect(partial.installing).toBeUndefined();
+  expect((await old.navigation()).status).toBe(200);
+  fetch.mockImplementation(send); fetch.mockClear();
+  const resumed = await release('next');
+  expect(await complete(resumed)).toBe(true);
+  expect(fetch.mock.calls.map(([request]) => request.url)).not.toContain(origin);
+});

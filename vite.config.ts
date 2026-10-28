@@ -41,6 +41,10 @@ export default defineConfig(({ isPreview, command }) => {
   preview: { headers: testHeaders, ...(testCors ? { cors: testCors } : {}) },
   define: {
     __SAME_PAGE_BUILD_ID__: JSON.stringify(buildId),
+    __SAME_PAGE_CONNECTIONS__: JSON.stringify({ enabled: process.env.VITE_CONNECTIONS_ENABLED === "true", origins: {
+      direct: process.env.VITE_CONNECTION_PRIMARY_ORIGIN ?? "https://samepage.clyapps.com",
+      backup: process.env.VITE_CONNECTION_BACKUP_ORIGIN ?? "https://samepage-alt.clyapps.com",
+    } }),
     __SAME_PAGE_ASSET_BASE__: JSON.stringify(assetBase),
     __SAME_PAGE_RELEASE_CHANNELS__: JSON.stringify(process.env.SAME_PAGE_RELEASE_CHANNELS === "1"),
     __SAME_PAGE_BUILD_RUN_ID__: JSON.stringify(buildRunId),

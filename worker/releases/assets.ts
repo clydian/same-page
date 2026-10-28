@@ -1,3 +1,4 @@
+import { connectionOrigins } from "../connection/config";
 import { releasePrefix } from "../../src/shared/release-channels";
 import type { Env } from "../env";
 import { channels, manifest, preference } from "./catalog";
@@ -15,6 +16,15 @@ export async function legacyAsset(request: Request, env: Env): Promise<Response 
   return new Response(request.method === 'HEAD' ? null : object.body, { headers: { ...security, 'Content-Type': object.customMetadata.contentType ?? 'application/octet-stream', 'Cache-Control': 'public, max-age=31536000, immutable' } });
 }
 export async function serveReleaseAsset(request: Request, env: Env): Promise<Response> {
+  const response = await releaseAssetResponse(request, env);
+  const origin = request.headers.get("Origin");
+  if (["GET", "HEAD"].includes(request.method) && /^\/_releases\/[a-f0-9]{40}\//.test(new URL(request.url).pathname) && connectionOrigins(env)) {
+    if (origin && connectionOrigins(env)?.includes(origin)) response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.append("Vary", "Origin");
+  }
+  return response;
+}
+async function releaseAssetResponse(request: Request, env: Env): Promise<Response> {
   if (!["GET", "HEAD"].includes(request.method)) return unavailable(405);
   const url = new URL(request.url);
   const fixed = /^\/_releases\/([a-f0-9]{40})\/(.+)$/.exec(url.pathname);

@@ -1,3 +1,4 @@
+import { readRoutes, networkFailure } from "../../shared/read-transport";
 import { connectionPath, connectionRoutes, isPublicConnectionPath, type ConnectionMode, type ConnectionRoute } from "../../shared/connection";
 
 import { completeGuestAdmission, guestEntryBudgetMs } from "./guest-admission";
@@ -312,6 +313,11 @@ export class ConnectionController {
     return this.probe;
   };
 
+  readRoutes = () => {
+    const route = this.snapshot.mode === "auto" ? this.availableRoute() : this.snapshot.mode;
+    return readRoutes(route, this.snapshot.mode === "auto" && this.cooldown[other(route)] <= this.now());
+  };
+
   fetch: typeof fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, this.options.pageOrigin);
     if (url.origin !== this.options.pageOrigin || !url.pathname.startsWith("/api/") || url.pathname.startsWith("/api/_entry/")) return this.options.send(input, init);
@@ -341,7 +347,7 @@ export class ConnectionController {
     const route = sessionRead && !this.sessionId && this.snapshot.mode === "auto"
       ? this.options.pageOrigin === this.options.origins.backup ? "backup" : "direct"
       : this.snapshot.mode === "auto" ? this.availableRoute() : this.snapshot.mode;
-    const choices = this.snapshot.mode === "auto" && bounded && this.cooldown[other(route)] <= this.now() ? [route, other(route)] : [route];
+    const choices = readRoutes(route, this.snapshot.mode === "auto" && bounded && this.cooldown[other(route)] <= this.now());
     const budget = new AbortController();
     const budgetTimer = bounded ? setTimeout(() => budget.abort(new DOMException("Connection deadline", "TimeoutError")), guestEntryBudgetMs) : undefined;
     let missingSessions = 0;
@@ -463,7 +469,7 @@ export class ConnectionController {
       } catch (error) {
         if (callerSignal?.aborted || generation !== this.generation || error instanceof EntryIdentityConflictError || error instanceof DOMException && error.name === "AbortError" && !signal?.aborted) throw error;
         const ownTimeout = attempt.signal.aborted || budget.signal.aborted;
-        if (!ownTimeout && !(error instanceof TypeError) && !(error instanceof DOMException && error.name === "TimeoutError")) throw error;
+        if (!ownTimeout && !networkFailure(error)) throw error;
         this.reportFailure(chosen);
         if (index + 1 === choices.length || budget.signal.aborted) throw error;
       } finally {
