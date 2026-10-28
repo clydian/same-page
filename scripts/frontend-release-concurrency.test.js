@@ -60,18 +60,19 @@ it('uploads four files at a time, retains every readback and writes the seal las
 }));
 
 it('drains in-flight uploads after a hash failure and never seals a partial release', () => artifact(async options => {
- const gate = deferred(), fail = deferred(), stored = new Map(), writes = [];
+ const gate = deferred(), fail = deferred(), entered = deferred(), stored = new Map(), writes = [];
  let settled = false, blocked = 0;
  const bucket = {
   async put(key, body) { writes.push(key); stored.set(key, Buffer.from(body)); return {}; },
   async get(key) {
-   if (key.endsWith('/assets/0.js')) { await fail.promise; return { arrayBuffer: async () => Buffer.from('wrong bytes') }; }
+   if (key.endsWith('/assets/0.js')) { entered.resolve(); await fail.promise; return { arrayBuffer: async () => Buffer.from('wrong bytes') }; }
    if (key.includes('/assets/')) { blocked++; await gate.promise; }
    return { arrayBuffer: async () => stored.get(key) };
   },
  };
  const outcome = uploadFrontend({ ...options, bucket }).then(() => ({ ok: true }), error => ({ error })).finally(() => { settled = true; });
  try {
+  await entered.promise;
   await vi.waitFor(() => expect(blocked).toBe(3), { timeout: 2000, interval: 5 });
   fail.resolve();
   await setImmediate();
