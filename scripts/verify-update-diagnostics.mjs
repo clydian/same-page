@@ -30,6 +30,9 @@ const server = createServer(async (request, response) => {
       response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ id: report.id })); return;
     }
     if (pathname === '/sw.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(candidate ? await readFile('dist/client/sw.js') : oldWorker); return; }
+    // The IndexedDB blocker needs a real same-origin document. An empty 404
+    // can become the browser's own error page instead of this fixture origin.
+    if (pathname === '/api/empty') { response.setHeader('Content-Type', 'text/html'); response.end('<!doctype html><title>Diagnostic storage fixture</title>'); return; }
     if (pathname === '/') { response.setHeader('Content-Type', 'text/html'); response.end(candidate ? await readFile('dist/client/index.html') : oldHtml); return; }
     const file = path.resolve('dist/client', '.' + pathname);
     if (!file.startsWith(path.resolve('dist/client') + path.sep) || !(await stat(file)).isFile()) throw new Error('missing');
