@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, mkdir, copyFile, rm } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { digest, inventory, previewCleanup, applyCleanup, cleanupReport, BUCKET } from './frontend-cleanup.mjs';
 import { assertApplyEnvironment, validatePreviewRun } from './frontend-cleanup-cli.mjs';
 
@@ -170,6 +173,19 @@ describe('manual cleanup workflow provenance', () => {
     const env = { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'clydian/same-page', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/main', GITHUB_WORKFLOW_REF: 'clydian/same-page/.github/workflows/frontend-cleanup.yml@refs/heads/main' };
     expect(() => assertApplyEnvironment(env)).not.toThrow();
     for (const key of Object.keys(env)) expect(() => assertApplyEnvironment({ ...env, [key]: 'wrong' })).toThrow();
+  });
+  it('boots provenance validation before dependencies exist on a clean runner', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'cleanup-bootstrap-'));
+    try {
+      await mkdir(path.join(root, 'scripts'));
+      for (const file of ['frontend-cleanup-cli.mjs', 'release-request.mjs']) {
+        await copyFile(new URL(file, import.meta.url), path.join(root, 'scripts', file));
+      }
+      const result = spawnSync(process.execPath, ['scripts/frontend-cleanup-cli.mjs', 'validate-run'], { cwd: root, encoding: 'utf8', env: {} });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('Apply must run in the manual production workflow');
+      expect(result.stderr).not.toContain('ERR_MODULE_NOT_FOUND');
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
   it('has no automatic trigger and shares the production deployment lock', async () => {
     const workflow = await readFile(new URL('../.github/workflows/frontend-cleanup.yml', import.meta.url), 'utf8');

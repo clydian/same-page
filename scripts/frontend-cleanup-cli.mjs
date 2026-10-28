@@ -4,7 +4,6 @@ import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BUCKET, digest, previewCleanup, applyCleanup, cleanupReport } from './frontend-cleanup.mjs';
 import { releaseOperation, releaseRequest, readReleaseObject } from './release-request.mjs';
 
 const workflow = '.github/workflows/frontend-cleanup.yml';
@@ -56,7 +55,7 @@ async function validateRun() {
   await appendFile(process.env.GITHUB_OUTPUT, `artifact_id=${artifactId}\n`);
 }
 
-async function cloudflareStore() {
+async function cloudflareStore(BUCKET) {
   const account = process.env.CLOUDFLARE_ACCOUNT_ID, token = process.env.CLOUDFLARE_API_TOKEN;
   assert.match(account ?? '', /^[a-f0-9]{32}$/, 'Cloudflare account required');
   assert.ok(token, 'Cloudflare API token required');
@@ -122,6 +121,7 @@ async function main() {
   if (mode === 'validate-run') return validateRun();
   assert.ok(['preview', 'apply'].includes(mode), 'Expected preview or apply');
   if (mode === 'apply') assertApplyEnvironment(process.env);
+  const { BUCKET, digest, previewCleanup, applyCleanup, cleanupReport } = await import('./frontend-cleanup.mjs');
   const source = sourceSHA();
   // Fail on plan digest before opening production credentials.
   let plan;
@@ -131,7 +131,7 @@ async function main() {
     assert.equal(digest(bytes), process.env.PLAN_SHA256, 'Reviewed plan digest mismatch');
     plan = JSON.parse(bytes);
   }
-  const store = await cloudflareStore();
+  const store = await cloudflareStore(BUCKET);
   await mkdir(directory, { recursive: true });
   if (mode === 'preview') {
     plan = await previewCleanup(store, source);
