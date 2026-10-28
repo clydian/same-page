@@ -50,3 +50,19 @@ it("keeps changes usable and explains when storage cannot persist", () => {
   expect(screen.getByRole("status")).toHaveTextContent("无法保存");
   spy.mockRestore(); view.unmount(); clearUserAppearance("appearance-user");
 });
+
+it("guest settings and guest experience share choices while signed-in experience stays separate", () => {
+  identity.localUserId = "";
+  const view = render(settings());
+  fireEvent.change(screen.getByLabelText("界面主题"), { target: { value: "dark" } });
+  view.unmount();
+  const preview = render(settings("/user?experience=1"));
+  expect(screen.getByLabelText("界面主题")).toHaveValue("dark");
+  preview.unmount();
+  identity.localUserId = "appearance-user";
+  render(settings("/user?experience=1"));
+  expect(screen.getByLabelText("界面主题")).toHaveValue("system");
+  fireEvent.change(screen.getByLabelText("界面主题"), { target: { value: "dark" } });
+  expect(readAppearance("experience:appearance-user").interfaceTheme).toBe("dark");
+  expect(readAppearance("user:appearance-user").interfaceTheme).toBe("system");
+});

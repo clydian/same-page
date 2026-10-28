@@ -15,7 +15,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const identity = useApplicationIdentity();
   const location = useLocation();
   const experience = new URLSearchParams(location.search).get("experience") === "1";
-  const owner = experience ? `experience:${identity.localUserId ?? "guest"}` : identity.localUserId ? `user:${identity.localUserId}` : "guest";
+  const owner = identity.localUserId ? `${experience ? "experience" : "user"}:${identity.localUserId}` : "guest";
   const preferences = useSyncExternalStore(subscribeAppearance, () => readAppearance(owner));
   const systemDark = useSyncExternalStore(subscribeSystem, systemIsDark);
   const dark = preferences.interfaceTheme === "dark" || preferences.interfaceTheme === "system" && systemDark;
@@ -38,14 +38,14 @@ export function AppearanceSettings() {
   const change = (patch: Partial<AppearancePreferences>) => setError(!saveAppearance(owner, { ...readAppearance(owner), ...patch }));
   return <section className="appearance-settings" aria-labelledby="appearance-title">
     <h2 id="appearance-title">外观</h2>
-    <p className="settings-copy">仅保存在本机，应用于所有云盘和乐谱。</p>
-    <label className="appearance-setting"><span>界面主题</span><select value={preferences.interfaceTheme} onChange={event => change({ interfaceTheme: event.target.value as AppearancePreferences["interfaceTheme"] })}>
+    <p className="settings-copy">{owner.startsWith("experience:") ? "当前为体验外观，与登录用户的外观分别保存。" : "仅保存在本机，应用于所有云盘和乐谱。"}</p>
+    <label className="appearance-setting"><span>界面主题</span><select aria-label="界面主题" value={preferences.interfaceTheme} onChange={event => change({ interfaceTheme: event.target.value as AppearancePreferences["interfaceTheme"] })}>
       <option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option>
     </select></label>
-    {(["lightPaper", "darkPaper"] as const).map((key) => <label className="appearance-setting" key={key}><span>{key === "lightPaper" ? "浅色界面下的谱面" : "深色界面下的谱面"}</span><select value={preferences[key]} onChange={event => change({ [key]: event.target.value })}>
+    {(["lightPaper", "darkPaper"] as const).map((key) => <label className="appearance-setting" key={key}><span>{key === "lightPaper" ? "浅色界面下的谱面" : "深色界面下的谱面"}</span><select aria-label={key === "lightPaper" ? "浅色界面下的谱面" : "深色界面下的谱面"} value={preferences[key]} onChange={event => change({ [key]: event.target.value })}>
       <option value="original">原始</option><option value="soft">柔和</option><option value="inverted">反色</option>
     </select></label>)}
-    <label className="appearance-setting"><span>谱面反色时的批注</span><select value={preferences.invertAnnotations ? "invert" : "preserve"} onChange={event => change({ invertAnnotations: event.target.value === "invert" })}>
+    <label className="appearance-setting"><span>谱面反色时的批注</span><select aria-label="谱面反色时的批注" value={preferences.invertAnnotations ? "invert" : "preserve"} onChange={event => change({ invertAnnotations: event.target.value === "invert" })}>
       <option value="preserve">颜色不变</option><option value="invert">跟随反色</option>
     </select></label>
     <p className="settings-copy">反色会改变彩色原谱、封面和插图的显示颜色，可切回原始。批注选项仅在谱面反色时生效；不改变保存或导出的颜色。</p>

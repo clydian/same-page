@@ -6,8 +6,11 @@
   --sage: #a2bc99; --ink: #e0e9e3; --muted: #a6b7ae;
   --line: #45574f; --surface: #202f2a; --canvas: #172321;
   --ui-ink: #e0e9e3; --ui-muted: #a6b7ae; --ui-line: #45574f;
+  --reader-surface: #202f2a; --reader-ink: #e0e9e3; --reader-muted: #a6b7ae;
+  --reader-line: #45574f; --reader-selected: #354d40; --reader-shadow: 0 4px 20px #0005;
   --ui-surface: #202f2a; --ui-surface-rgb: 32 47 42; --ui-soft: #2c3c35;
   --ui-canvas: #172321; --ui-accent: #a4d5c5; --ui-accent-fill: #365747;
+  --ui-switch-off: #56675e; --ui-switch-on: #4b8066; --ui-switch-thumb: #edf6ef;
   --ui-danger-fill: #803e38; --ui-warning-fill: #634b29;
   --ui-on-accent: #edf6ef; --ui-danger: #ffb4ab; --ui-warning: #edc484;
 }

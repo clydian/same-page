@@ -11,7 +11,7 @@ after(async () => { await server?.stop(); });
 for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}: appearance preferences, PDF/annotation separation and live practice rendering`, { timeout: 180000 }, async t => {
   const browser = await engine.launch({ headless: true }); t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 820, height: 1180 }, hasTouch: true, colorScheme: 'light', locale: 'zh-CN' });
-  const fixture = createVisualFixtureSession({ id: `appearance-${name}`, practiceXml: practiceMusicXml, buildId: server.buildId });
+  const fixture = createVisualFixtureSession({ id: `reader-practice-appearance-${name}`, practiceXml: practiceMusicXml, buildId: server.buildId });
   await page.route('**/api/**', async route => {
     const request = route.request();
     await route.fulfill(fixture.resolve({ pathname: new URL(request.url()).pathname, method: request.method(), identity: 'member', cookie: request.headers().cookie ?? '' }));
@@ -59,13 +59,23 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(canvas).toHaveCSS('filter', 'brightness(0.86) sepia(0.08)');
   await page.locator('.page-reader__viewport').click();
+  await expect(page.getByRole('button', { name: '返回云盘', exact: true })).toHaveCSS('background-color', 'rgb(32, 47, 42)');
+  await expect(page.locator('.reader-playback-entry')).toHaveCSS('background-color', 'rgba(32, 47, 42, 0.96)');
+  await page.getByRole('button', { name: '更多', exact: true }).click();
+  await expect(page.getByRole('link', { name: '外观设置', exact: true })).toHaveAttribute('href', '/user');
+  await expect(page.getByRole('dialog', { name: '更多阅读选项' })).toHaveCSS('background-color', 'rgb(32, 47, 42)');
+  await page.getByRole('button', { name: '关闭更多阅读选项' }).click();
   await page.getByRole('button', { name: '练习谱', exact: true }).click();
   await page.getByRole('button', { name: '声部练习版.musicxml', exact: true }).click();
   await page.locator('.practice-notation[data-visible] .at-surface').waitFor();
   await expect(page.getByRole('button', { name: '播放', exact: true })).toBeEnabled();
   const notation = page.locator('.practice-notation-paper');
   await expect(notation).toHaveCSS('background-color', 'rgb(217, 219, 209)');
+  await page.getByRole('button', { name: '调节速度', exact: true }).click();
+  await page.getByRole('button', { name: '速度减少 0.01 倍' }).click();
+  await page.getByRole('button', { name: '关闭速度调节' }).click();
   await set({ darkPaper: 'inverted' });
+  await expect(page.getByRole('button', { name: '调节速度', exact: true })).toHaveText('0.99×');
   await expect(notation).toHaveCSS('background-color', 'rgb(26, 26, 26)');
   await expect.poll(() => page.locator('.at-surface').innerHTML()).toContain('#e6e6e6');
   await expect(page.getByRole('button', { name: '播放', exact: true })).toBeEnabled();

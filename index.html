@@ -15,7 +15,9 @@
     <script>
       // Restore display preferences before the first paint, including offline starts.
       try {
-        const owner = localStorage.getItem("same-page:appearance-owner") || "guest";
+        const active = localStorage.getItem("same-page:appearance-owner") || "guest";
+        const user = active.replace(/^experience:/, "user:");
+        const owner = new URLSearchParams(location.search).get("experience") === "1" ? user.replace(/^user:/, "experience:") : user;
         const value = JSON.parse(localStorage.getItem("same-page:appearance:" + owner) || "null") || {};
         const dark = value.interfaceTheme === "dark" || value.interfaceTheme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches;
         const selected = dark ? value.darkPaper : value.lightPaper;
