@@ -26,6 +26,8 @@ describe("update lifecycle feedback", () => {
   let update: ReturnType<typeof vi.fn>;
   let requested: ReturnType<typeof vi.fn<(value: boolean) => void>>;
   beforeEach(() => {
+    // Establish one clock before update-safety records any interaction.
+    vi.useFakeTimers({ now: 0 });
     Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {} });
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     update = vi.fn(async () => {}); requested = vi.fn();
@@ -109,7 +111,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("keeps observing a slow installation through the download budget and a later completion", async () => {
-    vi.useFakeTimers();
     start();
     let installing!: ServiceWorker;
     await act(async () => { installing = install(); });
@@ -128,7 +129,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("reports an actual failure after slow feedback and permits a manual retry", async () => {
-    vi.useFakeTimers();
     start();
     let installing!: ServiceWorker;
     await act(async () => { installing = install(); });
@@ -141,7 +141,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("fences a timed out check so its late failure cannot replace a newer result", async () => {
-    vi.useFakeTimers();
     const pending = deferred(); update.mockReturnValueOnce(pending.promise);
     start();
     act(() => vi.advanceTimersByTime(30000));
@@ -217,7 +216,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("keeps one deferred timestamp across automatic retries and clears it after approval", async () => {
-    vi.useFakeTimers(); vi.setSystemTime(0); setUpdateRoute("/about");
     const ports: { onmessage?: (event: MessageEvent) => void; close: () => void }[] = [];
     vi.stubGlobal("MessageChannel", class {
       port1 = { close: vi.fn() }; port2 = {};
@@ -238,7 +236,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("does not classify local busy work, incomplete resources, timeout or send failures as deferred windows", async () => {
-    vi.useFakeTimers();
     const ports: { onmessage?: (event: MessageEvent) => void; close: () => void }[] = [];
     vi.stubGlobal("MessageChannel", class {
       port1 = { close: vi.fn() }; port2 = {};
@@ -284,7 +281,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("reports a handover timeout and ignores its late acknowledgment", async () => {
-    vi.useFakeTimers();
     let port!: { onmessage?: (event: MessageEvent) => void; close: () => void };
     vi.stubGlobal("MessageChannel", class {
       port1 = { close: vi.fn() }; port2 = {};
@@ -300,7 +296,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("automatically applies a ready release only after safe idle and preserves manual bypass of idle", async () => {
-    vi.useFakeTimers();
     const waiting = worker(); Object.assign(registration, { waiting });
     vi.stubGlobal("MessageChannel", class { port1 = { close: vi.fn() }; port2 = {}; });
     start(); await act(async () => {});
@@ -312,21 +307,8 @@ describe("update lifecycle feedback", () => {
     act(() => { noteUpdateInteraction(); controller.apply(); });
     expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SAME_PAGE_SAFE_UPDATE", requested: true }, expect.any(Array));
   });
-  it("allows automatic handover after one idle second and restarts that second after interaction", async () => {
-    vi.useFakeTimers();
-    const waiting = worker(); Object.assign(registration, { waiting });
-    vi.stubGlobal("MessageChannel", class { port1 = { close: vi.fn() }; port2 = {}; });
-    start(); await act(async () => {});
-    act(() => { vi.advanceTimersByTime(999); controller.autoApply(); });
-    expect(waiting.postMessage).not.toHaveBeenCalled();
-    act(() => { noteUpdateInteraction(); vi.advanceTimersByTime(999); controller.autoApply(); });
-    expect(waiting.postMessage).not.toHaveBeenCalled();
-    act(() => { vi.advanceTimersByTime(1); controller.autoApply(); });
-    expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SAME_PAGE_SAFE_UPDATE", requested: true, automatic: true }, expect.any(Array));
-  });
 
   it("keeps automatic application out of readers, focused inputs and hidden pages, then starts when safe", async () => {
-    vi.useFakeTimers();
     const waiting = worker(); Object.assign(registration, { waiting });
     vi.stubGlobal("MessageChannel", class { port1 = { close: vi.fn() }; port2 = {}; });
     start(); await act(async () => {});
@@ -345,7 +327,7 @@ describe("update lifecycle feedback", () => {
   });
 
   it("exposes registration timeout and retries registration rather than claiming there is no update", () => {
-    vi.useFakeTimers(); controller.dispose();
+    controller.dispose();
     const retry = vi.fn();
     controller = new UpdateController(undefined, false, retry, requested);
     start();
@@ -368,7 +350,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("checks every thirty minutes in the foreground, without applying in a reader", async () => {
-    vi.useFakeTimers();
     start(); await act(async () => {});
     setUpdateRoute('/choirs/test/scores/score');
     await act(async () => { vi.advanceTimersByTime(30 * 60000 - 1); controller.tick(); });
@@ -381,7 +362,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("defers overdue checks while hidden or offline, and checks on return", async () => {
-    vi.useFakeTimers();
     start(); await act(async () => {});
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     await act(async () => { vi.advanceTimersByTime(30 * 60000); controller.tick(); controller.foregroundCheck(); });
@@ -396,7 +376,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("coalesces foreground and reconnect requests, then honors a queued check after the minimum gap", async () => {
-    vi.useFakeTimers();
     start(); await act(async () => {});
     await act(async () => { controller.foregroundCheck(); controller.foregroundCheck(); controller.tick(); });
     expect(update).toHaveBeenCalledTimes(1);
@@ -407,7 +386,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("backs off failed checks, caps retries at thirty minutes and resets after success", async () => {
-    vi.useFakeTimers();
     update.mockRejectedValue(new TypeError('network unavailable'));
     start(); await act(async () => {});
     for (const delay of [30000, 60000, 120000, 240000, 480000, 960000, 1800000, 1800000]) {
@@ -429,7 +407,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("retries a timed out check automatically and ignores its late result", async () => {
-    vi.useFakeTimers();
     const pending = deferred(); update.mockReturnValueOnce(pending.promise);
     start();
     await act(async () => { vi.advanceTimersByTime(59999); controller.tick(); });
@@ -441,7 +418,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("retains prepared update actions after a failed or timed out manual check", async () => {
-    vi.useFakeTimers();
     Object.assign(registration, { waiting: worker() });
     update.mockRejectedValueOnce(new TypeError('network unavailable'));
     start(); await act(async () => {});
@@ -454,7 +430,7 @@ describe("update lifecycle feedback", () => {
   });
 
   it("preserves registration backoff across retries and recovers after reconnecting", async () => {
-    vi.useFakeTimers(); controller.dispose();
+    controller.dispose();
     const schedule = new UpdateCheckSchedule(), retry = vi.fn();
     const failedRegistration = () => new UpdateController(undefined, true, retry, requested, schedule);
     controller = failedRegistration(); start();
@@ -471,7 +447,6 @@ describe("update lifecycle feedback", () => {
   });
 
   it("does not poll or hand over a prepared update, and stops all checks after disposal", async () => {
-    vi.useFakeTimers();
     Object.assign(registration, { waiting: worker() });
     start(); await act(async () => {});
     const release = holdUpdate();

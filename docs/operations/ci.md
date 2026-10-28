@@ -100,6 +100,10 @@ PR summary 记录清单及选择原因。普通源码改动不能自动精确推
 封存产物并运行完整扩展。PR 的相关结果不写线上验证记录，不能代替该候选发布后的完整
 结果；相关 smoke 构建与 main 原始产物均不能代替真实设备验收。
 
+结果记录步骤只表示状态是否成功写入；测试失败由原 visual/smoke job 保持工作流失败，
+不在记录成功后再次主动退出失败。定位实例与删除边界见
+[合并后失败与测试精简审计](ci-failure-audit-2026-10-28.md)。
+
 准入成功后记录 `running`，扩展 job 完成后记录 success/failure/cancelled；结果附到该
 build_id 和已准入 manifest digest。独立工作流先验证原 CI 的指定 attempt 确实成功准入
 测试版，按 artifact ID 固定原始构建；完成后写入的 digest 必须与已准入产物一致。
