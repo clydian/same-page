@@ -13,6 +13,8 @@ import { requestWorker, watchControllerChanges } from "../updates/worker-request
 import { rememberUpdateFailure } from "../updates/update-diagnostics";
 import { UpdateNotice } from "../updates/update-notice";
 declare const __SAME_PAGE_RELEASE_CHANNELS__: boolean;
+// Evaluate promptly after the one-second idle threshold.
+const updateTickMs = 250;
 
 export function ReloadPrompt() {
   const [attempt, setAttempt] = useState(0);
@@ -48,7 +50,7 @@ function RegisteredReloadPrompt({ retryRegistration, schedule }: { retryRegistra
     const controller = new UpdateController(registration, registrationError, retryRegistration, value => { requested.current = value; }, schedule);
     controller.start();
     const visible = () => { if (document.visibilityState === "visible") { noteUpdateInteraction(); controller.foregroundCheck(); } };
-    const idle = setInterval(controller.tick, 1000);
+    const idle = setInterval(controller.tick, updateTickMs);
     document.addEventListener("visibilitychange", visible);
     window.addEventListener("online", controller.foregroundCheck);
     window.addEventListener("same-page-check-update", controller.check);
@@ -73,7 +75,7 @@ function RegisteredReloadPrompt({ retryRegistration, schedule }: { retryRegistra
     // Only complete an already-authorized handover; idle time never starts one.
     const timer = window.setInterval(() => {
       if (reloadPending.current && canApplyUpdate()) window.location.reload();
-    }, 1000);
+    }, updateTickMs);
     return () => { clearInterval(timer); events.forEach(event => document.removeEventListener(event, noteUpdateInteraction, true)); navigator.serviceWorker?.removeEventListener("message", probe); };
   }, []);
   return <ReleaseChannelMonitor />;
@@ -87,7 +89,7 @@ function PageRecovery() {
     const visible = () => { if (document.visibilityState === "visible") void recovery.check(); };
     const restored = (event: PageTransitionEvent) => { if (event.persisted) void recovery.check(); };
     const preloadFailed = () => { void recovery.check(); };
-    const timer = setInterval(recovery.tick, 1000);
+    const timer = setInterval(recovery.tick, updateTickMs);
     window.addEventListener("pageshow", restored);
     window.addEventListener("vite:preloadError", preloadFailed);
     window.addEventListener("same-page-recover-page", recovery.requestReload);

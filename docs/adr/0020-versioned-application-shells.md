@@ -121,6 +121,10 @@ schedule. Explicit checks bypass the delay. Hidden/offline pages do not run the
 periodic check, and existing prepared updates retain their handover feedback.
 Checking/downloading may happen in a reader; none of these events bypass the
 existing route, interaction, task or multi-window gates for activation/reload.
+Automatic handover now requires one second without interaction rather than three;
+new interaction restarts that second. The page evaluates readiness every 250 ms so
+it can respond promptly after the threshold rather than waiting another full
+second. Manual handover still bypasses only idle time.
 
 The install observer uses the same five-minute budget as a candidate download
 attempt for its slow-preparation notice. Elapsed time alone never reports an

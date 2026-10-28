@@ -57,3 +57,21 @@ it('retains exponential backoff across real registration remounts and then check
   expect(update).toHaveBeenCalledTimes(1);
   view.unmount();
 });
+
+it('hands over at one idle second after the last DOM interaction', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('MessageChannel', class { port1 = { close: vi.fn() }; port2 = {}; });
+  const waiting = Object.assign(new EventTarget(), { state: 'installed', postMessage: vi.fn() });
+  const registration = Object.assign(new EventTarget(), { update: vi.fn(async () => {}), installing: null, waiting });
+  const workers = Object.assign(new EventTarget(), { register: vi.fn(async () => registration), controller: null });
+  Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: workers });
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+  const view = render(<MemoryRouter><ReloadPrompt /></MemoryRouter>);
+  await act(async () => {});
+  act(() => { vi.advanceTimersByTime(500); document.dispatchEvent(new Event('pointerdown')); });
+  act(() => { vi.advanceTimersByTime(999); });
+  expect(waiting.postMessage).not.toHaveBeenCalled();
+  act(() => { vi.advanceTimersByTime(1); });
+  expect(waiting.postMessage).toHaveBeenCalledWith({ type: 'SAME_PAGE_SAFE_UPDATE', requested: true, automatic: true }, expect.any(Array));
+  view.unmount();
+});

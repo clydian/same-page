@@ -312,6 +312,19 @@ describe("update lifecycle feedback", () => {
     act(() => { noteUpdateInteraction(); controller.apply(); });
     expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SAME_PAGE_SAFE_UPDATE", requested: true }, expect.any(Array));
   });
+  it("allows automatic handover after one idle second and restarts that second after interaction", async () => {
+    vi.useFakeTimers();
+    const waiting = worker(); Object.assign(registration, { waiting });
+    vi.stubGlobal("MessageChannel", class { port1 = { close: vi.fn() }; port2 = {}; });
+    start(); await act(async () => {});
+    act(() => { vi.advanceTimersByTime(999); controller.autoApply(); });
+    expect(waiting.postMessage).not.toHaveBeenCalled();
+    act(() => { noteUpdateInteraction(); vi.advanceTimersByTime(999); controller.autoApply(); });
+    expect(waiting.postMessage).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(1); controller.autoApply(); });
+    expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SAME_PAGE_SAFE_UPDATE", requested: true, automatic: true }, expect.any(Array));
+  });
+
   it("keeps automatic application out of readers, focused inputs and hidden pages, then starts when safe", async () => {
     vi.useFakeTimers();
     const waiting = worker(); Object.assign(registration, { waiting });
