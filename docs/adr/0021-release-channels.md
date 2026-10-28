@@ -91,3 +91,16 @@ This code ships with channel routing disabled for the controlled bridge transiti
 Enabling it requires a separately authorized rollout, provisioned bucket, recorded
 stable baseline and offline/mobile validation. It must never deploy automatically
 as part of local development or review.
+
+## One-off historical resource cleanup (2026-10-28, #607)
+
+The operator explicitly limits this first cleanup to retaining the current stable
+and beta full artifacts; earlier stable versions need no support for this cleanup.
+A manual preview binds the D1 revision, verified current artifacts, full R2 inventory
+and exact deletion list. A separate manual apply consumes that reviewed digest
+under the production deployment lock and stops when production state changes.
+Only historical `releases/<SHA>/` objects are eligible. Shared legacy resources,
+unknown prefixes, compatibility reports and D1 audit records remain retained until
+their dependencies are separately resolved. No automatic GC, TTL or permanent
+two-version retention policy is introduced. See
+[the operation runbook](../operations/frontend-release-cleanup.md).
