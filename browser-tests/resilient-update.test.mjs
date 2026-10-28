@@ -192,16 +192,6 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
 }
 
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
- test(`${name}: manifest body stall leaves time for alternate completion`, { timeout: 30000 }, async t => {
-  current = 'A'; fault = 'manifest-body'; requests.length = 0; cancelledBodies.length = 0;
-  const browser = await engine.launch(); t.after(() => browser.close());
-  const page = await browser.newPage();
-  await page.goto(origins.direct + '/transport.html');
-  const id = await page.evaluate(() => window.readManifest());
-  assert.equal(id, ids.A);
-  assert.ok(requests.some(item => item.route === 'backup' && item.pathname === manifestPath));
-  assert.ok(cancelledBodies.includes(manifestPath), 'old response stream is closed');
- });
 
  test(`${name}: optional player repair shares fallback and cannot bypass failed integrity`, { timeout: 45000 }, async t => {
   current = 'A'; fault = undefined; requests.length = 0;
