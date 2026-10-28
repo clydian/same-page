@@ -9,8 +9,27 @@ let server;
 before(async () => { server = await startProductionPreview(); }, { timeout: 240000 });
 after(async () => { await server?.stop(); });
 for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}: appearance preferences, PDF/annotation separation and live practice rendering`, { timeout: 180000 }, async t => {
-  const browser = await engine.launch({ headless: true }); t.after(() => browser.close());
+  const browser = await engine.launch({ headless: true });
+  let completed = false;
+  const networkErrors = [];
   const page = await browser.newPage({ viewport: { width: 820, height: 1180 }, hasTouch: true, colorScheme: 'light', locale: 'zh-CN' });
+  t.after(async () => {
+    if (!completed) {
+      console.error(name, 'appearance network errors', networkErrors);
+      console.error(name, 'appearance failure', page.url(), await page.locator('body').innerText().catch(() => 'unavailable'));
+      await page.screenshot({ path: `artifacts/verification/appearance/${name}-failure.png`, fullPage: true }).catch(() => {});
+      if (await page.getByText('更多帮助', { exact: true }).isVisible()) {
+        await page.getByText('更多帮助', { exact: true }).click();
+        await page.getByRole('button', { name: '反馈问题', exact: true }).click();
+        console.error(name, 'appearance diagnostic', await page.locator('#diagnostic-report').inputValue().catch(() => 'unavailable'));
+      }
+    }
+    await browser.close();
+  });
+  page.on('requestfailed', request => networkErrors.push({ path: new URL(request.url()).pathname, error: request.failure()?.errorText }));
+  page.on('response', response => { if (response.status() >= 400) networkErrors.push({ path: new URL(response.url()).pathname, status: response.status() }); });
+  page.on('console', message => { if (message.type() === 'error') networkErrors.push({ console: message.text() }); });
+  page.on('pageerror', error => console.error(name, 'appearance page error', String(error)));
   page.setDefaultTimeout(10000);
   const fixture = createVisualFixtureSession({ id: `reader-practice-appearance-${name}`, practiceXml: practiceMusicXml, buildId: server.buildId });
   await page.route('**/api/**', async route => {
@@ -108,4 +127,5 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score?experience=1`);
   await expect(page.locator('html')).toHaveAttribute('data-paper-theme', 'soft');
   await expect(page.locator('html')).toHaveAttribute('data-invert-annotations', 'false');
+  completed = true;
 });
