@@ -1034,6 +1034,7 @@ h1 {
   display: grid;
   place-items: start center;
   padding: clamp(3rem, 8vw, 7rem) 1rem;
+  padding-bottom: calc(clamp(3rem, 8vw, 7rem) + var(--auth-keyboard-inset, 0px));
 }
 
 .auth-card {
@@ -2922,6 +2923,7 @@ h1 {
   .auth-layout {
     place-items: start stretch;
     padding: 2rem 0.75rem;
+    padding-bottom: calc(2rem + var(--auth-keyboard-inset, 0px));
   }
 
   .auth-card {

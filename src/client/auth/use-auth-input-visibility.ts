@@ -13,17 +13,34 @@ export function useAuthInputVisibility() {
     const ensureVisible = () => {
       frame = undefined;
       if (document.visibilityState !== "visible") return;
+      let top = viewport?.offsetTop ?? 0;
+      const height = viewport?.height ?? window.innerHeight;
+      if (height <= 0) return;
+      // Mobile keyboards can shrink only the visual viewport. A short auth
+      // page otherwise has no document scroll range, even for explicit scrolls.
+      // A pinch zoom also shrinks the visual viewport. Leave zoomed scrolling
+      // to the browser rather than treating that difference as keyboard space.
+      const zoomed = (viewport?.scale ?? 1) !== 1;
+      container.style.setProperty("--auth-keyboard-inset", `${zoomed ? 0 : Math.max(0, window.innerHeight - height)}px`);
       const input = document.activeElement;
       if (!(input instanceof HTMLInputElement) || !container.contains(input) || input.disabled) return;
-      const bounds = input.getBoundingClientRect();
-      const top = viewport?.offsetTop ?? 0;
-      const height = viewport?.height ?? window.innerHeight;
-      if (height <= 0 || bounds.height <= 0) return;
-      // Layout coordinates include the browser's visual viewport pan. Restoring
-      // focus after app switching does not necessarily restore that pan.
+      let bounds = input.getBoundingClientRect();
+      if (bounds.height <= 0) return;
       if (bounds.top < top || bounds.bottom > top + height) {
+        // Native scrolling can pan the visual viewport even when document
+        // scrollY is already zero and a negative scrollBy would be clamped.
         input.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+        bounds = input.getBoundingClientRect();
+        top = viewport?.offsetTop ?? 0;
       }
+      if (zoomed) return;
+      const gap = Math.min(12, Math.max(0, (height - bounds.height) / 2));
+      // scrollIntoView's layout-viewport center may still be behind the keyboard.
+      // Use the visual viewport's bounds, including its pan after app switching.
+      const delta = bounds.top < top + gap
+        ? bounds.top - top - gap
+        : Math.max(0, bounds.bottom - (top + height - gap));
+      if (Math.abs(delta) > 1) window.scrollBy({ top: delta, behavior: "instant" });
     };
     const schedule = () => {
       if (frame !== undefined) cancelAnimationFrame(frame);
@@ -36,6 +53,7 @@ export function useAuthInputVisibility() {
     window.addEventListener("pageshow", schedule);
     window.addEventListener("resize", schedule);
     viewport?.addEventListener("resize", schedule);
+    viewport?.addEventListener("scroll", schedule);
     schedule();
     return () => {
       if (frame !== undefined) cancelAnimationFrame(frame);
@@ -45,6 +63,8 @@ export function useAuthInputVisibility() {
       window.removeEventListener("pageshow", schedule);
       window.removeEventListener("resize", schedule);
       viewport?.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("scroll", schedule);
+      container.style.removeProperty("--auth-keyboard-inset");
     };
   }, []);
 
