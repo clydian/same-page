@@ -106,3 +106,39 @@ and does not require an activation-metadata rewrite at quota. Missing timestamps
 are never proof that a shell was unused: a failed activation metadata put must
 not allow unknown-window GC to delete a displayed release. Losing a seal is
 conservative (potentially displayed), not permission for abandoned-candidate GC.
+
+## 2026-10-28 update discovery and slow preparation
+
+Issue #613; complete discovery/permission failover is tracked separately in #614.
+
+Visible online pages check on startup, foreground return and reconnection, and
+at thirty-minute intervals during a continuous run. Lifecycle events share a
+thirty-second minimum gap. A suppressed foreground/reconnection request remains
+due after that gap rather than waiting another full interval. Failed checks,
+registration and installation retry after 30 seconds, doubling to a thirty-minute
+cap; successful checks reset backoff. Registration remounts retain the page's
+schedule. Explicit checks bypass the delay. Hidden/offline pages do not run the
+periodic check, and existing prepared updates retain their handover feedback.
+Checking/downloading may happen in a reader; none of these events bypass the
+existing route, interaction, task or multi-window gates for activation/reload.
+Automatic handover now requires one second without interaction rather than three;
+new interaction restarts that second. The page evaluates readiness every 250 ms so
+it can respond promptly after the threshold rather than waiting another full
+second. Manual handover still bypasses only idle time.
+
+The install observer uses the same five-minute budget as a candidate download
+attempt for its slow-preparation notice. Elapsed time alone never reports an
+installation failure or detaches the observer: final verification/storage and a
+quota recovery attempt may still be running. Only the worker's terminal state
+settles preparation. A failed or timed-out fresh check also preserves an already
+waiting release's update action. No message protocol, stored format, business
+schema or deployed-client migration changes are needed.
+
+The two network entries are not interchangeable release-selection authorities.
+Immutable public release bytes keep their existing verified network failover.
+`/sw.js` discovery and `/api/client-release` confirmation remain on the page's
+origin: ADR-0021's HttpOnly channel Cookie is authoritative there. Neither another
+origin's default channel nor a remembered local choice can grant admission when
+that origin is unavailable. Full discovery/permission failover needs a separate
+design preserving server-confirmed channel intent, expiry and origin-scoped SW
+registration; periodic retry does not claim to solve that availability boundary.

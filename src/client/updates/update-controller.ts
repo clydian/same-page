@@ -1,3 +1,5 @@
+import { shellDownloadTimeoutMs } from "../../shared/update-timing";
+import { UpdateCheckSchedule } from "./update-check-schedule";
 import { canApplyUpdate } from "./update-safety";
 import { setUpdateStatus, type UpdatePhase, type UpdateStatus } from "./update-status";
 
@@ -24,6 +26,7 @@ export class UpdateController {
     private registrationError: boolean,
     private retryRegistration: () => void,
     private setRequested: (value: boolean) => void,
+    private schedule = new UpdateCheckSchedule(),
   ) {}
 
   start() {
@@ -31,17 +34,20 @@ export class UpdateController {
       this.show("unsupported", "当前浏览器不支持应用内更新，请关闭页面后重新打开");
     } else if (this.registration) {
       this.registration.addEventListener("updatefound", this.updateFound);
-      void this.check();
+      if (!navigator.onLine || document.visibilityState === "visible") void this.check();
+      else if (this.registration.installing) this.observe(this.registration.installing);
+      else if (this.registration.waiting) this.show("ready", prepared);
     } else if (!navigator.onLine) {
       this.registrationError = true;
+      this.schedule.failed();
       this.show("offline", "当前离线，联网后可重试；当前版本仍可使用");
     } else if (this.registrationError) {
-      this.show("error", "更新检查准备失败，请重试");
+      this.failedCheck("更新检查准备失败，请重试");
     } else {
       this.show("registering", "正在准备更新检查…");
       this.checkTimer = setTimeout(() => {
         this.registrationError = true;
-        this.show("error", "更新检查尚未准备好，请重试");
+        this.failedCheck("更新检查尚未准备好，请重试");
       }, 30000);
     }
   }
@@ -51,6 +57,11 @@ export class UpdateController {
     if ((phase !== "ready" && phase !== "applying") || this.deferred?.worker !== this.registration?.waiting) this.deferred = undefined;
     this.phase = phase;
     setUpdateStatus({ phase, message, ...(this.deferred ? { deferred: this.deferred } : {}) });
+  }
+
+  private failedCheck(message: string) {
+    this.schedule.failed();
+    this.show(this.registration?.waiting ? "ready" : "error", this.registration?.waiting ? prepared : message);
   }
 
   private endCheck() {
@@ -77,10 +88,11 @@ export class UpdateController {
         this.endCheck();
         this.stopWorker?.(); this.worker = undefined;
         clearTimeout(this.installTimer);
-        this.show(this.registration?.waiting ? "ready" : "error", this.registration?.waiting ? prepared : "更新准备失败，请重试；当前版本仍可使用");
+        this.failedCheck("更新准备失败，请重试；当前版本仍可使用");
       } else if (worker.state === "installed" || worker.state === "activated") {
         this.endCheck();
         clearTimeout(this.installTimer);
+        this.schedule.succeeded();
         if (this.registration?.waiting) this.show("ready", prepared);
         else this.show("current", "检查完成，当前版本继续运行");
       } else {
@@ -91,30 +103,32 @@ export class UpdateController {
     this.stopWorker = () => worker.removeEventListener("statechange", changed);
     this.installTimer = setTimeout(() => {
       if (this.disposed || this.worker !== worker || this.phase !== "preparing") return;
-      this.endCheck();
-      this.stopWorker?.(); this.worker = undefined;
-      this.show("error", "更新准备仍未完成，请联网后重试；当前版本仍可使用");
-    }, 120000);
+      // This is feedback, not a worker deadline: final verification, storage
+      // and a quota-recovery attempt may still be running. Keep observing it.
+      this.show("preparing", "更新准备较慢，仍在后台进行，可以继续使用");
+    }, shellDownloadTimeoutMs);
     changed();
   }
 
   check = async () => {
     if (this.disposed || this.checking || this.phase === "applying" || this.phase === "preparing" || this.phase === "unsupported") return;
-    if (!navigator.onLine) { this.show("offline", "当前离线，联网后可重试；当前版本仍可使用"); return; }
+    if (!navigator.onLine) { this.schedule.failed(); this.show("offline", "当前离线，联网后可重试；当前版本仍可使用"); return; }
     if (!this.registration) {
       if (this.registrationError) {
+        this.schedule.started();
         this.show("registering", "正在准备更新检查…");
         this.retryRegistration();
       }
       return;
     }
+    this.schedule.started();
     this.checking = true;
     const id = ++this.checkId;
     this.show("checking", "正在检查更新…");
     this.checkTimer = setTimeout(() => {
       if (this.disposed || this.checkId !== id) return;
       ++this.checkId; this.checking = false;
-      if (this.phase === "checking") this.show("error", "更新检查仍未完成，请重试");
+      if (this.phase === "checking") this.failedCheck("更新检查仍未完成，请重试");
     }, 30000);
     try {
       // update() resolves before the installing worker necessarily finishes.
@@ -123,18 +137,31 @@ export class UpdateController {
       await pending;
       if (this.disposed || id !== this.checkId || this.isApplying()) return;
       if (this.registration.installing) this.observe(this.registration.installing);
-      else if (this.registration.waiting) this.show("ready", prepared);
-      else if (this.phase === "checking") this.show("current", "检查完成，当前版本继续运行");
+      else {
+        this.schedule.succeeded();
+        if (this.registration.waiting) this.show("ready", prepared);
+        else if (this.phase === "checking") this.show("current", "检查完成，当前版本继续运行");
+      }
     } catch {
-      if (!this.disposed && id === this.checkId && this.phase === "checking") this.show("error", "更新检查失败，请重试");
+      if (!this.disposed && id === this.checkId && this.phase === "checking") this.failedCheck("更新检查失败，请重试");
     } finally {
       if (id === this.checkId) { this.checking = false; clearTimeout(this.checkTimer); }
     }
   };
 
-  foregroundCheck = () => {
-    // Retain actionable handover feedback while a prepared version is waiting.
-    if (this.phase !== "ready") void this.check();
+  private automaticCheck(foreground = false) {
+    // Check/download authority is independent of reload safety. Readers may
+    // prepare a release; the existing handover gate still protects their work.
+    if (this.disposed || document.visibilityState !== "visible" || !navigator.onLine || this.phase === "ready") return;
+    if (foreground) this.schedule.request();
+    if (this.schedule.due()) void this.check();
+  }
+
+  foregroundCheck = () => this.automaticCheck(true);
+
+  tick = () => {
+    this.autoApply();
+    this.automaticCheck();
   };
 
   autoApply = () => {

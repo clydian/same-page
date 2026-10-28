@@ -6,20 +6,24 @@ import { useLocation } from "react-router-dom";
 import { canAcceptUpdate, canApplyUpdate, noteUpdateInteraction, setUpdateRoute } from "../updates/update-safety";
 import { useUpdateStatus } from "../updates/update-status";
 import { buildId, buildVersion } from "../../shared/build";
+import { UpdateCheckSchedule } from "../updates/update-check-schedule";
 import { UpdateController } from "../updates/update-controller";
 import { ShellRecovery } from "../updates/shell-recovery";
 import { requestWorker, watchControllerChanges } from "../updates/worker-request";
 import { rememberUpdateFailure } from "../updates/update-diagnostics";
 import { UpdateNotice } from "../updates/update-notice";
 declare const __SAME_PAGE_RELEASE_CHANNELS__: boolean;
+// Evaluate promptly after the one-second idle threshold.
+const updateTickMs = 250;
 
 export function ReloadPrompt() {
   const [attempt, setAttempt] = useState(0);
+  const [schedule] = useState(() => new UpdateCheckSchedule());
   const retryRegistration = useCallback(() => setAttempt(value => value + 1), []);
-  return <><PageRecovery /><RegisteredReloadPrompt key={attempt} retryRegistration={retryRegistration} /><UpdateNotice /></>;
+  return <><PageRecovery /><RegisteredReloadPrompt key={attempt} retryRegistration={retryRegistration} schedule={schedule} /><UpdateNotice /></>;
 }
 
-function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): void }) {
+function RegisteredReloadPrompt({ retryRegistration, schedule }: { retryRegistration(): void; schedule: UpdateCheckSchedule }) {
   const { pathname } = useLocation();
   const [registration, setRegistration] = useState<ServiceWorkerRegistration>();
   const reloadPending = useRef(false);
@@ -43,20 +47,22 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
   useLayoutEffect(() => setUpdateRoute(pathname), [pathname]);
   useEffect(() => watchControllerChanges(onNeedReload), [onNeedReload]);
   useEffect(() => {
-    const controller = new UpdateController(registration, registrationError, retryRegistration, value => { requested.current = value; });
+    const controller = new UpdateController(registration, registrationError, retryRegistration, value => { requested.current = value; }, schedule);
     controller.start();
     const visible = () => { if (document.visibilityState === "visible") { noteUpdateInteraction(); controller.foregroundCheck(); } };
-    const idle = setInterval(() => controller.autoApply(), 1000);
+    const idle = setInterval(controller.tick, updateTickMs);
     document.addEventListener("visibilitychange", visible);
+    window.addEventListener("online", controller.foregroundCheck);
     window.addEventListener("same-page-check-update", controller.check);
     window.addEventListener("same-page-apply-update", controller.apply);
     return () => {
       controller.dispose(); clearInterval(idle);
       document.removeEventListener("visibilitychange", visible);
+      window.removeEventListener("online", controller.foregroundCheck);
       window.removeEventListener("same-page-check-update", controller.check);
       window.removeEventListener("same-page-apply-update", controller.apply);
     };
-  }, [registration, registrationError, retryRegistration]);
+  }, [registration, registrationError, retryRegistration, schedule]);
   useEffect(() => {
     const events = ["pointerdown", "pointerup", "keydown", "input", "focusin", "wheel", "scroll"] as const;
     events.forEach(event => document.addEventListener(event, noteUpdateInteraction, true));
@@ -69,7 +75,7 @@ function RegisteredReloadPrompt({ retryRegistration }: { retryRegistration(): vo
     // Only complete an already-authorized handover; idle time never starts one.
     const timer = window.setInterval(() => {
       if (reloadPending.current && canApplyUpdate()) window.location.reload();
-    }, 1000);
+    }, updateTickMs);
     return () => { clearInterval(timer); events.forEach(event => document.removeEventListener(event, noteUpdateInteraction, true)); navigator.serviceWorker?.removeEventListener("message", probe); };
   }, []);
   return <ReleaseChannelMonitor />;
@@ -83,7 +89,7 @@ function PageRecovery() {
     const visible = () => { if (document.visibilityState === "visible") void recovery.check(); };
     const restored = (event: PageTransitionEvent) => { if (event.persisted) void recovery.check(); };
     const preloadFailed = () => { void recovery.check(); };
-    const timer = setInterval(recovery.tick, 1000);
+    const timer = setInterval(recovery.tick, updateTickMs);
     window.addEventListener("pageshow", restored);
     window.addEventListener("vite:preloadError", preloadFailed);
     window.addEventListener("same-page-recover-page", recovery.requestReload);

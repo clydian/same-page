@@ -16,7 +16,7 @@ beforeEach(() => {
     port1 = { onmessage: null as ((event: { data: unknown }) => void) | null, close: vi.fn() };
     port2 = { receive: (data: unknown) => this.port1.onmessage?.({ data }) };
   });
-  setUpdateRoute('/drives'); vi.advanceTimersByTime(3001);
+  setUpdateRoute('/drives'); vi.advanceTimersByTime(1001);
   reply = { available: false, activeReady: true, activeBuild: 'abcdef1' };
   reload = vi.fn<() => void>(); recovery = new ShellRecovery(reload);
 });
@@ -26,7 +26,7 @@ it('defers a lost-shell reload until guarded navigation leaves the reader and lo
   setUpdateRoute('/choirs/test/scores/score');
   const release = holdUpdate();
   await recovery.check(); recovery.tick(); expect(reload).not.toHaveBeenCalled();
-  setUpdateRoute('/choirs/test'); vi.advanceTimersByTime(3001);
+  setUpdateRoute('/choirs/test'); vi.advanceTimersByTime(1001);
   recovery.tick(); expect(reload).not.toHaveBeenCalled();
   release(); recovery.tick(); expect(reload).toHaveBeenCalledOnce();
   recovery.tick(); expect(reload).toHaveBeenCalledOnce();
