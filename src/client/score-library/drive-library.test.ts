@@ -46,6 +46,27 @@ beforeEach(async () => { clearDriveLibraryCache(); window.sessionStorage.clear()
 afterEach(() => { sessions.forEach(library => library.stop()); sessions.length = 0; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("DriveLibrary interface", () => {
+  it("keeps required persistence when a route change replaces write reconciliation", async () => {
+    await activateAuthenticatedLocalOwner("one");
+    const { library, transport } = create(async () => opened());
+    await library.refresh();
+    await library.requestScoreChange({ kind: "trash", scoreId: "score-one" });
+    const obsolete = deferred<Opened>();
+    const fresh = opened();
+    fresh.result.scores = [];
+    transport.load.mockImplementationOnce(() => obsolete.promise).mockResolvedValue(fresh);
+    vi.spyOn(directoryStorage, "rememberLocalDriveDirectory").mockRejectedValue(new Error("storage unavailable"));
+    const completion = library.completeScoreChange("score-one");
+    const rejected = expect(completion).rejects.toThrow("drive_refresh_unconfirmed");
+    await vi.waitFor(() => expect(transport.load).toHaveBeenCalledTimes(2));
+    await library.restartRead();
+    obsolete.resolve(fresh);
+    await rejected;
+    expect(library.getSnapshot().refreshMessage).not.toBeNull();
+    expect(library.scoreChangeRecovery("score-one")).toBe("saved");
+    expect(transport.change).toHaveBeenCalledTimes(1);
+  });
+
   it("reopens its persisted directory without authority before the next remote response", async () => {
     await activateAuthenticatedLocalOwner("one");
     const { library: first } = create(async () => opened("本地.pdf"));
