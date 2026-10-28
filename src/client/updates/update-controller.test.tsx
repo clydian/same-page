@@ -1,6 +1,7 @@
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UpdateDetails } from "../components/reload-prompt";
+import { UpdateCheckSchedule } from "./update-check-schedule";
 import { UpdateController } from "./update-controller";
 import { canAcceptUpdate, holdUpdate, noteUpdateInteraction, setUpdateRoute } from "./update-safety";
 import { useUpdateStatus } from "./update-status";
@@ -107,14 +108,36 @@ describe("update lifecycle feedback", () => {
     expect(screen.getByText("检查完成，当前版本继续运行")).toBeInTheDocument();
   });
 
-  it("makes stalled preparation retryable without calling it complete", async () => {
+  it("keeps observing a slow installation through the download budget and a later completion", async () => {
     vi.useFakeTimers();
     start();
-    await act(async () => { install(); });
+    let installing!: ServiceWorker;
+    await act(async () => { installing = install(); });
     act(() => vi.advanceTimersByTime(120000));
-    expect(screen.getByText("更新准备仍未完成，请联网后重试；当前版本仍可使用")).toBeInTheDocument();
-    await act(async () => { await controller.check(); });
     expect(screen.getByText("正在准备更新…，可以继续使用")).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(180000));
+    expect(screen.getByText("更新准备较慢，仍在后台进行，可以继续使用")).toBeInTheDocument();
+    await act(async () => { controller.tick(); await controller.check(); });
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "准备中…" })).toBeDisabled();
+    act(() => {
+      Object.assign(registration, { installing: null, waiting: installing });
+      state(installing, "installed");
+    });
+    expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
+  });
+
+  it("reports an actual failure after slow feedback and permits a manual retry", async () => {
+    vi.useFakeTimers();
+    start();
+    let installing!: ServiceWorker;
+    await act(async () => { installing = install(); });
+    act(() => vi.advanceTimersByTime(300000));
+    act(() => { Object.assign(registration, { installing: null }); state(installing, "redundant"); });
+    expect(screen.getByText("更新准备失败，请重试；当前版本仍可使用")).toBeInTheDocument();
+    await act(async () => { await controller.check(); });
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("检查完成，当前版本继续运行")).toBeInTheDocument();
   });
 
   it("fences a timed out check so its late failure cannot replace a newer result", async () => {
@@ -329,6 +352,125 @@ describe("update lifecycle feedback", () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     act(() => { void controller.check(); });
     expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it("checks every thirty minutes in the foreground, without applying in a reader", async () => {
+    vi.useFakeTimers();
+    start(); await act(async () => {});
+    setUpdateRoute('/choirs/test/scores/score');
+    await act(async () => { vi.advanceTimersByTime(30 * 60000 - 1); controller.tick(); });
+    expect(update).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(1); controller.tick(); });
+    expect(update).toHaveBeenCalledTimes(2);
+    const waiting = worker(); Object.assign(registration, { waiting });
+    await act(async () => { await controller.check(); controller.tick(); });
+    expect(waiting.postMessage).not.toHaveBeenCalled();
+  });
+
+  it("defers overdue checks while hidden or offline, and checks on return", async () => {
+    vi.useFakeTimers();
+    start(); await act(async () => {});
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    await act(async () => { vi.advanceTimersByTime(30 * 60000); controller.tick(); controller.foregroundCheck(); });
+    expect(update).toHaveBeenCalledTimes(1);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    await act(async () => { controller.tick(); controller.foregroundCheck(); });
+    expect(update).toHaveBeenCalledTimes(1);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    await act(async () => { controller.foregroundCheck(); });
+    expect(update).toHaveBeenCalledTimes(2);
+  });
+
+  it("coalesces foreground and reconnect requests, then honors a queued check after the minimum gap", async () => {
+    vi.useFakeTimers();
+    start(); await act(async () => {});
+    await act(async () => { controller.foregroundCheck(); controller.foregroundCheck(); controller.tick(); });
+    expect(update).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(29999); controller.tick(); });
+    expect(update).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(1); controller.tick(); controller.foregroundCheck(); });
+    expect(update).toHaveBeenCalledTimes(2);
+  });
+
+  it("backs off failed checks, caps retries at thirty minutes and resets after success", async () => {
+    vi.useFakeTimers();
+    update.mockRejectedValue(new TypeError('network unavailable'));
+    start(); await act(async () => {});
+    for (const delay of [30000, 60000, 120000, 240000, 480000, 960000, 1800000, 1800000]) {
+      const calls = update.mock.calls.length;
+      await act(async () => { controller.foregroundCheck(); vi.advanceTimersByTime(delay - 1); controller.tick(); });
+      expect(update).toHaveBeenCalledTimes(calls);
+      await act(async () => { vi.advanceTimersByTime(1); controller.tick(); });
+      expect(update).toHaveBeenCalledTimes(calls + 1);
+    }
+    update.mockResolvedValueOnce(undefined);
+    await act(async () => { await controller.check(); }); // Manual bypasses backoff.
+    const calls = update.mock.calls.length;
+    await act(async () => { vi.advanceTimersByTime(30000); controller.foregroundCheck(); });
+    expect(update).toHaveBeenCalledTimes(calls + 1);
+    await act(async () => { vi.advanceTimersByTime(29999); controller.tick(); });
+    expect(update).toHaveBeenCalledTimes(calls + 1);
+    await act(async () => { vi.advanceTimersByTime(1); controller.tick(); });
+    expect(update).toHaveBeenCalledTimes(calls + 2);
+  });
+
+  it("retries a timed out check automatically and ignores its late result", async () => {
+    vi.useFakeTimers();
+    const pending = deferred(); update.mockReturnValueOnce(pending.promise);
+    start();
+    await act(async () => { vi.advanceTimersByTime(59999); controller.tick(); });
+    expect(update).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(1); controller.tick(); });
+    expect(update).toHaveBeenCalledTimes(2);
+    await act(async () => { pending.reject(new Error('late error')); });
+    expect(screen.getByText("检查完成，当前版本继续运行")).toBeInTheDocument();
+  });
+
+  it("retains prepared update actions after a failed or timed out manual check", async () => {
+    vi.useFakeTimers();
+    Object.assign(registration, { waiting: worker() });
+    update.mockRejectedValueOnce(new TypeError('network unavailable'));
+    start(); await act(async () => {});
+    expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
+    const pending = deferred(); update.mockReturnValueOnce(pending.promise);
+    act(() => { void controller.check(); vi.advanceTimersByTime(30000); });
+    expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
+    await act(async () => pending.resolve());
+    expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
+  });
+
+  it("preserves registration backoff across retries and recovers after reconnecting", async () => {
+    vi.useFakeTimers(); controller.dispose();
+    const schedule = new UpdateCheckSchedule(), retry = vi.fn();
+    const failedRegistration = () => new UpdateController(undefined, true, retry, requested, schedule);
+    controller = failedRegistration(); start();
+    await act(async () => { vi.advanceTimersByTime(30000); controller.tick(); });
+    expect(retry).toHaveBeenCalledTimes(1);
+    act(() => { controller.dispose(); controller = failedRegistration(); controller.start(); });
+    await act(async () => { vi.advanceTimersByTime(30000); controller.foregroundCheck(); controller.tick(); });
+    expect(retry).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(30000); controller.tick(); });
+    expect(retry).toHaveBeenCalledTimes(2);
+    act(() => { controller.dispose(); controller = new UpdateController(registration, false, retry, requested, schedule); controller.start(); });
+    await act(async () => {});
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not poll or hand over a prepared update, and stops all checks after disposal", async () => {
+    vi.useFakeTimers();
+    Object.assign(registration, { waiting: worker() });
+    start(); await act(async () => {});
+    const release = holdUpdate();
+    try {
+      await act(async () => { vi.advanceTimersByTime(30 * 60000); controller.tick(); controller.foregroundCheck(); });
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(registration.waiting?.postMessage).not.toHaveBeenCalled();
+      act(() => controller.dispose());
+      Object.assign(registration, { waiting: null });
+      await act(async () => { controller.tick(); controller.foregroundCheck(); await controller.check(); });
+      expect(update).toHaveBeenCalledTimes(1);
+    } finally { release(); }
   });
 
   it("honestly reports unsupported browsers", () => {

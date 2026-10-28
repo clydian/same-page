@@ -1,3 +1,4 @@
+import { shellDownloadTimeoutMs } from "../src/shared/update-timing";
 import { configuredAssetReader } from "../src/shared/public-asset-fetch";
 import { networkFailure } from "../src/shared/read-transport";
 import { recoveryPage } from "./recovery-page";
@@ -171,7 +172,7 @@ export class ShellRuntime {
       if (this.scope.registration.active) await identify(this.scope.registration.active, 'SAME_PAGE_COLLECT_SHELLS');
       for (let attempt = 0; ; attempt++) {
         try {
-          await this.check(record, true, true, AbortSignal.timeout(300_000));
+          await this.check(record, true, true, AbortSignal.timeout(shellDownloadTimeoutMs));
           await this.locked(async () => {
             await this.check(record, false, true);
             await this.permission?.confirm();

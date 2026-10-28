@@ -80,8 +80,10 @@ try {
   activeBuild = builds.second;
   // Hold a required precache response to exercise the actual installing worker.
   preparationGate = new Promise(resolve => { releasePreparation = resolve; });
-  await page.getByRole("button", { name: "检查更新", exact: true }).click();
-  await page.getByText("正在准备更新…，可以继续使用", { exact: true }).waitFor();
+  // Recover discovery via the actual reconnect subscription, including its
+  // shared minimum gap after startup. No explicit update button is required.
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await page.getByText("正在准备更新…，可以继续使用", { exact: true }).waitFor({ timeout: 45000 });
   assert.equal(await page.getByRole("button", { name: "准备中…", exact: true }).isDisabled(), true);
   assert.equal(await page.getByText("检查完成，当前版本继续运行", { exact: true }).count(), 0);
   await page.evaluate(() => {
