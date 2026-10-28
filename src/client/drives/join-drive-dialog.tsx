@@ -45,6 +45,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
   const linkHandled = useRef(false);
   const [joinStep, setJoinStep] = useState<JoinStep>({ kind: "invite" });
   const [joinCode, setJoinCode] = useState(invitation?.code ?? "");
+  const [joinCodeComposing, setJoinCodeComposing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clearingGuestSession, setClearingGuestSession] = useState(false);
@@ -60,6 +61,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
   const resetJoinFlow = () => {
     setJoinStep({ kind: "invite" });
     setJoinCode("");
+    setJoinCodeComposing(false);
     setDisplayName("");
     setJoinMessage(null);
   };
@@ -110,6 +112,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
   });
   const enterInviteDrive = async (event?: FormEvent, code = joinCode) => {
     event?.preventDefault();
+    if (event && (joinCodeComposing || code.length !== JOIN_CODE_LENGTH)) return;
     if (admissionPaused || clearingGuestSession || submitting) return;
     setEntryDestination(null);
     const generation = entryLifetimeRef.current;
@@ -226,11 +229,13 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                           value={joinCode}
                           isReadOnly={submitting || clearingGuestSession}
                           onChange={setJoinCode}
+                          onCompositionChange={setJoinCodeComposing}
                         />
                         <Button
                           type="submit"
                           isDisabled={
                             joinCode.length !== JOIN_CODE_LENGTH ||
+                            joinCodeComposing ||
                             submitting ||
                             clearingGuestSession ||
                             admissionPaused
