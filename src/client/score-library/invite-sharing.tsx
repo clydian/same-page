@@ -24,6 +24,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
   const [cardError, setCardError] = useState(false);
   const [cardAttempt, setCardAttempt] = useState(0);
   const [originalCode, setOriginalCode] = useState("");
+  const [originalCodeComposing, setOriginalCodeComposing] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -118,7 +119,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
 
   async function saveOriginal(event: FormEvent) {
     event.preventDefault();
-    if (!writable || !loaded) return;
+    if (!writable || !loaded || busy || originalCodeComposing || originalCode.length !== JOIN_CODE_LENGTH) return;
     const sameIdentity = captureReadIdentity();
     const sameLifetime = captureSettingsLifetime(lifetime);
     const current = () => sameIdentity() && sameLifetime();
@@ -164,8 +165,8 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
             <>
               <p className="drive-management-copy">当前邀请码尚未保存为可查看的形式。如果你保留了原码，可以补录；也可以轮换生成新码。</p>
               <Form className="entry-form" onSubmit={saveOriginal}>
-                <JoinCodeField value={originalCode} onChange={setOriginalCode} />
-                <Button type="submit" isDisabled={!writable || busy || originalCode.length !== JOIN_CODE_LENGTH}>保存原邀请码</Button>
+                <JoinCodeField value={originalCode} onChange={setOriginalCode} onCompositionChange={setOriginalCodeComposing} />
+                <Button type="submit" isDisabled={!writable || busy || originalCodeComposing || originalCode.length !== JOIN_CODE_LENGTH}>保存原邀请码</Button>
               </Form>
             </>
           ) : !message ? <p role="status">正在读取邀请码…</p> : null}

@@ -8,6 +8,25 @@ vi.mock("./save-invite-card", () => ({ createInviteCardFile: async () => new Fil
 afterEach(() => vi.unstubAllGlobals());
 
 describe("current invite code", () => {
+  it("does not save a previously complete code while the replacement is composing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ joinCode: null }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<InviteSharing choirId="drive" choirName="示例云盘" />);
+    const input = await screen.findByRole("textbox", { name: "邀请码" });
+    fireEvent.change(input, { target: { value: "ABCDEFGH" } });
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "as" } });
+    expect(screen.getByRole("button", { name: "保存原邀请码" })).toBeDisabled();
+    const form = input.closest("form");
+    if (!form) throw new Error("Invitation input must be inside its form");
+    fireEvent.submit(form);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fireEvent.compositionEnd(input, { data: "as" });
+    expect(screen.getByRole("button", { name: "保存原邀请码" })).toBeDisabled();
+    fireEvent.submit(form);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("restores a retained original without rotating it", async () => {
     const fetchMock = vi.fn().mockImplementation((_input: string, init?: RequestInit) =>
       Promise.resolve(init?.method === "PUT"

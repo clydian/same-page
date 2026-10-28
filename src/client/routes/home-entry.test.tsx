@@ -272,7 +272,7 @@ it("preserves a first visitor's invitation input while identity checking finishe
   session(null);
   view.rerender(tree());
   expect(await screen.findByRole("dialog", { name: "进入云盘" })).toBeInTheDocument();
-  expect(screen.getByLabelText("邀请码")).toHaveValue("ABCD-EFGH");
+  expect(screen.getByLabelText("邀请码")).toHaveValue("ABCDEFGH");
   expect(screen.getByRole("button", { name: "进入" })).toBeEnabled();
 });
 

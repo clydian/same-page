@@ -415,7 +415,7 @@ describe("AppRoutes", () => {
     });
     render(<MemoryRouter initialEntries={["/?join=1#invite=ABCDEFGH"]}><AppRoutes /></MemoryRouter>);
     expect(await screen.findByRole("alert")).toHaveTextContent("暂时无法进入这个云盘");
-    expect(screen.getByLabelText("邀请码")).toHaveValue("ABCD-EFGH");
+    expect(screen.getByLabelText("邀请码")).toHaveValue("ABCDEFGH");
     fireEvent.click(screen.getByRole("button", { name: "进入" }));
     expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
   });
@@ -439,13 +439,13 @@ describe("AppRoutes", () => {
     vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: true, isRefetching: true } as ReturnType<typeof authClient.useSession>);
     view.rerender(tree());
     expect(screen.getByLabelText("邀请码")).toBe(input);
-    expect(input).toHaveValue("ABCD-EFGH");
+    expect(input).toHaveValue("abcdefgh");
     expect(screen.getByRole("button", { name: "进入云盘" })).toBeDisabled();
     expect(vi.mocked(fetch).mock.calls.some(([url, init]) => url === "/api/guest/session" && init?.method === "POST")).toBe(false);
     vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false, error: { status: 503 } } as ReturnType<typeof authClient.useSession>);
     view.rerender(tree());
     expect(screen.getByLabelText("邀请码")).toBe(input);
-    expect(input).toHaveValue("ABCD-EFGH");
+    expect(input).toHaveValue("abcdefgh");
     vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false } as ReturnType<typeof authClient.useSession>);
     view.rerender(tree());
     expect(screen.getByLabelText("邀请码")).toBe(input);
@@ -490,7 +490,7 @@ describe("AppRoutes", () => {
     fireEvent.change(await screen.findByLabelText("邀请码"), {
       target: { value: "abcd-efgh" },
     });
-    expect(await screen.findByLabelText("邀请码")).toHaveValue("ABCD-EFGH");
+    expect(await screen.findByLabelText("邀请码")).toHaveValue("abcdefgh");
     expect(document.querySelectorAll(".join-code-slot")).toHaveLength(8);
     fireEvent.click(screen.getByRole("button", { name: "进入" }));
 
@@ -517,7 +517,7 @@ describe("AppRoutes", () => {
     fireEvent.change(input, { target: { value: "abcd-efgh" } });
     await act(async () => finish(Response.json({ choir: { id: "old-drive", name: "之前的云盘", guestAdmissionMode: "invite" }, entryKind: "admission" })));
     expect(screen.getByLabelText("邀请码")).toBe(input);
-    expect(input).toHaveValue("ABCD-EFGH");
+    expect(input).toHaveValue("abcdefgh");
     expect(vi.mocked(fetch).mock.calls.filter(([url, init]) => url === "/api/guest/session" && init?.method === "POST")).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "进入" }));
     expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
