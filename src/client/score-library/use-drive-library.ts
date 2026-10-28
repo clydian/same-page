@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { sharedDriveLibrary, retainDriveLibrary } from "./shared-drive-library";
 import { type DriveCacheOwnerKey } from "./drive-library-cache";
+import { connections, connectionsEnabled } from "../connection/connection";
 
 export function useDriveLibraryResource(ownerKey: DriveCacheOwnerKey, choirId: string, signedIn: boolean, identityReady: boolean, sessionId: string | null = null) {
   const library = sharedDriveLibrary(ownerKey, choirId, sessionId);
@@ -11,12 +12,23 @@ export function useDriveLibraryResource(ownerKey: DriveCacheOwnerKey, choirId: s
   useEffect(() => {
     if (!identityReady) return;
     const release = retainDriveLibrary(library);
+    let previousRoute = connections.getSnapshot();
+    const stopObservingRoute = connectionsEnabled ? connections.subscribe(() => {
+      const route = connections.getSnapshot();
+      const changed = route.mode !== previousRoute.mode || route.active !== previousRoute.active;
+      previousRoute = route;
+      // A mode change invalidates in-flight responses even when the effective
+      // entry stays the same. Replace the read rather than reusing its promise.
+      // Health/identity notifications alone must not start another read.
+      if (changed) void library.restartRead();
+    }) : () => {};
     const refresh = () => {
       if (document.visibilityState === "visible" && navigator.onLine) void library.refreshIfStale();
     };
     window.addEventListener("online", refresh);
     window.addEventListener("focus", refresh);
     return () => {
+      stopObservingRoute();
       release();
       window.removeEventListener("online", refresh);
       window.removeEventListener("focus", refresh);

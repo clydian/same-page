@@ -36,24 +36,48 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await expect(page.locator('.connection-fab')).toHaveAttribute('data-visible', 'true');
     await withConnectionEvidence(page, { directory: `artifacts/verification/issue-580/${name}-switch-to-upload`, origins, network }, async mark => {
       network.directBroken = true;
-      mark('cold-reload');
-      await page.reload();
-      await expect(page.locator('.file-row__open').first()).toBeVisible();
-      await page.getByRole('button', { name: /^连接线路/ }).click();
-      await expect(page.getByText('当前线路：备用')).toBeVisible();
-      assert.equal(await page.evaluate(() => localStorage.getItem('issue-580-draft-marker')), 'keep');
-      assert.equal(new URL(page.url()).origin, origins.direct);
-      mark('select-direct');
-      await page.getByRole('radio', { name: '直连', exact: true }).check();
-      await expect(page.locator('.connection-routes li').filter({ has: page.getByText('直连', { exact: true }) }).getByText('暂时连不上', { exact: true })).toBeVisible();
-      await expect(page.getByRole('radio', { name: '直连', exact: true })).toBeChecked();
-      await expect(page.getByRole('link', { name: '前往登录', exact: true })).toHaveCount(0);
-      mark('select-backup');
-      await page.getByRole('radio', { name: '备用', exact: true }).check();
-      await expect(page.getByRole('radio', { name: '备用', exact: true })).toBeChecked();
-      await page.getByRole('button', { name: '关闭连接面板' }).click();
-      mark('await-upload-enabled');
-      await expect(page.getByRole('button', { name: '上传 PDF', exact: true })).toBeEnabled();
+      // Keep the cold-page directory response pending through the user's mode
+      // changes. Without explicit recovery, it is rejected as an old generation
+      // and the locally retained list never regains upload authority.
+      let releaseBootstrap;
+      const bootstrapGate = new Promise(resolve => { releaseBootstrap = resolve; });
+      let bootstrapReady = false;
+      const bootstrapPattern = '**/api/_entry/backup/choirs/*/bootstrap';
+      await page.route(bootstrapPattern, async route => {
+        const response = await route.fetch();
+        bootstrapReady = true;
+        await bootstrapGate;
+        await route.fulfill({ response });
+      });
+      try {
+        mark('cold-reload');
+        await page.reload();
+        await expect(page.locator('.file-row__open').first()).toBeVisible();
+        await page.getByRole('button', { name: /^连接线路/ }).click();
+        await expect(page.getByText('当前线路：备用')).toBeVisible();
+        assert.equal(await page.evaluate(() => localStorage.getItem('issue-580-draft-marker')), 'keep');
+        assert.equal(new URL(page.url()).origin, origins.direct);
+        await expect.poll(() => bootstrapReady).toBe(true);
+        mark('select-direct');
+        await page.getByRole('radio', { name: '直连', exact: true }).check();
+        await expect(page.locator('.connection-routes li').filter({ has: page.getByText('直连', { exact: true }) }).getByText('暂时连不上', { exact: true })).toBeVisible();
+        await expect(page.getByRole('radio', { name: '直连', exact: true })).toBeChecked();
+        await expect(page.getByRole('link', { name: '前往登录', exact: true })).toHaveCount(0);
+        mark('select-backup');
+        await page.getByRole('radio', { name: '备用', exact: true }).check();
+        await expect(page.getByRole('radio', { name: '备用', exact: true })).toBeChecked();
+        await page.getByRole('button', { name: '关闭连接面板' }).click();
+        // Resolve after the panel's state/focus updates, explicitly exercising
+        // late responses instead of relying on their usual fast completion.
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        mark('release-old-bootstrap');
+        releaseBootstrap();
+        mark('await-upload-enabled');
+        await expect(page.getByRole('button', { name: '上传 PDF', exact: true })).toBeEnabled();
+      } finally {
+        releaseBootstrap();
+        await page.unroute(bootstrapPattern);
+      }
     });
     await page.getByRole('button', { name: '上传 PDF', exact: true }).click();
     await page.getByLabel('选择 PDF 文件').setInputFiles({ name: 'alternate-upload.pdf', mimeType: 'application/pdf', buffer: fixture.pdf });

@@ -64,7 +64,7 @@ export class DriveLibrary {
   private active = false;
   private lifetimeController = new AbortController();
   private ownerSignal = AbortSignal.abort();
-  private request: { controller: AbortController; done: Promise<void> } | null = null;
+  private request: { controller: AbortController; done: Promise<void>; allowAdmission: boolean; requirePersistence: boolean } | null = null;
   private joinController: AbortController | null = null;
   private restorePending = true;
   private localController: AbortController | null = null;
@@ -146,13 +146,21 @@ export class DriveLibrary {
 
   changed = () => this.reload();
 
-  private reload(requirePersistence = false) {
+  // A connection change replaces a read, not the user's first-visit intent.
+  // Keep the pending read's requirements: a local projection can already be
+  // visible while first-visit admission or required persistence is unfinished.
+  restartRead = () => this.reload({
+    allowAdmission: this.request?.allowAdmission ?? (this.snapshot.access.kind !== "opened"),
+    requirePersistence: this.request?.requirePersistence ?? false,
+  });
+
+  private reload({ requirePersistence = false, allowAdmission = false }: { requirePersistence?: boolean; allowAdmission?: boolean } = {}) {
     if (!this.isActive()) return Promise.resolve();
     invalidateDriveLibrary(this.ownerKey, this.choirId);
     this.confirmedAt = -Infinity;
     this.request?.controller.abort();
     this.request = null;
-    return this.load(false, requirePersistence);
+    return this.load(allowAdmission, requirePersistence);
   }
 
   private scoreChanges = new Map<string, { change?: ScoreFileChange; request?: Promise<Response>; persistence?: Promise<void> }>();
@@ -209,7 +217,7 @@ export class DriveLibrary {
       await (persistence ?? this.persistScoreChange(change, signal));
     }
     signal.throwIfAborted();
-    await this.reload(true);
+    await this.reload({ requirePersistence: true });
     signal.throwIfAborted();
     // Ordinary navigation keeps a usable list on failure; recovery must positively
     // confirm a fresh read before the submission module can release its retry gate.
@@ -305,7 +313,7 @@ export class DriveLibrary {
     const workspace = this.workspace;
     const authenticated = this.authenticated;
     const signal = AbortSignal.any([controller.signal, ownerSignal]);
-    const pending = { controller, done: Promise.resolve() };
+    const pending = { controller, done: Promise.resolve(), allowAdmission, requirePersistence };
     this.request = pending;
     this.publish({ reading: { ...this.snapshot.reading, request: "pending" } });
     pending.done = Promise.resolve().then(() => {
