@@ -9,10 +9,10 @@
 .export-layers { overflow-y: auto; min-height: 0; display: grid; gap: 16px; }
 .export-help { font-size: .85rem; color: var(--muted); margin: 0; }
 .export-layer { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 10px; border-radius: 8px; cursor: pointer; }
-.export-layer:hover { background: #f6f4f1; }
+.export-layer:hover { background: var(--ui-surface, #f6f4f1); }
 .export-layer-color { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .export-layer span:last-child { overflow-wrap: anywhere; }
 .export-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
 .export-dialog input { accent-color: var(--brand); }
 .reader-chrome__leading { display: flex; gap: 8px; pointer-events: auto; justify-self: start; }
-.reader-chrome__export { background: rgb(255 255 255 / 96%); border-radius: .65rem; }
+.reader-chrome__export { background: rgb(var(--ui-surface-rgb, 253 253 250) / 96%); border-radius: .65rem; }

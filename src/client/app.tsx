@@ -1,3 +1,4 @@
+import { AppearanceProvider } from "./appearance/appearance";
 import { PlaybackGate } from "./playback/playback-gate";
 import { ConnectionControl } from "./connection/connection-control";
 import { InstallProvider } from "./install/install-provider";
@@ -49,7 +50,7 @@ export function AppRoutes() {
   const startup = location.state?.home !== true && (startupKey === location.key || (location.state?.startup === true && navigationType !== "POP"));
   return (
     <>
-      <NavigationProvider><LogoutProvider><InstallProvider>
+      <AppearanceProvider><NavigationProvider><LogoutProvider><InstallProvider>
       <RouteScrollReset />
 
         <Routes>
@@ -98,7 +99,7 @@ export function AppRoutes() {
           />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      <ConnectionControl /><PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider>
+      <ConnectionControl /><PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider></AppearanceProvider>
 
     </>
   );

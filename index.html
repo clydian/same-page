@@ -12,6 +12,18 @@
       content="black-translucent"
     />
     <meta name="theme-color" content="#014653" />
+    <script>
+      // Restore display preferences before the first paint, including offline starts.
+      try {
+        const owner = localStorage.getItem("same-page:appearance-owner") || "guest";
+        const value = JSON.parse(localStorage.getItem("same-page:appearance:" + owner) || "null") || {};
+        const dark = value.interfaceTheme === "dark" || value.interfaceTheme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches;
+        const selected = dark ? value.darkPaper : value.lightPaper;
+        document.documentElement.dataset.uiTheme = dark ? "dark" : "light";
+        document.documentElement.dataset.paperTheme = ["original", "soft", "inverted"].includes(selected) ? selected : dark ? "soft" : "original";
+        document.documentElement.dataset.invertAnnotations = String(value.invertAnnotations === true);
+      } catch { /* Browser storage is optional. */ }
+    </script>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link
       rel="apple-touch-icon"
