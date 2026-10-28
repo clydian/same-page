@@ -6,6 +6,9 @@ import { captureMusicXmlAccess, readOfflineMusicXml, readStoredMusicXml, revokeO
 import type { acquirePlaybackPreparation } from './playback-preparation';
 import type { PlaybackSource } from './playback-store';
 
+export const MUSICXML_READ_TIMEOUT_MS = 180_000;
+export type MusicXmlReadProgress = { phase: 'access' | 'local' | 'download'; loaded?: number; total?: number };
+
 type Metadata = Awaited<ReturnType<typeof readAttachment>>;
 type PendingMetadata = { controller: AbortController; promise: Promise<Metadata>; consumers: number; settled: boolean };
 // Exact source identity is one explicit opening, including its owner/effective session.
@@ -21,7 +24,7 @@ export function readPlaybackAttachment(source: PlaybackSource, signal: AbortSign
     const task = pending;
     // A lifetime-hook consumer must not keep a timed-out opening alive and make
     // a retry join that same hung request forever. This bounds the shared task.
-    const timeout = setTimeout(() => controller.abort(new Error('读取附件超时，请重试。')), 60_000);
+    const timeout = setTimeout(() => controller.abort(new Error('读取附件超时，请重试。')), MUSICXML_READ_TIMEOUT_MS);
     const forget = () => { clearTimeout(timeout); if (metadata.get(source) === task) metadata.delete(source); };
     controller.signal.addEventListener('abort', forget, { once: true });
     const settled = () => { task.settled = true; controller.signal.removeEventListener('abort', forget); forget(); };
@@ -158,7 +161,40 @@ function lazyOriginalSave(source: PlaybackSource, openingSignal: AbortSignal, cu
     }
   };
 }
-export async function resolveMusicXmlSource(source: PlaybackSource, signal: AbortSignal, preparation: ReturnType<typeof acquirePlaybackPreparation>, onAuthorized?: () => void) {
+async function readOriginal(response: Response, total: number, signal: AbortSignal, report: (progress: MusicXmlReadProgress) => void) {
+  if (!response.body) return new Uint8Array(await response.arrayBuffer());
+  const reader = response.body.getReader(), chunks: Uint8Array[] = [];
+  let loaded = 0, lastPercent = -1;
+  const cancel = () => { void reader.cancel().catch(() => undefined); };
+  signal.addEventListener('abort', cancel, { once: true });
+  try {
+    while (true) {
+      signal.throwIfAborted();
+      const result = await reader.read();
+      signal.throwIfAborted();
+      if (result.done) break;
+      loaded += result.value.byteLength;
+      if (loaded > total) throw new Error('musicxml_size_mismatch');
+      chunks.push(result.value);
+      const percent = Math.floor(loaded / total * 100);
+      if (percent !== lastPercent) { report({ phase: 'download', loaded, total }); lastPercent = percent; }
+    }
+    const bytes = new Uint8Array(loaded); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return bytes;
+  } finally {
+    signal.removeEventListener('abort', cancel);
+    void reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
+
+export async function resolveMusicXmlSource(source: PlaybackSource, signal: AbortSignal, preparation: ReturnType<typeof acquirePlaybackPreparation>, onAuthorized?: () => void, onProgress?: (progress: MusicXmlReadProgress) => void) {
+  const report = (progress: MusicXmlReadProgress) => {
+    if (signal.aborted) return;
+    try { onProgress?.(progress); } catch { /* Display observers cannot block opening. */ }
+  };
+  report({ phase: 'access' });
   const current = captureNavigationIdentity();
   // Start before local workspace I/O, allowing the lifetime hook to join this
   // opening's in-flight metadata without keeping a successful auth TTL.
@@ -191,6 +227,7 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
   try { validateMusicXmlAttachment(source, fresh); }
   catch (reason) { localAbort.abort(); throw reason; }
   onAuthorized?.();
+  report({ phase: 'local' });
   const local = await boundedLocalPreparation(accessResult, preparation, signal, localAbort);
   assertNavigation();
   const access = local?.access;
@@ -198,11 +235,12 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
   if (local?.bytes) return { bytes: local.bytes, prepared: undefined, tier: 'local' as const, canSaveAutomatically: true, save: access?.save ?? null, cacheIdentity: access?.cacheIdentity, assertCurrent: access?.assertCurrent };
   try {
     const url = attachmentFileUrl(source.choirId, fresh);
+    report({ phase: 'download', loaded: 0, total: fresh.sizeBytes });
     const response = await attachmentFetch(`${url}${url.includes('?') ? '&' : '?'}revision=${fresh.revision}`, { signal });
     signal.throwIfAborted();
     if (!response.ok) throw new SettingsRequestError(response.status);
     if (response.headers.get('X-Attachment-Revision') !== String(fresh.revision)) throw new Error('附件已更新，请从附件列表重新打开。');
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const bytes = await readOriginal(response, fresh.sizeBytes, signal, report);
     if (bytes.byteLength !== fresh.sizeBytes) throw new Error('musicxml_size_mismatch');
     if (access) await boundedFinalAccessGuard(access, signal, localAbort);
     assertNavigation();

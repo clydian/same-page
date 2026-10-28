@@ -1,3 +1,4 @@
+import { PlaybackPreparationNotice } from './playback-preparation-notice';
 import { readerHref } from "../reader/reader-entry";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -15,6 +16,7 @@ import { usePracticePopoverHeight } from './use-practice-popover-height';
 
 type Props = {
   source?: PlaybackSource; embedded?: boolean; notationZoom?: NotationZoomProps; ready: boolean; playing: boolean; message?: string; failed?: boolean;
+  preparation?: { loaded: number; total: number };
   loopPreviewing?: boolean; position: string; loopStatus?: string; timeline: Timeline; tempo?: { bpm: number; unit: number }; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
   play(): void; previous(): void; next(): void; retry(): void; children: ReactNode;
 };
@@ -86,7 +88,9 @@ export function PracticePlayerShell(props: Props) {
       {!props.embedded && <Button className="practice-end-playback" aria-label="结束练习" onPress={stopPlayback}>结束<span>练习</span></Button>}
     </header>
     <div className="practice-dock" data-view={view} data-collapsed={bottomCollapsed || undefined} ref={dock}>
-      {props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
+      {!props.ready && !props.failed && props.message
+        ? <PlaybackPreparationNotice key={props.message} message={props.message} {...props.preparation} retry={props.retry} />
+        : props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
       <section className="practice-bar" aria-label="乐谱练习" data-testid="musicxml-player">
         <div id="practice-expanded-controls" className="practice-expanded-controls" hidden={bottomCollapsed}><PlaybackTimeline timeline={props.timeline} /></div>
 

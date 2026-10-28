@@ -41,7 +41,7 @@ class PlaybackErrorBoundary extends Component<{ children: ReactNode }, { failed:
 function PlaybackFailure() {
   const update = useUpdateStatus();
   return <aside className="playback-loading" aria-label="播放器加载失败" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: '#fcfdfb', color: '#31463a', padding: 8 }}>
-    <p role="alert">播放器加载失败，乐谱和笔记仍可继续使用。请先完成当前操作，再到关于合谱应用更新。</p>
+    <p role="alert">播放器加载失败，乐谱和笔记仍可继续使用。请检查网络；若持续失败，完成当前操作后到关于合谱检查版本。</p>
     <p role="status">{update.message}</p>
     <Button onPress={stopPlayback}>关闭播放器</Button>
     <Button isDisabled={["registering", "checking", "preparing", "applying", "unsupported"].includes(update.phase)} onPress={() => window.dispatchEvent(new Event('same-page-check-update'))}>检查更新</Button>
