@@ -30,6 +30,7 @@ jobs:
       deploy: ${{ steps.scope.outputs.deploy }}
       smoke: ${{ steps.scope.outputs.smoke }}
       browserGroup: ${{ steps.scope.outputs.browserGroup }}
+      base: ${{ steps.scope.outputs.base }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,7 +97,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1, 2]' || needs.scope.outputs.deploy == 'true' && '[1, 2]' || '[1, 2, 3, 4]') }}
+        shard: [1, 2]
     needs: scope
     if: needs.scope.outputs.visual == 'true'
     runs-on: ubuntu-latest
@@ -109,6 +110,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - name: Use Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -121,8 +124,10 @@ jobs:
         run: node .github/scripts/verify-browsers.mjs
       - name: Browser layout and interaction regressions
         timeout-minutes: 12
-        # Test-only changes do not publish beta, so verify their complete suite.
-        run: node scripts/run-browser-tests.mjs visual "${{ needs.scope.outputs.browserGroup == 'library' && 'library' || needs.scope.outputs.deploy == 'true' && 'gate' || 'all' }}" "${{ matrix.shard }}/${{ needs.scope.outputs.browserGroup == 'library' && '2' || needs.scope.outputs.deploy == 'true' && '2' || '4' }}"
+        run: node scripts/run-browser-tests.mjs visual "$BROWSER_GROUP" "${{ matrix.shard }}/2" "$TEST_BASE"
+        env:
+          BROWSER_GROUP: ${{ needs.scope.outputs.browserGroup == 'library' && 'library' || 'gate' }}
+          TEST_BASE: ${{ needs.scope.outputs.base }}
       - name: Preserve synthetic test evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -280,8 +285,8 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        # Full test-only runs retain four slices; the product gate needs two.
-        shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1, 2]' || needs.scope.outputs.deploy == 'true' && '[1, 2]' || '[1, 2, 3, 4]') }}
+        # Core policy is independent of whether the change publishes product code.
+        shard: [1, 2]
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
@@ -290,6 +295,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - name: Use Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -311,7 +318,10 @@ jobs:
       - name: Real browser Worker storage smoke
         # Keep each shard's six-minute budget and individual test deadlines.
         timeout-minutes: 6
-        run: node scripts/run-browser-tests.mjs smoke "${{ needs.scope.outputs.browserGroup == 'library' && 'library' || needs.scope.outputs.deploy == 'true' && 'gate' || 'all' }}" "${{ matrix.shard }}/${{ needs.scope.outputs.browserGroup == 'library' && '2' || needs.scope.outputs.deploy == 'true' && '2' || '4' }}"
+        run: node scripts/run-browser-tests.mjs smoke "$BROWSER_GROUP" "${{ matrix.shard }}/2" "$TEST_BASE"
+        env:
+          BROWSER_GROUP: ${{ needs.scope.outputs.browserGroup == 'library' && 'library' || 'gate' }}
+          TEST_BASE: ${{ needs.scope.outputs.base }}
       - name: Preserve synthetic test evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

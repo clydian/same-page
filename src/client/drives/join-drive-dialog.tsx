@@ -1,3 +1,4 @@
+import { useInputVisibility } from "../platform/use-input-visibility";
 import { clearGuestSession } from "../auth/preview-guest-session";
 import { ArrowLeft, X } from "lucide-react";
 import { activateGuestLocalOwner } from "../platform/local-workspace";
@@ -33,6 +34,7 @@ export function JoinDrivePanel(props: Omit<JoinDriveProps, "open" | "onBack">) {
 }
 
 function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inline = false }: JoinDriveProps & { inline?: boolean }) {
+  const viewportRef = useInputVisibility(inline ? "page" : "overlay");
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = identity;
@@ -280,8 +282,8 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                 ) : null}
               </>
   );
-  if (inline) return <div className="join-drive-panel">{content(() => undefined)}</div>;
-  return <ModalOverlay className="modal-overlay" isOpen={open && !(invitation && location.hash)}
+  if (inline) return <div ref={viewportRef} className="join-drive-panel">{content(() => undefined)}</div>;
+  return <ModalOverlay ref={viewportRef} className="modal-overlay join-drive-overlay" isOpen={open && !(invitation && location.hash)}
     onOpenChange={open => { if (!open) dismissJoinDialog(); }} isDismissable>
     <Modal className="app-modal"><Dialog className="app-dialog">{({ close }) => content(close)}</Dialog></Modal>
   </ModalOverlay>;

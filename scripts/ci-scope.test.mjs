@@ -191,7 +191,7 @@ test("the workflow entrypoint emits scope and rejects whitespace errors in docs"
   assert.equal(run().status, 0);
   assert.equal(
     readFileSync(output, "utf8"),
-    "full=false\nclient=false\nworker=false\nvisual=false\npwa=false\nperformance=false\nmigration=false\nbuild=false\ndeploy=false\nsmoke=false\nbrowserGroup=all\n",
+    "full=false\nclient=false\nworker=false\nvisual=false\npwa=false\nperformance=false\nmigration=false\nbuild=false\ndeploy=false\nsmoke=false\nbrowserGroup=all\n" + `base=${repo.base}\n`,
   );
   rmSync(output);
   repo.put("docs/change.md", "bad whitespace \t\n");

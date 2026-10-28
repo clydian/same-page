@@ -788,6 +788,24 @@ h1 {
   backdrop-filter: blur(7px);
 }
 
+.join-drive-panel {
+  padding-bottom: var(--input-keyboard-inset, 0px);
+}
+
+.join-drive-overlay {
+  top: var(--input-viewport-top, 0px);
+  bottom: auto;
+  height: var(--input-viewport-height, 100%);
+}
+
+.join-drive-overlay .app-dialog {
+  max-height: min(44rem, calc(var(--input-viewport-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 2rem));
+}
+
+.join-drive-overlay input {
+  scroll-margin-block: 12px;
+}
+
 .app-modal {
   width: min(34rem, 100%);
   border-radius: 1.1rem;
@@ -1034,6 +1052,7 @@ h1 {
   display: grid;
   place-items: start center;
   padding: clamp(3rem, 8vw, 7rem) 1rem;
+  padding-bottom: calc(clamp(3rem, 8vw, 7rem) + var(--input-keyboard-inset, 0px));
 }
 
 .auth-card {
@@ -2922,6 +2941,7 @@ h1 {
   .auth-layout {
     place-items: start stretch;
     padding: 2rem 0.75rem;
+    padding-bottom: calc(2rem + var(--input-keyboard-inset, 0px));
   }
 
   .auth-card {

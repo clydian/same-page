@@ -110,7 +110,8 @@ describe("AuthPage", () => {
     await startFirstPassword();
     const input = screen.getByLabelText("六位验证码");
     const scroll = vi.fn();
-    input.scrollIntoView = scroll;
+    vi.spyOn(window, "scrollBy").mockImplementation(scroll);
+    input.scrollIntoView = vi.fn();
     vi.spyOn(input, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 308, 240, 48));
     input.focus();
     viewport.dispatchEvent(new Event("resize"));
@@ -134,7 +135,8 @@ describe("AuthPage", () => {
     await startFirstPassword();
     const input = screen.getByLabelText("六位验证码");
     const scroll = vi.fn();
-    input.scrollIntoView = scroll;
+    vi.spyOn(window, "scrollBy").mockImplementation(scroll);
+    input.scrollIntoView = vi.fn();
     vi.spyOn(input, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 308, 240, 48));
     input.focus();
     await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -153,7 +155,7 @@ describe("AuthPage", () => {
     viewport.height = 335;
     viewport.dispatchEvent(new Event("resize"));
     await vi.waitFor(() => expect(scroll).toHaveBeenCalledWith({
-      block: "center", inline: "nearest", behavior: "instant",
+      top: 33, behavior: "instant",
     }));
     expect(input).toHaveFocus();
     expect(input).toHaveValue("12");

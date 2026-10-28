@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 
 const library = {
-  visual: ["drive-entry", "drive-settings", "drive-navigation", "drive-navigation-settings", "drive-library-lifecycle", "upload-queue", "responsive-navigation", "shared-layer-management"],
+  visual: ["drive-entry", "drive-settings", "drive-navigation", "drive-navigation-settings", "drive-library-lifecycle", "join-keyboard", "upload-queue", "responsive-navigation", "shared-layer-management"],
   smoke: ["storage-smoke", "offline-entry-smoke"],
 };
-// Source/UI and feature-detail matrices run after beta admission. New files
-// default to the blocking gate until deliberately classified here.
+// Extended matrices are advisory for beta; changed ones also run on PRs.
+// New files default to the blocking gate until deliberately classified here.
 const extended = {
-  visual: ["continuous-reader-layout", "diagnostics", "drive-context-attachments", "drive-navigation-settings", "drive-navigation", "drive-settings", "experience-continuity", "highlighter-nib", "invite-feedback", "layer-panel-layout", "layer-preferences", "navigation-freshness", "pdf-share", "pencil-writing", "practice-focus", "reader-canvas-layering", "reader-experience", "reader-navigation", "reader-presentation", "reader-render-recovery", "reader-scrubber", "reader-settlement", "reader-status", "reader-text-layout", "reader-ux", "reader-zoom", "reading-state", "safe-area", "ui-simplification", "uiux-return", "upload-queue"],
+  visual: ["continuous-reader-layout", "diagnostics", "drive-context-attachments", "drive-navigation-settings", "drive-navigation", "drive-settings", "experience-continuity", "highlighter-nib", "invite-feedback", "join-keyboard-extended", "layer-panel-layout", "layer-preferences", "navigation-freshness", "pdf-share", "pencil-writing", "practice-focus", "reader-canvas-layering", "reader-experience", "reader-navigation", "reader-presentation", "reader-render-recovery", "reader-scrubber", "reader-settlement", "reader-status", "reader-text-layout", "reader-ux", "reader-zoom", "reading-state", "safe-area", "ui-simplification", "uiux-return", "upload-queue"],
   smoke: ["admin-workbench", "connection-sampling", "diagnostic-reports", "file-touch-links", "invite-connection-failover", "loading-stability", "musicxml-audio-startup", "musicxml-cursor-overflow", "musicxml-native-selection", "musicxml-playback", "musicxml-startup", "pdf-codecs-smoke", "playback-load-failure", "playback-ux", "practice-compare", "practice-loop", "practice-reader-layout", "practice-rhythm", "practice-score-entry", "practice-unified-controls"],
 };
 
