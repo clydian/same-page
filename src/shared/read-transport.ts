@@ -42,11 +42,11 @@ export type PublicReadPolicy = 'asset' | 'manifest';
 
 // Read the body with a progress deadline, releasing the old stream on every exit.
 // A failed attempt is discarded; bytes from different routes are never joined.
-async function readBody(response: Response, signal: AbortSignal) {
+async function readBody(response: Response, signal: AbortSignal, idleMs: number) {
   const reader = response.body?.getReader();
   if (!reader) return new Uint8Array();
   const chunks: Uint8Array[] = [];
-  let size = 0, idleDeadline = Date.now() + bodyIdleMs, complete = false;
+  let size = 0, idleDeadline = Date.now() + idleMs, complete = false;
   try {
     while (true) {
       const remaining = idleDeadline - Date.now();
@@ -55,7 +55,7 @@ async function readBody(response: Response, signal: AbortSignal) {
       if (done) { complete = true; break; }
       if (value.byteLength) {
         chunks.push(value); size += value.byteLength;
-        idleDeadline = Date.now() + bodyIdleMs;
+        idleDeadline = Date.now() + idleMs;
       }
     }
     const bytes = new Uint8Array(size);
@@ -115,7 +115,7 @@ export function publicAssetReader(options: PublicAssetOptions) {
               throw new Error('public_asset_unavailable');
             }
             // Validation errors remain content errors, including validator TypeErrors.
-            const bytes = await readBody(response, attempt);
+            const bytes = await readBody(response, attempt, policy === 'manifest' ? attemptMs : bodyIdleMs);
             attempt.throwIfAborted();
             const headers = new Headers(response.headers);
             headers.delete('content-encoding'); headers.delete('content-length'); headers.delete('vary');

@@ -170,8 +170,8 @@ it('lets a pinned manifest use the full budget without scheduling another route'
   vi.useFakeTimers();
   let stream!: ReadableStreamDefaultController<Uint8Array>;
   const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(new ReadableStream({ start(controller) { stream = controller; } })));
-  const outcome = publicAssetReader({ origin: origins.direct, origins, send, routes: () => ['direct'] })(path, verify, undefined, 'manifest');
-  await vi.advanceTimersByTimeAsync(8000);
+  const outcome = publicAssetReader({ origin: origins.direct, origins, send, routes: () => ['direct'] })(path, verify, undefined, 'manifest').then(response => response, error => error);
+  await vi.advanceTimersByTimeAsync(12_000);
   stream.enqueue(new TextEncoder().encode('verified')); stream.close();
   expect(await (await outcome).text()).toBe('verified');
   expect(send).toHaveBeenCalledTimes(1);
