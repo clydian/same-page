@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readReleaseObject, releaseRequest } from './release-request.mjs';
+import { forEachReleaseFile } from './release-files.mjs';
 import { verifyRelease } from './release-artifact.mjs';
 import { assertStorageCompatibility } from './release-contract.mjs';
 const hash = data => createHash('sha256').update(data instanceof ArrayBuffer ? new Uint8Array(data) : data).digest('hex');
@@ -36,11 +37,11 @@ export async function uploadFrontend({bucket,cwd,manifest,contract}) {
   const base=`releases/${manifest.buildId}/`, bytes=JSON.stringify(manifest);
   assert.equal(hash(JSON.stringify(contract)),manifest.storageDigest,'storage contract not sealed');
   await immutablePut(bucket,base+'claim.json',bytes);
-  for(const [file,entry]of Object.entries(manifest.files)) {
+  await forEachReleaseFile(Object.entries(manifest.files), async ([file,entry]) => {
     const body=await readFile(path.join(cwd,'dist/client',file));
     assert.equal(hash(body),entry.sha256);
     await immutablePut(bucket,base+file,body,{contentType:entry.contentType});
-  }
+  });
   await immutablePut(bucket,base+'storage.json',JSON.stringify(contract));
   const probe=await readFile(path.join(cwd,'dist/release-storage-probe.js'));assert.equal(hash(probe),manifest.probeDigest);
   await immutablePut(bucket,base+'storage-probe.js',probe);
@@ -104,13 +105,13 @@ export async function verifyOnlineFrontend({origin,sha,files,fetchImpl=fetch}) {
     retryRead: true, fetchImpl, read: async response => { assert.equal(response.status, 200); return response.json(); },
   });
   assert.equal(health.buildId,sha,'backend deployment must verify before beta admission');
-  for(const [file,entry]of Object.entries(files)) {
+  await forEachReleaseFile(Object.entries(files), async ([file,entry]) => {
     const bytes = await releaseRequest(`Candidate resource ${file}`, new URL(`/_releases/${sha}/${file}`,origin), {
       init: {redirect:'error'}, retryRead: true, fetchImpl,
       read: async response => { assert.equal(response.status,200); return response.arrayBuffer(); },
     });
     assert.equal(hash(new Uint8Array(bytes)),entry.sha256, `candidate resource hash mismatch: ${file}`);
-  }
+  });
 }
 async function main() {
   const [action,sha,baselineFlag]=process.argv.slice(2);

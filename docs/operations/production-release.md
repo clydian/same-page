@@ -319,3 +319,28 @@ push/pull 合并器、Blob、冲突、已尝试操作和身份保留。报告绑
 本地验证：`npm run test:release-channels`、常规 `npm run check:full`，以及
 `SAME_PAGE_RELEASE_CHANNELS=1 npm run build` 的前缀资源完整性检查。生产桶、权限、移动端
 实机与线上流程不由这些命令代替。诊断同时记录所选通道、运行前端、准备目标和后端身份。
+
+### 前端发布并发（#610）
+
+前端文件上传和 beta 准入前的完整 HTTP 校验各最多并行处理 4 个文件。
+并发槽覆盖整个文件操作，包括响应体下载、SHA256 计算和上传后的回读。
+claim 创建及验证仍先完成，全部文件及私有 storage/probe 完成后才写 seal；
+后端身份检查仍在资源校验前完成。任一文件失败后停止领取新任务，等待已启动任务结束，
+再让本阶段失败，不留下后台上传，也不继续 seal 或通道准入。
+既有读取重试、存储兼容测试及通道 CAS 保持原有职责。
+
+部署耗时基线来自 2026-10-28 的三个成功 main CI：
+[40638675711](https://github.com/clydian/same-page/actions/runs/40638675711)、
+[40624867920](https://github.com/clydian/same-page/actions/runs/40624867920)、
+[40647697642](https://github.com/clydian/same-page/actions/runs/40647697642)。
+deploy job 分别约 412/452/763 秒，Worker deploy 步骤仅 12/12/13 秒；
+Prepare frontend 步骤为 96/235/464 秒，beta admission 为 87/124/88 秒。
+Prepare 还包括依赖安装和原始产物兼容测试，不能把整步耗时都算为上传。
+独立的 Verify production deployment 步骤为 138/8/120 秒，本次未删除或合并该验证。
+
+使用真实 uploadFrontend / verifyOnlineFrontend 函数、281 个文件和每请求固定 5ms
+适配器延迟的本地对照：串行为 3364/1651ms，四并发为 879/435ms；
+请求数保持 285 PUT、285 GET 和 282 HTTP 请求。
+该模拟仅验证串行等待得到减少，**不是生产耗时预测**。
+实际收益须比较后续成功发布的对应步骤，不能用 PR CI 代替 deploy 验证。
+这项改动不改变托管和保留策略，也不提前实施 #609。
