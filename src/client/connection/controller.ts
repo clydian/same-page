@@ -353,6 +353,8 @@ export class ConnectionController {
     let missingSessions = 0;
     try {
     for (let index = 0; index < choices.length; index++) {
+      callerSignal?.throwIfAborted();
+      if (bounded) budget.signal.throwIfAborted();
       const chosen = choices[index];
       const attempt = new AbortController();
       const attemptTimer = bounded ? setTimeout(() => attempt.abort(new DOMException("Connection timeout", "TimeoutError")), 4000) : undefined;
@@ -390,7 +392,7 @@ export class ConnectionController {
         // Stateless admission also bounds its small, validated JSON body.
         clearTimeout(attemptTimer);
         if (bounded && generation !== this.generation) throw abortError();
-        if (admission) signal!.throwIfAborted();
+        if (bounded) signal!.throwIfAborted();
         // Only ordinary business reads gain HTTP failover. Auth/control work and
         // the existing stateless POST exception do not gain new replay behavior.
         if (read && this.snapshot.mode === "auto" && !url.pathname.startsWith("/api/auth/") && !isPublicConnectionPath(url.pathname) && gatewayFailure(response.status)) {

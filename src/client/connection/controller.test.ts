@@ -479,3 +479,13 @@ it('preserves a pinned line on HTTP 502 without fallback', async () => {
   expect((await controller.fetch('/api/choirs')).status).toBe(502);
   expect(send).toHaveBeenCalledTimes(1);
 });
+
+it('does not start fallback credentials or a read when cancellation coincides with HTTP 502', async () => {
+  const caller = new AbortController();
+  const send = vi.fn<typeof fetch>(async () => {
+    caller.abort();
+    return new Response('gateway', { status: 502 });
+  });
+  await expect(make(send).fetch('/api/choirs', { signal: caller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+  expect(send).toHaveBeenCalledTimes(1);
+});
