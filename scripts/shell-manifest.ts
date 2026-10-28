@@ -12,12 +12,16 @@ export async function shellManifest(entries: Array<{ url: string; revision?: str
     const url = `playback/${encodeURIComponent(buildId)}/manifest.json`;
     const shellUrls = new Set(entries.map(entry => assetBase + entry.url.replace(/^\//, '')));
     const player = JSON.parse(await readFile(path.join(root, url), 'utf8')) as { entries: Array<{ url: string }> };
-    // Shared dependencies are already verified by the required shell audit.
-    // Avoid downloading/storing a second copy in the optional bundle.
+    // Keep the legacy player manifest readable by already-deployed clients,
+    // but install its entire closure as part of this release's required shell.
     player.entries = player.entries.filter(entry => !shellUrls.has(entry.url));
     await writeFile(path.join(root, url), JSON.stringify(player));
-    entries = [...entries, { url, revision: null }];
+    entries = [...entries, ...player.entries.map(entry => {
+      if (!entry.url.startsWith(assetBase)) throw new Error('invalid_player_asset_base');
+      return { url: entry.url.slice(assetBase.length), revision: null };
+    }), { url, revision: null }];
   }
+  entries = [...new Map(entries.map(entry => [entry.url, entry])).values()];
   const manifest = await Promise.all(entries.map(async entry => {
     const bytes = await readFile(path.join(root, entry.url));
     return { ...entry, url: entry.url === 'index.html' ? '/' : assetBase + entry.url.replace(/^\//, ''),

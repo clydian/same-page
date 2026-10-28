@@ -5,6 +5,7 @@ import { ArrowUpRight, BookOpen, ChevronRight, Globe, MessageSquare, ShieldCheck
 import { buildId, buildRunId, buildVersion } from "../../shared/build";
 import { TaskHeader } from "../components/task-header";
 import { UpdateDetails } from "../components/reload-prompt";
+import { usePageRecoveryStatus } from "../updates/page-recovery-status";
 import "../support-pages.css";
 
 export default function AboutPage() {
@@ -44,13 +45,14 @@ export default function AboutPage() {
 
 function PlaybackRecovery() {
   const [requested, setRequested] = useState(false);
+  const status = usePageRecoveryStatus();
   return <section className="support-update app-version-panel" aria-labelledby="playback-recovery-heading">
     <h2 id="playback-recovery-heading">恢复播放器</h2>
-    <p>重新加载页面，让播放器重新获取资源。笔记和本机内容会保留。</p>
-    <button className="primary-button" type="button" disabled={requested} onClick={() => {
+    <p>本机资源完整时可离线重新加载；资源缺失时需要联网补齐。笔记和本机内容会保留。</p>
+    <button className="primary-button" type="button" disabled={requested && status.phase !== 'offline'} onClick={() => {
       setRequested(true);
       window.dispatchEvent(new Event('same-page-recover-page'));
     }}>重新加载页面</button>
-    {requested && <p role="status">将在当前操作完成、联网后重新加载页面。</p>}
+    {requested && <p role="status">{status.message}</p>}
   </section>;
 }

@@ -42,7 +42,8 @@ export type PublicReadPolicy = 'asset' | 'manifest';
 
 // Read the body with a progress deadline, releasing the old stream on every exit.
 // A failed attempt is discarded; bytes from different routes are never joined.
-async function readBody(response: Response, signal: AbortSignal, idleMs: number) {
+async function readBody(response: Response, signal: AbortSignal, idleMs: number, onProgress?: (receivedBytes: number) => void) {
+  onProgress?.(0);
   const reader = response.body?.getReader();
   if (!reader) return new Uint8Array();
   const chunks: Uint8Array[] = [];
@@ -54,7 +55,7 @@ async function readBody(response: Response, signal: AbortSignal, idleMs: number)
       const { done, value } = await readAttempt(() => reader.read(), signal, remaining);
       if (done) { complete = true; break; }
       if (value.byteLength) {
-        chunks.push(value); size += value.byteLength;
+        chunks.push(value); size += value.byteLength; onProgress?.(size);
         idleDeadline = Date.now() + idleMs;
       }
     }
@@ -84,7 +85,7 @@ export function publicAssetReader(options: PublicAssetOptions) {
   const send: typeof fetch = (...args) => (options.send ?? globalThis.fetch)(...args);
   let preferred: ConnectionRoute = options.origin === options.origins?.backup ? 'backup' : 'direct';
   let succeeded = false;
-  return async (path: string, verify: (response: Response) => Promise<boolean>, signal?: AbortSignal, policy: PublicReadPolicy = 'asset'): Promise<Response> => {
+  return async (path: string, verify: (response: Response) => Promise<boolean>, signal?: AbortSignal, policy: PublicReadPolicy = 'asset', onProgress?: (receivedBytes: number) => void): Promise<Response> => {
     const url = new URL(path, options.origin);
     if (url.origin !== options.origin) throw new Error('invalid_public_asset_origin');
     const fixed = /^\/_releases\/[a-f0-9]{40}\/(?!\/)[^?#]+$/.test(url.pathname);
@@ -115,7 +116,7 @@ export function publicAssetReader(options: PublicAssetOptions) {
               throw new Error('public_asset_unavailable');
             }
             // Validation errors remain content errors, including validator TypeErrors.
-            const bytes = await readBody(response, attempt, policy === 'manifest' ? attemptMs : bodyIdleMs);
+            const bytes = await readBody(response, attempt, policy === 'manifest' ? attemptMs : bodyIdleMs, onProgress);
             attempt.throwIfAborted();
             const headers = new Headers(response.headers);
             headers.delete('content-encoding'); headers.delete('content-length'); headers.delete('vary');

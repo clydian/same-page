@@ -40,7 +40,7 @@ cannot be returned as a navigation response. This can produce a native ERR_FAILE
   databases and runtime animation caches remain outside collection.
 - Web Locks serialize installation bookkeeping and collection. Without locks,
   collection is deferred. Use a fixed snapshot and recheck roles/pages before each
-  deletion. One individual manifest remains bounded to 7 MiB in build and install;
+  deletion. One individual manifest, including the complete playback closure, remains bounded to 20 MiB in build and install;
   actual browser quota refusal remains a failure, preserving the current and any
   already waiting release. Only if owner collection actually deletes unused public
   caches may a quota-failed candidate retry once. No global data reset is allowed.
@@ -142,3 +142,50 @@ origin's default channel nor a remembered local choice can grant admission when
 that origin is unavailable. Full discovery/permission failover needs a separate
 design preserving server-confirmed channel intent, expiry and origin-scoped SW
 registration; periodic retry does not claim to solve that availability boundary.
+
+
+## 2026-10-28 required offline playback
+
+The earlier optional-player policy saved initial download bytes but allowed a
+new complete application shell to lose already-prepared offline MusicXML playback.
+The player manifest closure (entry modules, static imports, preparation Worker,
+alphaTab worker/worklet, supported fonts, soundfont and notices) is now part of
+the same immutable required manifest and cache as the application. Shared entries
+are stored once. Installation, safe handover readiness, activation, repair,
+retained-version fallback and collection therefore operate on the whole release.
+Caching does not import the players or start an audio context on ordinary pages.
+
+This deliberately revises the former 7 MiB/optional-player tradeoff. The measured
+local baseline is about 16 MB uncompressed for PDF plus playback; the build and
+installer share one 20 MiB limit. Actual browser quota failures retain the usable
+release. There is no origin-wide fixed byte cap or business-data cleanup.
+
+Installers may reuse bytes from retained shell manifests and legacy optional
+player manifests only after destination integrity, size metadata and MIME checks.
+Legacy player manifests are found at their own build-prefixed or legacy URL;
+new code creates no separate player cache. Existing old clients and their bundles
+keep the previous message and storage formats, and existing lifecycle ownership
+continues to protect and retire those bundles. A failed download never grants
+permission to display a new release.
+
+Explicit page recovery may reload offline only after the controlling worker
+freshly verifies both the requested shell and its active navigation shell. The
+controller must remain unchanged; visibility, safe routes, local tasks, dialogs
+and input vetoes are rechecked after the reply. Missing/legacy/unresponsive
+workers leave a concrete connectivity message and an explicit retry. Automatic
+lost-shell recovery and version handover still require connectivity.
+
+`verify-playback-upgrade.mjs` builds two immutable releases and verifies rejected
+partial playback installation, safe update, unchanged saved MXL records, closed
+browser offline restart, real notation, nonzero audio and refresh reopening.
+Legacy bundle migration/corruption, quota preservation and cache retirement are
+covered by shell-runtime tests. Device storage eviction remains recoverable loss,
+not a guarantee that browsers can never discard offline files.
+
+
+Required-resource preparation exposes advisory progress to installation and update
+screens. Completed bytes mean validated files written to the target cache; decoded
+body reception and reused bytes are reported separately. Final readback and the
+registry commit precede readiness. Progress cannot grant update permission or alter
+transport retry/error policy. Snapshots carry build/sequence identity and are accepted
+only from the observed installing worker. Legacy workers retain indeterminate feedback.

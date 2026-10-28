@@ -4,6 +4,26 @@ export interface PlaybackManifest { buildId: string; entries: PlaybackAsset[] }
 export const playbackCachePrefix = 'same-page-playback-v1:';
 export const playbackManifestUrl = (buildId: string) => assetUrl(`playback/${encodeURIComponent(buildId)}/manifest.json`);
 export const playbackCacheName = (buildId: string) => playbackCachePrefix + encodeURIComponent(buildId);
+// Old bundles keep their own release prefix, independent of the active worker.
+// They remain read-only sources during the move to required shell resources.
+export async function cachedPlaybackManifest(cache: { keys(): Promise<readonly Request[]>; match(request: Request): Promise<Response | undefined> }, buildId: string) {
+  for (const request of await cache.keys()) {
+    if (!new URL(request.url).pathname.endsWith(`/playback/${encodeURIComponent(buildId)}/manifest.json`)) continue;
+    const response = await cache.match(request);
+    if (response) return parsePlaybackManifest(await response.json(), buildId);
+  }
+  return undefined;
+}
+export function playbackAssetTypeValid(response: Response, url: string) {
+  const type = response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() ?? '';
+  if (/\.(?:m?js)$/.test(url)) return /^(?:application|text)\/(?:javascript|ecmascript)$/.test(type);
+  if (url.endsWith('.css')) return type === 'text/css';
+  if (url.endsWith('.json')) return type === 'application/json';
+  if (url.endsWith('.svg')) return type === 'image/svg+xml';
+  if (url.endsWith('.sf2')) return /^(?:audio\/(?:x-)?sf2|application\/octet-stream)$/.test(type);
+  if (/\.(?:woff2?|otf|eot)$/.test(url)) return /^(?:font\/[-\w]+|application\/(?:octet-stream|(?:x-)?font[-\w]*|vnd\.ms-fontobject))$/.test(type);
+  return /^(?:text\/(?:plain|markdown)|application\/octet-stream)$/.test(type);
+}
 export async function assetValid(response: Response | undefined, entry: PlaybackAsset) {
   if (response?.status !== 200 || response.redirected || /text\/html/i.test(response.headers.get('Content-Type') ?? '')) return false;
   const type = response.headers.get('Content-Type') ?? '';

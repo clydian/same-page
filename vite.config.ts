@@ -156,8 +156,9 @@ export default defineConfig(({ isPreview, command }) => {
       injectManifest: {
         manifestTransforms: [entries => shellManifest(entries, undefined, buildId, assetBase)],
         globPatterns: ["**/*.{js,mjs,wasm,css,html,ico,png,webp,woff2,webmanifest}"],
-        // Prepare MusicXML resources on demand. Do not download optional viewers
-        // and editor on every PWA install; the main PDF engine stays precached.
+        // shellManifest explicitly adds the complete playback closure, including
+        // versioned fonts/soundfont. Keep unused originals and other optional
+        // viewers/editors out of the glob; caching does not execute the players.
         globIgnores: ["playback/**", "third-party/**","**/admin-*","assets/{shared-layers,personal-layer,replace-pdf,offline-sync}-animation-*.webp", "**/validate-musicxml-*","**/musicxml-*", "**/prepare.worker-*", "**/alphaTab.*", "font/**", "soundfont/**","**/markdown-editor-*", "**/markdown-attachment-*", "**/pdf-preview-*", "**/pdf_viewer-*", "**/attachment-dialog-*"],
         // PDF.js' worker is slightly larger than Workbox's 2 MiB default.
         // It is required to open a verified offline PDF, so keep it in the

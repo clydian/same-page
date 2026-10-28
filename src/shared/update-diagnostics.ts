@@ -1,6 +1,7 @@
 // Historical total ceiling is retained only to read already-sent diagnostics.
 export const applicationShellBudgetBytes = 4 * 7 * 1024 * 1024;
-export const applicationShellReleaseLimitBytes = 7 * 1024 * 1024;
+// Required PDF + complete playback resources (~16 MB), with bounded headroom.
+export const applicationShellReleaseLimitBytes = 20 * 1024 * 1024;
 export const updateFailureReasons = ["release-too-large", "capacity-protected", "quota-exceeded", "integrity-mismatch", "download-timeout", "download-failed", "storage-failed", "unknown"] as const;
 
 export function updateFailureReason(error: unknown): typeof updateFailureReasons[number] {

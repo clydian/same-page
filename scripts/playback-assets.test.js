@@ -16,11 +16,12 @@ it.each(['/', '/_releases/release-one/'])('pins public roots under %s for the lo
  expect(plugin.transform(original,'/another/session.js')).toBeUndefined();
  expect(()=>plugin.transform('changed','/node_modules/@same-page/player/dist/session.js')).toThrow('player_resource_contract_changed');
 });
-it.each(['/', '/_releases/release-one/'])('includes the static player closure under %s and worker/font/soundfont bytes, leaving shared dependencies to the verified shell',async assetBase=>{
+it.each(['/', '/_releases/release-one/'])('includes the static player closure under %s and worker/font/soundfont bytes, installing the complete closure with the verified shell',async assetBase=>{
  const root=await mkdtemp(path.join(tmpdir(),'same-page-playback-bundle-'));directories.push(root);
  for(const dir of ['assets','font','soundfont']) await mkdir(path.join(root,dir));
  const bundle={
   'assets/musicxml-player-one.js':{type:'chunk',imports:['assets/common-one.js'],dynamicImports:[]},
+  'assets/audio-player-one.js':{type:'chunk',imports:['assets/common-one.js'],dynamicImports:[]},
   'assets/common-one.js':{type:'chunk',imports:[],dynamicImports:['assets/admin-one.js']},
   'assets/admin-one.js':{type:'chunk',imports:[],dynamicImports:[]},
   'assets/prepare.worker-one.js':{type:'asset'},
@@ -47,5 +48,7 @@ it.each(['/', '/_releases/release-one/'])('includes the static player closure un
  expect(player.entries.some(entry=>entry.url.includes('common'))).toBe(false);
  expect(shell.manifest.some(entry=>entry.url.endsWith('/manifest.json')&&entry.integrity.startsWith('sha256-'))).toBe(true);
  expect(shell.manifest.find(entry=>entry.url.endsWith('/manifest.json')).url).toBe(`${assetBase}playback/release-one/manifest.json`);
- expect(shell.manifest.some(entry=>/font|musicxml|alphaTab/.test(entry.url))).toBe(false);
+ for (const entry of player.entries) expect(shell.manifest.find(item=>item.url===entry.url)).toMatchObject({integrity:entry.integrity,bytes:entry.bytes});
+ expect(shell.manifest.some(entry=>entry.url.endsWith('/assets/audio-player-one.js'))).toBe(true);
+ expect(shell.manifest.filter(entry=>entry.url.endsWith('/assets/common-one.js'))).toHaveLength(1);
 });

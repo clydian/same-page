@@ -1,5 +1,7 @@
+import { MemoryRouter } from "react-router-dom";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ResourcePreparation } from "./resource-preparation";
 import { UpdateDetails } from "../components/reload-prompt";
 import { UpdateCheckSchedule } from "./update-check-schedule";
 import { UpdateController } from "./update-controller";
@@ -28,7 +30,7 @@ describe("update lifecycle feedback", () => {
   beforeEach(() => {
     // Establish one clock before update-safety records any interaction.
     vi.useFakeTimers({ now: 0 });
-    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {} });
+    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: new EventTarget() });
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     update = vi.fn(async () => {}); requested = vi.fn();
     registration = Object.assign(new EventTarget(), { installing: null, waiting: null, update }) as unknown as ServiceWorkerRegistration;
@@ -42,6 +44,54 @@ describe("update lifecycle feedback", () => {
     registration.dispatchEvent(new Event("updatefound"));
     return value;
   }
+
+  it("renders only the installing worker's latest valid progress and keeps validation separate", async () => {
+    start();
+    let first!: ServiceWorker;
+    await act(async () => { first = install(); });
+    const progress = {buildId:'abc1234',sequence:1,stage:'downloading',totalBytes:16_000_000,preparedBytes:8_000_000,reusedBytes:6_000_000,downloadedBytes:3_000_000};
+    const send = (source: ServiceWorker, value: object) => act(() => navigator.serviceWorker.dispatchEvent(new MessageEvent('message',{source,data:{type:'SAME_PAGE_INSTALL_PROGRESS',progress:value}})));
+    send(worker(),progress);
+    expect(screen.getByRole('progressbar')).not.toHaveAttribute('value');
+    send(first,progress);
+    expect(screen.getByRole('progressbar')).toHaveAttribute('value','8000000');
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('本机复用 6.0 MB · 已接收下载资源 3.0 MB')).toBeInTheDocument();
+    send(first,{...progress,sequence:0});
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    act(()=>vi.advanceTimersByTime(300_001));
+    send(first,{...progress,sequence:2,stage:'verifying',preparedBytes:16_000_000});
+    expect(screen.getByText('更新准备较慢，仍在后台进行，可以继续使用')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).not.toHaveAttribute('value');
+    expect(screen.getByText('正在校验并保存资源…')).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'准备中…'})).toBeDisabled();
+    let second!: ServiceWorker;
+    await act(async()=>{second=install();});
+    send(first,{...progress,sequence:3});
+    expect(screen.queryByText('50%')).not.toBeInTheDocument();
+    send(second,{...progress,sequence:1,buildId:'def5678'});
+    act(()=>{Object.assign(registration,{installing:null,waiting:second});state(second,'installed');});
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'重新加载并更新'})).toBeEnabled();
+  });
+
+  it("accepts a late final snapshot for the initial install without keeping stale readiness on later checks",async()=>{
+    Object.defineProperty(navigator.serviceWorker,'controller',{configurable:true,value:null});
+    Object.assign(registration,{active:null});
+    start();
+    render(<MemoryRouter><ResourcePreparation install /></MemoryRouter>);
+    let installing!: ServiceWorker;
+    await act(async()=>{installing=install();});
+    const progress={buildId:'abc1234',sequence:1,stage:'verifying',totalBytes:100,preparedBytes:100,reusedBytes:0,downloadedBytes:100};
+    const send=(value: object)=>act(()=>navigator.serviceWorker.dispatchEvent(new MessageEvent('message',{source:installing,data:{type:'SAME_PAGE_INSTALL_PROGRESS',progress:value}})));
+    send(progress);
+    act(()=>{Object.assign(registration,{active:installing,installing:null});state(installing,'activated');});
+    expect(screen.queryByText(/应用和播放器资源已准备好。乐谱/)).not.toBeInTheDocument();
+    send({...progress,sequence:2,stage:'ready'});
+    expect(screen.getByText(/应用和播放器资源已准备好。乐谱/)).toBeInTheDocument();
+    await act(async()=>{await controller.check();});
+    expect(screen.queryByText(/应用和播放器资源已准备好。乐谱/)).not.toBeInTheDocument();
+  });
 
   it("immediately disables the single checking button and coalesces clicks and foreground checks", async () => {
     const pending = deferred(); update.mockReturnValue(pending.promise);

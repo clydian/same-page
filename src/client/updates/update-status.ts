@@ -1,9 +1,12 @@
+import type { InstallProgress } from '../../shared/update-progress';
 import { useSyncExternalStore } from "react";
 
 export type UpdatePhase = "registering" | "checking" | "preparing" | "current" | "ready" | "applying" | "error" | "offline" | "unsupported";
 export interface UpdateStatus {
   phase: UpdatePhase;
   message: string;
+  initialInstall?: boolean;
+  progress?: InstallProgress;
   deferred?: { worker: ServiceWorker; since: number };
 }
 let status: UpdateStatus = { phase: "registering", message: "正在准备更新检查…" };

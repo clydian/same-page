@@ -11,6 +11,7 @@ import { UpdateController } from "../updates/update-controller";
 import { ShellRecovery } from "../updates/shell-recovery";
 import { requestWorker, watchControllerChanges } from "../updates/worker-request";
 import { rememberUpdateFailure } from "../updates/update-diagnostics";
+import { ResourcePreparation } from "../updates/resource-preparation";
 import { UpdateNotice } from "../updates/update-notice";
 declare const __SAME_PAGE_RELEASE_CHANNELS__: boolean;
 // Evaluate promptly after the one-second idle threshold.
@@ -134,7 +135,7 @@ export function UpdateDetails() {
     current: "更新检查已完成", ready: "新版本已准备好", applying: "正在应用更新",
     error: "暂时无法完成更新", offline: "联网后可检查更新", unsupported: "请重新打开合谱以更新",
   };
-  let title = titles[status.phase], message = status.message;
+  let title = status.initialInstall && status.phase === "preparing" ? "正在准备离线资源" : titles[status.phase], message = status.message;
   if (channelsEnabled && channel.busy) {
     title = "正在保存通道选择…";
     message = `当前仍运行${runningName}，确认选择后会准备对应版本。`;
@@ -156,6 +157,7 @@ export function UpdateDetails() {
     <div className="app-version-status">
       <h3>{title}</h3>
       <p className="support-update-message" role="status" aria-live="polite" aria-atomic="true">{message}</p>
+      <ResourcePreparation />
       <button type="button" className={ready ? "primary-button" : "secondary-button"} disabled={busy || status.phase === "unsupported"}
         onClick={() => window.dispatchEvent(new Event(ready ? "same-page-apply-update" : "same-page-check-update"))}>
         {label ?? (ready ? switching ? `切换到${targetName}` : "重新加载并更新" : status.phase === "error" || status.phase === "offline" ? "重试检查更新" : "检查更新")}

@@ -1,6 +1,6 @@
 import { configuredAssetReader } from "../src/shared/public-asset-fetch";
 import { ReleasePermission } from "./release-permission";
-import { assetValid, parsePlaybackManifest, playbackManifestUrl } from '../src/shared/playback-assets';
+import { assetValid, cachedPlaybackManifest, playbackCachePrefix } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
 import { ShellRuntime, type ManifestEntry } from './shell-runtime';
 import { updateFailureReason } from '../src/shared/update-diagnostics';
@@ -9,7 +9,13 @@ const scope = self as unknown as ServiceWorkerGlobalScope & { __WB_MANIFEST: Man
 const manifest = (self as unknown as { __WB_MANIFEST: ManifestEntry[] }).__WB_MANIFEST;
 declare const __SAME_PAGE_RELEASE_CHANNELS__: boolean;
 const permission = new ReleasePermission(scope.location.origin, __SAME_PAGE_BUILD_ID__, typeof __SAME_PAGE_RELEASE_CHANNELS__ === "boolean" && __SAME_PAGE_RELEASE_CHANNELS__);
-const runtime = new ShellRuntime(scope, manifest, __SAME_PAGE_BUILD_ID__, permission);
+let progressNotifications = Promise.resolve();
+const runtime = new ShellRuntime(scope, manifest, __SAME_PAGE_BUILD_ID__, permission, undefined, progress => {
+  progressNotifications = progressNotifications.then(async () => {
+    const clients = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) try { client.postMessage({ type: 'SAME_PAGE_INSTALL_PROGRESS', progress }); } catch { /* Closing window. */ }
+  }).catch(() => undefined);
+});
 
 scope.addEventListener('install', event => event.waitUntil(runtime.install().catch(async error => {
   // A standalone support page can observe a failed candidate even while an old
@@ -24,16 +30,18 @@ scope.addEventListener('install', event => event.waitUntil(runtime.install().cat
   await Promise.race([notification, new Promise<void>(resolve => { timer = setTimeout(resolve, 1000); })]);
   clearTimeout(timer);
   throw error;
-})));
+}).finally(() => progressNotifications)));
 scope.addEventListener('activate', event => event.waitUntil(runtime.activate()));
 scope.addEventListener('message', event => {
   const type = event.data?.type;
+  if (type === 'SAME_PAGE_INSTALL_PROGRESS') { event.ports[0]?.postMessage(runtime.installProgress); return; }
   if (type === 'SAME_PAGE_PLAYBACK_READY') { event.waitUntil(runtime.readyBuild(event.data.buildId, AbortSignal.timeout(15_000)).then(() => event.ports[0]?.postMessage({ buildId: event.data.buildId })).catch(() => event.ports[0]?.postMessage(null))); return; }
   if (type === 'SAME_PAGE_CHECK_SHELL') {
     if (typeof event.data.buildId !== 'string' || !/^(?:[a-f0-9]{7,40}|development)$/.test(event.data.buildId)) return;
     event.waitUntil((async () => {
       const own = await runtime.identity;
-      event.ports[0]?.postMessage({ available: await runtime.availableBuild(event.data.buildId), activeBuild: own.buildId, activeReady: await runtime.availableBuild(own.buildId) });
+      const available = await runtime.availableBuild(event.data.buildId);
+      event.ports[0]?.postMessage({ available, activeBuild: own.buildId, activeReady: own.buildId === event.data.buildId ? available : await runtime.availableBuild(own.buildId) });
       await runtime.collect();
     })().catch(() => event.ports[0]?.postMessage(null)));
     return;
@@ -70,13 +78,12 @@ scope.addEventListener('message', event => {
 const readPublicAsset = configuredAssetReader(scope.location.origin);
 async function playbackAsset(request: Request) {
   for (const name of await caches.keys()) {
-    if (!name.startsWith('same-page-playback-v1:')) continue;
+    if (!name.startsWith(playbackCachePrefix)) continue;
     try {
-      const build = decodeURIComponent(name.slice('same-page-playback-v1:'.length));
+      const build = decodeURIComponent(name.slice(playbackCachePrefix.length));
       const cache = await caches.open(name);
-      const manifest = await cache.match(playbackManifestUrl(build));
-      if (!manifest) continue;
-      const assets = parsePlaybackManifest(await manifest.json(), build);
+      const assets = await cachedPlaybackManifest(cache, build);
+      if (!assets) continue;
       const entry = assets.entries.find(entry => new URL(entry.url, scope.location.origin).href === request.url);
       if (entry) {
         // Font/worklet requests carry different Origin/Accept headers. These
