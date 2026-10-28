@@ -45,6 +45,9 @@ Worker 仅为固定版本公开资源、GET/HEAD、配置中的 Origin 添加 CO
 502 和 504；保留原有断线、损坏内容、CORS 和失败缓存恢复矩阵。
 不修改 #609 托管评估、首次 HTML、浏览器自身 SW 获取或发布通道确认的主入口边界。
 
+CI 路径选择将 `read-transport.ts` 和 `public-asset-fetch.ts` 显式关联到 PWA 检查，
+避免共享源码改动跳过 Service Worker 交接矩阵。
+
 ## 验证
 
 - `npx vitest run --config vitest.node.config.ts src/shared/read-transport.test.ts scripts/shell-runtime.test.js`
