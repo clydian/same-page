@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { PersonalMenu } from './personal-menu';
@@ -26,6 +26,16 @@ it.each([
   vi.stubGlobal('fetch', vi.fn(async () => Response.json(capabilities)));
   render(<MemoryRouter><PersonalMenu drive={drive} /></MemoryRouter>);
   fireEvent.click(screen.getByRole('button', { name: '我的' }));
+  const appGroup = screen.getByRole('group', { name: /应用设置/ });
+  expect(within(appGroup).getByText('账户、外观与应用信息')).toBeVisible();
+  expect(within(appGroup).getByRole('menuitem', { name: '账户' })).toHaveAttribute('href', '/user');
+  if (drive) {
+    const driveGroup = screen.getByRole('group', { name: /当前云盘/ });
+    expect(within(driveGroup).getByText(drive.choirName)).toBeVisible();
+    expect(within(driveGroup).getByText('此云盘中的身份与阅读设置')).toBeVisible();
+    expect(within(driveGroup).getByRole('menuitem', { name: '阅读偏好' })).toHaveAttribute('href', `/choirs/${drive.choirId}/preferences`);
+    expect(within(appGroup).queryByRole('menuitem', { name: '阅读偏好' })).toBeNull();
+  } else expect(screen.queryByRole('group', { name: /当前云盘/ })).toBeNull();
   const links = [...driveLinks, ['账户', '/user'], ['外观', '/appearance'], ['关于与更新', '/about']];
   for (const [name, href] of links) {
     expect(screen.getByRole('menuitem', { name: name === '关于与更新' ? /^关于与更新/ : name })).toHaveAttribute('href', href);
