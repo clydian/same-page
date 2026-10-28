@@ -4,7 +4,7 @@ import { readdirSync } from "node:fs";
 import { partitionSmokeTests, selectBrowserTests } from "./browser-test-selection.mjs";
 
 const [suite, group = "all", shard = "1/1", ...extra] = process.argv.slice(2);
-if (extra.length) throw new Error("Expected visual|smoke [all|library] [index/count]");
+if (extra.length) throw new Error("Expected visual|smoke [all|library|gate|extended] [index/count]");
 const directory = suite === "visual" ? "visual-report" : "browser-tests";
 const selected = selectBrowserTests({ suite, group, shard, entries: readdirSync(directory) });
 const files = suite === "smoke" ? partitionSmokeTests(selected, shard) : selected;

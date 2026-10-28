@@ -343,6 +343,14 @@ test("deployment follows the successful verification gate even when an ancestor 
   ]) assert.equal(evaluate({ github }), false);
 });
 
+test("advisory browser checks do not enter the required release gate", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const gate = workflow.split("\n  verify:\n")[1].split("\n  deploy:\n")[0];
+  assert.doesNotMatch(gate, /extended-visual|record-extended|browser-extended/);
+  const deploy = workflow.split("\n  deploy:\n")[1];
+  assert.ok(deploy.indexOf('id: admit') < deploy.indexOf('Record pending extended verification'));
+});
+
 test("container deployment trusts only its workspace before real Git release admission", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "same-page-container git-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

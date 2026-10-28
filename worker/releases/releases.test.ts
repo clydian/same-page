@@ -4,7 +4,7 @@ import { env } from "cloudflare:workers";
 import { beforeEach, expect, it } from "vitest";
 import worker from "../index";
 import { releaseContract } from "../../src/shared/release-channels";
-import { releaseVersion } from "./catalog";
+import { extendedVerification, releaseVersion } from "./catalog";
 const A = "a".repeat(40), B = "b".repeat(40), C = "c".repeat(40);
 const digest = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), b => b.toString(16).padStart(2, "0")).join("");
 const call = async (path: string, init?: RequestInit) => {
@@ -23,7 +23,7 @@ async function release(id: string, ready = 1, identity: { buildId: string; versi
   await env.DB.prepare("INSERT INTO frontend_releases VALUES(?,?,?,?,?)").bind(id,await digest(sealed),releaseContract,Date.now(),ready).run();
 }
 beforeEach(async () => {
-  await env.DB.batch(["DELETE FROM release_promotions", "DELETE FROM release_channels", "DELETE FROM release_compatibility", "DELETE FROM frontend_releases", "DELETE FROM release_operators"].map(s=>env.DB.prepare(s)));
+  await env.DB.batch(["DELETE FROM release_promotions", "DELETE FROM release_channels", "DELETE FROM release_compatibility", "DELETE FROM release_verification", "DELETE FROM frontend_releases", "DELETE FROM release_operators"].map(s=>env.DB.prepare(s)));
   for (const o of (await env.FRONTEND_RELEASES!.list()).objects) await env.FRONTEND_RELEASES!.delete(o.key);
   await release(A); await release(B);
   await env.DB.prepare("INSERT INTO release_channels VALUES(1,?,?,1)").bind(A,B).run();
@@ -125,6 +125,17 @@ it("reads only the sealed build version and tolerates legacy or invalid metadata
   expect(await releaseVersion(env, A)).toBeNull();
 });
 
+it("reads advisory verification only for the matching release and immutable manifest", async () => {
+  const row = await env.DB.prepare('SELECT manifest_digest FROM frontend_releases WHERE build_id=?').bind(B).first<{manifest_digest:string}>();
+  await env.DB.prepare('INSERT INTO release_verification VALUES(?,?,?,?,?,?)').bind(B,row!.manifest_digest,123,1,'success',Date.now()).run();
+  expect(await extendedVerification(env, B)).toMatchObject({ buildId: B, status: 'success', runId: 123 });
+  expect(await extendedVerification(env, A)).toBeNull();
+  await env.DB.prepare('UPDATE release_verification SET manifest_digest=? WHERE build_id=?').bind('f'.repeat(64),B).run();
+  expect(await extendedVerification(env, B)).toBeNull();
+  await env.DB.prepare('UPDATE release_verification SET manifest_digest=?,status=?,updated_at=? WHERE build_id=?').bind(row!.manifest_digest,'running',Date.now()-3600001,B).run();
+  expect(await extendedVerification(env, B)).toBeNull();
+});
+
 it("separates release authority from XML authority and retries exactly one audited promotion",async()=>{
   const user=crypto.randomUUID(),now=Date.now(),password='release-fixture-password';
   await env.DB.batch([
@@ -138,9 +149,11 @@ it("separates release authority from XML authority and retries exactly one audit
     const headers={Cookie:cookie,Origin:'https://same-page.test','Content-Type':'application/json'};
     expect((await call('/api/admin/releases',{headers})).status).toBe(403);
     await env.DB.prepare('INSERT INTO release_operators VALUES(?)').bind(user).run();
+    const candidate = await env.DB.prepare('SELECT manifest_digest FROM frontend_releases WHERE build_id=?').bind(B).first<{manifest_digest:string}>();
+    await env.DB.prepare('INSERT INTO release_verification VALUES(?,?,?,?,?,?)').bind(B,candidate!.manifest_digest,123,1,'failure',Date.now()).run();
     const catalog = await call('/api/admin/releases', { headers });
     expect(catalog.status).toBe(200);
-    expect(await catalog.json()).toMatchObject({ releases: expect.arrayContaining([
+    expect(await catalog.json()).toMatchObject({ verification: { buildId:B, status:'failure', runId:123 }, storageCompatible:false, releases: expect.arrayContaining([
       expect.objectContaining({ buildId: A, version: 'v26.10.22.1200' }),
       expect.objectContaining({ buildId: B, version: 'v26.10.22.1530' }),
     ]) });
@@ -150,6 +163,7 @@ it("separates release authority from XML authority and retries exactly one audit
     const report=JSON.stringify({version:1,passed:true,stable:A,candidate:B,stableProbe:'0'.repeat(64),candidateProbe:'0'.repeat(64),engines:['chromium','webkit']});
     await env.FRONTEND_RELEASES!.put(`compatibility/${B}/${A}.json`,report);
     await env.DB.prepare('INSERT INTO release_compatibility VALUES(?,?,?,?,?)').bind(B,A,'0'.repeat(64),'0'.repeat(64),await digest(report)).run();
+    expect(await (await call('/api/admin/releases', { headers })).json()).toMatchObject({storageCompatible:true});
     expect((await promote()).status).toBe(204);expect((await promote()).status).toBe(204);
     expect((await env.DB.prepare('SELECT * FROM release_promotions').all()).results).toHaveLength(1);
     const promoted = await (await call('/api/admin/releases', { headers })).json();

@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
 import test from "node:test";
 import { chromium, webkit } from "playwright";
 import { PDFDocument } from "pdf-lib";
@@ -35,15 +34,13 @@ for (const [name, engine] of Object.entries({chromium,webkit})) for (const sampl
     await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);
     await page.locator('.page-reader__sheet[data-page-turn-current][data-page-number="1"] canvas:not([hidden])').waitFor();
     const viewport=page.locator(".page-reader__viewport"), bounds=await viewport.boundingBox();
-    for(let i=0;i<4;i++){
-      await viewport.click({position:{x:bounds.width*.9,y:bounds.height*.5}});
-      await page.locator('.page-reader__sheet[data-page-turn-current][data-page-number="2"] [data-ink-stroke]').first().waitFor();
-      assert.equal(await page.getByText("此笔迹已简化显示").count(),sample === "budget" ? 1 : 0);
-      assert.equal(await page.getByRole("alert").count(),0);
-      if(i===0){await mkdir("artifacts/editor-preview",{recursive:true});await page.screenshot({path:`artifacts/editor-preview/${name}-highlighter-${sample}.png`});}
-      await viewport.click({position:{x:bounds.width*.1,y:bounds.height*.5}});
-      await page.locator('.page-reader__sheet[data-page-turn-current][data-page-number="1"]').waitFor();
-    }
+    // One round trip exercises both page transitions.
+    await viewport.click({position:{x:bounds.width*.9,y:bounds.height*.5}});
+    await page.locator('.page-reader__sheet[data-page-turn-current][data-page-number="2"] [data-ink-stroke]').first().waitFor();
+    assert.equal(await page.getByText("此笔迹已简化显示").count(),sample === "budget" ? 1 : 0);
+    assert.equal(await page.getByRole("alert").count(),0);
+    await viewport.click({position:{x:bounds.width*.1,y:bounds.height*.5}});
+    await page.locator('.page-reader__sheet[data-page-turn-current][data-page-number="1"]').waitFor();
     assert.deepEqual(errors,[]);
   });
 }

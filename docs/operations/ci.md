@@ -53,10 +53,10 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 | --- | --- |
 | `checks` | lint、typecheck、Node/组件测试 |
 | `backend` | 按 scope 顺序运行 Worker 与迁移验证；与前端检查并行，数据库保持独立隔离 |
-| `visual` | 4 个独立 runner 文件分片，Chromium/WebKit 布局与交互回归 |
+| `visual` | 产品改动使用 2 个 runner 执行双引擎核心交互；纯测试改动执行完整套件 |
 | `build` | 统一生产构建、封存校验产物；不等待浏览器环境安装 |
 | `platform` | PWA 双版本交接、下载并校验生产产物后测量加载预算 |
-| `smoke` | 下载并校验同份产物，2 个独立 runner 文件分片运行真实 Worker/D1/R2 流程 |
+| `smoke` | 下载并校验同份产物，产品改动以 2 个 runner 执行真实 Worker/D1/R2 核心流程；纯测试改动执行完整套件 |
 | `verify` | 等待以上全部结束；被选中的 job 必须成功，未选中的必须为 skipped；失败、取消、意外跳过均不能通过 |
 
 `checks` 在安装依赖前先运行发布存储边界预检及其回归，用经审查的 stable 封存清单
@@ -69,7 +69,31 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 覆盖尚待实机验收的基线。CI 成功和 deploy skipped 不表示已部署，首次流程见
 [首次桥接](production-release.md#首次桥接需另行授权)。
 
-并行降低等待时间，但重复的 runner 启动和安装可能增加总执行分钟；不是降低账单的承诺。分片保持有限数量，避免为每个小测试创建 runner。visual 矩阵最多并行 4 份，smoke 最多 2 份；任一分片失败不会取消其余分片，但汇总失败会阻止 verify。
+产品变更的视觉和 smoke 各两片并行；纯测试范围的全量执行保持四片，smoke 同时最多两片。任一必跑分片失败都阻止 verify。独立扩展工作流不阻止发布，但其失败必须被调查；不要把非阻塞等同于被忽略。
+
+## 测试版发布后的扩展检查
+
+按 [测试精简审计](test-value-audit-2026-10-28.md) 的文件责任，产品 PR 与 main 的
+视觉/真实 Worker smoke 都只跑核心组；耗时较高的详细界面、播放器和失败组合在测试版
+准入后由独立 `Extended browser verification` 工作流运行。这样不会让后台检查延长
+PR 所见的 CI 或阻塞测试版发布。纯测试改动不发布，仍在 CI 运行完整选中套件；修改
+扩展工作流或选择器的 PR 会另外自动运行独立扩展工作流。新增未分类测试默认进入
+核心组，不能悄悄脱离门禁。视觉测试使用该提交的开发服务器；扩展 smoke 下载并校验
+原始发布构建，均不能代替真实设备验收。
+
+准入成功后记录 `running`，扩展 job 完成后记录 success/failure/cancelled；结果附到该
+build_id 和已准入 manifest digest。独立工作流先验证原 CI 的指定 attempt 确实成功准入
+测试版，按 artifact ID 固定原始构建；完成后写入的 digest 必须与已准入产物一致。
+若原 artifact 因重跑或过期不可用，扩展检查失败并显示不可用，不另行重建。产品后台仅
+显示当前测试版对应的最近记录及 Actions
+链接。该记录只由通过所选 `verify` 并成功准入测试版的工作流写入，因此可显示发布前
+所选 CI 检查已通过；这不是对未选中的检查宣称通过。旧版本、记录丢失和运行超过一小时
+未完成时显示暂无结果或不可用，不能当作通过。
+由于写入异常或工作流取消可能使最后一次记录滞后，页面标注更新时间，
+调查时应查看对应 Actions；扩展检查不改变自动发布测试版，也不代替人工确认。
+稳定版提升不重新运行 CI，后台展示属于提示，不增加提升硬门禁；保留原有权限、
+并发版本校验与 stable/candidate 兼容证明。检查失败由维护者调查，数据、权限或核心
+流程问题应停止提升并处理测试版；修复测试或产品后重新运行对应版本的验证。
 
 ## 范围选择
 
@@ -79,7 +103,7 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 | --- | --- |
 | `README.md`、`CONTEXT.md`、`AGENTS.md`、`docs/**/*.md` | diff whitespace |
 | `docs/operations/` 内 PNG/JPEG/WebP、子目录 `evidence.json` | 同上；这些审查证据不被应用或构建读取 |
-| 客户端生产代码（下列展示叶子模块除外） | 客户端、完整视觉、构建、加载预算、完整真实存储 smoke |
+| 客户端生产代码（下列展示叶子模块除外） | 客户端、核心视觉、构建、加载预算、核心真实存储 smoke；其余浏览器覆盖在测试版后运行 |
 | 仅 drive-settings-dialog / drive-header / upload-fab（可混合文档） | 客户端、library 视觉组、构建、入口/离线存储 smoke；不运行加载预算 |
 | PWA 入口/导航/更新提示、app、auth/offline/platform 生产代码 | 客户端路径加真实 PWA 双版本交接 |
 | Worker 生产代码 | Worker、构建、真实存储 smoke |

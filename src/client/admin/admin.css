@@ -354,6 +354,9 @@
 .release-version { font-size: .8125rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .release-admin-table .release-version { white-space: nowrap; }
 .release-admin-table time, .release-admin-history time { font-variant-numeric: tabular-nums; }
+.release-admin-verification { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: .65rem; }
+.release-admin-verification h2 { margin: 0 0 .5rem; font-size: 1rem; }
+.release-admin-verification p { margin: .35rem 0; font-size: .875rem; line-height: 1.6; }
 .release-admin-details { margin: .75rem 0 1.5rem; color: var(--muted); font-size: .8rem; }
 .release-admin-details summary { width: fit-content; min-height: 44px; padding: .6rem 0; cursor: pointer; }
 .release-admin-details dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .5rem .75rem; margin: .25rem 0 1rem; }

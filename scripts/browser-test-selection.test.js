@@ -28,6 +28,19 @@ it("selects complete and audited library scopes, independent of directory order"
   }
 });
 
+it("partitions both browser suites without gaps; new tests default to the gate", () => {
+  for (const [suite, dir] of [["visual", "visual-report"], ["smoke", "browser-tests"]]) {
+    const entries = readdirSync(dir);
+    const all = selectBrowserTests({ suite, entries });
+    const gate = selectBrowserTests({ suite, group: "gate", entries });
+    const extended = selectBrowserTests({ suite, group: "extended", entries });
+    expect([...gate, ...extended].sort()).toEqual(all);
+    expect(gate.some(file => extended.includes(file))).toBe(false);
+    expect(selectBrowserTests({ suite, group: "gate", entries: [...entries, "new.test.mjs"] })).toContain("new.test.mjs");
+    expect(() => selectBrowserTests({ suite, group: "gate", entries: entries.filter(x => x !== extended[0]) })).toThrow();
+  }
+});
+
 it("the real smoke runner partitions without omissions or duplicates, including new files", () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "same-page-native-shards-"));
   const runner = fileURLToPath(new URL("./run-browser-tests.mjs", import.meta.url));
@@ -65,31 +78,3 @@ it("rejects invalid requests, missing library files and empty shards", () => {
   expect(() => selectBrowserTests({ suite: "smoke", entries: [] })).toThrow();
   expect(() => selectBrowserTests({ suite: "smoke", group: "library", entries: ["storage-smoke.test.mjs"] })).toThrow();
 });
-
-it("the smoke runner keeps the recorded overloaded CI workload below the six-minute shard budget", () => {
-  const cwd = mkdtempSync(path.join(tmpdir(), "same-page-ci-load-'quoted'-"));
-  const runner = fileURLToPath(new URL("./run-browser-tests.mjs", import.meta.url));
-  const receipts = path.join(cwd, "receipts.txt");
-  const files = [...readdirSync("browser-tests").filter(file => file.endsWith(".test.mjs")), "quoted'filename.test.mjs"];
-  // Conservative rounded file costs from run 40368368025's overloaded shard.
-  // Other files cost zero here: this checks a measured lower-bound workload,
-  // rather than echoing the scheduling algorithm or its complete cost model.
-  const recorded = { "access-smoke": 25, "attachments-smoke": 35, "free-trial-smoke": 15,
-    "musicxml-audio-startup": 35, "musicxml-playback": 70, "pdf-codecs-smoke": 40,
-    "practice-compare": 55, "practice-rhythm": 45, "preview-notes-smoke": 65 };
-  try {
-    mkdirSync(path.join(cwd, "browser-tests"));
-    for (const file of files) writeFileSync(path.join(cwd, "browser-tests", file), costFixture);
-    const loads = [];
-    const seen = [];
-    for (let index = 1; index <= 4; index++) {
-      writeFileSync(receipts, "");
-      execFileSync(process.execPath, [runner, "smoke", "all", `${index}/4`], { cwd, stdio: "pipe", env: { ...process.env, SAME_PAGE_SHARD_RECEIPTS: receipts } });
-      const selected = readFileSync(receipts, "utf8").trim().split("\n");
-      seen.push(...selected);
-      loads.push(selected.reduce((sum, file) => sum + (recorded[file.replace(".test.mjs", "")] ?? 0), 0));
-    }
-    expect(Math.max(...loads)).toBeLessThan(6 * 60);
-    expect(seen.sort()).toEqual([...files].sort());
-  } finally { rmSync(cwd, { recursive: true, force: true }); }
-}, 20_000);

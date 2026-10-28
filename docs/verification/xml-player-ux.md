@@ -64,7 +64,7 @@ Chromium / WebKit 的 `musicxml-playback.test.mjs` 和 `playback-ux.test.mjs` �
 - 预览覆盖整个 A/B 范围，反复经过同一谱面小节只标一次，同一行相邻边界合并，跨行分别显示。视图跟随当前端点，松手前不改变音频范围或位置，重排后重建高亮。
 - Escape、失焦、指针取消或面板卸载取消未完成拖动；取消后即使继续移动并释放旧手势，也不能提交。真实浏览器回归覆盖按住指针时 Escape／blur 后继续移动的情形。
 
-验证入口：`npm run lint`、`npm run typecheck`、`npm run build`、播放器与客户端测试；浏览器 `practice-settings`、`practice-loop`、`practice-measure-labels`、`playback-ux`、`practice-rhythm`。截图保存在 `artifacts/verification/practice-settings/` 和 `artifacts/verification/practice-loop/`，覆盖 320px、390px、1440px 以及跨行透视。自动化不代替实际设备手势和听感验收。
+当时的验证入口：`npm run lint`、`npm run typecheck`、`npm run build`、播放器与客户端测试，以及浏览器 `practice-settings`、`practice-loop`、`practice-measure-labels`、`playback-ux`、`practice-rhythm`。2026-10-28 清理后删除前述重复的 `practice-settings` 和 `practice-measure-labels` 测试；循环、设置与小节标签的保留责任见测试精简审计。原截图属于当时的验证记录。自动化不代替实际设备手势和听感验收。
 
 ## #582 CI 页面错误修复（2026-10-26）
 
