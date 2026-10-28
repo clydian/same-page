@@ -49,19 +49,3 @@ it.each(['replacement','audio'])('a late denial cannot stop a fresh session for 
   view.unmount();
   expect(releaseUpdate).toHaveBeenCalledTimes(2);
 });
-
-it('joins the XML mount authorization in flight, then requests fresh metadata on focus', async () => {
- const xmlSource={...source,attachment:{...source.attachment,kind:'musicxml' as const}};
- startPlayback(xmlSource);source=playbackStore.getSnapshot()!;
- let complete!:(response:Response)=>void;
- vi.mocked(attachmentFetch).mockImplementationOnce(()=>new Promise(done=>{complete=done;})).mockResolvedValue(new Response(null,{status:403}));
- render(<Probe source={source}/>);
- const {readPlaybackAttachment}=await import('./musicxml-source');
- const shared=readPlaybackAttachment(source,new AbortController().signal);
- await act(async()=>complete(new Response(JSON.stringify({attachment:source.attachment}),{headers:{'content-type':'application/json'}})));
- await expect(shared).resolves.toEqual(source.attachment);
- expect(attachmentFetch).toHaveBeenCalledOnce();
- act(()=>window.dispatchEvent(new Event('focus')));
- await waitFor(()=>expect(playbackStore.getSnapshot()).toBeNull());
- expect(attachmentFetch).toHaveBeenCalledTimes(2);
-});

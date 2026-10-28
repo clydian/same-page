@@ -2,14 +2,13 @@ import { revokeOfflineMusicXml } from './offline-musicxml';
 import { useEffect } from 'react';
 import { clearPlaybackPreparation } from './playback-preparation';
 import { attachmentFetch } from '../score-library/attachments/request';
-import { attachmentPath, readAttachment } from '../score-library/attachments/api';
-import { readPlaybackAttachment } from './musicxml-source';
+import { attachmentPath } from '../score-library/attachments/api';
 import { SettingsRequestError } from '../settings/settings-request';
 import { holdUpdate } from '../updates/update-safety';
 import { onDriveChange } from '../settings/navigation-events';
 import { playbackStore, stopPlayback, type PlaybackSource } from './playback-store';
 
-/** Authority and update protection belong to the practice lifetime, regardless of engine. */
+/** Audio authority and update protection; MusicXML owns its opening lifetime. */
 export function usePlaybackLifetime(source: PlaybackSource) {
   useEffect(() => {
     const abort = new AbortController();
@@ -21,16 +20,10 @@ export function usePlaybackLifetime(source: PlaybackSource) {
       if (abort.signal.aborted || playbackStore.getSnapshot() !== source) return;
       clearPlaybackPreparation(source); void revokeOfflineMusicXml(source).catch(() => undefined); stopPlayback();
     };
-    const verify = async (initial = false) => {
+    const verify = async () => {
       try {
-        if (source.attachment.kind === 'musicxml') {
-          // Only the mount check joins source selection. Focus is a new authority check.
-          if (initial) await readPlaybackAttachment(source, abort.signal);
-          else await readAttachment(source.choirId, source.score.id, source.attachment.id, abort.signal);
-        } else {
-          const response = await attachmentFetch(attachmentPath(source.choirId, source.score.id, source.attachment.id), { signal: abort.signal });
-          if ([401, 403, 404].includes(response.status)) revoke();
-        }
+        const response = await attachmentFetch(attachmentPath(source.choirId, source.score.id, source.attachment.id), { signal: abort.signal });
+        if ([401, 403, 404].includes(response.status)) revoke();
       } catch (reason) {
         if (reason instanceof SettingsRequestError && [401, 403, 404].includes(reason.status)) revoke();
         // Temporary failure does not revoke an already loaded source.
@@ -38,7 +31,7 @@ export function usePlaybackLifetime(source: PlaybackSource) {
     };
     const focus = () => { void verify(); };
     window.addEventListener('focus', focus);
-    void verify(true);
+    void verify();
     return () => { abort.abort(); releaseUpdate(); releaseDrive(); window.removeEventListener('focus', focus); };
   }, [source]);
 }
