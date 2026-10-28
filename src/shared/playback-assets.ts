@@ -16,6 +16,10 @@ export async function cachedPlaybackManifest(cache: { keys(): Promise<readonly R
 }
 export function playbackAssetTypeValid(response: Response, url: string) {
   const type = response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() ?? '';
+  // ASSETS may omit the type for unknown binary extensions (notably .sf2).
+  // These fetch/FontFace bytes are still sealed by SHA-256; executable and text
+  // resources continue to require their explicit MIME type below.
+  if (!type && /\.(?:sf2|woff2?|otf|eot)$/.test(url)) return true;
   if (/\.(?:m?js)$/.test(url)) return /^(?:application|text)\/(?:javascript|ecmascript)$/.test(type);
   if (url.endsWith('.css')) return type === 'text/css';
   if (url.endsWith('.json')) return type === 'application/json';

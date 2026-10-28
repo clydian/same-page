@@ -70,11 +70,10 @@ player `0.1.19-samepage.2` / native `1.8.4-samepage.3` 修复：同步启动静�
 该脚本已加入 `npm run test:pwa-update`；可通过
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定本机 Chromium。
 
-本次必需播放器更新：已通过本地生产构建、类型检查、lint、372 项 Node 测试、
-1388 项客户端测试、355 项播放器测试、31 项发布兼容检查，以及上述 Chromium
-真实跨版本离线回归。客户端最终在无并行构建/浏览器干扰下完整复跑通过。
-本机原有后端集成离线测试超时，未计为通过；独立排查其本地夹具时，页面
-停在身份恢复，尚未注册 Service Worker。当前环境未完成 WebKit 或真实 iOS/PWA 设备验收。
+本次必需播放器更新的 CI 根因、收敛方案及验证记录见
+[完整播放器安装复核](required-player-install-review-2026-10-28.md)。真实后端的
+XML/MXL 离线冷启动、实际音频、刷新与失权回归已通过；浏览器集成验证不能由
+模拟接口的跨版本专项测试替代。桌面 WebKit 不等同于真实 iOS/PWA 设备验收。
 
 
 ## 首次准备与更新进度

@@ -17,6 +17,15 @@ const runtime = new ShellRuntime(scope, manifest, __SAME_PAGE_BUILD_ID__, permis
   }).catch(() => undefined);
 });
 
+// Advisory delivery must not hold a verified installation open indefinitely.
+// Pages can query the latest progress snapshot if a notification is lost.
+async function finishNotification(notification: Promise<unknown>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([notification, new Promise<void>(resolve => { timer = setTimeout(resolve, 1000); })]);
+  } finally { clearTimeout(timer); }
+}
+
 scope.addEventListener('install', event => event.waitUntil(runtime.install().catch(async error => {
   // A standalone support page can observe a failed candidate even while an old
   // application shell remains active. Never export raw exceptions or asset URLs.
@@ -26,11 +35,9 @@ scope.addEventListener('install', event => event.waitUntil(runtime.install().cat
       catch { /* A closing window must not prevent another page's diagnosis. */ }
     }
   }).catch(() => undefined);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  await Promise.race([notification, new Promise<void>(resolve => { timer = setTimeout(resolve, 1000); })]);
-  clearTimeout(timer);
+  await finishNotification(notification);
   throw error;
-}).finally(() => progressNotifications)));
+}).finally(() => finishNotification(progressNotifications))));
 scope.addEventListener('activate', event => event.waitUntil(runtime.activate()));
 scope.addEventListener('message', event => {
   const type = event.data?.type;

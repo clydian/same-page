@@ -31,6 +31,38 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async request => { const body = server.get(request.url); if (body === undefined) throw new TypeError('offline'); return new Response(body, { headers: { 'Content-Type': request.url.endsWith('.js') ? 'text/javascript' : 'text/html' } }); }));
 });
 afterEach(() => { vi.restoreAllMocks(); });
+
+it('finishes the worker install even when advisory progress delivery never settles', async () => {
+  const seed = await release('abc1234');
+  const record = (await seed.records())[0];
+  const listeners = new Map();
+  scope.__WB_MANIFEST = record.entries;
+  scope.addEventListener = (type, listener) => listeners.set(type, listener);
+  scope.clients.matchAll = () => new Promise(() => {});
+  vi.stubGlobal('self', scope);
+  vi.stubGlobal('__SAME_PAGE_BUILD_ID__', 'abc1234');
+  vi.stubGlobal('__SAME_PAGE_RELEASE_CHANNELS__', false);
+  vi.useFakeTimers();
+  try {
+    vi.resetModules();
+    await import('../service-worker/sw.ts');
+    let installation, completed = false;
+    listeners.get('install')({ waitUntil: promise => { installation = promise.then(() => { completed = true; }); } });
+    await vi.waitFor(() => {
+      let progress;
+      listeners.get('message')({ data: {type:'SAME_PAGE_INSTALL_PROGRESS'}, ports:[{postMessage:value=>{progress=value;}}] });
+      expect(progress?.stage).toBe('ready');
+    });
+    expect(completed).toBe(false);
+    await vi.advanceTimersByTimeAsync(1000);
+    await installation;
+    expect(completed).toBe(true);
+    expect(await complete(seed)).toBe(true);
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
+});
 async function release(id, bytes = 32, scriptCount = 1) {
   const html = `<meta name="same-page-build-id" content="${id}">`;
   const files = [['/', html], ...Array.from({ length: scriptCount }, (_, index) => [`/assets/main-${id}${index ? '-' + index : ''}.js`, `/* ${id}${index ? '-' + index : ''} */`])];

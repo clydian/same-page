@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rename, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { chromium, expect } from '@playwright/test';
@@ -12,7 +11,11 @@ import { polyphonicMusicXmlFixture } from '../browser-tests/musicxml-fixture.mjs
 
 // Run with the other sequential PWA lifecycle scripts: builds own immutable
 // output copies and browser storage, using synthetic API data and actual players.
-const run = promisify(execFile), temporary = await mkdtemp(path.join(tmpdir(),'same-page-playback-upgrade-'));
+// Restore the caller's exact build: later lifecycle fixtures consume dist and
+// must not accidentally inherit this test's release-channel configuration.
+// Keep the backup on dist's filesystem, including mounted CI workspaces, so
+// saving/restoring the original output can use rename without EXDEV failures.
+const run = promisify(execFile), temporary = await mkdtemp(path.resolve('.same-page-playback-upgrade-'));
 const ids = ['a'.repeat(40),'b'.repeat(40)];
 const roots = new Map(ids.map(id=>[id,path.join(temporary,id)]));
 const mxl = Buffer.from(zipSync({'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>'),'score.musicxml':strToU8(polyphonicMusicXmlFixture())}));
@@ -21,8 +24,12 @@ let selected = ids[0], online = true, failPlayer = false, context, server, page;
 let releaseInitial, releaseUpdate;
 const initialGate=new Promise(resolve=>{releaseInitial=resolve;}), updateGate=new Promise(resolve=>{releaseUpdate=resolve;});
 let holdInitial=true, holdUpdate=true;
+let ownsOutput=false, savedOutput=false;
 const options = {headless:true,serviceWorkers:'allow',viewport:{width:1024,height:768},...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {})};
 try {
+  try { await rename('dist',path.join(temporary,'original-dist')); savedOutput=true; }
+  catch(error) { if(error.code!=='ENOENT') throw error; }
+  ownsOutput=true;
   for(const id of ids) {
     await run('npm',['run','build'],{env:{...process.env,SAME_PAGE_BUILD_ID:id,SAME_PAGE_RELEASE_CHANNELS:'1'},timeout:180000,maxBuffer:4*1024*1024});
     await cp('dist/client',roots.get(id),{recursive:true});
@@ -51,7 +58,9 @@ try {
       if(!resolved || !resolved.startsWith(root+path.sep)) { response.writeHead(404); response.end(); return; }
       const bytes = await readFile(resolved);
       const type = {'.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.html':'text/html','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.woff':'font/woff','.otf':'font/otf'}[path.extname(file)] ?? 'application/octet-stream';
-      response.writeHead(200,{'Content-Type':type});
+      // The real ASSETS binding omits MIME for .sf2. Exercise that response
+      // contract here too; installation must still verify its sealed bytes.
+      response.writeHead(200,file.endsWith('.sf2') ? {} : {'Content-Type':type});
       if (/musicxml-engine-/.test(file) && (id===ids[0] && holdInitial || id===ids[1] && holdUpdate)) {
         response.write(bytes.subarray(0,65536));
         await (id===ids[0]?initialGate:updateGate);
@@ -159,9 +168,16 @@ try {
   throw error;
 } finally {
   releaseInitial(); releaseUpdate();
-  await context?.close();
-  await new Promise(resolve=>server ? server.close(resolve) : resolve());
-  await rm(temporary,{recursive:true,force:true});
+  try {
+    await context?.close();
+    await new Promise(resolve=>server ? server.close(resolve) : resolve());
+  } finally {
+    if(ownsOutput) {
+      await rm('dist',{recursive:true,force:true});
+      if(savedOutput) await rename(path.join(temporary,'original-dist'),'dist');
+    }
+    await rm(temporary,{recursive:true,force:true});
+  }
 }
 async function originalRecords(page) {
   return page.evaluate(()=>new Promise((resolve,reject)=>{
