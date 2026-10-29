@@ -3,119 +3,113 @@ import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
 import { JoinCodeField } from "./join-code-field";
-import { normalizeJoinCodeInput } from "./join-code";
+import { parseJoinCodeInput } from "./join-code";
 
-describe("JoinCodeField", () => {
-  it("normalizes case, separators, ambiguous characters, and length", () => {
-    expect(normalizeJoinCodeInput("abci-0oef 2345")).toBe("ABCEF234");
-    expect(normalizeJoinCodeInput("ABCDEFGHJKLM")).toBe("ABCDEFGH");
+describe("join code parsing", () => {
+  it("accepts case and known presentation separators without changing the draft", () => {
+    expect(parseJoinCodeInput("ab cd – efgh")).toEqual({ code: "ABCDEFGH", error: null, length: 8 });
+    expect(parseJoinCodeInput("ab23")).toEqual({ code: null, error: null, length: 4 });
   });
 
-  it("uses one labelled input while presenting eight decorative slots", () => {
-    render(<FieldHarness />);
-
-    const input = screen.getByRole("textbox", { name: "邀请码" });
-    expect(screen.getAllByRole("textbox")).toHaveLength(1);
-
-    fireEvent.change(input, { target: { value: "ab cd - efgh" } });
-
-    expect(input).toHaveValue("abcdefgh");
-    expect(screen.getByTestId("code-value")).toHaveTextContent("ABCDEFGH");
-    expect(slotText()).toBe("ABCDEFGH");
-    expect(document.querySelector(".join-code-slots")).toHaveAttribute(
-      "aria-hidden",
-      "true",
-    );
-  });
-
-  it("retains the native draft and selection when normalized values echo back", () => {
-    render(<FieldHarness initialValue="AC" />);
-    const input = screen.getByRole("textbox", { name: "邀请码" }) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "AbC", selectionStart: 2, selectionEnd: 2 } });
-    expect(input).toHaveValue("AbC");
-    expect(input.selectionStart).toBe(2);
-    expect(slotText()).toBe("ABC");
-  });
-
-  it("keeps composition updates out of the committed code until confirmation", () => {
-    render(<FieldHarness initialValue="ABCDEFGH" />);
-    const input = screen.getByRole("textbox", { name: "邀请码" });
-    fireEvent.compositionStart(input);
-    fireEvent.change(input, { target: { value: "a" } });
-    fireEvent.change(input, { target: { value: "as" } });
-    expect(input).toHaveValue("as");
-    expect(slotText()).toBe("ABCDEFGH");
-    expect(screen.getByRole("button", { name: "提交" })).toBeDisabled();
-    fireEvent.compositionEnd(input, { data: "as" });
-    expect(input).toHaveValue("as");
-    expect(slotText()).toBe("AS");
-    expect(screen.getByRole("button", { name: "提交" })).toBeEnabled();
-    // Some browsers deliver another input after compositionend.
-    fireEvent.change(input, { target: { value: "as" } });
-    expect(slotText()).toBe("AS");
-  });
-
-  it("handles cancellation and committed Chinese text without extracting stale pinyin", () => {
-    render(<FieldHarness initialValue="AB" />);
-    const input = screen.getByRole("textbox", { name: "邀请码" });
-    fireEvent.compositionStart(input);
-    fireEvent.change(input, { target: { value: "ABas" } });
-    fireEvent.change(input, { target: { value: "AB" } });
-    fireEvent.compositionEnd(input, { data: "" });
-    expect(slotText()).toBe("AB");
-    fireEvent.compositionStart(input);
-    fireEvent.change(input, { target: { value: "AB你" } });
-    fireEvent.compositionEnd(input, { data: "你" });
-    expect(input).toHaveValue("AB");
-    expect(slotText()).toBe("AB");
-  });
-
-  it("removes invisible overflow and invalid text so deletion and typing remain usable", () => {
-    render(<FieldHarness />);
-    const input = screen.getByRole("textbox", { name: "邀请码" });
-    fireEvent.change(input, { target: { value: "ABCDEFGHJKLMNPQR" } });
-    expect(input).toHaveValue("ABCDEFGH");
-    fireEvent.change(input, { target: { value: "你".repeat(32) } });
-    expect(input).toHaveValue("");
-    fireEvent.change(input, { target: { value: "a" } });
-    expect(slotText()).toBe("A");
-  });
-
-  it("maps the caret across removed characters when pasting in the middle", () => {
-    render(<FieldHarness initialValue="ABGH" />);
-    const input = screen.getByRole("textbox", { name: "邀请码" }) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "AB c-d GH", selectionStart: 7, selectionEnd: 7 } });
-    expect(input).toHaveValue("ABcdGH");
-    expect(input.selectionStart).toBe(4);
-    expect(input.selectionEnd).toBe(4);
-    expect(slotText()).toBe("ABCDGH");
-  });
-
-  it("accepts external replacements and clears a dirty draft", () => {
-    render(<FieldHarness />);
-    const input = screen.getByRole("textbox", { name: "邀请码" });
-    fireEvent.change(input, { target: { value: "as" } });
-    fireEvent.click(screen.getByRole("button", { name: "替换" }));
-    expect(input).toHaveValue("EFGH2345");
-    expect(slotText()).toBe("EFGH2345");
-    fireEvent.click(screen.getByRole("button", { name: "清空" }));
-    expect(input).toHaveValue("");
-    expect(slotText()).toBe("");
+  it.each(["ABIO2345", "AB012345", "你好234567", "ABCDEFGHJKLM", "AB_CD234", "ß234567"])("rejects the complete invalid draft %s instead of shortening it", value => {
+    const parsed = parseJoinCodeInput(value);
+    expect(parsed.code).toBeNull();
+    expect(parsed.error).not.toBeNull();
   });
 });
 
-function slotText() {
-  return Array.from(document.querySelectorAll(".join-code-slot"), slot => slot.textContent).join("");
-}
+describe("JoinCodeField", () => {
+  it("normalizes presentation separators without removing significant characters", () => {
+    render(<FieldHarness />);
+    const input = screen.getByRole("textbox", { name: "邀请码" });
+    fireEvent.change(input, { target: { value: "ab cd - efgh" } });
+    expect(input).toHaveValue("abcdefgh");
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    expect(screen.getByTestId("raw-value")).toHaveTextContent("abcdefgh");
+    expect(document.querySelectorAll(".join-code-slot")).toHaveLength(8);
+    expect(document.querySelector(".join-code-slots")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText(/8 位字母或数字/)).not.toBeInTheDocument();
+  });
 
-function FieldHarness(props: { initialValue?: string }) {
-  const [value, setValue] = useState(props.initialValue ?? "");
+  it("immediately publishes composition text while withholding submission and validation errors", () => {
+    render(<FieldHarness />);
+    const input = screen.getByRole("textbox", { name: "邀请码" });
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "oiu23" } });
+    expect(input).toHaveValue("oiu23");
+    expect(Array.from(document.querySelectorAll(".join-code-slot"), slot => slot.textContent).join("")).toBe("oiu23");
+    expect(screen.getByTestId("raw-value")).toHaveTextContent("oiu23");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "提交" })).toBeDisabled();
+    fireEvent.compositionEnd(input, { data: "oiu23" });
+    expect(input).toHaveValue("oiu23");
+    expect(screen.getByRole("alert")).toHaveTextContent("不含 I、O、0、1");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "提交" })).toBeDisabled();
+  });
+
+  it("preserves Chinese candidates and digits instead of silently leaving only digits", () => {
+    render(<FieldHarness />);
+    const input = screen.getByRole("textbox", { name: "邀请码" });
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "ab23" } });
+    fireEvent.change(input, { target: { value: "阿波23" } });
+    fireEvent.compositionEnd(input, { data: "阿波23" });
+    expect(input).toHaveValue("阿波23");
+    expect(screen.getByRole("alert")).toHaveTextContent("包含中文或其他字符");
+  });
+
+  it("caps committed input at eight positions and preserves middle selection", () => {
+    render(<FieldHarness />);
+    const input = screen.getByRole("textbox", { name: "邀请码" }) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "ABCDEFGHJKLM" } });
+    expect(input).toHaveValue("ABCDEFGH");
+    expect(screen.getByRole("status", { name: "截断提示" })).toHaveTextContent("仅保留前八位");
+    fireEvent.change(input, { target: { value: "Ab23", selectionStart: 2, selectionEnd: 2 } });
+    expect(input).toHaveValue("Ab23");
+    expect(input.selectionStart).toBe(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("leaves the composition range untouched until commit, then caps Chinese as well", () => {
+    render(<FieldHarness />);
+    const input = screen.getByRole("textbox", { name: "邀请码" });
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "你好世界测试中文更多23" } });
+    expect(input).toHaveValue("你好世界测试中文更多23");
+    expect(screen.getByLabelText("完整输入内容")).toHaveTextContent("你好世界测试中文更多23");
+    expect(document.querySelectorAll(".join-code-slot")).toHaveLength(8);
+    expect(document.querySelector("[data-expanded]")).toBeNull();
+    fireEvent.compositionEnd(input);
+    expect(input).toHaveValue("你好世界测试中文");
+    expect(screen.getByRole("status", { name: "截断提示" })).toHaveTextContent("仅保留前八位");
+    expect(screen.getByRole("alert")).toHaveTextContent("包含中文或其他字符");
+    expect(screen.getByRole("button", { name: "提交" })).toBeDisabled();
+    // A browser's trailing input event must not undo the cap or its notice.
+    fireEvent.change(input, { target: { value: "你好世界测试中文更多23" } });
+    expect(input).toHaveValue("你好世界测试中文");
+  });
+
+  it("does not use an earlier valid code after the current draft becomes invalid", () => {
+    render(<FieldHarness />);
+    const input = screen.getByRole("textbox", { name: "邀请码" });
+    fireEvent.change(input, { target: { value: "ABCD2345" } });
+    expect(screen.getByRole("button", { name: "提交" })).toBeEnabled();
+    fireEvent.change(input, { target: { value: "ABIO2345" } });
+    expect(input).toHaveValue("ABIO2345");
+    expect(screen.getByRole("button", { name: "提交" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "清空" }));
+    expect(input).toHaveValue("");
+  });
+});
+
+function FieldHarness() {
+  const [value, setValue] = useState("");
   const [composing, setComposing] = useState(false);
   return <>
     <JoinCodeField value={value} onChange={setValue} onCompositionChange={setComposing} />
-    <output data-testid="code-value">{value}</output>
-    <button disabled={composing}>提交</button>
-    <button onClick={() => setValue("EFGH2345")}>替换</button>
+    <output data-testid="raw-value">{value}</output>
+    <button disabled={composing || !parseJoinCodeInput(value).code}>提交</button>
     <button onClick={() => setValue("")}>清空</button>
   </>;
 }
