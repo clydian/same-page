@@ -39,7 +39,7 @@ as permitted by MusicXML. Omitted or yes draws one wave across visible members;
 explicit no draws separate staff waves while retaining one playback roll.
 If yes/no hints conflict, explicit no conservatively breaks the displayed line.
 Every participating beat reserves pre-note space, and only its first visible
-member beat paints a common wave. Hidden staves are excluded from visual bounds.
+member beat paints a common wave. Hidden staves and heads are excluded from visual bounds; an all-hidden group paints no wave.
 Existing MusicXML relative-position attributes are not newly interpreted by
 this change; normal pre-note spacing determines the wave's horizontal position.
 
@@ -71,3 +71,13 @@ used by source acceptance without committing a real score.
 Installed-package official preparation, actual renderer Worker and real-score
 acceptance remain release gates. These source tests are not a musical source
 certification or a listening test.
+
+## Known pre-existing hidden-voice playback limitation
+
+`print-object="no"` changes visual head membership only in this fix. A partially
+hidden chord continues to play every authored head. However the existing
+`Beat.finish` marks an entirely invisible beat empty, and empty voices can be
+skipped by MIDI generation. This pre-existing all-hidden/staff behavior is not
+corrected or certified here. Legal hidden XML cases preserve complete MIDI
+events and bounds from the independently frozen c177 baseline; their visual
+waves now use visible heads and choose a visible owner or paint nothing.

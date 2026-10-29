@@ -34,7 +34,9 @@ export class SourceArpeggioGlyph extends Glyph {
         // If authored hints conflict, a break wins rather than drawing an unwanted line.
         const broken = group.some(note => note.sourceArpeggio!.unbroken === false);
         const members = group
-            .filter(note => !broken || note.beat.voice.bar.staff === this._note.beat.voice.bar.staff)
+            .filter(
+                note => note.isVisible && (!broken || note.beat.voice.bar.staff === this._note.beat.voice.bar.staff)
+            )
             .map(note => ({
                 note,
                 renderer: own.scoreRenderer.layout!.getRendererForBar(
