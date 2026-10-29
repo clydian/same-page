@@ -102,11 +102,11 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(canvas).toHaveCSS('filter', 'brightness(0.86) sepia(0.08)');
   await page.locator('.page-reader__viewport').click();
-  await expect(page.getByRole('button', { name: '返回云盘', exact: true })).toHaveCSS('background-color', 'rgb(32, 47, 42)');
-  await expect(page.locator('.reader-playback-entry')).toHaveCSS('background-color', 'rgba(32, 47, 42, 0.96)');
+  await expect(page.getByRole('button', { name: '返回云盘', exact: true })).toHaveCSS('background-color', 'rgb(24, 24, 24)');
+  await expect(page.locator('.reader-playback-entry')).toHaveCSS('background-color', 'rgba(24, 24, 24, 0.96)');
   await page.getByRole('button', { name: '更多', exact: true }).click();
   await expect(page.getByRole('link', { name: '外观设置', exact: true })).toHaveAttribute('href', '/appearance');
-  await expect(page.getByRole('dialog', { name: '更多阅读选项' })).toHaveCSS('background-color', 'rgb(32, 47, 42)');
+  await expect(page.getByRole('dialog', { name: '更多阅读选项' })).toHaveCSS('background-color', 'rgb(24, 24, 24)');
   await page.getByRole('button', { name: '关闭更多阅读选项' }).click();
   await page.getByRole('button', { name: '练习谱', exact: true }).click();
   await page.getByRole('button', { name: '声部练习版.musicxml', exact: true }).click();
@@ -127,7 +127,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   await page.locator('.practice-view-option').filter({ hasText: '对照' }).click();
   const comparison = page.locator('.practice-comparison-pdf');
   await expect(comparison.locator('[data-pdf-canvas-active]').first()).toHaveCSS('filter', 'invert(0.9)');
-  await expect(comparison.locator('.reader-page-indicator')).toHaveCSS('background-color', 'rgba(32, 47, 42, 0.91)');
+  await expect(comparison.locator('.reader-page-indicator')).toHaveCSS('background-color', 'rgba(24, 24, 24, 0.91)');
   await page.setViewportSize({ width: 1180, height: 820 });
   await expect(page.getByRole('button', { name: '播放', exact: true })).toBeVisible();
   await set({ darkPaper: 'original' });

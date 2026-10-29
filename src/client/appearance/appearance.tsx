@@ -28,7 +28,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     root.dataset.uiTheme = dark ? "dark" : "light";
     root.dataset.paperTheme = paper;
     root.dataset.invertAnnotations = String(preferences.invertAnnotations);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#172321" : "#014653");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#000000" : "#014653");
     try { localStorage.setItem(appearanceOwnerKey, owner); } catch { /* Optional first-paint hint. */ }
   }, [dark, paper, preferences.invertAnnotations, owner, identity.restoring]);
   return <AppearanceContext value={{ preferences, owner, dark }}>{children}</AppearanceContext>;
