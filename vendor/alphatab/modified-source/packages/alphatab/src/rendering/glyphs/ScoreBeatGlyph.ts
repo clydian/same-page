@@ -1,12 +1,14 @@
 import { Logger } from '@coderline/alphatab/Logger';
 import { AccentuationType } from '@coderline/alphatab/model/AccentuationType';
 import { BeatSubElement } from '@coderline/alphatab/model/Beat';
+import { Clef } from '@coderline/alphatab/model/Clef';
 import { Duration } from '@coderline/alphatab/model/Duration';
 import { GraceType } from '@coderline/alphatab/model/GraceType';
 import { HarmonicType } from '@coderline/alphatab/model/HarmonicType';
 import { TechniqueSymbolPlacement } from '@coderline/alphatab/model/InstrumentArticulation';
 import { MusicFontSymbol } from '@coderline/alphatab/model/MusicFontSymbol';
 import { type Note, NoteSubElement } from '@coderline/alphatab/model/Note';
+import { Ottavia } from '@coderline/alphatab/model/Ottavia';
 import { PercussionMapper } from '@coderline/alphatab/model/PercussionMapper';
 import { PickStroke } from '@coderline/alphatab/model/PickStroke';
 import type { ICanvas } from '@coderline/alphatab/platform/ICanvas';
@@ -318,12 +320,24 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
 
         const displayStep = this.container.beat.restDisplayStep;
         if (displayStep !== null) {
-            steps = AccidentalHelper.calculateNoteSteps(sr.bar.getClefAt(this.container.beat.displayStart), {
+            const clef = sr.bar.getClefAt(this.container.beat.displayStart);
+            steps = AccidentalHelper.calculateNoteSteps(clef === Clef.Neutral ? Clef.G2 : clef, {
                 octave: Math.floor(displayStep / 7),
                 degree: displayStep % 7,
                 accidentalOffset: 0,
                 chroma: 0
             });
+            // Rest display coordinates follow the current octave clef, not
+            // instrument transposition or a separate beat ottava direction.
+            // MusicXML interprets percussion as ordinary G4 treble instead.
+            if (clef !== Clef.Neutral) {
+                switch (sr.bar.getClefOttavaAt(this.container.beat.displayStart)) {
+                    case Ottavia._15ma: steps += 14; break;
+                    case Ottavia._8va: steps += 7; break;
+                    case Ottavia._8vb: steps -= 7; break;
+                    case Ottavia._15mb: steps -= 14; break;
+                }
+            }
         }
 
         const restGlyph = new ScoreRestGlyph(0, sr.getScoreY(steps), this.container.beat.duration);

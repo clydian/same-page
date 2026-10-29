@@ -1,6 +1,6 @@
 # Same Page alphaTab 维护
 
-日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.20.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
+日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.22.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
 
 ## 修改并重建
 
@@ -11,7 +11,7 @@
 使用 Node 24，修改 `modified-source/` 后，在仓库根目录执行：
 
 ```sh
-npm run build:native -- --version 1.8.4-samepage.21 --output /tmp/same-page-native-21
+npm run build:native -- --version 1.8.4-samepage.22 --output /tmp/same-page-native-22
 ```
 
 命令从固定公开上游建立独立临时 Git checkout，应用补丁和当前覆盖层，提交源码快照，再构建并打包。它只访问公开 alphaTab 和 npm，不访问 Chorus。输出目录必须为空，临时 checkout 保留供检查和原生测试；路径打印在输出中。运行 checkout 内与修改相关的原生测试，再运行完整原生测试。打包成功不代表测试通过。
@@ -47,12 +47,20 @@ npm run build:native -- --version 1.8.4-samepage.21 --output /tmp/same-page-nati
 预备拍读取寻址目标（含边界同刻的拍号与速度），暂停时重置预备序列并保留主音乐位置。`PositionChangedEventArgs` 新增预备拍次、总拍数、序号与完成标记；Worker 原样传递，谱面游标不跟随预备的独立 tick。会话据序号隔离连续寻址的旧回调。
 新增 `PracticeRhythm` 实际 sequencer/synth 回归；更新 MIDI 装饰音测试对重复小节元数据的处理及变更拍声的 PCM 参考。完整原生测试与未修改基线均有同样的 64 个既有基线失败，当前 1860 项通过（基线 1857），无新增失败。相关 68 项音频测试全部通过。
 
-## samepage.20：保留原谱休止符显示位置 · #559
+## samepage.20：休止符位置历史控制（被 samepage.22 修正取代）· #559
 
-MusicXML `<rest>` 的完整 `display-step`／`display-octave` 通过 `Beat.restDisplayStep` 保留为显示用自然音级坐标（C0=0、E4=30）。按 [W3C display-step 定义](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/display-step/) 使用休止当时的谱号定位；percussion 谱号按 treble 解释，不套用调号、发声移调或八度线。显式位置保留原休止和独立声部，不交给自动碰撞算法移位或合并；无位置、位置不完整或无效时沿用默认布局。
+MusicXML `<rest>` 的完整 `display-step`／`display-octave` 通过 `Beat.restDisplayStep` 保留为显示用自然音级坐标（C0=0、E4=30）。按 [W3C display-step 定义](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/display-step/) 原 native20 仅按谱号种类定位，遗漏了 clef-octave-change；该合同与相关完整性结论已由下节 native22 修正。percussion 谱号按普通 G4 treble 解释，不套用调号、发声移调或独立 octave-shift 方向。显式位置保留原休止和独立声部，不交给自动碰撞算法移位或合并；无位置、位置不完整或无效时沿用默认布局。
 
 JSON／生成的 clone 传递可选显示字段；旧 JSON 缺字段时默认 null，旧客户端可忽略新字段。只改显示，不改音符、时值、力度、MIDI 或小节边界。11 种默认休止的 SVG 与 MIDI／位置 JSON 已和 native19 逐字节核对一致；原谱明确位置的休止会按源声明改变显示，不能把这种变化当默认布局回归。
 
 完整原生测试为 **1885 通过、64 失败、1 跳过**。这 64 项与原候选失败名单逐名一致，仅移除了本次三项已解释的预期差异，包含 62 项既有视觉参考失败及两项 AlphaTex round-trip 来源元数据差异；不代表完整测试绿色。只更新了 `partwise-staff-change` 的两处源 D5 坐标快照及 `02b-Rests-PitchedRests`、`22d-Parenthesized-Noteheads` 两张经源文件和实际图核对的参考图，没有放宽比较器或全量接受 golden。最终制品仍需按上文流程通过实际播放器准备链、Worker 双布局和产品回归。
 
-保留 native19 及更早固定制品、已公开源码档案与许可证；此次构建的旧控制产物也保留在独立目录，不以新包替换历史来源。后续修改从新的空输出目录构建并递增版本，示例使用下一版本 `.21`。
+保留 native19 及更早固定制品、已公开源码档案与许可证；此次构建的旧控制产物也保留在独立目录，不以新包替换历史来源。旧20包及已公开源码档案保留，21留作独立琶音控制；本次休止修正使用新版本22，后续琶音集成计划23。
+
+## samepage.22：休止符遵守当前时点的八度谱号 · #559
+
+显式休止坐标同时使用 `getClefAt(beat.displayStart)` 与 `getClefOttavaAt(beat.displayStart)`，按八度谱号作 ±7／14 个自然音级的显示换算。G8下移谱号的中线是 B3，B4 应在其上方整八度；不能改 XML 坐标来补偿旧20的遗漏。percussion 始终按普通 G4 treble，不叠加 clef octave；instrument transpose 和独立 beat ottava 不参与休止定位。
+
+初始 `clef-octave-change=2` 的枚举同时从误用的15mb改为15ma，与既有 timed 路径一致。修正该显示谱号枚举也会纠正此特殊输入的音头显示八度；输入音符 realValue、播放事件和时序不变。模型、JSON字段与旧默认休止路径不变。
+
+当前源码定向休止测试50通过、1个外部谱probe跳过，覆盖 G/F ±1/2八度、两布局、时点变更、percussion、独立transpose/ottava、旧JSON/clone及MIDI。旧20的1885/64/1是历史控制结果，不能当成22的全套结果；新22固定制品、完整原生与产品/Worker门槛由后续构建验证补齐，不在源码测试阶段宣称完成。

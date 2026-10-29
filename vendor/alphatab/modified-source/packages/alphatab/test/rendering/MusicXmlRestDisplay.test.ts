@@ -153,3 +153,81 @@ it.skipIf(!process.env.REST_DISPLAY_SOURCE_XML)('records external source context
         artifact(`real-source65-67-${LayoutMode[mode]}.json`, result.positions);
     }
 });
+
+for (const mode of [LayoutMode.Page, LayoutMode.Horizontal]) {
+    it(`clef octave regression: G8down B3 half rest is on the middle line, mode=${LayoutMode[mode]}`, () => {
+        const score = load(source(display('B', 3), '<sign>G</sign><line>2</line><clef-octave-change>-1</clef-octave-change>', 'half', 1, 2, false));
+        const result = render(score, mode);
+        artifact(`clef-octave-G8down-B3-${LayoutMode[mode]}.svg`, result.svg);
+        artifact(`clef-octave-G8down-B3-${LayoutMode[mode]}.json`, { positions: result.positions, midi: midi(score) });
+        expectSteps(result.positions.map(p => p.steps), [4]);
+    });
+}
+it('initial plus-two octave clef uses the same upward enum as timed changes without changing MIDI', () => {
+    const clef = '<sign>G</sign><line>2</line><clef-octave-change>2</clef-octave-change>';
+    const score = load(source(display('B', 6), clef, 'half', 1, 2));
+    const actual = render(score);
+    const notes = score.tracks.flatMap(t => t.staves.flatMap(st => st.bars.flatMap(b => b.voices.flatMap(v => v.beats.flatMap(be => be.notes.map(n => n.realValue))))));
+    artifact('clef-octave-plus2-control.json', { positions: actual.positions, notes, midi: midi(score) });
+    artifact('clef-octave-plus2-control.svg', actual.svg);
+    expect(notes).toEqual([79]);
+    expect(midi(score)).toEqual(midi(load(source('', clef, 'half', 1, 2))));
+    expectSteps(actual.positions.map(p => p.steps), [4]);
+});
+
+// Independent staff oracle: treble middle B and bass middle D move one
+// coordinate octave per clef octave. Every listed half rest sits on line 3.
+for (const [sign, line, octaveChange, step, octave] of [
+    ['G', 2, -2, 'B', 2], ['G', 2, -1, 'B', 3],
+    ['G', 2, 1, 'B', 5], ['G', 2, 2, 'B', 6],
+    ['F', 4, -2, 'D', 1], ['F', 4, -1, 'D', 2],
+    ['F', 4, 1, 'D', 4], ['F', 4, 2, 'D', 5],
+] as const) {
+    for (const mode of [LayoutMode.Page, LayoutMode.Horizontal]) {
+        it(`paints authored ${sign}${octaveChange} ${step}${octave} on the middle line, mode=${LayoutMode[mode]}`, () => {
+            const clef = `<sign>${sign}</sign><line>${line}</line><clef-octave-change>${octaveChange}</clef-octave-change>`;
+            const score = load(source(display(step, octave), clef, 'half', 1, 2, false));
+            const plain = load(source('', clef, 'half', 1, 2, false));
+            const result = render(score, mode);
+            artifact(`clef-octave-${sign}${octaveChange}-${LayoutMode[mode]}.json`, { positions: result.positions, midi: midi(score) });
+            expectSteps(result.positions.map(p => p.steps), [4]);
+            expectSteps(render(plain, mode).positions.map(p => p.steps), [4]);
+            expect(midi(score)).toEqual(midi(plain));
+        });
+    }
+}
+for (const mode of [LayoutMode.Page, LayoutMode.Horizontal]) {
+    it(`uses the timed octave clef at each rest, mode=${LayoutMode[mode]}`, () => {
+        const note = (octave: number) => `<note><rest>${display('B', octave)}</rest><duration>1</duration><type>quarter</type></note>`;
+        const score = load(xml(`<measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line><clef-octave-change>-1</clef-octave-change></clef></attributes>${note(3)}<attributes><clef><sign>G</sign><line>2</line><clef-octave-change>1</clef-octave-change></clef></attributes>${note(5)}<attributes><clef><sign>G</sign><line>2</line><clef-octave-change>2</clef-octave-change></clef></attributes>${note(6)}</measure>`));
+        const before = midi(score);
+        expectSteps(render(score, mode).positions.map(p => p.steps), [4, 4, 4]);
+        const copy = JsonConverter.jsObjectToScore(structuredClone(JsonConverter.scoreToJsObject(score)));
+        expectSteps(render(copy, mode).positions.map(p => p.steps), [4, 4, 4]);
+        expect(midi(copy)).toEqual(before);
+        expect(midi(score)).toEqual(before);
+    });
+    it(`percussion uses ordinary G4 treble irrespective of clef octave, mode=${LayoutMode[mode]}`, () => {
+        for (const octaveChange of [-2, -1, 0, 1, 2]) {
+            const score = load(source(display('B', 4), `<sign>percussion</sign><clef-octave-change>${octaveChange}</clef-octave-change>`, 'half', 1, 2, false));
+            expectSteps(render(score, mode).positions.map(p => p.steps), [4]);
+        }
+    });
+    it(`instrument transpose and beat ottava do not move authored rests, mode=${LayoutMode[mode]}`, () => {
+        const input = source(display('B', 3), '<sign>G</sign><line>2</line><clef-octave-change>-1</clef-octave-change>', 'half', 1, 2);
+        const variants = [
+            input.replace('</attributes>', '<transpose><diatonic>0</diatonic><chromatic>-12</chromatic></transpose></attributes>'),
+            input.replace('</attributes>', '</attributes><direction><direction-type><octave-shift type="down" size="8"/></direction-type></direction>'),
+        ];
+        for (const [index, text] of variants.entries()) {
+            const score = load(text);
+            if (index === 0) { expect(score.tracks[0].staves[0].displayTranspositionPitch).toBe(-12); }
+            else { expect(rests(score)[0].ottava).not.toBe(2); } // Ottavia.Regular
+            const before = midi(score);
+            expectSteps(render(score, mode).positions.map(p => p.steps), [4]);
+            expect(rests(score)[0].restDisplayStep).toBe(27);
+            expect(midi(score)).toEqual(midi(load(text.replace(display('B', 3), ''))));
+            expect(midi(score)).toEqual(before);
+        }
+    });
+}

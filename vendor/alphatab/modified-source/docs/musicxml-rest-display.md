@@ -21,7 +21,7 @@ automatic placement and collision path. The MusicXML importer accepts a complete
 valid step/octave pair; incomplete or invalid positions retain the default.
 
 Standard notation resolves this coordinate using `bar.getClefAt(beat.displayStart)`,
-including clef changes inside a bar. An authored position reserves its own
+and `bar.getClefOttavaAt(beat.displayStart)`, including octave-clef changes inside a bar. Octave clefs shift the diatonic rendering coordinate by 7 or 14 steps; percussion always uses ordinary G4 treble and ignores clef octave. Instrument transpose and separate beat ottava directions do not affect rest display coordinates. The previous native20 interpretation that ignored clef octave was incomplete and is superseded by native22. An authored position reserves its own
 collision slot and is not moved or coalesced by the automatic rest solver.
 This also keeps separately positioned simultaneous rests visible. Other notation
 profiles retain their existing behavior.
@@ -44,3 +44,5 @@ An optional read-only artifact probe accepts `REST_DISPLAY_SOURCE_XML` and
 `REST_DISPLAY_ARTIFACTS` to capture an external score's native MIDI and measures
 65–67. It is skipped by the normal test run, contains no real score in the
 repository and does not represent prepared-player or listening acceptance.
+
+The initial MusicXML clef `+2` enum is corrected from 15mb to 15ma, matching the timed-clef importer. That fixes this input's notehead display as well as authored rests; pitched `realValue` and complete MIDI remain unchanged. Focused regressions compare literal middle-line oracles for G/F octave clefs ±1/2, actual paint coordinates in both layouts, timed JSON round-trips, percussion exceptions, instrument/beat ottava isolation and complete MIDI. Historical full-suite results do not certify this new revision; final package and full-source gates are recorded separately.

@@ -2011,7 +2011,7 @@ export class MusicXmlImporter extends ScoreImporter {
                             bar.clefOttava = Ottavia._8va;
                             break;
                         case 2:
-                            bar.clefOttava = Ottavia._15mb;
+                            bar.clefOttava = Ottavia._15ma;
                             break;
                     }
                     break;
