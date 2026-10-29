@@ -1,3 +1,4 @@
+import { SourceArpeggioGlyph } from '@coderline/alphatab/rendering/glyphs/SourceArpeggioGlyph';
 import { EngravingSettings } from '@coderline/alphatab/EngravingSettings';
 import { AccidentalType } from '@coderline/alphatab/model/AccidentalType';
 import { BeatSubElement } from '@coderline/alphatab/model/Beat';
@@ -130,8 +131,18 @@ export class ScoreBeatPreNotesGlyph extends BeatGlyphBase {
                 )
             );
         }
-        if (this.container.beat.brushType !== BrushType.None) {
-            this.addEffect(new ScoreBrushGlyph(this.container.beat));
+        const authoredArpeggios = new Map<number, Note>();
+        for (const note of this.container.beat.notes) {
+            if (note.sourceArpeggio && !note.isStringed && !note.isPercussion) {
+                authoredArpeggios.set(note.sourceArpeggio.number, note);
+            }
+        }
+        if (authoredArpeggios.size > 0 || this.container.beat.brushType !== BrushType.None) {
+            if (authoredArpeggios.size > 0) {
+                for (const note of authoredArpeggios.values()) { this.addEffect(new SourceArpeggioGlyph(note)); }
+            } else {
+                this.addEffect(new ScoreBrushGlyph(this.container.beat));
+            }
             this.addNormal(
                 new SpacingGlyph(
                     0,

@@ -85,3 +85,5 @@ export { VibratoType } from '@coderline/alphatab/model/VibratoType';
 export { Voice, VoiceStyle, VoiceSubElement } from '@coderline/alphatab/model/Voice';
 export { WahPedal } from '@coderline/alphatab/model/WahPedal';
 export { WhammyType } from '@coderline/alphatab/model/WhammyType';
+
+export { SourceArpeggio, SourceArpeggioDirection } from '@coderline/alphatab/model/SourceArpeggio';

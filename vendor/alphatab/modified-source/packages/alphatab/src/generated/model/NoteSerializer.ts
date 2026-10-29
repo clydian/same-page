@@ -5,8 +5,10 @@
 // </auto-generated>
 import { Note } from "@coderline/alphatab/model/Note";
 import { JsonHelper } from "@coderline/alphatab/io/JsonHelper";
+import { SourceArpeggioSerializer } from "@coderline/alphatab/generated/model/SourceArpeggioSerializer";
 import { BendPointSerializer } from "@coderline/alphatab/generated/model/BendPointSerializer";
 import { NoteStyleSerializer } from "@coderline/alphatab/generated/model/NoteStyleSerializer";
+import { SourceArpeggio } from "@coderline/alphatab/model/SourceArpeggio";
 import { AccentuationType } from "@coderline/alphatab/model/AccentuationType";
 import { TenutoPlacement } from "@coderline/alphatab/model/TenutoPlacement";
 import { BendType } from "@coderline/alphatab/model/BendType";
@@ -38,6 +40,9 @@ export class NoteSerializer {
             return null;
         }
         const o = new Map<string, unknown>();
+        if (obj.sourceArpeggio) {
+            o.set("sourcearpeggio", SourceArpeggioSerializer.toJson(obj.sourceArpeggio));
+        }
         o.set("id", obj.id);
         o.set("accentuated", obj.accentuated as number);
         o.set("istenuto", obj.isTenuto);
@@ -91,6 +96,15 @@ export class NoteSerializer {
     }
     public static setProperty(obj: Note, property: string, v: unknown): boolean {
         switch (property) {
+            case "sourcearpeggio":
+                if (v) {
+                    obj.sourceArpeggio = new SourceArpeggio();
+                    SourceArpeggioSerializer.fromJson(obj.sourceArpeggio, v);
+                }
+                else {
+                    obj.sourceArpeggio = null;
+                }
+                return true;
             case "id":
                 obj.id = v! as number;
                 return true;
