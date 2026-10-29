@@ -64,9 +64,22 @@ it.each(['id', 'scoreId', 'kind', 'revision', 'sizeBytes', 'trashExpiresAt'])('r
   vi.mocked(readAttachment).mockResolvedValue(changed);
   await expect(resolve()).rejects.toThrow('附件已更新'); expect(readOfflineMusicXml).not.toHaveBeenCalled(); expect(attachmentFetch).not.toHaveBeenCalled();
 });
-it.each([undefined, '2'])('rejects a missing or changed response revision (%s), preserving metadata-to-file consistency', async revision => {
-  vi.mocked(attachmentFetch).mockResolvedValue(new Response(bytes.slice(), { headers: revision ? { 'X-Attachment-Revision': revision } : {} }));
+it.each([undefined, '', 'invalid', '0', '1.5', '9007199254740992'])('rejects an unverifiable response revision (%s) without claiming an update or using old bytes', async revision => {
+  vi.mocked(readOfflineMusicXml).mockResolvedValue(bytes);
+  vi.mocked(attachmentFetch).mockResolvedValue(new Response(bytes.slice(), { headers: revision === undefined ? {} : { 'X-Attachment-Revision': revision } }));
+  await expect(resolve()).rejects.toThrow('暂时无法校验附件版本'); expect(readOfflineMusicXml).not.toHaveBeenCalled(); expect(access.save).not.toHaveBeenCalled();
+});
+it('rejects an explicitly changed response revision, preserving metadata-to-file consistency', async () => {
+  vi.mocked(readOfflineMusicXml).mockResolvedValue(bytes);
+  vi.mocked(attachmentFetch).mockResolvedValue(new Response(bytes.slice(), { headers: { 'X-Attachment-Revision': '2' } }));
   await expect(resolve()).rejects.toThrow('附件已更新'); expect(readOfflineMusicXml).not.toHaveBeenCalled();
+});
+it.each([401, 403, 404, 409])('a file rejection %s never accepts an available offline original', async status => {
+  vi.mocked(readOfflineMusicXml).mockResolvedValue(bytes);
+  vi.mocked(attachmentFetch).mockResolvedValue(new Response(null, { status }));
+  await expect(resolve()).rejects.toMatchObject({ status });
+  expect(readOfflineMusicXml).not.toHaveBeenCalled(); expect(access.save).not.toHaveBeenCalled();
+  expect(revokeOfflineMusicXml).toHaveBeenCalledTimes(status === 409 ? 0 : 1);
 });
 it('rejects malformed metadata and original length without selecting old content', async () => {
   vi.mocked(readAttachment).mockRejectedValueOnce(new Error('invalid schema'));
