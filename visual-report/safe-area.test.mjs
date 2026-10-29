@@ -36,9 +36,15 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     const header = await page.locator('.app-header').boundingBox();
     assert.equal(header.y, 32, 'home header must start below status bar');
     assert.equal(header.height, initial.height, 'inset belongs to shell, not header twice');
-    for (const route of ['/about', '/privacy', '/choirs/visual-choir']) {
+    for (const [route, content] of [
+      ['/about', '.about-shell'],
+      ['/privacy', '.privacy-document'],
+      ['/choirs/visual-choir', '.library-workspace'],
+    ]) {
       await page.goto(`${server.origin}${route}`);
-      await page.locator('.page-with-footer').waitFor();
+      // The shell and header also appear in Suspense fallbacks. Measure only
+      // after route content mounts, so a fallback header cannot detach mid-read.
+      await page.locator(content).waitFor();
       await setInsets(page);
       const control = page.locator(route.includes('choirs') ? '.drive-header' : '.task-header');
       await control.waitFor();
