@@ -12,7 +12,7 @@ import { Button, Form } from "react-aria-components";
 import { currentJoinCodeResponseSchema, rotateJoinCodeResponseSchema } from "../../shared/choirs";
 import { JoinCodeField } from "../components/join-code-field";
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
-import { JOIN_CODE_LENGTH } from "../components/join-code";
+import { parseJoinCodeInput } from "../components/join-code";
 
 export function InviteSharing({ choirId, choirName, writable = true }: { choirId: string; choirName: string; writable?: boolean }) {
   const lifetime = useSettingsLifetime(writable);
@@ -119,7 +119,8 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
 
   async function saveOriginal(event: FormEvent) {
     event.preventDefault();
-    if (!writable || !loaded || busy || originalCodeComposing || originalCode.length !== JOIN_CODE_LENGTH) return;
+    const parsedCode = parseJoinCodeInput(originalCode).code;
+    if (!writable || !loaded || busy || originalCodeComposing || !parsedCode) return;
     const sameIdentity = captureReadIdentity();
     const sameLifetime = captureSettingsLifetime(lifetime);
     const current = () => sameIdentity() && sameLifetime();
@@ -129,14 +130,14 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
       const response = await diagnosticFetch(endpoint, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ joinCode: originalCode }),
+        body: JSON.stringify({ joinCode: parsedCode }),
       });
       if (!current()) return;
       if (!response.ok) {
         setMessage(response.status === 409 ? "输入的原码与当前有效邀请码不一致。" : "暂时无法保存邀请码，请重试。");
         return;
       }
-      setCurrentCode(originalCode);
+      setCurrentCode(parsedCode);
       setOriginalCode("");
       setMessage("已保存，原邀请码继续有效，可随时在这里查看。");
     } catch {
@@ -166,7 +167,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
               <p className="drive-management-copy">当前邀请码尚未保存为可查看的形式。如果你保留了原码，可以补录；也可以轮换生成新码。</p>
               <Form className="entry-form" onSubmit={saveOriginal}>
                 <JoinCodeField value={originalCode} onChange={setOriginalCode} onCompositionChange={setOriginalCodeComposing} />
-                <Button type="submit" isDisabled={!writable || busy || originalCodeComposing || originalCode.length !== JOIN_CODE_LENGTH}>保存原邀请码</Button>
+                <Button type="submit" isDisabled={!writable || busy || originalCodeComposing || !parseJoinCodeInput(originalCode).code}>保存原邀请码</Button>
               </Form>
             </>
           ) : !message ? <p role="status">正在读取邀请码…</p> : null}

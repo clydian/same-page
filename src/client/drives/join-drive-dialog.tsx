@@ -13,7 +13,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { ChoirSummary } from "../../shared/choirs";
 import { JoinCodeField } from "../components/join-code-field";
 import { readInviteLink } from "../components/invite-link";
-import { JOIN_CODE_LENGTH } from "../components/join-code";
+import { parseJoinCodeInput } from "../components/join-code";
 import { InviteScanner } from "./invite-scanner";
 
 type JoinStep = { kind: "invite" } | { kind: "display-name"; choir: ChoirSummary };
@@ -112,14 +112,16 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
   });
   const enterInviteDrive = async (event?: FormEvent, code = joinCode) => {
     event?.preventDefault();
-    if (event && (joinCodeComposing || code.length !== JOIN_CODE_LENGTH)) return;
+    if (event && joinCodeComposing) return;
+    const parsedCode = parseJoinCodeInput(code).code;
+    if (!parsedCode) return;
     if (admissionPaused || clearingGuestSession || submitting) return;
     setEntryDestination(null);
     const generation = entryLifetimeRef.current;
     setSubmitting(true); setJoinMessage(null);
     const controller = new AbortController();
     entryAbortRef.current = controller;
-    const pending = enterDrive({ admission: "invite", joinCode: code }, Boolean(userId), controller.signal);
+    const pending = enterDrive({ admission: "invite", joinCode: parsedCode }, Boolean(userId), controller.signal);
     pendingEntryRef.current = pending;
     const result = await pending;
     if (generation !== entryLifetimeRef.current) return;
@@ -234,7 +236,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                         <Button
                           type="submit"
                           isDisabled={
-                            joinCode.length !== JOIN_CODE_LENGTH ||
+                            !parseJoinCodeInput(joinCode).code ||
                             joinCodeComposing ||
                             submitting ||
                             clearingGuestSession ||

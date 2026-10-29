@@ -1,20 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Input, Label, TextField } from "react-aria-components";
+import { FieldError, Input, Label, TextField } from "react-aria-components";
 
-import {
-  JOIN_CODE_GROUP_LENGTH,
-  JOIN_CODE_LENGTH,
-  normalizeJoinCodeInput,
-} from "./join-code";
-
-// Preserve ASCII letter case, but use the same accepted characters and length
-// as the business value. Hidden invalid/overflow text must not consume edits.
-function cleanJoinCodeDraft(value: string) {
-  return Array.from(value, character => {
-    const normalized = normalizeJoinCodeInput(character);
-    return /^[a-z]$/.test(character) ? normalized.toLowerCase() : normalized;
-  }).join("").slice(0, JOIN_CODE_LENGTH);
-}
+import { JOIN_CODE_LENGTH, getJoinCodeCharacters, parseJoinCodeInput } from "./join-code";
 
 export function JoinCodeField(props: {
   value: string;
@@ -23,52 +10,115 @@ export function JoinCodeField(props: {
   autoFocus?: boolean;
   isReadOnly?: boolean;
 }) {
-  // Track the last published value separately so a parent's normalized echo
-  // never replaces the native draft or destroys the IME composition range.
-  const [draft, setDraft] = useState({ raw: props.value, value: props.value });
-  const composing = useRef(false);
+  const [composing, setComposing] = useState(false);
+  const composingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const pendingSelection = useRef<{ raw: string; start: number; end: number; direction: "forward" | "backward" | "none" } | null>(null);
-  if (props.value !== draft.value) {
-    setDraft({ raw: props.value, value: props.value });
+  const pendingSelection = useRef<{ start: number; end: number; direction: "forward" | "backward" | "none" } | null>(null);
+  const [truncated, setTruncated] = useState(false);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const parsed = parseJoinCodeInput(props.value);
+  const error = composing ? null : parsed.error;
+  const characters = getJoinCodeCharacters(props.value);
+  const pointerSelection = useRef<{ id: number; anchor: number } | null>(null);
+  const cursorIndex = characters.findIndex(character => character.start >= selection.end);
+  const caretIndex = cursorIndex < 0 ? characters.length : cursorIndex;
+
+  function readSelection(input: HTMLInputElement) {
+    setSelection({ start: input.selectionStart ?? 0, end: input.selectionEnd ?? 0 });
+  }
+
+  function changeDraft(value: string) {
+    if (inputRef.current) readSelection(inputRef.current);
+    if (composingRef.current) {
+      props.onChange(value);
+      return;
+    }
+    // Presentation separators do not consume a code position. Never remove
+    // invalid characters to make a different, apparently valid invitation.
+    const characters = getJoinCodeCharacters(value);
+    const kept = characters.slice(0, JOIN_CODE_LENGTH);
+    const nextValue = kept.map(character => character.text).join("");
+    if (characters.length > JOIN_CODE_LENGTH) setTruncated(true);
+    else if (value !== props.value) setTruncated(false);
+    if (nextValue !== value) {
+      const input = inputRef.current;
+      const mapPosition = (position: number) => kept.filter(character => character.end <= position).reduce((length, character) => length + character.text.length, 0);
+      pendingSelection.current = {
+        start: mapPosition(input?.selectionStart ?? value.length),
+        end: mapPosition(input?.selectionEnd ?? value.length),
+        direction: input?.selectionDirection ?? "none",
+      };
+    }
+    props.onChange(nextValue);
   }
 
   useLayoutEffect(() => {
-    const selection = pendingSelection.current;
-    pendingSelection.current = null;
-    if (selection && inputRef.current?.value === selection.raw) {
-      inputRef.current.setSelectionRange(selection.start, selection.end, selection.direction);
+    if (pendingSelection.current !== null && inputRef.current) {
+      const { start, end, direction } = pendingSelection.current;
+      inputRef.current.setSelectionRange(start, end, direction);
+      readSelection(inputRef.current);
+      pendingSelection.current = null;
     }
   });
 
-  function updateDraft(raw: string) {
-    const cleaned = composing.current ? raw : cleanJoinCodeDraft(raw);
-    const input = inputRef.current;
-    if (cleaned !== raw && input && input.selectionStart !== null && input.selectionEnd !== null) {
-      pendingSelection.current = {
-        raw: cleaned,
-        start: cleanJoinCodeDraft(raw.slice(0, input.selectionStart)).length,
-        end: cleanJoinCodeDraft(raw.slice(0, input.selectionEnd)).length,
-        direction: input.selectionDirection ?? "none",
-      };
-    }
-    const value = composing.current ? props.value : normalizeJoinCodeInput(cleaned);
-    setDraft({ raw: cleaned, value });
-    if (value !== props.value) props.onChange(value);
+  function positionAt(clientX: number, control: HTMLDivElement) {
+    const bounds = control.getBoundingClientRect();
+    const position = Math.max(0, (clientX - bounds.left) / (bounds.width / JOIN_CODE_LENGTH));
+    const character = characters[Math.floor(position)];
+    return character ? position % 1 < 0.5 ? character.start : character.end : props.value.length;
   }
 
-  const activeIndex = Math.min(props.value.length, JOIN_CODE_LENGTH - 1);
+  function selectRange(anchor: number, position: number) {
+    const input = inputRef.current;
+    if (!input) return;
+    input.setSelectionRange(Math.min(anchor, position), Math.max(anchor, position), position < anchor ? "backward" : "forward");
+    readSelection(input);
+  }
 
   return (
     <TextField
       className="join-code-field"
       isRequired
+      validationBehavior="aria"
       isReadOnly={props.isReadOnly}
-      value={draft.raw}
-      onChange={updateDraft}
+      isInvalid={Boolean(error)}
+      value={props.value}
+      onChange={changeDraft}
     >
       <Label>邀请码</Label>
-      <div className="join-code-control">
+      <div className="join-code-control"
+        onPointerDown={event => {
+          if (props.isReadOnly || composingRef.current || event.button !== 0) return;
+          event.preventDefault();
+          inputRef.current?.focus();
+          const position = positionAt(event.clientX, event.currentTarget);
+          const input = inputRef.current;
+          const anchor = event.shiftKey ? (input?.selectionDirection === "backward" ? input.selectionEnd : input?.selectionStart) ?? position : position;
+          pointerSelection.current = { id: event.pointerId, anchor };
+          event.currentTarget.setPointerCapture(event.pointerId);
+          selectRange(anchor, position);
+        }}
+        onPointerMove={event => {
+          const pointer = pointerSelection.current;
+          if (!pointer || pointer.id !== event.pointerId || composingRef.current) return;
+          selectRange(pointer.anchor, positionAt(event.clientX, event.currentTarget));
+        }}
+        onPointerUp={() => { pointerSelection.current = null; }}
+        onPointerCancel={() => { pointerSelection.current = null; }}
+        onDoubleClick={() => {
+          if (!composingRef.current) selectRange(0, props.value.length);
+        }}
+      >
+        <div className="join-code-slots" aria-hidden="true">
+          {Array.from({ length: JOIN_CODE_LENGTH }, (_, index) => {
+            const character = characters[index];
+            return <span className="join-code-slot" key={index}
+              data-selected={Boolean(character && character.start < selection.end && character.end > selection.start) || undefined}
+              data-caret={selection.start === selection.end && (index === caretIndex || index === JOIN_CODE_LENGTH - 1 && caretIndex >= JOIN_CODE_LENGTH) || undefined}
+              data-after={caretIndex >= JOIN_CODE_LENGTH || undefined}
+            >{character?.text}</span>;
+          })}
+        </div>
         <Input
           ref={inputRef}
           className="join-code-input"
@@ -76,56 +126,28 @@ export function JoinCodeField(props: {
           autoFocus={props.autoFocus}
           autoCapitalize="characters"
           autoComplete="off"
-          maxLength={32}
+          autoCorrect="off"
+          inputMode="text"
           spellCheck={false}
+          onSelect={event => readSelection(event.currentTarget)}
+          onFocus={event => readSelection(event.currentTarget)}
           onCompositionStart={() => {
-            composing.current = true;
+            composingRef.current = true;
+            setTruncated(false);
+            setComposing(true);
             props.onCompositionChange?.(true);
           }}
-          onCompositionEnd={(event) => {
-            composing.current = false;
-            updateDraft(event.currentTarget.value);
+          onCompositionEnd={event => {
+            composingRef.current = false;
+            changeDraft(event.currentTarget.value);
+            setComposing(false);
             props.onCompositionChange?.(false);
           }}
         />
-        <div className="join-code-slots" aria-hidden="true">
-          <CodeGroup
-            value={props.value}
-            offset={0}
-            activeIndex={activeIndex}
-          />
-          <span className="join-code-separator">–</span>
-          <CodeGroup
-            value={props.value}
-            offset={JOIN_CODE_GROUP_LENGTH}
-            activeIndex={activeIndex}
-          />
-        </div>
       </div>
+      {characters.length > JOIN_CODE_LENGTH && <output className="join-code-draft" aria-label="完整输入内容">{props.value}</output>}
+      {truncated && <span className="join-code-error" role="status" aria-label="截断提示">仅保留前八位。</span>}
+      {error && <FieldError className="join-code-error"><span role="alert">{error}</span></FieldError>}
     </TextField>
-  );
-}
-
-function CodeGroup(props: {
-  value: string;
-  offset: number;
-  activeIndex: number;
-}) {
-  return (
-    <span className="join-code-group">
-      {Array.from({ length: JOIN_CODE_GROUP_LENGTH }, (_, groupIndex) => {
-        const index = props.offset + groupIndex;
-        return (
-          <span
-            className="join-code-slot"
-            data-active={index === props.activeIndex || undefined}
-            data-filled={Boolean(props.value[index]) || undefined}
-            key={index}
-          >
-            {props.value[index] ?? ""}
-          </span>
-        );
-      })}
-    </span>
   );
 }
