@@ -1,3 +1,4 @@
+import type { SourceArpeggio } from '@coderline/alphatab/model/SourceArpeggio';
 import { Logger } from '@coderline/alphatab/Logger';
 import { AccentuationType } from '@coderline/alphatab/model/AccentuationType';
 import type { Beat } from '@coderline/alphatab/model/Beat';
@@ -136,6 +137,9 @@ export class NoteStyle extends ElementStyle<NoteSubElement> {
  * @public
  */
 export class Note {
+    /** Authored per-head arpeggio membership; absent in legacy JSON. */
+    public sourceArpeggio: SourceArpeggio | null = null;
+
     /**
      * @internal
      */

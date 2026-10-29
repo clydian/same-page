@@ -4,6 +4,7 @@
 // the code is regenerated.
 // </auto-generated>
 import { Note } from "@coderline/alphatab/model/Note";
+import { SourceArpeggioCloner } from "@coderline/alphatab/generated/model/SourceArpeggioCloner";
 import { BendPointCloner } from "@coderline/alphatab/generated/model/BendPointCloner";
 /**
  * @internal
@@ -11,6 +12,7 @@ import { BendPointCloner } from "@coderline/alphatab/generated/model/BendPointCl
 export class NoteCloner {
     public static clone(original: Note): Note {
         const clone = new Note();
+        clone.sourceArpeggio = original.sourceArpeggio ? SourceArpeggioCloner.clone(original.sourceArpeggio) : null;
         clone.index = original.index;
         clone.accentuated = original.accentuated;
         clone.isTenuto = original.isTenuto;
