@@ -2011,7 +2011,7 @@ export class MusicXmlImporter extends ScoreImporter {
                             bar.clefOttava = Ottavia._8va;
                             break;
                         case 2:
-                            bar.clefOttava = Ottavia._15mb;
+                            bar.clefOttava = Ottavia._15ma;
                             break;
                     }
                     break;
@@ -2699,6 +2699,7 @@ export class MusicXmlImporter extends ScoreImporter {
 
         let durationInTicks = -1;
         let beatDuration: Duration | null = null;
+        let restDisplayStep: number | null = null;
         let dots = 0;
 
         let tupletNumerator = -1;
@@ -2808,6 +2809,7 @@ export class MusicXmlImporter extends ScoreImporter {
             const newBeat = new Beat();
             // Rest notes have no Note object on which to retain print-object.
             newBeat.isRestVisible = note !== null || noteIsVisible;
+            newBeat.restDisplayStep = note === null ? restDisplayStep : null;
             beat = newBeat;
             if (beamMode === null) {
                 newBeat.beamingMode = this._getStaffContext(staff).isExplicitlyBeamed
@@ -2918,6 +2920,7 @@ export class MusicXmlImporter extends ScoreImporter {
                     break;
                 case 'rest':
                     note = null; // rest beat
+                    restDisplayStep = this._parseRestDisplayStep(c);
                     if (beatDuration === null) {
                         beatDuration = Duration.Whole;
                     }
@@ -4389,6 +4392,20 @@ export class MusicXmlImporter extends ScoreImporter {
 
     private _parseDuration(element: XmlNode): number {
         return this._musicXmlDivisionsToAlphaTabTicks(Number.parseFloat(element.innerText));
+    }
+
+    private _parseRestDisplayStep(element: XmlNode): number | null {
+        let degree = -1;
+        let octave = Number.NaN;
+        for (const child of element.childElements()) {
+            if (child.localName === 'display-step') {
+                degree = child.innerText.length === 1 ? 'CDEFGAB'.indexOf(child.innerText) : -1;
+            } else if (child.localName === 'display-octave') {
+                const value = child.innerText.trim();
+                octave = /^[+-]?\d+$/.test(value) ? Number(value) : Number.NaN;
+            }
+        }
+        return degree >= 0 && Number.isInteger(octave) && octave >= 0 && octave <= 9 ? octave * 7 + degree : null;
     }
 
     private _parseUnpitched(element: XmlNode, _track: Track): Note {

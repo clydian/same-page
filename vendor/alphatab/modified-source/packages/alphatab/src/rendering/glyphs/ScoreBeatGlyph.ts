@@ -1,12 +1,14 @@
 import { Logger } from '@coderline/alphatab/Logger';
 import { AccentuationType } from '@coderline/alphatab/model/AccentuationType';
 import { BeatSubElement } from '@coderline/alphatab/model/Beat';
+import { Clef } from '@coderline/alphatab/model/Clef';
 import { Duration } from '@coderline/alphatab/model/Duration';
 import { GraceType } from '@coderline/alphatab/model/GraceType';
 import { HarmonicType } from '@coderline/alphatab/model/HarmonicType';
 import { TechniqueSymbolPlacement } from '@coderline/alphatab/model/InstrumentArticulation';
 import { MusicFontSymbol } from '@coderline/alphatab/model/MusicFontSymbol';
 import { type Note, NoteSubElement } from '@coderline/alphatab/model/Note';
+import { Ottavia } from '@coderline/alphatab/model/Ottavia';
 import { PercussionMapper } from '@coderline/alphatab/model/PercussionMapper';
 import { PickStroke } from '@coderline/alphatab/model/PickStroke';
 import type { ICanvas } from '@coderline/alphatab/platform/ICanvas';
@@ -33,6 +35,7 @@ import { StringNumberContainerGlyph } from '@coderline/alphatab/rendering/glyphs
 import type { ScoreBarRenderer } from '@coderline/alphatab/rendering/ScoreBarRenderer';
 import type { ScoreBeatContainerGlyph } from '@coderline/alphatab/rendering/ScoreBeatContainerGlyph';
 import { BeamDirection } from '@coderline/alphatab/rendering/utils/BeamDirection';
+import { AccidentalHelper } from '@coderline/alphatab/rendering/utils/AccidentalHelper';
 import { BeamingHelper } from '@coderline/alphatab/rendering/utils/BeamingHelper';
 import type { BeatBounds } from '@coderline/alphatab/rendering/utils/BeatBounds';
 import { ElementStyleHelper } from '@coderline/alphatab/rendering/utils/ElementStyleHelper';
@@ -134,7 +137,7 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
     }
 
     public applyRestCollisionOffset() {
-        if (!this.restGlyph || !this.container.beat.isRestVisible) {
+        if (!this.restGlyph || !this.container.beat.isRestVisible || this.container.beat.restDisplayStep !== null) {
             return;
         }
         if (Number.isNaN(this._collisionOffset)) {
@@ -315,13 +318,35 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
             steps -= 2;
         }
 
+        const displayStep = this.container.beat.restDisplayStep;
+        if (displayStep !== null) {
+            const clef = sr.bar.getClefAt(this.container.beat.displayStart);
+            steps = AccidentalHelper.calculateNoteSteps(clef === Clef.Neutral ? Clef.G2 : clef, {
+                octave: Math.floor(displayStep / 7),
+                degree: displayStep % 7,
+                accidentalOffset: 0,
+                chroma: 0
+            });
+            // Rest display coordinates follow the current octave clef, not
+            // instrument transposition or a separate beat ottava direction.
+            // MusicXML interprets percussion as ordinary G4 treble instead.
+            if (clef !== Clef.Neutral) {
+                switch (sr.bar.getClefOttavaAt(this.container.beat.displayStart)) {
+                    case Ottavia._15ma: steps += 14; break;
+                    case Ottavia._8va: steps += 7; break;
+                    case Ottavia._8vb: steps -= 7; break;
+                    case Ottavia._15mb: steps -= 14; break;
+                }
+            }
+        }
+
         const restGlyph = new ScoreRestGlyph(0, sr.getScoreY(steps), this.container.beat.duration);
         this.restGlyph = restGlyph;
         restGlyph.beat = this.container.beat;
         this.addNormal(restGlyph);
 
         if (this.renderer.bar.isMultiVoice) {
-            if (this.container.beat.voice.index === 0) {
+            if (this.container.beat.voice.index === 0 || displayStep !== null) {
                 const restSizes = BeamingHelper.computeLineHeightsForRest(this.container.beat.duration);
                 const restTop = restGlyph.y - sr.getScoreHeight(restSizes[0]);
                 const restBottom = restGlyph.y + sr.getScoreHeight(restSizes[1]);

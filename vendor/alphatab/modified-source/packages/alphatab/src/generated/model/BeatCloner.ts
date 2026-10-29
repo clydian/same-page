@@ -28,6 +28,7 @@ export class BeatCloner {
         clone.sourceFermata = original.sourceFermata ? FermataCloner.clone(original.sourceFermata) : null;
         clone.isLegatoOrigin = original.isLegatoOrigin;
         clone.isRestVisible = original.isRestVisible;
+        clone.restDisplayStep = original.restDisplayStep;
         clone.duration = original.duration;
         clone.isLetRing = original.isLetRing;
         clone.isPalmMute = original.isPalmMute;
