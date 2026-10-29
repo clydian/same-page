@@ -25,7 +25,7 @@ export async function connectionBoundary(request: Request, env: Env, ctx: WaitUn
   if (origin) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Access-Control-Allow-Credentials", "true");
-    headers.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Disposition, X-Score-Version, X-Same-Page-Request-Id, X-Same-Page-Build, X-Same-Page-Entry-Conflict");
+    headers.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Disposition, X-Score-Version, X-Attachment-Revision, X-Same-Page-Request-Id, X-Same-Page-Build, X-Same-Page-Entry-Conflict");
   }
   if (request.method === "OPTIONS") {
     const wanted = request.headers.get("Access-Control-Request-Headers")?.toLowerCase().split(",").map(value => value.trim()).filter(Boolean) ?? [];

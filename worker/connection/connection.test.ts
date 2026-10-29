@@ -145,10 +145,12 @@ it('has credentialed exact-origin CORS, rejects missing/untrusted mutation origi
   const streamed = await connectionBoundary(range, bindings, ctx(), async adapted => {
     expect(adapted.url).toBe(`${origins.backup}/api/choirs/id/file`);
     expect(adapted.headers.get('range')).toBe('bytes=0-127');
-    return new Response(new Uint8Array(128), { status: 206, headers: { 'content-range': 'bytes 0-127/1000', 'x-score-version': 'version' } });
+    return new Response(new Uint8Array(128), { status: 206, headers: { 'content-range': 'bytes 0-127/1000', 'x-score-version': 'version', 'x-attachment-revision': '1' } });
   });
   expect(streamed.status).toBe(206);
   expect(streamed.headers.get('access-control-expose-headers')).toContain('X-Score-Version');
+  expect(streamed.headers.get('access-control-expose-headers')).toContain('X-Attachment-Revision');
+  expect(streamed.headers.get('x-attachment-revision')).toBe('1');
   expect((await streamed.arrayBuffer()).byteLength).toBe(128);
   expect((await worker.fetch(request, { ...bindings, CONNECTIONS_ENABLED: 'false' }, ctx())).status).toBe(404);
 });

@@ -239,7 +239,11 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
     const response = await attachmentFetch(`${url}${url.includes('?') ? '&' : '?'}revision=${fresh.revision}`, { signal });
     signal.throwIfAborted();
     if (!response.ok) throw new SettingsRequestError(response.status);
-    if (response.headers.get('X-Attachment-Revision') !== String(fresh.revision)) throw new Error('附件已更新，请从附件列表重新打开。');
+    const revision = response.headers.get('X-Attachment-Revision');
+    // A missing/hidden or malformed header cannot prove that the attachment changed.
+    // It also cannot authorize accepting bytes or falling back to an old original.
+    if (!revision || !/^[1-9]\d*$/.test(revision) || !Number.isSafeInteger(Number(revision))) throw new Error('暂时无法校验附件版本，请检查连接后重试。');
+    if (revision !== String(fresh.revision)) throw new Error('附件已更新，请从附件列表重新打开。');
     const bytes = await readOriginal(response, fresh.sizeBytes, signal, report);
     if (bytes.byteLength !== fresh.sizeBytes) throw new Error('musicxml_size_mismatch');
     if (access) await boundedFinalAccessGuard(access, signal, localAbort);

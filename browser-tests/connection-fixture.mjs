@@ -12,7 +12,7 @@ export async function startConnectionFixture({ invite = false } = {}) {
   const temporary = await mkdtemp(path.join(tmpdir(), 'same-page-connections-'));
   let fixture;
   const servers = [];
-  const network = { directBroken: false, backupBroken: false, loseUploadResponse: false, uploads: 0, traffic: [], admissionFaults: { direct: null, backup: null } };
+  const network = { directBroken: false, backupBroken: false, loseUploadResponse: false, uploads: 0, traffic: [], admissionFaults: { direct: null, backup: null }, attachmentFault: null };
   try {
     execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', path.join(temporary, 'key.pem'), '-out', path.join(temporary, 'cert.pem'), '-days', '1', '-subj', '/CN=*.127.0.0.1.nip.io'], { stdio: 'ignore' });
     const tls = { key: await readFile(path.join(temporary, 'key.pem')), cert: await readFile(path.join(temporary, 'cert.pem')) };
@@ -45,6 +45,15 @@ export async function startConnectionFixture({ invite = false } = {}) {
           const resultHeaders = Object.fromEntries(upstream.headers);
           delete resultHeaders['set-cookie']; delete resultHeaders['transfer-encoding'];
           if (resultHeaders['content-encoding']) { delete resultHeaders['content-encoding']; delete resultHeaders['content-length']; }
+          // Inject transport/protocol failures after the real Worker has served
+          // the synthetic attachment. Successful responses retain real CORS.
+          if (request.method === 'GET' && /\/attachments\/[^/]+\/file$/.test(pathname) && network.attachmentFault) {
+            const fault = network.attachmentFault;
+            if (fault === 'hidden') resultHeaders['access-control-expose-headers'] = resultHeaders['access-control-expose-headers'].split(',').filter(value => value.trim().toLowerCase() !== 'x-attachment-revision').join(',');
+            else if (fault === 'missing') delete resultHeaders['x-attachment-revision'];
+            else if (fault === 'changed') resultHeaders['x-attachment-revision'] = String(Number(resultHeaders['x-attachment-revision']) + 1);
+            else if (typeof fault === 'number') { await upstream.body?.cancel(); response.writeHead(fault, { ...resultHeaders, 'content-length': '0' }); response.end(); return; }
+          }
           const cookies = upstream.headers.getSetCookie();
           if (cookies.length) resultHeaders['set-cookie'] = cookies;
           if (fault === 'body') {
