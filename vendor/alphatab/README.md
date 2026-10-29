@@ -64,3 +64,5 @@ JSON／生成的 clone 传递可选显示字段；旧 JSON 缺字段时默认 nu
 初始 `clef-octave-change=2` 的枚举同时从误用的15mb改为15ma，与既有 timed 路径一致。修正该显示谱号枚举也会纠正此特殊输入的音头显示八度；输入音符 realValue、播放事件和时序不变。模型、JSON字段与旧默认休止路径不变。
 
 当前源码定向休止测试50通过、1个外部谱probe跳过，覆盖 G/F ±1/2八度、两布局、时点变更、percussion、独立transpose/ottava、旧JSON/clone及MIDI。旧20的1885/64/1是历史控制结果，不能当成22的全套结果；新22固定制品、完整原生与产品/Worker门槛由后续构建验证补齐，不在源码测试阶段宣称完成。
+
+最终native22制品源提交 `a320a5478087ba88f4940ac2faaaf2eb4d0638a3`，包SHA256 `ed80b5cf6bac013604aaf33b755c826be3811232987895486f02badaf42f1537`。完整原生1910通过、64失败、1跳过，失败逐名精确等于native20已知64项，无新增；不称全套绿色。最终安装包player356、产品typecheck和生产构建通过，真实Chrome renderer Worker分页/横向均完成110小节、333字段传输，无Worker错误；v28全曲8456MIDI事件和110边界均精确等于native19的r10准备结果。全曲源谱验收与耳听不由这些工程门槛替代，最终head CI/部署另行确认。
