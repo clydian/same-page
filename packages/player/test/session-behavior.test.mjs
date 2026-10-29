@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { AlphaTabApiBase } from '@coderline/alphatab';
+import { AlphaTabApiBase, model } from '@coderline/alphatab';
 import { playbackTempo } from '../dist/practice-tempo.js';
 import { playbackMeasureLabels } from '../dist/playback-measures.js';
 import { ScoreFollowSession, isPointerDrag } from '../dist/score-follow.js';
@@ -17,8 +17,8 @@ function harness(options = {}) {
  globalThis.Worker = class { constructor() { worker=this;workerCount++; } terminate() {this.terminated=true;} postMessage(bytes) {this.bytes=bytes;} };
  globalThis.MutationObserver = class { constructor(fn) {observer=this;this.notify=fn;} observe() {} disconnect() {this.disconnected=true;} };
  const event = () => {const listeners=[];return {on(fn){listeners.push(fn);},emit(value){listeners.forEach(fn=>fn(value));}};};
- const api = {settings:{player:{}},renderer:{partialRenderFinished:event()},isReadyForPlayback:options.playbackReady !== false,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),soundFontLoad:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},updateSettings(){},};
- const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation,playbackTempo,()=>[]);
+ const api = {settings:{player:{},display:{resources:{mainGlyphColor:"black",secondaryGlyphColor:"black",staffLineColor:"gray",barSeparatorColor:"black",scoreInfoColor:"black",barNumberColor:"gray"}}},renderer:{partialRenderFinished:event()},isReadyForPlayback:options.playbackReady !== false,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),soundFontLoad:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},render(){},updateSettings(){},};
+ const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation,playbackTempo,()=>[]);
  const element={getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){},querySelector(){return null;}};
  const session = create(element,new Uint8Array([1]),options);
  if(worker) worker.onmessage({data:{prepared:{bytes:new Uint8Array([1])}}});
@@ -373,4 +373,23 @@ test('a stalled attempt still ends at the extended deadline and ignores late rea
   await Promise.resolve();t.mock.timers.tick(180000);assert.equal(h.session.getSnapshot().status,'error');
   h.api.isReadyForPlayback=true;h.api.playerReady.emit();assert.equal(h.session.getSnapshot().status,'error');
  } finally {h.dispose();}
+});
+
+
+test('notation theme changes render resources without resetting practice state or reparsing source', () => {
+ const h=harness();try {
+  h.session.speed(.8); h.session.mix(0,{muted:true}); h.session.solfege(false);
+  const before=h.session.getSnapshot(), colors={...h.api.settings.display.resources};
+  let renders=0;h.api.render=()=>renders++;
+  h.session.notationTheme('inverted');
+  assert.equal(h.api.settings.display.resources.mainGlyphColor.r,230);
+  assert.strictEqual(h.session.getSnapshot(),before);
+  assert.equal(renders,1);
+  h.session.notationTheme('inverted');assert.equal(renders,1);
+  h.session.notationTheme('original');
+  assert.deepEqual(h.api.settings.display.resources,colors);
+  assert.strictEqual(h.session.getSnapshot(),before);
+  assert.equal(h.workerCount,1);
+  h.session.dispose();h.session.notationTheme('inverted');assert.equal(renders,2);
+ }finally{h.dispose();}
 });

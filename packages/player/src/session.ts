@@ -25,6 +25,8 @@ export interface PlayerSession {
   rhythm(value: { metronome?: boolean; countIn?: boolean; volume?: number }): void;
   mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
   notationScale(value: number): void;
+  /** Display only; keeps the existing playback and source model. */
+  notationTheme?(theme: "original" | "inverted"): void;
   solfege(visible: boolean, part?: number | null): void;
   focus(id: number | null): void; focusOther(volume: number): void; follow(): void; suspendFollow(): void;
   /** Preview a notation range, scrolling to index without seeking audio. Null cancels. */
@@ -71,6 +73,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: false,
       scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
   });
+  const originalColors = { ...api.settings.display.resources };
+  let notationTheme = "original";
   api.masterVolume = .72;
   api.metronomeVolume = 0; api.countInVolume = 0;
   let pendingCountIn = false;
@@ -500,6 +504,16 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       api.updateSettings();
       update({ notationScale });
       api.render();
+    },
+    notationTheme(theme) {
+      if (disposed || theme === notationTheme) return;
+      notationTheme = theme;
+      const resources = api.settings.display.resources;
+      for (const key of ['mainGlyphColor', 'secondaryGlyphColor', 'staffLineColor', 'barSeparatorColor', 'scoreInfoColor', 'barNumberColor'] as const) {
+        resources[key] = theme === 'inverted' ? new alphaTab.model.Color(230, 230, 230) : originalColors[key];
+      }
+      captureAnchor(); api.updateSettings();
+      if (api.score) api.render();
     },
     solfege(visible, part) { if (!disposed && (part === undefined || part === null || state.parts.some(item => item.id === part))) {
       update({ solfege: visible, solfegePart: part === undefined ? state.solfegePart : part }); renderDegrees();

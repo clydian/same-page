@@ -7,26 +7,26 @@
 .about-identity h2 { font-size: 2rem; letter-spacing: .04em; line-height: 1.2; margin: 0; }
 .about-tagline { grid-column: 1 / -1; font-size: 1.25rem; line-height: 1.6; margin: 1.5rem 0 .25rem; letter-spacing: -.025em; }
 .about-identity > .support-muted { grid-column: 1 / -1; margin: 0; }
-.support-update { padding: 1.5rem; background: var(--brand-soft); border: 1px solid #d4e2dc; border-radius: 1rem; }
+.support-update { padding: 1.5rem; background: var(--brand-soft); border: 1px solid var(--ui-line, #d4e2dc); border-radius: 1rem; }
 .support-update-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; color: var(--brand); font-size: .75rem; line-height: 1.5; }
 .support-update-meta > span:last-child { font-variant-numeric: tabular-nums; }
 .support-update h2 { font-size: 1.25rem; margin: 1.25rem 0 .5rem; letter-spacing: -.02em; }
 .support-update-message { margin: 0 0 1.25rem; font-size: .875rem; line-height: 1.7; }
-.support-update-hint { color: #526c68; font-size: .8rem; line-height: 1.75; margin: 1rem 0 0; }
+.support-update-hint { color: var(--ui-muted, #526c68); font-size: .8rem; line-height: 1.75; margin: 1rem 0 0; }
 .support-update button:disabled { cursor: default; opacity: .6; }
-.support-update .primary-button { min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--brand); border-radius: 999px; background: var(--brand); color: white; font: inherit; cursor: pointer; }
+.support-update .primary-button { min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--brand); border-radius: 999px; background: var(--brand-fill, var(--brand)); color: white; font: inherit; cursor: pointer; }
 .support-links { margin: 1.75rem 0 0; }
 .support-links a { display: flex; gap: 1rem; align-items: center; padding: 1rem .25rem; min-height: 64px; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
 .support-links a > svg:first-child { color: var(--brand); flex-shrink: 0; }
 .support-links a > svg:last-child { color: var(--muted); flex-shrink: 0; }
 .support-links a > span { flex: 1; font-size: .9375rem; }
 .support-links small { display: block; color: var(--muted); font-size: .8rem; margin-top: .25rem; }
-.support-links a:hover { color: var(--brand); background: #eef3f0; }
+.support-links a:hover { color: var(--brand); background: var(--ui-surface, #eef3f0); }
 .support-details { margin-top: 1.25rem; color: var(--muted); font-size: .8125rem; line-height: 1.8; }
 .support-details summary { display: list-item; cursor: pointer; min-height: 44px; padding: .65rem 0; }
 .support-details a { color: var(--brand); text-underline-offset: 3px; }
 .support-details pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; }
-.support-update .support-details { border-top: 1px solid #cbdcd4; margin-top: 1rem; padding-top: .25rem; }
+.support-update .support-details { border-top: 1px solid var(--ui-line, #cbdcd4); margin-top: 1rem; padding-top: .25rem; }
 .support-recovery-link { display: inline-block; color: var(--brand); font-size: .875rem; margin-top: 1rem; text-underline-offset: 3px; }
 .support-text-button { border: 0; padding: .5rem 0; min-height: 44px; background: transparent; color: var(--brand); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .support-intro { margin-bottom: 2rem; }
@@ -34,16 +34,16 @@
 .support-intro > p:last-child { color: var(--muted); line-height: 1.8; font-size: .9375rem; margin-bottom: 0; }
 .diagnostic-report-form > label { display: block; font-size: .9375rem; font-weight: 600; }
 .diagnostic-report-form textarea { line-height: 1.7; resize: vertical; }
-.diagnostic-report-form textarea::placeholder { color: #7c8a8b; font-size: .875rem; }
+.diagnostic-report-form textarea::placeholder { color: var(--ui-muted, #7c8a8b); font-size: .875rem; }
 .diagnostic-report-form > .diagnostic-hint { font-size: .8rem; line-height: 1.8; margin: .5rem 0; }
 .diagnostic-privacy-note { padding-top: 1rem; margin: 0; color: var(--muted); font-size: .8125rem; line-height: 1.8; }
 .diagnostic-report-form .diagnostics-actions { margin: 1rem 0; }
-.diagnostic-report-form .diagnostic-send { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .75rem 1.5rem; border-radius: 999px; background: var(--brand); color: white; border-color: var(--brand); cursor: pointer; }
-.diagnostic-report-form .diagnostic-send:hover:enabled { background: var(--brand-strong); }
+.diagnostic-report-form .diagnostic-send { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .75rem 1.5rem; border-radius: 999px; background: var(--brand-fill, var(--brand)); color: white; border-color: var(--brand); cursor: pointer; }
+.diagnostic-report-form .diagnostic-send:hover:enabled { background: var(--brand-fill-hover, var(--brand-strong)); }
 .diagnostic-details { border-top: 1px solid var(--line); padding-top: .5rem; margin-top: 1.75rem; }
 .diagnostic-details textarea { font-family: ui-monospace, monospace; font-size: .75rem; }
 .diagnostic-utilities button { font-size: .8125rem; cursor: pointer; }
-.diagnostic-receipt { padding: 1.25rem; margin: 1.25rem 0; border: 1px solid #cbdcd4; border-radius: .75rem; background: var(--brand-soft); font-size: .875rem; line-height: 1.8; }
+.diagnostic-receipt { padding: 1.25rem; margin: 1.25rem 0; border: 1px solid var(--ui-line, #cbdcd4); border-radius: .75rem; background: var(--brand-soft); font-size: .875rem; line-height: 1.8; }
 .diagnostic-receipt > svg { color: var(--brand); }
 .diagnostic-receipt h3 { margin: .5rem 0; font-size: 1.0625rem; }
 .diagnostic-receipt p { margin: .5rem 0; }
@@ -71,8 +71,8 @@
 .release-channel-options button[aria-pressed="true"] > small { color: var(--brand); }
 .release-channel-options button:disabled { opacity: .6; cursor: default; }
 .release-channel-note, .release-channel-caution { margin: .75rem 0 0; color: var(--muted); font-size: .8125rem; line-height: 1.7; }
-.release-channel-caution { color: #755018; }
-.release-channel-error p { margin: .75rem 0 0; color: #9b302a; font-size: .8125rem; line-height: 1.7; }
+.release-channel-caution { color: var(--ui-warning, #755018); }
+.release-channel-error p { margin: .75rem 0 0; color: var(--ui-danger, #9b302a); font-size: .8125rem; line-height: 1.7; }
 .release-channel-error .support-text-button { padding: .25rem 0; font-size: .8125rem; }
 .app-version-status { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
 .app-version-status h3 { margin: 0 0 .5rem; font-size: 1rem; }

@@ -30,6 +30,6 @@
 
 `npx vitest run --config vitest.node.config.ts scripts/vite-server.test.js scripts/process-lifecycle.test.js`覆盖准备/启动期间持续占用、停止释放、并行隔离、显式冲突不伤及所有者、真实子进程错误17及清理前证据、HTTP/cookie/128KiB数据/单向FIN/升级二进制与连接清理。
 
-全量Node196项、lint、构建/typecheck/precache本地通过。系统Chromium154的真实Worker/D1/R2浏览器重启离线、已认证批注保存与离线/在途编辑，以及通过与CI相同globalSetup运行的隐私页pending/handoff/原footer三条路径通过。固定Chromium151/WebKit及全套负载以draft PR最终head CI为准，不以本地154替代。
+全量Node196项、lint、构建/typecheck/precache本地通过。系统Chromium154的真实Worker/D1/R2浏览器重启离线、已认证笔记保存与离线/在途编辑，以及通过与CI相同globalSetup运行的隐私页pending/handoff/原footer三条路径通过。固定Chromium151/WebKit及全套负载以draft PR最终head CI为准，不以本地154替代。
 
 修正只针对已证明的端口分配竞态，不宣称消除了所有外部runner资源故障或其他独立测试波动。原main失败run保持原样；恢复线上发布不在此draft修正的授权范围内。

@@ -6,7 +6,7 @@
 
 回归先覆盖失败行为，再修正：真实 auth client 的顶部刷新、503 后留在原页恢复、本机校验错误、signed-out/local-error/hidden 状态的 online 事件；ReaderSession 的文档未就绪与文档已就绪后本机校验阻塞；PDF Worker 未就绪与文件首字节等待；未知文件总量、共享 lease、销毁后的回调、替换失败后保留原谱面的完成状态；诊断回执丢失和 Worker 回滚组合。
 
-打开进度保持原 PDF.js streaming/Range 路径。`PDFWorker.promise` 完成后才进入文件阶段，`onProgress` 提供字节计数，当前页呈现确认才结束打开。未知总量无百分比，加载 100% 不等于离线副本已完整校验。没有用户存储 schema、乐谱文件、批注或 outbox 的迁移。
+打开进度保持原 PDF.js streaming/Range 路径。`PDFWorker.promise` 完成后才进入文件阶段，`onProgress` 提供字节计数，当前页呈现确认才结束打开。未知总量无百分比，加载 100% 不等于离线副本已完整校验。没有用户存储 schema、乐谱文件、笔记或 outbox 的迁移。
 
 ## 验证方式
 

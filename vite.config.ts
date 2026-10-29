@@ -125,7 +125,7 @@ export default defineConfig(({ isPreview, command }) => {
       manifest: {
         name: "合谱 · Same Page",
         short_name: "合谱",
-        description: "合唱乐谱与排练批注",
+        description: "合唱乐谱与排练笔记",
         theme_color: "#014653",
         background_color: "#ffffff",
         display: "standalone",

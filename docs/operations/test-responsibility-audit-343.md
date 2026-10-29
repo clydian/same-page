@@ -176,7 +176,7 @@ B5 的笔记节点身份保留、C 的 Clipper 洞/岛映射和隐藏 canvas CSS
 | `visual-report/reader-annotation-stability.test.mjs` | 保留 | ADR-0010 明确要求切工具保留笔记节点及归一化几何，不是 React 的库承诺。 |
 | `visual-report/reader-canvas-layering.test.mjs` | 保留 | 应用 CSS 可能覆盖 hidden 导致旧 canvas 遮住新画布；elementFromPoint 验证实际遮挡，不只是属性快照 |
 | `visual-report/reader-experience.test.mjs` | 删除部分 | B8：删除重复 landscape fit 与写旧 safe-area 变量后期待原尺寸的测试；reader-settlement/reader-immersive 保障实际几何和安全区。 |
-| `visual-report/reader-immersive.test.mjs` | 改写 | 缩放交接检查纸面/笔记中心与字号比例，移除变换预览与提交字号后文字边缘完全相等的约束； 删除 2 个精确惯性场景，换 1 个触点按下期间的原生滚动集成检查；保留原生 pinch、错位/编辑锁页与 safe-area；真实批注 pinch 取代手拼 HTML 预览比较；删除圆角断言 |
+| `visual-report/reader-immersive.test.mjs` | 改写 | 缩放交接检查纸面/笔记中心与字号比例，移除变换预览与提交字号后文字边缘完全相等的约束； 删除 2 个精确惯性场景，换 1 个触点按下期间的原生滚动集成检查；保留原生 pinch、错位/编辑锁页与 safe-area；真实笔记 pinch 取代手拼 HTML 预览比较；删除圆角断言 |
 | `visual-report/reader-mobile-editing.test.mjs` | 保留 | 同一阅读器 resize 取代 7 次重开；保留可达/不重叠/触控区域、编辑和双击回归；删除 12px、中心点对齐和 textarea rows/overflow 实现 |
 | `visual-report/reader-navigation.test.mjs` | 改写 | A3：只保留横向 native touch 到实际翻页；纵向原生触摸由 reader-immersive 保障，删除惯性距离/事件取消探针。 |
 | `visual-report/reader-opening.test.mjs` | 删除 | A1/B1：半流字节门禁撤掉；routes/reader-opening.test.tsx 验证真实页面进度和绘制交接。 |

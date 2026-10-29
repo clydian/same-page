@@ -1,0 +1,143 @@
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { after, before, test } from 'node:test';
+import { chromium, webkit, expect } from '@playwright/test';
+import { startProductionPreview } from './production-preview.mjs';
+import { createVisualFixtureSession } from './fixtures.mjs';
+import { practiceMusicXml } from './practice-fixture.mjs';
+let server;
+before(async () => { server = await startProductionPreview(); }, { timeout: 240000 });
+after(async () => { await server?.stop(); });
+for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}: appearance preferences, PDF/annotation separation and live practice rendering`, { timeout: 180000 }, async t => {
+  const browser = await engine.launch({ headless: true });
+  let completed = false;
+  const networkErrors = [];
+  // This suite mocks business APIs. A controlling WebKit service worker can
+  // bypass page.route and reach the unseeded preview backend; real PWA/offline
+  // behavior belongs to browser-tests/musicxml-offline.test.mjs.
+  const page = await browser.newPage({ viewport: { width: 820, height: 1180 }, hasTouch: true, colorScheme: 'light', locale: 'zh-CN', serviceWorkers: 'block' });
+  t.after(async () => {
+    if (!completed) {
+      console.error(name, 'appearance network errors', networkErrors);
+      console.error(name, 'appearance failure', page.url(), await page.locator('body').innerText().catch(() => 'unavailable'));
+      await page.screenshot({ path: `artifacts/verification/appearance/${name}-failure.png`, fullPage: true }).catch(() => {});
+      if (await page.getByText('更多帮助', { exact: true }).isVisible()) {
+        await page.getByText('更多帮助', { exact: true }).click();
+        await page.getByRole('button', { name: '反馈问题', exact: true }).click();
+        console.error(name, 'appearance diagnostic', await page.locator('#diagnostic-report').inputValue().catch(() => 'unavailable'));
+      }
+    }
+    await browser.close();
+  });
+  page.on('requestfailed', request => networkErrors.push({ path: new URL(request.url()).pathname, error: request.failure()?.errorText }));
+  page.on('response', response => { if (response.status() >= 400) networkErrors.push({ path: new URL(response.url()).pathname, status: response.status() }); });
+  page.on('console', message => { if (message.type() === 'error') networkErrors.push({ console: message.text() }); });
+  page.on('pageerror', error => console.error(name, 'appearance page error', String(error)));
+  page.setDefaultTimeout(10000);
+  const fixture = createVisualFixtureSession({ id: `reader-practice-appearance-${name}`, practiceXml: practiceMusicXml, buildId: server.buildId });
+  await page.route('**/api/**', async route => {
+    const request = route.request();
+    await route.fulfill(fixture.resolve({ pathname: new URL(request.url()).pathname, method: request.method(), identity: 'member', cookie: request.headers().cookie ?? '' }));
+  });
+  await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
+  await page.goto(`${server.origin}/choirs/visual-choir`);
+  await page.getByRole('button', { name: '我的', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: '外观', exact: true })).toHaveAttribute('href', '/appearance');
+  await page.getByRole('menuitem', { name: '外观', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '外观', level: 1 })).toBeVisible();
+  await page.getByRole('radio', { name: '深色', exact: true }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-paper-theme', 'soft');
+  await page.getByRole('radio', { name: '深色界面下的谱面：反色' }).check();
+  await page.getByRole('radio', { name: '跟随反色' }).check();
+  await page.reload();
+  // Catch fixture leakage even if the cached identity still lets the UI render.
+  assert.equal(await page.evaluate(async () => (await (await fetch('/api/auth/get-session')).json())?.user?.id), 'visual-user-member');
+  await expect(page.getByRole('radio', { name: '深色', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: '深色界面下的谱面：反色' })).toBeChecked();
+  await mkdir('artifacts/verification/appearance', { recursive: true });
+  await page.screenshot({ path: `artifacts/verification/appearance/${name}-settings-dark.png`, fullPage: true });
+  await page.getByRole('radio', { name: '浅色', exact: true }).check();
+  await page.screenshot({ path: `artifacts/verification/appearance/${name}-settings-light.png`, fullPage: true });
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole('radio', { name: '深色', exact: true }).check();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: `artifacts/verification/appearance/${name}-settings-mobile.png`, fullPage: true });
+  await page.setViewportSize({ width: 320, height: 740 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // Native radios retain arrow-key navigation in the visual segmented control.
+  await page.getByRole('radio', { name: '跟随系统' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('radio', { name: '浅色', exact: true })).toBeChecked();
+  await page.getByRole('radio', { name: '深色', exact: true }).check();
+  await page.setViewportSize({ width: 820, height: 1180 });
+  const set = async patch => page.evaluate(patch => {
+    const key = 'same-page:appearance:user:visual-user-member';
+    localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key)), ...patch }));
+    dispatchEvent(new StorageEvent('storage', { key }));
+  }, patch);
+  await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score`);
+  const canvas = page.locator('.page-reader__sheet[data-page-turn-current] [data-pdf-canvas-active]');
+  await canvas.waitFor();
+  await page.evaluate(() => {
+    window.appearanceCanvas = document.querySelector('.page-reader__sheet[data-page-turn-current] [data-pdf-canvas-active]');
+    window.appearanceBitmap = window.appearanceCanvas.toDataURL();
+  });
+  const before = await canvas.boundingBox();
+  await expect(canvas).toHaveCSS('filter', 'invert(0.9)');
+  const overlay = page.locator('.page-reader__sheet[data-page-turn-current] .annotation-overlay > svg');
+  await expect(overlay).toHaveCSS('filter', 'invert(0.9)');
+  await page.screenshot({ path: `artifacts/verification/appearance/${name}-pdf-inverted.png` });
+  await set({ invertAnnotations: false });
+  await expect(overlay).toHaveCSS('filter', 'none');
+  await set({ darkPaper: 'original' });
+  await expect(canvas).toHaveCSS('filter', 'none');
+  await set({ darkPaper: 'soft' });
+  await expect(canvas).toHaveCSS('filter', 'brightness(0.86) sepia(0.08)');
+  assert.deepEqual(await canvas.boundingBox(), before);
+  assert.ok(await page.evaluate(() => window.appearanceCanvas === document.querySelector('.page-reader__sheet[data-page-turn-current] [data-pdf-canvas-active]') && window.appearanceCanvas.toDataURL() === window.appearanceBitmap), 'theme preserves both the canvas and original pixel data');
+  // System changes choose the other stored paper preference without rebuilding the reader.
+  await set({ interfaceTheme: 'system' });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(canvas).toHaveCSS('filter', 'none');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(canvas).toHaveCSS('filter', 'brightness(0.86) sepia(0.08)');
+  await page.locator('.page-reader__viewport').click();
+  await expect(page.getByRole('button', { name: '返回云盘', exact: true })).toHaveCSS('background-color', 'rgb(32, 47, 42)');
+  await expect(page.locator('.reader-playback-entry')).toHaveCSS('background-color', 'rgba(32, 47, 42, 0.96)');
+  await page.getByRole('button', { name: '更多', exact: true }).click();
+  await expect(page.getByRole('link', { name: '外观设置', exact: true })).toHaveAttribute('href', '/appearance');
+  await expect(page.getByRole('dialog', { name: '更多阅读选项' })).toHaveCSS('background-color', 'rgb(32, 47, 42)');
+  await page.getByRole('button', { name: '关闭更多阅读选项' }).click();
+  await page.getByRole('button', { name: '练习谱', exact: true }).click();
+  await page.getByRole('button', { name: '声部练习版.musicxml', exact: true }).click();
+  await page.locator('.practice-notation[data-visible] .at-surface').waitFor();
+  await expect(page.getByRole('button', { name: '播放', exact: true })).toBeEnabled();
+  const notation = page.locator('.practice-notation-paper');
+  await expect(notation).toHaveCSS('background-color', 'rgb(217, 219, 209)');
+  await page.getByRole('button', { name: '调节速度', exact: true }).click();
+  await page.getByRole('button', { name: '速度减少 0.01 倍' }).click();
+  await page.getByRole('button', { name: '关闭速度调节' }).click();
+  await set({ darkPaper: 'inverted' });
+  await expect(page.getByRole('button', { name: '调节速度', exact: true })).toHaveText('0.99×');
+  await expect(notation).toHaveCSS('background-color', 'rgb(26, 26, 26)');
+  await expect.poll(() => page.locator('.at-surface [fill="#E6E6E6"]').count()).toBeGreaterThan(0);
+  await expect(page.getByRole('button', { name: '播放', exact: true })).toBeEnabled();
+  await page.screenshot({ path: `artifacts/verification/appearance/${name}-practice-inverted.png` });
+  await page.getByRole('button', { name: '显示谱面', exact: true }).click();
+  await page.locator('.practice-view-option').filter({ hasText: '对照' }).click();
+  const comparison = page.locator('.practice-comparison-pdf');
+  await expect(comparison.locator('[data-pdf-canvas-active]').first()).toHaveCSS('filter', 'invert(0.9)');
+  await expect(comparison.locator('.reader-page-indicator')).toHaveCSS('background-color', 'rgba(32, 47, 42, 0.91)');
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await expect(page.getByRole('button', { name: '播放', exact: true })).toBeVisible();
+  await set({ darkPaper: 'original' });
+  await expect(notation).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await page.goto(`${server.origin}/user`);
+  await expect(page.getByRole('heading', { name: '账户', level: 1 })).toBeVisible();
+  await expect(page.locator('.appearance-settings')).toHaveCount(0);
+  // A new identity/experience never inherits the member's explicit choices.
+  await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score?experience=1`);
+  await expect(page.locator('html')).toHaveAttribute('data-paper-theme', 'soft');
+  await expect(page.locator('html')).toHaveAttribute('data-invert-annotations', 'false');
+  completed = true;
+});

@@ -1,3 +1,4 @@
+import { clearUserAppearance } from "../appearance/appearance-store";
 import { membershipSnapshotKey } from "../score-library/membership-directory";
 import { isMusicXmlFileKey } from "../platform/musicxml-files";
 import { isAttachmentDirectoryKey } from "../score-library/attachments/attachment-directory";
@@ -146,5 +147,6 @@ export async function clearPrivateLocalDataAfterLogout() {
       for (const score of nextOfflineScores) await storeOfflineScore(score);
     },
   );
+  clearUserAppearance(ownerKey.slice("user:".length));
   await clearCurrentAuthenticatedLocalOwner();
 }

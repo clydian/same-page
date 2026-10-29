@@ -4,7 +4,7 @@
 .offline-score-button[data-focus-visible] { outline: 2px solid var(--brand); outline-offset: 2px; }
 .offline-score-button[data-disabled] { opacity: .55; }
 .offline-score-control[data-state="ready"] { color: var(--muted); }
-.offline-score-control[data-state="error"], .offline-score-control[data-state="stale"] { color: #9a5612; }
+.offline-score-control[data-state="error"], .offline-score-control[data-state="stale"] { color: var(--ui-warning, #9a5612); }
 .offline-score-check { position: absolute; right: 9px; top: 9px; border-radius: 50%; background: var(--surface, white); stroke-width: 3; }
 .offline-score-control[data-state="downloading"] .offline-score-button > svg { animation: offline-score-spin 1s linear infinite; }
 .offline-score-tooltip { max-width: min(18rem, calc(100vw - 2rem)); padding: .45rem .65rem; border-radius: .4rem; background: var(--ink); color: white; font-size: .8rem; }

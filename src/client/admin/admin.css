@@ -190,8 +190,8 @@
   z-index: 2;
 }
 .admin-page p[role="alert"] {
-  color: #9b302a;
-  background: #fcf0ec;
+  color: var(--ui-danger, #9b302a);
+  background: var(--ui-surface, #fcf0ec);
   padding: 0.8rem;
   border-radius: 0.4rem;
 }
@@ -328,10 +328,10 @@
 .diagnostic-inbox-filters label { display: grid; align-items: start; min-width: 0; font-size: .85rem; }
 .diagnostic-inbox-filters select { width: 100%; }
 .diagnostic-inbox-filters input { width: 100%; min-height: 44px; box-sizing: border-box; }
-.diagnostic-inbox-description { padding: 1.25rem; border-left: 3px solid #014653; background: #f8f6f0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
-.diagnostic-inbox-id { color: #657572; overflow-wrap: anywhere; font-size: .85rem; }
+.diagnostic-inbox-description { padding: 1.25rem; border-left: 3px solid var(--ui-accent, #014653); background: var(--ui-surface, #f8f6f0); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.diagnostic-inbox-id { color: var(--ui-muted, #657572); overflow-wrap: anywhere; font-size: .85rem; }
 .diagnostic-inbox-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem; margin-block: 1.5rem; }
-.diagnostic-inbox-facts dt { color: #657572; font-size: .8rem; }
+.diagnostic-inbox-facts dt { color: var(--ui-muted, #657572); font-size: .8rem; }
 .diagnostic-inbox-facts dd { margin: .25rem 0 0; overflow-wrap: anywhere; }
 .diagnostic-inbox-payload { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; line-height: 1.6; }
 .diagnostic-inbox-filters button, .admin-actions button { min-height: 44px; }
@@ -364,8 +364,8 @@
 .release-admin-details code { font-size: .75rem; }
 .release-admin-actions { gap: .75rem; margin: 0; }
 .release-admin-actions .primary-button, .release-admin-actions .secondary-button { min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--line); border-radius: .65rem; font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; touch-action: manipulation; }
-.release-admin-actions .primary-button { color: white; background: var(--brand); border-color: var(--brand); }
-.release-admin-actions .primary-button:hover:enabled { background: var(--brand-strong); }
+.release-admin-actions .primary-button { color: white; background: var(--brand-fill, var(--brand)); border-color: var(--brand); }
+.release-admin-actions .primary-button:hover:enabled { background: var(--brand-fill-hover, var(--brand-strong)); }
 .release-admin-actions .secondary-button { color: var(--ink); background: var(--surface); }
 .release-admin-actions .secondary-button:hover:enabled { background: var(--brand-soft); }
 .release-admin-actions button:disabled { cursor: default; opacity: .55; }

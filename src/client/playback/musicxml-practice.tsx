@@ -1,3 +1,4 @@
+import { useAppearance } from "../appearance/appearance-context";
 import {
   useEffect,
   useState,
@@ -55,6 +56,9 @@ export function MusicXmlPractice({
   embedded?: boolean;
   onReady?(ready: boolean): void;
 }) {
+  const { preferences, dark } = useAppearance();
+  const paper = dark ? preferences.darkPaper : preferences.lightPaper;
+  useEffect(() => { session?.notationTheme?.(paper === "inverted" ? "inverted" : "original"); }, [session, paper]);
   const state = useSyncExternalStore(
     session?.subscribe ?? noSubscribe,
     session?.getSnapshot ?? initialSnapshot,

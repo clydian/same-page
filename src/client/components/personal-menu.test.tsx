@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { PersonalMenu } from './personal-menu';
@@ -16,7 +16,7 @@ afterEach(() => {
 
 it.each([
   { label: 'outside a drive', drive: undefined, driveLinks: [] },
-  { label: 'inside a drive', drive: { choirId: 'drive-a', choirName: '排练云盘', localOnly: false }, driveLinks: [
+  { label: 'inside a drive', drive: { choirId: 'drive-a', choirName: '排练云盘', displayName: '云盘昵称', localOnly: false }, driveLinks: [
     ['阅读偏好', '/choirs/drive-a/preferences'], ['本机存储', '/choirs/drive-a/storage'],
   ] },
   { label: 'with membership identity management', drive: { choirId: 'drive-a', choirName: '排练云盘', localOnly: false, canManageIdentity: true }, driveLinks: [
@@ -24,9 +24,19 @@ it.each([
   ] },
 ])('routes personal actions in their correct scope $label', async ({ drive, driveLinks }) => {
   vi.stubGlobal('fetch', vi.fn(async () => Response.json(capabilities)));
-  render(<MemoryRouter><PersonalMenu drive={drive} /></MemoryRouter>);
+  render(<MemoryRouter><PersonalMenu email="reader@example.invalid" drive={drive} /></MemoryRouter>);
   fireEvent.click(screen.getByRole('button', { name: '我的' }));
-  const links = [...driveLinks, ['账户', '/user'], ['关于与更新', '/about']];
+  const appGroup = screen.getByRole('group', { name: /应用设置/ });
+  expect(screen.queryByText('reader@example.invalid')).toBeNull();
+  expect(screen.queryByText('云盘昵称')).toBeNull();
+  expect(within(appGroup).getByRole('menuitem', { name: '账户' })).toHaveAttribute('href', '/user');
+  if (drive) {
+    const driveGroup = screen.getByRole('group', { name: /当前云盘/ });
+    expect(within(driveGroup).queryByText(drive.choirName)).toBeNull();
+    expect(within(driveGroup).getByRole('menuitem', { name: '阅读偏好' })).toHaveAttribute('href', `/choirs/${drive.choirId}/preferences`);
+    expect(within(appGroup).queryByRole('menuitem', { name: '阅读偏好' })).toBeNull();
+  } else expect(screen.queryByRole('group', { name: /当前云盘/ })).toBeNull();
+  const links = [...driveLinks, ['账户', '/user'], ['外观', '/appearance'], ['关于与更新', '/about']];
   for (const [name, href] of links) {
     expect(screen.getByRole('menuitem', { name: name === '关于与更新' ? /^关于与更新/ : name })).toHaveAttribute('href', href);
   }
@@ -91,4 +101,12 @@ it('rereads permissions when reopening the menu after authority is revoked', asy
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   await act(async () => undefined);
   expect(screen.queryByRole('menuitem', { name: '产品后台' })).toBeNull();
+});
+
+it('keeps experience appearance separate when opening its independent entry', () => {
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json(capabilities)));
+  render(<MemoryRouter initialEntries={['/choirs/preview/scores/score?experience=1']}><PersonalMenu /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: '我的' }));
+  expect(screen.getByRole('menuitem', { name: '外观' })).toHaveAttribute('href', '/appearance?experience=1');
+  expect(screen.getByRole('menuitem', { name: '账户' })).toHaveAttribute('href', '/user');
 });
