@@ -2048,6 +2048,7 @@ Map {
                       "__kind" => "Beat",
                       "id" => 0,
                       "hassourcefermatascope" => true,
+                      "restdisplaystep" => 36,
                       "duration" => 16,
                       "automations" => [
                         Map {
@@ -2698,6 +2699,7 @@ Map {
                       "__kind" => "Beat",
                       "id" => 26,
                       "hassourcefermatascope" => true,
+                      "restdisplaystep" => 36,
                       "duration" => 16,
                       "automations" => [
                         Map {

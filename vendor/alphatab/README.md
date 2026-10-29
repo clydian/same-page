@@ -1,6 +1,6 @@
 # Same Page alphaTab 维护
 
-日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.19.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
+日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.20.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
 
 ## 修改并重建
 
@@ -11,7 +11,7 @@
 使用 Node 24，修改 `modified-source/` 后，在仓库根目录执行：
 
 ```sh
-npm run build:native -- --version 1.8.4-samepage.19 --output /tmp/same-page-native-19
+npm run build:native -- --version 1.8.4-samepage.21 --output /tmp/same-page-native-21
 ```
 
 命令从固定公开上游建立独立临时 Git checkout，应用补丁和当前覆盖层，提交源码快照，再构建并打包。它只访问公开 alphaTab 和 npm，不访问 Chorus。输出目录必须为空，临时 checkout 保留供检查和原生测试；路径打印在输出中。运行 checkout 内与修改相关的原生测试，再运行完整原生测试。打包成功不代表测试通过。
@@ -45,4 +45,14 @@ npm run build:native -- --version 1.8.4-samepage.19 --output /tmp/same-page-nati
 
 原生 synth 按分母拍打高／低木鱼拍声，首拍重音、复拍子三拍分组次重音。MIDI 每个小节写入拍号元数据，使弱起和反复后的拍点重置在真实小节边界；小节内变速按同一时间轴重新计算拍点。
 预备拍读取寻址目标（含边界同刻的拍号与速度），暂停时重置预备序列并保留主音乐位置。`PositionChangedEventArgs` 新增预备拍次、总拍数、序号与完成标记；Worker 原样传递，谱面游标不跟随预备的独立 tick。会话据序号隔离连续寻址的旧回调。
-新增 `PracticeRhythm` 实际 sequencer/synth 回归；更新 MIDI 装饰音测试对重复小节元数据的处理及变更拍声的 PCM 参考。完整原生测试与未修改基线均有同样的 64 个视觉基线失败，当前 1860 项通过（基线 1857），无新增失败。相关 68 项音频测试全部通过。
+新增 `PracticeRhythm` 实际 sequencer/synth 回归；更新 MIDI 装饰音测试对重复小节元数据的处理及变更拍声的 PCM 参考。完整原生测试与未修改基线均有同样的 64 个既有基线失败，当前 1860 项通过（基线 1857），无新增失败。相关 68 项音频测试全部通过。
+
+## samepage.20：保留原谱休止符显示位置 · #559
+
+MusicXML `<rest>` 的完整 `display-step`／`display-octave` 通过 `Beat.restDisplayStep` 保留为显示用自然音级坐标（C0=0、E4=30）。按 [W3C display-step 定义](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/display-step/) 使用休止当时的谱号定位；percussion 谱号按 treble 解释，不套用调号、发声移调或八度线。显式位置保留原休止和独立声部，不交给自动碰撞算法移位或合并；无位置、位置不完整或无效时沿用默认布局。
+
+JSON／生成的 clone 传递可选显示字段；旧 JSON 缺字段时默认 null，旧客户端可忽略新字段。只改显示，不改音符、时值、力度、MIDI 或小节边界。11 种默认休止的 SVG 与 MIDI／位置 JSON 已和 native19 逐字节核对一致；原谱明确位置的休止会按源声明改变显示，不能把这种变化当默认布局回归。
+
+完整原生测试为 **1885 通过、64 失败、1 跳过**。这 64 项与原候选失败名单逐名一致，仅移除了本次三项已解释的预期差异，包含 62 项既有视觉参考失败及两项 AlphaTex round-trip 来源元数据差异；不代表完整测试绿色。只更新了 `partwise-staff-change` 的两处源 D5 坐标快照及 `02b-Rests-PitchedRests`、`22d-Parenthesized-Noteheads` 两张经源文件和实际图核对的参考图，没有放宽比较器或全量接受 golden。最终制品仍需按上文流程通过实际播放器准备链、Worker 双布局和产品回归。
+
+保留 native19 及更早固定制品、已公开源码档案与许可证；此次构建的旧控制产物也保留在独立目录，不以新包替换历史来源。后续修改从新的空输出目录构建并递增版本，示例使用下一版本 `.21`。

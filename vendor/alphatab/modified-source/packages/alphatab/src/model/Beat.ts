@@ -347,6 +347,13 @@ export class Beat {
     public isRestVisible: boolean = true;
 
     /**
+     * Authored rest position as a diatonic staff coordinate: C0=0, D0=1,
+     * C1=7. Interpreted with the clef at this beat, without a sounding pitch,
+     * key signature, transposition or ottava. Null retains automatic placement.
+     */
+    public restDisplayStep: number | null = null;
+
+    /**
      * Gets or sets the duration of this beat.
      */
     public duration: Duration = Duration.Quarter;

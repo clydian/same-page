@@ -62,6 +62,7 @@ export class BeatSerializer {
         }
         o.set("islegatoorigin", obj.isLegatoOrigin);
         o.set("isrestvisible", obj.isRestVisible);
+        o.set("restdisplaystep", obj.restDisplayStep);
         o.set("duration", obj.duration as number);
         o.set("automations", obj.automations.map(i => AutomationSerializer.toJson(i)));
         o.set("dots", obj.dots);
@@ -161,6 +162,9 @@ export class BeatSerializer {
                 return true;
             case "isrestvisible":
                 obj.isRestVisible = v! as boolean;
+                return true;
+            case "restdisplaystep":
+                obj.restDisplayStep = v as number | null;
                 return true;
             case "duration":
                 obj.duration = JsonHelper.parseEnum<Duration>(v, Duration)!;

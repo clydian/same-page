@@ -33,6 +33,7 @@ import { StringNumberContainerGlyph } from '@coderline/alphatab/rendering/glyphs
 import type { ScoreBarRenderer } from '@coderline/alphatab/rendering/ScoreBarRenderer';
 import type { ScoreBeatContainerGlyph } from '@coderline/alphatab/rendering/ScoreBeatContainerGlyph';
 import { BeamDirection } from '@coderline/alphatab/rendering/utils/BeamDirection';
+import { AccidentalHelper } from '@coderline/alphatab/rendering/utils/AccidentalHelper';
 import { BeamingHelper } from '@coderline/alphatab/rendering/utils/BeamingHelper';
 import type { BeatBounds } from '@coderline/alphatab/rendering/utils/BeatBounds';
 import { ElementStyleHelper } from '@coderline/alphatab/rendering/utils/ElementStyleHelper';
@@ -134,7 +135,7 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
     }
 
     public applyRestCollisionOffset() {
-        if (!this.restGlyph || !this.container.beat.isRestVisible) {
+        if (!this.restGlyph || !this.container.beat.isRestVisible || this.container.beat.restDisplayStep !== null) {
             return;
         }
         if (Number.isNaN(this._collisionOffset)) {
@@ -315,13 +316,23 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
             steps -= 2;
         }
 
+        const displayStep = this.container.beat.restDisplayStep;
+        if (displayStep !== null) {
+            steps = AccidentalHelper.calculateNoteSteps(sr.bar.getClefAt(this.container.beat.displayStart), {
+                octave: Math.floor(displayStep / 7),
+                degree: displayStep % 7,
+                accidentalOffset: 0,
+                chroma: 0
+            });
+        }
+
         const restGlyph = new ScoreRestGlyph(0, sr.getScoreY(steps), this.container.beat.duration);
         this.restGlyph = restGlyph;
         restGlyph.beat = this.container.beat;
         this.addNormal(restGlyph);
 
         if (this.renderer.bar.isMultiVoice) {
-            if (this.container.beat.voice.index === 0) {
+            if (this.container.beat.voice.index === 0 || displayStep !== null) {
                 const restSizes = BeamingHelper.computeLineHeightsForRest(this.container.beat.duration);
                 const restTop = restGlyph.y - sr.getScoreHeight(restSizes[0]);
                 const restBottom = restGlyph.y + sr.getScoreHeight(restSizes[1]);
