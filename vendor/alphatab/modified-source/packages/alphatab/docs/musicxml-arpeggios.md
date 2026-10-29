@@ -46,9 +46,14 @@ this change; normal pre-note spacing determines the wave's horizontal position.
 ## Playback policy and bounds
 
 Source notation specifies pitch order, not milliseconds. The engine uses the
-existing AlphaTex arpeggio fraction: shortest member beat duration divided by
-the count of distinct sounding pitches, spread evenly across those pitches.
-The span is bounded by each member's sounding duration. Equal-pitch heads share
+proportional fraction (shortest member beat duration divided by the count of
+distinct sounding pitches), capped at one sixteenth in aggregate
+(`MidiUtils.QuarterTime / 4`, currently 240 ticks), spread evenly across those
+pitches. This is an explicit product default, not a tempo or millisecond value
+read from the original score. Long sustained harmonies therefore arrive within
+one sixteenth; shorter rolls are not stretched up to the cap. The span remains
+bounded by each member's sounding duration. Legacy AlphaTex/stringed brush
+fractions and durations are unchanged. Equal-pitch heads share
 an onset. Cue notes and continuations whose tie origin sounds on the active
 repeat traversal do not retrigger or consume roll positions. Conditional ties
 remain governed by the generator's existing eligibility rules.
@@ -78,6 +83,8 @@ certification or a listening test.
 hidden chord continues to play every authored head. However the existing
 `Beat.finish` marks an entirely invisible beat empty, and empty voices can be
 skipped by MIDI generation. This pre-existing all-hidden/staff behavior is not
-corrected or certified here. Legal hidden XML cases preserve complete MIDI
-events and bounds from the independently frozen c177 baseline; their visual
-waves now use visible heads and choose a visible owner or paint nothing.
+corrected or certified here. The visibility-only stage preserved complete MIDI
+from the independently frozen c177 baseline. The later aggregate-cap policy
+transforms only its source-defined attack/reset ticks to derive independent
+current expectations; all other MIDI fields and bounds remain protected. Their
+visual waves use visible heads and choose a visible owner or paint nothing.

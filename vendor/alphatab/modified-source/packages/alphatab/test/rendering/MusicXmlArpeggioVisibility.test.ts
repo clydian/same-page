@@ -8,20 +8,21 @@ import { ScoreRenderer } from '@coderline/alphatab/rendering/ScoreRenderer';
 import { NoteVibratoGlyph } from '@coderline/alphatab/rendering/glyphs/NoteVibratoGlyph';
 import type { Score } from '@coderline/alphatab/model/Score';
 
-// Independently frozen from the committed c177 source in a separate checkout.
-// These hashes cover the complete MIDI events, all fields and timeline bounds.
+// Derived independently from frozen c177 full MIDI with the explicit 240-tick
+// aggregate source-roll policy; only attack/reset ticks change. No revised output
+// was used to produce these complete-event/field/bounds expectations.
 const baseline: Record<string, { xml: string; midi: string }> = {
     first: {
         xml: 'cb109bfc16c9981e9f619f94e03702e9ca9a89a88ce50fdcf44f69037802baeb',
-        midi: '939d919b925c6187120a4a797673836b20d304ba8fcc6672a241729ca68b2a6e'
+        midi: '916d64bc3df354d32f7c1123bd88118b935f12637b478d9a1c99248591e7d589'
     },
     extreme: {
         xml: '1727d50b44005aac709017cb5474ebc902727a64468c84b5f467933832e3c17d',
-        midi: '939d919b925c6187120a4a797673836b20d304ba8fcc6672a241729ca68b2a6e'
+        midi: '916d64bc3df354d32f7c1123bd88118b935f12637b478d9a1c99248591e7d589'
     },
     'first-staff': {
         xml: '241e4ead547412aed1696b79a6eeb683b2429c78de42dd445244c4027bd8df91',
-        midi: '7c49260e984dea5b58ca94bd65ce8268fb2be958681c455478e8fbb71d0e5494'
+        midi: '3850a4fd33a0b9db80ff21fc4508811bfcc584c2c942ca1ab9fec4b45b3df580'
     },
     all: {
         xml: '8d731f479f7804096c60e9a36bd6669fabdef7480bacc8ec30d05b7a66328362',
@@ -80,7 +81,7 @@ for (const mode of [LayoutMode.Page, LayoutMode.Horizontal]) {
             expect(hash(JSON.stringify(before))).toBe(baseline[kind].midi);
             // A partially hidden chord still sounds every authored member. Entirely
             // hidden voices have an existing empty-voice playback limitation; this
-            // visual fix preserves their exact c177 playback, without endorsing it.
+            // visual fix preserves their exact independently derived playback, without endorsing it.
             if (kind === 'first' || kind === 'extreme') {
                 expect(before).toEqual(midi(load(original)));
             }

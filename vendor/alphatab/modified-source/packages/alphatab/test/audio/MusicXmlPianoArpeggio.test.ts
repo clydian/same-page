@@ -175,3 +175,40 @@ it('orders synthetic five-head and four-head grand-staff shapes used by source a
         }
     }
 });
+
+for (const shape of ['three-head-whole', 'four-head-whole', 'four-head-cross-staff-whole']) {
+    it(`caps aggregate source roll at one sixteenth, ${shape}`, () => {
+        let xml = source('', shape.includes('cross-staff'));
+        xml = xml
+            .replaceAll(/<note><rest\/>.*?<\/note>/g, '')
+            .replaceAll('<duration>2</duration>', '<duration>4</duration>')
+            .replaceAll('<type>half</type>', '<type>whole</type>');
+        if (shape === 'four-head-whole') {
+            const upper = xml.match(/<note><chord\/><pitch><step>G<\/step>.*?<\/note>/)![0];
+            xml = xml.replace(upper, upper + upper.replace('<step>G</step>', '<step>B</step>'));
+        } else if (shape.includes('cross-staff')) {
+            xml = xml.replace(/<note><chord\/><pitch><step>G<\/step><octave>2<\/octave>.*?<\/note>/, '');
+        }
+        const actual = midi(load(xml));
+        const plain = midi(load(xml.replaceAll(/<arpeggiate[^>]*\/>/g, '')));
+        const ticks = actual.on.map(note => note.tick);
+        expect(Math.max(...ticks) - Math.min(...ticks)).toBe(240);
+        expect(actual.off).toEqual(plain.off);
+        expect(actual.bounds).toEqual(plain.bounds);
+        expect(actual.on.map(event => ({ ...event, tick: 0 }))).toEqual(plain.on.map(event => ({ ...event, tick: 0 })));
+    });
+}
+it('does not extend a short authored roll up to the aggregate cap', () => {
+    const xml = source()
+        .replace('<divisions>1</divisions>', '<divisions>4</divisions>')
+        .replaceAll('<type>half</type>', '<type>eighth</type>')
+        .replace(
+            '<rest/><duration>2</duration><voice>1</voice><type>eighth</type>',
+            '<rest/><duration>14</duration><voice>1</voice><type>half</type><dot/><dot/>'
+        );
+    const actual = midi(load(xml));
+    const plain = midi(load(xml.replaceAll(/<arpeggiate[^>]*\/>/g, '')));
+    expect(actual.on.map(note => note.tick)).toEqual([0, 80, 160]);
+    expect(actual.off).toEqual(plain.off);
+    expect(actual.bounds).toEqual(plain.bounds);
+});

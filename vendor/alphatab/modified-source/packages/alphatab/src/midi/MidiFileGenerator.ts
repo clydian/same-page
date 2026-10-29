@@ -2384,10 +2384,14 @@ export class MidiFileGenerator {
         const pitches = [...new Set(members.map(pitch))].sort((a, b) => (descending ? -1 : 1) * (a - b));
         const index = pitches.indexOf(pitch(note));
         if (index < 0 || pitches.length < 2) { return 0; }
-        // Engine interpretation, not a source duration: reuse the AlphaTex arpeggio
-        // fraction (one beat duration / pitch count), bounded by every member's end.
-        // Shared unison heads retain one onset rather than inventing a repeated key.
-        let span = Math.min(...members.map(n => n.beat.playbackDuration)) / pitches.length;
+        // Product interpretation, not source timing: retain the proportional roll
+        // for short chords, but cap the entire source roll at one sixteenth so a
+        // long held harmony does not take a beat or more to arrive. Legacy brushes
+        // are unaffected. Shared unison heads retain one onset.
+        let span = Math.min(
+            MidiUtils.QuarterTime / 4,
+            Math.min(...members.map(n => n.beat.playbackDuration)) / pitches.length
+        );
         for (const member of members) {
             const duration = this._getNoteDuration(member, member.beat.playbackDuration, tempo);
             span = Math.min(span, duration.noteOnly - 1, duration.untilTieOrSlideEnd - 1);
