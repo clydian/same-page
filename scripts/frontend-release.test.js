@@ -1,4 +1,4 @@
-import { expect,it } from 'vitest';
+import { expect,it,vi } from 'vitest';
 import { assertInitialChannels, assertPrivateReleaseBucket, immutablePut, initializeReleaseChannels, preflightReleaseBucket } from './frontend-release.mjs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -176,5 +176,51 @@ it('rechecks backend identity and every sealed resource after a transient downlo
   downloads++; return new Response('wrong bytes');
  }})).rejects.toThrow('candidate resource hash mismatch: assets/example.js');
  expect(downloads).toBe(1);
- await expect(verifyOnlineFrontend({origin:'https://example.test',sha,files,fetchImpl:async () => Response.json({buildId:'other'})})).rejects.toThrow('backend deployment must verify');
+});
+
+it('waits three seconds for an old backend to become the expected build before downloading resources', async () => {
+ const {verifyOnlineFrontend} = await import('./frontend-release.mjs');
+ const {createHash} = await import('node:crypto');
+ const sha = 'a'.repeat(40), bytes = 'sealed candidate bytes', calls = [];
+ const files = {'assets/example.js': {sha256:createHash('sha256').update(bytes).digest('hex')}};
+ let healthReads = 0;
+ vi.useFakeTimers();
+ try {
+  const verification = verifyOnlineFrontend({origin:'https://example.test',sha,files,
+   sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),fetchImpl:async url => {
+   calls.push(url.pathname);
+   if (url.pathname === '/api/health') return Response.json({buildId:++healthReads === 1 ? 'b'.repeat(40) : sha});
+   return new Response(bytes);
+  }});
+  await vi.advanceTimersByTimeAsync(2_999);
+  expect(calls).toEqual(['/api/health']);
+  await vi.advanceTimersByTimeAsync(1);
+  await verification;
+  expect(calls).toEqual(['/api/health','/api/health',`/_releases/${sha}/assets/example.js`]);
+  expect(vi.getTimerCount()).toBe(0);
+ } finally { vi.useRealTimers(); }
+});
+
+it('stops after one minute of old backend responses without downloading candidate resources', async () => {
+ const {verifyOnlineFrontend} = await import('./frontend-release.mjs');
+ const calls = [];
+ vi.useFakeTimers();
+ try {
+  const verification = verifyOnlineFrontend({origin:'https://example.test',sha:'a'.repeat(40),
+   sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+   files:{'assets/example.js':{sha256:'0'.repeat(64)}},fetchImpl:async (url, init) => {
+    calls.push({path:url.pathname,signal:init.signal});
+    return Response.json({buildId:'b'.repeat(40)});
+   }});
+  const rejected = expect(verification).rejects.toThrow('Backend health before beta admission failed after 1 attempt (TimeoutError)');
+  await vi.advanceTimersByTimeAsync(59_999);
+  expect(calls).toHaveLength(20);
+  expect(calls.every(call => call.path === '/api/health')).toBe(true);
+  await vi.advanceTimersByTimeAsync(1);
+  await rejected;
+  expect(calls.every(call => call.signal.aborted)).toBe(true);
+  await vi.advanceTimersByTimeAsync(6_000);
+  expect(calls).toHaveLength(20);
+  expect(vi.getTimerCount()).toBe(0);
+ } finally { vi.useRealTimers(); }
 });

@@ -4,7 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readReleaseObject, releaseRequest } from './release-request.mjs';
+import { setTimeout as delay } from 'node:timers/promises';
+import { readReleaseObject, releaseOperation, releaseRequest } from './release-request.mjs';
 import { forEachReleaseFile } from './release-files.mjs';
 import { verifyRelease } from './release-artifact.mjs';
 import { assertStorageCompatibility } from './release-contract.mjs';
@@ -100,11 +101,26 @@ export async function stopBetaRelease({ query, expectedBeta, expectedRevision })
   assert.ok(result.results?.length === 1, 'Beta changed, already matches stable, or stable is unavailable; reread channels before retrying');
   return result.results[0];
 }
-export async function verifyOnlineFrontend({origin,sha,files,fetchImpl=fetch}) {
-  const health = await releaseRequest('Backend health before beta admission', new URL('/api/health',origin), {
-    retryRead: true, fetchImpl, read: async response => { assert.equal(response.status, 200); return response.json(); },
-  });
-  assert.equal(health.buildId,sha,'backend deployment must verify before beta admission');
+export async function verifyOnlineFrontend({origin,sha,files,fetchImpl=fetch,sleep=delay}) {
+  // A successful deployment probe does not guarantee the next request sees it.
+  // Only poll safe health reads; admission writes remain outside this deadline.
+  await releaseOperation('Backend health before beta admission', async signal => {
+    while (true) {
+      signal.throwIfAborted();
+      const health = await releaseRequest('Backend health before beta admission', new URL('/api/health',origin), {
+        retryRead: true,
+        fetchImpl: (url, init) => {
+          signal.throwIfAborted();
+          return fetchImpl(url, { ...init, signal: AbortSignal.any([signal, init.signal]) });
+        },
+        sleep: ms => sleep(ms, undefined, { signal }),
+        read: async response => { assert.equal(response.status, 200); return response.json(); },
+      });
+      signal.throwIfAborted();
+      if (health.buildId === sha) return;
+      await sleep(3_000, undefined, { signal });
+    }
+  }, { timeoutMs: 60_000 });
   await forEachReleaseFile(Object.entries(files), async ([file,entry]) => {
     const bytes = await releaseRequest(`Candidate resource ${file}`, new URL(`/_releases/${sha}/${file}`,origin), {
       init: {redirect:'error'}, retryRead: true, fetchImpl,
