@@ -1,3 +1,4 @@
+import { SourceArpeggio, SourceArpeggioDirection } from '@coderline/alphatab/model/SourceArpeggio';
 import { Logger } from '@coderline/alphatab/Logger';
 import { ControllerType } from '@coderline/alphatab/midi/ControllerType';
 import { GeneralMidi } from '@coderline/alphatab/midi/GeneralMidi';
@@ -974,12 +975,19 @@ export class MidiFileGenerator {
                 noteKey = articulation.outputMidiNumber;
             }
         }
-        const brushOffset: number =
-            rasgueadoInfo == null && note.isStringed && note.string <= brushInfo.length
-                ? brushInfo[note.string - 1]
-                : 0;
-        const noteStart: number = beatStart + brushOffset;
         const noteDuration: MidiNoteDuration = this._getNoteDuration(note, beatDuration, tempoOnBeatStart);
+        const requestedBrushOffset: number =
+            rasgueadoInfo == null && note.sourceArpeggio && !note.isStringed && !note.isPercussion
+                ? this._getSourceArpeggioOffset(note, tempoOnBeatStart)
+                : rasgueadoInfo == null && note.isStringed && note.string <= brushInfo.length
+                  ? brushInfo[note.string - 1]
+                  : 0;
+        // Source rolls may also meet swung/shortened performed beats. Never move
+        // a fresh attack beyond its own sounding endpoint; legacy brushes stay exact.
+        const brushOffset = note.sourceArpeggio && !note.isStringed && !note.isPercussion
+            ? Math.min(requestedBrushOffset, Math.max(0, noteDuration.noteOnly - 1), Math.max(0, noteDuration.untilTieOrSlideEnd - 1))
+            : requestedBrushOffset;
+        const noteStart: number = beatStart + brushOffset;
         noteDuration.untilTieOrSlideEnd -= brushOffset;
         noteDuration.noteOnly -= brushOffset;
         noteDuration.letRingEnd -= brushOffset;
@@ -2363,6 +2371,32 @@ export class MidiFileGenerator {
         }
 
         return info;
+    }
+
+    private _getSourceArpeggioOffset(note: Note, tempo: number): number {
+        const group = SourceArpeggio.members(note);
+        const direction = group.find(n => n.sourceArpeggio!.direction !== SourceArpeggioDirection.None)
+            ?.sourceArpeggio?.direction ?? SourceArpeggioDirection.None;
+        const members = group.filter(n => this._isNoteEligibleForPlayback(n) && !this._isPlayedTieDestination(n));
+        if (members.length < 2) { return 0; }
+        const descending = direction === SourceArpeggioDirection.Down;
+        const pitch = (member: Note) => member.calculateRealValue(this.applyTranspositionPitches, true);
+        const pitches = [...new Set(members.map(pitch))].sort((a, b) => (descending ? -1 : 1) * (a - b));
+        const index = pitches.indexOf(pitch(note));
+        if (index < 0 || pitches.length < 2) { return 0; }
+        // Product interpretation, not source timing: retain the proportional roll
+        // for short chords, but cap the entire source roll at one sixteenth so a
+        // long held harmony does not take a beat or more to arrive. Legacy brushes
+        // are unaffected. Shared unison heads retain one onset.
+        let span = Math.min(
+            MidiUtils.QuarterTime / 4,
+            Math.min(...members.map(n => n.beat.playbackDuration)) / pitches.length
+        );
+        for (const member of members) {
+            const duration = this._getNoteDuration(member, member.beat.playbackDuration, tempo);
+            span = Math.min(span, duration.noteOnly - 1, duration.untilTieOrSlideEnd - 1);
+        }
+        return Math.floor(Math.max(0, span) * index / (pitches.length - 1));
     }
 
     private _getBrushInfo(beat: Beat): Int32Array {

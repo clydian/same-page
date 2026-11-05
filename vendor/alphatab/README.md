@@ -1,6 +1,6 @@
 # Same Page alphaTab 维护
 
-日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.22.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
+日常开发直接使用 `vendor/coderline-alphatab-1.8.4-samepage.23.tgz`；不编译原生引擎，不需要 Chorus 或其他私有仓库。播放器源码在 `packages/player`。
 
 ## 修改并重建
 
@@ -11,7 +11,7 @@
 使用 Node 24，修改 `modified-source/` 后，在仓库根目录执行：
 
 ```sh
-npm run build:native -- --version 1.8.4-samepage.22 --output /tmp/same-page-native-22
+npm run build:native -- --version 1.8.4-samepage.24 --output /tmp/same-page-native-24
 ```
 
 命令从固定公开上游建立独立临时 Git checkout，应用补丁和当前覆盖层，提交源码快照，再构建并打包。它只访问公开 alphaTab 和 npm，不访问 Chorus。输出目录必须为空，临时 checkout 保留供检查和原生测试；路径打印在输出中。运行 checkout 内与修改相关的原生测试，再运行完整原生测试。打包成功不代表测试通过。
@@ -66,3 +66,11 @@ JSON／生成的 clone 传递可选显示字段；旧 JSON 缺字段时默认 nu
 当前源码定向休止测试50通过、1个外部谱probe跳过，覆盖 G/F ±1/2八度、两布局、时点变更、percussion、独立transpose/ottava、旧JSON/clone及MIDI。旧20的1885/64/1是历史控制结果，不能当成22的全套结果；新22固定制品、完整原生与产品/Worker门槛由后续构建验证补齐，不在源码测试阶段宣称完成。
 
 最终native22制品源提交 `a320a5478087ba88f4940ac2faaaf2eb4d0638a3`，包SHA256 `ed80b5cf6bac013604aaf33b755c826be3811232987895486f02badaf42f1537`。完整原生1910通过、64失败、1跳过，失败逐名精确等于native20已知64项，无新增；不称全套绿色。最终安装包player356、产品typecheck和生产构建通过，真实Chrome renderer Worker分页/横向均完成110小节、333字段传输，无Worker错误；v28全曲8456MIDI事件和110边界均精确等于native19的r10准备结果。全曲源谱验收与耳听不由这些工程门槛替代，最终head CI/部署另行确认。
+
+## samepage.23：钢琴MusicXML逐音琶奏与跨谱表共享线
+
+保留native22全部休止位置和谱号八度修正。MusicXML每个明确标记的音头通过SourceArpeggio模型/JSON/clone保留number、direction、unbroken；同part、同起点、同number的非拨弦/非打击乐成员分组，默认由低到高，无箭头不擅自画箭头。只明确标记一个音头不会擅自扩到全和弦。跨谱表的共同线按可见成员高度绘制，隐藏音头不决定可见线端点；unbroken=no可分开线，但共享播放组。
+
+播放默认总展开跨度为min(最短成员拍时长/不同音高数,四分音符tick/4)，并受每个发声尾点限制；是产品短琶奏解释，不是MusicXML或原谱给定毫秒。共用同音高头同刻起音，延音续头/非演奏cue不新起音，所有原音尾和小节边界保持。只后移相应noteOn与中性per-note bend reset，不影响旧拨弦brush。
+
+最终制品源提交`72e2fdee21e71190f75131f5de68b64acfd9779c`，包SHA256`8a98b721ae2bd88a957bf9e16371f45e552365c3b7c8ac22f47c892a4d6d1d6e`。完整原生1955通过、64失败、1外部probe跳过；64失败逐名等于native22/20已知集合，无新增，没有放宽比较器或直接从新输出接受期望。最终player356、typecheck和生产构建通过。实际110小节五轨谱27个成员/7组：完整8456MIDI事件仅20个起音及其20个中性reset时间改变，所有音尾/其余字段和110小节边界精确保护。235.217秒完整离线PCM有限、连续，无整秒静音块，零设备play/addSamples；不当作耳听验收。真实Worker双布局及最终head CI/部署见verification记录。旧19/20/22及已公开源码档案保持。

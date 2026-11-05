@@ -1,3 +1,4 @@
+import { SourceArpeggio, SourceArpeggioDirection } from '@coderline/alphatab/model/SourceArpeggio';
 import { ScoreImporter } from '@coderline/alphatab/importer/ScoreImporter';
 import { UnsupportedFormatError } from '@coderline/alphatab/importer/UnsupportedFormatError';
 import { IOHelper } from '@coderline/alphatab/io/IOHelper';
@@ -3772,7 +3773,7 @@ export class MusicXmlImporter extends ScoreImporter {
                     this._parseFermata(c, beat);
                     break;
                 case 'arpeggiate':
-                    this._parseArpeggiate(c, beat);
+                    this._parseArpeggiate(c, beat, note);
                     break;
                 // case 'non-arpeggiate': Not supported
                 // case 'accidental-mark': Not supported
@@ -3860,7 +3861,18 @@ export class MusicXmlImporter extends ScoreImporter {
         }
     }
 
-    private _parseArpeggiate(element: XmlNode, beat: Beat) {
+    private _parseArpeggiate(element: XmlNode, beat: Beat, note: Note | null) {
+        if (note) {
+            const source = new SourceArpeggio();
+            const number = Number.parseInt(element.getAttribute('number', '1'), 10);
+            source.number = Number.isFinite(number) && number > 0 ? number : 1;
+            source.direction = element.getAttribute('direction') === 'down' ? SourceArpeggioDirection.Down
+                : element.getAttribute('direction') === 'up' ? SourceArpeggioDirection.Up : SourceArpeggioDirection.None;
+            source.unbroken = element.getAttribute('unbroken') === 'yes' ? true
+                : element.getAttribute('unbroken') === 'no' ? false : null;
+            note.sourceArpeggio = source;
+        }
+        // Preserve the historical brush path for stringed instruments and old JSON.
         const direction = element.getAttribute('direction', 'down');
         switch (direction) {
             case 'down':
