@@ -58,7 +58,7 @@
     "d3-polygon": "^3.0.1",
     "dexie": "4.4.5",
     "dexie-react-hooks": "^4.4.0",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "hono": "^4.13.11",
     "jsqr": "1.4.0",
     "lucide-react": "^1.61.0",
