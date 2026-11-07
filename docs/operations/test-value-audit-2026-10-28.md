@@ -70,3 +70,35 @@ practice-reader-layout、practice-rhythm、practice-score-entry、practice-unifi
 
 视觉目录从 47 个文件到 46（其中 15 核心、31 扩展）；smoke 从 37 到 35（15 核心、
 20 扩展）。数量不等同用例数或节省时间，且本次 #599 新增的 sampling 已计入。
+
+
+## 2026-11-07：移除卸载时序的发布通道 browser case
+
+[#589 合并后的失败运行](https://github.com/clydian/same-page/actions/runs/42235180463/job/127951555849)
+中，`release-channel-navigation` 已进入产品后台，但最后的全局 `pageerror` 断言收到
+WebKit 的 `Context is stopped`。该测试把真实 `CacheStorage.open` 的结果扣留到
+`beforeunload` 才释放，强迫后续 receipt 读取、在线结果处理和写入与文档销毁竞争。
+
+使用同一 `release-channel.ts` bundle、合成 localhost API 和 WebKit 27.2 做隔离对照：
+扣留至卸载时 20 次中 18 次出现同一错误；保留诊断 instrumentation、但不扣留并立即硬导航时 20 次中 1 次；
+先完成 reconciliation 再导航时 20 次中 0 次。进一步跟踪显示 `Response.json` 和
+`Cache.put` 都已返回后才收到错误；提前构造 Response 的对照仍出现同一错误。
+仅在诊断 harness 中替换后续原生 `Cache.match` / `Cache.put`、保留相同卸载时序时，
+20 次中 0 次出现错误，定位到旧文档的 Cache API 关闭路径。WebKit 的
+[`DOMCache`](https://github.com/WebKit/WebKit/blob/ff29931b0c9cd2db17ca61e807cd0b22256eb80d/Source/WebCore/Modules/cache/DOMCache.cpp)
+会在操作期间文档停止时返回 `Error::Stopped`，
+[`DOMCacheEngine`](https://github.com/WebKit/WebKit/blob/ff29931b0c9cd2db17ca61e807cd0b22256eb80d/Source/WebCore/Modules/cache/DOMCacheEngine.cpp)
+将其转换为 `Context is stopped`。这个对照定位的是旧文档卸载竞争，
+不是 `@types/node` 的运行时变化，也不是新页面无法打开的证据；次数仅为本次诊断，
+不作为未来失败率估算，也不宣称本改动消除了生产代码的卸载竞争。
+
+删除该双引擎 browser case 和分片成本条目，不加入重试、延时、错误白名单或
+生产代码的卸载特判。它没有断言 release readback 的结果或持久化权限，且禁用了
+service worker；用全局「没有旧文档错误」代表发布正确性，成本高于有效保障。
+本条修正上文 10 月 28 日对该文件的核心组分类，其余历史统计保持原样。
+
+保留并加强 `release-permission.node.test.ts` 的确定性测试：receipt 尚未可读时已发起
+一次在线读取，释放存储后返回并保存服务端确认目标；读取先失败时仍保留离线版本
+归属和原有 receipt。`verify-release-channels.mjs` 的 Chromium/WebKit 实际 service
+worker 激活、跨窗口否决、Cookie 到期恢复和过期 beta 拒绝继续保留。明确放弃的是
+文档销毁边界的零错误诊断断言，不是通道权限、离线数据或新页面可用性保障。

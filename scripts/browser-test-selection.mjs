@@ -65,7 +65,6 @@ const smokeCosts = {
   "practice-score-entry": 30,
   "practice-unified-controls": 30,
   "preview-notes-smoke": 75,
-  "release-channel-navigation": 20,
   "resilient-update": 70,
   "storage-smoke": 15
 };
