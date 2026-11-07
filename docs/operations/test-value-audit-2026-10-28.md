@@ -81,10 +81,14 @@ WebKit 的 `Context is stopped`。该测试把真实 `CacheStorage.open` 的结�
 
 使用同一 `release-channel.ts` bundle、合成 localhost API 和 WebKit 27.2 做隔离对照：
 扣留至卸载时 20 次中 18 次出现同一错误；保留诊断 instrumentation、但不扣留并立即硬导航时 20 次中 1 次；
-先完成 reconciliation 再导航时 20 次中 0 次。错误前依次记录到 `beforeunload`
-和 receipt 写入使用的 `Response.json` 调用。WebKit 的
-[`FetchResponse::jsonForBindings`](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/Modules/fetch/FetchResponse.cpp)
-在所属文档已无 global object 时抛出同名异常。这个对照定位的是旧文档卸载竞争，
+先完成 reconciliation 再导航时 20 次中 0 次。进一步跟踪显示 `Response.json` 和
+`Cache.put` 都已返回后才收到错误；提前构造 Response 的对照仍出现同一错误。
+仅在诊断 harness 中替换后续原生 `Cache.match` / `Cache.put`、保留相同卸载时序时，
+20 次中 0 次出现错误，定位到旧文档的 Cache API 关闭路径。WebKit 的
+[`DOMCache`](https://github.com/WebKit/WebKit/blob/ff29931b0c9cd2db17ca61e807cd0b22256eb80d/Source/WebCore/Modules/cache/DOMCache.cpp)
+会在操作期间文档停止时返回 `Error::Stopped`，
+[`DOMCacheEngine`](https://github.com/WebKit/WebKit/blob/ff29931b0c9cd2db17ca61e807cd0b22256eb80d/Source/WebCore/Modules/cache/DOMCacheEngine.cpp)
+将其转换为 `Context is stopped`。这个对照定位的是旧文档卸载竞争，
 不是 `@types/node` 的运行时变化，也不是新页面无法打开的证据；次数仅为本次诊断，
 不作为未来失败率估算，也不宣称本改动消除了生产代码的卸载竞争。
 
