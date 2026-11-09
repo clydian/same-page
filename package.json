@@ -72,7 +72,7 @@
     "react-dom": "19.3.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.3",
-    "resend": "^6.34.1",
+    "resend": "^6.37.0",
     "unpdf": "^2.1.0",
     "zod": "4.6.2"
   },
