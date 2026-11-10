@@ -82,8 +82,8 @@ for (const [engine, type] of [
       await expect(page.getByRole("heading", { name: "账户", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: /产品后台/ })).toHaveCount(0);
       // This workflow tests admin import/publication. Settle the unrelated
-      // startup read before the hard navigation; cancellation is covered by
-      // release-channel-navigation.test.mjs, with its own controlled boundary.
+      // startup read before the hard navigation. Release readback ordering and
+      // offline attribution are covered in release-permission.node.test.ts.
       if (initialReleaseRead) {
         const response = await initialReleaseRead;
         assert.equal(response.status(), 200, "startup release read must succeed");

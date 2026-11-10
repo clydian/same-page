@@ -89,7 +89,7 @@ it('exposes an offline refresh error and clears it after a successful readback',
  expect(useReleaseChannel().error).toBe('');
 });
 
-it('starts readback before receipt storage can defer it past document navigation',async()=>{
+it('starts online readback independently of receipt storage and persists the confirmed target',async()=>{
  const cache=await caches.open('receipt');
  let finishRead!: (cache: Cache)=>void;
  const reading=new Promise<Cache>(resolve=>{finishRead=resolve;});
@@ -97,8 +97,12 @@ it('starts readback before receipt storage can defer it past document navigation
  const fetcher=vi.fn(async()=>Response.json(stable));vi.stubGlobal('fetch',fetcher);
  const refresh=refreshReleaseChannel();
  const startedBeforeStorageSettled=fetcher.mock.calls.length;
- finishRead(cache);await refresh;
+ finishRead(cache);
+ await expect(refresh).resolves.toEqual(stable);
  expect(startedBeforeStorageSettled).toBe(1);
+ expect(fetcher).toHaveBeenCalledOnce();
+ expect(fetcher).toHaveBeenCalledWith('/api/client-release',expect.objectContaining({credentials:'same-origin',cache:'no-store'}));
+ expect(await readReleaseReceipt(origin)).toEqual({confirmed:stable});
 });
 
 it('retains offline running-channel attribution when readback fails before storage settles',async()=>{
