@@ -22,6 +22,27 @@ export async function manifest(env: Env, id: string, staged = false): Promise<Re
   return parsed.success && parsed.data.buildId === id ? parsed.data : null;
 }
 
+// Only the current stable synthetic storage probe is public. No user data,
+// bucket access, arbitrary key lookup or extra persistent copy is exposed.
+export async function stableStorageBaseline(env: Env) {
+  const pointer = await channels(env);
+  const release = pointer && await manifest(env, pointer.stable);
+  if (!release || !env.FRONTEND_RELEASES) return null;
+  const readVerified = async (name: string, expected: string, maxBytes: number) => {
+    const object = await env.FRONTEND_RELEASES!.get(`releases/${release.buildId}/${name}`);
+    if (!object || object.size > maxBytes) return null;
+    const bytes = await object.arrayBuffer();
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), b => b.toString(16).padStart(2, "0")).join("");
+    return hash === expected ? new TextDecoder("utf-8", { fatal: true }).decode(bytes) : null;
+  };
+  const [storage, probe] = await Promise.all([
+    readVerified("storage.json", release.storageDigest, 512 * 1024),
+    readVerified("storage-probe.js", release.probeDigest, 2 * 1024 * 1024),
+  ]);
+  if (!storage || !probe) return null;
+  return { version: 1, buildId: release.buildId, storage, probe, storageDigest: release.storageDigest, probeDigest: release.probeDigest };
+}
+
 // Display metadata comes from the same immutable bytes as the running app.
 // Older or unavailable metadata must not prevent viewing the release catalog.
 export async function releaseVersion(env: Env, id: string): Promise<string | null> {

@@ -1,7 +1,8 @@
 {
-  "buildId": "839c6776d543201906fe871065eb19c4997b03e6",
-  "runId": 40423108394,
-  "artifactId": 12699256626,
+  "buildId": "aa604ba541364591eab4b171aff85f96a9f7742f",
+  "runId": 40797937497,
+  "artifactId": 12864467066,
+  "artifactDigest": "f9be7df7619a7f3633e76b87c8816d0e8eb71e3257cd7925b1256c68786d9862",
   "storage": {
     "contract": "same-page-storage-v15-sync-v1",
     "dexie": "4.4.5",
@@ -20,5 +21,5 @@
       "src/shared/scores.ts": "34d14b1dfaaff64851d3ec07a076c16856133e1a96705c05e4a0039e10dc78cf"
     }
   },
-  "sealDigest": "f2c3483b4d2e067e9f00a2ff1e153fbe5f7face2b1818ae77cc462f4dbddb863"
+  "sealDigest": "cf799061129961e64dc1f4eeed91a457899f509e657e84fbfb50895fba331644"
 }

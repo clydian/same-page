@@ -195,3 +195,50 @@ it('allows credential-free immutable reads only from the configured sibling orig
   }
   await waitOnExecutionContext(context);
 });
+
+async function storageBaseline(id: string) {
+  const probe = `export const sourceBuild = '${id}';`, storage = JSON.stringify({ contract: releaseContract });
+  const object = await env.FRONTEND_RELEASES!.get(`releases/${id}/sealed.json`);
+  const sealed = JSON.stringify({ ...await object!.json<Record<string, unknown>>(), probeDigest: await digest(probe), storageDigest: await digest(storage) });
+  await env.FRONTEND_RELEASES!.put(`releases/${id}/storage-probe.js`, probe);
+  await env.FRONTEND_RELEASES!.put(`releases/${id}/storage.json`, storage);
+  await env.FRONTEND_RELEASES!.put(`releases/${id}/sealed.json`, sealed);
+  await env.DB.prepare('UPDATE frontend_releases SET manifest_digest=? WHERE build_id=?').bind(await digest(sealed), id).run();
+  return { probe, storage };
+}
+
+it('serves only current stable storage bytes, following promotion without copying objects', async () => {
+  const a = await storageBaseline(A), b = await storageBaseline(B);
+  const before = (await env.FRONTEND_RELEASES!.list()).objects.map(object => object.key);
+  const response = await call('/api/release-storage-baseline', { headers: { Cookie: `same-page-channel=beta.${crypto.randomUUID()}` } });
+  expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toBe('private, no-store');
+  expect(await response.json()).toMatchObject({ version: 1, buildId: A, ...a, probeDigest: await digest(a.probe), storageDigest: await digest(a.storage) });
+  await env.DB.prepare('UPDATE release_channels SET stable=?,revision=2').bind(B).run();
+  expect(await (await call('/api/release-storage-baseline')).json()).toMatchObject({ buildId: B, ...b });
+  expect((await env.FRONTEND_RELEASES!.list()).objects.map(object => object.key)).toEqual(before);
+  expect((await call(`/_releases/${A}/storage-probe.js`)).status).toBe(404);
+  await expect((await call('/api/release-storage-baseline?buildId=' + A)).json()).resolves.toMatchObject({ buildId: B });
+});
+
+it('returns 503, not a bootstrap 404, for unavailable or corrupt stable baseline data', async () => {
+  for (const file of ['sealed.json', 'storage.json', 'storage-probe.js']) {
+    await storageBaseline(A);
+    const original = await (await env.FRONTEND_RELEASES!.get(`releases/${A}/${file}`))!.text();
+    await env.FRONTEND_RELEASES!.put(`releases/${A}/${file}`, 'tampered');
+    expect((await call('/api/release-storage-baseline')).status).toBe(503);
+    await env.FRONTEND_RELEASES!.put(`releases/${A}/${file}`, original);
+  }
+  await storageBaseline(A);
+  await env.FRONTEND_RELEASES!.delete(`releases/${A}/storage-probe.js`);
+  expect((await call('/api/release-storage-baseline')).status).toBe(503);
+  await storageBaseline(A);
+  await env.FRONTEND_RELEASES!.put(`releases/${A}/storage-probe.js`, 'x'.repeat(2 * 1024 * 1024 + 1));
+  expect((await call('/api/release-storage-baseline')).status).toBe(503);
+  await storageBaseline(A);
+  await env.DB.prepare('UPDATE frontend_releases SET ready=0 WHERE build_id=?').bind(A).run();
+  expect((await call('/api/release-storage-baseline')).status).toBe(503);
+  await env.DB.prepare('UPDATE frontend_releases SET ready=1,manifest_digest=? WHERE build_id=?').bind('0'.repeat(64), A).run();
+  expect((await call('/api/release-storage-baseline')).status).toBe(503);
+  await env.DB.prepare('DELETE FROM release_channels').run();
+  expect((await call('/api/release-storage-baseline')).status).toBe(503);
+});

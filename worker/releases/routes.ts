@@ -4,7 +4,7 @@ import { readContextSession } from "../auth/context-session";
 import { AuthorizationError } from "../auth/authorization";
 import { buildId } from "../../src/shared/build";
 import { releaseContract, releaseSelectionSchema, releasePromotionSchema } from "../../src/shared/release-channels";
-import { channels, manifest, preference, releaseDB, compatibilityReady, releaseVersion, extendedVerification } from "./catalog";
+import { channels, manifest, preference, releaseDB, compatibilityReady, releaseVersion, extendedVerification, stableStorageBaseline } from "./catalog";
 export const releaseRoutes = new Hono<AppEnvironment>();
 releaseRoutes.use("*", async (c, next) => { c.header("Cache-Control", "private, no-store"); await next(); });
 async function operator(c: Context<AppEnvironment>) {
@@ -14,6 +14,11 @@ async function operator(c: Context<AppEnvironment>) {
   if (!granted) throw new AuthorizationError();
   return auth;
 }
+releaseRoutes.get("/release-storage-baseline", async c => {
+  // Missing/corrupt data is 503, never the absent-route 404 used by the bridge.
+  const baseline = await stableStorageBaseline(c.env).catch(() => null);
+  return baseline ? c.json(baseline) : c.json({ error: "release_unavailable" }, 503);
+});
 releaseRoutes.get("/client-release", async c => {
   const pointer = await channels(c.env);
   if (!pointer) return c.json({ error: "release_unavailable" }, 503);
