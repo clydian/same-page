@@ -33,7 +33,7 @@ export async function stableStorageBaseline(env: Env) {
     if (!object || object.size > maxBytes) return null;
     const bytes = await object.arrayBuffer();
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), b => b.toString(16).padStart(2, "0")).join("");
-    return hash === expected ? new TextDecoder("utf-8", { fatal: true }).decode(bytes) : null;
+    return hash === expected ? new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes) : null;
   };
   const [storage, probe] = await Promise.all([
     readVerified("storage.json", release.storageDigest, 512 * 1024),
