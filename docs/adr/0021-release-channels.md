@@ -60,13 +60,20 @@ listed in `scripts/release-contract.mjs`, plus Dexie and Zod versions. It does n
 server migrations. This replaces the original transitive-source fingerprint, which
 also rejected harmless UI changes. Existing sealed artifacts remain immutable;
 comparison can read the same boundary entries from an older broad inventory.
-A private probe built from each sealed artifact also runs actual draft/queue/push/pull
+A synthetic probe built from each sealed artifact also runs actual draft/queue/push/pull
 mergers and a Blob/outbox/conflict/owner fixture through stable → beta → stable → beta
 in isolated Chromium and WebKit persistent profiles. The report binds both probe
 digests and the current stable target; beta admission and stable promotion require
 this recorded proof. The probes use parsed protocol responses; SQL/API validation
-remains in the Worker integration suite. Neither the private probes nor reports are
-served through the frontend file inventory.
+remains in the Worker integration suite. Neither the probes nor reports are served through the frontend file inventory.
+PR CI can read only the current stable probe and contract through the narrow
+public `/api/release-storage-baseline` endpoint. It verifies both original objects
+against the D1-verified manifest, ignores channel cookies and returns no user data.
+This deliberately makes the current stable synthetic test code public, not the
+bucket, historical objects or compatibility reports. Stable promotion changes the
+source atomically through its existing pointer; no mirror, copy, updater or cleanup
+job is needed. Deployment still rechecks the actual current stable under its lock.
+See [the CI baseline runbook](../operations/storage-ci-baseline.md).
 
 Beta admission compares those boundaries against the actual stable artifact and
 requires the artifact round trip above. UI changes, compatible backend changes and

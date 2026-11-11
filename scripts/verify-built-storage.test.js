@@ -44,3 +44,68 @@ it('rejects a different baseline source, workflow run, or storage boundary', asy
     await assert.rejects(readReviewedStorageProbe(directory, { ...reviewed, ...change }), /baseline source mismatch|baseline run mismatch|storage compatibility changed/);
   });
 });
+
+// The permanent source is current stable, never a build-specific Actions URL.
+async function reviewedBaseline() {
+  return JSON.parse(await readFile(new URL('./release-storage-baseline.json', import.meta.url), 'utf8'));
+}
+async function liveBaseline(buildId = 'b'.repeat(40)) {
+  const reviewed = await reviewedBaseline();
+  const storage = JSON.stringify(reviewed.storage), probe = `export const sourceBuild = '${buildId}';`;
+  return { version: 1, buildId, storage, probe, storageDigest: hash(storage), probeDigest: hash(probe) };
+}
+const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status });
+
+it('reads the replacement stable automatically and sends no credentials', async () => {
+  const { readStableStorageProbe } = await import('./verify-built-storage.mjs');
+  const reviewed = await reviewedBaseline();
+  for (const buildId of ['b'.repeat(40), 'c'.repeat(40)]) {
+    const result = await readStableStorageProbe({ reviewed, fetchImpl: async (url, options) => {
+      assert.equal(url.href, 'https://samepage.clyapps.com/api/release-storage-baseline');
+      assert.equal(options.credentials, 'omit'); assert.equal(options.redirect, 'error');
+      assert.equal(options.cache, 'no-store'); assert.equal(options.headers, undefined);
+      return jsonResponse(await liveBaseline(buildId));
+    } });
+    assert.equal(result.id, buildId); assert.equal(result.source, 'current-stable');
+  }
+});
+
+it('uses the original bootstrap bytes only for an absent route and the exact current stable', async () => {
+  const { readStableStorageProbe } = await import('./verify-built-storage.mjs');
+  const reviewed = await reviewedBaseline();
+  const result = await readStableStorageProbe({ reviewed, fetchImpl: async url =>
+    url.pathname.endsWith('/client-release')
+      ? jsonResponse({ channel: 'stable', target: reviewed.buildId, contract: reviewed.storage.contract })
+      : jsonResponse({ error: 'not_found' }, 404),
+  });
+  assert.equal(result.id, reviewed.buildId); assert.equal(result.source, 'bootstrap');
+  assert.equal(result.bytes.length, 1103154);
+});
+
+it('fails closed for corrupt live data and never falls back on outages or HTTP errors', async () => {
+  const { readStableStorageProbe } = await import('./verify-built-storage.mjs');
+  const reviewed = await reviewedBaseline();
+  for (const change of [{ version: 2 }, { buildId: 'bad' }, { probe: 'tampered' }, { storage: '{}' }, { storageDigest: '0'.repeat(64) }]) {
+    await assert.rejects(readStableStorageProbe({ reviewed, fetchImpl: async () => jsonResponse({ ...await liveBaseline(), ...change }) }));
+  }
+  for (const status of [401, 403, 429, 500, 503]) {
+    let calls = 0;
+    await assert.rejects(readStableStorageProbe({ reviewed, fetchImpl: async () => { calls++; return jsonResponse({}, status); } }), /unavailable/);
+    assert.equal(calls, 1);
+  }
+  await assert.rejects(readStableStorageProbe({ reviewed, fetchImpl: async () => { throw new Error('timeout'); } }), /timeout/);
+  await assert.rejects(readStableStorageProbe({ reviewed, fetchImpl: async () => jsonResponse({ error: 'release_unavailable' }, 404) }), /unexpected baseline 404/);
+  await assert.rejects(readStableStorageProbe({ reviewed, fetchImpl: async () => jsonResponse({ huge: 'x'.repeat(4 * 1024 * 1024) }) }), /too large/);
+});
+
+it('refuses the bootstrap after stable promotion, beta selection or unverifiable state', async () => {
+  const { readStableStorageProbe } = await import('./verify-built-storage.mjs');
+  const reviewed = await reviewedBaseline();
+  const selection = { channel: 'stable', target: reviewed.buildId, contract: reviewed.storage.contract };
+  for (const change of [{ target: 'b'.repeat(40) }, { channel: 'beta' }, { contract: 'changed' }]) {
+    await assert.rejects(readStableStorageProbe({ reviewed, fetchImpl: async url => url.pathname.endsWith('/client-release')
+      ? jsonResponse({ ...selection, ...change }) : jsonResponse({ error: 'not_found' }, 404) }));
+  }
+  await assert.rejects(readStableStorageProbe({ reviewed, fetchImpl: async url => url.pathname.endsWith('/client-release')
+    ? jsonResponse({}, 503) : jsonResponse({ error: 'not_found' }, 404) }), /cannot verify bootstrap/);
+});
