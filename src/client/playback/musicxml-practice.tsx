@@ -122,7 +122,7 @@ export function MusicXmlPractice({
         ready={ready}
         playing={state.playing || Boolean(state.countInBeats)}
         preparation={session ? state.loadingProgress : preparation && preparation.loaded !== undefined && preparation.total !== undefined ? { loaded: preparation.loaded, total: preparation.total } : undefined}
-        message={error ?? (!session && preparation ? preparation.message : state.countInBeats ? `预备：${state.countInBeat} / ${state.countInBeats}` : state.message)}
+        message={error ?? (!session && preparation ? preparation.message : state.countInBeats ? `预备：${state.countInBeat} / ${state.countInBeats}` : state.message || state.audioHint)}
         failed={Boolean(error) || state.status === "error"}
         timeline={{
           value: state.measure,

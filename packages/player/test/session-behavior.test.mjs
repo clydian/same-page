@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { AlphaTabApiBase, model } from '@coderline/alphatab';
+import { playbackAudioSession } from '../dist/playback-audio-session.js';
 import { playbackTempo } from '../dist/practice-tempo.js';
 import { playbackMeasureLabels } from '../dist/playback-measures.js';
 import { ScoreFollowSession, isPointerDrag } from '../dist/score-follow.js';
 import { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from '../dist/musicxml-direction-timing.js';
 // Exercise the shipped session against deterministic engine/Worker adapters.
 const compiled = (await readFile(new URL('../dist/session.js', import.meta.url),'utf8')).replace(/^(?:import|export \{).*$/mg,'').replace('export function createPlayerSession','function createPlayerSession').replace(/new URL\([^\n]+import.meta.url\)/,'"prepare.worker.js"');
-const factory = new Function('createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabels','isCompatibleMusicXmlPreparation','playbackTempo','readMusicXmlTempoMeasures',compiled+'\nreturn createPlayerSession;');
+const factory = new Function('createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabels','isCompatibleMusicXmlPreparation','playbackTempo','readMusicXmlTempoMeasures','playbackAudioSession',compiled+'\nreturn createPlayerSession;');
 function harness(options = {}) {
  let worker, workerCount = 0, parses = 0, ready, observer;
  const previous = globalThis.Worker, previousParser = globalThis.DOMParser, previousObserver = globalThis.MutationObserver;
@@ -18,12 +19,40 @@ function harness(options = {}) {
  globalThis.MutationObserver = class { constructor(fn) {observer=this;this.notify=fn;} observe() {} disconnect() {this.disconnected=true;} };
  const event = () => {const listeners=[];return {on(fn){listeners.push(fn);},emit(value){listeners.forEach(fn=>fn(value));}};};
  const api = {settings:{player:{},display:{resources:{mainGlyphColor:"black",secondaryGlyphColor:"black",staffLineColor:"gray",barSeparatorColor:"black",scoreInfoColor:"black",barNumberColor:"gray"}}},renderer:{partialRenderFinished:event()},isReadyForPlayback:options.playbackReady !== false,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),soundFontLoad:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},render(){},updateSettings(){},};
- const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation,playbackTempo,()=>[]);
+ const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation,playbackTempo,()=>[],()=>playbackAudioSession(options.audioNavigator));
  const element={getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){},querySelector(){return null;}};
  const session = create(element,new Uint8Array([1]),options);
  if(worker) worker.onmessage({data:{prepared:{bytes:new Uint8Array([1])}}});
  return {session,api,element,worker,observer,get parses(){return parses;},get workerCount(){return workerCount;},dispose(){session.dispose();globalThis.Worker=previous;globalThis.DOMParser=previousParser;globalThis.MutationObserver=previousObserver;}};
 }
+test('media category is requested only on play and released on pause, error and disposal',()=>{
+ const audioSession={type:'auto'};
+ const h=harness({audioNavigator:{userAgent:'iPhone',platform:'iPhone',maxTouchPoints:5,audioSession}});
+ try {
+  assert.equal(audioSession.type,'auto');
+  h.api.play=()=>assert.equal(audioSession.type,'playback');
+  h.session.playPause(); assert.equal(audioSession.type,'playback');
+  h.api.playerStateChanged.emit({state:1}); h.session.playPause();
+  h.api.playerStateChanged.emit({state:0}); assert.equal(audioSession.type,'auto');
+  h.session.playPause(); assert.equal(audioSession.type,'playback');
+  h.api.playerStateChanged.emit({state:0}); assert.equal(audioSession.type,'auto');
+  h.api.playerStateChanged.emit({state:1}); assert.equal(audioSession.type,'playback');
+  h.api.error.emit(new Error('test')); assert.equal(audioSession.type,'auto');
+ } finally {h.dispose();}
+ const next=harness({audioNavigator:{userAgent:'iPhone',platform:'iPhone',maxTouchPoints:5,audioSession}});
+ try {next.session.playPause();assert.equal(audioSession.type,'playback');}
+ finally {next.dispose();}
+ assert.equal(audioSession.type,'auto');
+});
+test('legacy iOS exposes advice after an attempted playback without blocking the synthesizer',()=>{
+ const h=harness({audioNavigator:{userAgent:'iPhone OS 16',platform:'iPhone',maxTouchPoints:5}});
+ try {
+  let plays=0;h.api.play=()=>plays++;
+  assert.equal(h.session.getSnapshot().audioHint,undefined);
+  h.session.playPause();assert.equal(plays,1);
+  assert.match(h.session.getSnapshot().audioHint,/若无声，请关闭静音模式/);
+ } finally {h.dispose();}
+});
 test('focus preserves independent faders and mute/solo while adjusting two volume groups',()=>{
  const h=harness();try {
   const s=h.session; s.mix(1,{volume:.6,muted:true,solo:true});s.focus(0);

@@ -8,6 +8,7 @@ import { readMusicXmlTempoMeasures, type MusicXmlTempoMeasure } from './musicxml
 import { playbackMeasureLabels } from './playback-measures.ts';
 import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
 import { isCompatibleMusicXmlPreparation } from './preparation-format.ts';
+import { playbackAudioSession } from './playback-audio-session.ts';
 export { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 
 export interface PlayerPart { id: number; name: string; volume: number; baseVolume?: number; muted: boolean; solo: boolean }
@@ -15,6 +16,7 @@ export interface PlayerMeasure { index: number; label: string; startTick: number
 export interface PlayerState {
   status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
   loadingProgress?: { loaded: number; total: number };
+  audioHint?: string;
   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
   tempo?: { bpm: number; unit: number }; metronome?: boolean; beatVolume?: number; countIn?: boolean; countInBeat?: number; countInBeats?: number;
   notationScale: number; previewing?: boolean; solfege?: boolean; solfegePart?: number | null; focus: number | null | 'custom'; otherVolume?: number; focusVolume?: number; following?: boolean;
@@ -63,6 +65,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     listeners.forEach(listener => listener());
   };
   const viewport = options.scrollElement;
+  const audioSession = playbackAudioSession();
   const follow = new ScoreFollowSession();
   let pointer: { x: number; y: number } | null = null, dragged = false;
   const api = createPlaybackApi(element, {
@@ -74,6 +77,10 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
   });
   const originalColors = { ...api.settings.display.resources };
+  const play = () => {
+    update({ audioHint: audioSession.request() });
+    api.play();
+  };
   let notationTheme = "original";
   api.masterVolume = .72;
   api.metronomeVolume = 0; api.countInVolume = 0;
@@ -127,7 +134,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       api.customCursorHandler = heldCursor;
       update({ countInBeat: 1, countInBeats: api.tickCache?.masterBars[state.measure]?.masterBar.timeSignatureNumerator ?? 4 });
     }
-    loadingStage('play-request'); api.play();
+    loadingStage('play-request'); play();
   };
   let previewOverlays: HTMLDivElement[] = [];
   const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
@@ -247,7 +254,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   let worker: Worker | null = null;
   const fail = (message: string) => {
     if (disposed || state.status === 'error') return;
-    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); update({ status: 'error', message, playing: false });
+    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); audioSession.release(); update({ status: 'error', message, playing: false });
   };
   // Soundfont transfer and synthesis preparation can exceed a minute on slow links.
   // Still bound each attempt; disposal and explicit retry cancel the old session.
@@ -294,6 +301,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   api.playerStateChanged.on(event => {
     const playing = event.state === alphaTab.synth.PlayerState.Playing;
     if (disposed || state.status === 'error') return;
+    // Worker pause replies can arrive after a preview has requested a resume.
+    // Reassert the declaration at actual playback entry as well.
+    if (playing) audioSession.request(); else audioSession.release();
     playRequested = playing;
     update({ playing }); if (playing) loadingStage('playing');
     if (!playing && awaitingPause) {
@@ -424,7 +434,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     if (!preview) return;
     const previous = preview; preview = null; clearPreviewMarkers(); update({ previewing: false }); restoreScrollMode(); highlightLoop();
     if (viewport) viewport.scrollTop = previous.scrollTop;
-    if (previous.playing) api.play();
+    if (previous.playing) play();
   };
   const seekTick = (requested: number, manual = true) => {
     if (!Number.isFinite(requested) || preview) return;
@@ -542,13 +552,13 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
         api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end!].endTick };
         api.isLooping = true; update({ loop: { start, end: end! } }); seekTick(state.measures[start].startTick, false);
       }
-      highlightLoop(); if (resume) api.play();
+      highlightLoop(); if (resume) play();
     },
     dispose() {
       if (disposed) return; stopCountIn(); disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); clearPreviewMarkers();
       viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
       viewport?.removeEventListener('keydown', keyDown);
-      viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy();
+      viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy(); audioSession.release();
     },
   };
 }
