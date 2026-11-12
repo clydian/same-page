@@ -212,6 +212,7 @@ export class UpdateController {
       this.show("ready", "请先完成当前操作并返回文件库，再重试更新");
       return;
     }
+    this.stopApply?.(); this.stopApply = undefined;
     this.endCheck();
     this.setRequested(manual);
     this.show("applying", "正在确认并应用更新…");
@@ -231,11 +232,31 @@ export class UpdateController {
       this.autoRetryAt = Date.now() + 10000;
       this.show(this.registration?.waiting ? "ready" : "error", !manual && this.registration?.waiting ? prepared : message);
     };
-    const timeout = setTimeout(() => finish("更新未完成，请检查其他合谱窗口后重试"), 10000);
-    this.stopApply = () => { active = false; clearTimeout(timeout); channel.port1.close(); };
+    let accepted = false;
+    const changed = () => {
+      if (!active || this.disposed) return;
+      if (waiting.state === "redundant") finish("已准备的更新暂不可用，请重新检查更新");
+      else if (waiting.state === "activating" || waiting.state === "activated") {
+        accepted = true;
+        this.deferred = undefined;
+        this.show("applying", "正在应用更新…");
+      }
+    };
+    // A page deadline cannot cancel skipWaiting or the browser's activation.
+    // Keep observing the same attempt so a late approval is not discarded.
+    const timeout = setTimeout(() => {
+      if (!active || this.disposed) return;
+      if (accepted) this.show("applying", "更新切换较慢，仍在进行，请稍候…");
+      else {
+        this.autoRetryAt = Date.now() + 10000;
+        this.show("ready", "尚未收到更新确认，可稍后重试；已准备的资源会保留");
+      }
+    }, 10000);
+    waiting.addEventListener("statechange", changed);
+    this.stopApply = () => { active = false; clearTimeout(timeout); waiting.removeEventListener("statechange", changed); channel.port1.close(); };
     channel.port1.onmessage = event => {
       if (!active || this.disposed) return;
-      if (event.data?.safe === true) { this.deferred = undefined; this.show("applying", "正在应用更新…"); }
+      if (event.data?.safe === true) { accepted = true; this.deferred = undefined; this.show("applying", "正在应用更新…"); }
       else finish(event.data?.reason === "incomplete" ? "更新资源暂不可用，请联网后重试" : blocked, event.data?.safe === false && event.data?.reason !== "incomplete");
     };
     try { waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE", requested: true, ...(!manual ? { automatic: true } : {}) }, [channel.port2]); }

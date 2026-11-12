@@ -330,7 +330,7 @@ describe("update lifecycle feedback", () => {
     expect(result.current.deferred).toBeUndefined();
   });
 
-  it("reports a handover timeout and ignores its late acknowledgment", async () => {
+  it("keeps a slow handover retryable and accepts its late acknowledgment", async () => {
     let port!: { onmessage?: (event: MessageEvent) => void; close: () => void };
     vi.stubGlobal("MessageChannel", class {
       port1 = { close: vi.fn() }; port2 = {};
@@ -339,10 +339,51 @@ describe("update lifecycle feedback", () => {
     Object.assign(registration, { waiting: worker() });
     start(); await act(async () => {});
     act(() => { controller.apply(); vi.advanceTimersByTime(10000); });
-    expect(screen.getByText("更新未完成，请检查其他合谱窗口后重试")).toBeInTheDocument();
-    expect(requested).toHaveBeenLastCalledWith(false);
-    act(() => port.onmessage?.(new MessageEvent("message", { data: { safe: true } })));
+    expect(screen.getByText("尚未收到更新确认，可稍后重试；已准备的资源会保留")).toBeInTheDocument();
+    expect(requested).toHaveBeenLastCalledWith(true);
     expect(screen.getByRole("button", { name: "重新加载并更新" })).toBeEnabled();
+    act(() => port.onmessage?.(new MessageEvent("message", { data: { safe: true } })));
+    expect(screen.getByRole("button", { name: "更新中…" })).toBeDisabled();
+  });
+
+  it.each(["acknowledged", "activating"])("does not report a slow %s handover as failed", async mode => {
+    let port!: { onmessage?: (event: MessageEvent) => void; close: () => void };
+    vi.stubGlobal("MessageChannel", class {
+      port1 = { close: vi.fn() }; port2 = {};
+      constructor() { port = this.port1; }
+    });
+    const waiting = worker(); Object.assign(registration, { waiting });
+    start(); await act(async () => {});
+    act(() => {
+      controller.apply();
+      if (mode === "acknowledged") port.onmessage?.(new MessageEvent("message", { data: { safe: true } }));
+      else { Object.assign(registration, { waiting: null, active: waiting }); state(waiting, "activating"); }
+      vi.advanceTimersByTime(10000);
+    });
+    expect(screen.getByText("更新切换较慢，仍在进行，请稍候…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "更新中…" })).toBeDisabled();
+    expect(requested).toHaveBeenLastCalledWith(true);
+    act(() => controller.apply());
+    expect(waiting.postMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces a slow attempt on retry and reports a genuinely redundant worker", async () => {
+    const ports: { onmessage?: (event: MessageEvent) => void; close: () => void }[] = [];
+    vi.stubGlobal("MessageChannel", class {
+      port1 = { close: vi.fn() }; port2 = {};
+      constructor() { ports.push(this.port1); }
+    });
+    const waiting = worker(); Object.assign(registration, { waiting });
+    start(); await act(async () => {});
+    act(() => { controller.apply(); vi.advanceTimersByTime(10000); controller.apply(); });
+    expect(ports[0].close).toHaveBeenCalledOnce();
+    act(() => ports[0].onmessage?.(new MessageEvent("message", { data: { safe: false } })));
+    expect(screen.getByRole("button", { name: "更新中…" })).toBeDisabled();
+    act(() => { Object.assign(registration, { waiting: null }); state(waiting, "redundant"); });
+    expect(screen.getByText("已准备的更新暂不可用，请重新检查更新")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重试检查更新" })).toBeEnabled();
+    expect(requested).toHaveBeenLastCalledWith(false);
+    expect(ports[1].close).toHaveBeenCalledOnce();
   });
 
   it("automatically applies a ready release only after safe idle and preserves manual bypass of idle", async () => {
