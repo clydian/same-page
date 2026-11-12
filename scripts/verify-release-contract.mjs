@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertStorageCompatibility, storageContract } from "./release-contract.mjs";
 
-// Reviewed source boundaries and one-time bootstrap identity, not the live CI
+// Reviewed source boundaries and their historical provenance, not the live CI
 // baseline selector. CI reads current stable; deployment rechecks under its lock.
 export async function verifyReleaseContract(cwd = process.cwd()) {
   const baseline = JSON.parse(await readFile(path.join(cwd, "scripts/release-storage-baseline.json"), "utf8"));
