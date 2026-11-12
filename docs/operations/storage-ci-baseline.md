@@ -30,46 +30,26 @@ Schema/protocol/dependency changes still require a reviewed compatibility bridge
 The real Chromium + WebKit stable → candidate → stable → candidate matrix remains
 mandatory and uses the sealed candidate bytes, never a reconstructed older build.
 
-## One-time repair bridge
+## Verification and recovery
 
-The PR implementing the endpoint must pass CI before its Worker can be deployed.
-`scripts/fixtures/storage-bootstrap.json.gz` is one fixed 202,359-byte gzip containing
-only the original seal, contract and probe from current stable:
+The one-time rollout fixture and absent-route bridge have been removed. Every CI
+run now requires the live endpoint; there is no local baseline fallback or fixture
+to rotate. `artifacts/verification/release-storage/reviewed-baseline.json` must say
+`baselineSource: current-stable` and report passing Chromium and WebKit engines.
+The cleanup PR itself runs this complete matrix after the endpoint deployment.
 
-- Source: `aa604ba541364591eab4b171aff85f96a9f7742f`
-- Successful main CI: https://github.com/clydian/same-page/actions/runs/40797937497
-- Original artifact: `12864467066`, `release-aa604ba541364591eab4b171aff85f96a9f7742f`
-- GitHub ZIP SHA256: `f9be7df7619a7f3633e76b87c8816d0e8eb71e3257cd7925b1256c68786d9862`
-- GitHub expiry: 2026-11-12 01:03:18 UTC, irrelevant after this original subset is saved
-- Restored ZIP digest matched GitHub and all 339 files passed the original release
-  seal before extracting this subset. Runtime additionally checks the pinned seal
-  digest, source SHA, run ID and both original file digests.
+The existing main deployment path still checks the actual current stable and
+admits beta as before. It does not promote stable or change user data, production
+artifacts or their retention policy.
 
-This bridge is allowed only when the endpoint returns the existing absent-route
-`404 {"error":"not_found"}` and a fresh cookie-free `/api/client-release` response
-still selects **exactly** this stable and contract. Any stable change, timeout,
-redirect, malformed body, corruption or other HTTP error fails closed. The live
-endpoint takes precedence as soon as it exists. Do not regenerate this fixture for
-future stable versions. It is a single bounded bootstrap, not a release archive.
+If the endpoint is unavailable, including an absent-route 404, CI stops. Repair the
+endpoint through the normal deployment/revert workflow; do not skip the check,
+replace it with candidate self-testing or regenerate an old build. A Worker rollback
+must preserve this endpoint. If rolling back to pre-endpoint code is necessary,
+restore the reviewed bridge from Git history as part of that recovery before running
+CI; the historical bridge is valid only while stable is exactly aa604ba. Ordinary
+frontend beta-to-stable rollback does not remove the Worker endpoint.
 
-## Rollout and recovery
-
-1. Merge this repair only after its required CI checks pass. The first PR/main run
-   uses the verified bridge if the endpoint is still absent. No compatibility check
-   is skipped and no production credentials are added to PR jobs.
-2. The existing main deployment path publishes the Worker, runs its current-stable
-   compatibility checks, and admits beta as before. The fix does not enable a paused
-   release flag, promote stable, or otherwise bypass production authorization.
-3. Verify the endpoint returns 200 and the current stable build ID. In the next CI
-   `reviewed-baseline.json` must say `baselineSource: current-stable` and list both
-   engines. This is the evidence that recovery is using the permanent source.
-4. After that deployment is confirmed and rollback no longer needs the old Worker,
-   remove the bootstrap gzip and the explicit 404 bridge in a small follow-up PR.
-   Do not replace them with another version. Git retains the one historical small
-   fixture, but subsequent stable releases never add probe bundles to Git.
-
-If publication fails, the existing stable and its R2 data remain untouched. Repair
-or retry the normal deployment; do not overwrite sealed objects or turn a failed
-baseline check green. Rolling back the Worker to pre-endpoint code only permits the
-bridge while stable is still aa604ba; after a later stable promotion CI correctly
-blocks until the endpoint is restored. No baseline resources need destructive GC.
+The original one-time fixture remains recoverable in Git history, but no subsequent
+stable release adds a new fixture. This cleanup removes only repository test assets
+and their fallback code; it does not delete R2 objects or user data.
