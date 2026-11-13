@@ -1,3 +1,4 @@
+import { untilAborted } from "../platform/abortable";
 import { ReaderOpening, readerOpeningFacts, type ReaderOpeningSnapshot } from "./reader-opening";
 import type { ReaderOpeningPhase, ReaderOpeningFacts } from "../../shared/reader-opening";
 import { foregroundDeadline } from "./foreground-deadline";
@@ -8,13 +9,13 @@ import { offlineScoreSummary as scoreFromOffline } from "../offline/retained-sco
 import { revokeOfflinePreparationIdentity, OfflinePreparation, type OfflinePreparationState } from "../offline/offline-score";
 import { liveQuery } from "dexie";
 import { captureOfflineFileFence } from "../offline/local-files";
-import { DiagnosticResponseError, pdfFailureCategory, pdfFailureReason, pdfEngineVersion, recordFailure } from "../diagnostics/diagnostics";
+import { DiagnosticResponseError, pdfFailureCategory, pdfFailureReason, pdfEngineVersion, recordFailure, diagnosticErrorType } from "../diagnostics/diagnostics";
 import { type ScoreSummary } from "../../shared/scores";
 import { restoreOfflineAnnotationSnapshot } from "../annotations/annotation-state";
 import { syncReader, subscribeReaderSync, ReaderSyncError } from "./sync-reader";
 import type { ReaderSyncResponse } from "../../shared/reader-sync";
 import { type OfflineScoreRecord } from "../platform/local-database";
-import { assertLocalWorkspaceActive, type LocalWorkspace } from "../platform/local-workspace";
+import { assertLocalWorkspaceActive, LocalWorkspaceOwnerChangedError, type LocalWorkspace } from "../platform/local-workspace";
 import { readOfflineFileBytes, findVerifiedOfflineScore } from "../offline/offline-score-verification";
 import { markLoadingJourneyMilestone } from "../performance/loading-performance";
 import { acquireReaderDocument, confirmReaderDocumentVersion, invalidateReaderDocument, ReaderDocumentVersionMismatchError, type ReaderDocumentLease } from "./reader-document-cache";
@@ -209,6 +210,22 @@ export class ReaderSession {
     this.refreshTask ??= this.confirmCloud().finally(() => { this.refreshTask = null; });
     return this.refreshTask;
   };
+  private async confirmLocalState(generation: number) {
+    const deadline = new AbortController();
+    const stopDeadline = foregroundDeadline(() => deadline.abort(new DOMException("reader_local_check_timeout", "TimeoutError")), 15_000);
+    try {
+      await untilAborted(assertLocalWorkspaceActive(this.workspace), AbortSignal.any([deadline.signal, this.abort.signal]));
+      return !this.disposed && generation === this.generation;
+    } catch (error) {
+      if (this.disposed || generation !== this.generation || error instanceof LocalWorkspaceOwnerChangedError) return false;
+      recordFailure({ operation: "storage", category: "internal", stage: "prepare", step: "offline-read",
+        errorType: diagnosticErrorType(error), opening: readerOpeningFacts(this.opening.getSnapshot()) });
+      if (this.restoreDisplay()) return false;
+      this.publish({ status: "error", error: "PDF 已就绪，但暂时无法校验本机状态。请重试；已保存的乐谱和笔记仍然保留。" });
+      this.dispose();
+      return false;
+    } finally { stopDeadline(); }
+  }
   private localMatches() { return !!this.state.offline && (!this.confirmedVersion || this.confirmedVersion === this.state.offline.versionId); }
   private async confirmCloud() {
     try { await syncReader(this.workspace, { push: false, signal: AbortSignal.any([this.abort.signal, this.layerAbort.signal]) }); }
@@ -301,7 +318,7 @@ export class ReaderSession {
     void lease.promise.then(async (document) => {
       if (this.disposed || generation !== this.generation) return;
       this.loadingPhase("local-check");
-      if (!await this.current() || generation !== this.generation) return;
+      if (!await this.confirmLocalState(generation) || generation !== this.generation) return;
       this.displayPrepared = true;
       this.loadingPhase(this.state.score ? "page" : "score");
       this.publish({ document, status: "ready", displayMessage: null });

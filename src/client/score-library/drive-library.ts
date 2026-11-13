@@ -3,7 +3,7 @@ import { revokeDriveReadResources, type ReadState } from "../settings/read-resou
 import { localDatabase } from "../platform/local-database";
 import { liveQuery } from "dexie";
 import { readRetainedScores } from "../offline/retained-scores";
-import { captureLocalWorkspaceSession, createLocalWorkspace, currentLocalOwnerKey, authenticatedLocalOwnerKey, type LocalWorkspace } from "../platform/local-workspace";
+import { captureLocalWorkspaceSession, createLocalWorkspace, currentLocalOwnerKey, authenticatedLocalOwnerKey, LocalWorkspaceOwnerChangedError, type LocalWorkspace } from "../platform/local-workspace";
 import { readLocalDriveDirectories, rememberLocalDriveDirectory, rememberDriveAccessRevoked, renameLocalDriveDirectory, removeLocalDriveScore, renameLocalDriveScore } from "./local-drive-directory";
 import { noCapabilities, hasManagement } from "../../shared/drive-permissions";
 import type { ScoreSummary } from "../../shared/scores";
@@ -384,9 +384,13 @@ export class DriveLibrary {
         const current = this.snapshot.access;
         if (!ownerSignal.aborted && current.kind === "opened" && current.retained) this.publish({ access: { ...current, result: { ...current.result, scores } } });
       },
-      error: () => {
+      error: error => {
         const current = this.snapshot.access;
-        if (!ownerSignal.aborted && current.kind === "opened" && current.retained) this.publish({ access: { ...current, result: { ...current.result, scores: [] } }, refreshMessage: "无法读取本机副本，请重试。" });
+        if (!ownerSignal.aborted && current.kind === "opened" && current.retained) {
+          if (error instanceof LocalWorkspaceOwnerChangedError) {
+            this.publish({ access: { ...current, result: { ...current.result, scores: [] } }, refreshMessage: "本机身份已变化，请重新打开云盘。" });
+          } else this.publish({ refreshMessage: "暂时无法读取本机目录，已显示的内容保留，请重试。" });
+        }
       },
     });
   }

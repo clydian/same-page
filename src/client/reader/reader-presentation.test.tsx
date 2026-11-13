@@ -1,3 +1,4 @@
+import * as workspaceState from "../platform/local-workspace";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useSyncExternalStore } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -200,4 +201,66 @@ it.each([false, true])("context loss stays local to the page without losing the 
   await act(async () => source.finishes[1]());
   expect(status()).toHaveTextContent("visible");
   expect(session.getSnapshot().document).toBe(source.document);
+});
+
+it("keeps an already presented PDF when a replacement cannot confirm local state", async () => {
+  const previous = pdf();
+  const replacement = pdf();
+  const session = await open(previous.document);
+  render(<Scene session={session} />);
+  await waitFor(() => expect(previous.finishes).toHaveLength(1));
+  await act(async () => previous.finishes[0]());
+  await waitFor(() => expect(status()).toHaveTextContent("visible"));
+  const original = workspaceState.assertLocalWorkspaceActive;
+  let blocked = false;
+  vi.spyOn(workspaceState, "assertLocalWorkspaceActive").mockImplementation(async workspace => {
+    if (blocked) throw new DOMException("temporary local state failure", "UnknownError");
+    return original(workspace);
+  });
+  version = "v2";
+  vi.mocked(loadPdfDocument).mockImplementation(() => {
+    blocked = true;
+    return { promise: Promise.resolve({ document: replacement.document, versionId: version }), destroy: vi.fn().mockResolvedValue(undefined) };
+  });
+  await act(async () => { await session.refresh(); });
+  await waitFor(() => expect(session.getSnapshot()).toMatchObject({ document: previous.document, status: "ready", error: null, displayMessage: "显示恢复未完成，已保留原谱面。" }));
+  blocked = false;
+  expect(session.presentation.hasPresented(previous.document)).toBe(true);
+  expect(session.presentation.hasPresented(replacement.document)).toBe(false);
+});
+
+it("a superseded local-check timeout cannot replace a newer displayed PDF", async () => {
+  const previous = pdf(), blockedPdf = pdf(), newest = pdf();
+  const session = await open(previous.document);
+  render(<Scene session={session} />);
+  await waitFor(() => expect(previous.finishes).toHaveLength(1));
+  await act(async () => previous.finishes[0]());
+  await waitFor(() => expect(status()).toHaveTextContent("visible"));
+  const original = workspaceState.assertLocalWorkspaceActive;
+  let block = false;
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  vi.spyOn(workspaceState, "assertLocalWorkspaceActive").mockImplementation(async workspace => {
+    if (block) await gate;
+    return original(workspace);
+  });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    version = "v2";
+    vi.mocked(loadPdfDocument).mockImplementation(() => {
+      block = true;
+      return { promise: Promise.resolve({ document: blockedPdf.document, versionId: version }), destroy: vi.fn().mockResolvedValue(undefined) };
+    });
+    await act(async () => { await session.refresh(); });
+    await vi.waitFor(() => expect(session.getSnapshot().opening?.phase).toBe("local-check"));
+    block = false;
+    version = "v3";
+    supply(newest.document);
+    await act(async () => { await session.refresh(); });
+    await vi.waitFor(() => expect(newest.finishes).toHaveLength(1));
+    await act(async () => newest.finishes[0]());
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    expect(session.getSnapshot()).toMatchObject({ document: newest.document, status: "ready", error: null });
+    release();
+  } finally { block = false; release(); vi.useRealTimers(); }
 });
