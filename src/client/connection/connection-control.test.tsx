@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { ConnectionControl } from './connection-control';
 import { connections } from './connection';
+import { IdentityNotice } from '../auth/local-entry';
+import type { ApplicationIdentity } from '../auth/application-identity';
 
 vi.mock('./connection', async () => {
   const { ConnectionController } = await import('./controller');
@@ -94,4 +96,32 @@ it('shows newer evidence, conservatively resolves ties and expires old evidence 
     expect(screen.getAllByText('结果已过期')).toHaveLength(2);
     expect(connections.getSnapshot()).toMatchObject({ mode: 'backup', active: 'backup' });
   } finally { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); }
+});
+
+it('keeps identity failure visible when health succeeds and the browser reports offline', async () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async input => {
+    const path = new URL(String(input)).pathname;
+    if (path.endsWith('/health')) return Response.json({ status: 'ok' });
+    if (path.endsWith('/status')) throw new TypeError('session unavailable');
+    throw new Error(`unexpected request: ${path}`);
+  }));
+  connections.invalidateIdentity();
+  connections.setMode('direct');
+  const identity = { onlineState: 'unreachable', localUserId: 'local-user',
+    session: { refetch: vi.fn(), isRefetching: false } } as unknown as ApplicationIdentity;
+  try {
+    render(<MemoryRouter initialEntries={['/drives']}>
+      <IdentityNotice identity={identity} />
+      <ConnectionControl />
+    </MemoryRouter>);
+    // The connection entry must not replace an independent session failure notice.
+    expect(screen.getByText(/暂时无法连接，已保存的内容仍然保留/)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^连接线路/ })); });
+    await screen.findByText('当前线路：直连（待确认）');
+    expect(screen.getAllByText('线路可达')).toHaveLength(2);
+    expect(screen.getByText(/浏览器报告当前离线/)).toBeInTheDocument();
+    expect(screen.getByText(/线路检测只确认服务能否响应/)).toBeInTheDocument();
+    expect(connections.getSnapshot().identity.direct).toBe('unprepared');
+  } finally { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
 });
