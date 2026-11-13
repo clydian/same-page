@@ -189,3 +189,15 @@ body reception and reused bytes are reported separately. Final readback and the
 registry commit precede readiness. Progress cannot grant update permission or alter
 transport retry/error policy. Snapshots carry build/sequence identity and are accepted
 only from the observed installing worker. Legacy workers retain indeterminate feedback.
+
+## 2026-11-12 slow handover feedback
+
+A page's ten-second handover timeout cannot cancel `skipWaiting()` or native
+activation. It must not report failure and discard a late approval while the
+browser can still complete the switch. Keep the attempt's message port and worker
+state observer alive until rejection, replacement by a retry, or page disposal.
+Before approval, a slow confirmation remains retryable and preserves prepared
+resources. Once approved or observed activating, keep the UI applying; elapsed
+time only changes the progress message. Actual rejection or a redundant worker
+still settles the attempt. This changes neither download verification nor the
+cross-window/reload safety gates and makes no claim of an iPad-specific cause.

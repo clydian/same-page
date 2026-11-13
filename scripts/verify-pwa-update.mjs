@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { cp, mkdir, mkdtemp, rm, stat } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -28,6 +28,8 @@ const animationRequests = [];
 let failAnimationRequests = false;
 let preparationGate;
 let releasePreparation;
+let activationGate;
+let releaseActivation;
 
 try {
   await buildVersion(buildIds.first, builds.first);
@@ -187,7 +189,19 @@ try {
   // notification can attach its controlling listener. The native event must
   // still finish the guarded reload.
   activeBuild = builds.first;
+  // Hold the browser's real activate event after skipWaiting has been accepted.
+  // Slow storage/system scheduling must not turn a successful handover into an error.
+  activationGate = new Promise(resolve => { releaseActivation = resolve; });
   const fastContext = await browser.newContext({ serviceWorkers: "allow" });
+  await fastContext.addInitScript(() => {
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!window.holdUpdateReload) return;
+      // Input can begin after the worker's last safety probe. The existing
+      // reload guard must preserve it while native activation is delayed.
+      const input = document.createElement("input"); input.id = "handover-input";
+      document.body.append(input); input.focus();
+    });
+  });
   const fast = await fastContext.newPage();
   await fast.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
   await waitForPage(fast, async () => (await navigator.serviceWorker.getRegistration())?.active?.state === "activated");
@@ -195,6 +209,7 @@ try {
   await fast.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await fast.getByRole("button", { name: "检查更新", exact: true }).waitFor();
   await fast.evaluate(async () => {
+    window.holdUpdateReload = true;
     const registration = await navigator.serviceWorker.getRegistration();
     registration.addEventListener("updatefound", () => {
       const worker = registration.installing;
@@ -205,12 +220,20 @@ try {
   });
   activeBuild = builds.second;
   await fast.getByRole("button", { name: "检查更新", exact: true }).click();
+  await fast.getByText("更新切换较慢，仍在进行，请稍候…", { exact: true }).waitFor({ timeout: 20000 });
+  assert.equal(await fast.getByRole("button", { name: "更新中…", exact: true }).isDisabled(), true);
+  assert.equal(await fast.evaluate(() => document.documentElement.dataset.buildId), buildIds.first);
+  assert.equal(await fast.evaluate(async () => (await navigator.serviceWorker.getRegistration()).active.state), "activating");
+  releaseActivation();
+  await waitForPage(fast, async () => (await navigator.serviceWorker.getRegistration()).active.state === "activated");
+  await fast.evaluate(() => document.getElementById("handover-input").remove());
   await fast.waitForFunction(expected => document.documentElement.dataset.buildId === expected, buildIds.second);
   await fastContext.close();
   process.stdout.write("Verified immediate manual handover before library waiting notification\n");
   process.stdout.write("Verified automatic restart updates and optional live-window handover\n");
 } finally {
   releasePreparation?.();
+  releaseActivation?.();
   await browser?.close();
   if (server) {
     await new Promise((resolve) => server.close(resolve));
@@ -333,6 +356,16 @@ async function buildVersion(buildId, destination) {
 async function serveRequest(request, response, root) {
   try {
     const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
+    if (requestUrl.pathname === "/test-activation-gate") {
+      await activationGate; response.end("ready"); return;
+    }
+    if (activationGate && root === builds.second && requestUrl.pathname === "/sw.js") {
+      response.setHeader("Content-Type", "text/javascript");
+      response.setHeader("Cache-Control", "no-store");
+      response.end(await readFile(path.join(root, "sw.js"), "utf8") +
+        '\nself.addEventListener("activate", event => event.waitUntil(fetch("/test-activation-gate")));');
+      return;
+    }
     if (root === builds.second && requestUrl.pathname === "/") await preparationGate;
     if (requestUrl.pathname.startsWith("/api/")) {
       serveApi(requestUrl.pathname, response);

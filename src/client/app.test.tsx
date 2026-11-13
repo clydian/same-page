@@ -371,6 +371,9 @@ describe("AppRoutes", () => {
   });
 
   it("automatically admits a linked guest once under StrictMode", async () => {
+    // Test admission deduplication after its lazy route is ready; cold Vite
+    // transforms must not consume the heading query's default time budget.
+    await import("./routes/choir-page");
     render(<StrictMode><MemoryRouter initialEntries={["/?join=1#invite=ABCDEFGH"]}><AppRoutes /></MemoryRouter></StrictMode>);
     expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
     const admissions = vi.mocked(fetch).mock.calls.filter(([url, init]) => url === "/api/guest/session" && init?.method === "POST");
