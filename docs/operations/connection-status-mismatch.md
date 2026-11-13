@@ -62,4 +62,30 @@
 - 修复后连接 controller / sampling / presentation / 面板、头像菜单和离线入口共 103 条通过。
 - 应用路由、列表连接和阅读器 workspace 共 62 条通过；版本许可与通道 readback 共 9 条通过。
 - `npm run lint`、`npm run typecheck`、`npm run build`、`git diff --check` 通过。
-- 本次未执行真实浏览器端到端测试，也未取得用户故障设备的运行时证据。
+- 本地未执行真实浏览器端到端测试；之后的远程 CI 结果见下方补充。尚未取得用户故障设备的运行时证据。
+
+## 补充：联网打开后再次离线可用
+
+用户随后实测：先前可能处于离线，但尚不确定关联；重新联网后能打开乐谱，再切离线也能打开。此观察说明后一次操作条件已改变，不能据此认定首次离线必然失败，也不能证明已经修复了持久故障。尚不清楚两次是否在同一页面、是否关闭进程、是否同一份副本完成了准备。
+
+代码中可明确区分以下变化：
+
+| 联网打开可能改变的状态 | 生命周期及其对再次离线的意义 |
+| --- | --- |
+| session 与已显示的 localUserId | `useApplicationIdentity()` 可从已确认 session 得到用户；之后 session 暂时失败、而本机归属读取仍未完成时，保留该页面已经显示过的 localUserId。冷页面没有这个历史值。仅保留本机归属，不保留在线操作权限。 |
+| active / last authenticated owner 与 epoch | `LocalIdentityObserver` 在确认用户后激活并持久化归属；`resolveLocalWorkspace()` 对已知 localUserId 也可激活归属，**不要求先联网**。本机健康且归属可读时，离线打开已有 workspace 是受支持路径。 |
+| 离线 PDF、当前修订及笔记快照 | `ReaderSession.prepareAutomaticOfflineCopy()` 在云端已确认、PDF 就绪、没有匹配本机副本等条件下才准备副本。成功后保存经过完整校验的 PDF 与独立笔记快照；联网可能补齐原本未就绪的副本，不能只称为内存预热。已有匹配副本则不会因此再准备一份。 |
+| 目录和乐谱元数据 | 联网成功可刷新持久目录及 ReaderScoreCache 内存摘要；目录可见并不意味着 PDF 与笔记快照已经完整。 |
+| PDF 引擎与 document | 动态导入模块可留在页面内存；document 缓存按归属、云盘、乐谱及 cloud/offline 来源隔离，最多保留两项，无引用后 15 秒释放。不能笼统声称“在线 PDF 缓存直接绕过离线读取”。若只是留在同一阅读器后断网，已显示谱面本身也不能验证冷启动。 |
+| 本机校验 | `inspectOfflineScore()` / `verifyOfflineScore()` 只合并在途校验，不长期缓存“校验成功”。后续独立打开仍校验当前 Blob 字节、快照与归属，持久内容变化会使共享检查失效。联网不会把 health 成功记作本机校验通过。 |
+
+增加了一条跨 identity + workspace 的隔离测试：只让身份恢复用的归属查询保持 pending（实际 workspace 数据库健康），无 session 的冷页面等待；提供在线确认的同一用户后 workspace 就绪；再撤掉在线身份、归属查询仍 pending 时，保留本机用户与同一个 ready workspace，同时在线用户权限变为 null。测试通过。这证明“冷页面等待、同页联网后再次离线可用”在特定合成条件下确实可出现，**没有证明用户设备当时发生了归属查询停滞或整个 IndexedDB 堵塞**。
+
+本轮 identity / workspace / 离线入口 / 自动准备相关 47 条测试通过。已有 PR 首轮 CI（commit `96d173e`）已全部成功，包含实际浏览器 fixture：
+
+- Chromium 的 `offline-browser-restart`：先在隔离 profile 完成副本准备，关闭并重启浏览器，再断网新建页面，恢复目录、打开谱面并编辑，之后联网保持阅读与编辑状态。通过。
+- WebKit 的 `api-outage-new-page`：准备副本后，禁用测试 SW 并对新页面注入 API 失败，测试冷 JS 状态。通过。它**不是**完整离线壳／iOS PWA 进程重启证明。
+
+CI 证据：[run 43527717714](https://github.com/clydian/same-page/actions/runs/43527717714)，`smoke (1)` 中上述两个子测试均为 ok。它们验证健康合成持久数据下的受支持路径，不排除真实设备的存储等待、资源未准备完成、版本切换或身份恢复竞态。
+
+下一步最有区分度的证据是：同一故障阶段的 navigator.onLine、实际 opening phase、session 是否仍 pending、workspace 是否已就绪，以及“再次离线成功”是当前页重开还是彻底关闭后的冷开。应沿用另一条工作空间调查收集这些信号，避免为验证猜测而清缓存或改变用户归属。本次没有据此更改离线初始化或绕过任何归属与完整性校验。

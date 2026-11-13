@@ -37,3 +37,45 @@ it("retains the displayed owner through a session failure while local identity r
   expect(result.current.localUserId).toBe("another-owner");
   expect(result.current.authenticatedUserId).toBe("another-owner");
 });
+
+it("distinguishes cold local-owner waiting from the same page after an online identity has warmed it", async () => {
+  const { useReaderWorkspace } = await import("../reader/use-reader-workspace");
+  const { activateAuthenticatedLocalOwner } = await import("../platform/local-workspace");
+  await localDatabase.open();
+  await activateAuthenticatedLocalOwner("owner");
+  let restore!: (owner: LocalWorkspaceOwnerKey | null) => void;
+  state.owner = new Promise(resolve => { restore = resolve; });
+  state.data = null;
+  state.error = { status: 503 };
+  const { result, rerender, unmount } = renderHook(() => {
+    const identity = useApplicationIdentity();
+    return { identity, workspace: useReaderWorkspace({ choirId: "choir", scoreId: "score", experience: false, identity }) };
+  });
+  try {
+    // Only the identity restoration lookup is held. The stored owner and the
+    // workspace database are healthy; this models a stalled cold read, not its cause.
+    expect(result.current.identity.restoring).toBe(true);
+    expect(result.current.identity.localUserId).toBeNull();
+    expect(result.current.workspace.state.status).toBe("opening");
+    state.data = { user: { id: "owner" }, session: { id: "session" } };
+    state.error = null;
+    rerender();
+    await waitFor(() => expect(result.current.workspace.state.status).toBe("ready"));
+    const ready = result.current.workspace.state;
+    state.data = null;
+    state.error = { status: 503 };
+    rerender();
+    expect(result.current.identity.authenticatedUserId).toBeNull();
+    expect(result.current.identity.localUserId).toBe("owner");
+    expect(result.current.identity.restoring).toBe(false);
+    expect(result.current.workspace.state).toBe(ready);
+    await act(async () => restore("user:owner" as LocalWorkspaceOwnerKey));
+    expect(result.current.workspace.state).toBe(ready);
+  } finally {
+    restore("user:owner" as LocalWorkspaceOwnerKey);
+    unmount();
+    state.data = { user: { id: "owner" }, session: { id: "session" } };
+    state.error = null;
+    state.owner = null;
+  }
+});
