@@ -47,7 +47,17 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
           await expect.poll(() => page.evaluate(() => window.__testAudioSession.type)).toBe('auto');
           await player.getByRole('button', { name: '播放', exact: true }).click();
           await expect.poll(() => page.evaluate(() => window.__testAudioSession.type)).toBe('playback');
-        } else await expect(hint).toBeVisible();
+        } else {
+          await expect(hint).toBeVisible();
+          await expect(page.getByRole('button', { name: '关闭播放声音提示' })).toBeVisible();
+          await expect(hint).toHaveCount(0, { timeout: 12000 });
+          await player.getByRole('button', { name: '暂停', exact: true }).click();
+          await player.getByRole('button', { name: '播放', exact: true }).click();
+          await expect(page.getByLabel('播放声音提示', { exact: true })).toHaveCount(0);
+          await page.getByRole('button', { name: '练习设置', exact: true }).click();
+          await expect(hint).toBeVisible();
+          await page.getByRole('button', { name: '关闭练习设置', exact: true }).click();
+        }
         await page.getByRole('button', { name: '结束练习', exact: true }).click();
         await expect.poll(() => page.evaluate(() => window.__testAudioSession.type)).toBe('auto');
         assert.deepEqual(errors, []);
