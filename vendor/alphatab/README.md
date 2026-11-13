@@ -74,3 +74,7 @@ JSON／生成的 clone 传递可选显示字段；旧 JSON 缺字段时默认 nu
 播放默认总展开跨度为min(最短成员拍时长/不同音高数,四分音符tick/4)，并受每个发声尾点限制；是产品短琶奏解释，不是MusicXML或原谱给定毫秒。共用同音高头同刻起音，延音续头/非演奏cue不新起音，所有原音尾和小节边界保持。只后移相应noteOn与中性per-note bend reset，不影响旧拨弦brush。
 
 最终制品源提交`72e2fdee21e71190f75131f5de68b64acfd9779c`，包SHA256`8a98b721ae2bd88a957bf9e16371f45e552365c3b7c8ac22f47c892a4d6d1d6e`。完整原生1955通过、64失败、1外部probe跳过；64失败逐名等于native22/20已知集合，无新增，没有放宽比较器或直接从新输出接受期望。最终player356、typecheck和生产构建通过。实际110小节五轨谱27个成员/7组：完整8456MIDI事件仅20个起音及其20个中性reset时间改变，所有音尾/其余字段和110小节边界精确保护。235.217秒完整离线PCM有限、连续，无整秒静音块，零设备play/addSamples；不当作耳听验收。真实Worker双布局及最终head CI/部署见verification记录。旧19/20/22及已公开源码档案保持。
+
+## samepage.24：无声音映射的念白保持静音 · #647
+
+MusicXML `unpitched` 只有在所用乐器声明了有效 `midi-unpitched`（1–128）时才产生声音；未指定 note/instrument 时沿用该 part 的默认乐器。无映射的念白保留原符头、歌词、节拍和定位，通过既有 articulation 的 `outputMidiNumber=-1` 内部哨兵在 MIDI 生成前跳过，不增加用户数据字段或修改附件。明确映射到 MIDI 0（MusicXML 值1）、其他打击乐和普通有音高 MIDI 0 继续播放。静音音符也不生成逐音 bend reset；JSON/clone 传递沿用已有 articulation 字段。历史固定制品和已公开源码档案保留。

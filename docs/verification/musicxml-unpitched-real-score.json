@@ -1,0 +1,51 @@
+[
+  {
+    "name": "jie-review-v4",
+    "oldAttacks": 843,
+    "newAttacks": 843,
+    "remainingMidi0": 0,
+    "silentNotationHeads": 0,
+    "allOtherNoteEventsExact": true,
+    "allOtherMidiEventsExact": true,
+    "actualListening": false,
+    "masterBarCount": 66,
+    "sourceSha256": "baeaa8bdda50bfa19df8da43305306ccbbb976b20130a38be4118c9436aefa41",
+    "removedEvents": {},
+    "addedEvents": 0,
+    "allRemainingMidiEventsExact": true
+  },
+  {
+    "name": "wuming-source-review-v21",
+    "oldAttacks": 2626,
+    "newAttacks": 2626,
+    "remainingMidi0": 0,
+    "silentNotationHeads": 0,
+    "allOtherNoteEventsExact": true,
+    "allOtherMidiEventsExact": true,
+    "actualListening": false,
+    "masterBarCount": 72,
+    "sourceSha256": "3a756e362ba685cf8de1f435216783fcd043e0fc68367cfe392b03781fe4b008",
+    "removedEvents": {},
+    "addedEvents": 0,
+    "allRemainingMidiEventsExact": true
+  },
+  {
+    "name": "xiaban-source-review-v67",
+    "oldAttacks": 3866,
+    "newAttacks": 3834,
+    "remainingMidi0": 0,
+    "silentNotationHeads": 32,
+    "allOtherNoteEventsExact": true,
+    "allOtherMidiEventsExact": false,
+    "actualListening": false,
+    "masterBarCount": 147,
+    "sourceSha256": "53fb030270c3a9b8cf6d72e84e0314320783a9f9b2584e553ad810974ffd14c0",
+    "removedEvents": {
+      "NoteOnEvent": 32,
+      "NoteOffEvent": 32,
+      "NoteBendEvent": 32
+    },
+    "addedEvents": 0,
+    "allRemainingMidiEventsExact": true
+  }
+]

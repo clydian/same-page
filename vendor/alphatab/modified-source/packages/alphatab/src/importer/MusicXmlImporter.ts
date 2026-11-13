@@ -92,6 +92,9 @@ class StaffContext {
  * @internal
  */
 class InstrumentArticulationWithPlaybackInfo extends InstrumentArticulation {
+    /** Whether MusicXML explicitly supplies a valid midi-unpitched sound. */
+    public hasMidiUnpitched: boolean = false;
+
     /**
      * The midi channel number to use when playing the note (-1 if using the default track channels).
      */
@@ -158,9 +161,9 @@ class TrackInfo {
         MusicFontSymbol.NoteheadWhole
     );
 
-    public getOrCreateArticulation(instrumentId: string, note: Note) {
+    public getOrCreateArticulation(instrumentId: string, note: Note, isUnpitched: boolean = false) {
         const noteValue = note.octave * 12 + note.tone;
-        const lookup = `${instrumentId}_${noteValue}`;
+        const lookup = `${instrumentId}_${noteValue}_${isUnpitched}`;
         if (this._instrumentIdToArticulationIndex.has(lookup)) {
             return this._instrumentIdToArticulationIndex.get(lookup)!;
         }
@@ -168,6 +171,9 @@ class TrackInfo {
         let articulation: InstrumentArticulation;
         if (this.instruments.has(instrumentId)) {
             articulation = this.instruments.get(instrumentId)!;
+        } else if (isUnpitched && instrumentId === '' && this.firstArticulation) {
+            // MusicXML may omit note/instrument when using the part's default.
+            articulation = this.firstArticulation;
         } else {
             articulation = TrackInfo._defaultNoteArticulation;
         }
@@ -196,7 +202,11 @@ class TrackInfo {
             articulation.id,
             articulation.elementType,
             staffLine,
-            articulation.outputMidiNumber,
+            // -1 is an internal no-sound sentinel, not MIDI key 0. Keep the
+            // articulation for engraving and preserve explicit mappings to key 0.
+            isUnpitched && !(articulation instanceof InstrumentArticulationWithPlaybackInfo && articulation.hasMidiUnpitched)
+                ? -1
+                : articulation.outputMidiNumber,
             articulation.noteHeadDefault,
             articulation.noteHeadHalf,
             articulation.noteHeadWhole,
@@ -731,9 +741,13 @@ export class MusicXmlImporter extends ScoreImporter {
                 case 'midi-program':
                     articulation.outputMidiProgram = Number.parseInt(c.innerText, 10) - 1;
                     break;
-                case 'midi-unpitched':
-                    articulation.outputMidiNumber = Number.parseInt(c.innerText, 10) - 1;
+                case 'midi-unpitched': {
+                    const text = c.innerText.trim();
+                    const value = Number(text);
+                    articulation.hasMidiUnpitched = /^\+?\d+$/.test(text) && Number.isInteger(value) && value >= 1 && value <= 128;
+                    if (articulation.hasMidiUnpitched) articulation.outputMidiNumber = value - 1;
                     break;
+                }
                 case 'volume':
                     articulation.outputVolume = MusicXmlImporter._interpolatePercent(Number.parseFloat(c.innerText));
                     break;
@@ -3154,14 +3168,14 @@ export class MusicXmlImporter extends ScoreImporter {
 
         const trackInfo = this._indexToTrackInfo.get(track.index)!;
         if (instrumentId !== null) {
-            note.percussionArticulation = trackInfo.getOrCreateArticulation(instrumentId, note);
+            note.percussionArticulation = trackInfo.getOrCreateArticulation(instrumentId, note, !isPitched);
         } else if (note.beat.voice.bar.staff.isPercussion && isPitched) {
             const knownArticulation = PercussionMapper.getArticulationById(note.displayValue);
             if (knownArticulation) {
                 note.percussionArticulation = knownArticulation.id;
             }
         } else if (!isPitched) {
-            note.percussionArticulation = trackInfo.getOrCreateArticulation('', note);
+            note.percussionArticulation = trackInfo.getOrCreateArticulation('', note, true);
         }
     }
 

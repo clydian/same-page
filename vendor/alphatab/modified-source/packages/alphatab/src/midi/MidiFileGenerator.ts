@@ -944,7 +944,12 @@ export class MidiFileGenerator {
     }
 
     private _isNoteEligibleForPlayback(note: Note): boolean {
-        return !note.isCue && (note.repeatPasses === null || note.repeatPasses.includes(this._currentRepeatPass));
+        // A MusicXML unpitched note without a declared sound keeps its notation
+        // and beat, but cannot become an arbitrary pitched key. Explicit key 0
+        // mappings and real pitched MIDI 0 remain eligible.
+        return !note.isCue &&
+            (!note.isPercussion || PercussionMapper.getArticulation(note)?.outputMidiNumber !== -1) &&
+            (note.repeatPasses === null || note.repeatPasses.includes(this._currentRepeatPass));
     }
 
     private _isPlayedTieDestination(note: Note): boolean {

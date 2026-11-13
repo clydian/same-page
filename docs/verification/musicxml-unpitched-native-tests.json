@@ -1,0 +1,268 @@
+{
+  "baselineVersion": "samepage.23",
+  "candidateVersion": "samepage.24",
+  "passed": 1955,
+  "failed": 64,
+  "skipped": 1,
+  "sameFailureSet": true,
+  "newFailures": [],
+  "resolvedFailures": [],
+  "knownFailures": [
+    [
+      "test/exporter/AlphaTexExporter.test.ts",
+      "AlphaTexExporterTest visual-layout"
+    ],
+    [
+      "test/exporter/AlphaTexExporter.test.ts",
+      "AlphaTexExporterTest visual-music-notation"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests BeetAnGeSample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests Binchois"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests BrahWiMeSample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests BrookeWestSample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests Chant"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests DebuMandSample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests Dichterliebe01"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests Echigo"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests FaurReveSample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests MahlFaGe4Sample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests MozaChloSample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests MozaVeilSample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests MozartPianoSonata"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests MozartTrio"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests Saltarello"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests SchbAvMaSample"
+    ],
+    [
+      "test/importer/MusicXmlImporterSamples.test.ts",
+      "MusicXmlImporterSamplesTests Telemann"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 01c-Pitches-NoVoiceElement"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 13a-KeySignatures"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 13b-KeySignatures-ChurchModes"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 22a-Noteheads"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 22b-Staff-Notestyles"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 22c-Noteheads-Chords"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 23b-Tuplets-Styles"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 23c-Tuplet-Display-NonStandard"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 31a-Directions"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 31d-Directions-Compounds"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 32a-Notations"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 32d-Arpeggio"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 33a-Spanners"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 33c-Spanners-Slurs"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 33g-Slur-ChordedNotes"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 33h-Spanners-Glissando"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 33i-Ties-NotEnded"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 33j-Beams-Tremolos"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 34a-Print-Object-Spanners"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 34b-Colors"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 34c-Font-Size"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 42a-MultiVoice-TwoVoicesOnStaff-Lyrics"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 42b-MultiVoice-MidMeasureClefChange"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 43c-MultiStaff-DifferentKeysAfterBackup"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 43f-MultiStaff-Lyrics"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 46c-Midmeasure-Clef"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61a-Lyrics"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61b-MultipleLyrics"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61c-Lyrics-Pianostaff"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61d-Lyrics-Melisma"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61e-Lyrics-Chords"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61f-Lyrics-GracedNotes"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61g-Lyrics-NameNumber"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61h-Lyrics-BeamsMelismata"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61i-Lyrics-Chords"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61j-Lyrics-Elisions"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 61k-Lyrics-SpannersExtenders"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 71e-TabStaves"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 71f-AllChordTypes"
+    ],
+    [
+      "test/importer/MusicXmlImporterTestSuite.test.ts",
+      "MusicXmlImporterTestSuiteTests 99b-Lyrics-BeamsMelismata-IgnoreBeams"
+    ],
+    [
+      "test/visualTests/features/EffectsAndAnnotations.test.ts",
+      "EffectsAndAnnotationsTests lyrics multi-line"
+    ],
+    [
+      "test/visualTests/features/EffectsAndAnnotations.test.ts",
+      "EffectsAndAnnotationsTests lyrics multi-line-spacing"
+    ],
+    [
+      "test/visualTests/features/EffectsAndAnnotations.test.ts",
+      "EffectsAndAnnotationsTests lyrics single-line"
+    ],
+    [
+      "test/visualTests/features/General.test.ts",
+      "GeneralTests font-fallback"
+    ],
+    [
+      "test/visualTests/issues/BrokenRenders.test.ts",
+      "BrokenRendersTests bottom-effect-band"
+    ]
+  ]
+}
