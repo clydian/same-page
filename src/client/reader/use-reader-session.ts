@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import type { LocalWorkspace } from "../platform/local-workspace";
 import { ReaderSession, type ReaderSessionSnapshot } from "./reader-session";
 
@@ -23,5 +23,7 @@ export function useReaderSession(workspace: LocalWorkspace | null, userId: strin
     current?.session.setAuthenticatedUser(userId, sessionId);
   }, [current?.session, userId, sessionId]);
   const active = current?.session.workspace.scopeKey === workspace?.scopeKey ? current : null;
-  return { presentation: active?.session.presentation ?? null, retry: () => setAttempt(value => value + 1), snapshot: active?.snapshot ?? initial, download: () => active?.session.download(), retryLayers: () => active?.session.retryLayers() };
+  const activeSession = active?.session;
+  const dismissDisplayMessage = useCallback(() => activeSession?.dismissDisplayMessage(), [activeSession]);
+  return { presentation: active?.session.presentation ?? null, dismissDisplayMessage, retry: () => setAttempt(value => value + 1), snapshot: active?.snapshot ?? initial, download: () => active?.session.download(), retryLayers: () => active?.session.retryLayers() };
 }

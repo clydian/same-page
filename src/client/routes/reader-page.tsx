@@ -1,4 +1,5 @@
 import { readerHref } from "../reader/reader-entry";
+import { ReaderDisplayNotice } from '../reader/reader-display-notice';
 import { GuestNoteDialog } from "../auth/guest-note-invitation";
 import { ComparisonPdf } from "../playback/comparison-pdf";
 import { playbackStore, playbackViewStore } from "../playback/playback-store";
@@ -415,7 +416,7 @@ function ReaderPageContent() {
       {presentation.status === "failed" ? <div className="reader-display-recovery" role="alert">
         <span>页面显示失败，本机草稿仍保留。</span>{displayChoices}{diagnosticDialog}
       </div> : null}
-      {reader.snapshot.displayMessage ? <p className="reader-display-notice" role="status">{reader.snapshot.displayMessage}</p> : null}
+      {reader.snapshot.displayMessage && <ReaderDisplayNotice key={reader.snapshot.displayMessage} message={reader.snapshot.displayMessage} onDismiss={reader.dismissDisplayMessage} />}
       {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
       {!practicing && chromeVisible && !guide.visible ? (
       <header className="reader-chrome" data-editing={editing || undefined} aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>

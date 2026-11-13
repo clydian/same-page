@@ -1,4 +1,5 @@
 import { PlaybackPreparationNotice } from './playback-preparation-notice';
+import { FeedbackMessage } from '../components/feedback-message';
 import { readerHref } from "../reader/reader-entry";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -17,6 +18,7 @@ import { usePracticePopoverHeight } from './use-practice-popover-height';
 type Props = {
   source?: PlaybackSource; embedded?: boolean; notationZoom?: NotationZoomProps; ready: boolean; playing: boolean; message?: string; failed?: boolean;
   preparation?: { loaded: number; total: number };
+  hint?: ReactNode;
   loopPreviewing?: boolean; position: string; loopStatus?: string; timeline: Timeline; tempo?: { bpm: number; unit: number }; speed?: number; setSpeed?(value: number): void; previousDisabled: boolean; nextDisabled: boolean;
   play(): void; previous(): void; next(): void; retry(): void; children: ReactNode;
 };
@@ -91,6 +93,7 @@ export function PracticePlayerShell(props: Props) {
       {!props.ready && !props.failed && props.message
         ? <PlaybackPreparationNotice key={props.message} message={props.message} {...props.preparation} retry={props.retry} />
         : props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
+      {props.hint}
       <section className="practice-bar" aria-label="乐谱练习" data-testid="musicxml-player">
         <div id="practice-expanded-controls" className="practice-expanded-controls" hidden={bottomCollapsed}><PlaybackTimeline timeline={props.timeline} /></div>
 
@@ -115,7 +118,7 @@ export function PracticePlayerShell(props: Props) {
         </div>
       </section>
     </div>
-    {focus.notice && <div className="practice-focus-notice" role="status">{focus.notice}<Button className="practice-icon" aria-label="关闭全屏提示" onPress={focus.dismissNotice}><X size={16} aria-hidden="true" /></Button></div>}
+    <FeedbackMessage feedback={focus.feedback} className="practice-focus-notice" closeLabel="关闭全屏提示" dismissible />
     {panel && <Popover ref={popover} triggerRef={panelTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
       <Dialog className="practice-panel" aria-label={panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}>
         <header><div><strong>{panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? '关闭练习设置' : panel === 'speed' ? '关闭速度调节' : '关闭定位'} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>

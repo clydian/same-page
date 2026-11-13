@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import "./replaced-pdf-trash.css";
 import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
@@ -18,7 +20,8 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
   const [files, setFiles] = useState<ReplacedPdf[]>([]);
   const [now] = useState(Date.now);
   const [attempt, setAttempt] = useState(0);
-  const [message, setMessage] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
+  const { message, setMessage } = feedback;
   const [restoring, setRestoring] = useState<ReplacedPdf | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,7 +42,7 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
       setMessage(settingsError(error, "暂时无法读取被替换的 PDF。"));
     });
     return () => abort.abort();
-  }, [base, attempt, writable, lifetime]);
+  }, [base, attempt, writable, lifetime, setMessage]);
   if (!writable && purging) setPurging(null);
   async function restore() {
     if (!restoring || !writable || gate.current) return;
@@ -62,8 +65,8 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
       }
       confirmed = true;
       setFiles(items => items.filter(item => item.id !== file.id)); setRestoring(null);
-      setMessage("PDF 已恢复为独立乐谱，原乐谱的 PDF、笔记和附件保持不变。");
       await onRestored();
+      if (current()) setMessage("PDF 已恢复为独立乐谱，原乐谱的 PDF、笔记和附件保持不变。", { duration: 5000 });
     } catch { if (current()) setMessage(confirmed ? "PDF 已恢复，但刷新失败。请重新读取，不必再次恢复。" : "恢复结果未确认，请重新读取后核对。再次恢复不会创建重复文件。"); }
     finally { gate.current = false; setBusy(false); if (!current()) setAttempt(value => value + 1); }
   }
@@ -83,6 +86,6 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
     {purging && writable && <PurgeDialog userId={userId} path={`${base}/${purging.id}/purge`} title="彻底删除 PDF"
       description="这个回收站 PDF 将无法恢复。当前乐谱、笔记和附件保持不变。" onClose={() => setPurging(null)}
       onComplete={async current => { if (!current()) return; setFiles(items => items.filter(item => item.id !== purging.id)); setPurging(null); await onRestored(); }} />}
-    {message && <p role="status">{message}<Button isDisabled={busy || !writable} onPress={() => setAttempt(value => value + 1)}>重新读取</Button></p>}
+    <FeedbackMessage feedback={feedback}>{!feedback.temporary && <Button isDisabled={busy || !writable} onPress={() => setAttempt(value => value + 1)}>重新读取</Button>}</FeedbackMessage>
   </section>;
 }

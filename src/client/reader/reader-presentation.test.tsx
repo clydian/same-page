@@ -173,6 +173,10 @@ it("a failed replacement restores the previously presented document and its visi
   await waitFor(() => expect(session.getSnapshot()).toMatchObject({ document: previous.document, displayMessage: "显示恢复未完成，已保留原谱面。" }));
   expect(status()).toHaveTextContent("visible");
   expect(session.presentation.hasPresented(replacement.document)).toBe(false);
+  const beforeDismiss = session.getSnapshot();
+  act(() => session.dismissDisplayMessage());
+  expect(session.getSnapshot()).toEqual({ ...beforeDismiss, displayMessage: null });
+  expect(status()).toHaveTextContent("visible");
 });
 
 it.each([false, true])("context loss stays local to the page without losing the document (editing=%s)", async editing => {

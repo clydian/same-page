@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useSettingsLifetime, captureSettingsLifetime, invalidateSettingsLifetime } from "../settings/use-settings-lifetime";
 import { captureReadIdentity } from "../settings/read-resource";
 import { SettingsRequestError, isSettingsReadDenied, settingsError } from "../settings/settings-request";
@@ -27,7 +29,8 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
   const [originalCodeComposing, setOriginalCodeComposing] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
+  const { message, setMessage } = feedback;
   const [reload, setReload] = useState(0);
   const endpoint = `/api/choirs/${choirId}/join-code`;
 
@@ -54,7 +57,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
       }
     })();
     return () => controller.abort();
-  }, [endpoint, reload, writable, lifetime]);
+  }, [endpoint, reload, writable, lifetime, setMessage]);
 
   if (confirmRotation && !writable) setConfirmRotation(false);
 
@@ -72,7 +75,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
   async function copy(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setMessage(`${label}已复制。`);
+      setMessage(`${label}已复制。`, { duration: 5000 });
     } catch {
       setMessage("复制失败，请重试或保存邀请卡分享。");
     }
@@ -83,7 +86,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
     setSharing(true);
     try {
       const result = await deliverInviteCard(readyFile, share);
-      setMessage(result === "saved" ? "邀请卡已生成，请在下载中查看。" : null);
+      setMessage(result === "saved" ? "邀请卡已生成，请在下载中查看。" : null, { duration: 5000 });
     } catch {
       setMessage("邀请卡生成或分享失败，请重试。");
     } finally {
@@ -105,7 +108,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
       const rotated = await parseDiagnosticResponse(response, rotateJoinCodeResponseSchema);
       if (!current()) return;
       setCurrentCode(rotated.joinCode);
-      setMessage("邀请码已轮换，可随时在这里查看。");
+      setMessage("邀请码已轮换，可随时在这里查看。", { duration: 5000 });
     } catch {
       if (!current()) return;
       setMessage("邀请码轮换失败，请重新打开确认当前邀请码。");
@@ -139,7 +142,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
       }
       setCurrentCode(parsedCode);
       setOriginalCode("");
-      setMessage("已保存，原邀请码继续有效，可随时在这里查看。");
+      setMessage("已保存，原邀请码继续有效，可随时在这里查看。", { duration: 5000 });
     } catch {
       if (!current()) return;
       setMessage("暂时无法保存邀请码，请重试。");
@@ -176,7 +179,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
             {busy ? "正在保存…" : "轮换邀请码"}
           </Button>
           </div><ConfirmDialog confirmation={confirmRotation && writable ? { title: "轮换邀请码", action: "确认轮换", message: "当前邀请码、邀请链接和二维码会立即失效。请将新邀请方式发给需要加入的人。", onConfirm: rotate } : null} busy={busy} onClose={() => setConfirmRotation(false)} />
-          {message ? <p className="library-message" role="status">{message}</p> : null}
+          <FeedbackMessage feedback={feedback} className="library-message" />
           {!loaded && message ? <Button isDisabled={!writable} onPress={() => setReload((value) => value + 1)}>重试</Button> : null}
     </section>
   );

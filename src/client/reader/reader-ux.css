@@ -54,7 +54,7 @@
   color: var(--ui-ink, #171717);
   box-shadow: 0 2px 14px #0002;
 }
-.reader-display-notice { top: auto; bottom: 1rem; pointer-events: none; }
+.reader-display-notice { top: auto; bottom: 1rem; pointer-events: auto; }
 .reader-display-choices { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .reader-display-choices button,
 .page-render-recovery button { min-width: 44px; min-height: 44px; }

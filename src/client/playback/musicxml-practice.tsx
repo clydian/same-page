@@ -15,6 +15,7 @@ import type { PlaybackPreparationProgress } from './playback-preparation-notice'
 import { PracticePlayerShell } from "./practice-player-shell";
 import { PracticeDisclosure, PracticeSetting, PracticeVolume } from "./practice-setting";
 import { LoopRangeEditor } from "./loop-range-editor";
+import { PlaybackAudioHint } from './playback-audio-hint';
 const preparing: PlayerState = {
   status: "preparing",
   message: "正在准备播放…",
@@ -123,6 +124,7 @@ export function MusicXmlPractice({
         playing={state.playing || Boolean(state.countInBeats)}
         preparation={session ? state.loadingProgress : preparation && preparation.loaded !== undefined && preparation.total !== undefined ? { loaded: preparation.loaded, total: preparation.total } : undefined}
         message={error ?? (!session && preparation ? preparation.message : state.countInBeats ? `预备：${state.countInBeat} / ${state.countInBeats}` : state.message)}
+        hint={ready && <PlaybackAudioHint session={session} message={state.audioHint} />}
         failed={Boolean(error) || state.status === "error"}
         timeline={{
           value: state.measure,
@@ -293,6 +295,7 @@ export function MusicXmlPractice({
           {view === "pdf" && <p className="practice-hint">切换到重排谱面后可设置首调数字。</p>}
         </div>
         {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? '此练习谱可离线打开与播放。' : offlineStatus === 'preparing' ? '正在准备离线播放…' : <>离线准备未完成。<Button className="practice-inline-action" onPress={retryOffline}>重试离线准备</Button></>}</p>}
+        {state.audioHint && <p className="practice-hint">{state.audioHint}</p>}
         <p className="practice-hint">MusicXML 合成播放，不演唱歌词；原 PDF 需手动翻页。</p>
       </PracticePlayerShell>
     </>

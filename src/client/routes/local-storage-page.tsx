@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { createLocalWorkspace } from "../platform/local-workspace";
 import { useOfflineScore } from "../offline/use-offline-score";
 import { useApplicationIdentity } from "../auth/application-identity";
@@ -22,7 +24,8 @@ export default function LocalStoragePage() {
   const [selection, setSelection] = useState<{ label: string; scopes: LocalFileScope[] } | null>(null);
   const [retrySelection, setRetrySelection] = useState<typeof selection>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
+  const { setMessage } = feedback;
   const totalBytes = files?.reduce((sum, file) => sum + file.blob.size, 0) ?? 0;
   const scopes = [...new Map(files?.map(file => [JSON.stringify([file.ownerKey, file.choirId, file.scoreId]), { ownerKey: file.ownerKey, choirId: file.choirId, scoreId: file.scoreId }])).values()];
   const clear = async () => {
@@ -34,7 +37,7 @@ export default function LocalStoragePage() {
       try { bytes += await clearLocalFiles(scope); } catch { failures.push(scope); }
     }
     setRetrySelection(failures.length ? { label: "上次未完成清理的谱面", scopes: failures } : null);
-    setMessage(failures.length ? `已清理 ${formatBytes(bytes)}；${failures.length} 项未完成，请重试。` : `已清理 ${formatBytes(bytes)} 本机谱面文件。`);
+    setMessage(failures.length ? `已清理 ${formatBytes(bytes)}；${failures.length} 项未完成，请重试。` : `已清理 ${formatBytes(bytes)} 本机谱面文件。`, failures.length ? undefined : { duration: 5000 });
     setBusy(false); setSelection(null);
   };
   return <div className="app-page"><TaskHeader title={"本机存储"} backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page settings-ux">
@@ -46,7 +49,7 @@ export default function LocalStoragePage() {
       {files.length > 0 && <Button className="secondary-button" onPress={() => setSelection({ label: "本云盘的全部本机谱面文件", scopes })}>清理全部 · 可释放 {formatBytes(totalBytes)}</Button>}
       <ul className="local-file-list">{files.map(file => <LocalFileRow key={file.key} file={file} currentVersionId={directory?.scores.find(score => score.id === file.scoreId)?.currentVersion.id} onClear={() => setSelection({ label: file.fileName, scopes: [{ ownerKey: file.ownerKey, choirId: file.choirId, scoreId: file.scoreId }] })} />)}</ul>
     </>}
-    {message && <p role="status">{message}</p>}{retrySelection && <Button className="secondary-button" onPress={() => setSelection(retrySelection)}>重试未完成清理</Button>}
+    <FeedbackMessage feedback={feedback} />{retrySelection && <Button className="secondary-button" onPress={() => setSelection(retrySelection)}>重试未完成清理</Button>}
     <ModalOverlay className="modal-overlay" isOpen={Boolean(selection)} onOpenChange={open => { if (!open && !busy) setSelection(null); }} isDismissable={!busy}><Modal className="app-modal"><Dialog className="app-dialog" exitDisabled={busy}>
       <Heading slot="title">清理本机文件</Heading><p>只清理已下载的 PDF 和图片。云端文件、云盘目录、个人草稿、待同步操作和冲突均保留，也不退出登录。</p><p>清理{selection?.label}？当前阅读可继续，离线重新打开将不可用。</p>
       <Button className="secondary-button" isDisabled={busy} onPress={() => setSelection(null)}>取消</Button><Button className="primary-button" isDisabled={busy} onPress={() => void clear()}>{busy ? "正在清理…" : "确认清理"}</Button>

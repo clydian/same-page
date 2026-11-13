@@ -126,6 +126,7 @@ export class ReaderSession {
   };
   private layerAbort = new AbortController();
   getSnapshot = () => this.state;
+  dismissDisplayMessage = () => { if (this.state.displayMessage) this.publish({ displayMessage: null }); };
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private publish(patch: Partial<ReaderSessionSnapshot>) {
     if (this.disposed) return;

@@ -72,3 +72,19 @@ it('retains a manual choice made during focus when focus exits', async () => {
   await act(() => result.current.exit());
   expect(result.current.bottomCollapsed).toBe(false);
 });
+
+it('shows compatibility advice once, expires it, and keeps actual exit failures persistent', async () => {
+  vi.useFakeTimers();
+  try {
+    const { result } = renderHook(() => usePracticeFocus());
+    await act(() => result.current.enter()); expect(result.current.notice).toContain('系统状态栏');
+    act(() => vi.advanceTimersByTime(8000)); expect(result.current.notice).toBeNull();
+    await act(() => result.current.exit()); await act(() => result.current.enter());
+    expect(result.current.notice).toBe('');
+    fullscreen(undefined, vi.fn().mockRejectedValue(new Error('denied')));
+    await act(() => result.current.exit()); await act(() => result.current.enter());
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: document.documentElement });
+    await act(() => result.current.exit()); act(() => vi.advanceTimersByTime(20000));
+    expect(result.current.notice).toContain('无法退出全屏');
+  } finally { vi.useRealTimers(); }
+});
