@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { assetUrl } from "../../shared/asset-url";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -10,10 +12,11 @@ import "../support-pages.css";
 
 export default function AboutPage() {
   const { state } = useLocation();
-  const [message, setMessage] = useState("");
+  const feedback = useFeedbackMessage();
+  const { message, setMessage } = feedback;
   const information = `合谱 ${buildVersion}\n构建：${buildId}${buildRunId ? `\n流水线：${buildRunId}` : ""}`;
   async function copy() {
-    try { await navigator.clipboard.writeText(information); setMessage("版本信息已复制。"); }
+    try { await navigator.clipboard.writeText(information); setMessage("版本信息已复制。", { duration: 5000 }); }
     catch { setMessage("无法自动复制，请选中下方版本信息手动复制。"); }
   }
   return <div className="app-page support-page"><TaskHeader title="关于合谱" backTo="/drives" />
@@ -32,12 +35,12 @@ export default function AboutPage() {
         <Link to="/diagnostics"><MessageSquare size={20} aria-hidden="true" /><span>问题反馈<small>把遇到的问题告诉我们</small></span><ArrowUpRight size={18} aria-hidden="true" /></Link>
         <Link to="/privacy"><ShieldCheck size={20} aria-hidden="true" /><span>隐私政策</span><ChevronRight size={18} aria-hidden="true" /></Link>
       </nav>
-      <details className="support-details about-build" open={message.startsWith("无法")}>
+      <details className="support-details about-build" open={message?.startsWith("无法") || undefined}>
         <summary>版本与技术信息</summary>
         <p className="support-muted">当前设备运行 {buildVersion}，版本时间采用北京时间。</p>
         <pre>{information}</pre>
         <button className="support-text-button" onClick={() => void copy()}>复制版本信息</button>
-        {message && <p role="status">{message}</p>}
+        <FeedbackMessage feedback={feedback} />
       </details>
     </main>
   </div>;

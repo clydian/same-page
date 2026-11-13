@@ -57,7 +57,7 @@ node --test --test-concurrency=1 browser-tests/musicxml-audio-session.test.mjs b
 手动关闭、同 session 重渲染不重新弹出、新 session 可提醒、悬停与焦点暂缓。
 播放客户端 141 项通过，生产构建/类型检查及定向 ESLint 通过；Chromium 产品回归确认
 自动收起、暂停继续不重现、练习设置仍可查阅。当前改动的 WebKit/CI 结果以后续运行记录为准。
-另见 [常驻提示审查](persistent-notice-review.md)，其中未修改的其他发现仍标记待修。
+另见 [常驻提示审查](persistent-notice-review.md)，其中其余提示也已按最新清理记录处理。
 
 ## 旧版本占比参考（2026-11-12 查询）
 

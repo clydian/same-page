@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFeedbackMessage } from '../components/use-feedback-message';
 
 // Decide once per session. Rotation and browser chrome changes must never close
 // a menu, interrupt a scrub, or hide the control that currently owns focus.
@@ -7,16 +8,17 @@ export function usePracticeFocus(embedded?: boolean) {
   const preference = useRef(bottomCollapsed);
   const setBottomCollapsed = (value: boolean) => { preference.current = value; updateBottomCollapsed(value); };
   const [focused, setFocused] = useState(false);
-  const [notice, setNotice] = useState('');
+  const feedback = useFeedbackMessage('');
+  const { message: notice, setMessage: setNotice } = feedback;
   const [pending, setPending] = useState(false);
   const ownsFullscreen = useRef(false);
   const mounted = useRef(true);
   const supported = typeof document.documentElement.requestFullscreen === 'function' && document.fullscreenEnabled === true;
-  const restore = () => {
+  const restore = useCallback(() => {
     setFocused(false);
     updateBottomCollapsed(preference.current);
     setNotice('');
-  };
+  }, [setNotice]);
   useEffect(() => {
     mounted.current = true;
     const changed = () => {
@@ -31,7 +33,7 @@ export function usePracticeFocus(embedded?: boolean) {
       document.removeEventListener('fullscreenchange', changed);
       if (ownsFullscreen.current && document.fullscreenElement === document.documentElement) void document.exitFullscreen().catch(() => {});
     };
-  }, []);
+  }, [restore]);
   const exit = async () => {
     if (pending) return;
     if (ownsFullscreen.current && document.fullscreenElement) {
@@ -45,7 +47,7 @@ export function usePracticeFocus(embedded?: boolean) {
     if (pending) return;
     setFocused(true); updateBottomCollapsed(true);
     if (!supported) {
-      setNotice('已进入专注模式。此浏览器不能全屏显示谱面，系统状态栏由系统保留。');
+      setNotice('已进入专注模式。此浏览器不能全屏显示谱面，系统状态栏由系统保留。', { duration: 8000, once: 'focus-compatibility' });
       return;
     }
     if (document.fullscreenElement) return; // Preserve fullscreen owned by another surface.
@@ -60,8 +62,8 @@ export function usePracticeFocus(embedded?: boolean) {
     }
     catch {
       ownsFullscreen.current = false;
-      if (mounted.current) setNotice('全屏未能开启，已使用专注模式；无法强行隐藏系统状态栏。');
+      if (mounted.current) setNotice('全屏未能开启，已使用专注模式；无法强行隐藏系统状态栏。', { duration: 8000, once: 'focus-compatibility' });
     } finally { if (mounted.current) setPending(false); }
   };
-  return { bottomCollapsed, setBottomCollapsed, focused, notice, dismissNotice: () => setNotice(''), pending, supported, enter, exit };
+  return { bottomCollapsed, setBottomCollapsed, focused, notice, feedback, dismissNotice: feedback.dismiss, pending, supported, enter, exit };
 }

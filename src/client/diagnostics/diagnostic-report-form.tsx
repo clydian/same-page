@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { CheckCircle2, Send } from "lucide-react";
 import "../support-pages.css";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -10,19 +12,20 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
   const submission = useSyncExternalStore(subscribeDiagnosticSubmission, getDiagnosticSubmission);
   const [previewId] = useState(() => crypto.randomUUID());
   const [preview, setPreview] = useState(exportDiagnostics);
-  const [message, setMessage] = useState("");
+  const feedback = useFeedbackMessage();
+  const { setMessage } = feedback;
   useEffect(() => {
     const refresh = () => { setPreview(exportDiagnostics()); setMessage(""); };
     const unsubscribe = subscribeDiagnosticReset(refresh);
     const timer = setInterval(() => setPreview(exportDiagnostics()), 1000);
     return () => { unsubscribe(); clearInterval(timer); };
-  }, []);
+  }, [setMessage]);
   // Preview the complete payload (including optional text) without freezing the incident until Send.
   let current = preview;
   try { current = JSON.stringify(submission.report ?? captureDiagnosticReport(submission.description, reader, previewId), null, 2); }
   catch { /* Copying existing diagnostic categories remains available. */ }
   const copy = async (value: string, success: string) => {
-    try { await navigator.clipboard.writeText(value); setMessage(success); }
+    try { await navigator.clipboard.writeText(value); setMessage(success, { duration: 5000 }); }
     catch { setMessage("无法自动复制，请选中诊断信息或反馈编号手动复制。"); }
   };
   return <div className="diagnostic-report-form">
@@ -47,7 +50,7 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
       <button className="secondary-button" type="button" onClick={() => void copy(submission.report!.id, "已复制反馈编号。")}>复制反馈编号</button>
       <p>如需通过已有渠道联系维护人员，可提供此编号，便于查找。</p>
     </div>}
-    <p role="status">{message || submission.message}</p>
+    <FeedbackMessage feedback={feedback} fallback={submission.message} />
     <p className="diagnostic-hint">发送前请保持此页面打开，刷新或关闭网页会清空待发送内容。发送失败可重试，不影响乐谱与本机草稿。</p>
     <details className="support-details diagnostic-details">
       <summary>诊断信息与隐私说明</summary>
@@ -58,7 +61,7 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
       <textarea id="diagnostic-report" readOnly value={current} rows={12} />
       <div className="diagnostics-actions diagnostic-utilities">
       <button type="button" onClick={() => void copy(current, "已复制诊断信息。")}>复制诊断信息</button>
-      <button type="button" onClick={() => { clearDiagnostics(); setMessage("已清空本机会话诊断信息，不影响乐谱与草稿，也不会撤回已发送的报告。"); }}>清空诊断信息</button>
+      <button type="button" onClick={() => { clearDiagnostics(); setMessage("已清空本机会话诊断信息，不影响乐谱与草稿，也不会撤回已发送的报告。", { duration: 5000 }); }}>清空诊断信息</button>
       </div>
     </details>
 

@@ -1,0 +1,4 @@
+.feedback-message { display: flex; align-items: center; gap: 8px; }
+.feedback-message > [role="status"] { flex: 1; min-width: 0; }
+.feedback-message-close { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; min-width: 44px; min-height: 44px; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
+.feedback-message-close:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }

@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useSettingsLifetime, captureSettingsLifetime, invalidateSettingsLifetime } from "../settings/use-settings-lifetime";
 import { captureReadIdentity } from "../settings/read-resource";
 import { SettingsRequestError, isSettingsReadDenied, settingsError } from "../settings/settings-request";
@@ -40,7 +42,8 @@ export function TrashContents({
   const [trash, setTrash] = useState<TrashedScoreSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
-  const [message, setMessage] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
+  const { message, setMessage } = feedback;
   const [busy, setBusy] = useState(false);
   const [restoreConflict, setRestoreConflict] = useState<TrashedScoreSummary | null>(null);
   const [restoreName, setRestoreName] = useState("");
@@ -64,7 +67,7 @@ export function TrashContents({
     return () => {
       active = false;
     };
-  }, [choirId, attempt, writable, lifetime]);
+  }, [choirId, attempt, writable, lifetime, setMessage]);
 
   if (purging && !writable) setPurging(null);
 
@@ -75,6 +78,7 @@ export function TrashContents({
     const current = () => sameIdentity() && sameLifetime();
     setBusy(true);
     setMessage(null);
+    let confirmed = false;
     try {
       if (nextName) {
         const rename = await diagnosticFetch(`/api/choirs/${choirId}/scores/${score.id}`, {
@@ -112,11 +116,12 @@ export function TrashContents({
       if (!response.ok) throw new Error("restore_failed");
       setRestoreConflict(null);
       setTrash((current) => current.filter((entry) => entry.id !== score.id));
-      setMessage("文件已恢复，笔记和附件保持不变。");
+      confirmed = true;
       await onRestored();
+      if (current()) setMessage("文件已恢复，笔记和附件保持不变。", { duration: 5000 });
     } catch {
       if (!current()) return;
-      setMessage("恢复未完成，请稍后重试。");
+      setMessage(confirmed ? "文件已恢复，但刷新失败。请重新读取，不必再次恢复。" : "恢复未完成，请稍后重试。");
     } finally {
       setBusy(false);
       if (!current()) setAttempt(value => value + 1);
@@ -149,7 +154,7 @@ export function TrashContents({
                   ))}
                 </ul>
               ) : (
-                message ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="dialog-copy">没有已删除的乐谱。</p>
+                message && !feedback.temporary ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="dialog-copy">没有已删除的乐谱。</p>
               )}
               {purging && writable && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title="彻底删除乐谱" description={`“${scoreDisplayName(purging.fileName)}”的PDF 文件、附件和所有成员的笔记都会被删除。`} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
               <ReplacedPdfTrash key={`pdf:${userId}:${choirId}`} userId={userId} choirId={choirId} canPurge={canPurge} writable={writable} onRestored={onRestored} />
@@ -165,11 +170,7 @@ export function TrashContents({
                   </Button>
                 </Form>
               ) : null}
-              {message ? (
-                <p className="form-message" role="status">
-                  {message}
-                </p>
-              ) : null}
+              <FeedbackMessage feedback={feedback} className="form-message" />
     </section>
   );
 }
