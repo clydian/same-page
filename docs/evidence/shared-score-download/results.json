@@ -1,7 +1,7 @@
 {
   "beforeCommit": "cf6b6a064b64845614a5dac4f2f2c3db0aa71b1b",
-  "afterCommit": "e6a57d5d78e988d7a684bf4847dc36a7d8b3eed0",
-  "afterBuiltAt": "2026-11-14T23:04:16.534Z",
+  "afterCommit": "1440034341535be2f87634eef46923ce587e39d9",
+  "afterBuiltAt": "2026-11-14T23:07:48.025Z",
   "engine": "Chromium (/usr/bin/chromium)",
   "viewport": {
     "width": 390,
@@ -13,7 +13,7 @@
   "scenarios": [
     {
       "mode": "click-with-shell",
-      "url": "/choirs/6d57d3d5-16f9-4764-affa-c8eddb11cf8d",
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d",
       "progress": [
         {
           "name": "下载乐谱",
@@ -29,11 +29,11 @@
     {
       "mode": "cancel-before-stream-release",
       "requestClosed": true,
-      "url": "/choirs/6d57d3d5-16f9-4764-affa-c8eddb11cf8d"
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d"
     },
     {
       "mode": "explicit-save",
-      "url": "/choirs/6d57d3d5-16f9-4764-affa-c8eddb11cf8d",
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d",
       "progress": [
         {
           "name": "下载乐谱",
@@ -52,7 +52,7 @@
     },
     {
       "mode": "click-no-shell",
-      "url": "/choirs/6d57d3d5-16f9-4764-affa-c8eddb11cf8d",
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d",
       "progress": [
         {
           "name": "下载乐谱",
@@ -67,7 +67,7 @@
     },
     {
       "mode": "failure-no-shell",
-      "url": "/choirs/6d57d3d5-16f9-4764-affa-c8eddb11cf8d",
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d",
       "text": "为下次排练做好准备\n1\n添加到桌面\n\n像其他 App 一样，点合谱图标就能打开。\n\n已登录并加入云盘\n添加到桌面\nPDF\n本地链路测试\n801 KB\n···"
     },
     {
