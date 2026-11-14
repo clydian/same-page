@@ -2,7 +2,7 @@ import { afterEach,beforeEach,expect,it,vi } from 'vitest';
 import { ReleasePermission } from '../../../service-worker/release-permission';
 import { type ReleaseTarget, releaseContract } from '../../shared/release-channels';
 import { readReleaseReceipt,writeReleaseReceipt } from '../../shared/release-receipt';
-import { refreshReleaseChannel, useReleaseChannel } from './release-channel';
+import { refreshReleaseChannel, selectReleaseChannel, useReleaseChannel } from './release-channel';
 vi.mock('../../shared/build',()=>({buildId:'b'.repeat(40)}));
 vi.mock('react',()=>({useSyncExternalStore:(_subscribe: unknown,snapshot:()=>unknown)=>snapshot()}));
 const origin='https://same-page.test',A='a'.repeat(40),B='b'.repeat(40);
@@ -120,4 +120,15 @@ it('retains offline running-channel attribution when readback fails before stora
  await expect(refresh).rejects.toThrow('Failed to fetch');
  expect(useReleaseChannel()).toMatchObject({runningChannel:'beta',error:'当前离线，请联网后重试。'});
  expect(await readReleaseReceipt(origin)).toEqual({confirmed:beta,permitted:beta});
+});
+
+
+it('rejects channel selection on the browser offline signal before any API or receipt mutation', async () => {
+ await writeReleaseReceipt(origin,{confirmed:stable,permitted:stable});
+ vi.stubGlobal('navigator',{onLine:false});
+ const fetcher=vi.fn(async()=>Response.json(beta));vi.stubGlobal('fetch',fetcher);
+ await selectReleaseChannel('beta');
+ expect(fetcher).not.toHaveBeenCalled();
+ expect(await readReleaseReceipt(origin)).toEqual({confirmed:stable,permitted:stable});
+ expect(useReleaseChannel().error).toBe('当前离线，请联网后再切换版本。');
 });

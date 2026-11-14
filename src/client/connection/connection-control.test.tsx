@@ -74,6 +74,9 @@ it('shows newer evidence, conservatively resolves ties and expires old evidence 
     businessFails = true; vi.setSystemTime(base + 1000);
     await act(async () => { await connections.fetch('/api/choirs').catch(() => {}); });
     expect(current()).toHaveTextContent('暂时连不上');
+    // Route rows retain the last health sample; current-route evidence also
+    // includes the newer failed business request.
+    expect(screen.getAllByText('线路可达')).toHaveLength(2);
     vi.setSystemTime(base + 2000);
     await act(async () => { await connections.sample(new AbortController().signal); });
     expect(current()).toHaveTextContent('当前线路：备用');
@@ -115,6 +118,7 @@ it('keeps identity failure visible when health succeeds and the browser reports 
       <IdentityNotice identity={identity} />
       <ConnectionControl />
     </MemoryRouter>);
+    expect(screen.getByRole('button', { name: /连接线路，浏览器离线/ })).toBeVisible();
     // The connection entry must not replace an independent session failure notice.
     expect(screen.getByText(/暂时无法连接，已保存的内容仍然保留/)).toBeInTheDocument();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^连接线路/ })); });
