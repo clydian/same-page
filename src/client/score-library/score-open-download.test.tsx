@@ -9,7 +9,6 @@ import { revokeOfflinePreparationIdentity } from "../offline/offline-score";
 import { clearReaderDocumentCache } from "../reader/reader-document-cache";
 import { PreparedScoreLink } from "./prepared-score-link";
 import { OfflineScoreControl } from "./offline-score-control";
-import { ScoreDownloadProgress } from "./score-download-progress";
 
 // Only the PDF engine and browser network/shell are external. Opening, shared
 // downloads, cancellation, hashing and offline activation run their real code.
@@ -50,7 +49,7 @@ function Location() { return <div data-testid="location">{useLocation().pathname
 function view() {
   return render(<MemoryRouter initialEntries={["/choirs/drive"]}>
     <PreparedScoreLink score={score} sessionId="session" userId="user" choirId="drive" scoreId="score" local={false} label="排练" description="PDF" onOpen={() => {}}>
-      {(opening, percent) => <>{opening && percent !== null && <ScoreDownloadProgress percent={percent} />}排练</>}
+      排练
     </PreparedScoreLink>
     <OfflineScoreControl score={score} authenticatedUserId="user" authenticatedSessionId="session" />
     <Location />

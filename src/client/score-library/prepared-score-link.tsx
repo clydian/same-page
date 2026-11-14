@@ -14,6 +14,7 @@ import { loadPdfDocument, type PdfDocumentSource, type PdfLoadProgress } from ".
 import { acquireScorePdf } from "../offline/score-pdf-download";
 import { pdfFailureCategory } from "../diagnostics/diagnostics";
 import { ScoreLink } from "./score-link";
+import { ScoreDownloadProgress } from "./score-download-progress";
 import "./prepared-score-link.css";
 
 type OpenRequest = { cancel: () => void };
@@ -99,6 +100,7 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
       }} onOpen={() => { activeOpening?.cancel(); props.onOpen(); }}>{typeof children === "function" ? children(opening, percent) : children}</ScoreLink>
     </div>
     <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{opening ? `正在打开 ${props.label}` : ""}</span>
+    {percent !== null && <span className="prepared-score-progress"><ScoreDownloadProgress percent={percent} /></span>}
     {opening && <button type="button" className="prepared-score-cancel" aria-label={`取消打开 ${props.label}`} onClick={() => {
       request.current?.cancel(); request.current = null; setOpening(false); container.current?.querySelector("a")?.focus();
     }}>取消</button>}
