@@ -1249,6 +1249,9 @@ describe("AppRoutes", () => {
   });
 
   it("reuses the home summary while one member bootstrap loads the drive", async () => {
+    // AppRoutes excludes LocalIdentityObserver; establish the accepted local owner
+    // before asserting a successful empty-directory read during the pending bootstrap.
+    await activateAuthenticatedLocalOwner("user-1");
     vi.mocked(authClient.useSession).mockReturnValue({
       data: { user: { id: "user-1", email: "member@example.test" } },
       isPending: false,
