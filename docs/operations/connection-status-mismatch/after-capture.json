@@ -1,0 +1,21 @@
+{
+  "source": "0a834924d75bacef65228c6f17ac516a484d56ad",
+  "browser": "156.0.8078.4",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "scenario": "isolated fixture; actual browser offline after a successful health sample",
+  "serviceWorkers": "block",
+  "clock": "paused after one second to make both versions comparable; not evidence of sustained fresh success",
+  "navigatorOnline": false,
+  "healthSample": "same previous successful sample",
+  "productAdmin": "synthetic operator confirmed online; no new admin request after offline",
+  "channel": "synthetic local catalog; offline selection blocked before POST",
+  "shots": [
+    "after-offline-panel.png",
+    "after-expanded-status-help.png",
+    "after-offline-entry.png",
+    "after-offline-channel.png"
+  ]
+}

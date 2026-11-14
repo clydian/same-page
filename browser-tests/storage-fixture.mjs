@@ -9,7 +9,7 @@ import { startViteServer } from "../scripts/vite-server.mjs";
 
 // Each call owns a fresh local Worker store. Bindings are disposed before Vite
 // opens them, so the seed and server never contend for the same SQLite files.
-export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), productAdmin = false, connectionOrigins } = {}) {
+export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), productAdmin = false, releaseChannels = false, connectionOrigins } = {}) {
   const accounts = authenticated ? [0, 1].map(() => ({ id: randomUUID(), email: `${randomUUID()}@example.test`, password: randomBytes(24).toString("hex") })) : [];
   const joinCode = invite ? Array.from(randomBytes(8), value => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[value & 31]).join("") : null;
   const choirId = randomUUID(), scoreId = randomUUID(), versionId = randomUUID();
@@ -63,6 +63,17 @@ export async function startStorageFixture({ authenticated = false, invite = fals
             DB.prepare("INSERT INTO scores(id,choir_id,file_name,file_name_key,current_version_id) VALUES(?,?,'另一份原谱.pdf','另一份原谱.pdf',?)").bind(adminScoreId,adminDriveId,adminVersionId),
             DB.prepare("INSERT INTO score_versions(id,choir_id,score_id,version_number,object_key,size_bytes,sha256,etag,page_count,state) VALUES(?,?,?,1,?,?,?,?,2,'ready')").bind(adminVersionId,adminDriveId,adminScoreId,secondKey,pdf.length,hash,secondObject.httpEtag),
             DB.prepare("INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)").bind(accounts[1].id),
+          ]);
+        }
+        if (releaseChannels) {
+          // Synthetic catalog for dev-mode UI captures; it is never published.
+          const id = "a".repeat(40);
+          const contract = "same-page-storage-v15-sync-v1";
+          const seal = JSON.stringify({ buildId: id, contract, probeDigest: "0".repeat(64), storageDigest: "0".repeat(64), files: {} });
+          await platform.env.FRONTEND_RELEASES.put(`releases/${id}/sealed.json`, seal);
+          await DB.batch([
+            DB.prepare("INSERT INTO frontend_releases VALUES(?,?,?,?,1)").bind(id, createHash("sha256").update(seal).digest("hex"), contract, Date.now()),
+            DB.prepare("INSERT INTO release_channels VALUES(1,?,?,1)").bind(id, id),
           ]);
         }
         if (joinCode) {

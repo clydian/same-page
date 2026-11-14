@@ -26,6 +26,34 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     assert.equal(await page.locator('.connection-dialog').evaluate(el => el.scrollWidth <= el.clientWidth), true);
     await expect(page.locator('.connection-spinner')).toHaveCount(0);
     assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), true);
+    // A real browser offline event changes the immediate platform signal while
+    // the panel still truthfully retains its previous discrete health sample.
+    // Do not override navigator or return a fake successful offline response.
+    const sampledBeforeOffline = (await snapshot()).samples.direct.at(-1);
+    await context.setOffline(true);
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+    await expect(page.locator('.connection-current')).toContainText('浏览器离线');
+    const help = page.getByText('状态与连接帮助', { exact: true });
+    const explanation = page.getByText(/线路检测只确认服务能否响应/);
+    await expect(explanation).toBeHidden();
+    await help.focus(); await page.keyboard.press('Enter');
+    await expect(explanation).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(explanation).toBeHidden();
+    await expect(page.getByRole('button', { name: /连接线路，浏览器离线/ })).toBeVisible();
+    await expect(page.locator('.connection-health').filter({ hasText: '线路可达' })).toHaveCount(2);
+    assert.deepEqual((await snapshot()).samples.direct.at(-1), sampledBeforeOffline);
+    await mkdir('artifacts/verification/connection-sampling', { recursive: true });
+    await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-offline-previous-success.png` });
+    await page.clock.fastForward(10_000);
+    await expect.poll(async () => (await snapshot()).samples.direct.at(-1)?.state).toBe('unreachable');
+    await expect(page.locator('.connection-health').filter({ hasText: '暂时连不上' })).toHaveCount(2);
+    await context.setOffline(false);
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
+    await page.evaluate(async () => (await import('/src/client/connection/connection.ts')).connections.sample(new AbortController().signal));
+    await expect(page.locator('.connection-current')).not.toContainText('浏览器离线');
+    await expect(page.locator('.connection-health').filter({ hasText: '线路可达' })).toHaveCount(2);
+    await expect.poll(async () => (await snapshot()).checking || (await snapshot()).preparing).toBe(false);
     await mkdir('artifacts/verification/connection-sampling', { recursive: true });
     await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-320.png` });
     const details = page.getByLabel(/^直连检测详情/);

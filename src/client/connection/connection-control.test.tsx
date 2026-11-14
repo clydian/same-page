@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { ConnectionControl } from './connection-control';
 import { connections } from './connection';
+import { IdentityNotice } from '../auth/local-entry';
+import type { ApplicationIdentity } from '../auth/application-identity';
 
 vi.mock('./connection', async () => {
   const { ConnectionController } = await import('./controller');
@@ -72,6 +74,9 @@ it('shows newer evidence, conservatively resolves ties and expires old evidence 
     businessFails = true; vi.setSystemTime(base + 1000);
     await act(async () => { await connections.fetch('/api/choirs').catch(() => {}); });
     expect(current()).toHaveTextContent('暂时连不上');
+    // Route rows retain the last health sample; current-route evidence also
+    // includes the newer failed business request.
+    expect(screen.getAllByText('线路可达', { selector: '.connection-health' })).toHaveLength(2);
     vi.setSystemTime(base + 2000);
     await act(async () => { await connections.sample(new AbortController().signal); });
     expect(current()).toHaveTextContent('当前线路：备用');
@@ -94,4 +99,37 @@ it('shows newer evidence, conservatively resolves ties and expires old evidence 
     expect(screen.getAllByText('结果已过期')).toHaveLength(2);
     expect(connections.getSnapshot()).toMatchObject({ mode: 'backup', active: 'backup' });
   } finally { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); }
+});
+
+it('keeps identity failure visible when health succeeds and the browser reports offline', async () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async input => {
+    const path = new URL(String(input)).pathname;
+    if (path.endsWith('/health')) return Response.json({ status: 'ok' });
+    if (path.endsWith('/status')) throw new TypeError('session unavailable');
+    throw new Error(`unexpected request: ${path}`);
+  }));
+  connections.invalidateIdentity();
+  connections.setMode('direct');
+  const identity = { onlineState: 'unreachable', localUserId: 'local-user',
+    session: { refetch: vi.fn(), isRefetching: false } } as unknown as ApplicationIdentity;
+  try {
+    render(<MemoryRouter initialEntries={['/drives']}>
+      <IdentityNotice identity={identity} />
+      <ConnectionControl />
+    </MemoryRouter>);
+    expect(screen.getByRole('button', { name: /连接线路，浏览器离线/ })).toBeVisible();
+    expect(screen.getByRole('button', { name: /连接线路，浏览器离线/ })).toHaveTextContent(/^$/);
+    // The connection entry must not replace an independent session failure notice.
+    expect(screen.getByText(/暂时无法连接，已保存的内容仍然保留/)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^连接线路/ })); });
+    await screen.findByText('当前线路：直连（浏览器离线）');
+    expect(screen.getAllByText('线路可达', { selector: '.connection-health' })).toHaveLength(2);
+    const explanation = screen.getByText(/线路检测只确认服务能否响应/);
+    expect(explanation).not.toBeVisible();
+    fireEvent.click(screen.getByText('状态与连接帮助', { exact: true }));
+    expect(explanation).toBeVisible();
+    expect(screen.getByText(/浏览器报告离线，部分联网操作暂停/)).toBeVisible();
+    expect(connections.getSnapshot().identity.direct).toBe('unprepared');
+  } finally { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
 });

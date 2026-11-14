@@ -110,3 +110,21 @@ it('keeps experience appearance separate when opening its independent entry', ()
   expect(screen.getByRole('menuitem', { name: '外观' })).toHaveAttribute('href', '/appearance?experience=1');
   expect(screen.getByRole('menuitem', { name: '账户' })).toHaveAttribute('href', '/user');
 });
+
+it('does not request admin authority while the browser reports offline, then confirms it after online', async () => {
+  let online = false;
+  vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => online);
+  const fetcher = vi.fn(async () => Response.json({ ...capabilities, manageReleases: 1 }));
+  vi.stubGlobal('fetch', fetcher);
+  try {
+    render(<MemoryRouter><PersonalMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: '我的' }));
+    expect(identity.authenticatedUserId).toBe('operator');
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(screen.queryByRole('menuitem', { name: '产品后台' })).toBeNull();
+    online = true;
+    act(() => { window.dispatchEvent(new Event('online')); });
+    expect(await screen.findByRole('menuitem', { name: '产品后台' })).toBeVisible();
+    expect(fetcher).toHaveBeenCalledOnce();
+  } finally { vi.restoreAllMocks(); }
+});

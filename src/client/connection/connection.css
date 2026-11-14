@@ -1,12 +1,12 @@
 .connection-fab { position: fixed; z-index: 20; left: max(1.25rem, var(--safe-left)); bottom: calc(1.25rem + var(--safe-bottom) + 8px); display: inline-flex; align-items: center; justify-content: center; gap: .5rem; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); box-shadow: 0 1px 5px rgb(23 53 58 / 6%); font-size: .85rem; font-weight: 600; white-space: nowrap; cursor: pointer; touch-action: manipulation; transition: opacity 160ms, transform 160ms, visibility 160ms; }
 .connection-fab svg { flex: none; }
 .connection-fab[data-hovered] { background: var(--canvas); color: var(--ink); }
-.connection-fab[data-has-label] { width: auto; padding: 0 .85rem; }
 .connection-fab[data-pressed] { transform: translateY(1px); }
 .connection-fab[data-focus-visible] { outline: 2px solid var(--muted); outline-offset: 4px; }
 .connection-fab[data-visible="false"] { opacity: 0; transform: translateY(1rem); visibility: hidden; pointer-events: none; }
 .connection-fab[data-attention] { color: var(--ui-danger, #8d402a); background: var(--ui-surface, #fff7ef); border-color: var(--ui-line, #d5af98); }
 .connection-fab[data-attention][data-hovered] { background: var(--ui-soft, #fcebdc); }
+body:has(.connection-fab[data-visible="true"]) .drive-connection-notice { bottom: calc(5rem + var(--safe-bottom)); }
 .connection-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .connection-heading h2 { margin: 0; }
 .connection-heading .icon-button { flex: none; width: 44px; height: 44px; min-width: 44px; }
