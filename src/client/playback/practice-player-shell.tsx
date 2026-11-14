@@ -1,4 +1,5 @@
 import { PlaybackPreparationNotice } from './playback-preparation-notice';
+import { createPortal } from 'react-dom';
 import { FeedbackMessage } from '../components/feedback-message';
 import { readerHref } from "../reader/reader-entry";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
@@ -41,7 +42,9 @@ export function PracticePlayerShell(props: Props) {
   const speedTrigger = useRef<HTMLButtonElement>(null);
   const panelTrigger = panel === 'settings' ? settingsTrigger : panel === 'speed' ? speedTrigger : positionTrigger;
   const popover = useRef<HTMLElement>(null);
-  usePracticePopoverHeight(popover, panelTrigger, panel !== null);
+  const panelScroll = useRef<HTMLDivElement>(null);
+  const [popoverBoundary, setPopoverBoundary] = useState<HTMLDivElement | null>(null);
+  usePracticePopoverHeight(popover, panelTrigger, panel !== null, popoverBoundary);
   const dock = useRef<HTMLDivElement>(null), header = useRef<HTMLElement>(null);
   const location = useLocation(), navigate = useNavigate(), navigation = useAppNavigation();
   const isXml = props.embedded || source?.attachment.kind === 'musicxml';
@@ -119,10 +122,13 @@ export function PracticePlayerShell(props: Props) {
       </section>
     </div>
     <FeedbackMessage feedback={focus.feedback} className="practice-focus-notice" closeLabel="关闭全屏提示" dismissible />
-    {panel && <Popover ref={popover} triggerRef={panelTrigger} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
+    {createPortal(<div ref={setPopoverBoundary} className="practice-popover-boundary" aria-hidden="true" />, document.body)}
+    {panel && popoverBoundary && <Popover ref={popover} triggerRef={panelTrigger} scrollRef={panelScroll} boundaryElement={popoverBoundary} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover practice-player-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
       <Dialog className="practice-panel" aria-label={panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}>
         <header><div><strong>{panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? '关闭练习设置' : panel === 'speed' ? '关闭速度调节' : '关闭定位'} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
-        {panel === 'settings' ? props.children : panel === 'speed' ? <PracticeSpeed speed={props.speed ?? 1} tempo={props.tempo} ready={props.ready} setSpeed={value => props.setSpeed?.(value)} /> : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}
+        <div ref={panelScroll} className="practice-panel-content">
+          {panel === 'settings' ? props.children : panel === 'speed' ? <PracticeSpeed speed={props.speed ?? 1} tempo={props.tempo} ready={props.ready} setSpeed={value => props.setSpeed?.(value)} /> : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}
+        </div>
       </Dialog>
     </Popover>}
   </>;
