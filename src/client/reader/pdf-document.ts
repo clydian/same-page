@@ -24,6 +24,8 @@ export interface PdfLoadProgress {
   totalBytes: number | null;
 }
 
+export type PdfDocumentSource = string | ArrayBuffer | ((signal: AbortSignal, progress: (progress: PdfLoadProgress) => void) => Promise<ArrayBuffer>);
+
 export interface PdfDocumentLoad {
   promise: Promise<{
     document: PDFDocumentProxy;
@@ -33,7 +35,7 @@ export interface PdfDocumentLoad {
 }
 
 export function loadPdfDocument(
-  source: string | ArrayBuffer,
+  source: PdfDocumentSource,
   expectedVersionId?: string,
   onProgress?: (progress: PdfLoadProgress) => void,
 ): PdfDocumentLoad {
@@ -44,6 +46,10 @@ export function loadPdfDocument(
   let documentReady = false;
   const report = (progress: PdfLoadProgress) => { if (!destroyed && !documentReady) onProgress?.(progress); };
   const promise = (async () => {
+    // Resolve shared, verified bytes before starting PDF decoding. A cache hit
+    // never invokes this provider or starts another download.
+    const input = typeof source === "function" ? await source(abortController.signal, report) : source;
+    if (destroyed) throw new DOMException("PDF load cancelled", "AbortError");
     report({ phase: "engine", loadedBytes: null, totalBytes: null });
     // The current legacy build still requires this native API. Its absence is
     // an engine compatibility failure, not a corrupt PDF or a network problem.
@@ -62,11 +68,11 @@ export function loadPdfDocument(
     worker = new engine.PDFWorker();
     await worker.promise;
     if (destroyed) throw new DOMException("PDF load cancelled", "AbortError");
-    let resolvedSource = source;
+    let resolvedSource = input;
     let actualVersionId = expectedVersionId ?? null;
-    report({ phase: "file", loadedBytes: typeof source === "string" ? 0 : source.byteLength, totalBytes: typeof source === "string" ? null : source.byteLength });
-    if (typeof source === "string" && !expectedVersionId) {
-      const response = await diagnosticFetch(source, {
+    report({ phase: typeof input === "string" ? "file" : "document", loadedBytes: typeof input === "string" ? 0 : input.byteLength, totalBytes: typeof input === "string" ? null : input.byteLength });
+    if (typeof input === "string" && !expectedVersionId) {
+      const response = await diagnosticFetch(input, {
         method: "HEAD",
         credentials: "include",
         signal: abortController.signal,
@@ -74,7 +80,7 @@ export function loadPdfDocument(
       if (!response.ok) throw Object.assign(new Error("pdf_head_failed"), { status: response.status });
       actualVersionId = response.headers.get("X-Score-Version");
       if (!actualVersionId) throw new Error("pdf_version_header_missing");
-      resolvedSource = versionedPdfUrl(source, actualVersionId);
+      resolvedSource = versionedPdfUrl(input, actualVersionId);
     }
     if (destroyed) throw new DOMException("PDF load cancelled", "AbortError");
     if (connectionsEnabled && typeof resolvedSource === "string") await connections.readEndpoint(resolvedSource, abortController.signal);

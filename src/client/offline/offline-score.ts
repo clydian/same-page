@@ -4,7 +4,7 @@ import { readLogoutFence } from "../auth/logout-fence";
 import { liveQuery } from "dexie";
 import type { OfflineScoreRecord } from "../platform/local-database";
 import { captureOfflineFileFence } from "./local-files";
-import { diagnosticFetch } from "../diagnostics/diagnostics";
+import { acquireScorePdf, revokeScorePdfDownloads } from "./score-pdf-download";
 import type { ScoreSummary } from "../../shared/scores";
 import { captureOfflineAnnotationSnapshot, ensureOfflineAppShell } from "../annotations/offline-snapshot";
 import { syncAnnotations } from "../annotations/sync";
@@ -27,64 +27,47 @@ async function prepareOfflineScore(workspace: LocalWorkspace, score: ScoreSummar
   signal.throwIfAborted();
   const directory = prepareAttachmentDirectory(workspace, score, signal).catch(() => undefined);
   const previous = await findActiveOfflineFile(workspace.ownerKey, workspace.choirId, workspace.scoreId);
-  const base = `/api/choirs/${encodeURIComponent(score.choirId)}/scores/${encodeURIComponent(score.id)}`;
-  let data: ArrayBuffer;
-  if (pdfData) {
-    data = pdfData.slice().buffer;
-  } else {
-    const response = await diagnosticFetch(`${base}/versions/${encodeURIComponent(score.currentVersion.id)}/pdf`, { signal });
-    if (!response.ok) throw new Error("offline_pdf_download_failed");
-    progress?.("download", 0, score.currentVersion.sizeBytes);
-    if (response.body) {
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let loaded = 0;
-      try {
-        while (true) {
-          const part = await reader.read();
-          signal.throwIfAborted();
-          if (part.done) break;
-          chunks.push(part.value); loaded += part.value.byteLength;
-          if (loaded > score.currentVersion.sizeBytes) throw new Error("offline_pdf_size_mismatch");
-          progress?.("download", loaded, score.currentVersion.sizeBytes);
-        }
-      } finally { await reader.cancel().catch(() => undefined); reader.releaseLock(); }
-      const bytes = new Uint8Array(loaded);
-      let offset = 0;
-      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-      data = bytes.buffer;
-    } else data = await response.arrayBuffer();
-  }
-  progress?.("verify");
-  if (data.byteLength !== score.currentVersion.sizeBytes || await sha256Hex(data) !== score.currentVersion.sha256) throw new Error("offline_pdf_checksum_mismatch");
-  const blob = new Blob([data], { type: "application/pdf" });
-  const hash = score.currentVersion.sha256;
-  signal.throwIfAborted();
-  await ensureOfflineAppShell();
-  signal.throwIfAborted();
-  await assertLocalWorkspaceActive(workspace);
-  // This call requires a layer request started after the bytes are prepared;
-  // an earlier reader refresh cannot establish fresh access for activation.
-  let annotationSnapshot;
+  let download: ReturnType<typeof acquireScorePdf> | undefined;
   try {
-    await syncAnnotations(workspace, { pull: true, push: false, signal });
+    let data: ArrayBuffer;
+    if (pdfData) data = pdfData.slice().buffer;
+    else {
+      download = acquireScorePdf(workspace.ownerKey, score, value => progress?.("download", value.loadedBytes, value.totalBytes), signal);
+      data = await download.promise;
+    }
+    progress?.("verify");
+    // Shared downloads are already checked; reader-provided bytes need the
+    // same length/hash check before the unchanged offline activation checks.
+    if (pdfData && (data.byteLength !== score.currentVersion.sizeBytes || await sha256Hex(data) !== score.currentVersion.sha256)) throw new Error("offline_pdf_checksum_mismatch");
+    const blob = new Blob([data], { type: "application/pdf" });
+    const hash = score.currentVersion.sha256;
     signal.throwIfAborted();
-    annotationSnapshot = await captureOfflineAnnotationSnapshot(workspace);
-  } catch (cause) { throw new OfflineAnnotationPreparationError("offline_annotations_unavailable", { cause }); }
-  const record = {
-    key: localWorkspaceRecordKey(workspace, score.currentVersion.id), ...workspace,
-    versionId: score.currentVersion.id, fileName: score.fileName,
-    sha256: hash, pageCount: score.currentVersion.pageCount,
-    blob, annotationSnapshot,
-  };
-  if (!(await verifyOfflineScore({ ...record, active: 1, verifiedAt: Date.now() }))) throw new Error("offline_annotation_snapshot_incomplete");
-  signal.throwIfAborted();
-  progress?.("save");
-  await activateVerifiedOfflineScore(record, { activeKey: previous?.key ?? null, fileFence, signal });
-  const verified = await findVerifiedOfflineScore(workspace);
-  if (!verified || verified.versionId !== score.currentVersion.id) throw new Error("offline_copy_unavailable");
-  await directory;
-  return verified;
+    await ensureOfflineAppShell();
+    signal.throwIfAborted();
+    await assertLocalWorkspaceActive(workspace);
+    // This call requires a layer request started after the bytes are prepared;
+    // an earlier reader refresh cannot establish fresh access for activation.
+    let annotationSnapshot;
+    try {
+      await syncAnnotations(workspace, { pull: true, push: false, signal });
+      signal.throwIfAborted();
+      annotationSnapshot = await captureOfflineAnnotationSnapshot(workspace);
+    } catch (cause) { throw new OfflineAnnotationPreparationError("offline_annotations_unavailable", { cause }); }
+    const record = {
+      key: localWorkspaceRecordKey(workspace, score.currentVersion.id), ...workspace,
+      versionId: score.currentVersion.id, fileName: score.fileName,
+      sha256: hash, pageCount: score.currentVersion.pageCount,
+      blob, annotationSnapshot,
+    };
+    if (!(await verifyOfflineScore({ ...record, active: 1, verifiedAt: Date.now() }))) throw new Error("offline_annotation_snapshot_incomplete");
+    signal.throwIfAborted();
+    progress?.("save");
+    await activateVerifiedOfflineScore(record, { activeKey: previous?.key ?? null, fileFence, signal });
+    const verified = await findVerifiedOfflineScore(workspace);
+    if (!verified || verified.versionId !== score.currentVersion.id) throw new Error("offline_copy_unavailable");
+    await directory;
+    return verified;
+  } finally { download?.release(); }
 }
 
 class OfflineAnnotationPreparationError extends Error {}
@@ -106,6 +89,7 @@ type PreparationTask = {
 const preparations = new Map<string, PreparationTask>();
 const identityGenerations = new Map<string, number>();
 export function revokeOfflinePreparationIdentity(userId: string) {
+  revokeScorePdfDownloads(userId);
   const ownerKey = `user:${userId}`;
   identityGenerations.set(ownerKey, (identityGenerations.get(ownerKey) ?? 0) + 1);
   for (const task of preparations.values()) if (task.ownerKey === ownerKey) task.controller.abort();

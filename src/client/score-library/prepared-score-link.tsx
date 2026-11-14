@@ -10,14 +10,15 @@ import { authenticatedLocalOwnerKey, createLocalWorkspace, experienceOwnerKey, r
 import { untilAborted } from "../platform/abortable";
 import { useOfflineScore } from "../offline/use-offline-score";
 import { acquireReaderDocument } from "../reader/reader-document-cache";
-import { loadPdfDocument } from "../reader/pdf-document";
+import { loadPdfDocument, type PdfDocumentSource, type PdfLoadProgress } from "../reader/pdf-document";
+import { acquireScorePdf } from "../offline/score-pdf-download";
 import { pdfFailureCategory } from "../diagnostics/diagnostics";
 import { ScoreLink } from "./score-link";
 import "./prepared-score-link.css";
 
 type OpenRequest = { cancel: () => void };
 let activeOpening: OpenRequest | null = null;
-type Props = Omit<ComponentProps<typeof ScoreLink>, "onOpen" | "children"> & { children: ReactNode | ((opening: boolean) => ReactNode); score: ScoreSummary; sessionId: string | null; onOpen: (scrollY?: number) => void };
+type Props = Omit<ComponentProps<typeof ScoreLink>, "onOpen" | "children"> & { children: ReactNode | ((opening: boolean, percent: number | null) => ReactNode); score: ScoreSummary; sessionId: string | null; onOpen: (scrollY?: number) => void };
 export function PreparedScoreLink({ score, sessionId, children, ...props }: Props) {
   const navigate = useNavigate();
   const guestOwner = useLiveQuery(async () => (await localDatabase.system.get(guestOwnerSystemKey(score.choirId)))?.value ?? null, [score.choirId]);
@@ -25,6 +26,9 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
   const workspace = owner ? createLocalWorkspace(props.experience ? experienceOwnerKey(owner) : owner, score.choirId, score.id) : null;
   const offline = useOfflineScore(workspace);
   const [opening, setOpening] = useState(false);
+  const [progress, setProgress] = useState<PdfLoadProgress | null>(null);
+  const percent = opening && progress?.phase === "file" && progress.totalBytes && progress.loadedBytes !== null
+    ? Math.min(100, Math.floor(progress.loadedBytes / progress.totalBytes * 100)) : null;
   const container = useRef<HTMLDivElement>(null);
   const feedback = useFeedbackMessage();
   const { setMessage } = feedback;
@@ -40,8 +44,7 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
     if (request.current) return;
     activeOpening?.cancel();
     const scrollY = window.scrollY;
-    setOpening(true); setMessage(null);
-    const source = `/api/choirs/${encodeURIComponent(score.choirId)}/scores/${encodeURIComponent(score.id)}/versions/${encodeURIComponent(score.currentVersion.id)}/pdf`;
+    setOpening(true); setProgress(null); setMessage(null);
     let lease: ReturnType<typeof acquireReaderDocument> | null = null;
     let task: ReturnType<typeof loadPdfDocument> | null = null;
     const abort = new AbortController();
@@ -63,8 +66,17 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
         authenticatedUserId: null, experience: props.experience, choirId: score.choirId, scoreId: score.id, signal,
       }), signal).catch(() => null);
       if (cancelled || activeOpening !== current) return;
-      lease = targetWorkspace ? acquireReaderDocument({ ...targetWorkspace, source, sourceKind: "cloud", versionId: score.currentVersion.id }) : null;
-      task = lease ? null : loadPdfDocument(source, score.currentVersion.id);
+      const source: PdfDocumentSource = async (loadingSignal, report) => {
+        const download = acquireScorePdf(targetWorkspace?.ownerKey ?? "online:guest", score, value => report({ phase: "file", ...value }), AbortSignal.any([abort.signal, loadingSignal]));
+        try {
+          // PDF.js may transfer its input buffer. Each decoder gets a copy;
+          // the shared bytes remain intact for offline saving.
+          return (await download.promise).slice(0);
+        } finally { download.release(); }
+      };
+      const onProgress = (value: PdfLoadProgress) => { if (!cancelled && activeOpening === current) setProgress(value); };
+      lease = targetWorkspace ? acquireReaderDocument({ ...targetWorkspace, source, sourceKind: "cloud", versionId: score.currentVersion.id, onProgress }) : null;
+      task = lease ? null : loadPdfDocument(source, score.currentVersion.id, onProgress);
       await (lease?.promise ?? task!.promise);
       if (cancelled || activeOpening !== current) return;
       props.onOpen(scrollY);
@@ -84,7 +96,7 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || props.local || ready) return;
         event.preventDefault();
         void open();
-      }} onOpen={() => { activeOpening?.cancel(); props.onOpen(); }}>{typeof children === "function" ? children(opening) : children}</ScoreLink>
+      }} onOpen={() => { activeOpening?.cancel(); props.onOpen(); }}>{typeof children === "function" ? children(opening, percent) : children}</ScoreLink>
     </div>
     <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{opening ? `正在打开 ${props.label}` : ""}</span>
     {opening && <button type="button" className="prepared-score-cancel" aria-label={`取消打开 ${props.label}`} onClick={() => {
