@@ -1,5 +1,6 @@
 import type { ScoreSummary } from "../../shared/scores";
-import { diagnosticFetch } from "../diagnostics/diagnostics";
+import { diagnosticFetch, pdfFailureCategory } from "../diagnostics/diagnostics";
+import { connections, connectionsEnabled } from "../connection/connection";
 import { untilAborted } from "../platform/abortable";
 import { sha256Hex } from "./offline-score-verification";
 
@@ -69,6 +70,17 @@ export function acquireScorePdf(ownerKey: string, score: ScoreSummary, onProgres
 }
 
 async function downloadPdf(score: ScoreSummary, signal: AbortSignal, progress: (progress: ScorePdfProgress) => void) {
+  const route = connections.getSnapshot().active;
+  try { return await readPdf(score, signal, progress); }
+  catch (error) {
+    // Keep the reader's existing one-time media recovery, including failures
+    // while streaming the body after a successful connection setup.
+    if (signal.aborted || !connectionsEnabled || pdfFailureCategory(error) !== "network" || !await connections.recoverMedia(route, signal)) throw error;
+    return readPdf(score, signal, progress);
+  }
+}
+
+async function readPdf(score: ScoreSummary, signal: AbortSignal, progress: (progress: ScorePdfProgress) => void) {
   const version = score.currentVersion;
   const base = `/api/choirs/${encodeURIComponent(score.choirId)}/scores/${encodeURIComponent(score.id)}`;
   const response = await diagnosticFetch(`${base}/versions/${encodeURIComponent(version.id)}/pdf`, { signal });

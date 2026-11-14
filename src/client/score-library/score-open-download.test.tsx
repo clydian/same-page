@@ -10,21 +10,24 @@ import { clearReaderDocumentCache } from "../reader/reader-document-cache";
 import { PreparedScoreLink } from "./prepared-score-link";
 import { OfflineScoreControl } from "./offline-score-control";
 
-// Only the PDF engine and browser network/shell are external. Opening, shared
+// Only the PDF engine and browser network/route/shell are external. Opening, shared
 // downloads, cancellation, hashing and offline activation run their real code.
 const engine = vi.hoisted(() => ({ getDocument: vi.fn(), GlobalWorkerOptions: { workerSrc: "" } }));
 vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => ({ ...engine, PDFWorker: class { promise = Promise.resolve(); destroy() {} } }));
+const connection = vi.hoisted(() => ({ recoverMedia: vi.fn(), getSnapshot: () => ({ active: "direct" }) }));
+vi.mock("../connection/connection", () => ({ connections: connection, connectionsEnabled: true, connectionFetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args), connectionUrl: (path: string) => path }));
 const bytes = new TextEncoder().encode("%PDF-1.7 shared fixture!");
 const workspace = createLocalWorkspace(authenticatedLocalOwnerKey("user"), "drive", "score");
 const score = { id: "score", choirId: "drive", fileName: "排练.pdf", updatedAt: 1,
   currentVersion: { id: "v1", versionNumber: 1, sizeBytes: bytes.byteLength, sha256: "", etag: "v1", pageCount: 1, createdAt: 1 } };
-let finish: () => void, requestSignal: AbortSignal | null | undefined, requests: number, networkFailed: boolean;
+let finish: () => void, requestSignal: AbortSignal | null | undefined, requests: number, networkFailed: boolean, streamFailedOnce: boolean;
 beforeEach(async () => {
   vi.stubGlobal("Blob", NodeBlob);
   vi.stubGlobal("navigator", { onLine: true, serviceWorker: { getRegistration: async () => ({ active: {} }) } });
   await storage.localDatabase.open(); await activateAuthenticatedLocalOwner("user");
   score.currentVersion.sha256 = await sha256Hex(bytes.buffer);
-  requests = 0; networkFailed = false; requestSignal = undefined;
+  requests = 0; networkFailed = false; streamFailedOnce = false; requestSignal = undefined;
+  connection.recoverMedia.mockReset().mockResolvedValue(false);
   engine.getDocument.mockReset().mockImplementation(({ data }: { data: Uint8Array }) => {
     expect(Array.from(data)).toEqual(Array.from(bytes));
     return { promise: Promise.resolve({ numPages: 1 }), destroy: vi.fn().mockResolvedValue(undefined) };
@@ -33,6 +36,7 @@ beforeEach(async () => {
     if (input.endsWith("/pdf")) {
       requests++; requestSignal = init?.signal;
       if (networkFailed) throw new TypeError("Failed to fetch");
+      if (streamFailedOnce && requests === 1) return new Response(new ReadableStream({ start(controller) { controller.error(new TypeError("Failed to fetch")); } }));
       return new Response(new ReadableStream({ start(controller) {
         const half = Math.floor(bytes.length / 2);
         controller.enqueue(bytes.slice(0, half));
@@ -107,6 +111,15 @@ it("opens online without an offline shell", async () => {
   view(); open(); await waitFor(() => expect(requests).toBe(1)); await act(async () => finish());
   await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/scores/score"));
   expect(await findVerifiedOfflineScore(workspace)).toBeNull();
+});
+
+it("preserves the reader's one-time route recovery when a connected PDF stream fails", async () => {
+  streamFailedOnce = true; connection.recoverMedia.mockResolvedValueOnce(true);
+  view(); open(); await waitFor(() => expect(requests).toBe(2));
+  expect(connection.recoverMedia).toHaveBeenCalledTimes(1);
+  expect(engine.getDocument).not.toHaveBeenCalled(); stays();
+  await act(async () => finish());
+  await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/scores/score"));
 });
 
 it("keeps online opening available when the shared explicit save hits quota", async () => {
