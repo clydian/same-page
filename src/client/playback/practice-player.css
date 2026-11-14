@@ -17,6 +17,14 @@
 .practice-panel header strong { font-size: 14px; font-weight: 600; }
 .practice-panel header small { overflow-wrap: anywhere; font-size: 12px; color: var(--ui-muted, #6d7d71); }
 .practice-panel header .practice-icon { margin-top: -8px; margin-right: -8px; }
+/* Portal boundary: browser UI and device cutouts constrain positioning as well
+   as size. Keep this outside the scrollable panel and out of hit testing. */
+.practice-popover-boundary { position: fixed; top: max(var(--safe-top, 0px), var(--practice-viewport-top, 0px)); right: max(var(--safe-right, 0px), var(--practice-viewport-right, 0px)); bottom: max(var(--safe-bottom, 0px), var(--practice-viewport-bottom, 0px)); left: max(var(--safe-left, 0px), var(--practice-viewport-left, 0px)); visibility: hidden; pointer-events: none; }
+.practice-popover.practice-player-popover { width: min(440px, var(--practice-popover-width, calc(100vw - 24px))); overflow: hidden; }
+.practice-player-popover .practice-panel { display: flex; flex-direction: column; max-height: calc(var(--practice-popover-height, 100dvh) - 2px); gap: 0; padding: 0; }
+.practice-player-popover .practice-panel > header { flex-shrink: 0; align-items: center; margin: 0 0 8px; padding: 8px 8px 8px 16px; }
+.practice-player-popover .practice-panel > header .practice-icon { margin: 0; }
+.practice-panel-content { display: grid; gap: 16px; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 16px 16px; }
 .practice-field { display: grid; gap: 6px; min-width: 0; font-size: 12px; color: var(--ui-muted, #607267); }
 .practice-field > span { font-size: 12px; }
 .practice-field select { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid var(--ui-line, #dce4de); border-radius: 9px; padding: 8px; font: inherit; font-size: 13px; background: var(--ui-surface, #fff); color: var(--ui-ink, #31463a); }
@@ -287,7 +295,8 @@
 .practice-range-thumb span { display: grid; place-items: center; width: 24px; height: 28px; border-radius: 8px; background: var(--ui-accent-fill, #365747); color: white; border: 2px solid var(--ui-line, #fcfdfb); font-size: 12px; font-weight: 600; }
 .practice-range-thumb[data-focus-visible] span { outline: 2px solid var(--ui-accent, #365747); outline-offset: 2px; }
 .practice-popover[data-loop-previewing] { background: transparent; border-color: transparent; box-shadow: none; }
-.practice-popover[data-loop-previewing] .practice-panel > :not(.practice-loop),
+.practice-popover[data-loop-previewing] .practice-panel > header,
+.practice-popover[data-loop-previewing] .practice-panel-content > :not(.practice-loop),
 .practice-popover[data-loop-previewing] .practice-loop > :not(.practice-loop-content),
 .practice-popover[data-loop-previewing] .practice-loop-content > :not(.practice-loop-range) { opacity: 0; pointer-events: none; }
 .practice-popover[data-loop-previewing] .practice-loop { border-color: transparent; }
@@ -304,7 +313,7 @@
 
 
 /* Flat practice settings: name, help and control use fixed columns. */
-.practice-panel:has(.practice-flat-settings) { gap: 0; }
+.practice-panel-content:has(.practice-flat-settings) { gap: 0; }
 .practice-panel:has(.practice-flat-settings) > header { margin-bottom: 8px; }
 .practice-flat-settings { display: grid; }
 .practice-setting-row { display: grid; grid-template-columns: minmax(0,1fr) 44px 64px; align-items: center; gap: 4px; min-height: 52px; }
@@ -321,8 +330,8 @@
 .practice-disclosure-arrow { width: 38px; text-align: center; font-size: 18px; color: var(--ui-muted, #718077); }
 .practice-disclosure .practice-help-button { grid-area: 1 / 2; z-index: 1; }
 .practice-disclosure-trigger[data-focus-visible] { outline: 2px solid var(--ui-accent, #769787); outline-offset: 2px; }
-.practice-panel:has(.practice-flat-settings) > .practice-hint { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ui-line, #e4eae4); }
-.practice-panel:has(.practice-flat-settings) > .practice-hint + .practice-hint { margin-top: 4px; padding-top: 0; border-top: 0; }
+.practice-panel-content:has(.practice-flat-settings) > .practice-hint { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ui-line, #e4eae4); }
+.practice-panel-content:has(.practice-flat-settings) > .practice-hint + .practice-hint { margin-top: 4px; padding-top: 0; border-top: 0; }
 .practice-inline-action { min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--ui-ink, #365747); font: inherit; text-decoration: underline; cursor: pointer; }
 
 /* Expanded controls share quiet surfaces and aligned values. */

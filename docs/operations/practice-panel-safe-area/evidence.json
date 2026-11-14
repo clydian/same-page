@@ -1,0 +1,891 @@
+{
+  "date": "2026-11-14",
+  "beforeCommit": "3ddac9ea505c736ad6b967b2cbca2fcea24aa597",
+  "scope": "Full local application, isolated Worker/D1/R2, generated MusicXML fixture; synthetic safe-area insets; no real device or installed PWA",
+  "beforeBrowser": "Chromium 156.0.8078.4",
+  "before": {
+    "syntheticInsets": true,
+    "installedPwa": false,
+    "measurements": [
+      {
+        "name": "portrait",
+        "width": 390,
+        "height": 844,
+        "top": 59,
+        "bottom": 34,
+        "before": {
+          "panel": {
+            "x": 12,
+            "y": 12,
+            "width": 366,
+            "height": 738,
+            "top": 12,
+            "right": 378,
+            "bottom": 750,
+            "left": 12
+          },
+          "close": {
+            "x": 329,
+            "y": 17,
+            "width": 44,
+            "height": 44,
+            "top": 17,
+            "right": 373,
+            "bottom": 61,
+            "left": 329
+          },
+          "closeHit": true,
+          "outerScroll": 0
+        },
+        "after": {
+          "panel": {
+            "x": 12,
+            "y": 12,
+            "width": 366,
+            "height": 738,
+            "top": 12,
+            "right": 378,
+            "bottom": 750,
+            "left": 12
+          },
+          "close": {
+            "x": 329,
+            "y": -589,
+            "width": 44,
+            "height": 44,
+            "top": -589,
+            "right": 373,
+            "bottom": -545,
+            "left": 329
+          },
+          "closeHit": false,
+          "outerScroll": 606
+        }
+      },
+      {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "left": 59,
+        "right": 59,
+        "bottom": 21,
+        "before": {
+          "panel": {
+            "x": 350,
+            "y": 12,
+            "width": 440,
+            "height": 301,
+            "top": 12,
+            "right": 790,
+            "bottom": 313,
+            "left": 350
+          },
+          "close": {
+            "x": 737,
+            "y": 21,
+            "width": 44,
+            "height": 44,
+            "top": 21,
+            "right": 781,
+            "bottom": 65,
+            "left": 737
+          },
+          "closeHit": true,
+          "outerScroll": 0
+        },
+        "after": {
+          "panel": {
+            "x": 350,
+            "y": 12,
+            "width": 440,
+            "height": 301,
+            "top": 12,
+            "right": 790,
+            "bottom": 313,
+            "left": 350
+          },
+          "close": {
+            "x": 737,
+            "y": -1030,
+            "width": 44,
+            "height": 44,
+            "top": -1030,
+            "right": 781,
+            "bottom": -986,
+            "left": 737
+          },
+          "closeHit": false,
+          "outerScroll": 1051
+        }
+      },
+      {
+        "name": "narrow-landscape",
+        "width": 568,
+        "height": 320,
+        "top": 24,
+        "left": 59,
+        "right": 59,
+        "bottom": 21,
+        "before": {
+          "panel": {
+            "x": 23,
+            "y": 12,
+            "width": 440,
+            "height": 231,
+            "top": 12,
+            "right": 463,
+            "bottom": 243,
+            "left": 23
+          },
+          "close": {
+            "x": 414,
+            "y": 17,
+            "width": 44,
+            "height": 44,
+            "top": 17,
+            "right": 458,
+            "bottom": 61,
+            "left": 414
+          },
+          "closeHit": true,
+          "outerScroll": 0
+        },
+        "after": {
+          "panel": {
+            "x": 23,
+            "y": 12,
+            "width": 440,
+            "height": 231,
+            "top": 12,
+            "right": 463,
+            "bottom": 243,
+            "left": 23
+          },
+          "close": {
+            "x": 414,
+            "y": -1096,
+            "width": 44,
+            "height": 44,
+            "top": -1096,
+            "right": 458,
+            "bottom": -1052,
+            "left": 414
+          },
+          "closeHit": false,
+          "outerScroll": 1113
+        }
+      },
+      {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900,
+        "before": {
+          "panel": {
+            "x": 895,
+            "y": 12,
+            "width": 440,
+            "height": 828,
+            "top": 12,
+            "right": 1335,
+            "bottom": 840,
+            "left": 895
+          },
+          "close": {
+            "x": 1282,
+            "y": 21,
+            "width": 44,
+            "height": 44,
+            "top": 21,
+            "right": 1326,
+            "bottom": 65,
+            "left": 1282
+          },
+          "closeHit": true,
+          "outerScroll": 0
+        },
+        "after": {
+          "panel": {
+            "x": 895,
+            "y": 12,
+            "width": 440,
+            "height": 828,
+            "top": 12,
+            "right": 1335,
+            "bottom": 840,
+            "left": 895
+          },
+          "close": {
+            "x": 1282,
+            "y": -503,
+            "width": 44,
+            "height": 44,
+            "top": -503,
+            "right": 1326,
+            "bottom": -459,
+            "left": 1282
+          },
+          "closeHit": false,
+          "outerScroll": 524
+        }
+      }
+    ],
+    "errors": []
+  },
+  "after": {
+    "chromium": {
+      "engine": "chromium",
+      "browserVersion": "156.0.8078.4",
+      "syntheticInsets": true,
+      "installedPwa": false,
+      "measurements": [
+        {
+          "name": "portrait",
+          "width": 390,
+          "height": 844,
+          "top": 59,
+          "bottom": 34,
+          "before": {
+            "panel": {
+              "x": 12,
+              "y": 71,
+              "width": 366,
+              "height": 679,
+              "top": 71,
+              "right": 378,
+              "bottom": 750,
+              "left": 12
+            },
+            "title": {
+              "x": 29,
+              "y": 92,
+              "width": 56,
+              "height": 20,
+              "top": 92,
+              "right": 85,
+              "bottom": 112,
+              "left": 29
+            },
+            "close": {
+              "x": 325,
+              "y": 80,
+              "width": 44,
+              "height": 44,
+              "top": 80,
+              "right": 369,
+              "bottom": 124,
+              "left": 325
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          },
+          "after": {
+            "panel": {
+              "x": 12,
+              "y": 71,
+              "width": 366,
+              "height": 679,
+              "top": 71,
+              "right": 378,
+              "bottom": 750,
+              "left": 12
+            },
+            "title": {
+              "x": 29,
+              "y": 92,
+              "width": 56,
+              "height": 20,
+              "top": 92,
+              "right": 85,
+              "bottom": 112,
+              "left": 29
+            },
+            "close": {
+              "x": 325,
+              "y": 80,
+              "width": 44,
+              "height": 44,
+              "top": 80,
+              "right": 369,
+              "bottom": 124,
+              "left": 325
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          }
+        },
+        {
+          "name": "landscape",
+          "width": 844,
+          "height": 390,
+          "left": 59,
+          "right": 59,
+          "bottom": 21,
+          "before": {
+            "panel": {
+              "x": 299,
+              "y": 12,
+              "width": 440,
+              "height": 301,
+              "top": 12,
+              "right": 739,
+              "bottom": 313,
+              "left": 299
+            },
+            "title": {
+              "x": 316,
+              "y": 33,
+              "width": 56,
+              "height": 20,
+              "top": 33,
+              "right": 372,
+              "bottom": 53,
+              "left": 316
+            },
+            "close": {
+              "x": 686,
+              "y": 21,
+              "width": 44,
+              "height": 44,
+              "top": 21,
+              "right": 730,
+              "bottom": 65,
+              "left": 686
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          },
+          "after": {
+            "panel": {
+              "x": 299,
+              "y": 12,
+              "width": 440,
+              "height": 301,
+              "top": 12,
+              "right": 739,
+              "bottom": 313,
+              "left": 299
+            },
+            "title": {
+              "x": 316,
+              "y": 33,
+              "width": 56,
+              "height": 20,
+              "top": 33,
+              "right": 372,
+              "bottom": 53,
+              "left": 316
+            },
+            "close": {
+              "x": 686,
+              "y": 21,
+              "width": 44,
+              "height": 44,
+              "top": 21,
+              "right": 730,
+              "bottom": 65,
+              "left": 686
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          }
+        },
+        {
+          "name": "narrow-landscape",
+          "width": 568,
+          "height": 320,
+          "top": 24,
+          "left": 59,
+          "right": 59,
+          "bottom": 21,
+          "before": {
+            "panel": {
+              "x": 71,
+              "y": 36,
+              "width": 426,
+              "height": 207,
+              "top": 36,
+              "right": 497,
+              "bottom": 243,
+              "left": 71
+            },
+            "title": {
+              "x": 88,
+              "y": 57,
+              "width": 56,
+              "height": 20,
+              "top": 57,
+              "right": 144,
+              "bottom": 77,
+              "left": 88
+            },
+            "close": {
+              "x": 444,
+              "y": 45,
+              "width": 44,
+              "height": 44,
+              "top": 45,
+              "right": 488,
+              "bottom": 89,
+              "left": 444
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          },
+          "after": {
+            "panel": {
+              "x": 71,
+              "y": 36,
+              "width": 426,
+              "height": 207,
+              "top": 36,
+              "right": 497,
+              "bottom": 243,
+              "left": 71
+            },
+            "title": {
+              "x": 88,
+              "y": 57,
+              "width": 56,
+              "height": 20,
+              "top": 57,
+              "right": 144,
+              "bottom": 77,
+              "left": 88
+            },
+            "close": {
+              "x": 444,
+              "y": 45,
+              "width": 44,
+              "height": 44,
+              "top": 45,
+              "right": 488,
+              "bottom": 89,
+              "left": 444
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          }
+        },
+        {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900,
+          "before": {
+            "panel": {
+              "x": 946,
+              "y": 12,
+              "width": 440,
+              "height": 828,
+              "top": 12,
+              "right": 1386,
+              "bottom": 840,
+              "left": 946
+            },
+            "title": {
+              "x": 963,
+              "y": 33,
+              "width": 56,
+              "height": 20,
+              "top": 33,
+              "right": 1019,
+              "bottom": 53,
+              "left": 963
+            },
+            "close": {
+              "x": 1333,
+              "y": 21,
+              "width": 44,
+              "height": 44,
+              "top": 21,
+              "right": 1377,
+              "bottom": 65,
+              "left": 1333
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          },
+          "after": {
+            "panel": {
+              "x": 946,
+              "y": 12,
+              "width": 440,
+              "height": 828,
+              "top": 12,
+              "right": 1386,
+              "bottom": 840,
+              "left": 946
+            },
+            "title": {
+              "x": 963,
+              "y": 33,
+              "width": 56,
+              "height": 20,
+              "top": 33,
+              "right": 1019,
+              "bottom": 53,
+              "left": 963
+            },
+            "close": {
+              "x": 1333,
+              "y": 21,
+              "width": 44,
+              "height": 44,
+              "top": 21,
+              "right": 1377,
+              "bottom": 65,
+              "left": 1333
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          }
+        }
+      ],
+      "errors": []
+    },
+    "webkit": {
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "syntheticInsets": true,
+      "installedPwa": false,
+      "measurements": [
+        {
+          "name": "portrait",
+          "width": 390,
+          "height": 844,
+          "top": 59,
+          "bottom": 34,
+          "before": {
+            "panel": {
+              "x": 12,
+              "y": 71,
+              "width": 366,
+              "height": 713,
+              "top": 71,
+              "right": 378,
+              "bottom": 784,
+              "left": 12
+            },
+            "title": {
+              "x": 29,
+              "y": 92,
+              "width": 56,
+              "height": 20,
+              "top": 92,
+              "right": 85,
+              "bottom": 112,
+              "left": 29
+            },
+            "close": {
+              "x": 325,
+              "y": 80,
+              "width": 44,
+              "height": 44,
+              "top": 80,
+              "right": 369,
+              "bottom": 124,
+              "left": 325
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          },
+          "after": {
+            "panel": {
+              "x": 12,
+              "y": 71,
+              "width": 366,
+              "height": 713,
+              "top": 71,
+              "right": 378,
+              "bottom": 784,
+              "left": 12
+            },
+            "title": {
+              "x": 29,
+              "y": 92,
+              "width": 56,
+              "height": 20,
+              "top": 92,
+              "right": 85,
+              "bottom": 112,
+              "left": 29
+            },
+            "close": {
+              "x": 325,
+              "y": 80,
+              "width": 44,
+              "height": 44,
+              "top": 80,
+              "right": 369,
+              "bottom": 124,
+              "left": 325
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          }
+        },
+        {
+          "name": "landscape",
+          "width": 844,
+          "height": 390,
+          "left": 59,
+          "right": 59,
+          "bottom": 21,
+          "before": {
+            "panel": {
+              "x": 299,
+              "y": 12,
+              "width": 440,
+              "height": 322,
+              "top": 12,
+              "right": 739,
+              "bottom": 334,
+              "left": 299
+            },
+            "title": {
+              "x": 316,
+              "y": 33,
+              "width": 56,
+              "height": 20,
+              "top": 33,
+              "right": 372,
+              "bottom": 53,
+              "left": 316
+            },
+            "close": {
+              "x": 686,
+              "y": 21,
+              "width": 44,
+              "height": 44,
+              "top": 21,
+              "right": 730,
+              "bottom": 65,
+              "left": 686
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          },
+          "after": {
+            "panel": {
+              "x": 299,
+              "y": 12,
+              "width": 440,
+              "height": 322,
+              "top": 12,
+              "right": 739,
+              "bottom": 334,
+              "left": 299
+            },
+            "title": {
+              "x": 316,
+              "y": 33,
+              "width": 56,
+              "height": 20,
+              "top": 33,
+              "right": 372,
+              "bottom": 53,
+              "left": 316
+            },
+            "close": {
+              "x": 686,
+              "y": 21,
+              "width": 44,
+              "height": 44,
+              "top": 21,
+              "right": 730,
+              "bottom": 65,
+              "left": 686
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          }
+        },
+        {
+          "name": "narrow-landscape",
+          "width": 568,
+          "height": 320,
+          "top": 24,
+          "left": 59,
+          "right": 59,
+          "bottom": 21,
+          "before": {
+            "panel": {
+              "x": 71,
+              "y": 36,
+              "width": 426,
+              "height": 228,
+              "top": 36,
+              "right": 497,
+              "bottom": 264,
+              "left": 71
+            },
+            "title": {
+              "x": 88,
+              "y": 57,
+              "width": 56,
+              "height": 20,
+              "top": 57,
+              "right": 144,
+              "bottom": 77,
+              "left": 88
+            },
+            "close": {
+              "x": 444,
+              "y": 45,
+              "width": 44,
+              "height": 44,
+              "top": 45,
+              "right": 488,
+              "bottom": 89,
+              "left": 444
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          },
+          "after": {
+            "panel": {
+              "x": 71,
+              "y": 36,
+              "width": 426,
+              "height": 228,
+              "top": 36,
+              "right": 497,
+              "bottom": 264,
+              "left": 71
+            },
+            "title": {
+              "x": 88,
+              "y": 57,
+              "width": 56,
+              "height": 20,
+              "top": 57,
+              "right": 144,
+              "bottom": 77,
+              "left": 88
+            },
+            "close": {
+              "x": 444,
+              "y": 45,
+              "width": 44,
+              "height": 44,
+              "top": 45,
+              "right": 488,
+              "bottom": 89,
+              "left": 444
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          }
+        },
+        {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900,
+          "before": {
+            "panel": {
+              "x": 946,
+              "y": 12,
+              "width": 440,
+              "height": 828,
+              "top": 12,
+              "right": 1386,
+              "bottom": 840,
+              "left": 946
+            },
+            "title": {
+              "x": 963,
+              "y": 33,
+              "width": 56,
+              "height": 20,
+              "top": 33,
+              "right": 1019,
+              "bottom": 53,
+              "left": 963
+            },
+            "close": {
+              "x": 1333,
+              "y": 21,
+              "width": 44,
+              "height": 44,
+              "top": 21,
+              "right": 1377,
+              "bottom": 65,
+              "left": 1333
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          },
+          "after": {
+            "panel": {
+              "x": 946,
+              "y": 12,
+              "width": 440,
+              "height": 828,
+              "top": 12,
+              "right": 1386,
+              "bottom": 840,
+              "left": 946
+            },
+            "title": {
+              "x": 963,
+              "y": 33,
+              "width": 56,
+              "height": 20,
+              "top": 33,
+              "right": 1019,
+              "bottom": 53,
+              "left": 963
+            },
+            "close": {
+              "x": 1333,
+              "y": 21,
+              "width": 44,
+              "height": 44,
+              "top": 21,
+              "right": 1377,
+              "bottom": 65,
+              "left": 1333
+            },
+            "closeHit": true,
+            "outerScroll": 0
+          }
+        }
+      ],
+      "errors": []
+    }
+  },
+  "sourceSha256": {
+    "src/client/playback/practice-player-shell.tsx": "c3dd38a7dca97209f2609b899b9334d6e5ece4cff4893634a52e4bb90f56c54b",
+    "src/client/playback/practice-player.css": "22f5cb885e49ff1ea85fa13835438c61f2db0c58c922fdb1c8559ac6de3277be",
+    "src/client/playback/use-practice-popover-height.ts": "755e46ee4f772dcbb883e9d6f79719f763424f87e439d44d55ba905be4527464"
+  },
+  "imageSha256": {
+    "landscape-scrolled-after.png": "c232905ba0fd9e4bdfec2dd5dab49f8839fc94fccf27654398afea625ddd8d6b",
+    "landscape-scrolled-before.png": "b69f5dfd211a41e6ff554fe3a9863fc5bb62bc017413a753f1ee2317528d1e35",
+    "narrow-landscape-after.png": "a2a8a825a6277fa6ebc5f169cef5e0b1df432a131e93a1f6feb8b7952f9f5893",
+    "narrow-landscape-before.png": "6e336eca05bad87a4ce67457e40e2a778e118e6a0fe487faacce7cf79617d578",
+    "portrait-after.png": "439aa62230055138d04f7067eca867ffc61951279f45318973d57131fb1eae2a",
+    "portrait-before.png": "da3a042723030639ae6138e29ac3817c4662c1f3304b653b3f0b0531b4ff10aa"
+  },
+  "validation": {
+    "lint": "passed",
+    "productionBuildIncludingTypecheckAndPrecache": "passed",
+    "playbackClientTests": {
+      "files": 20,
+      "tests": 142,
+      "passed": true
+    },
+    "practicePanelSafeArea": [
+      "chromium passed",
+      "webkit passed"
+    ],
+    "practiceLoopPreview": [
+      "chromium passed",
+      "webkit passed"
+    ],
+    "existingChromiumRegressions": [
+      "playback-ux passed",
+      "practice-unified-controls passed"
+    ],
+    "baselineRegression": "failed at portrait top safe-area 59px assertion as expected"
+  }
+}
