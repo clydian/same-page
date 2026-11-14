@@ -1,0 +1,159 @@
+{
+  "source": "334b7967e9ab1a86e4c3ca9314ac08720a65be93",
+  "browser": "156.0.8078.4",
+  "conditions": "isolated Worker/D1/R2; service workers blocked; no product DOM or controller snapshots patched",
+  "cases": [
+    {
+      "name": "normal",
+      "title": "正常示例",
+      "trigger": "有效测试会话，最近探测成功；仅表示线路可达。",
+      "navigatorOnline": true,
+      "active": "direct",
+      "checking": false,
+      "preparing": false,
+      "identity": {
+        "direct": "ready",
+        "backup": "ready"
+      },
+      "latestSamples": {
+        "direct": "reachable",
+        "backup": "reachable"
+      },
+      "entry": "normal-entry.png",
+      "panel": "normal-panel.png"
+    },
+    {
+      "name": "checking",
+      "title": "检测中",
+      "trigger": "测试延迟健康请求，实际检查仍在进行。",
+      "navigatorOnline": true,
+      "active": "direct",
+      "checking": true,
+      "preparing": false,
+      "identity": {
+        "direct": "ready",
+        "backup": "ready"
+      },
+      "latestSamples": {
+        "direct": null,
+        "backup": null
+      },
+      "entry": "checking-entry.png",
+      "panel": "checking-panel.png"
+    },
+    {
+      "name": "browser-offline",
+      "title": "浏览器离线",
+      "trigger": "真实浏览器断网；保留断网前的成功记录。",
+      "navigatorOnline": false,
+      "active": "direct",
+      "checking": false,
+      "preparing": false,
+      "identity": {
+        "direct": "ready",
+        "backup": "ready"
+      },
+      "latestSamples": {
+        "direct": "reachable",
+        "backup": "reachable"
+      },
+      "entry": "browser-offline-entry.png",
+      "panel": "browser-offline-panel.png"
+    },
+    {
+      "name": "unreachable",
+      "title": "连接异常",
+      "trigger": "浏览器仍联网，测试阻断两条线路的健康请求。",
+      "navigatorOnline": true,
+      "active": "direct",
+      "checking": false,
+      "preparing": false,
+      "identity": {
+        "direct": "ready",
+        "backup": "ready"
+      },
+      "latestSamples": {
+        "direct": "unreachable",
+        "backup": "unreachable"
+      },
+      "entry": "unreachable-entry.png",
+      "panel": "unreachable-panel.png"
+    },
+    {
+      "name": "conflict",
+      "title": "身份需处理",
+      "trigger": "测试用户 A 的页面，直连入口实际改登测试用户 B。",
+      "navigatorOnline": true,
+      "active": "direct",
+      "checking": false,
+      "preparing": false,
+      "identity": {
+        "direct": "conflict",
+        "backup": "ready"
+      },
+      "latestSamples": {
+        "direct": "reachable",
+        "backup": "reachable"
+      },
+      "entry": "conflict-entry.png",
+      "panel": "conflict-panel.png"
+    },
+    {
+      "name": "unprepared",
+      "title": "身份待确认",
+      "trigger": "测试令身份检测接口返回 503；健康接口仍成功。",
+      "navigatorOnline": true,
+      "active": "direct",
+      "checking": false,
+      "preparing": false,
+      "identity": {
+        "direct": "unprepared",
+        "backup": "unprepared"
+      },
+      "latestSamples": {
+        "direct": "reachable",
+        "backup": "reachable"
+      },
+      "entry": "unprepared-entry.png",
+      "panel": "unprepared-panel.png"
+    },
+    {
+      "name": "unmeasured",
+      "title": "尚未检测 · 展开",
+      "trigger": "首次健康请求尚未完成，展开采样详情。",
+      "navigatorOnline": true,
+      "active": "direct",
+      "checking": true,
+      "preparing": false,
+      "identity": {
+        "direct": "ready",
+        "backup": "ready"
+      },
+      "latestSamples": {
+        "direct": null,
+        "backup": null
+      },
+      "entry": "unmeasured-entry.png",
+      "panel": "unmeasured-panel.png"
+    },
+    {
+      "name": "expired",
+      "title": "结果已过期 · 展开",
+      "trigger": "测试时钟跳过 46 秒，下一次采样尚未执行。",
+      "navigatorOnline": true,
+      "active": "direct",
+      "checking": false,
+      "preparing": false,
+      "identity": {
+        "direct": "ready",
+        "backup": "ready"
+      },
+      "latestSamples": {
+        "direct": "reachable",
+        "backup": "reachable"
+      },
+      "entry": "expired-entry.png",
+      "panel": "expired-panel.png"
+    }
+  ]
+}
