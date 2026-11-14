@@ -30,6 +30,14 @@
 - 逐项复核了引用释放、显式保存跨导航、身份/session 撤销、不可变版本、失败后旧副本保留，以及 PDF.js 转移输入缓冲区时不会损坏共享字节。没有变更数据库格式、权限协议或发布通道。
 - 未验证 Safari/iOS 真机、跨标签页下载去重或真实设备存储耗尽；配额场景是浏览器 API 注入，非物理磁盘耗尽。下载共用范围与原离线准备相同，限同一标签页。
 
+## CI 浏览器测试复核
+
+首次 PR CI 的失败来自两个测试适配点，复核后未修改下载、缓存或 UI 逻辑：
+
+- [离线列表断言](https://github.com/clydian/same-page/actions/runs/43652162754/job/132622861871) 仍读取旧的 `aria-valuenow`，但实际控件是 `<progress max="100" value="50">`。本地复现相同失败，改为检查原生 `max` / `value`，保留原有真实百分比范围、离线打开和附件不下载的检查。
+- [体验入口冒烟](https://github.com/clydian/same-page/actions/runs/43652162754/job/132623067988) 的业务用例均已通过，却在测试结束后报 `Route is already handled`。释放 PDF 请求后，先用 Playwright 的 `unrouteAll({ behavior: "wait" })` 等待处理器完成，再关闭 context；失败清理也先释放请求并等待，不忽略异常、不增加重试或放宽超时。参见 [Playwright 的等待语义](https://playwright.dev/docs/api/class-page#page-unroute-all)。
+- 修正后，本地 Chromium / WebKit 离线列表 2 项、体验入口 10 项全部通过，`npm run lint` 通过。本地 WebKit 缺少的系统库仅解压到临时目录供浏览器加载，未改项目依赖或 CI 环境；真实 Safari/iOS 设备仍未验收。
+
 ## Modern Web Guidance
 
 查询 `progress-ring`、`progress`、`spinner`。我沿用现有 SVG 圆环和数字，并以原生 `<progress>` 暴露真实值；重复显示的数字对辅助技术隐藏，圆环保持静态字节进度，不将未知准备时长转换成假百分比（“The `<progress>` element remains the semantic source of truth.”）。没有引入新的 CSS 能力或依赖；原有取消焦点和减少动画偏好继续保留。

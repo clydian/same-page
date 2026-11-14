@@ -41,9 +41,14 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     for (const scenario of ["guest-sign-in-pdf", "connectivity-hint", "signed-in-musicxml", "signed-in-audio", "signed-in-direct-link"]) {
       test(scenario, async t => {
         const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, serviceWorkers: "block" });
-        t.after(() => context.close());
         await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
         const page = await context.newPage();
+        let releasePdf;
+        t.after(async () => {
+          releasePdf?.();
+          try { await page.unrouteAll({ behavior: "wait" }); }
+          finally { await context.close(); }
+        });
         page.setDefaultTimeout(15_000);
         const base = `${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
         const errors = [], mutations = [], directoryFailures = [], directoryEvents = [];
@@ -139,11 +144,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             // Hold the actual PDF read while the connectivity hint changes.
             // Online opening no longer waits for an offline-shell lookup.
             await openLibrary();
-            let releasePdf;
             const pdfGate = new Promise(resolve => { releasePdf = resolve; });
             const pdfPattern = '**/versions/*/pdf';
             await page.route(pdfPattern, async route => { await pdfGate; await route.continue(); });
-            t.after(() => releasePdf());
             await page.locator(".file-row__open").click();
             await expect(page.locator(".prepared-score-target")).toHaveAttribute("aria-busy", "true");
             await page.evaluate(() => {
@@ -157,7 +160,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
               window.dispatchEvent(new Event("online"));
             });
             releasePdf();
-            await page.unroute(pdfPattern);
+            // Finish the held request before removing its handler. Ordinary
+            // unroute can leave route.continue running after test teardown.
+            await page.unrouteAll({ behavior: "wait" });
             await checkExperience("网络提示变化后的本机体验");
           } else {
             await context.addCookies(nonMemberCookies);
