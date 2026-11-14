@@ -1,0 +1,4 @@
+.offline-score-progress { position: relative; display: grid; place-items: center; width: 24px; height: 24px; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.offline-score-progress svg { position: absolute; inset: 0; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; }
+.offline-score-progress-track { opacity: .18; }
+.offline-score-progress-fill { transform: rotate(-90deg); transform-origin: center; }

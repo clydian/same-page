@@ -50,7 +50,9 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const target = page.locator('a.file-row__open[href$="/scores/visual-score"]');
     await page.locator('.score-file-group').filter({ has: target }).getByRole('button', { name: /^离线副本：/ }).click();
     await page.getByRole('button', { name: '保存供离线使用', exact: true }).click();
-    await expect(page.getByRole('progressbar', { name: '下载乐谱' })).toHaveAttribute('aria-valuenow', /4[0-9]|50/);
+    const progress = page.getByRole('progressbar', { name: '下载乐谱' });
+    await expect(progress).toHaveAttribute('max', '100');
+    await expect(progress).toHaveAttribute('value', /^(?:4[0-9]|50)$/);
     await expect(page).toHaveURL(/\/choirs\/visual-choir$/);
     await page.screenshot({ path: path.join(evidence, `${name}-download.png`) });
     await expect(page.locator('.pdf-file-icon').filter({ hasText: 'PDF' })).toHaveCount(3);

@@ -3,6 +3,7 @@ import {
   loadPdfDocument,
   type PDFDocumentProxy,
   type PdfLoadProgress,
+  type PdfDocumentSource,
 } from "./pdf-document";
 import { onReaderIdentityChange } from "./reader-cache-events";
 
@@ -56,7 +57,7 @@ export function acquireReaderDocument(options: {
   ownerKey: LocalWorkspaceOwnerKey;
   choirId: string;
   scoreId: string;
-  source: string | ArrayBuffer;
+  source: PdfDocumentSource;
   sourceKind: "cloud" | "offline";
   versionId?: string;
   onProgress?: (progress: PdfLoadProgress) => void;

@@ -291,9 +291,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                   <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
                     onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
-                    {opening => <>
-                    <span className="pdf-file-icon" aria-hidden="true">{opening ? <LoaderCircle size={18} className="prepared-score-spinner" /> : "PDF"}</span>
-                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{opening ? "正在打开…" : formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label="有自动生成练习版" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
+                    {(opening, percent) => <>
+                    <span className="pdf-file-icon" aria-hidden="true">{opening && percent === null ? <LoaderCircle size={18} className="prepared-score-spinner" /> : "PDF"}</span>
+                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{opening ? percent !== null ? "正在下载…" : "正在打开…" : formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label="有自动生成练习版" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
                   </>}
                   </PreparedScoreLink>
                   <AttachmentCount score={score} count={presentation.count} expanded={expandedScoreIds.has(score.id)} disabled={false}

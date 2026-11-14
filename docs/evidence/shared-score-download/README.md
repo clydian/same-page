@@ -1,0 +1,43 @@
+# 乐谱打开与离线保存共用下载
+
+点击未缓存乐谱时，在原右侧位置恢复原有圆环和真实数字；下载完整并通过大小/哈希校验后才解码、进入阅读器。网络或解码失败仍留在列表。主动离线保存与打开借用同一份下载字节，各自保留取消/完成条件；本机持久化失败不阻塞在线阅读，也不认证为可离线使用。
+
+## 真实前后对比
+
+修改前为本 PR 基线 `cf6b6a064b64845614a5dac4f2f2c3db0aa71b1b`，修改后为实现提交 `1440034341535be2f87634eef46923ce587e39d9` 的生产构建。截图均为未编辑的真实应用页面、合成 PDF 和独立的本机 Worker/D1/R2 数据，不访问用户云盘。
+
+| 条件 | 修改前 | 修改后 |
+| --- | --- | --- |
+| 有活跃离线壳；点击未缓存谱名；已收到一半 PDF 字节，暂停响应 | [转圈，无数字](before-loading.png) | [共用圆环显示 50，可取消](after-loading.png) |
+| 先主动保存供离线使用，再点击谱名；同样暂停在一半字节 | [2 条 PDF 请求，离线圆环被隐藏](before-shared-download.png) | [1 条共用 PDF 请求，打开显示真实 50](after-shared-download.png) |
+
+[取消打开后仍在保存的原圆环](after-cancel-open.png)：独立的显式离线保存继续，数字仍为 50；没有因为取消打开而中止保存。
+
+[PDF 失败仍在列表](after-failure.png)：禁用 Service Worker 并阻断 PDF 请求；显示可关闭的 Toast，URL 不变；解除阻断后再次点击，实际绘制谱面。
+
+[离线写入配额不足，仍成功在线绘制谱面](after-storage-full.png)：真实拦截浏览器 `IDBObjectStore.put` 对 `offlineScores` 的写入并抛出 `QuotaExceededError`。同时发起显式保存和打开，只请求 1 次 PDF；确认发生写入失败且离线文件记录为 0。阅读指引设为已读以展示谱面。
+
+## 环境与验证
+
+- Chromium，390 × 844，中文；本机生产构建，实际 PDF.js Worker 解码和 canvas 绘制。
+- 同一合成 PDF 大小为 820,250 字节。独立本机 HTTP 服务以 `Content-Length` 返回前 410,125 字节后暂停，再按步骤放行剩余字节。百分比来自实际读取的流，没有定时增长、DOM 数字替换或图片编辑。
+- 有壳场景使用真实 Service Worker；无壳场景使用浏览器 context 的 `serviceWorkers: "block"`。
+- 点击取消最后一个打开请求后，服务端连接实际关闭；有独立显式保存时连接保留，迟到结果不导航。
+- 主动离线保存完成后，实际断网并重新进入云盘打开，确认谱面 canvas 绘制。
+- 请求数、字节数、URL、取消连接、配额失败及离线记录数见 [results.json](results.json)。随机路径标识均来自合成数据。
+- 新增 `score-open-download.test.tsx` 从真实打开、共享下载、哈希、离线激活接口覆盖两种启动顺序、取消/迟到响应、重复打开不重下、失败重试、无离线壳、配额不足、校验失败和身份撤销，以及连接后流失败时沿用既有单次线路恢复。仅替换 PDF 引擎及浏览器外部能力；浏览器取证另行使用真实 PDF.js。
+- `npm run test:client`：167 文件、1449 项通过。最后一次下载校验调整后补跑离线准备与共享打开：2 文件、29 项通过。最后一次布局调整后补跑打开入口与共享打开：2 文件、18 项通过。最后补查媒体流恢复后，下载/离线准备/连接控制共 3 文件、83 项通过。`npm run lint`、`npm run build` 通过；构建包含 TypeScript、precache、release/storage 检查。
+- 逐项复核了引用释放、显式保存跨导航、身份/session 撤销、不可变版本、失败后旧副本保留，以及 PDF.js 转移输入缓冲区时不会损坏共享字节。没有变更数据库格式、权限协议或发布通道。
+- 未验证 Safari/iOS 真机、跨标签页下载去重或真实设备存储耗尽；配额场景是浏览器 API 注入，非物理磁盘耗尽。下载共用范围与原离线准备相同，限同一标签页。
+
+## CI 浏览器测试复核
+
+首次 PR CI 的失败来自两个测试适配点，复核后未修改下载、缓存或 UI 逻辑：
+
+- [离线列表断言](https://github.com/clydian/same-page/actions/runs/43652162754/job/132622861871) 仍读取旧的 `aria-valuenow`，但实际控件是 `<progress max="100" value="50">`。本地复现相同失败，改为检查原生 `max` / `value`，保留原有真实百分比范围、离线打开和附件不下载的检查。
+- [体验入口冒烟](https://github.com/clydian/same-page/actions/runs/43652162754/job/132623067988) 的业务用例均已通过，却在测试结束后报 `Route is already handled`。释放 PDF 请求后，先用 Playwright 的 `unrouteAll({ behavior: "wait" })` 等待处理器完成，再关闭 context；失败清理也先释放请求并等待，不忽略异常、不增加重试或放宽超时。参见 [Playwright 的等待语义](https://playwright.dev/docs/api/class-page#page-unroute-all)。
+- 修正后，本地 Chromium / WebKit 离线列表 2 项、体验入口 10 项全部通过，`npm run lint` 通过。本地 WebKit 缺少的系统库仅解压到临时目录供浏览器加载，未改项目依赖或 CI 环境；真实 Safari/iOS 设备仍未验收。
+
+## Modern Web Guidance
+
+查询 `progress-ring`、`progress`、`spinner`。我沿用现有 SVG 圆环和数字，并以原生 `<progress>` 暴露真实值；重复显示的数字对辅助技术隐藏，圆环保持静态字节进度，不将未知准备时长转换成假百分比（“The `<progress>` element remains the semantic source of truth.”）。没有引入新的 CSS 能力或依赖；原有取消焦点和减少动画偏好继续保留。

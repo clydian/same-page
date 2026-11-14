@@ -1,0 +1,91 @@
+{
+  "beforeCommit": "cf6b6a064b64845614a5dac4f2f2c3db0aa71b1b",
+  "afterCommit": "1440034341535be2f87634eef46923ce587e39d9",
+  "afterBuiltAt": "2026-11-14T23:07:48.025Z",
+  "engine": "Chromium (/usr/bin/chromium)",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "pdfBytes": 820250,
+  "pausedAfterBytes": 410125,
+  "beforeSharedPdfRequests": 2,
+  "scenarios": [
+    {
+      "mode": "click-with-shell",
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d",
+      "progress": [
+        {
+          "name": "下载乐谱",
+          "value": "50",
+          "text": "",
+          "visible": true
+        }
+      ],
+      "spinner": false,
+      "cancel": true,
+      "offlineVisibility": "hidden"
+    },
+    {
+      "mode": "cancel-before-stream-release",
+      "requestClosed": true,
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d"
+    },
+    {
+      "mode": "explicit-save",
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d",
+      "progress": [
+        {
+          "name": "下载乐谱",
+          "value": "50",
+          "text": "",
+          "visible": true
+        }
+      ],
+      "spinner": false,
+      "cancel": false,
+      "offlineVisibility": "visible"
+    },
+    {
+      "mode": "explicit-save-offline-reopen",
+      "canvas": true
+    },
+    {
+      "mode": "click-no-shell",
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d",
+      "progress": [
+        {
+          "name": "下载乐谱",
+          "value": "50",
+          "text": "",
+          "visible": true
+        }
+      ],
+      "spinner": false,
+      "cancel": true,
+      "offlineVisibility": "hidden"
+    },
+    {
+      "mode": "failure-no-shell",
+      "url": "/choirs/2d8b3838-e1fd-4586-b091-e5c41a3ce13d",
+      "text": "为下次排练做好准备\n1\n添加到桌面\n\n像其他 App 一样，点合谱图标就能打开。\n\n已登录并加入云盘\n添加到桌面\nPDF\n本地链路测试\n801 KB\n···"
+    },
+    {
+      "mode": "retry-after-failure",
+      "canvas": true
+    },
+    {
+      "mode": "quota-online-reader",
+      "requests": 1,
+      "canvas": true,
+      "quotaFailures": 2,
+      "offlineRecords": 0
+    },
+    {
+      "mode": "explicit-save-and-open",
+      "requests": 1,
+      "offlineVisibility": "hidden",
+      "storedPercent": "50"
+    }
+  ]
+}
