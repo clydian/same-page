@@ -261,7 +261,7 @@ npx playwright install chromium webkit
 CI 的 visual、smoke、platform、常规发布、首次桥接 job 及稳定性实验使用与锁文件同版、固定 digest 的官方
 Playwright Noble 容器，保留 Node 24；不在测试 job 临时执行 apt 或下载浏览器。
 安装 npm 依赖后执行 `.github/scripts/verify-browsers.mjs`，核对版本、Python 取证依赖和
-两引擎真实启动。Playwright 升级须同步更新 `ci.yml`、`bootstrap-release-channels.yml` 与 `browser-stability.yml` 的全部
+两引擎真实启动。Playwright 升级须同步更新 `ci.yml`、`browser-extended.yml`、`bootstrap-release-channels.yml` 与 `browser-stability.yml` 的全部
 镜像版本和 digest。原始失败、取舍与验证边界见 [环境准备记录](browser-test-stability.md#ci-环境准备--391-与-2026-10-22-后续修复)。
 
 发布容器在 checkout 后、准入前，将当前 `$GITHUB_WORKSPACE` 精确登记到作业 HOME 的
