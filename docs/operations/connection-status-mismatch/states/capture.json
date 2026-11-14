@@ -1,6 +1,7 @@
 {
-  "source": "334b7967e9ab1a86e4c3ca9314ac08720a65be93",
+  "source": "8f4658c3425ac26d4d0e8469c1871738e9cf5cf1",
   "browser": "156.0.8078.4",
+  "timezone": "Asia/Shanghai",
   "conditions": "isolated Worker/D1/R2; service workers blocked; no product DOM or controller snapshots patched",
   "cases": [
     {
