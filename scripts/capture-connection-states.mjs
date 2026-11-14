@@ -27,7 +27,7 @@ try {
   browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {});
   let authenticatedState;
   for (const [name, title, trigger] of definitions) {
-    const context = await browser.newContext({ ...(authenticatedState ? { storageState: authenticatedState } : {}), viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true, serviceWorkers: 'block', reducedMotion: 'reduce', isMobile: true, hasTouch: true });
+    const context = await browser.newContext({ ...(authenticatedState ? { storageState: authenticatedState } : {}), viewport: { width: 390, height: 844 }, timezoneId: 'Asia/Shanghai', ignoreHTTPSErrors: true, serviceWorkers: 'block', reducedMotion: 'reduce', isMobile: true, hasTouch: true });
     const page = await context.newPage();
     context.setDefaultTimeout(12_000);
     const blocked = [];
@@ -46,6 +46,7 @@ try {
       const button = page.getByRole('button', { name: /^连接线路/ });
       const entry = async () => {
         await expect(button).toBeVisible();
+        assert.equal((await button.textContent()).trim(), '', 'connection entry must be icon-only');
         await page.clock.runFor(80);
         await button.screenshot({ path: path.join(output, `${name}-entry.png`) });
       };
@@ -137,8 +138,8 @@ try {
   const data = async file => `data:image/png;base64,${(await readFile(path.join(output, file))).toString('base64')}`;
   const cards = [];
   for (const [index, item] of cases.entries()) cards.push(`<article><h2>${String(index + 1).padStart(2, '0')} ${escape(item.title)}</h2><p>${escape(item.trigger)}</p><div class="entry"><span>实际入口</span><img src="${await data(item.entry)}"></div><img class="panel" src="${await data(item.panel)}"></article>`);
-  const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>#652 连接状态真实界面对照</title><style>*{box-sizing:border-box}body{margin:0;padding:38px;background:#eaf0f0;color:#17353a;font-family:system-ui,"Noto Sans CJK SC",sans-serif;width:1800px}header{margin:0 0 26px}h1{font-size:38px;margin:0 0 12px}header p{font-size:21px;line-height:1.55;margin:6px 0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;align-items:start}article{background:white;border:1px solid #d6e0df;border-radius:16px;padding:16px}h2{font-size:26px;margin:0 0 10px}article>p{font-size:18px;line-height:1.5;min-height:82px;margin:0 0 12px}.entry{min-height:66px;display:flex;align-items:center;gap:16px;padding:8px 0 12px}.entry span{font-size:16px;color:#607378}.entry img{max-height:46px;width:auto;max-width:230px}.panel{width:100%;height:auto;display:block;border:1px solid #dfe7e6;border-radius:8px}footer{font-size:19px;line-height:1.6;margin:28px 0 0;color:#425c61}</style><header><h1>#652 · 八种连接状态，实际界面对照</h1><p><b>全部为隔离测试触发，不是用户设备故障实录。</b> 原图来自正在运行的页面；这里只做排版和标注，没有重绘 UI。</p><p>最新默认布局：长解释收在“状态与连接帮助”。每格上方是入口，下面是对应面板；各格固定直连便于比较，不是自动切换截图证据。</p></header><main class="grid">${cards.join('')}</main><footer>浏览器离线读取浏览器信号；连接异常读取当前线路连通性证据；需处理读取入口会话一致性。没有文字的 Wifi 图标也可能对应未确认或过期，不能当成全部功能正常。<br>检查延迟、请求阻断、503 与时钟跳转均为测试条件；“浏览器离线”格为真实浏览器断网。“正常示例”只展示有效测试会话和可达证据。源码 ${escape(source.slice(0, 7))} · Chromium ${escape(browser.version())} · 原始面板宽 390px。</footer></html>`;
-  await writeFile(path.join(output, 'capture.json'), JSON.stringify({ source, browser: browser.version(), conditions: 'isolated Worker/D1/R2; service workers blocked; no product DOM or controller snapshots patched', cases }, null, 2) + '\n');
+  const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>#652 连接状态真实界面对照</title><style>*{box-sizing:border-box}body{margin:0;padding:38px;background:#eaf0f0;color:#17353a;font-family:system-ui,"Noto Sans CJK SC",sans-serif;width:1800px}header{margin:0 0 26px}h1{font-size:38px;margin:0 0 12px}header p{font-size:21px;line-height:1.55;margin:6px 0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;align-items:start}article{background:white;border:1px solid #d6e0df;border-radius:16px;padding:16px}h2{font-size:26px;margin:0 0 10px}article>p{font-size:18px;line-height:1.5;min-height:82px;margin:0 0 12px}.entry{min-height:66px;display:flex;align-items:center;gap:16px;padding:8px 0 12px}.entry span{font-size:16px;color:#607378}.entry img{max-height:46px;width:auto;max-width:230px}.panel{width:100%;height:auto;display:block;border:1px solid #dfe7e6;border-radius:8px}footer{font-size:19px;line-height:1.6;margin:28px 0 0;color:#425c61}</style><header><h1>#652 · 八种连接状态，实际界面对照</h1><p><b>全部为隔离测试触发，不是用户设备故障实录。</b> 原图来自正在运行的页面；这里只做排版和标注，没有重绘 UI。</p><p>最新默认布局：长解释收在“状态与连接帮助”。每格上方是无文字入口，下面是对应面板；各格固定直连便于比较，不是自动切换截图证据。</p></header><main class="grid">${cards.join('')}</main><footer>浏览器离线读取浏览器信号；连接异常读取当前线路连通性证据；需处理读取入口会话一致性。入口不显示文字，图标与警示色表达概况；没有警示也不能当成全部功能正常。<br>检查延迟、请求阻断、503 与时钟跳转均为测试条件；“浏览器离线”格为真实浏览器断网。“正常示例”只展示有效测试会话和可达证据。源码 ${escape(source.slice(0, 7))} · Chromium ${escape(browser.version())} · 原始面板宽 390px。</footer></html>`;
+  await writeFile(path.join(output, 'capture.json'), JSON.stringify({ source, browser: browser.version(), timezone: 'Asia/Shanghai', conditions: 'isolated Worker/D1/R2; service workers blocked; no product DOM or controller snapshots patched', cases }, null, 2) + '\n');
   const gallery = await browser.newPage({ viewport: { width: 1800, height: 1200 }, deviceScaleFactor: 1 });
   await gallery.setContent(html);
   await gallery.evaluate(() => document.fonts.ready);

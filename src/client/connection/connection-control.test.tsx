@@ -119,10 +119,11 @@ it('keeps identity failure visible when health succeeds and the browser reports 
       <ConnectionControl />
     </MemoryRouter>);
     expect(screen.getByRole('button', { name: /连接线路，浏览器离线/ })).toBeVisible();
+    expect(screen.getByRole('button', { name: /连接线路，浏览器离线/ })).toHaveTextContent(/^$/);
     // The connection entry must not replace an independent session failure notice.
     expect(screen.getByText(/暂时无法连接，已保存的内容仍然保留/)).toBeInTheDocument();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^连接线路/ })); });
-    await screen.findByText('当前线路：直连（待确认） · 浏览器离线');
+    await screen.findByText('当前线路：直连（浏览器离线）');
     expect(screen.getAllByText('线路可达', { selector: '.connection-health' })).toHaveLength(2);
     const explanation = screen.getByText(/线路检测只确认服务能否响应/);
     expect(explanation).not.toBeVisible();

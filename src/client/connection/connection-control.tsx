@@ -38,7 +38,8 @@ function ConnectionButton() {
   const attention = !browserOnline || disconnected || state.identity[state.active] === "conflict" || state.identity[state.active] === "unprepared";
   const working = state.checking || state.preparing;
   const visible = scrollingVisible || attention || working || open;
-  const fabLabel = !browserOnline ? "浏览器离线" : disconnected ? "连接异常" : state.identity[state.active] === "conflict" ? "需处理" : null;
+  const accessibleStatus = !browserOnline ? "浏览器离线" : disconnected ? "连接异常" : state.identity[state.active] === "conflict" ? "需处理" : null;
+  const currentStatus = !browserOnline ? "浏览器离线" : disconnected ? "暂时连不上" : availability === "stale" || availability === "unknown" ? "待检测" : state.identity[state.active] !== "ready" ? "待确认" : null;
   const refetch = session.refetch;
   const needsSessionRecovery = Boolean(session.error) || !session.data?.user;
   const check = useCallback(async () => {
@@ -59,16 +60,15 @@ function ConnectionButton() {
     return () => { window.removeEventListener("online", recover); document.removeEventListener("visibilitychange", recover); };
   }, [check]);
   return <>
-    <Button ref={button} className="connection-fab" aria-label={["连接线路", fabLabel, working ? "正在检测…" : null].filter(Boolean).join("，")}
-      aria-haspopup="dialog" aria-expanded={open} data-visible={visible} data-attention={attention || undefined} data-has-label={Boolean(fabLabel) || undefined} inert={!visible}
+    <Button ref={button} className="connection-fab" aria-label={["连接线路", accessibleStatus, working ? "正在检测…" : null].filter(Boolean).join("，")}
+      aria-haspopup="dialog" aria-expanded={open} data-visible={visible} data-attention={attention || undefined} inert={!visible}
       onPress={() => { setNow(Date.now()); setOpen(true); void check(); }}>
       {working ? <LoaderCircle className="connection-spinner" size={19} aria-hidden="true" /> : !browserOnline || disconnected ? <WifiOff size={19} aria-hidden="true" /> : <Wifi size={19} aria-hidden="true" />}
-      {fabLabel && <span>{fabLabel}</span>}
     </Button>
     <ModalOverlay className="modal-overlay" isOpen={open} onOpenChange={setOpen} isDismissable>
       <Modal className="app-modal app-modal--compact"><Dialog className="app-dialog connection-dialog" aria-label="连接线路">
         <div className="connection-heading"><Heading slot="title">连接线路</Heading><Button className="icon-button" onPress={() => setOpen(false)} aria-label="关闭连接面板"><X size={20} aria-hidden="true" /></Button></div>
-        <p className="connection-current" role="status">{state.attempting ? `正在尝试${names[state.attempting]}…` : `当前线路：${names[state.active]}${disconnected ? "（暂时连不上）" : availability === "stale" || availability === "unknown" ? "（待检测）" : state.identity[state.active] !== "ready" ? "（待确认）" : ""}`}{!browserOnline && <> · 浏览器离线</>}</p>
+        <p className="connection-current" role="status">{state.attempting ? `正在尝试${names[state.attempting]}…${!browserOnline ? "（浏览器离线）" : ""}` : `当前线路：${names[state.active]}${currentStatus ? `（${currentStatus}）` : ""}`}</p>
         {window.location.origin === connectionWebsites.backup && <p className="connection-origin-note">当前为备用网站，本机草稿与原网站分开保存。</p>}
         <fieldset className="connection-modes"><legend>线路选择</legend>
           {(["auto", "direct", "backup"] as const).map(mode => <label key={mode} data-selected={state.mode === mode}>
