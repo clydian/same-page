@@ -43,7 +43,9 @@ for (const [engine, browserType, width] of [["chromium", chromium, 1280], ["webk
       const gate = await hold(page, "**/api/choirs/*/attachments?*");
       await button.click(); await gate.wait();
       const group = page.locator(".score-file-group").filter({ has: button });
-      await expect(group.getByRole("status")).toHaveText("正在读取附件…");
+      const pending = group.locator(".attachment-pending");
+      await expect(pending).toHaveAttribute("aria-busy", "true");
+      await expect(pending.getByRole("status")).toHaveText("正在读取附件…");
       if (button === secondButton) await expect(page.getByRole("link", { name: "第一份参考", exact: true })).toBeVisible();
       await gate.release();
       await expect(page.getByRole("link", { name: expectedName, exact: true })).toBeVisible();
