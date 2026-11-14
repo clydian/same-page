@@ -42,7 +42,13 @@ export function registerJoinKeyboardTests(cases) {
           await page.getByRole("dialog", { name: "切换云盘" }).getByRole("button", { name: "加入新云盘", exact: true }).click();
         }
         const input = page.getByRole("textbox", { name: "邀请码", exact: true });
-        await input.fill("ABCD");
+        // Exercise keyboard entry, not WebKit's separate select-all/insertText
+        // automation path. Establish the draft before changing the viewport so
+        // an entry failure cannot be mistaken for a keyboard-layout regression.
+        await input.focus();
+        await input.pressSequentially("ABCD");
+        await expect(input).toHaveValue("ABCD");
+        await expect(page.locator(".join-code-slot")).toHaveText(["A", "B", "C", "D", "", "", "", ""]);
         for (const visibleHeight of entry === "landscape" ? [375, 350, 335, 300, 220, 200, 335] : [335]) {
           await page.evaluate(height => {
             window.visualViewport.height = height;
@@ -90,7 +96,9 @@ export function registerJoinKeyboardTests(cases) {
           await expect.poll(() => page.evaluate(() => scrollY)).toBe(350);
           await page.getByRole("button", { name: /^切换云盘/ }).click();
           await page.getByRole("dialog", { name: "切换云盘" }).getByRole("button", { name: "加入新云盘", exact: true }).click();
-          await input.fill("EFGH");
+          await input.focus();
+          await input.pressSequentially("EFGH");
+          await expect(input).toHaveValue("EFGH");
           await page.evaluate(() => {
             window.visualViewport.height = 335;
             window.visualViewport.dispatchEvent(new Event("resize"));

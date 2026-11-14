@@ -46,3 +46,11 @@ PR只提交审查，不合并、不部署。stable提升及第三首发布继续
 `4f6879d` 的 CI `43531399026` 中，checks/job `132249860109` 唯一失败为 `AppRoutes > reuses the home summary while one member bootstrap loads the drive`；其他构建、visual、platform、smoke及CodeQL通过，verify因checks失败汇总失败。
 
 测试仅渲染 `AppRoutes`，不包含生产 `AppContent` 中的 `LocalIdentityObserver`。它mock在线账号却未激活该账号的本机身份，仍断言本机目录已成功读取且为空。新逻辑拒绝把工作区不可读伪装成空目录，因此该断言确定失败；本地单独运行原样复现。最小修复是在该用例渲染前激活其既定测试账号，保留原来的目录文案、单次bootstrap与后续加载断言，不修改生产行为、不加超时或重试。首次身份捕获失败及切换身份保护仍由drive-library的回归测试覆盖。
+
+## 再次CI失败：既有WebKit邀请码输入场景
+
+`efc5920` 的CI `43532956467` 中，checks及其客户端测试已通过；唯一实质失败为visual(2)/job `132254990378`，`webkit: home join code stays above keyboard` 在视口变化后的值检查收到空串。这与 #649 记录的 #648 故障一致；本PR没有修改该输入组件、首页或视口hook。
+
+此日志没有记录fill刚结束时的值，故不能判断字符未输入还是视口变化后丢失，也不能将未复现当作产品问题不存在。CI镜像中的事件对照未重现原错误，底层原因继续留在 #649 调查。本次不改生产输入行为，不重跑旧失败job。
+
+该测试改用逐键输入建立键盘场景，并在视口变化前检查输入值与8个可见字符格，随后保留所有视口、焦点、草稿保留断言。Playwright源码显示fill使用选中输入后再发insertText的自动化路径，逐键输入走键盘事件；本次绕开这一不同的测试输入机制，但不宣称已证明它是底层根因。新增前置断言可将后续输入建立失败与布局变化丢字明确分开。Chromium/WebKit的首页、云盘、首次云盘、横屏8项检查通过。
