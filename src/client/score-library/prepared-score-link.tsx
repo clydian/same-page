@@ -87,7 +87,7 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
       }} onOpen={() => { activeOpening?.cancel(); props.onOpen(); }}>{typeof children === "function" ? children(opening) : children}</ScoreLink>
     </div>
     <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{opening ? `正在打开 ${props.label}` : ""}</span>
-    {opening && <button type="button" className="text-button prepared-score-cancel" aria-label={`取消打开 ${props.label}`} onClick={() => {
+    {opening && <button type="button" className="prepared-score-cancel" aria-label={`取消打开 ${props.label}`} onClick={() => {
       request.current?.cancel(); request.current = null; setOpening(false); container.current?.querySelector("a")?.focus();
     }}>取消</button>}
     <FeedbackMessage feedback={feedback} closeLabel="关闭打开提示" />

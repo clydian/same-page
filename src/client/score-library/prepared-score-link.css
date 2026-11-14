@@ -1,6 +1,11 @@
 .prepared-score-open { display: flex; align-items: center; flex: 1; min-width: 0; }
 .prepared-score-target { flex: 1; min-width: 0; }
-.prepared-score-cancel { flex: 0 0 44px; min-height: 44px; white-space: nowrap; }
+.prepared-score-open .file-row__size { line-height: 1.5; }
+/* Reserve the normal action space so loading does not reflow score names. */
+.file-row:has(.prepared-score-target[aria-busy="true"]) > :not(.prepared-score-open) { visibility: hidden; }
+.prepared-score-cancel { position: absolute; right: .75rem; display: inline-flex; align-items: center; justify-content: center; min-width: 64px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--ui-soft, #edf2f0); color: var(--ui-ink, #153f46); font: inherit; font-size: .85rem; cursor: pointer; }
+.prepared-score-target .file-open-link:focus-visible, .prepared-score-cancel:focus-visible { outline: 2px solid var(--ui-accent, #245d61); outline-offset: -3px; border-radius: 8px; }
+.prepared-score-target[aria-busy="true"] .file-row__name { color: var(--ink); text-decoration: none; }
 .prepared-score-spinner { animation: prepared-score-spin 1s linear infinite; }
 @keyframes prepared-score-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .prepared-score-spinner { animation: none; } }
