@@ -1,1 +1,4 @@
 .prepared-score-open { flex: 1; min-width: 0; }
+.prepared-score-feedback { display: flex; align-items: center; gap: .75rem; padding: 0 .75rem; font-size: .85rem; color: var(--muted); }
+.prepared-score-feedback:not(:has(span:empty)) { padding-bottom: .5rem; }
+.prepared-score-feedback button { flex-shrink: 0; white-space: nowrap; }

@@ -133,3 +133,14 @@ it('keeps identity failure visible when health succeeds and the browser reports 
     expect(connections.getSnapshot().identity.direct).toBe('unprepared');
   } finally { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
 });
+
+it('shows drive recovery details only while the connection panel is open', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({ status: 'ok', sessionId: null })));
+  render(<MemoryRouter initialEntries={['/choirs/drive']}><ConnectionControl drive><p>已保存的乐谱可以继续打开。</p><button>重试列表</button></ConnectionControl></MemoryRouter>);
+  expect(screen.queryByText('已保存的乐谱可以继续打开。')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /^连接线路/ }));
+  expect(await screen.findByText('已保存的乐谱可以继续打开。')).toBeVisible();
+  expect(screen.getByRole('button', { name: '重试列表' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: '关闭连接面板' }));
+  await waitFor(() => expect(screen.queryByText('已保存的乐谱可以继续打开。')).not.toBeInTheDocument());
+});

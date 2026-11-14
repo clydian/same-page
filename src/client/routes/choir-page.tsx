@@ -1,3 +1,4 @@
+import { ConnectionControl } from "../connection/connection-control";
 import type { AttachmentRevealRequest } from "../score-library/attachments/use-attachment-reveal";
 import { readerHref } from "../reader/reader-entry";
 import { startPlayback } from "../playback/playback-store";
@@ -193,6 +194,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   if (access.kind === "join-required") {
     return (
       <div className="app-page">
+        <ConnectionControl drive />
         <AppHeader actions={headerActions} />
         <main className="page-shell compact-page access-page">
           <p className="eyebrow">开放准入</p>
@@ -221,6 +223,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   if (access.kind === "failed") {
     const reading = snapshot.reading.request === "pending";
     return <div className="app-page">
+      <ConnectionControl drive />
       <AppHeader actions={headerActions} />
       <main className="page-shell compact-page access-page">
         <h1>暂时无法打开云盘</h1>
@@ -251,16 +254,17 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   };
   const storageRatio = result.storage.usedBytes / result.storage.limitBytes;
 
+  const connectionHelp = <div className="drive-connection-help">
+    {!online && <p>当前离线，已保存的乐谱可以继续打开。</p>}
+    <IdentityNotice identity={identity} />
+    {searchMessage && <p>{searchMessage}<Button onPress={() => void refresh()}>重试</Button></p>}
+  </div>;
+
   return (
-    <><DrivePage choirId={choirId} header={<DriveHeader choirId={choirId} choirName={choir.name} userId={userId} email={session.data?.user.email} localOnly={Boolean(access.local) || !online} canManageIdentity={access.isMember || access.rememberedMembership} search={search} onSearch={updateSearch} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
+    <><DrivePage choirId={choirId} connectionHelp={connectionHelp} header={<DriveHeader choirId={choirId} choirName={choir.name} userId={userId} email={session.data?.user.email} localOnly={Boolean(access.local) || !online} canManageIdentity={access.isMember || access.rememberedMembership} search={search} onSearch={updateSearch} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
       <PullToRefresh key={`${cacheOwner}:${choirId}`} onRefresh={refresh} disabled={!online}>
       <main className="page-shell file-library">
         {access.retained && <p role="status">已无法访问此云盘，以下为本机保留内容</p>}
-        {(!online || (Boolean(userId) && identity.onlineState === "signed-out") || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || searchMessage) && <div className="drive-connection-notice">
-          {!online && <p role="status">当前离线，已保存的乐谱可以继续打开。</p>}
-          <IdentityNotice identity={identity} />
-          {searchMessage && <p role="status">{searchMessage}<Button onPress={() => void refresh()}>重试</Button></p>}
-        </div>}
         {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
           !access.local && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
           <DrivePreparation choirId={choirId} accountReady={Boolean(identity.authenticatedUserId) && access.isMember} />}
@@ -281,7 +285,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                 const presentation = attachments.forScore(score);
                 return (
                 <article className="score-file-group" key={score.id}><div className="file-row">
-                  <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} canPrepare={attachmentsEnabled && !session.isPending} explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
+                  <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
                     onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
                     <span className="pdf-file-icon" aria-hidden="true">PDF</span>

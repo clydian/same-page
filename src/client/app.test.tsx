@@ -1240,9 +1240,8 @@ describe("AppRoutes", () => {
     fireEvent.touchStart(refreshArea, { touches: [{ clientX: 50, clientY: 20 }] });
     fireEvent.touchMove(refreshArea, { touches: [{ clientX: 50, clientY: 160 }] });
     fireEvent.touchEnd(refreshArea, { touches: [] });
-    expect(
-      await screen.findByText("暂时无法更新乐谱列表，当前内容已保留。请稍后重试。"),
-    ).toBeInTheDocument();
+    await waitFor(() => expect(refreshArea.querySelector(".pull-refresh-status")).toHaveTextContent(/^$/));
+    expect(screen.queryByText("暂时无法更新乐谱列表，当前内容已保留。请稍后重试。")).not.toBeInTheDocument();
     expect(screen.getByText("排练 10")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /排练 10/ })).toBeInTheDocument();
 

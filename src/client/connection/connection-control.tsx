@@ -1,5 +1,5 @@
 import { LoaderCircle, Wifi, WifiOff, X } from "lucide-react";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { Link, useLocation } from "react-router-dom";
 import { connectionRoutes, type ConnectionMode } from "../../shared/connection";
@@ -13,14 +13,14 @@ import { useFloatingVisibility } from "./use-floating-visibility";
 import "./connection.css";
 
 const names = { direct: "直连", backup: "备用" };
-export function ConnectionControl() {
+export function ConnectionControl({ drive = false, children }: { drive?: boolean; children?: ReactNode }) {
   const location = useLocation();
   // Available before login too; first-page loading failure still needs the
   // independently discoverable emergency website.
-  return connectionsEnabled && (/^\/(?:drives|login)?$/.test(location.pathname) || /^\/choirs\/[^/]+$/.test(location.pathname)) ? <ConnectionButton /> : null;
+  return connectionsEnabled && (/^\/(?:drives|login)?$/.test(location.pathname) || drive) ? <ConnectionButton>{children}</ConnectionButton> : null;
 }
 
-function ConnectionButton() {
+function ConnectionButton({ children }: { children?: ReactNode }) {
   const state = useSyncExternalStore(connections.subscribe, connections.getSnapshot);
   const session = authClient.useSession();
   const browserOnline = useNetworkStatus();
@@ -70,6 +70,7 @@ function ConnectionButton() {
         <div className="connection-heading"><Heading slot="title">连接线路</Heading><Button className="icon-button" onPress={() => setOpen(false)} aria-label="关闭连接面板"><X size={20} aria-hidden="true" /></Button></div>
         <p className="connection-current" role="status">{state.attempting ? `正在尝试${names[state.attempting]}…${!browserOnline ? "（浏览器离线）" : ""}` : `当前线路：${names[state.active]}${currentStatus ? `（${currentStatus}）` : ""}`}</p>
         {window.location.origin === connectionWebsites.backup && <p className="connection-origin-note">当前为备用网站，本机草稿与原网站分开保存。</p>}
+        {children}
         <fieldset className="connection-modes"><legend>线路选择</legend>
           {(["auto", "direct", "backup"] as const).map(mode => <label key={mode} data-selected={state.mode === mode}>
             <input type="radio" name="connection-mode" value={mode} checked={state.mode === mode} onChange={() => { setConnectionMode(mode as ConnectionMode); void check(); }} />
