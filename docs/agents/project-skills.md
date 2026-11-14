@@ -7,7 +7,7 @@
 | `diagnosing-bugs` | 难复现故障、性能回退；先建立可观察信号，再缩小范围、验证假设 | `skills/engineering/diagnosing-bugs/` |
 | `codebase-design` | 判断模块接口、依赖与测试位置；减少不必要的间接层 | `skills/engineering/codebase-design/` |
 | `improve-codebase-architecture` | 用户主动发起架构巡检，先展示改进候选，再讨论选定项 | `skills/engineering/improve-codebase-architecture/` |
-| `modern-web-guidance` | 按需解答具体 Web 平台问题；非必跑、非现代化门禁 | GoogleChrome `skills/modern-web-guidance/SKILL.md` 的项目适配 |
+| `modern-web-guidance` | HTML/CSS/客户端 JS 任务先查询 Web 平台指南 | GoogleChrome `skills/modern-web-guidance/SKILL.md` 的项目适配 |
 
 不安装整套工作流、setup、triage、TDD 或自动更新工具；已有项目配置继续使用。
 
@@ -52,42 +52,29 @@
 
 删除某技能时删除 `.agents/skills/<name>/` 整个目录并更新本文；删除最后一个 mattpocock 技能时移除 `LICENSE.mattpocock`；仅当所有项目技能均删除时，再移除本文和 `AGENTS.md` 的 Project skills 段落。无需卸载命令，无个人配置或外部服务需要清理。
 
-## Modern Web Guidance（按需参考）
+## Modern Web Guidance
 
-PR [#654](https://github.com/clydian/same-page/pull/654) 已合并，本技能沿用相同的项目级 `.agents/skills` 方案，不重复安装其他技能。检出本 PR 即完成项目安装；无需全局安装、个人配置或上游安装器。在新 Codex 会话中可用 `$modern-web-guidance`，也可针对具体 Web 平台疑问按需调用。它不是每个前端任务的必跑步骤，不进入 CI、不要求扫描或强制现代化。
+沿用项目级 `.agents/skills` 方案，只安装 `modern-web-guidance`，不安装 Chrome 扩展技能或插件市场配置。检出分支后，新 Codex 会话可发现 `$modern-web-guidance`，无需全局或个人安装。保留上游工作流：HTML/CSS/客户端 JavaScript 任务先查指南；CLI 使用 `@latest`。不新增 CI 门禁，不改产品功能。
 
-### 固定来源、运行与隐私
+### 来源与隐私
 
-- 审查日期：2026-11-14。技能来源为 [GoogleChrome/modern-web-guidance@4dd968349e54ca45a05dd5c818fb035c9054b022](https://github.com/GoogleChrome/modern-web-guidance/tree/4dd968349e54ca45a05dd5c818fb035c9054b022)。只适配 `modern-web-guidance/SKILL.md`，不安装 `chrome-extensions`、插件市场配置或上游安装脚本；不复制数百份指南与二进制数据。
-- CLI 独立固定为 npm `modern-web-guidance@1.0.0`；对应 skill 标识 `2026_11_09-5bcc021b`。审查的是实际 npm tarball 的 `modern-web.mjs`、`search.mjs` 及其 source map、包清单、数据/指南布局与许可，不能用 Git 技能版本替代运行时代码审查。包无安装生命周期脚本或外部 npm 依赖，所需模块与检索数据已打包；未执行 install/update、扫描器或实验 opt-in。
-- npm tarball SHA-256：`bd7aa623ad10710a9ad6678fdbcc0b890c903c54fd6abfc126ff42de01f0e577`；registry SRI：`sha512-vafIZwC8AS6QjM2yyoflZbnc7n3/TVOMLbEMRdPTwcFy0f9/Tq8s5rJQ8UIqRt2KPl9ixravyaMR4nTGuUrcmg==`。用于更新审查核对；运行依赖 npm 对固定版本和缓存的完整性检查，未另建下载器或包镜像。
-- 所有调用使用 [lookup.sh](../../.agents/skills/modern-web-guidance/scripts/lookup.sh)。该入口仅允许 `search`、`retrieve`、`list`，强制 `DISABLE_TELEMETRY=1`、`ENABLE_FILE_LOGGING=false`、npm `--ignore-scripts`，固定精确包版本。上游默认遥测可能发送查询、调用 agent、指南 ID 等；审查确认此版本 opt-out 会在创建遥测 watchdog 前返回。不要绕过入口，也不要执行指南输出中的 `@latest`、更新、安装或策略 opt-in 命令。
-- 查询只用一个能力的通用英文短语，禁止发送用户原话、秘密、邮箱、私人笔记、谱面、源代码、日志、路径或业务标识。命令参数仍可能进入终端/会话/npm 错误日志，禁遥测不能替代脱敏。
-- Apache-2.0 完整许可、修改标注、Google 与 MDN/Mozilla、W3C、WHATWG、IETF 来源，以及指南的 CC-BY 4.0 署名要求见 [NOTICE.md](../../.agents/skills/modern-web-guidance/NOTICE.md) 和同目录 `LICENSE`。引用/转发指南时保留具体指南链接、许可与原有署名，并标注改动。
+技能来源：[GoogleChrome/modern-web-guidance@4dd968349e54ca45a05dd5c818fb035c9054b022](https://github.com/GoogleChrome/modern-web-guidance/tree/4dd968349e54ca45a05dd5c818fb035c9054b022)。本地保留完整上游流程，补充项目上下文、查询隐私规则及命令环境。Apache-2.0 全文、Google 版权、CC-BY 4.0 链接与指南署名见 [NOTICE.md](../../.agents/skills/modern-web-guidance/NOTICE.md) 和同目录 `LICENSE`；分享指南时保留原有署名、具体指南链接、许可与必要的改动标注。
 
-从仓库根目录运行（子目录请按仓库根解析路径）：
+每次调用都设 `DISABLE_TELEMETRY=1`、`ENABLE_FILE_LOGGING=false`、`npm_config_ignore_scripts=true`，包括 `pnpx`、重试和指南输出中的命令。查询只使用通用英文能力短语，禁止用户原话、凭据、邮箱、私人笔记、谱面、代码、日志、路径或业务标识；禁遥测不能替代脱敏。
 
 ```sh
-sh .agents/skills/modern-web-guidance/scripts/lookup.sh search "light dismiss dialog"
-sh .agents/skills/modern-web-guidance/scripts/lookup.sh retrieve "light-dismiss-a-dialog"
+DISABLE_TELEMETRY=1 ENABLE_FILE_LOGGING=false npm_config_ignore_scripts=true npx -y modern-web-guidance@latest search "light dismiss dialog"
+DISABLE_TELEMETRY=1 ENABLE_FILE_LOGGING=false npm_config_ignore_scripts=true npx -y modern-web-guidance@latest retrieve "light-dismiss-a-dialog"
 ```
 
-需要 POSIX `sh`、Node.js **>=22** 和提供 `npm exec` 的 npm。首次运行需访问配置的 npm registry（默认 registry.npmjs.org）下载约 16.5 MB 解包内容；npm 使用自身缓存和网络配置，不会增加应用 `package.json` 或 lockfile。缓存不可写时可在命令前指定 `NPM_CONFIG_CACHE=/tmp/mwg-npm-cache`。完整缓存后可加 `npm_config_offline=true`；缓存缺失仍会失败。此固定版本搜索使用包内 BM25/静态向量，取回读取包内 Markdown，不需要在线模型、API key 或远端查询服务。下载过程仍有正常 registry 网络访问；查阅失败时说明限制，不把它变成阻止产品修复的门禁。
+需要 Node.js **>=22** 及 npm/npx（或上游支持的 pnpx）。联网时 `@latest` 使用 npm 当时的最新版本，所执行版本可能随上游发布变化；本次实测解析为 `1.0.0`。npm 使用自身 registry 与缓存配置，不修改应用依赖清单；缓存不可写可设置 `NPM_CONFIG_CACHE=/tmp/mwg-npm-cache`。离线时按上游说明尝试 `npx --offline`，结果取决于缓存。当前实测版本使用包内静态检索数据，不需 API key；下载包仍需正常 registry 网络访问。
 
-### 项目适配与兼容性
+项目约束与用户授权优先，尤其是 Safari/iOS/PWA、离线数据和旧客户端兼容。结合相关 ADR 判断指南适用性，保留必要 fallback；Baseline 标签不替代真机证据。上游 `legacy-scan` 只用于用户明确要求的开放式全仓现代化/扫描，不用于普通功能修复。本安装不执行扫描、安装脚本、合并或部署。
 
-本地 `SKILL.md` 是明确标注的精简修改版，移除了上游 MANDATORY、默认现代化与固定报告格式等要求。指南只作为证据参考；不因上游偏好强加新 API、`any` 类型断言、`esnext`、polyfill 或依赖。先读当前任务相关 ADR，特别是 [离线访问](../adr/0004-allow-verified-offline-access-without-requiring-installation.md)、[PDF.js legacy 路径](../adr/0013-use-legacy-pdf-display.md) 与 [版本化应用壳](../adr/0020-versioned-application-shells.md)。保留 iOS/Safari/PWA、离线数据与旧客户端兼容；Baseline 标签不替代项目支持策略或真机证据，不据指南删除现有 fallback。不新增 `.mwgrc` 或放宽实验功能配置；不运行 `legacy-scan`。
+### 验证与维护
 
-### 验证证据与边界
+已验证 frontmatter、来源与 LICENSE、相对引用、`git diff --check`。全新隔离 `CODEX_HOME` 的 Codex CLI `0.159.2` app-server 在仓库根和 `docs/agents` 均发现该项目技能（`scope: repo`、`enabled: true`、`errors: []`）。Node `24.19.0` / npm `11.9.0` 使用上述禁遥测环境真实执行 `@latest search` 和 `retrieve` 成功；CLI 当时为 `1.0.0`。
 
-- **静态**：frontmatter/名称与目录校验、引用/来源/Apache 文件一致性、`sh -n` 和 `git diff --check`。检查入口只允许三个只读子命令，固定版本/隐私环境且不运行 lifecycle hooks；无产品、CI、依赖清单或发布配置改动。
-- **实测发现**：本 Cloud 环境现有 Codex CLI `0.159.2`，使用全新 `/tmp` 隔离 `CODEX_HOME` 启动 `codex app-server --listen stdio://`，initialize 后执行 `skills/list`（`forceReload: true`）。仓库根与 `docs/agents` 两个 cwd 都返回 `modern-web-guidance`，路径指向本仓库、`scope: repo`、`enabled: true`、`errors: []`；原有三个技能仍可见。
-- **实测检索**：Node `24.19.0` / npm `11.9.0`、全新临时 npm 缓存，经项目入口搜索 `light dismiss dialog` 返回 10 条结果，首条为 `light-dismiss-a-dialog`；成功取回返回列表中的 `dialog`，完整输出 12,425 字节。
-- **运行时隐私**：缓存后以 npm offline 重跑相同 search/retrieve。临时 Node preload 在实际 CLI 进程断言遥测为 `1`、文件日志为 `false`，拦截常见 Node HTTP/HTTPS/net/TLS/DNS/fetch 和子进程入口；两次均成功且无调用尝试（因此也未启动遥测 watchdog）。这是对该版本与这两条路径的运行探测，不是操作系统级抓包，也不声称 npm 首次下载无网络。
-- 真实发现和真实 CLI 检索分别验证；未启动带模型的端到端自动选技回合，不证明当前聊天热刷新或所有用户个人配置可见。未运行应用构建/产品测试或真机验收，技能文件不改变产品行为。
+审查了该 npm 版本实际 CLI/search 与遥测分支：opt-out 在创建 watchdog 前返回。临时 Node 运行探测在 CLI 进程检查隐私环境并拦截常见 HTTP/HTTPS/net/TLS/DNS/fetch 与子进程入口，所测 search/retrieve 均无调用尝试。这是所测版本与路径的证据，不是对未来 `@latest` 版本的保证或 OS 抓包。真实发现与 CLI 检索分别验证；未做带模型的端到端自动选技、产品构建/测试或真机验收。
 
-### 手动更新与删除
-
-不自动更新。另开 PR，选定上游完整 SHA 和 npm 精确版本；先下载但不运行安装脚本，核对 tarball hash/SRI、来源和许可，重新审查实际 CLI/search 代码、网络/遥测/日志/子进程与依赖变化。对照固定旧 SHA 的原技能审查 diff，将必要变化移植到项目适配版；保留按需与兼容性边界。同步入口的 CLI/skill 标识、本文、NOTICE 与 LICENSE；重新做隔离 Codex 发现和禁遥测真实检索验证。上游更新提示仅是信息，不提供自动升级授权。
-
-删除时只移除 `.agents/skills/modern-web-guidance/` 并更新本文，无全局安装需要卸载。临时 npm 缓存按环境清理；不调用上游 uninstall，不影响其他项目技能。
+更新仓库中的技能说明时，从选定上游提交同步完整 `SKILL.md`，保留查询隐私环境与项目上下文，同步 NOTICE/许可并验证发现与真实检索。CLI 按上游 `@latest` 方式获取，无需修改仓库版本号。删除时移除 `.agents/skills/modern-web-guidance/` 并更新本文，无全局安装需要卸载。
