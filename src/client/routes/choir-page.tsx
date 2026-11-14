@@ -218,6 +218,18 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
     );
   }
 
+  if (access.kind === "failed") {
+    const reading = snapshot.reading.request === "pending";
+    return <div className="app-page">
+      <AppHeader actions={headerActions} />
+      <main className="page-shell compact-page access-page">
+        <h1>暂时无法打开云盘</h1>
+        <p role="alert">{snapshot.refreshMessage ?? "本机目录暂时无法读取，请重试。"}</p>
+        <Button isDisabled={reading} onPress={() => void library.refresh()}>{reading ? "正在读取…" : "重试读取"}</Button>
+      </main>
+    </div>;
+  }
+
   if (access.kind === "loading") {
     return (
       <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} localOnly={!identity.authenticatedUserId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} />} />{attachmentDialog}</>

@@ -1,3 +1,4 @@
+import * as workspaceState from "../platform/local-workspace";
 import { getReadResource, clearReadResources } from "../settings/read-resource";
 import { NAVIGATION_FRESH_MS, observeNavigationResponse, type DriveReadKind } from "../settings/navigation-events";
 import * as retainedScores from "../offline/retained-scores";
@@ -367,7 +368,8 @@ describe("DriveLibrary interface", () => {
   it("retries an initial failure and refreshes after successful admission", async () => {
     const { library, transport } = create(async () => ({ kind: "failed" }));
     await library.refresh();
-    expect(library.getSnapshot().access).toMatchObject({ kind: "opened", local: true });
+    // No readable local owner/directory: show a retryable failure, not a fabricated empty drive.
+    expect(library.getSnapshot().access).toMatchObject({ kind: "failed" });
     transport.load.mockResolvedValueOnce({ kind: "join-required", choir: opened().choir });
     await library.refresh();
     expect(library.getSnapshot().access.kind).toBe("join-required");
@@ -528,4 +530,41 @@ it("keeps each sort direction through refresh and reopening without losing a sav
   expect(reopened.getSnapshot().view).toMatchObject({ sort: "updated", sortDirections: { name: "desc", updated: "asc" } });
   reopened.setSort("name");
   expect(reopened.getSnapshot().view.sortDirections?.name).toBe("desc");
+});
+
+it("retries a failed cold local directory read offline instead of remembering an empty opened drive", async () => {
+  await activateAuthenticatedLocalOwner("one");
+  const scope = createLocalWorkspace(authenticatedLocalOwnerKey("one"), choirId, "");
+  const saved = opened("本机保留.pdf");
+  await directoryStorage.rememberLocalDriveDirectory(scope, saved.choir, saved.result.scores, new AbortController().signal, true);
+  const read = vi.spyOn(directoryStorage, "readLocalDriveDirectories").mockRejectedValue(new DOMException("temporary directory read", "UnknownError"));
+  const { library, transport } = create(async () => opened(), owner, choirId, false);
+  await library.refresh();
+  const firstAccess = library.getSnapshot().access.kind;
+  expect(await localDatabase.driveDirectories.count()).toBe(1);
+  read.mockRestore();
+  await library.refresh();
+  expect(library.getSnapshot()).toMatchObject({ scores: [{ fileName: "本机保留.pdf" }], access: { kind: "opened", local: true } });
+  expect(firstAccess).toBe("failed");
+  expect(transport.load).not.toHaveBeenCalled();
+});
+
+it("recaptures a failed cold workspace on offline retry without activating another owner", async () => {
+  await activateAuthenticatedLocalOwner("one");
+  const scope = createLocalWorkspace(authenticatedLocalOwnerKey("one"), choirId, "");
+  const saved = opened("冷启动保留.pdf");
+  await directoryStorage.rememberLocalDriveDirectory(scope, saved.choir, saved.result.scores, new AbortController().signal, true);
+  const capture = vi.spyOn(workspaceState, "captureLocalWorkspaceSession").mockRejectedValueOnce(new DOMException("temporary workspace read", "UnknownError"));
+  const { library, transport } = create(async () => opened(), owner, choirId, false);
+  await library.refresh();
+  expect(library.getSnapshot().access.kind).toBe("failed");
+  capture.mockRestore();
+  await activateAuthenticatedLocalOwner("another-owner");
+  await library.refresh();
+  expect(library.getSnapshot().access.kind).toBe("failed");
+  expect(await workspaceState.currentLocalOwnerKey()).toBe("user:another-owner");
+  await activateAuthenticatedLocalOwner("one");
+  await library.refresh();
+  expect(library.getSnapshot()).toMatchObject({ scores: [{ fileName: "冷启动保留.pdf" }], access: { kind: "opened", local: true } });
+  expect(transport.load).not.toHaveBeenCalled();
 });
