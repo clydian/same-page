@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FocusEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type Message = { text: string | null; duration?: number };
 type Options = { duration: number; once?: string };
@@ -22,13 +22,13 @@ export function useFeedbackMessage(initial: string | null = null, initialOptions
     const timer = setTimeout(() => setCurrent(value => value === current ? { text: null } : value), current.duration);
     return () => clearTimeout(timer);
   }, [current, hovered, focused]);
+  const interaction = useMemo(() => ({
+    onMouseEnter: () => setHovered(current), onMouseLeave: () => setHovered(null),
+    onFocusCapture: () => setFocused(current),
+    onBlurCapture: (event: { currentTarget: HTMLElement; relatedTarget: EventTarget | null }) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setFocused(null); },
+  }), [current]);
   return {
     message: current.text, temporary: current.duration !== undefined, setMessage, dismiss,
-    interaction: {
-      onMouseEnter: () => setHovered(current), onMouseLeave: () => setHovered(null),
-      onFocusCapture: () => setFocused(current),
-      onBlurCapture: (event: FocusEvent<HTMLElement>) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(null); },
-    },
+    interaction,
   };
 }
-

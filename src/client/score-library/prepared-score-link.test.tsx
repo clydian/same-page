@@ -30,7 +30,7 @@ it("keeps failed uncached opens in the list and retries by clicking again", asyn
   expect(screen.getByRole("status")).toHaveTextContent("正在打开");
   expect(screen.getByLabelText("当前位置")).toHaveTextContent(/^\/choirs\/drive$/);
   await act(async () => task.reject(new TypeError("Failed to fetch")));
-  expect(screen.getByRole("status")).toHaveTextContent("网络不畅，请再点一次");
+  expect(screen.getByRole("alertdialog")).toHaveTextContent("乐谱未能打开，请检查网络后重试。");
   const retry = pending(); load.mockReturnValue(retry);
   fireEvent.click(screen.getByRole("link", { name: "score" }));
   await act(async () => retry.resolve({}));
@@ -60,19 +60,4 @@ it.each(["ctrlKey", "metaKey"])("preserves modified %s links", modifier => {
   render(<MemoryRouter>{row()}</MemoryRouter>);
   expect(fireEvent.click(screen.getByRole("link", { name: "score" }), { [modifier]: true })).toBe(true);
   expect(load).not.toHaveBeenCalled();
-});
-
-it("keeps the short failure readable while focused and clears it eight seconds after leaving", async () => {
-  vi.useFakeTimers();
-  const task = pending(); load.mockReturnValue(task);
-  render(<MemoryRouter>{row()}</MemoryRouter>);
-  fireEvent.click(screen.getByRole("link", { name: "score" }));
-  await act(async () => task.reject(new TypeError("Failed to fetch")));
-  const close = screen.getByRole("button", { name: "关闭打开提示" });
-  fireEvent.focus(close);
-  await act(async () => vi.advanceTimersByTime(16_000));
-  expect(screen.getByRole("status")).toHaveTextContent("网络不畅");
-  fireEvent.blur(close);
-  await act(async () => vi.advanceTimersByTime(8_000));
-  expect(screen.getByRole("status")).toBeEmptyDOMElement();
 });

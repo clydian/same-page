@@ -1,5 +1,5 @@
 import { LoaderCircle, Wifi, WifiOff, X } from "lucide-react";
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { Link, useLocation } from "react-router-dom";
 import { connectionRoutes, type ConnectionMode } from "../../shared/connection";
@@ -12,12 +12,31 @@ import { routeAvailability } from "./presentation";
 import { useFloatingVisibility } from "./use-floating-visibility";
 import "./connection.css";
 
+type HelpContext = { help: ReactNode; setHelp: React.Dispatch<React.SetStateAction<ReactNode>> };
+const ConnectionHelpContext = createContext<HelpContext | null>(null);
+
+export function ConnectionHelpProvider({ children }: { children: ReactNode }) {
+  const [help, setHelp] = useState<ReactNode>(null);
+  return <ConnectionHelpContext value={{ help, setHelp }}>{children}</ConnectionHelpContext>;
+}
+
+export function ConnectionHelp({ children }: { children?: ReactNode }) {
+  const setHelp = useContext(ConnectionHelpContext)?.setHelp;
+  useEffect(() => {
+    if (!setHelp) return;
+    setHelp(children);
+    return () => setHelp(current => current === children ? null : current);
+  }, [children, setHelp]);
+  return null;
+}
+
 const names = { direct: "直连", backup: "备用" };
-export function ConnectionControl({ drive = false, children }: { drive?: boolean; children?: ReactNode }) {
+export function ConnectionControl({ children }: { children?: ReactNode } = {}) {
+  const help = useContext(ConnectionHelpContext)?.help;
   const location = useLocation();
   // Available before login too; first-page loading failure still needs the
   // independently discoverable emergency website.
-  return connectionsEnabled && (/^\/(?:drives|login)?$/.test(location.pathname) || drive) ? <ConnectionButton>{children}</ConnectionButton> : null;
+  return connectionsEnabled && (/^\/(?:drives|login)?$/.test(location.pathname) || /^\/choirs\/[^/]+$/.test(location.pathname)) ? <ConnectionButton>{children ?? help}</ConnectionButton> : null;
 }
 
 function ConnectionButton({ children }: { children?: ReactNode }) {

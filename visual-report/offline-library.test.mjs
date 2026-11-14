@@ -13,7 +13,7 @@ let server;
 before(async () => { server = await startVisualServer({ script: 'dev', cwd: root }); await mkdir(evidence, { recursive: true }); });
 after(async () => { await server?.stop(); });
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
-  test(`${name}: row preparation retains only attachment metadata and offline clicks stay in the library`, async t => {
+  test(`${name}: explicit offline preparation retains only attachment metadata and offline clicks stay in the library`, async t => {
     const profile = await mkdtemp(path.join(tmpdir(), `same-page-404-${name}-`));
     const context = await engine.launchPersistentContext(profile, { headless: true, viewport: { width: 390, height: 844 }, locale: 'zh-CN', serviceWorkers: 'block' });
     t.after(async () => { try { await context.close(); } finally { await rm(profile, { recursive: true, force: true }); } });
@@ -48,7 +48,8 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     let page = await context.newPage();
     await page.goto(`${server.origin}/choirs/visual-choir`);
     const target = page.locator('a.file-row__open[href$="/scores/visual-score"]');
-    await target.click();
+    await page.locator('.score-file-group').filter({ has: target }).getByRole('button', { name: /^离线副本：/ }).click();
+    await page.getByRole('button', { name: '保存供离线使用', exact: true }).click();
     await expect(page.getByRole('progressbar', { name: '下载乐谱' })).toHaveAttribute('aria-valuenow', /4[0-9]|50/);
     await expect(page).toHaveURL(/\/choirs\/visual-choir$/);
     await page.screenshot({ path: path.join(evidence, `${name}-download.png`) });
@@ -56,6 +57,9 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await expect(page.getByRole('progressbar')).toHaveCount(1);
     await expect(page.getByRole('button', { name: '取消打开' })).toHaveCount(0);
     await page.evaluate(() => window.__releaseScoreDownload());
+    await expect(page.getByRole('status').filter({ hasText: /^可离线使用$/ })).toBeVisible();
+    await page.getByRole('button', { name: '关闭', exact: true }).click();
+    await target.click();
     await expect(page).toHaveURL(/\/scores\/visual-score$/);
     await page.locator('[data-pdf-canvas-active]').first().waitFor();
     await page.close();

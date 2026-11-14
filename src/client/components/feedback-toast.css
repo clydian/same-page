@@ -1,0 +1,11 @@
+.feedback-toast-region { position: fixed; z-index: 160; inset-inline: 16px; bottom: calc(16px + max(env(safe-area-inset-bottom, 0px), var(--practice-inset, 0px), var(--practice-float-bottom, 0px))); display: flex; justify-content: center; pointer-events: none; outline: none; }
+.feedback-toast { box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(440px, 100%); padding: 8px 8px 8px 16px; border: 1px solid var(--ui-line, #d7dfdb); border-radius: 14px; background: var(--ui-surface, #fff); color: var(--ui-ink, #153f46); box-shadow: 0 6px 28px #102b2924; font-size: 14px; line-height: 1.5; pointer-events: auto; }
+.feedback-toast .react-aria-ToastContent { min-width: 0; overflow-wrap: anywhere; }
+.feedback-toast-close { flex: 0 0 44px; display: inline-flex; justify-content: center; align-items: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; }
+.feedback-toast-close[data-hovered] { background: var(--ui-soft, #edf2f0); }
+.feedback-toast[data-focus-visible], .feedback-toast-close[data-focus-visible] { outline: 2px solid var(--ui-accent, #245d61); outline-offset: 2px; }
+/* Keep the playback controls available while their transient feedback is shown. */
+@media (prefers-reduced-motion: no-preference) { .feedback-toast { animation: feedback-toast-in 140ms ease-out; } }
+@keyframes feedback-toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.feedback-toast-interaction { display: contents; }

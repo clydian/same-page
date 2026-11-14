@@ -93,18 +93,23 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await chooseLibrarySort(page, "updated");
     unavailable = true;
     release(); waiting = null;
-    await expect(page.getByText(/暂时无法更新乐谱列表，当前内容已保留/)).toBeVisible();
+    await expect(page.getByRole("region", { name: "乐谱", exact: true })).toHaveAttribute("aria-busy", "false");
+    await expect(page.getByText(/暂时无法更新乐谱列表，当前内容已保留/)).toHaveCount(0);
     await expect(page.locator(".file-row")).toHaveCount(1);
     await page.screenshot({ path: path.join(evidence, `${name}-refresh-failed.png`) });
     unavailable = false;
-    await page.getByRole("button", { name: "重试", exact: true }).click();
+    const failedRequests = requests;
+    await page.clock.setFixedTime(new Date("2026-09-10T00:03:03Z"));
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect.poll(() => requests).toBe(failedRequests + 1);
+    await expect(page.getByRole("region", { name: "乐谱", exact: true })).toHaveAttribute("aria-busy", "false");
     await expect(page.getByText(/暂时无法更新乐谱列表，当前内容已保留/)).toHaveCount(0);
     await expect(page.getByRole("searchbox", { name: /搜索.*中的乐谱/ })).toHaveValue("040");
     await expect(page.getByRole("button", { name: "按最近更新排序，最新在前" })).toBeVisible();
     await page.screenshot({ path: path.join(evidence, `${name}-refreshed.png`) });
     await writeFile(path.join(evidence, `${name}-lifecycle.json`), JSON.stringify({
       engine: name, requests, savedTop, currentTop,
-      checks: ["cached return after DOM commit", "same-session confirmation survives background refresh", "no background scroll jump", "coalesced foreground requests", "failed refresh retains content", "retry preserves search and sort"],
+      checks: ["cached return after DOM commit", "same-session confirmation survives background refresh", "no background scroll jump", "coalesced foreground requests", "failed refresh retains content", "foreground retry preserves search and sort"],
       scope: "local application with synthetic network; desktop browser, no real-device or production claim",
     }, null, 2));
   });

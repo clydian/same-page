@@ -40,8 +40,7 @@
 .reader-edit-layer-popover .annotation-layer-slot { border: 1px solid var(--ui-line, #ddd); border-radius: 0.65rem; color: var(--ui-ink, #111); background: var(--ui-surface, #f6f6f4); font-weight: 600; }
 
 
-.reader-display-recovery,
-.reader-display-notice {
+.reader-display-recovery {
   position: fixed;
   z-index: 30;
   top: max(0.5rem, env(safe-area-inset-top));
@@ -54,7 +53,6 @@
   color: var(--ui-ink, #171717);
   box-shadow: 0 2px 14px #0002;
 }
-.reader-display-notice { top: auto; bottom: 1rem; pointer-events: auto; }
 .reader-display-choices { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .reader-display-choices button,
 .page-render-recovery button { min-width: 44px; min-height: 44px; }

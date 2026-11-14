@@ -1,4 +1,6 @@
-.prepared-score-open { flex: 1; min-width: 0; }
-.prepared-score-feedback { display: flex; align-items: center; gap: .75rem; padding: 0 .75rem; font-size: .85rem; color: var(--muted); }
-.prepared-score-feedback:not(:has(span:empty)) { padding-bottom: .5rem; }
-.prepared-score-feedback button { flex-shrink: 0; white-space: nowrap; }
+.prepared-score-open { display: flex; align-items: center; flex: 1; min-width: 0; }
+.prepared-score-target { flex: 1; min-width: 0; }
+.prepared-score-cancel { flex: 0 0 44px; min-height: 44px; white-space: nowrap; }
+.prepared-score-spinner { animation: prepared-score-spin 1s linear infinite; }
+@keyframes prepared-score-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .prepared-score-spinner { animation: none; } }

@@ -136,20 +136,14 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             // empty loading frame that could hide a late identity leak.
             await expect(page.locator(".annotation-text").filter({ hasText: "未登录的本机体验" })).toHaveCount(0);
           } else if (scenario === "connectivity-hint") {
-            // A connectivity hint can refresh while opening. Pin the shell lookup so
-            // this exercises the accepted-click lifetime instead of relying on timing.
+            // Hold the actual PDF read while the connectivity hint changes.
+            // Online opening no longer waits for an offline-shell lookup.
             await openLibrary();
-            await expect(page.getByRole("button", { name: /^离线副本：/ })).toBeEnabled();
-            await page.evaluate(() => {
-              const original = navigator.serviceWorker.getRegistration;
-              navigator.serviceWorker.getRegistration = () => new Promise(resolve => {
-                window.releasePreviewShellLookup = () => {
-                  navigator.serviceWorker.getRegistration = original;
-                  delete window.releasePreviewShellLookup;
-                  resolve(undefined);
-                };
-              });
-            });
+            let releasePdf;
+            const pdfGate = new Promise(resolve => { releasePdf = resolve; });
+            const pdfPattern = '**/versions/*/pdf';
+            await page.route(pdfPattern, async route => { await pdfGate; await route.continue(); });
+            t.after(() => releasePdf());
             await page.locator(".file-row__open").click();
             await expect(page.locator(".prepared-score-target")).toHaveAttribute("aria-busy", "true");
             await page.evaluate(() => {
@@ -161,8 +155,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             await page.evaluate(() => {
               delete navigator.onLine;
               window.dispatchEvent(new Event("online"));
-              window.releasePreviewShellLookup();
             });
+            releasePdf();
+            await page.unroute(pdfPattern);
             await checkExperience("网络提示变化后的本机体验");
           } else {
             await context.addCookies(nonMemberCookies);

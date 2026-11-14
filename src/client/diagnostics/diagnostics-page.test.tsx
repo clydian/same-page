@@ -27,7 +27,7 @@ it("lets the user inspect and clear a safe report without touching drafts", () =
   expect(report.value).toContain('"operation": "pdf"');
   fireEvent.click(screen.getByRole("button", { name: "清空诊断信息" }));
   expect(report.value).toContain('"records": []');
-  expect(screen.getByRole("status")).toHaveTextContent("不影响乐谱与草稿");
+  expect(screen.getByRole("status")).toHaveTextContent("本机诊断信息已清空");
 });
 
 it("sends optional description, displays a receipt, and retains sent snapshot when new failures arrive", async () => {

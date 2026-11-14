@@ -1,6 +1,7 @@
+import { FeedbackToastProvider } from "./components/feedback-toast";
 import { AppearanceProvider } from "./appearance/appearance";
 import { PlaybackGate } from "./playback/playback-gate";
-import { ConnectionControl } from "./connection/connection-control";
+import { ConnectionControl, ConnectionHelpProvider } from "./connection/connection-control";
 import { InstallProvider } from "./install/install-provider";
 import { LogoutProvider } from "./auth/logout";
 import { NavigationProvider } from "./navigation/navigation";
@@ -51,7 +52,7 @@ export function AppRoutes() {
   const startup = location.state?.home !== true && (startupKey === location.key || (location.state?.startup === true && navigationType !== "POP"));
   return (
     <>
-      <AppearanceProvider><NavigationProvider><LogoutProvider><InstallProvider>
+      <AppearanceProvider><FeedbackToastProvider><ConnectionHelpProvider><NavigationProvider><LogoutProvider><InstallProvider>
       <RouteScrollReset />
 
         <Routes>
@@ -101,7 +102,7 @@ export function AppRoutes() {
           />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      <ConnectionControl /><PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider></AppearanceProvider>
+      <ConnectionControl /><PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider></ConnectionHelpProvider></FeedbackToastProvider></AppearanceProvider>
 
     </>
   );

@@ -61,7 +61,7 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
       <textarea id="diagnostic-report" readOnly value={current} rows={12} />
       <div className="diagnostics-actions diagnostic-utilities">
       <button type="button" onClick={() => void copy(current, "已复制诊断信息。")}>复制诊断信息</button>
-      <button type="button" onClick={() => { clearDiagnostics(); setMessage("已清空本机会话诊断信息，不影响乐谱与草稿，也不会撤回已发送的报告。", { duration: 5000 }); }}>清空诊断信息</button>
+      <button type="button" onClick={() => { clearDiagnostics(); setMessage("本机诊断信息已清空。", { duration: 5000 }); }}>清空诊断信息</button>
       </div>
     </details>
 

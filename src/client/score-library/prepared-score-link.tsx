@@ -1,5 +1,7 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { readerHref } from "../reader/reader-entry";
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
+import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useNavigate } from "react-router-dom";
 import type { ScoreSummary } from "../../shared/scores";
@@ -15,8 +17,8 @@ import "./prepared-score-link.css";
 
 type OpenRequest = { cancel: () => void };
 let activeOpening: OpenRequest | null = null;
-type Props = Omit<ComponentProps<typeof ScoreLink>, "onOpen"> & { score: ScoreSummary; sessionId: string | null; onOpen: (scrollY?: number) => void };
-export function PreparedScoreLink({ score, sessionId, ...props }: Props) {
+type Props = Omit<ComponentProps<typeof ScoreLink>, "onOpen" | "children"> & { children: ReactNode | ((opening: boolean) => ReactNode); score: ScoreSummary; sessionId: string | null; onOpen: (scrollY?: number) => void };
+export function PreparedScoreLink({ score, sessionId, children, ...props }: Props) {
   const navigate = useNavigate();
   const guestOwner = useLiveQuery(async () => (await localDatabase.system.get(guestOwnerSystemKey(score.choirId)))?.value ?? null, [score.choirId]);
   const owner = props.userId ? authenticatedLocalOwnerKey(props.userId) : guestOwner as LocalWorkspaceOwnerKey | null;
@@ -24,8 +26,8 @@ export function PreparedScoreLink({ score, sessionId, ...props }: Props) {
   const offline = useOfflineScore(workspace);
   const [opening, setOpening] = useState(false);
   const container = useRef<HTMLDivElement>(null);
-  const [feedbackHeld, setFeedbackHeld] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
+  const { setMessage } = feedback;
   const request = useRef<OpenRequest | null>(null);
   // Resolving a first guest owner is not a new selection. User, session and
   // immutable target changes always withdraw the pending navigation.
@@ -33,11 +35,6 @@ export function PreparedScoreLink({ score, sessionId, ...props }: Props) {
   const [stateTarget, setStateTarget] = useState(target);
   if (stateTarget !== target) { setStateTarget(target); setOpening(false); setMessage(null); }
   useLayoutEffect(() => () => { request.current?.cancel(); request.current = null; }, [target]);
-  useEffect(() => {
-    if (!message || feedbackHeld) return;
-    const timer = window.setTimeout(() => setMessage(null), 8_000);
-    return () => window.clearTimeout(timer);
-  }, [message, feedbackHeld]);
   const ready = offline?.scopeKey === workspace?.scopeKey && offline?.record && !offline.invalid;
   const open = async () => {
     if (request.current) return;
@@ -74,7 +71,7 @@ export function PreparedScoreLink({ score, sessionId, ...props }: Props) {
       void navigate(readerHref({ choirId: score.choirId, scoreId: score.id, experience: props.experience === true }));
     } catch (error) {
       if (!cancelled && activeOpening === current) setMessage(pdfFailureCategory(error) === "network"
-        ? "网络不畅，请再点一次。" : "暂时打不开，请稍后再点一次。");
+        ? "乐谱未能打开，请检查网络后重试。" : "乐谱未能打开，请稍后重试。", { duration: 8000 });
     } finally {
       if (!cancelled) release();
       if (activeOpening === current) activeOpening = null;
@@ -87,15 +84,12 @@ export function PreparedScoreLink({ score, sessionId, ...props }: Props) {
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || props.local || ready) return;
         event.preventDefault();
         void open();
-      }} onOpen={() => { activeOpening?.cancel(); props.onOpen(); }}>{props.children}</ScoreLink>
+      }} onOpen={() => { activeOpening?.cancel(); props.onOpen(); }}>{typeof children === "function" ? children(opening) : children}</ScoreLink>
     </div>
-    <div className="prepared-score-feedback" onMouseEnter={() => setFeedbackHeld(true)} onMouseLeave={() => setFeedbackHeld(false)}
-      onFocus={() => setFeedbackHeld(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFeedbackHeld(false); }}>
-      <span role="status" aria-live="polite" aria-atomic="true">{opening ? "正在打开…" : message}</span>
-      {opening && <button type="button" className="text-button" aria-label={`取消打开 ${props.label}`} onClick={() => {
-        request.current?.cancel(); request.current = null; setOpening(false); container.current?.querySelector("a")?.focus();
-      }}>取消</button>}
-      {message && <button type="button" className="text-button" aria-label="关闭打开提示" onClick={() => { setMessage(null); container.current?.querySelector("a")?.focus(); }}>关闭</button>}
-    </div>
+    <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{opening ? `正在打开 ${props.label}` : ""}</span>
+    {opening && <button type="button" className="text-button prepared-score-cancel" aria-label={`取消打开 ${props.label}`} onClick={() => {
+      request.current?.cancel(); request.current = null; setOpening(false); container.current?.querySelector("a")?.focus();
+    }}>取消</button>}
+    <FeedbackMessage feedback={feedback} closeLabel="关闭打开提示" />
   </div>;
 }

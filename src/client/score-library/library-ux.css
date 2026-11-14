@@ -121,7 +121,6 @@
 .pull-refresh-status { display: flex; align-items: center; justify-content: center; gap: .5rem; overflow: hidden; color: var(--muted); font-size: .8rem; }
 .pull-refresh-status > * { flex-shrink: 0; }
 .pull-refresh-status[data-refreshing] > svg { animation: library-refresh-spin .8s linear infinite; }
-.pull-refresh-error { width: min(72rem, calc(100% - 2rem)); margin: .5rem auto; font-size: .85rem; }
 @keyframes library-refresh-spin { to { transform: rotate(360deg); } }
 @media (max-width: 680px) { .library-sort-trigger { flex-basis: 6.5rem; } .drive-context-row > h1 { font-size: 1.1rem; } }
 @media (prefers-reduced-motion: reduce) { .pull-refresh-status[data-refreshing] > svg { animation: none; } }

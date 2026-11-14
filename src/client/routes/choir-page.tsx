@@ -1,4 +1,4 @@
-import { ConnectionControl } from "../connection/connection-control";
+import { ConnectionHelp } from "../connection/connection-control";
 import type { AttachmentRevealRequest } from "../score-library/attachments/use-attachment-reveal";
 import { readerHref } from "../reader/reader-entry";
 import { startPlayback } from "../playback/playback-store";
@@ -17,7 +17,7 @@ import { rememberLastDrive, forgetLastDrive } from "../score-library/last-drive"
 import { useApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
 import type { ApplicationIdentity } from "../auth/application-identity";
-import { FileMusic } from "lucide-react";
+import { FileMusic, LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   Button,
@@ -194,7 +194,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   if (access.kind === "join-required") {
     return (
       <div className="app-page">
-        <ConnectionControl drive />
+        <ConnectionHelp />
         <AppHeader actions={headerActions} />
         <main className="page-shell compact-page access-page">
           <p className="eyebrow">开放准入</p>
@@ -223,7 +223,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   if (access.kind === "failed") {
     const reading = snapshot.reading.request === "pending";
     return <div className="app-page">
-      <ConnectionControl drive />
+      <ConnectionHelp />
       <AppHeader actions={headerActions} />
       <main className="page-shell compact-page access-page">
         <h1>暂时无法打开云盘</h1>
@@ -262,7 +262,10 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   return (
     <><DrivePage choirId={choirId} connectionHelp={connectionHelp} header={<DriveHeader choirId={choirId} choirName={choir.name} userId={userId} email={session.data?.user.email} localOnly={Boolean(access.local) || !online} canManageIdentity={access.isMember || access.rememberedMembership} search={search} onSearch={updateSearch} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
-      <PullToRefresh key={`${cacheOwner}:${choirId}`} onRefresh={refresh} disabled={!online}>
+      <PullToRefresh key={`${cacheOwner}:${choirId}`} onRefresh={async () => {
+        await refresh();
+        if (library.getSnapshot().refreshMessage) throw new Error("drive_refresh_failed");
+      }} disabled={!online}>
       <main className="page-shell file-library">
         {access.retained && <p role="status">已无法访问此云盘，以下为本机保留内容</p>}
         {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
@@ -288,8 +291,10 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                   <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
                     onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
-                    <span className="pdf-file-icon" aria-hidden="true">PDF</span>
-                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label="有自动生成练习版" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
+                    {opening => <>
+                    <span className="pdf-file-icon" aria-hidden="true">{opening ? <LoaderCircle size={18} className="prepared-score-spinner" /> : "PDF"}</span>
+                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{opening ? "正在打开…" : formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label="有自动生成练习版" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
+                  </>}
                   </PreparedScoreLink>
                   <AttachmentCount score={score} count={presentation.count} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => {

@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 
@@ -9,12 +11,12 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
   const container = useRef<HTMLDivElement>(null);
   const [distance, setDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(false);
+  const feedback = useFeedbackMessage();
   const canStart = useEffectEvent(() => !disabled && !refreshing && !document.querySelector('[role="dialog"], [role="menu"]'));
   const refresh = useEffectEvent(async (signal: AbortSignal) => {
-    setRefreshing(true); setError(false);
+    setRefreshing(true); feedback.dismiss();
     try { await onRefresh(); }
-    catch { if (!signal.aborted) setError(true); }
+    catch { if (!signal.aborted) feedback.setMessage("列表未能刷新，请稍后重试。", { duration: 8000 }); }
     finally { if (!signal.aborted) setRefreshing(false); }
   });
   useEffect(() => {
@@ -67,7 +69,7 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
     <div className="pull-refresh-status" data-refreshing={refreshing || undefined} style={{ height: refreshing ? 44 : distance }} role="status">
       {(refreshing || distance > 0) && <><RefreshCw size={18} aria-hidden="true" /><span>{refreshing ? "正在刷新乐谱列表…" : distance >= 54 ? "松开刷新" : "下拉刷新"}</span></>}
     </div>
-    {error && <p role="alert" className="pull-refresh-error">暂时无法更新乐谱列表，请稍后重试。</p>}
+    <FeedbackMessage feedback={feedback} />
     {children}
   </div>;
 }

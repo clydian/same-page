@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
-import { ConnectionControl } from './connection-control';
+import { ConnectionControl, ConnectionHelp, ConnectionHelpProvider } from './connection-control';
 import { connections } from './connection';
 import { IdentityNotice } from '../auth/local-entry';
 import type { ApplicationIdentity } from '../auth/application-identity';
@@ -136,11 +136,13 @@ it('keeps identity failure visible when health succeeds and the browser reports 
 
 it('shows drive recovery details only while the connection panel is open', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => Response.json({ status: 'ok', sessionId: null })));
-  render(<MemoryRouter initialEntries={['/choirs/drive']}><ConnectionControl drive><p>已保存的乐谱可以继续打开。</p><button>重试列表</button></ConnectionControl></MemoryRouter>);
+  const view = render(<MemoryRouter initialEntries={['/choirs/drive']}><ConnectionHelpProvider><ConnectionHelp key="first"><p>已保存的乐谱可以继续打开。</p><button>重试列表</button></ConnectionHelp><ConnectionControl /></ConnectionHelpProvider></MemoryRouter>);
   expect(screen.queryByText('已保存的乐谱可以继续打开。')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /^连接线路/ }));
   expect(await screen.findByText('已保存的乐谱可以继续打开。')).toBeVisible();
   expect(screen.getByRole('button', { name: '重试列表' })).toBeVisible();
+  view.rerender(<MemoryRouter><ConnectionHelpProvider><ConnectionHelp key="next"><p>已保存的乐谱可以继续打开。</p></ConnectionHelp><ConnectionControl /></ConnectionHelpProvider></MemoryRouter>);
+  expect(screen.getByRole('dialog', { name: '连接线路' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: '关闭连接面板' }));
   await waitFor(() => expect(screen.queryByText('已保存的乐谱可以继续打开。')).not.toBeInTheDocument());
 });
