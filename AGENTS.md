@@ -1,5 +1,11 @@
 ## Agent skills
 
+### Project skills
+
+Before using a skill in `.agents/skills`, read `docs/agents/project-skills.md`
+for SamePage's scope, safety, and verification constraints. These vendored
+methods do not override project instructions or the user's authorization.
+
 ### Development stage
 
 This product is in active use. Preserve existing user data and deployed-client
