@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { DriveSuggestion } from "../components/drive-suggestion";
 import { prepareInstallLink } from "./install-transfer";
 import { useEffect, useState } from "react";
@@ -22,7 +24,8 @@ export function InstallSuggestion() {
 
 
 export function CopyInstallLink({ url }: { url?: string } = {}) {
-  const [message, setMessage] = useState("");
+  const feedback = useFeedbackMessage();
+  const { message, setMessage } = feedback;
   const drive = /^\/choirs\/([^/]+)/.exec(window.location.pathname)?.[1];
   const [prepared, setPrepared] = useState<{ drive: string; url: string } | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -36,11 +39,11 @@ export function CopyInstallLink({ url }: { url?: string } = {}) {
       if (!value) setMessage("已保留云盘入口；换浏览器后可能需要重新登录或使用原邀请。");
     }).catch(() => { if (!controller.signal.aborted) setMessage("暂时无法准备链接，请重试。"); });
     return () => controller.abort();
-  }, [url, drive, attempt]);
+  }, [url, drive, attempt, setMessage]);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(link); setMessage("网址已复制，请粘贴到浏览器打开。"); }
+    try { await navigator.clipboard.writeText(link); setMessage("网址已复制，请在浏览器中打开。", { duration: 5000 }); }
     catch { setMessage("请长按或选中下方网址复制。"); }
   };
   if (!link) return <div className="install-copy"><p role="status">{message || "正在准备云盘链接…"}</p>{message && <Button onPress={() => { setMessage(""); setAttempt(value => value + 1); }}>重试</Button>}</div>;
-  return <div className="install-copy"><Button className="secondary-button" onPress={() => void copy()}>复制链接</Button><input aria-label="合谱网址" readOnly value={link} onFocus={event => event.target.select()} />{message && <p role="status">{message}</p>}</div>;
+  return <div className="install-copy"><Button className="secondary-button" onPress={() => void copy()}>复制链接</Button><input aria-label="合谱网址" readOnly value={link} onFocus={event => event.target.select()} /><FeedbackMessage feedback={feedback} /></div>;
 }

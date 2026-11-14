@@ -17,6 +17,14 @@ import { localDatabase } from "../platform/local-database";
 import { activateAuthenticatedLocalOwner, authenticatedLocalOwnerKey, createLocalWorkspace } from "../platform/local-workspace";
 import { clearDriveLibraryCache } from "../score-library/drive-library-cache";
 
+// These tests exercise identity recovery with its help content expanded.
+// ConnectionControl's own tests cover the closed/open panel boundary.
+vi.mock("../connection/connection-control", () => ({
+  ConnectionControl: () => null,
+  ConnectionHelpProvider: ({ children }: { children?: import("react").ReactNode }) => children,
+  ConnectionHelp: ({ children }: { children?: import("react").ReactNode }) => <aside>{children}</aside>,
+}));
+
 beforeEach(async () => {
   vi.stubGlobal("Blob", NodeBlob);
   await localDatabase.open();

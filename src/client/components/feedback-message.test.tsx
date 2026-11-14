@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { FeedbackMessage } from './feedback-message';
+import { FeedbackToastProvider } from './feedback-toast';
 import { useFeedbackMessage } from './use-feedback-message';
 
 function Fixture() {
@@ -24,7 +25,28 @@ it('supports manual dismissal and pauses while a person reads or focuses the mes
   const notice = screen.getByText('已复制').parentElement!;
   fireEvent.mouseEnter(notice); act(() => vi.advanceTimersByTime(10000));
   expect(screen.getByText('已复制')).toBeVisible(); fireEvent.mouseLeave(notice);
+  act(() => screen.getByRole('region', { name: '操作提示' }).focus());
+  act(() => vi.advanceTimersByTime(10000)); expect(screen.getByText('已复制')).toBeVisible();
   const close = screen.getByRole('button', { name: '关闭操作提示' }); fireEvent.focus(close);
   act(() => vi.advanceTimersByTime(10000)); expect(screen.getByText('已复制')).toBeVisible();
   fireEvent.click(close); expect(screen.queryByText('已复制')).not.toBeInTheDocument();
+});
+
+it('presents the latest result outside its source without a stale notification queue', () => {
+  function Other() {
+    const feedback = useFeedbackMessage();
+    return <section aria-label="另一个任务"><button onClick={() => feedback.setMessage('已完成清理', { duration: 5000 })}>清理</button><FeedbackMessage feedback={feedback} /></section>;
+  }
+  const view = render(<FeedbackToastProvider><section aria-label="原任务"><Fixture /></section><Other /></FeedbackToastProvider>);
+  fireEvent.click(screen.getByText('成功'));
+  expect(screen.getByRole('region', { name: '原任务' })).not.toContainElement(screen.getByText('已复制'));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('已复制');
+  act(() => vi.advanceTimersByTime(4000));
+  fireEvent.click(screen.getByText('清理'));
+  expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
+  expect(screen.queryByText('已复制')).not.toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('已完成清理');
+  view.unmount();
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 });
