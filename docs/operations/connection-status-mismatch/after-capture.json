@@ -1,5 +1,5 @@
 {
-  "source": "87391aca20d709c4b17851d0b43b41e985d6a3ff",
+  "source": "0a834924d75bacef65228c6f17ac516a484d56ad",
   "browser": "156.0.8078.4",
   "viewport": {
     "width": 390,
@@ -14,6 +14,7 @@
   "channel": "synthetic local catalog; offline selection blocked before POST",
   "shots": [
     "after-offline-panel.png",
+    "after-expanded-status-help.png",
     "after-offline-entry.png",
     "after-offline-channel.png"
   ]
