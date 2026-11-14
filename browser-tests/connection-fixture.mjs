@@ -8,7 +8,7 @@ import { startStorageFixture } from './storage-fixture.mjs';
 
 // Real HTTPS sibling hosts: no browser cookie jars or CORS responses are mocked.
 // nip.io resolves these names to loopback; business data stays in local workerd.
-export async function startConnectionFixture({ invite = false } = {}) {
+export async function startConnectionFixture({ invite = false, productAdmin = false, releaseChannels = false } = {}) {
   const temporary = await mkdtemp(path.join(tmpdir(), 'same-page-connections-'));
   let fixture;
   const servers = [];
@@ -71,7 +71,7 @@ export async function startConnectionFixture({ invite = false } = {}) {
       const host = entry === 'direct' ? 'app' : 'alt';
       origins[entry] = `https://${host}.127.0.0.1.nip.io:${server.address().port}`;
     }
-    fixture = await startStorageFixture({ authenticated: true, previewEntry: false, invite, script: 'dev', connectionOrigins: origins });
+    fixture = await startStorageFixture({ authenticated: true, previewEntry: false, invite, productAdmin, releaseChannels, script: 'dev', connectionOrigins: origins });
     return { ...fixture, origins, network, stop: async () => {
       for (const server of servers) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
       await fixture.stop(); await rm(temporary, { recursive: true, force: true });
