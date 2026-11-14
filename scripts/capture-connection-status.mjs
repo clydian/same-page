@@ -53,6 +53,7 @@ try {
     else await page.screenshot({ path: path.join(outputDirectory, filename) });
     shots.push(filename);
   };
+  await page.clock.runFor(250);
   if (variant === 'before') await shot('online-menu', page.getByRole('menu'));
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: /^连接线路/ }).click();
@@ -80,6 +81,7 @@ try {
   await expect(page.getByRole('menu')).toBeVisible();
   await expect(page.getByRole('menuitem', { name: '产品后台', exact: true })).toHaveCount(0);
   assert.equal(adminRequests, adminRequestsBeforeMenu);
+  await page.clock.runFor(250);
   if (variant === 'before') await shot('offline-menu');
   await page.getByRole('menuitem', { name: /^关于与更新/ }).click();
   await expect(page.getByText('当前离线，请联网后重试。', { exact: true })).toBeVisible();
