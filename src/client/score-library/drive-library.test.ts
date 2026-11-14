@@ -1,8 +1,10 @@
+import * as workspaceState from "../platform/local-workspace";
 import { getReadResource, clearReadResources } from "../settings/read-resource";
 import { NAVIGATION_FRESH_MS, observeNavigationResponse, type DriveReadKind } from "../settings/navigation-events";
+import * as retainedScores from "../offline/retained-scores";
 import { storeOfflineScore } from "../platform/local-database";
 import { Blob as NodeBlob } from "node:buffer";
-import { sha256Hex } from "../offline/offline-score-verification";
+import { findVerifiedOfflineScore, sha256Hex } from "../offline/offline-score-verification";
 import { effectiveCapabilities, emptyPermissions, noCapabilities } from "../../shared/drive-permissions";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DriveLibrary } from "./drive-library";
@@ -366,7 +368,8 @@ describe("DriveLibrary interface", () => {
   it("retries an initial failure and refreshes after successful admission", async () => {
     const { library, transport } = create(async () => ({ kind: "failed" }));
     await library.refresh();
-    expect(library.getSnapshot().access).toMatchObject({ kind: "opened", local: true });
+    // No readable local owner/directory: show a retryable failure, not a fabricated empty drive.
+    expect(library.getSnapshot().access).toMatchObject({ kind: "failed" });
     transport.load.mockResolvedValueOnce({ kind: "join-required", choir: opened().choir });
     await library.refresh();
     expect(library.getSnapshot().access.kind).toBe("join-required");
@@ -380,7 +383,7 @@ describe("DriveLibrary interface", () => {
   });
 });
 
-it("keeps only verified retained copies after confirmed denial, observes corruption, and remembers denial offline", async () => {
+it("keeps owner-fenced saved navigation after denial and validates corrupted bytes on open", async () => {
   vi.stubGlobal("Blob", NodeBlob);
   await activateAuthenticatedLocalOwner("one");
   const { library, transport } = create(async () => opened());
@@ -390,7 +393,7 @@ it("keeps only verified retained copies after confirmed denial, observes corrupt
   const record: OfflineScoreRecord = { ...workspace, key: "retained-only", versionId: "retained-v1", fileName: "保留.pdf", sha256: await sha256Hex(await blob.arrayBuffer()), pageCount: 1, blob, active: 1, verifiedAt: 1,
     annotationSnapshot: { annotations: [], cursor: 0, verifiedAt: 1, layers: [{ ...workspace, key: "personal", id: "00000000-0000-4000-8000-000000000001", kind: "personal" as const, sharedSlot: null, name: "我的笔记", sortOrder: 10000, subscribed: true, subscriptionSource: "personal" as const, displayColor: "#6750a4", colorSource: "product" as const, adminDefaultColor: "#6750a4", driveSubscribed: null, driveColorOverride: null, scoreSubscriptionOverride: null, canEdit: true }] } };
   await storeOfflineScore(record);
-  // An active flag with invalid content must never become an available row.
+  // A row from a mismatched workspace is never a saved navigation entry.
   await storeOfflineScore({ ...record, key: "invalid", scoreId: "invalid", scopeKey: "invalid", sha256: "invalid" });
   library.setSort("updated");
   transport.load.mockResolvedValue({ kind: "denied" });
@@ -403,8 +406,19 @@ it("keeps only verified retained copies after confirmed denial, observes corrupt
   expect(offline.getSnapshot().access).toMatchObject({ retained: true });
   expect(offline.getSnapshot().view.sort).toBe("updated");
   expect(offline.getSnapshot().scores.map(score => score.id)).toEqual(["retained-only"]);
+  // A transient directory read must not erase already displayed saved entries.
+  const read = vi.spyOn(retainedScores, "readRetainedScores").mockRejectedValueOnce(new DOMException("temporary storage read", "UnknownError"));
+  await localDatabase.offlineScores.update(record.key, { verifiedAt: 2 });
+  await vi.waitFor(() => expect(offline.getSnapshot().refreshMessage).toContain("已显示的内容保留"));
+  expect(offline.getSnapshot().scores.map(score => score.id)).toEqual(["retained-only"]);
+  read.mockRestore();
+  await offline.restartRead();
   await localDatabase.offlineScores.update(record.key, { blob: new Blob(["corrupt"] ) });
+  await vi.waitFor(() => expect(offline.getSnapshot().scores.map(score => score.id)).toEqual(["retained-only"]));
+  expect(await findVerifiedOfflineScore(workspace)).toBeNull();
+  await activateAuthenticatedLocalOwner("different-owner");
   await vi.waitFor(() => expect(offline.getSnapshot().scores).toEqual([]));
+  expect(await localDatabase.offlineScores.get(record.key)).toBeDefined();
 });
 
 it("returns ten times without reading again, then quietly refreshes expired data and handles authentication loss", async () => {
@@ -516,4 +530,41 @@ it("keeps each sort direction through refresh and reopening without losing a sav
   expect(reopened.getSnapshot().view).toMatchObject({ sort: "updated", sortDirections: { name: "desc", updated: "asc" } });
   reopened.setSort("name");
   expect(reopened.getSnapshot().view.sortDirections?.name).toBe("desc");
+});
+
+it("retries a failed cold local directory read offline instead of remembering an empty opened drive", async () => {
+  await activateAuthenticatedLocalOwner("one");
+  const scope = createLocalWorkspace(authenticatedLocalOwnerKey("one"), choirId, "");
+  const saved = opened("本机保留.pdf");
+  await directoryStorage.rememberLocalDriveDirectory(scope, saved.choir, saved.result.scores, new AbortController().signal, true);
+  const read = vi.spyOn(directoryStorage, "readLocalDriveDirectories").mockRejectedValue(new DOMException("temporary directory read", "UnknownError"));
+  const { library, transport } = create(async () => opened(), owner, choirId, false);
+  await library.refresh();
+  const firstAccess = library.getSnapshot().access.kind;
+  expect(await localDatabase.driveDirectories.count()).toBe(1);
+  read.mockRestore();
+  await library.refresh();
+  expect(library.getSnapshot()).toMatchObject({ scores: [{ fileName: "本机保留.pdf" }], access: { kind: "opened", local: true } });
+  expect(firstAccess).toBe("failed");
+  expect(transport.load).not.toHaveBeenCalled();
+});
+
+it("recaptures a failed cold workspace on offline retry without activating another owner", async () => {
+  await activateAuthenticatedLocalOwner("one");
+  const scope = createLocalWorkspace(authenticatedLocalOwnerKey("one"), choirId, "");
+  const saved = opened("冷启动保留.pdf");
+  await directoryStorage.rememberLocalDriveDirectory(scope, saved.choir, saved.result.scores, new AbortController().signal, true);
+  const capture = vi.spyOn(workspaceState, "captureLocalWorkspaceSession").mockRejectedValueOnce(new DOMException("temporary workspace read", "UnknownError"));
+  const { library, transport } = create(async () => opened(), owner, choirId, false);
+  await library.refresh();
+  expect(library.getSnapshot().access.kind).toBe("failed");
+  capture.mockRestore();
+  await activateAuthenticatedLocalOwner("another-owner");
+  await library.refresh();
+  expect(library.getSnapshot().access.kind).toBe("failed");
+  expect(await workspaceState.currentLocalOwnerKey()).toBe("user:another-owner");
+  await activateAuthenticatedLocalOwner("one");
+  await library.refresh();
+  expect(library.getSnapshot()).toMatchObject({ scores: [{ fileName: "冷启动保留.pdf" }], access: { kind: "opened", local: true } });
+  expect(transport.load).not.toHaveBeenCalled();
 });

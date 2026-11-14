@@ -101,6 +101,38 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         assert.equal(await offline.locator(".annotation-overlay[data-editing]").count(), 1);
       });
     });
+    await scenario("local-directory-read-retry", async ({ page, context, output }) => {
+      await page.evaluate(async () => {
+        for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
+      });
+      await context.addInitScript(() => {
+        navigator.serviceWorker.register = async () => { throw new Error("Service worker disabled for API-outage fixture"); };
+        window.__localDirectoryReadFails = true;
+        for (const prototype of [IDBIndex.prototype, IDBObjectStore.prototype]) {
+          for (const method of ["get", "getAll", "openCursor"]) {
+            const original = prototype[method];
+            if (!original) continue;
+            prototype[method] = function (...args) {
+              const store = this instanceof IDBIndex ? this.objectStore.name : this.name;
+              if (window.__localDirectoryReadFails && store === "driveDirectories") throw new DOMException("temporary directory read", "UnknownError");
+              return original.apply(this, args);
+            };
+          }
+        }
+      });
+      await page.close();
+      await context.route("**/api/**", route => route.abort("internetdisconnected"));
+      await withBrowserEvidence(context, output, async () => {
+        const cold = await context.newPage();
+        await cold.goto(drive);
+        await expect(cold.getByRole("heading", { name: "暂时无法打开云盘", exact: true })).toBeVisible();
+        await expect(cold.getByRole("alert")).toHaveText("本机目录暂时无法读取，请重试。");
+        // Only lift the simulated local failure. API requests stay unavailable.
+        await cold.evaluate(() => { window.__localDirectoryReadFails = false; });
+        await cold.getByRole("button", { name: "重试读取", exact: true }).click();
+        await expect(cold.getByRole("link").filter({ hasText: fixture.fileName.replace(/\.pdf$/i, "") })).toBeVisible();
+      });
+    });
     await scenario("membership-revocation", async ({ page: offline, context, output }) => {
       await withBrowserEvidence(context, output, async () => {
         const admin = await request.newContext({ baseURL: fixture.origin, extraHTTPHeaders: { origin: fixture.origin } });

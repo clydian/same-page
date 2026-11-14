@@ -3,7 +3,7 @@ import { revokeDriveReadResources, type ReadState } from "../settings/read-resou
 import { localDatabase } from "../platform/local-database";
 import { liveQuery } from "dexie";
 import { readRetainedScores } from "../offline/retained-scores";
-import { captureLocalWorkspaceSession, createLocalWorkspace, currentLocalOwnerKey, authenticatedLocalOwnerKey, type LocalWorkspace } from "../platform/local-workspace";
+import { captureLocalWorkspaceSession, createLocalWorkspace, currentLocalOwnerKey, authenticatedLocalOwnerKey, LocalWorkspaceOwnerChangedError, type LocalWorkspace } from "../platform/local-workspace";
 import { readLocalDriveDirectories, rememberLocalDriveDirectory, rememberDriveAccessRevoked, renameLocalDriveDirectory, removeLocalDriveScore, renameLocalDriveScore } from "./local-drive-directory";
 import { noCapabilities, hasManagement } from "../../shared/drive-permissions";
 import type { ScoreSummary } from "../../shared/scores";
@@ -89,6 +89,13 @@ export class DriveLibrary {
     return () => { this.listeners.delete(listener); };
   };
 
+  private captureWorkspace() {
+    // Read the current fence only. A retry must never activate a departed owner.
+    return this.ownerKey.startsWith("user:")
+      ? captureLocalWorkspaceSession(createLocalWorkspace(authenticatedLocalOwnerKey(this.ownerKey.slice(5)), this.choirId, "")).catch(() => null)
+      : currentLocalOwnerKey().then(owner => owner?.startsWith("guest:") ? captureLocalWorkspaceSession(createLocalWorkspace(owner, this.choirId, "")) : null).catch(() => null);
+  }
+
   start = () => {
     if (this.active) return;
     this.active = true;
@@ -96,9 +103,7 @@ export class DriveLibrary {
     this.restorePending = true;
     this.lifetimeController = new AbortController();
     this.ownerSignal = AbortSignal.any([captureDriveLibraryOwner(this.ownerKey), this.lifetimeController.signal]);
-    this.workspace = this.ownerKey.startsWith("user:")
-      ? captureLocalWorkspaceSession(createLocalWorkspace(authenticatedLocalOwnerKey(this.ownerKey.slice(5)), this.choirId, "")).catch(() => null)
-      : currentLocalOwnerKey().then(owner => owner?.startsWith("guest:") ? captureLocalWorkspaceSession(createLocalWorkspace(owner, this.choirId, "")) : null).catch(() => null);
+    this.workspace = this.captureWorkspace();
     this.stopObserving = onDriveChange(impact => {
       if (!impact.directory || impact.driveId !== this.choirId) return;
       this.confirmedAt = -Infinity;
@@ -142,7 +147,10 @@ export class DriveLibrary {
 
   refreshIfStale = () => Date.now() - this.confirmedAt < NAVIGATION_FRESH_MS ? Promise.resolve() : this.refresh();
 
-  refresh = () => this.load(this.snapshot.access.kind !== "opened");
+  refresh = () => {
+    if (this.isActive() && !this.request && this.snapshot.access.kind === "failed") this.workspace = this.captureWorkspace();
+    return this.load(this.snapshot.access.kind !== "opened");
+  };
 
   changed = () => this.reload();
 
@@ -384,15 +392,20 @@ export class DriveLibrary {
         const current = this.snapshot.access;
         if (!ownerSignal.aborted && current.kind === "opened" && current.retained) this.publish({ access: { ...current, result: { ...current.result, scores } } });
       },
-      error: () => {
+      error: error => {
         const current = this.snapshot.access;
-        if (!ownerSignal.aborted && current.kind === "opened" && current.retained) this.publish({ access: { ...current, result: { ...current.result, scores: [] } }, refreshMessage: "无法读取本机副本，请重试。" });
+        if (!ownerSignal.aborted && current.kind === "opened" && current.retained) {
+          if (error instanceof LocalWorkspaceOwnerChangedError) {
+            this.publish({ access: { ...current, result: { ...current.result, scores: [] } }, refreshMessage: "本机身份已变化，请重新打开云盘。" });
+          } else this.publish({ refreshMessage: "暂时无法读取本机目录，已显示的内容保留，请重试。" });
+        }
       },
     });
   }
 
   private async readLocal(signal: AbortSignal): Promise<OpenedAccess | null> {
     const captured = await this.workspace;
+    if (this.ownerKey.startsWith("user:") && !captured) throw new Error("local_directory_unavailable");
     const directory = this.ownerKey.startsWith("user:")
       ? (await readLocalDriveDirectories(this.ownerKey.slice(5))).find(entry => entry.choirId === this.choirId)
       : captured ? await localDatabase.driveDirectories.get(JSON.stringify([captured.ownerKey, this.choirId])) : null;
@@ -420,7 +433,12 @@ export class DriveLibrary {
       }
       return;
     }
-    const local = await this.readLocal(signal).catch(() => null);
+    let local: OpenedAccess | null;
+    try { local = await this.readLocal(signal); }
+    catch {
+      if (!signal.aborted) this.publish({ access: { kind: "failed" }, refreshMessage: "本机目录暂时无法读取，请重试。" });
+      return;
+    }
     if (signal.aborted) return;
     this.publish({ access: local ?? { kind: "opened", local: true, isMember: false,
       choir: readDriveSummary(this.ownerKey, this.choirId) ?? { id: this.choirId, name: "云盘", guestAdmissionMode: "invite" },

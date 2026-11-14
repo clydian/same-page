@@ -106,6 +106,11 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           await page.getByRole("textbox", { name: "笔记文本" }).fill(text);
           await page.getByRole("form", { name: "文字输入" }).click({ position: { x: 12, y: 80 } });
           await page.getByRole("button", { name: "完成编辑", exact: true }).click();
+          // Click completion is not async save completion. The existing attachment
+          // badge can stay visible while editor.finish() is still persisting.
+          // Return to reading only after the editor reports durable completion.
+          await expect(edit).toBeVisible();
+          await expect(page.locator(".annotation-text").filter({ hasText: text })).toBeVisible();
           await expect(attachments.locator(".attachment-play-badge")).toBeVisible();
           await expect(page.locator(".reader-playback-entries")).toHaveAttribute("aria-busy", "false");
           stage = `${text}:reload`;
