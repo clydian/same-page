@@ -68,6 +68,13 @@ try {
   assert.deepEqual((await snapshot()).samples.direct.at(-1), lastSuccess);
   await shot('offline-panel');
   await page.clock.resume();
+  if (variant === 'after') {
+    const help = page.getByText('状态与连接帮助', { exact: true });
+    await help.focus(); await page.keyboard.press('Enter');
+    await expect(page.getByText(/线路检测只确认服务能否响应/)).toBeVisible();
+    await shot('expanded-status-help', page.locator('.connection-help'));
+    await page.keyboard.press('Enter');
+  }
   await page.getByRole('button', { name: '关闭连接面板' }).click();
   if (variant === 'after') {
     await expect(page.getByRole('button', { name: /连接线路，浏览器离线/ })).toBeVisible();

@@ -76,7 +76,7 @@ it('shows newer evidence, conservatively resolves ties and expires old evidence 
     expect(current()).toHaveTextContent('暂时连不上');
     // Route rows retain the last health sample; current-route evidence also
     // includes the newer failed business request.
-    expect(screen.getAllByText('线路可达')).toHaveLength(2);
+    expect(screen.getAllByText('线路可达', { selector: '.connection-health' })).toHaveLength(2);
     vi.setSystemTime(base + 2000);
     await act(async () => { await connections.sample(new AbortController().signal); });
     expect(current()).toHaveTextContent('当前线路：备用');
@@ -122,10 +122,13 @@ it('keeps identity failure visible when health succeeds and the browser reports 
     // The connection entry must not replace an independent session failure notice.
     expect(screen.getByText(/暂时无法连接，已保存的内容仍然保留/)).toBeInTheDocument();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^连接线路/ })); });
-    await screen.findByText('当前线路：直连（待确认）');
-    expect(screen.getAllByText('线路可达')).toHaveLength(2);
-    expect(screen.getByText(/浏览器报告当前离线/)).toBeInTheDocument();
-    expect(screen.getByText(/线路检测只确认服务能否响应/)).toBeInTheDocument();
+    await screen.findByText('当前线路：直连（待确认） · 浏览器离线');
+    expect(screen.getAllByText('线路可达', { selector: '.connection-health' })).toHaveLength(2);
+    const explanation = screen.getByText(/线路检测只确认服务能否响应/);
+    expect(explanation).not.toBeVisible();
+    fireEvent.click(screen.getByText('状态与连接帮助', { exact: true }));
+    expect(explanation).toBeVisible();
+    expect(screen.getByText(/浏览器报告离线，部分联网操作暂停/)).toBeVisible();
     expect(connections.getSnapshot().identity.direct).toBe('unprepared');
   } finally { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
 });

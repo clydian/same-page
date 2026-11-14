@@ -32,7 +32,14 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const sampledBeforeOffline = (await snapshot()).samples.direct.at(-1);
     await context.setOffline(true);
     await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
-    await expect(page.getByText(/浏览器报告当前离线/)).toBeVisible();
+    await expect(page.locator('.connection-current')).toContainText('浏览器离线');
+    const help = page.getByText('状态与连接帮助', { exact: true });
+    const explanation = page.getByText(/线路检测只确认服务能否响应/);
+    await expect(explanation).toBeHidden();
+    await help.focus(); await page.keyboard.press('Enter');
+    await expect(explanation).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(explanation).toBeHidden();
     await expect(page.getByRole('button', { name: /连接线路，浏览器离线/ })).toBeVisible();
     await expect(page.locator('.connection-health').filter({ hasText: '线路可达' })).toHaveCount(2);
     assert.deepEqual((await snapshot()).samples.direct.at(-1), sampledBeforeOffline);
@@ -44,7 +51,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await context.setOffline(false);
     await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
     await page.evaluate(async () => (await import('/src/client/connection/connection.ts')).connections.sample(new AbortController().signal));
-    await expect(page.getByText(/浏览器报告当前离线/)).toHaveCount(0);
+    await expect(page.locator('.connection-current')).not.toContainText('浏览器离线');
     await expect(page.locator('.connection-health').filter({ hasText: '线路可达' })).toHaveCount(2);
     await expect.poll(async () => (await snapshot()).checking || (await snapshot()).preparing).toBe(false);
     await mkdir('artifacts/verification/connection-sampling', { recursive: true });
