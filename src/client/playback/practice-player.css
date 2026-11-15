@@ -159,7 +159,7 @@
 .reader-shell[data-practicing] .reader-page-indicator { top: 8px; }
 @media (max-width: 380px) {
   .practice-header { gap: 0; padding-inline: max(4px,var(--safe-left)) max(4px,var(--safe-right)); }
-  .practice-bar { gap: 0; padding-inline: max(4px,var(--safe-left)) max(4px,var(--safe-right)); }
+  .practice-bar { gap: 0; padding-inline: 4px; }
   .practice-position { font-size: 11px; padding-inline: 2px; }
 }
 
@@ -206,10 +206,12 @@
 .practice-view-option { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 44px; padding: 0 12px; border-radius: 9px; font-size: 13px; outline: none; cursor: pointer; }
 .practice-view-option[data-focused], .practice-view-option[data-hovered] { background: var(--ui-soft, #eaf0e8); }
 .practice-view-option[data-selected] { color: var(--ui-accent, #28533e); font-weight: 600; }
-.practice-bar { position: relative; box-sizing: border-box; width: 100%; color: var(--ui-ink, #31463a); background: var(--ui-surface, #fcfdfb); border-top: 1px solid var(--ui-line, #dce4de); pointer-events: auto; display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 0; min-height: 64px; padding: 12px max(8px,var(--safe-right)) 4px max(8px,var(--safe-left)); }
+.practice-bar { position: relative; box-sizing: border-box; width: 100%; color: var(--ui-ink, #31463a); background: var(--ui-surface, #fcfdfb); border-top: 1px solid var(--ui-line, #dce4de); pointer-events: auto; display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 0; min-height: 64px; padding: 12px 8px 4px; }
 .practice-transport { justify-content: center; gap: 0; }
 .practice-transport .practice-play { flex-basis: 48px; width: 48px; height: 48px; }
-.practice-bar-meta { display: flex; align-items: center; min-width: 0; }
+.practice-bar-meta { display: flex; align-items: center; min-width: 0; grid-area: 2 / 1; }
+.practice-bar .practice-transport { grid-area: 2 / 2; }
+.practice-bar .practice-settings { grid-area: 2 / 3; }
 .practice-position, .practice-speed { appearance: none; box-sizing: border-box; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0 2px; border: 0; border-radius: 9px; background: transparent; color: var(--ui-muted, #52665a); font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; cursor: pointer; }
 .practice-position { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .practice-position[data-hovered], .practice-speed:hover { background: var(--ui-soft, #edf1eb); }
@@ -218,7 +220,7 @@
 .practice-follow, .practice-notation[data-compare] .practice-follow { z-index: 7; min-height: 44px; padding: 0 14px; border: 1px solid var(--ui-line, #dce4de); border-radius: 24px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); color: var(--ui-ink, #365747); font: inherit; font-size: 12px; box-shadow: 0 2px 12px #17352b14; position: absolute; top: 8px; left: 8px; margin: 0; max-width: calc(100% - 80px); }
 .practice-comparison-pdf-stage { inset: 0; }
 .practice-comparison-pdf .reader-page-indicator, .reader-shell[data-practicing] .reader-page-indicator { top: 8px; right: max(8px,var(--safe-right)); min-height: 44px; height: 44px; border: 1px solid rgb(var(--ui-line-rgb, 220 228 222) / 50.2%); border-radius: 12px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 90.98%); box-shadow: 0 2px 8px #17352b0a; backdrop-filter: blur(10px); }
-@media (max-width: 360px) { .practice-bar { padding-inline: max(4px,var(--safe-left)) max(4px,var(--safe-right)); } }
+@media (max-width: 360px) { .practice-bar { padding-inline: 4px; } }
 
 .reader-shell[data-practicing], .reader-shell[data-practicing] .page-reader__canvas-stage { background: var(--ui-surface, #f3f4f0); }
 
@@ -240,16 +242,26 @@
 .practice-dock[data-collapsed] { inset: auto max(8px,var(--safe-right)) max(8px,env(safe-area-inset-bottom)) auto; padding: 0; border-radius: 14px; background: transparent; }
 .practice-dock[data-collapsed] .practice-bar { display: flex; min-height: 48px; padding: 4px; border: 1px solid var(--ui-line, #dce4de); border-radius: 14px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); box-shadow: 0 2px 12px #17352b14; backdrop-filter: blur(10px); }
 .practice-dock[data-collapsed] .practice-notice { max-width: 260px; }
-.practice-bar-actions { gap: 2px; }
-.practice-expanded-controls { display: contents; }
-/* The collapse and close actions occupy separate targets above transport. */
-.practice-bar-heading { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); }
-.practice-bar-heading .practice-controls-toggle { grid-column: 2; }
-.practice-close { grid-column: 3; justify-self: end; }
-.practice-dock[data-collapsed] .practice-bar-heading { display: contents; }
-.practice-dock[data-collapsed] .practice-controls-toggle { order: 3; }
-.practice-dock[data-collapsed] .practice-transport { order: 1; }
-.practice-dock[data-collapsed] .practice-bar-actions { order: 2; }
+.practice-expanded-controls, .practice-bar-actions { display: contents; }
+/* Narrow XML keeps its playback row; the two session actions share the row above. */
+.practice-session-actions { grid-area: 1 / 1 / 2 / -1; justify-self: end; display: flex; align-items: center; gap: 2px; }
+.practice-session-actions > button { flex: 0 0 auto; }
+.practice-close > svg { display: none; }
+.practice-dock:not([data-collapsed]) { container: practice-controls / inline-size; box-sizing: border-box; padding-inline: var(--safe-left) var(--safe-right); }
+/* Without container queries the narrow layout remains fully usable. */
+@container practice-controls (min-width: 380px) {
+  .practice-dock[data-audio] .practice-bar-meta { grid-row: 1; }
+  .practice-dock[data-audio] .practice-transport { grid-row: 1; }
+  .practice-dock[data-audio] .practice-bar-actions { display: flex; align-items: center; gap: 8px; grid-area: 1 / 3; justify-self: end; }
+}
+@container practice-controls (min-width: 600px) {
+  .practice-bar-meta, .practice-bar .practice-transport { grid-row: 1; }
+  .practice-bar-actions { display: flex; align-items: center; gap: 8px; grid-area: 1 / 3; justify-self: end; }
+}
+.practice-dock[data-collapsed] .practice-bar-actions { display: flex; align-items: center; gap: 2px; }
+.practice-dock[data-collapsed] .practice-close { width: 44px; padding: 0; border-inline-end: 1px solid var(--ui-line, #dce4de); border-radius: 0; }
+.practice-dock[data-collapsed] .practice-close > svg { display: block; }
+.practice-dock[data-collapsed] .practice-controls-toggle { width: 44px; padding: 0; }
 /* Reader-owned dialogs must cover the attached audio player. */
 .reader-shell:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: -2px; }
 .practice-dock[data-audio] { z-index: 30; }

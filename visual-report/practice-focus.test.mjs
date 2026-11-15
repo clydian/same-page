@@ -65,9 +65,9 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
       assert.ok(a.right<=b.x || b.right<=a.x || a.bottom<=b.y || b.bottom<=a.y,JSON.stringify([a,b]));
     }
     const collapsed=await page.locator('.practice-dock').getAttribute('data-collapsed') !== null;
-    const rightmost=rectangles.find(r=>collapsed ? r.label==='展开练习控制' : /^关闭播放器$|^关闭音频$/.test(r.label));
+    const rightmost=rectangles.find(r=>r.label===(collapsed ? '展开练习控制' : '收起练习控制'));
     assert.ok(rightmost,JSON.stringify(rectangles));
-    assert.match(rightmost.label,collapsed ? /展开练习控制/ : /关闭播放器|关闭音频/);
+    assert.match(rightmost.label,collapsed ? /展开练习控制/ : /收起练习控制/);
     assert.ok(rightmost.right>=result.width-Math.max(8,result.safeRight)-12,JSON.stringify(result));
     return result;
   };
@@ -118,9 +118,20 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   await expect(page.getByRole('button',{name:'收起练习控制'})).toBeVisible();
   await expect(page.getByRole('button',{name:'收起看谱工具',exact:true})).toHaveText('收起');
   await expect(page.getByRole('button',{name:'收起练习控制',exact:true})).toHaveText('收起');
-  await expect(page.getByRole('button',{name:'关闭播放器',exact:true})).toHaveText('关闭');
+  await expect(page.getByRole('button',{name:'退出练习',exact:true})).toHaveText('退出');
   await checkTools(page); await checkTransport(page); await checkFollowedSystem(page);
   await page.screenshot({path:`${evidence}/${name}-portrait-default.png`});
+  const exit=page.getByRole('button',{name:'退出练习',exact:true});
+  await exit.focus();
+  await page.setViewportSize({width:820,height:1180});
+  await expect(exit).toBeFocused(); await checkTransport(page);
+  const sameRow=()=>page.locator('.practice-bar').evaluate(bar=>Math.abs(bar.querySelector('.practice-session-actions').getBoundingClientRect().y-bar.querySelector('.practice-transport').getBoundingClientRect().y)<4);
+  assert.equal(await sameRow(),true);
+  await page.screenshot({path:`${evidence}/${name}-tablet.png`});
+  await page.setViewportSize({width:507,height:820});
+  await expect(exit).toBeFocused(); await checkTransport(page);
+  assert.equal(await sameRow(),false);
+
   await page.setViewportSize({width:844,height:390});
   await expect(page.getByRole('button',{name:'收起练习控制'})).toBeVisible();
   await page.setViewportSize({width:320,height:568});
@@ -194,7 +205,8 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   await page.getByRole('button',{name:'退出专注'}).click();
   assert.equal(fixture.diagnostics.unmatchedRequests.length,0);
   await writeFile(`${evidence}/${name}-geometry.json`,JSON.stringify({header:await checkTools(page),transport:await checkTransport(page)},null,2));
-  await page.getByRole('button',{name:'关闭播放器'}).click();
+  await page.getByRole('button',{name:'收起练习控制'}).click();
+  await page.getByRole('button',{name:'退出练习'}).click();
   await expect(page.locator('.practice-bar')).toHaveCount(0);
   await page.goto(`${server.origin}/choirs/visual-choir`);
   await page.getByRole('button',{name:/2 个附件/}).first().click();
@@ -208,6 +220,9 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   await expect(page.getByRole('button',{name:'练习设置',exact:true})).toHaveCount(0);
   await expect(page.getByRole('slider',{name:'音量',exact:true})).toHaveCount(0);
   await expect(page.locator('.practice-header')).toHaveCount(0);
+  await page.addStyleTag({content:':root { --safe-left:15px; --safe-right:15px; }'});
+  await checkTransport(page);
+  await page.addStyleTag({content:':root { --safe-left:0px; --safe-right:0px; }'});
   await page.locator('.page-reader__viewport').click();
   await expect(page.getByRole('button',{name:'编辑',exact:true})).toBeVisible();
   await page.locator('.page-reader__viewport').click();
@@ -228,13 +243,14 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   await page.getByRole('button',{name:'收起练习控制'}).focus();
   await page.keyboard.press('Enter');
   await checkEditingClearance();
-  await expect(page.getByRole('button',{name:'关闭音频'})).toBeHidden();
+  await expect(page.getByRole('button',{name:'关闭音频'})).toBeVisible();
   await expect(page.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'展开练习控制'})).toBeFocused();
   await page.keyboard.press('Space');
   await expect(page.getByRole('combobox',{name:'速度',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'完成编辑',exact:true}).click();
   await expect(page.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'收起练习控制'}).click();
   await page.getByRole('button',{name:'关闭音频'}).click();
   await expect(page.locator('audio')).toHaveCount(0);
   await expect(page.locator('.reader-shell')).toBeFocused();

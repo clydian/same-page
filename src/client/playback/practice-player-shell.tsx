@@ -106,10 +106,6 @@ export function PracticePlayerShell(props: Props) {
         : props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
       {props.hint}
       <section className="practice-bar" aria-label={isXml ? '乐谱练习' : '音频播放'} data-testid="musicxml-player">
-        {!props.embedded && <div className="practice-bar-heading">
-          <TooltipTrigger><Button ref={controlsTrigger} className="practice-chrome-toggle practice-controls-toggle" aria-label={controlsCollapsed ? '展开练习控制' : '收起练习控制'} aria-expanded={!controlsCollapsed} aria-controls="practice-expanded-controls practice-bar-meta" onPress={() => { setPanel(null); controlsTrigger.current?.focus({ preventScroll: true }); focus.setControlsCollapsed(!controlsCollapsed); }}>{controlsCollapsed ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}{!controlsCollapsed && <span aria-hidden="true">收起</span>}</Button><Tooltip className="practice-tooltip" placement="top">{controlsCollapsed ? '展开练习控制' : '收起练习控制'}</Tooltip></TooltipTrigger>
-          <TooltipTrigger><Button className="practice-chrome-toggle practice-close" hidden={controlsCollapsed} aria-label={isXml ? '关闭播放器' : '关闭音频'} onPress={closePlayer}><X size={18} aria-hidden="true" /><span aria-hidden="true">关闭</span></Button><Tooltip className="practice-tooltip" placement="top">{isXml ? '关闭播放器' : '关闭音频'}</Tooltip></TooltipTrigger>
-        </div>}
         <div id="practice-expanded-controls" className="practice-expanded-controls" hidden={controlsCollapsed}><PlaybackTimeline timeline={props.timeline} /></div>
 
         <div id="practice-bar-meta" className="practice-bar-meta" hidden={controlsCollapsed}>
@@ -125,10 +121,14 @@ export function PracticePlayerShell(props: Props) {
 
         </div>
         <div className="practice-bar-actions">
-          {props.children && <div><TooltipTrigger>
+          {props.children && <TooltipTrigger>
           <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-description={props.loopStatus ? `片段循环：${props.loopStatus}` : undefined} data-loop={props.loopStatus ? true : undefined} aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={17} aria-hidden="true" /><span aria-hidden="true">练习</span></Button>
           <Tooltip className="practice-tooltip" placement="top">{props.loopStatus ? `片段循环：${props.loopStatus}` : "练习设置"}</Tooltip>
-        </TooltipTrigger></div>}
+        </TooltipTrigger>}
+        {!props.embedded && <div className="practice-session-actions">
+          <TooltipTrigger><Button className="practice-chrome-toggle practice-close" aria-label={isXml ? '退出练习' : '关闭音频'} onPress={closePlayer}><X size={18} aria-hidden="true" />{!controlsCollapsed && <span aria-hidden="true">{isXml ? '退出' : '关闭'}</span>}</Button><Tooltip className="practice-tooltip" placement="top">{isXml ? '退出练习' : '关闭音频'}</Tooltip></TooltipTrigger>
+          <TooltipTrigger><Button ref={controlsTrigger} className="practice-chrome-toggle practice-controls-toggle" aria-label={controlsCollapsed ? '展开练习控制' : '收起练习控制'} aria-expanded={!controlsCollapsed} aria-controls="practice-expanded-controls practice-bar-meta" onPress={() => { setPanel(null); controlsTrigger.current?.focus({ preventScroll: true }); focus.setControlsCollapsed(!controlsCollapsed); }}>{controlsCollapsed ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}{!controlsCollapsed && <span aria-hidden="true">收起</span>}</Button><Tooltip className="practice-tooltip" placement="top">{controlsCollapsed ? '展开练习控制' : '收起练习控制'}</Tooltip></TooltipTrigger>
+        </div>}
         </div>
       </section>
     </div>

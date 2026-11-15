@@ -1,6 +1,6 @@
 {
   "base": "a7d7a7a",
-  "source": "final independent XML tools and reader-owned MP3 controls",
+  "source": "Final responsive XML controls and reader-owned MP3 controls; local production build of working tree based on 5a51425",
   "conditions": "Headless Chromium, synthetic SATB XML/PDF and actual repository MP3 fixture, mocked local API. No production or real device.",
   "checks": [
     {
@@ -8,6 +8,27 @@
       "viewport": {
         "width": 390,
         "height": 844
+      }
+    },
+    {
+      "capture": "final-xml-ipad-portrait",
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      }
+    },
+    {
+      "capture": "final-xml-ipad-landscape",
+      "viewport": {
+        "width": 1180,
+        "height": 820
+      }
+    },
+    {
+      "capture": "final-xml-ipad-split",
+      "viewport": {
+        "width": 507,
+        "height": 820
       }
     },
     {
@@ -75,19 +96,18 @@
     }
   ],
   "errors": [],
-  "checks_summary": {
-    "client": "Full client: 167 files, 1451/1451 passed; targeted reader-page and practice-focus:48/48 passed",
-    "browser_ui": "practice-focus: Chromium/WebKit 2/2 passed in pinned CI image, Node24.22.2 PW1.64.1",
-    "real_local_backend": "practice-unified-controls and practice-compare: Chromium/WebKit 4/4 passed",
-    "build": "npm run build passed",
-    "lint": "npm run lint passed",
-    "review": "self review and independent read-only review completed",
-    "final_labels": "Expanded: 收起 / 关闭; collapsed: chevrons only. Existing practice-focus Chromium/WebKit 2/2 passed; affected playback/audio smoke Chromium/WebKit 6/6 passed; focus/clearance hooks9/9 passed. No new suite added."
+  "verification": {
+    "practice_focus": "Chromium/WebKit 2/2 passed on final runtime CSS; portrait/landscape, tablet/split, collapsed exit, focus and simulated safe-area non-overlap",
+    "local_backend": "practice-unified-controls Chromium/WebKit 2/2 passed",
+    "focus_clearance_hooks": "9/9 passed",
+    "build": "production build passed",
+    "typecheck": "passed",
+    "lint": "passed",
+    "review": "self review and independent read-only review passed; audio safe-area width regression corrected"
   },
   "limitations": [
-    "CSS-injected safe areas and simulated viewports, no physical mobile devices",
-    "No real virtual keyboard, VoiceOver/TalkBack or installed PWA acceptance",
-    "document.exitFullscreen tested; focused reader-dialog Escape probe passed for plain/audio Chromium, not physical keyboard acceptance"
+    "Browser touch and viewport simulation, CSS-injected safe areas; no physical phone/iPad",
+    "No VoiceOver/TalkBack, system virtual keyboard or installed PWA acceptance"
   ],
   "screenshots": {
     "before-mp3-collapsed-landscape.png": "6c3adececf603be5a85d28451769a71930853e2e3fa7244ea0f764153465b58b",
@@ -95,48 +115,24 @@
     "before-xml-collapsed-portrait.png": "d1dc1b9061d54cc63f9831970256d27ef10e37a29d00f63e37413fb528d6b89d",
     "before-xml-compare-landscape.png": "e24d38cc58ba253ea2ccdc7e425ecf1b10730e33af0b022a66fa727a9ed9e58a",
     "final-mp3-closed-landscape.png": "c04c7affd2296eaa8c5fc9b3e09a0e1f26719b6bba1fc377923f50d75df24ab9",
-    "final-mp3-collapsed-landscape.png": "c636d0bb594809b81f915a4e6dd1fd27ea11679b716f09b19b615cd6e32b57da",
-    "final-mp3-editing-portrait.png": "7a478a3cfde372015a15b1fd76b1aa177349bac7494de5706ca1e54aac15485a",
-    "final-mp3-reader-portrait.png": "a1e41c22dbe48cf0aff0f900c48f7945bdb783226717787910acddff0e5a6d3c",
-    "final-mp3-reader-tools-portrait.png": "1ee75cc1db569796c02b10bf0738496f2a2aa2781ec7fbe6c0622c0b9ec3ef0c",
-    "final-xml-collapsed-portrait.png": "0017082a6888027c365604adc38a4ab947eaa4762f90abdb4779d901632c7bf0",
-    "final-xml-compare-collapsed-landscape.png": "775152857cb646717483503a9a1ab7d48ee0f00fe7dee460e97ca60ec8a3828e",
-    "final-xml-compare-landscape.png": "938414d579dbc915424403d7b7fd35e6a1350d36e531643ca67a583db708ea1e",
-    "final-xml-expanded-portrait.png": "f49b7aa2f3e320836bf12fa6cf62855d1cf4724514371b78f687b42d5b923c1c",
-    "final-xml-top-collapsed-portrait.png": "c10781cf6e3c32fecea1f895f6ccd371b7ed53f4f16a2f34dc1c4628a1f5c56f"
+    "final-mp3-collapsed-landscape.png": "46909b1afcff6c9dc77801435665fb30e3cfb1f5e769ca4135948d7b0a6c07ed",
+    "final-mp3-editing-portrait.png": "207fae4bf7ca0f1987b428a56496e996dc3c091b5e79493025c297031ae195ab",
+    "final-mp3-reader-portrait.png": "9e9fc383209a944c16215f4d1eb0e293e006fc10f57dd27fde20eb12efef6bfa",
+    "final-mp3-reader-tools-portrait.png": "dc0e210ebad3a5aec5614e063baa6c837ee77c3977d02141b36c90df22e72400",
+    "final-xml-collapsed-portrait.png": "3bd423a6b43e63c520ba3dd3850114de12970f18f627b944902bcef6f79cde0a",
+    "final-xml-compare-collapsed-landscape.png": "09e7d98ee16165659d5ae5f40c45dd26d16c107985345e1ca0a9303077d6e941",
+    "final-xml-compare-landscape.png": "fe6f2df8976054cb7da028903c64c82fbbe9e4693993044fd6cca0c02920eadb",
+    "final-xml-expanded-portrait.png": "bb47cd3dc2e03053104f33112633bcfbc111a81acd15aa1b3fbf040ae5e95288",
+    "final-xml-ipad-landscape.png": "11bf46d0938fdc552c56d70f0c2f715e912989fcc6059dbf177aecbcc51e752f",
+    "final-xml-ipad-portrait.png": "e52a353ba02b1aaa93634ff1743e1d9f3a4d5879df8898607b874f1f713be878",
+    "final-xml-ipad-split.png": "34757c97fecee3a12847d44abdcfd9d9ce6a172414f79639554b7d95a51ac3d5",
+    "final-xml-top-collapsed-portrait.png": "242238ef18e86ccd83c95803065732d70e923b3e393498dea087c188f3798a12"
   },
   "runtime_sources": {
-    "src/client/playback/practice-player-shell.tsx": "80ac44fdf4702e9850045a0193547dd2a04d05b14f16baf0deacc39e31e731bd",
-    "src/client/playback/practice-player.css": "19384a0920e7f502d15ce254c76ac0b1fbf1a84cef005057f20e0c4a65f8f9e6",
+    "src/client/playback/practice-player-shell.tsx": "2404102b23cbb98e79f4f20177e4083fb08ad5936c59807007b9cb292fed5c05",
+    "src/client/playback/practice-player.css": "bb1f77606c623dbacb08750b89c4bb42d8df6ac63b82f571a23ced09e7fedac3",
     "src/client/playback/use-practice-focus.ts": "c0f71b82a3476b4a5215b840560dc6e62ddf38112a796e88fad1f8b9dce4fa17",
     "src/client/playback/musicxml-practice.tsx": "1d924a0fdcff6eb73122307158082e3cc21207b90c4e31501645f05fdd3fb91f",
-    "src/client/routes/reader-page.tsx": "0ff5f75ce4a4c36cee00541fb2dee3d8abf622d4bd48391a927d2a374824eb95"
-  },
-  "test_runs": {
-    "practice_focus": {
-      "chromium_ms": 104914,
-      "webkit_ms": 33848,
-      "passed": 2,
-      "skipped": 0
-    },
-    "local_backend": {
-      "passed": 4,
-      "skipped": 0
-    },
-    "client": {
-      "passed": 1451,
-      "files": 167
-    },
-    "environment": "Pinned Playwright Noble sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea; Node24.22.2; Playwright1.64.1",
-    "affected_smoke": {
-      "passed": 6,
-      "engines": [
-        "chromium",
-        "webkit"
-      ]
-    },
-    "focus_clearance_hooks": {
-      "passed": 9
-    }
+    "src/client/routes/reader-page.tsx": "abe2a52f2007b9e51fea5deda7110b6834d56c31edd3112ab9b5c9d97c7f3232"
   }
 }

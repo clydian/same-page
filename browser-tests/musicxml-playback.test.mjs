@@ -173,7 +173,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await selectPracticeView(page, '原始 PDF');
   await expect(player.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
   assert.ok(await surface.evaluate(element=>element.isConnected),'view switching must retain the renderer');
-  const geometry=await player.evaluate(bar=>({height:bar.getBoundingClientRect().height,headingHeight:bar.querySelector('.practice-bar-heading').getBoundingClientRect().height,width:bar.getBoundingClientRect().width,viewport:innerWidth,readerBottom:document.querySelector('.reader-shell').getBoundingClientRect().bottom,barTop:bar.getBoundingClientRect().top}));
+  const geometry=await player.evaluate(bar=>({height:bar.getBoundingClientRect().height,headingHeight:bar.querySelector('.practice-session-actions').getBoundingClientRect().height,width:bar.getBoundingClientRect().width,viewport:innerWidth,readerBottom:document.querySelector('.reader-shell').getBoundingClientRect().bottom,barTop:bar.getBoundingClientRect().top}));
   assert.ok(geometry.height<=geometry.headingHeight+72 && geometry.width===geometry.viewport && geometry.readerBottom<=geometry.barTop,'full-width bar reserves score space');
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:20000});
   await mkdir('artifacts/verification/musicxml-350',{recursive:true});
@@ -205,7 +205,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(notation).toBeVisible({timeout:20000});
   await expect.poll(() => notation.evaluate(svg => svg.getBoundingClientRect().width), {timeout:20000}).toBeLessThan(370);
   await page.screenshot({path:`artifacts/verification/musicxml-350/${engine}-mobile.png`});
-  assert.ok(await player.evaluate(bar=>bar.getBoundingClientRect().height-bar.querySelector('.practice-bar-heading').getBoundingClientRect().height<=72),'mobile transport remains thin below the dock actions');
+  assert.ok(await player.evaluate(bar=>bar.getBoundingClientRect().height-bar.querySelector('.practice-session-actions').getBoundingClientRect().height<=72),'mobile transport remains thin below the dock actions');
   await selectPracticeView(page, '原始 PDF');
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:20000});
   await page.goBack();
