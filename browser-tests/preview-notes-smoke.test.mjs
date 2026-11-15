@@ -182,6 +182,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
               await page.getByRole("button", { name: entry === "audio" ? "试听.wav" : "试唱.musicxml", exact: true }).click();
               if (entry === "audio") await page.getByRole("button", { name: "边听边看谱", exact: true }).click();
               if (entry === "musicxml") {
+                await page.getByRole("button", { name: "展开练习控制", exact: true }).click();
                 const view = page.getByRole("button", { name: "显示谱面", exact: true });
                 await expect(view).toHaveText("重排谱面", { timeout: 60_000 });
                 // The preparation notice changes the dock height. Let that finish

@@ -139,6 +139,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
             await page.getByRole('button', { name, exact: true }).click();
             if (switchBeforeReady) {
               await originalRequested.promise;
+              await page.getByRole('button', { name: '展开练习控制', exact: true }).click();
               await selectPracticeView(page, '原始 PDF');
               assert.equal(await hasStoredOriginal(page, attachmentId), false, 'background saving waits for foreground startup');
               originalReleased.resolve();

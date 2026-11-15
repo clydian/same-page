@@ -26,7 +26,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  const coldStart=Date.now();
  await page.getByRole('button',{name:'practice.xml',exact:true}).click();
  const bar=page.getByTestId('musicxml-player');await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
- await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();
+ await bar.getByRole('button',{name:'展开练习控制',exact:true}).click();
  const coldReadyMs=Date.now()-coldStart;
  await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');await expect(page.locator('.practice-notation')).toBeVisible();
  await expect(page.locator('.practice-notation')).not.toContainText('practice.xml');
@@ -61,7 +61,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-player.png`});
  const initialReads=fileReads,initialWorkers=workers;
  await page.getByRole('button',{name:'结束练习',exact:true}).click();await expect(bar).toHaveCount(0);await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
- await reveal();await page.getByRole('button',{name:'练习谱',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
+ await reveal();await page.getByRole('button',{name:'练习谱',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});await bar.getByRole('button',{name:'展开练习控制',exact:true}).click();assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
  await page.setViewportSize({width:390,height:844});await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.locator('.practice-setting-row').filter({hasText:'首调数字'}).locator('.practice-switch').click();await expect(degrees).toHaveCount(96);await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg=>svg.getBoundingClientRect().width)).toBeLessThan(370);await expect.poll(()=>degrees.evaluateAll(labels=>labels.every(label=>label.getBoundingClientRect().right<=innerWidth))).toBe(true);
  const labelPositions=()=>degrees.evaluateAll(labels=>labels.map(label=>[label.textContent,label.style.left,label.style.top]));
  // Worker post-render bounds must already be current, without toggling to repair the overlay.

@@ -13,6 +13,7 @@ import { useNotationPinch } from "./use-notation-pinch";
 import { useNotationToolbarClearance } from "./use-notation-toolbar-clearance";
 import type { PlaybackPreparationProgress } from './playback-preparation-notice';
 import { PracticePlayerShell } from "./practice-player-shell";
+import { usePracticeFocus } from "./use-practice-focus";
 import { PracticeDisclosure, PracticeSetting, PracticeVolume } from "./practice-setting";
 import { LoopRangeEditor } from "./loop-range-editor";
 import { PlaybackAudioHint } from './playback-audio-hint';
@@ -57,6 +58,7 @@ export function MusicXmlPractice({
   embedded?: boolean;
   onReady?(ready: boolean): void;
 }) {
+  const focus = usePracticeFocus(embedded);
   const { preferences, dark } = useAppearance();
   const paper = dark ? preferences.darkPaper : preferences.lightPaper;
   useEffect(() => { session?.notationTheme?.(paper === "inverted" ? "inverted" : "original"); }, [session, paper]);
@@ -70,7 +72,7 @@ export function MusicXmlPractice({
   );
   const view = embedded ? "xml" : readerView;
   const visual = useNotationPinch(viewport, session, view !== "pdf" && !error);
-  useNotationToolbarClearance(viewport, session, !embedded && view !== "pdf");
+  useNotationToolbarClearance(viewport, session, !embedded && view !== "pdf", view);
   const [savedLoop, setSavedLoop] = useState<{ session: PlayerSession | null; range: number[] } | null>(null);
   const [lastFocus, setLastFocus] = useState<{ session: PlayerSession | null; id: number } | null>(null);
   const [loopPreviewing, setLoopPreviewing] = useState(false);
@@ -92,11 +94,12 @@ export function MusicXmlPractice({
         className="practice-notation"
         data-visible={view !== "pdf" || undefined}
         data-compare={view === "compare" || undefined}
+        data-controls-collapsed={focus.controlsCollapsed || undefined}
         aria-label="MusicXML 谱面"
         aria-hidden={view === "pdf"}
         inert={view === "pdf"}
       >
-        {view === "compare" && <div className="practice-notation-tools" role="group" aria-label="重排谱面工具"><NotationZoom {...notationZoom} /></div>}
+        {view === "compare" && <div id="practice-notation-tools" className="practice-notation-tools" hidden={focus.controlsCollapsed} role="group" aria-label="重排谱面工具"><NotationZoom {...notationZoom} /></div>}
         {view !== "pdf" && <div className="practice-reading-actions">
           {state.following === false && <Button className="practice-follow" onPress={() => { visual.reset(); session?.follow(); }}>恢复自动跟随</Button>}
           {visual.zoom > 1 && <Button className="practice-view-reset" aria-label="恢复查看比例" onPress={visual.reset}>适合宽度</Button>}
@@ -115,6 +118,7 @@ export function MusicXmlPractice({
         </div>
       </section>
       <PracticePlayerShell
+        focus={focus}
         source={source}
         loopPreviewing={loopPreviewing}
         embedded={embedded}

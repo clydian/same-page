@@ -228,7 +228,11 @@
 .practice-notation-size button[aria-disabled=true] { opacity: .35; cursor: default; }
 
 /* One floating tool group in every orientation. It reserves no viewport row. */
-.practice-header[data-floating] { inset: max(8px,var(--safe-top)) auto auto max(8px,var(--safe-left)); width: max-content; max-width: calc(100vw - max(8px,var(--safe-left)) - max(8px,var(--safe-right))); min-height: 44px; padding: 3px; gap: 0; flex-wrap: wrap; justify-content: flex-start; border: 1px solid var(--ui-line, #dce4de); border-radius: 14px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); box-shadow: 0 2px 12px #17352b14; backdrop-filter: blur(10px); }
+.practice-header-tools { display: flex; align-items: center; }
+.practice-header-tools[hidden], .practice-notation-tools[hidden] { display: none; }
+.practice-header[data-floating] { inset: max(8px,var(--safe-top)) max(8px,var(--safe-right)) auto max(8px,var(--safe-left)); width: auto; min-height: 44px; padding: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: 8px; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; pointer-events: none; }
+.practice-header[data-floating] .practice-header-tools { width: max-content; max-width: 100%; box-sizing: border-box; flex-wrap: wrap; padding: 3px; border: 1px solid var(--ui-line, #dce4de); border-radius: 14px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); box-shadow: 0 2px 12px #17352b14; backdrop-filter: blur(10px); pointer-events: auto; }
+.practice-header[data-floating] .practice-end-playback { grid-column: 2; margin: 0; min-height: 50px; border-radius: 14px; box-shadow: 0 2px 12px #17352b14; pointer-events: auto; }
 .practice-header[data-floating] .practice-view-trigger { padding-inline: 8px; gap: 4px; }
 .practice-header[data-floating] .practice-notation-size { border-inline: 1px solid var(--ui-line, #e4eae4); margin-inline: 2px; }
 .practice-fullscreen > span { display: none; }
@@ -237,8 +241,8 @@
 .practice-chrome-toggle[data-hovered] { background: var(--ui-soft, #eaf0ea); }
 .practice-chrome-toggle:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: -2px; }
 .practice-dock [hidden] { display: none; }
-.practice-dock[data-collapsed] { inset: auto max(8px,var(--safe-right)) max(8px,env(safe-area-inset-bottom)) auto; padding: 0; border-radius: 28px; background: transparent; }
-.practice-dock[data-collapsed] .practice-bar { display: flex; min-height: 48px; padding: 4px; border: 1px solid var(--ui-line, #dce4de); border-radius: 28px; box-shadow: 0 2px 12px #17352b14; }
+.practice-dock[data-collapsed] { inset: auto max(8px,var(--safe-right)) max(8px,env(safe-area-inset-bottom)) auto; padding: 0; border-radius: 14px; background: transparent; }
+.practice-dock[data-collapsed] .practice-bar { display: flex; min-height: 48px; padding: 4px; border: 1px solid var(--ui-line, #dce4de); border-radius: 14px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); box-shadow: 0 2px 12px #17352b14; backdrop-filter: blur(10px); }
 .practice-dock[data-collapsed] .practice-notice { max-width: 260px; }
 .practice-bar-actions { gap: 2px; }
 .practice-bar-actions > .practice-chrome-toggle { width: 44px; flex: 0 0 44px; padding: 0; }
@@ -272,6 +276,7 @@
 .practice-notation-paper { position: relative; margin: 0; box-sizing: border-box; max-width: none; transform-origin: 0 0; }
 .practice-notation-tools { position: absolute; z-index: 8; top: 8px; left: 8px; padding: 3px; border: 1px solid var(--ui-line, #dce4de); border-radius: 14px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); box-shadow: 0 2px 12px #17352b14; }
 .practice-notation[data-compare] .practice-notation-scroll { padding-top: 68px; scroll-padding-top: 68px; }
+.practice-notation[data-compare][data-controls-collapsed] .practice-notation-scroll { padding-top: 16px; scroll-padding-top: 16px; }
 .practice-reading-actions { position: absolute; z-index: 8; bottom: calc(8px + var(--practice-float-bottom,0px)); left: max(8px,var(--safe-left)); right: max(8px,var(--safe-right)); display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
 .practice-reading-actions .practice-follow, .practice-notation[data-compare] .practice-reading-actions .practice-follow { position: static; max-width: 100%; pointer-events: auto; }
 .practice-view-reset { min-height: 44px; padding: 0 14px; border: 1px solid var(--ui-line, #dce4de); border-radius: 24px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); color: var(--ui-ink, #365747); font: inherit; font-size: 12px; pointer-events: auto; }

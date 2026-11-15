@@ -1,0 +1,77 @@
+{
+  "base": "a7d7a7a2368eb6bcfeb6407a68b087ae873255ef",
+  "before": "Clean main production build before edits",
+  "after": "Local production build with this PR runtime changes (before evidence commit)",
+  "capture": {
+    "engine": "system Chromium",
+    "headless": true,
+    "locale": "zh-CN",
+    "hasTouch": true,
+    "portrait": "390x844 CSS px",
+    "landscape": "844x390 CSS px",
+    "content": "Synthetic SATB XML/PDF and repository practice-tone.mp3",
+    "api": "Mocked local API for screenshot pairs; real local Worker/D1/R2 for browser checks",
+    "realDevice": false,
+    "installedPwa": false,
+    "imageEditing": false
+  },
+  "screenshots": [
+    "xml-collapsed-portrait",
+    "xml-compare-landscape",
+    "mp3-settings-portrait",
+    "mp3-collapsed-landscape"
+  ],
+  "checks": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "client": {
+      "files": 167,
+      "tests": 1450,
+      "status": "passed"
+    },
+    "focusHooks": {
+      "tests": 8,
+      "status": "passed"
+    },
+    "chromiumCore": {
+      "status": "passed",
+      "tests": 1,
+      "scope": "updated practice-focus suite, including XML/audio unified collapse and focus"
+    },
+    "realBackendPassed": [
+      "practice-reader-layout",
+      "practice-panel-safe-area",
+      "practice-unified-controls",
+      "practice-compare",
+      "musicxml-startup / hidden-notation",
+      "preview-notes-smoke / signed-in-musicxml"
+    ],
+    "ciScope": {
+      "status": "passed",
+      "tests": 31
+    }
+  },
+  "initialFailures": [
+    {
+      "check": "practice-compare",
+      "cause": "Obsolete geometry assertion counted the transparent spanning header as a divider obstruction",
+      "resolution": "Check actual painted controls and end button; follow-up passed"
+    },
+    {
+      "check": "musicxml-startup / preview-notes-smoke",
+      "cause": "Default Playwright Chromium executable not installed",
+      "resolution": "Installed requested browser; follow-up passed"
+    }
+  ],
+  "review": {
+    "selfReview": "completed",
+    "independentReview": "completed; read-only separate agent; two stale landscape callers corrected; no remaining blockers"
+  },
+  "limitations": [
+    "No real iPhone/Android device, installed PWA or screen-reader acceptance",
+    "WebKit downloaded but launch dependencies missing; not claimed passed",
+    "Synthetic safe area uses CSS and CDP insets, rotation uses viewport sizing",
+    "No merge, deployment, or stable-channel promotion"
+  ]
+}

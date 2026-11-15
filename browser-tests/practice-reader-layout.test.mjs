@@ -113,15 +113,15 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   }
   // Explicitly collapsed controls float over the score and survive rotation.
   await page.setViewportSize({width:844,height:390});
-  await bar.getByRole('button',{name:'收起播放控制',exact:true}).click();
+  await bar.getByRole('button',{name:'收起练习控制',exact:true}).click();
   const viewportFrame = () => page.locator('.practice-notation-scroll').evaluate(element => {
     const box=element.getBoundingClientRect(); return {y:box.y,height:box.height};
   });
   await expect.poll(viewportFrame).toEqual({y:0,height:390});
   await page.setViewportSize({width:390,height:844});
-  await expect(bar.getByRole('button',{name:'展开播放控制',exact:true})).toBeVisible();
+  await expect(bar.getByRole('button',{name:'展开练习控制',exact:true})).toBeVisible();
   await expect.poll(viewportFrame).toEqual({y:0,height:844});
-  await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();
+  await bar.getByRole('button',{name:'展开练习控制',exact:true}).click();
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await expect.poll(async()=>Math.round((await bar.boundingBox()).y+(await bar.boundingBox()).height)).toBe(844);
   // Use real coordinates: preview is visible before release, committed only on release.

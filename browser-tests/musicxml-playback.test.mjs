@@ -98,7 +98,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(page).toHaveURL(new RegExp(`/scores/${fixture.scoreId}`));
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeAttached({timeout:20000});
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
-  await player.getByRole('button',{name:'展开播放控制',exact:true}).click();
+  await player.getByRole('button',{name:'展开练习控制',exact:true}).click();
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('0');
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await selectPracticeView(page, '重排谱面');
@@ -194,7 +194,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByRole('button',{name:'本地链路测试：1 个附件',exact:true}).click();
   await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
-  await player.getByRole('button',{name:'展开播放控制',exact:true}).click();
+  await player.getByRole('button',{name:'展开练习控制',exact:true}).click();
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
   await expect(settings.getByRole('switch',{name:'声部关注',exact:true})).not.toBeChecked();

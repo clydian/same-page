@@ -17,7 +17,7 @@ const denseXml = practiceMusicXml.replace(/<note>[\s\S]*?<\/note>/g, note => not
 for (const name of engines) test(`${name}: floating tools, direct zoom, transport preference, safe areas and fullscreen`, { timeout: 180000 }, async t => {
   const browser = await ({ chromium, webkit })[name].launch({ headless: true, ...(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
   t.after(() => browser.close());
-  const fixture = createVisualFixtureSession({ id: 'reader-practice-focus', practiceXml: denseXml, buildId: server.buildId });
+  const fixture = createVisualFixtureSession({ id: 'reader-practice-focus', practiceXml: denseXml, multipleSources: true, buildId: server.buildId });
   const open = async (width, height) => {
     const page = await browser.newPage({ viewport: { width, height }, hasTouch: true, reducedMotion: 'reduce', locale: 'zh-CN' });
     await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
@@ -62,14 +62,21 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
       assert.ok(sorted[i].x>=0 && sorted[i].right<=result.width && sorted[i].width>=44 && sorted[i].height>=44,JSON.stringify(sorted[i]));
       if(i) assert.ok(sorted[i].x>=sorted[i-1].right,JSON.stringify(sorted));
     }
-    assert.match(sorted.at(-1).label,/展开播放控制|收起播放控制/);
+    assert.match(sorted.at(-1).label,/展开练习控制|收起练习控制/);
     assert.equal(sorted.at(-2).label,'练习设置');
     assert.ok(sorted.at(-1).right>=result.width-Math.max(8,result.safeRight)-12,JSON.stringify(result));
     return result;
   };
+  const checkCollapsed = async page => {
+    await expect(page.getByRole('button', { name: '显示谱面', exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: '缩小谱面', exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: '结束练习', exact: true })).toBeVisible();
+    assert.deepEqual(await page.locator('.practice-header button').evaluateAll(buttons => buttons.filter(button => button.getBoundingClientRect().width > 0).map(button => button.getAttribute('aria-label'))), ['结束练习']);
+  };
   const checkFollowedSystem = async page => expect.poll(()=>page.locator('.at-cursor-bar').evaluate(cursor=>{
-    const bar=cursor.getBoundingClientRect(),tools=document.querySelector('.practice-header').getBoundingClientRect(),area=cursor.closest('.practice-notation-scroll').getBoundingClientRect();
-    const top=Math.max(area.top+8,bar.right>tools.left && bar.left<tools.right ? tools.bottom+8 : area.top+8);
+    const bar=cursor.getBoundingClientRect(),area=cursor.closest('.practice-notation-scroll').getBoundingClientRect();
+    const tools=[...document.querySelectorAll('.practice-header-tools,.practice-end-playback,.practice-notation-tools')].map(element=>element.getBoundingClientRect());
+    const top=tools.filter(box=>box.width>0 && box.height>0 && bar.right>box.left && bar.left<box.right).reduce((value,box)=>Math.max(value,box.bottom+8),area.top+8);
     return bar.top>=top && bar.top<area.bottom-44 && (bar.height>area.bottom-top || bar.bottom<=area.bottom);
   })).toBe(true).catch(async error => {
     await page.screenshot({path:`${evidence}/${name}-occlusion-failure.png`});
@@ -78,33 +85,33 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   });
   await mkdir(evidence,{recursive:true});
   const landscape = await open(844,390);
-  await expect(landscape.getByRole('button',{name:'展开播放控制'})).toBeVisible();
-  await checkTools(landscape); await checkTransport(landscape); await checkFollowedSystem(landscape);
+  await expect(landscape.getByRole('button',{name:'展开练习控制'})).toBeVisible();
+  await checkCollapsed(landscape); await checkTransport(landscape); await checkFollowedSystem(landscape);
   assert.equal(await landscape.locator('.practice-notation-scroll').evaluate(el=>el.getBoundingClientRect().height),390);
   await landscape.screenshot({path:`${evidence}/${name}-landscape-default.png`});
-  await landscape.getByRole('button',{name:'展开播放控制'}).click();
-  await checkTransport(landscape);
+  await landscape.getByRole('button',{name:'展开练习控制'}).click();
+  await checkTools(landscape); await checkTransport(landscape);
   await landscape.screenshot({path:`${evidence}/${name}-landscape-expanded.png`});
   await landscape.setViewportSize({width:390,height:844});
-  await expect(landscape.getByRole('button',{name:'收起播放控制'})).toBeVisible();
-  await landscape.getByRole('button',{name:'收起播放控制'}).click();
+  await expect(landscape.getByRole('button',{name:'收起练习控制'})).toBeVisible();
+  await landscape.getByRole('button',{name:'收起练习控制'}).click();
   await landscape.setViewportSize({width:844,height:390});
-  await expect(landscape.getByRole('button',{name:'展开播放控制'})).toBeVisible();
+  await expect(landscape.getByRole('button',{name:'展开练习控制'})).toBeVisible();
   // Menus and focus remain usable while the viewport rotates.
   await landscape.getByRole('button',{name:'练习设置',exact:true}).click();
   await landscape.setViewportSize({width:390,height:844});
   await expect(landscape.getByRole('dialog',{name:'练习设置'})).toBeVisible();
   await landscape.getByRole('button',{name:'关闭练习设置'}).click();
-  await expect(landscape.getByRole('button',{name:'展开播放控制'})).toBeVisible();
+  await expect(landscape.getByRole('button',{name:'展开练习控制'})).toBeVisible();
   await landscape.close();
 
   const page = await open(390,844);
   const header = page.locator('.practice-header');
-  await expect(page.getByRole('button',{name:'收起播放控制'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'收起练习控制'})).toBeVisible();
   await checkTools(page); await checkTransport(page); await checkFollowedSystem(page);
   await page.screenshot({path:`${evidence}/${name}-portrait-default.png`});
   await page.setViewportSize({width:844,height:390});
-  await expect(page.getByRole('button',{name:'收起播放控制'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'收起练习控制'})).toBeVisible();
   await page.setViewportSize({width:320,height:568});
   await checkTools(page); await checkTransport(page);
   // Real separate presses are used because touch/keyboard activation is discrete.
@@ -136,19 +143,52 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   await page.getByRole('button',{name:'暂停',exact:true}).click();
   if(await page.evaluate(()=>document.fullscreenEnabled && typeof document.documentElement.requestFullscreen==='function')) {
     await page.getByRole('button',{name:'全屏看谱'}).click();
+    await checkCollapsed(page);
+    await expect(page.getByRole('button',{name:'展开练习控制'})).toBeFocused();
+    await page.getByRole('button',{name:'展开练习控制'}).click();
     await expect(page.getByRole('button',{name:'退出专注'})).toBeEnabled();
     await page.getByRole('button',{name:'显示谱面'}).click();
     await page.locator('.practice-view-option').filter({hasText:'对照'}).click();
     await expect(page.getByRole('button',{name:'退出专注'})).toBeVisible();
+    await page.getByRole('button',{name:'收起练习控制'}).click();
+    await expect(page.locator('.practice-notation-tools')).toBeHidden();
+    await checkCollapsed(page);
+    await page.getByRole('button',{name:'展开练习控制'}).click();
+    await expect(page.locator('.practice-notation-tools')).toBeVisible();
     await page.getByRole('button',{name:'显示谱面'}).click();
     await page.locator('.practice-view-option').filter({hasText:'重排谱面'}).click();
     await page.getByRole('button',{name:'退出专注'}).click();
   }
   await page.evaluate(()=>{Object.defineProperty(document,'fullscreenEnabled',{configurable:true,value:true});document.documentElement.requestFullscreen=()=>Promise.reject(new Error('fixture denial'));});
-  await page.getByRole('button',{name:'收起播放控制'}).click(); await page.getByRole('button',{name:'展开播放控制'}).click();
+  await page.getByRole('button',{name:'收起练习控制'}).click(); await page.getByRole('button',{name:'展开练习控制'}).click();
   await page.getByRole('button',{name:/全屏看谱|专注看谱/}).click();
   await expect(page.getByRole('status')).toContainText('全屏未能开启');
+  await checkCollapsed(page);
+  await page.getByRole('button',{name:'展开练习控制'}).click();
   await page.getByRole('button',{name:'退出专注'}).click();
   assert.equal(fixture.diagnostics.unmatchedRequests.length,0);
   await writeFile(`${evidence}/${name}-geometry.json`,JSON.stringify({header:await checkTools(page),transport:await checkTransport(page)},null,2));
+  await page.getByRole('button',{name:'结束练习'}).click();
+  await expect(page.locator('.practice-bar')).toHaveCount(0);
+  await page.goto(`${server.origin}/choirs/visual-choir`);
+  await page.getByRole('button',{name:/2 个附件/}).first().click();
+  await page.getByRole('button',{name:'示范录音.wav',exact:true}).click();
+  await expect(page.getByRole('button',{name:'播放',exact:true})).toBeEnabled();
+  const audio=await page.locator('audio').elementHandle();
+  await page.getByRole('button',{name:'播放',exact:true}).click();
+  await page.getByRole('button',{name:'边听边看谱'}).click();
+  await expect(page.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+  assert.equal(await audio.evaluate(element=>element===document.querySelector('audio')),true);
+  await expect(page.getByRole('button',{name:'练习设置',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('slider',{name:'音量',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'收起练习控制'}).focus();
+  await page.keyboard.press('Enter');
+  await checkCollapsed(page);
+  await expect(page.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'展开练习控制'})).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('combobox',{name:'速度',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'结束练习'}).click();
+  await expect(page.locator('audio')).toHaveCount(0);
+  assert.equal(fixture.diagnostics.unmatchedRequests.length,0);
 });
