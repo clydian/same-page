@@ -375,6 +375,12 @@ export function PageNavigatorPanel({
   const page = draftPage ?? currentPage;
   const panelRef = useRef<HTMLElement>(null);
   const size = useElementSize(panelRef);
+  useLayoutEffect(() => {
+    const shell = panelRef.current?.closest<HTMLElement>(".reader-shell");
+    if (!shell || !size.height) return;
+    shell.style.setProperty("--reader-preview-height", `${panelRef.current!.getBoundingClientRect().height}px`);
+    return () => { shell.style.removeProperty("--reader-preview-height"); };
+  }, [size.height]);
   // Sample the document at a density that leaves gaps between resting thumbnails.
   // The range input still addresses every page, including those not sampled.
   const count = Math.min(document.numPages, 40, Math.max(1, Math.floor((size.width - 40) / 20) + 1));

@@ -140,3 +140,18 @@ it("retains withdrawal through rerenders, fences a changed destination and relea
   tap(file);
   expect(open).toHaveBeenCalledTimes(2);
 });
+
+it("uses the same scoped touch protection for external attachments while retaining native link semantics", () => {
+  const open = vi.fn();
+  render(<FileOpenLink href="https://example.org/reference" target="_blank" rel="noopener noreferrer" onClick={event => { event.preventDefault(); open(); }}>参考演唱</FileOpenLink>);
+  const file = screen.getByRole("link");
+  expect(file).toHaveAttribute("href", "https://example.org/reference");
+  expect(file).toHaveAttribute("target", "_blank");
+  pointer(file, "pointerdown"); now = 600;
+  expect(pointer(file, "contextmenu").defaultPrevented).toBe(true);
+  pointer(file, "pointerup"); fireEvent.click(file, { detail: 1 });
+  expect(open).not.toHaveBeenCalled();
+  fireEvent.keyDown(file, { key: "Enter" }); fireEvent.click(file, { detail: 0 });
+  expect(open).toHaveBeenCalledOnce();
+  expect(pointer(file, "contextmenu", { pointerType: "mouse" }).defaultPrevented).toBe(false);
+});

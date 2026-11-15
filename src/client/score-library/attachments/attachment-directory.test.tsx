@@ -74,4 +74,6 @@ it("keeps offline attachment rows quiet and gives feedback only after clicking",
   fireEvent.click(screen.getByRole("link", { name: "参考网页" }));
   expect(screen.getAllByRole("status")).toHaveLength(1);
   expect(open).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "关闭附件提示" }));
+  expect(screen.queryByText("连接网络后可打开此附件。")).not.toBeInTheDocument();
 });

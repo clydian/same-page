@@ -73,7 +73,7 @@
 .practice-audio-preview .practice-field { margin-block: 18px; }
 .practice-listen-score { margin-top: 12px; width: 100%; }
 
-.reader-playback-entries { position: absolute; z-index: 45; right: max(16px,env(safe-area-inset-right)); bottom: max(16px,env(safe-area-inset-bottom)); display: flex; gap: 8px; }
+.reader-playback-entries { position: absolute; z-index: 45; right: max(16px,env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--reader-preview-height, calc(2.1rem + 2px)) + 12px); display: flex; gap: 8px; }
 .reader-playback-entry { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--ui-line, #dce4de); border-radius: 14px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); color: var(--ui-ink, #31463a); box-shadow: 0 2px 12px #17352b14; cursor: pointer; }
 .reader-playback-entry[data-hovered], .reader-playback-entry[aria-expanded=true] { background: var(--ui-soft, #eaf0ea); }
 .reader-playback-entry:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: 2px; }

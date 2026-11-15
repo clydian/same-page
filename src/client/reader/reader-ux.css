@@ -547,3 +547,6 @@
 }
 
 .reader-layers-backdrop { z-index: 75; }
+
+.page-reader__viewport[data-dismiss-label] .page-reader__sheet:not([data-page-turn-current]) { visibility: hidden; }
+.page-reader__viewport[data-dismiss-label] .page-reader__paper { box-shadow: 0 12px 32px #102b292e; }

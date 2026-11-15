@@ -619,28 +619,29 @@ function ReaderPageContent() {
       ) : null}
       {exportOpen && workspace && <ExportDialog layers={layers} workspace={workspace} source={document} versionId={score.currentVersion.id} fileName={score.fileName} authenticatedUserId={identity.authenticatedUserId} onClose={() => setExportOpen(false)} />}
       {readerPanel === "layers" ? (
+        <Suspense fallback={null}>
+        {/* Suspend before mounting the focus scope, including on the first open. */}
         <ModalOverlay className="reader-panel-backdrop reader-layers-backdrop" isOpen isDismissable
           onOpenChange={(open) => { if (!open) setReaderPanel(null); }}>
           <Modal className="reader-panel reader-layers-dialog">
             <Dialog preserveOnNavigate aria-label={"笔记图层"} className="reader-layers-content">
               <header className="reader-panel__header">
                 <strong>{"笔记图层"}</strong>
-                <Button className="icon-button" aria-label="关闭笔记显示" onPress={() => setReaderPanel(null)}>
+                <Button autoFocus className="icon-button" aria-label="关闭笔记显示" onPress={() => setReaderPanel(null)}>
                   <X aria-hidden="true" size={21} />
                 </Button>
               </header>
-              <Suspense fallback={<p role="status">正在准备图层…</p>}>
-                <ReaderLayerPanel
-                  key={`${workspace.scopeKey}:${layerPanelTab}`}
-                  initialTab={layerPanelTab}
-                  workspace={workspace}
-                  layers={activeAnnotations?.layers ?? []}
-                  signedIn={Boolean(identity.authenticatedUserId) && !guestExperience}
-                />
-              </Suspense>
+              <ReaderLayerPanel
+                key={`${workspace.scopeKey}:${layerPanelTab}`}
+                initialTab={layerPanelTab}
+                workspace={workspace}
+                layers={activeAnnotations?.layers ?? []}
+                signedIn={Boolean(identity.authenticatedUserId) && !guestExperience}
+              />
             </Dialog>
           </Modal>
         </ModalOverlay>
+        </Suspense>
       ) : null}
 
       {feedbackOpen && <DiagnosticReportModal reader={diagnosticReader} isOpen onOpenChange={setFeedbackOpen} />}
