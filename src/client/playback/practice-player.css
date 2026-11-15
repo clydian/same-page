@@ -229,7 +229,7 @@
 .practice-header-tools[hidden], .practice-notation-tools[hidden] { display: none; }
 .practice-header[data-floating] { inset: max(8px,var(--safe-top)) auto auto max(8px,var(--safe-left)); width: max-content; max-width: calc(100% - max(8px,var(--safe-left)) - max(8px,var(--safe-right))); min-height: 44px; padding: 3px; display: flex; align-items: center; gap: 0; border: 1px solid var(--ui-line, #dce4de); border-radius: 14px; background: rgb(var(--ui-surface-rgb, 252 253 251) / 96%); box-shadow: 0 2px 12px #17352b14; backdrop-filter: blur(10px); }
 .practice-header[data-floating] .practice-header-tools { flex-wrap: wrap; min-width: 0; }
-.practice-tools-toggle { flex: 0 0 44px; }
+.practice-tools-toggle { flex: 0 0 auto; }
 .practice-header[data-floating] .practice-view-trigger { padding-inline: 8px; gap: 4px; }
 .practice-header[data-floating] .practice-notation-size { border-inline: 1px solid var(--ui-line, #e4eae4); margin-inline: 2px; }
 .practice-fullscreen > span { display: none; }

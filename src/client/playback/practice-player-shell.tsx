@@ -5,7 +5,7 @@ import { readerHref } from "../reader/reader-entry";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, MenuItem, MenuTrigger, Popover, Tooltip, TooltipTrigger } from 'react-aria-components';
-import { Pause, Play, RotateCcw, RotateCw, ChevronDown, Check, SlidersHorizontal, X, LoaderCircle, ChevronUp, Maximize, Minimize, PanelTop } from 'lucide-react';
+import { Pause, Play, RotateCcw, RotateCw, ChevronDown, Check, SlidersHorizontal, X, LoaderCircle, ChevronUp, Maximize, Minimize } from 'lucide-react';
 import { Dialog, Menu } from '../navigation/overlays';
 import { useAppNavigation, useExitLayer } from '../navigation/navigation-context';
 import { playbackStore, playbackViewStore, setPlaybackView, stopPlayback, type PlaybackSource, type PlaybackView } from './playback-store';
@@ -78,7 +78,7 @@ export function PracticePlayerShell(props: Props) {
     stopPlayback();
     requestAnimationFrame(() => document.querySelector<HTMLElement>('.reader-shell')?.focus({ preventScroll: true }));
   };
-  const controlsToggle = !props.embedded && <TooltipTrigger><Button ref={controlsTrigger} className="practice-chrome-toggle practice-controls-toggle" aria-label={controlsCollapsed ? '展开练习控制' : '收起练习控制'} aria-expanded={!controlsCollapsed} aria-controls="practice-expanded-controls practice-bar-meta" onPress={() => { setPanel(null); controlsTrigger.current?.focus({ preventScroll: true }); focus.setControlsCollapsed(!controlsCollapsed); }}>{controlsCollapsed ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}</Button><Tooltip className="practice-tooltip" placement="top">{controlsCollapsed ? '展开练习控制' : '收起练习控制'}</Tooltip></TooltipTrigger>;
+
   const icon = (label: string, children: ReactNode, action: () => void, disabled = false) => <TooltipTrigger>
     <Button className="practice-icon" aria-label={label} isDisabled={disabled} onPress={action}>{children}</Button>
     <Tooltip className="practice-tooltip" placement="top">{label}</Tooltip>
@@ -87,18 +87,18 @@ export function PracticePlayerShell(props: Props) {
     {!props.embedded && isXml && source && <PracticeSplit active={view === 'compare'} ownerKey={source.ownerKey} />}
     {isXml && <header className="practice-header" aria-label="练习看谱" data-floating={!props.embedded || undefined} ref={header}>
       <div id="practice-view-controls" className="practice-header-tools" hidden={toolsCollapsed}>
-      {props.embedded ? <strong>候选谱面与试听</strong> : isXml ? <MenuTrigger>
+      {props.embedded ? <strong>候选谱面与试听</strong> : <MenuTrigger>
         <Button className="practice-view-trigger" aria-label="显示谱面" aria-description={`当前：${view === 'pdf' ? '原始 PDF' : view === 'compare' ? '对照' : '重排谱面'}`} data-short-label={view === 'pdf' ? 'PDF' : view === 'compare' ? '对照' : '重排'}><span className="practice-view-label">{view === 'pdf' ? '原始 PDF' : view === 'compare' ? '对照' : '重排谱面'}</span><ChevronDown size={14} aria-hidden="true" /></Button>
         <Popover className="practice-view-popover" placement="bottom start" offset={6}>
           <Menu aria-label="显示谱面" selectionMode="single" selectedKeys={[view]} onAction={key => { if (key === 'pdf' || key === 'xml' || key === 'compare') selectView(key); }}>
             {([['pdf','原始 PDF'],['xml','重排谱面'],['compare','对照']] as const).map(([key,label]) => <MenuItem key={key} id={key} textValue={label} className="practice-view-option"><span>{label}</span>{view === key && <Check size={16} aria-hidden="true" />}</MenuItem>)}
           </Menu>
         </Popover>
-      </MenuTrigger> : null}
+      </MenuTrigger>}
       {props.notationZoom && <NotationZoom {...props.notationZoom} />}
       {!props.embedded && <TooltipTrigger><Button className="practice-chrome-toggle practice-fullscreen" isDisabled={focus.pending} aria-label={focus.focused ? '退出专注' : focus.supported ? '全屏看谱' : '专注看谱'} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); void (focus.focused ? focus.exit() : focus.enter()); }}>{focus.focused ? <Minimize size={16} aria-hidden="true" /> : <Maximize size={16} aria-hidden="true" />}<span>{focus.focused ? '退出' : focus.supported ? '全屏' : '专注'}</span></Button><Tooltip className="practice-tooltip" placement="bottom">{focus.focused ? '退出专注' : focus.supported ? '全屏看谱' : '专注看谱'}</Tooltip></TooltipTrigger>}
       </div>
-      {!props.embedded && <TooltipTrigger><Button ref={toolsTrigger} className="practice-chrome-toggle practice-tools-toggle" aria-label={toolsCollapsed ? '展开看谱工具' : '收起看谱工具'} aria-expanded={!toolsCollapsed} aria-controls={`practice-view-controls${view === 'compare' ? ' practice-notation-tools' : ''}`} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); focus.setToolsCollapsed(!toolsCollapsed); }}>{toolsCollapsed ? <PanelTop size={18} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}</Button><Tooltip className="practice-tooltip" placement="bottom">{toolsCollapsed ? '展开看谱工具' : '收起看谱工具'}</Tooltip></TooltipTrigger>}
+      {!props.embedded && <TooltipTrigger><Button ref={toolsTrigger} className="practice-chrome-toggle practice-tools-toggle" aria-label={toolsCollapsed ? '展开看谱工具' : '收起看谱工具'} aria-expanded={!toolsCollapsed} aria-controls={`practice-view-controls${view === 'compare' ? ' practice-notation-tools' : ''}`} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); focus.setToolsCollapsed(!toolsCollapsed); }}>{toolsCollapsed ? <ChevronDown size={18} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}{!toolsCollapsed && <span aria-hidden="true">收起</span>}</Button><Tooltip className="practice-tooltip" placement="bottom">{toolsCollapsed ? '展开看谱工具' : '收起看谱工具'}</Tooltip></TooltipTrigger>}
     </header>}
     <div className="practice-dock" data-view={view} data-audio={!isXml || undefined} data-collapsed={controlsCollapsed || undefined} ref={dock}>
       {!props.ready && !props.failed && props.message
@@ -107,8 +107,8 @@ export function PracticePlayerShell(props: Props) {
       {props.hint}
       <section className="practice-bar" aria-label={isXml ? '乐谱练习' : '音频播放'} data-testid="musicxml-player">
         {!props.embedded && <div className="practice-bar-heading">
-          {controlsToggle}
-          <TooltipTrigger><Button className="practice-icon practice-close" hidden={controlsCollapsed} aria-label={isXml ? '关闭播放器' : '关闭音频'} onPress={closePlayer}><X size={18} aria-hidden="true" /></Button><Tooltip className="practice-tooltip" placement="top">{isXml ? '关闭播放器' : '关闭音频'}</Tooltip></TooltipTrigger>
+          <TooltipTrigger><Button ref={controlsTrigger} className="practice-chrome-toggle practice-controls-toggle" aria-label={controlsCollapsed ? '展开练习控制' : '收起练习控制'} aria-expanded={!controlsCollapsed} aria-controls="practice-expanded-controls practice-bar-meta" onPress={() => { setPanel(null); controlsTrigger.current?.focus({ preventScroll: true }); focus.setControlsCollapsed(!controlsCollapsed); }}>{controlsCollapsed ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}{!controlsCollapsed && <span aria-hidden="true">收起</span>}</Button><Tooltip className="practice-tooltip" placement="top">{controlsCollapsed ? '展开练习控制' : '收起练习控制'}</Tooltip></TooltipTrigger>
+          <TooltipTrigger><Button className="practice-chrome-toggle practice-close" hidden={controlsCollapsed} aria-label={isXml ? '关闭播放器' : '关闭音频'} onPress={closePlayer}><X size={18} aria-hidden="true" /><span aria-hidden="true">关闭</span></Button><Tooltip className="practice-tooltip" placement="top">{isXml ? '关闭播放器' : '关闭音频'}</Tooltip></TooltipTrigger>
         </div>}
         <div id="practice-expanded-controls" className="practice-expanded-controls" hidden={controlsCollapsed}><PlaybackTimeline timeline={props.timeline} /></div>
 

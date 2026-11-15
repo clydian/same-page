@@ -72,6 +72,7 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
     return result;
   };
   const checkCollapsed = async page => {
+    await expect(page.getByRole('button',{name:'展开看谱工具',exact:true})).toHaveText('');
     await expect(page.getByRole('button', { name: '显示谱面', exact: true })).toBeHidden();
     await expect(page.getByRole('button', { name: '缩小谱面', exact: true })).toBeHidden();
     await expect(page.getByRole('button', { name: '展开看谱工具', exact: true })).toBeVisible();
@@ -90,6 +91,7 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   await mkdir(evidence,{recursive:true});
   const landscape = await open(844,390);
   await expect(landscape.getByRole('button',{name:'展开练习控制'})).toBeVisible();
+  await expect(landscape.getByRole('button',{name:'展开练习控制'})).toHaveText('');
   await checkCollapsed(landscape); await checkTransport(landscape); await checkFollowedSystem(landscape);
   assert.equal(await landscape.locator('.practice-notation-scroll').evaluate(el=>el.getBoundingClientRect().height),390);
   await landscape.screenshot({path:`${evidence}/${name}-landscape-default.png`});
@@ -114,6 +116,9 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   const page = await open(390,844);
   const header = page.locator('.practice-header');
   await expect(page.getByRole('button',{name:'收起练习控制'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'收起看谱工具',exact:true})).toHaveText('收起');
+  await expect(page.getByRole('button',{name:'收起练习控制',exact:true})).toHaveText('收起');
+  await expect(page.getByRole('button',{name:'关闭播放器',exact:true})).toHaveText('关闭');
   await checkTools(page); await checkTransport(page); await checkFollowedSystem(page);
   await page.screenshot({path:`${evidence}/${name}-portrait-default.png`});
   await page.setViewportSize({width:844,height:390});

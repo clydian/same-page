@@ -81,7 +81,8 @@
     "real_local_backend": "practice-unified-controls and practice-compare: Chromium/WebKit 4/4 passed",
     "build": "npm run build passed",
     "lint": "npm run lint passed",
-    "review": "self review and independent read-only review completed"
+    "review": "self review and independent read-only review completed",
+    "final_labels": "Expanded: 收起 / 关闭; collapsed: chevrons only. Existing practice-focus Chromium/WebKit 2/2 passed; affected playback/audio smoke Chromium/WebKit 6/6 passed; focus/clearance hooks9/9 passed. No new suite added."
   },
   "limitations": [
     "CSS-injected safe areas and simulated viewports, no physical mobile devices",
@@ -95,26 +96,26 @@
     "before-xml-compare-landscape.png": "e24d38cc58ba253ea2ccdc7e425ecf1b10730e33af0b022a66fa727a9ed9e58a",
     "final-mp3-closed-landscape.png": "c04c7affd2296eaa8c5fc9b3e09a0e1f26719b6bba1fc377923f50d75df24ab9",
     "final-mp3-collapsed-landscape.png": "c636d0bb594809b81f915a4e6dd1fd27ea11679b716f09b19b615cd6e32b57da",
-    "final-mp3-editing-portrait.png": "d7beba02ad444de32e14a0a811c9c0b1c5cf19ae063e3b0b34869f30711093e2",
-    "final-mp3-reader-portrait.png": "0acceeaeb9d9a48faf2f8ba99cbf214c731ce98d677ff9a42759e8e396ca5904",
-    "final-mp3-reader-tools-portrait.png": "0da725ea54fa498fb23a664ac692032d26788ce963ad58ab6432b7f6820a61ee",
-    "final-xml-collapsed-portrait.png": "276acf83f50fbfa29bb801b0f9a232b78b1345a417310832d44fc0a7b79f9054",
-    "final-xml-compare-collapsed-landscape.png": "4885a964bc86ad630e37c7ecd3b444c361170b1c53564e6145235eef0c26f445",
-    "final-xml-compare-landscape.png": "3fbf8a895eaafef7d44ad960c982b8f08f145da9396d7e8c2555f7377cfa9de7",
-    "final-xml-expanded-portrait.png": "48d12bf0257e97b931c798abb2c3c06c7db0112167160032abb33fe8bd6f8f05",
-    "final-xml-top-collapsed-portrait.png": "55a5f1f6a523ecbcb1827c8a2732e4168e89ad84acd03d979e24c9203833aebf"
+    "final-mp3-editing-portrait.png": "7a478a3cfde372015a15b1fd76b1aa177349bac7494de5706ca1e54aac15485a",
+    "final-mp3-reader-portrait.png": "a1e41c22dbe48cf0aff0f900c48f7945bdb783226717787910acddff0e5a6d3c",
+    "final-mp3-reader-tools-portrait.png": "1ee75cc1db569796c02b10bf0738496f2a2aa2781ec7fbe6c0622c0b9ec3ef0c",
+    "final-xml-collapsed-portrait.png": "0017082a6888027c365604adc38a4ab947eaa4762f90abdb4779d901632c7bf0",
+    "final-xml-compare-collapsed-landscape.png": "775152857cb646717483503a9a1ab7d48ee0f00fe7dee460e97ca60ec8a3828e",
+    "final-xml-compare-landscape.png": "938414d579dbc915424403d7b7fd35e6a1350d36e531643ca67a583db708ea1e",
+    "final-xml-expanded-portrait.png": "f49b7aa2f3e320836bf12fa6cf62855d1cf4724514371b78f687b42d5b923c1c",
+    "final-xml-top-collapsed-portrait.png": "c10781cf6e3c32fecea1f895f6ccd371b7ed53f4f16a2f34dc1c4628a1f5c56f"
   },
   "runtime_sources": {
-    "src/client/playback/practice-player-shell.tsx": "d89968e92870b1253e418b715ffadfa07d215cd2bd26c1d393912ff1324ded49",
-    "src/client/playback/practice-player.css": "096a58387683fd11a3e061d5c36558005537233a6654afc734b07d834588416e",
+    "src/client/playback/practice-player-shell.tsx": "80ac44fdf4702e9850045a0193547dd2a04d05b14f16baf0deacc39e31e731bd",
+    "src/client/playback/practice-player.css": "19384a0920e7f502d15ce254c76ac0b1fbf1a84cef005057f20e0c4a65f8f9e6",
     "src/client/playback/use-practice-focus.ts": "c0f71b82a3476b4a5215b840560dc6e62ddf38112a796e88fad1f8b9dce4fa17",
     "src/client/playback/musicxml-practice.tsx": "1d924a0fdcff6eb73122307158082e3cc21207b90c4e31501645f05fdd3fb91f",
     "src/client/routes/reader-page.tsx": "0ff5f75ce4a4c36cee00541fb2dee3d8abf622d4bd48391a927d2a374824eb95"
   },
   "test_runs": {
     "practice_focus": {
-      "chromium_ms": 46628,
-      "webkit_ms": 22185,
+      "chromium_ms": 104914,
+      "webkit_ms": 33848,
       "passed": 2,
       "skipped": 0
     },
@@ -126,6 +127,16 @@
       "passed": 1451,
       "files": 167
     },
-    "environment": "Pinned Playwright Noble sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea; Node24.22.2; Playwright1.64.1"
+    "environment": "Pinned Playwright Noble sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea; Node24.22.2; Playwright1.64.1",
+    "affected_smoke": {
+      "passed": 6,
+      "engines": [
+        "chromium",
+        "webkit"
+      ]
+    },
+    "focus_clearance_hooks": {
+      "passed": 9
+    }
   }
 }

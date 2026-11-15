@@ -22,6 +22,7 @@ export async function setLoopRange(page, start, end) {
 }
 
 export async function closePractice(page) {
+  await expect(page.getByRole('button',{name:/^(展开|收起)练习控制$/})).toBeVisible();
   const expand=page.getByRole('button',{name:'展开练习控制',exact:true});
   if(await expand.isVisible()) await expand.click();
   await page.getByRole('button',{name:/^关闭播放器$|^关闭音频$/}).click();
