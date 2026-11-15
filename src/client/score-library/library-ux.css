@@ -141,12 +141,26 @@
 .membership-status { height: 1.5rem; min-height: 1.5rem; display: flex; align-items: center; gap: .35rem; font-size: .875rem; color: var(--muted); }
 .membership-row small { display: block; min-height: 1.25rem; }
 .membership-row[aria-disabled="true"] { opacity: .55; cursor: default; }
-.drive-switch-content .membership-row { height: 88px; }
+.drive-switch-content .membership-row { min-height: 72px; }
 .drive-switch-content .membership-row strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* A sheet/popover cannot move a pressed control when its first directory arrives. */
-.drive-switch-content { height: min(32rem, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2rem)); display: flex; flex-direction: column; }
-.drive-switch-popover .drive-switch-content { height: min(32rem, var(--available-height, calc(var(--safe-height) - 3rem))); }
-.drive-switch-content .dialog-heading, .drive-switch-caption, .drive-switch-actions, .drive-switch-content .membership-status { flex-shrink: 0; }
-.drive-switch-content .membership-list { min-height: 0; flex: 1; overflow-y: auto; align-content: start; overflow-anchor: none; }
+.drive-switch-content { display: flex; flex-direction: column; overflow: hidden; }
 
-.drive-switch-content > .drive-switch-actions { margin-top: auto; }
+.drive-switch-content .dialog-heading, .drive-switch-caption, .drive-switch-actions, .drive-switch-content .membership-status { flex-shrink: 0; }
+.drive-switch-content .membership-list { margin-top: 0; min-height: 0; flex: 1; overflow-y: auto; align-content: start; overflow-anchor: none; }
+
+.drive-switch-directory { display: flex; flex-direction: column; height: calc(var(--drive-picker-rows) * 72px + 24px); min-height: 0; flex-shrink: 1; }
+.drive-switch-directory > p { margin: 8px 0; }
+
+.create-drive-dialog .entry-form { gap: 12px; }
+.create-drive-dialog .create-drive-limits, .create-drive-dialog .create-drive-terms { color: var(--muted); font-size: 13px; line-height: 1.65; margin: 8px 0 16px; }
+.create-drive-dialog .create-drive-terms { margin: 4px 0 0; }
+.create-drive-rules { font-size: 13px; color: var(--muted); }
+.create-drive-rules summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; }
+.create-drive-dialog .create-drive-rules p { margin: 8px 0; }
+
+.score-file-group[data-returned-score] { outline: 1px solid var(--ui-line, #bdd0c4); outline-offset: -1px; }
+@media (prefers-reduced-motion: no-preference) {
+  .score-file-group[data-returned-score] { animation: returned-score 1200ms ease-out; }
+}
+@keyframes returned-score { from { background: var(--brand-soft); } to { background: transparent; } }

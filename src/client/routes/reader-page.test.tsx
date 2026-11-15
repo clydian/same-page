@@ -1179,7 +1179,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await finishPageTurn();
     expect(currentRenderedPage()).toBe("3");
     fireEvent.click(screen.getByRole("button", { name: "笔记图层" }));
-    expect(screen.getByRole("dialog", { name: "笔记图层" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "笔记图层" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "关闭笔记显示" }));
     fireEvent.click(screen.getByRole("button", { name: "更多" }));
     expect(screen.getByRole("button", { name: "翻页" })).toHaveAttribute(
@@ -1472,7 +1472,7 @@ it("keeps a single exit while the PDF never settles", async () => {
     await screen.findByLabelText("翻页阅读");
     await toggleChrome();
     fireEvent.click(screen.getByRole("button", { name: "笔记图层" }));
-    const panel = screen.getByRole("dialog", { name: "笔记图层" });
+    const panel = await screen.findByRole("dialog", { name: "笔记图层" });
 
     await within(panel).findByText("Ensemble");
     expect(panel).toHaveTextContent("Ensemble");

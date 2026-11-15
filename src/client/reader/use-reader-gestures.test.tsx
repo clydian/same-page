@@ -49,6 +49,23 @@ describe("useReaderGestures", () => {
     expect(content.style.translate).toBe("");
   });
 
+  it("keeps the return cue without moving paper when reduced motion is requested", () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(query => ({ matches: query === "(prefers-reduced-motion: reduce)" }) as MediaQueryList);
+    const onDismiss = vi.fn();
+    render(<GestureHarness onZoomChange={vi.fn()} onDismiss={onDismiss} />);
+    const viewport = screen.getByTestId("gesture-viewport"), paper = screen.getByTestId("gesture-content");
+    mockGeometry(viewport, paper);
+    const start = { pointerId: 1, pointerType: "touch", clientX: 300, clientY: 100 };
+    fireEvent.pointerDown(viewport, start);
+    fireEvent.pointerMove(viewport, { ...start, clientY: 270 });
+    expect(viewport).toHaveAttribute("data-dismiss-label", "松开返回云盘");
+    expect(paper.style.translate).toBe("");
+    expect(paper.style.scale).toBe("");
+    fireEvent.pointerCancel(viewport, start);
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(viewport).not.toHaveAttribute("data-dismiss-label");
+  });
+
   it("never dismisses continuous scrolling, including repeated pulls at the top", () => {
     const onDismiss = vi.fn();
     render(<GestureHarness onZoomChange={vi.fn()} onDismiss={onDismiss} nativeTouchScroll />);
