@@ -76,7 +76,7 @@
   ],
   "errors": [],
   "checks_summary": {
-    "client": "48/48 targeted reader-page and practice-focus tests passed",
+    "client": "Full client: 167 files, 1451/1451 passed; targeted reader-page and practice-focus:48/48 passed",
     "browser_ui": "practice-focus: Chromium/WebKit 2/2 passed in pinned CI image, Node24.22.2 PW1.64.1",
     "real_local_backend": "practice-unified-controls and practice-compare: Chromium/WebKit 4/4 passed",
     "build": "npm run build passed",
@@ -123,7 +123,8 @@
       "skipped": 0
     },
     "client": {
-      "passed": 48
+      "passed": 1451,
+      "files": 167
     },
     "environment": "Pinned Playwright Noble sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea; Node24.22.2; Playwright1.64.1"
   }

@@ -11,7 +11,8 @@ it('does not pull endpoint preview back to the audio cursor, then resumes cleara
  vi.spyOn(window,'cancelAnimationFrame').mockImplementation(()=>{});
  vi.stubGlobal('ResizeObserver',class{observe(){}disconnect(){}});
  vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(function(this:HTMLElement){
-  if(this.classList.contains('practice-header-tools'))return new DOMRect(0,0,320,80);
+  // The header is now the painted floating group, including its restore button.
+  if(this.classList.contains('practice-header'))return new DOMRect(0,0,320,80);
   if(this.classList.contains('at-cursor-bar'))return new DOMRect(0,-500,300,100);
   return new DOMRect(0,0,400,700);
  });
