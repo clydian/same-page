@@ -19,7 +19,8 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   t.after(() => browser.close());
   const fixture = createVisualFixtureSession({ id: 'reader-practice-focus', practiceXml: denseXml, multipleSources: true, buildId: server.buildId });
   const open = async (width, height) => {
-    const page = await browser.newPage({ viewport: { width, height }, hasTouch: true, reducedMotion: 'reduce', locale: 'zh-CN' });
+    // Keep API requests in page.route after navigation; worker lifecycle has separate browser tests.
+    const page = await browser.newPage({ viewport: { width, height }, hasTouch: true, reducedMotion: 'reduce', locale: 'zh-CN', serviceWorkers: 'block' });
     await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
     await page.route('**/api/**', async route => {
       const request = route.request(), pathname = new URL(request.url()).pathname;

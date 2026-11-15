@@ -30,6 +30,26 @@
 - 自审和独立只读 review 完成。修正了两个横屏调用测试需要先展开的问题、对照几何测试误把透明头部空白当实体障碍的问题；音频 focus hook 保留在看谱子组件，维持离开看谱时原有的全屏所有权生命周期。
 - 首轮真实后端检查中，对照旧几何断言失败，另两个场景缺默认 Chromium；修正断言、安装浏览器后，三项后续检查通过。首次记录未被当成成功。
 
-WebKit 虽已下载，但当前环境缺少 GTK4 等动态库，未宣称 WebKit 通过；也未执行手机真机、VoiceOver/TalkBack 或已安装 PWA 验收。没有改存储、权限、原音频/XML、manifest、设备设置或发布通道，没有合并、部署或推进稳定版。
+首次本机验证时，WebKit 虽已下载但宿主环境缺少 GTK4 等动态库，未宣称其通过；后续固定 CI 镜像补验见下节。仍未执行手机真机、VoiceOver/TalkBack 或已安装 PWA 验收。没有改存储、权限、原音频/XML、manifest、设备设置或发布通道，没有合并、部署或推进稳定版。
 
 具体条件与检查状态见 [evidence.json](evidence.json)。
+
+## #660 扩展 CI 后续诊断
+
+原 head `f83c933` 的 required CI 成功，但 [扩展验证 visual (1)](https://github.com/clydian/same-page/actions/runs/43656576559/job/132636544641) 为 83/84 通过：WebKit 已完成 XML、全屏与恢复步骤，随后在新增音频阶段等待“2 个附件”30 秒超时。CI 检出的 merge `e874f2a` 与 head 的 Git tree 相同，不能用提交 SHA 不同解释为另一份产品代码。
+
+用相同固定 Playwright Noble 镜像 digest、Node 24.22.2、Playwright 1.64.1、WebKit 27.2、libsoup 3.6.6 对照：
+
+| 运行 | Chromium | WebKit |
+| --- | --- | --- |
+| 未修改的 head 用例 | 通过 | 在“2 个附件”处失败 |
+| 原 main `a7d7a7a` 产品，仅追加相同音频入口阶段 | 通过 | 同位置失败 |
+| head 仅设置 `serviceWorkers: 'block'` | 完整双引擎通过 | 完整双引擎通过 |
+
+独立的取证运行再次复现 WebKit 失败：导航后显示空的本机目录，mock 未收到该页的认证或 bootstrap 请求；不是按钮需要更久才出现。[失败快照（本地同镜像、合成数据）](webkit-library-mock-failure.png)。快速打开 PDF 后立即导航的缩减对照中，允许或阻止 worker 均通过。进一步去掉全部播放器步骤，只等待 `navigator.serviceWorker.ready` 后导航：main 与 head 都出现同样超时；导航后的 worker controller 存在，`navigator.onLine` 和可见性均正常，但认证请求未命中 mock 而返回 500，且 mock 未收到 bootstrap。阻止 worker 时，认证及 bootstrap 均为合成 200，附件入口可用。这把故障缩减到“worker 就绪后导航与 page.route 的边界”，而不是音量、收展、XML 引擎或网络离线。
+
+该 UI 套件的业务 API 全由 `page.route` 合成，原来却允许生产 Service Worker 注册并在后续导航参与请求。依据上述 main/head 对照及单变量阻止 worker 的结果，将其判为新增 mock 流程的隔离缺口，而非本 PR 播放器产品代码独有的回归。[Playwright 官方网络说明](https://playwright.dev/docs/network#missing-network-events-and-service-workers) 也明确提示 Service Worker 可能使请求绕过路由拦截。
+
+修正只给本套件页面上下文增加 `serviceWorkers: 'block'` 和注释；音频入口、实例连续性、上下收展、焦点、全屏、安全区等断言全部保留，超时、重试及预期均未放宽。真实 Service Worker 生命周期由原有 PWA/离线测试继续覆盖，未在产品或全局 CI 里禁用。自审与独立只读复核通过，完整固定镜像双引擎 2/2 通过，lint 与 diff 检查通过。
+
+这是测试隔离层面的定位，不宣称已查明 WebKit 网络进程的内部根因，也不代替手机真机验收。首次失败并未通过重跑改写为成功；修正 head 的远端 CI 另行核对。

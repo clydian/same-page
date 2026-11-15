@@ -70,8 +70,139 @@
   },
   "limitations": [
     "No real iPhone/Android device, installed PWA or screen-reader acceptance",
-    "WebKit downloaded but launch dependencies missing; not claimed passed",
+    "Initial host lacked WebKit launch dependencies; fixed CI-container follow-up passed both engines",
     "Synthetic safe area uses CSS and CDP insets, rotation uses viewport sizing",
     "No merge, deployment, or stable-channel promotion"
-  ]
+  ],
+  "ciFollowup": {
+    "originalHead": "f83c933f09de4a1d3be42186273dacb2506c0295",
+    "originalMerge": "e874f2a2793feb12d85f8cc9705f79edc9134942",
+    "equalTree": "6e5ce36910a0f216e1766fd94f1dbe922f5cb205",
+    "originalRequiredCI": {
+      "id": 43656576631,
+      "conclusion": "success"
+    },
+    "originalExtendedCI": {
+      "id": 43656576559,
+      "job": 132636544641,
+      "conclusion": "failure",
+      "tests": 84,
+      "passed": 83,
+      "symptom": "WebKit locator /2 个附件/ timed out after 30000ms"
+    },
+    "environment": {
+      "image": "mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea",
+      "node": "24.22.2",
+      "playwright": "1.64.1",
+      "chromium": "156.0.8078.4",
+      "webkit": "27.2",
+      "libsoup": "3.6.6"
+    },
+    "comparisons": [
+      {
+        "runtime": "PR merge/head equal tree",
+        "test": "unmodified practice-focus",
+        "chromium": "pass",
+        "webkit": "fail at attachment locator"
+      },
+      {
+        "runtime": "main a7d7a7a unchanged",
+        "test": "original XML suite plus same audio-entry phase",
+        "chromium": "pass",
+        "webkit": "same failure"
+      },
+      {
+        "runtime": "PR head",
+        "test": "same full WebKit flow; only serviceWorkers:block added",
+        "webkit": "pass"
+      },
+      {
+        "runtime": "PR head",
+        "test": "final unchanged assertions with serviceWorkers:block",
+        "chromium": "pass",
+        "webkit": "pass"
+      }
+    ],
+    "diagnosticSnapshot": "Empty local directory after navigation; no new auth/bootstrap calls reached page.route; see linked synthetic screenshot",
+    "minimization": "No playback needed: wait for serviceWorker.ready then navigate reader -> library. Same failure on head and unchanged main; immediate navigation before worker readiness passes.",
+    "fix": "Block Service Workers only in this API-mocked UI suite; no product code, timeout, retry, or assertion changes",
+    "localChecks": {
+      "fullFixedContainerSuite": "2/2 passed",
+      "lint": "passed",
+      "independentReadOnlyReview": "passed"
+    },
+    "limits": [
+      "Does not establish WebKit network-process internals",
+      "Does not prove physical-device behavior",
+      "Local container matches pinned browser/runtime, not GitHub host CPU/load"
+    ],
+    "minimalMatrix": [
+      {
+        "runtime": "head",
+        "serviceWorkers": "allow",
+        "online": true,
+        "visibility": "visible",
+        "controlled": true,
+        "workerReady": true,
+        "authResponseStatuses": [
+          200,
+          500,
+          500,
+          500,
+          500
+        ],
+        "mockBootstrapRequests": 0,
+        "attachmentButtonFound": false,
+        "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /2 个附件/ }).first()\n"
+      },
+      {
+        "runtime": "head",
+        "serviceWorkers": "block",
+        "online": true,
+        "visibility": "visible",
+        "controlled": false,
+        "workerReady": false,
+        "authResponseStatuses": [
+          200,
+          200
+        ],
+        "mockBootstrapRequests": 1,
+        "attachmentButtonFound": true,
+        "error": null
+      },
+      {
+        "runtime": "main",
+        "serviceWorkers": "allow",
+        "online": true,
+        "visibility": "visible",
+        "controlled": true,
+        "workerReady": true,
+        "authResponseStatuses": [
+          200,
+          500,
+          500,
+          500,
+          500
+        ],
+        "mockBootstrapRequests": 0,
+        "attachmentButtonFound": false,
+        "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /2 个附件/ }).first()\n"
+      },
+      {
+        "runtime": "main",
+        "serviceWorkers": "block",
+        "online": true,
+        "visibility": "visible",
+        "controlled": false,
+        "workerReady": false,
+        "authResponseStatuses": [
+          200,
+          200
+        ],
+        "mockBootstrapRequests": 1,
+        "attachmentButtonFound": true,
+        "error": null
+      }
+    ]
+  }
 }
