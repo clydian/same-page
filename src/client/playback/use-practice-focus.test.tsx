@@ -17,30 +17,30 @@ afterEach(() => {
 it('starts collapsed in landscape and preserves an explicit choice through rotation', () => {
   vi.stubGlobal('innerHeight', 360); vi.stubGlobal('innerWidth', 1000);
   const { result, rerender } = renderHook(() => usePracticeFocus());
-  expect(result.current.bottomCollapsed).toBe(true);
-  act(() => result.current.setBottomCollapsed(false));
+  expect(result.current.controlsCollapsed).toBe(true);
+  act(() => result.current.setControlsCollapsed(false));
   vi.stubGlobal('innerHeight', 844); vi.stubGlobal('innerWidth', 390);
   act(() => window.dispatchEvent(new Event('resize'))); rerender();
-  expect(result.current.bottomCollapsed).toBe(false);
+  expect(result.current.controlsCollapsed).toBe(false);
 });
 it('starts expanded in portrait and keeps embedded review controls expanded', () => {
   vi.stubGlobal('innerHeight', 844);
   const normal = renderHook(() => usePracticeFocus());
-  expect(normal.result.current.bottomCollapsed).toBe(false);
+  expect(normal.result.current.controlsCollapsed).toBe(false);
   vi.stubGlobal('innerHeight', 320);
   const embedded = renderHook(() => usePracticeFocus(true));
-  expect(embedded.result.current.bottomCollapsed).toBe(false);
+  expect(embedded.result.current.controlsCollapsed).toBe(false);
 });
 it('requests fullscreen from the action and restores control choices on browser exit', async () => {
   const { enter } = fullscreen();
   const { result } = renderHook(() => usePracticeFocus());
-  act(() => result.current.setBottomCollapsed(true));
+  act(() => result.current.setControlsCollapsed(true));
   await act(() => result.current.enter());
   expect(enter).toHaveBeenCalledExactlyOnceWith({ navigationUI: 'hide' });
   expect(result.current.focused).toBe(true);
   act(() => document.dispatchEvent(new Event('fullscreenchange')));
   expect(result.current.focused).toBe(false);
-  expect(result.current.bottomCollapsed).toBe(true);
+  expect(result.current.controlsCollapsed).toBe(true);
 });
 it('keeps a discoverable focus fallback when unsupported or fullscreen rejects', async () => {
   const { result } = renderHook(() => usePracticeFocus());
@@ -52,7 +52,7 @@ it('keeps a discoverable focus fallback when unsupported or fullscreen rejects',
   await act(() => rejected.result.current.enter());
   expect(rejected.result.current.notice).toContain('全屏未能开启');
   await act(() => rejected.result.current.exit());
-  expect(rejected.result.current.bottomCollapsed).toBe(false);
+  expect(rejected.result.current.controlsCollapsed).toBe(false);
 });
 it('reports exit failure without hiding the exit control', async () => {
   const { exit } = fullscreen(undefined, vi.fn().mockRejectedValue(new Error('denied')));
@@ -67,10 +67,10 @@ it('reports exit failure without hiding the exit control', async () => {
 it('retains a manual choice made during focus when focus exits', async () => {
   const { result } = renderHook(() => usePracticeFocus());
   await act(() => result.current.enter());
-  expect(result.current.bottomCollapsed).toBe(true);
-  act(() => result.current.setBottomCollapsed(false));
+  expect(result.current.controlsCollapsed).toBe(true);
+  act(() => result.current.setControlsCollapsed(false));
   await act(() => result.current.exit());
-  expect(result.current.bottomCollapsed).toBe(false);
+  expect(result.current.controlsCollapsed).toBe(false);
 });
 
 it('shows compatibility advice once, expires it, and keeps actual exit failures persistent', async () => {
@@ -87,4 +87,19 @@ it('shows compatibility advice once, expires it, and keeps actual exit failures 
     await act(() => result.current.exit()); act(() => vi.advanceTimersByTime(20000));
     expect(result.current.notice).toContain('无法退出全屏');
   } finally { vi.useRealTimers(); }
+});
+
+it('keeps top and bottom choices independent, including focus restoration', async () => {
+  const { result } = renderHook(() => usePracticeFocus());
+  act(() => result.current.setToolsCollapsed(true));
+  expect(result.current.controlsCollapsed).toBe(false);
+  act(() => result.current.setControlsCollapsed(true));
+  act(() => result.current.setToolsCollapsed(false));
+  expect(result.current.controlsCollapsed).toBe(true);
+  await act(() => result.current.enter());
+  expect(result.current.toolsCollapsed).toBe(true);
+  act(() => result.current.setControlsCollapsed(false));
+  await act(() => result.current.exit());
+  expect(result.current.toolsCollapsed).toBe(false);
+  expect(result.current.controlsCollapsed).toBe(false);
 });

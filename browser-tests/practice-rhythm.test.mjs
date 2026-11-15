@@ -1,3 +1,4 @@
+import { closePractice } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir } from 'node:fs/promises';
@@ -46,5 +47,5 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
  await progress.fill('8');await progress.fill('10');await expect(page.locator('.practice-notice')).toContainText('预备：');
  await expect(progress).toHaveValue('10');await expect(page.locator('.practice-notice')).toHaveCount(0,{timeout:6000});
  await expect(progress).not.toHaveValue('10',{timeout:7000});
- await page.getByRole('button',{name:'结束练习',exact:true}).click();await expect(bar).toHaveCount(0);assert.deepEqual(errors,[]);
+ await closePractice(page);await expect(bar).toHaveCount(0);assert.deepEqual(errors,[]);
 });

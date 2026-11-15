@@ -1,3 +1,4 @@
+import { closePractice } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
@@ -84,7 +85,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no horizontal overflow');
           await page.screenshot({ path: `${directory}/${fault}-${size}.png` });
         }
-        await page.getByRole('button', { name: '结束练习', exact: true }).click();
+        await closePractice(page);
       }
       network.attachmentFault = null;
       await page.goto(library);

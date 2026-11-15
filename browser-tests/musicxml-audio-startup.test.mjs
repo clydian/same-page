@@ -1,3 +1,4 @@
+import { closePractice } from './practice-controls.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium, webkit, expect } from "@playwright/test";
@@ -70,7 +71,7 @@ for (const [engine, type] of [["chromium", chromium], ["webkit", webkit]]) {
             await player.getByRole("button", { name: "暂停", exact: true }).click();
             await expect(player.getByRole("button", { name: "播放", exact: true })).toBeEnabled();
           } else if (action === "end") {
-            await page.getByRole("button", { name: "结束练习", exact: true }).click();
+            await closePractice(page);
             await expect(player).toHaveCount(0);
           } else {
             await page.goBack();
@@ -96,7 +97,7 @@ for (const [engine, type] of [["chromium", chromium], ["webkit", webkit]]) {
             })), { timeout: 10000 }).toBe(true);
             assert.equal(await page.evaluate(() => window.__audioStartup.nodes), 1);
             await player.getByRole("button", { name: "暂停", exact: true }).click();
-            await page.getByRole("button", { name: "结束练习", exact: true }).click();
+            await closePractice(page);
             await expect(player).toHaveCount(0);
             assert.deepEqual(errors, []);
           }

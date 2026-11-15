@@ -1,12 +1,12 @@
+import { closePractice, selectPracticeView, changeNotationSize } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, readFile } from 'node:fs/promises';
 import { chromium, webkit, expect } from '@playwright/test';
 import { startStorageFixture } from './storage-fixture.mjs';
 import { musicXmlFixture } from './musicxml-fixture.mjs';
-import { selectPracticeView, changeNotationSize } from './practice-controls.mjs';
 
-for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(`unified controls and centered playback across all views (${engine})`, { timeout: 180000 }, async t => {
+for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(`practice controls and centered playback across all views (${engine})`, { timeout: 180000 }, async t => {
   const fixture = await startStorageFixture({ authenticated: true, previewEntry: false, ...(process.env.COMPARE_PDF ? { pdf: await readFile(process.env.COMPARE_PDF) } : {}) });
   let browser;
   t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
@@ -81,7 +81,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
       }
     }
   }
-  await page.getByRole('button', { name: '结束练习', exact: true }).click();
+  await closePractice(page);
   await expect(bar).toHaveCount(0);
   assert.deepEqual(errors, []);
 });

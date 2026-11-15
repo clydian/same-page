@@ -1,4 +1,4 @@
-import { selectPracticeView, changeNotationSize } from './practice-controls.mjs';
+import { expandPracticeTools, closePractice, selectPracticeView, changeNotationSize } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chromium, webkit, expect } from '@playwright/test';
@@ -113,15 +113,15 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   }
   // Explicitly collapsed controls float over the score and survive rotation.
   await page.setViewportSize({width:844,height:390});
-  await bar.getByRole('button',{name:'收起播放控制',exact:true}).click();
+  await bar.getByRole('button',{name:'收起练习控制',exact:true}).click();
   const viewportFrame = () => page.locator('.practice-notation-scroll').evaluate(element => {
     const box=element.getBoundingClientRect(); return {y:box.y,height:box.height};
   });
   await expect.poll(viewportFrame).toEqual({y:0,height:390});
   await page.setViewportSize({width:390,height:844});
-  await expect(bar.getByRole('button',{name:'展开播放控制',exact:true})).toBeVisible();
+  await expect(bar.getByRole('button',{name:'展开练习控制',exact:true})).toBeVisible();
   await expect.poll(viewportFrame).toEqual({y:0,height:844});
-  await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();
+  await bar.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(page);
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await expect.poll(async()=>Math.round((await bar.boundingBox()).y+(await bar.boundingBox()).height)).toBe(844);
   // Use real coordinates: preview is visible before release, committed only on release.
@@ -183,7 +183,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(page.getByRole('dialog',{name:'页面总览',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'关闭页面总览',exact:true}).click();
   await selectPracticeView(page, '重排谱面'); await expect(range).toHaveValue(oldPosition);
-  await page.getByRole('button',{name:'结束练习',exact:true}).click(); await expect(bar).toHaveCount(0);
+  await closePractice(page); await expect(bar).toHaveCount(0);
   // Ending removes both insets; let the ordinary reader measure its restored
   // viewport before starting a tap that resize cancellation would invalidate.
   await expect.poll(async () => Math.round((await page.locator('.page-reader__viewport').boundingBox()).height)).toBe(844);

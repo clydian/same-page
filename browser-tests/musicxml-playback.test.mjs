@@ -1,4 +1,4 @@
-import { setLoopRange, selectPracticeView } from './practice-controls.mjs';
+import { expandPracticeTools, closePractice, setLoopRange, selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -98,7 +98,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(page).toHaveURL(new RegExp(`/scores/${fixture.scoreId}`));
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeAttached({timeout:20000});
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
-  await player.getByRole('button',{name:'展开播放控制',exact:true}).click();
+  await player.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(page);
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('0');
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await selectPracticeView(page, '重排谱面');
@@ -173,8 +173,8 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await selectPracticeView(page, '原始 PDF');
   await expect(player.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
   assert.ok(await surface.evaluate(element=>element.isConnected),'view switching must retain the renderer');
-  const geometry=await player.evaluate(bar=>({height:bar.getBoundingClientRect().height,width:bar.getBoundingClientRect().width,viewport:innerWidth,readerBottom:document.querySelector('.reader-shell').getBoundingClientRect().bottom,barTop:bar.getBoundingClientRect().top}));
-  assert.ok(geometry.height<=72 && geometry.width===geometry.viewport && geometry.readerBottom<=geometry.barTop,'full-width bar reserves score space');
+  const geometry=await player.evaluate(bar=>({height:bar.getBoundingClientRect().height,headingHeight:bar.querySelector('.practice-session-actions').getBoundingClientRect().height,width:bar.getBoundingClientRect().width,viewport:innerWidth,readerBottom:document.querySelector('.reader-shell').getBoundingClientRect().bottom,barTop:bar.getBoundingClientRect().top}));
+  assert.ok(geometry.height<=geometry.headingHeight+72 && geometry.width===geometry.viewport && geometry.readerBottom<=geometry.barTop,'full-width bar reserves score space');
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:20000});
   await mkdir('artifacts/verification/musicxml-350',{recursive:true});
   await page.screenshot({path:`artifacts/verification/musicxml-350/${engine}-pdf.png`});
@@ -187,14 +187,14 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   await player.getByLabel('播放进度',{exact:true}).fill('4');
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('4');
-  await page.getByRole('button',{name:'结束练习',exact:true}).click();
+  await closePractice(page);
   await expect(player).toHaveCount(0);
   await expect(notation).toHaveCount(0);
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
   await page.getByRole('button',{name:'本地链路测试：1 个附件',exact:true}).click();
   await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
-  await player.getByRole('button',{name:'展开播放控制',exact:true}).click();
+  await player.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(page);
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
   await expect(settings.getByRole('switch',{name:'声部关注',exact:true})).not.toBeChecked();
@@ -205,7 +205,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(notation).toBeVisible({timeout:20000});
   await expect.poll(() => notation.evaluate(svg => svg.getBoundingClientRect().width), {timeout:20000}).toBeLessThan(370);
   await page.screenshot({path:`artifacts/verification/musicxml-350/${engine}-mobile.png`});
-  assert.ok((await player.boundingBox()).height<=72,'mobile playback controls remain thin');
+  assert.ok(await player.evaluate(bar=>bar.getBoundingClientRect().height-bar.querySelector('.practice-session-actions').getBoundingClientRect().height<=72),'mobile transport remains thin below the dock actions');
   await selectPracticeView(page, '原始 PDF');
   await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:20000});
   await page.goBack();

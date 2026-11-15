@@ -4,9 +4,12 @@ import { useFeedbackMessage } from '../components/use-feedback-message';
 // Decide once per session. Rotation and browser chrome changes must never close
 // a menu, interrupt a scrub, or hide the control that currently owns focus.
 export function usePracticeFocus(embedded?: boolean) {
-  const [bottomCollapsed, updateBottomCollapsed] = useState(() => !embedded && window.innerWidth > window.innerHeight);
-  const preference = useRef(bottomCollapsed);
-  const setBottomCollapsed = (value: boolean) => { preference.current = value; updateBottomCollapsed(value); };
+  const [controlsCollapsed, updateControlsCollapsed] = useState(() => !embedded && window.innerWidth > window.innerHeight);
+  const [toolsCollapsed, updateToolsCollapsed] = useState(controlsCollapsed);
+  const toolsPreference = useRef(toolsCollapsed);
+  const setToolsCollapsed = (value: boolean) => { toolsPreference.current = value; updateToolsCollapsed(value); };
+  const preference = useRef(controlsCollapsed);
+  const setControlsCollapsed = (value: boolean) => { preference.current = value; updateControlsCollapsed(value); };
   const [focused, setFocused] = useState(false);
   const feedback = useFeedbackMessage('');
   const { message: notice, setMessage: setNotice } = feedback;
@@ -16,7 +19,8 @@ export function usePracticeFocus(embedded?: boolean) {
   const supported = typeof document.documentElement.requestFullscreen === 'function' && document.fullscreenEnabled === true;
   const restore = useCallback(() => {
     setFocused(false);
-    updateBottomCollapsed(preference.current);
+    updateControlsCollapsed(preference.current);
+    updateToolsCollapsed(toolsPreference.current);
     setNotice('');
   }, [setNotice]);
   useEffect(() => {
@@ -45,7 +49,7 @@ export function usePracticeFocus(embedded?: boolean) {
   };
   const enter = async () => {
     if (pending) return;
-    setFocused(true); updateBottomCollapsed(true);
+    setFocused(true); updateControlsCollapsed(true); updateToolsCollapsed(true);
     if (!supported) {
       setNotice('已进入专注模式。此浏览器不能全屏显示谱面，系统状态栏由系统保留。', { duration: 8000, once: 'focus-compatibility' });
       return;
@@ -65,5 +69,7 @@ export function usePracticeFocus(embedded?: boolean) {
       if (mounted.current) setNotice('全屏未能开启，已使用专注模式；无法强行隐藏系统状态栏。', { duration: 8000, once: 'focus-compatibility' });
     } finally { if (mounted.current) setPending(false); }
   };
-  return { bottomCollapsed, setBottomCollapsed, focused, notice, feedback, dismissNotice: feedback.dismiss, pending, supported, enter, exit };
+  return { toolsCollapsed, setToolsCollapsed, controlsCollapsed, setControlsCollapsed, focused, notice, feedback, dismissNotice: feedback.dismiss, pending, supported, enter, exit };
 }
+
+export type PracticeFocus = ReturnType<typeof usePracticeFocus>;

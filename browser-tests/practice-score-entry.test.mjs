@@ -1,3 +1,4 @@
+import { closePractice } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir } from 'node:fs/promises';
@@ -94,7 +95,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
     const bar = page.getByRole('region', { name: '乐谱练习' });
     await expect(bar.getByRole('button', { name: '播放', exact: true })).toBeEnabled({ timeout: 60000 });
     await page.screenshot({ path: `${output}/${engine}-generated-player.png` });
-    await page.getByRole('button', { name: '结束练习', exact: true }).click();
+    await closePractice(page);
     for (const id of [generated, user]) assert.equal((await context.request.delete(`${base}/${id}?expectedRevision=1`)).status(), 204);
     let staleSummaryServed = false;
     await page.route(url => url.pathname === `/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/sync`, async route => {

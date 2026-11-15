@@ -107,7 +107,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
       await page.keyboard.press('Escape');
       await expect(bar.getByRole('button', { name: trigger, exact: true })).toBeFocused();
     }
-    await bar.getByRole('button', { name: '收起播放控制', exact: true }).click();
+    await bar.getByRole('button', { name: '收起练习控制', exact: true }).click();
     await bar.getByRole('button', { name: '练习设置', exact: true }).click();
     await safe(narrow);
     await close.click();

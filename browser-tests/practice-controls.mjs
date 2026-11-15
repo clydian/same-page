@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 
 export async function selectPracticeView(page, name) {
+  await expandPracticeTools(page);
   await page.getByRole('button', { name: '显示谱面', exact: true }).click();
   await page.locator('.practice-view-option').filter({ hasText: name }).click();
   await expect(page.getByRole('button', { name: '显示谱面', exact: true })).toHaveText(name);
@@ -18,4 +19,13 @@ export async function setLoopRange(page, start, end) {
   if(start>Number(await to.inputValue())) {await set(to,end);await set(from,start);}
   else {await set(from,start);await set(to,end);}
   await expect(from).toHaveValue(String(start));await expect(to).toHaveValue(String(end));
+}
+
+export async function closePractice(page) {
+  await page.getByRole('button',{name:/^退出练习$|^关闭音频$/}).click();
+}
+
+export async function expandPracticeTools(page) {
+  const expand=page.getByRole('button',{name:'展开看谱工具',exact:true});
+  if(await expand.isVisible()) await expand.click();
 }

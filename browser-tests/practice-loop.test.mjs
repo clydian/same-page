@@ -1,10 +1,10 @@
+import { expandPracticeTools, setLoopRange } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir } from 'node:fs/promises';
 import { chromium, webkit, expect } from '@playwright/test';
 import { startStorageFixture } from './storage-fixture.mjs';
 import { musicXmlFixture } from './musicxml-fixture.mjs';
-import { setLoopRange } from './practice-controls.mjs';
 
 for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loop bounds unify score taps, transport, and transparent range preview (${engine})`,{timeout:120000},async t=>{
  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});let browser;
@@ -26,7 +26,7 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  await page.locator('.page-reader__viewport').click({position:{x:400,y:300}});
  await page.getByRole('button',{name:'练习谱',exact:true}).click();await page.getByRole('button',{name:'loop.xml',exact:true}).click();
  const bar=page.getByTestId('musicxml-player');await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
- await bar.getByRole('button',{name:'展开播放控制',exact:true}).click();
+ await bar.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(page);
  const settings=page.getByRole('dialog',{name:'练习设置',exact:true}),progress=bar.getByRole('slider',{name:'播放进度',exact:true});
  const open=()=>bar.getByRole('button',{name:'练习设置',exact:true}).click();
  const close=()=>page.getByRole('button',{name:'关闭练习设置',exact:true}).click();

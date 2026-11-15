@@ -89,10 +89,14 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await page.getByRole("button", { name: "本地链路测试：1 个附件", exact: true }).tap();
       const external = page.getByRole("link", { name: "参考外链", exact: true });
       await expect(external).toHaveAttribute("target", "_blank");
-      assert.equal(await external.evaluate(node => {
-        const event = new PointerEvent("contextmenu", { bubbles: true, cancelable: true, pointerType: "touch" });
-        node.dispatchEvent(event); return event.defaultPrevented;
-      }), false);
+      // External attachments share touch withdrawal; other sources keep native menus.
+      for (const [pointerType, cancelled] of [["touch", true], ["mouse", false], ["", false]]) {
+        assert.equal(await external.evaluate((node, pointerType) => {
+          const init = { bubbles: true, cancelable: true };
+          const event = pointerType ? new PointerEvent("contextmenu", { ...init, pointerType }) : new MouseEvent("contextmenu", init);
+          node.dispatchEvent(event); return event.defaultPrevented;
+        }, pointerType), cancelled, `external context menu: ${pointerType || "keyboard/unknown"}`);
+      }
       const fileRequests = [];
       page.on("request", request => { if (/\/scores\/[^/]+\/(?:versions\/[^/]+\/pdf|pdf|sync)(?:\?|$)/.test(new URL(request.url()).pathname)) fileRequests.push(request.url()); });
       await hold(page, file);

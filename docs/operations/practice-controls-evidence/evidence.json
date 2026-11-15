@@ -1,0 +1,140 @@
+{
+  "base": "a7d7a7a",
+  "source": "Final responsive XML controls and reader-owned MP3 controls; local production build, exact runtime hashes below",
+  "conditions": "Headless Chromium, synthetic SATB XML/PDF and actual repository MP3 fixture, mocked local API. No production or real device.",
+  "checks": [
+    {
+      "capture": "final-xml-expanded-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-xml-ipad-portrait",
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      }
+    },
+    {
+      "capture": "final-xml-ipad-landscape",
+      "viewport": {
+        "width": 1180,
+        "height": 820
+      }
+    },
+    {
+      "capture": "final-xml-ipad-split",
+      "viewport": {
+        "width": 507,
+        "height": 820
+      }
+    },
+    {
+      "capture": "final-xml-top-collapsed-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-xml-collapsed-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-xml-compare-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "capture": "final-xml-compare-collapsed-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "capture": "final-mp3-reader-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-mp3-reader-tools-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-mp3-editing-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-mp3-collapsed-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "capture": "final-mp3-closed-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    }
+  ],
+  "errors": [],
+  "verification": {
+    "practice_focus": "Final icon/label/color runtime: Chromium/WebKit 2/2 passed; portrait/landscape, tablet/split, collapsed exit and icon-only settings, focus and simulated safe-area non-overlap",
+    "local_backend": "practice-unified-controls Chromium/WebKit 2/2 passed",
+    "focus_clearance_hooks": "9/9 passed",
+    "build": "production build passed",
+    "typecheck": "passed",
+    "lint": "passed",
+    "review": "self review and independent read-only review passed; full labels with icons when expanded, icon-only compact controls, theme danger text, 44px touch targets",
+    "playback_ux": "Final alignment CSS: original playback-ux suite Chromium/WebKit 2/2 passed, same lower-row center assertion unchanged",
+    "ci": "6f4251d main CI passed, all player checks passed; extended connection-sampling Chromium waitForResponse timed out at line71. Relevant connection code/test/library files identical to main; controlled same-image comparison underway. No retry or timeout change."
+  },
+  "limitations": [
+    "Browser touch and viewport simulation, CSS-injected safe areas; no physical phone/iPad",
+    "No VoiceOver/TalkBack, system virtual keyboard or installed PWA acceptance"
+  ],
+  "screenshots": {
+    "before-mp3-collapsed-landscape.png": "6c3adececf603be5a85d28451769a71930853e2e3fa7244ea0f764153465b58b",
+    "before-mp3-settings-portrait.png": "8d3cbc1ebe6a87e02d5181cf1f16e8026658d9ef5efbc3eaad034fcbc668ed2f",
+    "before-xml-collapsed-portrait.png": "d1dc1b9061d54cc63f9831970256d27ef10e37a29d00f63e37413fb528d6b89d",
+    "before-xml-compare-landscape.png": "e24d38cc58ba253ea2ccdc7e425ecf1b10730e33af0b022a66fa727a9ed9e58a",
+    "final-mp3-closed-landscape.png": "c04c7affd2296eaa8c5fc9b3e09a0e1f26719b6bba1fc377923f50d75df24ab9",
+    "final-mp3-collapsed-landscape.png": "5afb2f3cbd58b31b5985c40ac05c1532ded494717ce1ae60cbd053eaf25d9b7d",
+    "final-mp3-editing-portrait.png": "880aaaac8961ff8789bda854e7d7e2fe6c3710039f9853023cbb6c9009fa936f",
+    "final-mp3-reader-portrait.png": "be6f1d7fa50b955b436b390c8d4cb53586f04debbc6de1f93742052771aec426",
+    "final-mp3-reader-tools-portrait.png": "ebfd77778b817177ad73ed7d7265954934b640df0ae22c1eaf3c1a5dfc8c4c17",
+    "final-xml-collapsed-portrait.png": "754737ae3059ee09834df946c9d86ab1e5a8c403a2792eec63e1ac74dafd79af",
+    "final-xml-compare-collapsed-landscape.png": "a41716e3eadb621a7d94a88ee94737dd5327dac26e821b7a2ffcd213961a6fe6",
+    "final-xml-compare-landscape.png": "773eb0508e924d4921b0ec21ccb3a8fba356b3003600daff8f2db6138417c998",
+    "final-xml-expanded-portrait.png": "42edc0c0eaea7fdcc639ceccc85958cbd713c234e161ab92d431f628b3edca6e",
+    "final-xml-ipad-landscape.png": "1b8c0e0894694456febcdb43704d5778150001dfae34187bcfdcac9bb6250885",
+    "final-xml-ipad-portrait.png": "098dcba18802797621f7dc777dd110883312039108ca06db73b4399b580168e1",
+    "final-xml-ipad-split.png": "5803086250c5cdbab2bde630f2fc62314998bd042c1d972a7ca44304cbb1f0f2",
+    "final-xml-top-collapsed-portrait.png": "ec5c5a4761c465a1a016591e705a9e3423ee77c5096db4da78ac113f873318b1"
+  },
+  "runtime_sources": {
+    "src/client/playback/practice-player-shell.tsx": "f6b20aeff3bd48e053838fbfea28e3a5df0d18c6ac64210e1dff87e5490c2ad9",
+    "src/client/playback/practice-player.css": "5eafce369b9675c03daecab1c0b073f501a9b598e3f8eefecbbd64e5ace982e1",
+    "src/client/playback/use-practice-focus.ts": "c0f71b82a3476b4a5215b840560dc6e62ddf38112a796e88fad1f8b9dce4fa17",
+    "src/client/playback/musicxml-practice.tsx": "1d924a0fdcff6eb73122307158082e3cc21207b90c4e31501645f05fdd3fb91f",
+    "src/client/routes/reader-page.tsx": "abe2a52f2007b9e51fea5deda7110b6834d56c31edd3112ab9b5c9d97c7f3232"
+  }
+}

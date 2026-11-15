@@ -1,3 +1,4 @@
+import { closePractice } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chromium, webkit, expect } from '@playwright/test';
@@ -58,7 +59,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
           await expect(hint).toBeVisible();
           await page.getByRole('button', { name: '关闭练习设置', exact: true }).click();
         }
-        await page.getByRole('button', { name: '结束练习', exact: true }).click();
+        await closePractice(page);
         await expect.poll(() => page.evaluate(() => window.__testAudioSession.type)).toBe('auto');
         assert.deepEqual(errors, []);
       } finally { await context.close(); }

@@ -1,4 +1,4 @@
-import { selectPracticeView } from './practice-controls.mjs';
+import { expandPracticeTools, closePractice, selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -57,14 +57,17 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   const geometry = () => page.evaluate(() => {
     const box = selector => document.querySelector(selector).getBoundingClientRect().toJSON();
     const css = getComputedStyle(document.documentElement);
-    return { width:innerWidth,height:innerHeight,pdf:box('.practice-comparison-pdf'),xml:box('.practice-notation'),separator:box('.practice-split-handle'),tools:box('.practice-header'),bar:box('.practice-bar'),safeTop:parseFloat(css.getPropertyValue('--safe-top'))||0,safeLeft:parseFloat(css.getPropertyValue('--safe-left'))||0,safeRight:parseFloat(css.getPropertyValue('--safe-right'))||0 };
+    return { width:innerWidth,height:innerHeight,pdf:box('.practice-comparison-pdf'),xml:box('.practice-notation'),separator:box('.practice-split-handle'),tools:box('.practice-header-tools'),bar:box('.practice-bar'),safeTop:parseFloat(css.getPropertyValue('--safe-top'))||0,safeLeft:parseFloat(css.getPropertyValue('--safe-left'))||0,safeRight:parseFloat(css.getPropertyValue('--safe-right'))||0 };
   });
   const usableGeometry = (g, direction) => {
     const panes=[g.pdf,g.xml];
     const inside=panes.every(p=>p.y>=g.safeTop-1 && p.bottom<=g.bar.y+1 && p.x>=g.safeLeft-1 && p.right<=g.width-g.safeRight+1 && p.width>=44 && p.height>=44);
     const separated=direction==='horizontal' ? g.pdf.bottom<=g.separator.y+1 && g.separator.bottom<=g.xml.y+1 : g.pdf.right<=g.separator.x+1 && g.separator.right<=g.xml.x+1;
-    const toolsSafe=g.tools.x>=g.safeLeft && g.tools.right<=g.width-g.safeRight && g.tools.y>=g.safeTop && g.tools.width<g.width;
-    const toolsClearOfHandle=g.tools.right<=g.separator.x || g.separator.right<=g.tools.x || g.tools.bottom<=g.separator.y || g.separator.bottom<=g.tools.y;
+    // The transparent header frame spans the viewport; only its painted groups
+    // intercept input and must stay clear of the divider.
+    const targets=[g.tools];
+    const toolsSafe=targets.every(tools=>tools.x>=g.safeLeft && tools.right<=g.width-g.safeRight && tools.y>=g.safeTop && tools.width<g.width);
+    const toolsClearOfHandle=targets.every(tools=>tools.right<=g.separator.x || g.separator.right<=tools.x || tools.bottom<=g.separator.y || g.separator.bottom<=tools.y);
     const balanced=Math.abs(direction==='horizontal' ? g.pdf.height-g.xml.height : g.pdf.width-g.xml.width)<2;
     return inside && separated && toolsSafe && toolsClearOfHandle && balanced;
   };
@@ -84,9 +87,9 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     geometries.push({name,...measured});
     assert.ok(usableGeometry(measured,direction),JSON.stringify(measured));
     await expect.poll(()=>xml.locator('.at-cursor-bar').evaluate(cursor=>{
-      const bar=cursor.getBoundingClientRect(),area=document.querySelector('.practice-notation-scroll').getBoundingClientRect(),tools=document.querySelector('.practice-header').getBoundingClientRect();
-      const overlaps=bar.right>tools.left && bar.left<tools.right && tools.bottom>area.top;
-      return bar.top>=area.top && bar.top<area.bottom-44 && (!overlaps || bar.top>=tools.bottom+8);
+      const bar=cursor.getBoundingClientRect(),area=document.querySelector('.practice-notation-scroll').getBoundingClientRect();
+      const tools=[...document.querySelectorAll('.practice-header,.practice-notation-tools')].map(element=>element.getBoundingClientRect()).filter(box=>box.width>0 && box.height>0);
+      return bar.top>=area.top && bar.top<area.bottom-44 && tools.every(box=>bar.right<=box.left || bar.left>=box.right || box.bottom<=area.top || bar.top>=box.bottom+8);
     }),{message:'followed XML system stays readable outside the floating tools'}).toBe(true);
     await expect.poll(() => xml.locator('.at-surface svg').count()).toBeGreaterThan(0);
     await screenshot(name);
@@ -172,7 +175,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await separator.press('ArrowDown');
   await expect(bar.getByRole('button', { name: '暂停', exact: true })).toBeVisible();
   await bar.getByRole('button', { name: '暂停', exact: true }).click();
-  await page.getByRole('button', { name: '结束练习', exact: true }).click();
+  await closePractice(page);
   await expect(page.locator('.practice-comparison-pdf')).toHaveCount(0);
   await expect(page.locator('.page-reader__viewport')).toBeVisible();
   // Pixel minimums allow ratios outside 20–80% on desktop. Every selectable
@@ -185,8 +188,8 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     await entry.click();
     await page.getByRole('button', { name: 'compare.xml', exact: true }).click();
     await expect(bar.getByRole('button', { name: '播放', exact: true })).toBeEnabled({ timeout: 60000 });
-    await expect(bar.getByRole('button', { name: '展开播放控制', exact: true })).toBeVisible();
-    await bar.getByRole('button', { name: '展开播放控制', exact: true }).click();
+    await expect(bar.getByRole('button', { name: '展开练习控制', exact: true })).toBeVisible();
+    await bar.getByRole('button', { name: '展开练习控制', exact: true }).click(); await expandPracticeTools(page);
     await selectPracticeView(page, '对照');
     await expect(separator).toHaveAttribute('aria-orientation', 'vertical');
   };
@@ -195,12 +198,12 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     await separator.press(key);
     const saved = await separator.getAttribute('aria-valuenow');
     assert.ok(key === 'Home' ? Number(saved) < 20 : Number(saved) > 80);
-    await page.getByRole('button', { name: '结束练习', exact: true }).click();
+    await closePractice(page);
     await expect(bar).toHaveCount(0);
     await openComparison();
     await expect(separator).toHaveAttribute('aria-valuenow', saved);
     await expect(progress).toHaveValue('0');
   }
-  await page.getByRole('button', { name: '结束练习', exact: true }).click();
+  await closePractice(page);
   assert.deepEqual(errors, []);
 });

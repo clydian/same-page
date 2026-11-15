@@ -1,3 +1,4 @@
+import { closePractice } from '../browser-tests/practice-controls.mjs';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, rename, rm } from 'node:fs/promises';
@@ -98,11 +99,11 @@ try {
   await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
   await open();
   console.log('Opened MXL in A');
-  await page.getByRole('button',{name:'展开播放控制',exact:true}).click();
+  await page.getByRole('button',{name:'展开练习控制',exact:true}).click();
   await page.getByRole('button',{name:'练习设置',exact:true}).click();
   await expect(page.getByText('此练习谱可离线打开与播放。',{exact:true})).toBeVisible({timeout:60000});
   await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
-  await page.getByRole('button',{name:'结束练习',exact:true}).click();
+  await closePractice(page);
   const original=await originalRecords(page);
   assert.equal(original.length,1,'A saves the MXL original');
   await page.goto(origin+'/about');
