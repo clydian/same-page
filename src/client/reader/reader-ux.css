@@ -340,7 +340,7 @@
 .reader-guide__gestures strong { font-size: 14px; font-weight: 600; }
 .reader-guide__detail { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 20px; right: 20px; margin: 0; color: var(--ui-muted, #587269); text-align: center; font-size: 12px; }
 @media (max-height: 500px) { .reader-guide__zones { inset: 18% 0 39%; } .reader-guide__gestures { top: 64%; } .reader-guide__gestures span { gap: 3px; } }
-[data-dismiss-label]::after { content: attr(data-dismiss-label); position: fixed; z-index: 30; top: max(130px, calc(env(safe-area-inset-top) + 115px)); left: 50%; transform: translateX(-50%); border-radius: 999px; padding: 9px 16px; background: var(--ui-surface, #f9fcf7); color: var(--ui-accent, #244440); box-shadow: 0 3px 18px #0002; pointer-events: none; font-size: 12px; }
+[data-dismiss-label]::after { content: attr(data-dismiss-label); position: fixed; z-index: 30; top: max(85px, calc(env(safe-area-inset-top) + 70px)); left: 50%; transform: translateX(-50%); border-radius: 999px; padding: 9px 16px; background: var(--ui-surface, #f9fcf7); color: var(--ui-accent, #244440); box-shadow: 0 3px 18px #0002; pointer-events: none; font-size: 12px; }
 @keyframes reader-hint-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .reader-hint { animation: none; } .page-reader__content, .continuous-reader__inner { transition: none; } }
 
@@ -548,12 +548,5 @@
 
 .reader-layers-backdrop { z-index: 75; }
 
-/* The destination is a quiet cue, with no second document or library mounted. */
-.reader-dismiss-destination { position: absolute; inset: max(68px, calc(env(safe-area-inset-top) + 56px)) 100px auto; z-index: 2; display: none; pointer-events: none; color: var(--ui-ink, #183832); }
-.reader-dismiss-destination span { display: block; font-size: 16px; font-weight: 600; }
-.reader-dismiss-destination strong { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--ui-muted, #64776c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.reader-shell:has([data-dismiss-label]) { background: var(--ui-surface, #f7faf7); }
-.page-reader:has([data-dismiss-label]) .reader-dismiss-destination { display: block; }
-.page-reader__viewport[data-dismiss-label] .page-reader__canvas-stage { background: transparent; }
 .page-reader__viewport[data-dismiss-label] .page-reader__sheet:not([data-page-turn-current]) { visibility: hidden; }
 .page-reader__viewport[data-dismiss-label] .page-reader__paper { box-shadow: 0 12px 32px #102b292e; }

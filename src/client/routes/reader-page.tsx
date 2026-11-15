@@ -667,7 +667,6 @@ function ReaderPageContent() {
       <div className="reader-stage">
         {layout === "page" ? (
           <PageLayout
-            returnLabel={scoreDisplayName(score.fileName)}
             document={document}
             currentPage={currentPage}
             zoom={zoom}
