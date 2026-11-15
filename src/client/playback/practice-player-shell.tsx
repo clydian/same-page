@@ -5,7 +5,7 @@ import { readerHref } from "../reader/reader-entry";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, MenuItem, MenuTrigger, Popover, Tooltip, TooltipTrigger } from 'react-aria-components';
-import { Pause, Play, RotateCcw, RotateCw, ChevronDown, Check, SlidersHorizontal, X, LoaderCircle, ChevronUp, Maximize, Minimize } from 'lucide-react';
+import { Pause, Play, RotateCcw, RotateCw, ChevronDown, Check, SlidersHorizontal, X, LoaderCircle, ChevronUp, Maximize, Minimize, PanelTop } from 'lucide-react';
 import { Dialog, Menu } from '../navigation/overlays';
 import { useAppNavigation, useExitLayer } from '../navigation/navigation-context';
 import { playbackStore, playbackViewStore, setPlaybackView, stopPlayback, type PlaybackSource, type PlaybackView } from './playback-store';
@@ -26,7 +26,7 @@ type Props = {
 
 export function PracticePlayerShell(props: Props) {
   const { source, focus } = props;
-  const { controlsCollapsed } = focus;
+  const { controlsCollapsed, toolsCollapsed } = focus;
   useExitLayer(focus.focused, 'overlay', destination => {
     // View changes also pass navigation admission; keep focus until a real
     // route departure unmounts this session. Back closes focus explicitly.
@@ -39,6 +39,7 @@ export function PracticePlayerShell(props: Props) {
   const positionTrigger = useRef<HTMLButtonElement>(null);
   const settingsTrigger = useRef<HTMLButtonElement>(null);
   const controlsTrigger = useRef<HTMLButtonElement>(null);
+  const toolsTrigger = useRef<HTMLButtonElement>(null);
   const speedTrigger = useRef<HTMLButtonElement>(null);
   const panelTrigger = panel === 'settings' ? settingsTrigger : panel === 'speed' ? speedTrigger : positionTrigger;
   const popover = useRef<HTMLElement>(null);
@@ -52,20 +53,20 @@ export function PracticePlayerShell(props: Props) {
   useLayoutEffect(() => {
     if (props.embedded) return;
     const element = dock.current, top = header.current;
-    if (!element || !top) return;
+    if (!element) return;
     const measure = () => {
       document.documentElement.style.setProperty('--practice-float-bottom', controlsCollapsed ? '64px' : '0px');
-      document.documentElement.style.setProperty('--practice-inset', controlsCollapsed ? 'env(safe-area-inset-bottom, 0px)' : `${Math.ceil(element.getBoundingClientRect().height)}px`);
-      document.documentElement.style.setProperty('--practice-top-inset', 'var(--safe-top, 0px)');
-      document.documentElement.style.setProperty('--practice-tools-clearance', `${Math.ceil(top.getBoundingClientRect().height) + 16}px`);
+      document.documentElement.style.setProperty('--practice-inset', controlsCollapsed && isXml ? 'env(safe-area-inset-bottom, 0px)' : `${Math.ceil(window.innerHeight - element.getBoundingClientRect().top)}px`);
+      document.documentElement.style.setProperty('--practice-top-inset', isXml ? 'var(--safe-top, 0px)' : '0px');
+      document.documentElement.style.setProperty('--practice-tools-clearance', `${(top ? Math.ceil(top.getBoundingClientRect().height) : 0) + 16}px`);
     };
     measure();
     // Insets resize both score viewports. Commit outside the observer delivery
     // cycle so WebKit can finish the current layout before measuring them again.
     let frame = 0;
-    const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); }); observer.observe(element); observer.observe(top);
+    const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); }); observer.observe(element); if (top) observer.observe(top);
     return () => { cancelAnimationFrame(frame); observer.disconnect(); document.documentElement.style.removeProperty('--practice-inset'); document.documentElement.style.removeProperty('--practice-top-inset'); document.documentElement.style.removeProperty('--practice-float-bottom'); document.documentElement.style.removeProperty('--practice-tools-clearance'); };
-  }, [props.embedded, controlsCollapsed]);
+  }, [props.embedded, controlsCollapsed, toolsCollapsed, isXml]);
   const selectView = (next: PlaybackView) => navigation.afterEditing(() => {
     if (!source || playbackStore.getSnapshot() !== source) return;
     setPanel(null);
@@ -73,14 +74,19 @@ export function PracticePlayerShell(props: Props) {
     const path = `/choirs/${source.choirId}/scores/${source.score.id}`;
     if (location.pathname !== path) void navigate(readerHref({ choirId: source.choirId, scoreId: source.score.id, experience: source.experience === true || source.ownerKey.startsWith("experience:") }, location.search));
   });
+  const closePlayer = () => {
+    stopPlayback();
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('.reader-shell')?.focus({ preventScroll: true }));
+  };
+  const controlsToggle = !props.embedded && <TooltipTrigger><Button ref={controlsTrigger} className="practice-chrome-toggle practice-controls-toggle" aria-label={controlsCollapsed ? '展开练习控制' : '收起练习控制'} aria-expanded={!controlsCollapsed} aria-controls="practice-expanded-controls practice-bar-meta" onPress={() => { setPanel(null); controlsTrigger.current?.focus({ preventScroll: true }); focus.setControlsCollapsed(!controlsCollapsed); }}>{controlsCollapsed ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}</Button><Tooltip className="practice-tooltip" placement="top">{controlsCollapsed ? '展开练习控制' : '收起练习控制'}</Tooltip></TooltipTrigger>;
   const icon = (label: string, children: ReactNode, action: () => void, disabled = false) => <TooltipTrigger>
     <Button className="practice-icon" aria-label={label} isDisabled={disabled} onPress={action}>{children}</Button>
     <Tooltip className="practice-tooltip" placement="top">{label}</Tooltip>
   </TooltipTrigger>;
   return <>
     {!props.embedded && isXml && source && <PracticeSplit active={view === 'compare'} ownerKey={source.ownerKey} />}
-    <header className="practice-header" aria-label="练习看谱" data-floating={!props.embedded || undefined} ref={header}>
-      <div id="practice-view-controls" className="practice-header-tools" hidden={controlsCollapsed}>
+    {isXml && <header className="practice-header" aria-label="练习看谱" data-floating={!props.embedded || undefined} ref={header}>
+      <div id="practice-view-controls" className="practice-header-tools" hidden={toolsCollapsed}>
       {props.embedded ? <strong>候选谱面与试听</strong> : isXml ? <MenuTrigger>
         <Button className="practice-view-trigger" aria-label="显示谱面" aria-description={`当前：${view === 'pdf' ? '原始 PDF' : view === 'compare' ? '对照' : '重排谱面'}`} data-short-label={view === 'pdf' ? 'PDF' : view === 'compare' ? '对照' : '重排'}><span className="practice-view-label">{view === 'pdf' ? '原始 PDF' : view === 'compare' ? '对照' : '重排谱面'}</span><ChevronDown size={14} aria-hidden="true" /></Button>
         <Popover className="practice-view-popover" placement="bottom start" offset={6}>
@@ -88,18 +94,22 @@ export function PracticePlayerShell(props: Props) {
             {([['pdf','原始 PDF'],['xml','重排谱面'],['compare','对照']] as const).map(([key,label]) => <MenuItem key={key} id={key} textValue={label} className="practice-view-option"><span>{label}</span>{view === key && <Check size={16} aria-hidden="true" />}</MenuItem>)}
           </Menu>
         </Popover>
-      </MenuTrigger> : <span className="practice-source-name" title={source?.attachment.name}>{source?.attachment.name}</span>}
+      </MenuTrigger> : null}
       {props.notationZoom && <NotationZoom {...props.notationZoom} />}
-      {!props.embedded && <TooltipTrigger><Button className="practice-chrome-toggle practice-fullscreen" isDisabled={focus.pending} aria-label={focus.focused ? '退出专注' : focus.supported ? '全屏看谱' : '专注看谱'} onPress={() => { controlsTrigger.current?.focus({ preventScroll: true }); void (focus.focused ? focus.exit() : focus.enter()); }}>{focus.focused ? <Minimize size={16} aria-hidden="true" /> : <Maximize size={16} aria-hidden="true" />}<span>{focus.focused ? '退出' : focus.supported ? '全屏' : '专注'}</span></Button><Tooltip className="practice-tooltip" placement="bottom">{focus.focused ? '退出专注' : focus.supported ? '全屏看谱' : '专注看谱'}</Tooltip></TooltipTrigger>}
+      {!props.embedded && <TooltipTrigger><Button className="practice-chrome-toggle practice-fullscreen" isDisabled={focus.pending} aria-label={focus.focused ? '退出专注' : focus.supported ? '全屏看谱' : '专注看谱'} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); void (focus.focused ? focus.exit() : focus.enter()); }}>{focus.focused ? <Minimize size={16} aria-hidden="true" /> : <Maximize size={16} aria-hidden="true" />}<span>{focus.focused ? '退出' : focus.supported ? '全屏' : '专注'}</span></Button><Tooltip className="practice-tooltip" placement="bottom">{focus.focused ? '退出专注' : focus.supported ? '全屏看谱' : '专注看谱'}</Tooltip></TooltipTrigger>}
       </div>
-      {!props.embedded && <Button className="practice-end-playback" aria-label="结束练习" onPress={stopPlayback}>结束<span>练习</span></Button>}
-    </header>
-    <div className="practice-dock" data-view={view} data-collapsed={controlsCollapsed || undefined} ref={dock}>
+      {!props.embedded && <TooltipTrigger><Button ref={toolsTrigger} className="practice-chrome-toggle practice-tools-toggle" aria-label={toolsCollapsed ? '展开看谱工具' : '收起看谱工具'} aria-expanded={!toolsCollapsed} aria-controls={`practice-view-controls${view === 'compare' ? ' practice-notation-tools' : ''}`} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); focus.setToolsCollapsed(!toolsCollapsed); }}>{toolsCollapsed ? <PanelTop size={18} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}</Button><Tooltip className="practice-tooltip" placement="bottom">{toolsCollapsed ? '展开看谱工具' : '收起看谱工具'}</Tooltip></TooltipTrigger>}
+    </header>}
+    <div className="practice-dock" data-view={view} data-audio={!isXml || undefined} data-collapsed={controlsCollapsed || undefined} ref={dock}>
       {!props.ready && !props.failed && props.message
         ? <PlaybackPreparationNotice key={props.message} message={props.message} {...props.preparation} retry={props.retry} />
         : props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
       {props.hint}
-      <section className="practice-bar" aria-label="乐谱练习" data-testid="musicxml-player">
+      <section className="practice-bar" aria-label={isXml ? '乐谱练习' : '音频播放'} data-testid="musicxml-player">
+        {!props.embedded && <div className="practice-bar-heading">
+          {controlsToggle}
+          <TooltipTrigger><Button className="practice-icon practice-close" hidden={controlsCollapsed} aria-label={isXml ? '关闭播放器' : '关闭音频'} onPress={closePlayer}><X size={18} aria-hidden="true" /></Button><Tooltip className="practice-tooltip" placement="top">{isXml ? '关闭播放器' : '关闭音频'}</Tooltip></TooltipTrigger>
+        </div>}
         <div id="practice-expanded-controls" className="practice-expanded-controls" hidden={controlsCollapsed}><PlaybackTimeline timeline={props.timeline} /></div>
 
         <div id="practice-bar-meta" className="practice-bar-meta" hidden={controlsCollapsed}>
@@ -119,7 +129,6 @@ export function PracticePlayerShell(props: Props) {
           <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-description={props.loopStatus ? `片段循环：${props.loopStatus}` : undefined} data-loop={props.loopStatus ? true : undefined} aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={17} aria-hidden="true" /><span aria-hidden="true">练习</span></Button>
           <Tooltip className="practice-tooltip" placement="top">{props.loopStatus ? `片段循环：${props.loopStatus}` : "练习设置"}</Tooltip>
         </TooltipTrigger></div>}
-          {!props.embedded && <TooltipTrigger><Button ref={controlsTrigger} className="practice-chrome-toggle" aria-label={controlsCollapsed ? '展开练习控制' : '收起练习控制'} aria-expanded={!controlsCollapsed} aria-controls={`practice-view-controls practice-expanded-controls practice-bar-meta${isXml && view === 'compare' ? ' practice-notation-tools' : ''}`} onPress={() => { setPanel(null); controlsTrigger.current?.focus({ preventScroll: true }); focus.setControlsCollapsed(!controlsCollapsed); }}>{controlsCollapsed ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}</Button><Tooltip className="practice-tooltip" placement="bottom">{controlsCollapsed ? '展开练习控制' : '收起练习控制'}</Tooltip></TooltipTrigger>}
         </div>
       </section>
     </div>

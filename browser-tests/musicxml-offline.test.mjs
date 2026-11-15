@@ -1,3 +1,4 @@
+import { expandPracticeTools, closePractice } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, rm, mkdir } from 'node:fs/promises';
@@ -42,18 +43,18 @@ test('MusicXML and MXL: required player release, closed-browser offline cold sta
   const player=target.getByTestId('musicxml-player');
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
   await expect(target.locator('.practice-notation .at-surface svg').first()).toBeVisible({timeout:20000});
-  await player.getByRole('button',{name:'展开练习控制',exact:true}).click();
+  await player.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(target);
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
   await expect(target.getByText('此练习谱可离线打开与播放。',{exact:true})).toBeVisible({timeout:60000});
   await target.getByRole('button',{name:'关闭练习设置',exact:true}).click();
   return player;
  };
  await open(page,'xml');
- await page.getByRole('button',{name:'结束练习',exact:true}).click();
+ await closePractice(page);
  await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
  await page.getByRole('button',{name:'本地链路测试：2 个附件',exact:true}).click();
  await open(page,'mxl');
- await page.getByRole('button',{name:'结束练习',exact:true}).click();
+ await closePractice(page);
  await context.close();
  context=await chromium.launchPersistentContext(profile,options);await context.setOffline(true);
  await context.addInitScript(()=>{

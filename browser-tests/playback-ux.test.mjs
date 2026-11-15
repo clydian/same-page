@@ -1,4 +1,4 @@
-import { setLoopRange, selectPracticeView } from './practice-controls.mjs';
+import { expandPracticeTools, closePractice, setLoopRange, selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {mkdir} from 'node:fs/promises';
@@ -26,7 +26,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  const coldStart=Date.now();
  await page.getByRole('button',{name:'practice.xml',exact:true}).click();
  const bar=page.getByTestId('musicxml-player');await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
- await bar.getByRole('button',{name:'展开练习控制',exact:true}).click();
+ await bar.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(page);
  const coldReadyMs=Date.now()-coldStart;
  await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');await expect(page.locator('.practice-notation')).toBeVisible();
  await expect(page.locator('.practice-notation')).not.toContainText('practice.xml');
@@ -60,8 +60,8 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await settings.getByRole('switch',{name:'声部关注',exact:true}).locator('xpath=ancestor::label').click();await expect(settings.getByRole('slider',{name:'Alto 音量',exact:true})).toHaveValue('0.6');await setLoopRange(page,0,2);await expect(bar.getByRole('button',{name:'练习设置',exact:true})).toHaveAttribute('data-loop','true');await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 3 小节');await setLoopRange(page,0,4);await expect(settings.getByRole('status').filter({hasText:'正在循环'})).toContainText('第 5 小节');await settings.getByRole('switch',{name:'片段循环',exact:true}).locator('xpath=ancestor::label').click();await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  await page.screenshot({path:`artifacts/verification/playback-413/${engine}-player.png`});
  const initialReads=fileReads,initialWorkers=workers;
- await page.getByRole('button',{name:'结束练习',exact:true}).click();await expect(bar).toHaveCount(0);await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
- await reveal();await page.getByRole('button',{name:'练习谱',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});await bar.getByRole('button',{name:'展开练习控制',exact:true}).click();assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
+ await closePractice(page);await expect(bar).toHaveCount(0);await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible();
+ await reveal();await page.getByRole('button',{name:'练习谱',exact:true}).click();const warmStart=Date.now();await page.getByRole('button',{name:'practice.xml',exact:true}).click();await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});await bar.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(page);assert.equal(fileReads,initialReads);assert.equal(workers,initialWorkers);t.diagnostic(JSON.stringify({coldReadyMs,warmReadyMs:Date.now()-warmStart,fileReads,workers}));
  await page.setViewportSize({width:390,height:844});await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.locator('.practice-setting-row').filter({hasText:'首调数字'}).locator('.practice-switch').click();await expect(degrees).toHaveCount(96);await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();await expect.poll(() => page.locator('.practice-notation .at-surface svg').first().evaluate(svg=>svg.getBoundingClientRect().width)).toBeLessThan(370);await expect.poll(()=>degrees.evaluateAll(labels=>labels.every(label=>label.getBoundingClientRect().right<=innerWidth))).toBe(true);
  const labelPositions=()=>degrees.evaluateAll(labels=>labels.map(label=>[label.textContent,label.style.left,label.style.top]));
  // Worker post-render bounds must already be current, without toggling to repair the overlay.

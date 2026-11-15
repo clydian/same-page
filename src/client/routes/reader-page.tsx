@@ -113,6 +113,7 @@ function ReaderPageContent() {
   const playback = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
   const playbackView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
   const practicing = playback?.choirId === choirId && playback.score.id === scoreId;
+  const xmlPracticing = practicing && playback.attachment.kind === 'musicxml';
   const comparing = practicing && playbackView === 'compare';
   const showingPlayback = practicing && playbackView === 'xml';
   const workspace = opening.state.status === "ready" ? opening.state.workspace : null;
@@ -370,7 +371,7 @@ function ReaderPageContent() {
     setMoreOpen(false);
   };
   const toggleChrome = () => {
-    if (practicing) return;
+    if (xmlPracticing) return;
     setPlaybackEntryOpen(false);
     setMoreOpen(false);
     setChromeVisible((visible) => !visible);
@@ -400,9 +401,9 @@ function ReaderPageContent() {
 
   return (
     <ReaderPresentationContext.Provider value={{ ...presentation.context, retryDocument: () => navigation.afterEditing(reader.retry) }}>
-    <main className="reader-shell" data-practicing={practicing || undefined} data-playback-view={showingPlayback || comparing ? 'xml' : undefined} aria-hidden={showingPlayback || comparing || undefined} inert={showingPlayback || comparing} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
+    <main tabIndex={-1} className="reader-shell" data-practicing={xmlPracticing || undefined} data-playback-view={showingPlayback || comparing ? 'xml' : undefined} aria-hidden={showingPlayback || comparing || undefined} inert={showingPlayback || comparing} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
       <h1 className="visually-hidden">{scoreDisplayName(score.fileName)}</h1>
-      {!practicing && !editing && !chromeVisible && !guide.visible && <Button
+      {!xmlPracticing && !editing && !chromeVisible && !guide.visible && <Button
         className="reader-reveal-tools visually-hidden"
         onPress={() => { focusRevealedTools.current = true; setChromeVisible(true); }}
       >显示阅读器工具</Button>}
@@ -418,7 +419,7 @@ function ReaderPageContent() {
       </div> : null}
       {reader.snapshot.displayMessage && <ReaderDisplayNotice key={reader.snapshot.displayMessage} message={reader.snapshot.displayMessage} onDismiss={reader.dismissDisplayMessage} />}
       {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
-      {!practicing && chromeVisible && !guide.visible ? (
+      {!xmlPracticing && chromeVisible && !guide.visible ? (
       <header className="reader-chrome" data-editing={editing || undefined} aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {!editing && <div className="reader-chrome__leading"><Button ref={readerBackTrigger} aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
@@ -570,10 +571,10 @@ function ReaderPageContent() {
         <ReaderPracticeLauncher source={{ score, choirId, ownerKey: workspace.ownerKey, sessionId: identity.authenticatedSessionId }} enabled={online && cloudState === 'active'} open={playbackEntryOpen} onOpenChange={setPlaybackEntryOpen} />
       </Suspense>}
 
-      {!editing && (practicing || chromeVisible) && !guide.visible ? (
+      {!editing && (xmlPracticing || chromeVisible) && !guide.visible ? (
         <>
           <PageNavigatorPanel
-            compact={practicing}
+            compact={xmlPracticing}
             key={score.currentVersion.id}
             document={document}
             currentPage={currentPage}
@@ -672,7 +673,7 @@ function ReaderPageContent() {
             fitRequest={fitRequest}
             onZoomChange={setZoom}
             onToggleChrome={toggleChrome}
-            onDismiss={!practicing && !editing && !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
+            onDismiss={!xmlPracticing && !editing && !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !guide.visible ? closeScore : undefined}
             annotationProps={annotationPageProps}
             pager={pager}
           />

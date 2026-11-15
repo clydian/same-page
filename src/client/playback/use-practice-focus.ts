@@ -5,6 +5,9 @@ import { useFeedbackMessage } from '../components/use-feedback-message';
 // a menu, interrupt a scrub, or hide the control that currently owns focus.
 export function usePracticeFocus(embedded?: boolean) {
   const [controlsCollapsed, updateControlsCollapsed] = useState(() => !embedded && window.innerWidth > window.innerHeight);
+  const [toolsCollapsed, updateToolsCollapsed] = useState(controlsCollapsed);
+  const toolsPreference = useRef(toolsCollapsed);
+  const setToolsCollapsed = (value: boolean) => { toolsPreference.current = value; updateToolsCollapsed(value); };
   const preference = useRef(controlsCollapsed);
   const setControlsCollapsed = (value: boolean) => { preference.current = value; updateControlsCollapsed(value); };
   const [focused, setFocused] = useState(false);
@@ -17,6 +20,7 @@ export function usePracticeFocus(embedded?: boolean) {
   const restore = useCallback(() => {
     setFocused(false);
     updateControlsCollapsed(preference.current);
+    updateToolsCollapsed(toolsPreference.current);
     setNotice('');
   }, [setNotice]);
   useEffect(() => {
@@ -45,7 +49,7 @@ export function usePracticeFocus(embedded?: boolean) {
   };
   const enter = async () => {
     if (pending) return;
-    setFocused(true); updateControlsCollapsed(true);
+    setFocused(true); updateControlsCollapsed(true); updateToolsCollapsed(true);
     if (!supported) {
       setNotice('已进入专注模式。此浏览器不能全屏显示谱面，系统状态栏由系统保留。', { duration: 8000, once: 'focus-compatibility' });
       return;
@@ -65,7 +69,7 @@ export function usePracticeFocus(embedded?: boolean) {
       if (mounted.current) setNotice('全屏未能开启，已使用专注模式；无法强行隐藏系统状态栏。', { duration: 8000, once: 'focus-compatibility' });
     } finally { if (mounted.current) setPending(false); }
   };
-  return { controlsCollapsed, setControlsCollapsed, focused, notice, feedback, dismissNotice: feedback.dismiss, pending, supported, enter, exit };
+  return { toolsCollapsed, setToolsCollapsed, controlsCollapsed, setControlsCollapsed, focused, notice, feedback, dismissNotice: feedback.dismiss, pending, supported, enter, exit };
 }
 
 export type PracticeFocus = ReturnType<typeof usePracticeFocus>;

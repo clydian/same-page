@@ -16,7 +16,7 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
       if (!cursor) return;
       const bar = cursor.getBoundingClientRect(), area = scroll.getBoundingClientRect();
       if (bar.width === 0 || bar.height === 0) return;
-      const clearance = [...document.querySelectorAll<HTMLElement>('.practice-header[data-floating] .practice-header-tools, .practice-header[data-floating] .practice-end-playback, .practice-notation-tools')]
+      const clearance = [...document.querySelectorAll<HTMLElement>('.practice-header[data-floating], .practice-notation-tools')]
         .map(toolbar => toolbar.getBoundingClientRect())
         .filter(tools => tools.width > 0 && tools.height > 0 && bar.right > tools.left && bar.left < tools.right && tools.bottom > area.top)
         .reduce((top, tools) => Math.max(top, tools.bottom + 12), area.top + 12);

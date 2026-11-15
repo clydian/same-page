@@ -88,3 +88,18 @@ it('shows compatibility advice once, expires it, and keeps actual exit failures 
     expect(result.current.notice).toContain('无法退出全屏');
   } finally { vi.useRealTimers(); }
 });
+
+it('keeps top and bottom choices independent, including focus restoration', async () => {
+  const { result } = renderHook(() => usePracticeFocus());
+  act(() => result.current.setToolsCollapsed(true));
+  expect(result.current.controlsCollapsed).toBe(false);
+  act(() => result.current.setControlsCollapsed(true));
+  act(() => result.current.setToolsCollapsed(false));
+  expect(result.current.controlsCollapsed).toBe(true);
+  await act(() => result.current.enter());
+  expect(result.current.toolsCollapsed).toBe(true);
+  act(() => result.current.setControlsCollapsed(false));
+  await act(() => result.current.exit());
+  expect(result.current.toolsCollapsed).toBe(false);
+  expect(result.current.controlsCollapsed).toBe(false);
+});

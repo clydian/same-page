@@ -94,12 +94,12 @@ export function MusicXmlPractice({
         className="practice-notation"
         data-visible={view !== "pdf" || undefined}
         data-compare={view === "compare" || undefined}
-        data-controls-collapsed={focus.controlsCollapsed || undefined}
+        data-controls-collapsed={focus.toolsCollapsed || undefined}
         aria-label="MusicXML 谱面"
         aria-hidden={view === "pdf"}
         inert={view === "pdf"}
       >
-        {view === "compare" && <div id="practice-notation-tools" className="practice-notation-tools" hidden={focus.controlsCollapsed} role="group" aria-label="重排谱面工具"><NotationZoom {...notationZoom} /></div>}
+        {view === "compare" && <div id="practice-notation-tools" className="practice-notation-tools" hidden={focus.toolsCollapsed} role="group" aria-label="重排谱面工具"><NotationZoom {...notationZoom} /></div>}
         {view !== "pdf" && <div className="practice-reading-actions">
           {state.following === false && <Button className="practice-follow" onPress={() => { visual.reset(); session?.follow(); }}>恢复自动跟随</Button>}
           {visual.zoom > 1 && <Button className="practice-view-reset" aria-label="恢复查看比例" onPress={visual.reset}>适合宽度</Button>}

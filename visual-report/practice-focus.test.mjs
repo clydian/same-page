@@ -58,25 +58,28 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
       const items=[...bar.querySelectorAll('button,select')].filter(el=>el.getBoundingClientRect().width).map(el=>{const r=el.getBoundingClientRect();return {label:el.getAttribute('aria-label'),x:r.x,right:r.right,width:r.width,height:r.height};});
       return {width:innerWidth,safeRight:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-right'))||0,items};
     });
-    const sorted=[...result.items].sort((a,b)=>a.x-b.x);
-    for (let i=0;i<sorted.length;i++) {
-      assert.ok(sorted[i].x>=0 && sorted[i].right<=result.width && sorted[i].width>=44 && sorted[i].height>=44,JSON.stringify(sorted[i]));
-      if(i) assert.ok(sorted[i].x>=sorted[i-1].right,JSON.stringify(sorted));
+    const rectangles=await page.locator('.practice-bar button,.practice-bar select').evaluateAll(elements=>elements.map(el=>({label:el.getAttribute('aria-label'),...el.getBoundingClientRect().toJSON()})).filter(r=>r.width));
+    for (const r of rectangles) assert.ok(r.x>=0 && r.right<=result.width && r.width>=44 && r.height>=44,JSON.stringify(r));
+    for(let i=0;i<rectangles.length;i++) for(let j=i+1;j<rectangles.length;j++) {
+      const a=rectangles[i],b=rectangles[j];
+      assert.ok(a.right<=b.x || b.right<=a.x || a.bottom<=b.y || b.bottom<=a.y,JSON.stringify([a,b]));
     }
-    assert.match(sorted.at(-1).label,/展开练习控制|收起练习控制/);
-    assert.equal(sorted.at(-2).label,'练习设置');
-    assert.ok(sorted.at(-1).right>=result.width-Math.max(8,result.safeRight)-12,JSON.stringify(result));
+    const collapsed=await page.locator('.practice-dock').getAttribute('data-collapsed') !== null;
+    const rightmost=rectangles.find(r=>collapsed ? r.label==='展开练习控制' : /^关闭播放器$|^关闭音频$/.test(r.label));
+    assert.ok(rightmost,JSON.stringify(rectangles));
+    assert.match(rightmost.label,collapsed ? /展开练习控制/ : /关闭播放器|关闭音频/);
+    assert.ok(rightmost.right>=result.width-Math.max(8,result.safeRight)-12,JSON.stringify(result));
     return result;
   };
   const checkCollapsed = async page => {
     await expect(page.getByRole('button', { name: '显示谱面', exact: true })).toBeHidden();
     await expect(page.getByRole('button', { name: '缩小谱面', exact: true })).toBeHidden();
-    await expect(page.getByRole('button', { name: '结束练习', exact: true })).toBeVisible();
-    assert.deepEqual(await page.locator('.practice-header button').evaluateAll(buttons => buttons.filter(button => button.getBoundingClientRect().width > 0).map(button => button.getAttribute('aria-label'))), ['结束练习']);
+    await expect(page.getByRole('button', { name: '展开看谱工具', exact: true })).toBeVisible();
+    assert.deepEqual(await page.locator('.practice-header button').evaluateAll(buttons => buttons.filter(button => button.getBoundingClientRect().width > 0).map(button => button.getAttribute('aria-label'))), ['展开看谱工具']);
   };
   const checkFollowedSystem = async page => expect.poll(()=>page.locator('.at-cursor-bar').evaluate(cursor=>{
     const bar=cursor.getBoundingClientRect(),area=cursor.closest('.practice-notation-scroll').getBoundingClientRect();
-    const tools=[...document.querySelectorAll('.practice-header-tools,.practice-end-playback,.practice-notation-tools')].map(element=>element.getBoundingClientRect());
+    const tools=[...document.querySelectorAll('.practice-header,.practice-notation-tools')].map(element=>element.getBoundingClientRect());
     const top=tools.filter(box=>box.width>0 && box.height>0 && bar.right>box.left && bar.left<box.right).reduce((value,box)=>Math.max(value,box.bottom+8),area.top+8);
     return bar.top>=top && bar.top<area.bottom-44 && (bar.height>area.bottom-top || bar.bottom<=area.bottom);
   })).toBe(true).catch(async error => {
@@ -91,6 +94,8 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   assert.equal(await landscape.locator('.practice-notation-scroll').evaluate(el=>el.getBoundingClientRect().height),390);
   await landscape.screenshot({path:`${evidence}/${name}-landscape-default.png`});
   await landscape.getByRole('button',{name:'展开练习控制'}).click();
+  await checkCollapsed(landscape); // Bottom restoration must not open the top tools.
+  await landscape.getByRole('button',{name:'展开看谱工具'}).click();
   await checkTools(landscape); await checkTransport(landscape);
   await landscape.screenshot({path:`${evidence}/${name}-landscape-expanded.png`});
   await landscape.setViewportSize({width:390,height:844});
@@ -145,17 +150,31 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   if(await page.evaluate(()=>document.fullscreenEnabled && typeof document.documentElement.requestFullscreen==='function')) {
     await page.getByRole('button',{name:'全屏看谱'}).click();
     await checkCollapsed(page);
-    await expect(page.getByRole('button',{name:'展开练习控制'})).toBeFocused();
+    await expect(page.getByRole('button',{name:'展开看谱工具'})).toBeFocused();
+    const bottomToggle=await page.getByRole('button',{name:'展开练习控制'}).elementHandle();
+    await bottomToggle.focus();
+    await page.evaluate(()=>document.exitFullscreen());
+    await expect(page.getByRole('button',{name:'收起练习控制'})).toBeFocused();
+    assert.equal(await bottomToggle.evaluate(el=>el===document.activeElement),true);
+    await page.getByRole('button',{name:'全屏看谱'}).click();
+    await checkCollapsed(page);
+    await page.getByRole('button',{name:'展开看谱工具'}).click();
     await page.getByRole('button',{name:'展开练习控制'}).click();
     await expect(page.getByRole('button',{name:'退出专注'})).toBeEnabled();
     await page.getByRole('button',{name:'显示谱面'}).click();
     await page.locator('.practice-view-option').filter({hasText:'对照'}).click();
     await expect(page.getByRole('button',{name:'退出专注'})).toBeVisible();
     await page.getByRole('button',{name:'收起练习控制'}).click();
+    await expect(page.locator('.practice-notation-tools')).toBeVisible(); // Bottom collapse is independent.
+    await page.getByRole('button',{name:'收起看谱工具'}).focus();
+    await page.keyboard.press('Enter');
     await expect(page.locator('.practice-notation-tools')).toBeHidden();
     await checkCollapsed(page);
-    await page.getByRole('button',{name:'展开练习控制'}).click();
+    await page.getByRole('button',{name:'展开看谱工具'}).click();
+    await expect(page.getByRole('button',{name:'展开看谱工具'})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'收起看谱工具'})).toBeFocused();
     await expect(page.locator('.practice-notation-tools')).toBeVisible();
+    await page.getByRole('button',{name:'展开练习控制'}).click();
     await page.getByRole('button',{name:'显示谱面'}).click();
     await page.locator('.practice-view-option').filter({hasText:'重排谱面'}).click();
     await page.getByRole('button',{name:'退出专注'}).click();
@@ -165,11 +184,12 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   await page.getByRole('button',{name:/全屏看谱|专注看谱/}).click();
   await expect(page.getByRole('status')).toContainText('全屏未能开启');
   await checkCollapsed(page);
+  await page.getByRole('button',{name:'展开看谱工具'}).click();
   await page.getByRole('button',{name:'展开练习控制'}).click();
   await page.getByRole('button',{name:'退出专注'}).click();
   assert.equal(fixture.diagnostics.unmatchedRequests.length,0);
   await writeFile(`${evidence}/${name}-geometry.json`,JSON.stringify({header:await checkTools(page),transport:await checkTransport(page)},null,2));
-  await page.getByRole('button',{name:'结束练习'}).click();
+  await page.getByRole('button',{name:'关闭播放器'}).click();
   await expect(page.locator('.practice-bar')).toHaveCount(0);
   await page.goto(`${server.origin}/choirs/visual-choir`);
   await page.getByRole('button',{name:/2 个附件/}).first().click();
@@ -182,14 +202,36 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   assert.equal(await audio.evaluate(element=>element===document.querySelector('audio')),true);
   await expect(page.getByRole('button',{name:'练习设置',exact:true})).toHaveCount(0);
   await expect(page.getByRole('slider',{name:'音量',exact:true})).toHaveCount(0);
+  await expect(page.locator('.practice-header')).toHaveCount(0);
+  await page.locator('.page-reader__viewport').click();
+  await expect(page.getByRole('button',{name:'编辑',exact:true})).toBeVisible();
+  await page.locator('.page-reader__viewport').click();
+  await expect(page.getByRole('button',{name:'编辑',exact:true})).toBeHidden();
+  await page.locator('.page-reader__viewport').click();
+  await page.getByRole('button',{name:'笔记图层',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'笔记图层',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'关闭笔记显示',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'笔记图层',exact:true})).toBeHidden();
+  await page.getByRole('button',{name:'编辑',exact:true}).click();
+  await expect(page.locator('.annotation-controls')).toBeVisible();
+  const checkEditingClearance=async()=>expect.poll(()=>page.evaluate(()=>{
+    const editor=document.querySelector('.annotation-controls').getBoundingClientRect();
+    const audio=document.querySelector('.practice-dock').getBoundingClientRect();
+    return editor.bottom<=audio.top && editor.left>=0 && editor.right<=innerWidth;
+  })).toBe(true);
+  await checkEditingClearance();
   await page.getByRole('button',{name:'收起练习控制'}).focus();
   await page.keyboard.press('Enter');
-  await checkCollapsed(page);
+  await checkEditingClearance();
+  await expect(page.getByRole('button',{name:'关闭音频'})).toBeHidden();
   await expect(page.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'展开练习控制'})).toBeFocused();
   await page.keyboard.press('Space');
   await expect(page.getByRole('combobox',{name:'速度',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'结束练习'}).click();
+  await page.getByRole('button',{name:'完成编辑',exact:true}).click();
+  await expect(page.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'关闭音频'}).click();
   await expect(page.locator('audio')).toHaveCount(0);
+  await expect(page.locator('.reader-shell')).toBeFocused();
   assert.equal(fixture.diagnostics.unmatchedRequests.length,0);
 });

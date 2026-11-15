@@ -1,3 +1,4 @@
+import { expandPracticeTools, closePractice, selectPracticeView } from './practice-controls.mjs';
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
@@ -7,7 +8,6 @@ import { chromium, webkit, expect, request } from '@playwright/test';
 import { startStorageFixture } from './storage-fixture.mjs';
 import { musicXmlFixture } from './musicxml-fixture.mjs';
 import { withBrowserEvidence } from './browser-evidence.mjs';
-import { selectPracticeView } from './practice-controls.mjs';
 import { practiceWave } from '../visual-report/practice-fixture.mjs';
 
 function hasStoredOriginal(page, attachmentId) {
@@ -139,7 +139,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
             await page.getByRole('button', { name, exact: true }).click();
             if (switchBeforeReady) {
               await originalRequested.promise;
-              await page.getByRole('button', { name: '展开练习控制', exact: true }).click();
+              await page.getByRole('button', { name: '展开练习控制', exact: true }).click(); await expandPracticeTools(page);
               await selectPracticeView(page, '原始 PDF');
               assert.equal(await hasStoredOriginal(page, attachmentId), false, 'background saving waits for foreground startup');
               originalReleased.resolve();
@@ -188,7 +188,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
             }
           };
           const endPractice = async () => {
-            await page.getByRole('button', { name: '结束练习', exact: true }).click();
+            await closePractice(page);
             if (!await page.getByRole('button', { name: '练习谱', exact: true }).isVisible()) {
               // The reader owns the tap gesture; its double-buffered PDF canvases
               // can change while a background render completes after practice.

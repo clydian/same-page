@@ -1,3 +1,4 @@
+import { closePractice, expandPracticeTools } from './practice-controls.mjs';
 import { selectPracticeView } from "./practice-controls.mjs";
 import assert from "node:assert/strict";
 import { withBrowserEvidence } from "./browser-evidence.mjs";
@@ -183,6 +184,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
               if (entry === "audio") await page.getByRole("button", { name: "边听边看谱", exact: true }).click();
               if (entry === "musicxml") {
                 await page.getByRole("button", { name: "展开练习控制", exact: true }).click();
+                await expandPracticeTools(page);
                 const view = page.getByRole("button", { name: "显示谱面", exact: true });
                 await expect(view).toHaveText("重排谱面", { timeout: 60_000 });
                 // The preparation notice changes the dock height. Let that finish
@@ -194,7 +196,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             }
             if (entry === "musicxml" || entry === "audio") {
               await expect(page.getByRole("button", { name: "编辑", exact: true })).toHaveCount(0);
-              await page.getByRole("button", { name: "结束练习", exact: true }).click();
+              await closePractice(page);
             }
             await checkExperience(`已登录体验 ${entry}`);
           }

@@ -1,208 +1,130 @@
 {
-  "base": "a7d7a7a2368eb6bcfeb6407a68b087ae873255ef",
-  "before": "Clean main production build before edits",
-  "after": "Local production build with this PR runtime changes (before evidence commit)",
-  "capture": {
-    "engine": "system Chromium",
-    "headless": true,
-    "locale": "zh-CN",
-    "hasTouch": true,
-    "portrait": "390x844 CSS px",
-    "landscape": "844x390 CSS px",
-    "content": "Synthetic SATB XML/PDF and repository practice-tone.mp3",
-    "api": "Mocked local API for screenshot pairs; real local Worker/D1/R2 for browser checks",
-    "realDevice": false,
-    "installedPwa": false,
-    "imageEditing": false
-  },
-  "screenshots": [
-    "xml-collapsed-portrait",
-    "xml-compare-landscape",
-    "mp3-settings-portrait",
-    "mp3-collapsed-landscape"
-  ],
-  "checks": {
-    "lint": "passed",
-    "typecheck": "passed",
-    "productionBuild": "passed",
-    "client": {
-      "files": 167,
-      "tests": 1450,
-      "status": "passed"
-    },
-    "focusHooks": {
-      "tests": 8,
-      "status": "passed"
-    },
-    "chromiumCore": {
-      "status": "passed",
-      "tests": 1,
-      "scope": "updated practice-focus suite, including XML/audio unified collapse and focus"
-    },
-    "realBackendPassed": [
-      "practice-reader-layout",
-      "practice-panel-safe-area",
-      "practice-unified-controls",
-      "practice-compare",
-      "musicxml-startup / hidden-notation",
-      "preview-notes-smoke / signed-in-musicxml"
-    ],
-    "ciScope": {
-      "status": "passed",
-      "tests": 31
-    }
-  },
-  "initialFailures": [
+  "base": "a7d7a7a",
+  "source": "final independent XML tools and reader-owned MP3 controls",
+  "conditions": "Headless Chromium, synthetic SATB XML/PDF and actual repository MP3 fixture, mocked local API. No production or real device.",
+  "checks": [
     {
-      "check": "practice-compare",
-      "cause": "Obsolete geometry assertion counted the transparent spanning header as a divider obstruction",
-      "resolution": "Check actual painted controls and end button; follow-up passed"
+      "capture": "final-xml-expanded-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
     },
     {
-      "check": "musicxml-startup / preview-notes-smoke",
-      "cause": "Default Playwright Chromium executable not installed",
-      "resolution": "Installed requested browser; follow-up passed"
+      "capture": "final-xml-top-collapsed-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-xml-collapsed-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-xml-compare-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "capture": "final-xml-compare-collapsed-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "capture": "final-mp3-reader-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-mp3-reader-tools-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-mp3-editing-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "capture": "final-mp3-collapsed-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "capture": "final-mp3-closed-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
     }
   ],
-  "review": {
-    "selfReview": "completed",
-    "independentReview": "completed; read-only separate agent; two stale landscape callers corrected; no remaining blockers"
+  "errors": [],
+  "checks_summary": {
+    "client": "48/48 targeted reader-page and practice-focus tests passed",
+    "browser_ui": "practice-focus: Chromium/WebKit 2/2 passed in pinned CI image, Node24.22.2 PW1.64.1",
+    "real_local_backend": "practice-unified-controls and practice-compare: Chromium/WebKit 4/4 passed",
+    "build": "npm run build passed",
+    "lint": "npm run lint passed",
+    "review": "self review and independent read-only review completed"
   },
   "limitations": [
-    "No real iPhone/Android device, installed PWA or screen-reader acceptance",
-    "Initial host lacked WebKit launch dependencies; fixed CI-container follow-up passed both engines",
-    "Synthetic safe area uses CSS and CDP insets, rotation uses viewport sizing",
-    "No merge, deployment, or stable-channel promotion"
+    "CSS-injected safe areas and simulated viewports, no physical mobile devices",
+    "No real virtual keyboard, VoiceOver/TalkBack or installed PWA acceptance",
+    "document.exitFullscreen tested; focused reader-dialog Escape probe passed for plain/audio Chromium, not physical keyboard acceptance"
   ],
-  "ciFollowup": {
-    "originalHead": "f83c933f09de4a1d3be42186273dacb2506c0295",
-    "originalMerge": "e874f2a2793feb12d85f8cc9705f79edc9134942",
-    "equalTree": "6e5ce36910a0f216e1766fd94f1dbe922f5cb205",
-    "originalRequiredCI": {
-      "id": 43656576631,
-      "conclusion": "success"
+  "screenshots": {
+    "before-mp3-collapsed-landscape.png": "6c3adececf603be5a85d28451769a71930853e2e3fa7244ea0f764153465b58b",
+    "before-mp3-settings-portrait.png": "8d3cbc1ebe6a87e02d5181cf1f16e8026658d9ef5efbc3eaad034fcbc668ed2f",
+    "before-xml-collapsed-portrait.png": "d1dc1b9061d54cc63f9831970256d27ef10e37a29d00f63e37413fb528d6b89d",
+    "before-xml-compare-landscape.png": "e24d38cc58ba253ea2ccdc7e425ecf1b10730e33af0b022a66fa727a9ed9e58a",
+    "final-mp3-closed-landscape.png": "c04c7affd2296eaa8c5fc9b3e09a0e1f26719b6bba1fc377923f50d75df24ab9",
+    "final-mp3-collapsed-landscape.png": "c636d0bb594809b81f915a4e6dd1fd27ea11679b716f09b19b615cd6e32b57da",
+    "final-mp3-editing-portrait.png": "d7beba02ad444de32e14a0a811c9c0b1c5cf19ae063e3b0b34869f30711093e2",
+    "final-mp3-reader-portrait.png": "0acceeaeb9d9a48faf2f8ba99cbf214c731ce98d677ff9a42759e8e396ca5904",
+    "final-mp3-reader-tools-portrait.png": "0da725ea54fa498fb23a664ac692032d26788ce963ad58ab6432b7f6820a61ee",
+    "final-xml-collapsed-portrait.png": "276acf83f50fbfa29bb801b0f9a232b78b1345a417310832d44fc0a7b79f9054",
+    "final-xml-compare-collapsed-landscape.png": "4885a964bc86ad630e37c7ecd3b444c361170b1c53564e6145235eef0c26f445",
+    "final-xml-compare-landscape.png": "3fbf8a895eaafef7d44ad960c982b8f08f145da9396d7e8c2555f7377cfa9de7",
+    "final-xml-expanded-portrait.png": "48d12bf0257e97b931c798abb2c3c06c7db0112167160032abb33fe8bd6f8f05",
+    "final-xml-top-collapsed-portrait.png": "55a5f1f6a523ecbcb1827c8a2732e4168e89ad84acd03d979e24c9203833aebf"
+  },
+  "runtime_sources": {
+    "src/client/playback/practice-player-shell.tsx": "d89968e92870b1253e418b715ffadfa07d215cd2bd26c1d393912ff1324ded49",
+    "src/client/playback/practice-player.css": "096a58387683fd11a3e061d5c36558005537233a6654afc734b07d834588416e",
+    "src/client/playback/use-practice-focus.ts": "c0f71b82a3476b4a5215b840560dc6e62ddf38112a796e88fad1f8b9dce4fa17",
+    "src/client/playback/musicxml-practice.tsx": "1d924a0fdcff6eb73122307158082e3cc21207b90c4e31501645f05fdd3fb91f",
+    "src/client/routes/reader-page.tsx": "0ff5f75ce4a4c36cee00541fb2dee3d8abf622d4bd48391a927d2a374824eb95"
+  },
+  "test_runs": {
+    "practice_focus": {
+      "chromium_ms": 46628,
+      "webkit_ms": 22185,
+      "passed": 2,
+      "skipped": 0
     },
-    "originalExtendedCI": {
-      "id": 43656576559,
-      "job": 132636544641,
-      "conclusion": "failure",
-      "tests": 84,
-      "passed": 83,
-      "symptom": "WebKit locator /2 个附件/ timed out after 30000ms"
+    "local_backend": {
+      "passed": 4,
+      "skipped": 0
     },
-    "environment": {
-      "image": "mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea",
-      "node": "24.22.2",
-      "playwright": "1.64.1",
-      "chromium": "156.0.8078.4",
-      "webkit": "27.2",
-      "libsoup": "3.6.6"
+    "client": {
+      "passed": 48
     },
-    "comparisons": [
-      {
-        "runtime": "PR merge/head equal tree",
-        "test": "unmodified practice-focus",
-        "chromium": "pass",
-        "webkit": "fail at attachment locator"
-      },
-      {
-        "runtime": "main a7d7a7a unchanged",
-        "test": "original XML suite plus same audio-entry phase",
-        "chromium": "pass",
-        "webkit": "same failure"
-      },
-      {
-        "runtime": "PR head",
-        "test": "same full WebKit flow; only serviceWorkers:block added",
-        "webkit": "pass"
-      },
-      {
-        "runtime": "PR head",
-        "test": "final unchanged assertions with serviceWorkers:block",
-        "chromium": "pass",
-        "webkit": "pass"
-      }
-    ],
-    "diagnosticSnapshot": "Empty local directory after navigation; no new auth/bootstrap calls reached page.route; see linked synthetic screenshot",
-    "minimization": "No playback needed: wait for serviceWorker.ready then navigate reader -> library. Same failure on head and unchanged main; immediate navigation before worker readiness passes.",
-    "fix": "Block Service Workers only in this API-mocked UI suite; no product code, timeout, retry, or assertion changes",
-    "localChecks": {
-      "fullFixedContainerSuite": "2/2 passed",
-      "lint": "passed",
-      "independentReadOnlyReview": "passed"
-    },
-    "limits": [
-      "Does not establish WebKit network-process internals",
-      "Does not prove physical-device behavior",
-      "Local container matches pinned browser/runtime, not GitHub host CPU/load"
-    ],
-    "minimalMatrix": [
-      {
-        "runtime": "head",
-        "serviceWorkers": "allow",
-        "online": true,
-        "visibility": "visible",
-        "controlled": true,
-        "workerReady": true,
-        "authResponseStatuses": [
-          200,
-          500,
-          500,
-          500,
-          500
-        ],
-        "mockBootstrapRequests": 0,
-        "attachmentButtonFound": false,
-        "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /2 个附件/ }).first()\n"
-      },
-      {
-        "runtime": "head",
-        "serviceWorkers": "block",
-        "online": true,
-        "visibility": "visible",
-        "controlled": false,
-        "workerReady": false,
-        "authResponseStatuses": [
-          200,
-          200
-        ],
-        "mockBootstrapRequests": 1,
-        "attachmentButtonFound": true,
-        "error": null
-      },
-      {
-        "runtime": "main",
-        "serviceWorkers": "allow",
-        "online": true,
-        "visibility": "visible",
-        "controlled": true,
-        "workerReady": true,
-        "authResponseStatuses": [
-          200,
-          500,
-          500,
-          500,
-          500
-        ],
-        "mockBootstrapRequests": 0,
-        "attachmentButtonFound": false,
-        "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /2 个附件/ }).first()\n"
-      },
-      {
-        "runtime": "main",
-        "serviceWorkers": "block",
-        "online": true,
-        "visibility": "visible",
-        "controlled": false,
-        "workerReady": false,
-        "authResponseStatuses": [
-          200,
-          200
-        ],
-        "mockBootstrapRequests": 1,
-        "attachmentButtonFound": true,
-        "error": null
-      }
-    ]
+    "environment": "Pinned Playwright Noble sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea; Node24.22.2; Playwright1.64.1"
   }
 }
