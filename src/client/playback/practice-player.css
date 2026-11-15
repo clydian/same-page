@@ -246,7 +246,8 @@
 /* Narrow XML keeps its playback row; the two session actions share the row above. */
 .practice-session-actions { grid-area: 1 / 1 / 2 / -1; justify-self: end; display: flex; align-items: center; gap: 2px; }
 .practice-session-actions > button { flex: 0 0 auto; }
-.practice-close > svg { display: none; }
+.practice-session-actions .practice-chrome-toggle { padding-inline: 4px; }
+.practice-close { color: var(--ui-danger, #913e35); }
 .practice-dock:not([data-collapsed]) { container: practice-controls / inline-size; box-sizing: border-box; padding-inline: var(--safe-left) var(--safe-right); }
 /* Without container queries the narrow layout remains fully usable. */
 @container practice-controls (min-width: 380px) {
@@ -260,7 +261,7 @@
 }
 .practice-dock[data-collapsed] .practice-bar-actions { display: flex; align-items: center; gap: 2px; }
 .practice-dock[data-collapsed] .practice-close { width: 44px; padding: 0; border-inline-end: 1px solid var(--ui-line, #dce4de); border-radius: 0; }
-.practice-dock[data-collapsed] .practice-close > svg { display: block; }
+.practice-dock[data-collapsed] .practice-settings { flex-basis: 44px; width: 44px; }
 .practice-dock[data-collapsed] .practice-controls-toggle { width: 44px; padding: 0; }
 /* Reader-owned dialogs must cover the attached audio player. */
 .reader-shell:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: -2px; }

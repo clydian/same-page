@@ -92,6 +92,7 @@ for (const name of engines) test(`${name}: floating tools, direct zoom, transpor
   const landscape = await open(844,390);
   await expect(landscape.getByRole('button',{name:'展开练习控制'})).toBeVisible();
   await expect(landscape.getByRole('button',{name:'展开练习控制'})).toHaveText('');
+  await expect(landscape.getByRole('button',{name:'练习设置',exact:true})).toHaveText('');
   await checkCollapsed(landscape); await checkTransport(landscape); await checkFollowedSystem(landscape);
   assert.equal(await landscape.locator('.practice-notation-scroll').evaluate(el=>el.getBoundingClientRect().height),390);
   await landscape.screenshot({path:`${evidence}/${name}-landscape-default.png`});

@@ -122,7 +122,7 @@ export function PracticePlayerShell(props: Props) {
         </div>
         <div className="practice-bar-actions">
           {props.children && <TooltipTrigger>
-          <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-description={props.loopStatus ? `片段循环：${props.loopStatus}` : undefined} data-loop={props.loopStatus ? true : undefined} aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={17} aria-hidden="true" /><span aria-hidden="true">练习</span></Button>
+          <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-description={props.loopStatus ? `片段循环：${props.loopStatus}` : undefined} data-loop={props.loopStatus ? true : undefined} aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={17} aria-hidden="true" />{!controlsCollapsed && <span aria-hidden="true">练习</span>}</Button>
           <Tooltip className="practice-tooltip" placement="top">{props.loopStatus ? `片段循环：${props.loopStatus}` : "练习设置"}</Tooltip>
         </TooltipTrigger>}
         {!props.embedded && <div className="practice-session-actions">
