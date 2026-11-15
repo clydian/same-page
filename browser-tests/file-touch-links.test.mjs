@@ -89,10 +89,23 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await page.getByRole("button", { name: "本地链路测试：1 个附件", exact: true }).tap();
       const external = page.getByRole("link", { name: "参考外链", exact: true });
       await expect(external).toHaveAttribute("target", "_blank");
-      assert.equal(await external.evaluate(node => {
-        const event = new PointerEvent("contextmenu", { bubbles: true, cancelable: true, pointerType: "touch" });
-        node.dispatchEvent(event); return event.defaultPrevented;
-      }), false);
+      const externalMenu = await external.evaluate(node => {
+        const cancellations = [];
+        const preventDefault = Event.prototype.preventDefault;
+        // Record only this synthetic event's cancellation source, never DOM text.
+        Event.prototype.preventDefault = function () {
+          if (this.type === "contextmenu") cancellations.push(new Error().stack);
+          return preventDefault.call(this);
+        };
+        try {
+          const event = new PointerEvent("contextmenu", { bubbles: true, cancelable: true, pointerType: "touch" });
+          node.dispatchEvent(event);
+          return { cancelled: event.defaultPrevented, cancellations };
+        } finally {
+          Event.prototype.preventDefault = preventDefault;
+        }
+      });
+      assert.equal(externalMenu.cancelled, false, JSON.stringify(externalMenu));
       const fileRequests = [];
       page.on("request", request => { if (/\/scores\/[^/]+\/(?:versions\/[^/]+\/pdf|pdf|sync)(?:\?|$)/.test(new URL(request.url()).pathname)) fileRequests.push(request.url()); });
       await hold(page, file);
