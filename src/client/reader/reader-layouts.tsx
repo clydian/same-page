@@ -62,6 +62,7 @@ export interface AnnotationPageProps {
 }
 
 interface ReaderLayoutProps {
+  returnLabel?: string;
   viewportName?: string;
   document: PDFDocumentProxy;
   currentPage: number;
@@ -76,6 +77,7 @@ interface ReaderLayoutProps {
 }
 
 export function PageLayout({
+  returnLabel,
   document,
   currentPage,
   zoom,
@@ -145,6 +147,7 @@ export function PageLayout({
         第 {pager.failedPage} 页显示失败，当前页已保留。
         <Button onPress={pager.retryPage}>重试翻页</Button>
       </aside>}
+      <div className="reader-dismiss-destination" aria-hidden="true"><span>返回云盘</span><strong>当前乐谱：{returnLabel ?? `${document.numPages} 页乐谱`}</strong></div>
       <div
         className="page-reader__viewport"
         data-zoom={zoom}
@@ -375,6 +378,12 @@ export function PageNavigatorPanel({
   const page = draftPage ?? currentPage;
   const panelRef = useRef<HTMLElement>(null);
   const size = useElementSize(panelRef);
+  useLayoutEffect(() => {
+    const shell = panelRef.current?.closest<HTMLElement>(".reader-shell");
+    if (!shell || !size.height) return;
+    shell.style.setProperty("--reader-preview-height", `${panelRef.current!.getBoundingClientRect().height}px`);
+    return () => { shell.style.removeProperty("--reader-preview-height"); };
+  }, [size.height]);
   // Sample the document at a density that leaves gaps between resting thumbnails.
   // The range input still addresses every page, including those not sampled.
   const count = Math.min(document.numPages, 40, Math.max(1, Math.floor((size.width - 40) / 20) + 1));

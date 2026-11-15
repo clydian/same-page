@@ -5,3 +5,10 @@
 .drive-suggestion p { margin: 6px 0 12px; color: var(--ui-muted, #52666b); font-size: 14px; line-height: 1.65; }
 .drive-suggestion__action > :is(a, button) { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 44px; max-width: 100%; padding: 8px 14px; text-align: center; }
 .drive-suggestion__action { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+
+.drive-suggestion--compact { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; align-items: center; gap: 4px; padding: 8px; }
+.drive-suggestion--compact .drive-suggestion__heading { display: contents; }
+.drive-suggestion--compact .drive-suggestion__heading strong { grid-column: 1; grid-row: 1; font-size: 13px; font-weight: 500; }
+.drive-suggestion--compact .drive-suggestion__heading .icon-button { grid-column: 3; grid-row: 1; margin: 0; }
+.drive-suggestion--compact .drive-suggestion__action { grid-column: 2; grid-row: 1; }
+.drive-suggestion--compact .drive-suggestion__action > button { padding: 4px 8px; font-size: 13px; }

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { FileOpenLink } from "../file-open-link";
+import { FeedbackMessage } from "../../components/feedback-message";
+import { useFeedbackMessage } from "../../components/use-feedback-message";
 import { useSyncExternalStore } from "react";
 import { connections, connectionUrl } from "../../connection/connection";
-import { FileAudio, FileText, Link as LinkIcon, MoreHorizontal, Paperclip } from "lucide-react";
+import { FileAudio, FileText, Link as LinkIcon, MoreHorizontal, Paperclip, ExternalLink } from "lucide-react";
 import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
 import { scoreDisplayName } from "../../../shared/score-display-name";
@@ -25,19 +27,19 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
   available?: boolean; score: ScoreSummary; choirId: string; items: ScoreAttachment[]; canModify: boolean; canTrash: boolean;
   onSelect: (selection: AttachmentSelection) => void;
 }) {
-  const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
+  const unavailable = () => feedback.setMessage("连接网络后可打开此附件。", { duration: 5000 });
   useSyncExternalStore(connections.subscribe, connections.getSnapshot);
   const rows = items.filter(item => item.scoreId === score.id && item.source !== "generated");
   const list = useAttachmentReveal(revealRequest, onRevealHandled);
   if (!rows.length) return null;
-  return <ul ref={list} className="attachment-list" aria-label={`${score.fileName} 的附件`}>
+  return <><FeedbackMessage feedback={feedback} closeLabel="关闭附件提示" /><ul ref={list} className="attachment-list" aria-label={`${score.fileName} 的附件`}>
     {rows.map(attachment => {
       const Icon = attachment.kind === "audio" ? FileAudio : attachment.kind === "link" ? LinkIcon : FileText;
       const content = <><Icon size={16} aria-hidden="true" /><span>{attachment.name}{attachment.source === "generated" && <small> · 自动生成 · Beta</small>}</span></>;
       return <li className="attachment-row" key={attachment.id}>
-        {attachment.kind === "link" ? <a className="attachment-open" onClick={event => { if (!available) { event.preventDefault(); setUnavailableId(attachment.id); } }} href={safeAttachmentUrl(attachment.url ?? "")} target="_blank" rel="noopener noreferrer">{content}</a>
-          : <Button className="attachment-open" onPress={() => { if (!available && attachment.kind !== "musicxml") setUnavailableId(attachment.id); else onSelect({ score, attachment, action: "open" }); }}>{content}</Button>}
-        {!available && unavailableId === attachment.id && <span className="attachment-help attachment-feedback" role="status">连接网络后可打开此附件。</span>}
+        {attachment.kind === "link" ? <FileOpenLink className="attachment-open" onClick={event => { if (!available) { event.preventDefault(); unavailable(); } }} href={safeAttachmentUrl(attachment.url ?? "")} target="_blank" rel="noopener noreferrer">{content}<ExternalLink size={13} aria-hidden="true" /></FileOpenLink>
+          : <Button className="attachment-open" onPress={() => { if (!available && attachment.kind !== "musicxml") unavailable(); else onSelect({ score, attachment, action: "open" }); }}>{content}</Button>}
         {(attachment.kind !== "link" || canModify || canTrash) && <MenuTrigger><Button className="attachment-menu" aria-label={`${attachment.name} 更多操作`}><MoreHorizontal size={18} /></Button>
           <Popover className="file-menu-popover"><Menu aria-label={`${attachment.name} 操作`} onAction={key => { if (key === "rename" || key === "trash") onSelect({ score, attachment, action: key }); }}>
             {attachment.kind !== "link" && <MenuItem id="download" isDisabled={!available} href={available ? connectionUrl(attachmentFileUrl(choirId, attachment, true)) : undefined} download={attachment.name}>下载</MenuItem>}
@@ -46,7 +48,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
           </Menu></Popover></MenuTrigger>}
       </li>;
     })}
-  </ul>;
+  </ul></>;
 }
 
 export function AttachmentPending({ count, failed, retry }: { count: number; failed: boolean; retry: () => void }) {

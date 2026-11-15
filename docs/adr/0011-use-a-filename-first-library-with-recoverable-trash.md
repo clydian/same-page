@@ -12,3 +12,10 @@ Installation onboarding (#290) extends cold startup for signed-out visitors with
 
 
 Navigation refinement (#482) makes the current drive name the direct membership picker, with the gear opening drive settings. The public homepage and explicit `/drives` selection rules above remain unchanged. Library search and sort share one row; sort direction is an optional owner/drive-scoped session preference compatible with earlier views. Touch pull-to-refresh and the personal/guest menu both refresh the existing library without reloading the application. Existing settings deep links, authority checks and local draft boundaries remain unchanged.
+
+
+## 云盘入口与按需反馈 · 2026-11-15
+
+切换面板按本次打开的目录规模预留行数，冷读完成后仅在没有按住控件时收敛一次；随后刷新保持本次空间稳定，更多云盘在列表内滚动。手机保留底部面板，桌面保留锚定面板。创建云盘突出两字段与额度摘要，保留可见的清理风险摘要，完整邀请与清理规则按需展开；创建权限、提交与不确定结果处理不变。
+
+已加入云盘后的安装建议压缩为一行。列表不常驻逐谱离线说明，继续由既有图标与辅助描述表达状态。离线点击不可打开的普通附件或外链时复用底部短暂可关闭提示，不插入附件行文字；MusicXML 仍由其自身离线准备与访问校验决定能否打开。

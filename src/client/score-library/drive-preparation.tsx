@@ -13,6 +13,10 @@ export function DrivePreparation({ choirId, accountReady }: { choirId: string; a
   const installed = install.hidden;
   const pendingInstall = install.requested && !installed;
   const login = loginHref(`/choirs/${choirId}`);
+  if (accountReady) return <DriveSuggestion id="preparation" label="排练准备" title={pendingInstall ? "添加请求已提交" : "添加到桌面，打开更方便"}
+    compact closeLabel="暂时不用，关闭排练准备" action={pendingInstall
+      ? <Button className="text-button" onPress={install.open}>查看帮助</Button>
+      : <InstallButton className="text-button" />} children={null} />;
   return <DriveSuggestion id="preparation" label="排练准备" title="为下次排练做好准备"
     closeLabel="暂时不用，关闭排练准备"
     action={<>

@@ -1,3 +1,4 @@
+import { useReturnState } from "../navigation/navigation-context";
 import { ConnectionHelp } from "../connection/connection-control";
 import type { AttachmentRevealRequest } from "../score-library/attachments/use-attachment-reveal";
 import { readerHref } from "../reader/reader-entry";
@@ -72,6 +73,7 @@ export default function ChoirPage() {
 }
 
 function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; identity: ApplicationIdentity; cacheOwner: DriveCacheOwnerKey }) {
+  const [openedScoreId, setOpenedScoreId] = useReturnState<string | null>(`opened-score:${cacheOwner}:${choirId}`, null);
   const navigate = useNavigate(), location = useLocation();
   const { session } = identity;
   // A remembered session scopes the mounted view; only authenticatedUserId grants authority.
@@ -248,6 +250,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const managementVisible = hasManagement(capabilities) || access.managementVisible;
   const localFilesOnly = Boolean(access.local);
   const beforeScoreOpen = (score: ScoreSummary, scrollY = window.scrollY) => {
+    setOpenedScoreId(score.id);
     startLoadingJourney("open-score", classifyReaderOpen(userId ?? "guest", choirId, score.id));
     library.prepareScoreOpen(scrollY);
     rememberReaderScore(userId ?? "guest", score);
@@ -287,8 +290,8 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
               {visibleScores.map((score) => {
                 const presentation = attachments.forScore(score);
                 return (
-                <article className="score-file-group" key={score.id}><div className="file-row">
-                  <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={Boolean(!online || identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable" || (Boolean(userId) && identity.onlineState === "signed-out") || access.retained)} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
+                <article className="score-file-group" data-returned-score={openedScoreId === score.id || undefined} key={score.id}><div className="file-row">
+                  <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={false} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
                     onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
                     {(opening, percent) => <>
