@@ -1,0 +1,74 @@
+{
+  label: 'before',
+  position: '4 / 8',
+  thumbnails: 8,
+  stripWidth: 180,
+  max: '8',
+  shell: { chromeVisible: 'true' },
+  observers: [
+    { event: 'observe', width: 180 },
+    { event: 'resize', connected: true, width: 180 }
+  ],
+  pages: [ '3', '4', '5' ]
+}
+{
+  label: 'xml-1',
+  position: '4 / 8',
+  thumbnails: 0,
+  stripWidth: undefined,
+  max: undefined,
+  shell: { chromeVisible: 'true', practicing: 'true', playbackView: 'xml' },
+  observers: [
+    { event: 'observe', width: 180 },
+    { event: 'resize', connected: true, width: 180 },
+    { event: 'resize', connected: false, width: 0 }
+  ],
+  pages: [ '3', '4', '5' ]
+}
+{
+  label: 'exit-1',
+  position: '4 / 8',
+  thumbnails: 1,
+  stripWidth: 180,
+  max: '8',
+  shell: { chromeVisible: 'true' },
+  observers: [
+    { event: 'observe', width: 180 },
+    { event: 'resize', connected: true, width: 180 },
+    { event: 'resize', connected: false, width: 0 }
+  ],
+  pages: [ '3', '4', '5' ]
+}
+✖ chromium: XML exit restores PDF thumbnails and reading position (46477.936844ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47124.677091
+
+✖ failing tests:
+
+test at visual-report/reader-practice-exit.test.mjs:8:95
+✖ chromium: XML exit restores PDF thumbnails and reading position (46477.936844ms)
+  Error: expect(locator).toHaveCount(expected) failed
+  
+  Locator:  locator('.page-preview-strip__thumbnail')
+  Expected: 8
+  Received: 1
+  Timeout:  5000ms
+  
+  Call log:
+    - Expect "toHaveCount" locator('.page-preview-strip__thumbnail') with timeout 5000ms
+    - waiting for locator('.page-preview-strip__thumbnail')
+      14 × locator resolved to 1 element
+         - unexpected value "1"
+  
+      at captureRawStack (/workspace/same-page/node_modules/playwright-core/lib/coreBundle.js:9282:17)
+      at callMatcherAsStep (/workspace/same-page/node_modules/playwright/lib/matchers/expect.js:13316:57)
+      at Object.toHaveCount (/workspace/same-page/node_modules/playwright/lib/matchers/expect.js:13308:23)
+      at TestContext.<anonymous> (/workspace/same-page/visual-report/reader-practice-exit.test.mjs:59:66) {
+    matcherResult: { actual: 1, expected: 8, message: `expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.page-preview-strip__thumbnail')\nExpected: 8\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect "toHaveCount" locator('.page-preview-strip__thumbnail') with timeout 5000ms\n  - waiting for locator('.page-preview-strip__thumbnail')\n    14 × locator resolved to 1 element\n       - unexpected value "1"\n`, name: 'toHaveCount', pass: false, log: [ `  - Expect "toHaveCount" locator('.page-preview-strip__thumbnail') with timeout 5000ms`, "  - waiting for locator('.page-preview-strip__thumbnail')", '    14 × locator resolved to 1 element', '       - unexpected value "1"' ], timeout: 5000, ariaSnapshot: undefined }
+  }

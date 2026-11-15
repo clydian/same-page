@@ -1,0 +1,14 @@
+Skipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.
+▶ whole-score scrubber selects all 30 pages without horizontal scrolling
+  ✔ chromium (8420.201205ms)
+Skipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.
+  ✔ webkit (6348.88182ms)
+✔ whole-score scrubber selects all 30 pages without horizontal scrolling (25752.943116ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26347.163798

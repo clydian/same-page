@@ -1,0 +1,55 @@
+Skipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.
+{
+  label: 'before',
+  position: '4 / 8',
+  thumbnails: 8,
+  stripWidth: 180,
+  max: '8',
+  shell: { chromeVisible: 'true' },
+  pages: [ '3', '4', '5' ]
+}
+{
+  label: 'xml-1',
+  position: '4 / 8',
+  thumbnails: 0,
+  stripWidth: undefined,
+  max: undefined,
+  shell: { chromeVisible: 'true', practicing: 'true', playbackView: 'xml' },
+  pages: [ '3', '4', '5' ]
+}
+{
+  label: 'exit-1',
+  position: '4 / 8',
+  thumbnails: 8,
+  stripWidth: 180,
+  max: '8',
+  shell: { chromeVisible: 'true' },
+  pages: [ '3', '4', '5' ]
+}
+{
+  label: 'xml-2',
+  position: '4 / 8',
+  thumbnails: 0,
+  stripWidth: undefined,
+  max: undefined,
+  shell: { chromeVisible: 'true', practicing: 'true', playbackView: 'xml' },
+  pages: [ '3', '4', '5' ]
+}
+{
+  label: 'exit-2',
+  position: '4 / 8',
+  thumbnails: 8,
+  stripWidth: 180,
+  max: '8',
+  shell: { chromeVisible: 'true' },
+  pages: [ '3', '4', '5' ]
+}
+✔ webkit: XML exit restores PDF thumbnails and reading position (44146.135117ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48754.528804
