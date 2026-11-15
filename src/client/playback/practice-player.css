@@ -211,7 +211,7 @@
 .practice-transport .practice-play { flex-basis: 48px; width: 48px; height: 48px; }
 .practice-bar-meta { display: flex; align-items: center; min-width: 0; grid-area: 2 / 1; }
 .practice-bar .practice-transport { grid-area: 2 / 2; }
-.practice-bar .practice-settings { grid-area: 2 / 3; }
+.practice-bar .practice-settings { grid-area: 2 / 3; align-self: center; }
 .practice-position, .practice-speed { appearance: none; box-sizing: border-box; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0 2px; border: 0; border-radius: 9px; background: transparent; color: var(--ui-muted, #52665a); font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; cursor: pointer; }
 .practice-position { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .practice-position[data-hovered], .practice-speed:hover { background: var(--ui-soft, #edf1eb); }

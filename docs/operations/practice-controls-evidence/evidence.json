@@ -1,6 +1,6 @@
 {
   "base": "a7d7a7a",
-  "source": "Final responsive XML controls and reader-owned MP3 controls; local production build of working tree based on 5a51425",
+  "source": "Final responsive XML controls and reader-owned MP3 controls; local production build, exact runtime hashes below",
   "conditions": "Headless Chromium, synthetic SATB XML/PDF and actual repository MP3 fixture, mocked local API. No production or real device.",
   "checks": [
     {
@@ -97,13 +97,15 @@
   ],
   "errors": [],
   "verification": {
-    "practice_focus": "Chromium/WebKit 2/2 passed on final runtime CSS; portrait/landscape, tablet/split, collapsed exit, focus and simulated safe-area non-overlap",
+    "practice_focus": "Chromium/WebKit 2/2 passed on responsive layout (9d56e35); portrait/landscape, tablet/split, collapsed exit, focus and simulated safe-area non-overlap",
     "local_backend": "practice-unified-controls Chromium/WebKit 2/2 passed",
     "focus_clearance_hooks": "9/9 passed",
     "build": "production build passed",
     "typecheck": "passed",
     "lint": "passed",
-    "review": "self review and independent read-only review passed; audio safe-area width regression corrected"
+    "review": "self review and independent read-only review passed; audio safe-area width regression corrected",
+    "playback_ux": "Final alignment CSS: original playback-ux suite Chromium/WebKit 2/2 passed, same lower-row center assertion unchanged",
+    "ci": "9d56e35: main CI success; extended 3/4 browser shards passed, final smoke found 2px settings alignment regression. Corrected with align-self:center and original failing suite passed locally; final head CI runs separately."
   },
   "limitations": [
     "Browser touch and viewport simulation, CSS-injected safe areas; no physical phone/iPad",
@@ -120,17 +122,17 @@
     "final-mp3-reader-portrait.png": "9e9fc383209a944c16215f4d1eb0e293e006fc10f57dd27fde20eb12efef6bfa",
     "final-mp3-reader-tools-portrait.png": "dc0e210ebad3a5aec5614e063baa6c837ee77c3977d02141b36c90df22e72400",
     "final-xml-collapsed-portrait.png": "3bd423a6b43e63c520ba3dd3850114de12970f18f627b944902bcef6f79cde0a",
-    "final-xml-compare-collapsed-landscape.png": "09e7d98ee16165659d5ae5f40c45dd26d16c107985345e1ca0a9303077d6e941",
-    "final-xml-compare-landscape.png": "fe6f2df8976054cb7da028903c64c82fbbe9e4693993044fd6cca0c02920eadb",
-    "final-xml-expanded-portrait.png": "bb47cd3dc2e03053104f33112633bcfbc111a81acd15aa1b3fbf040ae5e95288",
-    "final-xml-ipad-landscape.png": "11bf46d0938fdc552c56d70f0c2f715e912989fcc6059dbf177aecbcc51e752f",
+    "final-xml-compare-collapsed-landscape.png": "4da31715a3af99f502f4db19e37752c5758fc1adafe737dc870aa813856d5cfd",
+    "final-xml-compare-landscape.png": "042f881c6cca670c82584d99288403b3d340d223c659aa9c4e02a5675f7a6e20",
+    "final-xml-expanded-portrait.png": "d97ea1af993e1d72d58017c8cd2fe1d0e7f7d226fe8e1d423938f7077e443fe1",
+    "final-xml-ipad-landscape.png": "6df75b27cad1f5720203fcf385faf583fe65b75e6dd6dcceb3976b6289acc2a2",
     "final-xml-ipad-portrait.png": "e52a353ba02b1aaa93634ff1743e1d9f3a4d5879df8898607b874f1f713be878",
-    "final-xml-ipad-split.png": "34757c97fecee3a12847d44abdcfd9d9ce6a172414f79639554b7d95a51ac3d5",
-    "final-xml-top-collapsed-portrait.png": "242238ef18e86ccd83c95803065732d70e923b3e393498dea087c188f3798a12"
+    "final-xml-ipad-split.png": "8af1b296bfd34f8bb42b6066861356d9c12d4e48d47f5f7699dd2a4ae9280a42",
+    "final-xml-top-collapsed-portrait.png": "a7534ce52a88f27b075a708617a1da6eeffea99a905d8ada4c38386fcf80470b"
   },
   "runtime_sources": {
     "src/client/playback/practice-player-shell.tsx": "2404102b23cbb98e79f4f20177e4083fb08ad5936c59807007b9cb292fed5c05",
-    "src/client/playback/practice-player.css": "bb1f77606c623dbacb08750b89c4bb42d8df6ac63b82f571a23ced09e7fedac3",
+    "src/client/playback/practice-player.css": "ca92710c470a02e43ed746c649d5a533aa84edcab1d819aa1fe83b2768eb7fd3",
     "src/client/playback/use-practice-focus.ts": "c0f71b82a3476b4a5215b840560dc6e62ddf38112a796e88fad1f8b9dce4fa17",
     "src/client/playback/musicxml-practice.tsx": "1d924a0fdcff6eb73122307158082e3cc21207b90c4e31501645f05fdd3fb91f",
     "src/client/routes/reader-page.tsx": "abe2a52f2007b9e51fea5deda7110b6834d56c31edd3112ab9b5c9d97c7f3232"

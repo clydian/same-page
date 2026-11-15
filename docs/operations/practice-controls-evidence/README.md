@@ -39,7 +39,7 @@ MP3 竖屏对比展示的是“旧设置面板”与“移除设置后的阅读�
 
 ## 验证范围
 
-复用 `practice-focus` 套件检查 Chromium/WebKit、320px、手机横竖屏、iPad 宽屏/分屏、模拟安全区、收展/退出与键盘焦点、对照字号、播放跟随、全屏及拒绝反馈。音频阶段检查普通阅读工具、同一媒体实例、笔记编辑避让与收起状态直接关闭。更新既有断言，不增加重试或放宽超时。生产构建、类型、lint 和 focus/clearance hooks 亦在最终改动后验证；具体结果见 evidence.json。
+复用 `practice-focus` 套件检查 Chromium/WebKit、320px、手机横竖屏、iPad 宽屏/分屏、模拟安全区、收展/退出与键盘焦点、对照字号、播放跟随、全屏及拒绝反馈。音频阶段检查普通阅读工具、同一媒体实例、笔记编辑避让与收起状态直接关闭。更新既有断言，不增加重试或放宽超时。生产构建、类型、lint 和 focus/clearance hooks 亦在最终改动后验证；原有 playback-ux 双引擎 2/2 验证播放行垂直居中；具体结果见 evidence.json。
 
 UI mock 套件使用 `serviceWorkers: 'block'`，避免 worker 绕过 page.route；产品 worker 没有改变。该隔离与附件触控菜单的 CI 修正已在前一 head `5a51425` 的主 CI 和扩展验证中通过，本次最终布局由新的 CI 再验证。
 
