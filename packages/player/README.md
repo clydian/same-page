@@ -4,6 +4,54 @@ Same Page 私有播放器模块，源码、测试和构建均由本仓库维护�
 
 Hosts supply bytes and a container, own authentication/navigation and dispose the session on scope changes. No private scores, room configuration or credentials are included. Install alphaTab's matching Vite plugin in browser hosts to copy fonts/soundfonts and bundle workers; configure lazy loading and PWA exclusions in the host.
 
+MXL collections support one flat `opus` root selected by `META-INF/container.xml`,
+with one title and ordered `score` elements using XLink `href` paths to complete
+`score-partwise` files in the same package. External URLs, fragments, encoded or
+parent-relative paths, `xml:base`, nested Opus and `opus-link` are rejected.
+Multiple container rootfiles are alternatives; they are not a collection playlist.
+The existing 256 ZIP-entry, 20 MiB and 100000-note admission limits apply to the
+whole collection; the 15-part limit applies independently to each score.
+
+Each score keeps its own model, channels, key, meter, tempo, pickup and native
+repeat/jump route. A single shared synthesizer loads the selected score's MIDI;
+the document adapter maps its local position and notation bounds into the
+ordinary practice session. Score starts begin new notation blocks; ordinary
+source print breaks are still ignored. Timeline, locator, source labels and loop
+ranges use `piece ordinal-source measure` and qualify repeat visits per piece.
+Mix/focus choices belong to the current score and are restored on returning;
+tracks in different ensembles are not matched by index or name. Single-score
+documents keep the original native renderer and transport path.
+
+Collections retain the global playback route and all score models/MIDI, but one
+reusable SVG renderer engraves only the scroll viewport and its nearby scores.
+Off-screen scores keep lightweight height placeholders; geometry and SVG are
+released when they leave that window. Initial heights are estimates and become
+measured as scores are visited, so total scrollbar length can change. A source
+measure and screen offset anchor the reading position while those heights change.
+Seeking and loop previews prepare their destination score directly, including
+positions whose preceding scores have never been engraved. The window and its
+anchors use notation coordinates even while the host magnifies the paper.
+
+A font, theme or width change invalidates notation only. The reading score is
+reflowed first; off-screen work waits until needed. Changes queued in the same
+frame collapse into one update. Source labels and solfege follow the mounted
+scores, and canceling a loop preview restores a musical reading anchor rather
+than a stale scroll offset. Ordinary single-score rendering remains native.
+This does not virtualize the full import/MIDI model or split a single long score
+into smaller layout jobs. Initial preparation still grows with source size; an
+individual complex score can still block during its synchronous layout. There
+is no claim of seamless audio at a MIDI-load boundary or physical iOS acceptance.
+Native MusicXML interpretation limits remain, including unsupported jump forms;
+successful admission is not musical acceptance. PDF pages still have no mapping
+to MusicXML measures. Source bytes, attachment/PDF identity and storage schemas
+are unchanged; old clients continue to reject Opus clearly.
+
+Core controls are exercised with independently authored CC0 SATB and piano
+samples in `browser-tests/opus-playback.test.mjs`, including different meters,
+key/tempo, a pickup, D.C., drag, count-in, cross-score looping, mixes and reflow.
+The same browser case uses a 24-score synthetic book to check bounded SVG, distant
+seeking, browsing/reflow anchors and canceled loop-preview restoration.
+
 在仓库根目录执行 `npm run build:player` 或 `npm run test:player`。根项目通过 npm workspace 使用本地构建，无需发包或其他产品仓库。alphaTab 保持精确 peer；修改原生引擎见 `../../vendor/alphatab/README.md`。
 
 

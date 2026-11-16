@@ -1,4 +1,5 @@
-import { assignPlaybackChannels, createPlaybackApi, loadPreparedMusicXml } from './engine.ts';
+import { assignPlaybackChannels, loadPreparedMusicXml } from './engine.ts';
+import { createDocumentPlaybackApi as createPlaybackApi } from './document-playback.ts';
 import { solfegeDegreeLabel } from './solfege-degree.ts';
 import * as alphaTab from '@coderline/alphatab';
 import { applyTimbreProfile, classifyTimbreRoles } from './timbre-profile.ts';
@@ -6,7 +7,7 @@ import { ScoreFollowSession, isPointerDrag } from './score-follow.ts';
 import { playbackTempo } from './practice-tempo.ts';
 import { readMusicXmlTempoMeasures, type MusicXmlTempoMeasure } from './musicxml-metronome.ts';
 import { playbackMeasureLabels } from './playback-measures.ts';
-import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
+import type { PreparedMusicXml, PreparedMusicXmlDocument } from './musicxml-direction-timing.ts';
 import { isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 import { playbackAudioSession } from './playback-audio-session.ts';
 export { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from './preparation-format.ts';
@@ -38,8 +39,8 @@ export interface PlayerSession {
 }
 export interface PlayerOptions {
   scrollElement?: HTMLElement;
-  prepared?: PreparedMusicXml;
-  onPrepared?(prepared: PreparedMusicXml): void;
+  prepared?: PreparedMusicXmlDocument;
+  onPrepared?(prepared: PreparedMusicXmlDocument): void;
   /** Fired once after actual notation and its first system bounds are available. */
   onFirstReadableSystem?(): void;
   /** Local timing hooks contain no source names, content or persistent identity. */
@@ -94,7 +95,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   let countInRequest = 0;
   let heldCursor: typeof api.customCursorHandler;
   let tempoMeasures: MusicXmlTempoMeasure[] = [];
-  const tempoAt = (tick: number) => playbackTempo(api.tickCache?.masterBars ?? [], tick, tempoMeasures);
+  const tempoAt = (tick: number) => api.isCollection ? api.tempoAt(tick) : playbackTempo(api.tickCache?.masterBars ?? [], tick, tempoMeasures);
+  const sourceIndex = (bar: alphaTab.model.MasterBar) => api.isCollection ? api.sourceIndex(bar) : bar.index;
   const stopCountIn = () => {
     countInActive = false; api.countInVolume = 0;
     if (heldCursor) {
@@ -138,9 +140,10 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   };
   let previewOverlays: HTMLDivElement[] = [];
   const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
-  let preview: { playing: boolean; scrollTop: number; index: number; range: { start: number; end: number } } | null = null;
+  let preview: { playing: boolean; scrollTop: number; restoreView?: () => void; index: number; range: { start: number; end: number } } | null = null;
   const scrollToMeasure = (index: number, clearance = 16) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
+    if (masterBar) api.ensureMeasure?.(masterBar);
     const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
     const bounds = measureBounds?.realBounds ?? measureBounds?.staffSystemBounds?.realBounds;
     if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - clearance;
@@ -172,7 +175,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const overlay = document.createElement('div');
     overlay.className = 'solfege-overlay'; overlay.setAttribute('aria-hidden', 'true');
     const seen = new Set<string>();
-    for (const track of api.score.tracks.filter(track => state.solfegePart === null || track.index === (state.solfegePart ?? 0))) for (const staff of track.staves) for (const bar of staff.bars)
+    const scores = api.isCollection && state.solfegePart === null ? api.renderedScores : [api.score];
+    for (const score of scores) for (const track of score.tracks.filter(track => state.solfegePart === null || track.index === (state.solfegePart ?? 0))) for (const staff of track.staves) for (const bar of staff.bars)
       for (const voice of bar.voices) for (const beat of voice.beats)
         for (const bounds of api.boundsLookup.findBeats(beat) ?? []) for (const item of bounds.notes ?? []) {
           const note = item.note, head = item.noteHeadBounds;
@@ -194,7 +198,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     if (disposed || !customMeasureLabels || !api.boundsLookup) return;
     const overlay = document.createElement('div');
     overlay.className = 'practice-measure-overlay'; overlay.setAttribute('aria-hidden', 'true');
-    measureLabels.forEach((text, index) => {
+    const indices = api.isCollection ? api.renderedScores.flatMap(score => score.masterBars.map(sourceIndex)) : measureLabels.map((_, index) => index);
+    indices.forEach(index => {
+      const text = measureLabels[index];
       const bar = api.boundsLookup?.findMasterBarByIndex(index)?.bars[0];
       if (!bar) return;
       const label = document.createElement('span'); label.className = 'practice-measure-label'; label.textContent = text;
@@ -209,7 +215,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   // Keep the visible system in place after reflow, including viewport resizes.
   let anchor: { bar: number; offset: number } | null = null;
   const captureAnchor = () => {
-    if (!viewport || !api.boundsLookup || state.following || anchor) return;
+    if (api.isCollection || !viewport || !api.boundsLookup || state.following || anchor) return;
     const top = viewport.getBoundingClientRect().top;
     const origin = element.getBoundingClientRect().top;
     const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
@@ -284,10 +290,30 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     }
     update({ parts: effective, focus, otherVolume, focusVolume });
   };
+  let visibleScore: alphaTab.model.Score | null = null;
+  const savedMixes = new WeakMap<alphaTab.model.Score, Pick<PlayerState, 'parts' | 'focus' | 'focusVolume' | 'otherVolume' | 'solfegePart'>>();
+  const showScore = (score: alphaTab.model.Score) => {
+    if (visibleScore === score) return;
+    if (visibleScore) savedMixes.set(visibleScore, { parts: state.parts, focus: state.focus, focusVolume: state.focusVolume, otherVolume: state.otherVolume, solfegePart: state.solfegePart });
+    visibleScore = score;
+    const saved = savedMixes.get(score);
+    if (saved) update(saved);
+    else {
+      const names = score.tracks.map((track, index) => track.name || `声部 ${index + 1}`), occurrences = new Map<string, number>();
+      update({ focus: null, focusVolume: undefined, otherVolume: .25, solfegePart: null, parts: score.tracks.map((track, id) => {
+        const name = names[id], key = name.trim().toLowerCase(), occurrence = (occurrences.get(key) ?? 0) + 1;
+        occurrences.set(key, occurrence);
+        return { id, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
+      }) });
+    }
+    if (state.status === 'ready') applyMix(state.parts);
+    renderDegrees();
+  };
+  api.scoreLoaded.on(showScore);
   const ready = () => {
     if (disposed || state.status === 'error' || state.status === 'ready' || !api.isReadyForPlayback || !api.score) return;
     const bars = api.tickCache?.masterBars ?? [];
-    const labels = playbackMeasureLabels(bars.map(item => String(measureLabels[item.masterBar.index] ?? item.masterBar.index + 1)));
+    const labels = api.isCollection ? api.playbackLabels : playbackMeasureLabels(bars.map(item => String(measureLabels[item.masterBar.index] ?? item.masterBar.index + 1)));
     const measures = bars.map((item,index) => {
       const label = labels[index];
       return { index, label, startTick: item.start, endTick: item.end };
@@ -335,44 +361,55 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     }
     const index = state.measures.findLastIndex(item => item.startTick <= event.currentTick);
     const tempo = tempoAt(event.currentTick);
-    if (index >= 0 && (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit)) update({ measure: index, tempo });
+    if (index >= 0 && (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit)) {
+      update({ measure: index, tempo });
+      if (api.isCollection && state.following && viewport) {
+        const bounds = api.boundsLookup?.findMasterBar(api.tickCache!.masterBars[index].masterBar)?.realBounds;
+        if (!bounds) scrollToMeasure(index);
+        else {
+          const top = element.getBoundingClientRect().top + bounds.y, view = viewport.getBoundingClientRect();
+          if (top < view.top + 28 || top + bounds.h > view.bottom) scrollToMeasure(index);
+        }
+      }
+    }
   });
-  const render = (prepared: PreparedMusicXml) => {
+  const render = async (document: PreparedMusicXmlDocument) => {
     if (disposed || state.status === 'error') return;
     try {
       loadingStage('source-prepared');
-      tempoMeasures = prepared.tempoMeasures ?? readMusicXmlTempoMeasures(prepared.bytes);
-      if (prepared.measureLabels !== undefined) measureLabels = prepared.measureLabels;
-      else {
-        const document = new DOMParser().parseFromString(new TextDecoder().decode(prepared.bytes), 'application/xml');
-        const part = Array.from(document.documentElement.children).find(node => node.localName === 'part');
-        measureLabels = Array.from(part?.children ?? []).filter(node => node.localName === 'measure').map((node, index) => node.getAttribute('number')?.trim() || String(index + 1));
-      }
+      const inputs: PreparedMusicXml[] = 'kind' in document && document.kind === 'opus' ? document.scores : [document as PreparedMusicXml];
+      tempoMeasures = inputs[0].tempoMeasures ?? readMusicXmlTempoMeasures(inputs[0].bytes);
+      measureLabels = inputs.flatMap((prepared, piece) => {
+        if (prepared.measureLabels !== undefined) return prepared.measureLabels.map(label => inputs.length > 1 ? `${piece + 1}-${label}` : label);
+        const xml = new DOMParser().parseFromString(new TextDecoder().decode(prepared.bytes), 'application/xml');
+        const part = Array.from(xml.documentElement.children).find(node => node.localName === 'part');
+        return Array.from(part?.children ?? []).filter(node => node.localName === 'measure').map((node, index) => inputs.length > 1 ? `${piece + 1}-${node.getAttribute('number')?.trim() || index + 1}` : node.getAttribute('number')?.trim() || String(index + 1));
+      });
       customMeasureLabels = measureLabels.some((label, index) => label !== String(index + 1));
-      const score = loadPreparedMusicXml(prepared, api.settings);
-      // Reflow follows the viewport rather than print-system/page breaks from the source.
-      for (const track of score.tracks) track.lineBreaks?.clear();
-      // alphaTab 1.8 prints ordinal numbers only. For custom source numbering,
-      // replace those glyphs with labels positioned from the same post-render bounds.
-      if (customMeasureLabels) for (const track of score.tracks) for (const staff of track.staves) for (const bar of staff.bars) bar.barNumberDisplay = alphaTab.model.BarNumberDisplay.Hide;
-      assignPlaybackChannels(score.tracks);
-      applyTimbreProfile(score.tracks, 'choir', classifyTimbreRoles(score.tracks, []));
-      const names = score.tracks.map((track, index) => track.name || `声部 ${index + 1}`);
-      const occurrences = new Map<string, number>();
-      update({ parts: score.tracks.map((track, id) => {
-        const name = names[id], key = name.trim().toLowerCase(), occurrence = (occurrences.get(key) ?? 0) + 1;
-        occurrences.set(key, occurrence);
-        return { id, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
-      }) });
+      const scores: alphaTab.model.Score[] = [];
+      for (const prepared of inputs) {
+        const score = loadPreparedMusicXml(prepared, api.settings);
+        // Reflow follows the viewport rather than print-system/page breaks from the source.
+        for (const track of score.tracks) track.lineBreaks?.clear();
+        // alphaTab 1.8 prints ordinal numbers only. For custom source numbering,
+        // replace those glyphs with labels positioned from the same post-render bounds.
+        if (customMeasureLabels) for (const track of score.tracks) for (const staff of track.staves) for (const bar of staff.bars) bar.barNumberDisplay = alphaTab.model.BarNumberDisplay.Hide;
+        assignPlaybackChannels(score.tracks);
+        applyTimbreProfile(score.tracks, 'choir', classifyTimbreRoles(score.tracks, []));
+        scores.push(score);
+        if (inputs.length > 1) await new Promise<void>(resolve => setTimeout(resolve, 0));
+        if (disposed) return;
+      }
+      showScore(scores[0]);
       modelReady = true; reportPreparation();
-      loadingStage('model-ready'); api.renderScore(score, score.tracks.map(track => track.index));
+      loadingStage('model-ready'); api.renderScores(scores, inputs);
     } catch (error) { fail(error instanceof Error ? error.message : '无法播放此乐谱。'); }
   };
   if (options.prepared && isCompatibleMusicXmlPreparation(options.prepared)) queueMicrotask(() => render(options.prepared!));
   else {
     worker = new Worker(new URL('./prepare.worker.js', import.meta.url), { type: 'module' });
     worker.onerror = () => fail('无法准备乐谱，请重试。');
-    worker.onmessage = (event: MessageEvent<{ error?: string; prepared?: PreparedMusicXml }>) => {
+    worker.onmessage = (event: MessageEvent<{ error?: string; prepared?: PreparedMusicXmlDocument }>) => {
       worker?.terminate();
       if (disposed || state.status === 'error') return;
       if (event.data.error || !event.data.prepared) { fail(event.data.error ?? '读取失败。'); return; }
@@ -381,6 +418,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const copy = bytes.slice(); worker.postMessage(copy, [copy.buffer]);
   }
   const highlight = (start: number, end: number) => {
+    if (api.isCollection) { markRange(start, end); return; }
     const first = api.tickCache?.masterBars[start]?.masterBar.index;
     const last = api.tickCache?.masterBars[end]?.masterBar.index;
     const bars = api.score?.tracks[0]?.staves?.[0]?.bars;
@@ -394,8 +432,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const rectangles: { x: number; y: number; w: number; h: number }[] = [];
     for (let index = start; index <= end; index++) {
       const master = api.tickCache?.masterBars[index]?.masterBar;
-      if (!master || seen.has(master.index)) continue;
-      seen.add(master.index);
+      if (!master || seen.has(sourceIndex(master))) continue;
+      seen.add(sourceIndex(master));
       const bounds = api.boundsLookup?.findMasterBar(master)?.realBounds;
       if (bounds && bounds.w > 0 && bounds.h > 0) rectangles.push({ x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h });
     }
@@ -433,7 +471,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   const finishPreview = () => {
     if (!preview) return;
     const previous = preview; preview = null; clearPreviewMarkers(); update({ previewing: false }); restoreScrollMode(); highlightLoop();
-    if (viewport) viewport.scrollTop = previous.scrollTop;
+    if (previous.restoreView) previous.restoreView();
+    else if (viewport) viewport.scrollTop = previous.scrollTop;
     if (previous.playing) play();
   };
   const seekTick = (requested: number, manual = true) => {
@@ -476,8 +515,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (disposed || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
       const beat = api.boundsLookup?.getBeatAtPos(x, y);
       if (beat && api.tickCache) {
-        const sourceIndex = beat.voice?.bar.masterBar.index;
-        const occurrences = api.tickCache.masterBars.map((bar, index) => ({ bar, index })).filter(item => item.bar.masterBar.index === sourceIndex);
+        const master = beat.voice?.bar.masterBar;
+        const source = master ? sourceIndex(master) : undefined;
+        const occurrences = api.tickCache.masterBars.map((bar, index) => ({ bar, index })).filter(item => sourceIndex(item.bar.masterBar) === source);
         const inside = occurrences.filter(item => !state.loop || item.index >= state.loop.start && item.index <= state.loop.end);
         const nearest = (inside.length ? inside : occurrences).sort((a, b) => Math.abs(a.index - state.measure) - Math.abs(b.index - state.measure))[0];
         seekTick(nearest ? nearest.bar.start : api.tickCache.getBeatStart(beat));
@@ -536,7 +576,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (!state.measures[index] || range && (range.end < range.start || !state.measures[range.start] || !state.measures[range.end])) return;
       if (!preview) {
         const wasPlaying = state.playing || countInActive; stopCountIn();
-        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, index, range: range ?? { start: index, end: index } };
+        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, restoreView: api.isCollection ? api.captureView() : undefined, index, range: range ?? { start: index, end: index } };
         update({ previewing: true });
         api.settings.player.scrollMode = alphaTab.ScrollMode.Off; api.updateSettings(); api.pause();
       }

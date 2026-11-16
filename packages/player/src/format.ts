@@ -8,7 +8,7 @@ const MAX_ENTRIES = 256;
 export class MusicXmlError extends Error {
   constructor(message: string) { super(message); this.name = 'MusicXmlError'; }
 }
-const fail = (message: string): never => { throw new MusicXmlError(message); };
+function fail(message: string): never { throw new MusicXmlError(message); }
 
 function decode(bytes: Uint8Array): string {
   let encoding = 'utf-8';
@@ -22,7 +22,8 @@ function decode(bytes: Uint8Array): string {
   return text.replace(/^(\s*<\?xml\s[^?]*encoding\s*=\s*['"])[^'"]+(['"])/i, '$1UTF-8$2');
 }
 
-function inspectXml(text: string, container = false): string | null {
+type XmlBudget = { nodes: number; notes: number; bytes: number };
+function inspectXml(text: string, container = false, budget: XmlBudget = { nodes: 0, notes: 0, bytes: 0 }, allowOpus = false): { root: string; entry: string | null } {
   let root = '', depth = 0, notes = 0, parts = 0, nodes = 0;
   let entry: string | null = null;
   const parser = new SaxesParser({ xmlns: false });
@@ -32,10 +33,10 @@ function inspectXml(text: string, container = false): string | null {
     if (value.includes('[')) fail('不支持包含自定义实体的 MusicXML。');
   });
   parser.on('opentag', tag => {
-    depth++; nodes++;
-    if (depth > 64 || nodes > 1000000) fail('MusicXML 结构过于复杂。');
+    depth++; nodes++; budget.nodes++;
+    if (depth > 64 || nodes > 1000000 || budget.nodes > 1000000) fail('MusicXML 结构过于复杂。');
     if (!root) root = tag.name;
-    if (tag.name === 'note' && ++notes > 100000) fail('乐谱音符过多，最多支持 100000 个音符。');
+    if (tag.name === 'note') { notes++; if (++budget.notes > 100000) fail('乐谱音符过多，最多支持 100000 个音符。'); }
     if (tag.name === 'score-part' && ++parts > 15) fail('最多支持 15 个独立声部。');
     if (container && depth === 3 && tag.name === 'rootfile' && entry === null) entry = String(tag.attributes['full-path'] ?? '');
   });
@@ -46,10 +47,10 @@ function inspectXml(text: string, container = false): string | null {
   if (container) {
     if (root !== 'container' || !entry) fail('MXL 缺少有效的乐谱入口。');
   } else {
-    if (root !== 'score-partwise') fail('当前支持单份 score-partwise 乐谱，请重新导出此格式。');
-    if (!parts || !notes) fail('这份 MusicXML 没有可播放的声部或音符。');
+    if (root !== 'score-partwise' && !(allowOpus && root === 'opus')) fail('当前支持 score-partwise 乐谱及 MXL 内的平铺 Opus 合集。');
+    if (root === 'score-partwise' && (!parts || !notes)) fail('这份 MusicXML 没有可播放的声部或音符。');
   }
-  return entry;
+  return { root, entry };
 }
 
 function safePath(path: string) {
@@ -96,24 +97,27 @@ function crc32(bytes: Uint8Array) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function unzipEntry(bytes: Uint8Array, wanted: string, limit: number, directory: Map<string, { size: number; crc: number }>): Uint8Array {
-  const expected = directory.get(wanted);
-  if (!expected || expected.size > limit) fail("MXL 缺少乐谱入口或解压大小超过限制。");
+function unzipEntries(bytes: Uint8Array, wanted: string[], limit: number, directory: Map<string, { size: number; crc: number }>): Map<string, Uint8Array> {
+  const selected = new Set(wanted);
+  let expectedSize = 0;
+  for (const name of selected) { const entry = directory.get(name); if (!entry) fail('MXL 缺少乐谱入口。'); expectedSize += entry!.size; }
+  if (expectedSize > limit) fail('解压后的乐谱总大小超过限制。');
   const names = new Set<string>();
-  const chunks: Uint8Array[] = [];
-  let total = 0, complete = false;
+  const chunks = new Map<string, Uint8Array[]>(), complete = new Set<string>();
+  let total = 0;
   const unzip = new Unzip(file => {
     safePath(file.name);
     if (names.has(file.name) || names.size >= MAX_ENTRIES) fail('MXL 条目重复或数量超过限制。');
     names.add(file.name);
-    if (file.name !== wanted) return;
+    if (!selected.has(file.name)) return;
+    const parts: Uint8Array[] = []; chunks.set(file.name, parts);
     if (file.originalSize !== undefined && file.originalSize > limit) fail('解压后的乐谱超过大小限制。');
     file.ondata = (error, data, final) => {
       if (error) fail('MXL 压缩内容损坏或不受支持。');
       total += data.length;
       if (total > limit) { file.terminate(); fail('解压后的乐谱超过大小限制。'); }
-      chunks.push(data);
-      complete = final;
+      parts.push(data);
+      if (final) complete.add(file.name);
     };
     file.start();
   });
@@ -125,47 +129,101 @@ function unzipEntry(bytes: Uint8Array, wanted: string, limit: number, directory:
     if (error instanceof MusicXmlError) throw error;
     fail('MXL 压缩内容损坏或不受支持。');
   }
-  if (!complete) fail('MXL 缺少声明的乐谱文件或内容不完整。');
-  const result = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
-  if (result.length !== expected!.size || crc32(result) !== expected!.crc) fail("MXL 内容校验失败。");
-  return result;
+  const results = new Map<string, Uint8Array>();
+  for (const name of selected) {
+    if (!complete.has(name)) fail('MXL 缺少声明的乐谱文件或内容不完整。');
+    const parts = chunks.get(name)!, expected = directory.get(name)!;
+    const result = new Uint8Array(parts.reduce((sum, chunk) => sum + chunk.length, 0));
+    let offset = 0;
+    for (const chunk of parts) { result.set(chunk, offset); offset += chunk.length; }
+    if (result.length !== expected.size || crc32(result) !== expected.crc) fail('MXL 内容校验失败。');
+    results.set(name, result);
+  }
+  return results;
+}
+const unzipEntry = (bytes: Uint8Array, wanted: string, limit: number, directory: Map<string, { size: number; crc: number }>) => unzipEntries(bytes, [wanted], limit, directory).get(wanted)!;
+
+/** Deliberately supports only complete, package-local score links in one flat opus. */
+function opusLinks(text: string): string[] {
+  const links: string[] = [];
+  let depth = 0, root = '', titles = 0, child = '';
+  const parser = new SaxesParser({ xmlns: true });
+  parser.on('error', () => fail('Opus XML 结构无效。'));
+  parser.on('opentag', tag => {
+    depth++;
+    if (!root) root = tag.local;
+    if (Object.values(tag.attributes).some(attribute => attribute.uri === 'http://www.w3.org/XML/1998/namespace' && attribute.local === 'base')) fail('合集不支持 xml:base。');
+    if (depth === 1) return;
+    child = tag.local;
+    if (depth !== 2 || !['title', 'score'].includes(tag.local)) fail('合集仅支持平铺的 score 引用，不支持嵌套或 opus-link。');
+    if (tag.local === 'title') { if (links.length || ++titles > 1) fail('Opus 标题结构无效。'); return; }
+    const href = Object.values(tag.attributes).find(attribute => attribute.uri === 'http://www.w3.org/1999/xlink' && attribute.local === 'href')?.value;
+    if (!href || /[?#%]/.test(href)) fail('合集仅支持包内完整乐谱路径，不支持外部或片段引用。');
+    safePath(href);
+    links.push(href);
+    if (links.length > MAX_ENTRIES) fail('合集曲目过多。');
+  });
+  parser.on('text', value => { if (value.trim() && !(depth === 2 && child === 'title')) fail('Opus 仅支持标题与空 score 引用。'); });
+  parser.on('closetag', () => depth--);
+  parser.write(text).close();
+  if (root !== 'opus' || titles !== 1 || !links.length) fail('Opus 缺少标题或曲目。');
+  return links;
 }
 
 /** Preserve source bytes; return only disposable normalized XML. No network or storage. */
-function readMusicXmlSource(bytes: Uint8Array): string {
+export interface MusicXmlDocumentSource { sources: string[]; opus: boolean }
+export function readMusicXmlDocument(bytes: Uint8Array): MusicXmlDocumentSource {
   if (!bytes.length || bytes.length > MAX_MUSICXML_BYTES) fail('乐谱文件必须为 1 字节至 20 MiB。');
   let xml = bytes;
+  let archive: Map<string, { size: number; crc: number }> | undefined, entry = '';
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
     const directory = zipDirectory(bytes);
     const container = decode(unzipEntry(bytes, 'META-INF/container.xml', CONTAINER_LIMIT, directory));
-    const entry = inspectXml(container, true)!;
+    entry = inspectXml(container, true).entry!;
     safePath(entry);
     xml = unzipEntry(bytes, entry, MAX_MUSICXML_BYTES, directory);
+    archive = directory;
   }
   const text = decode(xml);
-  inspectXml(text);
-  // UTF-16 input can grow when normalized to UTF-8. Apply the same admission
-  // limit on the server without allocating another complete output buffer.
-  let utf8Bytes = 0;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    if (code < 0x80) utf8Bytes++;
-    else if (code < 0x800) utf8Bytes += 2;
-    else if (code >= 0xd800 && code <= 0xdbff) { utf8Bytes += 4; i++; }
-    else utf8Bytes += 3;
-    if (utf8Bytes > MAX_MUSICXML_BYTES) fail('解码后的乐谱超过 20 MiB。');
-  }
-  return text;
+  const budget: XmlBudget = { nodes: 0, notes: 0, bytes: 0 };
+  const { root } = inspectXml(text, false, budget, Boolean(archive));
+  const countBytes = (source: string) => {
+    // UTF-16 input can grow when normalized to UTF-8. Apply the same admission
+    // limit on the server without allocating another complete output buffer.
+    let utf8Bytes = 0;
+    for (let i = 0; i < source.length; i++) {
+      const code = source.charCodeAt(i);
+      if (code < 0x80) utf8Bytes++;
+      else if (code < 0x800) utf8Bytes += 2;
+      else if (code >= 0xd800 && code <= 0xdbff) { utf8Bytes += 4; i++; }
+      else utf8Bytes += 3;
+      if (utf8Bytes > MAX_MUSICXML_BYTES) fail('解码后的乐谱超过 20 MiB。');
+    }
+    budget.bytes += utf8Bytes;
+    if (budget.bytes > MAX_MUSICXML_BYTES) fail('解码后的合集总大小超过 20 MiB。');
+  };
+  countBytes(text);
+  if (root !== 'opus') return { sources: [text], opus: false };
+  const base = entry.includes('/') ? entry.slice(0, entry.lastIndexOf('/') + 1) : '';
+  const links = opusLinks(text).map(link => base + link);
+  for (const path of links) safePath(path);
+  const contents = unzipEntries(bytes, links, MAX_MUSICXML_BYTES - xml.length, archive!);
+  const sources = links.map(path => {
+    const source = decode(contents.get(path)!);
+    inspectXml(source, false, budget); countBytes(source);
+    return source;
+  });
+  return { sources, opus: true };
 }
 
 /** Server admission avoids allocating a second normalized output buffer. */
 export function validateMusicXmlSource(bytes: Uint8Array): void {
-  readMusicXmlSource(bytes);
+  readMusicXmlDocument(bytes);
 }
 export function prepareMusicXmlSource(bytes: Uint8Array): Uint8Array {
-  const result = new TextEncoder().encode(readMusicXmlSource(bytes));
+  const document = readMusicXmlDocument(bytes);
+  if (document.opus) fail('Opus 包含多份独立乐谱，请使用合集准备入口。');
+  const result = new TextEncoder().encode(document.sources[0]);
   if (result.length > MAX_MUSICXML_BYTES) fail('解码后的乐谱超过 20 MiB。');
   return result;
 }

@@ -1,4 +1,4 @@
-import type { PreparedMusicXml } from '@same-page/player/musicxml-direction-timing';
+import type { PreparedMusicXmlDocument as PreparedMusicXml } from '@same-page/player/musicxml-direction-timing';
 import { isCompatibleMusicXmlPreparation } from '@same-page/player/preparation-format';
 import { onNavigationReset, onDriveChange } from '../settings/navigation-events';
 import type { PlaybackSource } from './playback-store';
@@ -37,7 +37,9 @@ export function readPlaybackPreparation(source: PlaybackSource, cacheIdentity?: 
 export function savePlaybackPreparation(source: PlaybackSource, bytes: Uint8Array, prepared?: PreparedMusicXml, cacheIdentity?: string) {
   if (prepared && !isCompatibleMusicXmlPreparation(prepared)) return;
   const key = keyFor(source);
-  const metadataBytes = prepared ? new TextEncoder().encode(JSON.stringify({ ...prepared, bytes: undefined })).byteLength : 0;
+  const scores = prepared && 'kind' in prepared ? prepared.scores : [];
+  const metadata = prepared ? { ...prepared, bytes: undefined, ...(scores.length ? { scores: scores.map(score => ({ ...score, bytes: undefined })) } : {}) } : undefined;
+  const metadataBytes = metadata ? new TextEncoder().encode(JSON.stringify(metadata)).byteLength + scores.reduce((sum, score) => sum + score.bytes.byteLength, 0) : 0;
   entries.set(key, { bytes, prepared, expires: holders.has(key) ? Infinity : Date.now() + TTL, choirId: source.choirId, metadataBytes, cacheIdentity }); prune(); scheduleExpiry();
 }
 /** A lease keeps only immutable input alive; every opening still creates a new player. */

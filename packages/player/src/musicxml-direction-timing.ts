@@ -44,6 +44,17 @@ export interface PreparedMusicXml {
   partsWithVoiceScopedDynamics: boolean[];
 }
 
+/** A flat package retains independently compiled scores and their original order. */
+export interface PreparedMusicXmlOpus {
+  kind: 'opus';
+  importInputVersion: 'flat-local-opus-v1';
+  bytes: Uint8Array;
+  scores: PreparedMusicXml[];
+}
+export type PreparedMusicXmlDocument = PreparedMusicXml | PreparedMusicXmlOpus;
+export const preparedScores = (document: PreparedMusicXmlDocument): PreparedMusicXml[] =>
+  'kind' in document && document.kind === 'opus' ? document.scores : [document as PreparedMusicXml];
+
 export interface MusicXmlDynamicEvent {
   /** Explicit direction placement; absent retains native below-staff behavior. */
   placement?: "above" | "below";
