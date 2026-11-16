@@ -106,10 +106,14 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`flat
  await page.getByRole('button',{name:'恢复自动跟随',exact:true}).click();
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();await setLoopRange(page,32,35);
  await expect(timeline).toHaveValue('32');await expect(reading).toBeVisible();
- const savedY=(await readingY()),grip=await page.locator('.practice-range-thumb').last().boundingBox(),rail=await page.locator('.practice-range-track').boundingBox();
+ // Capture the current label before React starts the preview, not a label that
+ // may be replaced by the preceding seek/reflow before the pointer goes down.
+ await page.evaluate(()=>window.addEventListener('pointerdown',()=>{const label=[...document.querySelectorAll('.practice-measure-label')].find(node=>node.textContent==='12-1'),box=label?.getBoundingClientRect();window.__opusReadingY=box?.height?box.y:null;},{capture:true,once:true}));
+ const grip=await page.locator('.practice-range-thumb').last().boundingBox(),rail=await page.locator('.practice-range-track').boundingBox();
  await page.mouse.move(grip.x+grip.width/2,grip.y+grip.height/2);await page.mouse.down();await page.mouse.move(rail.x+rail.width*.95,grip.y+grip.height/2,{steps:5});
  await expect(page.locator('.practice-popover')).toHaveAttribute('data-loop-previewing','true');await expect(page.locator('.practice-score-piece').nth(23).locator('svg').first()).toBeVisible();
  await page.keyboard.press('Escape');await page.mouse.up();await expect(page.locator('.practice-popover')).not.toHaveAttribute('data-loop-previewing','true');
+ const savedY=await page.evaluate(()=>window.__opusReadingY);assert.equal(typeof savedY,'number','a mounted reading label must be present when the preview starts');
  await expect(reading).toBeVisible();await expect.poll(async()=>Math.abs(await readingY()-savedY),{message:'canceling a distant loop preview restores the musical reading anchor'}).toBeLessThan(12);
  await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  await closePractice(page);assert.deepEqual(errors,[]);
