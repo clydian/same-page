@@ -121,6 +121,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           await expect(page.locator(".reader-playback-entries")).toHaveAttribute("aria-busy", "false");
           stage = `${text}:reload`;
           await page.reload();
+          // A reload starts PDF loading again; verify persisted notes only once
+          // the page is painted, using the same readiness wait as initial entry.
+          await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
           await expect(page.locator(".annotation-text").filter({ hasText: text })).toBeVisible();
           const cloud = await (await context.request.get(`${base}/layers`)).json();
           assert.equal(cloud.layers.length, 5);
