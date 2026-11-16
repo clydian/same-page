@@ -8,6 +8,7 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
     const scroll = viewport.current;
     if (!scroll || !session || !enabled) return;
     let frame = 0;
+    const previousPadding = scroll.style.scrollPaddingTop;
     const place = () => {
       frame = 0;
       const state = session.getSnapshot();
@@ -20,6 +21,8 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
         .map(toolbar => toolbar.getBoundingClientRect())
         .filter(tools => tools.width > 0 && tools.height > 0 && bar.right > tools.left && bar.left < tools.right && tools.bottom > area.top)
         .reduce((top, tools) => Math.max(top, tools.bottom + 12), area.top + 12);
+      // Share the actual reading edge with playback follow.
+      scroll.style.scrollPaddingTop = `${clearance - area.top}px`;
       const bottom = area.bottom - 8;
       // Oversized systems cannot fit vertically: align their first staff so it
       // remains readable. Otherwise move only when chrome/edges obscure them.
@@ -51,6 +54,6 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
     if (paper) observer.observe(paper);
     scroll.addEventListener('scroll', schedule, { passive: true });
     schedule();
-    return () => { release(); observer.disconnect(); cursorObserver.disconnect(); structureObserver.disconnect(); scroll.removeEventListener('scroll', schedule); cancelAnimationFrame(frame); };
+    return () => { scroll.style.scrollPaddingTop = previousPadding; release(); observer.disconnect(); cursorObserver.disconnect(); structureObserver.disconnect(); scroll.removeEventListener('scroll', schedule); cancelAnimationFrame(frame); };
   }, [viewport, session, enabled, view]);
 }

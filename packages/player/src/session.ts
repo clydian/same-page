@@ -75,7 +75,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     display: { scale: .6, resources: { secondaryGlyphColor: '#000000', barNumberColor: '#78867b' } },
     player: { playerMode: alphaTab.PlayerMode.EnabledSynthesizer, soundFont: '/soundfont/sonivox.sf2', enableCursor: true,
       enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: false,
-      scrollElement: viewport ?? element, scrollMode: viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off, scrollOffsetY: -28 },
+      scrollElement: viewport ?? element, scrollMode: alphaTab.ScrollMode.Off },
   });
   const originalColors = { ...api.settings.display.resources };
   const play = () => {
@@ -245,8 +245,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
 
   const setFollow = (enabled: boolean) => {
     if (enabled) follow.restore(); else follow.suspend();
-    api.settings.player.scrollMode = enabled && viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off;
-    api.updateSettings(); update({ following: enabled });
+    update({ following: enabled });
     if (enabled && state.status === 'ready') scrollToMeasure(state.measure);
   };
   const intent = () => { anchor = null; follow.noteManualScrollIntent(performance.now()); };
@@ -371,12 +370,19 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const tempo = tempoAt(event.currentTick);
     if (index >= 0 && (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit)) {
       update({ measure: index, tempo });
-      if (api.isCollection && state.following && viewport) {
-        const bounds = api.boundsLookup?.findMasterBar(api.tickCache!.masterBars[index].masterBar)?.realBounds;
-        if (!bounds) scrollToMeasure(index);
+      if (state.following && viewport && !preview) {
+        const measure = api.boundsLookup?.findMasterBar(api.tickCache!.masterBars[index].masterBar);
+        const row = measure?.staffSystemBounds?.realBounds ?? measure?.realBounds;
+        if (!row) scrollToMeasure(index);
         else {
-          const top = element.getBoundingClientRect().top + bounds.y, view = viewport.getBoundingClientRect();
-          if (top < view.top + 28 || top + bounds.h > view.bottom) scrollToMeasure(index);
+          const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
+          const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
+          const clearance = Math.max(16, parseFloat(viewport.ownerDocument?.defaultView?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
+          const next = api.boundsLookup?.staffSystems.find(system => system.realBounds.y > row.y + 1)?.realBounds;
+          const top = origin.top + row.y * scale, bottom = top + row.h * scale;
+          // Keep a complete next system available to read, without scrolling on every beat.
+          const nextBottom = next && origin.top + (next.y + next.h) * scale;
+          if (top < view.top + clearance - 1 || bottom > view.bottom || nextBottom && nextBottom > view.bottom && top > view.top + clearance + 1) scrollToMeasure(index, clearance);
         }
       }
     }
@@ -472,13 +478,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       else highlight(state.loop.start, state.loop.end);
     }
   };
-  const restoreScrollMode = () => {
-    api.settings.player.scrollMode = state.following && viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off;
-    api.updateSettings();
-  };
   const finishPreview = (restore = true) => {
     if (!preview) return;
-    const previous = preview; preview = null; clearPreviewMarkers(); update({ previewing: false }); restoreScrollMode(); highlightLoop();
+    const previous = preview; preview = null; clearPreviewMarkers(); update({ previewing: false }); highlightLoop();
     if (!restore) return;
     if (previous.restoreView) previous.restoreView();
     else if (viewport) viewport.scrollTop = previous.scrollTop;
@@ -593,7 +595,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
         const wasPlaying = state.playing || countInActive; stopCountIn();
         preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, scrollLeft: viewport?.scrollLeft ?? 0, restoreView: api.isCollection ? api.captureView() : undefined, index, range: range ?? { start: index, end: index } };
         update({ previewing: true });
-        api.settings.player.scrollMode = alphaTab.ScrollMode.Off; api.updateSettings(); api.pause();
+        api.pause();
       }
       preview.index = index; preview.range = range ?? { start: index, end: index };
       showPreview(index);
@@ -601,7 +603,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     loop(start, end) {
       if (disposed || state.status !== 'ready') return;
       if (start !== null && (end === undefined || end < start || !state.measures[start] || !state.measures[end])) return;
-      const resume = preview?.playing ?? false; preview = null; clearPreviewMarkers(); update({ previewing: false }); restoreScrollMode();
+      const resume = preview?.playing ?? false; preview = null; clearPreviewMarkers(); update({ previewing: false });
       if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); }
       else {
         api.playbackRange = { startTick: state.measures[start].startTick, endTick: state.measures[end!].endTick };

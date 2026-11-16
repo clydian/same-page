@@ -22,5 +22,5 @@ it('does not pull endpoint preview back to the audio cursor, then resumes cleara
  render(<Harness />);const viewport=screen.getByTestId('viewport');viewport.scrollTop=500;
  act(()=>frames.splice(0).forEach(fn=>fn(0)));expect(viewport.scrollTop).toBe(500);
  state={...state,previewing:false};fireEvent.scroll(viewport);
- act(()=>frames.splice(0).forEach(fn=>fn(0)));expect(viewport.scrollTop).toBe(0);
+ act(()=>frames.splice(0).forEach(fn=>fn(0)));expect(viewport.scrollTop).toBe(0);expect(viewport.style.scrollPaddingTop).toBe('92px');
 });

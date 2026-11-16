@@ -32,10 +32,10 @@ for (const engine of (process.env.SCRUB_ENGINE ? [process.env.SCRUB_ENGINE] : ['
  if(!baseline){await expect(page.locator('.practice-measure-preview')).toHaveCount(1);await expect.poll(()=>viewport.evaluate(e=>e.scrollTop)).toBeGreaterThan(200);const marker=await page.locator('.practice-measure-preview').boundingBox(),region=await viewport.boundingBox();assert.ok(marker.y>=region.y && marker.y+marker.height<=region.y+region.height,'target measure is visible inside the score viewport');}
  await page.screenshot({path:`${output}/${baseline?'before':'after'}-${engine}-preview.png`});
  if(baseline){await page.mouse.up();return;}
- await page.mouse.move(target,y-100,{steps:8});await expect(bar.locator('.practice-timeline-preview')).toHaveText('已取消');await expect(page.locator('.practice-measure-preview')).toHaveCount(0);
- await page.screenshot({path:`${output}/after-${engine}-cancel.png`});
+ await page.mouse.move(target,y-100,{steps:8});await expect(bar.locator('.practice-timeline-preview')).toHaveCount(0);await expect(page.getByRole('status').filter({hasText:'已取消跳转，播放位置未改变'})).toBeVisible();await expect(page.locator('.practice-measure-preview')).toHaveCount(0);
+ await expect(page.locator('.feedback-toast')).toHaveCSS('opacity','1');await page.screenshot({path:`${output}/after-${engine}-cancel.png`});
  await page.mouse.move(target,y,{steps:8});await page.mouse.up();await expect(bar.locator('.practice-timeline-preview')).toHaveCount(0);await expect(slider).toHaveValue('0');await expect.poll(()=>viewport.evaluate(e=>e.scrollTop)).toBe(0);
- assert.deepEqual(await page.evaluate(()=>window.__seeks),[],'cancel sends no seek');
+ assert.deepEqual(await page.evaluate(()=>window.__seeks),[],'cancel sends no seek');await page.getByRole('button',{name:'关闭跳转提示',exact:true}).click();await expect(page.getByText('已取消跳转，播放位置未改变',{exact:true})).toHaveCount(0);
  // Mouse release, keyboard cancellation, and fresh gesture after abort.
  await start();await page.mouse.move(target,y,{steps:8});const value=await slider.inputValue();await page.mouse.up();await expect(slider).toHaveValue(value);assert.equal((await page.evaluate(()=>window.__seeks)).length,1);
  for(const abort of [()=>page.keyboard.press('Escape'),()=>page.evaluate(()=>window.dispatchEvent(new Event('blur'))),()=>slider.dispatchEvent('pointercancel')]){
@@ -60,5 +60,17 @@ for (const engine of (process.env.SCRUB_ENGINE ? [process.env.SCRUB_ENGINE] : ['
  await selectPracticeView(page,'原始 PDF');
  await start();await page.mouse.move(target,y,{steps:6});await expect(page.locator('.practice-notation')).toHaveAttribute('data-visible','true');await page.keyboard.press('Escape');await page.mouse.up();await expect(page.locator('.practice-notation')).toHaveAttribute('aria-hidden','true');
  await start();await page.mouse.move(target-40,y,{steps:6});await page.mouse.up();await expect(page.locator('.practice-notation')).toHaveAttribute('data-visible','true');
+ // Natural playback leaves the page still until the next full system needs room.
+ await page.setViewportSize({width:390,height:600});
+ for(let i=0;i<4;i++) await page.getByRole('button',{name:'放大谱面',exact:true}).click();
+ await slider.press('Home');await expect(slider).toHaveValue('0');
+ await bar.getByRole('button',{name:'调节速度',exact:true}).click();await page.getByRole('slider',{name:'播放速度',exact:true}).fill('2');await page.getByRole('button',{name:'关闭速度调节',exact:true}).click();
+ const readingTop=await viewport.evaluate(e=>e.scrollTop);
+ await bar.getByRole('button',{name:'播放',exact:true}).click();
+ await expect.poll(()=>slider.inputValue(),{timeout:10000}).not.toBe('0');
+ assert.equal(await viewport.evaluate(e=>e.scrollTop),readingTop,'keeps the first line steady while its next line fits');
+ await expect.poll(()=>viewport.evaluate(e=>e.scrollTop),{timeout:20000}).toBeGreaterThan(readingTop+60);
+ await bar.getByRole('button',{name:'暂停',exact:true}).click();
+ await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeVisible();await page.screenshot({path:`${output}/after-${engine}-read-ahead.png`});
  assert.deepEqual(errors,[]);
 });

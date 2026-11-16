@@ -15,7 +15,9 @@ it('shows the target label during scrubbing and cancels without seeking',()=>{
  const input=screen.getByRole('slider');fireEvent.pointerDown(input);fireEvent.change(input,{target:{value:'8'}});
  expect(screen.getByRole('status')).toHaveTextContent('第 9 小节');expect(input).toHaveAttribute('aria-valuetext','第 9 小节');
  fireEvent.pointerCancel(window);fireEvent.pointerUp(window);
- expect(seek).not.toHaveBeenCalled();expect(screen.queryByRole('status')).not.toBeInTheDocument();
+ expect(seek).not.toHaveBeenCalled();expect(input.parentElement?.querySelector('output')).toBeNull();
+ expect(screen.getByRole('status')).toHaveTextContent('已取消跳转，播放位置未改变');
+ fireEvent.click(screen.getByRole('button',{name:'关闭跳转提示'}));expect(screen.queryByText('已取消跳转，播放位置未改变')).not.toBeInTheDocument();
 });
 it('commits a release outside the slider only once and uses the latest seek',()=>{
  const first=vi.fn(),second=vi.fn();const props={value:0,max:10,disabled:false,label:String,seek:first};

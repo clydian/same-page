@@ -424,3 +424,21 @@ test('notation theme changes render resources without resetting practice state o
   h.session.dispose();h.session.notationTheme('inverted');assert.equal(renders,2);
  }finally{h.dispose();}
 });
+
+for (const collection of [false, true]) test(`following keeps the next complete system in view without constant scrolling (collection=${collection})`,async()=>{
+ const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.api.isCollection=collection;h.api.playbackLabels=['1','2','3'];h.api.tempoAt=()=>({bpm:80,unit:'quarter'});
+  const rows=[100,320,540].map(y=>({realBounds:{x:0,y,w:300,h:180}}));
+  h.api.tickCache.masterBars=rows.map((_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
+  h.api.boundsLookup.staffSystems=rows;
+  h.api.boundsLookup.findMasterBar=bar=>({realBounds:rows[bar.index].realBounds,staffSystemBounds:rows[bar.index]});
+  await Promise.resolve();h.api.playerStateChanged.emit({state:1});
+  h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0,'ample reading space keeps the score still');
+  h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,304,'scrolls while the current row is still fully visible, before the next is clipped');
+  h.api.playerPositionChanged.emit({currentTick:150});assert.equal(viewport.scrollTop,304,'same row does not scroll on each beat');
+  h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,304,'last row needs no fictional next row');
+  h.session.suspendFollow();viewport.scrollTop=0;h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,0,'manual browsing remains untouched');
+ }finally{h.dispose();}
+});
