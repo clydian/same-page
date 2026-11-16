@@ -43,3 +43,12 @@ it('uses the active loop as the full timeline extent',()=>{
  const slider=screen.getByRole('slider');expect(slider).toHaveAttribute('min','2');expect(slider).toHaveAttribute('max','4');
  expect(slider.parentElement?.style.getPropertyValue('--practice-progress')).toBe('50%');
 });
+it.each(['Escape','blur','pointercancel'])('ignores the rest of a cancelled pointer gesture (%s)',reason=>{
+ const seek=vi.fn(),preview=vi.fn();render(<PlaybackTimeline timeline={{value:2,max:10,disabled:false,label:String,seek,preview}} />);
+ const input=screen.getByRole('slider');fireEvent.pointerDown(input);fireEvent.change(input,{target:{value:'8'}});
+ expect(preview).toHaveBeenLastCalledWith(8);
+ if(reason==='Escape') fireEvent.keyDown(input,{key:reason});else fireEvent(window,new Event(reason));
+ fireEvent.change(input,{target:{value:'9'}});fireEvent.pointerUp(window);
+ expect(seek).not.toHaveBeenCalled();expect(preview).toHaveBeenLastCalledWith(null);expect(input).toHaveValue('2');
+ fireEvent.pointerDown(input);fireEvent.change(input,{target:{value:'4'}});fireEvent.pointerUp(window);expect(seek).toHaveBeenCalledExactlyOnceWith(4);
+});

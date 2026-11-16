@@ -6,7 +6,7 @@ import { useNotationPinch } from './use-notation-pinch';
 beforeEach(() => vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 function setup() {
-  const player = { getSnapshot: () => ({ status: 'ready' as const }), suspendFollow: vi.fn(), seekAt: vi.fn(), notationScale: vi.fn() };
+  const player = { getSnapshot: vi.fn(() => ({ status: 'ready' as const, following: false })), suspendFollow: vi.fn(), follow: vi.fn(), seekAt: vi.fn(), notationScale: vi.fn() };
   function Harness({ enabled = true }: { enabled?: boolean }) {
     const ref = useRef<HTMLDivElement>(null), visual = useNotationPinch(ref, player, enabled);
     return <><div ref={ref} data-testid="score"><div><div className="practice-notation-paper" data-testid="paper" /></div></div><output>{visual.zoom}</output><button onClick={visual.reset}>适合宽度</button></>;
@@ -95,6 +95,11 @@ it('normalizes magnified taps for engine hit testing, but never seeks after a pa
   fireEvent.pointerDown(element, { clientX: 100, clientY: 120, pointerType: 'mouse' });
   fireEvent.click(element, { clientX: 100, clientY: 120, detail: 1 });
   expect(player.seekAt).toHaveBeenLastCalledWith(50, 60);
+  expect(player.follow).not.toHaveBeenCalled(); // Empty space does not restore following.
+  player.seekAt.mockImplementation(() => { player.getSnapshot.mockReturnValue({status:'ready',following:true}); });
+  fireEvent.click(element, { clientX: 100, clientY: 120, detail: 1 });
+  expect(screen.getByRole('status')).toHaveTextContent('1');
+  expect(player.follow).toHaveBeenCalledOnce();
   player.seekAt.mockClear();
   fireEvent.pointerDown(element, { clientX: 100, clientY: 120, pointerType: 'mouse' });
   fireEvent.pointerMove(element, { clientX: 180, clientY: 120, pointerType: 'mouse' });

@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { PlayerState } from '@same-page/player';
 
 type NotationPlayer = {
-  getSnapshot(): Pick<PlayerState, 'status'>;
+  getSnapshot(): Pick<PlayerState, 'status' | 'following'>;
   suspendFollow(): void;
+  follow(): void;
   seekAt(x: number, y: number): void;
 };
 type Point = { x: number; y: number };
@@ -94,6 +95,8 @@ export function useNotationPinch(viewport: RefObject<HTMLDivElement | null>, pla
       if (!tapMoved) {
           const engraving = paper.firstElementChild?.getBoundingClientRect() ?? paper.getBoundingClientRect();
           player.seekAt((event.clientX - engraving.left) / scale, (event.clientY - engraving.top) / scale);
+          // A valid score tap restores following; use the same viewing scale as explicit follow.
+          if (scale > 1 && player.getSnapshot().following) { apply(1); player.follow(); }
       }
     };
     const wheel = (event: WheelEvent) => {

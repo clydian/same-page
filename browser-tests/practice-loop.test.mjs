@@ -61,7 +61,7 @@ for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loo
  // The same visual point under magnification must use exactly the same seek rule.
  await page.locator('.practice-notation-scroll').dispatchEvent('wheel',{deltaY:-60,ctrlKey:true,clientX:100,clientY:200});
  await tap(8);await expect(progress).toHaveValue('4');
- await page.getByRole('button',{name:'恢复查看比例',exact:true}).click();
+ await expect(page.getByRole('button',{name:'恢复查看比例',exact:true})).toHaveCount(0);
  const commands=await page.evaluate(()=>window.__loopCommands);
  assert.ok(!commands.some(c=>c.cmd==='alphaSynth.setPlaybackRange' && c.value===null),'score taps retain the active engine loop');
  assert.deepEqual(commands.filter(c=>c.cmd==='alphaSynth.setTickPosition').slice(-3).map(c=>c.value),[15360,7680,15360]);

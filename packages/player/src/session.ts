@@ -140,13 +140,21 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   };
   let previewOverlays: HTMLDivElement[] = [];
   const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
-  let preview: { playing: boolean; scrollTop: number; restoreView?: () => void; index: number; range: { start: number; end: number } } | null = null;
+  let preview: { playing: boolean; scrollTop: number; scrollLeft: number; restoreView?: () => void; index: number; range: { start: number; end: number } } | null = null;
   const scrollToMeasure = (index: number, clearance = 16) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
     if (masterBar) api.ensureMeasure?.(masterBar);
     const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
     const bounds = measureBounds?.realBounds ?? measureBounds?.staffSystemBounds?.realBounds;
-    if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - clearance;
+    if (viewport && bounds) {
+      const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
+      const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
+      viewport.scrollTop += origin.top + bounds.y * scale - view.top - clearance;
+      if (scale > 1) {
+        const left = origin.left + bounds.x * scale, right = left + bounds.w * scale;
+        viewport.scrollLeft += left < view.left ? left - view.left : right > view.right ? right - view.right : 0;
+      }
+    }
   };
   let measureLabels: string[] = [];
   let customMeasureLabels = false;
@@ -468,20 +476,22 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     api.settings.player.scrollMode = state.following && viewport ? alphaTab.ScrollMode.OffScreen : alphaTab.ScrollMode.Off;
     api.updateSettings();
   };
-  const finishPreview = () => {
+  const finishPreview = (restore = true) => {
     if (!preview) return;
     const previous = preview; preview = null; clearPreviewMarkers(); update({ previewing: false }); restoreScrollMode(); highlightLoop();
+    if (!restore) return;
     if (previous.restoreView) previous.restoreView();
     else if (viewport) viewport.scrollTop = previous.scrollTop;
+    if (viewport) viewport.scrollLeft = previous.scrollLeft;
     if (previous.playing) play();
   };
-  const seekTick = (requested: number, manual = true) => {
+  const seekTick = (requested: number, manual = true, previewPlaying = false) => {
     if (!Number.isFinite(requested) || preview) return;
     const first = state.measures[state.loop?.start ?? 0], last = state.measures[state.loop?.end ?? state.measures.length - 1];
     if (!first || !last) return;
     const tick = requested < first.startTick ? first.startTick : requested >= last.endTick ? last.startTick : requested;
     const index = state.measures.findLastIndex(item => item.startTick <= tick);
-    const resume = manual && (pendingSeek?.resume ?? ((state.playing || playRequested) && !pauseRequested || countInActive));
+    const resume = manual && (pendingSeek?.resume ?? (previewPlaying || (state.playing || playRequested) && !pauseRequested || countInActive));
     const pauseFirst = manual && (awaitingPause || state.playing || playRequested || countInActive);
     if (manual) {
       stopCountIn();
@@ -508,11 +518,15 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     pause() { if (!disposed) { pauseRequested = true; if (pendingSeek) { pendingSeek.resume = false; pendingCountIn = false; } stopCountIn(); if (!awaitingPause) api.pause(); } },
     seek(index) { if (!disposed && state.status === 'ready' && Number.isInteger(index)) {
       const bounded = Math.max(state.loop?.start ?? 0, Math.min(state.loop?.end ?? state.measures.length - 1, index));
-      if (state.measures[bounded]) seekTick(state.measures[bounded].startTick);
+      if (state.measures[bounded]) {
+        // Commit directly from the preview without replaying or restoring the old view.
+        const resume = preview?.playing ?? false; finishPreview(false);
+        seekTick(state.measures[bounded].startTick, true, resume);
+      }
     } },
     // Hosts normalize transformed viewport coordinates before crossing this seam.
     seekAt(x, y) {
-      if (disposed || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
+      if (disposed || preview || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
       const beat = api.boundsLookup?.getBeatAtPos(x, y);
       if (beat && api.tickCache) {
         const master = beat.voice?.bar.masterBar;
@@ -521,6 +535,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
         const inside = occurrences.filter(item => !state.loop || item.index >= state.loop.start && item.index <= state.loop.end);
         const nearest = (inside.length ? inside : occurrences).sort((a, b) => Math.abs(a.index - state.measure) - Math.abs(b.index - state.measure))[0];
         seekTick(nearest ? nearest.bar.start : api.tickCache.getBeatStart(beat));
+        if (!state.following) setFollow(true);
       }
     },
     speed(value) { if (!disposed && Number.isFinite(value)) {
@@ -576,7 +591,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (!state.measures[index] || range && (range.end < range.start || !state.measures[range.start] || !state.measures[range.end])) return;
       if (!preview) {
         const wasPlaying = state.playing || countInActive; stopCountIn();
-        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, restoreView: api.isCollection ? api.captureView() : undefined, index, range: range ?? { start: index, end: index } };
+        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, scrollLeft: viewport?.scrollLeft ?? 0, restoreView: api.isCollection ? api.captureView() : undefined, index, range: range ?? { start: index, end: index } };
         update({ previewing: true });
         api.settings.player.scrollMode = alphaTab.ScrollMode.Off; api.updateSettings(); api.pause();
       }
