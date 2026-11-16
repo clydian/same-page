@@ -22,10 +22,24 @@ Mix/focus choices belong to the current score and are restored on returning;
 tracks in different ensembles are not matched by index or name. Single-score
 documents keep the original native renderer and transport path.
 
-Collections use one reusable SVG renderer, yielding between scores for layout
-and MIDI generation. All score models/MIDI and rendered views are retained while
-open; there is no score virtualization or claim of seamless audio at a MIDI-load
-boundary. The 185-score collection and physical iOS devices have not been tested.
+Collections retain the global playback route and all score models/MIDI, but one
+reusable SVG renderer engraves only the scroll viewport and its nearby scores.
+Off-screen scores keep lightweight height placeholders; geometry and SVG are
+released when they leave that window. Initial heights are estimates and become
+measured as scores are visited, so total scrollbar length can change. A source
+measure and screen offset anchor the reading position while those heights change.
+Seeking and loop previews prepare their destination score directly, including
+positions whose preceding scores have never been engraved.
+
+A font, theme or width change invalidates notation only. The reading score is
+reflowed first; off-screen work waits until needed. Changes queued in the same
+frame collapse into one update. Source labels and solfege follow the mounted
+scores, and canceling a loop preview restores a musical reading anchor rather
+than a stale scroll offset. Ordinary single-score rendering remains native.
+This does not virtualize the full import/MIDI model or split a single long score
+into smaller layout jobs. Initial preparation still grows with source size; an
+individual complex score can still block during its synchronous layout. There
+is no claim of seamless audio at a MIDI-load boundary or physical iOS acceptance.
 Native MusicXML interpretation limits remain, including unsupported jump forms;
 successful admission is not musical acceptance. PDF pages still have no mapping
 to MusicXML measures. Source bytes, attachment/PDF identity and storage schemas
@@ -34,6 +48,8 @@ are unchanged; old clients continue to reject Opus clearly.
 Core controls are exercised with independently authored CC0 SATB and piano
 samples in `browser-tests/opus-playback.test.mjs`, including different meters,
 key/tempo, a pickup, D.C., drag, count-in, cross-score looping, mixes and reflow.
+The same browser case uses a 24-score synthetic book to check bounded SVG, distant
+seeking, browsing/reflow anchors and canceled loop-preview restoration.
 
 在仓库根目录执行 `npm run build:player` 或 `npm run test:player`。根项目通过 npm workspace 使用本地构建，无需发包或其他产品仓库。alphaTab 保持精确 peer；修改原生引擎见 `../../vendor/alphatab/README.md`。
 

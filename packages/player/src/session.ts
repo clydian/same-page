@@ -140,9 +140,10 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   };
   let previewOverlays: HTMLDivElement[] = [];
   const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
-  let preview: { playing: boolean; scrollTop: number; index: number; range: { start: number; end: number } } | null = null;
+  let preview: { playing: boolean; scrollTop: number; restoreView?: () => void; index: number; range: { start: number; end: number } } | null = null;
   const scrollToMeasure = (index: number, clearance = 16) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
+    if (masterBar) api.ensureMeasure?.(masterBar);
     const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
     const bounds = measureBounds?.realBounds ?? measureBounds?.staffSystemBounds?.realBounds;
     if (viewport && bounds) viewport.scrollTop += element.getBoundingClientRect().top + bounds.y - viewport.getBoundingClientRect().top - clearance;
@@ -174,7 +175,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const overlay = document.createElement('div');
     overlay.className = 'solfege-overlay'; overlay.setAttribute('aria-hidden', 'true');
     const seen = new Set<string>();
-    const scores = api.isCollection && state.solfegePart === null ? api.scores : [api.score];
+    const scores = api.isCollection && state.solfegePart === null ? api.renderedScores : [api.score];
     for (const score of scores) for (const track of score.tracks.filter(track => state.solfegePart === null || track.index === (state.solfegePart ?? 0))) for (const staff of track.staves) for (const bar of staff.bars)
       for (const voice of bar.voices) for (const beat of voice.beats)
         for (const bounds of api.boundsLookup.findBeats(beat) ?? []) for (const item of bounds.notes ?? []) {
@@ -197,7 +198,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     if (disposed || !customMeasureLabels || !api.boundsLookup) return;
     const overlay = document.createElement('div');
     overlay.className = 'practice-measure-overlay'; overlay.setAttribute('aria-hidden', 'true');
-    measureLabels.forEach((text, index) => {
+    const indices = api.isCollection ? api.renderedScores.flatMap(score => score.masterBars.map(sourceIndex)) : measureLabels.map((_, index) => index);
+    indices.forEach(index => {
+      const text = measureLabels[index];
       const bar = api.boundsLookup?.findMasterBarByIndex(index)?.bars[0];
       if (!bar) return;
       const label = document.createElement('span'); label.className = 'practice-measure-label'; label.textContent = text;
@@ -212,7 +215,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   // Keep the visible system in place after reflow, including viewport resizes.
   let anchor: { bar: number; offset: number } | null = null;
   const captureAnchor = () => {
-    if (!viewport || !api.boundsLookup || state.following || anchor) return;
+    if (api.isCollection || !viewport || !api.boundsLookup || state.following || anchor) return;
     const top = viewport.getBoundingClientRect().top;
     const origin = element.getBoundingClientRect().top;
     const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
@@ -362,7 +365,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       update({ measure: index, tempo });
       if (api.isCollection && state.following && viewport) {
         const bounds = api.boundsLookup?.findMasterBar(api.tickCache!.masterBars[index].masterBar)?.realBounds;
-        if (bounds) {
+        if (!bounds) scrollToMeasure(index);
+        else {
           const top = element.getBoundingClientRect().top + bounds.y, view = viewport.getBoundingClientRect();
           if (top < view.top + 28 || top + bounds.h > view.bottom) scrollToMeasure(index);
         }
@@ -467,7 +471,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   const finishPreview = () => {
     if (!preview) return;
     const previous = preview; preview = null; clearPreviewMarkers(); update({ previewing: false }); restoreScrollMode(); highlightLoop();
-    if (viewport) viewport.scrollTop = previous.scrollTop;
+    if (previous.restoreView) previous.restoreView();
+    else if (viewport) viewport.scrollTop = previous.scrollTop;
     if (previous.playing) play();
   };
   const seekTick = (requested: number, manual = true) => {
@@ -571,7 +576,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (!state.measures[index] || range && (range.end < range.start || !state.measures[range.start] || !state.measures[range.end])) return;
       if (!preview) {
         const wasPlaying = state.playing || countInActive; stopCountIn();
-        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, index, range: range ?? { start: index, end: index } };
+        preview = { playing: wasPlaying, scrollTop: viewport?.scrollTop ?? 0, restoreView: api.isCollection ? api.captureView() : undefined, index, range: range ?? { start: index, end: index } };
         update({ previewing: true });
         api.settings.player.scrollMode = alphaTab.ScrollMode.Off; api.updateSettings(); api.pause();
       }

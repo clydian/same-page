@@ -76,15 +76,49 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`flat
  await expect(page.locator('html')).toHaveAttribute('data-paper-theme','inverted');
  await expect(pieces.nth(1).locator('svg text').first()).toHaveCSS('fill','rgb(230, 230, 230)');
  await expect(timeline).toHaveValue('1');
+ await closePractice(page);
+ // One longer synthetic book exercises the notation window and musical anchor.
+ const longBytes=await opusMusicXmlFixture(24);
+ assert.equal((await context.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/attachments/${crypto.randomUUID()}/file?name=Original-long-opus.mxl&size=${longBytes.length}`,{data:longBytes})).status(),201);
+ await page.setViewportSize({width:390,height:844});await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
+ await page.getByRole('button',{name:'本地链路测试：2 个附件',exact:true}).click();await page.getByRole('button',{name:'Original-long-opus.mxl',exact:true}).click();
+ await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+ await expect(page.locator('.practice-score-piece')).toHaveCount(24);
+ const mounted=page.locator('.practice-score-piece:has(svg)');assert.ok(await mounted.count()<8,'offscreen scores are neither engraved nor mounted');
+ await timeline.fill('70');await expect(timeline).toHaveAttribute('aria-valuetext','第 24-1 小节 · 第 2 次经过');
+ await expect(page.locator('.practice-score-piece').nth(23).locator('svg').first()).toBeVisible();
+ await timeline.fill('34');await expect(timeline).toHaveAttribute('aria-valuetext','第 12-1 小节 · 第 2 次经过');
+ const reading=page.locator('.practice-measure-label').filter({hasText:/^12-1$/});await expect(reading).toBeVisible();
+ await viewport.hover();await page.mouse.wheel(0,40);await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toBeVisible();
+ const before=(await reading.boundingBox()).y;
+ if(engine==='chromium')await page.screenshot({path:output+'/local-reflow-before.png'});
+ await changeNotationSize(page,'放大谱面');await expect(page.getByRole('button',{name:'谱面大小',exact:true})).toHaveText('70%');
+ await expect(reading).toBeVisible();assert.ok(Math.abs((await reading.boundingBox()).y-before)<12,'reflow preserves the source measure at the reading position');
+ assert.ok(await mounted.count()<8,'reflow does not engrave the whole book');
+ if(engine==='chromium')await page.screenshot({path:output+'/local-reflow-after.png'});
+ await viewport.hover();await page.mouse.wheel(0,900);
+ await expect.poll(()=>page.locator('.practice-score-piece').evaluateAll(nodes=>{const view=document.querySelector('.practice-notation-scroll').getBoundingClientRect();return nodes.some((node,index)=>{const box=node.getBoundingClientRect();return index>11&&node.querySelector('svg')&&box.bottom>view.top&&box.top<view.bottom;});})).toBe(true);
+ await expect(timeline).toHaveValue('34');assert.ok(await mounted.count()<8,'manual browsing keeps notation bounded without seeking audio');
+ await page.getByRole('button',{name:'恢复自动跟随',exact:true}).click();
+ await bar.getByRole('button',{name:'练习设置',exact:true}).click();await setLoopRange(page,32,35);
+ const savedY=(await reading.boundingBox()).y,grip=await page.locator('.practice-range-thumb').last().boundingBox(),rail=await page.locator('.practice-range-track').boundingBox();
+ await page.mouse.move(grip.x+grip.width/2,grip.y+grip.height/2);await page.mouse.down();await page.mouse.move(rail.x+rail.width*.95,grip.y+grip.height/2,{steps:5});
+ await expect(page.locator('.practice-popover')).toHaveAttribute('data-loop-previewing','true');await expect(page.locator('.practice-score-piece').nth(23).locator('svg').first()).toBeVisible();
+ await page.keyboard.press('Escape');await page.mouse.up();await expect(page.locator('.practice-popover')).not.toHaveAttribute('data-loop-previewing','true');
+ await expect(reading).toBeVisible();assert.ok(Math.abs((await reading.boundingBox()).y-savedY)<12,'canceling a distant loop preview restores the musical reading anchor');
+ await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  await closePractice(page);assert.deepEqual(errors,[]);
 });
 
 // Original CC0 controls: independent ensembles, meter/key/tempo, pickup and D.C.
-async function opusMusicXmlFixture() {
+async function opusMusicXmlFixture(count=2) {
  const {zipSync,strToU8}=await import('fflate');
  const names=['Soprano','Alto','Tenor','Bass'];
  const a=`<score-partwise version="4.0"><work><work-title>Original SATB A</work-title></work><part-list>${names.map((name,i)=>`<score-part id="A${i}"><part-name>${name}</part-name></score-part>`).join('')}</part-list>${names.map((_,i)=>`<part id="A${i}">${[1,2].map(number=>`<measure number="${number}">${number===1?`<attributes><divisions>1</divisions><key><fifths>2</fifths></key><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>${i===3?'F':'G'}</sign><line>${i===3?4:2}</line></clef></attributes><direction><sound tempo="180"/></direction>`:'<print new-system="yes"/>'}<note><pitch><step>${i%2?'A':'D'}</step><octave>${i<2?4:3}</octave></pitch><duration>3</duration><type>half</type><dot/></note></measure>`).join('')}</part>`).join('')}</score-partwise>`;
  const note=(duration,staff)=>`<note><pitch><step>C</step><octave>${staff===1?5:3}</octave></pitch><duration>${duration}</duration><voice>${staff}</voice><type>${duration===1?'quarter':'whole'}</type><staff>${staff}</staff></note>`;
  const b=`<score-partwise version="4.0"><work><work-title>Original Piano B</work-title></work><part-list><score-part id="B"><part-name>Piano</part-name></score-part></part-list><part id="B">${[1,2].map(number=>`<measure number="${number}"${number===1?' implicit="yes"':''}>${number===1?'<attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><direction><sound tempo="240"/></direction>':'<print new-page="yes"/>'}${note(number===1?1:4,1)}<backup><duration>${number===1?1:4}</duration></backup>${note(number===1?1:4,2)}${number===2?'<sound dacapo="yes"/>':''}</measure>`).join('')}</part></score-partwise>`;
- return Buffer.from(zipSync({'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="opus.xml"/></rootfiles></container>'),'opus.xml':strToU8('<opus version="4.0" xmlns:xlink="http://www.w3.org/1999/xlink"><title>Original two-piece controls</title><score xlink:href="a.musicxml"/><score xlink:href="b.musicxml"/></opus>'),'a.musicxml':strToU8(a),'b.musicxml':strToU8(b)}));
+ const files={'META-INF/container.xml':strToU8('<container><rootfiles><rootfile full-path="opus.xml"/></rootfiles></container>')};
+ files['opus.xml']=strToU8(`<opus version="4.0" xmlns:xlink="http://www.w3.org/1999/xlink"><title>Original controls</title>${Array.from({length:count},(_,i)=>`<score xlink:href="piece-${i}.musicxml"/>`).join('')}</opus>`);
+ for(let i=0;i<count;i++)files[`piece-${i}.musicxml`]=strToU8(i%2?b:a);
+ return Buffer.from(zipSync(files));
 }
