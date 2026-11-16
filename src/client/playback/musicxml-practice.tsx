@@ -1,6 +1,7 @@
 import { useAppearance } from "../appearance/appearance-context";
 import {
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type RefObject,
@@ -75,6 +76,7 @@ export function MusicXmlPractice({
   useNotationToolbarClearance(viewport, session, !embedded && view !== "pdf", view);
   const [savedLoop, setSavedLoop] = useState<{ session: PlayerSession | null; range: number[] } | null>(null);
   const [lastFocus, setLastFocus] = useState<{ session: PlayerSession | null; id: number } | null>(null);
+  const scrubFromPdf = useRef(false);
   const [loopPreviewing, setLoopPreviewing] = useState(false);
   useEffect(() => {
     onReady?.(state.status === "ready" && !error);
@@ -136,7 +138,12 @@ export function MusicXmlPractice({
           max: state.loop?.end ?? Math.max(0, state.measures.length - 1),
           disabled: !ready,
           label: (value) => state.measures[value]?.label ?? "准备中",
-          seek: (value) => session?.seek(value),
+          seek: (value) => { scrubFromPdf.current = false; session?.seek(value); },
+          preview: (value) => {
+            if (value !== null && view === "pdf") { scrubFromPdf.current = true; setPlaybackView("xml"); }
+            session?.previewMeasure(value);
+            if (value === null && scrubFromPdf.current) { scrubFromPdf.current = false; setPlaybackView("pdf"); }
+          },
         }}
         tempo={state.tempo}
         speed={state.speed}

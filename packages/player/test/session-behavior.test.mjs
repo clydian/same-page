@@ -80,9 +80,9 @@ test('public source-session coordinate seek and explicit follow suspension prese
  const h=harness({prepared:{bytes:new Uint8Array([1])}});try{
   h.api.tickCache.masterBars[0].end=4000; await Promise.resolve(); const beat={index:3}; h.api.boundsLookup.getBeatAtPos=(x,y)=>{assert.equal(x,12);assert.equal(y,34);return beat;};
   h.api.tickCache.getBeatStart=value=>{assert.equal(value,beat);return 2400;};
-  h.session.seekAt(12,34);assert.equal(h.api.tickPosition,0);
+  h.session.suspendFollow();h.session.seekAt(12,34);assert.equal(h.api.tickPosition,0);assert.equal(h.session.getSnapshot().following,true);
   h.session.seekAt(NaN,34);assert.equal(h.api.tickPosition,0);
-  h.session.suspendFollow();assert.equal(h.session.getSnapshot().following,false);
+  h.session.suspendFollow();h.api.boundsLookup.getBeatAtPos=()=>null;h.session.seekAt(12,34);assert.equal(h.session.getSnapshot().following,false);
  }finally{h.dispose();}
 });
 
@@ -194,10 +194,11 @@ test('range preview can leave the loop without seeking and cancel restores brows
   h.api.playerStateChanged.emit({state:1});
   h.session.previewMeasure(7);assert.equal(pauses,1);assert.equal(h.api.tickPosition,200);
   assert.deepEqual(highlights.at(-1),[2,4]);assert.notEqual(viewport.scrollTop,40);
-  h.session.previewMeasure(6);h.session.seek(3);assert.equal(pauses,1);assert.equal(h.api.tickPosition,200);
+  h.session.previewMeasure(6);assert.equal(pauses,1);assert.equal(h.api.tickPosition,200);
   h.session.previewMeasure(null);assert.equal(viewport.scrollTop,40);assert.equal(resumes,1);assert.equal(h.session.getSnapshot().following,false);
   assert.deepEqual(h.api.playbackRange,{startTick:200,endTick:500});
-  h.session.previewMeasure(7);h.session.loop(5,7);assert.equal(h.api.tickPosition,500);assert.equal(resumes,2);
+  h.api.playerStateChanged.emit({state:0});h.session.previewMeasure(7);h.session.seek(3);assert.equal(h.api.tickPosition,300);assert.equal(h.session.getSnapshot().previewing,false);
+  h.api.playerStateChanged.emit({state:1});h.session.previewMeasure(7);h.session.loop(5,7);assert.equal(h.api.tickPosition,500);assert.equal(resumes,2);
   assert.deepEqual(h.api.playbackRange,{startTick:500,endTick:800});
  }finally{h.dispose();}
 });
@@ -421,5 +422,23 @@ test('notation theme changes render resources without resetting practice state o
   assert.strictEqual(h.session.getSnapshot(),before);
   assert.equal(h.workerCount,1);
   h.session.dispose();h.session.notationTheme('inverted');assert.equal(renders,2);
+ }finally{h.dispose();}
+});
+
+for (const collection of [false, true]) test(`following keeps the next complete system in view without constant scrolling (collection=${collection})`,async()=>{
+ const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  h.api.isCollection=collection;h.api.playbackLabels=['1','2','3'];h.api.tempoAt=()=>({bpm:80,unit:'quarter'});
+  const rows=[100,320,540].map(y=>({realBounds:{x:0,y,w:300,h:180}}));
+  h.api.tickCache.masterBars=rows.map((_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
+  h.api.boundsLookup.staffSystems=rows;
+  h.api.boundsLookup.findMasterBar=bar=>({realBounds:rows[bar.index].realBounds,staffSystemBounds:rows[bar.index]});
+  await Promise.resolve();h.api.playerStateChanged.emit({state:1});
+  h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0,'ample reading space keeps the score still');
+  h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,304,'scrolls while the current row is still fully visible, before the next is clipped');
+  h.api.playerPositionChanged.emit({currentTick:150});assert.equal(viewport.scrollTop,304,'same row does not scroll on each beat');
+  h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,304,'last row needs no fictional next row');
+  h.session.suspendFollow();viewport.scrollTop=0;h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,0,'manual browsing remains untouched');
  }finally{h.dispose();}
 });

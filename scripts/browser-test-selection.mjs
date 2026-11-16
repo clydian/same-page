@@ -8,7 +8,7 @@ const library = {
 // New files default to the blocking gate until deliberately classified here.
 const extended = {
   visual: ["continuous-reader-layout", "diagnostics", "drive-context-attachments", "drive-navigation-settings", "drive-navigation", "drive-settings", "experience-continuity", "highlighter-nib", "invite-feedback", "join-keyboard-extended", "layer-panel-layout", "layer-preferences", "navigation-freshness", "pdf-share", "pencil-writing", "playback-preparation", "practice-focus", "reader-canvas-layering", "reader-experience", "reader-navigation", "reader-presentation", "reader-render-recovery", "reader-scrubber", "reader-settlement", "reader-status", "reader-text-layout", "reader-ux", "reader-zoom", "reading-state", "safe-area", "ui-simplification", "uiux-return", "upload-queue"],
-  smoke: ["admin-workbench", "connection-sampling", "diagnostic-reports", "file-touch-links", "invite-connection-failover", "loading-stability", "musicxml-audio-startup", "musicxml-cursor-overflow", "musicxml-native-selection", "musicxml-playback", "musicxml-startup", "pdf-codecs-smoke", "playback-load-failure", "playback-ux", "practice-compare", "practice-loop", "practice-reader-layout", "practice-rhythm", "practice-score-entry", "practice-unified-controls"],
+  smoke: ["admin-workbench", "connection-sampling", "diagnostic-reports", "file-touch-links", "invite-connection-failover", "loading-stability", "musicxml-audio-startup", "musicxml-cursor-overflow", "musicxml-native-selection", "musicxml-playback", "musicxml-startup", "pdf-codecs-smoke", "playback-load-failure", "playback-scrub", "playback-ux", "practice-compare", "practice-loop", "practice-reader-layout", "practice-rhythm", "practice-score-entry", "practice-unified-controls"],
 };
 
 // Select the complete scope and reject empty shards. Visual tests retain
@@ -57,6 +57,7 @@ const smokeCosts = {
   "pdf-codecs-smoke": 45,
   "pdf-replacement-trash": 30,
   "playback-load-failure": 80,
+  "playback-scrub": 35,
   "playback-ux": 35,
   "practice-compare": 60,
   "practice-loop": 35,
