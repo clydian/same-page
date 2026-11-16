@@ -4,6 +4,37 @@ Same Page 私有播放器模块，源码、测试和构建均由本仓库维护�
 
 Hosts supply bytes and a container, own authentication/navigation and dispose the session on scope changes. No private scores, room configuration or credentials are included. Install alphaTab's matching Vite plugin in browser hosts to copy fonts/soundfonts and bundle workers; configure lazy loading and PWA exclusions in the host.
 
+MXL collections support one flat `opus` root selected by `META-INF/container.xml`,
+with one title and ordered `score` elements using XLink `href` paths to complete
+`score-partwise` files in the same package. External URLs, fragments, encoded or
+parent-relative paths, `xml:base`, nested Opus and `opus-link` are rejected.
+Multiple container rootfiles are alternatives; they are not a collection playlist.
+The existing 256 ZIP-entry, 20 MiB and 100000-note admission limits apply to the
+whole collection; the 15-part limit applies independently to each score.
+
+Each score keeps its own model, channels, key, meter, tempo, pickup and native
+repeat/jump route. A single shared synthesizer loads the selected score's MIDI;
+the document adapter maps its local position and notation bounds into the
+ordinary practice session. Score starts begin new notation blocks; ordinary
+source print breaks are still ignored. Timeline, locator, source labels and loop
+ranges use `piece ordinal-source measure` and qualify repeat visits per piece.
+Mix/focus choices belong to the current score and are restored on returning;
+tracks in different ensembles are not matched by index or name. Single-score
+documents keep the original native renderer and transport path.
+
+Collections use one reusable SVG renderer, yielding between scores for layout
+and MIDI generation. All score models/MIDI and rendered views are retained while
+open; there is no score virtualization or claim of seamless audio at a MIDI-load
+boundary. The 185-score collection and physical iOS devices have not been tested.
+Native MusicXML interpretation limits remain, including unsupported jump forms;
+successful admission is not musical acceptance. PDF pages still have no mapping
+to MusicXML measures. Source bytes, attachment/PDF identity and storage schemas
+are unchanged; old clients continue to reject Opus clearly.
+
+Core controls are exercised with independently authored CC0 SATB and piano
+samples in `browser-tests/opus-playback.test.mjs`, including different meters,
+key/tempo, a pickup, D.C., drag, count-in, cross-score looping, mixes and reflow.
+
 在仓库根目录执行 `npm run build:player` 或 `npm run test:player`。根项目通过 npm workspace 使用本地构建，无需发包或其他产品仓库。alphaTab 保持精确 peer；修改原生引擎见 `../../vendor/alphatab/README.md`。
 
 

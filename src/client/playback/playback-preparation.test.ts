@@ -16,6 +16,11 @@ it('expires and evicts preparation instead of retaining unbounded attachment bod
  expect(readPlaybackPreparation({...source,attachment:{...source.attachment,id:'0'}})).toBeUndefined();
  savePlaybackPreparation(source,new Uint8Array(33*1024*1024));expect(readPlaybackPreparation(source)).toBeUndefined();
 });
+it('counts every independently prepared Opus score in the idle byte budget', () => {
+ const score={bytes:new Uint8Array(17*1024*1024),dynamicEventsByPart:[],partsWithExplicitDynamics:[],partsWithVoiceScopedDynamics:[]};
+ savePlaybackPreparation(source,new Uint8Array([1]),{kind:'opus',importInputVersion:'flat-local-opus-v1',bytes:new Uint8Array(),scores:[score,score]});
+ expect(readPlaybackPreparation(source)).toBeUndefined();
+});
 
 it('retains an active artifact through a long rehearsal and starts idle expiry on release', () => {
  vi.useFakeTimers();
