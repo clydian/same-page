@@ -181,7 +181,11 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
 
   // Playback addresses measures. Notation keeps only the viewport and a small
   // surrounding window; off-screen heights are estimates until visited.
-  const visibleTop = () => viewport.getBoundingClientRect().top - element.getBoundingClientRect().top;
+  const visualScale = () => {
+    const width = parseFloat(getComputedStyle(element).width), screenWidth = element.getBoundingClientRect().width;
+    return width > 0 && screenWidth > 0 ? screenWidth / width : 1;
+  };
+  const visibleTop = () => (viewport.getBoundingClientRect().top - element.getBoundingClientRect().top) / visualScale();
   function readAnchor(): Anchor | null {
     const top = visibleTop(), piece = pieces.find(piece => piece.top + piece.height > top) ?? pieces.at(-1);
     if (!piece) return null;
@@ -200,7 +204,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
     if (anchor) {
       const bar = anchor.bar === undefined ? null : anchor.piece.bounds?.findMasterBarByIndex(anchor.bar);
       const local = bar?.realBounds.y ?? (anchor.fraction ?? 0) * anchor.piece.height;
-      viewport.scrollTop += anchor.piece.top + local - visibleTop() - anchor.offset;
+      viewport.scrollTop += (anchor.piece.top + local - visibleTop() - anchor.offset) * visualScale();
     }
   }
   function renderPiece(piece: Piece) {
@@ -224,8 +228,8 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
       if (layoutAnchor) renderPiece(layoutAnchor.piece);
       placePieces(layoutAnchor); layoutAnchor = null;
     }
-    const anchor = readAnchor(), top = visibleTop(), margin = viewport.clientHeight / 2;
-    const visible = new Set(pieces.filter(piece => piece.top + piece.height >= top - margin && piece.top <= top + viewport.clientHeight + margin));
+    const anchor = readAnchor(), top = visibleTop(), height = viewport.clientHeight / visualScale(), margin = height / 2;
+    const visible = new Set(pieces.filter(piece => piece.top + piece.height >= top - margin && piece.top <= top + height + margin));
     for (const piece of pieces) {
       if (visible.has(piece)) changed = renderPiece(piece) || changed;
       else if (piece.bounds) { piece.element.replaceChildren(); piece.bounds = null; changed = true; }

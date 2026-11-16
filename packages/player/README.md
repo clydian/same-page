@@ -29,7 +29,8 @@ released when they leave that window. Initial heights are estimates and become
 measured as scores are visited, so total scrollbar length can change. A source
 measure and screen offset anchor the reading position while those heights change.
 Seeking and loop previews prepare their destination score directly, including
-positions whose preceding scores have never been engraved.
+positions whose preceding scores have never been engraved. The window and its
+anchors use notation coordinates even while the host magnifies the paper.
 
 A font, theme or width change invalidates notation only. The reading score is
 reflowed first; off-screen work waits until needed. Changes queued in the same

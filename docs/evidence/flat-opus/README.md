@@ -25,7 +25,8 @@ four-beat count-in, D.C. staying in score 2, click/drag positioning, cross-score
 loop return, per-score mixes, reflow, manual browse/follow restoration, inverted
 notation colors and clean disposal. The piano pickup is one quarter note. A 24-score book in the same case also checks
 bounded SVG, direct distant seeks, manual browsing, reflow anchors and canceling
-a loop preview whose target is far outside the mounted notation window.
+a loop preview whose target is far outside the mounted notation window, plus
+visible notation while the host magnifies the paper.
 
 Local checks: production build/typecheck, 383 player tests, 7 preparation-cache
 tests, the Opus browser case and existing single-score rhythm and attachment/PDF
