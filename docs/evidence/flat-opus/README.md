@@ -4,6 +4,11 @@ These are actual 390×844 Chromium screenshots of the built application using
 isolated local Worker/D1/R2 fixtures. Both short scores are independently
 authored synthetic CC0 controls generated in
 `browser-tests/opus-playback.test.mjs`; no Bach collection or user score is used.
+All three screenshots show the changed application. For the before comparison,
+the same 1433-byte Opus sample was checked against the actual format validator
+from main `5f1891c`: it rejected the file with
+`当前支持单份 score-partwise 乐谱，请重新导出此格式。` This is a code-level
+baseline check, not a screenshot of the old UI.
 
 - [Independent scores](independent-scores.png): SATB, D major, 3/4 followed by
   piano grand staff, C major, 4/4. Internal print breaks are ignored; each score

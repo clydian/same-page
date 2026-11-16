@@ -19,6 +19,9 @@ type Piece = {
   element: HTMLDivElement; bounds: at.rendering.BoundsLookup | null; top: number; height: number;
 };
 type Bounds = Pick<at.rendering.BoundsLookup, 'findMasterBar' | 'findMasterBarByIndex' | 'findBeats' | 'getBeatAtPos' | 'staffSystems'>;
+/** Private to createPlayerSession: only its notation/transport/mix calls are
+ * document-aware. Other delegates (e.g. export or direct renderScore) do not
+ * represent the collection; this is not a general AlphaTabApi replacement. */
 export type DocumentPlaybackApi = Omit<Native, 'boundsLookup' | 'renderer' | 'tickCache'> & {
   readonly boundsLookup: Bounds | null;
   readonly renderer: { partialRenderFinished: Signal<at.rendering.RenderFinishedEventArgs> };
