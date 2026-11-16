@@ -32,7 +32,7 @@ for (const engine of (process.env.SCRUB_ENGINE ? [process.env.SCRUB_ENGINE] : ['
  if(!baseline){await expect(page.locator('.practice-measure-preview')).toHaveCount(1);await expect.poll(()=>viewport.evaluate(e=>e.scrollTop)).toBeGreaterThan(200);const marker=await page.locator('.practice-measure-preview').boundingBox(),region=await viewport.boundingBox();assert.ok(marker.y>=region.y && marker.y+marker.height<=region.y+region.height,'target measure is visible inside the score viewport');}
  await page.screenshot({path:`${output}/${baseline?'before':'after'}-${engine}-preview.png`});
  if(baseline){await page.mouse.up();return;}
- await page.mouse.move(target,y-100,{steps:8});await expect(bar.getByRole('status').filter({hasText:'已取消'})).toBeVisible();
+ await page.mouse.move(target,y-100,{steps:8});await expect(bar.locator('.practice-timeline-preview')).toHaveCount(0);await expect(page.locator('.practice-measure-preview')).toHaveCount(0);
  await page.screenshot({path:`${output}/after-${engine}-cancel.png`});
  await page.mouse.move(target,y,{steps:8});await page.mouse.up();await expect(slider).toHaveValue('0');await expect.poll(()=>viewport.evaluate(e=>e.scrollTop)).toBe(0);
  assert.deepEqual(await page.evaluate(()=>window.__seeks),[],'cancel sends no seek');
