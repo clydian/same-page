@@ -34,7 +34,7 @@
 
 ## 验证范围
 
-生产构建（含类型与预缓存检查）、ESLint 通过；播放器 383 项、相关客户端 24 项、浏览器分组／选择 12 项通过。Chromium／WebKit 的进度拖动、片段循环、预备拍、播放器界面共 8 项通过；补齐放大查看后重新验证拖动与循环 4 项。保留一个浏览器回归入口 `browser-tests/playback-scrub.test.mjs`，补充原有 timeline／session 测试，复用片段循环、节拍预备和播放器界面回归。浏览器截图在 `artifacts/verification/xml-scrub/` 生成，本页只保留三张对照证据。
+生产构建（含类型与预缓存检查）、ESLint 通过；播放器 383 项、相关客户端 24 项、浏览器分组／选择 12 项通过。Chromium／WebKit 的进度拖动、片段循环、预备拍、播放器界面共 8 项通过；补齐放大查看后重新验证拖动与循环 4 项。保留一个浏览器回归入口 `browser-tests/playback-scrub.test.mjs`，补充原有 timeline／session 测试，复用片段循环、节拍预备和播放器界面回归。浏览器截图在 `artifacts/verification/xml-scrub/` 生成，本页保留四张对照及预读证据。
 
 触摸拖动通过 Chromium CDP 原生触摸输入验证；WebKit 验证鼠标、键盘、原生 range 失焦行为及视图恢复。未做 iOS／Android 真机手势、实际听感验收，不把触摸模拟等同于真机体验。未合并、未部署。
 
@@ -52,3 +52,10 @@
 本轮验证：生产构建与 lint 通过；播放器 385 项、相关客户端 14 项通过；Chromium／WebKit 的拖动与连续播放、循环、播放器界面共 6 项通过，另通过 Chromium 的 Opus 合集回归。浏览器实播先确认首行保持稳定，再确认后续行提前滚动；会话测试分别覆盖普通谱／合集的几何边界、末行与手动浏览。不代表真实 iOS／Android 设备验收。
 
 Modern Web Guidance：本轮查询滚动可见性和临时提示，滚动查询未找到直接适用指南；提示复用现有 React Aria 组件，沿用 `persistent-toast-notifications` 的可关闭、聚焦时暂停自动消失，以及 `accessibility` 的统一温和朗读区域建议。按用户要求保持现有组件，不另造原生 popover 或引入 polyfill。
+
+
+## 同步 #665 后的验证
+
+合入 main `a84b2a8`，继承 #665 的 PDF 绘制就绪等待和合集预览按下时取样修复，无冲突，也未重复修改这两个测试文件。旧 head `f50a449` 的 [CI 43839249928](https://github.com/clydian/same-page/actions/runs/43839249928) 失败于 WebKit 合集取消后的旧位置基准（56px）；保留原失败记录，不将旧运行重试当作修复。
+
+合并后重新生产构建，Chromium／WebKit 的合集播放与进度拖动、取消、预读共 4 项通过。重新截图复核：目标小节预览与统一取消提示的 PNG 和前版字节一致，预读截图按此次实播结果更新。修改前截图仍明确对应原始 `086335e`；修改后截图对应同步 main 后的播放器实现。最终远端 CI 以 PR 所列 head 和运行链接为准。
