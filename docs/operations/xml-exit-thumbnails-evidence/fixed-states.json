@@ -1,0 +1,77 @@
+[
+  {
+    "label": "before",
+    "position": "4 / 8",
+    "thumbnails": 8,
+    "stripWidth": 180,
+    "max": "8",
+    "shell": {
+      "chromeVisible": "true"
+    },
+    "pages": [
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  {
+    "label": "xml-1",
+    "position": "4 / 8",
+    "thumbnails": 0,
+    "shell": {
+      "chromeVisible": "true",
+      "practicing": "true",
+      "playbackView": "xml"
+    },
+    "pages": [
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  {
+    "label": "exit-1",
+    "position": "4 / 8",
+    "thumbnails": 8,
+    "stripWidth": 180,
+    "max": "8",
+    "shell": {
+      "chromeVisible": "true"
+    },
+    "pages": [
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  {
+    "label": "xml-2",
+    "position": "4 / 8",
+    "thumbnails": 0,
+    "shell": {
+      "chromeVisible": "true",
+      "practicing": "true",
+      "playbackView": "xml"
+    },
+    "pages": [
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  {
+    "label": "exit-2",
+    "position": "4 / 8",
+    "thumbnails": 8,
+    "stripWidth": 180,
+    "max": "8",
+    "shell": {
+      "chromeVisible": "true"
+    },
+    "pages": [
+      "3",
+      "4",
+      "5"
+    ]
+  }
+]

@@ -1,0 +1,90 @@
+[
+  {
+    "label": "before",
+    "position": "4 / 8",
+    "thumbnails": 8,
+    "stripWidth": 180,
+    "max": "8",
+    "shell": {
+      "chromeVisible": "true"
+    },
+    "observers": [
+      {
+        "event": "observe",
+        "width": 180
+      },
+      {
+        "event": "resize",
+        "connected": true,
+        "width": 180
+      }
+    ],
+    "pages": [
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  {
+    "label": "xml-1",
+    "position": "4 / 8",
+    "thumbnails": 0,
+    "shell": {
+      "chromeVisible": "true",
+      "practicing": "true",
+      "playbackView": "xml"
+    },
+    "observers": [
+      {
+        "event": "observe",
+        "width": 180
+      },
+      {
+        "event": "resize",
+        "connected": true,
+        "width": 180
+      },
+      {
+        "event": "resize",
+        "connected": false,
+        "width": 0
+      }
+    ],
+    "pages": [
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  {
+    "label": "exit-1",
+    "position": "4 / 8",
+    "thumbnails": 1,
+    "stripWidth": 180,
+    "max": "8",
+    "shell": {
+      "chromeVisible": "true"
+    },
+    "observers": [
+      {
+        "event": "observe",
+        "width": 180
+      },
+      {
+        "event": "resize",
+        "connected": true,
+        "width": 180
+      },
+      {
+        "event": "resize",
+        "connected": false,
+        "width": 0
+      }
+    ],
+    "pages": [
+      "3",
+      "4",
+      "5"
+    ]
+  }
+]

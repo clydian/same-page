@@ -373,21 +373,6 @@ export function PageNavigatorPanel({
   const selectRef = useRef(onSelect);
   useLayoutEffect(() => { selectRef.current = onSelect; }, [onSelect]);
   const page = draftPage ?? currentPage;
-  const panelRef = useRef<HTMLElement>(null);
-  const size = useElementSize(panelRef);
-  useLayoutEffect(() => {
-    const shell = panelRef.current?.closest<HTMLElement>(".reader-shell");
-    if (!shell || !size.height) return;
-    shell.style.setProperty("--reader-preview-height", `${panelRef.current!.getBoundingClientRect().height}px`);
-    return () => { shell.style.removeProperty("--reader-preview-height"); };
-  }, [size.height]);
-  // Sample the document at a density that leaves gaps between resting thumbnails.
-  // The range input still addresses every page, including those not sampled.
-  const count = Math.min(document.numPages, 40, Math.max(1, Math.floor((size.width - 40) / 20) + 1));
-  const activeIndex = document.numPages === 1 ? 0 : Math.round((page - 1) / (document.numPages - 1) * (count - 1));
-  const thumbnails = Array.from({ length: count }, (_, index) =>
-    count === 1 ? 1 : 1 + Math.round(index * (document.numPages - 1) / (count - 1)),
-  );
   const clearPending = () => {
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = null;
@@ -434,38 +419,68 @@ export function PageNavigatorPanel({
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
-      {!compact && <nav className="page-preview-strip" aria-label="页面缩略图" ref={panelRef}
-        style={{ width: `${42 + (Math.min(document.numPages, 40) - 1) * 20}px` }}>
-        <div className="page-preview-strip__track" aria-hidden="true">
-          {thumbnails.map((number, index) => (
-            <div className="page-preview-strip__thumbnail" key={index}
-              data-active={index === activeIndex || undefined}
-              style={{ left: `${count === 1 ? 50 : index / (count - 1) * 100}%` }}>
-              <PdfPageThumbnail document={document} pageNumber={index === activeIndex ? page : number} />
-            </div>
-          ))}
-        </div>
-        <input type="range" className="page-preview-strip__slider" aria-label="跳转页码"
-          min={1} max={document.numPages} step={1} value={page}
-          aria-valuetext={`第 ${page} 页，共 ${document.numPages} 页`}
-          disabled={document.numPages === 1}
-          onChange={event => {
-            const next = Number(event.target.value);
-            pendingPage.current = next;
-            setDraftPage(next);
-            clearPending();
-            // Page numbers follow the finger immediately; expensive page rendering
-            // waits for a short pause and never queues intermediate destinations.
-            timer.current = setTimeout(() => {
-              timer.current = null;
-              selectRef.current(next);
-            }, 120);
-          }}
-          onKeyUp={() => { if (draftPage !== null) finish(); }}
-          onBlur={() => { if (draftPage !== null) finish(); }}
-        />
-      </nav>}
+      {!compact && <PagePreviewStrip document={document} page={page}
+        onChange={next => {
+          pendingPage.current = next;
+          setDraftPage(next);
+          clearPending();
+          // Page numbers follow the finger immediately; expensive page rendering
+          // waits for a short pause and never queues intermediate destinations.
+          timer.current = setTimeout(() => {
+            timer.current = null;
+            selectRef.current(next);
+          }, 120);
+        }}
+        onFinish={() => { if (draftPage !== null) finish(); }}
+      />}
     </>
+  );
+}
+
+// Mount the size observer with the strip it measures. Compact practice navigation
+// has no strip; returning to normal reading creates a fresh measurement.
+function PagePreviewStrip({ document, page, onChange, onFinish }: {
+  document: PDFDocumentProxy;
+  page: number;
+  onChange(page: number): void;
+  onFinish(): void;
+}) {
+  const panelRef = useRef<HTMLElement>(null);
+  const size = useElementSize(panelRef);
+  useLayoutEffect(() => {
+    const shell = panelRef.current?.closest<HTMLElement>(".reader-shell");
+    if (!shell || !size.height) return;
+    shell.style.setProperty("--reader-preview-height", `${panelRef.current!.getBoundingClientRect().height}px`);
+    return () => { shell.style.removeProperty("--reader-preview-height"); };
+  }, [size.height]);
+  // Sample the document at a density that leaves gaps between resting thumbnails.
+  // The range input still addresses every page, including those not sampled.
+  const count = Math.min(document.numPages, 40, Math.max(1, Math.floor((size.width - 40) / 20) + 1));
+  const activeIndex = document.numPages === 1 ? 0 : Math.round((page - 1) / (document.numPages - 1) * (count - 1));
+  const thumbnails = Array.from({ length: count }, (_, index) =>
+    count === 1 ? 1 : 1 + Math.round(index * (document.numPages - 1) / (count - 1)),
+  );
+  return (
+    <nav className="page-preview-strip" aria-label="页面缩略图" ref={panelRef}
+      style={{ width: `${42 + (Math.min(document.numPages, 40) - 1) * 20}px` }}>
+      <div className="page-preview-strip__track" aria-hidden="true">
+        {thumbnails.map((number, index) => (
+          <div className="page-preview-strip__thumbnail" key={index}
+            data-active={index === activeIndex || undefined}
+            style={{ left: `${count === 1 ? 50 : index / (count - 1) * 100}%` }}>
+            <PdfPageThumbnail document={document} pageNumber={index === activeIndex ? page : number} />
+          </div>
+        ))}
+      </div>
+      <input type="range" className="page-preview-strip__slider" aria-label="跳转页码"
+        min={1} max={document.numPages} step={1} value={page}
+        aria-valuetext={`第 ${page} 页，共 ${document.numPages} 页`}
+        disabled={document.numPages === 1}
+        onChange={event => onChange(Number(event.target.value))}
+        onKeyUp={onFinish}
+        onBlur={onFinish}
+      />
+    </nav>
   );
 }
 
