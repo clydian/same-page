@@ -59,7 +59,7 @@ it("the real smoke runner partitions without omissions or duplicates, including 
     mkdirSync(path.join(cwd, "browser-tests"));
     const add = i => writeFileSync(path.join(cwd, "browser-tests", `${i}.test.mjs`), costFixture);
     for (let i = 0; i < 7; i++) add(i);
-    for (const count of [2, 4]) {
+    for (const count of [2, 3, 4]) {
       for (const total of [7, 8]) {
         if (total === 8) add(7);
         else rmSync(path.join(cwd, "browser-tests", "7.test.mjs"), { force: true });

@@ -56,7 +56,7 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 | `visual` | 使用 2 个 runner 执行所选核心交互及本次变更的核心用例，相关扩展独立报告 |
 | `build` | 统一生产构建、封存校验产物；不等待浏览器环境安装 |
 | `platform` | PWA 双版本交接、下载并校验生产产物后测量加载预算 |
-| `smoke` | 下载并校验同份产物，以 2 个 runner 执行真实 Worker/D1/R2 核心流程；相关扩展独立报告 |
+| `smoke` | 下载并校验同份产物，以 3 个 runner 执行真实 Worker/D1/R2 核心流程（云盘小范围使用 2 个）；相关扩展独立报告 |
 | `verify` | 等待以上全部结束；被选中的 job 必须成功，未选中的必须为 skipped；失败、取消、意外跳过均不能通过 |
 
 `checks` 在安装依赖前先运行发布存储边界预检及其回归，用经审查的 stable 封存清单
@@ -69,7 +69,7 @@ platform 的合成 PWA 检查保留 `DEBUG=pw:browser` 原生浏览器 stderr �
 覆盖尚待实机验收的基线。CI 成功和 deploy skipped 不表示已部署，首次流程见
 [首次桥接](production-release.md#首次桥接需另行授权)。
 
-视觉和 smoke 的核心检查各两片，不再以是否部署产品代码决定 gate／all。任一必跑分片失败都阻止 verify。PR 的相关扩展和测试版发布后的完整扩展由独立工作流报告，不阻止发布，但其失败必须被调查。
+视觉核心检查两片、smoke 核心检查三片（云盘小范围两片），不再以是否部署产品代码决定 gate／all。任一必跑分片失败都阻止 verify。PR 的相关扩展和测试版发布后的完整扩展由独立工作流报告，不阻止发布，但其失败必须被调查。
 
 ## 测试版发布后的扩展检查
 
@@ -218,9 +218,9 @@ iPhone Safari／主屏幕安装版的小屏输入、切去邮箱再返回、横�
 
 PWA 测试在 Chromium/WebKit 验证首页动画的按需缓存和静态离线兜底；构建审计限制应用壳预缓存为 7 MiB，并保留 PDF 离线依赖检查。预算、缓存生命周期与回归职责见 [预缓存说明](pwa-precache.md)。
 
-platform 的 PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实 Service Worker 交接。build 独立构建真实源码；platform 测量加载预算前移除合成 dist、下载并校验真实构建包。smoke 在另外两台 runner 使用同份包，与 PWA/加载检查并行；合成版本不得发布。`npm run test:loading-performance` 单独执行时仍先 build。
+platform 的 PWA 测试构建 `pwa-e2e-first`、`pwa-e2e-second` 并验证真实 Service Worker 交接。build 独立构建真实源码；platform 测量加载预算前移除合成 dist、下载并校验真实构建包。smoke 在另外三台 runner（云盘小范围两台）使用同份包，与 PWA/加载检查并行；合成版本不得发布。`npm run test:loading-performance` 单独执行时仍先 build。
 
-需要构建或 smoke 的运行（包括 PR）封存并上传 `release-<SHA>`；两个 smoke 分片下载同次运行的包，提取后先校验 SHA256 清单与源码 SHA，再启动浏览器。PR 包只供本次验证，deploy 仍只允许需要部署的 main push，并等待 checks、全部 visual/smoke 分片及 build/platform 的汇总 `verify` 成功。部署下载同次运行的产物，校验 SHA256 清单，直接发布而不重建。产物保留 14 天；过期需重新验证生成。visual/smoke 各分片使用独立 artifact 名称，platform 也保留 `artifacts/verification/` 的已有合成证据，失败时也上传，不能放入生产会话或私人内容。
+需要构建或 smoke 的运行（包括 PR）封存并上传 `release-<SHA>`；各 smoke 分片下载同次运行的包，提取后先校验 SHA256 清单与源码 SHA，再启动浏览器。PR 包只供本次验证，deploy 仍只允许需要部署的 main push，并等待 checks、全部 visual/smoke 分片及 build/platform 的汇总 `verify` 成功。部署下载同次运行的产物，校验 SHA256 清单，直接发布而不重建。产物保留 14 天；过期需重新验证生成。visual/smoke 各分片使用独立 artifact 名称，platform 也保留 `artifacts/verification/` 的已有合成证据，失败时也上传，不能放入生产会话或私人内容。
 
 build 固定 `SAME_PAGE_RELEASE_CHANNELS=1`，产物使用 `/_releases/<SHA>/` 并包含通道选择能力。
 这与 Worker runtime `RELEASE_CHANNELS_ENABLED` 分开控制；不能因为需要准备通道包就开启生产路由，

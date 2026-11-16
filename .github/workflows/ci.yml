@@ -263,10 +263,10 @@ jobs:
     if: needs.scope.outputs.smoke == 'true'
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 3
       matrix:
         # Core policy is independent of whether the change publishes product code.
-        shard: [1, 2]
+        shard: ${{ fromJSON(needs.scope.outputs.browserGroup == 'library' && '[1,2]' || '[1,2,3]') }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
@@ -298,7 +298,7 @@ jobs:
       - name: Real browser Worker storage smoke
         # Keep each shard's six-minute budget and individual test deadlines.
         timeout-minutes: 6
-        run: node scripts/run-browser-tests.mjs smoke "$BROWSER_GROUP" "${{ matrix.shard }}/2" "$TEST_BASE"
+        run: node scripts/run-browser-tests.mjs smoke "$BROWSER_GROUP" "${{ matrix.shard }}/${{ strategy.job-total }}" "$TEST_BASE"
         env:
           BROWSER_GROUP: ${{ needs.scope.outputs.browserGroup == 'library' && 'library' || 'gate' }}
           TEST_BASE: ${{ needs.scope.outputs.base }}

@@ -28,13 +28,14 @@ export function selectBrowserTests({ suite, group = "all", shard = "1/1", entrie
   return files;
 }
 
-// Rounded CI file costs (seconds), calibrated from run 40368368025. Keep the
-// six-minute step budget: native filename round-robin put >360s in shard 1
-// after one new filename shifted every subsequent heavy fixture.
+// Rounded CI file costs (seconds), refreshed for the heavy core files from
+// run 43882380232. Core smoke uses three shards to retain six-minute deadlines;
+// filename round-robin and unmeasured default costs can overload one shard.
 const smokeCosts = {
   "access-smoke": 25,
   "admin-workbench": 35,
   "annotations-smoke": 20,
+  "attachment-revision-cors": 65,
   "attachments-recovery": 30,
   "attachments-smoke": 40,
   "connections": 70,
@@ -47,12 +48,14 @@ const smokeCosts = {
   "invite-connection-failover": 90,
   "loading-stability": 25,
   "musicxml-audio-startup": 40,
+  "musicxml-audio-session": 45,
   "musicxml-cursor-overflow": 25,
   "musicxml-native-selection": 30,
   "musicxml-offline": 25,
   "musicxml-playback": 75,
   "musicxml-startup": 65,
-  "offline-entry-smoke": 45,
+  "offline-entry-smoke": 55,
+  "opus-playback": 50,
   "outbox-browser": 5,
   "pdf-codecs-smoke": 45,
   "pdf-replacement-trash": 30,
@@ -61,12 +64,13 @@ const smokeCosts = {
   "playback-ux": 35,
   "practice-compare": 60,
   "practice-loop": 35,
+  "practice-panel-safe-area": 35,
   "practice-reader-layout": 35,
   "practice-rhythm": 50,
   "practice-score-entry": 30,
   "practice-unified-controls": 30,
   "preview-notes-smoke": 75,
-  "resilient-update": 70,
+  "resilient-update": 130,
   "storage-smoke": 15
 };
 
