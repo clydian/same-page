@@ -19,6 +19,11 @@ export function collectMusicXmlMeasureDurations(document: Node[]): (number | nul
         if (name === 'attributes') {
           const value = text(items, 'divisions');
           if (value) { divisions = Number(value); valid &&= Number.isFinite(divisions) && divisions > 0; }
+        } else if (name === 'direction' || name === 'harmony') {
+          const offset = text(items, 'offset');
+          const target = cursor + (offset ? Number(offset) / divisions : 0);
+          if (!Number.isFinite(target) || target < -1e-8) valid = false;
+          else extent = Math.max(extent, target);
         } else if (['note', 'forward', 'backup'].includes(name)) {
           if (items.some(item => tag(item) === 'grace')) continue;
           const value = text(items, 'duration');

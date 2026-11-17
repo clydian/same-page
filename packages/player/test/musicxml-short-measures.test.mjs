@@ -27,7 +27,7 @@ test('equal source spans shorten pickup and interior fragments through prepared/
 });
 
 test('explicit rests and trailing forwards retain intentional silent time',()=>{
-  for(const body of [note(1)+rest(3),note(1)+'<forward><duration>3</duration></forward>']) {
+  for(const body of [note(1)+rest(3),note(1)+'<forward><duration>3</duration></forward>',note(1)+'<direction><direction-type><words>Owned late instruction</words></direction-type><offset>2</offset></direction>']) {
     const score=loadMusicXml(xml([[body,note(4)],[body,note(4)]]),new at.Settings());
     assert.deepEqual(timeline(score),[[0,4],[4,8]]);
   }
