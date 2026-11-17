@@ -33,9 +33,9 @@ it("does not send in the background or offline, has no heartbeat, and fences ide
   expect(vi.mocked(connectionFetch).mock.calls[2][1]!.headers).toMatchObject({ "x-same-page-owner-user-id": "member-b" });
 });
 
-it("does not report admin, settings, or unconfirmed identities", () => {
+it("does not report admin, settings, local experience, or unconfirmed identities", () => {
   vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
-  for (const path of ["/admin", "/admin?view=usage", "/choirs/drive-a/settings"]) {
+  for (const path of ["/admin", "/admin?view=usage", "/choirs/drive-a/settings", "/choirs/drive-a/scores/score-a?experience=1"]) {
     const view = render(<MemoryRouter initialEntries={[path]}><DriveVisitReporter /></MemoryRouter>);
     view.unmount();
   }

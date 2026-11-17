@@ -8,8 +8,9 @@ import { useNetworkStatus } from "../platform/use-network-status";
 // There is no heartbeat timer, durable queue or offline replay. A server receipt
 // means a foreground route entry/resume or trusted input, not time spent reading.
 export function DriveVisitReporter() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const choirId = /^\/choirs\/([^/]+)(?:\/scores\/[^/]+)?$/.exec(pathname)?.[1];
+  if (new URLSearchParams(search).get("experience") === "1") return null;
   return choirId ? <ForegroundVisits choirId={choirId} pathname={pathname} /> : null;
 }
 
