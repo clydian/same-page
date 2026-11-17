@@ -12,8 +12,7 @@ import {
 } from "../attachments/storage";
 import { serveStoredFile } from "../scores/serve-file";
 import { limitDriveMutation } from "../security/drive-rate-limit";
-import { adminAuthority, requireAdmin } from "./access";
-import { readAdminSession } from "./diagnostic-access";
+import { adminAuthority, requireAdmin, readAdminSession } from "./access";
 export const adminRoutes = new Hono<AppEnvironment>();
 const live = `s.trashed_at IS NULL AND s.purged_at IS NULL AND c.purged_at IS NULL AND v.purged_at IS NULL AND v.state='ready' AND v.etag IS NOT NULL`;
 const parents = `FROM scores s JOIN choirs c ON c.id=s.choir_id
@@ -260,7 +259,7 @@ const importQuery = z.object({
 adminRoutes.post(
   "/admin/scores/:scoreId/candidates/:candidateId",
   async (c) => {
-    const a = await requireAdmin(c, "review_xml");
+    const a = await requireAdmin(c);
     const limited = await limitDriveMutation(c, a.userId, "admin-import", 20);
     if (limited) return limited;
     const s = await score(c);
@@ -304,7 +303,7 @@ adminRoutes.post(
       key = `admin/xml/${id.data}/${crypto.randomUUID()}`;
     const reserved = await c.env.DB.prepare(
       `INSERT INTO xml_candidates(id,choir_id,score_id,source_version_id,source_sha256,name,size_bytes,sha256,object_key,tool,parameters,imported_by,created_at,expires_at)
- SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${adminAuthority("review_xml")} AND EXISTS(SELECT 1 ${parents} WHERE s.id=? AND ${live} AND s.current_version_id=? AND s.generated_xml_disabled=0)`,
+ SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${adminAuthority()} AND EXISTS(SELECT 1 ${parents} WHERE s.id=? AND ${live} AND s.current_version_id=? AND s.generated_xml_disabled=0)`,
     )
       .bind(
         id.data,
@@ -368,7 +367,7 @@ adminRoutes.post(
       });
       if (!object) throw new Error("upload_failed");
       const committed = await c.env.DB.prepare(
-        `UPDATE xml_candidates SET state='ready',etag=? WHERE id=? AND state='pending' AND expires_at>? AND ${adminAuthority("review_xml")}
+        `UPDATE xml_candidates SET state='ready',etag=? WHERE id=? AND state='pending' AND expires_at>? AND ${adminAuthority()}
    AND EXISTS(SELECT 1 ${parents} WHERE s.id=? AND ${live} AND s.current_version_id=? AND s.generated_xml_disabled=0) RETURNING id`,
       )
         .bind(
@@ -401,7 +400,7 @@ adminRoutes.post(
 adminRoutes.post(
   "/admin/scores/:scoreId/candidates/:candidateId/review",
   async (c) => {
-    const a = await requireAdmin(c, "review_xml");
+    const a = await requireAdmin(c);
     const { parent, row } = await candidate(c);
     const input = xmlReviewSchema.safeParse(
       await c.req.json().catch(() => null),
@@ -415,7 +414,7 @@ adminRoutes.post(
       now = Date.now();
     const r = await c.env.DB.prepare(
       `UPDATE xml_candidates SET review=?,review_revision=review_revision+1,review_note=?,technical_passed=?,reviewed_by=?,reviewed_at=?
- WHERE id=? AND state='ready' AND review_revision=? AND expires_at>? AND ${adminAuthority("review_xml")}
+ WHERE id=? AND state='ready' AND review_revision=? AND expires_at>? AND ${adminAuthority()}
  AND EXISTS(SELECT 1 ${parents} WHERE s.id=? AND ${live}) RETURNING id`,
     )
       .bind(
@@ -441,7 +440,7 @@ adminRoutes.post(
 adminRoutes.post(
   "/admin/scores/:scoreId/candidates/:candidateId/publish",
   async (c) => {
-    const a = await requireAdmin(c, "publish_xml");
+    const a = await requireAdmin(c);
     const { parent, row } = await candidate(c);
     const parsed = xmlPublicationSchema.safeParse(
       await c.req.json().catch(() => null),

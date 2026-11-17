@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { AppEnvironment } from "../env";
 import { diagnosticInboxQuerySchema, diagnosticStatusSchema } from "../../src/shared/diagnostic-inbox";
 import type { DiagnosticReport } from "../../src/shared/diagnostic-report";
-import { diagnosticAuthority, requireDiagnosticOperator } from "./diagnostic-access";
+import { adminAuthority, requireAdmin } from "./access";
 import { limitDriveMutation } from "../security/drive-rate-limit";
 
 export const adminDiagnosticRoutes = new Hono<AppEnvironment>();
@@ -17,12 +17,12 @@ const summary = (row: ReportRow) => {
 };
 
 adminDiagnosticRoutes.get("/admin/reports", async c => {
-  const operator = await requireDiagnosticOperator(c);
+  const operator = await requireAdmin(c);
   const parsed = diagnosticInboxQuerySchema.safeParse(c.req.query());
   if (!parsed.success) return c.json({ error: "invalid_filter" }, 400);
   const query = parsed.data;
   if (query.from !== undefined && query.until !== undefined && query.from >= query.until) return c.json({ error: "invalid_filter" }, 400);
-  const where = ["expires_at>?", diagnosticAuthority()];
+  const where = ["expires_at>?", adminAuthority()];
   const values: (string | number)[] = [Date.now(), operator.userId, operator.sessionId, Date.now()];
   const filter = (sql: string, ...parameters: (string | number)[]) => { where.push(sql); values.push(...parameters); };
   if (query.id) filter("id=?", query.id);
@@ -41,10 +41,10 @@ adminDiagnosticRoutes.get("/admin/reports", async c => {
 });
 
 adminDiagnosticRoutes.get("/admin/reports/:id", async c => {
-  const operator = await requireDiagnosticOperator(c);
+  const operator = await requireAdmin(c);
   const id = z.uuidv4().safeParse(c.req.param("id"));
   if (!id.success) return c.json({ error: "report_not_found" }, 404);
-  const row = await c.env.DB.prepare(`SELECT * FROM diagnostic_reports WHERE id=? AND expires_at>? AND ${diagnosticAuthority()}`)
+  const row = await c.env.DB.prepare(`SELECT * FROM diagnostic_reports WHERE id=? AND expires_at>? AND ${adminAuthority()}`)
     .bind(id.data, Date.now(), operator.userId, operator.sessionId, Date.now()).first<ReportRow>();
   if (!row) return c.json({ error: "report_not_found" }, 404);
   return c.json({ ...summary(row), report: JSON.parse(row.payload) });
@@ -52,7 +52,7 @@ adminDiagnosticRoutes.get("/admin/reports/:id", async c => {
 
 adminDiagnosticRoutes.on(["PATCH", "DELETE"], "/admin/reports/:id", async c => {
   const deleting = c.req.method === "DELETE";
-  const operator = await requireDiagnosticOperator(c, deleting);
+  const operator = await requireAdmin(c);
   if (c.req.header("Origin") !== new URL(c.env.BETTER_AUTH_URL).origin) return c.json({ error: "forbidden" }, 403);
   const id = z.uuidv4().safeParse(c.req.param("id"));
   if (!id.success) return c.json({ error: "report_not_found" }, 404);
@@ -81,7 +81,7 @@ adminDiagnosticRoutes.on(["PATCH", "DELETE"], "/admin/reports/:id", async c => {
     action = parsed.data.status;
   }
   const now = Date.now();
-  const guard = `id=? AND expires_at>? AND ${diagnosticAuthority(deleting)}`;
+  const guard = `id=? AND expires_at>? AND ${adminAuthority()}`;
   const values = [id.data, now, operator.userId, operator.sessionId, now];
   const statements = [c.env.DB.prepare(`INSERT INTO diagnostic_report_audit(id,operator_id,report_id,action,created_at)
     SELECT ?,?,id,?,? FROM diagnostic_reports WHERE ${guard}`)

@@ -90,6 +90,13 @@ for (const [engine, type] of [
         assert.equal(await response.finished(), null, "startup read must finish before leaving the account document");
       }
       await page.goto(f.origin + "/admin");
+      await expect(page.getByRole("link", { name: "发布通道", exact: true })).toBeVisible();
+      await page.getByRole("link", { name: "问题反馈", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "问题反馈", exact: true })).toBeVisible();
+      await expect(page.getByText("没有符合条件的反馈。", { exact: true })).toBeVisible();
+      await mkdir("artifacts/verification/admin", { recursive: true });
+      await page.screenshot({ path: `artifacts/verification/admin/${engine}-reports.png`, fullPage: true });
+      await page.getByRole("link", { name: "乐谱工作台", exact: true }).click();
       await expect(
         page.getByRole("link", { name: "打开", exact: true }),
       ).toHaveCount(2);

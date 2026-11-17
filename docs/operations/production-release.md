@@ -236,8 +236,8 @@ release metadata，不执行业务 migration、数据恢复、清理或发布人
    `RELEASE_CHANNELS_ENABLED:true` 应用到**同一份产物**，再设置 repository variable
    `RELEASE_CHANNELS_ENABLED=true` 恢复日常 CI。该首次准备 workflow 不执行这一步。
    新版本须通过下述持久格式边界检查及实际产物回切矩阵才准入 beta。
-6. `npm run admin:configure -- grant-release --remote <userId>` 单独授权发布人员；
-   `revoke-release` 撤销。该 CLI 从不按邮箱授权、不修改成员关系；只在另行批准时运行。
+6. `npm run admin:configure -- grant --remote <userId>` 授予完整产品管理员权限；
+   `revoke` 撤销全部后台权限。迁移 0039 与旧版本兼容见[产品后台说明](product-admin.md)。该 CLI 从不按邮箱授权、不修改成员关系；只在另行批准时运行。
    授权者在 `/admin/releases` 查看两通道、北京时间发布时间和审计，再提升明确显示的当前目标。
 
 初始 bridge 的旧根资源需要归档并保持原地址；新版本一律使用 `/_releases/<SHA>/`。

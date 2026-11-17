@@ -23,7 +23,7 @@ async function release(id: string, ready = 1, identity: { buildId: string; versi
   await env.DB.prepare("INSERT INTO frontend_releases VALUES(?,?,?,?,?)").bind(id,await digest(sealed),releaseContract,Date.now(),ready).run();
 }
 beforeEach(async () => {
-  await env.DB.batch(["DELETE FROM release_promotions", "DELETE FROM release_channels", "DELETE FROM release_compatibility", "DELETE FROM release_verification", "DELETE FROM frontend_releases", "DELETE FROM release_operators"].map(s=>env.DB.prepare(s)));
+  await env.DB.batch(["DELETE FROM release_promotions", "DELETE FROM release_channels", "DELETE FROM release_compatibility", "DELETE FROM release_verification", "DELETE FROM frontend_releases", "DELETE FROM product_administrators"].map(s=>env.DB.prepare(s)));
   for (const o of (await env.FRONTEND_RELEASES!.list()).objects) await env.FRONTEND_RELEASES!.delete(o.key);
   await release(A); await release(B);
   await env.DB.prepare("INSERT INTO release_channels VALUES(1,?,?,1)").bind(A,B).run();
@@ -91,14 +91,14 @@ it("fails closed for a missing or corrupt stable release",async()=>{
   expect((await call("/")).status).toBe(404);
   expect((await call("/api/client-release")).status).toBe(503);
 });
-it("uses a single SQL operation to reject stale promotions and recheck separate authority",async()=>{
+it("uses a single SQL operation to reject stale promotions and recheck product admin authority",async()=>{
   const id=crypto.randomUUID(),session=crypto.randomUUID(),now=Date.now();
   await env.DB.prepare("INSERT INTO user(id,name,email,email_verified,created_at,updated_at) VALUES(?,'release','release@example.test',1,?,?)").bind(id,now,now).run();
   await env.DB.prepare("INSERT INTO session(id,token,user_id,expires_at,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind(session,crypto.randomUUID(),id,now+60000,now,now).run();
   const promote=()=>env.DB.prepare("INSERT INTO release_promotions VALUES(?,?,?,?,?,?,?)").bind(crypto.randomUUID(),id,session,B,1,A,Date.now()).run();
-  await expect(promote()).rejects.toThrow();
-  await env.DB.prepare("INSERT INTO release_operators VALUES(?)").bind(id).run();
   await env.DB.prepare("INSERT INTO release_compatibility VALUES(?,?,?,?,?)").bind(B,A,"c".repeat(64),"c".repeat(64),"d".repeat(64)).run();
+  await expect(promote()).rejects.toThrow("release_forbidden");
+  await env.DB.prepare("INSERT INTO product_administrators VALUES(?)").bind(id).run();
   await promote();expect(await env.DB.prepare("SELECT stable,revision FROM release_channels").first()).toEqual({stable:B,revision:2});
   await expect(promote()).rejects.toThrow();
   expect((await env.DB.prepare("SELECT * FROM release_promotions").all()).results).toHaveLength(1);
@@ -136,19 +136,18 @@ it("reads advisory verification only for the matching release and immutable mani
   expect(await extendedVerification(env, B)).toBeNull();
 });
 
-it("separates release authority from XML authority and retries exactly one audited promotion",async()=>{
+it("uses product admin authority and retries exactly one audited promotion",async()=>{
   const user=crypto.randomUUID(),now=Date.now(),password='release-fixture-password';
   await env.DB.batch([
     env.DB.prepare("INSERT INTO user(id,name,email,email_verified,created_at,updated_at) VALUES(?,'release','release-api@example.test',1,?,?)").bind(user,now,now),
     env.DB.prepare("INSERT INTO account(id,account_id,provider_id,user_id,password,created_at,updated_at) VALUES(?,?,'credential',?,?,?,?)").bind(crypto.randomUUID(),user,user,await hashPassword(password),now,now),
-    env.DB.prepare("INSERT INTO product_operators(user_id,view_scores) VALUES(?,1)").bind(user),
   ]);
   try {
     const login=await call('/api/auth/sign-in/email',{method:'POST',headers:{Origin:'https://same-page.test','Content-Type':'application/json'},body:JSON.stringify({email:'release-api@example.test',password})});
     expect(login.status).toBe(200);const cookie=login.headers.get('set-cookie')!.split(';')[0];
     const headers={Cookie:cookie,Origin:'https://same-page.test','Content-Type':'application/json'};
     expect((await call('/api/admin/releases',{headers})).status).toBe(403);
-    await env.DB.prepare('INSERT INTO release_operators VALUES(?)').bind(user).run();
+    await env.DB.prepare('INSERT INTO product_administrators VALUES(?)').bind(user).run();
     const candidate = await env.DB.prepare('SELECT manifest_digest FROM frontend_releases WHERE build_id=?').bind(B).first<{manifest_digest:string}>();
     await env.DB.prepare('INSERT INTO release_verification VALUES(?,?,?,?,?,?)').bind(B,candidate!.manifest_digest,123,1,'failure',Date.now()).run();
     const catalog = await call('/api/admin/releases', { headers });
@@ -175,7 +174,7 @@ it("separates release authority from XML authority and retries exactly one audit
     const legacy = await call('/api/admin/releases', { headers });
     expect(legacy.status).toBe(200);
     expect(await legacy.json()).toMatchObject({ releases: expect.arrayContaining([expect.objectContaining({ buildId: A, version: null })]) });
-    await env.DB.prepare('DELETE FROM release_operators WHERE user_id=?').bind(user).run();
+    await env.DB.prepare('DELETE FROM product_administrators WHERE user_id=?').bind(user).run();
     expect((await promote()).status).toBe(403);
   }finally{await env.DB.prepare('DELETE FROM user WHERE id=?').bind(user).run()}
 });
