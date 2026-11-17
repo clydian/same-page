@@ -133,7 +133,7 @@ it('does not replace an existing different login, even if a stale bridge cookie 
 
 it('has credentialed exact-origin CORS, rejects missing/untrusted mutation origins and keeps range bodies streaming', async () => {
   const request = new Request(`${origins.direct}/api/_entry/backup/health`, { method: 'OPTIONS', headers: {
-    origin: origins.direct, 'access-control-request-method': 'GET', 'access-control-request-headers': 'Range, X-Same-Page-Attachments',
+    origin: origins.direct, 'access-control-request-method': 'GET', 'access-control-request-headers': 'Range, X-Same-Page-Attachments, X-Same-Page-Visit',
   } });
   const response = await worker.fetch(request, bindings, ctx());
   expect(response.status).toBe(204);

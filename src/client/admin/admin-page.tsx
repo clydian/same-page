@@ -12,6 +12,7 @@ import { Directory } from "./directory";
 import { ScoreReview } from "./score-review";
 import { Audit } from "./audit";
 import { DiagnosticInbox } from "./diagnostic-inbox";
+import { DriveUsageDirectory } from "./drive-usage";
 import "../score-library/attachments/attachments.css";
 import "./admin.css";
 type Capabilities = AdminCapabilities;
@@ -45,6 +46,7 @@ function AdminWorkspace() {
   const location = useLocation();
   const releases = location.pathname.startsWith("/admin/releases");
   const reports = location.pathname.startsWith("/admin/reports");
+  const usage = location.pathname === "/admin" && new URLSearchParams(location.search).get("view") === "usage";
   const [cap, setCap] = useState<Capabilities | null>(null),
     [error, setError] = useState(""),
     [denied, setDenied] = useState(false),
@@ -98,22 +100,23 @@ function AdminWorkspace() {
           <>
             <nav className="admin-nav">
               {!!cap.manageReleases && <Link className="admin-nav-item" aria-current={releases || (!cap.viewScores && !cap.manageReports) ? "page" : undefined} to="/admin/releases">发布通道</Link>}
-              {!!cap.viewScores && <Link className="admin-nav-item" aria-current={!releases && !audit && !reports ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
+              {!!cap.viewScores && <Link className="admin-nav-item" aria-current={!releases && !audit && !reports && !usage ? "page" : undefined} to="/admin" onClick={() => setAudit(false)}>
                 乐谱工作台
               </Link>}
+              {!!cap.viewScores && <Link className="admin-nav-item" aria-current={usage ? "page" : undefined} to="/admin?view=usage" onClick={() => setAudit(false)}>云盘使用情况</Link>}
               {!!cap.manageReports && <Link className="admin-nav-item" aria-current={!releases && (reports || !cap.viewScores) ? "page" : undefined} to="/admin/reports" onClick={() => setAudit(false)}>问题反馈</Link>}
               {!!cap.viewScores && <Button
                 className="admin-nav-item"
-                aria-current={audit && !releases && !reports ? "page" : undefined}
+                aria-current={audit && !releases && !reports && !usage ? "page" : undefined}
                 onPress={() =>
-                  navigation.afterEditing(() => { setAudit(a => reports ? true : !a); if (reports) void navigate("/admin"); })
+                  navigation.afterEditing(() => { setAudit(a => reports || usage ? true : !a); if (reports || usage) void navigate("/admin"); })
                 }
               >
                 操作记录
               </Button>}
-              {!!cap.viewScores && <span>草稿仅在后台可见</span>}
+              {!!cap.viewScores && !usage && <span>草稿仅在后台可见</span>}
             </nav>
-            {releases || (!cap.viewScores && !cap.manageReports && !!cap.manageReleases) ? <Releases onError={report} /> : reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : audit ? (
+            {releases || (!cap.viewScores && !cap.manageReports && !!cap.manageReleases) ? <Releases onError={report} /> : reports || !cap.viewScores ? <DiagnosticInbox cap={cap} onError={report} /> : usage ? <DriveUsageDirectory onError={report} /> : audit ? (
               <Audit onError={report} />
             ) : scoreId ? (
               <ScoreReview

@@ -271,6 +271,15 @@ function verifyPdfTrashMigration() {
   for (const table of ["release_operators", "product_operators", "diagnostic_operators"]) {
     assert.deepEqual(query(`SELECT * FROM ${table}`), [], "Revocation is immediately reflected for old Workers too");
   }
+  const visitPreservation = { ...globalScopeQueries,
+    drives: "SELECT id,name,plan,created_at,storage_limit_bytes,storage_used_bytes,score_limit,member_limit,purged_at FROM choirs ORDER BY id",
+    members: "SELECT * FROM memberships ORDER BY id" };
+  const beforeVisits = queryNamed(visitPreservation);
+  applyMigrations("0039_drive_visits.sql");
+  assert.deepEqual(queryNamed(visitPreservation), beforeVisits, "Visit collection preserves existing content, identity, quotas and permissions");
+  assert(query("SELECT last_member_visit_at FROM choirs").every(row => row.last_member_visit_at === null), "Historical access stays unknown");
+  assert.deepEqual(query("SELECT * FROM drive_member_visits"), []);
+  assert(query("SELECT started_at FROM drive_visit_collection")[0].started_at > 0);
 }
 
 function verifyAttachmentMigration() {

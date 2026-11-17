@@ -5,7 +5,7 @@ import { createAuth } from "../auth/create-auth";
 import { getSessionCookie } from "better-auth/cookies";
 import { cookieAttributes, createEntryCredential, credentialSeconds, ENTRY_COOKIE, entryRequest, FLOW_COOKIE } from "./credential";
 
-const allowedHeaders = new Set(["content-type", "range", "if-range", "if-none-match", "x-same-page-attachments", "x-same-page-owner-user-id", "x-same-page-session"]);
+const allowedHeaders = new Set(["content-type", "range", "if-range", "if-none-match", "x-same-page-attachments", "x-same-page-owner-user-id", "x-same-page-session", "x-same-page-visit"]);
 const methods = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS";
 
 export async function connectionBoundary(request: Request, env: Env, ctx: WaitUntilContext | undefined, dispatch: (request: Request, env: Env) => Promise<Response>) {
