@@ -22,12 +22,12 @@ async function call(path: string, init: RequestInit = {}) {
 }
 const submit = (value: DiagnosticReport) => call("/diagnostic-reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
 const mark = (id: string, status = "investigating") => call(`/admin/reports/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
-async function grant(deleting = false) {
-  await env.DB.prepare("INSERT INTO diagnostic_operators(user_id,can_delete) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET can_delete=excluded.can_delete").bind(userId, deleting ? 1 : 0).run();
+async function grant() {
+  await env.DB.prepare("INSERT INTO product_administrators(user_id) VALUES(?) ON CONFLICT DO NOTHING").bind(userId).run();
 }
 beforeEach(async () => {
   vi.restoreAllMocks(); cookie = "";
-  await env.DB.batch(["DELETE FROM diagnostic_report_audit", "DELETE FROM diagnostic_report_tombstones", "DELETE FROM diagnostic_reports", "DELETE FROM diagnostic_operators", "DELETE FROM session", "DELETE FROM user", "DELETE FROM rate_limits"].map(sql => env.DB.prepare(sql)));
+  await env.DB.batch(["DELETE FROM diagnostic_report_audit", "DELETE FROM diagnostic_report_tombstones", "DELETE FROM diagnostic_reports", "DELETE FROM product_administrators", "DELETE FROM session", "DELETE FROM user", "DELETE FROM rate_limits"].map(sql => env.DB.prepare(sql)));
   userId = crypto.randomUUID(); const now = Date.now();
   await env.DB.batch([
     env.DB.prepare("INSERT INTO user(id,name,email,email_verified,created_at,updated_at) VALUES(?,'维护人员','support@example.test',1,?,?)").bind(userId, now, now),
@@ -38,20 +38,22 @@ beforeEach(async () => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-it("keeps feedback authority independent of XML authority, supports support-only sessions and denies revoked sessions", async () => {
+it("uses one product role for feedback, scores and session access, with immediate revocation", async () => {
   const value = report(); expect((await submit(value)).status).toBe(201);
-  expect((await call("/admin/reports")).status).toBe(403);
-  await env.DB.prepare("INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)").bind(userId).run();
-  expect((await call(`/admin/reports/${value.id}`)).status).toBe(403);
-  await env.DB.prepare("DELETE FROM product_operators").run();
+  for (const path of ["/admin/session", "/admin/scores", "/admin/reports", `/admin/reports/${value.id}`]) {
+    expect((await call(path)).status).toBe(403);
+  }
+  // A cached maintenance command cannot silently create a partial/wider grant.
+  for (const table of ["release_operators", "product_operators", "diagnostic_operators"]) {
+    await expect(env.DB.prepare(`INSERT INTO ${table}(user_id) VALUES(?)`).bind(userId).run()).rejects.toThrow();
+  }
   await grant();
-  expect(await (await call("/admin/session")).json()).toEqual({ viewScores: 0, reviewXml: 0, publishXml: 0, manageReports: 1, deleteReports: 0 });
-  expect((await call("/admin/scores")).status).toBe(403);
+  expect(await (await call("/admin/session")).json()).toEqual({ manageReleases: 1, viewScores: 1, reviewXml: 1, publishXml: 1, manageReports: 1, deleteReports: 1 });
+  expect((await call("/admin/scores")).status).toBe(200);
   expect((await call(`/admin/reports/${value.id}`)).status).toBe(200);
-  expect((await call(`/admin/reports/${value.id}`, { method: "DELETE" })).status).toBe(403);
-  await env.DB.prepare("DELETE FROM diagnostic_operators").run();
+  await env.DB.prepare("DELETE FROM product_administrators").run();
   expect((await mark(value.id)).status).toBe(403);
-  await grant(true); await env.DB.prepare("DELETE FROM session").run();
+  await grant(); await env.DB.prepare("DELETE FROM session").run();
   expect((await call(`/admin/reports/${value.id}`, { method: "DELETE" })).status).toBe(403);
 });
 
@@ -74,7 +76,7 @@ it("filters and paginates with a stable timestamp/id cursor, excludes expired re
 });
 
 it("marks state without extending retention, then atomically deletes content with an audit and prevents resurrection", async () => {
-  await grant(true); const value = report(); await submit(value);
+  await grant(); const value = report(); await submit(value);
   const original = await env.DB.prepare("SELECT created_at,expires_at FROM diagnostic_reports WHERE id=?").bind(value.id).first<{ created_at: number; expires_at: number }>();
   expect(original!.expires_at - original!.created_at).toBe(diagnosticReportRetentionMs);
   expect((await mark(value.id)).status).toBe(200);
@@ -105,12 +107,12 @@ it("preserves the old 30-day promise for cached old clients and never changes an
 });
 
 it("rechecks revocation inside write statements and bounds streamed status bodies", async () => {
-  await grant(true); const value = report(); await submit(value);
+  await grant(); const value = report(); await submit(value);
   expect((await mark(value.id, "invalid")).status).toBe(400);
   expect((await call(`/admin/reports/${value.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: "x".repeat(129) })).status).toBe(413);
   const batch = env.DB.batch.bind(env.DB);
   vi.spyOn(env.DB, "batch").mockImplementationOnce(async statements => {
-    await env.DB.prepare("DELETE FROM diagnostic_operators").run();
+    await env.DB.prepare("DELETE FROM product_administrators").run();
     return batch(statements);
   });
   expect((await call(`/admin/reports/${value.id}`, { method: "DELETE" })).status).toBe(404);
@@ -120,7 +122,7 @@ it("rechecks revocation inside write statements and bounds streamed status bodie
 });
 
 it("rolls back audit and deletion markers when deleting the report fails", async () => {
-  await grant(true); const value = report(); await submit(value);
+  await grant(); const value = report(); await submit(value);
   await env.DB.exec("CREATE TRIGGER diagnostic_test_failure BEFORE DELETE ON diagnostic_reports BEGIN SELECT RAISE(ABORT,'fixture'); END");
   try {
     expect((await call(`/admin/reports/${value.id}`, { method: "DELETE" })).status).toBe(500);

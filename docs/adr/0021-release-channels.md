@@ -1,5 +1,7 @@
 # Stable and beta frontend release channels
 
+2026-11-17：本文的分项授权决定由迁移 0039 取代。产品管理员统一管理乐谱、发布通道和反馈；以原发布管理员名单为唯一迁入来源，云盘权限不授予后台权限。旧授权表改为只读兼容视图，旧 Worker 与最终 SQL 守卫读取同一名单；部署／回退及权限变化见[产品后台运维说明](../operations/product-admin.md)。其余数据、并发、隐私和审计边界继续有效。
+
 Issue #539. Date: 2026-10-22. Extends ADR-0020 without changing business storage.
 
 The registry is one record containing pending choice, server confirmation and last

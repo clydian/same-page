@@ -2,25 +2,25 @@ import type { Context } from "hono";
 import type { AppEnvironment } from "../env";
 import { readContextSession } from "../auth/context-session";
 import { AuthorizationError } from "../auth/authorization";
-export type AdminCapability = "view_scores" | "review_xml" | "publish_xml";
-export const adminAuthority = (
-  capability: AdminCapability,
-) => `EXISTS (SELECT 1 FROM product_operators o JOIN session se ON se.user_id=o.user_id
- WHERE o.user_id=? AND o.view_scores=1 AND o.${capability}=1 AND se.id=? AND se.expires_at>?
- AND NOT EXISTS(SELECT 1 FROM user_lifecycle WHERE user_id=o.user_id))`;
-export async function requireAdmin(
-  context: Context<AppEnvironment>,
-  capability: AdminCapability = "view_scores",
-) {
+
+// Bind user ID, session ID and current time at the point of each read/write.
+export const adminAuthority = () => `EXISTS (
+ SELECT 1 FROM product_administrators a JOIN session se ON se.user_id=a.user_id
+ WHERE a.user_id=? AND se.id=? AND se.expires_at>?
+ AND NOT EXISTS(SELECT 1 FROM user_lifecycle WHERE user_id=a.user_id))`;
+
+export async function requireAdmin(context: Context<AppEnvironment>) {
   const auth = await readContextSession(context);
   if (!auth) throw new AuthorizationError();
-  const row = await context.env.DB.prepare(
-    `SELECT view_scores AS viewScores,review_xml AS reviewXml,publish_xml AS publishXml
-    FROM product_operators WHERE user_id=? AND ${adminAuthority(capability)}`,
-  )
-    .bind(auth.user.id, auth.user.id, auth.session.id, Date.now())
-    .first<{ viewScores: number; reviewXml: number; publishXml: number }>();
-  if (!row) throw new AuthorizationError();
-  context.header("Cache-Control", "no-store");
-  return { userId: auth.user.id, sessionId: auth.session.id, ...row };
+  const granted = await context.env.DB.prepare(`SELECT 1 WHERE ${adminAuthority()}`)
+    .bind(auth.user.id, auth.session.id, Date.now()).first();
+  if (!granted) throw new AuthorizationError();
+  context.header("Cache-Control", "private, no-store");
+  return { userId: auth.user.id, sessionId: auth.session.id };
+}
+
+export async function readAdminSession(context: Context<AppEnvironment>) {
+  await requireAdmin(context);
+  // Keep the wire shape understood by cached clients; every field is one role.
+  return { manageReleases: 1, viewScores: 1, reviewXml: 1, publishXml: 1, manageReports: 1, deleteReports: 1 };
 }

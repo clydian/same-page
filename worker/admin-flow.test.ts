@@ -132,7 +132,7 @@ beforeEach(async () => {
   await env.DB.batch(
     [
       "DELETE FROM choirs",
-      "DELETE FROM product_operators",
+      "DELETE FROM product_administrators",
       "DELETE FROM xml_publications",
       "DELETE FROM xml_publish_staging",
       "DELETE FROM product_admin_audit",
@@ -166,7 +166,7 @@ beforeEach(async () => {
   versionId = s.v;
   otherScore = (await seedScore(other.choirId, "乙谱.pdf")).id;
   await env.DB.prepare(
-    "INSERT INTO product_operators(user_id,publish_xml) VALUES(?,1)",
+    "INSERT INTO product_administrators(user_id) VALUES(?)",
   ).bind(operatorId).run();
   ownerCookie = await login("owner-admin@example.test");
   cookie = await login("operator@example.test");
@@ -175,10 +175,9 @@ it("covers every current drive without pilot rows or membership and requires an 
   expect(
     (await call("/api/admin/scores", { headers: { cookie: "" } })).status,
   ).toBe(403);
-  expect(
-    (await call("/api/admin/scores", { headers: { cookie: ownerCookie } }))
-      .status,
-  ).toBe(403);
+  for (const path of ["/api/admin/session", "/api/admin/scores", "/api/admin/reports", "/api/admin/releases"]) {
+    expect((await call(path, { headers: { cookie: ownerCookie } })).status).toBe(403);
+  }
   expect((await call(`/api/choirs/${choirId}/scores`)).status).toBe(403);
   const list = await call("/api/admin/scores");
   expect(list.status, await list.clone().text()).toBe(200);
@@ -205,35 +204,12 @@ it("covers every current drive without pilot rows or membership and requires an 
   await env.DB.prepare("INSERT INTO memberships(id,choir_id,user_id,display_name) VALUES(?,?,?,'普通成员')").bind(crypto.randomUUID(), choirId, memberId).run();
   const memberCookie = await login("member-admin@example.test");
   expect((await call("/api/admin/scores", { headers: { cookie: memberCookie } })).status).toBe(403);
-  await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?")
+  await env.DB.prepare("DELETE FROM product_administrators WHERE user_id=?")
     .bind(operatorId)
     .run();
   expect((await call("/api/admin/session")).status).toBe(403);
 });
 
-it("keeps view, review and publish capabilities separate across all drives", async () => {
-  const imported = await upload();
-  expect(imported.response.status).toBe(201);
-  expect((await approve(imported.id)).status).toBe(204);
-  await env.DB.prepare("UPDATE product_operators SET review_xml=0,publish_xml=0 WHERE user_id=?").bind(operatorId).run();
-  for (const path of ["/api/admin/drives", "/api/admin/scores", base(), base() + "/pdf", `${base()}/candidates/${imported.id}/file`]) {
-    expect((await call(path)).status).toBe(200);
-  }
-  expect((await upload()).response.status).toBe(403);
-  expect((await approve(imported.id, 1)).status).toBe(403);
-  expect((await publish(imported.id)).status).toBe(403);
-  await env.DB.prepare("UPDATE product_operators SET review_xml=1 WHERE user_id=?").bind(operatorId).run();
-  const reviewed = await upload();
-  expect(reviewed.response.status).toBe(201);
-  expect((await approve(reviewed.id)).status).toBe(204);
-  expect((await publish(reviewed.id)).status).toBe(403);
-  await env.DB.prepare("UPDATE product_operators SET review_xml=0,publish_xml=1 WHERE user_id=?").bind(operatorId).run();
-  expect((await publish(reviewed.id)).status).toBe(403);
-  await env.DB.prepare("UPDATE product_operators SET view_scores=0 WHERE user_id=?").bind(operatorId).run();
-  expect((await call("/api/admin/scores")).status).toBe(403);
-  expect((await call(base() + "/pdf")).status).toBe(403);
-  expect(await env.DB.prepare("SELECT count(*) n FROM score_attachments").first()).toEqual({ n: 0 });
-});
 it("isolates imported candidates and publishes idempotently into the existing generated slot without membership", async () => {
   const before = await env.DB.prepare(
     "SELECT storage_used_bytes FROM choirs WHERE id=?",
@@ -389,7 +365,7 @@ it.each(["pdf", "removed", "trashed", "purged", "revoked", "review", "quota"])(
       expected = 404;
     }
     if (change === "revoked") {
-      await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?")
+      await env.DB.prepare("DELETE FROM product_administrators WHERE user_id=?")
         .bind(operatorId)
         .run();
       expected = 403;
@@ -405,7 +381,7 @@ it.each(["pdf", "removed", "trashed", "purged", "revoked", "review", "quota"])(
     ).toEqual({ n: 0 });
   },
 );
-it("enforces candidate budget and review capability, blocks unverified approval", async () => {
+it("enforces candidate budget and admin authority, blocks unverified approval", async () => {
   await env.DB.prepare(
     "UPDATE product_admin_limits SET storage_limit_bytes=1",
   ).run();
@@ -428,23 +404,22 @@ it("enforces candidate budget and review capability, blocks unverified approval"
     ).status,
   ).toBe(400);
   await env.DB.prepare(
-    "UPDATE product_operators SET review_xml=0 WHERE user_id=?",
+    "DELETE FROM product_administrators WHERE user_id=?",
   )
     .bind(operatorId)
     .run();
   expect((await approve(r.id)).status).toBe(403);
 });
 
-it.each(["grant", "session", "user", "capability"])("rechecks %s authority after copying bytes and leaves no visible file", async (change) => {
+it.each(["grant", "session", "user"])("rechecks %s authority after copying bytes and leaves no visible file", async (change) => {
   const r = await upload();
   await approve(r.id);
   const put = env.SCORES_BUCKET.put.bind(env.SCORES_BUCKET);
   vi.spyOn(env.SCORES_BUCKET, "put").mockImplementationOnce(async (...args) => {
     const stored = await put(...args);
-    if (change === "grant") await env.DB.prepare("DELETE FROM product_operators WHERE user_id=?").bind(operatorId).run();
+    if (change === "grant") await env.DB.prepare("DELETE FROM product_administrators WHERE user_id=?").bind(operatorId).run();
     if (change === "session") await env.DB.prepare("UPDATE session SET expires_at=? WHERE user_id=?").bind(Date.now() - 1, operatorId).run();
     if (change === "user") await env.DB.prepare("INSERT INTO user_lifecycle(user_id,deletion_id,auth_method,deleted_at,expires_at) VALUES (?,?,'credential',?,?)").bind(operatorId, crypto.randomUUID(), Date.now(), Date.now() + 30 * 86400000).run();
-    if (change === "capability") await env.DB.prepare("UPDATE product_operators SET publish_xml=0 WHERE user_id=?").bind(operatorId).run();
     return stored;
   });
   const response = await publish(r.id);

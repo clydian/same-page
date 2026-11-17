@@ -248,6 +248,29 @@ function verifyPdfTrashMigration() {
   // 0035 belongs to the independent restricted-CLI change and is not required.
   applyMigrations("0036_admin_global_score_scope.sql");
   assert.deepEqual(queryNamed(globalScopeQueries), beforeGlobalScope, "Global operator scope preserves existing grants, legacy scopes, notes, candidates, publications, quota and audit without migration 0035");
+  applyMigrations("0037_connection_exchanges.sql", "0038_release_verification.sql");
+  executeD1({ command: `
+    INSERT INTO user(id,name,email,email_verified,created_at,updated_at) VALUES
+      ('release-admin','Release','release@example.test',1,1,1),
+      ('feedback-only','Feedback','feedback@example.test',1,1,1);
+    INSERT INTO release_operators(user_id) VALUES('release-admin');
+    INSERT INTO diagnostic_operators(user_id,can_delete) VALUES('feedback-only',1);
+  `, targetArgs });
+  const preserved = { ...globalScopeQueries };
+  delete preserved.grants;
+  const preservedQueries = { ...preserved, reports: "SELECT * FROM diagnostic_reports",
+    sessions: "SELECT * FROM session ORDER BY id", memberships: "SELECT * FROM memberships ORDER BY id" };
+  const beforeUnified = queryNamed(preservedQueries);
+  applyMigrations("0039_product_administrators.sql");
+  assert.deepEqual(queryNamed(preservedQueries), beforeUnified, "Unified admin migration preserves contents, expiry, quota, audit, sessions and memberships");
+  assert.deepEqual(query("SELECT * FROM product_administrators"), [{ user_id: "release-admin" }], "Only release admins migrate; neither XML/feedback-only grants nor drive owners gain access");
+  assert.deepEqual(query("SELECT * FROM release_operators"), [{ user_id: "release-admin" }]);
+  assert.deepEqual(query("SELECT * FROM product_operators"), [{ user_id: "release-admin", view_scores: 1, review_xml: 1, publish_xml: 1 }]);
+  assert.deepEqual(query("SELECT * FROM diagnostic_operators"), [{ user_id: "release-admin", can_delete: 1 }]);
+  executeD1({ command: "DELETE FROM product_administrators WHERE user_id='release-admin'", targetArgs });
+  for (const table of ["release_operators", "product_operators", "diagnostic_operators"]) {
+    assert.deepEqual(query(`SELECT * FROM ${table}`), [], "Revocation is immediately reflected for old Workers too");
+  }
 }
 
 function verifyAttachmentMigration() {
