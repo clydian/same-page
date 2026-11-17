@@ -22,6 +22,7 @@ test('equal source spans shorten pickup and interior fragments through prepared/
     assert.deepEqual(score.masterBars.map(bar=>bar.start/960),[0,1,4,5]);
     assert.deepEqual(timeline(score),[[0,1],[1,4],[4,5],[5,9]]);
     assert.equal(score.masterBars.length,4); // Duration inference does not merge fragments.
+    assert.notEqual(score.tracks[0].staves[0].bars[1].barNumberDisplay,at.model.BarNumberDisplay.Hide);
   }
   assert.deepEqual(bytes,original);
 });
@@ -54,4 +55,36 @@ test('short fragments retain their repeat boundary and playback visits',()=>{
   assert.deepEqual(timeline(score),[[0,1],[1,4],[4,5],[5,8]]);
   assert.equal(score.masterBars.length,2);
   assert.equal(score.masterBars[1].isRepeatEnd,true);
+});
+
+test('late sound offsets stay inside their measure and nested sound timing overrides direction timing',()=>{
+  const nested='<direction><direction-type><words>Owned instruction</words></direction-type><offset sound="yes">0</offset><sound tempo="90"><offset>2</offset></sound></direction>';
+  for(const marker of ['<sound tempo="90"><offset>2</offset></sound>',nested]) {
+    const score=loadMusicXml(xml([[note(1)+marker,note(4)],[note(1),note(4)]]),new at.Settings());
+    assert.deepEqual(timeline(score),[[0,4],[4,8]]);
+    const tempos=[];const handler=new Proxy({addTempo:(tick,bpm)=>tempos.push([tick/960,bpm])},{get:(target,key)=>target[key]??(()=>{})});
+    new at.midi.MidiFileGenerator(score,new at.Settings(),handler).generate();
+    assert.ok(tempos.some(([quarter,bpm])=>quarter===3&&bpm===90));
+    assert.ok(!tempos.some(([quarter,bpm])=>quarter===1&&bpm===90));
+  }
+});
+
+test('a voice known elsewhere in the part cannot silently disappear from a short-bar inference',()=>{
+  const voices=note(4).replace('</note>','<voice>1</voice></note>')+'<backup><duration>4</duration></backup>'+note(4).replace('</note>','<voice>2</voice></note>');
+  assert.deepEqual(timeline(loadMusicXml(xml([[voices,note(1)]]),new at.Settings())),[[0,4],[4,8]]);
+});
+
+test('a tie across an inferred short bar stays one continuous MIDI note',()=>{
+  const start=note(1).replace('</note>','<tie type="start"/><notations><tied type="start"/></notations></note>');
+  const stop=note(4).replace('</note>','<tie type="stop"/><notations><tied type="stop"/></notations></note>');
+  const score=loadMusicXml(xml([[start,stop]]),new at.Settings());
+  const file=new at.midi.MidiFile();new at.midi.MidiFileGenerator(score,new at.Settings(),new at.midi.AlphaSynthMidiFileHandler(file)).generate();
+  const events=file.tracks.flatMap(track=>track.events);
+  assert.deepEqual(events.filter(e=>e.constructor.name==='NoteOnEvent').map(e=>e.tick/960),[0]);
+  assert.deepEqual(events.filter(e=>e.constructor.name==='NoteOffEvent').map(e=>e.tick/960),[5]);
+});
+
+test('a measure-level D.C. keeps its return after duration inference',()=>{
+  const score=loadMusicXml(xml([[note(1),note(1),note(1)+'<sound dacapo="yes"/>']]),new at.Settings());
+  assert.deepEqual(timeline(score),[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]);
 });

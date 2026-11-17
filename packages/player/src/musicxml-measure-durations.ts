@@ -3,6 +3,7 @@ import { XMLParser } from 'fast-xml-parser';
 type Node = Record<string, unknown>;
 const tag = (node: Node) => Object.keys(node).find(key => key !== ':@') ?? '';
 const children = (node: Node, name: string): Node[] => Array.isArray(node[name]) ? node[name] as Node[] : [];
+const lane = (items: Node[]) => `${text(items, 'staff') || '1'}:${text(items, 'voice') || '1'}`;
 const text = (nodes: Node[], name: string) => children(nodes.find(node => tag(node) === name) ?? {}, name).map(node => node['#text'] ?? '').join('').trim();
 
 /** A candidate must end at the same source position in every part and voice.
@@ -11,7 +12,10 @@ export function collectMusicXmlMeasureDurations(document: Node[]): (number | nul
   const parts = document.flatMap(root => children(root, 'score-partwise')).filter(node => tag(node) === 'part');
   const durations = parts.map(part => {
     let divisions = 1;
-    return children(part, 'part').filter(node => tag(node) === 'measure').map(measure => {
+    const measures = children(part, 'part').filter(node => tag(node) === 'measure');
+    const lanes = new Set(measures.flatMap(measure => children(measure, 'measure').filter(node => tag(node) === 'note')
+      .map(note => children(note, 'note')).filter(items => !items.some(item => tag(item) === 'grace')).map(lane)));
+    return measures.map(measure => {
       let cursor = 0, extent = 0, previousOnset = 0, valid = true;
       const ends = new Map<string, number>();
       for (const node of children(measure, 'measure')) {
@@ -19,11 +23,23 @@ export function collectMusicXmlMeasureDurations(document: Node[]): (number | nul
         if (name === 'attributes') {
           const value = text(items, 'divisions');
           if (value) { divisions = Number(value); valid &&= Number.isFinite(divisions) && divisions > 0; }
-        } else if (name === 'direction' || name === 'harmony') {
+        } else if (name === 'direction' || name === 'harmony' || name === 'sound') {
+          const include = (offset: string) => {
+            const target = cursor + (offset ? Number(offset) / divisions : 0);
+            if (!Number.isFinite(target) || target < -1e-8) valid = false;
+            else extent = Math.max(extent, target);
+          };
           const offset = text(items, 'offset');
-          const target = cursor + (offset ? Number(offset) / divisions : 0);
-          if (!Number.isFinite(target) || target < -1e-8) valid = false;
-          else extent = Math.max(extent, target);
+          include(offset); // Keep the printed location as well as playback events.
+          if (name === 'direction') for (const sound of items.filter(item => tag(item) === 'sound')) {
+            const soundItems = children(sound, 'sound');
+            const ownOffset = soundItems.find(item => tag(item) === 'offset');
+            const directionOffset = items.find(item => tag(item) === 'offset');
+            // A sound's own offset overrides its parent's playback offset.
+            // Without it, direction offset affects sound only when explicitly enabled.
+            const attributes = directionOffset?.[':@'] as Record<string, string> | undefined;
+            include(ownOffset ? text(soundItems, 'offset') : attributes?.['@_sound'] === 'yes' ? offset : '');
+          }
         } else if (['note', 'forward', 'backup'].includes(name)) {
           if (items.some(item => tag(item) === 'grace')) continue;
           const value = text(items, 'duration');
@@ -34,7 +50,7 @@ export function collectMusicXmlMeasureDurations(document: Node[]): (number | nul
           else {
             const chord = items.some(item => tag(item) === 'chord');
             const onset = chord ? previousOnset : cursor;
-            const key = `${text(items, 'staff') || '1'}:${text(items, 'voice') || '1'}`;
+            const key = lane(items);
             ends.set(key, Math.max(ends.get(key) ?? 0, onset + duration));
             extent = Math.max(extent, onset + duration);
             if (!chord) { previousOnset = onset; cursor += duration; }
@@ -43,7 +59,7 @@ export function collectMusicXmlMeasureDurations(document: Node[]): (number | nul
           extent = Math.max(extent, cursor);
         }
       }
-      return valid && ends.size > 0 && [...ends.values()].every(end => Math.abs(end - extent) < 1e-8) ? extent : null;
+      return valid && lanes.size > 0 && [...lanes].every(key => ends.has(key) && Math.abs(ends.get(key)! - extent) < 1e-8) ? extent : null;
     });
   });
   return Array.from({ length: Math.max(0, ...durations.map(part => part.length)) }, (_, index) => {
