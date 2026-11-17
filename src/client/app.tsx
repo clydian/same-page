@@ -56,12 +56,12 @@ export function AppRoutes() {
       <RouteScrollReset />
 
         <Routes>
-          <Route path="/admin" element={<RouteContent><AdminPage /></RouteContent>} />
-          <Route path="/admin/releases" element={<RouteContent><AdminPage /></RouteContent>} />
-          <Route path="/admin/reports" element={<RouteContent><AdminPage /></RouteContent>} />
-          <Route path="/admin/reports/:reportId" element={<RouteContent><AdminPage /></RouteContent>} />
-          <Route path="/admin/scores/:scoreId" element={<RouteContent><AdminPage /></RouteContent>} />
           <Route element={<PageWithFooter />}>
+            <Route path="/admin" element={<RouteContent><AdminPage /></RouteContent>} />
+            <Route path="/admin/releases" element={<RouteContent><AdminPage /></RouteContent>} />
+            <Route path="/admin/reports" element={<RouteContent><AdminPage /></RouteContent>} />
+            <Route path="/admin/reports/:reportId" element={<RouteContent><AdminPage /></RouteContent>} />
+            <Route path="/admin/scores/:scoreId" element={<RouteContent><AdminPage /></RouteContent>} />
             <Route path="/" element={<RouteContent><HomePage startup={startup} /></RouteContent>} />
             <Route path="/drives" element={<RouteContent><DriveEntryPage /></RouteContent>} />
             <Route path="/choirs/:choirId/storage" element={<RouteContent><LocalStoragePage /></RouteContent>} />
@@ -95,12 +95,12 @@ export function AppRoutes() {
               path="/choirs/:choirId/shared-layers/:slot"
               element={<RouteContent><SharedLayerDetailsPage /></RouteContent>}
             />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
           <Route
             path="/choirs/:choirId/scores/:scoreId"
             element={<RouteContent><ReaderPage /></RouteContent>}
           />
-          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       <ConnectionControl /><PlaybackGate /></InstallProvider></LogoutProvider></NavigationProvider></ConnectionHelpProvider></FeedbackToastProvider></AppearanceProvider>
 
