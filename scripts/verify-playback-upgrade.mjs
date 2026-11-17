@@ -159,9 +159,14 @@ try {
   if(page && !page.isClosed()) {
     console.error('Upgrade evidence',await page.evaluate(async()=>{
       const registration=await navigator.serviceWorker.getRegistration();
+      const display=await caches.match(new URL('/__same_page_release_permission__',location.origin).href,{cacheName:'same-page-release-permission-v1:'+encodeURIComponent(location.origin)}).then(r=>r?.json()).catch(()=>null);
+      const cacheNames=await caches.keys().catch(()=>[]);
+      const registryName=registration && 'same-page-shell-registry-v1:'+encodeURIComponent(registration.scope);
+      const registry=registryName && cacheNames.includes(registryName) ? await caches.open(registryName).catch(()=>null) : null;
+      const shells=registry ? await Promise.all((await registry.keys().catch(()=>[])).map(async key=>{const r=await registry.match(key).catch(()=>undefined);const value=await r?.json().catch(()=>null);return value && {buildId:value.buildId,complete:value.complete,candidateOnly:value.candidateOnly};})) : [];
       const receipt=await new Promise(resolve=>{const channel=new MessageChannel();const timer=setTimeout(()=>resolve('timeout'),3000);channel.port1.onmessage=event=>{clearTimeout(timer);resolve(event.data);};registration?.active?.postMessage({type:'SAME_PAGE_PLAYBACK_READY',buildId:document.documentElement.dataset.buildId},[channel.port2]);});
       const local=await new Promise((resolve,reject)=>{const request=indexedDB.open('same-page');request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result;const names=[...db.objectStoreNames];const t=db.transaction(names);const result={};for(const name of names){const r=t.objectStore(name).getAll();r.onsuccess=()=>{result[name]=r.result.map(row=>({key:row.key,active:row.active,verifiedAt:row.verifiedAt,layerCount:row.annotationSnapshot?.layers?.length,blobBytes:row.blob?.size}));};}t.oncomplete=()=>{db.close();resolve(result);};};});
-      return {controller:!!navigator.serviceWorker.controller,receipt,caches:await caches.keys(),local};
+      return {controller:!!navigator.serviceWorker.controller,buildId:document.documentElement.dataset.buildId,title:document.title,display,shells,receipt,caches:await caches.keys(),local};
     }));
     await mkdir('artifacts/verification/playback-upgrade',{recursive:true});
     await page.screenshot({path:'artifacts/verification/playback-upgrade/failure.png'});

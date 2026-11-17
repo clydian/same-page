@@ -275,7 +275,7 @@ function verifyPdfTrashMigration() {
     drives: "SELECT id,name,plan,created_at,storage_limit_bytes,storage_used_bytes,score_limit,member_limit,purged_at FROM choirs ORDER BY id",
     members: "SELECT * FROM memberships ORDER BY id" };
   const beforeVisits = queryNamed(visitPreservation);
-  applyMigrations("0039_drive_visits.sql");
+  applyMigrations("0040_drive_visits.sql");
   assert.deepEqual(queryNamed(visitPreservation), beforeVisits, "Visit collection preserves existing content, identity, quotas and permissions");
   assert(query("SELECT last_member_visit_at FROM choirs").every(row => row.last_member_visit_at === null), "Historical access stays unknown");
   assert.deepEqual(query("SELECT * FROM drive_member_visits"), []);

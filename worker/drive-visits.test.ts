@@ -30,6 +30,14 @@ async function user(email: string) {
 const visit = (cookie = ownerCookie, id = owner, headers = {}) => call(`/choirs/${drive}/visits`, cookie, {
   method: "POST", headers: { "x-same-page-owner-user-id": id, "x-same-page-visit": "foreground", ...headers },
 });
+// #674 turns the legacy rosters into read-only views. Exercise both real
+// schema states without ever writing a compatibility view.
+async function grantOperator(userId: string, legacy = "product_operators") {
+  const unified = await env.DB.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='product_administrators'").first();
+  const table = unified ? "product_administrators" : legacy;
+  await env.DB.prepare(`INSERT INTO ${table}(user_id) VALUES(?)`).bind(userId).run();
+  return table;
+}
 const records = () => env.DB.prepare("SELECT * FROM drive_member_visits").all();
 beforeEach(async () => {
   await env.DB.batch(["DELETE FROM choirs", "DELETE FROM user", "DELETE FROM rate_limits"].map(sql => env.DB.prepare(sql)));
@@ -37,7 +45,7 @@ beforeEach(async () => {
   owner = a.id; ownerCookie = a.cookie; operator = b.id; operatorCookie = b.cookie;
   drive = (await provisionChoir({ binding: env.DB, ownerUserId: owner, ownerDisplayName: "拥有者", inviteSecret: env.INVITE_SECRET })).choirId;
   member = (await env.DB.prepare("SELECT id FROM memberships WHERE choir_id=? AND user_id=?").bind(drive, owner).first<{ id: string }>())!.id;
-  await env.DB.prepare("INSERT INTO product_operators(user_id) VALUES(?)").bind(operator).run();
+  await grantOperator(operator);
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -50,10 +58,10 @@ it("records only fenced active members, excluding operators, previews and pollin
   expect((await call("/admin/drive-usage", operatorCookie)).status).toBe(200);
   expect((await records()).results).toHaveLength(0);
   for (const table of ["product_operators", "diagnostic_operators", "release_operators"]) {
-    await env.DB.prepare(`INSERT INTO ${table}(user_id) VALUES(?)`).bind(owner).run();
+    const authorityTable = await grantOperator(owner, table);
     expect((await visit()).status).toBe(204);
     expect((await records()).results).toHaveLength(0);
-    await env.DB.prepare(`DELETE FROM ${table} WHERE user_id=?`).bind(owner).run();
+    await env.DB.prepare(`DELETE FROM ${authorityTable} WHERE user_id=?`).bind(owner).run();
   }
   await env.DB.prepare("UPDATE choirs SET is_preview_entry=1,guest_admission_mode='open',join_code_hash=NULL WHERE id=?").bind(drive).run();
   expect((await visit()).status).toBe(204);
@@ -97,6 +105,10 @@ it("protects aggregate reads, preserves unknown history and uses actual limits a
   ]);
   const read = async () => (await (await call("/admin/drive-usage", operatorCookie)).json<{ drives: Record<string, unknown>[] }>()).drives[0];
   expect(await read()).toMatchObject({ visitors7d: 1, visitors30d: 2, memberCount: 2, limitBytes: 123456, memberLimit: 100, scoreLimit: null });
+  await grantOperator(visitor.id);
+  await visit(visitor.cookie, visitor.id);
+  expect(await read()).toMatchObject({ visitors7d: 1, visitors30d: 2 });
+  expect((await records()).results.find(row => row.membership_id === second)!.last_seen_at).toBe(now - 30 * 86400000);
   await env.DB.prepare("UPDATE memberships SET status='removed',removed_at=? WHERE id=?").bind(now, second).run();
   expect((await visit(visitor.cookie, visitor.id)).status).toBe(204);
   expect(await read()).toMatchObject({ visitors7d: 1, visitors30d: 1, memberCount: 1 });

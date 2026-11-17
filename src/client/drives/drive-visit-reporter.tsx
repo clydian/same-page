@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { VISIT_INTERVAL_MS } from "../../shared/drive-usage";
 import { useApplicationIdentity } from "../auth/application-identity";
-import { connectionFetch } from "../connection/connection";
+import { connectionUrl } from "../connection/connection";
 import { useNetworkStatus } from "../platform/use-network-status";
 
 // There is no heartbeat timer, durable queue or offline replay. A server receipt
@@ -26,8 +26,10 @@ function ForegroundVisits({ choirId, pathname }: { choirId: string; pathname: st
     const report = () => {
       if (document.visibilityState !== "visible" || !navigator.onLine || Date.now() - lastAttempt < VISIT_INTERVAL_MS) return;
       lastAttempt = Date.now();
-      void connectionFetch(`/api/choirs/${encodeURIComponent(choirId)}/visits`, {
-        method: "POST", credentials: "same-origin", cache: "no-store", signal: controller.signal,
+      // Auxiliary telemetry uses only the already verified entry. It must not
+      // prepare identities, confirm route health or influence a live failover.
+      void fetch(connectionUrl(`/api/choirs/${encodeURIComponent(choirId)}/visits`), {
+        method: "POST", credentials: "include", redirect: "error", priority: "low", cache: "no-store", signal: controller.signal,
         headers: { "x-same-page-owner-user-id": userId, "x-same-page-visit": "foreground" },
       }).catch(() => { /* Optional usage metadata never blocks access or queues a retry. */ });
     };
