@@ -1,3 +1,4 @@
+import { readMusicXmlMeasureDurations } from './musicxml-measure-durations.ts';
 import {restoreSourceTextDeclarations} from './source-text-declarations.ts';
 import {restoreSourceWedgeDeclarations} from './source-wedge-declarations.ts';
 import { restoreMusicXmlWedgeGlyphs } from './musicxml-wedge-glyphs.ts';
@@ -19,6 +20,18 @@ export function loadMusicXml(bytes: Uint8Array, settings: alphaTab.Settings): al
 
 export function loadPreparedMusicXml(prepared: PreparedMusicXml, settings: alphaTab.Settings): alphaTab.model.Score {
   const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(musicXmlImportBytes(prepared), settings);
+  const durations = prepared.measureDurations ?? readMusicXmlMeasureDurations(prepared.bytes);
+  for (const bar of score.masterBars) {
+    const quarter = durations[bar.index];
+    // Use the native short-bar mechanism only when source and imported events agree.
+    // A letter suffix alone never merges bars or changes their rhythmic grouping.
+    if (!bar.isAnacrusis && !bar.isFreeTime && quarter != null && quarter > 0 && quarter * 960 < bar.calculateDuration(false)) {
+      const extents = score.tracks.flatMap(track => track.staves.flatMap(staff =>
+        (staff.bars[bar.index]?.voices ?? []).map(voice => voice.beats.reduce((end, beat) => Math.max(end, beat.playbackStart + beat.playbackDuration), 0))));
+      if (extents.length > 0 && extents.every(end => Math.abs(end - quarter * 960) < 1e-6)) bar.isAnacrusis = true;
+    }
+    bar.start = bar.previousMasterBar ? bar.previousMasterBar.start + bar.previousMasterBar.calculateDuration() : 0;
+  }
   // MusicXML may repeat work-title as movement-title. alphaTab renders these
   // as title + subtitle; suppress only the identical imported display line.
   // Attachment bytes and prepared source metadata remain untouched.
