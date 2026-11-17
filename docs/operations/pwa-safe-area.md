@@ -4,6 +4,8 @@
 
 保留 viewport-fit=cover 和 black-translucent，让背景铺满屏幕。普通路由由 page-with-footer 消费四边安全区一次；子页面不重复补偿。顶部背景条保护滚动后的状态栏区域，sticky 云盘头部停在安全区下缘。body 不加 padding。阅读器背景铺满屏幕，reader-stage 单独消费四边 --safe-*，并限制谱面绘制边界；其内翻页与连续滚动视口使用剩余尺寸计算适应、缩放和笔记坐标。控件仍独立避让安全区。零安全区保持原布局，不修改用户存储或要求重装。
 
+后台全部路由（含登录提示、权限检查、加载和错误状态）与 404 页同属普通路由，必须放在该外壳内。外壳仅在首页和云盘列表显示页脚，不会给后台增加页脚。[后台修复前后截图与验证边界](../evidence/admin-safe-area/README.md)。
+
 body portal 不继承普通外壳的布局边界：modal-overlay 与 diagnostic-overlay 负责安全区，内部滚动内容使用扣除安全区后的可用高度。抽屉与固定按钮自行避让。--safe-* 的默认值来自 env(safe-area-inset-*)，测试可注入非零值检验布局，不代表模拟了系统状态栏。
 
 运行 `node --test visual-report/safe-area.test.mjs` 验证 Chromium/WebKit。真实 iPad 需验证旧安装与新安装的首页、云盘、设置、弹窗、横竖屏和前后台恢复，并独立验收阅读器主动全屏。若系统错误上报零安全区，布局测试不能证明该平台问题已解决。

@@ -13,6 +13,43 @@ async function setInsets(page) {
 
 // Synthetic insets verify our layout contract, not iPadOS inset reporting.
 for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
+  test(`${name}: admin and unknown routes share the ordinary safe-area shell`, async t => {
+    const server = await startVisualServer({ script: "dev" });
+    t.after(() => server.stop());
+    const browser = await engine.launch();
+    t.after(() => browser.close());
+    const page = await browser.newPage({ viewport: { width: 834, height: 1194 }, serviceWorkers: "block" });
+    await page.route("**/api/**", route => {
+      const pathname = new URL(route.request().url()).pathname;
+      const data = {
+        "/api/admin/session": { viewScores: 1, reviewXml: 1, publishXml: 1, manageReports: 1, manageReleases: 1 },
+        "/api/admin/drives": { drives: [] },
+        "/api/admin/scores": { scores: [], next: null },
+      }[pathname];
+      return route.fulfill(data ? { contentType: "application/json", body: JSON.stringify(data) }
+        : resolveFixtureRequest({ pathname, method: route.request().method(), identity: "admin", cookie: "" }));
+    });
+    for (const viewport of [{ width: 834, height: 1194 }, { width: 1194, height: 834 }]) {
+      await page.setViewportSize(viewport);
+      for (const path of ["/admin", "/missing-page"]) {
+        await page.goto(`${server.origin}${path}`);
+        const control = page.locator(path === "/admin" ? ".admin-header" : ".task-header");
+        await control.waitFor();
+        if (path === "/admin") await page.getByText("没有匹配的有效乐谱。").waitFor();
+        const initial = await control.boundingBox();
+        assert.equal(initial.y, 0, "zero inset preserves header origin");
+        await setInsets(page);
+        const box = await control.boundingBox();
+        if (process.env.SAFE_AREA_CAPTURE_TAG) {
+          await mkdir("artifacts/verification/safe-area", { recursive: true });
+          await page.screenshot({ path: `artifacts/verification/safe-area/${process.env.SAFE_AREA_CAPTURE_TAG}-${name}-${path === "/admin" ? "admin" : "404"}-${viewport.width}.png` });
+        }
+        assert.equal(box.y, 32, `${path}: header clears the simulated status-bar area once`);
+        assert.equal(box.height, initial.height, "safe area belongs to the shared shell");
+        assert.ok(box.x >= 18 && box.x + box.width <= viewport.width - 18, "header clears side insets");
+      }
+    }
+  });
   test(`${name}: ordinary routes and portals respect safe areas`, async t => {
     const server = await startVisualServer({ script: "dev" });
     t.after(() => server.stop());
