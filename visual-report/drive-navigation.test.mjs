@@ -130,6 +130,8 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await fab.press("Enter");
       await expect(page.getByRole("dialog", { name: "上传 PDF", exact: true })).toBeVisible();
     });
+    // Keep the two-score fixture tall enough to exercise the upload button's overlap and manual scrolling.
+    const attachmentViewportHeight = 595;
     for (const safeBottom of [0, 34]) {
       await scenario(`short-attachments-${safeBottom}`, async page => {
         await page.goto(`${app.origin}/choirs/visual-choir`);
@@ -155,7 +157,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         await expect(page.locator(".upload-fab")).toHaveAttribute("data-visible", "true");
         await page.getByRole("button", { name: /2 个附件/ }).click();
         await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-      }, { attachments: true, height: 675, safeBottom });
+      }, { attachments: true, height: attachmentViewportHeight, safeBottom });
     }
     await scenario("delayed-attachments", async (page, release) => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
@@ -165,7 +167,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       release();
       await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-    }, { attachments: true, height: 675, delayed: true });
+    }, { attachments: true, height: attachmentViewportHeight, delayed: true });
     await scenario("collapsed-before-attachments", async (page, release) => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       const toggle = page.getByRole("button", { name: /2 个附件/ });
@@ -177,7 +179,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(toggle).toHaveAttribute("aria-expanded", "false");
       assert.equal(await page.evaluate(() => window.scrollY), 0);
       await expect(page.getByRole("button", { name: "上传 PDF", exact: true })).toBeVisible();
-    }, { attachments: true, height: 675, delayed: true });
+    }, { attachments: true, height: attachmentViewportHeight, delayed: true });
     await scenario("manual-scroll-during-attachments", async (page, release) => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: /2 个附件/ }).click();
@@ -188,7 +190,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.scrollY), 40);
-    }, { attachments: true, height: 675, delayed: true });
+    }, { attachments: true, height: attachmentViewportHeight, delayed: true });
     await scenario("manual-scroll-back-during-attachments", async (page, release) => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: /2 个附件/ }).click();
@@ -202,7 +204,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.getByRole("button", { name: "示范录音.wav 更多操作" }).waitFor();
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.scrollY), 0);
-    }, { attachments: true, height: 675, delayed: true });
+    }, { attachments: true, height: attachmentViewportHeight, delayed: true });
     await scenario("filtered-pending-attachments", async (page, release) => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: /2 个附件/ }).click();

@@ -116,11 +116,12 @@ test("valid invitations automatically admit guests, existing members and named n
 
       }
       if (mode === "member") {
-        await expect(page.getByText("已登录并加入云盘", { exact: true })).toBeVisible();
-        await expect(page.getByRole("complementary", { name: "排练准备" }).getByRole("link")).toHaveCount(0);
+        const preparation = page.getByRole("complementary", { name: "排练准备" });
+        await expect(preparation.getByRole("button", { name: "添加到桌面", exact: true })).toBeVisible();
+        await expect(preparation.getByRole("link")).toHaveCount(0);
         if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/install-remaining-phone.png`, fullPage: true });
         await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
-        await expect(page.getByRole("complementary", { name: "排练准备" })).toHaveCount(0);
+        await expect(preparation).toHaveCount(0);
         if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/ready-phone.png`, fullPage: true });
       }
     } catch (error) {
