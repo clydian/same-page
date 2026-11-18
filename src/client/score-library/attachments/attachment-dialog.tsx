@@ -14,6 +14,7 @@ import type { AttachmentSelection } from "./attachment-list";
 import { attachmentFileUrl, attachmentMessage } from "./api";
 import { useAttachmentMutation } from "./use-attachment-mutation";
 import { attachmentActionTitle } from "./attachment-presentation";
+import { validateMusicXmlFile } from "../../playback/validate-musicxml";
 
 const loadPdf = () => import("./pdf-preview");
 
@@ -93,7 +94,6 @@ function AttachmentForm({ selection: { score, action, attachment }, choirId, wri
           const controller = new AbortController(); validationAbort.current = controller;
           setFile(null); setValidation("正在检查乐谱…");
           try {
-            const { validateMusicXmlFile } = await import("../../playback/validate-musicxml");
             await validateMusicXmlFile(chosen, controller.signal);
           } catch (error) {
             if (!controller.signal.aborted) setValidation(error instanceof Error ? error.message : "无法读取乐谱。");
