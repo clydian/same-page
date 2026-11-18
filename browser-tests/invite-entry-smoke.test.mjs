@@ -88,8 +88,8 @@ test("valid invitations automatically admit guests, existing members and named n
         await page.reload();
         await expect(page.getByRole("complementary", { name: "排练准备" })).toBeVisible();
         await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
-        await expect(page.getByText("已添加到桌面", { exact: true })).toBeVisible();
         await expect(page.getByRole("link", { name: "注册 / 登录，开始记笔记", exact: true })).toBeVisible();
+        await expect(page.getByRole("complementary", { name: "排练准备" }).getByRole("listitem")).toHaveCount(0);
         if (process.env.LAYOUT_CAPTURE_DIR) await page.screenshot({ path: `${process.env.LAYOUT_CAPTURE_DIR}/login-remaining-phone.png`, fullPage: true });
         await page.locator(".file-row__open").click();
         await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
