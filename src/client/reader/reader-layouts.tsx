@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { AnnotationPages, AnnotationPagesContext } from "../annotations/annotation-pages";
 import { usePdfPageAspectRatio } from "./use-pdf-page-geometry";
 import { FIT_ZOOM_TOLERANCE } from "./reader-zoom";
@@ -86,6 +87,7 @@ export function PageLayout({
   annotationProps,
   pager,
 }: Omit<ReaderLayoutProps, "onPageChange"> & { pager: PagedReader }) {
+  const t = useMessages("reader");
   const containerRef = useRef<HTMLDivElement>(null);
   const noteInteraction = useRef<AnnotationInteractionHandle>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -140,10 +142,10 @@ export function PageLayout({
   });
 
   return (
-    <section className="page-reader" aria-label="翻页阅读">
+    <section className="page-reader" aria-label={t("pagedReading")}>
       {pager.failedPage !== null && <aside className="reader-page-failure" role="alert">
-        第 {pager.failedPage} 页显示失败，当前页已保留。
-        <Button onPress={pager.retryPage}>重试翻页</Button>
+        {t("pageTurnFailed", { failedPage: pager.failedPage })}
+        <Button onPress={pager.retryPage}>{t("retryPageTurning")}</Button>
       </aside>}
       <div
         className="page-reader__viewport"
@@ -216,19 +218,19 @@ export function PageLayout({
         <>
           <Button
             className="visually-hidden page-turn-control page-turn-control--previous"
-            aria-label="上一页"
+            aria-label={t("previousPage")}
             isDisabled={currentPage <= 1}
             onPress={() => requestPage("previous")}
           >
-            上一页
+            {t("previousPage")}
           </Button>
           <Button
             className="visually-hidden page-turn-control page-turn-control--next"
-            aria-label="下一页"
+            aria-label={t("nextPage")}
             isDisabled={currentPage >= document.numPages}
             onPress={() => requestPage("next")}
           >
-            下一页
+            {t("nextPage")}
           </Button>
         </>
       ) : null}
@@ -248,6 +250,7 @@ export function ContinuousLayout({
   onToggleChrome,
   annotationProps,
 }: Omit<ReaderLayoutProps, "onDismiss">) {
+  const t = useMessages("reader");
   const pages = useMemo(() => new AnnotationPages(annotationProps.editor), [annotationProps.editor]);
   const pageSession = useSyncExternalStore(pages.subscribe, pages.getSnapshot);
   useEffect(() => pages.connect(), [pages]);
@@ -291,7 +294,7 @@ export function ContinuousLayout({
       ref={scrollRef}
       {...gestureHandlers}
       onScroll={onScroll}
-      aria-label={annotationProps.editing ? "连续滚动编辑" : "连续滚动阅读"}
+      aria-label={annotationProps.editing ? t("continuousEditing") : t("continuousReading")}
     >
       <div
         className="continuous-reader__inner"
@@ -366,6 +369,7 @@ export function PageNavigatorPanel({
   onSelect(page: number): void;
   compact?: boolean;
 }) {
+  const t = useMessages("reader");
   const [gridOpen, setGridOpen] = useState(false);
   const [draftPage, setDraftPage] = useState<number | null>(null);
   const pendingPage = useRef(currentPage);
@@ -405,14 +409,14 @@ export function PageNavigatorPanel({
   return (
     <>
       <DialogTrigger isOpen={gridOpen} onOpenChange={setGridOpen}>
-        <Button className="reader-page-indicator" aria-label={`展开页码网格：第 ${page} 页，共 ${document.numPages} 页`}>
-          <span aria-label="页面位置">{page} / {document.numPages}</span><ChevronDown size={14} aria-hidden="true" />
+        <Button className="reader-page-indicator" aria-label={t("openPageGrid", { page, numPages: document.numPages })}>
+          <span aria-label={t("pageLocation")}>{page} / {document.numPages}</span><ChevronDown size={14} aria-hidden="true" />
         </Button>
         <ModalOverlay className="reader-panel-backdrop" isDismissable>
           <Modal className="reader-panel reader-page-grid-dialog">
-            <Dialog aria-label="页面总览">
-              <header className="reader-panel__header"><strong>页面总览</strong>
-                <Button className="icon-button" aria-label="关闭页面总览" onPress={() => setGridOpen(false)}><X size={21} aria-hidden="true" /></Button>
+            <Dialog aria-label={t("pageOverview")}>
+              <header className="reader-panel__header"><strong>{t("pageOverview")}</strong>
+                <Button className="icon-button" aria-label={t("closePageOverview")} onPress={() => setGridOpen(false)}><X size={21} aria-hidden="true" /></Button>
               </header>
               <ReaderPageGrid document={document} currentPage={currentPage} onSelect={page => { onSelect(page); setGridOpen(false); }} />
             </Dialog>
@@ -445,6 +449,7 @@ function PagePreviewStrip({ document, page, onChange, onFinish }: {
   onChange(page: number): void;
   onFinish(): void;
 }) {
+  const t = useMessages("reader");
   const panelRef = useRef<HTMLElement>(null);
   const size = useElementSize(panelRef);
   useLayoutEffect(() => {
@@ -461,7 +466,7 @@ function PagePreviewStrip({ document, page, onChange, onFinish }: {
     count === 1 ? 1 : 1 + Math.round(index * (document.numPages - 1) / (count - 1)),
   );
   return (
-    <nav className="page-preview-strip" aria-label="页面缩略图" ref={panelRef}
+    <nav className="page-preview-strip" aria-label={t("pageThumbnails")} ref={panelRef}
       style={{ width: `${42 + (Math.min(document.numPages, 40) - 1) * 20}px` }}>
       <div className="page-preview-strip__track" aria-hidden="true">
         {thumbnails.map((number, index) => (
@@ -472,9 +477,9 @@ function PagePreviewStrip({ document, page, onChange, onFinish }: {
           </div>
         ))}
       </div>
-      <input type="range" className="page-preview-strip__slider" aria-label="跳转页码"
+      <input type="range" className="page-preview-strip__slider" aria-label={t("jumpToPage")}
         min={1} max={document.numPages} step={1} value={page}
-        aria-valuetext={`第 ${page} 页，共 ${document.numPages} 页`}
+        aria-valuetext={t("pagePositionOfTotal", { page, numPages: document.numPages })}
         disabled={document.numPages === 1}
         onChange={event => onChange(Number(event.target.value))}
         onKeyUp={onFinish}

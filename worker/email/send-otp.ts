@@ -1,6 +1,20 @@
 import { Resend } from "resend";
+import { createTranslator } from "use-intl/core";
 
 import type { Env } from "../env";
+import { sourceLocale, type AppLocale } from "../../src/i18n/locales";
+import de from "../../src/i18n/messages/de/email.json";
+import en from "../../src/i18n/messages/en/email.json";
+import es419 from "../../src/i18n/messages/es-419/email.json";
+import fr from "../../src/i18n/messages/fr/email.json";
+import it from "../../src/i18n/messages/it/email.json";
+import ja from "../../src/i18n/messages/ja/email.json";
+import ko from "../../src/i18n/messages/ko/email.json";
+import ptBR from "../../src/i18n/messages/pt-BR/email.json";
+import zhHans from "../../src/i18n/messages/zh-Hans/email.json";
+import zhHantTW from "../../src/i18n/messages/zh-Hant-TW/email.json";
+
+const messages = { de, en, "es-419": es419, fr, it, ja, ko, "pt-BR": ptBR, "zh-Hans": zhHans, "zh-Hant-TW": zhHantTW } satisfies Record<AppLocale, typeof zhHans>;
 
 export type AuthOtpPurpose = "registration" | "forget-password";
 
@@ -9,8 +23,9 @@ export async function sendAuthOtp(
   email: string,
   otp: string,
   purpose: AuthOtpPurpose,
+  locale: AppLocale = sourceLocale,
 ): Promise<void> {
-  const message = buildAuthOtpEmail(otp, purpose);
+  const message = buildAuthOtpEmail(otp, purpose, locale);
   const resend = new Resend(env.RESEND_API_KEY_SAMEPAGE);
   const { error } = await resend.emails.send({
     from: env.AUTH_EMAIL_FROM,
@@ -23,29 +38,25 @@ export async function sendAuthOtp(
   }
 }
 
-export function buildAuthOtpEmail(otp: string, purpose: AuthOtpPurpose) {
+export function buildAuthOtpEmail(otp: string, purpose: AuthOtpPurpose, locale: AppLocale = sourceLocale) {
+  const t = createTranslator({ locale, messages: messages[locale] });
   const isRegistration = purpose === "registration";
-  const subject = isRegistration
-    ? "Same Page 注册验证码"
-    : "Same Page 密码重设验证码";
-  const action = isRegistration ? "完成 Same Page 注册" : "重设 Same Page 密码";
-  const noActionResult = isRegistration ? "注册不会完成" : "密码不会改变";
+  const subject = t(isRegistration ? "registrationSubject" : "resetSubject");
+  const intro = t(isRegistration ? "registrationIntro" : "resetIntro", { site: "samepage.clyapps.com" });
+  const expiry = t("expiry");
+  const unexpected = t(isRegistration ? "registrationUnexpected" : "resetUnexpected");
 
   return {
     subject,
-    text: [
-      `你正在 samepage.clyapps.com ${action}。`,
-      "",
-      `验证码：${otp}`,
-      "",
-      "验证码将在 10 分钟后失效，请勿转发给他人。",
-      `如果不是你本人操作，无需处理；${noActionResult}。`,
-    ].join("\n"),
+    text: [intro, "", t("codeLine", { code: otp }), "", expiry, unexpected].join("\n"),
     html: [
-      `<p>你正在 <strong>samepage.clyapps.com</strong> ${action}。</p>`,
-      `<p>验证码：</p><p style="font-size:32px;font-weight:700;letter-spacing:6px">${otp}</p>`,
-      "<p>验证码将在 10 分钟后失效，请勿转发给他人。</p>",
-      `<p>如果不是你本人操作，无需处理；${noActionResult}。</p>`,
+      `<div lang="${locale}"><p>${escapeHtml(intro)}</p>`,
+      `<p>${escapeHtml(t("codeLabel"))}</p><p style="font-size:32px;font-weight:700;letter-spacing:6px">${escapeHtml(otp)}</p>`,
+      `<p>${escapeHtml(expiry)}</p><p>${escapeHtml(unexpected)}</p></div>`,
     ].join(""),
   };
+}
+
+function escapeHtml(text: string): string {
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }

@@ -30,7 +30,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       const scenario = `page-${editing ? "edit" : "read"}-${zoom}`;
       if (process.env.NAVIGATION_CASE && process.env.NAVIGATION_CASE !== scenario) continue;
       t.diagnostic(scenario);
-      const context = await browser.newContext({ viewport: { width: 834, height: 800 }, hasTouch: true,
+      const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 834, height: 800 }, hasTouch: true,
         serviceWorkers: "block", reducedMotion: "no-preference" });
       await context.route("**/api/**", async route => route.fulfill(resolveFixtureRequest({
         pathname: new URL(route.request().url()).pathname, method: route.request().method(),

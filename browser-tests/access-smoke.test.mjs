@@ -8,7 +8,7 @@ test("literal search, verified offline read and failed/successful immutable PDF 
   const fixture = await startStorageFixture({ authenticated: true });
   t.after(() => fixture.stop());
   const browser = await chromium.launch(); t.after(() => browser.close());
-  const context = await browser.newContext({ serviceWorkers: "allow" });
+  const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: "allow" });
   const account = fixture.accounts[0];
   assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } })).status(), 200);
   const base = `${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
@@ -75,7 +75,7 @@ test("expired but uncleaned trash cannot be restored through a real browser sess
   const fixture = await startStorageFixture({ authenticated: true, expired: true });
   t.after(() => fixture.stop());
   const browser = await chromium.launch(); t.after(() => browser.close());
-  const context = await browser.newContext();
+  const context = await browser.newContext({ locale: "zh-CN" });
   const account = fixture.accounts[0];
   assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } })).status(), 200);
   const page = await context.newPage();

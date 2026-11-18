@@ -31,6 +31,7 @@ for (const [engine, type] of [
       });
       browser = await type.launch();
       const context = await browser.newContext({
+        locale: "zh-CN",
         viewport: { width: 1440, height: 1000 },
         serviceWorkers: "block",
       });
@@ -70,7 +71,7 @@ for (const [engine, type] of [
       const page = await context.newPage(),
         errors = [];
       page.on("pageerror", (e) => errors.push({ message: e.message, stack: e.stack }));
-      const visitor = await browser.newContext({ serviceWorkers: "block" });
+      const visitor = await browser.newContext({ locale: "zh-CN", serviceWorkers: "block" });
       const entry = await visitor.newPage();
       await entry.goto(f.origin + "/admin");
       await expect(entry.getByRole("heading", { name: "登录产品后台" })).toBeVisible();
@@ -231,7 +232,7 @@ for (const [engine, type] of [
       const reviewed = await (await context.request.get(`${f.origin}/api/admin/scores/${f.adminScoreId}`)).json();
       assert.equal(reviewed.candidates[0].reviewNote, publicationNote);
       assert.equal(reviewed.candidates[0].review, "approved");
-      const member = await browser.newContext({ serviceWorkers: "block" });
+      const member = await browser.newContext({ locale: "zh-CN", serviceWorkers: "block" });
       await member.request.post(f.origin + "/api/auth/sign-in/email", {
         headers: { origin: f.origin },
         data: { email: f.accounts[0].email, password: f.accounts[0].password },

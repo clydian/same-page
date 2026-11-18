@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { type PointerEvent as ReactPointerEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { DEFAULT_TEXT_FONT_SCALE, type AnnotationPayload } from "../../shared/annotations";
@@ -62,6 +63,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
   onDiscard?(id: string): void;
   onTextStyleChange?(style: Pick<ToolStyle, "fontScale" | "textAlign">): void;
 }) {
+  const t = useMessages("reader");
   const finishing = useEditorPersistence(editor) === "finishing";
   const visualViewport = useVisualViewport(editing);
   const [textEditor, setTextEditor] = useState<Composition | null>(null);
@@ -294,7 +296,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
     interruptPlacement: () => { pendingTextPlacement.current = null; },
     form: (
       <form
-        aria-label={textEditor ? "文字输入" : undefined}
+        aria-label={textEditor ? t("textInput") : undefined}
         aria-hidden={textEditor ? undefined : "true"}
         inert={!textEditor}
         className="annotation-text-composer"
@@ -338,24 +340,24 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
           backdropTap.current = null;
         }}
       >
-        {textEditor && <button type="submit" className="reader-composer-done" aria-label="完成文字输入" disabled={textSaving || finishing}>完成</button>}
+        {textEditor && <button type="submit" className="reader-composer-done" aria-label={t("finishTextInput")} disabled={textSaving || finishing}>{t("done")}</button>}
         {textEditor && <div className="annotation-composer-heading" ref={textHeaderRef}>
-          <p className="reader-edit-gesture-hint annotation-composer-hint"><strong>正在输入文字</strong><span className="annotation-composer-instruction">· 轻点空白处完成</span></p>
+          <p className="reader-edit-gesture-hint annotation-composer-hint"><strong>{t("enteringText")}</strong><span className="annotation-composer-instruction">{t("tapBlankToFinish")}</span></p>
         </div>}
-        <div ref={textToolbarRef} className="annotation-composer-styles" role="group" aria-label="文字样式" onPointerDown={event => {
+        <div ref={textToolbarRef} className="annotation-composer-styles" role="group" aria-label={t("textStyle")} onPointerDown={event => {
           const input = textInputRef.current;
           textSelection.current = input ? { start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection } : null;
           if ((event.target as HTMLElement).closest("button")) event.preventDefault();
         }} onClick={event => { if ((event.target as HTMLElement).closest("button")) focusTextInput(textSelection.current); }}>
-          <span className="annotation-composer-layer"><strong>文字样式</strong><span>{displayColor && <span className="annotation-composer-layer-color" aria-hidden="true" style={{ background: displayColor }} />}{layerName ?? "我的笔记"}</span></span>
+          <span className="annotation-composer-layer"><strong>{t("textStyle")}</strong><span>{displayColor && <span className="annotation-composer-layer-color" aria-hidden="true" style={{ background: displayColor }} />}{layerName ?? t("myNotes")}</span></span>
           <TextSizeControl value={editorFontScale} onChange={setEditorFontScale} disabled={textSaving || finishing} />
           <TextAlignmentButton value={editorTextAlign} onChange={setEditorTextAlign} disabled={textSaving || finishing} />
-          {!displayColor && <label className="annotation-composer-color" title="文字颜色"><span style={{ background: color }} /><input aria-label="文字颜色" type="color" value={color} disabled={textSaving || finishing} onChange={event => setColor(event.target.value)} /></label>}
+          {!displayColor && <label className="annotation-composer-color" title={t("textColor")}><span style={{ background: color }} /><input aria-label={t("textColor")} type="color" value={color} disabled={textSaving || finishing} onChange={event => setColor(event.target.value)} /></label>}
         </div>
         {textEditor ? (
           <div className="annotation-text-anchor" ref={anchorRef} style={{ fontSize: editorFontSize, color: displayColor ?? color }}>
           <span ref={measureRef} className="annotation-text-measure" aria-hidden="true">{editorText || "\u200b"}{editorText.endsWith("\n") ? "\u200b" : ""}</span>
-          <button className="annotation-text-move" aria-label="移动文字" type="button" disabled={textSaving || finishing}
+          <button className="annotation-text-move" aria-label={t("moveText")} type="button" disabled={textSaving || finishing}
             onPointerDown={event => {
               event.preventDefault();
               if (dragging.current) return;
@@ -372,7 +374,7 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
             onPointerCancel={() => { if (dragging.current) setPosition(dragging.current.origin); dragging.current = null; }}
           ><GripHorizontal size={18} /></button>
           <textarea
-            aria-label="笔记文本"
+            aria-label={t("noteText")}
             autoFocus
             name="text"
             readOnly={textSaving || finishing}

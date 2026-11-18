@@ -12,7 +12,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`${name}: focused OTP remains above a keyboard after returning from email`, async t => {
     const browser = await engine.launch();
     t.after(() => browser.close());
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
     page.setDefaultTimeout(10000);
     // Model resize-visual: the keyboard shrinks the visible area but leaves
     // layout, CSS viewport units and native document scroll limits unchanged.
@@ -72,6 +72,7 @@ test("chromium: native visual viewport pan recovers OTP at document scroll zero"
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const context = await browser.newContext({
+    locale: "zh-CN",
     viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
   });
   const page = await context.newPage();

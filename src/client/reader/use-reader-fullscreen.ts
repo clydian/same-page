@@ -1,8 +1,10 @@
+import { useMessages } from "../../i18n";
 import { useEffect, useRef, useState } from "react";
 
 // Fullscreen the document so body portals (text input, menus, dialogs) remain
 // visible. This reader only exits a fullscreen session it requested itself.
 export function useReaderFullscreen() {
+  const t = useMessages("reader");
   const [active, setActive] = useState(!!document.fullscreenElement);
   const [error, setError] = useState<string | null>(null);
   const owned = useRef(false);
@@ -31,7 +33,7 @@ export function useReaderFullscreen() {
       }
     } catch {
       owned.current = false;
-      if (mounted.current) setError("暂时无法进入全屏，请重试。");
+      if (mounted.current) setError(t("fullScreenUnavailable"));
     }
   };
   return { active, supported: !!document.fullscreenEnabled, error, toggle };

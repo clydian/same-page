@@ -16,7 +16,7 @@ test('MusicXML and MXL: required player release, closed-browser offline cold sta
  const options={headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),serviceWorkers:'allow',viewport:{width:1024,height:768}};
  let context;
  t.after(async()=>{await context?.close();await fixture.stop();await rm(profile,{recursive:true,force:true});});
- context=await chromium.launchPersistentContext(profile,options);
+ context=await chromium.launchPersistentContext(profile,{ locale: "zh-CN", ...options });
  assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`,{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}})).status(),200);
  await context.addInitScript(()=>localStorage.setItem('reader-gesture-hint-seen','true'));
  const page=await context.newPage();
@@ -56,7 +56,7 @@ test('MusicXML and MXL: required player release, closed-browser offline cold sta
  await open(page,'mxl');
  await closePractice(page);
  await context.close();
- context=await chromium.launchPersistentContext(profile,options);await context.setOffline(true);
+ context=await chromium.launchPersistentContext(profile,{ locale: "zh-CN", ...options });await context.setOffline(true);
  await context.addInitScript(()=>{
   window.__audioAnalysers=[];const connect=AudioNode.prototype.connect;
   AudioNode.prototype.connect=function(destination,...args){if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();window.__audioAnalysers.push(analyser);connect.call(this,analyser);connect.call(analyser,destination);return destination;}return connect.call(this,destination,...args);};

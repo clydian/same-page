@@ -9,7 +9,7 @@ import { musicXmlFixture } from './musicxml-fixture.mjs';
 for (const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`loop bounds unify score taps, transport, and transparent range preview (${engine})`,{timeout:120000},async t=>{
  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});let browser;
  t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
- browser=await type.launch();const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
+ browser=await type.launch();const context=await browser.newContext({ locale: "zh-CN", viewport:{width:1024,height:768},serviceWorkers:'block'});
  await context.addInitScript(()=>{
   localStorage.setItem('reader-gesture-hint-seen','true');window.__loopCommands=[];
   const post=Worker.prototype.postMessage;

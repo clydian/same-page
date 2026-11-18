@@ -120,7 +120,7 @@ try {
       for (const explicit of engine === webkit ? [true] : [false, true]) {
         active = 0; offline = false; blocked = false; gate = undefined;
         lifecycleObservations.length = 0; auditPhase = 'legacy-overlap';
-        const context = await browser.newContext({ serviceWorkers: 'allow', viewport: { width: 390, height: 844 } });
+        const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: 'allow', viewport: { width: 390, height: 844 } });
         await context.exposeBinding('__shellLifecycleObservation', (_, entry) => observe({ type: 'browser', ...entry }));
         await context.addInitScript(observeShellLifecycleCalls, '__shellLifecycleObservation');
         await context.addInitScript(observeInitialUpdateCheck);
@@ -236,7 +236,7 @@ try {
       }
       if (engine === chromium) {
         active = 0;
-        const context = await browser.newContext({ serviceWorkers: 'allow' });
+        const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: 'allow' });
         try {
           const page = await context.newPage(); await page.goto(origin + '/about');
           await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); await page.reload();

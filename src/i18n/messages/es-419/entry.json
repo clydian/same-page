@@ -1,0 +1,567 @@
+{
+  "drive": {
+    "create": "Crear una unidad",
+    "loginToCreate": "Inicia sesión para crear una unidad",
+    "login": "Iniciar sesión",
+    "restoreLocal": "Restaurar contenido local…",
+    "directoryError": "El directorio del unidad no se puede confirmar temporalmente. Conéctese a Internet e inténtelo nuevamente.",
+    "choose": "Elegir una unidad",
+    "chooseHint": "Elige la unidad que quieres abrir.",
+    "lastUnavailable": "El último unidad utilizado ya no está en la lista accesible; seleccione otro unidad.",
+    "join": "Unirse a una unidad",
+    "first": "Únete a tu primera unidad",
+    "firstHint": "Utilice la tarjeta de invitación o el código de invitación enviado por el administrador para unirse.",
+    "createPrompt": "¿Quieres crear un unidad para tu equipo?"
+  },
+  "identity": {
+    "checking": "Al conectarse, el contenido guardado se puede seguir utilizando.",
+    "localUnavailable": "La verificación de identidad local aún no se ha completado y el contenido guardado aún se conserva.",
+    "unreachable": "No se puede conectar temporalmente, el contenido guardado aún se conserva.",
+    "signedOut": "Después de iniciar sesión nuevamente y sincronizar, el contenido guardado se puede seguir usando.",
+    "retrying": "Reintentando...",
+    "retryVerify": "Reintentar la verificación",
+    "retryConnection": "Reintentar conexión",
+    "loginAgain": "Inicia sesión nuevamente"
+  },
+  "guestNotes": {
+    "title": "Inicia sesión para tomar notas del ensayo",
+    "signIn": "Regístrate o inicia sesión para tomar notas",
+    "keepReading": "Continuar leyendo la partitura",
+    "hint": "Estás navegando como invitado. Regístrese o inicie sesión y únase a esta unidad para grabar sus propias notas y sincronizarlas en diferentes dispositivos."
+  },
+  "startup": {
+    "restore": "Recuperando unidad...",
+    "retry": "Inténtalo de nuevo",
+    "feedback": "Comentarios",
+    "loadError": "El unidad agregado no se puede cargar temporalmente."
+  },
+  "logout": {
+    "checkError": "No se puede verificar el contenido que se sincronizará en esta máquina, inténtelo nuevamente.",
+    "networkError": "Cierre sesión después de conectarse a Internet para asegurarse de que la sesión del servidor caduque al mismo tiempo.",
+    "cleanupError": "La sesión se cerró, pero aún quedan datos por borrar en este dispositivo. Vuelve a intentar borrarlos.",
+    "logoutError": "La salida no se completa y los datos locales no se borran. Por favor inténtalo de nuevo.",
+    "cleanDetails": "Después de salir, se borrarán la capa personal local, los borradores de documentos, los permisos de edición y las preferencias del usuario; El contenido compartido descargado se puede conservar.",
+    "working": "Cerrando sesión…",
+    "discard": "Descartar y cerrar sesión",
+    "clear": "Cerrar sesión y borrar datos",
+    "title": "¿Cerrar sesión?",
+    "return": "Revisar cambios",
+    "pendingDetails": "En este dispositivo hay {pending, plural, one {# cambio pendiente de sincronizar} other {# cambios pendientes de sincronizar}}, {conflicts, plural, one {# conflicto local} other {# conflictos locales}} y {errors, plural, one {# error de sincronización} other {# errores de sincronización}}{drafts, plural, =0 {} one {, además de # borrador de documento sin guardar} other {, además de # borradores de documentos sin guardar}}. Si continúas, este contenido se descartará de forma permanente."
+  },
+  "create": {
+    "capacity": "Prueba gratuita · 10 partituras / 50 MB / 20 miembros",
+    "name": "Nombre de la unidad",
+    "displayName": "Tu nombre visible en esta unidad",
+    "ownerHint": "Serás propietario de la unidad y podrás invitar a otras personas con un código. El límite es de 20 miembros, incluyéndote.",
+    "retention": "Podemos eliminar una unidad si ningún miembro accede en línea durante más de 30 días consecutivos. Avisamos al propietario por correo con al menos 14 días de antelación. Si algún miembro abre la unidad en línea durante el plazo del aviso, se cancela la eliminación.",
+    "cancel": "Cancelar",
+    "back": "Volver a elegir unidad",
+    "uncertain": "No se pudo confirmar el resultado de la creación. Cierre y vuelva a leer el unidad agregado antes de decidir si desea volver a intentarlo.",
+    "working": "Creando…",
+    "submit": "Crear gratis",
+    "terms": "Puedes poseer una unidad. Podríamos eliminarla tras un periodo prolongado de inactividad y te avisaríamos por correo con al menos 14 días de antelación.",
+    "rules": "Reglas de uso y eliminación"
+  },
+  "purge": {
+    "refreshFailed": "El contenido se eliminó de forma permanente, pero la lista no se pudo actualizar. Cierra esta ventana y vuelve a cargar la lista. No hace falta repetir la eliminación.",
+    "unconfirmed": "No se pudo confirmar la eliminación. Cierra esta ventana y actualiza la lista para comprobar el resultado. No repitas la eliminación.",
+    "working": "Eliminando…",
+    "confirm": "Confirmar eliminación completa",
+    "warning": "Este contenido se elimina de forma permanente y no se puede recuperar en Same Page. La eliminación libera espacio en la unidad.",
+    "name": "Ingresa el nombre de la unidad «{name}» para confirmar"
+  },
+  "join": {
+    "guestError": "No se puede preparar el espacio local para invitados, inténtalo de nuevo.",
+    "invalidLink": "El enlace de invitación no es válido; ingrese el código de invitación actual.",
+    "newDrive": "Unirse a otra unidad",
+    "checking": "Verificando…",
+    "enterShort": "Entrar",
+    "submitting": "Uniéndose…",
+    "submit": "Únete y entra",
+    "close": "Cerrar",
+    "exampleName": "Por ejemplo: Ana",
+    "existing": "Mis unidades",
+    "loginToView": "Inicia sesión para verlos",
+    "invitation": "Usar tarjeta de invitación o código de invitación",
+    "displayName": "Nombre visible",
+    "named": "Unirse a «{name}»",
+    "setName": "Establezca su nombre para que se muestre en este unidad.",
+    "return": "Regresar para ingresar el código de invitación"
+  },
+  "home": {
+    "enter": "Abrir una unidad",
+    "myDrives": "Mis unidades",
+    "preview": "Ver un ejemplo",
+    "more": "Explorar funciones",
+    "features": "Características del producto",
+    "tagline": "Tus notas y mi puntuación",
+    "summaryEnglish": "Una biblioteca de partituras en la nube para ensayos de coro y anotaciones compartidas.",
+    "summary": "Una biblioteca de partituras en la nube para ensayos de coro y anotaciones compartidas.",
+    "title": "La armonía empieza en la misma partitura"
+  },
+  "scan": {
+    "unrecognized": "No se reconoce la tarjeta de invitación de Same Page. Señale el código QR de la tarjeta de invitación en este sitio o ingrese el código de invitación.",
+    "cameraFeedError": "No se puede leer la pantalla de la cámara, identifíquela en el álbum o ingrese el código de invitación.",
+    "cameraError": "No se puede abrir la cámara, permita los permisos de la cámara o identifique e ingrese el código de invitación del álbum.",
+    "reading": "Reconocer la tarjeta de invitación…",
+    "imageUnrecognized": "La tarjeta de invitación de este sitio web no se reconoce en la imagen. Seleccione nuevamente o ingrese el código de invitación.",
+    "imageError": "No se puede reconocer la imagen. Seleccione una imagen de tarjeta de invitación que no supere los 10 MB o ingrese el código de invitación.",
+    "stop": "Detener escaneo",
+    "start": "Escanear",
+    "fromPhoto": "Identificar del álbum de fotos",
+    "chooseImage": "Seleccionar imagen de tarjeta de invitación",
+    "camera": "Pantalla de escaneo de tarjetas de invitación"
+  },
+  "usage": {
+    "trial": "Versión de prueba gratuita",
+    "title": "Uso de la unidad",
+    "error": "El uso no se puede leer en este momento.",
+    "working": "Uso de lectura...",
+    "trash": "La Papelera de reciclaje y los PDF pendientes también ocupan espacio. El propietario puede eliminar por completo el contenido no deseado de la Papelera de reciclaje.",
+    "refresh": "Actualizar uso",
+    "details": "Partituras {scores} · Espacio {used} / {limit} · Miembros {members}"
+  },
+  "feature": {
+    "shared": {
+      "title": "Diferentes voces, comparte notas en capas",
+      "description": "Los requisitos de ensayo se comparten jerárquicamente por voz. Las personas autorizadas pueden dejar notas y todos pueden verlas en la misma partitura."
+    },
+    "personal": {
+      "title": "Vea notas compartidas a pedido y guarde notas personales usted mismo",
+      "description": "Selecciona las notas de las partes que deseas ver y también puedes escribir tus propios recordatorios a nivel personal. De forma predeterminada, sólo tú puedes verlos."
+    },
+    "replace": {
+      "title": "Reemplazar partituras y conservar notas",
+      "description": "Después de reemplazar el PDF, las notas existentes se conservarán y seguirán mostrándose según el número y la posición de la página original; después de que cambie el diseño, verifique la posición de las notas."
+    },
+    "offline": {
+      "title": "Disponible sin conexión, sincronizado en línea",
+      "description": "Guárdelo con anticipación para usarlo sin conexión. Puede continuar leyendo partituras y tomando notas incluso si Internet está desconectado. Una vez que se restablezca Internet, las notas seguirán sincronizándose."
+    },
+    "devices": {
+      "title": "Una partitura, disponible en múltiples dispositivos",
+      "description": "Instala Same Page en Android, iPhone, iPad, Windows o Mac para abrir las mismas partituras y anotaciones en cualquier dispositivo."
+    }
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "hint": "Esta dirección no tiene una página correspondiente, regrese a mi unidad para continuar navegando.",
+    "action": "Volver a Mis unidades"
+  },
+  "admission": {
+    "unavailable": "No se puede acceder a este unidad en este momento; inténtelo nuevamente más tarde.",
+    "removed": "Esta relación de membresía debe ser restaurada por alguien con permisos de restauración de miembros.",
+    "rateLimit": "Demasiados intentos, inténtalo de nuevo más tarde.",
+    "invalidCode": "El código de invitación no es válido o ha caducado.",
+    "timeout": "Se agotó el tiempo de conexión, el código de invitación se reservó, inténtelo nuevamente.",
+    "joinUnavailable": "Este unidad no se puede agregar en este momento; inténtelo nuevamente más tarde."
+  },
+  "trial": {
+    "platformFull": "El almacenamiento de prueba gratuito está temporalmente lleno; cárguelo nuevamente más tarde. El contenido existente todavía está disponible.",
+    "driveLimit": "La cuota de unidad de prueba gratuita está actualmente llena; inténtelo nuevamente más tarde. Aún puedes agregar otras unidad.",
+    "ownedLimit": "Cada usuario puede tener como máximo un unidad de prueba gratuito. Primero transfiera o elimine el unidad existente.",
+    "verifyIdentity": "Primero complete la verificación por correo electrónico o inicie sesión con una identidad de tercero verificada.",
+    "memberLimit": "La cantidad de miembros del unidad está completa. Comuníquese con el propietario para liberar la cuota e inténtelo nuevamente.",
+    "scoreLimit": "La cantidad de partituras musicales en la biblioteca de archivos ha alcanzado el límite superior. Primero, mueva las partituras musicales innecesarias a la papelera de reciclaje.",
+    "retryLater": "La operación es demasiado frecuente, inténtelo de nuevo más tarde.",
+    "confirmationMismatch": "El nombre del unidad ha cambiado o la entrada no coincide. Actualice y confirme nuevamente.",
+    "accessChanged": "La identidad o los permisos han cambiado, actualice e intente nuevamente.",
+    "deleted": "El contenido se ha eliminado por completo, actualice.",
+    "generalError": "La operación no se completa, verifique la red y vuelva a intentarlo."
+  },
+  "lifecycle": {
+    "identityChanged": "La identidad de inicio de sesión ha cambiado, lea el estado nuevamente y confirme nuevamente.",
+    "transferRequired": "Sigues siendo el propietario del unidad. Transfiera la propiedad o elimine el unidad antes de continuar.",
+    "reauthenticate": "Vuelva a verificar el método de inicio de sesión original y confirme la eliminación dentro de diez minutos.",
+    "cannotRecover": "El período de recuperación expiró, la autenticación expiró o el método de inicio de sesión no coincide; vuelva a verificar y verifique el estado.",
+    "memberConflict": "La membresía ha cambiado o el período de recuperación ha expirado, lea el estado nuevamente.",
+    "generalError": "La operación no se completa, vuelva a leer el estado e inténtelo nuevamente."
+  },
+  "about": {
+    "copied": "Se copió la información de la versión.",
+    "copyError": "No se pudo copiar automáticamente. Selecciona la información de abajo y cópiala.",
+    "version": "Same Page {version}\nCompilación: {build}",
+    "run": "Ejecución: {run}",
+    "currentVersion": "Este dispositivo ejecuta la versión {version}. Las horas de compilación se muestran en hora de Pekín.",
+    "title": "Acerca de Same Page",
+    "links": "Ayuda e información del producto",
+    "tagline": "Una partitura compartida para ensayar cada pasaje juntos.",
+    "summary": "Partituras corales y notas de ensayo",
+    "productHint": "Conoce las herramientas de ensayo de Same Page",
+    "manualHint": "Aprende a leer, anotar y practicar partituras",
+    "feedbackHint": "Cuéntanos qué problema encontraste",
+    "buildInfo": "Versión e información técnica",
+    "copy": "Copiar información de la versión",
+    "recovery": "Recuperar el reproductor",
+    "recoveryHint": "Puedes volver a cargar la página sin conexión si tienes todos los recursos. Conéctate para descargar los que falten. Se conservarán las anotaciones y los datos locales.",
+    "product": "Conoce Same Page",
+    "manual": "Guía de uso",
+    "feedback": "Reportar un problema",
+    "privacy": "Política de privacidad",
+    "reload": "Volver a cargar la página"
+  },
+  "help": {
+    "start": {
+      "title": "Primeros pasos para preparar un ensayo",
+      "intro": "Prueba el recorrido desde buscar la partitura hasta abrirla sin conexión. Luego consulta las funciones que necesites.",
+      "walkthrough": {
+        "title": "Prueba de principio a fin",
+        "step1": "Inicia sesión con correo o Google y únete a una unidad con la invitación que recibiste. Selecciona el nombre de la unidad para cambiar de unidad, unirte a otra o crear una. También puedes crearla desde el selector de unidades. Elige un nombre visible que los demás miembros reconozcan.",
+        "step2": "En la unidad, busca la partitura por nombre de archivo y ábrela. Si falta, pide a un miembro con permiso que suba el PDF.",
+        "step3": "Toca el centro de la partitura para mostrar las herramientas. Abre «Capas de anotaciones» y selecciona las capas compartidas y personales que necesites para el ensayo.",
+        "step4": "Toca el lápiz para editar, selecciona «Mis anotaciones», agrega una marca y toca la palomita para terminar.",
+        "step5": "Comprueba el estado en «Más → Guardado y sincronización». Si hay cambios pendientes o errores, conéctate y sigue las instrucciones para sincronizar.",
+        "step6": "En «Más → Uso sin conexión», guarda una copia y espera a que indique que está lista. Antes del ensayo, abre la partitura sin conexión y comprueba que puedes ver tanto la partitura como las anotaciones."
+      },
+      "try": {
+        "title": "Prueba antes de unirte",
+        "paragraph1": "Como invitado, puedes ver las partituras y anotaciones compartidas permitidas. Para guardar y sincronizar anotaciones personales, inicia sesión y únete a la unidad. Solo la unidad pública de ejemplo permite anotar en este navegador. Esas pruebas quedan en el dispositivo, no se suben ni modifican contenido compartido y no se convierten en anotaciones personales al iniciar sesión."
+      }
+    },
+    "read": {
+      "title": "Encuentra partituras y ajusta la vista",
+      "intro": "Usa el modo de lectura para ver la partitura y el de edición para modificar las anotaciones de la página actual.",
+      "navigation": {
+        "title": "Buscar partituras y pasar páginas",
+        "paragraph1": "Busca por nombre de archivo en la unidad y selecciona la partitura. Toca el centro para mostrar las herramientas, o usa Tab hasta «Mostrar herramientas del lector» y pulsa Intro o Espacio. En el modo de páginas, toca un lado o desliza horizontalmente. Usa la vista previa para saltar a otra página.",
+        "paragraph2": "En «Más → Diseño de página y zoom», elige páginas o desplazamiento continuo. Puedes ajustar el zoom, adaptar a la página o usar pantalla completa si el dispositivo lo permite."
+      },
+      "layers": {
+        "title": "Elegir capas de anotaciones",
+        "paragraph1": "En «Capas de anotaciones», selecciona las capas que quieres ver. Las capas personales son privadas de forma predeterminada. Las compartidas son visibles para quienes tengan acceso, y editarlas requiere permiso.",
+        "paragraph2": "Configura la visualización predeterminada de la unidad para todas sus partituras. Una configuración específica tiene prioridad. «Usar los valores de la unidad» restablece la visualización y los colores de las capas compartidas.",
+        "paragraph3": "El color junto a cada capa compartida cambia tu vista. El color de las anotaciones personales se fija con la herramienta de edición."
+      }
+    },
+    "practice": {
+      "title": "Escucha las voces y practica por pasajes",
+      "intro": "La partitura de práctica se adapta y reproduce a partir de MusicXML. Consulta el PDF original para verificarla.",
+      "open": {
+        "title": "Abrir la partitura de práctica",
+        "step1": "Abre la partitura, toca el centro y selecciona «Partitura de práctica» en la esquina inferior derecha. Elige una versión. La opción aparece si hay un MusicXML disponible.",
+        "step2": "«Generada automáticamente · Beta» puede contener errores de reconocimiento. Compárala con el PDF. Las versiones subidas conservan el nombre del archivo y también se pueden abrir desde los archivos adjuntos de la biblioteca."
+      },
+      "repetition": {
+        "title": "Escuchar voces y repetir un pasaje",
+        "paragraph1": "Inicia la reproducción y cambia el tempo en la barra inferior. En «Ajustes de práctica», selecciona voces, ajusta el volumen, silencia o aísla voces y repite pasajes. La repetición empieza en el intervalo actual. Al arrastrar A o B, la reproducción se pausa, se muestra el compás y el panel se atenúa. Al soltar, se actualiza el intervalo y se restaura el estado anterior. Puedes ajustar cada extremo por compás. Mientras se repite, las búsquedas y los controles de compás quedan limitados al intervalo. Desactiva el interruptor para terminar.",
+        "paragraph2": "El audio sintetizado viene del MusicXML elegido y puede diferir del original. No canta la letra. Los adjuntos de la biblioteca reproducen grabaciones cargadas. Usa «Escuchar con la partitura» para abrir el PDF original."
+      },
+      "views": {
+        "title": "Cambiar la vista y terminar la práctica",
+        "paragraph1": "La práctica empieza en la partitura adaptada. Cambia entre «PDF original», «Partitura adaptada» y «Comparar» en el menú superior. El estado de reproducción se mantiene. La partitura adaptada puede seguir la reproducción y volver a seguirla después de navegar. El PDF requiere pasar páginas manualmente y no está sincronizado con la partitura adaptada.",
+        "paragraph2": "Puedes ocultar la barra inferior y seguir reproduciendo, pausando o abriendo los ajustes. Para detener la práctica, elige «Terminar práctica» en la parte superior. También se detiene al salir de la partitura. Al abrirla de nuevo, la práctica empieza desde el principio."
+      },
+      "offline": {
+        "title": "Prepara la práctica sin conexión",
+        "step1": "Primero guarda la partitura principal para usarla sin conexión. Conéctate y abre todas las versiones de práctica que vayas a necesitar.",
+        "step2": "En los ajustes, espera a que se confirme la reproducción sin conexión. Si todavía no está lista, reintenta la preparación. La disponibilidad de la partitura principal no asegura la de la versión de práctica.",
+        "step3": "Antes del ensayo, abre la partitura principal sin conexión y prueba a reproducir la versión de práctica. Repite la preparación si cambias de dispositivo o navegador. Los adjuntos de audio requieren conexión."
+      }
+    },
+    "notes": {
+      "title": "Escribir y editar anotaciones",
+      "intro": "Comprueba qué capa está activa antes de escribir.",
+      "edit": {
+        "title": "Empezar y terminar la edición",
+        "step1": "Toca el lápiz y selecciona tu capa personal o una capa compartida que puedas editar. Solo se modifica la capa activa. Las demás capas visibles quedan atenuadas como referencia.",
+        "step2": "Usa un dedo o un lápiz para la herramienta activa y dos dedos para mover o ampliar. En el modo de páginas, desliza con dos dedos para pasar de página. En desplazamiento continuo, puedes editar las páginas visibles. Cada trazo pertenece a la página donde empieza.",
+        "step3": "Toca la palomita para terminar. Vuelve a la selección de capas del modo de lectura y continúa pasando páginas."
+      },
+      "tools": {
+        "title": "Elegir la herramienta adecuada",
+        "paragraph1": "Usa el lápiz para escribir a mano, el resaltador para destacar, el texto para explicaciones y las figuras para delimitar zonas. Las opciones de color, grosor y tamaño dependen de la herramienta.",
+        "paragraph2": "Usa la herramienta de selección para editar un estilo compatible o eliminar una anotación existente. Deshaz o rehace los cambios con los controles correspondientes. Los estilos nuevos de las herramientas se aplican a futuras anotaciones.",
+        "paragraph3": "Las unidades nuevas incluyen las capas Ensemble, Soprano, Alto, Tenor y Bass. Los miembros con permiso de edición pueden modificar las anotaciones de la capa compartida. Comprueba la capa antes de escribir un recordatorio personal."
+      },
+      "sync": {
+        "title": "Guardado local y sincronización",
+        "paragraph1": "Las anotaciones se guardan primero en este dispositivo. Se sincronizan cuando hay conexión y permisos válidos. En «Más → Guardado y sincronización» consulta pendientes, errores y conflictos.",
+        "paragraph2": "El estado en la nube se actualiza al abrir la partitura, enviar cambios o sincronizar manualmente. Durante la lectura, sincroniza para comprobar cambios nuevos. Cuando te reconectas, se reanuda el envío de borradores pendientes."
+      }
+    },
+    "sharing": {
+      "title": "Administrar y compartir anotaciones personales",
+      "intro": "Solo tú puedes editar tus capas personales. Los demás miembros pueden leer las capas que compartas.",
+      "newLayer": {
+        "title": "Separar anotaciones por propósito",
+        "paragraph1": "En la sección personal de «Capas de anotaciones», crea capas para ensayos, conciertos u otros fines. Usa «Administrar capas personales» para gestionar las capas existentes. El nombre permite reconocer una capa y no cambia su autor ni su acceso."
+      },
+      "share": {
+        "title": "Compartir y ver capas compartidas",
+        "paragraph1": "Activa «Compartir» en una capa personal para que los miembros de esta unidad puedan leer su contenido actual y los cambios sincronizados. Desactiva el interruptor para dejar de compartir.",
+        "paragraph2": "Los demás miembros pueden mostrar la capa en «Capas de anotaciones → Compartidas por miembros» de esa partitura. La capa no aparece automáticamente ni pasa a ser un valor predeterminado de la unidad.",
+        "paragraph3": "Dejar de compartir, dejar la unidad o eliminar la cuenta detiene el uso compartido. Los dispositivos sin conexión deben conectarse y sincronizar antes de perder el acceso. Los archivos exportados no se pueden retirar de forma remota."
+      },
+      "restore": {
+        "title": "Eliminar y recuperar capas personales",
+        "paragraph1": "Eliminar una capa personal detiene el uso compartido. Puedes recuperarla durante 30 días en «Administrar capas personales → Capas eliminadas». Restáurala y vuelve a compartirla si lo deseas. Atiende primero los cambios pendientes de sincronizar."
+      }
+    },
+    "offline": {
+      "title": "Preparar ensayos sin conexión e instalar Same Page",
+      "intro": "Instalar la aplicación, guardar una copia sin conexión y exportar un PDF son acciones distintas.",
+      "prepare": {
+        "title": "Guardar partituras en este dispositivo",
+        "step1": "Con conexión, abre la partitura y elige «Más → Uso sin conexión → Guardar sin conexión». Si hay una versión nueva, actualiza la copia.",
+        "step2": "Espera a que se descargue y verifique la copia. «Disponible sin conexión» indica que está lista. Si aparece «Versión anterior disponible sin conexión», la nueva versión aún no está lista.",
+        "step3": "Comprueba cada partitura del ensayo abriéndola sin conexión. Si cambias de dispositivo o navegador, vuelve a prepararla."
+      },
+      "install": {
+        "title": "Instalar en la pantalla de inicio",
+        "paragraph1": "Selecciona «Añadir a la pantalla de inicio» en la preparación del ensayo o en la lista de unidades. Sigue las instrucciones del navegador. Tras instalar, aún debes guardar las copias de partituras por separado.",
+        "paragraph2": "Si abres Same Page en WeChat, se te indicará abrir un navegador externo. Las opciones de instalación dependen del dispositivo y navegador. También puedes usar Same Page desde el navegador."
+      },
+      "storage": {
+        "title": "Liberar espacio en el dispositivo",
+        "paragraph1": "Usa «Almacenamiento local» en la unidad para ver y quitar partituras descargadas. Esto solo libera espacio local y conserva las partituras en la nube, los borradores, los cambios pendientes y los conflictos. Descarga de nuevo las copias que quieras abrir sin conexión.",
+        "paragraph2": "Evita borrar los datos del sitio en el navegador. Podrías perder borradores sin sincronizar o anotaciones de la unidad de ejemplo."
+      }
+    },
+    "files": {
+      "title": "Subir, reemplazar y exportar partituras",
+      "intro": "Las partituras de la unidad, sus versiones PDF y los archivos exportados se administran por separado.",
+      "upload": {
+        "title": "Subir y reemplazar",
+        "paragraph1": "Los miembros con permiso de subida pueden agregar PDF. La lista muestra los nombres de archivo. Para cambiar el nombre o reemplazar un PDF, usa el menú de la partitura y comprueba que tengas el permiso correspondiente.",
+        "paragraph2": "Reemplazar el PDF conserva la partitura y las anotaciones en sus páginas y posiciones originales. Comprueba la vista previa y ajusta las anotaciones si cambia el diseño. El PDF anterior queda 30 días en la papelera y puede restaurarse como una partitura aparte. Actualiza las copias sin conexión por separado."
+      },
+      "export": {
+        "title": "Exportar PDF con anotaciones",
+        "paragraph1": "En la lista o en el lector, elige las capas que quieras incluir y crea un PDF con la partitura y las anotaciones que puedes ver. Esto mantiene tus preferencias de visualización y no prepara una copia sin conexión.",
+        "paragraph2": "El PDF exportado refleja el contenido de ese momento. Antes de enviar el archivo, comprueba que las anotaciones personales incluidas se puedan compartir."
+      },
+      "trash": {
+        "title": "Papelera y eliminación permanente",
+        "paragraph1": "Los miembros autorizados pueden enviar partituras a la papelera y restaurarlas durante 30 días. Un PDF reemplazado vuelve como partitura independiente, sin sobrescribir el actual ni copiar anotaciones o adjuntos. Los elementos de la papelera y los PDF pendientes de confirmar siguen usando espacio.",
+        "paragraph2": "El propietario puede eliminar de forma permanente las partituras o PDF de la papelera, o toda la unidad. El contenido deja de estar disponible y no se puede restaurar. Al eliminar una partitura o unidad también se eliminan las anotaciones relacionadas."
+      }
+    },
+    "members": {
+      "title": "Crear unidades, invitar y administrar miembros",
+      "intro": "Los miembros reciben los permisos que necesitan. El propietario gestiona la titularidad y la delegación de permisos.",
+      "create": {
+        "title": "Crear e invitar",
+        "paragraph1": "Selecciona el nombre de la unidad y elige «Crear una unidad», o usa la página de selección. Puedes poseer una unidad de prueba gratuita con 10 partituras, 50 MB de PDF y 20 miembros contando al propietario. No hay fecha fija de vencimiento.",
+        "paragraph2": "Comparte el enlace o la tarjeta de invitación desde la unidad. Entrega el código solo a quienes necesiten acceso. Al cambiarlo, el anterior queda inválido. Configura por separado tu nombre visible en cada unidad desde tu perfil."
+      },
+      "permissions": {
+        "title": "Encontrar a la persona con permiso",
+        "paragraph1": "Abre el engranaje de la unidad y ve a «Configuración → Miembros y permisos». Filtra por miembro o por permiso. Las personas autorizadas pueden realizar la acción y quienes puedan conceder permisos administran los de los miembros habituales.",
+        "paragraph2": "Subir, modificar o eliminar archivos, administrar miembros y editar capas son permisos distintos. El propietario puede delegar permisos para miembros habituales dentro de un alcance definido. La propiedad no permite ver capas personales sin compartir."
+      },
+      "retention": {
+        "title": "Conservación de unidades inactivas",
+        "paragraph1": "Las unidades de prueba sin acceso en línea de ningún miembro durante más de 30 días consecutivos pueden eliminarse. Avisaremos por correo al propietario con al menos 14 días de antelación. Si algún miembro entra en línea durante el aviso, se cancela la eliminación.",
+        "paragraph2": "La eliminación no es inmediata después de 30 días. El correo explica cómo conservar la unidad. Abrir una copia sin conexión no cuenta como acceso en línea."
+      }
+    },
+    "account": {
+      "title": "Salir, cambiar de dispositivo y eliminar la cuenta",
+      "intro": "Volver a la lista, dejar una unidad y cerrar sesión tienen efectos diferentes.",
+      "sync": {
+        "title": "Sincronizar antes de cambiar de dispositivo",
+        "paragraph1": "Comprueba la sincronización en el dispositivo original antes de iniciar sesión con la misma cuenta en el nuevo. Los borradores pendientes permanecen en el dispositivo original. Prepara de nuevo las copias sin conexión."
+      },
+      "leave": {
+        "title": "Elegir cómo salir",
+        "paragraph1": "Volver a la lista solo cambia de página. Dejar una unidad revoca el acceso y la sincronización de la membresía. En unidades normales, las capas personales se conservan 30 días y alguien con permiso puede restaurar tu membresía.",
+        "paragraph2": "Cerrar sesión borra del navegador las capas personales, permisos de edición y preferencias, y puede conservar el contenido compartido descargado. Si hay cambios o conflictos pendientes, revisa el aviso. «Descartar y cerrar sesión» borra permanentemente estos cambios locales."
+      },
+      "delete": {
+        "title": "Eliminar la cuenta",
+        "paragraph1": "En «Mi perfil → Cuenta → Eliminar cuenta», verifica tu método de inicio de sesión original y confirma. Transfiere antes la propiedad si tienes una unidad. La eliminación detiene el acceso e inicia un plazo de 30 días para recuperar la identidad y las capas personales mediante el método original y una confirmación expresa.",
+        "paragraph2": "Después del plazo ya no se pueden restaurar los datos eliminados. Las anotaciones compartidas conservan el último nombre visible en la unidad. Eliminar la cuenta no elimina toda la unidad ni retira los archivos exportados."
+      }
+    },
+    "questions": {
+      "title": "Resolver problemas",
+      "intro": "Comprueba la unidad activa, tu sesión y la conexión antes de buscar la causa.",
+      "finding": {
+        "title": "No encuentro la partitura o no puedo editar",
+        "paragraph1": "Comprueba la unidad y el nombre de archivo. Conéctate y actualiza la lista, o pregunta a un miembro autorizado para subir archivos. Sin conexión solo puedes abrir copias ya preparadas.",
+        "paragraph2": "Toca el lápiz, selecciona la capa correcta y confirma tu permiso. Restaura primero las partituras de la papelera. En «Miembros y permisos» puedes encontrar quién puede darte acceso."
+      },
+      "sync": {
+        "title": "Error o conflicto de sincronización",
+        "paragraph1": "Vuelve a intentarlo cuando se restablezca la conexión. Si sigue fallando, envía una descripción y el diagnóstico con «Reportar un problema». Si te faltan permisos, contacta a quien pueda concederlos y conserva los borradores en el dispositivo original.",
+        "paragraph2": "Un conflicto indica que la misma anotación cambió en la nube. Compara la versión local y la de la nube. Conserva los cambios que aún necesites y los datos del sitio."
+      },
+      "offline": {
+        "title": "Copia sin conexión pendiente o problema de visualización",
+        "paragraph1": "En «Más → Uso sin conexión», reintenta guardar o verificar. Una copia anterior puede seguir disponible hasta que finalice la descarga nueva. Usa las opciones de reintento o recuperación para evitar perder anotaciones sin sincronizar.",
+        "paragraph2": "Si el problema sigue, envía una descripción, pasos y datos de diagnóstico con «Reportar un problema». Omite contraseñas, códigos de verificación o invitación y contenido privado de las partituras."
+      }
+    },
+    "updated": "Última actualización: <date>2026-10-21</date>",
+    "contentsLabel": "Índice de la guía",
+    "lead": "Prepara tus partituras y anotaciones para el ensayo. Si es tu primera vez, sigue el primer capítulo. Usa el índice para resolver dudas.",
+    "contents": "Índice",
+    "back": "Volver al índice",
+    "feedbackHint": "Si encuentras un problema, envía una descripción y datos de diagnóstico para que el equipo de Same Page pueda investigarlo.",
+    "sendFeedback": "Reportar un problema"
+  },
+  "privacy": {
+    "updated": "Última actualización: 2026-11-17",
+    "lead": "Same Page es un unidad de partituras musicales diseñado para ensayos de coros. Esta política explica qué información procesamos cuando utiliza el Servicio, por qué la procesamos y cómo puede contactarnos.",
+    "collect": {
+      "title": "Información que procesamos",
+      "identity": "<label>Información de usuario y de inicio de sesión:</label> Dirección de correo electrónico, estado de verificación del correo electrónico, credenciales de inicio de sesión cifradas o hash, identificación de autenticación estable devuelta por el proveedor de inicio de sesión externo y dirección IP e información del navegador utilizadas para proteger la sesión.",
+      "google": "<label>Información de inicio de sesión de Google:</label> Cuando elige activamente un inicio de sesión de un tercero, recibiremos la información de identidad básica necesaria para completar el inicio de sesión, como un correo electrónico verificado, un apodo o un avatar.",
+      "drive": "<label>Contenido de las unidades:</label> Las unidades a las que perteneces, tu nombre visible y permisos en cada una, las partituras PDF subidas y sus nombres de archivo, y las anotaciones, preferencias y el estado de sincronización de las capas personales y compartidas.",
+      "local": "<label>Datos locales del dispositivo:</label> Para admitir el uso sin conexión, el navegador puede guardar partituras, notas, preferencias y operaciones pendientes en el dispositivo actual. Los registros de acceso de invitados y las copias sin conexión también se pueden guardar en el dispositivo actual.",
+      "usage": "<label>Uso de las unidades:</label> En el cliente actual, si un miembro activo abre en primer plano una unidad normal o una partitura, vuelve a la página o interactúa con ella, el cliente informa de una visita en línea, con una resolución aproximada de cinco minutos. Se excluyen el uso sin conexión, las consultas y sincronizaciones en segundo plano, los visitantes, la demostración pública y las identidades con permisos de operación. Solo conservamos la hora de la última visita de cada membresía. No recopilamos la actividad de lectura, la duración, los nombres de las partituras ni las anotaciones. Los responsables con permisos de operaciones de partituras solo pueden ver la última visita de cada unidad y los recuentos agregados. No pueden ver visitas individuales. Una tarea programada borra los registros de membresía con más de 30 días. Los miembros eliminados y los usuarios borrados dejan de contar. La unidad conserva la hora de su última visita sin asociarla con la identidad de un miembro. Estos registros sirven para conocer el uso del servicio y no activan la eliminación automática."
+    },
+    "use": {
+      "title": "Cómo utilizamos esta información",
+      "protectUser": "Crear y proteger usuarios, completar el inicio de sesión, la verificación del correo electrónico y el restablecimiento de la contraseña;",
+      "access": "Determine sus permisos de acceso y edición al unidad, partituras y capas de notas;",
+      "sync": "Almacene, sincronice y haga que partituras y notas estén disponibles sin conexión en su dispositivo;",
+      "emails": "Enviar los correos electrónicos de seguridad de inicio de sesión necesarios y las notificaciones de limpieza del unidad;",
+      "security": "Prevenir abusos, solucionar fallas y mantener la seguridad y confiabilidad del Servicio.",
+      "advertising": "No vendemos su información personal ni la utilizamos para publicidad dirigida. Las notas a nivel personal solo son visibles para usted de forma predeterminada."
+    },
+    "sharing": {
+      "title": "Rango visible dentro del unidad",
+      "visibility": "De forma predeterminada, solo tú puedes ver tus capas personales. Las capas compartidas y las partituras pertenecen a la unidad correspondiente. Los miembros y visitantes con acceso pueden verlas, y los miembros con permiso de edición pueden modificarlas. Las anotaciones compartidas pueden conservar el nombre visible de quien las creó o editó por última vez. Los miembros activos pueden consultar los nombres visibles, los permisos y el alcance de la gestión delegada de otros miembros activos de la misma unidad. Solo el propietario y las personas con permiso para eliminar miembros pueden ver las membresías eliminadas y su estado de eliminación o recuperación.",
+      "identity": "La información de inicio de sesión de terceros no se convertirá automáticamente en su identidad pública en todas las unidades de la nube; puede utilizar diferentes nombres para mostrar en diferentes unidades de nube."
+    },
+    "processors": {
+      "title": "Proveedor de servicios",
+      "intro": "Solo utilizamos los siguientes servicios en la medida necesaria para proporcionar y proteger Misma página:",
+      "disclosure": "Estos proveedores de servicios procesarán la información de acuerdo con sus respectivos términos y políticas de privacidad. También podemos revelar información relevante de conformidad con la ley cuando así lo requiera la ley, para proteger la seguridad de los usuarios y los servicios, o cuando sea necesario para completar una reorganización organizacional.",
+      "cloudflare": "<label>Nubeflare:</label> Proporcionar servicios de red, seguridad, operación de aplicaciones, bases de datos y almacenamiento de archivos PDF;",
+      "resend": "<label>Reenviar:</label> Enviar los correos electrónicos de seguridad de inicio de sesión necesarios y las notificaciones de limpieza del unidad, como verificación de registro y restablecimiento de contraseña;",
+      "google": "<label>Google:</label> Complete la autenticación solo si elige el método apropiado."
+    },
+    "google": {
+      "title": "Datos de usuario de Google",
+      "identity": "El inicio de sesión de Google con la misma página solo utiliza la información de identidad básica necesaria para crear e iniciar sesión de usuarios, y no se aplica a Google Drive, Contactos, Gmail ni otros permisos de datos adicionales. Los datos de Google solo se utilizan para autenticación, seguridad de inicio de sesión y para proporcionarle la misma página, no para publicidad.",
+      "compliance": "Nuestro uso de los datos de usuario de Google cumple con la <policy>Política de datos de usuario del servicio API de Google</policy>, incluidos los requisitos de uso limitado establecidos en la misma."
+    },
+    "retention": {
+      "title": "Retención, eliminación y copias fuera de línea",
+      "deletedContent": "Los propietarios de unidad pueden eliminar por completo las partituras de la Papelera de reciclaje, los archivos PDF de la Papelera de reciclaje o toda la unidad. La operación finaliza inmediatamente el acceso del producto al contenido correspondiente y se eliminan todas las notas de los miembros asociadas con la partitura. El producto no proporciona capacidades de recuperación. Para manejar fallas del sistema, los datos relevantes se conservarán en aislamiento en segundo plano durante 30 días y se limpiarán mediante tareas programadas al vencimiento; No se promete recuperación a los usuarios y no se otorgarán derechos de acceso a los datos retenidos.",
+      "devices": "El contenido que se ha descargado en el dispositivo no se puede recuperar de forma remota. Al eliminar un usuario, se desconectará la identidad local y los borradores no sincronizados seguirán bajo el usuario original y no podrán ser leídos por otros usuarios; Una vez finalizado el período de recuperación de la eliminación, el servidor no puede restaurar los datos limpiados. Cuando cierra sesión explícitamente, Same Page borra la capa personal del navegador actual, el estado editable y las preferencias del usuario; El contenido compartido sincronizado y despersonalizado puede permanecer disponible para verlo sin conexión. También puede borrar los datos del sitio a través de su navegador o sistema operativo.",
+      "inactive": "Mientras utilices el servicio, conservamos los datos de usuario y de unidades necesarios para prestarlo. Las unidades de prueba gratuita pueden eliminarse si ningún miembro accede a ellas en línea durante más de 30 días consecutivos. Avisamos a su propietario por correo electrónico con al menos 14 días de antelación. Si algún miembro abre la unidad en línea durante el plazo de aviso, se cancela la eliminación. Abrir una copia sin conexión no cuenta como acceso en línea.",
+      "membership": "Cuando alguien abandona una unidad normal o se le elimina de ella, se revocan de inmediato el acceso a la nube y la sincronización que le daba su membresía. Las capas personales se conservan durante 30 días. En ese plazo, una persona con el permiso correspondiente puede restaurar la membresía. De forma predeterminada, solo tú puedes ver tus capas personales. En la demostración pública, el acceso a tus capas personales y su conservación son independientes de la membresía.",
+      "user": "El propietario puede transferir la propiedad en \"Miembros y permisos\" del unidad correspondiente y luego volver a verificar el método de inicio de sesión original desde \"Mi → Cuenta → Eliminar usuario\" y confirmar la eliminación. La eliminación revoca inmediatamente las sesiones del producto y el acceso a la nube; Los datos de identidad y los niveles personales entran en un período de recuperación de 30 días. Durante este período, después de la verificación utilizando el método de inicio de sesión utilizado al eliminar, solo puede confirmar explícitamente la recuperación y no puede acceder directamente al unidad. Después del período de recuperación, la tarea programada limpia las capas personales y de identidad. Las notas compartidas seguirán conservando el nombre final que se muestra en el unidad y no se firmarán con la dirección de correo electrónico de inicio de sesión ni con el nombre del perfil global.",
+      "pdfs": "Los PDF de los candidatos que se deben confirmar caducan después de 24 horas; Los archivos PDF antiguos se conservarán en la Papelera de reciclaje durante 30 días después de abandonar la versión actual y se pueden restaurar a partituras independientes. Las partituras y sus versiones trasladadas a la Papelera de reciclaje se conservarán durante 30 días a partir del momento en que se trasladen. El contenido caducado se recicla mediante tareas programadas y se vuelve a intentar en caso de error. La eliminación física puede ser posterior al tiempo de vencimiento."
+    },
+    "security": {
+      "title": "Medidas de seguridad",
+      "safeguards": "Utilizamos cifrado de transmisión, verificación de permisos del lado del servidor, limitación de inicio de sesión actual y protección de credenciales y otras medidas. Los tokens de acceso de OAuth y los tokens de actualización se cifran y guardan, y el token de ID de Google no se conserva después de completar la autenticación de Google. Ningún servicio de red puede garantizar una seguridad absoluta; Si encuentra algún problema de seguridad, comuníquese con nosotros lo antes posible."
+    },
+    "diagnostics": {
+      "title": "Comentarios sobre problemas",
+      "local": "El cliente solo conserva los últimos 30 minutos y hasta 50 registros de error en la sesión de la página actual, que se borrarán al actualizar o cambiar de identidad. Puede ver, copiar, borrar información de diagnóstico o enviar comentarios de forma proactiva en la página <feedback>Comentarios sobre problemas</feedback> o en la ventana emergente de comentarios del lector; no se cargará sin hacer clic en Enviar. Los informes pendientes y las descripciones opcionales solo se conservan en la sesión actual y se borrarán después de actualizar, cerrar la página web o cambiar de identidad.",
+      "report": "Los comentarios enviados proactivamente incluyen el número de error, la hora, la frecuencia, la versión, la categoría de operación, la etapa y la capacidad de reintento, así como la versión del navegador y del sistema, el tamaño de la ventana, las indicaciones de la red y el estado de la PWA; cuando se envía desde el lector, también incluye el modo de visualización del ritmo, el estado de lectura o edición, la sincronización pendiente y el número de conflictos. El sistema no recopila automáticamente partituras o texto de notas, capturas de pantalla, nombres de archivos, direcciones de correo electrónico, IP originales, credenciales, URL completas ni excepciones originales. La descripción del problema que complete se enviará con el informe. No incluya contenido privado, contraseñas, códigos de verificación o códigos de invitación.",
+      "retention": "El informe se guarda en Cloudflare D1 a través del servicio Same Page. Sólo los mantenedores autorizados pueden ver y marcar el estado del procesamiento; el número de comentarios no otorga permiso de lectura y el permiso de administración de unidad no otorga la posibilidad de acceder al informe. La nueva versión de los comentarios adopta claramente un período de retención de hasta 180 días al enviarlos. Los informes e informes históricos enviados por la versión anterior del cliente aún se procesan según el período original de 30 días. Después del vencimiento, el acceso ya no se brindará a través de la bandeja de entrada y se eliminará mediante tareas por horas; el personal de mantenimiento autorizado para eliminar de forma independiente puede eliminar permanentemente el texto del informe por adelantado y el registro de operación mínimo se conserva durante 180 días, incluido solo el operador, el número de comentarios, la acción y el tiempo; para evitar volver a intentar volver a crear el informe eliminado, el sistema conserva la marca de eliminación del número de respuesta sin texto ni identidad del usuario durante mucho tiempo; Al borrar el diagnóstico local no se recuperará el informe enviado. Los informes no están asociados con usuarios, unidad ni puntuaciones, y no se publican automáticamente en GitHub ni se envían a plataformas de soporte de terceros.",
+      "logs": "La interfaz utiliza una identificación de limitación de corta duración para evitar abusos y no guarda la IP original ni las credenciales de inicio de sesión en el informe. Los registros de operaciones estructuradas del lado del servidor aún se conservan durante 3 o 7 días según el plan de Cloudflare y la descripción del informe no se escribe. El procesamiento de datos propio del proveedor de infraestructura (incluidos los registros de seguridad y copias de seguridad) se rige por separado por sus políticas."
+    },
+    "rights": {
+      "title": "Tu elección y contáctanos",
+      "contact": "Puedes optar por no iniciar sesión con Google y continuar iniciando sesión con tu correo electrónico. Para consultar, corregir o eliminar información del usuario, retirar la autorización de inicio de sesión de terceros o consultar sobre esta política, envíe un correo electrónico a <contact>{email}</contact>. Revocar la autorización de terceros no eliminará automáticamente los usuarios ya establecidos en la Same Page ni los datos que deban conservarse por ley."
+    },
+    "updates": {
+      "title": "Actualización de política",
+      "description": "Cuando haya cambios importantes en el servicio o métodos de procesamiento de datos, actualizaremos esta página y la fecha en la parte superior; si es necesario, también le proporcionaremos instrucciones a través de mensajes en servicio o correos electrónicos."
+    }
+  },
+  "authOauthFailed": "No se completó el inicio de sesión con el proveedor externo. Intenta de nuevo o continúa con tu correo electrónico.",
+  "authRateLimited": "Demasiados intentos. Intenta de nuevo más tarde.",
+  "authContinueFailed": "No se puede continuar por ahora. Intenta de nuevo más tarde.",
+  "authInvalidCredentials": "El correo electrónico o la contraseña son incorrectos.",
+  "authOtpSendFailed": "Por ahora no se puede enviar el código de verificación. Intenta de nuevo más tarde.",
+  "authOtpSent": "Enviamos el código de verificación. Revisa tu bandeja de entrada y el correo no deseado.",
+  "authOtpInvalid": "El código no es válido o venció. Solicita uno nuevo.",
+  "authOtpResent": "Enviamos un nuevo código de verificación.",
+  "authResetOtpSent": "Enviamos el código para restablecer tu contraseña.",
+  "authResetOtpResent": "Enviamos un nuevo código para restablecer tu contraseña.",
+  "authOtpSendNetworkError": "No se pudo enviar el código de verificación. Revisa tu conexión e intenta de nuevo.",
+  "authOtpVerifyNetworkError": "No se pudo verificar el código. Revisa tu conexión e intenta de nuevo.",
+  "authOtpInvalidOrLimit": "El código es incorrecto, venció o se agotaron los intentos. Revísalo o solicita uno nuevo.",
+  "authPasswordSetSignIn": "Ya configuraste tu contraseña. No se completó el inicio de sesión automático. Inicia sesión con la contraseña nueva.",
+  "authPasswordUnknown": "No pudimos confirmar si se configuró la contraseña. Intenta iniciar sesión con la contraseña nueva. Si no funciona, verifica tu correo electrónico para restablecerla.",
+  "authOtpInvalidForSetup": "El código no es válido o venció. Vuelve a verificar tu correo electrónico para configurar una contraseña.",
+  "authOtpInvalidNoReset": "El código no es válido o venció. Tu contraseña no cambió.",
+  "authPasswordResetSignIn": "Se restableció tu contraseña. Inicia sesión con la contraseña nueva.",
+  "authOauthNoSession": "No se pudo iniciar una sesión con el proveedor externo. Intenta de nuevo o continúa con tu correo electrónico.",
+  "authOauthStartFailed": "No se pudo iniciar el acceso con el proveedor externo. Intenta de nuevo o continúa con tu correo electrónico.",
+  "authPasswordsMismatch": "Las contraseñas no coinciden.",
+  "authPasswordRequirements": "La contraseña no cumple los requisitos.",
+  "authIdentify": "Inicia sesión o regístrate",
+  "authIdentifyDescription": "Ingresa tu correo electrónico para iniciar sesión o crear una cuenta.",
+  "authContinuing": "Continuando…",
+  "authContinue": "Continuar",
+  "authSignIn": "Iniciar sesión",
+  "authSignInDescription": "Inicia sesión en Same Page con tu contraseña.",
+  "authPassword": "Contraseña",
+  "authSigningIn": "Iniciando sesión…",
+  "authForgotPassword": "Olvidé mi contraseña",
+  "authChangeEmail": "Cambiar correo electrónico",
+  "authSignUp": "Registrarse",
+  "authSignUpDescription": "Crea una contraseña y te enviaremos un código para verificar tu correo electrónico.",
+  "authConfirmPassword": "Confirmar contraseña",
+  "authSendingOtp": "Enviando…",
+  "authSendOtp": "Enviar código de verificación",
+  "authVerifyEmail": "Verificar correo electrónico",
+  "authVerifyingOtp": "Verificando…",
+  "authCompleteSignUp": "Completar registro",
+  "authSignInGoogle": "Iniciar sesión con Google",
+  "authSetPassword": "Configurar una contraseña en Same Page",
+  "authSetPasswordGoogleDescription": "Antes iniciaste sesión con Google y aún no configuraste una contraseña en Same Page.",
+  "authSetPasswordDescription": "Verifica tu correo electrónico para configurar una contraseña en Same Page.",
+  "authContinueGoogle": "Continuar con Google",
+  "authSetPasswordForEmail": "Configurar una contraseña para acceder por correo electrónico",
+  "authBackSignInMethods": "Volver a las opciones de inicio de sesión",
+  "authChoosePasswordGoogleDescription": "Correo verificado. Configura una contraseña para Same Page, independiente de tu contraseña de Google.",
+  "authChoosePasswordDescription": "Correo verificado. Configura una contraseña para Same Page.",
+  "authSettingPassword": "Configurando…",
+  "authSetPasswordAndSignIn": "Configurar contraseña e iniciar sesión",
+  "authBackVerifyEmail": "Volver a la verificación del correo",
+  "authPasswordSet": "Contraseña configurada",
+  "authPasswordSetGoogleDescription": "Ahora puedes iniciar sesión con tu correo y contraseña o con Google.",
+  "authPasswordSetDescription": "Ahora puedes iniciar sesión con tu correo y contraseña.",
+  "authRequestResetDescription": "Enviaremos un código para restablecer la contraseña a este correo electrónico.",
+  "authSendResetOtp": "Enviar código para restablecer la contraseña",
+  "authBackSignIn": "Volver al inicio de sesión",
+  "authResetPassword": "Restablecer contraseña",
+  "authResetPasswordDescription": "Tras la verificación, tu contraseña anterior y las demás sesiones se invalidarán de inmediato.",
+  "authConfirmNewPassword": "Confirmar contraseña nueva",
+  "authResettingPassword": "Restableciendo…",
+  "authResetPasswordAndSignIn": "Restablecer contraseña e iniciar sesión",
+  "authJoinDrive": "Unirse a la unidad",
+  "authDisplayName": "Nombre visible",
+  "authDisplayNameExample": "P. ej., Ana",
+  "authJoiningDrive": "Uniéndote…",
+  "authJoinAndEnter": "Unirse y abrir",
+  "authSignedIn": "Sesión iniciada",
+  "authJoinFailedDescription": "Iniciaste sesión, pero no pudiste unirte a la unidad.",
+  "authRetryJoin": "Volver a intentar unirse",
+  "authCancelToDriveList": "Cancelar y volver a las unidades",
+  "authContinueReadOnly": "Continuar en modo de solo lectura",
+  "authBackHome": "Volver al inicio",
+  "authBrand": "Same Page",
+  "authOtherSignInMethods": "Otras formas de iniciar sesión",
+  "authEmail": "Correo electrónico",
+  "authOtp": "Código de seis dígitos",
+  "authResendOtp": "Reenviar código de verificación",
+  "authThisDrive": "esta unidad",
+  "authOtpRetry": "Demasiadas solicitudes. Intenta de nuevo en {seconds, plural, one {# segundo} other {# segundos}}.",
+  "authOtpRetryAlreadySent": "Demasiadas solicitudes. Intenta de nuevo en {seconds, plural, one {# segundo} other {# segundos}}. Aún puedes usar el código que ya recibiste.",
+  "authPasswordMinLabel": "Contraseña (al menos {min} caracteres)",
+  "authVerifyEmailDescription": "Ingresa el código de verificación enviado a {email}.",
+  "authVerifySetPasswordDescription": "Ingresa el código enviado a {email} para configurar tu contraseña de Same Page.",
+  "authNewPasswordMinLabel": "Contraseña nueva (al menos {min} caracteres)",
+  "authJoinDriveDescription": "Ya iniciaste sesión. Elige tu nombre visible para «{drive}».",
+  "authEmailSummary": "Correo electrónico: {email}",
+  "authResendOtpCountdown": "Reenviar código ({seconds} s)",
+  "authPasswordMinimum": "La contraseña debe tener al menos {min} caracteres.",
+  "authEmailExample": "name@example.com",
+  "authOtpExample": "000000",
+  "authFieldRequired": "Completa este campo.",
+  "authEmailInvalid": "Ingresa un correo electrónico válido.",
+  "authOtpDigits": "Ingresa el código de seis dígitos.",
+  "authFieldTooLong": "Ingresa como máximo {max} caracteres.",
+  "authFieldInvalid": "Ingresa un valor válido."
+}

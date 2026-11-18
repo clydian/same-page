@@ -1,0 +1,11 @@
+{
+  "registrationSubject": "Bestätigungscode für deine Same-Page-Registrierung",
+  "resetSubject": "Code zum Zurücksetzen deines Same-Page-Passworts",
+  "registrationIntro": "Du registrierst dich gerade auf {site} für Same Page.",
+  "resetIntro": "Du setzt gerade dein Same-Page-Passwort auf {site} zurück.",
+  "codeLine": "Bestätigungscode: {code}",
+  "expiry": "Der Code ist 10 Minuten gültig. Gib ihn nicht weiter.",
+  "registrationUnexpected": "Falls du den Code nicht angefordert hast, kannst du diese E-Mail ignorieren. Die Registrierung wird nicht abgeschlossen.",
+  "resetUnexpected": "Falls du den Code nicht angefordert hast, kannst du diese E-Mail ignorieren. Dein Passwort bleibt unverändert.",
+  "codeLabel": "Bestätigungscode:"
+}

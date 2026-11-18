@@ -1,3 +1,4 @@
+import { useMessages, getCurrentLocale, getMessages } from "../../i18n";
 import { holdUpdate } from "../updates/update-safety";
 import { useLayoutEffect, useRef, useState } from "react";
 
@@ -30,6 +31,7 @@ export function useUploadQueue({ enabled = true, choirId, onComplete, onQuotaCha
   onComplete: () => void | Promise<void>;
   onQuotaChange: (blocked: boolean) => void;
 }) {
+  const t = useMessages("library");
   const [state, setState] = useState(initialState);
   const runtime = useRef({ state, active: false, generation: 0, running: false, enabled, controller: null as AbortController | null });
   const callbacks = useRef({ onComplete, onQuotaChange });
@@ -76,7 +78,7 @@ export function useUploadQueue({ enabled = true, choirId, onComplete, onQuotaCha
         const item = current.state.items.find((entry) => entry.status === "queued");
         if (!item?.file) break;
         publish({ ...current.state, items: current.state.items.map((entry) => entry.id === item.id
-          ? { ...entry, status: "uploading", message: "正在上传…", progress: undefined } : entry) });
+          ? { ...entry, status: "uploading", message: t("attachmentUploading"), progress: undefined } : entry) });
         const controller = new AbortController();
         current.controller = controller;
         const timer = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
@@ -85,11 +87,11 @@ export function useUploadQueue({ enabled = true, choirId, onComplete, onQuotaCha
           outcome = await uploadOne(choirId, item.file, controller.signal, (progress) => {
             if (!isCurrent() || controller.signal.aborted) return;
             publish({ ...current.state, items: current.state.items.map((entry) => entry.id === item.id
-              ? { ...entry, progress, message: progress.processing ? "传输完成，正在保存…" : "正在上传…" } : entry) });
+              ? { ...entry, progress, message: progress.processing ? t("pdfVersionTransferCompletedSaving") : t("attachmentUploading") } : entry) });
           });
           controller.signal.throwIfAborted();
         } catch {
-          outcome = { status: "unknown", message: "网络中断或请求超时，结果待核对。请先查看文件库，不要直接重传。", pause: "uncertain" };
+          outcome = { status: "unknown", message: t("useUploadQueueNetworkInterruptedRequestTimes"), pause: "uncertain" };
         } finally {
           window.clearTimeout(timer);
         }
@@ -122,11 +124,11 @@ export function useUploadQueue({ enabled = true, choirId, onComplete, onQuotaCha
   function add(files: File[]) {
     if (!runtime.current.active || !runtime.current.enabled) return;
     const items = files.map((file): UploadItem => {
-      const message = !isPdf(file) ? "只接受 PDF 文件。"
-        : file.size === 0 ? "PDF 文件为空。"
-        : file.size > MAX_PDF_BYTES ? "PDF 超过 20 MB。" : null;
+      const message = !isPdf(file) ? t("useUploadQueueOnlyPdfFilesAccepted")
+        : file.size === 0 ? t("pdfVersionPdfFileEmpty")
+        : file.size > MAX_PDF_BYTES ? t("libraryFormatPdfOverMb") : null;
       return { id: crypto.randomUUID(), name: file.name, file: message ? null : file,
-        status: message ? "error" : "queued", message: message ?? "等待上传" };
+        status: message ? "error" : "queued", message: message ?? t("useUploadQueueWaitingUpload") };
     });
     publish({ ...runtime.current.state, items: [...runtime.current.state.items, ...items] });
     void pump();
@@ -138,14 +140,14 @@ export function useUploadQueue({ enabled = true, choirId, onComplete, onQuotaCha
     const item = current.items.find((entry) => entry.id === id);
     if (!item || item.status !== "error" || !item.file) return;
     publish({ ...current, items: [...current.items.filter((entry) => entry.id !== id),
-      { ...item, status: "queued", message: current.paused ? "已排队，处理暂停原因后请继续等待项。" : "等待重试" }] });
+      { ...item, status: "queued", message: current.paused ? t("useUploadQueueAlreadyQueuedContinueWaiting") : t("useUploadQueueWaitingTryAgain") }] });
     void pump();
   }
 
   function stopWaiting() {
     if (!runtime.current.state.items.some((item) => item.status === "queued")) return;
     publish({ ...runtime.current.state, items: runtime.current.state.items.map((item) => item.status === "queued"
-      ? { ...item, status: "cancelled", file: null, message: "已停止，尚未上传；需要时请重新选择。" } : item) });
+      ? { ...item, status: "cancelled", file: null, message: t("useUploadQueueStoppedNotUploadedYet") } : item) });
   }
 
   function resume() {
@@ -164,6 +166,7 @@ interface UploadOutcome {
 }
 
 async function uploadOne(choirId: string, file: File, signal: AbortSignal, onProgress: (progress: UploadProgress) => void): Promise<UploadOutcome> {
+  const t = getMessages(getCurrentLocale(), "library");
   const form = new FormData();
   form.set("file", file);
   const response = await uploadPdf(`/api/choirs/${choirId}/scores`, form, signal, onProgress);
@@ -172,18 +175,18 @@ async function uploadOne(choirId: string, file: File, signal: AbortSignal, onPro
   if (response.ok) {
     const score = scoreSummarySchema.safeParse(payload && typeof payload === "object" && "score" in payload ? payload.score : null);
     if (score.success && score.data.choirId === choirId && score.data.fileName === file.name.trim()) {
-      return { status: "success", message: "上传完成" };
+      return { status: "success", message: t("useUploadQueueUploadCompleted") };
     }
   } else if (response.status === 401 || response.status === 403) {
-    return { status: "error", message: "登录已失效或没有上传权限，请重新登录或联系云盘拥有者。", pause: "permission" };
+    return { status: "error", message: t("pdfVersion"), pause: "permission" };
   } else if ((error === "storage_quota_exceeded" || error === "score_limit_reached" || error === "platform_storage_limit_reached") && response.status === 409) {
     return { status: "error", message: uploadMessage(response.status, payload), pause: "quota" };
   } else if (response.status === 429) {
-    return { status: "error", message: "请求过于频繁，请稍后再重试。", pause: "rate-limit" };
+    return { status: "error", message: t("useUploadQueueRequestTooFrequentTry"), pause: "rate-limit" };
   } else if ([400, 409, 413, 415, 422].includes(response.status)) {
     return { status: "error", message: uploadMessage(response.status, payload) };
   }
-  return { status: "unknown", message: "服务端未确认上传结果。请先核对文件库，此项不能直接重试。", pause: "uncertain" };
+  return { status: "unknown", message: t("useUploadQueueServerDidNotConfirm"), pause: "uncertain" };
 }
 
 function isPdf(file: File) {

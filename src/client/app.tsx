@@ -10,6 +10,8 @@ import { RouteContent } from "./components/route-content";
 import { TaskHeader } from "./components/task-header";
 import { lazy, useLayoutEffect, useState } from "react";
 import { createBrowserRouter, RouterProvider, Outlet, Route, Routes, useLocation, useNavigationType } from "react-router-dom";
+import { useMessages } from "../i18n";
+import { LanguageSelect } from "../i18n/language-select";
 
 import { AppFooter } from "./components/app-footer";
 import { ReloadPrompt } from "./components/reload-prompt";
@@ -46,6 +48,7 @@ const PrivacyPage = lazy(() => import("./routes/privacy-page"));
 const DiagnosticsPage = lazy(() => import("./diagnostics/diagnostics-page"));
 
 export function AppRoutes() {
+  const t = useMessages("language");
   const location = useLocation();
   const navigationType = useNavigationType();
   const [startupKey, setStartupKey] = useState<string | null>(() => location.pathname === "/" ? location.key : null);
@@ -80,7 +83,7 @@ export function AppRoutes() {
             <Route path="/login" element={<RouteContent><AuthPage /></RouteContent>} />
             <Route path="/privacy" element={<div className="privacy-page">
               {/* Keep the return control mounted while the policy body suspends. */}
-              <TaskHeader title="隐私政策" backTo="/drives" />
+              <TaskHeader title={t("privacy")} backTo="/drives" />
               <RouteContent showHeader={false}><PrivacyPage /></RouteContent>
             </div>} />
             <Route path="/diagnostics" element={<RouteContent><DiagnosticsPage /></RouteContent>} />
@@ -111,7 +114,12 @@ export function AppRoutes() {
 }
 
 function PageWithFooter() {
-  return <div className="page-with-footer"><Outlet />{["/", "/drives"].includes(useLocation().pathname) && <AppFooter />}</div>;
+  const { pathname } = useLocation();
+  const showsFooter = ["/", "/drives"].includes(pathname);
+  return <div className="page-with-footer"><Outlet />
+    {showsFooter && <AppFooter />}
+    {(showsFooter || pathname === "/user") && <div className="app-language-selector-row"><LanguageSelect /></div>}
+  </div>;
 }
 
 function RouteScrollReset() {

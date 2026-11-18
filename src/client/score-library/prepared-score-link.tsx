@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
 import { readerHref } from "../reader/reader-entry";
@@ -21,6 +22,7 @@ type OpenRequest = { cancel: () => void };
 let activeOpening: OpenRequest | null = null;
 type Props = Omit<ComponentProps<typeof ScoreLink>, "onOpen" | "children"> & { children: ReactNode | ((opening: boolean, percent: number | null) => ReactNode); score: ScoreSummary; sessionId: string | null; onOpen: (scrollY?: number) => void };
 export function PreparedScoreLink({ score, sessionId, children, ...props }: Props) {
+  const t = useMessages("library");
   const navigate = useNavigate();
   const guestOwner = useLiveQuery(async () => (await localDatabase.system.get(guestOwnerSystemKey(score.choirId)))?.value ?? null, [score.choirId]);
   const owner = props.userId ? authenticatedLocalOwnerKey(props.userId) : guestOwner as LocalWorkspaceOwnerKey | null;
@@ -84,7 +86,7 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
       void navigate(readerHref({ choirId: score.choirId, scoreId: score.id, experience: props.experience === true }));
     } catch (error) {
       if (!cancelled && activeOpening === current) setMessage(pdfFailureCategory(error) === "network"
-        ? "乐谱未能打开，请检查网络后重试。" : "乐谱未能打开，请稍后重试。", { duration: 8000 });
+        ? t("scoreOpenNetworkRetry") : t("scoreOpenRetry"), { duration: 8000 });
     } finally {
       if (!cancelled) release();
       if (activeOpening === current) activeOpening = null;
@@ -99,11 +101,11 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
         void open();
       }} onOpen={() => { activeOpening?.cancel(); props.onOpen(); }}>{typeof children === "function" ? children(opening, percent) : children}</ScoreLink>
     </div>
-    <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{opening ? `正在打开 ${props.label}` : ""}</span>
+    <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{opening ? t("scoreOpeningNamed", { name: props.label }) : ""}</span>
     {percent !== null && <span className="prepared-score-progress"><ScoreDownloadProgress percent={percent} /></span>}
-    {opening && <button type="button" className="prepared-score-cancel" aria-label={`取消打开 ${props.label}`} onClick={() => {
+    {opening && <button type="button" className="prepared-score-cancel" aria-label={t("scoreCancelOpeningNamed", { name: props.label })} onClick={() => {
       request.current?.cancel(); request.current = null; setOpening(false); container.current?.querySelector("a")?.focus();
-    }}>取消</button>}
-    <FeedbackMessage feedback={feedback} closeLabel="关闭打开提示" />
+    }}>{t("cancel")}</button>}
+    <FeedbackMessage feedback={feedback} closeLabel={t("scoreCloseOpenFeedback")} />
   </div>;
 }

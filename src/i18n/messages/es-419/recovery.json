@@ -1,0 +1,8 @@
+{
+  "title": "Same Page",
+  "unavailable": "Same Page no está disponible temporalmente",
+  "offline": "Conéctate a Internet y vuelve a intentarlo. El contenido guardado sigue en este dispositivo.",
+  "retry": "Volver a intentar",
+  "preparing": "Preparando una versión disponible…",
+  "failed": "No se pudo cambiar de versión. Conéctate a Internet, guarda los cambios de las otras ventanas y vuelve a intentarlo. El contenido guardado sigue en este dispositivo."
+}

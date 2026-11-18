@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useState } from 'react';
 import { ContinuousLayout, PageNavigatorPanel, type AnnotationPageProps } from '../reader/reader-layouts';
 import type { PDFDocumentProxy } from '../reader/pdf-document';
@@ -13,10 +14,11 @@ export function ComparisonPdf(props: Props) {
 }
 
 function ComparisonPdfContent({ active, document, initialPage, annotationProps }: Props) {
+  const t = useMessages("practice");
   // Keep the normal reader's page, zoom and stored layout independent of comparison.
   const [page, setPage] = useState(initialPage);
   const [zoom, setZoom] = useState(1);
-  return <section className="practice-comparison-pdf" data-visible={active || undefined} aria-label="对照原始 PDF" aria-hidden={!active} inert={!active}>
+  return <section className="practice-comparison-pdf" data-visible={active || undefined} aria-label={t("compareOriginalPdf")} aria-hidden={!active} inert={!active}>
     <PageNavigatorPanel document={document} currentPage={page} compact onSelect={setPage} />
     <div className="practice-comparison-pdf-stage">
       <ContinuousLayout document={document} currentPage={page} zoom={zoom}

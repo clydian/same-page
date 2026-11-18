@@ -1,7 +1,7 @@
 import * as at from '@coderline/alphatab';
 import { createPlaybackApi, preparePianoPlaybackMidi } from './engine.ts';
 import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
-import { playbackMeasureLabels } from './playback-measures.ts';
+import { playbackMeasureVisits, type PlaybackMeasureVisit } from './playback-measures.ts';
 import { playbackTempo } from './practice-tempo.ts';
 import { readMusicXmlTempoMeasures } from './musicxml-metronome.ts';
 
@@ -30,11 +30,17 @@ export type DocumentPlaybackApi = Omit<Native, 'boundsLookup' | 'renderer' | 'ti
   ensureMeasure(bar: at.model.MasterBar): void;
   captureView(): () => void;
   readonly isCollection: boolean;
-  readonly playbackLabels: string[];
+  readonly playbackVisits: PlaybackMeasureVisit[];
   sourceIndex(bar: at.model.MasterBar): number;
   tempoAt(tick: number): { bpm: number; unit: number };
   renderScores(scores: at.model.Score[], prepared: PreparedMusicXml[]): void;
 };
+
+export class CollectionPlaybackError extends Error {
+  constructor(readonly code: "opusPieceTimeout" | "opusEmptyPiece", message: string) {
+    super(message);
+  }
+}
 
 /** One native resource owner and one transport. A normal score keeps native rendering;
  * an opus supplies independent notation views and offsets into that same transport. */
@@ -44,7 +50,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
   let range: at.synth.PlaybackRange | null = null, looping = false, wantedPlaying = false;
   let cancelMidiLoad: (() => void) | undefined;
   let pending: { tick: number; resume: boolean } | null = null, switching = false, replyTick: number | null = null;
-  let globalBars: TickBar[] = [], labels: string[] = [], renderer: at.rendering.ScoreRenderer | null = null;
+  let globalBars: TickBar[] = [], visits: PlaybackMeasureVisit[] = [], renderer: at.rendering.ScoreRenderer | null = null;
   let animation = 0, rendering: Piece | null = null, cursorBeat: at.model.Beat | null = null, cursorRunning = false;
   const initialStyle = { height: element.style.height, position: element.style.position, overflowAnchor: element.style.overflowAnchor };
   const viewport = native.settings.player.scrollElement as HTMLElement;
@@ -140,7 +146,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
           await new Promise<void>((resolve, reject) => {
             let armed = false, off: () => void = () => {};
             const finish = () => { clearTimeout(timer); off(); cancelMidiLoad = undefined; resolve(); };
-            const timer = setTimeout(() => { off(); cancelMidiLoad = undefined; reject(new Error('准备曲目用时过长。')); }, 30_000);
+            const timer = setTimeout(() => { off(); cancelMidiLoad = undefined; reject(new CollectionPlaybackError('opusPieceTimeout', '准备曲目用时过长。')); }, 30_000);
             cancelMidiLoad = finish;
             off = player().midiLoaded.on(() => { if (armed) finish(); });
             armed = true; player().resetChannelStates(); player().loadMidiFile(piece.midi!);
@@ -310,7 +316,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
     get score() { return collection ? pieces[active]?.score ?? null : native.score; },
     get boundsLookup() { return collection ? bounds : native.boundsLookup; },
     get tickCache() { return collection ? { masterBars: globalBars, getBeatStart(beat: at.model.Beat) { const piece = sourcePiece.get(beat.voice.bar.staff.track.score)!; return piece.lookup!.getBeatStart(beat) + piece.tickOffset; } } : native.tickCache; },
-    get playbackLabels() { return labels; }, sourceIndex,
+    get playbackVisits() { return visits; }, sourceIndex,
     tempoAt(tick: number) { const index = collection ? Math.max(0, pieceAt(tick)) : 0, piece = pieces[index]; return playbackTempo(collection ? piece?.lookup?.masterBars ?? [] : native.tickCache?.masterBars ?? [], tick - (piece?.tickOffset ?? 0), piece?.prepared.tempoMeasures ?? []); },
     error, renderStarted: started, postRenderFinished: rendered, renderer: { partialRenderFinished: partial }, playerPositionChanged: position, scoreLoaded,
     get tickPosition() { return collection ? player().tickPosition - pieces[active].shift + pieces[active].tickOffset : native.tickPosition; },
@@ -323,7 +329,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
     pause() { if (!collection) { native.pause(); return; } wantedPlaying = false; if (pending) pending.resume = false; player().pause(); },
     render() { if (!collection) native.render(); else invalidateLayout(); },
     renderScores(scores: at.model.Score[], prepared: PreparedMusicXml[]) {
-      collection = scores.length > 1; labels = []; sourcePiece.clear();
+      collection = scores.length > 1; visits = []; sourcePiece.clear();
       let sourceOffset = 0;
       pieces = scores.map((score, index) => {
         const source = prepared[index];
@@ -338,11 +344,11 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
           if (disposed) return;
           const file = new at.midi.MidiFile(), handler = new at.midi.AlphaSynthMidiFileHandler(file), generator = new at.midi.MidiFileGenerator(piece.score, native.settings, handler);
           generator.applyTranspositionPitches = false; generator.generate(); preparePianoPlaybackMidi(piece.score, file, native.settings);
-          if (!generator.tickLookup.masterBars.length || !(generator.tickLookup.masterBars.at(-1)!.end > 0)) throw new Error('合集包含没有可播放小节的曲目。');
+          if (!generator.tickLookup.masterBars.length || !(generator.tickLookup.masterBars.at(-1)!.end > 0)) throw new CollectionPlaybackError('opusEmptyPiece', '合集包含没有可播放小节的曲目。');
           piece.lookup = generator.tickLookup; piece.midi = file; piece.shift = handler.tickShift; piece.transpositions = generator.transpositionPitches; piece.tickOffset = tickOffset;
           globalBars.push(...piece.lookup.masterBars.map(bar => Object.assign(Object.create(Object.getPrototypeOf(bar)), bar, { start: bar.start + tickOffset, end: bar.end + tickOffset })));
           const index = pieces.indexOf(piece);
-          labels.push(...playbackMeasureLabels(piece.lookup.masterBars.map(bar => `${index + 1}-${piece.prepared.measureLabels?.[bar.masterBar.index] ?? bar.masterBar.index + 1}`)));
+          visits.push(...playbackMeasureVisits(piece.lookup.masterBars.map(bar => `${index + 1}-${piece.prepared.measureLabels?.[bar.masterBar.index] ?? bar.masterBar.index + 1}`)));
           tickOffset += piece.lookup.masterBars.at(-1)?.end ?? 0; await yieldToBrowser();
         }
         await prepareViews();

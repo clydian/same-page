@@ -1,0 +1,11 @@
+{
+  "registrationSubject": "Il tuo codice di registrazione a Same Page",
+  "resetSubject": "Il tuo codice per reimpostare la password di Same Page",
+  "registrationIntro": "Stai completando la registrazione a Same Page su {site}.",
+  "resetIntro": "Stai reimpostando la password di Same Page su {site}.",
+  "codeLine": "Codice di verifica: {code}",
+  "expiry": "Il codice scade dopo 10 minuti. Non condividerlo con nessuno.",
+  "registrationUnexpected": "Se non hai richiesto il codice, ignora questa email. La registrazione non verrà completata.",
+  "resetUnexpected": "Se non hai richiesto il codice, ignora questa email. La password non verrà modificata.",
+  "codeLabel": "Codice di verifica:"
+}

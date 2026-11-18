@@ -1,13 +1,15 @@
+import { useMessages } from "../../i18n";
 import { Link } from "react-router-dom";
 import { TaskHeader } from "../components/task-header";
 
 export function NotFoundPage() {
+  const t = useMessages("entry");
   return (
     <div className="app-page">
-      <TaskHeader title="页面不存在" backTo="/drives" backBehavior="parent" />
+      <TaskHeader title={t("notFound.title")} backTo="/drives" backBehavior="parent" />
       <main className="page-shell compact-page">
-        <p>这个地址没有对应的页面，请返回我的云盘继续浏览。</p>
-        <Link className="primary-link" to="/drives">返回我的云盘</Link>
+        <p>{t("notFound.hint")}</p>
+        <Link className="primary-link" to="/drives">{t("notFound.action")}</Link>
       </main>
     </div>
   );

@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
 import { Camera, ImagePlus } from "lucide-react";
@@ -6,9 +7,10 @@ import { decodeInviteImage, decodeInviteQr } from "./invite-qr";
 import "./invite-scanner.css";
 
 export function InviteScanner({ onRead, disabled }: { onRead(code: string): void; disabled: boolean }) {
+  const t = useMessages("entry");
   const [scanning, setScanning] = useState(false);
   const [reading, setReading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<"scan.unrecognized" | "scan.cameraFeedError" | "scan.cameraError" | "scan.reading" | "scan.imageUnrecognized" | "scan.imageError" | "">("");
   const video = useRef<HTMLVideoElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const generation = useRef(0);
@@ -24,7 +26,7 @@ export function InviteScanner({ onRead, disabled }: { onRead(code: string): void
   const accept = useEffectEvent((text: string | null) => {
     if (disabled) return false;
     const code = text && readScannedInvite(text, window.location.origin);
-    if (!code) { setMessage("未识别到合谱邀请卡，请对准本站邀请卡二维码，或输入邀请码。"); return false; }
+    if (!code) { setMessage("scan.unrecognized"); return false; }
     setScanning(false); setMessage(""); onRead(code); return true;
   });
   useEffect(() => {
@@ -39,7 +41,7 @@ export function InviteScanner({ onRead, disabled }: { onRead(code: string): void
         if (value && accept(value)) { release(); return; }
         timer = setTimeout(() => void scan(), 300);
       } catch {
-        if (active) { setScanning(false); setMessage("无法读取相机画面，请从相册识别或输入邀请码。"); }
+        if (active) { setScanning(false); setMessage("scan.cameraFeedError"); }
         release();
       }
     }
@@ -53,7 +55,7 @@ export function InviteScanner({ onRead, disabled }: { onRead(code: string): void
         if (active) void scan(); else release();
       } catch {
         release();
-        if (active) { setScanning(false); setMessage("无法开启相机，请允许相机权限，或从相册识别、输入邀请码。"); }
+        if (active) { setScanning(false); setMessage("scan.cameraError"); }
       }
     })();
     return () => { active = false; clearTimeout(timer); release(); };
@@ -61,24 +63,24 @@ export function InviteScanner({ onRead, disabled }: { onRead(code: string): void
   async function readImage(file: File) {
     const current = ++generation.current;
     imageJob.current = current;
-    setReading(true); setScanning(false); setMessage("正在识别邀请卡…");
+    setReading(true); setScanning(false); setMessage("scan.reading");
     try {
       const value = await decodeInviteImage(file);
       if (generation.current !== current || blocked.current) return;
       const code = value && readScannedInvite(value, window.location.origin);
       if (code) { setMessage(""); currentHandler.current(code); }
-      else setMessage("图片中未识别到本站邀请卡，请重新选择或输入邀请码。");
+      else setMessage("scan.imageUnrecognized");
     } catch {
-      if (generation.current === current) setMessage("无法识别图片，请选择不超过 10 MB 的邀请卡图片，或输入邀请码。");
+      if (generation.current === current) setMessage("scan.imageError");
     } finally { if (imageJob.current === current) setReading(false); }
   }
   return <div className="invite-scanner">
     <div className="invite-scanner-actions">
-      <Button className="secondary-button" isDisabled={disabled || reading} onPress={() => { setMessage(""); setScanning(value => !value); }}><Camera size={18} aria-hidden="true" />{scanning ? "停止扫描" : "扫一扫"}</Button>
-      <Button className="secondary-button" isDisabled={disabled || reading} onPress={() => fileInput.current?.click()}><ImagePlus size={18} aria-hidden="true" />从相册识别</Button>
+      <Button className="secondary-button" isDisabled={disabled || reading} onPress={() => { setMessage(""); setScanning(value => !value); }}><Camera size={18} aria-hidden="true" />{scanning ? t("scan.stop") : t("scan.start")}</Button>
+      <Button className="secondary-button" isDisabled={disabled || reading} onPress={() => fileInput.current?.click()}><ImagePlus size={18} aria-hidden="true" />{t("scan.fromPhoto")}</Button>
     </div>
-    <input ref={fileInput} type="file" accept="image/*" aria-label="选择邀请卡图片" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void readImage(file); }} />
-    {scanning && !disabled && <video className="invite-scanner-video" ref={video} muted playsInline aria-label="邀请卡扫描画面" />}
-    {message && <p role="status">{message}</p>}
+    <input ref={fileInput} type="file" accept="image/*" aria-label={t("scan.chooseImage")} hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void readImage(file); }} />
+    {scanning && !disabled && <video className="invite-scanner-video" ref={video} muted playsInline aria-label={t("scan.camera")} />}
+    {message && <p role="status">{t(message)}</p>}
   </div>;
 }

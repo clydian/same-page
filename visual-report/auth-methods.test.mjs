@@ -22,7 +22,7 @@ for (const [name, engine, viewport] of [
   test(`${name}: password setup states fit the auth layout`, async t => {
     const browser = await engine.launch();
     t.after(() => browser.close());
-    const context = await browser.newContext({ viewport });
+    const context = await browser.newContext({ locale: "zh-CN", viewport });
     const page = await context.newPage();
     let flow = "set-password";
     let passwordSet = false;

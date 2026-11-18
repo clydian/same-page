@@ -9,7 +9,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`flat
  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});let browser;
  t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
  browser=await type.launch(engine==='chromium'&&process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{});
- const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'});
+ const context=await browser.newContext({ locale: "zh-CN", viewport:{width:390,height:844},serviceWorkers:'block'});
  await context.addInitScript(()=>{
   localStorage.setItem('reader-gesture-hint-seen','true');window.__opusAudio=[];
   const connect=AudioNode.prototype.connect;

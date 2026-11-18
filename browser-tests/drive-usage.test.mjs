@@ -11,7 +11,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     const browser = await engine.launch();
     t.after(() => browser.close());
     const login = async index => {
-      const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1194, height: 834 } });
+      const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: "block", viewport: { width: 1194, height: 834 } });
       const response = await context.request.post(`${f.origin}/api/auth/sign-in/email`, {
         headers: { origin: f.origin }, data: { email: f.accounts[index].email, password: f.accounts[index].password },
       });

@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages, type AppLocale } from "../../i18n";
 import { musicXmlFiles } from "../platform/musicxml-files";
 import { localDatabase, guestOwnerSystemKey } from "../platform/local-database";
 import { assertLocalWorkspaceActive, currentLocalOwnerKey, type LocalWorkspace, type LocalWorkspaceOwnerKey } from "../platform/local-workspace";
@@ -8,11 +9,12 @@ export async function captureOfflineFileFence(workspace: LocalWorkspace) {
     return JSON.stringify((await localDatabase.system.bulkGet(offlineFileFenceKeys(workspace))).map(row => row?.value ?? ""));
   });
 }
-export async function listLocalFiles() {
+export async function listLocalFiles(locale: AppLocale = getCurrentLocale()) {
   return localDatabase.transaction("r", [localDatabase.system, localDatabase.offlineScores, localDatabase.driveDirectories], async () => {
+    const t = getMessages(locale, "reader");
     const owner = await currentLocalOwnerKey();
     const directories = await localDatabase.driveDirectories.toArray();
-    const files = (await localDatabase.offlineScores.toArray()).map(file => ({ ...file, driveName: directories.find(drive => drive.ownerKey === file.ownerKey.replace(/^experience:/, "") && drive.choirId === file.choirId)?.choir.name ?? "云盘" }));
+    const files = (await localDatabase.offlineScores.toArray()).map(file => ({ ...file, driveName: directories.find(drive => drive.ownerKey === file.ownerKey.replace(/^experience:/, "") && drive.choirId === file.choirId)?.choir.name ?? t("drive") }));
     if (owner?.startsWith("user:")) return files.filter(file => file.ownerKey === owner || file.ownerKey === `experience:${owner}`);
     const guests = await localDatabase.system.bulkGet(files.map(file => guestOwnerSystemKey(file.choirId)));
     return files.filter((file, i) => file.ownerKey.replace(/^experience:/, "").startsWith("guest:") && guests[i]?.value === file.ownerKey.replace(/^experience:/, ""));

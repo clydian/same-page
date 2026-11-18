@@ -13,7 +13,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     let browser;
     t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
     browser = await engine.launch(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {});
-    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block', ignoreHTTPSErrors: true });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1280, height: 900 }, serviceWorkers: 'block', ignoreHTTPSErrors: true });
     const page = await context.newPage();
     const { origins, network } = fixture;
     await page.goto(origins.direct + '/login');

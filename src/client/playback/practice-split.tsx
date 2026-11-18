@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useElementSize } from '../reader/use-element-size';
 
@@ -13,6 +14,7 @@ function readRatio(ownerKey: string, direction: Direction) {
 
 // One measured frame supplies both PDF and XML bounds without remounting the player.
 export function PracticeSplit({ active, ownerKey }: { active: boolean; ownerKey: string }) {
+  const t = useMessages("practice");
   const frame = useRef<HTMLDivElement>(null);
   const size = useElementSize(frame);
   const direction: Direction = (size.width >= 1000 && size.width > size.height) || (size.width >= 640 && size.height < 460) ? 'columns' : 'rows';
@@ -42,12 +44,12 @@ export function PracticeSplit({ active, ownerKey }: { active: boolean; ownerKey:
       className="practice-split-handle"
       role="separator"
       tabIndex={0}
-      aria-label="调整对照比例（双击恢复均分）"
+      aria-label={t("compareRatio")}
       aria-orientation={direction === 'columns' ? 'vertical' : 'horizontal'}
       aria-valuemin={Math.round(minimum * 100)}
       aria-valuemax={Math.round((1 - minimum) * 100)}
       aria-valuenow={Math.round(ratio * 100)}
-      aria-valuetext={`原始 PDF ${Math.round(ratio * 100)}%，重排谱面 ${100 - Math.round(ratio * 100)}%`}
+      aria-valuetext={t("splitValues", { pdf: Math.round(ratio * 100), reflow: 100 - Math.round(ratio * 100) })}
       onDoubleClick={() => change(0.5)}
       onKeyDown={event => {
         const decrease = direction === 'columns' ? 'ArrowLeft' : 'ArrowUp';

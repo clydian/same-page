@@ -11,7 +11,7 @@ const engines = process.env.READER_TEST_CHROMIUM_ONLY ? {chromium} : {chromium, 
 for (const [name, engine] of Object.entries(engines)) test(`${name}: edits both visible pages without changing viewport and retains ownership through boundary, undo, text, drag and failed saves`, {timeout: 90000}, async t => {
   const browser = await engine.launch({headless: true, ...(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {})});
   t.after(() => browser.close());
-  const page = await browser.newPage({viewport: {width: 834, height: 700}, deviceScaleFactor: 2, hasTouch: true, serviceWorkers: 'block', reducedMotion: 'reduce'});
+  const page = await browser.newPage({ locale: "zh-CN", viewport: {width: 834, height: 700}, deviceScaleFactor: 2, hasTouch: true, serviceWorkers: 'block', reducedMotion: 'reduce'});
   await page.route('**/api/**', route => route.fulfill(resolveFixtureRequest({pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: 'guest', scenarioId: 'reader-controls-narrow', cookie: route.request().headers().cookie ?? ''})));
   await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
   await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score?experience=1`);

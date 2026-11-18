@@ -1,5 +1,6 @@
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
+import { useMessages } from "../../i18n";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 
@@ -8,6 +9,7 @@ import { RefreshCw } from "lucide-react";
 export function PullToRefresh({ children, onRefresh, disabled = false }: {
   children: ReactNode; onRefresh(): void | Promise<unknown>; disabled?: boolean;
 }) {
+  const t = useMessages("library");
   const container = useRef<HTMLDivElement>(null);
   const [distance, setDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -16,7 +18,7 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
   const refresh = useEffectEvent(async (signal: AbortSignal) => {
     setRefreshing(true); feedback.dismiss();
     try { await onRefresh(); }
-    catch { if (!signal.aborted) feedback.setMessage("列表未能刷新，请稍后重试。", { duration: 8000 }); }
+    catch { if (!signal.aborted) feedback.setMessage(t("pullRefreshListFailed"), { duration: 8000 }); }
     finally { if (!signal.aborted) setRefreshing(false); }
   });
   useEffect(() => {
@@ -67,7 +69,7 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
   }, []);
   return <div ref={container} className="pull-refresh-area">
     <div className="pull-refresh-status" data-refreshing={refreshing || undefined} style={{ height: refreshing ? 44 : distance }} role="status">
-      {(refreshing || distance > 0) && <><RefreshCw size={18} aria-hidden="true" /><span>{refreshing ? "正在刷新乐谱列表…" : distance >= 54 ? "松开刷新" : "下拉刷新"}</span></>}
+      {(refreshing || distance > 0) && <><RefreshCw size={18} aria-hidden="true" /><span>{refreshing ? t("pullToRefreshRefreshingSheetMusicList") : distance >= 54 ? t("pullToRefreshReleaseRefresh") : t("pullToRefreshPullDownRefresh")}</span></>}
     </div>
     <FeedbackMessage feedback={feedback} />
     {children}

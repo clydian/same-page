@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useInputVisibility } from "../platform/use-input-visibility";
 import { clearGuestSession } from "../auth/preview-guest-session";
 import { ArrowLeft, X } from "lucide-react";
@@ -34,6 +35,7 @@ export function JoinDrivePanel(props: Omit<JoinDriveProps, "open" | "onBack">) {
 }
 
 function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inline = false }: JoinDriveProps & { inline?: boolean }) {
+  const t = useMessages("entry");
   const viewportRef = useInputVisibility(inline ? "page" : "overlay");
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,7 +131,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
       if (!userId) {
         try { await activateGuestLocalOwner(result.choir.id, controller.signal); }
         catch {
-          if (!controller.signal.aborted) { setSubmitting(false); setJoinMessage("无法准备本机访客空间，请重试。"); }
+          if (!controller.signal.aborted) { setSubmitting(false); setJoinMessage(t("join.guestError")); }
           return;
         }
         if (generation !== entryLifetimeRef.current) return;
@@ -152,7 +154,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
 
   const enterLinkedDrive = useEffectEvent(() => {
     if (invitation?.code) void enterInviteDrive();
-    else setJoinMessage("邀请链接无效，请输入当前邀请码。");
+    else setJoinMessage(t("join.invalidLink"));
   });
 
   useEffect(() => {
@@ -196,31 +198,31 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
   const content = (close: () => void) => (
               <>
                 {!inline && <div className={onBack ? "dialog-heading dialog-heading--back" : "dialog-heading"}>
-                  {onBack && <Button className="icon-button" aria-label="返回切换云盘" onPress={close}><ArrowLeft size={20} aria-hidden="true" /></Button>}
+                  {onBack && <Button className="icon-button" aria-label={t("create.back")} onPress={close}><ArrowLeft size={20} aria-hidden="true" /></Button>}
                   <div>
                     {!onBack && <p className="dialog-eyebrow">合谱 · Same Page</p>}
                     <Heading slot="title">
                       {joinStep.kind === "invite"
-                        ? (userId ? "加入新云盘" : "进入云盘")
-                        : `加入「${joinStep.choir.name}」`}
+                        ? (userId ? t("join.newDrive") : t("home.enter"))
+                        : t("join.named", { name: joinStep.choir.name })}
                     </Heading>
                   </div>
-                  {!onBack && <Button className="icon-button" aria-label="关闭" onPress={close}>
+                  {!onBack && <Button className="icon-button" aria-label={t("join.close")} onPress={close}>
                     <X size={20} aria-hidden="true" />
                   </Button>}
                 </div>}
-                {inline && joinStep.kind === "display-name" && <h2>加入「{joinStep.choir.name}」</h2>}
+                {inline && joinStep.kind === "display-name" && <h2>{t("join.named", { name: joinStep.choir.name })}</h2>}
 
                 {joinStep.kind === "invite" ? (
                   <>
-                    {!inline && !userId ? <section className="membership-picker" aria-labelledby={membershipTitleId}><h3 id={membershipTitleId}>我已加入的云盘</h3><Link className="membership-login" to="/login" onClick={finishJoinDialog}>登录后查看</Link></section> : null}
+                    {!inline && !userId ? <section className="membership-picker" aria-labelledby={membershipTitleId}><h3 id={membershipTitleId}>{t("join.existing")}</h3><Link className="membership-login" to="/login" onClick={finishJoinDialog}>{t("join.loginToView")}</Link></section> : null}
 
                     <section
                       className="invite-section"
                       aria-labelledby={inline ? undefined : inviteTitleId}
-                      aria-label={inline ? "加入云盘" : undefined}
+                      aria-label={inline ? t("drive.join") : undefined}
                     >
-                      {!inline && <h3 id={inviteTitleId}>使用邀请卡或邀请码</h3>}
+                      {!inline && <h3 id={inviteTitleId}>{t("join.invitation")}</h3>}
                       {open && <InviteScanner disabled={submitting || clearingGuestSession || admissionPaused} onRead={code => { setJoinCode(code); void enterInviteDrive(undefined, code); }} />}
                       <Form
                         className="entry-form dialog-form"
@@ -243,7 +245,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                             admissionPaused
                           }
                         >
-                          {submitting || clearingGuestSession ? "正在验证…" : inline ? "进入云盘" : "进入"}
+                          {submitting || clearingGuestSession ? t("join.checking") : inline ? t("home.enter") : t("join.enterShort")}
                         </Button>
                       </Form>
                     </section>
@@ -251,7 +253,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                 ) : (
                   <section className="join-display-name">
                     <p className="dialog-copy">
-                      设置你在这个云盘中显示的名字。
+                      {t("join.setName")}
                     </p>
                     <Form className="entry-form dialog-form" onSubmit={joinValidatedDrive}>
                       <TextField
@@ -260,11 +262,11 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                         onChange={setDisplayName}
                         maxLength={40}
                       >
-                        <Label>显示名</Label>
-                        <Input autoComplete="nickname" placeholder="例如：小花" autoFocus />
+                        <Label>{t("join.displayName")}</Label>
+                        <Input autoComplete="nickname" placeholder={t("join.exampleName")} autoFocus />
                       </TextField>
                       <Button type="submit" isDisabled={submitting || admissionPaused}>
-                        {submitting ? "正在加入…" : "加入并进入"}
+                        {submitting ? t("join.submitting") : t("join.submit")}
                       </Button>
                       <Button
                         type="button"
@@ -277,7 +279,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                           setJoinMessage(null);
                         }}
                       >
-                        返回输入邀请码
+                        {t("join.return")}
                       </Button>
                     </Form>
                   </section>

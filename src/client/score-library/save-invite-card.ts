@@ -1,4 +1,6 @@
-export async function createInviteCardFile(svg: SVGSVGElement) {
+import { getCurrentLocale, getMessages, type AppLocale } from "../../i18n";
+export async function createInviteCardFile(svg: SVGSVGElement, locale: AppLocale = getCurrentLocale()) {
+  const t = getMessages(locale, "library");
   const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml;charset=utf-8" }));
   try {
     const image = new Image();
@@ -11,7 +13,7 @@ export async function createInviteCardFile(svg: SVGSVGElement) {
     if (!context) throw new Error("canvas_unavailable");
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("export_failed")), "image/png"));
-    return new File([blob], "Same-Page-邀请卡.png", { type: "image/png" });
+    return new File([blob], t("saveInviteCardSamePageInvitationCard"), { type: "image/png" });
   } finally {
     URL.revokeObjectURL(url);
   }

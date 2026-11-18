@@ -33,6 +33,8 @@ import {
 } from "../../shared/choirs";
 import { authClient } from "../auth/auth-client";
 import { AppHeader } from "../components/app-header";
+import { type AppLocale, useAppLocale, useMessages } from "../../i18n";
+import { LanguageSelect } from "../../i18n/language-select";
 
 type AuthView =
   | "identify"
@@ -51,6 +53,8 @@ type AuthView =
 const SOCIAL_EMAIL_DRAFT_KEY = "same-page:social-auth-email-draft";
 
 export default function AuthPage() {
+  const t = useMessages("entry");
+  const { locale } = useAppLocale();
   const authPageRef = useInputVisibility("page");
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,11 +68,15 @@ export default function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [joinChoir, setJoinChoir] = useState<ChoirSummary | null>(null);
   const [submitting, setSubmitting] = useState(initialOauthResult === "complete");
-  const [message, setMessage] = useState<string | null>(() =>
+  type RenderMessage = (translate: typeof t) => string;
+  const [message, setMessage] = useState<RenderMessage | null>(() =>
     initialOauthResult === "error"
-      ? "第三方登录没有完成，请重试或继续使用邮箱。"
+      ? (translate: typeof t) => translate("authOauthFailed")
       : null,
   );
+  const showMessage = useCallback((renderMessage: RenderMessage) => {
+    setMessage(() => renderMessage);
+  }, []);
   const [otpRetryAt, setOtpRetryAt] = useState(0);
   const [otpClock, setOtpClock] = useState(() => Date.now());
   const [socialProviders, setSocialProviders] = useState<SocialAuthProvider[]>([]);
@@ -134,27 +142,39 @@ export default function AuthPage() {
     };
   }, []);
 
+  const showPasswordValidation = () => showMessage(t =>
+    password.length < PASSWORD_POLICY.minLength
+      ? t("authPasswordMinimum", { min: PASSWORD_POLICY.minLength })
+      : password !== passwordConfirmation
+        ? t("authPasswordsMismatch")
+        : t("authPasswordRequirements"),
+  );
+
+  const resendButtonLabel = otpRetrySeconds > 0
+    ? t("authResendOtpCountdown", { seconds: otpRetrySeconds })
+    : t("authResendOtp");
+
   const identifyEmail = async (event: FormEvent) => {
     event.preventDefault();
     clearSocialEmailDraft();
     setSubmitting(true);
     setMessage(null);
-    const response = await postJson("/api/auth/flow", {
+    const response = await postJson(locale, "/api/auth/flow", {
       email: normalizedEmail(email),
     });
     setSubmitting(false);
     if (!response?.ok) {
-      setMessage(
+      showMessage(t =>
         response?.status === 429
-          ? "尝试次数过多，请稍后再试。"
-          : "暂时无法继续，请稍后再试。",
+          ? t("authRateLimited")
+          : t("authContinueFailed"),
       );
       return;
     }
 
     const parsed = authFlowResponseSchema.safeParse(await response.json());
     if (!parsed.success) {
-      setMessage("暂时无法继续，请稍后再试。");
+      showMessage(t => t("authContinueFailed"));
       return;
     }
     setHasGoogle(parsed.data.flow === "set-password" && parsed.data.hasGoogle);
@@ -171,7 +191,7 @@ export default function AuthPage() {
     });
     if (error) {
       setSubmitting(false);
-      setMessage("邮箱或密码不正确。");
+      showMessage(t => t("authInvalidCredentials"));
       return;
     }
     await finishAuthentication();
@@ -181,43 +201,43 @@ export default function AuthPage() {
   const signUp = async (event: FormEvent) => {
     event.preventDefault();
     if (!validPasswordConfirmation(password, passwordConfirmation)) {
-      setMessage(passwordValidationMessage(password, passwordConfirmation));
+      showPasswordValidation();
       return;
     }
 
     setSubmitting(true);
     setMessage(null);
-    const delivery = await postJson("/api/auth/registration/request-otp", {
+    const delivery = await postJson(locale, "/api/auth/registration/request-otp", {
       email: normalizedEmail(email),
     });
     setSubmitting(false);
     if (!delivery?.ok) {
       const retryAfter = delivery ? rememberOtpCooldown(delivery) : 0;
-      setMessage(
+      showMessage(t =>
         retryAfter > 0
-          ? `发送太频繁，请在 ${retryAfter} 秒后再试。`
-          : "暂时无法发送验证码，请稍后再试。",
+          ? t("authOtpRetry", { seconds: retryAfter })
+          : t("authOtpSendFailed"),
       );
       return;
     }
 
     rememberOtpCooldown(delivery);
     setView("verify-registration");
-    setMessage("验证码已经发送，请检查收件箱和垃圾邮件。");
+    showMessage(t => t("authOtpSent"));
   };
 
   const verifyRegistration = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setMessage(null);
-    const registration = await postJson("/api/auth/registration/complete", {
+    const registration = await postJson(locale, "/api/auth/registration/complete", {
       email: normalizedEmail(email),
       otp: otp.trim(),
       password,
     });
     if (!registration?.ok) {
       setSubmitting(false);
-      setMessage("验证码无效或已过期，请重新获取。");
+      showMessage(t => t("authOtpInvalid"));
       return;
     }
     await finishAuthentication();
@@ -227,17 +247,17 @@ export default function AuthPage() {
   const resendRegistrationOtp = async () => {
     setSubmitting(true);
     setMessage(null);
-    const delivery = await postJson("/api/auth/registration/request-otp", {
+    const delivery = await postJson(locale, "/api/auth/registration/request-otp", {
       email: normalizedEmail(email),
     });
     setSubmitting(false);
     const retryAfter = delivery ? rememberOtpCooldown(delivery) : 0;
-    setMessage(
+    showMessage(t =>
       !delivery?.ok
         ? retryAfter > 0
-          ? `发送太频繁，请在 ${retryAfter} 秒后再试。`
-          : "暂时无法发送验证码，请稍后再试。"
-        : "新的验证码已经发送。",
+          ? t("authOtpRetry", { seconds: retryAfter })
+          : t("authOtpSendFailed")
+        : t("authOtpResent"),
     );
   };
 
@@ -246,6 +266,7 @@ export default function AuthPage() {
     setSubmitting(true);
     setMessage(null);
     const delivery = await postJson(
+      locale,
       "/api/auth/email-otp/request-password-reset",
       {
         email: normalizedEmail(email),
@@ -254,40 +275,41 @@ export default function AuthPage() {
     setSubmitting(false);
     if (!delivery?.ok) {
       const retryAfter = delivery ? rememberOtpCooldown(delivery) : 0;
-      setMessage(
+      showMessage(t =>
         retryAfter > 0
-          ? `发送太频繁，请在 ${retryAfter} 秒后再试。`
-          : "暂时无法发送验证码，请稍后再试。",
+          ? t("authOtpRetry", { seconds: retryAfter })
+          : t("authOtpSendFailed"),
       );
       return;
     }
     rememberOtpCooldown(delivery);
     setView("reset-password");
-    setMessage("密码重置验证码已经发送。");
+    showMessage(t => t("authResetOtpSent"));
   };
 
   const resendPasswordResetOtp = async () => {
     setSubmitting(true);
     setMessage(null);
     const delivery = await postJson(
+      locale,
       "/api/auth/email-otp/request-password-reset",
       { email: normalizedEmail(email) },
     );
     setSubmitting(false);
     const retryAfter = delivery ? rememberOtpCooldown(delivery) : 0;
-    setMessage(
+    showMessage(t =>
       !delivery?.ok
         ? retryAfter > 0
-          ? `发送太频繁，请在 ${retryAfter} 秒后再试。`
-          : "暂时无法发送验证码，请稍后再试。"
-        : "新的密码重置验证码已经发送。",
+          ? t("authOtpRetry", { seconds: retryAfter })
+          : t("authOtpSendFailed")
+        : t("authResetOtpResent"),
     );
   };
 
   const requestFirstPasswordOtp = async () => {
     setSubmitting(true);
     setMessage(null);
-    const delivery = await postJson("/api/auth/email-otp/request-password-reset", {
+    const delivery = await postJson(locale, "/api/auth/email-otp/request-password-reset", {
       email: normalizedEmail(email),
     });
     setSubmitting(false);
@@ -298,18 +320,18 @@ export default function AuthPage() {
       setOtp("");
       setView("verify-password");
     }
-    setMessage(delivery?.ok
-      ? "验证码已经发送，请检查收件箱和垃圾邮件。"
+    showMessage(t => delivery?.ok
+      ? t("authOtpSent")
       : retryAfter > 0
-        ? `发送太频繁，请在 ${retryAfter} 秒后再试；已收到的验证码仍可使用。`
-        : "暂时无法发送验证码，请检查网络后重试。");
+        ? t("authOtpRetryAlreadySent", { seconds: retryAfter })
+        : t("authOtpSendNetworkError"));
   };
 
   const verifyFirstPasswordOtp = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setMessage(null);
-    const response = await postJson("/api/auth/email-otp/check-verification-otp", {
+    const response = await postJson(locale, "/api/auth/email-otp/check-verification-otp", {
       email: normalizedEmail(email), type: "forget-password", otp: otp.trim(),
     });
     setSubmitting(false);
@@ -317,22 +339,22 @@ export default function AuthPage() {
       setView("choose-password");
       return;
     }
-    setMessage(!response || response.status >= 500
-      ? "暂时无法验证，请检查网络后重试。"
+    showMessage(t => !response || response.status >= 500
+      ? t("authOtpVerifyNetworkError")
       : response.status === 429
-        ? "尝试次数过多，请稍后再试。"
-        : "验证码错误、已过期或尝试次数已用尽，请检查或重新获取。");
+        ? t("authRateLimited")
+        : t("authOtpInvalidOrLimit"));
   };
 
   const setFirstPassword = async (event: FormEvent) => {
     event.preventDefault();
     if (!validPasswordConfirmation(password, passwordConfirmation)) {
-      setMessage(passwordValidationMessage(password, passwordConfirmation));
+      showPasswordValidation();
       return;
     }
     setSubmitting(true);
     setMessage(null);
-    const response = await postJson("/api/auth/email-otp/reset-password", {
+    const response = await postJson(locale, "/api/auth/email-otp/reset-password", {
       email: normalizedEmail(email), otp: otp.trim(), password,
     });
     // If the response was lost, check the chosen password before retrying an
@@ -349,24 +371,24 @@ export default function AuthPage() {
         return;
       }
       setView("sign-in");
-      setMessage(response?.ok
-        ? "密码已设置，自动登录没有完成，请使用新密码登录。"
-        : "暂时无法确认密码是否已设置，请先尝试使用新密码登录；若未成功，可验证邮箱后重设密码。");
+      showMessage(t => response?.ok
+        ? t("authPasswordSetSignIn")
+        : t("authPasswordUnknown"));
       return;
     }
     setSubmitting(false);
     if (response.status === 429) {
-      setMessage("尝试次数过多，请稍后再试。");
+      showMessage(t => t("authRateLimited"));
       return;
     }
     setView("verify-password");
-    setMessage("验证码无效或已过期，请重新验证邮箱后设置密码。");
+    showMessage(t => t("authOtpInvalidForSetup"));
   };
 
   const resetPassword = async (event: FormEvent) => {
     event.preventDefault();
     if (!validPasswordConfirmation(password, passwordConfirmation)) {
-      setMessage(passwordValidationMessage(password, passwordConfirmation));
+      showPasswordValidation();
       return;
     }
 
@@ -379,7 +401,7 @@ export default function AuthPage() {
     });
     if (reset.error) {
       setSubmitting(false);
-      setMessage("验证码无效或已过期，密码没有改变。");
+      showMessage(t => t("authOtpInvalidNoReset"));
       return;
     }
 
@@ -390,7 +412,7 @@ export default function AuthPage() {
     if (login.error) {
       setSubmitting(false);
       setView("sign-in");
-      setMessage("密码已重设，请使用新密码登录。");
+      showMessage(t => t("authPasswordResetSignIn"));
       return;
     }
     await finishAuthentication();
@@ -425,9 +447,9 @@ export default function AuthPage() {
     } else if (result.kind === "display-name") {
       setJoinChoir(result.choir); setView("join-choir");
     } else {
-      setView("join-result"); setMessage(result.message);
+      setView("join-result"); showMessage(() => result.message);
     }
-  }, [navigate, entryLifetimeRef, returnTarget, returnPanel]);
+  }, [navigate, entryLifetimeRef, returnTarget, returnPanel, showMessage]);
 
   useEffect(() => {
     const oauthResult = new URLSearchParams(location.search).get("oauth");
@@ -442,16 +464,14 @@ export default function AuthPage() {
     void confirmAuthenticatedSession()
       .then(async (authenticated) => {
         if (!authenticated) {
-          setMessage(
-            "第三方登录没有建立有效会话，请重试或继续使用邮箱。",
-          );
+          showMessage(t => t("authOauthNoSession"));
           return;
         }
         clearSocialEmailDraft();
         await finishAuthentication();
       })
       .finally(() => setSubmitting(false));
-  }, [finishAuthentication, location.search, navigate]);
+  }, [finishAuthentication, location.search, navigate, showMessage]);
 
   const startSocialAuthentication = async (provider: SocialAuthProvider) => {
     setSubmitting(true);
@@ -464,7 +484,7 @@ export default function AuthPage() {
     });
     if (error) {
       setSubmitting(false);
-      setMessage("暂时无法开始第三方登录，请重试或继续使用邮箱。");
+      showMessage(t => t("authOauthStartFailed"));
     }
   };
 
@@ -490,7 +510,7 @@ export default function AuthPage() {
     setSubmitting(false);
     if (result.kind === "enter") await navigate(returnTarget?.startsWith(`/choirs/${result.choir.id}/`) ? returnTarget : `/choirs/${result.choir.id}`, { replace: Boolean(returnTarget), state: { readerReturnPanel: returnPanel } });
     else if (result.kind === "failed") {
-      setMessage(result.message);
+      showMessage(() => result.message);
       if (result.restart) { setJoinChoir(null); setView("join-result"); }
     }
   };
@@ -509,33 +529,33 @@ export default function AuthPage() {
     switch (view) {
       case "identify":
         return {
-          title: "登录或注册",
-          description: "输入邮箱，我们会自动进入登录或注册流程。",
+          title: t("authIdentify"),
+          description: t("authIdentifyDescription"),
           form: (
             <Form className="entry-form" onSubmit={identifyEmail}>
               <EmailField value={email} onChange={setEmail} autoFocus />
               <Button type="submit" isDisabled={submitting}>
-                {submitting ? "正在继续…" : "继续"}
+                {submitting ? t("authContinuing") : t("authContinue")}
               </Button>
             </Form>
           ),
         };
       case "sign-in":
         return {
-          title: "登录",
-          description: "使用密码登录合谱。",
+          title: t("authSignIn"),
+          description: t("authSignInDescription"),
           form: (
             <Form className="entry-form" onSubmit={signIn}>
               <EmailSummary email={email} />
               <PasswordField
-                label="密码"
+                label={t("authPassword")}
                 value={password}
                 onChange={setPassword}
                 autoComplete="current-password"
                 autoFocus
               />
               <Button type="submit" isDisabled={submitting}>
-                {submitting ? "正在登录…" : "登录"}
+                {submitting ? t("authSigningIn") : t("authSignIn")}
               </Button>
               <Button
                 type="button"
@@ -546,52 +566,52 @@ export default function AuthPage() {
                   setMessage(null);
                 }}
               >
-                忘记密码
+                {t("authForgotPassword")}
               </Button>
               <Button type="button" className="text-button" onPress={changeEmail}>
-                更换邮箱
+                {t("authChangeEmail")}
               </Button>
             </Form>
           ),
         };
       case "sign-up":
         return {
-          title: "注册",
-          description: "设置密码后，我们会发送验证码确认邮箱归属。",
+          title: t("authSignUp"),
+          description: t("authSignUpDescription"),
           form: (
             <Form className="entry-form" onSubmit={signUp}>
               <EmailSummary email={email} />
               <PasswordField
-                label={`密码（至少 ${PASSWORD_POLICY.minLength} 位）`}
+                label={t("authPasswordMinLabel", { min: PASSWORD_POLICY.minLength })}
                 value={password}
                 onChange={setPassword}
                 autoComplete="new-password"
                 autoFocus
               />
               <PasswordField
-                label="确认密码"
+                label={t("authConfirmPassword")}
                 value={passwordConfirmation}
                 onChange={setPasswordConfirmation}
                 autoComplete="new-password"
               />
               <Button type="submit" isDisabled={submitting}>
-                {submitting ? "正在发送…" : "发送验证码"}
+                {submitting ? t("authSendingOtp") : t("authSendOtp")}
               </Button>
               <Button type="button" className="text-button" onPress={changeEmail}>
-                更换邮箱
+                {t("authChangeEmail")}
               </Button>
             </Form>
           ),
         };
       case "verify-registration":
         return {
-          title: "验证邮箱",
-          description: `输入发送至 ${normalizedEmail(email)} 的验证码。`,
+          title: t("authVerifyEmail"),
+          description: t("authVerifyEmailDescription", { email: normalizedEmail(email) }),
           form: (
             <Form className="entry-form" onSubmit={verifyRegistration}>
               <OtpField value={otp} onChange={setOtp} autoFocus />
               <Button type="submit" isDisabled={submitting}>
-                {submitting ? "正在验证…" : "完成注册"}
+                {submitting ? t("authVerifyingOtp") : t("authCompleteSignUp")}
               </Button>
               <Button
                 type="button"
@@ -599,94 +619,94 @@ export default function AuthPage() {
                 isDisabled={submitting || otpRetrySeconds > 0}
                 onPress={() => void resendRegistrationOtp()}
               >
-                {resendButtonLabel(otpRetrySeconds)}
+                {resendButtonLabel}
               </Button>
               <Button type="button" className="text-button" onPress={changeEmail}>
-                更换邮箱
+                {t("authChangeEmail")}
               </Button>
             </Form>
           ),
         };
       case "set-password":
         return {
-          title: hasGoogle ? "使用 Google 登录" : "设置合谱密码",
+          title: hasGoogle ? t("authSignInGoogle") : t("authSetPassword"),
           description: hasGoogle
-            ? "你此前通过 Google 登录，尚未设置合谱密码"
-            : "你尚未设置合谱密码，验证邮箱后即可设置。",
+            ? t("authSetPasswordGoogleDescription")
+            : t("authSetPasswordDescription"),
           form: (
             <div className="entry-form">
               <EmailSummary email={email} />
               {hasGoogle && socialProviders.includes("google") ? (
                 <Button className="primary-button" isDisabled={submitting} onPress={() => void startSocialAuthentication("google")}>
-                  使用 Google 继续
+                  {t("authContinueGoogle")}
                 </Button>
               ) : null}
               <Button className={hasGoogle && socialProviders.includes("google") ? "secondary-button" : "primary-button"}
                 isDisabled={submitting} onPress={() => void requestFirstPasswordOtp()}>
-                {submitting ? "正在继续…" : "设置密码，以后用邮箱登录"}
+                {submitting ? t("authContinuing") : t("authSetPasswordForEmail")}
               </Button>
-              <Button className="text-button" isDisabled={submitting} onPress={changeEmail}>更换邮箱</Button>
+              <Button className="text-button" isDisabled={submitting} onPress={changeEmail}>{t("authChangeEmail")}</Button>
             </div>
           ),
         };
       case "verify-password":
         return {
-          title: "验证邮箱",
-          description: `输入发送至 ${normalizedEmail(email)} 的验证码，验证后设置合谱密码。`,
+          title: t("authVerifyEmail"),
+          description: t("authVerifySetPasswordDescription", { email: normalizedEmail(email) }),
           form: (
             <Form className="entry-form" onSubmit={verifyFirstPasswordOtp}>
               <OtpField value={otp} onChange={setOtp} autoFocus />
-              <Button type="submit" isDisabled={submitting}>{submitting ? "正在验证…" : "验证邮箱"}</Button>
+              <Button type="submit" isDisabled={submitting}>{submitting ? t("authVerifyingOtp") : t("authVerifyEmail")}</Button>
               <Button className="text-button" isDisabled={submitting || otpRetrySeconds > 0}
-                onPress={() => void requestFirstPasswordOtp()}>{resendButtonLabel(otpRetrySeconds)}</Button>
+                onPress={() => void requestFirstPasswordOtp()}>{resendButtonLabel}</Button>
               <Button className="text-button" isDisabled={submitting} onPress={() => {
                 setView("set-password"); setMessage(null); setOtp("");
-              }}>返回登录方式</Button>
-              <Button className="text-button" isDisabled={submitting} onPress={changeEmail}>更换邮箱</Button>
+              }}>{t("authBackSignInMethods")}</Button>
+              <Button className="text-button" isDisabled={submitting} onPress={changeEmail}>{t("authChangeEmail")}</Button>
             </Form>
           ),
         };
       case "choose-password":
         return {
-          title: "设置合谱密码",
+          title: t("authSetPassword"),
           description: hasGoogle
-            ? "邮箱已验证。请为合谱设置密码；此密码独立于 Google 密码。"
-            : "邮箱已验证。请为合谱设置密码。",
+            ? t("authChoosePasswordGoogleDescription")
+            : t("authChoosePasswordDescription"),
           form: (
             <Form className="entry-form" onSubmit={setFirstPassword}>
               <EmailSummary email={email} />
-              <PasswordField label={`密码（至少 ${PASSWORD_POLICY.minLength} 位）`} value={password}
+              <PasswordField label={t("authPasswordMinLabel", { min: PASSWORD_POLICY.minLength })} value={password}
                 onChange={setPassword} autoComplete="new-password" autoFocus />
-              <PasswordField label="确认密码" value={passwordConfirmation}
+              <PasswordField label={t("authConfirmPassword")} value={passwordConfirmation}
                 onChange={setPasswordConfirmation} autoComplete="new-password" />
-              <Button type="submit" isDisabled={submitting}>{submitting ? "正在设置…" : "设置密码并登录"}</Button>
+              <Button type="submit" isDisabled={submitting}>{submitting ? t("authSettingPassword") : t("authSetPasswordAndSignIn")}</Button>
               <Button className="text-button" isDisabled={submitting} onPress={() => {
                 setView("verify-password"); setMessage(null); setPassword(""); setPasswordConfirmation("");
-              }}>返回验证邮箱</Button>
-              <Button className="text-button" isDisabled={submitting} onPress={changeEmail}>更换邮箱</Button>
+              }}>{t("authBackVerifyEmail")}</Button>
+              <Button className="text-button" isDisabled={submitting} onPress={changeEmail}>{t("authChangeEmail")}</Button>
             </Form>
           ),
         };
       case "password-set":
         return {
-          title: "密码已设置",
+          title: t("authPasswordSet"),
           description: hasGoogle
-            ? "密码已设置，以后可以使用邮箱密码或 Google 登录"
-            : "密码已设置，以后可以使用邮箱密码登录",
+            ? t("authPasswordSetGoogleDescription")
+            : t("authPasswordSetDescription"),
           form: <Button className="primary-button auth-primary-link" isDisabled={submitting} onPress={() => {
             setSubmitting(true);
             void finishAuthentication().finally(() => setSubmitting(false));
-          }}>继续</Button>,
+          }}>{t("authContinue")}</Button>,
         };
       case "request-reset":
         return {
-          title: "忘记密码",
-          description: "我们会向这个邮箱发送密码重置验证码。",
+          title: t("authForgotPassword"),
+          description: t("authRequestResetDescription"),
           form: (
             <Form className="entry-form" onSubmit={requestPasswordReset}>
               <EmailSummary email={email} />
               <Button type="submit" isDisabled={submitting}>
-                {submitting ? "正在发送…" : "发送密码重置验证码"}
+                {submitting ? t("authSendingOtp") : t("authSendResetOtp")}
               </Button>
               <Button
                 type="button"
@@ -696,33 +716,33 @@ export default function AuthPage() {
                   setMessage(null);
                 }}
               >
-                返回登录
+                {t("authBackSignIn")}
               </Button>
             </Form>
           ),
         };
       case "reset-password":
         return {
-          title: "重设密码",
-          description: "验证成功后，旧密码和其他登录会话将立即失效。",
+          title: t("authResetPassword"),
+          description: t("authResetPasswordDescription"),
           form: (
             <Form className="entry-form" onSubmit={resetPassword}>
               <EmailSummary email={email} />
               <OtpField value={otp} onChange={setOtp} autoFocus />
               <PasswordField
-                label={`新密码（至少 ${PASSWORD_POLICY.minLength} 位）`}
+                label={t("authNewPasswordMinLabel", { min: PASSWORD_POLICY.minLength })}
                 value={password}
                 onChange={setPassword}
                 autoComplete="new-password"
               />
               <PasswordField
-                label="确认新密码"
+                label={t("authConfirmNewPassword")}
                 value={passwordConfirmation}
                 onChange={setPasswordConfirmation}
                 autoComplete="new-password"
               />
               <Button type="submit" isDisabled={submitting}>
-                {submitting ? "正在重设…" : "重设密码并登录"}
+                {submitting ? t("authResettingPassword") : t("authResetPasswordAndSignIn")}
               </Button>
               <Button
                 type="button"
@@ -730,15 +750,15 @@ export default function AuthPage() {
                 isDisabled={submitting || otpRetrySeconds > 0}
                 onPress={() => void resendPasswordResetOtp()}
               >
-                {resendButtonLabel(otpRetrySeconds)}
+                {resendButtonLabel}
               </Button>
             </Form>
           ),
         };
       case "join-choir":
         return {
-          title: "加入云盘",
-          description: `认证已完成。请设置你在“${joinChoir?.name ?? "这个云盘"}”中的显示名。`,
+          title: t("authJoinDrive"),
+          description: t("authJoinDriveDescription", { drive: joinChoir?.name ?? t("authThisDrive") }),
           form: (
             <Form className="entry-form" onSubmit={joinCurrentGuestChoir}>
               <TextField
@@ -747,27 +767,27 @@ export default function AuthPage() {
                 onChange={setDisplayName}
                 maxLength={40}
               >
-                <Label>显示名</Label>
+                <Label>{t("authDisplayName")}</Label>
                 <Input
                   autoComplete="nickname"
-                  placeholder="例如：小花"
+                  placeholder={t("authDisplayNameExample")}
                   autoFocus
                 />
-                <FieldError />
+                <AuthFieldError maxLength={40} />
               </TextField>
               <Button type="submit" isDisabled={submitting}>
-                {submitting ? "正在加入…" : "加入并进入"}
+                {submitting ? t("authJoiningDrive") : t("authJoinAndEnter")}
               </Button>
             </Form>
           ),
         };
       case "join-result":
         return {
-          title: "登录完成",
-          description: "你已经登录，但本次加入云盘没有完成。",
+          title: t("authSignedIn"),
+          description: t("authJoinFailedDescription"),
           form: (
-            <><Button isDisabled={submitting} onPress={() => void finishAuthentication()}>重试继续加入</Button>
-            <Button className="secondary-button" onPress={() => void cancelEntry()}>取消并返回云盘列表</Button></>
+            <><Button isDisabled={submitting} onPress={() => void finishAuthentication()}>{t("authRetryJoin")}</Button>
+            <Button className="secondary-button" onPress={() => void cancelEntry()}>{t("authCancelToDriveList")}</Button></>
           ),
         };
     }
@@ -777,12 +797,12 @@ export default function AuthPage() {
     <div ref={authPageRef} className="app-page auth-page">
       <AppHeader
         actions={
-          <Button className="header-action" onPress={() => void cancelEntry()}>{returnTarget ? "继续只读浏览" : "返回首页"}</Button>
+          <Button className="header-action" onPress={() => void cancelEntry()}>{returnTarget ? t("authContinueReadOnly") : t("authBackHome")}</Button>
         }
       />
       <main className="auth-layout">
         <section className="auth-card" aria-labelledby="auth-title">
-          <p className="dialog-eyebrow">合谱 · Same Page</p>
+          <p className="dialog-eyebrow">{t("authBrand")}</p>
           <h1 id="auth-title" ref={titleRef} tabIndex={-1}>
             {viewPanel.title}
           </h1>
@@ -799,9 +819,10 @@ export default function AuthPage() {
 
           {message ? (
             <p className="form-message" role="status">
-              {message}
+              {message(t)}
             </p>
           ) : null}
+          <div className="auth-language-control"><LanguageSelect /></div>
         </section>
       </main>
     </div>
@@ -813,17 +834,18 @@ function SocialAuthOptions(props: {
   disabled: boolean;
   onContinue(provider: SocialAuthProvider): void;
 }) {
+  const t = useMessages("entry");
   return (
     <section className="social-auth-options" aria-labelledby="social-auth-label">
       <div className="social-auth-divider">
-        <span id="social-auth-label">其他登录方式</span>
+        <span id="social-auth-label">{t("authOtherSignInMethods")}</span>
       </div>
       <div className="social-auth-buttons">
         {props.providers.includes("google") ? (
           <Button
             type="button"
             className="social-auth-button"
-            aria-label="使用 Google 继续"
+            aria-label={t("authContinueGoogle")}
             isDisabled={props.disabled}
             onPress={() => props.onContinue("google")}
           >
@@ -899,6 +921,7 @@ function EmailField(props: {
   onChange: (value: string) => void;
   autoFocus?: boolean;
 }) {
+  const t = useMessages("entry");
   return (
     <TextField
       isRequired
@@ -906,20 +929,21 @@ function EmailField(props: {
       value={props.value}
       onChange={props.onChange}
     >
-      <Label>邮箱</Label>
+      <Label>{t("authEmail")}</Label>
       <Input
         autoComplete="email"
-        placeholder="name@example.com"
+        placeholder={t("authEmailExample")}
         autoFocus={props.autoFocus}
       />
-      <FieldError />
+      <AuthFieldError />
     </TextField>
   );
 }
 
 function EmailSummary({ email }: { email: string }) {
+  const t = useMessages("entry");
   return (
-    <p className="auth-email" aria-label={`邮箱：${normalizedEmail(email)}`}>
+    <p className="auth-email" aria-label={t("authEmailSummary", { email: normalizedEmail(email) })}>
       {normalizedEmail(email)}
     </p>
   );
@@ -943,7 +967,7 @@ function PasswordField(props: {
     >
       <Label>{props.label}</Label>
       <Input autoComplete={props.autoComplete} autoFocus={props.autoFocus} />
-      <FieldError />
+      <AuthFieldError minLength={PASSWORD_POLICY.minLength} maxLength={PASSWORD_POLICY.maxLength} />
     </TextField>
   );
 }
@@ -953,6 +977,7 @@ function OtpField(props: {
   onChange: (value: string) => void;
   autoFocus?: boolean;
 }) {
+  const t = useMessages("entry");
   return (
     <TextField
       isRequired
@@ -961,15 +986,15 @@ function OtpField(props: {
       minLength={6}
       maxLength={6}
     >
-      <Label>六位验证码</Label>
+      <Label>{t("authOtp")}</Label>
       <Input
         autoComplete="one-time-code"
         inputMode="numeric"
         pattern="[0-9]{6}"
-        placeholder="000000"
+        placeholder={t("authOtpExample")}
         autoFocus={props.autoFocus}
       />
-      <FieldError />
+      <AuthFieldError otp />
     </TextField>
   );
 }
@@ -978,17 +1003,28 @@ function normalizedEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function resendButtonLabel(retrySeconds: number) {
-  return retrySeconds > 0
-    ? `重新发送验证码（${retrySeconds} 秒）`
-    : "重新发送验证码";
+function AuthFieldError({ otp, minLength, maxLength }: {
+  otp?: boolean;
+  minLength?: number;
+  maxLength?: number;
+}) {
+  const t = useMessages("entry");
+
+  return <FieldError>{({ validationDetails: validity }) => {
+    if (validity.valueMissing) return t("authFieldRequired");
+    if (validity.typeMismatch) return t("authEmailInvalid");
+    if (otp) return t("authOtpDigits");
+    if (validity.tooShort && minLength !== undefined) return t("authPasswordMinimum", { min: minLength });
+    if (validity.tooLong && maxLength !== undefined) return t("authFieldTooLong", { max: maxLength });
+    return t("authFieldInvalid");
+  }}</FieldError>;
 }
 
-async function postJson(path: string, body: unknown) {
+async function postJson(locale: AppLocale, path: string, body: unknown) {
   try {
     return await diagnosticFetch(path, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "accept-language": locale },
       body: JSON.stringify(body),
     });
   } catch {
@@ -1001,12 +1037,4 @@ function validPasswordConfirmation(password: string, confirmation: string) {
     password.length >= PASSWORD_POLICY.minLength &&
     password.length <= PASSWORD_POLICY.maxLength && password === confirmation
   );
-}
-
-function passwordValidationMessage(password: string, confirmation: string) {
-  return password.length < PASSWORD_POLICY.minLength
-    ? `密码至少需要 ${PASSWORD_POLICY.minLength} 位。`
-    : password !== confirmation
-      ? "两次输入的密码不一致。"
-      : "密码不符合要求。";
 }

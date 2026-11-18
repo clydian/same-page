@@ -41,6 +41,7 @@ async function scenario(t, fixture, engine, browserType, name, run) {
     const nativeTabBrowser = engine === "chromium" ? { channel: "chromium" } : {};
     const executablePath = engine === "chromium" ? process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH : undefined;
     context = await browserType.launchPersistentContext(profile, {
+      locale: "zh-CN",
       headless: true, ...nativeTabBrowser, ...(executablePath ? { executablePath } : {}),
       viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "allow",
     });

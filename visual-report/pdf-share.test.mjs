@@ -9,7 +9,7 @@ test("PDF generation separates sharing activation, preserves cancelled files, an
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const context = await browser.newContext({ viewport: { width: 820, height: 1180 }, serviceWorkers: "block" });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 820, height: 1180 }, serviceWorkers: "block" });
   const fixture = createVisualFixtureSession();
   await context.route("**/api/**", route => route.fulfill(fixture.resolve({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "admin", cookie: "", body: route.request().postDataJSON() })));
   await context.addInitScript(() => {
@@ -62,7 +62,7 @@ for (const blockedLayerRequest of [1, 2]) test(`changed choices finish while obs
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const context = await browser.newContext({ serviceWorkers: "block" });
+  const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: "block" });
   const fixture = createVisualFixtureSession();
   let blockLayers = false;
   let layerRequests = 0;

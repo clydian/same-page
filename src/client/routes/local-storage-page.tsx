@@ -1,5 +1,6 @@
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
+import { useAppLocale, useMessages } from "../../i18n";
 import { createLocalWorkspace } from "../platform/local-workspace";
 import { useOfflineScore } from "../offline/use-offline-score";
 import { useApplicationIdentity } from "../auth/application-identity";
@@ -16,11 +17,13 @@ import { clearLocalFiles, listLocalFiles, type LocalFileScope } from "../offline
 import { formatBytes } from "../score-library/library-format";
 
 export default function LocalStoragePage() {
+  const { locale } = useAppLocale();
+  const t = useMessages("library");
   const { choirId = "" } = useParams();
   const identity = useApplicationIdentity();
   const directory = useLiveQuery(() => identity.localUserId ? localDatabase.driveDirectories.where("[ownerKey+choirId]").equals([`user:${identity.localUserId}`, choirId]).first() : undefined, [identity.localUserId, choirId]);
   const [revision, refresh] = useState(0);
-  const files = useLiveQuery(() => listLocalFiles().then(files => files.filter(file => file.choirId === choirId)).catch(() => null), [revision, choirId]);
+  const files = useLiveQuery(() => listLocalFiles(locale).then(files => files.filter(file => file.choirId === choirId)).catch(() => null), [revision, choirId, locale]);
   const [selection, setSelection] = useState<{ label: string; scopes: LocalFileScope[] } | null>(null);
   const [retrySelection, setRetrySelection] = useState<typeof selection>(null);
   const [busy, setBusy] = useState(false);
@@ -36,32 +39,33 @@ export default function LocalStoragePage() {
     for (const scope of selection.scopes) {
       try { bytes += await clearLocalFiles(scope); } catch { failures.push(scope); }
     }
-    setRetrySelection(failures.length ? { label: "上次未完成清理的谱面", scopes: failures } : null);
-    setMessage(failures.length ? `已清理 ${formatBytes(bytes)}；${failures.length} 项未完成，请重试。` : `已清理 ${formatBytes(bytes)} 本机谱面文件。`, failures.length ? undefined : { duration: 5000 });
+    setRetrySelection(failures.length ? { label: t("localStorageBeatsThatNotCleaned"), scopes: failures } : null);
+    setMessage(failures.length ? t("localStorageCleanedItemsNotCompleted", { bytes: String(formatBytes(bytes)), length: String(failures.length) }) : t("localStorageCleanedNativeBeatFiles", { bytes: String(formatBytes(bytes)) }), failures.length ? undefined : { duration: 5000 });
     setBusy(false); setSelection(null);
   };
-  return <div className="app-page"><TaskHeader title={"本机存储"} backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page settings-ux">
-    <header className="settings-heading"><p>{files?.[0]?.driveName ?? directory?.choir.name ?? "当前云盘"} · 这台设备</p></header>
-    <p>清理仅移除这台设备上的谱面，云端乐谱和笔记保留。</p>
-    {files === null ? <p role="alert">无法读取本机文件。<Button onPress={() => refresh(value => value + 1)}>重试</Button></p> : files === undefined ? <p role="status">正在统计本机文件…</p> : <>
-      {files.length === 0 && <p className="library-empty-state">此云盘尚无本机谱面文件。</p>}
-      <p className="local-storage-summary">{formatBytes(totalBytes)} <small>· {new Set(files.map(file => file.scoreId)).size} 份乐谱</small></p>
-      {files.length > 0 && <Button className="secondary-button" onPress={() => setSelection({ label: "本云盘的全部本机谱面文件", scopes })}>清理全部 · 可释放 {formatBytes(totalBytes)}</Button>}
+  return <div className="app-page"><TaskHeader title={t("localStorageLocalStorage")} backTo={`/choirs/${choirId}`} /><main className="page-shell settings-page settings-ux">
+    <header className="settings-heading"><p>{t("localStorageDriveOnDevice", { name: files?.[0]?.driveName ?? directory?.choir.name ?? t("localStorageCurrentCloudDisk") })}</p></header>
+    <p>{t("localStorageCleaningOnlyRemoveMusic")}</p>
+    {files === null ? <p role="alert">{t("localStorageUnableReadLocalFile")}<Button onPress={() => refresh(value => value + 1)}>{t("retry")}</Button></p> : files === undefined ? <p role="status">{t("localStorageCountingLocalFiles")}</p> : <>
+      {files.length === 0 && <p className="library-empty-state">{t("localStorageThereNoLocalMusic")}</p>}
+      <p className="local-storage-summary">{formatBytes(totalBytes)} <small>{t("localStorageScoreCount", { count: new Set(files.map(file => file.scoreId)).size })}</small></p>
+      {files.length > 0 && <Button className="secondary-button" onPress={() => setSelection({ label: t("localStorageAllLocalBeatFiles"), scopes })}>{t("localStorageCleanAllCapacity", { bytes: formatBytes(totalBytes) })}</Button>}
       <ul className="local-file-list">{files.map(file => <LocalFileRow key={file.key} file={file} currentVersionId={directory?.scores.find(score => score.id === file.scoreId)?.currentVersion.id} onClear={() => setSelection({ label: file.fileName, scopes: [{ ownerKey: file.ownerKey, choirId: file.choirId, scoreId: file.scoreId }] })} />)}</ul>
     </>}
-    <FeedbackMessage feedback={feedback} />{retrySelection && <Button className="secondary-button" onPress={() => setSelection(retrySelection)}>重试未完成清理</Button>}
+    <FeedbackMessage feedback={feedback} />{retrySelection && <Button className="secondary-button" onPress={() => setSelection(retrySelection)}>{t("localStorageRetryingButNotCompleting")}</Button>}
     <ModalOverlay className="modal-overlay" isOpen={Boolean(selection)} onOpenChange={open => { if (!open && !busy) setSelection(null); }} isDismissable={!busy}><Modal className="app-modal"><Dialog className="app-dialog" exitDisabled={busy}>
-      <Heading slot="title">清理本机文件</Heading><p>只清理已下载的 PDF 和图片。云端文件、云盘目录、个人草稿、待同步操作和冲突均保留，也不退出登录。</p><p>清理{selection?.label}？当前阅读可继续，离线重新打开将不可用。</p>
-      <Button className="secondary-button" isDisabled={busy} onPress={() => setSelection(null)}>取消</Button><Button className="primary-button" isDisabled={busy} onPress={() => void clear()}>{busy ? "正在清理…" : "确认清理"}</Button>
+      <Heading slot="title">{t("localStorageCleanUpLocalFiles")}</Heading><p>{t("localStorageOnlyCleanDownloadedPdfs")}</p><p>{selection && t("localStorageConfirmScope", { scope: selection.label })}</p>
+      <Button className="secondary-button" isDisabled={busy} onPress={() => setSelection(null)}>{t("cancel")}</Button><Button className="primary-button" isDisabled={busy} onPress={() => void clear()}>{busy ? t("localStorageCleaningUp") : t("localStorageConfirmCleanup")}</Button>
     </Dialog></Modal></ModalOverlay>
   </main></div>;
 }
 
 function LocalFileRow({ file, currentVersionId, onClear }: { currentVersionId?: string; file: Awaited<ReturnType<typeof listLocalFiles>>[number]; onClear(): void }) {
+  const t = useMessages("library");
   const workspace = createLocalWorkspace(file.ownerKey, file.choirId, file.scoreId);
   const offline = useOfflineScore(workspace);
-  const status = !offline ? "正在校验…" : offline.readFailed ? "校验失败，请重新打开重试" : offline.record?.key === file.key ? currentVersionId && file.versionId !== currentVersionId ? "需更新 · 已保存旧版" : "可离线" : "副本不可用，需重新下载";
+  const status = !offline ? t("localStorageVerifying") : offline.readFailed ? t("localStorageVerificationFailedReopenTry") : offline.record?.key === file.key ? currentVersionId && file.versionId !== currentVersionId ? t("localStorageNeedsUpdateOldVersion") : t("localStorageAvailableOffline") : t("localStorageCopyNotAvailableNeeds");
   return <li className="local-file-row"><div><FileOpenLink to={`/choirs/${file.choirId}/scores/${file.scoreId}${file.ownerKey.startsWith("experience:") ? "?experience=1" : ""}`}>{scoreDisplayName(file.fileName)}</FileOpenLink>
     <p>{formatBytes(file.blob.size)} · {status}</p></div>
-    <Button className="text-button" onPress={onClear} aria-label={`移除 ${scoreDisplayName(file.fileName)} 的离线副本`}>清理</Button></li>;
+    <Button className="text-button" onPress={onClear} aria-label={t("localStorageRemoveOfflineCopy", { name: String(scoreDisplayName(file.fileName)) })}>{t("localStorageCleanup")}</Button></li>;
 }

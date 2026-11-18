@@ -5,8 +5,8 @@ import { requestWorker } from './worker-request';
 import { canApplyUpdate } from "./update-safety";
 import { setUpdateStatus, type UpdatePhase, type UpdateStatus } from "./update-status";
 
-const prepared = "更新已准备好";
-const blocked = "请先在其他合谱窗口完成操作并返回文件库，或关闭那些窗口，再重试";
+const prepared = "updateController.prepared";
+const blocked = "updateController.otherWindows";
 
 // One lifetime owns checks, installation observation and the explicit handover.
 // Disposing it fences promises, worker events, message ports and timers together.
@@ -37,7 +37,7 @@ export class UpdateController {
   start() {
     navigator.serviceWorker?.addEventListener?.('message', this.progressMessage);
     if (!("serviceWorker" in navigator)) {
-      this.show("unsupported", "当前浏览器不支持应用内更新，请关闭页面后重新打开");
+      this.show("unsupported", "updateController.unsupported");
     } else if (this.registration) {
       this.registration.addEventListener("updatefound", this.updateFound);
       if (this.registration.installing) this.observe(this.registration.installing);
@@ -46,28 +46,28 @@ export class UpdateController {
     } else if (!navigator.onLine) {
       this.registrationError = true;
       this.schedule.failed();
-      this.show("offline", "当前离线，联网后可重试；当前版本仍可使用");
+      this.show("offline", "updateController.offline");
     } else if (this.registrationError) {
-      this.failedCheck("更新检查准备失败，请重试");
+      this.failedCheck("updateController.registrationFailed");
     } else {
-      this.show("registering", "正在准备更新检查…");
+      this.show("registering", "updateController.registering");
       this.checkTimer = setTimeout(() => {
         this.registrationError = true;
-        this.failedCheck("更新检查尚未准备好，请重试");
+        this.failedCheck("updateController.registrationTimeout");
       }, 30000);
     }
   }
 
-  private show(phase: UpdatePhase, message: string) {
+  private show(phase: UpdatePhase, messageKey: string) {
     if (this.disposed) return;
     if ((phase !== "ready" && phase !== "applying") || this.deferred?.worker !== this.registration?.waiting) this.deferred = undefined;
     this.phase = phase;
-    setUpdateStatus({ phase, message, ...(this.initialInstall ? {initialInstall:true} : {}), ...((phase === "preparing" || phase === "current" && this.initialInstall) && this.progress ? {progress:this.progress} : {}), ...(this.deferred ? { deferred: this.deferred } : {}) });
+    setUpdateStatus({ phase, message: "", messageKey, ...(this.initialInstall ? {initialInstall:true} : {}), ...((phase === "preparing" || phase === "current" && this.initialInstall) && this.progress ? {progress:this.progress} : {}), ...(this.deferred ? { deferred: this.deferred } : {}) });
   }
 
-  private failedCheck(message: string) {
+  private failedCheck(messageKey: string) {
     this.schedule.failed();
-    this.show(this.registration?.waiting ? "ready" : "error", this.registration?.waiting ? prepared : message);
+    this.show(this.registration?.waiting ? "ready" : "error", this.registration?.waiting ? prepared : messageKey);
   }
 
   private endCheck() {
@@ -96,15 +96,15 @@ export class UpdateController {
         this.endCheck();
         this.stopWorker?.(); this.worker = undefined;
         clearTimeout(this.installTimer);
-        this.failedCheck("更新准备失败，请重试；当前版本仍可使用");
+        this.failedCheck("updateController.preparationFailed");
       } else if (worker.state === "installed" || worker.state === "activated") {
         this.endCheck();
         clearTimeout(this.installTimer);
         this.schedule.succeeded();
         if (this.registration?.waiting) this.show("ready", prepared);
-        else this.show("current", "检查完成，当前版本继续运行");
+        else this.show("current", "updateController.current");
       } else {
-        this.show("preparing", "正在准备更新…，可以继续使用");
+        this.show("preparing", "updateController.preparing");
       }
     };
     worker.addEventListener("statechange", changed);
@@ -114,7 +114,7 @@ export class UpdateController {
       // This is feedback, not a worker deadline: final verification, storage
       // and a quota-recovery attempt may still be running. Keep observing it.
       this.slowPreparation = true;
-      this.show("preparing", "更新准备较慢，仍在后台进行，可以继续使用");
+      this.show("preparing", "updateController.slow");
     }, shellDownloadTimeoutMs);
     changed();
     void requestWorker(worker, {type:'SAME_PAGE_INSTALL_PROGRESS'}).then(value => this.acceptProgress(worker, value));
@@ -130,17 +130,17 @@ export class UpdateController {
     if (initialCompleted && progress?.stage !== 'ready') return;
     if (!progress || this.progress && (progress.buildId !== this.progress.buildId || progress.sequence <= this.progress.sequence)) return;
     this.progress = progress;
-    if (initialCompleted) this.show('current', '应用和播放器资源已准备好。');
-    else this.show('preparing', this.slowPreparation ? '更新准备较慢，仍在后台进行，可以继续使用' : this.initialInstall ? '正在准备离线资源，可以继续使用合谱。' : '正在准备更新…，可以继续使用');
+    if (initialCompleted) this.show('current', "updateController.offlineReady");
+    else this.show('preparing', this.slowPreparation ? "updateController.slow" : this.initialInstall ? "updateController.preparingOffline" : "updateController.preparing");
   }
 
   check = async () => {
     if (this.disposed || this.checking || this.phase === "applying" || this.phase === "preparing" || this.phase === "unsupported") return;
-    if (!navigator.onLine) { this.schedule.failed(); this.show("offline", "当前离线，联网后可重试；当前版本仍可使用"); return; }
+    if (!navigator.onLine) { this.schedule.failed(); this.show("offline", "updateController.offline"); return; }
     if (!this.registration) {
       if (this.registrationError) {
         this.schedule.started();
-        this.show("registering", "正在准备更新检查…");
+        this.show("registering", "updateController.registering");
         this.retryRegistration();
       }
       return;
@@ -149,11 +149,11 @@ export class UpdateController {
     this.initialInstall = false; this.progress = undefined;
     this.checking = true;
     const id = ++this.checkId;
-    this.show("checking", "正在检查更新…");
+    this.show("checking", "updateController.checking");
     this.checkTimer = setTimeout(() => {
       if (this.disposed || this.checkId !== id) return;
       ++this.checkId; this.checking = false;
-      if (this.phase === "checking") this.failedCheck("更新检查仍未完成，请重试");
+      if (this.phase === "checking") this.failedCheck("updateController.checkTimeout");
     }, 30000);
     try {
       // update() resolves before the installing worker necessarily finishes.
@@ -165,10 +165,10 @@ export class UpdateController {
       else {
         this.schedule.succeeded();
         if (this.registration.waiting) this.show("ready", prepared);
-        else if (this.phase === "checking") this.show("current", "检查完成，当前版本继续运行");
+        else if (this.phase === "checking") this.show("current", "updateController.current");
       }
     } catch {
-      if (!this.disposed && id === this.checkId && this.phase === "checking") this.failedCheck("更新检查失败，请重试");
+      if (!this.disposed && id === this.checkId && this.phase === "checking") this.failedCheck("updateController.checkFailed");
     } finally {
       if (id === this.checkId) { this.checking = false; clearTimeout(this.checkTimer); }
     }
@@ -191,7 +191,7 @@ export class UpdateController {
 
   autoApply = () => {
     if (this.phase === "ready" && this.deferred && this.deferred.worker !== this.registration?.waiting) {
-      this.show(this.registration?.waiting ? "ready" : "error", this.registration?.waiting ? prepared : "已准备的更新暂不可用，请重新检查更新");
+      this.show(this.registration?.waiting ? "ready" : "error", this.registration?.waiting ? prepared : "updateController.unavailable");
     }
     if (this.phase === "ready" && Date.now() >= this.autoRetryAt && canApplyUpdate()) this.beginApply(false);
   };
@@ -202,27 +202,27 @@ export class UpdateController {
     if (this.disposed || this.phase === "applying") return;
     const waiting = this.registration?.waiting;
     if (!waiting) {
-      this.show("error", "已准备的更新暂不可用，请重新检查更新");
+      this.show("error", "updateController.unavailable");
       return;
     }
-    if (!navigator.onLine) { this.show("ready", "当前离线，请联网后再更新"); return; }
+    if (!navigator.onLine) { this.show("ready", "updateController.applyOffline"); return; }
     if (!canApplyUpdate(manual)) {
       if (!manual) return;
       this.deferred = undefined;
-      this.show("ready", "请先完成当前操作并返回文件库，再重试更新");
+      this.show("ready", "updateController.returnToLibrary");
       return;
     }
     this.stopApply?.(); this.stopApply = undefined;
     this.endCheck();
     this.setRequested(manual);
-    this.show("applying", "正在确认并应用更新…");
+    this.show("applying", "updateController.confirming");
     let channel: MessageChannel;
     try { channel = new MessageChannel(); } catch {
       this.deferred = undefined;
-      this.setRequested(false); this.show("ready", "更新未能开始，请重试"); return;
+      this.setRequested(false); this.show("ready", "updateController.startFailed"); return;
     }
     let active = true;
-    const finish = (message: string, windowDeferred = false) => {
+    const finish = (messageKey: string, windowDeferred = false) => {
       if (!active || this.disposed) return;
       this.deferred = windowDeferred && this.registration?.waiting === waiting
         ? this.deferred?.worker === waiting ? this.deferred : { worker: waiting, since: Date.now() }
@@ -230,37 +230,37 @@ export class UpdateController {
       this.stopApply?.(); this.stopApply = undefined;
       this.setRequested(false);
       this.autoRetryAt = Date.now() + 10000;
-      this.show(this.registration?.waiting ? "ready" : "error", !manual && this.registration?.waiting ? prepared : message);
+      this.show(this.registration?.waiting ? "ready" : "error", !manual && this.registration?.waiting ? prepared : messageKey);
     };
     let accepted = false;
     const changed = () => {
       if (!active || this.disposed) return;
-      if (waiting.state === "redundant") finish("已准备的更新暂不可用，请重新检查更新");
+      if (waiting.state === "redundant") finish("updateController.unavailable");
       else if (waiting.state === "activating" || waiting.state === "activated") {
         accepted = true;
         this.deferred = undefined;
-        this.show("applying", "正在应用更新…");
+        this.show("applying", "updateController.applying");
       }
     };
     // A page deadline cannot cancel skipWaiting or the browser's activation.
     // Keep observing the same attempt so a late approval is not discarded.
     const timeout = setTimeout(() => {
       if (!active || this.disposed) return;
-      if (accepted) this.show("applying", "更新切换较慢，仍在进行，请稍候…");
+      if (accepted) this.show("applying", "updateController.switchSlow");
       else {
         this.autoRetryAt = Date.now() + 10000;
-        this.show("ready", "尚未收到更新确认，可稍后重试；已准备的资源会保留");
+        this.show("ready", "updateController.approvalPending");
       }
     }, 10000);
     waiting.addEventListener("statechange", changed);
     this.stopApply = () => { active = false; clearTimeout(timeout); waiting.removeEventListener("statechange", changed); channel.port1.close(); };
     channel.port1.onmessage = event => {
       if (!active || this.disposed) return;
-      if (event.data?.safe === true) { accepted = true; this.deferred = undefined; this.show("applying", "正在应用更新…"); }
-      else finish(event.data?.reason === "incomplete" ? "更新资源暂不可用，请联网后重试" : blocked, event.data?.safe === false && event.data?.reason !== "incomplete");
+      if (event.data?.safe === true) { accepted = true; this.deferred = undefined; this.show("applying", "updateController.applying"); }
+      else finish(event.data?.reason === "incomplete" ? "updateController.missingResources" : blocked, event.data?.safe === false && event.data?.reason !== "incomplete");
     };
     try { waiting.postMessage({ type: "SAME_PAGE_SAFE_UPDATE", requested: true, ...(!manual ? { automatic: true } : {}) }, [channel.port2]); }
-    catch { finish("更新未能开始，请稍后重试，或关闭所有合谱窗口后重新打开"); }
+    catch { finish("updateController.startRetry"); }
   }
 
   dispose() {

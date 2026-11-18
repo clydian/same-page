@@ -1,14 +1,16 @@
+import { getCurrentLocale, getMessages, type AppLocale } from "../../../i18n";
 import type { ScoreAttachment } from "../../../shared/attachments";
 import type { AttachmentSelection } from "./attachment-list";
 
-export function attachmentActionTitle(action: AttachmentSelection["action"], attachment?: ScoreAttachment, uploadKind: "audio" | "pdf" | "markdown" | "musicxml" = "audio") {
+export function attachmentActionTitle(action: AttachmentSelection["action"], attachment?: ScoreAttachment, uploadKind: "audio" | "pdf" | "markdown" | "musicxml" = "audio", locale: AppLocale = getCurrentLocale()) {
+  const t = getMessages(locale, "library");
   switch (action) {
-    case "add": return "添加附件";
-    case "upload": return `添加${{ audio: "音频", musicxml: "可播放乐谱", pdf: "PDF", markdown: "文档（.md）" }[uploadKind]}`;
-    case "link": return "添加链接";
-    case "trash": return "移到回收站";
-    case "rename": return attachment?.kind === "link" ? "修改链接" : "重命名附件";
-    case "markdown": return attachment?.name ?? "新建文档（.md）";
-    case "open": return attachment?.name ?? "打开附件";
+    case "add": return t("addAttachment");
+    case "upload": return t({ audio: "addAudioAttachment", musicxml: "addPlayableScoreAttachment", pdf: "addPdfAttachment", markdown: "addMarkdownAttachment" }[uploadKind]);
+    case "link": return t("attachmentPresentationAddLink");
+    case "trash": return t("moveToTrash");
+    case "rename": return attachment?.kind === "link" ? t("attachmentListModifyLink") : t("attachmentPresentationRenameAttachment");
+    case "markdown": return attachment?.name ?? t("attachmentPresentationCreateNewDocumentMd");
+    case "open": return attachment?.name ?? t("attachmentEntryOpenAttachment");
   }
 }

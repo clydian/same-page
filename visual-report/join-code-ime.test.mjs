@@ -11,7 +11,7 @@ after(async () => app?.stop());
 test("join code preserves native IME replacement and only submits committed text", async t => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const page = await browser.newPage();
+  const page = await browser.newPage({ locale: "zh-CN" });
   page.setDefaultTimeout(10000);
   const fixture = createVisualFixtureSession({ id: "library-long-list" });
   const admissions = [];

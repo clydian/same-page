@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { UploadProgressView } from "./upload-progress-view";
 import { formatBytes } from "./library-format";
 import { useEffect, useLayoutEffect } from "react";
@@ -17,6 +18,7 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
   onQuotaChange: (blocked: boolean) => void;
   onInspect: (fileName: string) => void;
 }) {
+  const t = useMessages("library");
   const queue = useUploadQueue({ enabled: writable, choirId, onComplete, onQuotaChange });
   const waiting = queue.items.filter((item) => item.status === "queued").length;
   const uploading = queue.items.some((item) => item.status === "uploading");
@@ -39,42 +41,42 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
 
   return <ModalOverlay className="modal-overlay" isOpen={isOpen} onOpenChange={changeOpen} isDismissable>
     <Modal className="app-modal"><Dialog className="app-dialog">
-      <LibraryDialogHeading title="上传 PDF" close={() => changeOpen(false)} />
-      {storage && <p className="dialog-copy">云盘剩余空间 {formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes))} / {formatBytes(storage.limitBytes)}。回收站和待确认 PDF 均占空间。</p>}
-      <p className="dialog-copy">可多选或拖入 PDF，按加入顺序逐个上传。</p>
-      <p className="dialog-copy">关闭窗口会停止等待项，正在上传的一份会继续完成。</p>
-      <details className="upload-help"><summary>离开页面或上传中断时</summary>
-        <p className="dialog-copy">离开此云盘或切换用户会停止本轮上传；已发出的文件可能仍在服务端完成，请返回文件库核对。</p>
+      <LibraryDialogHeading title={t("uploadUploadPdf")} close={() => changeOpen(false)} />
+      {storage && <p className="dialog-copy">{t("uploadStorageCapacity", { available: formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes)), limit: formatBytes(storage.limitBytes) })}</p>}
+      <p className="dialog-copy">{t("uploadSelectMultiplePdfsDrag")}</p>
+      <p className="dialog-copy">{t("uploadClosingWindowStopWaiting")}</p>
+      <details className="upload-help"><summary>{t("uploadWhenLeavingPageUploading")}</summary>
+        <p className="dialog-copy">{t("uploadLeavingCloudDiskSwitching")}</p>
       </details>
-      {!writable && <p role="status">连接或上传权限尚未恢复，等待项已保留；恢复后请手动继续。</p>}
+      {!writable && <p role="status">{t("uploadConnectionUploadPermissionHas")}</p>}
       <div className="upload-dropzone"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => { event.preventDefault(); queue.add(Array.from(event.dataTransfer.files)); }}>
-        <label><span>选择 PDF 文件</span><input type="file" accept="application/pdf,.pdf" multiple disabled={!writable}
+        <label><span>{t("attachmentSelectPdfFile")}</span><input type="file" accept="application/pdf,.pdf" multiple disabled={!writable}
           onChange={(event) => {
             const files = Array.from(event.currentTarget.files ?? []);
             event.currentTarget.value = "";
             queue.add(files);
           }} /></label>
-        <small>每份最大 20 MB · 后续选择加入同一队列</small>
+        <small>{t("uploadMaximumMbPerCopy")}</small>
       </div>
-      <p role="status" aria-live="polite">{uploading ? "正在上传 1 份" : "当前没有上传中的文件"} · 等待 {waiting} 份</p>
+      <p role="status" aria-live="polite">{uploading ? t("uploadUploadingCopy") : t("uploadThereCurrentlyNoFiles")} {t("uploadQueueWaitingCount", { count: waiting })}</p>
       {queue.paused ? <p className="library-message" role="alert">
-        {queue.paused === "uncertain" ? "队列已暂停，当前文件结果待核对。可继续其余等待项；核对文件库会关闭窗口并停止等待项。"
-          : queue.paused === "quota" ? "队列已暂停，请处理下方额度提示后再继续。"
-          : queue.paused === "permission" ? "队列已暂停，请先恢复登录或上传权限。" : "队列已暂停，请稍后继续。"}
+        {queue.paused === "uncertain" ? t("uploadQueueHasBeenPaused")
+          : queue.paused === "quota" ? t("uploadQueueHasBeenSuspended")
+          : queue.paused === "permission" ? t("uploadQueueHasBeenSuspended2") : t("uploadQueueHasBeenPaused2")}
       </p> : null}
-      {queue.refreshFailed ? <p role="alert">文件状态已保留，但列表暂未刷新。请核对文件库，不要重传已完成项。</p> : null}
+      {queue.refreshFailed ? <p role="alert">{t("uploadFileStatusHasBeen")}</p> : null}
       {waiting > 0 ? <div className="upload-queue-actions">
-        {queue.paused ? <Button className="secondary-button" isDisabled={!writable} onPress={queue.resume}>继续等待项</Button> : null}
-        <Button className="text-button" onPress={queue.stopWaiting}>停止等待项</Button>
+        {queue.paused ? <Button className="secondary-button" isDisabled={!writable} onPress={queue.resume}>{t("uploadContinueWaitingItems")}</Button> : null}
+        <Button className="text-button" onPress={queue.stopWaiting}>{t("uploadStopWaitingItems")}</Button>
       </div> : null}
-      {queue.items.length > 0 ? <ul className="upload-list" aria-label="上传状态">
+      {queue.items.length > 0 ? <ul className="upload-list" aria-label={t("uploadUploadStatus")}>
         {queue.items.map((item) => <li key={item.id} data-status={item.status}>
           <span>{item.name}</span><strong>{item.message}</strong>
           {item.status === "uploading" ? <UploadProgressView name={item.name} progress={item.progress} /> : null}
-          {item.status === "error" && item.file ? <Button className="text-button" isDisabled={!writable} aria-label={`重试 ${item.name}`} onPress={() => queue.retry(item.id)}>重试</Button> : null}
-          {item.status === "unknown" || item.status === "success" ? <Button className="text-button" aria-label={`核对 ${item.name}`} onPress={() => { changeOpen(false); onInspect(item.name); }}>核对文件库</Button> : null}
+          {item.status === "error" && item.file ? <Button className="text-button" isDisabled={!writable} aria-label={t("driveLayerPreferencesTryAgain", { name: String(item.name) })} onPress={() => queue.retry(item.id)}>{t("retry")}</Button> : null}
+          {item.status === "unknown" || item.status === "success" ? <Button className="text-button" aria-label={t("uploadCheck", { name: String(item.name) })} onPress={() => { changeOpen(false); onInspect(item.name); }}>{t("uploadCheckFileLibrary")}</Button> : null}
         </li>)}
       </ul> : null}
     </Dialog></Modal>

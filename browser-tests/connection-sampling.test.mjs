@@ -9,7 +9,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   test(`${name}: restrained live samples, confirmed routing, failure and keyboard details`, { timeout: 120_000 }, async t => {
     const fixture = await startConnectionFixture(); t.after(() => fixture.stop());
     const browser = await engine.launch(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}); t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 320, height: 760 }, ignoreHTTPSErrors: true, serviceWorkers: 'block', reducedMotion: 'reduce', isMobile: true, hasTouch: true }); t.after(() => context.close());
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 320, height: 760 }, ignoreHTTPSErrors: true, serviceWorkers: 'block', reducedMotion: 'reduce', isMobile: true, hasTouch: true }); t.after(() => context.close());
     const page = await context.newPage();
     await page.clock.install();
     await page.goto(fixture.origins.direct + '/login');

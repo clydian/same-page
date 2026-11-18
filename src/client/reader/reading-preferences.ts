@@ -1,8 +1,27 @@
+import { getMessages, sourceLocale, type AppLocale } from "../../i18n";
 import { driveLayerPreferencesResponseSchema, resolveSharedLayerPreference, type DriveLayerPreferenceSummary, type AnnotationLayerSummary } from "../../shared/annotations";
 import { localDatabase } from "../platform/local-database";
 import { assertLocalWorkspaceActive, withLocalWorkspaceTransaction, type LocalWorkspace } from "../platform/local-workspace";
 import { settingsResponse } from "../settings/settings-request";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
+
+const preferenceErrorIds = [
+  "preferenceSignInRequired",
+  "preferenceAccessDenied",
+  "preferenceCloudSaveFailed",
+  "preferenceConnectionFailed",
+  "preferenceLockUnavailable",
+] as const;
+
+function preferenceError(id: typeof preferenceErrorIds[number]) {
+  // Keep the source message in IndexedDB for older open tabs. Localize it at render time.
+  return getMessages(sourceLocale, "reader")(id);
+}
+
+export function localizeReadingPreferenceError(error: string, locale: AppLocale) {
+  const id = preferenceErrorIds.find(id => preferenceError(id) === error);
+  return id ? getMessages(locale, "reader")(id) : error;
+}
 
 export type PreferenceTarget = { kind: "shared" | "personal" | "drive"; id: string };
 export type ReadingPreferenceChange = { subscribed?: boolean | null; colorOverride?: string | null };
@@ -140,9 +159,9 @@ async function flushKey(workspace: LocalWorkspace, key: string, transport: typeo
       const response = await transport(path, { method: "PUT", signal: AbortSignal.any([AbortSignal.timeout(30_000), ...(signal ? [signal] : [])]),
         headers: { "content-type": "application/json", "x-same-page-owner-user-id": workspace.ownerKey.slice(5) },
         body: JSON.stringify({ subscribed: row.subscribed, colorOverride: row.colorOverride }) });
-      if (!response.ok) error = response.status === 401 ? "登录已失效，重新登录后重试。"
-        : response.status === 403 || response.status === 404 ? "当前无法访问此偏好，请刷新并确认访问权限。" : "云端保存失败，本机选择已保留。";
-    } catch { error = "暂时无法连接，本机选择已保留，联网后重试。"; }
+      if (!response.ok) error = response.status === 401 ? preferenceError("preferenceSignInRequired")
+        : response.status === 403 || response.status === 404 ? preferenceError("preferenceAccessDenied") : preferenceError("preferenceCloudSaveFailed");
+    } catch { error = preferenceError("preferenceConnectionFailed"); }
     signal?.throwIfAborted();
     await withLocalWorkspaceTransaction(workspace, "rw", [localDatabase.readingPreferences], async () => {
       const latest = await localDatabase.readingPreferences.get(key);
@@ -160,6 +179,6 @@ async function flushKey(workspace: LocalWorkspace, key: string, transport: typeo
 async function withPreferenceLock(workspace: LocalWorkspace, key: string, signal: AbortSignal | undefined, action: () => Promise<void>) {
   if (navigator.locks) return navigator.locks.request(`reading-preference:${key}`, { signal }, action);
   await withLocalWorkspaceTransaction(workspace, "rw", [localDatabase.readingPreferences], async () => {
-    await localDatabase.readingPreferences.update(key, { error: "当前浏览器不支持安全同步，选择已保存到本机。请更新浏览器后重试。" });
+    await localDatabase.readingPreferences.update(key, { error: preferenceError("preferenceLockUnavailable") });
   });
 }

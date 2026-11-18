@@ -1,3 +1,4 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import { useLayoutEffect, useRef, useState } from "react";
 import { FieldError, Input, Label, TextField } from "react-aria-components";
 
@@ -10,13 +11,15 @@ export function JoinCodeField(props: {
   autoFocus?: boolean;
   isReadOnly?: boolean;
 }) {
+  const t = useMessages("common");
   const [composing, setComposing] = useState(false);
   const composingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const pendingSelection = useRef<{ start: number; end: number; direction: "forward" | "backward" | "none" } | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
-  const parsed = parseJoinCodeInput(props.value);
+  const { locale } = useAppLocale();
+  const parsed = parseJoinCodeInput(props.value, locale);
   const error = composing ? null : parsed.error;
   const characters = getJoinCodeCharacters(props.value);
   const pointerSelection = useRef<{ id: number; anchor: number } | null>(null);
@@ -85,7 +88,7 @@ export function JoinCodeField(props: {
       value={props.value}
       onChange={changeDraft}
     >
-      <Label>邀请码</Label>
+      <Label>{t("inviteCode")}</Label>
       <div className="join-code-control"
         onPointerDown={event => {
           if (props.isReadOnly || composingRef.current || event.button !== 0) return;
@@ -122,7 +125,7 @@ export function JoinCodeField(props: {
         <Input
           ref={inputRef}
           className="join-code-input"
-          aria-label="邀请码"
+          aria-label={t("inviteCode")}
           autoFocus={props.autoFocus}
           autoCapitalize="characters"
           autoComplete="off"
@@ -145,8 +148,8 @@ export function JoinCodeField(props: {
           }}
         />
       </div>
-      {characters.length > JOIN_CODE_LENGTH && <output className="join-code-draft" aria-label="完整输入内容">{props.value}</output>}
-      {truncated && <span className="join-code-error" role="status" aria-label="截断提示">仅保留前八位。</span>}
+      {characters.length > JOIN_CODE_LENGTH && <output className="join-code-draft" aria-label={t("fullInput")}>{props.value}</output>}
+      {truncated && <span className="join-code-error" role="status" aria-label={t("truncatedLabel")}>{t("truncated")}</span>}
       {error && <FieldError className="join-code-error"><span role="alert">{error}</span></FieldError>}
     </TextField>
   );

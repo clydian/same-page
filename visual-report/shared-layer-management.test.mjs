@@ -8,7 +8,7 @@ test("shared-layer controls reorder the chosen layer and save its details", asyn
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
   const fixture = createVisualFixtureSession({ id: "shared-layer-management-mobile", identity: "admin" });
   await page.route("**/api/**", route => {
     const request = route.request();

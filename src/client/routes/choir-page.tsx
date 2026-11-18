@@ -1,5 +1,6 @@
 import { useReturnState } from "../navigation/navigation-context";
 import { ConnectionHelp } from "../connection/connection-control";
+import { useMessages } from "../../i18n";
 import type { AttachmentRevealRequest } from "../score-library/attachments/use-attachment-reveal";
 import { readerHref } from "../reader/reader-entry";
 import { startPlayback } from "../playback/playback-store";
@@ -74,6 +75,7 @@ export default function ChoirPage() {
 
 function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; identity: ApplicationIdentity; cacheOwner: DriveCacheOwnerKey }) {
   const [openedScoreId, setOpenedScoreId] = useReturnState<string | null>(`opened-score:${cacheOwner}:${choirId}`, null);
+  const t = useMessages("library");
   const navigate = useNavigate(), location = useLocation();
   const { session } = identity;
   // A remembered session scopes the mounted view; only authenticatedUserId grants authority.
@@ -191,7 +193,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
     setMessage(null);
   };
 
-  const headerActions = <Link className="header-action" to="/drives">云盘列表</Link>;
+  const headerActions = <Link className="header-action" to="/drives">{t("allDrives")}</Link>;
 
   if (access.kind === "join-required") {
     return (
@@ -199,9 +201,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         <ConnectionHelp />
         <AppHeader actions={headerActions} />
         <main className="page-shell compact-page access-page">
-          <p className="eyebrow">开放准入</p>
+          <p className="eyebrow">{t("choirOpenAccess")}</p>
           <h1>{access.choir.name}</h1>
-          <p className="hero__copy">填写你在这个云盘中的显示名后即可加入。</p>
+          <p className="hero__copy">{t("choirFillDisplayNameCloud")}</p>
           <Form className="entry-form" data-update-busy={openAdmissionDisplayName.trim() || busy ? "true" : undefined} onSubmit={(event) => { event.preventDefault(); void library.join(openAdmissionDisplayName); }}>
             <TextField
               isRequired
@@ -209,11 +211,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
               onChange={setOpenAdmissionDisplayName}
               maxLength={40}
             >
-              <Label>显示名</Label>
-              <Input autoComplete="nickname" placeholder="例如：小花" />
+              <Label>{t("displayName")}</Label>
+              <Input autoComplete="nickname" placeholder={t("choirExampleXiaohua")} />
             </TextField>
             <Button type="submit" isDisabled={busy}>
-              {busy ? "正在加入…" : "加入并进入"}
+              {busy ? t("choirJoining") : t("choirJoinEnter")}
             </Button>
           </Form>
           {snapshot.joinMessage ? <p role="alert">{snapshot.joinMessage}</p> : null}
@@ -228,16 +230,16 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
       <ConnectionHelp />
       <AppHeader actions={headerActions} />
       <main className="page-shell compact-page access-page">
-        <h1>暂时无法打开云盘</h1>
-        <p role="alert">{snapshot.refreshMessage ?? "本机目录暂时无法读取，请重试。"}</p>
-        <Button isDisabled={reading} onPress={() => void library.refresh()}>{reading ? "正在读取…" : "重试读取"}</Button>
+        <h1>{t("driveOpenFailed")}</h1>
+        <p role="alert">{snapshot.refreshMessage ?? t("driveLocalDirectoryUnreadable")}</p>
+        <Button isDisabled={reading} onPress={() => void library.refresh()}>{t(reading ? "driveReading" : "driveRetryRead")}</Button>
       </main>
     </div>;
   }
 
   if (access.kind === "loading") {
     return (
-      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? "云盘"} userId={userId} localOnly={!identity.authenticatedUserId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} />} />{attachmentDialog}</>
+      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? t("drive")} userId={userId} localOnly={!identity.authenticatedUserId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} />} />{attachmentDialog}</>
     );
   }
 
@@ -258,9 +260,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const storageRatio = result.storage.usedBytes / result.storage.limitBytes;
 
   const connectionHelp = <div className="drive-connection-help">
-    {!online && <p>当前离线，已保存的乐谱可以继续打开。</p>}
+    {!online && <p>{t("choirCurrentlyOfflineSavedScores")}</p>}
     <IdentityNotice identity={identity} />
-    {searchMessage && <p>{searchMessage}<Button onPress={() => void refresh()}>重试</Button></p>}
+    {searchMessage && <p>{searchMessage}<Button onPress={() => void refresh()}>{t("retry")}</Button></p>}
   </div>;
 
   return (
@@ -270,33 +272,32 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         if (library.getSnapshot().refreshMessage) throw new Error("drive_refresh_failed");
       }} disabled={!online}>
       <main className="page-shell file-library">
-        {access.retained && <p role="status">已无法访问此云盘，以下为本机保留内容</p>}
+        {access.retained && <p role="status">{t("choirCloudDiskCannotAccessed")}</p>}
         {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
           !access.local && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
           <DrivePreparation choirId={choirId} accountReady={Boolean(identity.authenticatedUserId) && access.isMember} />}
-        <section className="library-workspace" aria-label="乐谱" aria-busy={snapshot.reading.request === "pending"}>
-          {search.trim() && <p className="visually-hidden" role="status">找到 {visibleScores.length} 份乐谱{localFilesOnly ? "，仅搜索本机记录" : ""}</p>}
+        <section className="library-workspace" aria-label={t("score")} aria-busy={snapshot.reading.request === "pending"}>
+          {search.trim() && <p className="visually-hidden" role="status">{t(localFilesOnly ? "localScoreSearchResultCount" : "scoreSearchResultCount", { count: visibleScores.length })}</p>}
 
           {can("uploadFiles") && (storageRatio >= 0.8 || quotaBlocked) ? (
-            <p className="storage-warning" role="status">
-              云盘存储已使用 {formatBytes(result.storage.usedBytes)} / {formatBytes(result.storage.limitBytes)}。
-              {quotaBlocked ? " 请根据上传提示释放空间或乐谱名额后再上传。" : " 接近上限，请留意后续上传。"}
+            <p className="storage-warning" role="status">{t("driveStorageUsage", { used: formatBytes(result.storage.usedBytes), limit: formatBytes(result.storage.limitBytes) })}{" "}
+              {quotaBlocked ? t("choirFollowUploadPromptsFree") : t("choirCloseUpperLimitPay")}
             </p>
           ) : null}
           {message ? <p className="library-message" role="status">{message}</p> : null}
 
           {visibleScores.length > 0 ? (
-            <section className="file-list" aria-label="PDF 文件">
+            <section className="file-list" aria-label={t("choirPdfFile")}>
               {visibleScores.map((score) => {
                 const presentation = attachments.forScore(score);
                 return (
                 <article className="score-file-group" data-returned-score={openedScoreId === score.id || undefined} key={score.id}><div className="file-row">
-                  <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={false} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={`文件大小 ${formatFileSize(score.currentVersion.sizeBytes)}`} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
+                  <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={false} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={t("choirFileSize", { fileSize: formatFileSize(score.currentVersion.sizeBytes) })} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
                     onOpen={scrollY => beforeScoreOpen(score, scrollY)}
                   >
                     {(opening, percent) => <>
                     <span className="pdf-file-icon" aria-hidden="true">{opening && percent === null ? <LoaderCircle size={18} className="prepared-score-spinner" /> : "PDF"}</span>
-                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{opening ? percent !== null ? "正在下载…" : "正在打开…" : formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label="有自动生成练习版" title="已有自动生成练习版，可在阅读器中打开"><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
+                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{opening ? t(percent !== null ? "scoreDownloading" : "scoreOpening") : formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label={t("choirThereAutomaticallyGeneratedPractice")} title={t("choirExerciseVersionHasBeen")}><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
                   </>}
                   </PreparedScoreLink>
                   <AttachmentCount score={score} count={presentation.count} expanded={expandedScoreIds.has(score.id)} disabled={false}
@@ -310,12 +311,12 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     void navigate(readerHref({ choirId, scoreId: score.id, experience: choir.isPreviewEntry === true }));
                   }} /></div>
                   <MenuTrigger>
-                      <Button className="file-menu-button" aria-label={`${scoreDisplayName(score.fileName)} 更多操作`}>
+                      <Button className="file-menu-button" aria-label={t("choirMoreOperations", { name: String(scoreDisplayName(score.fileName)) })}>
                         ···
                       </Button>
                       <Popover className="file-menu-popover">
                         <Menu
-                          aria-label={`${scoreDisplayName(score.fileName)} 操作`}
+                          aria-label={t("choirOperation", { name: String(scoreDisplayName(score.fileName)) })}
                           disabledKeys={!online || access.local ? ["rename", "replace", "trash", "attachment-add"] : []}
                           onAction={key => {
                             if (key === "export") setExportScore(score);
@@ -323,12 +324,12 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                             else openScoreAction(score, key as ScoreAction);
                           }}
                         >
-                          <MenuItem id="export">分享 PDF</MenuItem>
-                          {visible("uploadFiles") && <MenuItem id="attachment-add">添加附件</MenuItem>}
+                          <MenuItem id="export">{t("sharePdf")}</MenuItem>
+                          {visible("uploadFiles") && <MenuItem id="attachment-add">{t("addAttachment")}</MenuItem>}
                           {managementVisible && <>
-                          {visible("modifyFiles") && <MenuItem id="rename">重命名</MenuItem>}
-                          {visible("modifyFiles") && <MenuItem id="replace">替换 PDF</MenuItem>}
-                          {visible("trashFiles") && <MenuItem id="trash">移到回收站</MenuItem>}
+                          {visible("modifyFiles") && <MenuItem id="rename">{t("rename")}</MenuItem>}
+                          {visible("modifyFiles") && <MenuItem id="replace">{t("replacePdf")}</MenuItem>}
+                          {visible("trashFiles") && <MenuItem id="trash">{t("moveToTrash")}</MenuItem>}
                           </>}
                         </Menu>
                       </Popover>
@@ -336,7 +337,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                 </div>
                 <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
                   {/* Ready empty rows must also finish the explicit reveal request. */}
-                  {expandedScoreIds.has(score.id) && (presentation.count > 0 || attachments.statusFor(score.id) === "ready") && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">本机尚未保存这份乐谱的附件清单。</p>
+                  {expandedScoreIds.has(score.id) && (presentation.count > 0 || attachments.statusFor(score.id) === "ready") && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">{t("choirDeviceHasNotSaved")}</p>
                     : attachments.statusFor(score.id) !== "ready" ? <AttachmentPending count={presentation.count} failed={attachments.statusFor(score.id) === "error"} retry={attachments.retry} />
                     : <><AttachmentRows revealRequest={attachmentReveal?.scoreId === score.id && attachmentReveal.scope === revealScope ? attachmentReveal : undefined} onRevealHandled={finishAttachmentReveal} available={attachmentsEnabled} score={score} choirId={choirId} items={attachments.items} canModify={can("modifyFiles")} canTrash={can("trashFiles")} onSelect={selectAttachment} /></>)}
                 </div>
@@ -345,13 +346,13 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
               })}
             </section>
           ) : (
-            <div className="library-empty-state">{access.retained && <BackButton className="secondary-link" to="/drives">云盘列表</BackButton>}{search.trim() ? <><p>没有找到包含「{search}」的乐谱。</p><Button className="secondary-button" onPress={() => updateSearch("")}>清除搜索</Button></> : <><p>{access.retained ? "本机没有可用的保留副本。" : access.local ? "本机尚未保存这个云盘的目录或乐谱，请联网后下载。" : "这个云盘还没有乐谱。"}</p><p>{can("uploadFiles") ? "上传第一份 PDF，开始准备排练。" : access.isMember ? "有上传权限的成员上传乐谱后，会显示在这里。" : "暂时没有可浏览的乐谱，请稍后再来。"}</p>{can("uploadFiles") ? <Button className="secondary-button" onPress={() => setUploadOpen(true)}>上传第一份 PDF</Button> : null}</>}</div>
+            <div className="library-empty-state">{access.retained && <BackButton className="secondary-link" to="/drives">{t("allDrives")}</BackButton>}{search.trim() ? <><p>{t("scoreSearchNoMatch", { search })}</p><Button className="secondary-button" onPress={() => updateSearch("")}>{t("choirClearSearch")}</Button></> : <><p>{access.retained ? t("choirThereNoReservedCopies") : access.local ? t("choirDirectoryMusicScoreCloud") : t("choirCloudDiskDoesNot")}</p><p>{can("uploadFiles") ? t("choirUploadFirstPdfStart") : access.isMember ? t("choirAfterMembersUploadPermission") : t("choirThereCurrentlyNoSheet")}</p>{can("uploadFiles") ? <Button className="secondary-button" onPress={() => setUploadOpen(true)}>{t("choirUploadFirstPdf")}</Button> : null}</>}</div>
           )}
         </section>
       </main>
       </PullToRefresh>
 
-      {exportScore && <Suspense fallback={<LibraryTaskLoading title="分享 PDF" size="tall" onClose={() => setExportScore(null)} />}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
+      {exportScore && <Suspense fallback={<LibraryTaskLoading title={t("sharePdf")} size="tall" onClose={() => setExportScore(null)} />}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
       {visible("uploadFiles") && <UploadFab disabled={!online || Boolean(access.local)} onPress={() => setUploadOpen(true)} />}
 
 
@@ -364,7 +365,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         onQuotaChange={setQuotaBlocked}
         onInspect={(fileName) => {
           updateSearch(fileName.trim());
-          setMessage("请核对同名文件；若刚中断上传，服务端可能仍在处理，可稍后再次刷新。不要在结果不明时重传。");
+          setMessage(t("choirCheckFileSameName"));
           void refreshAfterMutation();
         }}
       /> : null}

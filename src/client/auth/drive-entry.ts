@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages } from "../../i18n";
 import { guestEntryBudgetMs } from "../connection/guest-admission";
 import { untilAborted } from "../platform/abortable";
 import { trialMessage } from "../drives/trial-messages";
@@ -10,10 +11,9 @@ export type DriveEntryResult =
   | { kind: "display-name"; choir: ChoirSummary }
   | { kind: "none" }
   | { kind: "failed"; message: string; restart: boolean; guestSessionUnchanged?: true };
-const unavailable = "暂时无法进入这个云盘，请稍后再试。";
-const removed = "该成员关系需要有成员恢复权限的人恢复。";
 
 async function continueGuest(guest: GuestSessionResponse, authenticated: boolean, signal?: AbortSignal): Promise<DriveEntryResult> {
+  const t = getMessages(getCurrentLocale(), "entry");
   if (!authenticated) return { kind: "enter", choir: guest.choir };
   if (guest.entryKind === "preview") {
     await clearGuestSession(signal);
@@ -24,7 +24,7 @@ async function continueGuest(guest: GuestSessionResponse, authenticated: boolean
   if (!response.ok) {
     const restart = response.status === 401 || response.status === 403;
     if (restart) await clearGuestSession(signal);
-    return { kind: "failed", message: response.status === 403 ? removed : unavailable, restart };
+    return { kind: "failed", message: response.status === 403 ? t("admission.removed") : t("admission.unavailable"), restart };
   }
   const state = await parseDiagnosticResponse(response, guestJoinStateResponseSchema);
   signal?.throwIfAborted();
@@ -37,6 +37,7 @@ async function continueGuest(guest: GuestSessionResponse, authenticated: boolean
 }
 
 export async function enterDrive(admission: GuestAdmissionRequest, authenticated: boolean, signal?: AbortSignal): Promise<DriveEntryResult> {
+  const t = getMessages(getCurrentLocale(), "entry");
   const deadline = new AbortController();
   const timer = setTimeout(() => deadline.abort(new DOMException("Guest entry timeout", "TimeoutError")), guestEntryBudgetMs);
   const entrySignal = AbortSignal.any([deadline.signal, ...(signal ? [signal] : [])]);
@@ -44,26 +45,28 @@ export async function enterDrive(admission: GuestAdmissionRequest, authenticated
     const response = await untilAborted(diagnosticFetch("/api/guest/session", {
       method: "POST", signal: entrySignal, headers: { "content-type": "application/json" }, body: JSON.stringify(admission),
     }), entrySignal);
-    if (!response.ok) return { kind: "failed", restart: true, guestSessionUnchanged: true, message: response.status === 429 ? "尝试次数过多，请稍后再试。" : response.status >= 500 ? unavailable : "邀请码无效或已失效。" };
+    if (!response.ok) return { kind: "failed", restart: true, guestSessionUnchanged: true, message: response.status === 429 ? t("admission.rateLimit") : response.status >= 500 ? t("admission.unavailable") : t("admission.invalidCode") };
     const guest = await untilAborted(parseDiagnosticResponse(response, guestSessionResponseSchema), entrySignal);
     entrySignal.throwIfAborted();
     return await untilAborted(continueGuest(guest, authenticated, entrySignal), entrySignal);
-  } catch (error) { return { kind: "failed", message: error instanceof DOMException && error.name === "TimeoutError" ? "连接超时，邀请码已保留，请重试。" : unavailable, restart: false }; }
+  } catch (error) { return { kind: "failed", message: error instanceof DOMException && error.name === "TimeoutError" ? t("admission.timeout") : t("admission.unavailable"), restart: false }; }
   finally { clearTimeout(timer); }
 }
 
 export async function resumeDriveEntry(signal?: AbortSignal): Promise<DriveEntryResult> {
+  const t = getMessages(getCurrentLocale(), "entry");
   try {
     const response = await diagnosticFetch("/api/guest/session", { signal });
     if (response.status === 401 || response.status === 404) return { kind: "none" };
-    if (!response.ok) return { kind: "failed", message: unavailable, restart: false };
+    if (!response.ok) return { kind: "failed", message: t("admission.unavailable"), restart: false };
     const guest = await parseDiagnosticResponse(response, guestSessionResponseSchema);
     signal?.throwIfAborted();
     return await continueGuest(guest, true, signal);
-  } catch { return { kind: "failed", message: unavailable, restart: false }; }
+  } catch { return { kind: "failed", message: t("admission.unavailable"), restart: false }; }
 }
 
 export async function joinDrive(target: { kind: "guest"; choirId: string } | { kind: "open"; choirId: string }, displayName: string, signal?: AbortSignal): Promise<DriveEntryResult> {
+  const t = getMessages(getCurrentLocale(), "entry");
   try {
     const response = await diagnosticFetch(target.kind === "guest" ? "/api/choirs/join-current-guest" : "/api/choirs/join", {
       method: "POST", signal, headers: { "content-type": "application/json" },
@@ -75,24 +78,25 @@ export async function joinDrive(target: { kind: "guest"; choirId: string } | { k
       if (payload?.error === "member_limit_reached") return { kind: "failed", restart: false, message: trialMessage(payload.error) };
       const restart = response.status === 401 || response.status === 403;
       if (restart && target.kind === "guest") await clearGuestSession();
-      return { kind: "failed", restart, message: response.status === 403 ? removed : "暂时无法加入这个云盘，请稍后再试。" };
+      return { kind: "failed", restart, message: response.status === 403 ? t("admission.removed") : t("admission.joinUnavailable") };
     }
     await clearGuestSession(signal);
     signal?.throwIfAborted();
     return { kind: "enter", choir: { id: target.choirId, name: "", guestAdmissionMode: target.kind === "guest" ? "invite" : "open" } };
-  } catch { return { kind: "failed", restart: false, message: "暂时无法加入这个云盘，请稍后再试。" }; }
+  } catch { return { kind: "failed", restart: false, message: t("admission.joinUnavailable") }; }
 }
 
 export async function openDriveAdmission(choirId: string, authenticated: boolean, signal: AbortSignal): Promise<DriveEntryResult> {
+  const t = getMessages(getCurrentLocale(), "entry");
   try {
     const response = await diagnosticFetch(`/api/guest/choirs/${choirId}`, { signal });
     if (response.status === 404) return { kind: "none" };
-    if (!response.ok) return { kind: "failed", message: unavailable, restart: false };
+    if (!response.ok) return { kind: "failed", message: t("admission.unavailable"), restart: false };
     const admission = await parseDiagnosticResponse(response, guestSessionResponseSchema);
     signal.throwIfAborted();
     if (authenticated && admission.entryKind !== "preview") return { kind: "display-name", choir: admission.choir };
     return enterDrive({ admission: "open", choirId }, authenticated, signal);
-  } catch { return { kind: "failed", message: unavailable, restart: false }; }
+  } catch { return { kind: "failed", message: t("admission.unavailable"), restart: false }; }
 }
 
 // Wait for a session-creating request to settle before deleting its credential.

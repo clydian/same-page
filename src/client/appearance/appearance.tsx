@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
@@ -34,53 +35,55 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   return <AppearanceContext value={{ preferences, owner, dark }}>{children}</AppearanceContext>;
 }
 export function AppearanceSettings() {
+  const t = useMessages("system");
   const { preferences, owner, dark } = useAppearance();
   const [error, setError] = useState(false);
   const change = (patch: Partial<AppearancePreferences>) => setError(!saveAppearance(owner, { ...readAppearance(owner), ...patch }));
-  return <section className="appearance-settings" aria-label="外观设置">
+  return <section className="appearance-settings" aria-label={t("appearance.settings")}>
     <header className="appearance-heading">
-      <p>{owner.startsWith("experience:") ? "体验外观，与登录用户的选择分别保存" : "仅此设备 · 应用于所有云盘与乐谱"}</p>
+      <p>{owner.startsWith("experience:") ? t("appearance.guestAppearance") : t("appearance.deviceScope")}</p>
     </header>
     <div className="appearance-panel">
-      <fieldset className="appearance-fieldset" aria-label="界面主题">
-        <legend>界面主题</legend>
+      <fieldset className="appearance-fieldset" aria-label={t("appearance.interfaceTheme")}>
+        <legend>{t("appearance.interfaceTheme")}</legend>
         <div className="appearance-segments">
-          {([{ value: "system", label: "跟随系统", icon: Monitor }, { value: "light", label: "浅色", icon: Sun }, { value: "dark", label: "深色", icon: Moon }] as const).map(({ value, label, icon: Icon }) => <label className="appearance-segment" key={value}>
+          {([{ value: "system", label: t("appearance.followSystem"), icon: Monitor }, { value: "light", label: t("appearance.light"), icon: Sun }, { value: "dark", label: t("appearance.dark"), icon: Moon }] as const).map(({ value, label, icon: Icon }) => <label className="appearance-segment" key={value}>
             <input type="radio" name="interface-theme" value={value} checked={preferences.interfaceTheme === value} onChange={() => change({ interfaceTheme: value })} />
             <span><Icon size={17} aria-hidden="true" />{label}</span>
           </label>)}
         </div>
       </fieldset>
       <div className="appearance-paper-section">
-        <div className="appearance-section-heading"><h3>谱面外观</h3><p>随浅色、深色界面自动切换</p></div>
+        <div className="appearance-section-heading"><h3>{t("appearance.scoreAppearance")}</h3><p>{t("appearance.automaticTheme")}</p></div>
         <div className="appearance-paper-groups">
-          <PaperChoices label="浅色界面下的谱面" title="浅色界面" name="light-paper" value={preferences.lightPaper} active={!dark} invertAnnotations={preferences.invertAnnotations} onChange={lightPaper => change({ lightPaper })} />
-          <PaperChoices label="深色界面下的谱面" title="深色界面" name="dark-paper" value={preferences.darkPaper} active={dark} invertAnnotations={preferences.invertAnnotations} onChange={darkPaper => change({ darkPaper })} />
+          <PaperChoices label={t("appearance.lightScore")} title={t("appearance.lightTheme")} name="light-paper" value={preferences.lightPaper} active={!dark} invertAnnotations={preferences.invertAnnotations} onChange={lightPaper => change({ lightPaper })} />
+          <PaperChoices label={t("appearance.darkScore")} title={t("appearance.darkTheme")} name="dark-paper" value={preferences.darkPaper} active={dark} invertAnnotations={preferences.invertAnnotations} onChange={darkPaper => change({ darkPaper })} />
         </div>
       </div>
-      <fieldset className="appearance-fieldset appearance-annotations" aria-label="谱面反色时的笔记">
-        <legend>谱面反色时的笔记</legend>
+      <fieldset className="appearance-fieldset appearance-annotations" aria-label={t("appearance.invertedNotes")}>
+        <legend>{t("appearance.invertedNotes")}</legend>
         <div className="appearance-segments">
-          {([{ value: false, label: "颜色不变" }, { value: true, label: "跟随反色" }] as const).map(({ value, label }) => <label className="appearance-segment" key={label}>
+          {([{ value: false, label: t("appearance.keepNoteColors") }, { value: true, label: t("appearance.invertNoteColors") }] as const).map(({ value, label }) => <label className="appearance-segment" key={label}>
             <input type="radio" name="annotation-appearance" checked={preferences.invertAnnotations === value} onChange={() => change({ invertAnnotations: value })} />
             <span><i className="appearance-note-dot" data-inverted={value || undefined} aria-hidden="true" />{label}</span>
           </label>)}
         </div>
-        <p className="appearance-field-help">仅影响反色谱面的显示，保存与导出保留原色。</p>
+        <p className="appearance-field-help">{t("appearance.noteColorsHelp")}</p>
       </fieldset>
     </div>
-    <p className="appearance-footnote">反色也会改变原谱中的彩色内容与封面；需要时可切回原始。</p>
-    {error && <p role="status">外观已在本次使用中生效，但无法保存到本机。</p>}
+    <p className="appearance-footnote">{t("appearance.inversionHelp")}</p>
+    {error && <p role="status">{t("appearance.unsaved")}</p>}
   </section>;
 }
 
 function PaperChoices({ label, title, name, value, active, invertAnnotations, onChange }: {
   label: string; title: string; name: string; value: PaperTheme; active: boolean; invertAnnotations: boolean; onChange(value: PaperTheme): void;
 }) {
+  const t = useMessages("system");
   return <fieldset className="appearance-fieldset appearance-paper-group" aria-label={label}>
-    <legend>{title}{active && <span className="appearance-current">当前使用</span>}</legend>
+    <legend>{title}{active && <span className="appearance-current">{t("appearance.current")}</span>}</legend>
     <div className="appearance-paper-options">
-      {([{ value: "original", label: "原始" }, { value: "soft", label: "柔和" }, { value: "inverted", label: "反色" }] as const).map(option => <label className="appearance-paper-option" key={option.value}>
+      {([{ value: "original", label: t("appearance.original") }, { value: "soft", label: t("appearance.soft") }, { value: "inverted", label: t("appearance.inverted") }] as const).map(option => <label className="appearance-paper-option" key={option.value}>
         <input type="radio" name={name} aria-label={`${label}：${option.label}`} checked={value === option.value} onChange={() => onChange(option.value)} />
         <span className="appearance-paper-preview" data-paper={option.value} aria-hidden="true">
           <svg viewBox="0 0 100 64" fill="none"><g className="appearance-preview-score" stroke="currentColor" strokeWidth=".65">

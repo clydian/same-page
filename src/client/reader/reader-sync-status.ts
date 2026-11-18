@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages, type AppLocale } from "../../i18n";
 import type { AnnotationConflictRecord } from "../platform/local-database";
 
 export type ReaderSyncOutcome =
@@ -41,42 +42,45 @@ export function deriveReaderSyncStatus({
   acceptedCount?: number;
   online?: boolean;
   permissionErrorCount?: number;
-}): ReaderSyncStatus {
-  if (outcome === "trash-preserved") return { kind: "risk", message: "乐谱已移入回收站；本机内容仍保留，恢复后才能继续同步。" };
-  if (!loaded) return { kind: "risk", message: "尚未确认本机笔记状态，请稍后重试。" };
-  if (localOnly) return { kind: outcome === "failed" ? "failed" : "quiet", message: outcome === "failed" ? "本机操作未完成，请重试。" : "体验笔记仅保存在此浏览器" };
-  if (conflictCount > 0) return { kind: "conflict", message: `仍有 ${conflictCount} 项本机冲突待处理。` };
-  if (permissionErrorCount > 0) return { kind: "failed", message: `${permissionErrorCount} 项笔记暂缓同步：层已停用、删除或编辑权已撤销。本机草稿保留；原层恢复且权限允许后重试。到期内容仍保留在本机，不会转写同名新层。其它笔记会继续同步。` };
-  if (syncErrorCount > 0 || outcome === "failed") return { kind: "failed", message: "同步未完成，已保存的本机草稿仍保留。请重试同步；若仍失败，可反馈问题。" };
-  if (syncing) return { kind: "syncing", message: pendingCount > 0 ? `正在同步 ${pendingCount} 项修改` : "正在检查云端笔记…" };
+}, locale: AppLocale = getCurrentLocale()): ReaderSyncStatus {
+  const t = getMessages(locale, "reader");
+  if (outcome === "trash-preserved") return { kind: "risk", message: t("trashedSyncPaused") };
+  if (!loaded) return { kind: "risk", message: t("annotationStateUnknown") };
+  if (localOnly) return { kind: outcome === "failed" ? "failed" : "quiet", message: outcome === "failed" ? t("localActionFailed") : t("localPreviewNotesOnly") };
+  if (conflictCount > 0) return { kind: "conflict", message: t("pendingConflicts", { conflictCount }) };
+  if (permissionErrorCount > 0) return { kind: "failed", message: t("syncBlockedByPermission", { permissionErrorCount }) };
+  if (syncErrorCount > 0 || outcome === "failed") return { kind: "failed", message: t("syncFailed") };
+  if (syncing) return { kind: "syncing", message: pendingCount > 0 ? t("syncingChanges", { pendingCount }) : t("checkingCloudNotes") };
   if (pendingCount > 0 || draftCount > 0) return {
     kind: "pending",
-    message: !online ? "已保存在本机 · 等待联网" : draftCount > 0 ? "已保存在本机 · 完成编辑后同步" : `已保存在本机 · ${pendingCount} 项等待同步`,
+    message: !online ? t("savedWaitingForConnection") : draftCount > 0 ? t("savedWaitingForEditing") : t("savedWaitingForSync", { pendingCount }),
   };
   // A completed request, empty query or network connection is not acceptance.
-  if (acceptedCount > 0) return { kind: "quiet", message: "没有待上传的修改" };
-  return { kind: "quiet", message: "尚无笔记修改" };
+  if (acceptedCount > 0) return { kind: "quiet", message: t("noPendingUploads") };
+  return { kind: "quiet", message: t("noChangesYet") };
 }
 
 export function describeAnnotationConflict(
   conflict: AnnotationConflictRecord,
   layerName: string,
 ) {
+  const t = getMessages(getCurrentLocale(), "reader");
   const payload = conflict.localPayload ?? conflict.canonical?.payload ?? null;
   const pageNumber = payload?.pageNumber ?? 1;
-  let summary = "笔记内容";
+  let summary = t("noteContent");
   if (conflict.localDeleted) {
-    summary = "删除笔记";
+    summary = t("deleteNote");
   } else if (payload?.kind === "text") {
     summary = truncateSummary(payload.text);
   } else if (payload?.kind === "ink") {
-    summary = `笔迹 · ${payload.points.length} 个点`;
+    summary = t("strokePointCount", { count: payload.points.length });
   }
   return { pageNumber, layerName, summary };
 }
 
 function truncateSummary(value: string) {
+  const t = getMessages(getCurrentLocale(), "reader");
   const normalized = value.replace(/\s+/g, " ").trim();
-  if (!normalized) return "空文字笔记";
+  if (!normalized) return t("emptyTextNote");
   return normalized.length > 28 ? `${normalized.slice(0, 28)}…` : normalized;
 }

@@ -1,0 +1,567 @@
+{
+  "drive": {
+    "create": "Ablage erstellen",
+    "loginToCreate": "Zum Erstellen einer Ablage anmelden",
+    "login": "Anmelden",
+    "restoreLocal": "Lokale Inhalte werden wiederhergestellt…",
+    "directoryError": "Das Ablage-Verzeichnis kann vorübergehend nicht bestätigt werden. Bitte stellen Sie eine Verbindung zum Internet her und versuchen Sie es erneut.",
+    "choose": "Ablage auswählen",
+    "chooseHint": "Wähle die Ablage aus, die du öffnen möchtest.",
+    "lastUnavailable": "Die zuletzt verwendete Ablage befindet sich nicht mehr in der Liste der verfügbaren Geräte. Bitte wählen Sie eine andere Ablage aus.",
+    "join": "Ablage beitreten",
+    "first": "Tritt deiner ersten Ablage bei",
+    "firstHint": "Verwenden Sie zum Beitritt die vom Administrator gesendete Einladungskarte oder den Einladungscode.",
+    "createPrompt": "Möchten Sie eine Ablage für Ihr Team erstellen?"
+  },
+  "identity": {
+    "checking": "Beim Verbinden können gespeicherte Inhalte weiterhin verwendet werden.",
+    "localUnavailable": "Die lokale Identitätsprüfung ist noch nicht abgeschlossen und der gespeicherte Inhalt bleibt weiterhin erhalten.",
+    "unreachable": "Vorübergehend keine Verbindung möglich, gespeicherte Inhalte bleiben weiterhin erhalten.",
+    "signedOut": "Nach erneuter Anmeldung und Synchronisierung können die gespeicherten Inhalte weiterhin genutzt werden.",
+    "retrying": "Wiederholter Versuch…",
+    "retryVerify": "Wiederholen Sie die Überprüfung",
+    "retryConnection": "Wiederholen Sie die Verbindung",
+    "loginAgain": "Melden Sie sich erneut an"
+  },
+  "guestNotes": {
+    "title": "Melde dich an, um Proben zu annotieren",
+    "signIn": "Registrieren oder anmelden und Notizen machen",
+    "keepReading": "Lesen Sie die Partitur weiter",
+    "hint": "Sie surfen als Gast. Registrieren Sie sich oder melden Sie sich an und treten Sie diesem Ablage bei, um Ihre eigenen Notizen aufzuzeichnen und sie auf verschiedenen Geräten zu synchronisieren."
+  },
+  "startup": {
+    "restore": "Ablage wird wiederhergestellt...",
+    "retry": "Versuchen Sie es erneut",
+    "feedback": "Feedback",
+    "loadError": "Die hinzugefügte Ablage kann vorübergehend nicht geladen werden."
+  },
+  "logout": {
+    "checkError": "Der zu synchronisierende Inhalt auf diesem Computer konnte nicht überprüft werden. Bitte versuchen Sie es erneut.",
+    "networkError": "Bitte melden Sie sich nach der Verbindung mit dem Internet ab, um sicherzustellen, dass gleichzeitig die Serversitzung abläuft.",
+    "cleanupError": "Du bist abgemeldet, aber auf diesem Gerät müssen noch Daten gelöscht werden. Versuche es erneut.",
+    "logoutError": "Der Exit wird nicht abgeschlossen und die lokalen Daten werden nicht gelöscht. Bitte versuchen Sie es erneut.",
+    "cleanDetails": "Nach dem Beenden werden die lokale persönliche Ebene, Dokumententwürfe, Bearbeitungsberechtigungen und Benutzereinstellungen gelöscht; Heruntergeladene freigegebene Inhalte können beibehalten werden.",
+    "working": "Abmeldung läuft…",
+    "discard": "Verwerfen und abmelden",
+    "clear": "Abmelden und Daten löschen",
+    "title": "Abmelden?",
+    "return": "Änderungen prüfen",
+    "pendingDetails": "Auf diesem Gerät gibt es {pending, plural, one {# ausstehende Änderung} other {# ausstehende Änderungen}}, {conflicts, plural, one {# lokalen Konflikt} other {# lokale Konflikte}} und {errors, plural, one {# Synchronisierungsfehler} other {# Synchronisierungsfehler}}{drafts, plural, =0 {} one { sowie # ungespeicherten Dokumententwurf} other { sowie # ungespeicherte Dokumententwürfe}}. Wenn du fortfährst, werden diese Inhalte dauerhaft verworfen."
+  },
+  "create": {
+    "capacity": "Kostenlos testen · 10 Partituren / 50 MB / 20 Mitglieder",
+    "name": "Name der Ablage",
+    "displayName": "Dein Anzeigename in dieser Ablage",
+    "ownerHint": "Du wirst Eigentümer der Ablage und kannst andere mit einem Einladungscode einladen. Die Ablage kann bis zu 20 Mitglieder einschließlich dir haben.",
+    "retention": "Eine Ablage kann entfernt werden, wenn länger als 30 Tage in Folge kein Mitglied online darauf zugreift. Wir benachrichtigen den Eigentümer mindestens 14 Tage vorher per E-Mail. Öffnet ein Mitglied die Ablage während dieser Frist online, wird die Entfernung storniert.",
+    "cancel": "Abbrechen",
+    "back": "Zur Ablagenauswahl zurück",
+    "uncertain": "Das Erstellungsergebnis konnte nicht bestätigt werden. Bitte schließen Sie die hinzugefügte Ablage und lesen Sie sie erneut, bevor Sie entscheiden, ob Sie es erneut versuchen möchten.",
+    "working": "Wird erstellt…",
+    "submit": "Kostenlos erstellen",
+    "terms": "Du kannst eine Ablage besitzen. Bei längerer Inaktivität kann sie entfernt werden. Wir informieren dich mindestens 14 Tage vorher per E-Mail.",
+    "rules": "Nutzungs- und Löschregeln"
+  },
+  "purge": {
+    "refreshFailed": "Der Inhalt wurde endgültig gelöscht, aber die Liste konnte nicht aktualisiert werden. Schließe diesen Dialog und lade die Liste neu. Du musst nichts erneut löschen.",
+    "unconfirmed": "Das Löschen konnte nicht bestätigt werden. Schließe diesen Dialog und lade die Liste neu, um das Ergebnis zu prüfen. Wiederhole den Löschvorgang nicht.",
+    "working": "Löschen…",
+    "confirm": "Bestätigen Sie den vollständigen Löschvorgang",
+    "warning": "Endgültig gelöschte Inhalte lassen sich in Same Page nicht wiederherstellen. Das Löschen gibt Speicher in der Ablage frei.",
+    "name": "Zum Bestätigen den Namen der Ablage „{name}“ eingeben"
+  },
+  "join": {
+    "guestError": "Lokaler Gästebereich konnte nicht vorbereitet werden. Bitte versuchen Sie es erneut.",
+    "invalidLink": "Der Einladungslink ist ungültig, bitte geben Sie den aktuellen Einladungscode ein.",
+    "newDrive": "Einer weiteren Ablage beitreten",
+    "checking": "Überprüfen…",
+    "enterShort": "Eintreten",
+    "submitting": "Beitritt…",
+    "submit": "Mitmachen und teilnehmen",
+    "close": "Schließen",
+    "exampleName": "Beispiel: Anna",
+    "existing": "Meine Ablagen",
+    "loginToView": "Anmelden und anzeigen",
+    "invitation": "Einladungskarte oder Einladungscode verwenden",
+    "displayName": "Anzeigename",
+    "named": "„{name}“ beitreten",
+    "setName": "Stellen Sie Ihren Namen ein, der in dieser Ablage angezeigt wird.",
+    "return": "Kehren Sie zurück, um den Einladungscode einzugeben"
+  },
+  "home": {
+    "enter": "Ablage öffnen",
+    "myDrives": "Meine Ablagen",
+    "preview": "Beispiel ansehen",
+    "more": "Funktionen entdecken",
+    "features": "Produktmerkmale",
+    "tagline": "Deine Notizen und meine Partitur",
+    "summaryEnglish": "Eine Online-Notenbibliothek für Chorproben und gemeinsame Anmerkungen.",
+    "summary": "Eine Online-Notenbibliothek für Chorproben und gemeinsame Anmerkungen.",
+    "title": "Harmonie beginnt mit gemeinsamen Noten"
+  },
+  "scan": {
+    "unrecognized": "Die Same Page-Einladungskarte wird nicht erkannt. Bitte zeigen Sie auf dieser Seite auf den QR-Code der Einladungskarte oder geben Sie den Einladungscode ein.",
+    "cameraFeedError": "Der Kamerabildschirm kann nicht gelesen werden. Identifizieren Sie ihn bitte anhand des Albums oder geben Sie den Einladungscode ein.",
+    "cameraError": "Die Kamera kann nicht geöffnet werden. Bitte erteilen Sie Kameraberechtigungen oder identifizieren Sie den Einladungscode aus dem Album und geben Sie ihn ein.",
+    "reading": "Einladungskarte wird erkannt…",
+    "imageUnrecognized": "Die Einladungskarte dieser Website wird auf dem Bild nicht erkannt. Bitte wählen Sie erneut aus oder geben Sie den Einladungscode ein.",
+    "imageError": "Das Bild kann nicht erkannt werden. Bitte wählen Sie ein Einladungskartenbild aus, das nicht größer als 10 MB ist, oder geben Sie den Einladungscode ein.",
+    "stop": "Stoppen Sie den Scanvorgang",
+    "start": "Scannen",
+    "fromPhoto": "Aus Fotoalbum identifizieren",
+    "chooseImage": "Wählen Sie das Bild der Einladungskarte aus",
+    "camera": "Bildschirm zum Scannen der Einladungskarte"
+  },
+  "usage": {
+    "trial": "Kostenlose Testversion",
+    "title": "Ablagenutzung",
+    "error": "Die Nutzung kann derzeit nicht gelesen werden.",
+    "working": "Nutzung lesen...",
+    "trash": "Auch der Papierkorb und ausstehende PDFs belegen Platz. Der Eigentümer kann unerwünschte Inhalte im Papierkorb vollständig löschen.",
+    "refresh": "Nutzung aktualisieren",
+    "details": "Partituren {scores} · Speicher {used} / {limit} · Mitglieder {members}"
+  },
+  "feature": {
+    "shared": {
+      "title": "Verschiedene Stimmen, Notizen in Ebenen teilen",
+      "description": "Probenanforderungen werden hierarchisch per Stimme geteilt. Berechtigte Personen können Notizen hinterlassen und alle können sie im gleichen Punktestand einsehen."
+    },
+    "personal": {
+      "title": "Sehen Sie sich bei Bedarf geteilte Notizen an und führen Sie selbst persönliche Notizen",
+      "description": "Wählen Sie die Teilnotizen aus, die Sie anzeigen möchten, und Sie können auch Ihre eigenen Erinnerungen auf der persönlichen Ebene aufschreiben. Standardmäßig können nur Sie sie sehen."
+    },
+    "replace": {
+      "title": "Ersetzen Sie die Notenblätter und machen Sie sich Notizen",
+      "description": "Nach dem Ersetzen des PDF bleiben vorhandene Notizen erhalten und werden weiterhin entsprechend der ursprünglichen Seitenzahl und Position angezeigt; Überprüfen Sie nach der Layoutänderung bitte die Position der Notizen."
+    },
+    "offline": {
+      "title": "Offline verfügbar, online synchronisiert",
+      "description": "Speichern Sie im Voraus für die Offline-Nutzung. Sie können weiterhin Musiknoten lesen und Notizen machen, auch wenn die Internetverbindung unterbrochen ist. Nachdem die Internetverbindung wiederhergestellt ist, werden die Notizen weiterhin synchronisiert."
+    },
+    "devices": {
+      "title": "Ein Notenblatt, verfügbar auf mehreren Geräten",
+      "description": "Installiere Same Page auf Android, iPhone, iPad, Windows oder Mac und öffne dieselben Partituren und Notizen auf jedem Gerät."
+    }
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "hint": "Für diese Adresse gibt es keine entsprechende Seite. Bitte kehren Sie zu meiner Ablage zurück, um mit dem Surfen fortzufahren.",
+    "action": "Zurück zu meinen Ablagen"
+  },
+  "admission": {
+    "unavailable": "Auf diese Ablage kann derzeit nicht zugegriffen werden. Bitte versuchen Sie es später erneut.",
+    "removed": "Diese Mitgliedschaftsbeziehung muss von jemandem mit Berechtigungen zur Mitgliederwiederherstellung wiederhergestellt werden.",
+    "rateLimit": "Zu viele Versuche, bitte versuchen Sie es später noch einmal.",
+    "invalidCode": "Der Einladungscode ist ungültig oder abgelaufen.",
+    "timeout": "Die Verbindung ist abgelaufen, der Einladungscode wurde reserviert, bitte versuchen Sie es erneut.",
+    "joinUnavailable": "Dieses Ablage kann derzeit nicht hinzugefügt werden. Bitte versuchen Sie es später erneut."
+  },
+  "trial": {
+    "platformFull": "Der kostenlose Testspeicher ist vorübergehend voll, bitte laden Sie ihn später erneut hoch. Vorhandene Inhalte sind weiterhin verfügbar.",
+    "driveLimit": "Das Ablagenkontingent für die kostenlose Testversion ist derzeit voll. Bitte versuchen Sie es später erneut. Sie können weiterhin weitere Ablagee hinzufügen.",
+    "ownedLimit": "Jeder Benutzer kann höchstens eine kostenlose Test-Ablage haben. Bitte übertragen oder löschen Sie zuerst die vorhandene Ablage.",
+    "verifyIdentity": "Bitte führen Sie zuerst die E-Mail-Verifizierung durch oder melden Sie sich mit einer verifizierten Identität eines Drittanbieters an.",
+    "memberLimit": "Die Anzahl der Ablage-Mitglieder ist voll. Bitte wenden Sie sich an den Eigentümer, um das Kontingent freizugeben, und versuchen Sie es erneut.",
+    "scoreLimit": "Die Anzahl der Musikpartituren in der Dateibibliothek hat die Obergrenze erreicht. Bitte verschieben Sie unnötige Musikpartituren zunächst in den Papierkorb.",
+    "retryLater": "Der Vorgang kommt zu häufig vor. Bitte versuchen Sie es später noch einmal.",
+    "confirmationMismatch": "Der Name des Ablage hat sich geändert oder die Eingabe stimmt nicht überein. Bitte aktualisieren und bestätigen Sie erneut.",
+    "accessChanged": "Die Identität oder Berechtigungen haben sich geändert. Bitte aktualisieren Sie den Vorgang und versuchen Sie es erneut.",
+    "deleted": "Der Inhalt wurde vollständig gelöscht, bitte aktualisieren.",
+    "generalError": "Der Vorgang ist nicht abgeschlossen. Bitte überprüfen Sie das Netzwerk und versuchen Sie es erneut."
+  },
+  "lifecycle": {
+    "identityChanged": "Die Anmeldeidentität hat sich geändert. Bitte lesen Sie den Status erneut und bestätigen Sie ihn erneut.",
+    "transferRequired": "Sie sind weiterhin Eigentümer der Ablage. Bitte übertragen Sie den Besitz oder löschen Sie das Ablage, bevor Sie fortfahren.",
+    "reauthenticate": "Bitte überprüfen Sie die ursprüngliche Anmeldemethode erneut und bestätigen Sie den Löschvorgang innerhalb von zehn Minuten.",
+    "cannotRecover": "Der Wiederherstellungszeitraum ist abgelaufen, die Authentifizierung ist abgelaufen oder die Anmeldemethode stimmt nicht überein. Bitte überprüfen Sie den Status erneut.",
+    "memberConflict": "Die Mitgliedschaft hat sich geändert oder die Wiederherstellungsfrist ist abgelaufen, bitte lesen Sie den Status noch einmal.",
+    "generalError": "Der Vorgang ist nicht abgeschlossen. Bitte lesen Sie den Status erneut und versuchen Sie es erneut."
+  },
+  "about": {
+    "copied": "Versionsinformationen wurden kopiert.",
+    "copyError": "Automatisches Kopieren fehlgeschlagen. Markiere die Informationen unten und kopiere sie manuell.",
+    "version": "Same Page {version}\nBuild: {build}",
+    "run": "Pipeline: {run}",
+    "currentVersion": "Auf diesem Gerät läuft Version {version}. Build-Zeiten werden in Pekinger Zeit angegeben.",
+    "title": "Über Same Page",
+    "links": "Hilfe und Produktinformationen",
+    "tagline": "Eine gemeinsame Partitur, um jede Stelle zusammen zu proben.",
+    "summary": "Chorpartituren und Probennotizen",
+    "productHint": "Lerne Same Page und die Funktionen für Proben kennen",
+    "manualHint": "Erfahre, wie du Partituren liest, annotierst und übst",
+    "feedbackHint": "Erzähl uns, welches Problem aufgetreten ist",
+    "buildInfo": "Version und technische Informationen",
+    "copy": "Versionsinformationen kopieren",
+    "recovery": "Den Player wiederherstellen",
+    "recoveryHint": "Wenn alle Ressourcen auf dem Gerät vorhanden sind, kannst du die Seite offline neu laden. Stelle andernfalls eine Internetverbindung her. Notizen und lokale Inhalte bleiben erhalten.",
+    "product": "Same Page kennenlernen",
+    "manual": "Benutzerhandbuch",
+    "feedback": "Problem melden",
+    "privacy": "Datenschutzerklärung",
+    "reload": "Seite neu laden"
+  },
+  "help": {
+    "start": {
+      "title": "Erste Schritte: eine Probe vorbereiten",
+      "intro": "Probiere aus, wie du eine Partitur findest und offline öffnest. Weitere Funktionen kannst du bei Bedarf nachschlagen.",
+      "walkthrough": {
+        "title": "Schritt für Schritt",
+        "step1": "Melde dich mit deiner E-Mail-Adresse oder über Google an. Nutze deine Einladung, um einer Ablage beizutreten. Tippe auf den Namen der Ablage, um sie zu wechseln, eine andere auszuwählen oder eine neue zu erstellen. Erstellen geht auch in der Ablagenauswahl. Wähle einen Anzeigenamen, an dem dich andere Mitglieder erkennen.",
+        "step2": "Suche in der Ablage nach dem Dateinamen und öffne die Partitur. Falls sie fehlt, bitte ein Mitglied mit Upload-Berechtigung, das PDF hochzuladen.",
+        "step3": "Tippe in die Mitte der Partitur, um die Werkzeuge einzublenden. Öffne die Notizebenen und wähle die gemeinsamen und persönlichen Ebenen, die du für die Probe brauchst.",
+        "step4": "Tippe zum Bearbeiten auf den Stift und wähle „Meine Notizen“. Füge eine Markierung hinzu und tippe zum Abschließen auf das Häkchen.",
+        "step5": "Prüfe den Status unter „Mehr → Notizen speichern und synchronisieren“. Bei ausstehenden Änderungen oder Fehlern stelle eine Internetverbindung her und folge den Hinweisen.",
+        "step6": "Speichere unter „Mehr → Offline verwenden“ eine Kopie. Warte, bis sie offline verfügbar ist. Öffne die benötigten Partituren vor der Probe einmal ohne Internet und prüfe, ob du Partituren und Notizen sehen kannst."
+      },
+      "try": {
+        "title": "Vor dem Beitritt ausprobieren",
+        "paragraph1": "Als Gast kannst du die freigegebenen Partituren und gemeinsamen Notizen lesen. Melde dich an oder registriere dich und tritt einer Ablage bei, um eigene Notizen zu schreiben und zwischen Geräten zu synchronisieren. Nur in der öffentlichen Beispielablage kannst du in diesem Browser probeweise schreiben. Diese Notizen bleiben auf dem Gerät, werden nicht hochgeladen, ändern keine gemeinsamen Inhalte und werden beim Anmelden nicht in persönliche Notizen übernommen."
+      }
+    },
+    "read": {
+      "title": "Partituren finden und die Leseansicht anpassen",
+      "intro": "Im Lesemodus liest du die Partitur. Im Bearbeitungsmodus änderst du die Notizen auf der aktuellen Seite.",
+      "navigation": {
+        "title": "Partituren finden und Seiten umblättern",
+        "paragraph1": "Suche in der Ablage nach dem Dateinamen und öffne die Partitur. Tippe in die Mitte, um die Werkzeuge einzublenden. Mit der Tastatur erreichst du „Lesewerkzeuge anzeigen“ per Tab und öffnest sie mit Eingabe oder Leertaste. Im Seitenmodus blätterst du durch Antippen am Rand oder Wischen nach links oder rechts. Über die Seitenvorschau springst du direkt zur gewünschten Seite.",
+        "paragraph2": "Wähle unter „Mehr → Seitenlayout und Zoom“ zwischen Seitenmodus und fortlaufendem Scrollen. Du kannst vergrößern, verkleinern, an die Seite anpassen oder auf unterstützten Geräten den Vollbildmodus verwenden."
+      },
+      "layers": {
+        "title": "Notizebenen auswählen",
+        "paragraph1": "Öffne die Notizebenen und wähle aus, was du sehen willst. Persönliche Ebenen sind standardmäßig privat. Gemeinsame Ebenen können Personen mit Zugriff sehen. Zum Bearbeiten ist eine zusätzliche Berechtigung nötig.",
+        "paragraph2": "Lege in der Leistenansicht die Standarddarstellung der Ablage für alle Partituren fest. Einstellungen für eine einzelne Partitur haben Vorrang. Wähle die Ablage-Standards, um Sichtbarkeit und Farben gemeinsamer Ebenen zurückzusetzen.",
+        "paragraph3": "Die Farbe neben einer gemeinsamen Ebene ändert deine Darstellung. Die anderen sehen ihre ursprünglichen Notizen unverändert. Bei persönlichen Notizen legst du die Farbe der einzelnen Notiz mit dem Bearbeitungswerkzeug fest."
+      }
+    },
+    "practice": {
+      "title": "Stimmen anhören und Passagen üben",
+      "intro": "Die Übungspartitur verwendet MusicXML für Darstellung und Wiedergabe. Zum Abgleichen dient weiterhin das Original-PDF.",
+      "open": {
+        "title": "Die Übungspartitur öffnen",
+        "step1": "Öffne die Partitur und tippe in die Mitte. Wähle unten rechts „Übungspartitur“ und dann die gewünschte Version. Diese Option erscheint nur, wenn MusicXML verfügbar ist.",
+        "step2": "„Automatisch erstellt · Beta“ kann Erkennungsfehler enthalten. Vergleiche diese Version mit dem Original-PDF. Hochgeladene Versionen behalten ihren Dateinamen. Du findest sie auch bei den Anhängen in der Bibliothek."
+      },
+      "repetition": {
+        "title": "Stimmen anhören und einen Abschnitt wiederholen",
+        "paragraph1": "Starte die Wiedergabe und ändere das Tempo in der unteren Leiste. In den Übungseinstellungen kannst du Stimmen auswählen, ihre Lautstärke anpassen, sie stumm- oder soloschalten und einen Wiederholungsbereich festlegen. Die Wiederholung startet sofort im aktuellen Abschnitt. Beim Ziehen von A oder B pausiert die Wiedergabe, der Takt wird angezeigt und das Bedienfeld ausgeblendet. Beim Loslassen wird der Bereich aktualisiert und der vorherige Wiedergabestatus wiederhergestellt. Du kannst beide Endpunkte taktweise anpassen. Fortschrittsleiste, Taktwechsel und Antippen der Noten sind während der Wiederholung auf den Bereich begrenzt. Mit dem Schalter beendest du die Wiederholung.",
+        "paragraph2": "Die Wiedergabe stammt aus der gewählten MusicXML-Datei und kann von der Originalpartitur abweichen. Der synthetische Klang singt keinen Text. Audioanhänge in der Bibliothek spielen hochgeladene Aufnahmen. Über „Mit Partitur anhören“ öffnest du das Original-PDF."
+      },
+      "views": {
+        "title": "Ansicht wechseln und die Übung beenden",
+        "paragraph1": "Die Übung öffnet sich im neu gesetzten Notenbild. Wechsle oben zwischen Original-PDF, neu gesetzter Ansicht und Vergleich. Die Wiedergabe bleibt erhalten. Die neu gesetzte Ansicht kann der Wiedergabe folgen und nach dem Blättern wieder dorthin zurückkehren. Im Original-PDF blätterst du selbst, ohne Positionsabgleich oder synchrones Scrollen.",
+        "paragraph2": "Die untere Leiste lässt sich einklappen. Wiedergabe, Pause und Übungseinstellungen bleiben zugänglich. Beende die Übung oben über „Übung beenden“ oder auf schmalen Bildschirmen über „Beenden“. Beim Verlassen der Partitur stoppt die Wiedergabe ebenfalls. Erneutes Öffnen startet am Anfang."
+      },
+      "offline": {
+        "title": "Die Wiedergabe offline vorbereiten",
+        "step1": "Speichere zuerst die Hauptpartitur für die Offline-Nutzung. Öffne dann bei bestehender Internetverbindung alle benötigten Übungspartituren.",
+        "step2": "Prüfe in den Übungseinstellungen, ob die Übungspartitur offline geöffnet und abgespielt werden kann. Wiederhole bei Bedarf die Offline-Vorbereitung. Die Offline-Verfügbarkeit der Hauptpartitur bestätigt noch nicht die der Übung.",
+        "step3": "Öffne vor der Probe die Hauptpartitur ohne Internet und spiele die passende Übung an. Wiederhole die Vorbereitung bei einem Geräte- oder Browserwechsel. Audioanhänge benötigen weiterhin eine Internetverbindung."
+      }
+    },
+    "notes": {
+      "title": "Notizen schreiben und bearbeiten",
+      "intro": "Prüfe vor dem Schreiben, welche Ebene gerade aktiv ist.",
+      "edit": {
+        "title": "Bearbeitung beginnen und abschließen",
+        "step1": "Tippe auf den Stift und wähle eine persönliche oder eine gemeinsame Ebene, die du bearbeiten darfst. Nur die aktive Ebene lässt sich ändern. Andere sichtbare Ebenen bleiben zur Orientierung blass eingeblendet.",
+        "step2": "Nutze für das aktive Werkzeug einen Finger oder einen Stift. Mit zwei Fingern verschiebst oder zoomst du die Seite. Im Seitenmodus blätterst du mit zwei Fingern horizontal. Im fortlaufenden Modus kannst du sichtbare Seiten einzeln bearbeiten und mit zwei Fingern scrollen. Jeder Strich gehört zu der Seite, auf der er begonnen wurde.",
+        "step3": "Schließe die Bearbeitung über das Häkchen ab. Die im Lesemodus gewählten Ebenen erscheinen wieder und du kannst weiterblättern."
+      },
+      "tools": {
+        "title": "Das passende Werkzeug wählen",
+        "paragraph1": "Der Stift ist für handschriftliche Markierungen, der Textmarker für Hervorhebungen und das Textwerkzeug für Erläuterungen. Mit Rechteck und Ellipse markierst du Bereiche. Je nach Werkzeug kannst du Farbe, Linienstärke oder Schriftgröße anpassen.",
+        "paragraph2": "Wähle eine vorhandene Notiz mit dem Auswahlwerkzeug, um ihren Stil zu ändern oder sie zu löschen. Änderungen lassen sich rückgängig machen und wiederherstellen. Neue Werkzeugstandards ändern vorhandene Notizen nicht.",
+        "paragraph3": "Neue Ablagen enthalten die gemeinsamen Ebenen Ensemble, Soprano, Alto, Tenor und Bass. Mitglieder mit Bearbeitungsrecht für eine Ebene können deren Notizen ändern. Prüfe vor dem Schreiben, dass persönliche Hinweise nicht auf einer gemeinsamen Probenebene landen."
+      },
+      "sync": {
+        "title": "Lokal speichern und mit der Cloud synchronisieren",
+        "paragraph1": "Notizen werden zuerst auf dem Gerät gespeichert. Sie werden übertragen, wenn du online bist und gültige Berechtigungen hast. Prüfe unter „Mehr → Notizen speichern und synchronisieren“, ob Änderungen ausstehen oder Fehler und Konflikte vorliegen.",
+        "paragraph2": "Der Cloud-Stand wird beim Öffnen der Partitur, nach dem Speichern von Änderungen oder beim manuellen Synchronisieren aktualisiert. Während des Lesens erfolgt keine regelmäßige Aktualisierung. Synchronisiere bei Bedarf während der Probe. Nach erneuter Verbindung wird die Übertragung ausstehender Entwürfe fortgesetzt."
+      }
+    },
+    "sharing": {
+      "title": "Persönliche Notizen verwalten und teilen",
+      "intro": "Nur du kannst deine persönliche Ebene bearbeiten. Andere Mitglieder können geteilte Ebenen lesen.",
+      "newLayer": {
+        "title": "Notizen nach ihrem Zweck trennen",
+        "paragraph1": "Lege im persönlichen Bereich der Notizebenen eigene Ebenen für Proben, Auftritte oder andere Zwecke an. Bestehende Ebenen findest du unter „Persönliche Ebenen verwalten“. Der Name dient zur Orientierung und ändert weder Urheberschaft noch Zugriff."
+      },
+      "share": {
+        "title": "Ebenen teilen und geteilte Ebenen anzeigen",
+        "paragraph1": "Aktiviere bei einer persönlichen Ebene „Teilen“, damit Mitglieder dieser Ablage ihre Inhalte und spätere synchronisierte Änderungen lesen können. Schalte die Freigabe aus, um sie zurückzunehmen. Andere Mitglieder erhalten kein Bearbeitungsrecht.",
+        "paragraph2": "Andere Mitglieder können diese Ebene in der Partitur unter „Notizebenen → Von Mitgliedern geteilt“ einblenden. Sie erscheint weder automatisch auf der Partitur noch als Standard für andere Partituren.",
+        "paragraph3": "Die Freigabe endet, wenn du sie zurücknimmst, die Ablage verlässt oder dein Konto löschst. Offline-Geräte können bereits heruntergeladene Inhalte erst nach dem nächsten Synchronisieren entfernen. Exportierte Dateien lassen sich nicht aus der Ferne zurückholen."
+      },
+      "restore": {
+        "title": "Persönliche Ebenen löschen und wiederherstellen",
+        "paragraph1": "Das Löschen einer persönlichen Ebene beendet die Freigabe. Du kannst sie 30 Tage lang unter „Persönliche Ebenen verwalten → Gelöschte Ebenen“ wiederherstellen. Danach ist sie nicht automatisch wieder geteilt. Befolge bei ausstehenden Änderungen zuerst die Hinweise in der App."
+      }
+    },
+    "offline": {
+      "title": "Proben offline vorbereiten und Same Page installieren",
+      "intro": "Die App installieren, eine Offline-Kopie speichern und ein PDF exportieren sind drei verschiedene Vorgänge.",
+      "prepare": {
+        "title": "Partituren auf diesem Gerät speichern",
+        "step1": "Öffne die Partitur online und wähle „Mehr → Offline verwenden → Für offline speichern“. Wenn es eine neuere Version gibt, aktualisiere die Kopie.",
+        "step2": "Warte, bis Download und Prüfung abgeschlossen sind. „Offline verfügbar“ bedeutet, dass die aktuelle Kopie bereit ist. „Ältere Version offline verfügbar“ bedeutet, dass die neue Kopie noch nicht bereit ist.",
+        "step3": "Prüfe alle für die Probe benötigten Partituren, indem du sie offline öffnest. Bei einem Wechsel von Gerät oder Browser musst du sie erneut vorbereiten."
+      },
+      "install": {
+        "title": "Zum Startbildschirm hinzufügen",
+        "paragraph1": "Wähle bei der Probenvorbereitung oder in der Ablagenliste „Zum Startbildschirm hinzufügen“ und folge den Browserhinweisen. Danach kannst du die App über das Symbol öffnen. Offline-Kopien der Partituren musst du separat speichern.",
+        "paragraph2": "Wenn du Same Page in WeChat öffnest, wirst du zum externen Browser weitergeleitet. Die Installation hängt von Gerät und Browser ab. Du kannst Same Page auch direkt im Browser nutzen."
+      },
+      "storage": {
+        "title": "Speicherplatz auf dem Gerät freigeben",
+        "paragraph1": "Unter „Lokaler Speicher“ in der Ablage kannst du gespeicherte Partituren prüfen und entfernen. Das gibt nur lokalen Speicher frei. Cloud-Partituren, persönliche Entwürfe, ausstehende Änderungen und Konflikte bleiben erhalten. Für die Offline-Nutzung musst du die entfernten Kopien erneut laden.",
+        "paragraph2": "Lösche nicht die Websitedaten im Browser, um Speicher für Partituren freizugeben. Ausstehende Entwürfe und lokale Notizen aus der Beispielablage könnten verloren gehen."
+      }
+    },
+    "files": {
+      "title": "Partituren hochladen, ersetzen und exportieren",
+      "intro": "Partituren in der Ablage, ihre PDF-Versionen und exportierte Dateien werden getrennt verwaltet.",
+      "upload": {
+        "title": "Hochladen und ersetzen",
+        "paragraph1": "Mit Upload-Berechtigung kannst du PDFs hinzufügen. Die Liste zeigt die Dateinamen. Zum Umbenennen oder Ersetzen eines PDFs öffnest du das Menü der Partitur und prüfst, ob du dazu berechtigt bist.",
+        "paragraph2": "Beim Ersetzen des PDFs bleiben die Partitur und die ursprünglichen Seiten und Positionen der Notizen erhalten. Prüfe die Vorschau und passe Notizen bei Layoutänderungen manuell an. Das alte PDF bleibt 30 Tage im Papierkorb und kann als separate Partitur wiederhergestellt werden. Offline-Kopien müssen separat aktualisiert werden."
+      },
+      "export": {
+        "title": "PDF mit Notizen exportieren",
+        "paragraph1": "Wähle beim Export in der Liste oder im Lesemodus die gewünschten Notizebenen aus. Das Ergebnis ist ein eigenes PDF mit der Partitur und den Notizen, die du sehen darfst. Deine Darstellungsoptionen und Offline-Kopien bleiben unverändert.",
+        "paragraph2": "Ein Export enthält den Inhalt zum Zeitpunkt des Exports. Spätere Änderungen werden nicht übernommen. Prüfe vor dem Weitergeben, ob sich enthaltene persönliche Notizen dafür eignen."
+      },
+      "trash": {
+        "title": "Papierkorb und endgültiges Löschen",
+        "paragraph1": "Berechtigte Mitglieder können Partituren in den Papierkorb verschieben und 30 Tage lang wiederherstellen. Ersetzte PDFs werden als separate Partitur wiederhergestellt, ohne das aktuelle PDF zu überschreiben oder Notizen oder Anhänge zu übernehmen. Inhalte im Papierkorb und noch nicht bestätigte PDFs belegen Speicher.",
+        "paragraph2": "Der Eigentümer kann Dateien aus dem Papierkorb oder die gesamte Ablage vorzeitig endgültig löschen. Die Inhalte sind danach nicht zugänglich und nicht wiederherstellbar. Beim Löschen einer Partitur oder Ablage werden zugehörige Notizen ebenfalls gelöscht."
+      }
+    },
+    "members": {
+      "title": "Ablagen erstellen, Mitglieder einladen und verwalten",
+      "intro": "Mitglieder erhalten die benötigten Berechtigungen. Der Eigentümer verwaltet die Ablage und delegiert Berechtigungen.",
+      "create": {
+        "title": "Erstellen und einladen",
+        "paragraph1": "Wähle den Namen der aktuellen Ablage und unten „Ablage erstellen“ oder öffne die Ablagenauswahl. Du kannst eine kostenlose Testablage mit bis zu 10 Partituren, 50 MB PDF-Speicher und 20 Mitgliedern einschließlich des Eigentümers besitzen. Sie hat kein festes Ablaufdatum.",
+        "paragraph2": "Teile den Einladungslink oder die Einladungskarte über die Ablage. Gib den Einladungscode nur an Personen weiter, die Zugriff benötigen. Ein erneuerter Code macht den alten ungültig. Den Anzeigenamen legst du für jede Ablage separat in deinem Profil fest."
+      },
+      "permissions": {
+        "title": "Die richtige berechtigte Person finden",
+        "paragraph1": "Öffne über das Zahnrad in der Ablage „Einstellungen → Mitglieder und Berechtigungen“. Die Liste lässt sich nach Mitglied oder Berechtigung anzeigen. Berechtigte Personen können die Aktion ausführen. Wer Berechtigungen vergeben darf, kann sie für reguläre Mitglieder ändern.",
+        "paragraph2": "Dateien hochladen, ändern oder löschen, Mitglieder verwalten und gemeinsame Ebenen bearbeiten sind getrennte Berechtigungen. Der Eigentümer kann die Rechteverwaltung für reguläre Mitglieder in einem bestimmten Umfang delegieren. Nicht geteilte persönliche Ebenen bleiben auch für den Eigentümer privat."
+      },
+      "retention": {
+        "title": "Aufbewahrung inaktiver Ablagen",
+        "paragraph1": "Kostenlose Testablagen können entfernt werden, wenn länger als 30 Tage kein Mitglied online darauf zugreift. Wir benachrichtigen den Eigentümer mindestens 14 Tage im Voraus per E-Mail. Greift während der Frist ein Mitglied online auf die Ablage zu, wird die Entfernung storniert.",
+        "paragraph2": "Nach 30 Tagen wird die Ablage nicht sofort gelöscht. Die E-Mail erklärt, wie du sie behalten kannst. Das Offline-Öffnen einer Kopie zählt nicht als Online-Zugriff."
+      }
+    },
+    "account": {
+      "title": "Verlassen, Gerät wechseln und Konto löschen",
+      "intro": "Zurück zur Liste, eine Ablage verlassen und sich abmelden haben unterschiedliche Folgen.",
+      "sync": {
+        "title": "Vor dem Gerätewechsel synchronisieren",
+        "paragraph1": "Prüfe auf dem bisherigen Gerät, ob alles synchronisiert ist. Melde dich dann auf dem neuen Gerät mit demselben Konto an. Ausstehende Entwürfe bleiben auf dem alten Gerät. Bereite Offline-Kopien auf dem neuen Gerät erneut vor."
+      },
+      "leave": {
+        "title": "Entscheiden, wie du die Ablage verlässt",
+        "paragraph1": "Über die Liste wechselst du nur die Ansicht. Beim Verlassen einer Ablage wird dein Online-Zugriff mit der Synchronisierung sofort entzogen. In regulären Ablagen bleiben persönliche Ebenen 30 Tage erhalten. In dieser Zeit kann eine berechtigte Person deine Mitgliedschaft wiederherstellen.",
+        "paragraph2": "Beim Abmelden werden persönliche Ebenen, Bearbeitungsrechte und Einstellungen aus diesem Browser entfernt. Heruntergeladene gemeinsame Inhalte können bleiben. Prüfe Hinweise auf ausstehende Änderungen oder Konflikte. „Verwerfen und abmelden“ entfernt diese lokalen Inhalte endgültig."
+      },
+      "delete": {
+        "title": "Konto löschen",
+        "paragraph1": "Bestätige unter „Mein Profil → Konto → Konto löschen“ deine ursprüngliche Anmeldemethode und die Löschung. Übertrage zuerst die Eigentümerschaft, wenn du eine Ablage besitzt. Dein Zugriff endet sofort. Identität und persönliche Ebenen können binnen 30 Tagen nach erneuter Prüfung mit der ursprünglichen Anmeldemethode und ausdrücklicher Bestätigung wiederhergestellt werden.",
+        "paragraph2": "Nach Ablauf der Frist lassen sich gelöschte Daten nicht wiederherstellen. Gemeinsame Notizen behalten deinen letzten Anzeigenamen in der Ablage. Die Löschung deines Kontos löscht die Ablage nicht und ruft keine exportierten Dateien zurück."
+      }
+    },
+    "questions": {
+      "title": "Probleme lösen",
+      "intro": "Prüfe zuerst die Ablage, dein Konto und die Internetverbindung.",
+      "finding": {
+        "title": "Partitur fehlt oder lässt sich nicht bearbeiten",
+        "paragraph1": "Prüfe Ablage und Dateiname, aktualisiere online das Verzeichnis oder frage ein Mitglied mit Upload-Berechtigung. Ohne Verbindung kannst du nur vorbereitete Offline-Kopien öffnen.",
+        "paragraph2": "Tippe auf den Stift, wähle die passende Ebene und prüfe dein Bearbeitungsrecht. Stelle Partituren zuerst aus dem Papierkorb wieder her. Unter „Mitglieder und Berechtigungen“ siehst du, wer Rechte vergeben kann."
+      },
+      "sync": {
+        "title": "Fehler oder Konflikt beim Synchronisieren",
+        "paragraph1": "Wiederhole die Synchronisierung, wenn die Verbindung zurück ist. Wenn sie weiterhin fehlschlägt, beschreibe das Problem und sende Diagnosedaten über „Problem melden“. Bei fehlender Berechtigung wende dich an jemanden, der sie vergeben kann, und behalte die Entwürfe auf dem ursprünglichen Gerät.",
+        "paragraph2": "Ein Konflikt bedeutet, dass dieselbe Notiz in der Cloud geändert wurde. Vergleiche die lokale Version mit der Cloud-Version. Behalte benötigte Änderungen und die Websitedaten."
+      },
+      "offline": {
+        "title": "Offline-Kopie noch nicht bereit oder Darstellungsproblem",
+        "paragraph1": "Speichere oder prüfe die Kopie unter „Mehr → Offline verwenden“ erneut. Die ältere Kopie kann bis zum abgeschlossenen Download der neueren Version verfügbar bleiben. Nutze bei Darstellungsfehlern die angebotene Wiederholungs- oder Wiederherstellungsfunktion, damit ausstehende Notizen erhalten bleiben.",
+        "paragraph2": "Wenn das Problem bestehen bleibt, sende eine Beschreibung, Schritte zum Nachstellen und Diagnosedaten über „Problem melden“. Gib keine Passwörter, Bestätigungscodes, Einladungscodes oder privaten Partiturinhalte an."
+      }
+    },
+    "updated": "Zuletzt aktualisiert am <date>2026-10-21</date>",
+    "contentsLabel": "Inhaltsverzeichnis des Handbuchs",
+    "lead": "Bereite Partituren und Notizen für die Probe vor. Beginne beim ersten Mal mit dem ersten Kapitel. Über das Inhaltsverzeichnis findest du schnell Antworten.",
+    "contents": "Inhaltsverzeichnis",
+    "back": "Zurück zum Inhaltsverzeichnis",
+    "feedbackHint": "Bei Problemen kannst du dem Same-Page-Team eine Beschreibung und Diagnosedaten zur Untersuchung senden.",
+    "sendFeedback": "Problem melden"
+  },
+  "privacy": {
+    "updated": "Zuletzt aktualisiert am 2026-11-17",
+    "lead": "Same Page ist eine Ablage für Musikpartituren, die für Chorproben entwickelt wurde. In dieser Richtlinie wird erläutert, welche Informationen wir verarbeiten, wenn Sie den Dienst nutzen, warum wir sie verarbeiten und wie Sie mit uns Kontakt aufnehmen können.",
+    "collect": {
+      "title": "Informationen, die wir verarbeiten",
+      "identity": "<label>Benutzer- und Anmeldeinformationen:</label> E-Mail-Adresse, E-Mail-Verifizierungsstatus, verschlüsselte oder gehashte Anmeldeinformationen, vom Drittanbieter-Anmeldeanbieter zurückgegebene stabile Authentifizierungsidentifikation sowie IP-Adresse und Browserinformationen, die zur Sicherung der Sitzung verwendet werden.",
+      "google": "<label>Google-Anmeldeinformationen:</label> Wenn Sie sich aktiv für ein Drittanbieter-Login entscheiden, erhalten wir die grundlegenden Identitätsinformationen, die zum Abschließen des Logins erforderlich sind, wie z. B. eine verifizierte E-Mail-Adresse, einen Spitznamen oder einen Avatar.",
+      "drive": "<label>Inhalte der Ablage:</label> Deine Ablagen, dein Anzeigename und deine Berechtigungen in jeder Ablage, hochgeladene PDF-Partituren und ihre Dateinamen sowie Notizen, Einstellungen und der Synchronisierungsstatus persönlicher und gemeinsamer Ebenen.",
+      "local": "<label>Lokale Gerätedaten:</label> Um die Offline-Nutzung zu unterstützen, kann der Browser Partituren, Notizen, Einstellungen und ausstehende Vorgänge auf dem aktuellen Gerät speichern. Gastzugangsdatensätze und Offline-Kopien können auch auf dem aktuellen Gerät gespeichert werden.",
+      "usage": "<label>Nutzung der Ablagen:</label> Wenn ein aktives Mitglied in der aktuellen App eine reguläre Ablage oder Partiturseite im Vordergrund öffnet, zur Seite zurückkehrt oder sie bedient, meldet die App einen Online-Besuch mit einer Genauigkeit von etwa fünf Minuten. Offline-Nutzung, Hintergrundabfragen und Synchronisierung sowie Gäste, die öffentliche Demo und Identitäten mit Betriebsberechtigung werden nicht erfasst. Wir speichern pro Mitgliedschaft nur den letzten Besuchszeitpunkt. Wir erfassen keine Lesevorgänge, Nutzungsdauer, Partiturnamen oder Notizinhalte. Wartungsverantwortliche mit Berechtigung für den Partiturbetrieb sehen nur den letzten Besuchszeitpunkt und zusammengefasste Mitgliederzahlen pro Ablage. Einzelne Besuche werden ihnen nicht angezeigt. Eine geplante Aufgabe löscht Besuchszeiten in den Mitgliedschaften nach 30 Tagen. Entfernte Mitglieder und gelöschte Nutzer fallen aus den Mitgliederzahlen heraus. Die Ablage behält ihren letzten Besuchszeitpunkt ohne Zuordnung zu einem Mitglied. Die Daten dienen zur Einschätzung der Nutzung und lösen keine automatische Löschung aus."
+    },
+    "use": {
+      "title": "Wie wir diese Informationen verwenden",
+      "protectUser": "Benutzer erstellen und schützen, Anmeldung abschließen, E-Mail-Verifizierung durchführen und Passwort zurücksetzen;",
+      "access": "Bestimmen Sie Ihre Zugriffs- und Bearbeitungsberechtigungen für die Ablage, Noten- und Notenebenen;",
+      "sync": "Speichern, synchronisieren und stellen Sie Partituren und Notizen offline auf Ihrem Gerät zur Verfügung;",
+      "emails": "Senden Sie die erforderlichen Anmeldesicherheits-E-Mails und Benachrichtigungen zur Ablagereinigung.",
+      "security": "Verhindern Sie Missbrauch, beheben Sie Fehler und gewährleisten Sie die Sicherheit und Zuverlässigkeit des Dienstes.",
+      "advertising": "Wir verkaufen Ihre persönlichen Daten nicht und verwenden sie nicht für gezielte Werbung. Notizen auf persönlicher Ebene sind standardmäßig nur für Sie sichtbar."
+    },
+    "sharing": {
+      "title": "Sichtbarer Bereich innerhalb der Wolkenscheibe",
+      "visibility": "Persönliche Ebenen siehst standardmäßig nur du. Gemeinsame Ebenen und Partituren gehören zur jeweiligen Ablage. Mitglieder und Gäste mit Zugriff können sie ansehen. Mitglieder mit Bearbeitungsrecht können sie ändern. Gemeinsame Notizen können den Anzeigenamen ihres Urhebers oder der Person behalten, die sie zuletzt bearbeitet hat. Aktive Mitglieder können Anzeigenamen, Berechtigungen und den Umfang der delegierten Rechteverwaltung anderer aktiver Mitglieder derselben Ablage sehen. Entfernte Mitgliedschaften und den Status ihrer Entfernung oder Wiederherstellung sehen nur der Eigentümer der Ablage und Personen, die Mitglieder entfernen dürfen.",
+      "identity": "Anmeldeinformationen von Drittanbietern werden nicht automatisch in allen Ablage zu Ihrer öffentlichen Identität; Sie können in verschiedenen Ablage unterschiedliche Anzeigenamen verwenden."
+    },
+    "processors": {
+      "title": "Dienstleister",
+      "intro": "Wir nutzen die folgenden Dienste nur in dem Umfang, der zur Bereitstellung und zum Schutz von Same Page erforderlich ist:",
+      "disclosure": "Diese Dienstanbieter verarbeiten Informationen gemäß ihren jeweiligen Bedingungen und Datenschutzrichtlinien. Wir können relevante Informationen auch im Einklang mit dem Gesetz offenlegen, wenn dies gesetzlich vorgeschrieben ist, um die Sicherheit von Benutzern und Diensten zu schützen oder wenn dies zur Durchführung einer organisatorischen Neuorganisation erforderlich ist.",
+      "cloudflare": "<label>Cloudflare:</label> Bereitstellung von Netzwerk-, Sicherheits-, Anwendungsbetriebs-, Datenbank- und PDF-Dateispeicherdiensten;",
+      "resend": "<label>Erneut senden:</label> Senden Sie die erforderlichen Anmeldesicherheits-E-Mails und Benachrichtigungen zur Ablagebereinigung, z. B. zur Registrierungsbestätigung und zum Zurücksetzen des Passworts.",
+      "google": "<label>Google:</label> Vollständige Authentifizierung nur, wenn Sie die entsprechende Methode wählen."
+    },
+    "google": {
+      "title": "Google-Benutzerdaten",
+      "identity": "Google Login with Same Page verwendet nur die grundlegenden Identitätsinformationen, die zum Erstellen und Anmelden von Benutzern erforderlich sind, und gilt nicht für Google Drive, Kontakte, Gmail oder andere zusätzliche Datenberechtigungen. Google-Daten werden nur zur Authentifizierung, Anmeldesicherheit und zur Bereitstellung der gleichen Seite für Sie verwendet, nicht für Werbung.",
+      "compliance": "Wir verwenden Google-Nutzerdaten gemäß der <policy>Google API Services User Data Policy</policy>, einschließlich der dort festgelegten Anforderungen zur eingeschränkten Nutzung (Limited Use)."
+    },
+    "retention": {
+      "title": "Aufbewahrung, Löschung und Offline-Kopien",
+      "deletedContent": "Ablagebesitzer können Noten aus dem Papierkorb, Papierkorb-PDFs oder das gesamte Ablage vollständig löschen. Durch den Vorgang wird der Produktzugriff auf den entsprechenden Inhalt sofort beendet und alle mit der Partitur verknüpften Mitgliedsnotizen werden gelöscht. Das Produkt bietet keine Wiederherstellungsfunktionen. Um Systemausfälle zu bewältigen, werden relevante Daten 30 Tage lang isoliert im Hintergrund aufbewahrt und nach Ablauf durch geplante Aufgaben bereinigt. Den Benutzern wird keine Wiederherstellung versprochen und es werden keine Zugriffsrechte auf die gespeicherten Daten gewährt.",
+      "devices": "Inhalte, die auf das Gerät heruntergeladen wurden, können nicht remote abgerufen werden. Durch das Löschen eines Benutzers wird die lokale Identität getrennt und nicht synchronisierte Entwürfe verbleiben weiterhin beim ursprünglichen Benutzer und können nicht von anderen Benutzern gelesen werden. Nach Ablauf des Löschwiederherstellungszeitraums kann der Server die bereinigten Daten nicht wiederherstellen. Wenn Sie sich explizit abmelden, löscht Same Page die persönliche Ebene, den Bearbeitungsstatus und die Benutzereinstellungen des aktuellen Browsers. Synchronisierte und entpersonalisierte freigegebene Inhalte können weiterhin für die Offline-Anzeige verfügbar bleiben. Sie können Website-Daten auch über Ihren Browser oder Ihr Betriebssystem löschen.",
+      "inactive": "Während du den Dienst nutzt, speichern wir die Daten, die für deinen Nutzer und deine Ablagen benötigt werden. Kostenlose Testablagen können entfernt werden, wenn länger als 30 Tage in Folge kein Mitglied online auf sie zugreift. Wir benachrichtigen den Eigentümer mindestens 14 Tage vorher per E-Mail. Öffnet ein Mitglied die Ablage während dieser Frist online, wird die Entfernung storniert. Das Offline-Öffnen einer Kopie zählt nicht als Online-Zugriff.",
+      "membership": "Wenn ein Mitglied eine reguläre Ablage verlässt oder entfernt wird, enden der über die Mitgliedschaft gewährte Cloud-Zugriff und die Synchronisierung sofort. Die persönlichen Ebenen bleiben 30 Tage lang erhalten. In dieser Zeit kann eine berechtigte Person die Mitgliedschaft wiederherstellen. Persönliche Ebenen sehen standardmäßig nur ihre jeweiligen Eigentümer. In der öffentlichen Demo hängen Zugriff und Aufbewahrung deiner persönlichen Ebenen nicht von einer Mitgliedschaft ab.",
+      "user": "Der Eigentümer kann den Besitz in den „Mitgliedern und Berechtigungen“ der entsprechenden Ablage übertragen und dann die ursprüngliche Anmeldemethode unter „Mein → Konto → Benutzer löschen“ erneut überprüfen und den Löschvorgang bestätigen. Durch das Löschen werden Produktsitzungen und Cloud-Zugriff sofort widerrufen. Für Identitätsdaten und persönliche Ebenen gilt eine Wiederherstellungsfrist von 30 Tagen. Während dieser Zeit können Sie nach der Überprüfung mit der beim Löschen verwendeten Anmeldemethode die Wiederherstellung nur explizit bestätigen und nicht direkt auf die Ablage zugreifen. Nach der Wiederherstellungsphase bereinigt die geplante Aufgabe die Identitäts- und persönliche Ebene. Freigegebene Notizen behalten weiterhin den endgültigen Namen, der auf der Ablage angezeigt wird, und werden nicht mit der Anmelde-E-Mail-Adresse oder dem globalen Profilnamen signiert.",
+      "pdfs": "Zu bestätigende Kandidaten-PDFs verfallen nach 24 Stunden; Alte PDF-Dateien bleiben nach Verlassen der aktuellen Version 30 Tage lang im Papierkorb und können in unabhängigen Partituren wiederhergestellt werden. In den Papierkorb verschobene Partituren und ihre Versionen werden ab dem Zeitpunkt des Verschiebens 30 Tage lang aufbewahrt. Abgelaufene Inhalte werden durch geplante Aufgaben recycelt und bei einem Fehler erneut versucht. Die physische Löschung kann nach Ablauf der Ablaufzeit erfolgen."
+    },
+    "security": {
+      "title": "Sicherheitsmaßnahmen",
+      "safeguards": "Wir verwenden Übertragungsverschlüsselung, serverseitige Berechtigungsprüfung, Begrenzung des Anmeldestroms, Anmeldedatenschutz und andere Maßnahmen. OAuth-Zugriffstoken und Aktualisierungstoken werden verschlüsselt und gespeichert, und das Google-ID-Token bleibt nach Abschluss der Google-Authentifizierung nicht bestehen. Kein Netzwerkdienst kann absolute Sicherheit garantieren; Wenn Sie Sicherheitsprobleme feststellen, kontaktieren Sie uns bitte so schnell wie möglich."
+    },
+    "diagnostics": {
+      "title": "Problem-Feedback",
+      "local": "Der Client speichert nur die letzten 30 Minuten und bis zu 50 Fehlerdatensätze in der aktuellen Seitensitzung, die beim Aktualisieren oder Identitätswechsel gelöscht werden. Sie können Diagnoseinformationen anzeigen, kopieren, löschen oder proaktiv Feedback auf der Seite <feedback>Problem-Feedback</feedback> oder im Popup-Fenster für Leser-Feedback senden; Es wird nicht hochgeladen, ohne auf „Senden“ zu klicken. Die ausstehenden Berichte und optionalen Beschreibungen bleiben nur in der aktuellen Sitzung erhalten und werden nach dem Aktualisieren, Schließen der Webseite oder einem Identitätswechsel gelöscht.",
+      "report": "Das proaktiv gesendete Feedback umfasst Fehlernummer, Zeit, Häufigkeit, Version, Vorgangskategorie, Stufe und Wiederholbarkeit sowie Browser- und Systemversion, Fenstergröße, Netzwerkaufforderungen und PWA-Status; Wenn es vom Reader gesendet wird, enthält es auch den Beat-Anzeigemodus, den Lese- oder Bearbeitungsstatus, die ausstehende Synchronisierung und die Anzahl der Konflikte. Das System erfasst nicht automatisch Noten- oder Notiztexte, Screenshots, Dateinamen, E-Mail-Adressen, Original-IPs, Anmeldeinformationen, vollständige URLs oder Originalausnahmen. Die von Ihnen ausgefüllte Problembeschreibung wird mit dem Bericht verschickt. Bitte geben Sie keine privaten Inhalte, Passwörter, Bestätigungscodes oder Einladungscodes an.",
+      "retention": "Der Bericht wird über den Same Page-Dienst in Cloudflare D1 gespeichert. Nur autorisierte Betreuer können den Bearbeitungsstatus einsehen und markieren; Die Rückmeldungsnummer gewährt keine Leseberechtigung und die Ablage-Verwaltungsberechtigung gewährt nicht die Möglichkeit, auf den Bericht zuzugreifen. Die neue Version des Feedbacks sieht bei der Übermittlung eindeutig eine Aufbewahrungsfrist von bis zu 180 Tagen vor. Berichte und historische Berichte, die von der alten Version des Clients übermittelt wurden, werden weiterhin gemäß der ursprünglichen 30-Tage-Frist verarbeitet. Nach Ablauf wird der Zugriff nicht mehr über den Posteingang gewährt und durch stündliche Aufgaben gelöscht; Wartungspersonal, das zum selbstständigen Löschen berechtigt ist, kann den Berichtstext im Voraus dauerhaft löschen, und die Mindestbetriebsaufzeichnung wird 180 Tage lang aufbewahrt, einschließlich nur des Bedieners, der Rückmeldungsnummer, der Aktion und der Zeit; Um zu verhindern, dass erneut versucht wird, den gelöschten Bericht erneut zu erstellen, behält das System die Löschmarkierung der Rückmeldungsnummer ohne Text und Benutzeridentität für lange Zeit bei. Durch das Löschen der lokalen Diagnose wird der gesendete Bericht nicht zurückgerufen. Berichte sind nicht mit Benutzern, Ablage oder Ergebnissen verknüpft und werden nicht automatisch auf GitHub veröffentlicht oder an Supportplattformen von Drittanbietern gesendet.",
+      "logs": "Die Schnittstelle verwendet eine kurzlebige Drosselungserkennung, um Missbrauch zu verhindern, und speichert nicht die ursprüngliche IP-Adresse oder Anmeldeinformationen im Bericht. Die serverseitig strukturierten Betriebsprotokolle werden gemäß dem Cloudflare-Plan weiterhin 3 oder 7 Tage lang aufbewahrt und die Berichtsbeschreibung wird nicht geschrieben. Die eigene Datenverarbeitung (einschließlich Backup und Sicherheitsprotokolle) des Infrastrukturanbieters wird durch dessen Richtlinien gesondert geregelt."
+    },
+    "rights": {
+      "title": "Ihre Wahl und kontaktieren Sie uns",
+      "contact": "Du kannst dich weiterhin mit deiner E-Mail-Adresse anmelden, ohne Google zu verwenden. Wenn du deine Nutzerdaten einsehen, berichtigen oder löschen, die Erlaubnis für die Anmeldung über einen Drittanbieter widerrufen oder eine Frage zu dieser Erklärung stellen möchtest, sende eine E-Mail an <contact>{email}</contact>. Ein Widerruf löscht weder ein bestehendes Same-Page-Konto noch Daten, die wir gesetzlich aufbewahren müssen."
+    },
+    "updates": {
+      "title": "Richtlinienaktualisierung",
+      "description": "Wenn es wichtige Änderungen im Service oder in den Datenverarbeitungsmethoden gibt, werden wir diese Seite und das Datum oben aktualisieren; Bei Bedarf erteilen wir auch Anweisungen durch In-Service-Eingabeaufforderungen oder E-Mails."
+    }
+  },
+  "authOauthFailed": "Die Anmeldung beim externen Anbieter wurde nicht abgeschlossen. Versuche es erneut oder fahre mit deiner E-Mail-Adresse fort.",
+  "authRateLimited": "Zu viele Versuche. Versuche es später erneut.",
+  "authContinueFailed": "Du kannst gerade nicht fortfahren. Versuche es später erneut.",
+  "authInvalidCredentials": "E-Mail-Adresse oder Passwort ist falsch.",
+  "authOtpSendFailed": "Der Bestätigungscode kann gerade nicht gesendet werden. Versuche es später erneut.",
+  "authOtpSent": "Der Bestätigungscode wurde gesendet. Schau in deinem Posteingang und Spam-Ordner nach.",
+  "authOtpInvalid": "Der Code ist ungültig oder abgelaufen. Fordere einen neuen an.",
+  "authOtpResent": "Ein neuer Bestätigungscode wurde gesendet.",
+  "authResetOtpSent": "Der Code zum Zurücksetzen des Passworts wurde gesendet.",
+  "authResetOtpResent": "Ein neuer Code zum Zurücksetzen des Passworts wurde gesendet.",
+  "authOtpSendNetworkError": "Der Bestätigungscode konnte nicht gesendet werden. Prüfe deine Verbindung und versuche es erneut.",
+  "authOtpVerifyNetworkError": "Der Code konnte nicht geprüft werden. Prüfe deine Verbindung und versuche es erneut.",
+  "authOtpInvalidOrLimit": "Der Code ist falsch oder abgelaufen, oder das Versuchslimit wurde erreicht. Prüfe den Code oder fordere einen neuen an.",
+  "authPasswordSetSignIn": "Dein Passwort wurde festgelegt. Die automatische Anmeldung wurde nicht abgeschlossen. Melde dich mit deinem neuen Passwort an.",
+  "authPasswordUnknown": "Es lässt sich gerade nicht bestätigen, ob dein Passwort festgelegt wurde. Melde dich mit dem neuen Passwort an. Falls das nicht klappt, bestätige deine E-Mail-Adresse, um es zurückzusetzen.",
+  "authOtpInvalidForSetup": "Der Code ist ungültig oder abgelaufen. Bestätige deine E-Mail-Adresse erneut, um ein Passwort festzulegen.",
+  "authOtpInvalidNoReset": "Der Code ist ungültig oder abgelaufen. Dein Passwort wurde nicht geändert.",
+  "authPasswordResetSignIn": "Dein Passwort wurde zurückgesetzt. Melde dich mit dem neuen Passwort an.",
+  "authOauthNoSession": "Die Anmeldung beim externen Anbieter konnte keine Sitzung starten. Versuche es erneut oder fahre mit deiner E-Mail-Adresse fort.",
+  "authOauthStartFailed": "Die Anmeldung beim externen Anbieter konnte nicht gestartet werden. Versuche es erneut oder fahre mit deiner E-Mail-Adresse fort.",
+  "authPasswordsMismatch": "Die Passwörter stimmen nicht überein.",
+  "authPasswordRequirements": "Das Passwort erfüllt die Anforderungen nicht.",
+  "authIdentify": "Anmelden oder registrieren",
+  "authIdentifyDescription": "Gib deine E-Mail-Adresse ein, um dich anzumelden oder ein Konto zu erstellen.",
+  "authContinuing": "Wird fortgesetzt…",
+  "authContinue": "Weiter",
+  "authSignIn": "Anmelden",
+  "authSignInDescription": "Melde dich mit deinem Passwort bei Same Page an.",
+  "authPassword": "Passwort",
+  "authSigningIn": "Anmeldung läuft…",
+  "authForgotPassword": "Passwort vergessen",
+  "authChangeEmail": "E-Mail-Adresse ändern",
+  "authSignUp": "Registrieren",
+  "authSignUpDescription": "Lege ein Passwort fest. Dann senden wir dir einen Code zur Bestätigung deiner E-Mail-Adresse.",
+  "authConfirmPassword": "Passwort bestätigen",
+  "authSendingOtp": "Wird gesendet…",
+  "authSendOtp": "Bestätigungscode senden",
+  "authVerifyEmail": "E-Mail-Adresse bestätigen",
+  "authVerifyingOtp": "Wird geprüft…",
+  "authCompleteSignUp": "Registrierung abschließen",
+  "authSignInGoogle": "Mit Google anmelden",
+  "authSetPassword": "Same-Page-Passwort festlegen",
+  "authSetPasswordGoogleDescription": "Du hast dich bisher mit Google angemeldet und noch kein Passwort für Same Page festgelegt.",
+  "authSetPasswordDescription": "Bestätige deine E-Mail-Adresse, um ein Passwort für Same Page festzulegen.",
+  "authContinueGoogle": "Mit Google fortfahren",
+  "authSetPasswordForEmail": "Passwort für die Anmeldung per E-Mail festlegen",
+  "authBackSignInMethods": "Zurück zu den Anmeldeoptionen",
+  "authChoosePasswordGoogleDescription": "Deine E-Mail-Adresse ist bestätigt. Lege ein Passwort für Same Page fest. Es ist unabhängig von deinem Google-Passwort.",
+  "authChoosePasswordDescription": "Deine E-Mail-Adresse ist bestätigt. Lege ein Passwort für Same Page fest.",
+  "authSettingPassword": "Passwort wird festgelegt…",
+  "authSetPasswordAndSignIn": "Passwort festlegen und anmelden",
+  "authBackVerifyEmail": "Zurück zur E-Mail-Bestätigung",
+  "authPasswordSet": "Passwort festgelegt",
+  "authPasswordSetGoogleDescription": "Du kannst dich jetzt mit E-Mail-Adresse und Passwort oder mit Google anmelden.",
+  "authPasswordSetDescription": "Du kannst dich jetzt mit E-Mail-Adresse und Passwort anmelden.",
+  "authRequestResetDescription": "Wir senden einen Code zum Zurücksetzen deines Passworts an diese E-Mail-Adresse.",
+  "authSendResetOtp": "Code zum Zurücksetzen senden",
+  "authBackSignIn": "Zurück zur Anmeldung",
+  "authResetPassword": "Passwort zurücksetzen",
+  "authResetPasswordDescription": "Nach der Bestätigung verlieren dein altes Passwort und alle anderen Anmeldesitzungen sofort ihre Gültigkeit.",
+  "authConfirmNewPassword": "Neues Passwort bestätigen",
+  "authResettingPassword": "Wird zurückgesetzt…",
+  "authResetPasswordAndSignIn": "Passwort zurücksetzen und anmelden",
+  "authJoinDrive": "Dem Laufwerk beitreten",
+  "authDisplayName": "Anzeigename",
+  "authDisplayNameExample": "Z. B. Alex",
+  "authJoiningDrive": "Beitritt läuft…",
+  "authJoinAndEnter": "Beitreten und öffnen",
+  "authSignedIn": "Erfolgreich angemeldet",
+  "authJoinFailedDescription": "Du bist angemeldet, konntest dem Laufwerk aber nicht beitreten.",
+  "authRetryJoin": "Erneut beitreten",
+  "authCancelToDriveList": "Abbrechen und zur Laufwerksliste zurück",
+  "authContinueReadOnly": "Im Lesemodus fortfahren",
+  "authBackHome": "Zurück zur Startseite",
+  "authBrand": "Same Page",
+  "authOtherSignInMethods": "Andere Anmeldeoptionen",
+  "authEmail": "E-Mail-Adresse",
+  "authOtp": "Sechsstelliger Bestätigungscode",
+  "authResendOtp": "Bestätigungscode erneut senden",
+  "authThisDrive": "dieses Laufwerk",
+  "authOtpRetry": "Zu viele Anfragen. Versuche es in {seconds, plural, one {# Sekunde} other {# Sekunden}} erneut.",
+  "authOtpRetryAlreadySent": "Zu viele Anfragen. Versuche es in {seconds, plural, one {# Sekunde} other {# Sekunden}} erneut. Einen bereits erhaltenen Code kannst du weiter verwenden.",
+  "authPasswordMinLabel": "Passwort (mindestens {min} Zeichen)",
+  "authVerifyEmailDescription": "Gib den Bestätigungscode ein, den wir an {email} gesendet haben.",
+  "authVerifySetPasswordDescription": "Gib den an {email} gesendeten Code ein, um ein Passwort für Same Page festzulegen.",
+  "authNewPasswordMinLabel": "Neues Passwort (mindestens {min} Zeichen)",
+  "authJoinDriveDescription": "Du bist angemeldet. Wähle deinen Anzeigenamen für „{drive}“.",
+  "authEmailSummary": "E-Mail-Adresse: {email}",
+  "authResendOtpCountdown": "Code erneut senden ({seconds} Sek.)",
+  "authPasswordMinimum": "Das Passwort muss mindestens {min} Zeichen lang sein.",
+  "authEmailExample": "name@example.com",
+  "authOtpExample": "000000",
+  "authFieldRequired": "Fülle dieses Feld aus.",
+  "authEmailInvalid": "Gib eine gültige E-Mail-Adresse ein.",
+  "authOtpDigits": "Gib den sechsstelligen Code ein.",
+  "authFieldTooLong": "Gib höchstens {max} Zeichen ein.",
+  "authFieldInvalid": "Gib einen gültigen Wert ein."
+}

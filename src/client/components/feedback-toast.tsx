@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Button, Text, UNSTABLE_Toast as Toast, UNSTABLE_ToastContent as ToastContent, UNSTABLE_ToastQueue as ToastQueue, UNSTABLE_ToastRegion as ToastRegion } from 'react-aria-components';
 import { X } from 'lucide-react';
+import { useMessages } from '../../i18n';
 import type { useFeedbackMessage } from './use-feedback-message';
 import './feedback-toast.css';
 
@@ -15,6 +16,7 @@ export function FeedbackToastProvider({ children }: { children: ReactNode }) {
 }
 
 function FeedbackToastRegion({ queue }: { queue: ToastQueue<Notice> }) {
+  const t = useMessages('common');
   const subscribe = useCallback((listener: () => void) => queue.subscribe(listener), [queue]);
   const visible = useSyncExternalStore(subscribe, () => queue.visibleToasts);
   const region = useRef<HTMLDivElement>(null);
@@ -34,7 +36,7 @@ function FeedbackToastRegion({ queue }: { queue: ToastQueue<Notice> }) {
   }, [interaction]);
   // Mount with content so React Aria can register the portal's keyboard landmark.
   if (!notice) return null;
-  return <ToastRegion ref={region} queue={queue} className="feedback-toast-region" aria-label="操作提示">
+  return <ToastRegion ref={region} queue={queue} className="feedback-toast-region" aria-label={t('feedbackNotifications')}>
       {({ toast }) => <div className="feedback-toast-interaction" {...toast.content.interaction}><Toast toast={toast} className="feedback-toast">
         <ToastContent role="status" aria-live="polite"><Text slot="title">{toast.content.text}</Text></ToastContent>
         <Button slot="close" className="feedback-toast-close" aria-label={toast.content.closeLabel}><X size={18} aria-hidden="true" /></Button>

@@ -8,7 +8,7 @@ import { musicXmlFixture } from './musicxml-fixture.mjs';
 for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`attachment launcher, single bar, focus, follow and preparation reuse (${engine})`,{timeout:120000},async t=>{
  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});let browser;
  t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
- browser=await type.launch(engine === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
+ browser=await type.launch(engine === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});const context=await browser.newContext({ locale: "zh-CN", viewport:{width:1024,height:768},serviceWorkers:'block'});
  await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}});
  const bytes=Buffer.from(musicXmlFixture(48).toString().replaceAll('<measure number="25">','<measure number="25"><attributes><key><fifths>1</fifths></key></attributes>')),id=crypto.randomUUID();
  const upload=await context.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/attachments/${id}/file?name=practice.xml&size=${bytes.length}`,{data:bytes,headers:{'content-length':String(bytes.length)}});

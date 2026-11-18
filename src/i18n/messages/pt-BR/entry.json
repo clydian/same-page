@@ -1,0 +1,567 @@
+{
+  "drive": {
+    "create": "Criar um drive",
+    "loginToCreate": "Entrar para criar um drive",
+    "login": "Entrar",
+    "restoreLocal": "Restaurando conteúdo local…",
+    "directoryError": "O diretório do drive não pode ser confirmado temporariamente. Conecte-se à Internet e tente novamente.",
+    "choose": "Escolher um drive",
+    "chooseHint": "Escolha o drive que deseja abrir.",
+    "lastUnavailable": "O último drive usado não está mais na lista acessível, selecione outro drive.",
+    "join": "Participar de um drive",
+    "first": "Participe do seu primeiro drive",
+    "firstHint": "Use o cartão de convite ou código de convite enviado pelo administrador para ingressar.",
+    "createPrompt": "Quer criar um drive para sua equipe?"
+  },
+  "identity": {
+    "checking": "Conectando, o conteúdo salvo pode continuar a ser usado.",
+    "localUnavailable": "A verificação de identidade local ainda não foi concluída e o conteúdo salvo ainda é retido.",
+    "unreachable": "Não é possível conectar temporariamente, o conteúdo salvo ainda é retido.",
+    "signedOut": "Após fazer login novamente e sincronizar, o conteúdo salvo pode continuar a ser usado.",
+    "retrying": "Tentando novamente…",
+    "retryVerify": "Tentar novamente a verificação",
+    "retryConnection": "Tentar novamente a conexão",
+    "loginAgain": "Faça login novamente"
+  },
+  "guestNotes": {
+    "title": "Entre para fazer anotações de ensaio",
+    "signIn": "Cadastre-se ou entre para fazer anotações",
+    "keepReading": "Continue lendo a partitura",
+    "hint": "Você está navegando como convidado. Registre-se ou faça login e junte-se a esta drive para gravar suas próprias notas e sincronizá-las em diferentes dispositivos."
+  },
+  "startup": {
+    "restore": "Recuperando drive...",
+    "retry": "Tente novamente",
+    "feedback": "Feedback",
+    "loadError": "O drive adicionado não pode ser carregado temporariamente."
+  },
+  "logout": {
+    "checkError": "Não foi possível verificar o conteúdo a ser sincronizado nesta máquina. Tente novamente.",
+    "networkError": "Efetue logout após conectar-se à Internet para garantir que a sessão do servidor expire ao mesmo tempo.",
+    "cleanupError": "Você saiu da conta, mas ainda há dados a apagar neste dispositivo. Tente apagá-los novamente.",
+    "logoutError": "A saída não foi concluída e os dados locais não foram apagados. Por favor, tente novamente.",
+    "cleanDetails": "Após sair, a camada pessoal local, rascunhos de documentos, permissões de edição e preferências do usuário serão limpos; o conteúdo compartilhado baixado pode ser retido.",
+    "working": "Saindo…",
+    "discard": "Descartar e sair",
+    "clear": "Sair e limpar os dados",
+    "title": "Sair da conta?",
+    "return": "Revisar alterações",
+    "pendingDetails": "Neste dispositivo há {pending, plural, one {# alteração pendente de sincronização} other {# alterações pendentes de sincronização}}, {conflicts, plural, one {# conflito local} other {# conflitos locais}} e {errors, plural, one {# erro de sincronização} other {# erros de sincronização}}{drafts, plural, =0 {} one {, além de # rascunho de documento não salvo} other {, além de # rascunhos de documentos não salvos}}. Se você continuar, esse conteúdo será descartado permanentemente."
+  },
+  "create": {
+    "capacity": "Teste gratuito · 10 partituras / 50 MB / 20 membros",
+    "name": "Nome do drive",
+    "displayName": "Seu nome de exibição neste drive",
+    "ownerHint": "Você será proprietário do drive e poderá convidar outras pessoas com um código. O limite é de 20 membros, incluindo você.",
+    "retention": "Um drive pode ser removido se nenhum membro o acessar online por mais de 30 dias seguidos. Avisamos o proprietário por e-mail com pelo menos 14 dias de antecedência. Se algum membro abrir o drive online durante o aviso, a remoção será cancelada.",
+    "cancel": "Cancelar",
+    "back": "Voltar à seleção de drives",
+    "uncertain": "O resultado da criação não pôde ser confirmado. Feche e leia novamente o drive adicionado antes de decidir se deseja tentar novamente.",
+    "working": "Criando…",
+    "submit": "Criar gratuitamente",
+    "terms": "Você pode ser proprietário de um drive. Podemos removê-lo após um período longo de inatividade, com aviso por e-mail pelo menos 14 dias antes.",
+    "rules": "Regras de uso e remoção"
+  },
+  "purge": {
+    "refreshFailed": "O conteúdo foi excluído permanentemente, mas a lista não pôde ser atualizada. Feche esta janela e recarregue a lista. Não é preciso repetir a exclusão.",
+    "unconfirmed": "Não foi possível confirmar a exclusão. Feche esta janela e recarregue a lista para conferir o resultado. Não repita a exclusão.",
+    "working": "Excluindo…",
+    "confirm": "Confirme a exclusão completa",
+    "warning": "O conteúdo excluído permanentemente não pode ser restaurado no Same Page. A exclusão libera espaço no drive.",
+    "name": "Digite o nome do drive “{name}” para confirmar"
+  },
+  "join": {
+    "guestError": "Não foi possível preparar o espaço local para convidados. Tente novamente.",
+    "invalidLink": "O link de convite é inválido. Insira o código de convite atual.",
+    "newDrive": "Participar de outro drive",
+    "checking": "Verificando…",
+    "enterShort": "Entrar",
+    "submitting": "Participando…",
+    "submit": "Cadastre-se e entre",
+    "close": "Fechar",
+    "exampleName": "Por exemplo: Ana",
+    "existing": "Meus drives",
+    "loginToView": "Entre para ver",
+    "invitation": "Use cartão de convite ou código de convite",
+    "displayName": "Nome de exibição",
+    "named": "Entrar em “{name}”",
+    "setName": "Defina seu nome exibido neste drive.",
+    "return": "Volte para inserir o código de convite"
+  },
+  "home": {
+    "enter": "Abrir um drive",
+    "myDrives": "Meus drives",
+    "preview": "Ver um exemplo",
+    "more": "Explorar recursos",
+    "features": "Recursos do produto",
+    "tagline": "Suas notas e minha pontuação",
+    "summaryEnglish": "Uma biblioteca de partituras na nuvem para ensaios de coral e anotações compartilhadas.",
+    "summary": "Uma biblioteca de partituras na nuvem para ensaios de coral e anotações compartilhadas.",
+    "title": "A harmonia começa na mesma partitura"
+  },
+  "scan": {
+    "unrecognized": "O cartão de convite Same Page não é reconhecido. Aponte para o código QR do cartão de convite neste site ou insira o código do convite.",
+    "cameraFeedError": "Não é possível ler a tela da câmera, identifique-a no álbum ou digite o código do convite.",
+    "cameraError": "Não é possível abrir a câmera, conceda as permissões da câmera ou identifique e insira o código de convite do álbum.",
+    "reading": "Reconhecendo o cartão de convite…",
+    "imageUnrecognized": "O cartão de convite deste site não é reconhecido na imagem. Selecione novamente ou insira o código de convite.",
+    "imageError": "A imagem não pode ser reconhecida. Selecione uma imagem de cartão de convite com no máximo 10 MB ou insira o código do convite.",
+    "stop": "Pare de digitalizar",
+    "start": "Digitalizar",
+    "fromPhoto": "Identificar no álbum de fotos",
+    "chooseImage": "Selecione a imagem do cartão de convite",
+    "camera": "Tela de digitalização do cartão de convite"
+  },
+  "usage": {
+    "trial": "Versão de teste gratuita",
+    "title": "Uso do drive",
+    "error": "O uso não pode ser lido no momento.",
+    "working": "Uso de leitura...",
+    "trash": "A Lixeira e os PDFs pendentes também ocupam espaço. O proprietário pode excluir completamente o conteúdo indesejado da Lixeira.",
+    "refresh": "Atualizar uso",
+    "details": "Partituras {scores} · Espaço {used} / {limit} · Membros {members}"
+  },
+  "feature": {
+    "shared": {
+      "title": "Vozes diferentes, compartilhe notas em camadas",
+      "description": "Os requisitos de ensaio são compartilhados hierarquicamente por voz. Pessoas autorizadas podem deixar notas e todos podem visualizá-las na mesma partitura."
+    },
+    "personal": {
+      "title": "Visualize notas compartilhadas sob demanda e mantenha anotações pessoais sozinho",
+      "description": "Selecione as notas da parte que deseja visualizar e você também pode anotar seus próprios lembretes em nível pessoal. Por padrão, somente você pode vê-los."
+    },
+    "replace": {
+      "title": "Substitua partituras e faça anotações",
+      "description": "Após a substituição do PDF, as notas existentes serão mantidas e ainda serão exibidas de acordo com o número e posição da página original; após as alterações de layout, verifique a posição das notas."
+    },
+    "offline": {
+      "title": "Disponível offline, sincronizado online",
+      "description": "Salve com antecedência para uso offline. Você pode continuar a ler partituras musicais e fazer anotações mesmo se a Internet estiver desconectada. Após a restauração da Internet, as notas continuarão a ser sincronizadas."
+    },
+    "devices": {
+      "title": "Uma partitura, disponível em vários dispositivos",
+      "description": "Instale o Same Page no Android, iPhone, iPad, Windows ou Mac para abrir as mesmas partituras e anotações em qualquer dispositivo."
+    }
+  },
+  "notFound": {
+    "title": "Página não encontrada",
+    "hint": "Este endereço não possui uma página correspondente, retorne ao meu drive para continuar navegando.",
+    "action": "Voltar a Meus drives"
+  },
+  "admission": {
+    "unavailable": "Este drive não pode ser acessado no momento, tente novamente mais tarde.",
+    "removed": "Este relacionamento de associação precisa ser restaurado por alguém com permissão de restauração de membro.",
+    "rateLimit": "Muitas tentativas, tente novamente mais tarde.",
+    "invalidCode": "O código de convite é inválido ou expirou.",
+    "timeout": "A conexão expirou, o código de convite foi reservado, tente novamente.",
+    "joinUnavailable": "Este drive não pode ser adicionado no momento, tente novamente mais tarde."
+  },
+  "trial": {
+    "platformFull": "O armazenamento de teste gratuito está temporariamente cheio, faça upload novamente mais tarde. O conteúdo existente ainda está disponível.",
+    "driveLimit": "A cota de drive de avaliação gratuita está atualmente cheia, tente novamente mais tarde. Você ainda pode adicionar outras drive.",
+    "ownedLimit": "Cada usuário pode ter no máximo um drive de teste gratuito. Transfira ou exclua primeiro o drive existente.",
+    "verifyIdentity": "Conclua primeiro a verificação de e-mail ou faça login usando uma identidade verificada de terceiros.",
+    "memberLimit": "O número de membros do drive está cheio. Entre em contato com o proprietário para liberar a cota e tente novamente.",
+    "scoreLimit": "O número de partituras musicais na biblioteca de arquivos atingiu o limite máximo. Mova primeiro as partituras musicais desnecessárias para a lixeira.",
+    "retryLater": "A operação é muito frequente, tente novamente mais tarde.",
+    "confirmationMismatch": "O nome do drive foi alterado ou a entrada não corresponde. Atualize e confirme novamente.",
+    "accessChanged": "A identidade ou as permissões foram alteradas, atualize e tente novamente.",
+    "deleted": "O conteúdo foi completamente excluído, atualize.",
+    "generalError": "A operação não foi concluída, verifique a rede e tente novamente."
+  },
+  "lifecycle": {
+    "identityChanged": "A identidade de login foi alterada, leia o status novamente e confirme novamente.",
+    "transferRequired": "Você ainda é o proprietário do drive. Transfira a propriedade ou exclua o drive antes de continuar.",
+    "reauthenticate": "Verifique novamente o método de login original e confirme a exclusão dentro de dez minutos.",
+    "cannotRecover": "O período de recuperação expirou, a autenticação expirou ou o método de login não corresponde, verifique novamente e verifique o status.",
+    "memberConflict": "A adesão foi alterada ou o período de recuperação expirou, leia o status novamente.",
+    "generalError": "A operação não foi concluída, releia o status e tente novamente."
+  },
+  "about": {
+    "copied": "As informações da versão foram copiadas.",
+    "copyError": "Não foi possível copiar automaticamente. Selecione as informações abaixo e copie manualmente.",
+    "version": "Same Page {version}\nCompilação: {build}",
+    "run": "Execução: {run}",
+    "currentVersion": "Este dispositivo está usando a versão {version}. Os horários de compilação usam o fuso de Pequim.",
+    "title": "Sobre o Same Page",
+    "links": "Ajuda e informações do produto",
+    "tagline": "Uma partitura compartilhada para ensaiar juntos cada trecho.",
+    "summary": "Partituras para coral e anotações de ensaio",
+    "productHint": "Conheça os recursos de ensaio do Same Page",
+    "manualHint": "Saiba como ler, anotar e praticar partituras",
+    "feedbackHint": "Conte para nós qual problema você encontrou",
+    "buildInfo": "Versão e informações técnicas",
+    "copy": "Copiar informações da versão",
+    "recovery": "Recuperar o reprodutor",
+    "recoveryHint": "Você pode recarregar sem conexão se tiver todos os recursos. Conecte-se para baixar os que estiverem faltando. As anotações e o conteúdo local serão mantidos.",
+    "product": "Conheça o Same Page",
+    "manual": "Guia de uso",
+    "feedback": "Informar um problema",
+    "privacy": "Política de privacidade",
+    "reload": "Recarregar página"
+  },
+  "help": {
+    "start": {
+      "title": "Primeiros passos para preparar um ensaio",
+      "intro": "Experimente o processo desde buscar a partitura até abri-la sem conexão. Depois, consulte os recursos de que precisar.",
+      "walkthrough": {
+        "title": "Experimente do início ao fim",
+        "step1": "Entre com e-mail ou Google e participe de um drive com o convite recebido. Selecione o nome do drive para trocar, participar de outro ou criar um novo. Também é possível criar no seletor de drives. Escolha um nome de exibição que os outros membros reconheçam.",
+        "step2": "No drive, procure e abra a partitura pelo nome do arquivo. Se ela não estiver lá, peça a um membro com permissão para enviar o PDF.",
+        "step3": "Toque no centro da partitura para mostrar as ferramentas. Abra «Camadas de anotações» e selecione as camadas compartilhadas e pessoais de que precisa para o ensaio.",
+        "step4": "Toque no lápis para editar, selecione «Minhas anotações», faça uma marca e toque no ícone de confirmação para concluir.",
+        "step5": "Confira o status em «Mais → Salvar e sincronizar anotações». Se houver pendências ou falhas, conecte-se e siga as instruções para sincronizar.",
+        "step6": "Em «Mais → Uso offline», salve uma cópia e aguarde a confirmação de que ela está pronta. Antes do ensaio, abra a partitura sem conexão e confira se a partitura e as anotações aparecem."
+      },
+      "try": {
+        "title": "Experimente antes de participar",
+        "paragraph1": "Como visitante, você pode ler as partituras e anotações compartilhadas autorizadas. Para guardar e sincronizar anotações pessoais, entre e participe do drive. Apenas o drive público de exemplo permite escrever neste navegador. Essas anotações ficam no dispositivo, não são enviadas, não alteram conteúdo compartilhado e não são transferidas para as anotações pessoais ao entrar."
+      }
+    },
+    "read": {
+      "title": "Encontre partituras e ajuste a leitura",
+      "intro": "Use o modo de leitura para ver a partitura e o modo de edição para alterar as anotações da página atual.",
+      "navigation": {
+        "title": "Buscar partituras e virar páginas",
+        "paragraph1": "Busque pelo nome do arquivo no drive e selecione a partitura. Toque no centro para mostrar as ferramentas ou pressione Tab até «Mostrar ferramentas do leitor» e depois Enter ou Espaço. No modo de páginas, toque em uma lateral ou deslize na horizontal. Use a prévia para ir direto à página desejada.",
+        "paragraph2": "Em «Mais → Layout da página e zoom», escolha páginas ou rolagem contínua. Você pode aumentar ou reduzir o zoom, ajustar à página ou usar tela cheia em dispositivos compatíveis."
+      },
+      "layers": {
+        "title": "Escolher camadas de anotações",
+        "paragraph1": "Em «Camadas de anotações», selecione o que deseja ver. As camadas pessoais são privadas por padrão. As compartilhadas são visíveis para quem tem acesso e só podem ser editadas com permissão.",
+        "paragraph2": "Configure a exibição padrão do drive para todas as partituras. Os ajustes de uma partitura têm prioridade. «Usar padrões do drive» restaura a exibição e as cores padrão das camadas compartilhadas.",
+        "paragraph3": "A cor ao lado de uma camada compartilhada muda sua visualização. A cor das anotações pessoais é definida com a ferramenta de edição."
+      }
+    },
+    "practice": {
+      "title": "Ouça as vozes e pratique trechos",
+      "intro": "A partitura de prática é reformatada e reproduzida a partir de MusicXML. Use o PDF original para conferir.",
+      "open": {
+        "title": "Abrir a partitura de prática",
+        "step1": "Abra a partitura, toque no centro e selecione «Partitura de prática» no canto inferior direito. Escolha uma versão. A opção aparece se houver MusicXML disponível.",
+        "step2": "«Gerada automaticamente · Beta» pode conter erros de reconhecimento. Compare com o PDF. As versões enviadas mantêm o nome do arquivo e também podem ser abertas nos anexos da biblioteca."
+      },
+      "repetition": {
+        "title": "Ouvir vozes e repetir um trecho",
+        "paragraph1": "Inicie a reprodução e altere o andamento na barra inferior. Em «Ajustes de prática», selecione vozes, ajuste o volume, silencie ou isole vozes e repita trechos. A repetição começa no intervalo atual. Ao arrastar A ou B, a reprodução pausa, o compasso aparece e o painel se torna transparente. Ao soltar, o intervalo é atualizado e o estado anterior volta. Ajuste cada ponto por compasso, se necessário. Durante a repetição, a navegação na barra e na partitura fica limitada ao intervalo. Desative a opção para encerrar.",
+        "paragraph2": "O áudio sintetizado vem do MusicXML selecionado e pode diferir do original. A letra não é cantada. Os anexos da biblioteca reproduzem gravações enviadas. Use «Ouvir com a partitura» para abrir o PDF original."
+      },
+      "views": {
+        "title": "Alterar a visualização e encerrar a prática",
+        "paragraph1": "A prática começa na partitura reformatada. Alterne entre «PDF original», «Partitura reformatada» e «Comparar» no menu superior. O estado da reprodução permanece. A partitura reformatada pode acompanhar a reprodução e voltar a acompanhá-la após a navegação. No PDF, as páginas são viradas manualmente e não há sincronização com a partitura reformatada.",
+        "paragraph2": "A barra inferior pode ser recolhida sem interromper a reprodução, a pausa ou o acesso aos ajustes. Para parar, selecione «Encerrar prática» no topo. Sair da partitura também interrompe a reprodução. Ao voltar, a prática começa do início."
+      },
+      "offline": {
+        "title": "Prepare a prática offline",
+        "step1": "Primeiro, salve a partitura principal para uso offline. Com conexão, abra todas as versões de prática que vai usar.",
+        "step2": "Nos ajustes, aguarde a confirmação de reprodução offline. Se ainda não estiver pronta, tente preparar novamente. A disponibilidade da partitura principal não garante a da versão de prática.",
+        "step3": "Antes do ensaio, abra a partitura principal sem conexão e teste a reprodução da versão de prática. Repita a preparação se trocar de dispositivo ou navegador. Os anexos de áudio exigem conexão."
+      }
+    },
+    "notes": {
+      "title": "Escrever e editar anotações",
+      "intro": "Confira qual camada está ativa antes de escrever.",
+      "edit": {
+        "title": "Começar e concluir a edição",
+        "step1": "Toque no lápis e selecione sua camada pessoal ou uma compartilhada com permissão de edição. Só a camada ativa pode ser alterada. As demais ficam esmaecidas como referência.",
+        "step2": "Use um dedo ou uma caneta para a ferramenta ativa e dois dedos para mover ou ampliar. No modo de páginas, deslize com dois dedos para virar a página. Na rolagem contínua, é possível editar as páginas visíveis. Cada traço pertence à página onde começou.",
+        "step3": "Toque no ícone de confirmação para concluir. Volte à seleção de camadas do modo de leitura e continue virando as páginas."
+      },
+      "tools": {
+        "title": "Escolher a ferramenta certa",
+        "paragraph1": "Use o lápis para escrever à mão, o marcador para destacar, o texto para explicações e as formas para marcar áreas. As opções de cor, espessura e tamanho dependem da ferramenta.",
+        "paragraph2": "Use a ferramenta de seleção para alterar um estilo compatível ou excluir uma anotação existente. Use os controles próprios para desfazer e refazer. Novos padrões de ferramentas valem para anotações futuras.",
+        "paragraph3": "Novos drives incluem as camadas Ensemble, Soprano, Alto, Tenor e Bass. Membros com permissão de edição podem alterar as anotações da camada compartilhada. Confira a camada antes de escrever um lembrete pessoal."
+      },
+      "sync": {
+        "title": "Salvamento local e sincronização",
+        "paragraph1": "As anotações são salvas primeiro neste dispositivo. Elas sincronizam quando há conexão e permissões válidas. Em «Mais → Salvar e sincronizar anotações», confira pendências, falhas e conflitos.",
+        "paragraph2": "O status na nuvem é atualizado ao abrir a partitura, enviar alterações ou sincronizar manualmente. Durante a leitura, sincronize para conferir novas alterações. Ao se reconectar, o envio dos rascunhos pendentes é retomado."
+      }
+    },
+    "sharing": {
+      "title": "Gerenciar e compartilhar anotações pessoais",
+      "intro": "Só você pode editar suas camadas pessoais. Os outros membros podem ler as camadas que você compartilhar.",
+      "newLayer": {
+        "title": "Separar anotações por finalidade",
+        "paragraph1": "Na seção pessoal de «Camadas de anotações», crie camadas para ensaios, apresentações ou outros fins. Use «Gerenciar camadas pessoais» para organizar as existentes. O nome identifica a camada e não altera a autoria ou o acesso."
+      },
+      "share": {
+        "title": "Compartilhar e ver camadas compartilhadas",
+        "paragraph1": "Ative «Compartilhar» em uma camada pessoal para que membros deste drive possam ler o conteúdo atual e as alterações sincronizadas. Desative a opção para parar de compartilhar.",
+        "paragraph2": "Os outros membros podem exibir a camada em «Camadas de anotações → Compartilhadas por membros» nessa partitura. A camada não aparece automaticamente nem vira padrão do drive.",
+        "paragraph3": "Parar de compartilhar, sair do drive ou excluir a conta encerra o compartilhamento. Dispositivos offline precisam se conectar e sincronizar para perder o acesso. Arquivos exportados não podem ser recolhidos remotamente."
+      },
+      "restore": {
+        "title": "Excluir e restaurar camadas pessoais",
+        "paragraph1": "Excluir uma camada pessoal encerra o compartilhamento. Você pode restaurá-la por 30 dias em «Gerenciar camadas pessoais → Camadas excluídas». Compartilhe novamente se quiser. Resolva primeiro as alterações pendentes de sincronização."
+      }
+    },
+    "offline": {
+      "title": "Preparar ensaios offline e instalar o Same Page",
+      "intro": "Instalar o aplicativo, salvar uma cópia offline e exportar um PDF são ações diferentes.",
+      "prepare": {
+        "title": "Preparar partituras neste dispositivo",
+        "step1": "Com conexão, abra a partitura e selecione «Mais → Uso offline → Salvar para uso offline». Se houver uma nova versão, atualize a cópia.",
+        "step2": "Aguarde o download e a verificação da cópia. «Disponível offline» indica que ela está pronta. Se aparecer «Versão anterior disponível offline», a nova versão ainda não está pronta.",
+        "step3": "Confira cada partitura do ensaio abrindo-a sem conexão. Se mudar de dispositivo ou navegador, prepare a cópia novamente."
+      },
+      "install": {
+        "title": "Instalar na tela inicial",
+        "paragraph1": "Selecione «Adicionar à tela inicial» na preparação do ensaio ou na lista de drives. Siga as instruções do navegador. Depois de instalar, ainda é necessário salvar as cópias de partituras separadamente.",
+        "paragraph2": "Se abrir o Same Page no WeChat, você verá a orientação para abrir um navegador externo. As opções de instalação dependem do dispositivo e do navegador. Você também pode usar o Same Page no navegador."
+      },
+      "storage": {
+        "title": "Liberar espaço no dispositivo",
+        "paragraph1": "Use «Armazenamento local» no drive para ver e remover partituras baixadas. Isso libera apenas espaço local e mantém partituras na nuvem, rascunhos, alterações pendentes e conflitos. Baixe novamente as cópias para abri-las offline.",
+        "paragraph2": "Evite limpar os dados do site no navegador. Rascunhos não sincronizados ou anotações da unidade de exemplo podem ser perdidos."
+      }
+    },
+    "files": {
+      "title": "Enviar, substituir e exportar partituras",
+      "intro": "As partituras do drive, as versões em PDF e os arquivos exportados são gerenciados separadamente.",
+      "upload": {
+        "title": "Enviar e substituir",
+        "paragraph1": "Membros com permissão de envio podem adicionar PDFs. A lista mostra nomes de arquivo. Para renomear ou substituir um PDF, use o menu da partitura e confira se tem a permissão correspondente.",
+        "paragraph2": "Substituir o PDF mantém a partitura e as anotações nas páginas e posições originais. Confira a prévia e ajuste as anotações se o layout mudar. O PDF anterior fica 30 dias na lixeira e pode ser restaurado como partitura separada. Atualize as cópias offline separadamente."
+      },
+      "export": {
+        "title": "Exportar PDF com anotações",
+        "paragraph1": "Na lista ou no leitor, escolha as camadas a incluir e crie um PDF com a partitura e as anotações a que você tem acesso. Isso mantém suas preferências de exibição e não prepara uma cópia offline.",
+        "paragraph2": "O PDF exportado representa o conteúdo daquele momento. Antes de enviar, confira se as anotações pessoais incluídas podem ser compartilhadas."
+      },
+      "trash": {
+        "title": "Lixeira e exclusão permanente",
+        "paragraph1": "Membros autorizados podem enviar partituras para a lixeira e restaurá-las por 30 dias. Um PDF substituído volta como partitura independente, sem sobrescrever o atual nem copiar anotações ou anexos. Itens da lixeira e PDFs pendentes de confirmação ainda ocupam espaço.",
+        "paragraph2": "O proprietário pode excluir permanentemente partituras ou PDFs da lixeira, ou todo o drive. O conteúdo deixa de estar disponível e não pode ser restaurado. Ao excluir uma partitura ou um drive, as anotações correspondentes também são excluídas."
+      }
+    },
+    "members": {
+      "title": "Criar drives, convidar e gerenciar membros",
+      "intro": "Os membros recebem as permissões necessárias. O proprietário gerencia a titularidade e a delegação de permissões.",
+      "create": {
+        "title": "Criar e convidar",
+        "paragraph1": "Selecione o nome do drive e escolha «Criar um drive» ou use a página de seleção. Você pode ser proprietário de um drive de teste gratuito com 10 partituras, 50 MB de PDF e 20 membros contando o proprietário. Não há data fixa de expiração.",
+        "paragraph2": "Compartilhe o link ou cartão de convite a partir do drive. Entregue o código só a quem precisa de acesso. Ao trocá-lo, o anterior perde a validade. Defina separadamente o nome de exibição em cada drive a partir do perfil."
+      },
+      "permissions": {
+        "title": "Encontrar alguém com permissão",
+        "paragraph1": "Abra a engrenagem do drive e vá a «Configurações → Membros e permissões». Consulte por membro ou permissão. Pessoas autorizadas podem executar a ação. Quem pode conceder permissões gerencia o acesso de membros comuns.",
+        "paragraph2": "Enviar, alterar ou excluir arquivos, gerenciar membros e editar camadas são permissões distintas. O proprietário pode delegar permissões para membros comuns dentro de um escopo definido. A propriedade não permite ver camadas pessoais não compartilhadas."
+      },
+      "retention": {
+        "title": "Retenção de drives inativos",
+        "paragraph1": "Drives de teste sem acesso online de nenhum membro por mais de 30 dias seguidos podem ser removidos. Avisaremos o proprietário por e-mail com pelo menos 14 dias de antecedência. Se algum membro acessar online durante o aviso, a remoção será cancelada.",
+        "paragraph2": "A remoção não é imediata após 30 dias. O e-mail explica como manter o drive. Abrir uma cópia offline não conta como acesso online."
+      }
+    },
+    "account": {
+      "title": "Sair, trocar de dispositivo e excluir a conta",
+      "intro": "Voltar à lista, sair de um drive e encerrar a sessão têm efeitos diferentes.",
+      "sync": {
+        "title": "Sincronizar antes de trocar de dispositivo",
+        "paragraph1": "Confira a sincronização no dispositivo original antes de entrar com a mesma conta no novo. Os rascunhos pendentes permanecem no dispositivo original. Prepare novamente as cópias offline."
+      },
+      "leave": {
+        "title": "Escolher como sair",
+        "paragraph1": "Voltar à lista só muda de página. Sair de um drive revoga o acesso e a sincronização da associação. Em drives comuns, as camadas pessoais são mantidas por 30 dias e alguém com permissão pode restaurar sua associação.",
+        "paragraph2": "Sair da conta remove do navegador camadas pessoais, permissões de edição e preferências. O conteúdo compartilhado baixado pode permanecer. Se houver alterações ou conflitos, confira o aviso. «Descartar e sair» apaga permanentemente essas alterações locais."
+      },
+      "delete": {
+        "title": "Excluir a conta",
+        "paragraph1": "Em «Meu perfil → Conta → Excluir conta», verifique seu método de login original e confirme. Transfira a propriedade primeiro se você tiver um drive. A exclusão interrompe o acesso e inicia um prazo de 30 dias para restaurar a identidade e as camadas pessoais verificando o método original e confirmando a recuperação.",
+        "paragraph2": "Após o prazo, dados excluídos não podem ser restaurados. Anotações compartilhadas mantêm o último nome de exibição no drive. Excluir a conta não apaga todo o drive nem recolhe arquivos exportados."
+      }
+    },
+    "questions": {
+      "title": "Resolver problemas",
+      "intro": "Confira o drive atual, sua sessão e a conexão antes de buscar a causa.",
+      "finding": {
+        "title": "Não encontro a partitura ou não consigo editar",
+        "paragraph1": "Confira o drive e o nome do arquivo. Conecte-se e atualize a lista ou pergunte a um membro com permissão de envio. Sem conexão, só é possível abrir cópias já preparadas.",
+        "paragraph2": "Toque no lápis, selecione a camada certa e confira sua permissão. Restaure primeiro as partituras da lixeira. Em «Membros e permissões», encontre quem pode conceder o acesso."
+      },
+      "sync": {
+        "title": "Falha ou conflito de sincronização",
+        "paragraph1": "Tente novamente quando a conexão voltar. Se continuar falhando, envie a descrição e o diagnóstico em «Informar um problema». Se faltarem permissões, fale com quem pode concedê-las e mantenha os rascunhos no dispositivo original.",
+        "paragraph2": "Um conflito indica que a mesma anotação mudou na nuvem. Compare a versão local com a da nuvem. Mantenha as alterações de que ainda precisa e os dados do site."
+      },
+      "offline": {
+        "title": "Cópia offline pendente ou problema de exibição",
+        "paragraph1": "Em «Mais → Uso offline», tente salvar ou verificar novamente. Uma cópia anterior pode continuar disponível até terminar o novo download. Use as opções de nova tentativa ou recuperação para evitar perder anotações não sincronizadas.",
+        "paragraph2": "Se o problema continuar, envie descrição, passos e dados de diagnóstico em «Informar um problema». Não inclua senhas, códigos de verificação ou convite, nem conteúdo privado de partituras."
+      }
+    },
+    "updated": "Última atualização: <date>2026-10-21</date>",
+    "contentsLabel": "Índice do guia",
+    "lead": "Prepare partituras e anotações para o ensaio. Se for a primeira vez, siga o primeiro capítulo. Use o índice para consultar dúvidas.",
+    "contents": "Índice",
+    "back": "Voltar ao índice",
+    "feedbackHint": "Se encontrar um problema, envie a descrição e os dados de diagnóstico para a equipe do Same Page investigar.",
+    "sendFeedback": "Informar um problema"
+  },
+  "privacy": {
+    "updated": "Última atualização: 2026-11-17",
+    "lead": "Same Page é um drive de partituras musicais projetado para ensaios de coro. Esta política explica quais informações processamos quando você usa o Serviço, por que as processamos e como você pode entrar em contato conosco.",
+    "collect": {
+      "title": "Informações que processamos",
+      "identity": "<label>Informações de usuário e login:</label> Endereço de e-mail, status de verificação de e-mail, credenciais de login criptografadas ou com hash, identificação de autenticação estável retornada pelo provedor de login terceirizado e endereço IP e informações do navegador usadas para proteger a sessão.",
+      "google": "<label>Informações de login do Google:</label> Quando você escolhe ativamente um login de terceiros, receberemos as informações básicas de identidade necessárias para concluir o login, como e-mail verificado, apelido ou avatar.",
+      "drive": "<label>Conteúdo dos drives:</label> Os drives de que você participa, seu nome de exibição e suas permissões em cada drive, as partituras em PDF carregadas e seus nomes de arquivo, além das anotações, preferências e do estado de sincronização das camadas pessoais e compartilhadas.",
+      "local": "<label>Dados locais do dispositivo:</label> Para suportar o uso offline, o navegador pode salvar partituras, notas, preferências e operações pendentes no dispositivo atual. Os registros de acesso de convidados e cópias off-line também podem ser salvos no dispositivo atual.",
+      "usage": "<label>Uso dos drives:</label> Quando um membro ativo abre um drive comum ou uma página de partitura em primeiro plano no cliente atual, volta à página ou interage com ela, o cliente registra uma visita online com granularidade de cerca de cinco minutos. Uso offline, consultas e sincronização em segundo plano, visitantes, demonstração pública e identidades com permissão operacional ficam de fora. Mantemos somente o horário da visita mais recente de cada associação. Não coletamos atividades de leitura, duração, nomes de partituras nem anotações. Responsáveis com autorização para operações de partituras só veem a visita mais recente de cada drive e contagens agregadas. Registros individuais não são exibidos. Uma tarefa agendada apaga os horários de visita da associação após 30 dias. Membros removidos e usuários excluídos deixam de ser contados. O drive mantém o horário de sua visita mais recente sem associá-lo à identidade de um membro. Esses registros servem para entender o uso e não acionam remoção automática."
+    },
+    "use": {
+      "title": "Como usamos essas informações",
+      "protectUser": "Criar e proteger usuários, completar login, verificação de e-mail e redefinição de senha;",
+      "access": "Determine suas permissões de acesso e edição ao drive, partituras e camadas de notas;",
+      "sync": "Armazene, sincronize e disponibilize partituras e notas offline em seu dispositivo;",
+      "emails": "Enviar e-mails de segurança de login necessários e notificações de limpeza de drive;",
+      "security": "Prevenir abusos, solucionar falhas e manter a segurança e a confiabilidade do Serviço.",
+      "advertising": "Não vendemos suas informações pessoais nem as usamos para publicidade direcionada. As notas de nível pessoal só ficam visíveis para você por padrão."
+    },
+    "sharing": {
+      "title": "Alcance visível dentro do disco da nuvem",
+      "visibility": "Por padrão, só você pode ver suas camadas pessoais. As camadas compartilhadas e as partituras pertencem ao drive que as contém. Membros e visitantes com acesso podem visualizá-las, e membros com permissão de edição podem alterá-las. Anotações compartilhadas podem manter o nome de exibição de quem criou ou fez a última alteração no drive. Membros ativos podem ver o nome de exibição, as permissões e o escopo da gestão delegada de outros membros ativos do mesmo drive. Só o proprietário e quem pode remover membros podem ver as associações removidas e o status de remoção ou restauração.",
+      "identity": "As informações de login de terceiros não se tornarão automaticamente sua identidade pública em todas as drive; você pode usar diferentes nomes de exibição em diferentes drive."
+    },
+    "processors": {
+      "title": "Provedor de serviços",
+      "intro": "Utilizamos os seguintes serviços apenas na medida necessária para fornecer e proteger a Same Page:",
+      "disclosure": "Esses provedores de serviços processarão as informações de acordo com seus respectivos termos e políticas de privacidade. Também poderemos divulgar informações relevantes de acordo com a lei quando exigido por lei, para proteger a segurança dos usuários e serviços, ou quando necessário para completar a reorganização organizacional.",
+      "cloudflare": "<label>Nuvem Flare:</label> Fornecer serviços de rede, segurança, operação de aplicativos, banco de dados e armazenamento de arquivos PDF;",
+      "resend": "<label>Reenviar:</label> Enviar e-mails de segurança de login necessários e notificações de limpeza de drive, como verificação de registro e redefinição de senha;",
+      "google": "<label>Google:</label> Conclua a autenticação somente se você escolher o método apropriado."
+    },
+    "google": {
+      "title": "Dados do usuário do Google",
+      "identity": "O Login do Google com a mesma página usa apenas as informações básicas de identidade necessárias para criar e fazer login de usuários e não se aplica ao Google Drive, Contatos, Gmail ou outras permissões de dados adicionais. Os dados do Google são usados ​​apenas para autenticação, segurança de login e para fornecer a mesma página, não para publicidade.",
+      "compliance": "Nosso uso dos dados do usuário do Google está em conformidade com a <policy>Política de Dados do Usuário do Serviço API do Google</policy>, incluindo os requisitos de Uso Limitado nela contidos."
+    },
+    "retention": {
+      "title": "Retenção, exclusão e cópias offline",
+      "deletedContent": "Os proprietários de drive podem excluir completamente as partituras da Lixeira, os PDFs da Lixeira ou toda a drive. A operação encerra imediatamente o acesso do produto ao conteúdo correspondente e todas as notas do membro associadas à pontuação são excluídas. O produto não fornece recursos de recuperação. Para lidar com falhas do sistema, os dados relevantes serão mantidos em isolamento em segundo plano por 30 dias e serão limpos por tarefas agendadas após a expiração; a recuperação não é prometida aos usuários e os direitos de acesso não serão concedidos aos dados retidos.",
+      "devices": "O conteúdo baixado para o dispositivo não pode ser recuperado remotamente. A exclusão de um usuário desconectará a identidade local e os rascunhos não sincronizados continuarão sob o usuário original e não poderão ser lidos por outros usuários; após o término do período de recuperação da exclusão, o servidor não poderá restaurar os dados limpos. Quando você sai explicitamente, a Same Page limpa a camada pessoal do navegador atual, o status editável e as preferências do usuário; o conteúdo compartilhado sincronizado e despersonalizado pode permanecer disponível para visualização offline. Você também pode limpar os dados do site por meio do navegador ou sistema operacional.",
+      "inactive": "Enquanto você usa o serviço, mantemos os dados de usuário e de drive necessários para oferecê-lo. Um drive de teste gratuito pode ser removido se nenhum membro o acessar online por mais de 30 dias seguidos. Avisamos o proprietário por e-mail com pelo menos 14 dias de antecedência. Se algum membro abrir o drive online durante esse prazo, a remoção será cancelada. Abrir uma cópia offline não conta como acesso online.",
+      "membership": "Quando alguém sai ou é removido de um drive comum, o acesso à nuvem e a sincronização que essa associação concedia são revogados de imediato. As camadas pessoais são mantidas por 30 dias. Nesse período, alguém com a permissão correspondente pode restaurar a associação. Por padrão, só você vê suas camadas pessoais. Na demonstração pública, o acesso às suas camadas pessoais e a retenção delas independem da associação.",
+      "user": "O proprietário pode transferir a propriedade em \"Membros e permissões\" do drive correspondente e, em seguida, verificar novamente o método de login original em \"Minha → Conta → Excluir usuário\" e confirmar a exclusão. A exclusão revoga imediatamente as sessões do produto e o acesso à nuvem; os dados de identidade e as camadas pessoais entram em um período de recuperação de 30 dias. Durante este período, após a verificação usando o método de login usado ao excluir, você só poderá confirmar explicitamente a recuperação e não poderá acessar diretamente o drive. Após o período de recuperação, a tarefa agendada limpa as camadas pessoal e de identidade. As notas compartilhadas continuarão a manter o nome final exibido no disco da nuvem e não serão assinadas com o endereço de e-mail de login ou o nome do perfil global.",
+      "pdfs": "Os PDFs candidatos a serem confirmados expiram após 24 horas; PDFs antigos serão retidos na Lixeira por 30 dias após saírem da versão atual e poderão ser restaurados para partituras independentes. As pontuações e suas versões movidas para a Lixeira serão retidas por 30 dias a partir do momento em que forem movidas. O conteúdo expirado é reciclado por tarefas agendadas e repetido em caso de falha. A exclusão física pode ser posterior ao prazo de validade."
+    },
+    "security": {
+      "title": "Medidas de segurança",
+      "safeguards": "Usamos criptografia de transmissão, verificação de permissão do lado do servidor, limitação de corrente de login e proteção de credenciais e outras medidas. Os tokens de acesso OAuth e os tokens de atualização são criptografados e salvos, e o token de ID do Google não é persistido após a conclusão da autenticação do Google. Nenhum serviço de rede pode garantir segurança absoluta; se você encontrar algum problema de segurança, entre em contato conosco o mais rápido possível."
+    },
+    "diagnostics": {
+      "title": "Feedback do problema",
+      "local": "O cliente retém apenas os últimos 30 minutos e até 50 registros de erros na sessão da página atual, que serão apagados ao atualizar ou trocar de identidade. Você pode visualizar, copiar, limpar informações de diagnóstico ou enviar comentários proativamente na página <feedback>Comentários sobre o problema</feedback> ou na janela pop-up de comentários do leitor; ele não será carregado sem clicar em Enviar. Os relatórios pendentes e as descrições opcionais são retidos apenas na sessão atual e serão apagados após a atualização, o fechamento da página da Web ou a troca de identidades.",
+      "report": "O feedback enviado proativamente inclui número do erro, hora, frequência, versão, categoria de operação, estágio e capacidade de repetição, bem como versão do navegador e do sistema, tamanho da janela, prompts de rede e status do PWA; quando enviado do leitor, inclui também o modo de exibição da batida, status de leitura ou edição, sincronização pendente e número de conflitos. O sistema não coleta automaticamente partituras ou notas, capturas de tela, nomes de arquivos, endereços de e-mail, IPs originais, credenciais, URLs completos ou exceções originais. A descrição do problema que você preencher será enviada com o relatório. Não inclua conteúdo privado, senhas, códigos de verificação ou códigos de convite.",
+      "retention": "O relatório é salvo no Cloudflare D1 através do serviço Same Page. Somente mantenedores autorizados podem visualizar e marcar o status do processamento; o número de feedback não concede permissão de leitura e a permissão de gerenciamento de drive não concede a capacidade de acessar o relatório. A nova versão do feedback adota claramente um período de retenção de até 180 dias no momento do envio. Os relatórios e relatórios históricos enviados pela versão antiga do cliente ainda são processados ​​de acordo com o período original de 30 dias. Após a expiração, o acesso não será mais fornecido pela caixa de entrada e será excluído por tarefas horárias; o pessoal de manutenção autorizado a excluir de forma independente pode excluir permanentemente o texto do relatório com antecedência, e o registro mínimo da operação é retido por 180 dias, incluindo apenas o operador, número de feedback, ação e tempo; para evitar novas tentativas de recriar o relatório excluído, o sistema retém a marca de exclusão do número de feedback sem texto e identidade do usuário por um longo período; limpar o diagnóstico local não recuperará o relatório enviado. Os relatórios não estão associados a usuários, drive ou pontuações e não são publicados automaticamente no GitHub ou enviados para plataformas de suporte de terceiros.",
+      "logs": "A interface usa identificação de limitação de curta duração para evitar abusos e não salva o IP original ou as credenciais de login no relatório. Os logs de operações estruturadas do lado do servidor ainda são retidos por 3 ou 7 dias de acordo com o plano Cloudflare, e a descrição do relatório não é escrita. O processamento de dados do próprio fornecedor de infraestrutura (incluindo registos de backup e de segurança) é regido separadamente pelas suas políticas."
+    },
+    "rights": {
+      "title": "Sua escolha e entre em contato conosco",
+      "contact": "Você pode optar por não fazer login no Google e continuar fazendo login com seu e-mail. Para consultar, corrigir ou excluir informações do usuário, retirar autorização de login de terceiros ou perguntar sobre esta política, envie um e-mail para <contact>{email}</contact>. A revogação da autorização de terceiros não excluirá automaticamente os usuários já estabelecidos na Same Page ou os dados que devem ser retidos por lei."
+    },
+    "updates": {
+      "title": "Atualização da política",
+      "description": "Quando houver alterações importantes no serviço ou nos métodos de tratamento de dados, atualizaremos esta página e a data no topo; se necessário, também forneceremos instruções por meio de avisos de serviço ou e-mails."
+    }
+  },
+  "authOauthFailed": "O login com o provedor externo não foi concluído. Tente novamente ou continue com seu e-mail.",
+  "authRateLimited": "Muitas tentativas. Tente novamente mais tarde.",
+  "authContinueFailed": "Não foi possível continuar agora. Tente novamente mais tarde.",
+  "authInvalidCredentials": "E-mail ou senha incorretos.",
+  "authOtpSendFailed": "Não foi possível enviar o código de verificação agora. Tente novamente mais tarde.",
+  "authOtpSent": "Código de verificação enviado. Confira a caixa de entrada e o spam.",
+  "authOtpInvalid": "O código é inválido ou expirou. Solicite um novo.",
+  "authOtpResent": "Enviamos um novo código de verificação.",
+  "authResetOtpSent": "Código de redefinição de senha enviado.",
+  "authResetOtpResent": "Enviamos um novo código de redefinição de senha.",
+  "authOtpSendNetworkError": "Não foi possível enviar o código de verificação. Confira sua conexão e tente novamente.",
+  "authOtpVerifyNetworkError": "Não foi possível verificar o código. Confira sua conexão e tente novamente.",
+  "authOtpInvalidOrLimit": "O código está incorreto, expirou ou atingiu o limite de tentativas. Confira o código ou solicite um novo.",
+  "authPasswordSetSignIn": "Sua senha foi definida. O login automático não foi concluído. Entre com a senha nova.",
+  "authPasswordUnknown": "Não foi possível confirmar se a senha foi definida. Tente entrar com a nova senha. Se não funcionar, verifique seu e-mail para redefini-la.",
+  "authOtpInvalidForSetup": "O código é inválido ou expirou. Verifique seu e-mail novamente para definir uma senha.",
+  "authOtpInvalidNoReset": "O código é inválido ou expirou. Sua senha não foi alterada.",
+  "authPasswordResetSignIn": "Sua senha foi redefinida. Entre com a nova senha.",
+  "authOauthNoSession": "O login com o provedor externo não iniciou uma sessão. Tente novamente ou continue com seu e-mail.",
+  "authOauthStartFailed": "Não foi possível iniciar o login com o provedor externo. Tente novamente ou continue com seu e-mail.",
+  "authPasswordsMismatch": "As senhas não coincidem.",
+  "authPasswordRequirements": "A senha não atende aos requisitos.",
+  "authIdentify": "Entrar ou criar conta",
+  "authIdentifyDescription": "Digite seu e-mail para entrar ou criar uma conta.",
+  "authContinuing": "Continuando…",
+  "authContinue": "Continuar",
+  "authSignIn": "Entrar",
+  "authSignInDescription": "Entre no Same Page com sua senha.",
+  "authPassword": "Senha",
+  "authSigningIn": "Entrando…",
+  "authForgotPassword": "Esqueci a senha",
+  "authChangeEmail": "Alterar e-mail",
+  "authSignUp": "Criar conta",
+  "authSignUpDescription": "Defina uma senha e enviaremos um código para verificar seu e-mail.",
+  "authConfirmPassword": "Confirmar senha",
+  "authSendingOtp": "Enviando…",
+  "authSendOtp": "Enviar código de verificação",
+  "authVerifyEmail": "Verificar e-mail",
+  "authVerifyingOtp": "Verificando…",
+  "authCompleteSignUp": "Concluir cadastro",
+  "authSignInGoogle": "Entrar com Google",
+  "authSetPassword": "Definir uma senha para o Same Page",
+  "authSetPasswordGoogleDescription": "Você entrou com o Google antes e ainda não definiu uma senha para o Same Page.",
+  "authSetPasswordDescription": "Verifique seu e-mail para definir uma senha para o Same Page.",
+  "authContinueGoogle": "Continuar com Google",
+  "authSetPasswordForEmail": "Definir uma senha para entrar com e-mail",
+  "authBackSignInMethods": "Voltar às opções de login",
+  "authChoosePasswordGoogleDescription": "E-mail verificado. Defina uma senha para o Same Page. Ela é independente da sua senha do Google.",
+  "authChoosePasswordDescription": "E-mail verificado. Defina uma senha para o Same Page.",
+  "authSettingPassword": "Definindo senha…",
+  "authSetPasswordAndSignIn": "Definir senha e entrar",
+  "authBackVerifyEmail": "Voltar à verificação de e-mail",
+  "authPasswordSet": "Senha definida",
+  "authPasswordSetGoogleDescription": "Agora você pode entrar com e-mail e senha ou com o Google.",
+  "authPasswordSetDescription": "Agora você pode entrar com e-mail e senha.",
+  "authRequestResetDescription": "Enviaremos um código de redefinição de senha para este e-mail.",
+  "authSendResetOtp": "Enviar código de redefinição de senha",
+  "authBackSignIn": "Voltar ao login",
+  "authResetPassword": "Redefinir senha",
+  "authResetPasswordDescription": "Após a verificação, sua senha antiga e as outras sessões serão invalidadas imediatamente.",
+  "authConfirmNewPassword": "Confirmar nova senha",
+  "authResettingPassword": "Redefinindo…",
+  "authResetPasswordAndSignIn": "Redefinir senha e entrar",
+  "authJoinDrive": "Entrar na unidade",
+  "authDisplayName": "Nome de exibição",
+  "authDisplayNameExample": "Ex.: Ana",
+  "authJoiningDrive": "Entrando…",
+  "authJoinAndEnter": "Entrar e abrir",
+  "authSignedIn": "Login concluído",
+  "authJoinFailedDescription": "Você entrou na sua conta, mas não foi possível entrar na unidade.",
+  "authRetryJoin": "Tentar entrar de novo",
+  "authCancelToDriveList": "Cancelar e voltar às unidades",
+  "authContinueReadOnly": "Continuar no modo somente leitura",
+  "authBackHome": "Voltar ao início",
+  "authBrand": "Same Page",
+  "authOtherSignInMethods": "Outras opções de login",
+  "authEmail": "E-mail",
+  "authOtp": "Código de seis dígitos",
+  "authResendOtp": "Reenviar código de verificação",
+  "authThisDrive": "esta unidade",
+  "authOtpRetry": "Muitas solicitações. Tente novamente em {seconds, plural, one {# segundo} other {# segundos}}.",
+  "authOtpRetryAlreadySent": "Muitas solicitações. Tente novamente em {seconds, plural, one {# segundo} other {# segundos}}. Você ainda pode usar o código que já recebeu.",
+  "authPasswordMinLabel": "Senha (pelo menos {min} caracteres)",
+  "authVerifyEmailDescription": "Digite o código de verificação enviado para {email}.",
+  "authVerifySetPasswordDescription": "Digite o código enviado para {email} para definir sua senha do Same Page.",
+  "authNewPasswordMinLabel": "Nova senha (pelo menos {min} caracteres)",
+  "authJoinDriveDescription": "Você já entrou na sua conta. Escolha seu nome de exibição em “{drive}”.",
+  "authEmailSummary": "E-mail: {email}",
+  "authResendOtpCountdown": "Reenviar código ({seconds} s)",
+  "authPasswordMinimum": "A senha deve ter pelo menos {min} caracteres.",
+  "authEmailExample": "name@example.com",
+  "authOtpExample": "000000",
+  "authFieldRequired": "Preencha este campo.",
+  "authEmailInvalid": "Digite um endereço de e-mail válido.",
+  "authOtpDigits": "Digite o código de seis dígitos.",
+  "authFieldTooLong": "Digite no máximo {max} caracteres.",
+  "authFieldInvalid": "Digite um valor válido."
+}

@@ -1,3 +1,4 @@
+import { ExportError } from "./export-error";
 import { inkPaints, inkFillRule } from "../annotations/ink-geometry";
 import { paintExportText } from "./export-text";
 import { PDFDocument, concatTransformationMatrix, popGraphicsState, pushGraphicsState } from "pdf-lib";
@@ -24,7 +25,7 @@ export async function exportAnnotatedPdf(source: PDFDocumentProxy, annotations: 
     const scale = Math.min(4, 4096 / Math.max(viewport.width, viewport.height));
     canvas.width = Math.ceil(viewport.width * scale); canvas.height = Math.ceil(viewport.height * scale);
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("无法准备笔记画布");
+    if (!context) throw new ExportError("exportCanvasFailed");
     context.scale(canvas.width / viewport.width, canvas.height / viewport.height);
     for (const object of objects) {
       const payload = object.payload!;

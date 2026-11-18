@@ -12,7 +12,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     let browser;
     t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
     browser = await browserType.launch();
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     const account = fixture.accounts[0];
     assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } })).status(), 200);
     const api = `${fixture.origin}/api/choirs/${fixture.choirId}`;

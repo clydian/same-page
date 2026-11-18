@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { X } from "lucide-react";
 import { Button, Heading } from "react-aria-components";
 
@@ -8,13 +9,14 @@ export function LibraryDialogHeading({
   title: string;
   close: () => void;
 }) {
+  const t = useMessages("library");
   return (
     <div className="dialog-heading">
       <div>
         <p className="dialog-eyebrow">合谱 · Same Page</p>
         <Heading slot="title">{title}</Heading>
       </div>
-      <Button className="icon-button" aria-label="关闭" onPress={close}>
+      <Button className="icon-button" aria-label={t("close")} onPress={close}>
         <X size={20} aria-hidden="true" />
       </Button>
     </div>

@@ -9,7 +9,7 @@ test("valid invitations automatically admit guests, existing members and named n
   t.after(() => fixture.stop());
   const browser = await chromium.launch(); t.after(() => browser.close());
   for (const mode of ["fresh", "warm", "member", "new-member"]) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
     let page;
     const started = performance.now();
     const timeline = [];
@@ -159,4 +159,40 @@ test("valid invitations automatically admit guests, existing members and named n
       throw error;
     } finally { await context.close(); }
   }
+});
+
+test("a member can follow an invitation and reopen the score offline in the chosen language", { timeout: 90000 }, async t => {
+  const fixture = await startStorageFixture({ authenticated: true, invite: true });
+  t.after(() => fixture.stop());
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: "allow", viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
+  await page.goto(fixture.origin);
+  await page.getByRole("combobox", { name: "语言" }).selectOption("en");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+
+  const { email, password } = fixture.accounts[0];
+  const login = await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
+    headers: { origin: fixture.origin }, data: { email, password },
+  });
+  assert.equal(login.status(), 200);
+  await page.goto(`${fixture.origin}/?join=1#${new URLSearchParams({ invite: fixture.joinCode })}`);
+  await expect(page.getByRole("heading", { name: "本地链路云盘" })).toBeVisible({ timeout: 12_000 });
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  await page.locator(".offline-score-control").getByRole("button").first().click();
+  await page.getByRole("button", { name: "Save for offline use", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: /^Available offline$/ })).toBeVisible();
+  await page.locator(".offline-score-details").getByRole("button", { name: "Close", exact: true }).click();
+  await page.locator(".file-row__open").click();
+  await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
+  const scoreUrl = page.url();
+
+  await context.setOffline(true);
+  await page.reload();
+  await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
+  await expect(page).toHaveURL(scoreUrl);
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
 });

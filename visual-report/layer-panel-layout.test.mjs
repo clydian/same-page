@@ -9,7 +9,7 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     const app = await startVisualServer({ script: 'dev' });
     const browser = await engine.launch();
     t.after(async () => { await browser.close(); await app.stop(); });
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
+    const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
     const fixture = createVisualFixtureSession();
     await page.route('**/api/**', async route => {
       const request = route.request(), pathname = new URL(request.url()).pathname;

@@ -1,3 +1,4 @@
+import { useMessages, getCurrentLocale, getMessages } from "../../i18n";
 import { useEffect, useRef, useState } from "react";
 import { lifecycleError } from "../auth/lifecycle-error";
 import { SettingsRequestError, settingsError } from "./settings-request";
@@ -19,12 +20,13 @@ type Submission = {
 };
 
 function mutationMessage(result: MutationResult) {
+  const t = getMessages(getCurrentLocale(), "library");
   switch (result.kind) {
     case "saved": return null;
-    case "saved-refresh-failed": return `已保存。但刷新失败，请重新读取最新状态，不必再次提交。${result.error instanceof SettingsRequestError && [401, 403].includes(result.error.status) ? settingsError(result.error, "") : ""}`;
-    case "failed": return result.message ?? (result.error instanceof SettingsRequestError && result.error.code ? lifecycleError(result.error.code) : "保存失败，修改已保留，请核对后重试。");
-    case "unconfirmed": return "操作结果未确认，请重新读取状态后再决定是否重试。";
-    case "revoked": return result.message ?? settingsError(result.error, "操作权限已撤销。");
+    case "saved-refresh-failed": return t("settingsMutationSavedButRefreshFailed", { value1: String(result.error instanceof SettingsRequestError && [401, 403].includes(result.error.status) ? settingsError(result.error, "") : "") });
+    case "failed": return result.message ?? (result.error instanceof SettingsRequestError && result.error.code ? lifecycleError(result.error.code) : t("settingsMutationFailedSaveChangesBeen"));
+    case "unconfirmed": return t("settingsMutationOperationResultNotConfirmed");
+    case "revoked": return result.message ?? settingsError(result.error, t("settingsMutationOperationPermissionHasBeen"));
   }
 }
 
@@ -39,6 +41,7 @@ export function useSettingsMutation({ enabled = true, paused = false, refresh: r
   refresh: (isCurrent: Current) => Promise<void>;
   onRevoked?: () => void;
 }) {
+  const t = useMessages("library");
   const lifetime = useSettingsLifetime(paused);
   const gate = useRef({ pending: false, needsRefresh: Boolean(initialRecovery) });
   const [pending, setPending] = useState(false);
@@ -53,9 +56,9 @@ export function useSettingsMutation({ enabled = true, paused = false, refresh: r
   useEffect(() => {
     if (paused && gate.current.pending) {
       gate.current.pending = false; setPending(false); requireRefresh(true);
-      setMessage("操作结果未确认，请重新读取状态后再决定是否重试。");
+      setMessage(t("settingsMutationOperationResultNotConfirmed"));
     }
-  }, [paused]);
+  }, [paused, t]);
   const finish = () => { gate.current.pending = false; setPending(false); };
 
   // Only a successful read acknowledges uncertainty; a failed read keeps the
@@ -72,7 +75,7 @@ export function useSettingsMutation({ enabled = true, paused = false, refresh: r
       if (isCurrent()) {
         requireRefresh(true);
         if (error instanceof SettingsRequestError && [401, 403].includes(error.status)) onRevoked?.();
-        setMessage(previous => previous ?? settingsError(error, "暂时无法重新读取状态，请重试。"));
+        setMessage(previous => previous ?? settingsError(error, t("settingsMutationTemporarilyUnableReRead")));
       }
       throw error;
     } finally { if (isCurrent()) finish(); }

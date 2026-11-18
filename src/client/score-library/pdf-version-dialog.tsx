@@ -1,7 +1,8 @@
+import { useMessages } from "../../i18n";
 import { holdUpdate } from "../updates/update-safety";
 import { uploadPdf, UPLOAD_TIMEOUT_MS, type UploadProgress } from "./upload-transport";
 import { UploadProgressView } from "./upload-progress-view";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
 import { MAX_PDF_BYTES, scoreVersionHistorySchema, scoreVersionSummarySchema, type ScoreSummary, type ScoreVersionHistory } from "../../shared/scores";
 import { authClient } from "../auth/auth-client";
@@ -10,14 +11,15 @@ import { LibraryTaskDialog } from "./library-task-dialog";
 import { uploadMessage } from "./library-format";
 import { PdfVersionPreview } from "./pdf-version-preview";
 
-const unconfirmedPublishMessage = "未能确认 PDF 发布结果，请关闭窗口并刷新文件库，核对当前 PDF 后再操作。";
-const unconfirmedUploadMessage = "未能确认候选 PDF 的上传结果，当前 PDF 未改变。请关闭窗口，不要直接重传；可能已保存的候选文件会在 24 小时后到期并由系统回收。";
+const unconfirmedPublishMessage = "pdfVersionPdfPdf";
+const unconfirmedUploadMessage = "pdfVersionPdfPdf2";
 
 type Version = ScoreSummary["currentVersion"];
 export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId, onClose, onComplete }: {
   ownerUserId?: string; writable?: boolean; choirId: string; score: ScoreSummary;
   onClose(): void; onComplete(message: string): void | Promise<void>;
 }) {
+  const t = useMessages("library");
   const session = authClient.useSession();
   const [initialUser] = useState(ownerUserId ?? session.data?.user.id);
   const path = `/api/choirs/${choirId}/scores/${score.id}`;
@@ -42,13 +44,13 @@ export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId,
       uploadController.current.abort();
       uploadController.current = null;
       setBusy(false); setTransfer(null); setUncertain(true);
-      setMessage(unconfirmedUploadMessage);
+      setMessage(t(unconfirmedUploadMessage));
     }
     if (!identityValid.current && publishController.current) {
       publishController.current.abort(); publishController.current = null;
-      setBusy(false); setPublishUncertain(true); setMessage(unconfirmedPublishMessage);
+      setBusy(false); setPublishUncertain(true); setMessage(t(unconfirmedPublishMessage));
     }
-  }, [initialUser, session.data?.user.id, session.isPending, canWrite]);
+  }, [initialUser, session.data?.user.id, session.isPending, canWrite, t]);
   useLayoutEffect(() => () => {
     uploadController.current?.abort();
     uploadController.current = null;
@@ -63,6 +65,7 @@ export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId,
   }, [uploading]);
   const candidate = useRef<string | null>(null);
   const mounted = useRef(true);
+  const reportLoadFailure = useEffectEvent(() => setMessage(t("pdfVersionPdf")));
   useEffect(() => {
     mounted.current = true;
     const controller = new AbortController();
@@ -70,7 +73,7 @@ export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId,
       if (!response.ok) throw new Error("history_unavailable");
       const result = await parseDiagnosticResponse(response, scoreVersionHistorySchema);
       if (mounted.current) setHistory(result);
-    }).catch(() => { if (mounted.current) setMessage("PDF 信息加载失败，请关闭后重试。"); });
+    }).catch(() => { if (mounted.current) reportLoadFailure(); });
     return () => {
       mounted.current = false;
       controller.abort();
@@ -80,7 +83,7 @@ export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId,
   const upload = async (file: File) => {
     if (!history || busy || uncertain || uploadController.current || !identityValid.current) return;
     if (!file.size || file.size > MAX_PDF_BYTES) {
-      setMessage(file.size ? "PDF 超过 20 MB。" : "PDF 文件为空。");
+      setMessage(file.size ? t("libraryFormatPdfOverMb") : t("pdfVersionPdfFileEmpty"));
       return;
     }
     const controller = new AbortController();
@@ -98,8 +101,8 @@ export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId,
       if (!response.ok && [400, 401, 403, 409, 413, 415, 422, 429].includes(response.status)) {
         const payload = await response.json().catch(() => null);
         if (isCurrent()) setMessage(response.status === 401 || response.status === 403
-          ? "登录已失效或没有上传权限，请重新登录或联系云盘拥有者。"
-          : response.status === 429 ? "请求过于频繁，请稍后再试。" : uploadMessage(response.status, payload));
+          ? t("pdfVersion")
+          : response.status === 429 ? t("pdfVersionRequestTooFrequentTry") : uploadMessage(response.status, payload));
         return;
       }
       if (!response.ok) throw new Error("unconfirmed_upload");
@@ -111,7 +114,7 @@ export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId,
     } catch {
       if (isCurrent()) {
         setUncertain(true);
-        setMessage(unconfirmedUploadMessage);
+        setMessage(t(unconfirmedUploadMessage));
       }
     } finally {
       window.clearTimeout(timer);
@@ -138,42 +141,41 @@ export function PdfVersionDialog({ choirId, score, writable = true, ownerUserId,
         setMessage(uploadMessage(response.status, body)); return;
       }
       candidate.current = null;
-      await onComplete("PDF 已替换，旧 PDF 已移到回收站；笔记仍使用原页码和位置。");
+      await onComplete(t("pdfVersionPdfHasBeenReplaced"));
     } catch {
-      if (isCurrent()) { setPublishUncertain(true); setMessage(unconfirmedPublishMessage); }
+      if (isCurrent()) { setPublishUncertain(true); setMessage(t(unconfirmedPublishMessage)); }
     } finally {
       releaseUpdate();
       if (isCurrent()) { setBusy(false); publishController.current = null; }
     }
   };
   const currentPages = history?.versions.find((version) => version.id === history.currentVersionId)?.pageCount ?? score.currentVersion.pageCount;
-  const title = "替换 PDF";
+  const title = t("replacePdf");
   const userChanged = Boolean(session.data?.user.id && initialUser !== session.data.user.id);
   const signedOut = !session.isPending && !session.error && !session.data?.user.id;
-  if (userChanged || signedOut) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">登录身份已变化，请关闭后重新打开替换窗口。</p></LibraryTaskDialog>;
+  if (userChanged || signedOut) return <LibraryTaskDialog title={title} onClose={onClose}><p role="alert">{t("pdfVersionLoginIdentityHasChanged")}</p></LibraryTaskDialog>;
   return <LibraryTaskDialog title={title} onClose={onClose} busy={busy}>
     <div className="pdf-version-dialog">
-      {(session.isPending || session.error || !writable) && <p role="status">连接或操作权限尚未确认，已选择的内容保留。</p>}
-      {!selected ? <label>新的 PDF（最多 20 MB、500 页）
-        <input type="file" accept="application/pdf,.pdf" disabled={!canWrite || !history || busy || uncertain}
+      {(session.isPending || session.error || !writable) && <p role="status">{t("pdfVersion2")}</p>}
+      {!selected ? <label>{t("pdfVersionNewPdfUpMb")}<input type="file" accept="application/pdf,.pdf" disabled={!canWrite || !history || busy || uncertain}
           onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
       </label> : null}
       {transfer ? <>
-        <p role="status">{transfer.progress?.processing ? "传输完成，正在保存…" : "正在上传…"}</p>
+        <p role="status">{transfer.progress?.processing ? t("pdfVersionTransferCompletedSaving") : t("attachmentUploading")}</p>
         <UploadProgressView name={transfer.name} progress={transfer.progress} />
-      </> : busy ? <p role="status">正在处理…</p> : null}
+      </> : busy ? <p role="status">{t("pdfVersionProcessing")}</p> : null}
       {selected ? <>
-        <p>当前 {currentPages} 页 → 新 PDF {selected.pageCount} 页。</p>
-        {selected.pageCount < currentPages ? <p role="alert">页数减少：超出新 PDF 页数的笔记会保留，但暂时不可见。</p> : null}
+        <p>{t("pdfComparePageCounts", { current: currentPages, candidate: selected.pageCount })}</p>
+        {selected.pageCount < currentPages ? <p role="alert">{t("pdfVersionNumberPagesReducedNotes")}</p> : null}
         <PdfVersionPreview key={selected.id} scorePath={path} choirId={choirId} scoreId={score.id} versionId={selected.id} onReady={setReady} />
-        <label className="confirmation-checkbox"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>我已检查预览，理解已有笔记会保留在原页码和位置，不会随新 PDF 的排版自动调整。</span></label>
+        <label className="confirmation-checkbox"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>{t("pdfVersionCheckedPreviewUnderstandThat")}</span></label>
         {history?.hasGeneratedXml && <label className="confirmation-checkbox"><input type="checkbox" checked={keepGeneratedXml}
           disabled={!canWrite || busy || !history.canTrashFiles} onChange={event => setKeepGeneratedXml(event.target.checked)} />
-          <span>保留自动生成的练习版</span></label>}
-        {history?.hasGeneratedXml && <p>普通附件保持不变。取消保留会将自动生成的练习版移到回收站。{!history.canTrashFiles && "需要删除与恢复文件权限才能取消保留。"}</p>}
-        <Button className="primary-button" isDisabled={!canWrite || !ready || !accepted || busy || publishUncertain} onPress={() => void publish()}>确认替换</Button>
+          <span>{t("pdfVersionKeepAutomaticallyGeneratedPractice")}</span></label>}
+        {history?.hasGeneratedXml && <p>{t("pdfVersionNormalAttachmentsRemainUnchanged")}{!history.canTrashFiles && t("pdfVersionDeleteRestoreFilePermissions")}</p>}
+        <Button className="primary-button" isDisabled={!canWrite || !ready || !accepted || busy || publishUncertain} onPress={() => void publish()}>{t("pdfVersionConfirmReplacement")}</Button>
       </> : null}
-      <p>确认后旧 PDF 移到回收站，保留三十天。确认前原 PDF 保持不变。</p>
+      <p>{t("pdfVersionAfterConfirmationOldPdf")}</p>
       {message ? <p role="alert">{message}</p> : null}
     </div>
   </LibraryTaskDialog>;

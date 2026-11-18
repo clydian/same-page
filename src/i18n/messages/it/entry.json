@@ -1,0 +1,567 @@
+{
+  "drive": {
+    "create": "Crea un drive",
+    "loginToCreate": "Accedi per creare un drive",
+    "login": "Accedi",
+    "restoreLocal": "Ripristino del contenuto locale…",
+    "directoryError": "La directory del drive non può essere confermata temporaneamente. Connettiti a Internet e riprova.",
+    "choose": "Scegli un drive",
+    "chooseHint": "Scegli il drive da aprire.",
+    "lastUnavailable": "L'ultimo drive utilizzato non è più nell'elenco accessibile, seleziona un altro drive.",
+    "join": "Unisciti a un drive",
+    "first": "Unisciti al tuo primo drive",
+    "firstHint": "Utilizza la scheda di invito o il codice di invito inviato dall'amministratore per partecipare.",
+    "createPrompt": "Vuoi creare un drive per il tuo team?"
+  },
+  "identity": {
+    "checking": "Collegandosi, è possibile continuare a utilizzare il contenuto salvato.",
+    "localUnavailable": "La verifica dell'identità locale non è stata ancora completata e il contenuto salvato è ancora conservato.",
+    "unreachable": "Temporaneamente impossibile connettersi, il contenuto salvato viene comunque conservato.",
+    "signedOut": "Dopo aver effettuato nuovamente l'accesso ed effettuato la sincronizzazione, è possibile continuare a utilizzare il contenuto salvato.",
+    "retrying": "Nuovo tentativo…",
+    "retryVerify": "Riprovare la verifica",
+    "retryConnection": "Riprovare la connessione",
+    "loginAgain": "Accedi nuovamente"
+  },
+  "guestNotes": {
+    "title": "Accedi per prendere appunti durante le prove",
+    "signIn": "Registrati o accedi per prendere appunti",
+    "keepReading": "Continua a leggere la partitura",
+    "hint": "Stai navigando come ospite. Registrati o accedi e unisciti a questo drive per registrare le tue note e sincronizzarle su diversi dispositivi."
+  },
+  "startup": {
+    "restore": "Ripristino del drive...",
+    "retry": "Riprova",
+    "feedback": "Feedback",
+    "loadError": "Il drive aggiunto non può essere caricato temporaneamente."
+  },
+  "logout": {
+    "checkError": "Impossibile verificare il contenuto da sincronizzare su questa macchina, riprova.",
+    "networkError": "Effettuare il logout dopo la connessione a Internet per assicurarsi che la sessione del server scada nello stesso momento.",
+    "cleanupError": "Hai effettuato la disconnessione, ma alcuni dati su questo dispositivo devono ancora essere cancellati. Riprova a cancellarli.",
+    "logoutError": "L'uscita non è completata e i dati locali non vengono cancellati. Per favore riprova.",
+    "cleanDetails": "Dopo l'uscita, il livello personale locale, le bozze dei documenti, i permessi di modifica e le preferenze dell'utente verranno cancellati; il contenuto condiviso scaricato può essere conservato.",
+    "working": "Disconnessione…",
+    "discard": "Scarta e disconnetti",
+    "clear": "Esci e cancella i dati",
+    "title": "Uscire dall’account?",
+    "return": "Controlla le modifiche",
+    "pendingDetails": "Su questo dispositivo ci sono {pending, plural, one {# modifica da sincronizzare} other {# modifiche da sincronizzare}}, {conflicts, plural, one {# conflitto locale} other {# conflitti locali}} e {errors, plural, one {# errore di sincronizzazione} other {# errori di sincronizzazione}}{drafts, plural, =0 {} one {, oltre a # bozza di documento non salvata} other {, oltre a # bozze di documenti non salvate}}. Se continui, questi contenuti verranno eliminati definitivamente."
+  },
+  "create": {
+    "capacity": "Prova gratuita · 10 partiture / 50 MB / 20 membri",
+    "name": "Nome del drive",
+    "displayName": "Il tuo nome visualizzato in questo drive",
+    "ownerHint": "Diventerai proprietario del drive e potrai invitare altre persone con un codice. Il limite è di 20 membri, te compreso.",
+    "retention": "Un drive può essere rimosso se nessun membro vi accede online per più di 30 giorni consecutivi. Avvisiamo il proprietario via e-mail con almeno 14 giorni di anticipo. Se un membro apre il drive online durante il preavviso, la rimozione viene annullata.",
+    "cancel": "Annulla",
+    "back": "Torna alla scelta del drive",
+    "uncertain": "Impossibile confermare il risultato della creazione. Chiudi e rileggi il drive aggiunto prima di decidere se riprovare.",
+    "working": "Creazione in corso…",
+    "submit": "Crea gratis",
+    "terms": "Puoi possedere un solo drive. Dopo un lungo periodo di inattività potremmo rimuoverlo. Ti avviseremo via e-mail con almeno 14 giorni di anticipo.",
+    "rules": "Regole d’uso e rimozione"
+  },
+  "purge": {
+    "refreshFailed": "Il contenuto è stato eliminato definitivamente, ma non è stato possibile aggiornare l’elenco. Chiudi la finestra e ricarica l’elenco. Non serve ripetere l’eliminazione.",
+    "unconfirmed": "Non è stato possibile confermare l’eliminazione. Chiudi la finestra e aggiorna l’elenco per verificare il risultato. Non ripetere l’eliminazione.",
+    "working": "Eliminazione…",
+    "confirm": "Conferma la cancellazione completa",
+    "warning": "I contenuti eliminati definitivamente non si possono ripristinare in Same Page. L’eliminazione libera spazio nel drive.",
+    "name": "Inserisci il nome del drive «{name}» per confermare"
+  },
+  "join": {
+    "guestError": "Impossibile preparare lo spazio per gli ospiti locali, riprova.",
+    "invalidLink": "Il link di invito non è valido, inserisci il codice di invito attuale.",
+    "newDrive": "Unisciti a un nuovo drive",
+    "checking": "Verifica…",
+    "enterShort": "Entra",
+    "submitting": "Partecipazione…",
+    "submit": "Iscriviti ed entra",
+    "close": "Chiudi",
+    "exampleName": "Per esempio: Anna",
+    "existing": "I miei drive",
+    "loginToView": "Accedi per visualizzarli",
+    "invitation": "Utilizza il biglietto d'invito o il codice invito",
+    "displayName": "Nome visualizzato",
+    "named": "Unisciti a «{name}»",
+    "setName": "Imposta il tuo nome visualizzato in questo drive.",
+    "return": "Ritorna per inserire il codice invito"
+  },
+  "home": {
+    "enter": "Apri un drive",
+    "myDrives": "I miei drive",
+    "preview": "Vedi un esempio",
+    "more": "Scopri le funzionalità",
+    "features": "Caratteristiche del prodotto",
+    "tagline": "I tuoi appunti e il mio punteggio",
+    "summaryEnglish": "Una raccolta di partiture online per le prove corali e le annotazioni condivise.",
+    "summary": "Una raccolta di partiture online per le prove corali e le annotazioni condivise.",
+    "title": "L’armonia inizia dalla stessa partitura"
+  },
+  "scan": {
+    "unrecognized": "La carta di invito Same Page non viene riconosciuta. Punta il codice QR del biglietto d'invito su questo sito o inserisci il codice invito.",
+    "cameraFeedError": "Impossibile leggere lo schermo della fotocamera, identificala dall'album o inserisci il codice di invito.",
+    "cameraError": "Impossibile aprire la fotocamera, consenti le autorizzazioni della fotocamera o identifica e inserisci il codice di invito dall'album.",
+    "reading": "Riconoscimento del biglietto d'invito…",
+    "imageUnrecognized": "Il biglietto d'invito di questo sito non è riconosciuto nell'immagine. Seleziona di nuovo o inserisci il codice di invito.",
+    "imageError": "Impossibile riconoscere l'immagine. Seleziona un'immagine del biglietto d'invito non più grande di 10 MB o inserisci il codice di invito.",
+    "stop": "Interrompe la scansione",
+    "start": "Scansiona",
+    "fromPhoto": "Identificare dall'album fotografico",
+    "chooseImage": "Seleziona l'immagine del biglietto d'invito",
+    "camera": "Schermata di scansione dei biglietti d'invito"
+  },
+  "usage": {
+    "trial": "Versione di prova gratuita",
+    "title": "Utilizzo del drive",
+    "error": "Al momento non è possibile leggere l'utilizzo.",
+    "working": "Utilizzo della lettura...",
+    "trash": "Anche il Cestino e i PDF in sospeso occupano spazio. Il proprietario può eliminare completamente i contenuti indesiderati nel Cestino.",
+    "refresh": "Aggiorna utilizzo",
+    "details": "Partiture {scores} · Spazio {used} / {limit} · Membri {members}"
+  },
+  "feature": {
+    "shared": {
+      "title": "Voci diverse, condividi note a strati",
+      "description": "I requisiti per le prove sono condivisi gerarchicamente dalla voce. Le persone autorizzate possono lasciare note e tutti possono visualizzarle sullo stesso spartito."
+    },
+    "personal": {
+      "title": "Visualizza le note condivise su richiesta e conserva le note personali da solo",
+      "description": "Seleziona le note della parte che desideri visualizzare e puoi anche scrivere i tuoi promemoria a livello personale. Per impostazione predefinita, solo tu puoi vederli."
+    },
+    "replace": {
+      "title": "Sostituisci gli spartiti e conserva le note",
+      "description": "Dopo aver sostituito il PDF, le note esistenti verranno conservate e verranno comunque visualizzate secondo il numero e la posizione della pagina originale; dopo la modifica del layout, controllare la posizione delle note."
+    },
+    "offline": {
+      "title": "Disponibile offline, sincronizzato online",
+      "description": "Salva in anticipo per l'utilizzo offline. Puoi continuare a leggere gli spartiti musicali e prendere appunti anche se Internet è disconnesso. Dopo il ripristino di Internet, le note continueranno a essere sincronizzate."
+    },
+    "devices": {
+      "title": "Uno spartito, disponibile su più dispositivi",
+      "description": "Installa Same Page su Android, iPhone, iPad, Windows o Mac per aprire le stesse partiture e annotazioni sui tuoi dispositivi."
+    }
+  },
+  "notFound": {
+    "title": "Pagina non trovata",
+    "hint": "Questo indirizzo non ha una pagina corrispondente, torna al mio drive per continuare a navigare.",
+    "action": "Torna ai miei drive"
+  },
+  "admission": {
+    "unavailable": "Al momento non è possibile accedere a questo drive, riprova più tardi.",
+    "removed": "Questa relazione di appartenenza deve essere ripristinata da qualcuno con autorizzazioni di ripristino dei membri.",
+    "rateLimit": "Troppi tentativi, riprova più tardi.",
+    "invalidCode": "Il codice invito non è valido o è scaduto.",
+    "timeout": "La connessione è scaduta, il codice invito è stato riservato, riprova.",
+    "joinUnavailable": "Al momento non è possibile aggiungere questo drive, riprova più tardi."
+  },
+  "trial": {
+    "platformFull": "Lo spazio di archiviazione della prova gratuita è temporaneamente pieno, caricalo di nuovo più tardi. Il contenuto esistente è ancora disponibile.",
+    "driveLimit": "La quota del drive della prova gratuita è attualmente piena, riprova più tardi. Puoi comunque aggiungere altre drive.",
+    "ownedLimit": "Ogni utente può avere al massimo un drive di prova gratuito. Trasferisci o elimina prima il drive esistente.",
+    "verifyIdentity": "Completa prima la verifica dell'e-mail o accedi utilizzando un'identità di terze parti verificata.",
+    "memberLimit": "Il numero di membri del drive è pieno. Contatta il proprietario per sbloccare la quota e riprova.",
+    "scoreLimit": "Il numero di spartiti musicali nella libreria dei file ha raggiunto il limite massimo. Si prega di spostare prima gli spartiti non necessari nel cestino.",
+    "retryLater": "L'operazione è troppo frequente, riprova più tardi.",
+    "confirmationMismatch": "Il nome del drive è cambiato o l'input non corrisponde. Aggiorna e conferma di nuovo.",
+    "accessChanged": "L'identità o le autorizzazioni sono cambiate, aggiorna e riprova.",
+    "deleted": "Il contenuto è stato completamente eliminato, aggiorna.",
+    "generalError": "L'operazione non è stata completata, controlla la rete e riprova."
+  },
+  "lifecycle": {
+    "identityChanged": "L'identità di accesso è cambiata, leggi di nuovo lo stato e conferma di nuovo.",
+    "transferRequired": "Sei ancora il proprietario del drive. Trasferisci la proprietà o elimina il drive prima di continuare.",
+    "reauthenticate": "Verifica nuovamente il metodo di accesso originale e conferma l'eliminazione entro dieci minuti.",
+    "cannotRecover": "Il periodo di recupero è scaduto, l'autenticazione è scaduta o il metodo di accesso non corrisponde, verifica nuovamente e controlla lo stato.",
+    "memberConflict": "L'abbonamento è cambiato o il periodo di recupero è scaduto, rileggere lo stato.",
+    "generalError": "L'operazione non è stata completata, rileggere lo stato e riprovare."
+  },
+  "about": {
+    "copied": "Informazioni sulla versione copiate.",
+    "copyError": "Impossibile copiare automaticamente. Seleziona le informazioni sulla versione qui sotto e copiale manualmente.",
+    "version": "Same Page {version}\nBuild: {build}",
+    "run": "Esecuzione: {run}",
+    "currentVersion": "Questo dispositivo usa la versione {version}. Gli orari di build seguono l’ora di Pechino.",
+    "title": "Informazioni su Same Page",
+    "links": "Guida e informazioni sul prodotto",
+    "tagline": "Uno spartito per tutti, per provare insieme ogni passaggio.",
+    "summary": "Spartiti per coro e annotazioni per le prove",
+    "productHint": "Scopri Same Page e le funzioni per le prove.",
+    "manualHint": "Scopri come leggere, annotare e provare gli spartiti.",
+    "feedbackHint": "Raccontaci il problema che hai riscontrato.",
+    "buildInfo": "Versione e informazioni tecniche",
+    "copy": "Copia informazioni sulla versione",
+    "recovery": "Ripristina il lettore",
+    "recoveryHint": "Se i file necessari sono già su questo dispositivo, puoi ricaricare il lettore offline. Se mancano, collegati a Internet per scaricarli. Le annotazioni e i dati locali verranno conservati.",
+    "product": "Presentazione del prodotto",
+    "manual": "Guida all’uso",
+    "feedback": "Segnala un problema",
+    "privacy": "Informativa sulla privacy",
+    "reload": "Ricarica la pagina"
+  },
+  "help": {
+    "start": {
+      "title": "Primo utilizzo: prepara una prova",
+      "intro": "Prova a trovare uno spartito e ad aprirlo offline. Poi consulta gli altri capitoli in base alle tue esigenze.",
+      "walkthrough": {
+        "title": "Procedura guidata",
+        "step1": "Accedi con l’e-mail o con Google e usa l’invito ricevuto per entrare in un drive. Tocca il nome del drive corrente per cambiare drive, unirti a un altro o crearne uno. Puoi crearne uno anche nella schermata di scelta dei drive. Imposta un nome che gli altri membri possano riconoscere nel drive.",
+        "step2": "Apri il drive, cerca lo spartito per nome del file e aprilo. Se non ci sono spartiti, chiedi a un membro con il permesso di caricare file di aggiungere un PDF.",
+        "step3": "Tocca il centro dello spartito per aprire la barra degli strumenti. Apri «Livelli di annotazione» e seleziona i livelli condivisi e personali che vuoi vedere durante la prova.",
+        "step4": "Seleziona la matita per iniziare a modificare, scegli «Le mie annotazioni» e inserisci un segno. Seleziona il segno di spunta per terminare.",
+        "step5": "Controlla lo stato in «Di più → Salvataggio e sincronizzazione delle annotazioni». Se ci sono modifiche in attesa o se la sincronizzazione non è riuscita, collegati a Internet e segui le istruzioni.",
+        "step6": "In «Di più → Utilizza offline», salva una copia e attendi che appaia «Disponibile offline». Prima della prova, disconnettiti e riapri gli spartiti necessari per verificare che spartiti e annotazioni siano visibili."
+      },
+      "try": {
+        "title": "Prova prima di unirti a un drive",
+        "paragraph1": "I visitatori di un drive normale possono leggere gli spartiti e le annotazioni condivise a cui hanno accesso. Per creare e sincronizzare le tue annotazioni, accedi o registrati e unisciti al drive. Nella demo pubblica del drive di esempio puoi provare a scrivere in questo browser. Le annotazioni di prova restano sul dispositivo, senza modificare i contenuti condivisi. Accedendo, restano separate dalle annotazioni personali. Per avere le tue annotazioni su più dispositivi durante le prove, accedi e unisciti al drive."
+      }
+    },
+    "read": {
+      "title": "Trova lo spartito e scegli come leggerlo",
+      "intro": "Usa la modalità lettura per consultare lo spartito e la modalità modifica per aggiornare le annotazioni della pagina corrente.",
+      "navigation": {
+        "title": "Trova uno spartito e cambia pagina",
+        "paragraph1": "Cerca nel drive per nome del file e seleziona lo spartito per aprirlo. Tocca il centro dello spartito per mostrare la barra degli strumenti. Con la tastiera, premi Tab fino a «Mostra gli strumenti di lettura», quindi premi Invio o Spazio. Nella vista a pagine, tocca un lato o scorri orizzontalmente per cambiare pagina. Usa l’anteprima delle pagine per andare al punto desiderato.",
+        "paragraph2": "In «Di più → Impaginazione e zoom», scegli «A pagine» o «Scorrimento continuo». Puoi ingrandire, ridurre o scegliere «Adatta alla pagina». Sui dispositivi compatibili puoi anche leggere a schermo intero."
+      },
+      "layers": {
+        "title": "Scegli i livelli di annotazione",
+        "paragraph1": "Apri «Livelli di annotazione» e seleziona i livelli da visualizzare. I livelli personali sono visibili solo a te per impostazione predefinita. I livelli condivisi sono visibili a chi ha accesso. Per modificare un livello serve il permesso di modifica.",
+        "paragraph2": "Dal pannello dei livelli, scegli «Imposta la visualizzazione predefinita di questo drive» per applicare le preferenze di lettura a tutti gli spartiti. Le impostazioni di uno spartito hanno la precedenza. Puoi ripristinare la visualizzazione e i colori predefiniti dei livelli condivisi.",
+        "paragraph3": "Il colore accanto a un livello condiviso cambia come lo vedi sul tuo schermo. Ogni annotazione personale ha invece il proprio colore, impostato con gli strumenti di modifica."
+      }
+    },
+    "practice": {
+      "title": "Ascolta le singole voci e prova i passaggi",
+      "intro": "La versione di prova si può impaginare e riprodurre grazie a MusicXML. Usa il PDF originale per verificare lo spartito.",
+      "open": {
+        "title": "Apri una versione di prova",
+        "step1": "Apri uno spartito e tocca il centro per mostrare gli strumenti. Seleziona «Versione di prova» in basso a destra, poi scegli una versione. Questa opzione appare quando è disponibile un file MusicXML.",
+        "step2": "Le versioni con l’etichetta «Generata automaticamente · Beta» possono contenere errori di riconoscimento. Confrontale con il PDF originale. Le versioni caricate dagli utenti mantengono il nome del file. Puoi aprire un MusicXML caricato anche dall’elenco degli allegati nella libreria."
+      },
+      "repetition": {
+        "title": "Ascolta le voci e prova un passaggio in loop",
+        "paragraph1": "Avvia la riproduzione e regola la velocità nella barra inferiore. In «Impostazioni di prova» puoi scegliere una voce, regolare i volumi, silenziare o ascoltare una voce da sola e impostare un loop. Quando attivi il loop, parte subito l’intervallo selezionato. Trascinando A o B, la riproduzione si mette in pausa, appare l’anteprima della battuta e il pannello si attenua. Quando rilasci, l’intervallo si aggiorna e la riproduzione torna allo stato precedente. Seleziona l’inizio o la fine per spostarti di una battuta alla volta. Per interrompere il loop, disattivalo. Con il loop attivo, la barra di avanzamento, i comandi di battuta e i tocchi sullo spartito si limitano al passaggio scelto.",
+        "paragraph2": "L’audio viene generato dal MusicXML selezionato e può differire dallo spartito originale. I suoni sintetizzati non cantano il testo. Gli allegati audio usano le registrazioni caricate. Aprili dalla libreria e scegli «Ascolta e leggi lo spartito» per visualizzare il PDF originale."
+      },
+      "views": {
+        "title": "Cambia vista e termina la prova",
+        "paragraph1": "La versione di prova si apre nella vista reimpaginata. Nel menu in alto puoi passare da «PDF originale» a «Spartito reimpaginato» o «Confronto» senza interrompere la riproduzione. La vista reimpaginata può seguire la riproduzione e riprenderla dopo che ti sei spostato manualmente. Il PDF originale si sfoglia a mano e non scorre insieme alla vista reimpaginata.",
+        "paragraph2": "Puoi comprimere la barra inferiore e continuare ad avviare, mettere in pausa o regolare la prova. Per terminare, seleziona «Termina prova» nella parte superiore (su schermi stretti, «Termina»). Uscendo dallo spartito interrompi la riproduzione. Alla prossima apertura, la versione di prova riparte dall’inizio."
+      },
+      "offline": {
+        "title": "Prepara la riproduzione offline",
+        "step1": "Prima salva una copia offline dello spartito seguendo il capitolo «Prepara la prova offline e installa Same Page». Poi, mentre sei online, apri ogni versione di prova che ti occorre.",
+        "step2": "In «Impostazioni di prova», attendi che la versione risulti disponibile per l’apertura e la riproduzione offline. Se la preparazione non è terminata, scegli «Riprova a preparare per l’uso offline». La disponibilità offline dello spartito principale e della versione di prova si verifica separatamente.",
+        "step3": "Prima della prova, disconnettiti e riapri lo spartito principale. Scegli la versione che ti serve e prova a riprodurla. Ripeti la preparazione se cambi dispositivo o browser. Gli allegati audio richiedono una connessione."
+      }
+    },
+    "notes": {
+      "title": "Scrivi e modifica annotazioni",
+      "intro": "Controlla su quale livello stai scrivendo prima di iniziare.",
+      "edit": {
+        "title": "Avvia e termina la modifica",
+        "step1": "Seleziona la matita e scegli un tuo livello personale oppure un livello condiviso che puoi modificare. Puoi scrivere sul livello corrente. Gli altri livelli visibili appaiono attenuati come riferimento.",
+        "step2": "Usa un dito o una penna per lo strumento corrente e due dita per spostare o ingrandire la pagina. Con due dita puoi scorrere orizzontalmente nella vista a pagine. Nello scorrimento continuo puoi annotare le pagine visibili e scorrere con due dita. Ogni tratto appartiene alla pagina su cui inizi a disegnarlo.",
+        "step3": "Seleziona il segno di spunta per terminare. Nella modalità lettura puoi scegliere di nuovo i livelli visibili e continuare a sfogliare."
+      },
+      "tools": {
+        "title": "Scegli lo strumento",
+        "paragraph1": "Usa la penna per i segni a mano, l’evidenziatore per mettere in evidenza parti dello spartito, lo strumento testo per le indicazioni e le forme per delimitare un’area. Puoi regolare il colore, lo spessore o la dimensione del testo in base allo strumento.",
+        "paragraph2": "Con lo strumento di selezione puoi scegliere un’annotazione esistente per modificarne lo stile o eliminarla. Usa Annulla e Ripeti per annullare o ripristinare una modifica. Le impostazioni dello strumento si applicano alle nuove annotazioni.",
+        "paragraph3": "I nuovi drive includono i livelli condivisi Ensemble, Soprano, Alto, Tenor e Bass. I membri con il permesso di modifica su un livello condiviso possono modificarne le annotazioni. Controlla il livello prima di scrivere un promemoria personale."
+      },
+      "sync": {
+        "title": "Salvataggio locale e sincronizzazione nel cloud",
+        "paragraph1": "Quando termini una modifica, l’annotazione viene prima salvata sul dispositivo. Viene inviata al cloud quando sei online e hai le autorizzazioni necessarie. Controlla eventuali modifiche in attesa, errori o conflitti in «Di più → Salvataggio e sincronizzazione delle annotazioni».",
+        "paragraph2": "Lo stato del cloud si aggiorna quando apri uno spartito, invii una modifica o avvii la sincronizzazione. Durante la lettura, sincronizza manualmente per controllare gli ultimi aggiornamenti. Quando ti ricolleghi, riprende l’invio delle bozze in attesa."
+      }
+    },
+    "sharing": {
+      "title": "Gestisci e condividi le annotazioni personali",
+      "intro": "Ogni livello personale è modificabile da chi lo ha creato. I membri possono leggere i livelli condivisi con loro.",
+      "newLayer": {
+        "title": "Crea livelli per scopi diversi",
+        "paragraph1": "In «Livelli di annotazione», scegli «Crea livello personale». Puoi tenere separate le annotazioni per prove, esibizioni e altri scopi. Usa «Gestisci livelli personali» per quelli già creati. Il nome identifica il livello, mentre autore e diritti di accesso si gestiscono separatamente."
+      },
+      "share": {
+        "title": "Condividi un livello e consulta quelli condivisi",
+        "paragraph1": "Nella sezione dei livelli personali, attiva «Condividi» per consentire ai membri del drive di leggerne il contenuto. Puoi disattivarlo per revocare l’accesso. I membri vedranno le annotazioni presenti e le modifiche che sincronizzerai. Solo tu puoi modificarle.",
+        "paragraph2": "Gli altri membri scelgono se visualizzare il livello in «Livelli di annotazione → Condivisi dai membri». La scelta si applica a quello spartito.",
+        "paragraph3": "La condivisione termina quando la disattivi, lasci il drive o elimini l’account. I contenuti già salvati offline vengono aggiornati quando l’altro dispositivo si ricollega e sincronizza. I file già esportati restano a chi li ha ricevuti."
+      },
+      "restore": {
+        "title": "Elimina e ripristina livelli personali",
+        "paragraph1": "L’eliminazione interrompe la condivisione. Puoi recuperare il livello entro 30 giorni in «Gestisci livelli personali → Livelli personali eliminati». Puoi condividerlo di nuovo dopo averlo ripristinato. Se ci sono modifiche non sincronizzate, segui le istruzioni prima di eliminarlo."
+      }
+    },
+    "offline": {
+      "title": "Prepara la prova offline e installa Same Page",
+      "intro": "Puoi installare l’app, salvare copie offline ed esportare PDF come operazioni separate.",
+      "prepare": {
+        "title": "Prepara gli spartiti su questo dispositivo",
+        "step1": "Apri lo spartito mentre sei online. In «Di più → Utilizza offline», scegli «Salva per l’utilizzo offline». Se esiste una nuova versione, scegli «Aggiorna la copia offline».",
+        "step2": "Attendi che il download e la verifica finiscano. «Disponibile offline» indica che la copia corrente è pronta. Se è disponibile offline soltanto una versione precedente, la nuova copia è ancora da preparare.",
+        "step3": "Controlla ogni spartito necessario per la prova. Disconnettiti e riaprilo per verificare che funzioni. Ripeti la preparazione se cambi telefono, tablet o browser."
+      },
+      "install": {
+        "title": "Aggiungi l’app alla schermata Home",
+        "paragraph1": "Nel promemoria di preparazione del drive o nell’elenco dei drive, scegli «Aggiungi alla schermata Home» e segui le istruzioni del browser. Una volta installata, puoi aprire l’app dal desktop o dalla schermata Home. Prepara separatamente la copia offline di ogni spartito.",
+        "paragraph2": "Se usi il browser di WeChat, il messaggio di installazione ti indirizza a un browser esterno. Le opzioni dipendono da dispositivo e browser. Puoi sempre usare Same Page direttamente dal browser."
+      },
+      "storage": {
+        "title": "Libera spazio sul dispositivo",
+        "paragraph1": "In «Archiviazione locale» del drive puoi controllare e rimuovere i file degli spartiti su questo dispositivo. Gli spartiti nel cloud, le bozze personali, le modifiche in attesa e i conflitti vengono conservati. Per aprire offline uno spartito rimosso, scaricalo di nuovo.",
+        "paragraph2": "Usa «Archiviazione locale» per liberare spazio. Cancellando i dati del sito dal browser potresti perdere le bozze non sincronizzate e le annotazioni di prova."
+      }
+    },
+    "files": {
+      "title": "Carica, sostituisci ed esporta spartiti",
+      "intro": "Lo spartito nel drive, le sue versioni PDF e i file esportati si gestiscono separatamente.",
+      "upload": {
+        "title": "Carica e sostituisci PDF",
+        "paragraph1": "I membri con il permesso di caricamento possono aggiungere PDF. In elenco compare il nome del file. Per rinominare uno spartito o sostituire il PDF, usa il menu dello spartito e verifica di avere il permesso necessario. La modifica e l’eliminazione richiedono permessi propri.",
+        "paragraph2": "Sostituendo il PDF, le annotazioni dello spartito esistente restano sulle stesse pagine e alle stesse posizioni. Controlla l’anteprima prima di confermare. Se cambia l’impaginazione, verifica le annotazioni e spostale se necessario. Il PDF precedente resta nel cestino per 30 giorni e può essere ripristinato come spartito separato. Aggiorna anche le copie sui dispositivi offline."
+      },
+      "export": {
+        "title": "Esporta un PDF con le annotazioni",
+        "paragraph1": "Dall’elenco degli spartiti o dal lettore, apri l’esportazione e scegli i livelli da includere. Il PDF esportato unisce lo spartito originale con le annotazioni che puoi vedere. Le preferenze di visualizzazione e le copie offline si gestiscono separatamente.",
+        "paragraph2": "Il file esportato è una copia di quel momento. Controlla che le annotazioni personali incluse siano adatte alla condivisione prima di inviarlo. Per includere modifiche successive, esporta di nuovo."
+      },
+      "trash": {
+        "title": "Cestino ed eliminazione definitiva",
+        "paragraph1": "I membri con il permesso di eliminare e ripristinare possono spostare gli spartiti nel cestino e recuperarli entro 30 giorni. Anche il PDF sostituito finisce nel cestino e può essere ripristinato come spartito separato, senza sovrascrivere il PDF corrente né copiare annotazioni o allegati. I file nel cestino e i PDF in attesa di conferma occupano spazio.",
+        "paragraph2": "Il proprietario può eliminare definitivamente uno spartito o un PDF nel cestino, oppure tutto il drive. L’eliminazione definitiva revoca l’accesso al contenuto e impedisce di ripristinarlo. Eliminando uno spartito o un drive si eliminano anche le relative annotazioni."
+      }
+    },
+    "members": {
+      "title": "Crea un drive, invita e gestisci i membri",
+      "intro": "Ogni membro riceve i permessi necessari per le sue attività. Il proprietario gestisce la proprietà e l’assegnazione dei permessi.",
+      "create": {
+        "title": "Crea e invita",
+        "paragraph1": "Tocca il nome del drive corrente e scegli «Crea drive» in fondo al pannello. Puoi farlo anche dalla schermata di scelta dei drive. Ogni persona può possedere un drive di prova gratuito con 10 spartiti attivi, 50 MB per i PDF e 20 membri incluso il proprietario. La prova non ha una scadenza fissa.",
+        "paragraph2": "Dalla funzione di invito del drive puoi condividere un link o una scheda di invito. Il codice concede l’accesso: invialo solo a chi ne ha bisogno. Generando un nuovo codice, quello precedente smette di funzionare. Puoi usare un nome diverso in ogni drive. Modificalo dalla sezione dedicata all’identità nel drive."
+      },
+      "permissions": {
+        "title": "Trova chi può intervenire",
+        "paragraph1": "Seleziona l’ingranaggio in alto nel drive. In «Impostazioni del drive → Membri e permessi», consulta le autorizzazioni per membro o per tipo. Chi ha il permesso di eseguire un’azione può eseguirla; chi può assegnarlo può modificarlo per i membri ordinari.",
+        "paragraph2": "Il caricamento, la modifica e l’eliminazione dei file, la gestione dei membri e la modifica dei livelli condivisi hanno permessi distinti. Il proprietario può delegare la gestione dei permessi ai membri che sceglie, entro l’ambito assegnato. I livelli personali restano privati anche rispetto al proprietario, finché il membro non li condivide."
+      },
+      "retention": {
+        "title": "Conservazione dei drive inattivi",
+        "paragraph1": "Un drive di prova gratuito può essere rimosso dopo più di 30 giorni consecutivi senza accessi online da parte dei membri. Avviseremo il proprietario per e-mail con almeno 14 giorni di anticipo. Basta che un membro acceda online al drive durante il periodo di preavviso per annullare la rimozione.",
+        "paragraph2": "L’e-mail spiega come conservare il drive. Per mantenerlo, accedi online durante il periodo di preavviso. Aprire una copia offline non conta come accesso online."
+      }
+    },
+    "account": {
+      "title": "Esci, cambia dispositivo o elimina l’account",
+      "intro": "Tornare all’elenco, lasciare un drive e uscire dall’account producono effetti differenti.",
+      "sync": {
+        "title": "Verifica la sincronizzazione prima di cambiare dispositivo",
+        "paragraph1": "Controlla lo stato delle annotazioni sul primo dispositivo, poi accedi con lo stesso account sul nuovo. Le bozze in attesa restano sul dispositivo di origine. Prepara di nuovo le copie offline sul nuovo dispositivo."
+      },
+      "leave": {
+        "title": "Scegli come uscire",
+        "paragraph1": "Tornare all’elenco dei drive lascia attiva la tua iscrizione. Lasciando un drive, perdi l’accesso al cloud e alla sincronizzazione concessi dall’iscrizione. Nei drive ordinari il livello personale resta disponibile per 30 giorni per chi ha il permesso di ripristinare l’iscrizione.",
+        "paragraph2": "Uscendo dall’account, i livelli personali, i permessi di modifica e le preferenze utente vengono rimossi da questo browser. I contenuti condivisi già scaricati possono rimanere. Se hai modifiche in attesa o conflitti, apparirà un avviso. Prima risolvili, perché «Scarta ed esci» elimina definitivamente tali dati locali."
+      },
+      "delete": {
+        "title": "Elimina l’account",
+        "paragraph1": "In «Profilo → Account → Elimina account», verifica di nuovo l’account con il metodo di accesso originale e conferma. Se possiedi un drive, trasferiscine prima la proprietà. L’eliminazione interrompe subito l’accesso. L’identità e i livelli personali possono essere recuperati entro 30 giorni, verificando il metodo di accesso originale e confermando il recupero.",
+        "paragraph2": "Alla fine del periodo di recupero i dati rimossi non sono più ripristinabili. Le annotazioni condivise mantengono l’ultimo nome usato nel drive. I drive e i file già esportati si gestiscono separatamente."
+      }
+    },
+    "questions": {
+      "title": "Risolvi un problema",
+      "intro": "Controlla il drive, l’account e la connessione, quindi segui le indicazioni per il tuo caso.",
+      "finding": {
+        "title": "Spartito mancante o modifica non disponibile",
+        "paragraph1": "Se non trovi uno spartito, controlla il drive e il nome del file. Collegati e aggiorna l’elenco, oppure chiedi a chi può caricare spartiti di verificare. Offline puoi aprire le copie già preparate.",
+        "paragraph2": "Per modificare, seleziona la matita e verifica di avere scelto il livello corretto e di avere il permesso di modifica. Ripristina prima gli spartiti nel cestino. In «Membri e permessi» puoi vedere chi può assegnarti il permesso."
+      },
+      "sync": {
+        "title": "Sincronizzazione non riuscita o conflitto",
+        "paragraph1": "Quando torna la connessione, segui le istruzioni per riprovare. Se il problema continua, scegli «Segnala un problema» per inviare una descrizione e i dati diagnostici agli amministratori del servizio. Se ti mancano permessi, contatta chi può assegnarteli e conserva le bozze sul dispositivo originale.",
+        "paragraph2": "Un conflitto si verifica quando la stessa annotazione è cambiata anche nel cloud. Confronta le versioni locale e cloud prima di decidere quale conservare. Mantieni i dati del sito e le modifiche locali che ti servono."
+      },
+      "offline": {
+        "title": "Copia offline non pronta o pagina non visibile",
+        "paragraph1": "In «Di più → Utilizza offline», riprova a salvare o verificare la copia. Se una versione precedente è disponibile offline, resta sul dispositivo fino al completamento del nuovo download. Se la pagina non si visualizza, prova le opzioni di ripristino sullo schermo per conservare le annotazioni non sincronizzate.",
+        "paragraph2": "Se il problema persiste, usa «Segnala un problema» qui sotto per inviare agli amministratori del servizio una descrizione e i dati diagnostici. Descrivi come riprodurlo e cosa succede. Mantieni riservati password, codici di verifica, codici di invito e spartiti privati."
+      }
+    },
+    "updated": "Ultimo aggiornamento: <date>2026-10-21</date>",
+    "contentsLabel": "Indice della guida",
+    "lead": "Prepara spartiti e annotazioni per la prossima prova. Se è la prima volta, segui il primo capitolo. Per trovare risposte a domande specifiche, usa l’indice.",
+    "contents": "Indice",
+    "back": "Torna all’indice",
+    "feedbackHint": "Puoi inviare una descrizione del problema e i dati diagnostici agli amministratori di Same Page per aiutarli a individuare la causa.",
+    "sendFeedback": "Segnala un problema"
+  },
+  "privacy": {
+    "updated": "Ultimo aggiornamento: 2026-11-17",
+    "lead": "Same Page è un drive di spartiti musicali progettato per le prove del coro. Questa politica spiega quali informazioni elaboriamo quando utilizzi il Servizio, perché le elaboriamo e come puoi contattarci.",
+    "collect": {
+      "title": "Informazioni che elaboriamo",
+      "identity": "<label>Informazioni utente e accesso:</label> Indirizzo e-mail, stato di verifica e-mail, credenziali di accesso crittografate o con hash, identificazione di autenticazione stabile restituita dal provider di accesso di terze parti e indirizzo IP e informazioni sul browser utilizzate per proteggere la sessione.",
+      "google": "<label>Informazioni di accesso a Google:</label> Quando scegli attivamente un accesso di terze parti, riceveremo le informazioni sull'identità di base richieste per completare l'accesso, come un'e-mail verificata, un nickname o un avatar.",
+      "drive": "<label>Contenuti dei drive:</label> I drive di cui fai parte, il tuo nome visualizzato e i tuoi permessi in ciascun drive, le partiture PDF caricate e i nomi dei file, oltre ad annotazioni, preferenze e stato di sincronizzazione dei livelli personali e condivisi.",
+      "local": "<label>Dati locali del dispositivo:</label> Per supportare l'utilizzo offline, il browser può salvare punteggi, note, preferenze e operazioni in sospeso sul dispositivo corrente. I record di accesso ospite e le copie offline possono anche essere salvati sul dispositivo corrente.",
+      "usage": "<label>Uso dei drive:</label> Quando un membro attivo apre in primo piano un drive ordinario o la pagina di una partitura nel client attuale, torna in primo piano o interagisce con la pagina, il client segnala una visita online con granularità di circa cinque minuti. Sono esclusi l’uso offline, le verifiche e la sincronizzazione in background, gli ospiti, la demo pubblica e le identità autorizzate alle operazioni. Conserviamo solo l’ora dell’ultima visita per ciascuna appartenenza. Non raccogliamo dettagli di lettura, durata, nomi delle partiture o contenuti delle annotazioni. I manutentori autorizzati alle operazioni sulle partiture vedono solo l’ora dell’ultima visita e i conteggi aggregati di ciascun drive. I record di visita individuali non sono visibili. Un’attività pianificata elimina gli orari delle visite associati all’appartenenza dopo 30 giorni. Membri rimossi e utenti eliminati non vengono più conteggiati. Il drive conserva l’ora dell’ultima visita senza associarla all’identità di un membro. Questi record servono a capire come viene usato il servizio e non attivano la rimozione automatica."
+    },
+    "use": {
+      "title": "Come utilizziamo queste informazioni",
+      "protectUser": "Crea e proteggi utenti, completa login, verifica email e reimpostazione password;",
+      "access": "Determina le tue autorizzazioni di accesso e modifica al drive, agli spartiti e ai livelli delle note;",
+      "sync": "Archivia, sincronizza e rendi disponibili offline spartiti e note sul tuo dispositivo;",
+      "emails": "Invia le e-mail di sicurezza di accesso necessarie e le notifiche di pulizia del drive;",
+      "security": "Prevenire abusi, risolvere guasti e mantenere la sicurezza e l'affidabilità del Servizio.",
+      "advertising": "Non vendiamo le tue informazioni personali né le utilizziamo per pubblicità mirata. Per impostazione predefinita, le note a livello personale sono visibili solo a te."
+    },
+    "sharing": {
+      "title": "Intervallo visibile all'interno del drive",
+      "visibility": "Per impostazione predefinita, solo tu puoi vedere i tuoi livelli personali. I livelli condivisi e le partiture appartengono al relativo drive. I membri e gli ospiti con accesso possono visualizzarli e i membri con permessi di modifica possono cambiarli. Le annotazioni condivise possono conservare il nome visualizzato nel drive da chi le ha create o modificate per ultimo. I membri attivi possono vedere il nome visualizzato, i permessi e l’ambito di gestione delegata degli altri membri attivi dello stesso drive. Solo il proprietario e chi può rimuovere membri possono vedere le appartenenze rimosse e il loro stato di rimozione o ripristino.",
+      "identity": "Le informazioni di accesso di terze parti non diventeranno automaticamente la tua identità pubblica in tutte le drive; puoi utilizzare nomi visualizzati diversi in diverse drive."
+    },
+    "processors": {
+      "title": "Fornitore di servizi",
+      "intro": "Utilizziamo i seguenti servizi solo nella misura necessaria per fornire e proteggere la stessa pagina:",
+      "disclosure": "Questi fornitori di servizi tratteranno le informazioni in conformità con i rispettivi termini e politiche sulla privacy. Potremmo anche divulgare informazioni rilevanti in conformità con la legge quando richiesto dalla legge, per proteggere la sicurezza degli utenti e dei servizi, o quando necessario per completare la riorganizzazione organizzativa.",
+      "cloudflare": "<label>Cloudflare:</label> Fornire servizi di rete, sicurezza, funzionamento delle applicazioni, database e archiviazione di file PDF;",
+      "resend": "<label>Invia nuovamente:</label> Invia le e-mail di sicurezza di accesso necessarie e le notifiche di pulizia del drive come la verifica della registrazione e la reimpostazione della password;",
+      "google": "<label>Google:</label> Completa l'autenticazione solo se scegli il metodo appropriato."
+    },
+    "google": {
+      "title": "Dati utente di Google",
+      "identity": "Google Login with Same Page utilizza solo le informazioni sull'identità di base necessarie per creare e accedere agli utenti e non si applica a Google Drive, Contatti, Gmail o altre autorizzazioni di dati aggiuntive. I dati di Google vengono utilizzati solo per l'autenticazione, la sicurezza dell'accesso e per fornirti la stessa pagina, non per la pubblicità.",
+      "compliance": "Il nostro utilizzo dei dati utente di Google è conforme alla <policy>Politica sui dati utente del servizio API di Google</policy>, inclusi i requisiti di utilizzo limitato ivi contenuti."
+    },
+    "retention": {
+      "title": "Conservazione, cancellazione e copie offline",
+      "deletedContent": "I proprietari dell'drive possono eliminare completamente gli spartiti del Cestino, i PDF del Cestino o l'intera drive. L'operazione interrompe immediatamente l'accesso del prodotto al contenuto corrispondente e tutte le note dei membri associate al punteggio vengono eliminate. Il prodotto non fornisce funzionalità di ripristino. Per gestire gli errori di sistema, i dati rilevanti verranno conservati in isolamento in background per 30 giorni e verranno ripuliti da attività pianificate alla scadenza; agli utenti non è promesso il ripristino e non verranno concessi diritti di accesso ai dati conservati.",
+      "devices": "Il contenuto scaricato sul dispositivo non può essere recuperato da remoto. L'eliminazione di un utente disconnetterà l'identità locale e le bozze non sincronizzate continueranno a rimanere sotto l'utente originale e non potranno essere lette da altri utenti; al termine del periodo di ripristino dell'eliminazione, il server non può ripristinare i dati ripuliti. Quando ti disconnetti esplicitamente, la stessa pagina cancella il livello personale, lo stato modificabile e le preferenze dell'utente del browser corrente; i contenuti condivisi sincronizzati e spersonalizzati potrebbero rimanere disponibili per la visualizzazione offline. Puoi anche cancellare i dati del sito tramite il browser o il sistema operativo.",
+      "inactive": "Mentre usi il servizio, conserviamo i dati degli utenti e dei drive necessari per fornirlo. Un drive di prova gratuito può essere rimosso se nessun membro vi accede online per più di 30 giorni consecutivi. Avvisiamo il proprietario via e-mail con almeno 14 giorni di anticipo. Se un membro apre il drive online durante il preavviso, la rimozione viene annullata. Aprire una copia offline non conta come accesso online.",
+      "membership": "Quando una persona lascia un drive ordinario o ne viene rimossa, l’accesso al cloud e la sincronizzazione concessi dalla sua appartenenza vengono revocati subito. I livelli personali sono conservati per 30 giorni. In quel periodo una persona autorizzata può ripristinare l’appartenenza. Per impostazione predefinita, solo tu puoi vedere i tuoi livelli personali. Nella demo pubblica, l’accesso ai tuoi livelli personali e la loro conservazione non dipendono dall’appartenenza.",
+      "user": "Il proprietario può trasferire la proprietà in \"Membri e autorizzazioni\" del drive corrispondente, quindi verificare nuovamente il metodo di accesso originale da \"Il mio → Account → Elimina utente\" e confermare l'eliminazione. La cancellazione revoca immediatamente le sessioni del prodotto e l'accesso al cloud; i dati di identità e i livelli personali entrano in un periodo di recupero di 30 giorni. Durante questo periodo, dopo la verifica tramite il metodo di accesso utilizzato durante l'eliminazione, è possibile solo confermare esplicitamente il ripristino e non è possibile accedere direttamente al drive. Dopo il periodo di recupero, l'attività pianificata ripulisce i livelli di identità e personale. Le note condivise continueranno a mantenere il nome finale visualizzato sul drive e non verranno firmate con l'indirizzo e-mail di accesso o il nome del profilo globale.",
+      "pdfs": "I PDF candidati da confermare scadono dopo 24 ore; i vecchi PDF verranno conservati nel Cestino per 30 giorni dopo l'uscita dalla versione corrente e potranno essere ripristinati in partiture indipendenti. Gli spartiti e le relative versioni spostate nel Cestino verranno conservati per 30 giorni dal momento in cui vengono spostati. Il contenuto scaduto viene riciclato dalle attività pianificate e riprovato in caso di errore. L'eliminazione fisica potrebbe essere successiva alla scadenza."
+    },
+    "security": {
+      "title": "Misure di sicurezza",
+      "safeguards": "Utilizziamo la crittografia della trasmissione, il controllo delle autorizzazioni lato server, la limitazione della corrente di accesso e la protezione delle credenziali e altre misure. I token di accesso OAuth e i token di aggiornamento vengono crittografati e salvati e il token ID Google non viene mantenuto dopo aver completato l'autenticazione di Google. Nessun servizio di rete può garantire una sicurezza assoluta; se riscontri problemi di sicurezza, ti preghiamo di contattarci il prima possibile."
+    },
+    "diagnostics": {
+      "title": "Feedback sul problema",
+      "local": "Il client conserva solo gli ultimi 30 minuti e fino a 50 record di errori nella sessione della pagina corrente, che verranno cancellati durante l'aggiornamento o il cambio di identità. È possibile visualizzare, copiare, cancellare informazioni diagnostiche o inviare feedback in modo proattivo sulla pagina <feedback>Feedback sui problemi</feedback> o sulla finestra pop-up di feedback del lettore; non verrà caricato senza fare clic su Invia. I report in sospeso e le descrizioni facoltative vengono conservati solo nella sessione corrente e verranno cancellati dopo l'aggiornamento, la chiusura della pagina Web o il cambio di identità.",
+      "report": "Il feedback inviato in modo proattivo include numero di errore, ora, frequenza, versione, categoria di operazione, fase e riprovabilità, nonché versione del browser e del sistema, dimensione della finestra, richieste di rete e stato della PWA; quando inviato dal lettore, include anche la modalità di visualizzazione delle battute, lo stato di lettura o modifica, la sincronizzazione in sospeso e il numero di conflitti. Il sistema non raccoglie automaticamente spartiti o testo di note, schermate, nomi di file, indirizzi e-mail, IP originali, credenziali, URL completi o eccezioni originali. La descrizione del problema inserita verrà inviata insieme al rapporto. Si prega di non includere contenuti privati, password, codici di verifica o codici di invito.",
+      "retention": "Il report viene salvato in Cloudflare D1 tramite il servizio Same Page. Solo i manutentori autorizzati possono visualizzare e contrassegnare lo stato dell'elaborazione; il numero di feedback non concede l'autorizzazione di lettura e l'autorizzazione di gestione del drive non garantisce la possibilità di accedere al report. La nuova versione del feedback adotta chiaramente un periodo di conservazione fino a 180 giorni al momento dell'invio. I report e i report storici inviati dalla vecchia versione del client vengono ancora elaborati in base al periodo originale di 30 giorni. Dopo la scadenza, l'accesso non verrà più fornito tramite la posta in arrivo e verrà eliminato dalle attività orarie; il personale di manutenzione autorizzato a cancellare in modo indipendente può cancellare in anticipo il testo del rapporto in modo permanente e la registrazione operativa minima viene conservata per 180 giorni, includendo solo l'operatore, il numero di feedback, l'azione e l'ora; per evitare di riprovare a ricreare il report cancellato, il sistema conserva per lungo tempo il contrassegno di cancellazione del numero di feedback senza testo e identità dell'utente; cancellando la diagnosi locale non verrà richiamato il report inviato. I report non sono associati a utenti, drive o punteggi e non vengono automaticamente pubblicati su GitHub o inviati a piattaforme di supporto di terze parti.",
+      "logs": "L'interfaccia utilizza un'identificazione di limitazione di breve durata per prevenire abusi e non salva l'IP originale o le credenziali di accesso nel rapporto. I log delle operazioni strutturate lato server vengono comunque conservati per 3 o 7 giorni secondo il piano Cloudflare e la descrizione del report non viene scritta. Il trattamento dei dati da parte del fornitore dell'infrastruttura (inclusi i log di backup e di sicurezza) è regolato separatamente dalle sue politiche."
+    },
+    "rights": {
+      "title": "A voi la scelta e contattateci",
+      "contact": "Puoi scegliere di non accedere con Google e continuare ad accedere con la tua email. Per richiedere, correggere o eliminare le informazioni dell'utente, revocare l'autorizzazione all'accesso di terze parti o richiedere informazioni su questa politica, inviare un'e-mail a <contact>{email}</contact>. La revoca dell'autorizzazione di terzi non cancellerà automaticamente gli utenti già presenti nella Same Page o i dati la cui conservazione è obbligatoria per legge."
+    },
+    "updates": {
+      "title": "Aggiornamento della politica",
+      "description": "Quando vi saranno cambiamenti importanti nel servizio o nelle modalità di trattamento dei dati, aggiorneremo questa pagina e la data in alto; se necessario, forniremo istruzioni anche tramite richieste in servizio o e-mail."
+    }
+  },
+  "authOauthFailed": "L’accesso con il provider esterno non è riuscito. Riprova o continua con l’email.",
+  "authRateLimited": "Troppi tentativi. Riprova più tardi.",
+  "authContinueFailed": "Al momento non puoi continuare. Riprova più tardi.",
+  "authInvalidCredentials": "L’indirizzo email o la password non sono corretti.",
+  "authOtpSendFailed": "Al momento non è possibile inviare il codice di verifica. Riprova più tardi.",
+  "authOtpSent": "Codice di verifica inviato. Controlla la posta in arrivo e lo spam.",
+  "authOtpInvalid": "Il codice non è valido o è scaduto. Richiedine uno nuovo.",
+  "authOtpResent": "È stato inviato un nuovo codice di verifica.",
+  "authResetOtpSent": "È stato inviato il codice per reimpostare la password.",
+  "authResetOtpResent": "È stato inviato un nuovo codice per reimpostare la password.",
+  "authOtpSendNetworkError": "Impossibile inviare il codice di verifica. Controlla la connessione e riprova.",
+  "authOtpVerifyNetworkError": "Impossibile verificare il codice. Controlla la connessione e riprova.",
+  "authOtpInvalidOrLimit": "Il codice è errato o scaduto, oppure hai raggiunto il limite di tentativi. Controllalo o richiedine uno nuovo.",
+  "authPasswordSetSignIn": "La password è stata impostata. L’accesso automatico non è riuscito. Accedi con la nuova password.",
+  "authPasswordUnknown": "Non è possibile confermare se la password è stata impostata. Prova ad accedere con la nuova password. Se non funziona, verifica il tuo indirizzo email per reimpostarla.",
+  "authOtpInvalidForSetup": "Il codice non è valido o è scaduto. Verifica di nuovo il tuo indirizzo email per impostare una password.",
+  "authOtpInvalidNoReset": "Il codice non è valido o è scaduto. La password non è stata modificata.",
+  "authPasswordResetSignIn": "La password è stata reimpostata. Accedi con la nuova password.",
+  "authOauthNoSession": "Non è stato possibile aprire una sessione con il provider esterno. Riprova o continua con l’email.",
+  "authOauthStartFailed": "Impossibile avviare l’accesso con il provider esterno. Riprova o continua con l’email.",
+  "authPasswordsMismatch": "Le password non coincidono.",
+  "authPasswordRequirements": "La password non soddisfa i requisiti.",
+  "authIdentify": "Accedi o registrati",
+  "authIdentifyDescription": "Inserisci il tuo indirizzo email per accedere o creare un account.",
+  "authContinuing": "Attendi…",
+  "authContinue": "Continua",
+  "authSignIn": "Accedi",
+  "authSignInDescription": "Accedi a Same Page con la tua password.",
+  "authPassword": "Password",
+  "authSigningIn": "Accesso in corso…",
+  "authForgotPassword": "Password dimenticata",
+  "authChangeEmail": "Cambia indirizzo email",
+  "authSignUp": "Registrati",
+  "authSignUpDescription": "Imposta una password e ti invieremo un codice per verificare il tuo indirizzo email.",
+  "authConfirmPassword": "Conferma password",
+  "authSendingOtp": "Invio in corso…",
+  "authSendOtp": "Invia codice di verifica",
+  "authVerifyEmail": "Verifica indirizzo email",
+  "authVerifyingOtp": "Verifica in corso…",
+  "authCompleteSignUp": "Completa registrazione",
+  "authSignInGoogle": "Accedi con Google",
+  "authSetPassword": "Imposta una password per Same Page",
+  "authSetPasswordGoogleDescription": "Hai già effettuato l’accesso con Google e non hai ancora impostato una password per Same Page.",
+  "authSetPasswordDescription": "Verifica il tuo indirizzo email per impostare una password per Same Page.",
+  "authContinueGoogle": "Continua con Google",
+  "authSetPasswordForEmail": "Imposta una password per accedere via email",
+  "authBackSignInMethods": "Torna alle opzioni di accesso",
+  "authChoosePasswordGoogleDescription": "Indirizzo email verificato. Imposta una password per Same Page, separata da quella di Google.",
+  "authChoosePasswordDescription": "Indirizzo email verificato. Imposta una password per Same Page.",
+  "authSettingPassword": "Impostazione in corso…",
+  "authSetPasswordAndSignIn": "Imposta la password e accedi",
+  "authBackVerifyEmail": "Torna alla verifica dell’indirizzo email",
+  "authPasswordSet": "Password impostata",
+  "authPasswordSetGoogleDescription": "Ora puoi accedere con email e password o con Google.",
+  "authPasswordSetDescription": "Ora puoi accedere con email e password.",
+  "authRequestResetDescription": "Invieremo un codice per reimpostare la password a questo indirizzo email.",
+  "authSendResetOtp": "Invia codice di reimpostazione",
+  "authBackSignIn": "Torna all’accesso",
+  "authResetPassword": "Reimposta password",
+  "authResetPasswordDescription": "Dopo la verifica, la vecchia password e le altre sessioni verranno invalidate immediatamente.",
+  "authConfirmNewPassword": "Conferma nuova password",
+  "authResettingPassword": "Reimpostazione in corso…",
+  "authResetPasswordAndSignIn": "Reimposta la password e accedi",
+  "authJoinDrive": "Unisciti all’unità",
+  "authDisplayName": "Nome visualizzato",
+  "authDisplayNameExample": "Es. Alex",
+  "authJoiningDrive": "Iscrizione in corso…",
+  "authJoinAndEnter": "Unisciti e apri",
+  "authSignedIn": "Accesso riuscito",
+  "authJoinFailedDescription": "Hai effettuato l’accesso, ma non è stato possibile unirti all’unità.",
+  "authRetryJoin": "Riprova a unirti",
+  "authCancelToDriveList": "Annulla e torna all’elenco delle unità",
+  "authContinueReadOnly": "Continua in sola lettura",
+  "authBackHome": "Torna alla pagina iniziale",
+  "authBrand": "Same Page",
+  "authOtherSignInMethods": "Altre opzioni di accesso",
+  "authEmail": "Indirizzo email",
+  "authOtp": "Codice di sei cifre",
+  "authResendOtp": "Invia di nuovo il codice",
+  "authThisDrive": "questa unità",
+  "authOtpRetry": "Troppe richieste. Riprova tra {seconds, plural, one {# secondo} other {# secondi}}.",
+  "authOtpRetryAlreadySent": "Troppe richieste. Riprova tra {seconds, plural, one {# secondo} other {# secondi}}. Puoi ancora usare un codice che hai già ricevuto.",
+  "authPasswordMinLabel": "Password (almeno {min} caratteri)",
+  "authVerifyEmailDescription": "Inserisci il codice di verifica inviato a {email}.",
+  "authVerifySetPasswordDescription": "Inserisci il codice inviato a {email} per impostare la password di Same Page.",
+  "authNewPasswordMinLabel": "Nuova password (almeno {min} caratteri)",
+  "authJoinDriveDescription": "Hai effettuato l’accesso. Scegli il nome da mostrare in «{drive}».",
+  "authEmailSummary": "Indirizzo email: {email}",
+  "authResendOtpCountdown": "Invia di nuovo il codice ({seconds} s)",
+  "authPasswordMinimum": "La password deve contenere almeno {min} caratteri.",
+  "authEmailExample": "name@example.com",
+  "authOtpExample": "000000",
+  "authFieldRequired": "Compila questo campo.",
+  "authEmailInvalid": "Inserisci un indirizzo email valido.",
+  "authOtpDigits": "Inserisci il codice di sei cifre.",
+  "authFieldTooLong": "Inserisci al massimo {max} caratteri.",
+  "authFieldInvalid": "Inserisci un valore valido."
+}

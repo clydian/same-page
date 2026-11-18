@@ -1,3 +1,4 @@
+import { PracticeOpeningError } from "./practice-error";
 import { readAttachment, attachmentFileUrl } from '../score-library/attachments/api';
 import { attachmentFetch } from '../score-library/attachments/request';
 import { captureNavigationIdentity } from '../settings/navigation-events';
@@ -24,7 +25,7 @@ export function readPlaybackAttachment(source: PlaybackSource, signal: AbortSign
     const task = pending;
     // A lifetime-hook consumer must not keep a timed-out opening alive and make
     // a retry join that same hung request forever. This bounds the shared task.
-    const timeout = setTimeout(() => controller.abort(new Error('读取附件超时，请重试。')), MUSICXML_READ_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(new PracticeOpeningError("attachmentTimeout")), MUSICXML_READ_TIMEOUT_MS);
     const forget = () => { clearTimeout(timeout); if (metadata.get(source) === task) metadata.delete(source); };
     controller.signal.addEventListener('abort', forget, { once: true });
     const settled = () => { task.settled = true; controller.signal.removeEventListener('abort', forget); forget(); };
@@ -112,13 +113,13 @@ async function boundedFinalAccessGuard(access: MusicXmlAccess, signal: AbortSign
     if (signal.aborted || identityChanged(reason)) throw reason;
     // A failed workspace guard is not a network failure and cannot authorize an
     // offline fallback or silently bypass a previously captured identity fence.
-    throw new Error('本机状态校验未完成，请重试。', { cause: reason });
+    throw new PracticeOpeningError("localVerificationInterrupted", { cause: reason });
   } finally {
     clearTimeout(timer); if (aborted) signal.removeEventListener('abort', aborted);
   }
 }
 function validateMusicXmlAttachment(source: PlaybackSource, fresh: Metadata) {
-  if (fresh.id !== source.attachment.id || fresh.scoreId !== source.score.id || fresh.kind !== 'musicxml' || fresh.revision !== source.attachment.revision || fresh.sizeBytes !== source.attachment.sizeBytes || fresh.trashExpiresAt) throw new Error('附件已更新，请从附件列表重新打开。');
+  if (fresh.id !== source.attachment.id || fresh.scoreId !== source.score.id || fresh.kind !== 'musicxml' || fresh.revision !== source.attachment.revision || fresh.sizeBytes !== source.attachment.sizeBytes || fresh.trashExpiresAt) throw new PracticeOpeningError("attachmentUpdated");
 }
 function lazyOriginalSave(source: PlaybackSource, openingSignal: AbortSignal, current: () => boolean) {
   return async (bytes: Uint8Array, taskSignal?: AbortSignal) => {
@@ -219,7 +220,7 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
     const bytes = await readOfflineMusicXml(source, signal);
     signal.throwIfAborted();
     if (!current()) throw new Error('offline_identity_changed', { cause: reason });
-    if (!bytes) throw new Error('这份练习谱尚未完成离线准备，请联网打开后重试。', { cause: reason });
+    if (!bytes) throw new PracticeOpeningError("offlineNotReady", { cause: reason });
     return { bytes, prepared: undefined, tier: 'offline' as const, canSaveAutomatically: false, save: null, cacheIdentity: undefined, assertCurrent: undefined };
   }
   signal.throwIfAborted();
@@ -242,8 +243,8 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
     const revision = response.headers.get('X-Attachment-Revision');
     // A missing/hidden or malformed header cannot prove that the attachment changed.
     // It also cannot authorize accepting bytes or falling back to an old original.
-    if (!revision || !/^[1-9]\d*$/.test(revision) || !Number.isSafeInteger(Number(revision))) throw new Error('暂时无法校验附件版本，请检查连接后重试。');
-    if (revision !== String(fresh.revision)) throw new Error('附件已更新，请从附件列表重新打开。');
+    if (!revision || !/^[1-9]\d*$/.test(revision) || !Number.isSafeInteger(Number(revision))) throw new PracticeOpeningError("attachmentRevisionMissing");
+    if (revision !== String(fresh.revision)) throw new PracticeOpeningError("attachmentUpdated");
     const bytes = await readOriginal(response, fresh.sizeBytes, signal, report);
     if (bytes.byteLength !== fresh.sizeBytes) throw new Error('musicxml_size_mismatch');
     if (access) await boundedFinalAccessGuard(access, signal, localAbort);
@@ -256,7 +257,7 @@ export async function resolveMusicXmlSource(source: PlaybackSource, signal: Abor
     if (!temporary(reason)) throw reason;
     const bytes = await readOfflineMusicXml(source, signal);
     if (!current()) throw new Error('offline_identity_changed', { cause: reason });
-    if (!bytes) throw new Error('这份练习谱尚未完成离线准备，请联网打开后重试。', { cause: reason });
+    if (!bytes) throw new PracticeOpeningError("offlineNotReady", { cause: reason });
     return { bytes, prepared: undefined, tier: 'offline' as const, canSaveAutomatically: false, save: null, cacheIdentity: undefined, assertCurrent: undefined };
   }
 }

@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useId } from "react";
 import { Link } from "react-router-dom";
 import { loginHref } from "../auth/login-return";
@@ -19,20 +20,21 @@ export function DriveHeader({ choirId, choirName, userId, email, search, onSearc
   view?: Pick<LibraryView, "sort" | "sortDirections">;
   onSort?: (value: LibrarySort) => void; onDirection?: (value: LibrarySortDirection) => void;
 }) {
+  const t = useMessages("library");
   const settingsHint = useId();
   return <header className="drive-header">
     <div className="drive-context-row">
       <h1 aria-label={choirName}><DriveSwitcher key={`${userId ?? "guest"}:${choirId}`} choirId={choirId} choirName={choirName} userId={userId} localOnly={localOnly} loading={loading} /></h1>
-      <span className="drive-settings-control"><Link className="icon-button drive-settings-entry" to={`/choirs/${choirId}/settings`} aria-label="云盘设置" aria-describedby={settingsHint} aria-disabled={loading || localOnly || undefined} onClick={event => { if (loading || localOnly) event.preventDefault(); }}>
+      <span className="drive-settings-control"><Link className="icon-button drive-settings-entry" to={`/choirs/${choirId}/settings`} aria-label={t("driveSettings")} aria-describedby={settingsHint} aria-disabled={loading || localOnly || undefined} onClick={event => { if (loading || localOnly) event.preventDefault(); }}>
         <Settings size={20} aria-hidden="true" />
-      </Link><span id={settingsHint} role="tooltip" className="drive-settings-hint">{localOnly ? "联网并确认访问后可使用云盘设置" : "云盘设置"}</span></span>
+      </Link><span id={settingsHint} role="tooltip" className="drive-settings-hint">{localOnly ? t("driveHeaderUseCloudDiskSettings") : t("driveSettings")}</span></span>
       {userId ? <DrivePersonalMenu key={`${userId}:${choirId}`} choirId={choirId} choirName={choirName} userId={userId} email={email} localOnly={localOnly} canManageIdentity={canManageIdentity} />
-        : resolvingIdentity || loading ? <span className="drive-avatar" aria-label="正在恢复用户"><UserRound aria-hidden="true" size={20} /></span>
+        : resolvingIdentity || loading ? <span className="drive-avatar" aria-label={t("driveHeaderRecoveringUser")}><UserRound aria-hidden="true" size={20} /></span>
         : <GuestMenu choirId={choirId} />}
     </div>
     <div className="drive-library-controls">
       <Form className="library-search drive-search" role="search" onSubmit={event => event.preventDefault()}>
-        <TextField isDisabled={loading} value={search} onChange={onSearch} aria-label={`搜索「${choirName}」中的乐谱`}><Input type="search" placeholder="搜索乐谱" /></TextField>
+        <TextField isDisabled={loading} value={search} onChange={onSearch} aria-label={t("driveHeaderSearchMusicScores", { choirName: String(choirName) })}><Input type="search" placeholder={t("driveHeaderSearchSheetMusic")} /></TextField>
       </Form>
       <LibrarySortControl view={view} disabled={loading} onSort={onSort ?? (() => {})} onDirection={onDirection ?? (() => {})} />
     </div>
@@ -40,12 +42,13 @@ export function DriveHeader({ choirId, choirName, userId, email, search, onSearc
 }
 
 function GuestMenu({ choirId }: { choirId: string }) {
-  return <MenuTrigger><Button className="drive-avatar" aria-label="访客选项">访</Button>
-    <Popover className="file-menu-popover account-menu-popover"><Menu aria-label="访客选项">
-      <MenuItem href={loginHref(`/choirs/${choirId}`)}>登录或注册</MenuItem>
-      <MenuItem href="/help">使用手册</MenuItem>
-      <MenuItem href="/diagnostics">问题反馈</MenuItem>
-      <MenuItem href="/about">关于与更新</MenuItem>
+  const t = useMessages("library");
+  return <MenuTrigger><Button className="drive-avatar" aria-label={t("driveHeaderGuestOptions")}>{t("driveHeaderInterview")}</Button>
+    <Popover className="file-menu-popover account-menu-popover"><Menu aria-label={t("driveHeaderGuestOptions")}>
+      <MenuItem href={loginHref(`/choirs/${choirId}`)}>{t("driveHeaderLogRegister")}</MenuItem>
+      <MenuItem href="/help">{t("driveHeaderUserManual")}</MenuItem>
+      <MenuItem href="/diagnostics">{t("driveHeaderProblemFeedback")}</MenuItem>
+      <MenuItem href="/about">{t("driveHeaderAboutUpdates")}</MenuItem>
     </Menu></Popover>
   </MenuTrigger>;
 }

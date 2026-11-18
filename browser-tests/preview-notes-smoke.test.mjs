@@ -21,7 +21,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     before(async () => {
       fixture = await startStorageFixture({ authenticated: true, nonMember: true });
       browser = await browserType.launch();
-      const seed = await browser.newContext({ serviceWorkers: "block" });
+      const seed = await browser.newContext({ locale: "zh-CN", serviceWorkers: "block" });
       try {
         await signIn(seed, fixture, fixture.accounts[0]);
         const base = `${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
@@ -41,7 +41,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
 
     for (const scenario of ["guest-sign-in-pdf", "connectivity-hint", "signed-in-musicxml", "signed-in-audio", "signed-in-direct-link"]) {
       test(scenario, async t => {
-        const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, serviceWorkers: "block" });
+        const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1024, height: 768 }, serviceWorkers: "block" });
         await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
         const page = await context.newPage();
         let releasePdf;

@@ -1,0 +1,11 @@
+{
+  "registrationSubject": "Same Page 가입 인증 코드",
+  "resetSubject": "Same Page 비밀번호 재설정 인증 코드",
+  "registrationIntro": "{site}에서 Same Page에 가입하고 있습니다.",
+  "resetIntro": "{site}에서 Same Page 비밀번호를 재설정하고 있습니다.",
+  "codeLine": "인증 코드: {code}",
+  "expiry": "코드는 10분 후에 만료됩니다. 다른 사람에게 전달하지 마세요.",
+  "registrationUnexpected": "요청하지 않았다면 이 메일을 무시해도 됩니다. 가입은 완료되지 않습니다.",
+  "resetUnexpected": "요청하지 않았다면 이 메일을 무시해도 됩니다. 비밀번호는 변경되지 않습니다.",
+  "codeLabel": "인증 코드:"
+}

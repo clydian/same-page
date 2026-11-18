@@ -11,7 +11,7 @@ for (const [name, engine] of Object.entries({chromium,webkit})) for (const sampl
   test(`${name}: reading turns survive highlighter ${sample}`, async t => {
     const app = await startVisualServer({script:"dev"}), browser=await engine.launch();
     t.after(async()=>{await browser.close();await app.stop();});
-    const page=await browser.newPage({viewport:{width:820,height:1148},reducedMotion:"reduce"});
+    const page=await browser.newPage({ locale: "zh-CN", viewport:{width:820,height:1148},reducedMotion:"reduce"});
     const errors=[]; page.on("pageerror",error=>errors.push(error.message));
     const pdf=await PDFDocument.create(); pdf.addPage([500,700]);pdf.addPage([500,700]);
     const bytes=Buffer.from(await pdf.save());

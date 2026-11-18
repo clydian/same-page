@@ -1,5 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
+import { loadLocale } from "../../i18n/catalogs";
+import { AppLocaleContext } from "../../i18n/context";
+import { guestNoteLayer } from "../annotations/guest-notes";
 import { ExportDialog } from "./export-dialog";
 import { authenticatedLocalOwnerKey, createLocalWorkspace, LocalWorkspaceOwnerChangedError } from "../platform/local-workspace";
 
@@ -44,4 +47,15 @@ it("retires the old target immediately when the PDF version changes", async () =
   rerender(<ExportDialog workspace={workspace} versionId="v2" fileName="score.pdf" authenticatedUserId="reader" onClose={() => {}} />);
   expect(screen.queryByRole("button", { name: "下载 PDF" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "正在准备…" })).toBeDisabled();
+});
+
+it("localizes the preview layer label and preserves user-entered layer names", async () => {
+  await loadLocale("en");
+  const previewLayer = guestNoteLayer();
+  io.read.mockResolvedValue({ ...state, layers: [previewLayer, { ...previewLayer, id: "custom-layer" }] });
+  render(<AppLocaleContext.Provider value={{ locale: "en", setLocale: () => undefined, requestedLocale: null, loadFailed: false }}>
+    <ExportDialog workspace={workspace} versionId="v1" fileName="score.pdf" authenticatedUserId="reader" onClose={() => {}} />
+  </AppLocaleContext.Provider>);
+  expect(await screen.findByRole("checkbox", { name: "Local preview notes" })).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: previewLayer.name })).toBeInTheDocument();
 });

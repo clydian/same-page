@@ -14,7 +14,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     t.after(() => browser.close());
     async function scenario(label, run, { attachments = false, height = 844, safeBottom = 0, delayed = false, emptyFirstAttachments = false } = {}) {
       await t.test(label, async () => {
-        const context = await browser.newContext({ viewport: { width: 390, height }, serviceWorkers: "block" });
+        const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height }, serviceWorkers: "block" });
         try {
           await withBrowserEvidence(context, `artifacts/verification/drive-navigation/${name}-${label}`, async () => {
             const page = await context.newPage();

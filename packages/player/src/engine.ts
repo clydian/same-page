@@ -68,16 +68,22 @@ export function loadPreparedMusicXml(prepared: PreparedMusicXml, settings: alpha
   return score;
 }
 
+export class PlaybackChannelError extends Error {
+  constructor(readonly code: "unsupportedPercussionCount" | "playbackTooManyParts", message: string) {
+    super(message);
+  }
+}
+
 /** Same channel isolation for the standalone and embedded player. */
 export function assignPlaybackChannels(tracks: alphaTab.model.Track[]) {
   let channel = 0, percussion = 0;
   for (const track of tracks) {
     if (track.isPercussion) {
-      if (++percussion > 1) throw new Error('当前不支持多个独立打击乐声部。');
+      if (++percussion > 1) throw new PlaybackChannelError('unsupportedPercussionCount', '当前不支持多个独立打击乐声部。');
       track.playbackInfo.primaryChannel = track.playbackInfo.secondaryChannel = 9;
     } else {
       if (channel === 9) channel++;
-      if (channel > 15) throw new Error('独立声部数量超过播放限制。');
+      if (channel > 15) throw new PlaybackChannelError('playbackTooManyParts', '独立声部数量超过播放限制。');
       track.playbackInfo.primaryChannel = track.playbackInfo.secondaryChannel = channel++;
     }
   }

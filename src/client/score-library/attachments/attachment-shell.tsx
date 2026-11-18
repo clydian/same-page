@@ -1,3 +1,4 @@
+import { useMessages } from "../../../i18n";
 import type { ReactNode } from "react";
 import { Button, Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { ArrowLeft, X } from "lucide-react";
@@ -13,7 +14,8 @@ export function AttachmentShell({ title, subtitle, wide = false, document = fals
   title: string; subtitle: string; wide?: boolean; document?: boolean; picker?: boolean; dirty?: boolean; busy?: boolean; save?: () => Promise<boolean>; discard?: () => void;
   blocked?: boolean; message?: string | null; onClose: () => void; onBack?: () => void; children: ReactNode;
 }) {
-  const guard = useUnsavedChangesGuard({ dirty, save, discard, saveState: { blocked: blocked || busy, message }, subject: "附件修改" });
+  const t = useMessages("library");
+  const guard = useUnsavedChangesGuard({ dirty, save, discard, saveState: { blocked: blocked || busy, message }, subject: t("attachmentShellAttachmentModification") });
   const close = async () => { if (!busy && await guard.confirm() === true) onClose(); };
   useExitLayer(true, "overlay", async destination => {
     if (busy) return "cancelled";
@@ -23,10 +25,10 @@ export function AttachmentShell({ title, subtitle, wide = false, document = fals
   });
   return <><ModalOverlay className="modal-overlay" isOpen isDismissable={!busy} onOpenChange={open => { if (!open) void close(); }}>
     <Modal className={`app-modal attachment-modal${wide ? " attachment-modal--wide" : ""}`}><Dialog className={`app-dialog attachment-dialog${document ? " attachment-dialog--document" : ""}${picker ? " attachment-dialog--picker" : ""}`} data-update-busy={dirty || busy ? "true" : undefined}>
-      <div className="attachment-heading">{onBack && <Button className="icon-button attachment-back" aria-label="返回附件类型" isDisabled={busy}
+      <div className="attachment-heading">{onBack && <Button className="icon-button attachment-back" aria-label={t("attachmentShellReturnAttachmentType")} isDisabled={busy}
         onPress={async () => { if (await guard.confirm() === true) { discard(); onBack(); } }}><ArrowLeft size={19} /></Button>}
         <div><p>{subtitle}</p><Heading slot="title">{title}</Heading></div>
-        <Button className="icon-button" aria-label="关闭" isDisabled={busy} onPress={() => void close()}><X size={20} /></Button></div>
+        <Button className="icon-button" aria-label={t("close")} isDisabled={busy} onPress={() => void close()}><X size={20} /></Button></div>
       {children}
       {message && <p className="form-message" role="alert">{message}</p>}
     </Dialog></Modal>
@@ -35,10 +37,11 @@ export function AttachmentShell({ title, subtitle, wide = false, document = fals
 
 
 export function AttachmentLoading({ selection, onClose }: { selection: AttachmentSelection; onClose: () => void }) {
+  const t = useMessages("library");
   const document = selection.action === "markdown" || (selection.action === "open" && selection.attachment?.kind === "markdown");
   const pdf = selection.action === "open" && selection.attachment?.kind === "pdf";
   return <AttachmentShell title={attachmentActionTitle(selection.action, selection.attachment)} subtitle={scoreDisplayName(selection.score.fileName)}
     wide={document || pdf} document={document} picker={selection.action === "add"} onClose={onClose}>
-    <LoadingStatus className={pdf ? "attachment-pdf" : ""}>正在打开附件…</LoadingStatus>
+    <LoadingStatus className={pdf ? "attachment-pdf" : ""}>{t("attachmentShellOpeningAttachment")}</LoadingStatus>
   </AttachmentShell>;
 }

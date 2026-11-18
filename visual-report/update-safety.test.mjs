@@ -8,7 +8,7 @@ test("a blurred admission form and its pending submission veto background update
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const page = await browser.newPage({ serviceWorkers: "block" });
+  const page = await browser.newPage({ locale: "zh-CN", serviceWorkers: "block" });
   const fixture = createVisualFixtureSession();
   let release;
   const pending = new Promise(resolve => { release = resolve; });

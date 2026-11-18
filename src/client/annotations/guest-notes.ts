@@ -1,3 +1,4 @@
+import { getMessages, sourceLocale } from "../../i18n";
 import type { AnnotationLayerSummary } from "../../shared/annotations";
 import { localDatabase } from "../platform/local-database";
 import { withLocalWorkspaceTransaction, type LocalWorkspace } from "../platform/local-workspace";
@@ -10,7 +11,7 @@ export function isLocalExperience(workspace: Pick<LocalWorkspace, "ownerKey">) {
 export function guestNoteLayer(): AnnotationLayerSummary {
   return {
     id: GUEST_NOTE_LAYER_ID, kind: "personal", sharedSlot: null,
-    name: "本机体验笔记", sortOrder: 100, subscribed: true,
+    name: getMessages(sourceLocale, "reader")("previewNotes"), sortOrder: 100, subscribed: true,
     subscriptionSource: "personal", displayColor: "#dc2626", colorSource: "personal",
     adminDefaultColor: null, driveSubscribed: null, driveColorOverride: null,
     scoreSubscriptionOverride: null, canEdit: true, canShare: false, sharing: false,

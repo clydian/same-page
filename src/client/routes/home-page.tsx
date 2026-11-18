@@ -1,3 +1,4 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import { useDriveInvitation } from "../drives/use-drive-invitation";
 import { JoinDriveDialog } from "../drives/join-drive-dialog";
 import { FeatureAnimation } from "../components/feature-animation";
@@ -37,36 +38,11 @@ import {
 
 
 const productFeatures = [
-  {
-    title: "不同声部，分层共享笔记",
-    illustration: sharedLayersIllustration,
-    description:
-      "排练要求按声部分层共享，获授权的人可以留下笔记，大家在同一份谱上查看。",
-  },
-  {
-    title: "共享笔记按需看，个人笔记自己留",
-    illustration: personalLayerIllustration,
-    description:
-      "选择需要查看的声部笔记，也能在个人层记下自己的提醒，默认仅自己可见。",
-  },
-  {
-    title: "替换乐谱，保留笔记",
-    illustration: replacePdfIllustration,
-    description:
-      "替换 PDF 后保留已有笔记，仍按原页码和位置显示；排版变化后，请核对笔记位置。",
-  },
-  {
-    title: "离线可用，联网同步",
-    illustration: offlineSyncIllustration,
-    description:
-      "提前保存供离线使用，断网也能继续看谱、做笔记；恢复联网后，笔记会继续同步。",
-  },
-  {
-    title: "一份乐谱，多设备可用",
-    illustration: everyDeviceIllustration,
-    description:
-      "建议将合谱像应用一样安装到 Android 手机和平板、iPhone、iPad、Windows 电脑或 Mac，随时打开同一份乐谱和笔记。",
-  },
+  { title: "feature.shared.title", illustration: sharedLayersIllustration, description: "feature.shared.description" },
+  { title: "feature.personal.title", illustration: personalLayerIllustration, description: "feature.personal.description" },
+  { title: "feature.replace.title", illustration: replacePdfIllustration, description: "feature.replace.description" },
+  { title: "feature.offline.title", illustration: offlineSyncIllustration, description: "feature.offline.description" },
+  { title: "feature.devices.title", illustration: everyDeviceIllustration, description: "feature.devices.description" },
 ] as const;
 
 export function HomePage({ startup = false }: { startup?: boolean }) {
@@ -81,6 +57,9 @@ export function HomePage({ startup = false }: { startup?: boolean }) {
 
 function HomeContent({ identity, startup, linkInvite, finishInvitation }: { identity: ApplicationIdentity; startup: boolean; linkInvite: ReturnType<typeof readInviteLink>; finishInvitation: () => void }) {
   const { session } = identity;
+  const t = useMessages("entry");
+  const { locale } = useAppLocale();
+  const bilingual = locale === "zh-Hans";
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [startupDismissed, setStartupDismissed] = useState(false);
@@ -124,7 +103,7 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
             <PersonalMenu email={session.data.user.email} />
           ) : session.isPending ? null : (
             <Link className="header-action header-action--primary" to="/login">
-              登录
+              {t("drive.login")}
             </Link>
           )
         }
@@ -134,25 +113,24 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
         <section className="marketing-hero" aria-labelledby="page-title">
           <div className="marketing-hero__content">
             <p className="hero-mark">合谱 · Same Page</p>
-            <h1 id="page-title" lang="en">
-              Harmony begins on the Same Page
+            <h1 id="page-title" lang={bilingual ? "en" : undefined}>
+              {t("home.title")}
             </h1>
-            <p className="hero-zh" lang="zh-CN">
-              你的笔记我的谱
-            </p>
+            {bilingual && <p className="hero-zh" lang="zh-CN">
+              {t("home.tagline")}
+            </p>}
             <div className="hero-description">
-              <p lang="en">
-                A cloud-based score library built for choir rehearsals and shared
-                annotations.
-              </p>
-              <p lang="zh-CN">为合唱排练与共享笔记打造的乐谱云盘。</p>
+              {bilingual && <p lang="en">
+                {t("home.summaryEnglish")}
+              </p>}
+              <p lang={bilingual ? "zh-CN" : undefined}>{t("home.summary")}</p>
             </div>
             <div className="hero-actions">
-              {identity.authenticatedUserId || identity.localUserId ? <Link className="primary-button hero-cta" to="/drives">我的云盘</Link> : <Button
+              {identity.authenticatedUserId || identity.localUserId ? <Link className="primary-button hero-cta" to="/drives">{t("home.myDrives")}</Link> : <Button
                 className="primary-button hero-cta"
                 onPress={() => { setStartupDismissed(true); setJoinOpen(true); }}
               >
-                进入云盘
+                {t("home.enter")}
               </Button>}
               {previewChoir ? (
                 <Link
@@ -160,18 +138,18 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
                   to={`/choirs/${previewChoir.id}`}
                   onClick={() => startLoadingJourney("enter-drive", "warm")}
                 >
-                  先看示例
+                  {t("home.preview")}
                 </Link>
               ) : null}
               <InstallButton />
             </div>
           </div>
           <a className="marketing-more-features" href="#features">
-            了解更多功能 <span aria-hidden="true">↓</span>
+            {t("home.more")} <span aria-hidden="true">↓</span>
           </a>
         </section>
 
-        <section id="features" className="marketing-features" aria-label="产品特点">
+        <section id="features" className="marketing-features" aria-label={t("home.features")}>
           {productFeatures.map((feature, index) => (
             <article
               className={`marketing-feature marketing-feature--${
@@ -180,16 +158,16 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
               key={feature.title}
             >
               <div className="marketing-feature__copy">
-                <h2>{feature.title}</h2>
+                <h2>{t(feature.title)}</h2>
                 <p className="marketing-feature__description">
-                  {feature.description}
+                  {t(feature.description)}
                 </p>
               </div>
               {index < 4 ? (
                 <FeatureAnimation
                   illustration={feature.illustration}
                   animation={index === 0 ? sharedLayersAnimation : index === 1 ? personalLayerAnimation : index === 2 ? replacePdfAnimation : offlineSyncAnimation}
-                  label={feature.title}
+                  label={t(feature.title)}
                 />
               ) : <img
                 className="marketing-feature__illustration"

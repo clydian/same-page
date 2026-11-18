@@ -1,0 +1,567 @@
+{
+  "drive": {
+    "create": "Create a Drive",
+    "loginToCreate": "Log in to create a Drive",
+    "login": "Log in",
+    "restoreLocal": "Restoring local content…",
+    "directoryError": "Could not check your Drives. Connect to the internet and try again.",
+    "choose": "Choose a Drive",
+    "chooseHint": "Choose the Drive you want to open.",
+    "lastUnavailable": "You can no longer access the last Drive you used. Choose another one.",
+    "join": "Join a Drive",
+    "first": "Join your first Drive",
+    "firstHint": "Use the invitation card or code from your administrator to join.",
+    "createPrompt": "Want to create a Drive for your team?"
+  },
+  "identity": {
+    "checking": "Connecting. You can keep using saved content.",
+    "localUnavailable": "We couldn't verify your local identity yet. Your saved content is still available.",
+    "unreachable": "Could not connect. Your saved content is still available.",
+    "signedOut": "Log in again to sync. You can keep using saved content.",
+    "retrying": "Trying again…",
+    "retryVerify": "Retry verification",
+    "retryConnection": "Retry connection",
+    "loginAgain": "Log in again"
+  },
+  "guestNotes": {
+    "title": "Log in to take rehearsal notes",
+    "signIn": "Sign up or log in to take notes",
+    "keepReading": "Keep reading",
+    "hint": "You're browsing as a guest. Sign up or log in and join this Drive to add your own notes and sync them across devices."
+  },
+  "startup": {
+    "restore": "Restoring Drives…",
+    "retry": "Try again",
+    "feedback": "Report a problem",
+    "loadError": "Could not load your Drives."
+  },
+  "logout": {
+    "checkError": "Could not check for unsynced changes. Try again.",
+    "networkError": "Connect to the internet to log out and end your server session.",
+    "cleanupError": "You're logged out, but some local data still needs to be cleared. Try clearing it again.",
+    "logoutError": "Could not log out. Your local data is still on this device. Try again.",
+    "cleanDetails": "Logging out clears local personal layers, document drafts, editing permissions, and preferences. Downloaded shared content can stay on this device.",
+    "working": "Logging out…",
+    "discard": "Discard and log out",
+    "clear": "Log out and clear data",
+    "title": "Log out?",
+    "return": "Review changes",
+    "pendingDetails": "This device has {pending, plural, one {# change to sync} other {# changes to sync}}, {conflicts, plural, one {# local conflict} other {# local conflicts}}, and {errors, plural, one {# sync error} other {# sync errors}}{drafts, plural, =0 {} one {, plus # unsaved document draft} other {, plus # unsaved document drafts}}. Continuing permanently discards this content."
+  },
+  "create": {
+    "capacity": "Free trial · 10 scores / 50 MB / 20 members",
+    "name": "Drive name",
+    "displayName": "Your display name in this Drive",
+    "ownerHint": "You will own the Drive and can invite others with an invitation code. The Drive can have up to 20 members including you.",
+    "retention": "A Drive may be removed if no member accesses it online for more than 30 consecutive days. We email the owner at least 14 days before removal. If any member opens the Drive online during the notice period, removal is canceled.",
+    "cancel": "Cancel",
+    "back": "Back to Drive selection",
+    "uncertain": "Could not confirm whether the Drive was created. Close this dialog and reload your Drives before trying again.",
+    "working": "Creating…",
+    "submit": "Create for free",
+    "terms": "You can own one Drive. We may remove it after extended inactivity and will email you at least 14 days in advance.",
+    "rules": "Usage and cleanup rules"
+  },
+  "purge": {
+    "refreshFailed": "The content was permanently deleted, but the list could not be refreshed. Close this dialog and reload the list.",
+    "unconfirmed": "Could not confirm deletion. Close this dialog and reload the list to check. Avoid repeating the deletion.",
+    "working": "Deleting…",
+    "confirm": "Delete permanently",
+    "warning": "Permanently deleted content cannot be restored in Same Page. Deleting it frees up your Drive quota.",
+    "name": "Enter the Drive name “{name}” to confirm"
+  },
+  "join": {
+    "guestError": "Could not prepare local guest access. Try again.",
+    "invalidLink": "This invitation link is invalid. Enter the current invitation code.",
+    "newDrive": "Join a new Drive",
+    "checking": "Verifying…",
+    "enterShort": "Enter",
+    "submitting": "Joining…",
+    "submit": "Join and open",
+    "close": "Close",
+    "exampleName": "For example, Alex",
+    "existing": "Drives I've joined",
+    "loginToView": "Log in to view",
+    "invitation": "Use an invitation card or code",
+    "displayName": "Display name",
+    "named": "Join “{name}”",
+    "setName": "Choose the name other members will see in this Drive.",
+    "return": "Back to invitation code"
+  },
+  "home": {
+    "enter": "Open a Drive",
+    "myDrives": "My Drives",
+    "preview": "See an example",
+    "more": "Explore features",
+    "features": "Features",
+    "tagline": "Your notes and my score",
+    "summaryEnglish": "A cloud-based score library built for choir rehearsals and shared annotations.",
+    "summary": "A cloud-based score library built for choir rehearsals and shared annotations.",
+    "title": "Harmony begins on the Same Page"
+  },
+  "scan": {
+    "unrecognized": "We couldn't recognize a Same Page invitation card. Aim at the QR code on a Same Page card or enter the invitation code.",
+    "cameraFeedError": "Could not read the camera feed. Choose an image or enter the invitation code.",
+    "cameraError": "Could not open the camera. Allow camera access, choose an image, or enter the invitation code.",
+    "reading": "Reading invitation card…",
+    "imageUnrecognized": "No Same Page invitation card was found in the image. Choose another image or enter the invitation code.",
+    "imageError": "Could not read the image. Choose an invitation card image up to 10 MB or enter the invitation code.",
+    "stop": "Stop scanning",
+    "start": "Scan",
+    "fromPhoto": "Choose a photo",
+    "chooseImage": "Choose an invitation card image",
+    "camera": "Invitation card camera view"
+  },
+  "usage": {
+    "trial": "Free trial",
+    "title": "Drive usage",
+    "error": "Could not load usage.",
+    "working": "Loading usage…",
+    "trash": "Trash items and PDFs awaiting confirmation also use storage. The owner can delete items from Trash permanently.",
+    "refresh": "Refresh usage",
+    "details": "Scores {scores} · Storage {used} / {limit} · Members {members}"
+  },
+  "feature": {
+    "shared": {
+      "title": "Share rehearsal notes by voice part",
+      "description": "Authorized members can leave notes in layers for each voice part, and everyone can see them on the same score."
+    },
+    "personal": {
+      "title": "Choose shared notes and keep your own",
+      "description": "Show the notes you need and save your own reminders in a personal layer, visible only to you by default."
+    },
+    "replace": {
+      "title": "Replace a score and keep its notes",
+      "description": "When you replace a PDF, notes stay on their original pages and positions. Check the notes if the layout changes."
+    },
+    "offline": {
+      "title": "Work offline and sync when you reconnect",
+      "description": "Save scores in advance to read and annotate them offline. Your notes sync when you reconnect."
+    },
+    "devices": {
+      "title": "One score across your devices",
+      "description": "Install Same Page on Android, iPhone, iPad, Windows, or Mac to open the same scores and notes on any device."
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "hint": "There's no page at this address. Go back to My Drives to continue.",
+    "action": "Go to My Drives"
+  },
+  "admission": {
+    "unavailable": "Could not open this Drive. Try again later.",
+    "removed": "Ask someone with permission to restore members to restore your membership.",
+    "rateLimit": "Too many attempts. Try again later.",
+    "invalidCode": "This invitation code is invalid or expired.",
+    "timeout": "The connection timed out. Your invitation code is still here. Try again.",
+    "joinUnavailable": "Could not join this Drive. Try again later."
+  },
+  "trial": {
+    "platformFull": "Free trial storage is full. Try uploading again later. Existing content is still available.",
+    "driveLimit": "No free trial Drive slots are available right now. Try again later. You can still join other Drives.",
+    "ownedLimit": "You can own one free trial Drive. Transfer or delete your existing Drive first.",
+    "verifyIdentity": "Verify your email first or log in using a verified third-party account.",
+    "memberLimit": "This Drive is full. Ask the owner to free up a member slot, then try again.",
+    "scoreLimit": "This library has reached its score limit. Move any scores you no longer need to Trash first.",
+    "retryLater": "Too many attempts. Try again later.",
+    "confirmationMismatch": "The Drive name changed or the name you entered does not match. Refresh and confirm again.",
+    "accessChanged": "Your identity or permissions have changed. Refresh and try again.",
+    "deleted": "This content was permanently deleted. Refresh to continue.",
+    "generalError": "Could not complete the action. Check your connection and try again."
+  },
+  "lifecycle": {
+    "identityChanged": "Your sign-in identity changed. Reload the current status and confirm again.",
+    "transferRequired": "You still own a Drive. Transfer ownership or delete it before continuing.",
+    "reauthenticate": "Verify your original sign-in method again and confirm deletion within ten minutes.",
+    "cannotRecover": "The recovery period ended, your verification expired, or the sign-in method does not match. Verify again and check the current status.",
+    "memberConflict": "The membership changed or its recovery period ended. Reload the current status.",
+    "generalError": "Could not complete the action. Reload the current status and try again."
+  },
+  "about": {
+    "copied": "Version information copied.",
+    "copyError": "Could not copy automatically. Select and copy the version information below.",
+    "version": "Same Page {version}\nBuild: {build}",
+    "run": "Pipeline: {run}",
+    "currentVersion": "This device is running {version}. Build times use Beijing time.",
+    "title": "About Same Page",
+    "links": "Help and product information",
+    "tagline": "One shared score, every passage practiced together.",
+    "summary": "Choir scores and rehearsal notes",
+    "productHint": "Explore Same Page and its rehearsal tools",
+    "manualHint": "Learn how to read, annotate, and practice scores",
+    "feedbackHint": "Tell us what went wrong",
+    "buildInfo": "Version and technical information",
+    "copy": "Copy version information",
+    "recovery": "Recover the player",
+    "recoveryHint": "You can reload offline if all resources are on this device. Connect to the internet to download anything missing. Your notes and local content will stay on the device.",
+    "product": "Explore Same Page",
+    "manual": "User guide",
+    "feedback": "Report a problem",
+    "privacy": "Privacy policy",
+    "reload": "Reload page"
+  },
+  "help": {
+    "start": {
+      "title": "Get started: prepare for a rehearsal",
+      "intro": "Try finding a score and opening it offline. Then explore the other features as you need them.",
+      "walkthrough": {
+        "title": "Walk through a rehearsal",
+        "step1": "Log in with email or Google and use your invitation to join a Drive. Select the current Drive name to switch Drives, join another one, or create a new one. You can also create a Drive from the selection page. Choose a display name that other members will recognize.",
+        "step2": "Open the Drive and find your score by file name. If it is missing, ask a member with upload permission to add the PDF.",
+        "step3": "Tap the middle of the score to show the tools. Open Note layers and select the shared and personal layers you need for rehearsal.",
+        "step4": "Tap the pencil to edit, choose My notes, and add a mark. Tap the check mark to finish editing.",
+        "step5": "Check More → Note saving and sync. If edits are pending or failed to sync, reconnect to the internet and follow the prompts.",
+        "step6": "Save a copy under More → Offline use and wait until it is available offline. Before rehearsal, disconnect and reopen each score to check that you can see the pages and notes."
+      },
+      "try": {
+        "title": "Try it before joining",
+        "paragraph1": "As a guest, you can read the scores and shared notes you have access to. Sign up or log in and join a Drive to write your own notes and sync them across devices. Only the public example Drive lets you try writing in this browser. Example notes stay on this device, are never uploaded, and do not change shared content. They are not transferred into personal notes when you log in."
+      }
+    },
+    "read": {
+      "title": "Find scores and adjust the reader",
+      "intro": "Use reading mode to view the score and editing mode to change the notes on the current page.",
+      "navigation": {
+        "title": "Find a score and turn pages",
+        "paragraph1": "Search the Drive by file name and select a score. Tap the center to show the tools. With a keyboard, press Tab until Show reader tools is focused, then press Enter or Space. In page mode, tap either edge or swipe left or right to turn pages. Use the page preview to jump to a page.",
+        "paragraph2": "Open More → Page layout and zoom to choose page mode or continuous scrolling. You can also zoom in, zoom out, fit the page, or enter full screen on supported devices."
+      },
+      "layers": {
+        "title": "Choose note layers",
+        "paragraph1": "Open Note layers and select the layers you want to see. Personal layers are private by default. Shared layers are visible to people with access. Editing a layer requires a separate permission.",
+        "paragraph2": "In the panel, set the default display for scores in this Drive. Settings for an individual score take precedence. Use the Drive defaults to reset shared layer visibility and colors.",
+        "paragraph3": "The color next to a shared layer changes how you see it. Other members still see their own colors. Set the color of an individual personal note when using the editing tool."
+      }
+    },
+    "practice": {
+      "title": "Listen to parts and practice passages",
+      "intro": "The practice score uses MusicXML to lay out and play the music. Use the original PDF to check the notation.",
+      "open": {
+        "title": "Open a practice score",
+        "step1": "Open the score, tap its center to show the tools, and choose Practice score at the bottom right. Select a version. This option appears when MusicXML is available.",
+        "step2": "An Auto-generated · Beta version may contain recognition errors. Compare it with the original PDF. Uploaded versions keep their file names, and you can also open them from the library's attachments."
+      },
+      "repetition": {
+        "title": "Listen to parts and loop a passage",
+        "paragraph1": "Start playback and adjust the tempo in the bottom bar. Practice settings let you follow parts, adjust volume, mute or solo them, and set a loop. When you turn on looping, the current range repeats immediately. Dragging A or B pauses playback, previews the measure, and fades the settings panel. Releasing updates the range and restores the prior playback state. You can also select either endpoint and adjust it a measure at a time. While looping, the progress bar, measure controls, and score taps stay within that range. Turn off the switch to stop looping.",
+        "paragraph2": "Sound comes from the selected MusicXML and may differ from the original score. Synthesized sounds do not sing the lyrics. Open uploaded recordings from the library attachments and use Listen with score to open the original PDF alongside the audio."
+      },
+      "views": {
+        "title": "Change the score view and end practice",
+        "paragraph1": "Practice opens with the reflowed score. Use the top view menu to switch between Original PDF, Reflowed score, and Compare. Playback state stays the same. The reflowed score can follow playback, and you can resume following after browsing. Turn pages manually in the PDF. It does not track positions or scroll in sync with the reflowed score.",
+        "paragraph2": "Collapsing the bottom bar keeps playback, pause, and practice settings available. To stop, select End practice at the top. On narrow screens this may be labeled End. Leaving the score also stops playback. Reopening a practice score starts it from the beginning."
+      },
+      "offline": {
+        "title": "Prepare offline playback",
+        "step1": "Save an offline copy of the main score as described under Prepare for offline rehearsal and install Same Page. Then, while online, open each practice version you will need.",
+        "step2": "Check Practice settings and wait until the practice score can open and play offline. Retry offline preparation if it is incomplete. The main score and the practice score are prepared separately.",
+        "step3": "Before rehearsal, disconnect, reopen the main score, and test playback of the practice version. Prepare it again after changing devices or browsers. Audio attachments still need an internet connection."
+      }
+    },
+    "notes": {
+      "title": "Write and edit notes",
+      "intro": "Check which layer is active before you start writing.",
+      "edit": {
+        "title": "Start and finish editing",
+        "step1": "Tap the pencil and choose a personal layer or a shared layer you can edit. You can change only the active layer. Other visible layers are dimmed for reference.",
+        "step2": "Use one finger or a stylus with the active tool. Use two fingers to pan or zoom. In page mode, swipe horizontally with two fingers to turn pages. In continuous mode, you can edit each visible page separately and scroll with two fingers. Each stroke belongs to the page where it starts.",
+        "step3": "Tap the check mark to finish. Your reading-mode layers are restored, and you can continue turning pages."
+      },
+      "tools": {
+        "title": "Choose the right tool",
+        "paragraph1": "Use the pen for handwriting, the highlighter for emphasis, text for explanations, and rectangles or ellipses to mark areas. Available adjustments include color, stroke width, and text size, depending on the tool.",
+        "paragraph2": "To adjust or delete a note, select it with the selection tool. Use Undo or Redo to reverse or restore an edit. Changing a tool's default style does not update existing notes.",
+        "paragraph3": "New Drives come with shared Ensemble, Soprano, Alto, Tenor, and Bass layers. Members with permission to edit a shared layer can change its notes. Check the layer before writing a personal reminder."
+      },
+      "sync": {
+        "title": "Save locally and sync online",
+        "paragraph1": "Notes save to the current device first. Your edits sync when you are online and still have permission. Under More → Note saving and sync, check for pending edits, failures, or conflicts.",
+        "paragraph2": "The cloud state updates when you open a score, save edits successfully, or sync manually. It does not refresh periodically while you read. To check changes during rehearsal, sync manually. Reconnecting resumes sending local drafts."
+      }
+    },
+    "sharing": {
+      "title": "Manage and share personal notes",
+      "intro": "Only you can edit your personal layers. Other members can view the layers you share.",
+      "newLayer": {
+        "title": "Create layers for different purposes",
+        "paragraph1": "In the personal area of Note layers, create a personal layer for rehearsals, performances, or another purpose. Use Manage personal layers to work with existing layers. A name helps identify a layer and does not change its author or access."
+      },
+      "share": {
+        "title": "Share layers and view what members share",
+        "paragraph1": "Turn on Share for a personal layer to let members of this Drive read its current notes and future synced changes. Turn it off to stop sharing. Sharing does not give other members editing access.",
+        "paragraph2": "Other members can display the layer under Note layers → Shared by members on this score. It does not appear automatically or become a default across scores.",
+        "paragraph3": "Sharing stops when you turn it off, leave the Drive, or delete your user. Offline devices may keep downloaded content until they reconnect and sync. Exported files cannot be recalled remotely."
+      },
+      "restore": {
+        "title": "Delete and restore personal layers",
+        "paragraph1": "Deleting a personal layer stops sharing. You can restore it for 30 days under Manage personal layers → Deleted personal layers. Restoring does not share it again. Follow the prompts if there are unsynced edits."
+      }
+    },
+    "offline": {
+      "title": "Prepare for offline rehearsal and install Same Page",
+      "intro": "You can install the app, save an offline copy, or export a PDF. Each serves a different purpose.",
+      "prepare": {
+        "title": "Save scores to this device",
+        "step1": "Open the score while connected and go to More → Offline use. Select Save for offline use. If there is a newer version, update the offline copy.",
+        "step2": "Wait for the download and verification to finish. Available offline means the current copy is ready. Older version available offline means the new copy is still being prepared.",
+        "step3": "Check every score you need. Disconnect and reopen each score to test it. Prepare the copies again if you switch devices or browsers."
+      },
+      "install": {
+        "title": "Add Same Page to your home screen",
+        "paragraph1": "Select Add to home screen from the rehearsal preparation prompt or the Drive list and follow the browser's instructions. After installation, you can open Same Page from its icon. Save scores for offline use separately.",
+        "paragraph2": "If you open Same Page inside WeChat, the installation prompt directs you to an external browser. Installation options vary by device and browser. Same Page also works in the browser without installation."
+      },
+      "storage": {
+        "title": "Free up space on this device",
+        "paragraph1": "Open Local storage in the Drive to check and remove downloaded scores. This frees space on this device and keeps cloud scores, personal drafts, pending changes, and conflicts. Download a removed copy again to open it offline later.",
+        "paragraph2": "Use the app's local storage controls to remove score files. Clearing browser site data can delete unsynced drafts and local example notes."
+      }
+    },
+    "files": {
+      "title": "Upload, replace, and export scores",
+      "intro": "Scores in a Drive, their PDF versions, and exported files are managed separately.",
+      "upload": {
+        "title": "Upload and replace files",
+        "paragraph1": "Members with upload permission can add PDFs. File names appear in the list. Renaming or replacing a PDF requires the corresponding permission. Use the score's action menu and check access first.",
+        "paragraph2": "Replacing a PDF keeps the score and its notes. They stay on their original pages and positions, so inspect the preview and adjust them manually if the layout changed. The old PDF stays in Trash for 30 days and can be restored as a separate score. Update offline copies separately on each device."
+      },
+      "export": {
+        "title": "Export a PDF with notes",
+        "paragraph1": "Open Export from the score list or reader and choose the layers to include. Same Page creates a separate PDF with the original score and notes you can view. Your usual layer visibility and offline copies stay as they were.",
+        "paragraph2": "The exported PDF is a snapshot. Later changes will not appear in it. Before sending it to anyone, check that the included personal notes are suitable for sharing."
+      },
+      "trash": {
+        "title": "Trash and permanent deletion",
+        "paragraph1": "Members with deletion and restore permission can move a score to Trash and restore it for 30 days. Restoring a replaced PDF creates a separate score without overwriting the current PDF or copying the original notes or attachments. Items in Trash and PDFs awaiting confirmation still take up space.",
+        "paragraph2": "The owner can permanently delete scores or PDFs in Trash, or the entire Drive, before the retention period ends. This ends access and the ability to restore the content. Deleting a score or Drive also removes its notes."
+      }
+    },
+    "members": {
+      "title": "Create Drives, invite people, and manage members",
+      "intro": "Members receive the permissions they need. The owner manages the Drive and delegates permissions.",
+      "create": {
+        "title": "Create and invite",
+        "paragraph1": "Select the current Drive name and choose Create a Drive at the bottom of the panel, or use the Drive selection page. Each user may own one free trial Drive with up to 10 current scores, 50 MB of PDF storage, and 20 members including the owner. There is no fixed expiration date.",
+        "paragraph2": "Use the Drive's invitation controls to share a link or card. Give the invitation code only to people who need access. Replacing it invalidates the old code. You can set a different display name for each Drive under My profile → Drive identity."
+      },
+      "permissions": {
+        "title": "Find someone with the right permission",
+        "paragraph1": "Select the gear at the top of the Drive and open Drive settings → Members and permissions. View by member or by permission. Someone who can perform an action can handle it. Someone who can grant access can adjust permissions for regular members.",
+        "paragraph2": "Uploading, modifying, or deleting files, managing members, and editing shared layers are separate permissions. The owner can delegate permission management for regular members within a specified scope. Unshared personal layers stay private even to the owner."
+      },
+      "retention": {
+        "title": "How long inactive Drives are kept",
+        "paragraph1": "Free trial Drives may be removed after more than 30 consecutive days without online access by any member. We email the owner at least 14 days before removal. If any member opens the Drive online during that notice period, removal is canceled.",
+        "paragraph2": "Removal does not happen as soon as 30 days pass. The email explains how to keep the Drive. An offline copy does not count as online access."
+      }
+    },
+    "account": {
+      "title": "Leave a Drive, switch devices, or delete your user",
+      "intro": "Returning to the list, leaving a Drive, and logging out have different effects.",
+      "sync": {
+        "title": "Sync before switching devices",
+        "paragraph1": "Check sync on the original device, then log in as the same user on the new device. Unsynced drafts are available only on the original device. Prepare offline copies again on the new device."
+      },
+      "leave": {
+        "title": "Choose how to leave",
+        "paragraph1": "Returning to the list changes only the view. Leaving a Drive revokes the access and sync rights that membership granted. In a regular Drive, personal layers are kept for 30 days. Someone with restore permission can restore the membership within that period.",
+        "paragraph2": "Logging out clears personal layers, editing permissions, and preferences from this browser. Downloaded shared content can remain. Review warnings about pending edits or conflicts. Discard and log out permanently deletes those local changes."
+      },
+      "delete": {
+        "title": "Delete your user",
+        "paragraph1": "In My profile → Account → Delete user, verify your original login method again and confirm. If you own a Drive, first transfer ownership as instructed. Access ends immediately. Your identity and personal layers can be recovered within 30 days if you verify the original login method and explicitly confirm recovery.",
+        "paragraph2": "After the recovery period, deleted data cannot be restored. Shared notes keep your last display name in the Drive. Deleting your user does not delete the whole Drive or recall exported files."
+      }
+    },
+    "questions": {
+      "title": "Troubleshoot problems",
+      "intro": "Check the current Drive, the identity you signed in with, and your connection first.",
+      "finding": {
+        "title": "A score is missing or cannot be edited",
+        "paragraph1": "Check the Drive and file name. Refresh the list while online or ask a member with upload permission to confirm. Offline, you can open only prepared copies.",
+        "paragraph2": "To edit, tap the pencil, select the correct layer, and check that you have permission. Restore scores from Trash first. See Members and permissions to find who can grant access."
+      },
+      "sync": {
+        "title": "A sync error or conflict",
+        "paragraph1": "Retry after your internet connection returns. If sync still fails, use Report a problem to send a description and diagnostic information. For permission issues, contact someone who can grant access and keep the drafts on the original device.",
+        "paragraph2": "A conflict means the same note changed in the cloud. Review the local and cloud versions before resolving it. Keep local changes you still need and leave browser site data in place."
+      },
+      "offline": {
+        "title": "An offline copy is not ready or a page will not display",
+        "paragraph1": "Retry saving or verifying under More → Offline use. If the old version is still available offline, it stays until the new version downloads fully. Use the retry or recovery options for display failures to preserve unsynced notes.",
+        "paragraph2": "If the problem persists, use Report a problem to send a description, steps to reproduce, and diagnostic information. Leave out passwords, verification codes, invitation codes, and private scores."
+      }
+    },
+    "updated": "Last updated on <date>2026-10-21</date>",
+    "contentsLabel": "Guide contents",
+    "lead": "Get your scores and notes ready for rehearsal. Start with the first chapter if you are new to Same Page, or find a topic in the table of contents.",
+    "contents": "Contents",
+    "back": "Back to contents",
+    "feedbackHint": "If you encounter a problem, send a description and diagnostic information so the Same Page team can investigate.",
+    "sendFeedback": "Report a problem"
+  },
+  "privacy": {
+    "updated": "Last updated on 2026-11-17",
+    "lead": "Same Page is a shared sheet music Drive designed for choir rehearsals. This policy explains what information we process when you use the service, why we process it, and how to contact us.",
+    "collect": {
+      "title": "Information we process",
+      "identity": "<label>User and sign-in information</label> includes your email address, email verification status, encrypted or hashed sign-in credentials, stable authentication identifiers returned by third-party sign-in providers, and the IP address and browser information used to protect your session.",
+      "google": "<label>Google sign-in information</label> includes basic identity information needed to sign you in when you choose to use a third-party provider, such as a verified email address, nickname, or profile picture.",
+      "drive": "<label>Drive content</label> includes the Drives you belong to, your display name and permissions in each Drive, uploaded PDF scores and their file names, and notes, preferences, and sync status for personal and shared layers.",
+      "local": "<label>Local device data</label> may include scores, notes, preferences, and changes awaiting sync that your browser stores on this device for offline use. The browser may also store guest access records and offline copies on this device.",
+      "usage": "<label>Drive usage:</label> When an active member opens a regular Drive or score page in the foreground, returns to the page, or interacts with it in the current client, the client reports an online visit at roughly five-minute granularity. Offline use, background polling and sync, guests, the public demo and identities with operations access are excluded. We keep only the latest visit time for each membership. We do not collect reading activity, session duration, score names or notes. Maintainers with score operations permission can see each Drive’s latest visit time and aggregate member counts. They cannot see individual visit records. A scheduled task deletes membership visit times after 30 days. Removed members and deleted users stop counting toward totals. Each Drive keeps its latest visit time without associating it with a member’s identity. These records help us understand usage and do not trigger automatic cleanup."
+    },
+    "use": {
+      "title": "How we use this information",
+      "protectUser": "Create and protect user accounts and handle sign-in, email verification, and password resets.",
+      "access": "Determine which Drives, scores, and note layers you can access and edit.",
+      "sync": "Store and sync scores and notes, and make them available offline on your device.",
+      "emails": "Send essential sign-in security emails and Drive cleanup notices.",
+      "security": "Prevent abuse, troubleshoot issues, and keep the service secure and reliable.",
+      "advertising": "We do not sell your personal information or use it for targeted advertising. Notes in personal layers are visible only to you by default."
+    },
+    "sharing": {
+      "title": "Who can see content within a Drive",
+      "visibility": "Personal layers are visible only to you by default. Shared layers and scores belong to the corresponding Drive. Members or guests with access can view them, and members with the appropriate editing permissions can make changes. Shared notes may retain the Drive display name of their creator or last editor. Active members can see other active members’ display names, permissions, and delegated permission scopes in that Drive. Only the Drive owner and members with permission to remove members can see removed memberships and their removal or recovery status.",
+      "identity": "Third-party sign-in information does not automatically become your public identity across all Drives. You can use a different display name in each Drive."
+    },
+    "processors": {
+      "title": "Service providers",
+      "intro": "We use the following services only as needed to provide and protect Same Page.",
+      "disclosure": "These service providers process information under their own terms and privacy policies. We may also disclose relevant information in accordance with applicable law if required by law, to protect users or the service, or as necessary for an organizational restructuring.",
+      "cloudflare": "<label>Cloudflare</label> provides network, security, application hosting, database, and PDF file storage services.",
+      "resend": "<label>Resend</label> delivers essential sign-in security emails, such as registration verification and password reset messages, as well as Drive cleanup notices.",
+      "google": "<label>Google</label> handles authentication only when you choose to sign in with Google."
+    },
+    "google": {
+      "title": "Google user data",
+      "identity": "Same Page uses only the basic identity information Google provides to create an account and sign you in. Same Page does not request access to Google Drive, Contacts, Gmail, or other additional data. We use Google data only for authentication, sign-in security, and providing Same Page to you. We do not use it for advertising.",
+      "compliance": "Our use of Google user data complies with the <policy>Google API Services User Data Policy</policy>, including its Limited Use requirements."
+    },
+    "retention": {
+      "title": "Retention, deletion, and offline copies",
+      "deletedContent": "Drive owners can permanently delete a score or PDF from Trash, or delete an entire Drive. This immediately ends access to the affected content in Same Page and deletes all members’ notes associated with the affected scores. Same Page offers no way to restore this content. To handle system failures, we retain the relevant data separately in the backend for 30 days. A scheduled task deletes it when that period ends. We do not promise to restore it for users, and retention does not grant anyone access to it through Same Page.",
+      "devices": "We cannot remotely remove content that has already been downloaded to a device. Deleting a user disconnects the local identity. Unsynced drafts stay with the original user and cannot be read by other users. After the deletion recovery period ends, the server cannot restore data it has deleted. When you explicitly sign out, Same Page clears personal layers, editable state, and user preferences from the current browser. Synced shared content from which personal identity information has been removed may remain available offline. You can also clear site data through your browser or operating system.",
+      "inactive": "While you use the service, we retain the user and Drive data needed to provide it. A free trial Drive may be removed if no member has accessed it online for more than 30 consecutive days. We notify the Drive owner by email at least 14 days in advance. If any member accesses the Drive online during the notice period, the scheduled cleanup is canceled. Opening an existing copy while offline does not count as online access.",
+      "membership": "When a member leaves or is removed from a regular Drive, the cloud access and sync permissions granted by that membership are revoked immediately. We retain the member’s personal layers for 30 days. During that period, someone with permission to restore members can restore the membership. Personal layers are visible only to their owners by default. In the public demo, access to and retention of your own personal layers are independent of membership.",
+      "user": "Drive owners can transfer ownership under Members and permissions in the relevant Drive. You can then go to My → Account → Delete account, verify your original sign-in method again, and confirm deletion. Deletion immediately revokes your Same Page sessions and cloud access. Your identity data and personal layers enter a 30-day recovery period. During that period, you can verify with the sign-in method you used when deleting the account and explicitly confirm recovery. Verification alone does not restore access to your Drives. After the recovery period, a scheduled task deletes the identity data and personal layers. Shared notes continue to show the final display name used in that Drive. Your sign-in email address or global profile name is never used as the attribution for those notes.",
+      "pdfs": "Candidate PDFs awaiting confirmation expire after 24 hours. Once a PDF is replaced, the previous version moves to Trash for 30 days and can be restored as a separate score. Scores moved to Trash, along with their versions, are retained for 30 days from the time they were moved. Scheduled tasks remove expired content and retry failed deletions. Physical deletion may occur after the expiration time."
+    },
+    "security": {
+      "title": "Security measures",
+      "safeguards": "We use encryption in transit, server-side permission checks, sign-in rate limiting, and credential protection. OAuth access and refresh tokens are stored in encrypted form. We do not retain the Google ID token after Google authentication completes. No online service can guarantee absolute security. If you find a security issue, please contact us as soon as possible."
+    },
+    "diagnostics": {
+      "title": "Feedback",
+      "local": "During the current page session, the client retains at most 50 error records from the past 30 minutes. Refreshing the page or switching identities clears those records. On the <feedback>Feedback</feedback> page or in the feedback dialog in the score reader, you can view, copy, or clear diagnostic information, or send a report. We upload it only if you click Send. Unsent reports and optional descriptions stay in the current session and are cleared when you refresh, close the page, or switch identities.",
+      "report": "When you send feedback, it includes error codes, timestamps, occurrence counts, the app version, operation categories and stages, and whether the failed operation can be retried. It also includes browser and operating system versions, window size, network indicators, and PWA status. Reports from the score reader also include the score display mode, whether you were reading or editing, the number of changes awaiting sync, and the number of conflicts. The system does not automatically collect the contents of scores or notes, screenshots, file names, email addresses, raw IP addresses, credentials, full URLs, or raw exceptions. Any description you enter is sent with the report. Please leave out private information, passwords, verification codes, and invitation codes.",
+      "retention": "Same Page stores reports in Cloudflare D1. Only authorized maintainers can view reports or update their status. A report ID does not grant read access, and permission to manage a Drive does not grant access to reports. The current feedback form specifies a retention period of up to 180 days at submission. Reports submitted from older clients and previously submitted reports follow the original 30-day retention period. After a report expires, it is unavailable in the feedback inbox and an hourly task deletes it. Maintainers with separate deletion permissions can permanently delete the report contents before they expire. A minimal audit record is retained for 180 days and contains only the operator, report ID, action, and time. To prevent a retry from recreating a deleted report, the system retains a deletion record for the report ID long term, without any report contents or user identity. Clearing local diagnostics does not withdraw reports already sent. Reports are not linked to users, Drives, or scores, and are not automatically published to GitHub or sent to third-party support platforms.",
+      "logs": "The feedback endpoint uses short-lived rate-limit identifiers to prevent abuse and does not store raw IP addresses or sign-in credentials in reports. Structured server logs are retained for 3 or 7 days, depending on the Cloudflare plan, and do not include report descriptions. The infrastructure provider’s own data processing, including backups and security logs, is governed separately by its policies."
+    },
+    "rights": {
+      "title": "Your choices and how to contact us",
+      "contact": "You can sign in with email instead of Google. To access, correct, or delete your user information, revoke third-party sign-in authorization, or ask about this policy, email <contact>{email}</contact>. Revoking third-party authorization does not automatically delete an existing Same Page account or data we are legally required to retain."
+    },
+    "updates": {
+      "title": "Policy updates",
+      "description": "If we make significant changes to the service or to how we process data, we will update this page and the date at the top. When appropriate, we will also notify you within the service or by email."
+    }
+  },
+  "authOauthFailed": "Third-party sign-in didn’t finish. Try again or continue with email.",
+  "authRateLimited": "Too many attempts. Try again later.",
+  "authContinueFailed": "Can’t continue right now. Try again later.",
+  "authInvalidCredentials": "Incorrect email address or password.",
+  "authOtpSendFailed": "Can’t send a verification code right now. Try again later.",
+  "authOtpSent": "Verification code sent. Check your inbox and spam folder.",
+  "authOtpInvalid": "The code is invalid or has expired. Request a new one.",
+  "authOtpResent": "A new verification code was sent.",
+  "authResetOtpSent": "Password reset code sent.",
+  "authResetOtpResent": "A new password reset code was sent.",
+  "authOtpSendNetworkError": "Can’t send a verification code. Check your connection and try again.",
+  "authOtpVerifyNetworkError": "Can’t verify the code. Check your connection and try again.",
+  "authOtpInvalidOrLimit": "The code is incorrect or expired, or you’ve reached the attempt limit. Check it or request a new one.",
+  "authPasswordSetSignIn": "Your password is set. Automatic sign-in didn’t finish. Sign in with your new password.",
+  "authPasswordUnknown": "We can’t confirm whether your password was set. Try signing in with the new password. If that fails, verify your email address to reset it.",
+  "authOtpInvalidForSetup": "The code is invalid or has expired. Verify your email again to set a password.",
+  "authOtpInvalidNoReset": "The code is invalid or has expired. Your password is unchanged.",
+  "authPasswordResetSignIn": "Your password was reset. Sign in with your new password.",
+  "authOauthNoSession": "Third-party sign-in couldn’t start a session. Try again or continue with email.",
+  "authOauthStartFailed": "Can’t start third-party sign-in. Try again or continue with email.",
+  "authPasswordsMismatch": "The passwords don’t match.",
+  "authPasswordRequirements": "The password doesn’t meet the requirements.",
+  "authIdentify": "Sign in or sign up",
+  "authIdentifyDescription": "Enter your email address to sign in or create an account.",
+  "authContinuing": "Continuing…",
+  "authContinue": "Continue",
+  "authSignIn": "Sign in",
+  "authSignInDescription": "Sign in to Same Page with your password.",
+  "authPassword": "Password",
+  "authSigningIn": "Signing in…",
+  "authForgotPassword": "Forgot password",
+  "authChangeEmail": "Change email address",
+  "authSignUp": "Sign up",
+  "authSignUpDescription": "Set a password and we’ll send you a code to verify your email address.",
+  "authConfirmPassword": "Confirm password",
+  "authSendingOtp": "Sending…",
+  "authSendOtp": "Send verification code",
+  "authVerifyEmail": "Verify email",
+  "authVerifyingOtp": "Verifying…",
+  "authCompleteSignUp": "Complete sign-up",
+  "authSignInGoogle": "Sign in with Google",
+  "authSetPassword": "Set a Same Page password",
+  "authSetPasswordGoogleDescription": "You previously signed in with Google and haven’t set a Same Page password.",
+  "authSetPasswordDescription": "Verify your email address to set a Same Page password.",
+  "authContinueGoogle": "Continue with Google",
+  "authSetPasswordForEmail": "Set a password to sign in with email",
+  "authBackSignInMethods": "Back to sign-in options",
+  "authChoosePasswordGoogleDescription": "Email verified. Set a password for Same Page. It’s separate from your Google password.",
+  "authChoosePasswordDescription": "Email verified. Set a Same Page password.",
+  "authSettingPassword": "Setting password…",
+  "authSetPasswordAndSignIn": "Set password and sign in",
+  "authBackVerifyEmail": "Back to email verification",
+  "authPasswordSet": "Password set",
+  "authPasswordSetGoogleDescription": "You can now sign in with your email and password or with Google.",
+  "authPasswordSetDescription": "You can now sign in with your email and password.",
+  "authRequestResetDescription": "We’ll send a password reset code to this email address.",
+  "authSendResetOtp": "Send password reset code",
+  "authBackSignIn": "Back to sign-in",
+  "authResetPassword": "Reset password",
+  "authResetPasswordDescription": "After verification, your old password and other sign-in sessions will immediately expire.",
+  "authConfirmNewPassword": "Confirm new password",
+  "authResettingPassword": "Resetting…",
+  "authResetPasswordAndSignIn": "Reset password and sign in",
+  "authJoinDrive": "Join drive",
+  "authDisplayName": "Display name",
+  "authDisplayNameExample": "e.g. Alex",
+  "authJoiningDrive": "Joining…",
+  "authJoinAndEnter": "Join and open",
+  "authSignedIn": "Signed in",
+  "authJoinFailedDescription": "You’re signed in, but the drive couldn’t be joined.",
+  "authRetryJoin": "Try joining again",
+  "authCancelToDriveList": "Cancel and return to drives",
+  "authContinueReadOnly": "Continue in read-only mode",
+  "authBackHome": "Back to home",
+  "authBrand": "Same Page",
+  "authOtherSignInMethods": "Other sign-in options",
+  "authEmail": "Email address",
+  "authOtp": "Six-digit code",
+  "authResendOtp": "Resend verification code",
+  "authThisDrive": "this drive",
+  "authOtpRetry": "Too many requests. Try again in {seconds, plural, one {# second} other {# seconds}}.",
+  "authOtpRetryAlreadySent": "Too many requests. Try again in {seconds, plural, one {# second} other {# seconds}}. You can still use a code you already received.",
+  "authPasswordMinLabel": "Password (at least {min} characters)",
+  "authVerifyEmailDescription": "Enter the verification code sent to {email}.",
+  "authVerifySetPasswordDescription": "Enter the code sent to {email} to set a Same Page password.",
+  "authNewPasswordMinLabel": "New password (at least {min} characters)",
+  "authJoinDriveDescription": "You’re signed in. Choose your display name for {drive}.",
+  "authEmailSummary": "Email address: {email}",
+  "authResendOtpCountdown": "Resend verification code ({seconds}s)",
+  "authPasswordMinimum": "The password must be at least {min} characters long.",
+  "authEmailExample": "name@example.com",
+  "authOtpExample": "000000",
+  "authFieldRequired": "Fill in this field.",
+  "authEmailInvalid": "Enter a valid email address.",
+  "authOtpDigits": "Enter the six-digit code.",
+  "authFieldTooLong": "Enter at most {max} characters.",
+  "authFieldInvalid": "Enter a valid value."
+}

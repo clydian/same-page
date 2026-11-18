@@ -1,3 +1,4 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import { ReleaseChannelMonitor, ReleaseChannelPicker } from "../updates/release-channel-picker";
 import { useReleaseChannel } from "../updates/release-channel";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -107,13 +108,16 @@ function PageRecovery() {
 }
 
 export function UpdateDetails() {
+  const t = useMessages("system");
+  const { locale } = useAppLocale();
+  const supportUrl = `/api/support/update?lang=${locale}`;
   const status = useUpdateStatus();
   const channel = useReleaseChannel();
   const channelsEnabled = typeof __SAME_PAGE_RELEASE_CHANNELS__ === "boolean" && __SAME_PAGE_RELEASE_CHANNELS__;
   const switching = channelsEnabled && channel.target !== null && channel.target.target !== buildId
     && channel.runningChannel !== null && channel.target.channel !== channel.runningChannel;
-  const targetName = channel.target?.channel === "beta" ? "测试版" : "稳定版";
-  const runningName = channel.runningChannel === "beta" ? "测试版" : channel.runningChannel === "stable" ? "稳定版" : "原版本";
+  const targetName = channel.target?.channel === "beta" ? t("reloadPrompt.beta") : t("reloadPrompt.stable");
+  const runningName = channel.runningChannel === "beta" ? t("reloadPrompt.beta") : channel.runningChannel === "stable" ? t("reloadPrompt.stable") : t("reloadPrompt.previousVersion");
   const [preparedBuild, setPreparedBuild] = useState<{ status: typeof status; buildId: string } | null>(null);
   useEffect(() => {
     let stopped = false;
@@ -128,31 +132,31 @@ export function UpdateDetails() {
   }, [status]);
   const busy = (channelsEnabled && channel.busy) || ["registering", "checking", "preparing", "applying"].includes(status.phase);
   const ready = status.phase === "ready";
-  const labels: Partial<Record<typeof status.phase, string>> = { registering: "准备中…", checking: "检查中…", preparing: "准备中…", applying: "更新中…" };
-  const label = channelsEnabled && channel.busy ? "保存中…" : labels[status.phase];
+  const labels: Partial<Record<typeof status.phase, string>> = { registering: t("reloadPrompt.preparing"), checking: t("reloadPrompt.checking"), preparing: t("reloadPrompt.preparing"), applying: t("reloadPrompt.updating") };
+  const label = channelsEnabled && channel.busy ? t("reloadPrompt.saving") : labels[status.phase];
   const titles: Record<typeof status.phase, string> = {
-    registering: "正在连接更新服务", checking: "正在检查更新", preparing: "正在准备新版本",
-    current: "更新检查已完成", ready: "新版本已准备好", applying: "正在应用更新",
-    error: "暂时无法完成更新", offline: "联网后可检查更新", unsupported: "请重新打开合谱以更新",
+    registering: t("reloadPrompt.connecting"), checking: t("reloadPrompt.checkingForUpdates"), preparing: t("reloadPrompt.preparingNewVersion"),
+    current: t("reloadPrompt.checked"), ready: t("reloadPrompt.newVersionReady"), applying: t("reloadPrompt.applying"),
+    error: t("reloadPrompt.unavailable"), offline: t("reloadPrompt.goOnlineToCheck"), unsupported: t("reloadPrompt.reopenToUpdate"),
   };
-  let title = status.initialInstall && status.phase === "preparing" ? "正在准备离线资源" : titles[status.phase], message = status.message;
+  let title = status.initialInstall && status.phase === "preparing" ? t("reloadPrompt.preparingOffline") : titles[status.phase], message = status.message;
   if (channelsEnabled && channel.busy) {
-    title = "正在保存通道选择…";
-    message = `当前仍运行${runningName}，确认选择后会准备对应版本。`;
+    title = t("reloadPrompt.savingSelection");
+    message = t("reloadPrompt.savingCurrentVersion", { current: runningName });
   } else if (switching) {
-    title = status.phase === "ready" ? `等待切换到${targetName}`
-      : status.phase === "applying" ? `正在切换到${targetName}…`
-      : status.phase === "error" ? "暂时无法完成切换"
-      : status.phase === "offline" ? "联网后继续切换"
-      : status.phase === "current" ? `已选择${targetName}` : `正在准备${targetName}…`;
-    const progress = status.phase === "ready" && status.message === "更新已准备好" ? "版本已准备好，等待所有窗口安全后切换。"
-      : status.phase === "current" ? "选择已保存，版本切换尚未完成。可重新检查更新。" : status.message;
-    message = `当前仍运行${runningName}。${progress}`;
+    title = status.phase === "ready" ? t("reloadPrompt.waitingToSwitch", { target: targetName })
+      : status.phase === "applying" ? t("reloadPrompt.switching", { target: targetName })
+      : status.phase === "error" ? t("reloadPrompt.switchFailed")
+      : status.phase === "offline" ? t("reloadPrompt.goOnlineToSwitch")
+      : status.phase === "current" ? t("reloadPrompt.selected", { target: targetName }) : t("reloadPrompt.preparingVersion", { target: targetName });
+    const progress = status.phase === "ready" && (!status.messageKey || status.messageKey === "updateController.prepared") ? t("reloadPrompt.preparedVersion")
+      : status.phase === "current" ? t("reloadPrompt.selectionPending") : status.message;
+    message = t("reloadPrompt.runningVersion", { current: runningName, progress });
   } else if (channelsEnabled && channel.target && status.phase === "current") {
-    title = `当前使用${targetName}`;
+    title = t("reloadPrompt.currentVersion", { target: targetName });
   }
   return <section className="support-update app-version-panel" aria-labelledby="update-heading">
-    <div className="app-version-heading"><h2 id="update-heading">应用版本</h2><span translate="no">{buildVersion}</span></div>
+    <div className="app-version-heading"><h2 id="update-heading">{t("reloadPrompt.appVersion")}</h2><span translate="no">{buildVersion}</span></div>
     <ReleaseChannelPicker />
     <div className="app-version-status">
       <h3>{title}</h3>
@@ -160,19 +164,20 @@ export function UpdateDetails() {
       <ResourcePreparation />
       <button type="button" className={ready ? "primary-button" : "secondary-button"} disabled={busy || status.phase === "unsupported"}
         onClick={() => window.dispatchEvent(new Event(ready ? "same-page-apply-update" : "same-page-check-update"))}>
-        {label ?? (ready ? switching ? `切换到${targetName}` : "重新加载并更新" : status.phase === "error" || status.phase === "offline" ? "重试检查更新" : "检查更新")}
+        {label ?? (ready ? switching ? t("reloadPrompt.switchTo", { target: targetName }) : t("reloadPrompt.reloadAndUpdate") : status.phase === "error" || status.phase === "offline" ? t("reloadPrompt.retryCheck") : t("reloadPrompt.check"))}
       </button>
-      <p className="support-update-hint">{switching ? "切换会重新加载页面。请先保存其他窗口的操作；笔记和离线内容会保留。" : ready ? "将在安全时机重新加载，也可关闭所有合谱窗口后重新打开。" : "联网后会准备更新，并在所有窗口都安全时生效。"}</p>
-      {status.deferred && <p className="support-update-hint">如果浏览器里也开着合谱，请让那些页面返回文件库，或将它们关闭。</p>}
+      <p className="support-update-hint">{switching ? t("reloadPrompt.switchAdvice") : ready ? t("reloadPrompt.readyAdvice") : t("reloadPrompt.checkAdvice")}</p>
+      {status.deferred && <p className="support-update-hint">{t("reloadPrompt.otherWindowsAdvice")}</p>}
     </div>
-    {status.phase === "error" && <a className="support-recovery-link" href="/api/support/update">更新遇到困难？检查更新问题 →</a>}
-    <details className="support-details update-technical"><summary>更新帮助与详情</summary>
-      <p>当前构建：<code translate="no">{buildId}</code></p>
-      {channelsEnabled && channel.target && <><p>所选通道：{targetName} · 当前运行：{runningName}</p>
-        <p>通道目标：<code translate="no">{channel.target.target}</code></p><p>后端构建：<code translate="no">{channel.target.backend}</code></p></>}
-      {ready && preparedBuild?.status === status && <p>已准备版本：<code>{preparedBuild.buildId.slice(0, 7)}</code></p>}
-      <p>更新不会要求你清除本机数据。如果无法完成更新，可使用独立检查页面排查。</p>
-      <a href="/api/support/update">检查更新问题</a>
+    {status.phase === "error" && <a className="support-recovery-link" href={supportUrl}>{t("reloadPrompt.resolveUpdateProblem")}</a>}
+    <details className="support-details update-technical"><summary>{t("reloadPrompt.details")}</summary>
+      <p>{t.rich("update.currentBuild", { build: buildId, value: chunks => <code translate="no">{chunks}</code> })}</p>
+      {channelsEnabled && channel.target && <><p>{t("update.selectedChannel", { target: targetName, running: runningName })}</p>
+        <p>{t.rich("update.channelTarget", { build: channel.target.target, value: chunks => <code translate="no">{chunks}</code> })}</p>
+        <p>{t.rich("update.backendBuild", { build: channel.target.backend, value: chunks => <code translate="no">{chunks}</code> })}</p></>}
+      {ready && preparedBuild?.status === status && <p>{t.rich("update.preparedBuild", { build: preparedBuild.buildId.slice(0, 7), value: chunks => <code translate="no">{chunks}</code> })}</p>}
+      <p>{t("reloadPrompt.safeRecoveryAdvice")}</p>
+      <a href={supportUrl}>{t("reloadPrompt.resolveProblem")}</a>
     </details>
   </section>;
 }

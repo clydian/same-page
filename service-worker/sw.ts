@@ -133,7 +133,7 @@ scope.addEventListener('fetch', event => {
       const canonical = new URL(scope.registration.scope); canonical.search = url.search;
       event.respondWith(Promise.resolve(Response.redirect(canonical.href, 307)));
     } else {
-      const response = runtime.navigation();
+      const response = runtime.navigation(event.request.headers.get("Accept-Language"));
       event.respondWith(response);
       event.waitUntil(response.then(() => runtime.auditAfterNavigation()));
     }

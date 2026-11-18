@@ -1,0 +1,11 @@
+{
+  "registrationSubject": "Your Same Page sign-up code",
+  "resetSubject": "Your Same Page password reset code",
+  "registrationIntro": "You’re signing up for Same Page at {site}.",
+  "resetIntro": "You’re resetting your Same Page password at {site}.",
+  "codeLine": "Verification code: {code}",
+  "expiry": "This code expires in 10 minutes. Keep it to yourself.",
+  "registrationUnexpected": "If you didn’t request this code, you can ignore this email. The sign-up won’t be completed.",
+  "resetUnexpected": "If you didn’t request this code, you can ignore this email. Your password won’t change.",
+  "codeLabel": "Verification code:"
+}

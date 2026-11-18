@@ -1,3 +1,4 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import { readerHref } from "../reader/reader-entry";
 import { ReaderDisplayNotice } from '../reader/reader-display-notice';
 import { GuestNoteDialog } from "../auth/guest-note-invitation";
@@ -8,7 +9,7 @@ import { useReaderHint } from "../reader/use-reader-hint";
 import { readerOpeningFacts, readerOpeningLabel } from "../reader/reader-opening";
 import { MAX_READER_ZOOM } from "../reader/reader-zoom";
 import { useReaderFullscreen } from "../reader/use-reader-fullscreen";
-import { clearGuestNotes } from "../annotations/guest-notes";
+import { clearGuestNotes, GUEST_NOTE_LAYER_ID } from "../annotations/guest-notes";
 import { useReadingPreferenceProjection } from "../reader/reading-preference-intents";
 import { loginHref } from "../auth/login-return";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
@@ -101,6 +102,8 @@ export default function ReaderPage() {
 }
 
 function ReaderPageContent() {
+  const t = useMessages("reader");
+  const { locale } = useAppLocale();
   const fullscreen = useReaderFullscreen();
   const location = useLocation();
   const navigate = useNavigate();
@@ -198,7 +201,8 @@ function ReaderPageContent() {
   const { annotationState: activeAnnotations, online, localOnly: guestExperience,
     status: syncStatus, syncing, reportOutcome,
     retry: manualSync, refreshConflicts, resolveConflict, lastCheckedAt } = sync;
-  const layers = useReadingPreferenceProjection(workspace, [...activeAnnotations?.layers ?? []]).sort(compareLayers);
+  const layers = useReadingPreferenceProjection(workspace, [...activeAnnotations?.layers ?? []])
+    .map(layer => layer.id === GUEST_NOTE_LAYER_ID ? { ...layer, name: t("previewNotes") } : layer).sort(compareLayers);
   const annotations = activeAnnotations?.annotations ?? [];
   const pendingCount = activeAnnotations?.pendingCount ?? 0;
   const conflicts = activeAnnotations?.conflicts ?? [];
@@ -320,28 +324,28 @@ function ReaderPageContent() {
   if (!workspace) {
     if (opening.state.status !== "failed") return loadingScreen;
     return <main className="page-shell compact-page">
-      <h1>无法打开</h1>
+      <h1>{t("cannotOpen")}</h1>
       <p role="alert">{opening.state.message}</p>
-      <BackButton className="primary-link" to={`/choirs/${choirId}`}>返回云盘</BackButton>
-      <Button className="secondary-button" onPress={opening.retry}>重试打开工作区</Button>
-      <details><summary>更多帮助</summary>{diagnosticDialog}</details>
+      <BackButton className="primary-link" to={`/choirs/${choirId}`}>{t("backToDrive")}</BackButton>
+      <Button className="secondary-button" onPress={opening.retry}>{t("retryWorkspace")}</Button>
+      <details><summary>{t("moreHelp")}</summary>{diagnosticDialog}</details>
     </main>;
   }
 
-  const displayChoices = <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>重试 PDF 阅读</Button>;
+  const displayChoices = <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>{t("retryPdfReader")}</Button>;
   const loadError = reader.snapshot.error;
   if (loadError) {
     return (
       <main className="page-shell compact-page">
-        <p className="eyebrow">乐谱阅读器</p>
-        <h1>无法打开</h1>
+        <p className="eyebrow">{t("scoreReader")}</p>
+        <h1>{t("cannotOpen")}</h1>
         <p className="hero__copy" role="alert">
           {loadError}
         </p>
-        {reader.snapshot.opening && <p>加载停在：{readerOpeningLabel(reader.snapshot.opening.phase, reader.snapshot.opening.source).replace(/…$/, "")}</p>}
-        <BackButton className="primary-link" to={`/choirs/${choirId}`}>返回云盘</BackButton>
-        <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>重试加载</Button>
-        <details><summary>更多帮助</summary>{diagnosticDialog}</details>
+        {reader.snapshot.opening && <p>{t("loadingStoppedAt", { phase: readerOpeningLabel(reader.snapshot.opening.phase, reader.snapshot.opening.source, locale).replace(/…$/, "") })}</p>}
+        <BackButton className="primary-link" to={`/choirs/${choirId}`}>{t("backToDrive")}</BackButton>
+        <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>{t("retryLoading")}</Button>
+        <details><summary>{t("moreHelp")}</summary>{diagnosticDialog}</details>
       </main>
     );
   }
@@ -406,31 +410,31 @@ function ReaderPageContent() {
       {!xmlPracticing && !editing && !chromeVisible && !guide.visible && <Button
         className="reader-reveal-tools visually-hidden"
         onPress={() => { focusRevealedTools.current = true; setChromeVisible(true); }}
-      >显示阅读器工具</Button>}
-      {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">本机保存失败</aside>}
+      >{t("showReaderTools")}</Button>}
+      {editing && annotationInteraction !== "composing-text" && persistence === "failed" && <aside className="reader-alert" role="alert">{t("localSaveFailed")}</aside>}
       {cloudState === "trashed" ? (
         <aside className="reader-alert reader-alert--trash" role="alert">
-          乐谱已移入回收站。本机离线副本和未同步笔记仍保留，恢复后可继续同步。
+          {t("trashedOfflineCopyRetained")}
         </aside>
       ) : null}
       {presentation.status === "pending" ? <ReaderLoading opening={reader.snapshot.opening} choirId={choirId} fileName={score.fileName} /> : null}
       {presentation.status === "failed" ? <div className="reader-display-recovery" role="alert">
-        <span>页面显示失败，本机草稿仍保留。</span>{displayChoices}{diagnosticDialog}
+        <span>{t("pageFailedDraftRetained")}</span>{displayChoices}{diagnosticDialog}
       </div> : null}
       {reader.snapshot.displayMessage && <ReaderDisplayNotice key={reader.snapshot.displayMessage} message={reader.snapshot.displayMessage} onDismiss={reader.dismissDisplayMessage} />}
       {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
       {!xmlPracticing && chromeVisible && !guide.visible ? (
-      <header className="reader-chrome" data-editing={editing || undefined} aria-label="阅读器控制" style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
-          {!editing && <div className="reader-chrome__leading"><Button ref={readerBackTrigger} aria-label="返回云盘" className="reader-chrome__back reader-icon-button" onPress={closeScore}>
+      <header className="reader-chrome" data-editing={editing || undefined} aria-label={t("readerControls")} style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
+          {!editing && <div className="reader-chrome__leading"><Button ref={readerBackTrigger} aria-label={t("backToDrive")} className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>
-          <TooltipTrigger><Button aria-label="分享 PDF" className="reader-icon-button reader-chrome__export" onPress={() => setExportOpen(true)}><Share aria-hidden="true" size={21} /></Button><Tooltip className="offline-score-tooltip">分享 PDF</Tooltip></TooltipTrigger></div>}
+          <TooltipTrigger><Button aria-label={t("sharePdf")} className="reader-icon-button reader-chrome__export" onPress={() => setExportOpen(true)}><Share aria-hidden="true" size={21} /></Button><Tooltip className="offline-score-tooltip">{t("sharePdf")}</Tooltip></TooltipTrigger></div>}
           <div className="reader-chrome__actions-stack">
             <div className="reader-chrome__actions">
               <Button
                 aria-describedby={editAvailability === "ready" ? undefined : "reader-edit-status"}
-                aria-label={editing ? "完成编辑" : "编辑"}
-                aria-description={editing ? "完成后恢复阅读" : "进入笔记编辑"}
+                aria-label={editing ? t("finishEditing") : t("edit")}
+                aria-description={editing ? t("resumeReadingHint") : t("startEditingHint")}
                 className={editing ? "reader-done-button" : "reader-icon-button"}
                 data-state={editAvailability}
                 isDisabled={
@@ -440,11 +444,11 @@ function ReaderPageContent() {
                 }
                 onPress={() => editing ? navigation.afterEditing(() => { /* Completion is performed by the editing exit layer. */ }) : requestEditing()}
               >
-                {editing ? <span>完成</span> : <Pencil aria-hidden="true" size={21} />}
+                {editing ? <span>{t("done")}</span> : <Pencil aria-hidden="true" size={21} />}
               </Button>
               {!editing && <><Button
                 ref={layersTrigger}
-                aria-label="笔记图层"
+                aria-label={t("noteLayers")}
                 aria-expanded={readerPanel === "layers"}
                 className="reader-icon-button"
                 onPress={() => { if (editing) navigation.afterEditing(() => openReaderPanel("layers")); else openReaderPanel("layers"); }}
@@ -453,7 +457,7 @@ function ReaderPageContent() {
               </Button>
               <Button
                 ref={moreTrigger}
-                aria-label="更多"
+                aria-label={t("more")}
                 aria-expanded={moreOpen}
                 className="reader-icon-button"
                 onPress={() => setMoreOpen((open) => !open)}
@@ -469,97 +473,97 @@ function ReaderPageContent() {
                 role="status"
               >
                 {editAvailability === "preparing"
-                  ? "正在准备编辑…"
+                  ? t("preparingToEdit")
                   : editAvailability === "failed"
-                    ? "编辑准备失败，点按铅笔重试"
+                    ? t("retryEditPreparation")
                     : editAvailability === "read-only"
-                      ? <>此乐谱为只读状态{!identity.localUserId && <Link to={loginHref(`/choirs/${choirId}/scores/${scoreId}`)}>注册 / 登录后记笔记并同步</Link>}</>
-                      : "乐谱在回收站中，恢复后可编辑"}
+                      ? <>{t("scoreReadOnly")}{!identity.localUserId && <Link to={loginHref(`/choirs/${choirId}/scores/${scoreId}`)}>{t("signInToAnnotate")}</Link>}</>
+                      : t("restoreToEdit")}
               </p>
             ) : null}
           </div>
           {!editing && moreOpen ? (
             <Popover triggerRef={moreTrigger} isOpen={moreOpen} onOpenChange={setMoreOpen} isNonModal placement="bottom end" className="reader-more-popover">
-            <Dialog className="reader-more-menu" aria-label="更多阅读选项">
-              <header className="reader-menu-heading"><strong>阅读选项</strong><Button className="icon-button" aria-label="关闭更多阅读选项" onPress={() => setMoreOpen(false)}><X size={20} aria-hidden="true" /></Button></header>
+            <Dialog className="reader-more-menu" aria-label={t("moreReaderOptions")}>
+              <header className="reader-menu-heading"><strong>{t("readerOptions")}</strong><Button className="icon-button" aria-label={t("closeReaderOptions")} onPress={() => setMoreOpen(false)}><X size={20} aria-hidden="true" /></Button></header>
               <IdentityNotice identity={identity} />
-              {guestExperience && <section aria-label="本机体验笔记"><h2>本机体验笔记</h2><p>仅保存在此浏览器，不上传；登录后也不会转入个人笔记。</p>
-                <Button onPress={() => { if (workspace) void clearGuestNotes(workspace).then(() => reportOutcome("local-saved")).catch(() => reportOutcome("failed")); }}>清除本谱体验笔记</Button>
+              {guestExperience && <section aria-label={t("previewNotes")}><h2>{t("previewNotes")}</h2><p>{t("previewNotesRetention")}</p>
+                <Button onPress={() => { if (workspace) void clearGuestNotes(workspace).then(() => reportOutcome("local-saved")).catch(() => reportOutcome("failed")); }}>{t("clearPreviewNotes")}</Button>
               </section>}
               {!editing && <>
-              <section aria-label="页面布局与缩放" className="reader-options-display"><div className="reader-option-heading"><h2>阅读方式</h2>
-              {fullscreen.supported && <Button className="reader-option-action" onPress={() => void fullscreen.toggle()}><Maximize size={15} aria-hidden="true" />{fullscreen.active ? "退出全屏" : "全屏阅读"}</Button>}</div>
+              <section aria-label={t("layoutAndZoom")} className="reader-options-display"><div className="reader-option-heading"><h2>{t("readingMode")}</h2>
+              {fullscreen.supported && <Button className="reader-option-action" onPress={() => void fullscreen.toggle()}><Maximize size={15} aria-hidden="true" />{fullscreen.active ? t("exitFullScreen") : t("readFullScreen")}</Button>}</div>
               {fullscreen.error && <p role="status">{fullscreen.error}</p>}
-              <div className="segmented-control" aria-label="页面布局">
+              <div className="segmented-control" aria-label={t("pageLayout")}>
                 <Button
                   aria-pressed={layout === "page"}
                   onPress={() => selectLayout("page")}
                 >
                   <BookOpen aria-hidden="true" size={18} />
-                  <span>翻页</span>
+                  <span>{t("pageLayoutMode")}</span>
                 </Button>
                 <Button
                   aria-pressed={layout === "continuous"}
                   onPress={() => selectLayout("continuous")}
                 >
                   <Rows3 aria-hidden="true" size={18} />
-                  <span>连续滚动</span>
+                  <span>{t("continuousLayoutMode")}</span>
                 </Button>
               </div>
-              <div className="reader-more-menu__zoom" aria-label="缩放控制">
-                <Button aria-label="适合页面" onPress={() => { setZoom(1); setFitRequest(value => value + 1); }}>
+              <div className="reader-more-menu__zoom" aria-label={t("zoomControls")}>
+                <Button aria-label={t("fitToPage")} onPress={() => { setZoom(1); setFitRequest(value => value + 1); }}>
                   <Maximize2 aria-hidden="true" size={18} />
-                  <span>适合页面</span>
+                  <span>{t("fitToPage")}</span>
                 </Button>
                 <Button
-                  aria-label="缩小"
+                  aria-label={t("zoomOut")}
                   onPress={() => setZoom((value) => Math.max(layout === "continuous" ? 0.1 : 1, value - 0.25))}
                 >
                   <Minus aria-hidden="true" size={18} />
                 </Button>
                 <span aria-live="polite">{Math.round(zoom * 100)}%</span>
                 <Button
-                  aria-label="放大"
+                  aria-label={t("enlarge")}
                   onPress={() => setZoom((value) => Math.min(MAX_READER_ZOOM, value + 0.25))}
                 >
                   <Plus aria-hidden="true" size={18} />
                 </Button>
               </div>
               </section>
-              <section aria-label="本机离线副本"><div className="reader-option-heading reader-option-heading--status"><h2><HardDrive size={17} aria-hidden="true" />离线使用</h2>
+              <section aria-label={t("localOfflineCopy")}><div className="reader-option-heading reader-option-heading--status"><h2><HardDrive size={17} aria-hidden="true" />{t("offlineUse")}</h2>
               <p className="reader-more-menu__status" role="status">
-                {offlinePreparationDescription(preparation, offlineStatus ? { record: offline, invalid: offlineStatus.invalid, readFailed: offlineStatus.readFailed } : null, score.currentVersion.id)}
+                {offlinePreparationDescription(preparation, offlineStatus ? { record: offline, invalid: offlineStatus.invalid, readFailed: offlineStatus.readFailed } : null, score.currentVersion.id, locale)}
               </p></div>
-              {offlineStatus?.readFailed && <Button className="secondary-button" onPress={() => setInspectionAttempt(value => value + 1)}>重试校验</Button>}
+              {offlineStatus?.readFailed && <Button className="secondary-button" onPress={() => setInspectionAttempt(value => value + 1)}>{t("retryVerification")}</Button>}
               {!offlineStatus?.readFailed && (!offlineStatus || !offline || offlineStatus.invalid || hasNewOfflineVersion || preparation.phase === "failed" || downloading) && (
               <Button
                 isDisabled={(preparation.phase === "preparing" && preparation.intent === "explicit") || cloudState === "trashed"}
                 onPress={() => void downloadOffline()}
               >
                 <HardDrive aria-hidden="true" size={18} />
-                {downloading ? preparation.phase === "preparing" && preparation.intent === "automatic" ? "继续保存（切换页面不中断）" : "正在准备并校验…" : preparation.phase === "failed" ? "重试保存离线副本" : hasNewOfflineVersion ? "更新离线副本" : "保存供离线使用"}
+                {downloading ? preparation.phase === "preparing" && preparation.intent === "automatic" ? t("finishOfflineInBackground") : t("preparingOffline") : preparation.phase === "failed" ? t("retrySaveOffline") : hasNewOfflineVersion ? t("updateOfflineCopy") : t("saveForOffline")}
               </Button>
               )}
               {downloadMessage && preparation.phase === "idle" && <p className="reader-more-menu__status" role="status">{downloadMessage}</p>}
               </section>
-              <section aria-label="笔记保存与同步">
-                <div className="reader-option-heading"><h2><RefreshCw size={17} aria-hidden="true" />笔记同步</h2>
-                {!guestExperience && <Button className="reader-option-action" aria-label={!online ? "离线，联网后可同步" : syncing ? "同步中…" : syncStatus.kind === "failed" ? "重试同步" : "立即同步"} aria-description="获取成员最新笔记，并上传我的修改" isDisabled={!sync.canRetry} onPress={() => void manualSync()}>{syncing ? "同步中…" : syncStatus.kind === "failed" ? "重试" : "同步"}</Button>}
+              <section aria-label={t("noteSaveAndSync")}>
+                <div className="reader-option-heading"><h2><RefreshCw size={17} aria-hidden="true" />{t("noteSync")}</h2>
+                {!guestExperience && <Button className="reader-option-action" aria-label={!online ? t("syncWhenOnline") : syncing ? t("syncingShort") : syncStatus.kind === "failed" ? t("retrySynchronization") : t("syncNow")} aria-description={t("syncNotesDescription")} isDisabled={!sync.canRetry} onPress={() => void manualSync()}>{syncing ? t("syncingShort") : syncStatus.kind === "failed" ? t("retry") : t("sync")}</Button>}
                 </div>
                 {guestExperience ? <p className="reader-more-menu__status" role="status">{syncStatus.message}</p> : <>
                   <dl className="reader-sync-details">
-                    <div><dt>本机修改 / 上传</dt><dd data-kind={syncStatus.kind} role="status">{syncStatus.message}</dd></div>
-                    <div><dt>上次检查云端笔记</dt><dd>{lastCheckedAt !== null ? new Date(lastCheckedAt).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "尚未确认"}</dd></div>
+                    <div><dt>{t("localChangesAndUpload")}</dt><dd data-kind={syncStatus.kind} role="status">{syncStatus.message}</dd></div>
+                    <div><dt>{t("lastCloudNoteCheck")}</dt><dd>{lastCheckedAt !== null ? new Date(lastCheckedAt).toLocaleString(locale, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : t("unconfirmed")}</dd></div>
                   </dl>
-                  <p className="reader-sync-explanation">上传状态仅指你的修改；点“同步”获取成员最新笔记。</p>
+                  <p className="reader-sync-explanation">{t("syncStatusExplanation")}</p>
                 </>}
               </section>
               </>}
-              <Link to={experience ? "/appearance?experience=1" : "/appearance"}>外观设置</Link>
-              <Button className="secondary-button" onPress={() => { setMoreOpen(false); setFeedbackOpen(true); }}>问题反馈</Button>
-              <details className="reader-help"><summary>阅读帮助<ChevronDown size={15} aria-hidden="true" /></summary>
-                <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>查看操作指引</Button>
-                {editAvailability === "ready" && <Button onPress={() => { requestEditing(); }}>编辑操作指引</Button>}
+              <Link to={experience ? "/appearance?experience=1" : "/appearance"}>{t("appearanceSettings")}</Link>
+              <Button className="secondary-button" onPress={() => { setMoreOpen(false); setFeedbackOpen(true); }}>{t("problemFeedback")}</Button>
+              <details className="reader-help"><summary>{t("readerHelp")}<ChevronDown size={15} aria-hidden="true" /></summary>
+                <Button onPress={() => { setMoreOpen(false); setChromeVisible(false); guide.show(); }}>{t("viewReaderGuide")}</Button>
+                {editAvailability === "ready" && <Button onPress={() => { requestEditing(); }}>{t("editGuide")}</Button>}
               </details>
             </Dialog>
             </Popover>
@@ -584,7 +588,7 @@ function ReaderPageContent() {
       ) : null}
 
       {editing && editor && annotationInteraction === "idle" ? (
-        <Suspense fallback={<p role="status">正在准备笔记工具…</p>}>
+        <Suspense fallback={<p role="status">{t("preparingNoteTools")}</p>}>
           {/* Normal checkpoints and history are serialized by the editor;
               toggling disabled here makes the toolbar flash on every save. */}
           <ReaderEditingControls
@@ -607,14 +611,14 @@ function ReaderPageContent() {
 
       {guide.visible && <ReaderGuide layout={layout} onDismiss={guide.dismiss} />}
       {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint">
-        <strong>编辑中</strong><span className="reader-edit-gesture-hint__detail">
-          <span aria-hidden="true">·</span>{layout === "page" ? "双指左右翻页" : "双指上下浏览"}
+        <strong>{t("editing")}</strong><span className="reader-edit-gesture-hint__detail">
+          <span aria-hidden="true">·</span>{layout === "page" ? t("twoFingerPageSwipe") : t("twoFingerScroll")}
         </span>
       </p>}
 
       {hasNewOfflineVersion ? (
         <aside className="reader-alert" role="status">
-          云端已有新版本；完整下载并校验前，原离线副本会继续保留。
+          {t("newerOfflineVersionAvailable")}
         </aside>
       ) : null}
       {exportOpen && workspace && <ExportDialog layers={layers} workspace={workspace} source={document} versionId={score.currentVersion.id} fileName={score.fileName} authenticatedUserId={identity.authenticatedUserId} onClose={() => setExportOpen(false)} />}
@@ -624,10 +628,10 @@ function ReaderPageContent() {
         <ModalOverlay className="reader-panel-backdrop reader-layers-backdrop" isOpen isDismissable
           onOpenChange={(open) => { if (!open) setReaderPanel(null); }}>
           <Modal className="reader-panel reader-layers-dialog">
-            <Dialog preserveOnNavigate aria-label={"笔记图层"} className="reader-layers-content">
+            <Dialog preserveOnNavigate aria-label={t("noteLayers")} className="reader-layers-content">
               <header className="reader-panel__header">
-                <strong>{"笔记图层"}</strong>
-                <Button autoFocus className="icon-button" aria-label="关闭笔记显示" onPress={() => setReaderPanel(null)}>
+                <strong>{t("noteLayers")}</strong>
+                <Button autoFocus className="icon-button" aria-label={t("closeLayerDisplay")} onPress={() => setReaderPanel(null)}>
                   <X aria-hidden="true" size={21} />
                 </Button>
               </header>
@@ -646,20 +650,20 @@ function ReaderPageContent() {
 
       {feedbackOpen && <DiagnosticReportModal reader={diagnosticReader} isOpen onOpenChange={setFeedbackOpen} />}
       {!editing && conflicts.length > 0 && !conflictOpen ? (
-        <aside className="annotation-conflicts annotation-conflicts--compact" aria-label="本机笔记冲突">
-          <span>有 {conflicts.length} 条笔记需要比较</span>
-          <Button ref={conflictTrigger} onPress={() => { setMoreOpen(false); setReaderPanel(null); setConflictOpen(true); }}>查看</Button>
+        <aside className="annotation-conflicts annotation-conflicts--compact" aria-label={t("localNoteConflicts")}>
+          <span>{t("compareConflictCount", { count: conflicts.length })}</span>
+          <Button ref={conflictTrigger} onPress={() => { setMoreOpen(false); setReaderPanel(null); setConflictOpen(true); }}>{t("view")}</Button>
         </aside>
       ) : null}
       {!editing && conflictOpen && <ReaderConflictDialog key={`${workspace.scopeKey}:${workspace.sessionEpoch}:${score.currentVersion.id}`}
         conflicts={conflicts} document={document} layers={layers} annotations={annotations} online={online}
         onRefresh={refreshConflicts} onResolve={resolveConflict} syncStatus={syncStatus} canRetry={sync.canRetry} onRetry={manualSync} onClose={() => setConflictOpen(false)} />}
       {!editing && (syncStatus.kind === "failed" || syncStatus.kind === "risk") ? (
-        <aside className="annotation-conflicts" aria-label="笔记同步异常">
+        <aside className="annotation-conflicts" aria-label={t("noteSyncProblems")}>
           <strong>{syncStatus.message}</strong>
           <div>
             <Button isDisabled={!sync.canRetry} onPress={() => void manualSync()}>
-              重试同步
+              {t("retrySynchronization")}
             </Button>
             {diagnosticDialog}
           </div>

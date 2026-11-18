@@ -27,7 +27,7 @@
     "prepare:production-pwa": "node scripts/prepare-production-pwa-profile.mjs",
     "test:migrations": "node scripts/verify-score-schema-migration.mjs && node scripts/verify-auth-migration.mjs",
     "test:ci": "node --test scripts/ci-scope.test.mjs scripts/verify-release-contract.test.mjs",
-    "check": "npm run test:ci && npm run lint && npm run typecheck && npm run test && npm run test:worker && npm run test:browser-ui && npm run test:migrations && npm run build && npm run test:smoke",
+    "check": "npm run test:ci && npm run lint && npm run typecheck && npm run i18n:check && npm run test && npm run test:worker && npm run test:browser-ui && npm run test:migrations && npm run build && npm run test:smoke",
     "check:full": "npm run test:pwa-update && npm run check && node scripts/measure-loading-performance.mjs",
     "auth:schema": "auth generate --config scripts/better-auth-schema.ts --adapter drizzle --dialect sqlite --output worker/db/auth-schema.generated.ts --yes",
     "db:migrate:local": "node scripts/prepare-drive-owners.mjs --local && wrangler d1 migrations apply same-page-production --local && node scripts/backfill-score-file-names.mjs --local",
@@ -44,7 +44,8 @@
     "prepare": "npm run build:player",
     "test:player": "npm run build:player && npm test --workspace @same-page/player",
     "build:native": "node vendor/alphatab/build.mjs",
-    "test:release-channels": "node scripts/verify-release-channels.mjs"
+    "test:release-channels": "node scripts/verify-release-channels.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",
@@ -74,6 +75,7 @@
     "react-router-dom": "^7.18.3",
     "resend": "^6.37.0",
     "unpdf": "^2.1.0",
+    "use-intl": "^4.15.1",
     "zod": "4.6.2"
   },
   "devDependencies": {
@@ -81,6 +83,7 @@
     "@cloudflare/vitest-plugin": "^1.4.2",
     "@cloudflare/workers-types": "^5.20260907.1",
     "@eslint/js": "^10.0.1",
+    "@formatjs/icu-messageformat-parser": "3.5.23",
     "@msw/cloudflare": "^0.2.0",
     "@playwright/test": "1.64.1",
     "@testing-library/jest-dom": "^7.0.1",
@@ -93,6 +96,7 @@
     "auth": "1.7.19",
     "esbuild": "0.28.1",
     "eslint": "^10.9.1",
+    "eslint-plugin-formatjs": "8.1.4",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
     "fake-indexeddb": "^6.2.5",

@@ -11,7 +11,7 @@ for (const engine of (process.env.SCRUB_ENGINE ? [process.env.SCRUB_ENGINE] : ['
  const fixture=await startStorageFixture({authenticated:true,previewEntry:false});let browser;
  t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
  browser=await ({chromium,webkit})[engine].launch(engine==='chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{});
- const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,serviceWorkers:'block'});
+ const context=await browser.newContext({ locale: "zh-CN", viewport:{width:390,height:844},hasTouch:true,serviceWorkers:'block'});
  await context.addInitScript(()=>{localStorage.setItem('reader-gesture-hint-seen','true');window.__seeks=[];const post=Worker.prototype.postMessage;Worker.prototype.postMessage=function(value,...args){if(value?.cmd==='alphaSynth.setTickPosition')window.__seeks.push(value.value);return post.call(this,value,...args);};});
  await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}});
  const bytes=musicXmlFixture(48),id=crypto.randomUUID();

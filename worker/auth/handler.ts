@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { localeFromAcceptLanguage } from "../../src/i18n/locales";
 
 import type { AppEnvironment } from "../env";
 import { createAuth } from "./create-auth";
@@ -36,7 +37,7 @@ export async function handleAuthRequest(context: Context<AppEnvironment>) {
       providers: configuredSocialProviderIds(context.env),
     });
   }
-  const auth = createAuth(context.env, context.executionCtx);
+  const auth = createAuth(context.env, context.executionCtx, localeFromAcceptLanguage(context.req.header("Accept-Language")));
 
   if (path === REGISTRATION_REQUEST_PATH && context.req.method === "POST") {
     return requestRegistrationOtp(context, auth);

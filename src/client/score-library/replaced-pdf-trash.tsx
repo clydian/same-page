@@ -1,5 +1,6 @@
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
+import { useAppLocale, useMessages } from "../../i18n";
 import "./replaced-pdf-trash.css";
 import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
@@ -15,6 +16,8 @@ import { uploadMessage } from "./library-format";
 export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = false, onRestored }: {
   userId: string; choirId: string; writable?: boolean; canPurge?: boolean; onRestored(): void | Promise<void>;
 }) {
+  const { locale } = useAppLocale();
+  const t = useMessages("library");
   const lifetime = useSettingsLifetime(writable);
   const gate = useRef(false);
   const [files, setFiles] = useState<ReplacedPdf[]>([]);
@@ -39,10 +42,10 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
       if (isSettingsReadDenied(error)) {
         invalidateSettingsLifetime(lifetime); setFiles([]); setRestoring(null); setPurging(null);
       }
-      setMessage(settingsError(error, "暂时无法读取被替换的 PDF。"));
+      setMessage(settingsError(error, t("replacedPdfTrashReplacedPdfCannotRead")));
     });
     return () => abort.abort();
-  }, [base, attempt, writable, lifetime, setMessage]);
+  }, [base, attempt, writable, lifetime, setMessage, t]);
   if (!writable && purging) setPurging(null);
   async function restore() {
     if (!restoring || !writable || gate.current) return;
@@ -60,32 +63,32 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         if (!current()) return;
-        setMessage(response.status === 404 ? "这个 PDF 已不在可恢复的回收站中，请重新读取。" : uploadMessage(response.status, payload));
+        setMessage(response.status === 404 ? t("replacedPdfTrashPdfNoLongerRecoverable") : uploadMessage(response.status, payload));
         return;
       }
       confirmed = true;
       setFiles(items => items.filter(item => item.id !== file.id)); setRestoring(null);
       await onRestored();
-      if (current()) setMessage("PDF 已恢复为独立乐谱，原乐谱的 PDF、笔记和附件保持不变。", { duration: 5000 });
-    } catch { if (current()) setMessage(confirmed ? "PDF 已恢复，但刷新失败。请重新读取，不必再次恢复。" : "恢复结果未确认，请重新读取后核对。再次恢复不会创建重复文件。"); }
+      if (current()) setMessage(t("replacedPdfTrashPdfHasBeenRestored"), { duration: 5000 });
+    } catch { if (current()) setMessage(confirmed ? t("replacedPdfTrashPdfRestoredButRefresh") : t("replacedPdfTrashRestoringAgainNotCreate")); }
     finally { gate.current = false; setBusy(false); if (!current()) setAttempt(value => value + 1); }
   }
   if (!files.length && !message) return null;
-  return <section className="attachment-trash replaced-pdf-trash" aria-label="被替换的 PDF"><h3>被替换的 PDF</h3>
-    <p>恢复为独立乐谱，不覆盖当前 PDF，也不复制原乐谱的笔记和附件。</p>
+  return <section className="attachment-trash replaced-pdf-trash" aria-label={t("replacedPdfTrashReplacedPdf")}><h3>{t("replacedPdfTrashReplacedPdf")}</h3>
+    <p>{t("replacedPdfTrashRevertIndependentScoreWithout")}</p>
     <ul className="trash-list">{files.map(file => <li key={file.id}><span><strong>{scoreDisplayName(file.fileName)}</strong>
-      <small>{new Date(file.replacedAt).toLocaleDateString()} · {file.pageCount} 页 · {Math.max(1, Math.ceil((file.trashExpiresAt - now) / 86400000))} 天后自动删除</small></span>
-      <Button isDisabled={busy || !writable} onPress={() => { setRestoring(file); setName(`${scoreDisplayName(file.fileName)}（恢复）`); setMessage(null); }}>恢复</Button>
-      {canPurge && <Button className="primary-button destructive-button" isDisabled={busy || !writable} onPress={() => setPurging(file)}>彻底删除</Button>}
+      <small>{t("pdfTrashSummary", { date: new Date(file.replacedAt).toLocaleDateString(locale), pages: file.pageCount, days: Math.max(1, Math.ceil((file.trashExpiresAt - now) / 86400000)) })}</small></span>
+      <Button isDisabled={busy || !writable} onPress={() => { setRestoring(file); setName(t("replacedPdfTrashRecovery", { name: String(scoreDisplayName(file.fileName)) })); setMessage(null); }}>{t("membershipManagementRecoveryMembership")}</Button>
+      {canPurge && <Button className="primary-button destructive-button" isDisabled={busy || !writable} onPress={() => setPurging(file)}>{t("replacedPdfTrashCompletelyDeleted")}</Button>}
     </li>)}</ul>
     {restoring && <Form className="entry-form restore-conflict" onSubmit={event => { event.preventDefault(); void restore(); }}>
-      <TextField isRequired value={name} onChange={setName} maxLength={255} isDisabled={busy || !writable}><Label>恢复后的文件名</Label><Input autoFocus /></TextField>
-      <Button type="submit" isDisabled={busy || !writable}>恢复为独立乐谱</Button>
-      <Button className="secondary-button" isDisabled={busy} onPress={() => setRestoring(null)}>取消</Button>
+      <TextField isRequired value={name} onChange={setName} maxLength={255} isDisabled={busy || !writable}><Label>{t("replacedPdfTrashRestoredFileName")}</Label><Input autoFocus /></TextField>
+      <Button type="submit" isDisabled={busy || !writable}>{t("replacedPdfTrashRevertIndependentScore")}</Button>
+      <Button className="secondary-button" isDisabled={busy} onPress={() => setRestoring(null)}>{t("cancel")}</Button>
     </Form>}
-    {purging && writable && <PurgeDialog userId={userId} path={`${base}/${purging.id}/purge`} title="彻底删除 PDF"
-      description="这个回收站 PDF 将无法恢复。当前乐谱、笔记和附件保持不变。" onClose={() => setPurging(null)}
+    {purging && writable && <PurgeDialog userId={userId} path={`${base}/${purging.id}/purge`} title={t("replacedPdfTrashCompletelyDeletePdf")}
+      description={t("replacedPdfTrashRecycleBinPdfNot")} onClose={() => setPurging(null)}
       onComplete={async current => { if (!current()) return; setFiles(items => items.filter(item => item.id !== purging.id)); setPurging(null); await onRestored(); }} />}
-    <FeedbackMessage feedback={feedback}>{!feedback.temporary && <Button isDisabled={busy || !writable} onPress={() => setAttempt(value => value + 1)}>重新读取</Button>}</FeedbackMessage>
+    <FeedbackMessage feedback={feedback}>{!feedback.temporary && <Button isDisabled={busy || !writable} onPress={() => setAttempt(value => value + 1)}>{t("readAgain")}</Button>}</FeedbackMessage>
   </section>;
 }

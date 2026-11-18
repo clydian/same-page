@@ -1,12 +1,15 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import type { AnnotationLayerSummary, DriveLayerPreferenceSummary } from "../../shared/annotations";
 import { useReadResource } from "../settings/use-read-resource";
 import { useReadingPreferenceIntents, currentReadingIntent, setReadingIntent, finishReadingIntent, clearReadingIntent } from "./reading-preference-intents";
 import { useEffect, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { captureLocalWorkspaceSession, type LocalWorkspace } from "../platform/local-workspace";
-import { loadDriveReadingPreferences, restoreDriveReadingPreferences, projectDriveReadingPreferences, projectReadingPreferences, flushReadingPreferences, preferenceKey, readReadingPreferences, saveReadingPreference, type PreferenceTarget, type ReadingPreferenceChange } from "./reading-preferences";
+import { localizeReadingPreferenceError, loadDriveReadingPreferences, restoreDriveReadingPreferences, projectDriveReadingPreferences, projectReadingPreferences, flushReadingPreferences, preferenceKey, readReadingPreferences, saveReadingPreference, type PreferenceTarget, type ReadingPreferenceChange } from "./reading-preferences";
 
 export function useReadingPreferences(workspace: LocalWorkspace, signedIn: boolean) {
+  const t = useMessages("reader");
+  const { locale } = useAppLocale();
   const lifetime = useRef<AbortController | null>(null);
   const savedRows = useLiveQuery(() => readReadingPreferences(workspace), [workspace.scopeKey], []);
   const intents = useReadingPreferenceIntents(workspace);
@@ -46,9 +49,9 @@ export function useReadingPreferences(workspace: LocalWorkspace, signedIn: boole
     const intent = intents.find(row => row.key === key);
     const row = savedRows.find(row => row.key === key);
     if (intent && intent.localState !== "saved") return intent.localState === "failed"
-      ? { message: "尚未保存到本机，请重试。", retry: () => void save(target, { subscribed: intent.subscribed, colorOverride: intent.colorOverride }) }
+      ? { message: t("preferencesLocalSaveFailed"), retry: () => void save(target, { subscribed: intent.subscribed, colorOverride: intent.colorOverride }) }
       : null;
-    return row?.error ? { message: row.error, retry: () => {
+    return row?.error ? { message: localizeReadingPreferenceError(row.error, locale), retry: () => {
       if (signedIn) void captureLocalWorkspaceSession(workspace).then(current => flushReadingPreferences(current, undefined, lifetime.current?.signal, key)).catch(() => undefined);
     } } : null;
   };

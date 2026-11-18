@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { annotationLayerListResponseSchema, type AnnotationLayerSummary } from "../../shared/annotations";
 import { isLocalExperience } from "../annotations/guest-notes";
@@ -22,6 +23,7 @@ class DeletionCheckError extends Error {}
 // Mount inside the workspace-keyed panel. Every entry point, including retry,
 // crosses the same admission gate and retains the original operation/session.
 export function usePersonalLayerManagement(workspace: LocalWorkspace, signedIn: boolean) {
+  const t = useMessages("reader");
   const enabled = signedIn && !isLocalExperience(workspace);
   const lifetime = useSettingsLifetime();
   const controller = useRef<AbortController | null>(null);
@@ -94,11 +96,11 @@ export function usePersonalLayerManagement(workspace: LocalWorkspace, signedIn: 
             try { state = await readScoreAnnotationState(current.workspace); }
             catch (error) {
               if (error instanceof LocalWorkspaceOwnerChangedError) throw error;
-              throw new DeletionCheckError("无法确认本机内容，请重试。");
+              throw new DeletionCheckError(t("cannotVerifyLocalNotes"));
             }
             await check();
             if (state.annotations.some(note => note.layerId === operation.layer.id && note.state !== "synced") || state.conflicts.some(note => note.layerId === operation.layer.id)) {
-              throw new DeletionCheckError("此层有未同步内容或冲突，请先完成同步和冲突处理，再删除。");
+              throw new DeletionCheckError(t("cannotDeleteUnsyncedLayer"));
             }
           }
           const path = operation.kind === "create" ? "personal-layers" : `personal-layers/${encodeURIComponent(operation.layer.id)}`;
@@ -121,7 +123,7 @@ export function usePersonalLayerManagement(workspace: LocalWorkspace, signedIn: 
       }
       gate.current.needsRefresh = false;
       setNeedsRefresh(false);
-      setFeedback(current.conflict ? { ...context, message: "图层已刷新，请核对当前状态后重新操作。" } : null);
+      setFeedback(current.conflict ? { ...context, message: t("layerRefreshed") } : null);
       attempt.current = null;
       return true;
     } catch (error) {
@@ -141,9 +143,9 @@ export function usePersonalLayerManagement(workspace: LocalWorkspace, signedIn: 
       gate.current.needsRefresh = current.refreshOnly;
       setNeedsRefresh(current.refreshOnly);
       setFeedback({ ...context, message: error instanceof DeletionCheckError ? error.message
-        : operation.kind === "deleted" ? "个人层列表读取失败，请重试。"
-        : current.refreshOnly && !current.conflict ? "修改已保存，内容刷新失败。请重试刷新。"
-        : "修改尚未确认，请检查网络后重试。" });
+        : operation.kind === "deleted" ? t("personalLayersReadFailed")
+        : current.refreshOnly && !current.conflict ? t("savedRefreshFailed")
+        : t("layerSaveUnconfirmed") });
       setCanRetry(true);
       return false;
     } finally {

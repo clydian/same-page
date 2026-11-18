@@ -11,7 +11,7 @@ for (const [engine, type] of [["chromium", chromium], ["webkit", webkit]]) {
     let browser;
     t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
     browser = await type.launch();
-    const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1024, height: 768 }, serviceWorkers: "block" });
     const login = await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
       headers: { origin: fixture.origin }, data: { email: fixture.accounts[0].email, password: fixture.accounts[0].password },
     });

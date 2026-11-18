@@ -13,7 +13,7 @@ test("real Worker D1/R2 score survives a browser restart offline via IndexedDB",
   t.after(() => fixture.stop());
   const profilePath = await mkdtemp(path.join(tmpdir(), "same-page-browser-"));
   t.after(() => rm(profilePath, { recursive: true, force: true }));
-  let context = await chromium.launchPersistentContext(profilePath, { headless: true, serviceWorkers: "allow" });
+  let context = await chromium.launchPersistentContext(profilePath, { locale: "zh-CN", headless: true, serviceWorkers: "allow" });
   t.after(() => context.close());
   const page = await context.newPage();
   let stage = "online admission";
@@ -34,7 +34,7 @@ test("real Worker D1/R2 score survives a browser restart offline via IndexedDB",
     stage = "fresh page offline read";
     await context.close();
     await fixture.stop(); // The backend is physically gone before the browser restarts.
-    context = await chromium.launchPersistentContext(profilePath, { headless: true, serviceWorkers: "allow" });
+    context = await chromium.launchPersistentContext(profilePath, { locale: "zh-CN", headless: true, serviceWorkers: "allow" });
     await context.setOffline(true);
     const offlinePage = await context.newPage();
     await offlinePage.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}?experience=1`);

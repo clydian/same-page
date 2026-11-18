@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { ArrowLeft, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { AnnotationEditor } from "./annotation-editor";
@@ -11,6 +12,7 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
   editor: AnnotationEditor; layerId: string;
   onEditText(): void;
 }) {
+  const t = useMessages("reader");
   const { preview } = useSyncExternalStore(adjustment.subscribe, adjustment.getSnapshot);
   const changeHistory = async (direction: "undo" | "redo") => {
     if (await adjustment.commit()) await editor[direction](layerId);
@@ -48,14 +50,14 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
     ...(value.kind === "text" ? { fontScale: style.fontScale, textAlign: style.textAlign } : { strokeWidth: style.strokeWidth }),
     ...(value.kind === "ink" ? { nib: style.nib, opacity: style.opacity, pressureMode: style.pressureMode } : {}),
   });
-  const label = { text: "文字笔记", ink: "画笔笔记", highlighter: "荧光笔笔记", rectangle: "矩形笔记", ellipse: "椭圆笔记" }[tool];
-  return <aside ref={barRef} className="annotation-object-properties" data-kind={tool} aria-label="所选笔记属性" style={{ bottom }}>
+  const label = { text: t("textNote"), ink: t("inkNote"), highlighter: t("highlighterNote"), rectangle: t("rectangularNotes"), ellipse: t("ovalNotes") }[tool];
+  return <aside ref={barRef} className="annotation-object-properties" data-kind={tool} aria-label={t("selectedNoteProperties")} style={{ bottom }}>
     <header>
-      <button type="button" className="annotation-property-back" aria-label="返回笔记工具" disabled={disabled} onClick={() => adjustment.select(null)}><ArrowLeft size={17} aria-hidden="true" /><span>返回工具</span></button>
-      <span className="annotation-object-caption">所选{label}</span>
+      <button type="button" className="annotation-property-back" aria-label={t("returnToNoteTakingTools")} disabled={disabled} onClick={() => adjustment.select(null)}><ArrowLeft size={17} aria-hidden="true" /><span>{t("backToTools")}</span></button>
+      <span className="annotation-object-caption">{t("selectedNoteKind", { label })}</span>
       <div className="annotation-property-history">
-        <button type="button" aria-label="撤销所选层修改" disabled={disabled || (!canUndo && !preview)} onClick={() => void changeHistory("undo")}><Undo2 size={18} aria-hidden="true" /></button>
-        <button type="button" aria-label="重做所选层修改" disabled={disabled || !canRedo || !!preview} onClick={() => void changeHistory("redo")}><Redo2 size={18} aria-hidden="true" /></button>
+        <button type="button" aria-label={t("undoSelectedLayerModifications")} disabled={disabled || (!canUndo && !preview)} onClick={() => void changeHistory("undo")}><Undo2 size={18} aria-hidden="true" /></button>
+        <button type="button" aria-label={t("redoSelectedLayerChanges")} disabled={disabled || !canRedo || !!preview} onClick={() => void changeHistory("redo")}><Redo2 size={18} aria-hidden="true" /></button>
       </div>
     </header>
     <fieldset className="annotation-object-controls" disabled={disabled}>
@@ -63,11 +65,11 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
         <StyleFields tool={tool} value={{ ...defaultToolStyle(tool), ...payload }} preview={false}
           onChange={style => adjustment.change("properties", value => styled(value, style))} onCommit={style => { adjustment.change("properties", value => styled(value, style)); void adjustment.commit("properties"); }} />
       </div>
-      {personal && <label className="annotation-note-color" title="笔记颜色"><span style={{ background: payload.color ?? "#dc2626" }} /><input aria-label="所选笔记颜色" type="color" value={payload.color ?? "#dc2626"}
+      {personal && <label className="annotation-note-color" title={t("noteColor")}><span style={{ background: payload.color ?? "#dc2626" }} /><input aria-label={t("selectedNoteColor")} type="color" value={payload.color ?? "#dc2626"}
         onChange={event => adjustment.change("properties", value => ({ ...value, color: event.target.value }))} onBlur={() => { void adjustment.commit("properties"); }} /></label>}
       <div className="annotation-object-actions">
-        {payload.kind === "text" && <button type="button" aria-label="编辑文字" onClick={onEditText}><TextCursorInput size={18} aria-hidden="true" /><span>编辑文字</span></button>}
-        <button type="button" className="annotation-property-delete" aria-label="删除笔记" onClick={() => adjustment.remove()}><Trash2 size={17} aria-hidden="true" /></button>
+        {payload.kind === "text" && <button type="button" aria-label={t("editText")} onClick={onEditText}><TextCursorInput size={18} aria-hidden="true" /><span>{t("editText")}</span></button>}
+        <button type="button" className="annotation-property-delete" aria-label={t("deleteNote")} onClick={() => adjustment.remove()}><Trash2 size={17} aria-hidden="true" /></button>
       </div>
     </fieldset>
   </aside>;

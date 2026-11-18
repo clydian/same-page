@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { type RefObject, useCallback, useEffect, useRef } from "react";
 
 interface Point { x: number; y: number }
@@ -10,6 +11,7 @@ export function useReaderDismiss({ containerRef, contentRef, enabled, onDismiss 
   enabled: boolean;
   onDismiss?: () => void;
 }) {
+  const t = useMessages("reader");
   const gesture = useRef<{ origin: Point; distance: number; claimed: boolean; previousTranslate: string; previousScale: string } | null>(null);
   const rebound = useRef<Animation | null>(null);
   const cancel = useCallback((animate = false) => {
@@ -52,7 +54,7 @@ export function useReaderDismiss({ containerRef, contentRef, enabled, onDismiss 
         contentRef.current.style.translate = reduced ? pending.previousTranslate : `0 ${Math.min(180, pending.distance * .65)}px`;
         contentRef.current.style.scale = reduced ? pending.previousScale : String(1 - Math.min(.08, pending.distance / 2000));
       }
-      containerRef.current?.setAttribute("data-dismiss-label", pending.distance >= threshold() ? "松开返回云盘" : "下滑返回云盘");
+      containerRef.current?.setAttribute("data-dismiss-label", pending.distance >= threshold() ? t("releaseToReturnToDrive") : t("swipeDownToReturnToDrive"));
       return true;
     },
     finish() {

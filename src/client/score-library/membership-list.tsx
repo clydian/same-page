@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { Button } from "react-aria-components";
 import { Link } from "react-router-dom";
 import { startLoadingJourney } from "../performance/loading-performance";
@@ -12,12 +13,13 @@ export function MembershipList({ userId, localOnly = false, ...props }: ListProp
 }
 
 export function MembershipDirectoryList({ membership, currentChoirId, onSelect, localOnly = false, replace = false }: Omit<ListProps, "userId"> & { membership: ReturnType<typeof useMembershipDirectory> }) {
+  const t = useMessages("library");
   const { directory, rows, failed, knownEmpty, localFailure } = membership;
   return <>
-    <div className="membership-status" role="status">{failed && <>暂时无法加载已加入的云盘。<Button onPress={() => void directory.refresh().catch(() => undefined)}>重试</Button></>}</div>
+    <div className="membership-status" role="status">{failed && <>{t("membershipListAddedCloudDiskCannot")}<Button onPress={() => void directory.refresh().catch(() => undefined)}>{t("retry")}</Button></>}</div>
     {rows.length > 0 && <div className="membership-list">{rows.map(row => {
       const current = row.choir.id === currentChoirId;
-      const content = <span><strong title={row.choir.name}>{row.choir.name}</strong><small>{row.isOwner === null ? "身份待确认" : row.isOwner ? "拥有者" : "成员"}{current ? " · 当前云盘" : ""}{row.unavailable ? " · 已不可用" : ""}</small></span>;
+      const content = <span><strong title={row.choir.name}>{row.choir.name}</strong><small>{row.isOwner === null ? t("membershipListIdentityConfirmed") : row.isOwner ? t("owner") : t("member")}{current ? t("membershipListCurrentCloudDisk") : ""}{row.unavailable ? t("membershipListNoLongerAvailable") : ""}</small></span>;
       return row.unavailable ? <span className="membership-row" role="link" aria-disabled="true" key={row.choir.id}>{content}</span>
         : <Link className="membership-row" key={row.choir.id} replace={replace || Boolean(currentChoirId)} to={`/choirs/${row.choir.id}`} aria-current={current ? "page" : undefined} onClick={event => {
           if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -25,8 +27,8 @@ export function MembershipDirectoryList({ membership, currentChoirId, onSelect, 
           startLoadingJourney("enter-drive", "warm"); onSelect?.();
         }}>{content}<span aria-hidden="true">→</span></Link>;
     })}</div>}
-    {!rows.length && (localFailure && directory.data === null ? <p role="status">暂时无法读取本机目录，请重试连接。</p>
-      : knownEmpty ? <p className="membership-empty">{localOnly ? "本机尚未保存云盘目录，请联网后重试。" : "还没有已加入的云盘。请使用云盘提供的邀请码加入。"}</p>
-      : !failed && <p role="status">{localOnly ? "正在读取本机目录…" : "正在加载已加入的云盘…"}</p>)}
+    {!rows.length && (localFailure && directory.data === null ? <p role="status">{t("membershipList")}</p>
+      : knownEmpty ? <p className="membership-empty">{localOnly ? t("membershipList2") : t("membershipListThereNoCloudDisks")}</p>
+      : !failed && <p role="status">{localOnly ? t("localLibraryReadingLocalDirectory") : t("membershipListLoadingAddedCloudDisk")}</p>)}
   </>;
 }

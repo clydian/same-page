@@ -1,8 +1,38 @@
+import { localeStorageKey, sourceLocale, type AppLocale } from "../src/i18n/locales";
+import de from "../src/i18n/messages/de/recovery.json";
+import en from "../src/i18n/messages/en/recovery.json";
+import es419 from "../src/i18n/messages/es-419/recovery.json";
+import fr from "../src/i18n/messages/fr/recovery.json";
+import it from "../src/i18n/messages/it/recovery.json";
+import ja from "../src/i18n/messages/ja/recovery.json";
+import ko from "../src/i18n/messages/ko/recovery.json";
+import ptBR from "../src/i18n/messages/pt-BR/recovery.json";
+import zhHans from "../src/i18n/messages/zh-Hans/recovery.json";
+import zhHantTW from "../src/i18n/messages/zh-Hant-TW/recovery.json";
+
+const messages = { de, en, "es-419": es419, fr, it, ja, ko, "pt-BR": ptBR, "zh-Hans": zhHans, "zh-Hant-TW": zhHantTW } satisfies Record<AppLocale, typeof zhHans>;
+const serializedMessages = JSON.stringify(messages).replaceAll("<", "\\u003c");
+
 // No business state is opened on this page. Its approval still leaves every
 // other window's two-round update veto in the waiting worker in force.
-export const recoveryPage = `<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>合谱</title><body><main><h1>暂时无法打开合谱</h1><p id="status">请联网后重试。此设备保存的内容仍然保留。</p><button id="retry">重试</button></main><script>
+export function recoveryPage(locale: AppLocale = sourceLocale): string {
+  const fallback = messages[locale];
+  const html = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  return `<!doctype html><html lang="${locale}"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(fallback.title)}</title><body><main><h1 id="heading">${html(fallback.unavailable)}</h1><p id="status">${html(fallback.offline)}</p><button id="retry">${html(fallback.retry)}</button></main><script>
 const button = document.getElementById('retry');
 const status = document.getElementById('status');
+const messages = ${serializedMessages};
+let locale = ${JSON.stringify(locale)};
+try {
+  const saved = localStorage.getItem(${JSON.stringify(localeStorageKey)});
+  if (Object.hasOwn(messages, saved)) locale = saved;
+} catch { /* The response already uses the browser's language. */ }
+const copy = messages[locale];
+document.documentElement.lang = locale;
+document.title = copy.title;
+document.getElementById('heading').textContent = copy.unavailable;
+status.textContent = copy.offline;
+button.textContent = copy.retry;
 navigator.serviceWorker.addEventListener('message', event => {
   if (event.data?.type === 'SAME_PAGE_UPDATE_PROBE') event.ports[0]?.postMessage(true);
 });
@@ -30,7 +60,7 @@ async function ask(worker, message, deadline) {
 button.onclick = async () => {
   if (button.disabled) return;
   button.disabled = true;
-  status.textContent = '正在准备可用版本…';
+  status.textContent = copy.preparing;
   const deadline = Date.now() + 20000;
   try {
     const registration = await within(navigator.serviceWorker.getRegistration(), deadline);
@@ -60,7 +90,8 @@ button.onclick = async () => {
     }
     throw new Error('timeout');
   } catch {
-    status.textContent = '暂时无法切换。请联网，并保存其他窗口的编辑后重试。此设备保存的内容仍然保留。';
+    status.textContent = copy.failed;
   } finally { button.disabled = false; }
 };
 </script></body></html>`;
+}

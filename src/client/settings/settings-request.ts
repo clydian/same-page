@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages } from "../../i18n";
 export class SettingsRequestError extends Error {
   constructor(readonly status: number, readonly code?: string) {
     super("settings_request_failed");
@@ -10,9 +11,10 @@ export async function settingsResponse(response: Response) {
 }
 
 export function settingsError(error: unknown, fallback: string) {
+  const t = getMessages(getCurrentLocale(), "library");
   if (error instanceof SettingsRequestError) {
-    if (error.status === 401) return "登录已失效，请重新登录后再试。";
-    if (error.status === 403) return "你没有操作此设置的权限，请联系云盘拥有者。";
+    if (error.status === 401) return t("driveLibraryLoginHasExpiredLog");
+    if (error.status === 403) return t("settingsRequestDoNotPermissionOperate");
   }
   return fallback;
 }

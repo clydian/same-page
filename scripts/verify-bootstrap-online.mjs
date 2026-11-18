@@ -126,7 +126,7 @@ export async function verifyBootstrapOnline({ expectedBuildId, origin = producti
       let context;
       try {
         const options = { headless: true, locale: "zh-CN", serviceWorkers: "allow", reducedMotion: "reduce", proxy: { server: gate.server } };
-        context = await engine.launchPersistentContext(profile, options);
+        context = await engine.launchPersistentContext(profile, { locale: "zh-CN", ...options });
         let page = context.pages()[0] ?? await context.newPage();
         await page.goto(origin + "/about", { waitUntil: "domcontentloaded" });
         await assertPageBuild(page, expectedBuildId);
@@ -167,7 +167,7 @@ export async function verifyBootstrapOnline({ expectedBuildId, origin = producti
         // missing shell. Reopen the same on-disk profile with the gate closed.
         gate.disconnect();
         await context.close(); context = undefined;
-        context = await engine.launchPersistentContext(profile, options);
+        context = await engine.launchPersistentContext(profile, { locale: "zh-CN", ...options });
         if (name === "chromium") await context.setOffline(true);
         page = context.pages()[0] ?? await context.newPage();
         await page.goto(origin + "/about", { waitUntil: "domcontentloaded" });

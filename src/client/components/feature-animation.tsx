@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useEffect, useRef, useState } from "react";
 
 // Kept in sync with the 4,800 ms timelines in scripts/artwork/*.py.
@@ -8,6 +9,7 @@ export function FeatureAnimation({ illustration, animation, label }: {
   animation: string;
   label: string;
 }) {
+  const t = useMessages("common");
   const button = useRef<HTMLButtonElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [run, setRun] = useState(0);
@@ -55,7 +57,7 @@ export function FeatureAnimation({ illustration, animation, label }: {
       ref={button}
       type="button"
       className="marketing-feature__illustration marketing-animation"
-      aria-label={`${source ? "正在演示" : run ? "重播" : "播放演示"}：${label}`}
+      aria-label={t(source ? "demoPlaying" : run ? "demoReplay" : "demoPlay", { label })}
       onClick={() => {
         if (!source) {
           setCompleted(false);
@@ -81,7 +83,7 @@ export function FeatureAnimation({ illustration, animation, label }: {
         onError={() => { if (source) setSource(null); }}
       />
       {completed && !source && (
-        <span className="marketing-animation__replay" aria-hidden="true">↻ 重播</span>
+        <span className="marketing-animation__replay" aria-hidden="true">↻ {t("demoReplayShort")}</span>
       )}
     </button>
   );

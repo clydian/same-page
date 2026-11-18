@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { diagnosticErrorType, recordFailure } from "../diagnostics/diagnostics";
 import { ReaderLoading } from "../navigation/reader-loading";
 import { Component, Suspense, type ReactNode } from "react";
@@ -6,7 +7,7 @@ import { DrivePage } from "../score-library/drive-page";
 import { AppHeader } from "./app-header";
 import { TaskHeader } from "./task-header";
 import { LoadingStatus } from "./loading-status";
-import { driveSettingsTitle } from "./route-titles";
+import { driveSettingsTitleKey } from "./route-titles";
 
 export function RouteContent({ children, showHeader = true }: { children: ReactNode; showHeader?: boolean }) {
   const { pathname } = useLocation();
@@ -16,34 +17,35 @@ export function RouteContent({ children, showHeader = true }: { children: ReactN
 }
 
 function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean; showHeader?: boolean }) {
+  const t = useMessages("common");
   const { pathname } = useLocation();
   const drive = pathname.match(/^\/choirs\/([^/]+)/)?.[1];
   if (!failed && drive && pathname === `/choirs/${drive}`) return <DrivePage choirId={drive} />;
   if (!failed && pathname.includes("/scores/") && drive) return <ReaderLoading choirId={drive} />;
-  const title = pathname.includes("/scores/") ? "乐谱阅读器"
-    : pathname.endsWith("/settings") ? "云盘设置"
-    : pathname.endsWith("/preferences") ? "阅读偏好"
-    : pathname.includes("/shared-layers") ? "共享层"
-    : pathname.endsWith("/memberships") ? "成员与权限"
-    : pathname === "/login" ? "登录"
-    : pathname === "/user/lifecycle" ? "用户删除与恢复"
-    : pathname.endsWith("/me") ? "云盘内身份"
-    : pathname === "/appearance" ? "外观"
-    : pathname === "/user" ? "账户"
-    : pathname.includes("/settings/") ? driveSettingsTitle(pathname.split("/settings/")[1])
-    : pathname === "/help" ? "使用手册"
-    : pathname === "/about" ? "关于与更新"
-    : pathname === "/diagnostics" ? "问题反馈"
-    : pathname === "/privacy" ? "隐私政策" : drive ? "乐谱云盘" : "合谱";
+  const title = pathname.includes("/scores/") ? t("reader")
+    : pathname.endsWith("/settings") ? t("driveSettings")
+    : pathname.endsWith("/preferences") ? t("readingPreferences")
+    : pathname.includes("/shared-layers") ? t("sharedLayers")
+    : pathname.endsWith("/memberships") ? t("membership")
+    : pathname === "/login" ? t("signIn")
+    : pathname === "/user/lifecycle" ? t("accountLifecycle")
+    : pathname.endsWith("/me") ? t("driveIdentity")
+    : pathname === "/appearance" ? t("appearance")
+    : pathname === "/user" ? t("account")
+    : pathname.includes("/settings/") ? t(driveSettingsTitleKey(pathname.split("/settings/")[1]))
+    : pathname === "/help" ? t("help")
+    : pathname === "/about" ? t("about")
+    : pathname === "/diagnostics" ? t("feedback")
+    : pathname === "/privacy" ? t("privacy") : drive ? t("scoreDrive") : t("brandShort");
   const home = pathname === "/" || pathname === "/drives";
   return <div className="app-page">
     {!home && showHeader && <TaskHeader title={title} backTo={drive ? `/choirs/${drive}` : "/drives"} />}
     <main className={`page-shell${home ? "" : " settings-page settings-ux"}`}>
     {home && <><AppHeader /><h1>{title}</h1></>}
-    {failed ? <p role="alert">{title}加载失败，请重试。</p> : <LoadingStatus>正在加载{title}…</LoadingStatus>}
-    <Link className="text-button" state={{ home: true }} to={drive && pathname !== `/choirs/${drive}` ? `/choirs/${drive}` : "/"}>{drive && pathname !== `/choirs/${drive}` ? "返回云盘" : "返回首页"}</Link>
-    {failed && <Link className="secondary-link" to="/diagnostics">反馈问题</Link>}
-    {failed && <button className="secondary-button" onClick={() => window.location.reload()}>重新加载页面</button>}
+    {failed ? <p role="alert">{t("routeFailed", { title })}</p> : <LoadingStatus>{t("routeLoading", { title })}</LoadingStatus>}
+    <Link className="text-button" state={{ home: true }} to={drive && pathname !== `/choirs/${drive}` ? `/choirs/${drive}` : "/"}>{drive && pathname !== `/choirs/${drive}` ? t("backToDrive") : t("backHome")}</Link>
+    {failed && <Link className="secondary-link" to="/diagnostics">{t("reportProblem")}</Link>}
+    {failed && <button className="secondary-button" onClick={() => window.location.reload()}>{t("reload")}</button>}
   </main></div>;
 }
 

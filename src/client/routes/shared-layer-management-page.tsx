@@ -1,3 +1,4 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import { useSettingsIdentity } from "../auth/application-identity";
 import { ViewSelector } from "../components/view-selector";
 import { useReadResource } from "../settings/use-read-resource";
@@ -23,18 +24,21 @@ export default function SharedLayerManagementPage() {
 }
 
 function SharedLayerAccess({ choirId, userId, ready }: { choirId: string; userId: string | null; ready: boolean }) {
+  const t = useMessages("library");
   const resource = useReadResource({ owner: userId, driveId: choirId, kind: "layer-access" }, async signal =>
     driveManagementSchema.parse(await settingsResponse(await diagnosticFetch(`/api/choirs/${choirId}/management`, { signal }))), undefined, 0, ready);
   const overview = resource.data;
-  const error = resource.error ? settingsError(resource.error, "无法更新共享层，请重试。") : null;
+  const error = resource.error ? settingsError(resource.error, t("sharedLayerManagementFailedUpdateSharedLayer")) : null;
   if (overview?.capabilities.operations.operations.includes("configureLayers")) return <SharedLayerManagement choirId={choirId} userId={userId} authorized={resource.canMutate} accessError={error} retryAccess={resource.refresh} />;
   return <DriveSettingsContent choirId={choirId} name={overview?.name} section="shared-layers">
-    <p>此云盘全部乐谱的共享笔记层。查看配置不授予编辑或管理权限。</p>
-    {overview ? <><ul className="shared-layer-summary">{overview.layers.map(layer => <li key={layer.slot}><strong>{layer.name}</strong><span>{layer.active ? "启用" : "停用"}</span></li>)}</ul><p>需要调整时，可查找有共享层配置或授权权限的人。</p><Link to={`/choirs/${choirId}/memberships`}>查看成员与权限</Link></> : <SettingsFeedback loading={!error} loadError={error} message={null} retry={() => void resource.refresh().catch(() => undefined)} />}
+    <p>{t("sharedLayerManagementSharedNoteLayerAll")}</p>
+    {overview ? <><ul className="shared-layer-summary">{overview.layers.map(layer => <li key={layer.slot}><strong>{layer.name}</strong><span>{layer.active ? t("sharedLayerManagementEnable") : t("sharedLayerManagementDisable")}</span></li>)}</ul><p>{t("sharedLayerManagementWhenAdjustmentsNeededFind")}</p><Link to={`/choirs/${choirId}/memberships`}>{t("sharedLayerManagementViewMembersPermissions")}</Link></> : <SettingsFeedback loading={!error} loadError={error} message={null} retry={() => void resource.refresh().catch(() => undefined)} />}
   </DriveSettingsContent>;
 }
 
 function SharedLayerManagement({ choirId, userId, authorized, accessError, retryAccess }: { choirId: string; userId: string | null; authorized: boolean; accessError: string | null; retryAccess: () => Promise<void> }) {
+  const { locale } = useAppLocale();
+  const t = useMessages("library");
   const workspaceRef = useRef<LocalWorkspace | null>(null);
   const [now, setNow] = useState(Date.now);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
@@ -59,7 +63,7 @@ function SharedLayerManagement({ choirId, userId, authorized, accessError, retry
   });
   const { pending, message: feedback } = mutation;
   const loading = mutation.blocked;
-  const loadError = accessError ?? (resource.error ? settingsError(resource.error, "暂时无法更新共享层，已有内容已保留。") : null);
+  const loadError = accessError ?? (resource.error ? settingsError(resource.error, t("sharedLayerManagementSharedLayerCannotUpdated")) : null);
   const retryLoad = () => { void mutation.refresh().catch(() => undefined); };
 
   const change = async (path: string, method: "POST" | "PUT", body: object) => {
@@ -82,55 +86,55 @@ function SharedLayerManagement({ choirId, userId, authorized, accessError, retry
 
   return <DriveSettingsContent choirId={choirId} name={driveName} section="shared-layers">
       <header className="settings-heading">
-        <p className="settings-copy">适用于此云盘的所有乐谱。选择一个层，修改名称、颜色或启用状态。编辑权限在“成员与权限”设置。</p>
+        <p className="settings-copy">{t("sharedLayerManagementApplicableAllScoresCloud")}</p>
       </header>
       <SettingsFeedback loading={resource.loading} loadError={loadError} message={null} retry={retryLoad} />
       {feedback && <p role="alert">{feedback}</p>}
-      {mutation.needsRefresh && <button className="secondary-button" disabled={pending} onClick={retryLoad}>重新读取共享层</button>}
-      <ViewSelector<"current" | "deleted"> label="共享层视图" value={view} pending={pending} onChange={setView} options={[{ id: "current", label: "当前共享层" }, { id: "deleted", label: "已删除层" }]} />
-      {view === "deleted" && <p className="settings-copy">删除影响当前云盘全部乐谱。30 天内恢复原层及其笔记、授权和阅读偏好，之后永久清理。恢复不会恢复已终止的成员关系。</p>}
+      {mutation.needsRefresh && <button className="secondary-button" disabled={pending} onClick={retryLoad}>{t("sharedLayerManagementRereadSharedLayer")}</button>}
+      <ViewSelector<"current" | "deleted"> label={t("sharedLayerManagementSharedLayerView")} value={view} pending={pending} onChange={setView} options={[{ id: "current", label: t("sharedLayerManagementCurrentSharedLayer") }, { id: "deleted", label: t("sharedLayerManagementLayerDeleted") }]} />
+      {view === "deleted" && <p className="settings-copy">{t("sharedLayerManagementDeletionAffectsAllScores")}</p>}
       {resource.data && <>
-        <section className="settings-card" aria-label="共享层管理列表" aria-busy={loading || pending}>
-          {!loading && !layers.length && <p>{view === "deleted" ? "没有已删除的共享层。" : "没有共享层。"}</p>}
+        <section className="settings-card" aria-label={t("sharedLayerManagementSharedLayerManagementList")} aria-busy={loading || pending}>
+          {!loading && !layers.length && <p>{view === "deleted" ? t("sharedLayerManagementThereNoDeletedShared") : t("sharedLayerManagementThereNoSharedLayer")}</p>}
           {layers.map((layer, index) => <article className="settings-layer-row settings-layer-row--management" key={layer.slot}>
             {view === "deleted" ? <div className="settings-layer-link">
               <span className="settings-layer-swatch" style={{ background: layer.defaultColor }} />
               <strong>{layer.name}</strong>
               <small>{layer.recoverUntil !== null && layer.recoverUntil > now
-                ? `恢复截止：${new Date(layer.recoverUntil).toLocaleString()} · 恢复后${layer.active ? "启用" : "停用"}`
-                : "已到期 · 不可恢复，等待永久清理"}</small>
+                ? t(layer.active ? "sharedLayerRestoreActiveUntil" : "sharedLayerRestoreInactiveUntil", { deadline: new Date(layer.recoverUntil).toLocaleString(locale) })
+                : t("sharedLayerManagementExpiredUnrecoverableWaitingPermanent")}</small>
               <button className="secondary-button" disabled={pending || loading || layer.recoverUntil === null || layer.recoverUntil <= now}
-                onClick={() => void change(`/${layer.slot}/lifecycle`, "POST", { action: "restore", expectedRevision: layer.revision })}>恢复</button>
+                onClick={() => void change(`/${layer.slot}/lifecycle`, "POST", { action: "restore", expectedRevision: layer.revision })}>{t("membershipManagementRecoveryMembership")}</button>
             </div> : <>
             <Link className="settings-layer-link" to={`/choirs/${choirId}/shared-layers/${layer.slot}`}>
               <span className="settings-layer-swatch" style={{ background: layer.defaultColor }} />
               <strong>{layer.name}</strong>
-              <small>{layer.active ? `已授权 ${layer.grantedMemberCount} 位成员` : "已停用 · 笔记保留"}</small><span aria-hidden="true">›</span>
+              <small>{layer.active ? t("sharedLayerManagementAuthorizedMembers", { grantedMemberCount: String(layer.grantedMemberCount) }) : t("sharedLayerManagementDisabledNoteRetention")}</small><span aria-hidden="true">›</span>
             </Link>
             <div className="layer-order-actions">
-              <button aria-label={`上移 ${layer.name}`} disabled={pending || loading || index === 0} onClick={() => void change(`/${layer.slot}/order`, "PUT", { direction: "up" }) }><ArrowUp size={18} aria-hidden="true" /></button>
-              <button aria-label={`下移 ${layer.name}`} disabled={pending || loading || index === layers.length - 1} onClick={() => void change(`/${layer.slot}/order`, "PUT", { direction: "down" }) }><ArrowDown size={18} aria-hidden="true" /></button>
-              <button className="text-button" disabled={pending || loading} onClick={() => setDeleting(layer)} aria-label={`删除 ${layer.name}`}>删除</button>
+              <button aria-label={t("sharedLayerManagementMoveUp", { name: String(layer.name) })} disabled={pending || loading || index === 0} onClick={() => void change(`/${layer.slot}/order`, "PUT", { direction: "up" }) }><ArrowUp size={18} aria-hidden="true" /></button>
+              <button aria-label={t("sharedLayerManagementMoveDown", { name: String(layer.name) })} disabled={pending || loading || index === layers.length - 1} onClick={() => void change(`/${layer.slot}/order`, "PUT", { direction: "down" }) }><ArrowDown size={18} aria-hidden="true" /></button>
+              <button className="text-button" disabled={pending || loading} onClick={() => setDeleting(layer)} aria-label={t("sharedLayerManagementDelete", { name: String(layer.name) })}>{t("sharedLayerManagementDelete2")}</button>
             </div>
             </>}
           </article>)}
         </section>
         {view === "current" && <form className="layer-create-form" onSubmit={event => { event.preventDefault(); if (newName.trim()) void change("", "POST", { name: newName.trim(), defaultColor: "#3157a4" }); }}>
-          <label>新共享层名称<input type="text" value={newName} maxLength={60} required disabled={pending || loading} onChange={event => setNewName(event.target.value)} /></label>
-          <button className="secondary-button" disabled={pending || loading}>新增共享层</button>
+          <label>{t("sharedLayerManagementNewSharedLayerName")}<input type="text" value={newName} maxLength={60} required disabled={pending || loading} onChange={event => setNewName(event.target.value)} /></label>
+          <button className="secondary-button" disabled={pending || loading}>{t("sharedLayerManagementAddedNewSharingLayer")}</button>
         </form>}
       </>}
     <ModalOverlay className="modal-overlay" isOpen={deleting !== null} isDismissable={!pending} onOpenChange={open => { if (!open && !pending) setDeleting(null); }}>
       <Modal className="app-modal app-modal--compact"><Dialog className="app-dialog" exitDisabled={pending}>
-        <Heading slot="title">删除共享层「{deleting ? deleting.name : ""}」？</Heading>
-        <p>这会删除当前云盘全部乐谱上的此共享层，并立即隐藏其笔记、停止云端编辑。</p>
-        <p>30 天内可在“已删除层”恢复原层、笔记、授权和阅读偏好；到期后永久清理。停用则保留内容且没有清理期限。</p>
-        <p>断网设备在重新联网确认层状态后停止上传，本机未同步草稿会保留。</p>
+        <Heading slot="title">{t("confirmDeleteSharedLayer", { name: deleting?.name ?? "" })}</Heading>
+        <p>{t("sharedLayerManagementDeleteSharedLayerAll")}</p>
+        <p>{t("sharedLayerManagementOriginalLayerNotesAuthorization")}</p>
+        <p>{t("sharedLayerManagementDisconnectedDeviceStopUploading")}</p>
         <div className="dialog-actions">
-          <Button className="secondary-button" isDisabled={pending} onPress={() => setDeleting(null)}>取消</Button>
+          <Button className="secondary-button" isDisabled={pending} onPress={() => setDeleting(null)}>{t("cancel")}</Button>
           <Button className="primary-button" isDisabled={pending} onPress={() => {
             if (deleting) void change(`/${deleting.slot}/lifecycle`, "POST", { action: "delete", expectedRevision: deleting.revision });
-          }}>{pending ? "正在删除…" : "删除整个共享层"}</Button>
+          }}>{pending ? t("sharedLayerManagementDeleting") : t("sharedLayerManagementDeleteEntireSharedLayer")}</Button>
         </div>
       </Dialog></Modal>
     </ModalOverlay>

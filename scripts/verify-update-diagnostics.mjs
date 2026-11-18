@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { renderUpdateDiagnostics, renderUpdateDiagnosticsScript } from '../worker/support/update-diagnostics-render.ts';
 import { applicationShellReleaseLimitBytes } from '../src/shared/update-diagnostics.ts';
 import { createServer } from 'node:http';
 import { readFile, stat, mkdir } from 'node:fs/promises';
@@ -7,8 +8,15 @@ import { chromium, webkit } from '@playwright/test';
 
 const oldBuild = 'fcb9631cab68ce3ffdeb77fcd75e91e1a49a825a';
 const candidateBuild = JSON.parse(await readFile('dist/client/build.json', 'utf8')).buildId;
-const supportHtml = (await readFile('worker/support/update-diagnostics.html', 'utf8')).replace('__BUILD__', /^[a-f0-9]{7,40}$/.test(candidateBuild) ? candidateBuild : 'development').replace('__LIMIT__', String(applicationShellReleaseLimitBytes));
-const supportScript = await readFile('worker/support/update-diagnostics-browser.js', 'utf8');
+const sourceMessages = JSON.parse(await readFile('src/i18n/messages/zh-Hans/updateSupport.json', 'utf8'));
+const supportHtml = renderUpdateDiagnostics(
+  await readFile('worker/support/update-diagnostics.html', 'utf8'),
+  sourceMessages,
+  'zh-Hans',
+  /^[a-f0-9]{7,40}$/.test(candidateBuild) ? candidateBuild : 'development',
+  applicationShellReleaseLimitBytes,
+);
+const supportScript = renderUpdateDiagnosticsScript(await readFile('worker/support/update-diagnostics-browser.js', 'utf8'), sourceMessages);
 const oldHtml = '<!doctype html><h1>旧应用</h1><script>navigator.serviceWorker.register("/sw.js")</script>';
 const oldWorker = `self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
@@ -57,7 +65,7 @@ try {
     const reportCount = reports.length;
     const browser = await engine.launch();
     try {
-      const context = await browser.newContext({ serviceWorkers: 'allow', viewport: { width: 369, height: 762 } });
+      const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: 'allow', viewport: { width: 369, height: 762 } });
       const page = await context.newPage();
       await page.goto(origin);
       await page.evaluate(async () => { await navigator.serviceWorker.ready; });
@@ -152,7 +160,7 @@ try {
       }, undefined, { timeout: 10000 });
       await blocker.evaluate(() => window.stopDiagnosticBlock());
       await blocker.close();
-      const fresh = await browser.newContext();
+      const fresh = await browser.newContext({ locale: "zh-CN" });
       const empty = await fresh.newPage();
       await empty.goto(origin + '/api/support/update');
       await empty.waitForFunction(() => !document.getElementById('send').disabled);

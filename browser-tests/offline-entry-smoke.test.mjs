@@ -25,7 +25,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
         };
         scenarioTest.after(cleanup);
         try {
-          context = await engine.launchPersistentContext(profile, options);
+          context = await engine.launchPersistentContext(profile, { locale: "zh-CN", ...options });
           const account = fixture.accounts[1];
           const login = await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } });
           assert.equal(login.status(), 200);
@@ -43,7 +43,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
           });
           await run({ page, context, output, restart: async () => {
             await context.close();
-            context = await engine.launchPersistentContext(profile, options);
+            context = await engine.launchPersistentContext(profile, { locale: "zh-CN", ...options });
             return context;
           } });
         } finally { await cleanup(); }

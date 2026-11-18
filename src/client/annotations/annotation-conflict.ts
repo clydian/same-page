@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages, type AppLocale } from "../../i18n";
 import type { AnnotationPayload } from "../../shared/annotations";
 import type { AnnotationConflictRecord } from "../platform/local-database";
 
@@ -11,20 +12,21 @@ export function conflictFingerprint(conflict: AnnotationConflictRecord) {
     conflict.localPayload, conflict.canonical]);
 }
 
-export function conflictChoices(conflict: AnnotationConflictRecord): ConflictChoice[] {
+export function conflictChoices(conflict: AnnotationConflictRecord, locale: AppLocale = getCurrentLocale()): ConflictChoice[] {
+  const t = getMessages(locale, "reader");
   const cloudDeleted = !conflict.canonical || conflict.canonical.deleted;
   const choices: ConflictChoice[] = [{
     strategy: "discard",
-    label: cloudDeleted ? "接受云端删除" : conflict.localDeleted ? "保留云端笔记" : "采用云端版本",
-    consequence: cloudDeleted ? "放弃这条本机修改，接受云端删除。" : "放弃这条本机修改，保留云端笔记。",
+    label: cloudDeleted ? t("acceptCloudDeletion") : conflict.localDeleted ? t("keepCloudNotes") : t("adoptCloudVersion"),
+    consequence: cloudDeleted ? t("discardLocalAndAcceptDeletion") : t("discardLocalAndKeepCloud"),
   }];
   if (!conflict.localDeleted || !cloudDeleted) choices.unshift({
     strategy: "reapply",
-    label: conflict.localDeleted ? "仍要删除" : cloudDeleted ? "恢复为本机版本" : "采用本机修改",
-    consequence: conflict.localDeleted ? "删除云端这条笔记。" : cloudDeleted ? "将本机笔记重新提交到云端。" : "用本机修改替换云端这条笔记。",
+    label: conflict.localDeleted ? t("deleteAnyway") : cloudDeleted ? t("restoreLocalVersion") : t("useLocalChanges"),
+    consequence: conflict.localDeleted ? t("deleteCloudNote") : cloudDeleted ? t("resubmitLocalNote") : t("replaceCloudWithLocal"),
   });
   if (!conflict.localDeleted && conflict.localPayload && !cloudDeleted && conflict.canonical?.payload) choices.push({
-    strategy: "keep-both", label: "两份都保留", consequence: "保留云端笔记，另存一条本机笔记；两条笔记可能重叠。",
+    strategy: "keep-both", label: t("keepBothCopies"), consequence: t("keepBothCopiesHint"),
   });
   return choices;
 }

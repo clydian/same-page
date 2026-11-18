@@ -1,3 +1,4 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import { useAppearance } from "../appearance/appearance-context";
 import {
   useEffect,
@@ -18,9 +19,10 @@ import { usePracticeFocus } from "./use-practice-focus";
 import { PracticeDisclosure, PracticeSetting, PracticeVolume } from "./practice-setting";
 import { LoopRangeEditor } from "./loop-range-editor";
 import { PlaybackAudioHint } from './playback-audio-hint';
+import { useMeasureLabel } from "./measure-label";
 const preparing: PlayerState = {
   status: "preparing",
-  message: "正在准备播放…",
+  message: "",
   playing: false,
   parts: [],
   measures: [],
@@ -60,7 +62,9 @@ export function MusicXmlPractice({
   onReady?(ready: boolean): void;
 }) {
   const focus = usePracticeFocus(embedded);
+  const t = useMessages("practice");
   const { preferences, dark } = useAppearance();
+  const { locale } = useAppLocale();
   const paper = dark ? preferences.darkPaper : preferences.lightPaper;
   useEffect(() => { session?.notationTheme?.(paper === "inverted" ? "inverted" : "original"); }, [session, paper]);
   const state = useSyncExternalStore(
@@ -88,7 +92,11 @@ export function MusicXmlPractice({
     session?.playPause();
   };
   const ready = state.status === "ready" && !error;
-  const measureLabel = (index: number) => state.measures[index]?.label ?? "—";
+  const formatMeasure = useMeasureLabel();
+  const measureLabel = (index: number) => formatMeasure(state.measures[index], "—");
+  const partName = (part: PlayerState["parts"][number]) => part.unnamed === undefined ? part.name : t("unnamedPart", { index: part.unnamed });
+  const namesFor = (flag: "solo" | "muted") => new Intl.ListFormat(locale, { style: "narrow" })
+    .format(state.parts.filter(part => part[flag]).map(partName));
   const notationZoom = { scale: state.notationScale, ready, onChange: (value: number) => { visual.reset(); session?.notationScale(value); } };
   return (
     <>
@@ -97,21 +105,21 @@ export function MusicXmlPractice({
         data-visible={view !== "pdf" || undefined}
         data-compare={view === "compare" || undefined}
         data-controls-collapsed={focus.toolsCollapsed || undefined}
-        aria-label="MusicXML 谱面"
+        aria-label={t("musicXmlScore")}
         aria-hidden={view === "pdf"}
         inert={view === "pdf"}
       >
-        {view === "compare" && <div id="practice-notation-tools" className="practice-notation-tools" hidden={focus.toolsCollapsed} role="group" aria-label="重排谱面工具"><NotationZoom {...notationZoom} /></div>}
+        {view === "compare" && <div id="practice-notation-tools" className="practice-notation-tools" hidden={focus.toolsCollapsed} role="group" aria-label={t("reflowTools")}><NotationZoom {...notationZoom} /></div>}
         {view !== "pdf" && <div className="practice-reading-actions">
-          {state.following === false && <Button className="practice-follow" onPress={() => { visual.reset(); session?.follow(); }}>恢复自动跟随</Button>}
-          {visual.zoom > 1 && <Button className="practice-view-reset" aria-label="恢复查看比例" onPress={visual.reset}>适合宽度</Button>}
+          {state.following === false && <Button className="practice-follow" onPress={() => { visual.reset(); session?.follow(); }}>{t("resumeFollowing")}</Button>}
+          {visual.zoom > 1 && <Button className="practice-view-reset" aria-label={t("resetViewZoom")} onPress={visual.reset}>{t("fitToWidth")}</Button>}
         </div>}
         <div
           ref={viewport}
           className="practice-notation-scroll"
           onContextMenu={(event) => event.preventDefault()}
           role="region"
-          aria-label="滚动谱面"
+          aria-label={t("scrollScore")}
           tabIndex={0}
         >
           <div className="practice-notation-extent"><div className="practice-notation-paper">
@@ -125,19 +133,19 @@ export function MusicXmlPractice({
         loopPreviewing={loopPreviewing}
         embedded={embedded}
         notationZoom={view !== "pdf" && view !== "compare" ? notationZoom : undefined}
-        loopStatus={state.loop ? `${measureLabel(state.loop.start)} 至 ${measureLabel(state.loop.end)}` : undefined}
+        loopStatus={state.loop ? t("measureRange", { start: measureLabel(state.loop.start), end: measureLabel(state.loop.end) }) : undefined}
         ready={ready}
         playing={state.playing || Boolean(state.countInBeats)}
         preparation={session ? state.loadingProgress : preparation && preparation.loaded !== undefined && preparation.total !== undefined ? { loaded: preparation.loaded, total: preparation.total } : undefined}
-        message={error ?? (!session && preparation ? preparation.message : state.countInBeats ? `预备：${state.countInBeat} / ${state.countInBeats}` : state.message)}
-        hint={ready && <PlaybackAudioHint session={session} message={state.audioHint} />}
+        message={error ?? (!session && preparation ? preparation.message : state.countInBeats ? t("countInProgress", { beat: state.countInBeat ?? 0, total: state.countInBeats }) : state.messageCode ? t(state.messageCode) : session ? state.message : t("playbackPreparing"))}
+        hint={ready && <PlaybackAudioHint session={session} message={state.audioHint ? t("audioHint") : undefined} />}
         failed={Boolean(error) || state.status === "error"}
         timeline={{
           value: state.measure,
           min: state.loop?.start ?? 0,
           max: state.loop?.end ?? Math.max(0, state.measures.length - 1),
           disabled: !ready,
-          label: (value) => state.measures[value]?.label ?? "准备中",
+          label: (value) => formatMeasure(state.measures[value], t("preparing")),
           seek: (value) => { scrubFromPdf.current = false; session?.seek(value); },
           preview: (value) => {
             if (value !== null && view === "pdf") { scrubFromPdf.current = true; setPlaybackView("xml"); }
@@ -150,7 +158,7 @@ export function MusicXmlPractice({
         setSpeed={(value) => session?.speed(value)}
         position={
           state.measures[state.measure]
-            ? state.measures[state.measure].label.split(" · ")[0].replace(/^第\s*/, "").replace(/\s*小节$/, "")
+            ? state.measures[state.measure].number ?? state.measures[state.measure].label.split(" · ")[0].replace(/^第\s*/, "").replace(/\s*小节$/, "")
             : "—"
         }
         previousDisabled={state.measure <= (state.loop?.start ?? 0)}
@@ -160,13 +168,13 @@ export function MusicXmlPractice({
         next={() => session?.seek(state.measure + 1)}
         retry={retry}
       >
-        <section className="practice-focus" aria-label="声部关注">
-          <PracticeSetting title="声部关注" help="将关注声部和其他声部分别调节。关闭后恢复独立音量；静音和独奏始终保留。" selected={typeof state.focus === 'number'} disabled={!ready || !state.parts.length} onChange={enabled => session?.focus(enabled ? (state.parts.find(part => part.id === (lastFocus?.session === session ? lastFocus?.id : null))?.id ?? state.parts[0]?.id ?? null) : null)} />
+        <section className="practice-focus" aria-label={t("partFocus")}>
+          <PracticeSetting title={t("partFocus")} help={t("partFocusHelp")} selected={typeof state.focus === 'number'} disabled={!ready || !state.parts.length} onChange={enabled => session?.focus(enabled ? (state.parts.find(part => part.id === (lastFocus?.session === session ? lastFocus?.id : null))?.id ?? state.parts[0]?.id ?? null) : null)} />
           {typeof state.focus === 'number' && <div className="practice-setting-content">
           <label className="practice-field">
-            关注声部
+            {t("focusedPart")}
             <select
-              aria-label="关注声部"
+              aria-label={t("focusedPart")}
               value={typeof state.focus === "number" ? state.focus : ""}
               disabled={!ready}
               onChange={(event) =>
@@ -175,37 +183,31 @@ export function MusicXmlPractice({
             >
               {state.parts.map((part) => (
                 <option key={part.id} value={part.id}>
-                  {part.name}
+                  {partName(part)}
                 </option>
               ))}
             </select>
           </label>
           <div className="practice-focus-volumes">
-            <PracticeVolume title="关注声部" value={state.parts.find(part => part.id === state.focus)?.volume ?? 0} disabled={!ready} onChange={volume => { if (typeof state.focus === 'number') session?.mix(state.focus, { volume }); }} />
-            <PracticeVolume title="其他声部" value={state.otherVolume ?? .25} disabled={!ready} onChange={volume => session?.focusOther(volume)} />
+            <PracticeVolume title={t("focusedPart")} value={state.parts.find(part => part.id === state.focus)?.volume ?? 0} disabled={!ready} onChange={volume => { if (typeof state.focus === 'number') session?.mix(state.focus, { volume }); }} />
+            <PracticeVolume title={t("otherParts")} value={state.otherVolume ?? .25} disabled={!ready} onChange={volume => session?.focusOther(volume)} />
           </div>
           </div>}
           {state.parts.some((part) => part.muted || part.solo) && (
             <p className="practice-hint practice-mix-status" role="status">
               {state.parts.some((part) => part.solo)
-                ? `独奏中：${state.parts
-                    .filter((part) => part.solo)
-                    .map((part) => part.name)
-                    .join("、")}。`
+                ? t("soloingParts", { parts: namesFor("solo") })
                 : ""}
               {state.parts.some((part) => part.muted)
-                ? `已静音：${state.parts
-                    .filter((part) => part.muted)
-                    .map((part) => part.name)
-                    .join("、")}。`
+                ? t("mutedParts", { parts: namesFor("muted") })
                 : ""}
-              声部关注保留静音与独奏。
+              {t("focusKeepsMix")}
             </p>
           )}
         </section>
-        <PracticeDisclosure title="声部混音" help="分别调整各声部音量，静音关闭该声部，独奏只听选中的声部。收起面板不影响声音；声部关注开启时，其他声部音量统一控制。">
+        <PracticeDisclosure title={t("partMixer")} help={t("partMixerHelp")}>
           <p className="practice-hint practice-mixer-legend">
-            {typeof state.focus === 'number' ? '其他声部音量由“声部关注”统一控制；静音和独奏可独立调整。' : '各声部音量独立调节。'}
+            {typeof state.focus === 'number' ? t("partMixerFocused") : t("partMixerIndependent")}
           </p>
           {state.parts.map((part) => (
             <div
@@ -214,22 +216,22 @@ export function MusicXmlPractice({
               data-muted={part.muted || undefined}
               data-focus={state.focus === part.id || undefined}
             >
-              <span className="practice-part-name" title={part.name}>
-                {part.name}
+              <span className="practice-part-name" title={partName(part)}>
+                {partName(part)}
                 <small>
                   {typeof state.focus === "number"
                     ? part.id === state.focus
-                      ? "关注"
-                      : "统一控制"
+                      ? t("focused")
+                      : t("jointControl")
                     : ""}
                 </small>
               </span>
               <div className="practice-part-volume">
                 <input
-                  aria-label={`${part.name} 音量`}
+                  aria-label={t("partVolume", { part: partName(part) })}
                   title={
                     typeof state.focus === "number" && state.focus !== part.id
-                      ? "由“其他声部”统一调节"
+                      ? t("controlledByOtherParts")
                       : undefined
                   }
                   type="range"
@@ -251,36 +253,36 @@ export function MusicXmlPractice({
               </div>
               <Button
                 className="practice-part-toggle practice-mute"
-                aria-label={`静音 ${part.name}`}
+                aria-label={t("mutePart", { part: partName(part) })}
                 isDisabled={!ready}
                 aria-pressed={part.muted}
                 onPress={() => session?.mix(part.id, { muted: !part.muted })}
               >
-                静音
+                {t("mute")}
               </Button>
               <Button
                 className="practice-part-toggle practice-solo"
-                aria-label={`独奏 ${part.name}`}
+                aria-label={t("soloPart", { part: partName(part) })}
                 isDisabled={!ready}
                 aria-pressed={part.solo}
                 onPress={() => session?.mix(part.id, { solo: !part.solo })}
               >
-                独奏
+                {t("solo")}
               </Button>
             </div>
           ))}
         </PracticeDisclosure>
         <LoopRangeEditor rememberedRange={savedLoop?.session === session ? savedLoop?.range : null} onRememberRange={range => setSavedLoop({ session, range })} session={session} state={state} ready={ready} onPreviewingChange={setLoopPreviewing} onPreview={() => { visual.reset(); if (view === "pdf") setPlaybackView("xml"); }} />
         <div className="practice-flat-settings">
-          <PracticeSetting title="节拍器" help="播放时提供节拍提示，不改变乐谱声部的音量。" selected={Boolean(state.metronome)} disabled={!ready} onChange={metronome => session?.rhythm({ metronome })} />
-          <PracticeSetting title="跳转后预备一小节" help="跳转后按目标小节的拍号预备一小节；普通暂停继续和循环衔接不加预备拍。" selected={Boolean(state.countIn)} disabled={!ready} onChange={countIn => session?.rhythm({ countIn })} />
+          <PracticeSetting title={t("metronome")} help={t("metronomeHelp")} selected={Boolean(state.metronome)} disabled={!ready} onChange={metronome => session?.rhythm({ metronome })} />
+          <PracticeSetting title={t("countInAfterSeek")} help={t("countInHelp")} selected={Boolean(state.countIn)} disabled={!ready} onChange={countIn => session?.rhythm({ countIn })} />
 
-          <PracticeSetting title="首调数字" help="按当前调号标注首调数字，不改变声音或混音。可选择全部声部或指定声部。" selected={Boolean(state.solfege)} disabled={!ready || view === 'pdf'} onChange={visible => session?.solfege(visible)} />
+          <PracticeSetting title={t("scaleDegrees")} help={t("scaleDegreesHelp")} selected={Boolean(state.solfege)} disabled={!ready || view === 'pdf'} onChange={visible => session?.solfege(visible)} />
           {state.solfege && (
             <label className="practice-field practice-setting-content">
-              <span>标注范围</span>
+              <span>{t("annotationRange")}</span>
               <select
-                aria-label="标注范围"
+                aria-label={t("annotationRange")}
                 value={
                   state.solfegePart === null ? "all" : (state.solfegePart ?? 0)
                 }
@@ -294,20 +296,20 @@ export function MusicXmlPractice({
                   )
                 }
               >
-                <option value="all">全部声部</option>
+                <option value="all">{t("allParts")}</option>
                 {state.parts.map((part) => (
                   <option key={part.id} value={part.id}>
-                    仅 {part.name}
+                    {t("onlyPart", { part: partName(part) })}
                   </option>
                 ))}
               </select>
             </label>
           )}
-          {view === "pdf" && <p className="practice-hint">切换到重排谱面后可设置首调数字。</p>}
+          {view === "pdf" && <p className="practice-hint">{t("scaleDegreesReflowHint")}</p>}
         </div>
-        {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? '此练习谱可离线打开与播放。' : offlineStatus === 'preparing' ? '正在准备离线播放…' : <>离线准备未完成。<Button className="practice-inline-action" onPress={retryOffline}>重试离线准备</Button></>}</p>}
-        {state.audioHint && <p className="practice-hint">{state.audioHint}</p>}
-        <p className="practice-hint">MusicXML 合成播放，不演唱歌词；原 PDF 需手动翻页。</p>
+        {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? t("offlineReady") : offlineStatus === 'preparing' ? t("offlinePreparing") : <>{t("offlineIncomplete")}<Button className="practice-inline-action" onPress={retryOffline}>{t("retryOffline")}</Button></>}</p>}
+        {state.audioHint && <p className="practice-hint">{t("audioHint")}</p>}
+        <p className="practice-hint">{t("musicXmlPlaybackHint")}</p>
       </PracticePlayerShell>
     </>
   );

@@ -16,6 +16,13 @@ and rollout transitions alongside changes to callers, tests, and documentation.
 
 Issues and specs are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
 
+### Product messages
+
+Put product messages in `src/i18n/messages/<locale>/<feature>.json`. Add the
+source message in `zh-Hans` and use its stable key and parameters in code.
+Add the same key to all supported locales and run `npm run i18n:check`.
+Use the established domain glossary in `CONTEXT.md` when translating.
+
 ### Triage labels
 
 Use the five default mattpocock/skills triage labels. See `docs/agents/triage-labels.md`.
