@@ -44,7 +44,7 @@ const smokeCosts = {
   "file-touch-links": 40,
   "free-trial-smoke": 15,
   "install-onboarding-smoke": 20,
-  "invite-entry-smoke": 25,
+  "invite-entry-smoke": 45,
   "invite-connection-failover": 90,
   "loading-stability": 25,
   "musicxml-audio-startup": 40,
