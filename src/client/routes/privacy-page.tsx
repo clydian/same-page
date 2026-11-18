@@ -87,6 +87,11 @@ export default function PrivacyPage() {
           </p>
         </section>
 
+        <section aria-labelledby="privacy-payment-plans">
+          <h2 id="privacy-payment-plans">付费筹备说明 · 尚未开放购买</h2>
+          <p>Paddle 仅为拟接入的支付服务，不表示当前已通过其处理订单。实际付款信息字段、用途、保留期限及责任边界尚待接入核实，正式开放前将补充本政策。相关计划见<Link to="/pricing">价格与方案审阅草稿</Link>。</p>
+        </section>
+
         <section aria-labelledby="privacy-google">
           <h2 id="privacy-google">Google 用户数据</h2>
           <p>

@@ -7,6 +7,9 @@ export function AppFooter() {
       <nav aria-label="产品信息">
         <Link to="/help">使用手册</Link>
         <Link to="/about">关于与更新</Link>
+        <Link to="/pricing">价格与方案</Link>
+        <Link to="/terms">服务条款</Link>
+        <Link to="/refunds">取消与退款</Link>
         <Link to="/privacy">隐私政策</Link>
         {connectionsEnabled && <a href={connectionWebsites.backup} target="_blank" rel="noopener noreferrer">备用网址</a>}
       </nav>
