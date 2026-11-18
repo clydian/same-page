@@ -27,6 +27,17 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     const operatorContext = await login(1), admin = await operatorContext.newPage();
     await admin.goto(`${f.origin}/admin?view=usage`);
     await expect(admin.getByRole("heading", { name: "云盘使用情况" })).toBeVisible();
+    const navigation = [
+      ["link", "发布通道", "发布通道"],
+      ["link", "问题反馈", "问题反馈"],
+      ["link", "乐谱工作台", "乐谱工作台"],
+      ["button", "操作记录", "最近操作"],
+      ["link", "云盘使用情况", "云盘使用情况"],
+    ];
+    for (const [role, label, heading] of navigation) {
+      await admin.getByRole(role, { name: label, exact: true }).click();
+      await expect(admin.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+    }
     const actual = await (await operatorContext.request.get(`${f.origin}/api/admin/drive-usage`)).json();
     const visited = actual.drives.find(d => d.id === f.choirId);
     assert.equal(visited.visitors7d, 1); assert.equal(visited.visitors30d, 1);
@@ -60,6 +71,9 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await admin.locator(".admin-identity").evaluate(el => { el.textContent = "operator@example.invalid"; });
       for (const viewport of [{ width: 1194, height: 834 }, { width: 834, height: 1194 }, { width: 390, height: 844 }]) {
         await admin.setViewportSize(viewport);
+        for (const [role, label] of navigation) {
+          await expect(admin.getByRole(role, { name: label, exact: true })).toBeVisible();
+        }
         await admin.screenshot({ path: `artifacts/verification/drive-usage/${name}-${viewport.width}.png`, fullPage: true });
       }
     }

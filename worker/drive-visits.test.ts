@@ -30,13 +30,9 @@ async function user(email: string) {
 const visit = (cookie = ownerCookie, id = owner, headers = {}) => call(`/choirs/${drive}/visits`, cookie, {
   method: "POST", headers: { "x-same-page-owner-user-id": id, "x-same-page-visit": "foreground", ...headers },
 });
-// #674 turns the legacy rosters into read-only views. Exercise both real
-// schema states without ever writing a compatibility view.
-async function grantOperator(userId: string, legacy = "product_operators") {
-  const unified = await env.DB.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='product_administrators'").first();
-  const table = unified ? "product_administrators" : legacy;
-  await env.DB.prepare(`INSERT INTO ${table}(user_id) VALUES(?)`).bind(userId).run();
-  return table;
+async function grantOperator(userId: string) {
+  await env.DB.prepare("INSERT INTO product_administrators(user_id) VALUES(?)").bind(userId).run();
+  return "product_administrators";
 }
 const records = () => env.DB.prepare("SELECT * FROM drive_member_visits").all();
 beforeEach(async () => {
@@ -57,12 +53,10 @@ it("records only fenced active members, excluding operators, previews and pollin
   expect((await call(`/choirs/${drive}/usage`, ownerCookie)).status).toBe(200);
   expect((await call("/admin/drive-usage", operatorCookie)).status).toBe(200);
   expect((await records()).results).toHaveLength(0);
-  for (const table of ["product_operators", "diagnostic_operators", "release_operators"]) {
-    const authorityTable = await grantOperator(owner, table);
-    expect((await visit()).status).toBe(204);
-    expect((await records()).results).toHaveLength(0);
-    await env.DB.prepare(`DELETE FROM ${authorityTable} WHERE user_id=?`).bind(owner).run();
-  }
+  await grantOperator(owner);
+  expect((await visit()).status).toBe(204);
+  expect((await records()).results).toHaveLength(0);
+  await env.DB.prepare("DELETE FROM product_administrators WHERE user_id=?").bind(owner).run();
   await env.DB.prepare("UPDATE choirs SET is_preview_entry=1,guest_admission_mode='open',join_code_hash=NULL WHERE id=?").bind(drive).run();
   expect((await visit()).status).toBe(204);
   expect((await records()).results).toHaveLength(0);

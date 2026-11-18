@@ -199,6 +199,7 @@ function verifyDriveVisitsMigration() {
     candidates: "SELECT * FROM xml_candidates ORDER BY id",
     files: "SELECT * FROM score_attachment_files ORDER BY id",
     grants: "SELECT * FROM product_operators ORDER BY user_id",
+    administrators: "SELECT * FROM product_administrators ORDER BY user_id",
     releaseGrants: "SELECT * FROM release_operators ORDER BY user_id",
     feedbackGrants: "SELECT * FROM diagnostic_operators ORDER BY user_id",
     audit: "SELECT * FROM product_admin_audit ORDER BY id",
