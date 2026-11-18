@@ -110,6 +110,10 @@ export function resolveFixtureRequest({
   }
   const score = selectedScore;
   const samplePdf = pdf;
+  if (method === "POST" && [choir.id, previewChoir.id].some(id => pathname === `/api/choirs/${id}/visits`)) {
+    return identity === "guest" ? json({ error: "unauthorized" }, 401)
+      : { status: 204, body: "", contentType: "text/plain" };
+  }
   if (method === "GET" && pathname === "/api/user/lifecycle" && identity !== "guest") return json({
     userId: session(identity).user.id, reauthenticated: false, methods: [], deletion: null,
     memberships: [{ id: `visual-membership-${identity}`, choirId: choir.id, name: choir.name,

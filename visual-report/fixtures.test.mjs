@@ -16,6 +16,14 @@ test("unknown API requests fail closed instead of reaching the current Worker", 
   assert.equal(JSON.parse(response.body).error, "visual_fixture_not_found");
 });
 
+test("foreground visit reports are handled only for the known visual drives", () => {
+  assert.equal(resolveFixtureRequest({ pathname: "/api/choirs/visual-choir/visits", method: "POST", identity: "member" }).status, 204);
+  assert.equal(resolveFixtureRequest({ pathname: "/api/choirs/visual-choir/visits", method: "POST", identity: "guest" }).status, 401);
+  const unknown = resolveFixtureRequest({ pathname: "/api/choirs/unknown-drive/visits", method: "POST", identity: "member" });
+  assert.equal(unknown.status, 404);
+  assert.equal(JSON.parse(unknown.body).error, "visual_fixture_not_found");
+});
+
 test("isolated production fixtures work without shared dist and use their own build identity", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "same-page-fixture-no-dist-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

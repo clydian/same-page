@@ -10,6 +10,8 @@ import { AttachmentError } from "./attachments/storage";
 import { attachmentRoutes } from "./attachments/routes";
 import { androidReleaseRoutes } from "./android-release";
 import { trialRoutes } from "./choirs/trial-routes";
+import { visitRoutes, cleanupDriveVisits } from "./choirs/visits";
+import { driveUsageRoutes } from "./admin/drive-usage";
 import { excludeDeletedResources } from "./choirs/deleted-access";
 import { permissionRoutes } from "./permissions/routes";
 import { cleanupAnnotationLayers } from "./annotations/cleanup";
@@ -88,6 +90,8 @@ app.use("/api/*", excludeDeletedResources);
 app.route("/api", adminRoutes);
 app.route("/api", adminDiagnosticRoutes);
 app.route("/api", trialRoutes);
+app.route("/api", visitRoutes);
+app.route("/api", driveUsageRoutes);
 app.route("/api", diagnosticReportRoutes);
 app.route("/api", permissionRoutes);
 app.route("/api", lifecycleRoutes);
@@ -123,6 +127,7 @@ export default {
     return connectionBoundary(request, env, context, async (routed, bindings) => app.fetch(routed, bindings, context));
   },
   scheduled(_controller, env, context) {
+    context.waitUntil(cleanupDriveVisits(env.DB));
     context.waitUntil(env.DB.prepare("DELETE FROM connection_exchanges WHERE expires_at <= ?").bind(Date.now()).run());
     context.waitUntil(cleanupAnnotationLayers(env.DB).catch(() => {
       logFailure("storage", "cleanup", 500, crypto.randomUUID());

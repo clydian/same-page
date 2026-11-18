@@ -1,4 +1,5 @@
 import { FeedbackToastProvider } from "./components/feedback-toast";
+import { DriveVisitReporter } from "./drives/drive-visit-reporter";
 import { AppearanceProvider } from "./appearance/appearance";
 import { PlaybackGate } from "./playback/playback-gate";
 import { ConnectionControl, ConnectionHelpProvider } from "./connection/connection-control";
@@ -54,6 +55,7 @@ export function AppRoutes() {
     <>
       <AppearanceProvider><FeedbackToastProvider><ConnectionHelpProvider><NavigationProvider><LogoutProvider><InstallProvider>
       <RouteScrollReset />
+      <DriveVisitReporter />
 
         <Routes>
           <Route element={<PageWithFooter />}>

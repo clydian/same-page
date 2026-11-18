@@ -9,7 +9,7 @@ export default function PrivacyPage() {
         <header className="privacy-document__header">
           <p className="eyebrow">合谱 · Same Page</p>
 
-          <p className="privacy-document__updated">最后更新于 2026-09-10</p>
+          <p className="privacy-document__updated">最后更新于 2026-11-17</p>
           <p className="privacy-document__lead">
             合谱（Same Page）是为合唱排练设计的乐谱云盘。本政策说明我们在你使用服务时处理哪些信息、为什么处理，以及你可以如何联系我们。
           </p>
@@ -33,6 +33,10 @@ export default function PrivacyPage() {
             <li>
               <strong>设备本地数据：</strong>
               为支持离线使用，浏览器可能在当前设备保存乐谱、笔记、偏好和待同步操作。访客访问记录和离线副本也可能保存在当前设备。
+            </li>
+            <li>
+              <strong>云盘使用情况：</strong>
+              新版客户端在有效成员前台进入普通云盘或乐谱页、返回前台或交互时，联网报告一次访问，约五分钟粒度；离线访问、后台轮询与同步、访客、公开体验及运营授权身份不计入。只保存成员关系的最近访问时间，不收集阅读明细、时长、谱名或笔记内容。获乐谱运营授权的维护人员只能查看每个云盘的最近访问时间与汇总人数，不展示个人访问记录。成员关系访问时间超过三十天后由定时任务删除，移除成员或删除用户后不计入人数；云盘保留不含成员身份的最近访问时间。这些记录用于了解使用情况，不会触发自动清理。
             </li>
           </ul>
         </section>

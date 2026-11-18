@@ -184,9 +184,33 @@ try {
   verifyImageRetirement();
   verifyAttachmentMigration();
   verifyPdfTrashMigration();
+  verifyDriveVisitsMigration();
   process.stdout.write("Verified legacy score schema migration, including image retirement and score attachments.\n");
 } finally {
   rmSync(persistencePath, { recursive: true, force: true });
+}
+
+function verifyDriveVisitsMigration() {
+  const preserved = {
+    drives: "SELECT id,name,plan,created_at,storage_limit_bytes,storage_used_bytes,score_limit,member_limit,purged_at FROM choirs ORDER BY id",
+    members: "SELECT * FROM memberships ORDER BY id",
+    notes: "SELECT * FROM annotation_objects ORDER BY id",
+    versions: "SELECT * FROM score_versions ORDER BY id",
+    candidates: "SELECT * FROM xml_candidates ORDER BY id",
+    files: "SELECT * FROM score_attachment_files ORDER BY id",
+    grants: "SELECT * FROM product_operators ORDER BY user_id",
+    administrators: "SELECT * FROM product_administrators ORDER BY user_id",
+    releaseGrants: "SELECT * FROM release_operators ORDER BY user_id",
+    feedbackGrants: "SELECT * FROM diagnostic_operators ORDER BY user_id",
+    audit: "SELECT * FROM product_admin_audit ORDER BY id",
+    foreignKeys: "PRAGMA foreign_key_check",
+  };
+  const before = queryNamed(preserved);
+  applyMigrations("0040_drive_visits.sql");
+  assert.deepEqual(queryNamed(preserved), before, "Visit collection preserves existing content, identity, quotas and permissions");
+  assert(query("SELECT last_member_visit_at FROM choirs").every(row => row.last_member_visit_at === null), "Historical access stays unknown");
+  assert.deepEqual(query("SELECT * FROM drive_member_visits"), []);
+  assert(query("SELECT started_at FROM drive_visit_collection")[0].started_at > 0);
 }
 
 function verifyPdfTrashMigration() {
