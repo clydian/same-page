@@ -1,3 +1,4 @@
+import { collectMusicXmlMeasureDurations } from './musicxml-measure-durations.ts';
 import { collectMusicXmlTimeVisibility } from './musicxml-time-visibility-source.ts';
 import type { MusicXmlTimeVisibility } from './musicxml-time-visibility-source.ts';
 import { collectMusicXmlTempoMeasures } from './musicxml-metronome.ts';
@@ -33,6 +34,8 @@ export interface PreparedMusicXml {
   importInputVersion?: string;
   /** First-part printed numbers. Empty is distinct from legacy missing metadata. */
   measureLabels?: string[];
+  /** Equal source event extents in quarter notes; null keeps native meter duration. */
+  measureDurations?: (number | null)[];
   tempoMeasures?: MusicXmlTempoMeasure[];
   creatorCredits?: MusicXmlCreatorCredits;
   timeVisibility?: MusicXmlTimeVisibility;
@@ -555,6 +558,7 @@ export const prepareMusicXmlForAlphaTabBytes = (bytes: Uint8Array): PreparedMusi
   const xml = new TextDecoder().decode(bytes);
   const document = parser.parse(xml) as OrderedNode[];
   const tempoMeasures = collectMusicXmlTempoMeasures(document);
+  const measureDurations = collectMusicXmlMeasureDurations(document);
   const dynamicEventsByPart: MusicXmlDynamicEvent[][] = [];
   const dynamicGlyphsCompleteByPart: boolean[] = [];
   const wedgeEventsByPart: MusicXmlWedgeEvent[][] = [];
@@ -593,6 +597,7 @@ export const prepareMusicXmlForAlphaTabBytes = (bytes: Uint8Array): PreparedMusi
   return {
     bytes: new TextEncoder().encode(builder.build(document)),
     measureLabels,
+    measureDurations,
     tempoMeasures,
     creatorCredits: collectMusicXmlCreatorCredits(document),
     timeVisibility: collectMusicXmlTimeVisibility(document),
