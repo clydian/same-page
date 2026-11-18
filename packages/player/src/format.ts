@@ -48,7 +48,13 @@ const validationMessages = {
 
 export type MusicXmlErrorCode = keyof typeof validationMessages;
 export class MusicXmlError extends Error {
-  constructor(message: string, readonly code?: MusicXmlErrorCode) { super(message); this.name = 'MusicXmlError'; }
+  readonly code?: MusicXmlErrorCode;
+
+  constructor(message: string, code?: MusicXmlErrorCode) {
+    super(message);
+    this.name = 'MusicXmlError';
+    this.code = code;
+  }
 }
 function fail(code: MusicXmlErrorCode): never { throw new MusicXmlError(validationMessages[code], code); }
 

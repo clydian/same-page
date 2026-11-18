@@ -82,8 +82,11 @@ export function loadPreparedMusicXml(prepared: PreparedMusicXml, settings: alpha
 }
 
 export class PlaybackChannelError extends Error {
-  constructor(readonly code: "unsupportedPercussionCount" | "playbackTooManyParts", message: string) {
+  readonly code: "unsupportedPercussionCount" | "playbackTooManyParts";
+
+  constructor(code: PlaybackChannelError["code"], message: string) {
     super(message);
+    this.code = code;
   }
 }
 

@@ -37,8 +37,11 @@ export type DocumentPlaybackApi = Omit<Native, 'boundsLookup' | 'renderer' | 'ti
 };
 
 export class CollectionPlaybackError extends Error {
-  constructor(readonly code: "opusPieceTimeout" | "opusEmptyPiece", message: string) {
+  readonly code: "opusPieceTimeout" | "opusEmptyPiece";
+
+  constructor(code: "opusPieceTimeout" | "opusEmptyPiece", message: string) {
     super(message);
+    this.code = code;
   }
 }
 
