@@ -33,6 +33,7 @@ export default function AboutPage() {
         <Link to="/" state={{ home: true }}><Globe size={20} aria-hidden="true" /><span>产品介绍<small>了解合谱与排练功能</small></span><ChevronRight size={18} aria-hidden="true" /></Link>
         <Link to="/help"><BookOpen size={20} aria-hidden="true" /><span>使用手册<small>了解看谱、笔记与练习</small></span><ChevronRight size={18} aria-hidden="true" /></Link>
         <Link to="/diagnostics"><MessageSquare size={20} aria-hidden="true" /><span>问题反馈<small>把遇到的问题告诉我们</small></span><ArrowUpRight size={18} aria-hidden="true" /></Link>
+        <Link to="/pricing"><BookOpen size={20} aria-hidden="true" /><span>价格与方案<small>付费筹备中 · 查看政策草稿</small></span><ChevronRight size={18} aria-hidden="true" /></Link>
         <Link to="/privacy"><ShieldCheck size={20} aria-hidden="true" /><span>隐私政策</span><ChevronRight size={18} aria-hidden="true" /></Link>
       </nav>
       <details className="support-details about-build" open={message?.startsWith("无法") || undefined}>
