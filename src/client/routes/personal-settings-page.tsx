@@ -1,4 +1,5 @@
 import { useMessages } from "../../i18n";
+import { LanguageSelect } from "../../i18n/language-select";
 import { UserRound } from "lucide-react";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
@@ -21,6 +22,7 @@ export default function PersonalSettingsPage() {
         {identity.localUserId ? <button className="secondary-button" onClick={() => void logout.request()}>{t("signOut")}</button> : !identity.restoring && identity.onlineState === "signed-out" && <Link className="secondary-button" to="/login">{t("signIn")}</Link>}
       </div>
       <IdentityNotice identity={identity} />
+      <LanguageSelect showLabel />
       <section className="personal-settings-data"><h2>{t("userData")}</h2><Link className="settings-secondary-link settings-danger-link" to="/user/lifecycle">{t("deleteUser")}<span aria-hidden="true">›</span></Link><p>{t("driveSettingsHint")}</p></section>
     </main>
   </div>;

@@ -530,7 +530,6 @@ export default function AuthPage() {
       case "identify":
         return {
           title: t("authIdentify"),
-          description: t("authIdentifyDescription"),
           form: (
             <Form className="entry-form" onSubmit={identifyEmail}>
               <EmailField value={email} onChange={setEmail} autoFocus />
@@ -796,17 +795,19 @@ export default function AuthPage() {
   return (
     <div ref={authPageRef} className="app-page auth-page">
       <AppHeader
-        actions={
-          <Button className="header-action" onPress={() => void cancelEntry()}>{returnTarget ? t("authContinueReadOnly") : t("authBackHome")}</Button>
-        }
+        actions={<LanguageSelect />}
+        onHome={returnTarget ? undefined : event => {
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          void cancelEntry();
+        }}
       />
       <main className="auth-layout">
         <section className="auth-card" aria-labelledby="auth-title">
-          <p className="dialog-eyebrow">{t("authBrand")}</p>
           <h1 id="auth-title" ref={titleRef} tabIndex={-1}>
             {viewPanel.title}
           </h1>
-          <p className="auth-description">{viewPanel.description}</p>
+          {viewPanel.description && <p className="auth-description">{viewPanel.description}</p>}
           {viewPanel.form}
 
           {(view === "identify" || view === "sign-in") && socialProviders.length > 0 ? (
@@ -822,8 +823,8 @@ export default function AuthPage() {
               {message(t)}
             </p>
           ) : null}
-          <div className="auth-language-control"><LanguageSelect /></div>
         </section>
+        {returnTarget?.startsWith("/choirs/") && <Button className="text-button auth-read-only" onPress={() => void cancelEntry()}>{t("authContinueReadOnly")}</Button>}
       </main>
     </div>
   );
@@ -845,11 +846,11 @@ function SocialAuthOptions(props: {
           <Button
             type="button"
             className="social-auth-button"
-            aria-label={t("authContinueGoogle")}
             isDisabled={props.disabled}
             onPress={() => props.onContinue("google")}
           >
             <GoogleIcon />
+            {t("authContinueGoogle")}
           </Button>
         ) : null}
       </div>

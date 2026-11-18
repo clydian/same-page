@@ -1,24 +1,28 @@
-.app-language-selector-row {
-  display: flex;
-  justify-content: flex-end;
-  width: min(76rem, calc(100% - 2.5rem));
-  margin: 0 auto 1rem;
-}
-
 .app-language-select {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, max-content);
   align-items: center;
   gap: .45rem;
   color: var(--muted);
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
-.app-language-error { font-size: .85rem; }
+.app-language-error { grid-column: 1 / -1; font-size: .85rem; }
 
-.auth-language-control { margin-top: 1.5rem; }
+.app-header .app-language-select { max-width: 13rem; font-size: .85rem; }
+.app-header .app-language-select select { field-sizing: content; min-inline-size: 6.5rem; }
+
+.app-language-select[data-labeled] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 14rem);
+  column-gap: .65rem;
+  color: var(--ink);
+  font-size: .9rem;
+}
 
 .app-language-select select {
   min-height: 44px;
+  min-width: 0;
   max-width: 14rem;
   padding: .35rem .45rem;
   border: 1px solid var(--line);

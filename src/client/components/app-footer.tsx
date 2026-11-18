@@ -1,4 +1,5 @@
 import { useMessages } from "../../i18n";
+import { LanguageSelect } from "../../i18n/language-select";
 import { Link } from "react-router-dom";
 import { connectionsEnabled, connectionWebsites } from "../connection/connection";
 
@@ -15,6 +16,7 @@ export function AppFooter() {
         <Link to="/privacy">{t("privacy")}</Link>
         {connectionsEnabled && <a href={connectionWebsites.backup} target="_blank" rel="noopener noreferrer">{t("backup")}</a>}
       </nav>
+      <LanguageSelect />
     </footer>
   );
 }

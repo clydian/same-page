@@ -16,11 +16,11 @@
   "identity": {
     "checking": "接続すると、保存されたコンテンツは引き続き使用できます。",
     "localUnavailable": "ローカル本人確認はまだ完了しておらず、保存されたコンテンツはまだ保持されています。",
-    "unreachable": "一時的に接続できなくなりましたが、保存されたコンテンツはまだ保持されています。",
+    "unreachable": "接続できません。端末に保存した内容はそのまま使えます。",
     "signedOut": "再度ログインして同期すると、保存した内容は引き続き使用できます。",
     "retrying": "再試行中…",
     "retryVerify": "検証を再試行",
-    "retryConnection": "接続を再試行してください",
+    "retryConnection": "接続を再試行",
     "loginAgain": "再度ログインしてください"
   },
   "guestNotes": {
@@ -495,7 +495,6 @@
   "authPasswordsMismatch": "入力したパスワードが一致しません。",
   "authPasswordRequirements": "パスワードが要件を満たしていません。",
   "authIdentify": "ログインまたは新規登録",
-  "authIdentifyDescription": "メールアドレスを入力してログインまたは新規登録に進みます。",
   "authContinuing": "続行中…",
   "authContinue": "続ける",
   "authSignIn": "ログイン",
@@ -545,8 +544,6 @@
   "authRetryJoin": "参加を再試行",
   "authCancelToDriveList": "キャンセルしてドライブ一覧に戻る",
   "authContinueReadOnly": "閲覧のみで続ける",
-  "authBackHome": "ホームに戻る",
-  "authBrand": "Same Page",
   "authOtherSignInMethods": "その他のログイン方法",
   "authEmail": "メールアドレス",
   "authOtp": "6 桁の確認コード",

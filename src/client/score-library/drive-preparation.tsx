@@ -23,21 +23,24 @@ export function DrivePreparation({ choirId, accountReady }: { choirId: string; a
         : <InstallButton className="primary-button" />)}
       {installed && !accountReady && <Link className="primary-button" to={login}>{t("drivePreparationRegisterLogStartTaking")}</Link>}
     </>}>
-    <ol className="preparation-steps">
+    {accountReady ? <>
+      {pendingInstall && <strong>{t("drivePreparationAddRequestSubmitted")}</strong>}
+      <p>{pendingInstall ? t("drivePreparationReturnDesktopClickScore") : t("drivePreparationLikeOtherAppsOpened")}</p>
+    </> : <ol className="preparation-steps">
       <li data-complete={installed || undefined}>
         <span className="preparation-step-marker" aria-hidden="true">{installed ? <Check size={16} /> : "1"}</span>
         <div><strong>{installed ? t("drivePreparationAddedDesktop") : pendingInstall ? t("drivePreparationAddRequestSubmitted") : t("drivePreparationAddDesktop")}</strong>
           {!installed && <p>{pendingInstall ? t("drivePreparationReturnDesktopClickScore") : t("drivePreparationLikeOtherAppsOpened")}</p>}
         </div>
       </li>
-      <li data-complete={accountReady || undefined}>
-        <span className="preparation-step-marker" aria-hidden="true">{accountReady ? <Check size={16} /> : "2"}</span>
-        <div><strong>{accountReady ? t("drivePreparationLoginJoinCloudDisk") : t("drivePreparationLogSaveSyncNotes")}</strong>
-          {!accountReady && <p>{install.runningInApp
+      <li>
+        <span className="preparation-step-marker" aria-hidden="true">2</span>
+        <div><strong>{t("drivePreparationLogSaveSyncNotes")}</strong>
+          <p>{install.runningInApp
             ? t("drivePreparationRegisterLogAddCloud")
-            : t("drivePreparationRecommendedLogAfterOpening")}</p>}
+            : t("drivePreparationRecommendedLogAfterOpening")}</p>
         </div>
       </li>
-    </ol>
+    </ol>}
   </DriveSuggestion>;
 }

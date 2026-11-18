@@ -3,11 +3,12 @@ import { useAppLocale, useMessages } from "./context";
 import { isAppLocale, localeNames, supportedLocales } from "./locales";
 import "./language-select.css";
 
-export function LanguageSelect() {
+export function LanguageSelect({ showLabel = false }: { showLabel?: boolean }) {
   const { locale, setLocale, requestedLocale, loadFailed } = useAppLocale();
   const t = useMessages("language");
-  return <label className="app-language-select">
+  return <label className="app-language-select" data-labeled={showLabel || undefined}>
     <Languages size={18} aria-hidden="true" />
+    {showLabel && <span>{t("label")}</span>}
     <select aria-label={t("label")} aria-busy={requestedLocale !== null} value={requestedLocale ?? locale} onChange={(event) => {
       if (isAppLocale(event.target.value)) setLocale(event.target.value);
     }}>

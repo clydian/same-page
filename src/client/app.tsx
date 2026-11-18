@@ -11,7 +11,6 @@ import { TaskHeader } from "./components/task-header";
 import { lazy, useLayoutEffect, useState } from "react";
 import { createBrowserRouter, RouterProvider, Outlet, Route, Routes, useLocation, useNavigationType } from "react-router-dom";
 import { useMessages } from "../i18n";
-import { LanguageSelect } from "../i18n/language-select";
 
 import { AppFooter } from "./components/app-footer";
 import { ReloadPrompt } from "./components/reload-prompt";
@@ -120,7 +119,6 @@ function PageWithFooter() {
   const showsFooter = ["/", "/drives"].includes(pathname);
   return <div className="page-with-footer"><Outlet />
     {showsFooter && <AppFooter />}
-    {(showsFooter || pathname === "/user") && <div className="app-language-selector-row"><LanguageSelect /></div>}
   </div>;
 }
 
