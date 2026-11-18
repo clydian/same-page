@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { userLifecycleSchema } from "../../shared/lifecycle";
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
 import { useSettingsMutation } from "./settings-mutation";
-import { SettingsRequestError, settingsError } from "./settings-request";
+import { SettingsRequestError } from "./settings-request";
+import { settingsError } from "./settings-error";
 import { useSettingsLifetime, captureSettingsLifetime } from "./use-settings-lifetime";
 
 async function loadUserLifecycle() {

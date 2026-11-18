@@ -12,7 +12,8 @@ import {
 } from "../../shared/annotations";
 import { TaskHeader } from "../components/task-header";
 import { SettingsFeedback } from "../settings/settings-feedback";
-import { settingsError, settingsResponse } from "../settings/settings-request";
+import { settingsResponse } from "../settings/settings-request";
+import { settingsError } from "../settings/settings-error";
 
 export default function SharedLayerDetailsPage() {
   const { choirId = "", slot: slotParam = "" } = useParams();

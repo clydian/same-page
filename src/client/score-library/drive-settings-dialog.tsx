@@ -6,7 +6,8 @@ import { Dialog } from "../navigation/overlays";
 import { driveNameSchema, displayNameSchema, driveSettingsSchema } from "../../shared/choirs";
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
 import { useReadResource } from "../settings/use-read-resource";
-import { SettingsRequestError, settingsError } from "../settings/settings-request";
+import { SettingsRequestError } from "../settings/settings-request";
+import { settingsError } from "../settings/settings-error";
 import { captureReadIdentity } from "../settings/read-resource";
 
 type Settings = ReturnType<typeof driveSettingsSchema.parse>;

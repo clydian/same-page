@@ -104,7 +104,7 @@ function ConflictComparison({ conflict, document, layers, annotations, online, b
   const page = source === "local" ? localPage : cloudPage;
   const deleted = source === "local" ? conflict.localDeleted : !conflict.canonical || conflict.canonical.deleted;
   const payload = source === "local" ? conflict.localPayload : conflict.canonical?.payload ?? null;
-  const choices = conflictChoices(conflict, locale);
+  const choices = conflictChoices(conflict);
   const selected = choices.find(item => item.strategy === choice);
   const editable = layers.some(layer => layer.id === conflict.layerId && layer.canEdit);
   const allowed = choice === "discard" || editable;
@@ -134,11 +134,11 @@ function ConflictComparison({ conflict, document, layers, annotations, online, b
     {!target && <p role="alert">{t("conflictNoteReadFailed")}</p>}
     <RadioGroup aria-label={t("resolveNote")} className="conflict-choices" value={choice ?? ""} isDisabled={busy || blocked || !target}
       onChange={value => { setChoice(value as ConflictStrategy); setConfirming(false); }}>
-      {choices.map(item => <Radio key={item.strategy} value={item.strategy} isDisabled={item.strategy !== "discard" && !editable}><span className="conflict-radio-mark" />{item.label}</Radio>)}
+      {choices.map(item => <Radio key={item.strategy} value={item.strategy} isDisabled={item.strategy !== "discard" && !editable}><span className="conflict-radio-mark" />{t(item.labelKey)}</Radio>)}
     </RadioGroup>
     {!editable && <p className="conflict-message">{t("layerUnavailableForEditing")}</p>}
     {confirming && selected ? <div className="conflict-confirm" role="group" aria-label={t("confirmNoteResolution")}>
-      <p>{selected.consequence}{!online && choice !== "discard" ? t("resolveWhenOnline") : ""}</p>
+      <p>{t(selected.consequenceKey)}{!online && choice !== "discard" ? t("resolveWhenOnline") : ""}</p>
       <div><Button className="secondary-button" isDisabled={busy} onPress={() => setConfirming(false)}>{t("backToChoices")}</Button>
         <Button className="primary-button" isDisabled={busy || blocked || !allowed} onPress={() => {
           void onResolve(conflict.opId, selected.strategy, conflict).then(result => { if (result === "failed" || result === "conflict-changed") setConfirming(false); });

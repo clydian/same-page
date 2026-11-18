@@ -6,9 +6,10 @@ afterEach(() => vi.useRealTimers());
 
 // Execute the exact script served by the worker. No business database is opened
 // by the recovery page; only its browser protocol and navigation are simulated.
-function fixture() {
+function fixture(savedLocale) {
   vi.useFakeTimers();
   const button = { disabled: false }, status = { textContent: '' };
+  const heading = { textContent: '' }, root = { lang: '' };
   const reload = vi.fn(), messages = [], ports = [];
   class Channel {
     constructor() {
@@ -25,15 +26,23 @@ function fixture() {
   const serviceWorker = { getRegistration: vi.fn(async () => registration), addEventListener: vi.fn(), controller: null };
   // This is the worker's fixed template, not HTML from a request. Extract its
   // single script by exact delimiters rather than treating a regex as a parser.
-  const start = recoveryPage.indexOf('<script>') + '<script>'.length;
-  const end = recoveryPage.lastIndexOf('</script>');
-  runInNewContext(recoveryPage.slice(start, end), {
-    document: { getElementById: id => id === 'retry' ? button : status },
+  const page = recoveryPage();
+  const start = page.indexOf('<script>') + '<script>'.length;
+  const end = page.lastIndexOf('</script>');
+  runInNewContext(page.slice(start, end), {
+    document: { documentElement: root, getElementById: id => ({ retry: button, status, heading })[id] },
+    localStorage: { getItem: () => savedLocale ?? null },
     navigator: { serviceWorker }, location: { reload },
     Date, setTimeout, clearTimeout, MessageChannel: Channel,
   });
-  return { button, status, reload, registration, serviceWorker, messages, ports, worker };
+  return { button, status, root, reload, registration, serviceWorker, messages, ports, worker };
 }
+
+test('recovery uses the device’s saved language even when the app shell is unavailable', () => {
+  const f = fixture('en');
+  expect(f.root.lang).toBe('en');
+  expect(f.button.textContent).toBe('Try again');
+});
 
 test('a stalled update releases recovery within its existing twenty-second deadline and ignores late completion', async () => {
   const f = fixture(), oldUpdate = Promise.withResolvers();

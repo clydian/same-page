@@ -10,7 +10,8 @@ import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { PurgeDialog } from "../drives/purge-dialog";
 import { captureReadIdentity } from "../settings/read-resource";
 import { captureSettingsLifetime, invalidateSettingsLifetime, useSettingsLifetime } from "../settings/use-settings-lifetime";
-import { isSettingsReadDenied, SettingsRequestError, settingsError } from "../settings/settings-request";
+import { isSettingsReadDenied, SettingsRequestError } from "../settings/settings-request";
+import { settingsError } from "../settings/settings-error";
 import { uploadMessage } from "./library-format";
 
 export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = false, onRestored }: {

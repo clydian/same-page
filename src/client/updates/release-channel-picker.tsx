@@ -1,7 +1,7 @@
 import { useMessages } from "../../i18n";
 import { useEffect } from "react";
 import { refreshReleaseChannel, selectReleaseChannel, useReleaseChannel } from "./release-channel";
-import { useUpdateStatus } from "./update-status";
+import { useUpdateStatus } from "./use-update-status";
 declare const __SAME_PAGE_RELEASE_CHANNELS__: boolean;
 const enabled = () => typeof __SAME_PAGE_RELEASE_CHANNELS__ === "boolean" && __SAME_PAGE_RELEASE_CHANNELS__;
 export function ReleaseChannelPicker() {

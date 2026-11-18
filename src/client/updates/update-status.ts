@@ -1,6 +1,4 @@
-import { useMessages } from "../../i18n";
 import type { InstallProgress } from '../../shared/update-progress';
-import { useMemo, useSyncExternalStore } from "react";
 
 export type UpdatePhase = "registering" | "checking" | "preparing" | "current" | "ready" | "applying" | "error" | "offline" | "unsupported";
 export interface UpdateStatus {
@@ -17,8 +15,10 @@ export function setUpdateStatus(next: UpdateStatus) {
   status = next;
   listeners.forEach(listener => listener());
 }
-export function useUpdateStatus() {
-  const current = useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => status);
-  const t = useMessages("system");
-  return useMemo(() => current.messageKey ? { ...current, message: t(current.messageKey) } : current, [current, t]);
+export function subscribeUpdateStatus(listener: () => void) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+export function readUpdateStatus() {
+  return status;
 }

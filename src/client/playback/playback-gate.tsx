@@ -3,7 +3,7 @@ import { Component, lazy, Suspense, useEffect, useRef, useSyncExternalStore, typ
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from 'react-aria-components';
 import { diagnosticCauseType, diagnosticErrorType, recordFailure } from '../diagnostics/diagnostics';
-import { useUpdateStatus } from '../updates/update-status';
+import { useUpdateStatus } from '../updates/use-update-status';
 import { useAppNavigation } from '../navigation/navigation-context';
 import { playbackStore, setPlaybackView, stopPlayback } from './playback-store';
 class PlayerModuleLoadError extends Error {}

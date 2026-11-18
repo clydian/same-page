@@ -15,7 +15,8 @@ import { sharedLayerAvailabilitySchema, sharedLayerManagementResponseSchema, typ
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { DriveSettingsContent } from "../score-library/drive-settings-content";
 import { SettingsFeedback } from "../settings/settings-feedback";
-import { settingsError, settingsResponse } from "../settings/settings-request";
+import { settingsResponse } from "../settings/settings-request";
+import { settingsError } from "../settings/settings-error";
 
 export default function SharedLayerManagementPage() {
   const { choirId = "" } = useParams();

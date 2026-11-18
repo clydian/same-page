@@ -8,7 +8,7 @@ import { ArrowUpRight, BookOpen, ChevronRight, Globe, MessageSquare, ShieldCheck
 import { buildId, buildRunId, buildVersion } from "../../shared/build";
 import { TaskHeader } from "../components/task-header";
 import { UpdateDetails } from "../components/reload-prompt";
-import { usePageRecoveryStatus } from "../updates/page-recovery-status";
+import { usePageRecoveryStatus } from "../updates/use-update-status";
 import "../support-pages.css";
 
 export default function AboutPage() {

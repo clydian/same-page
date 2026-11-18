@@ -1,7 +1,7 @@
 import { useAppLocale, useMessages } from "../../i18n";
 import { useId } from 'react';
 import { Link } from 'react-router-dom';
-import { useUpdateStatus } from './update-status';
+import { useUpdateStatus } from './use-update-status';
 import './resource-preparation.css';
 export function ResourcePreparation({ install = false }: { install?: boolean }) {
   const t = useMessages("system");

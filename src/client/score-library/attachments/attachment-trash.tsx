@@ -1,7 +1,8 @@
 import { useMessages } from "../../../i18n";
 import { useSettingsLifetime, captureSettingsLifetime, invalidateSettingsLifetime } from "../../settings/use-settings-lifetime";
 import { captureReadIdentity } from "../../settings/read-resource";
-import { SettingsRequestError, isSettingsReadDenied, settingsError } from "../../settings/settings-request";
+import { SettingsRequestError, isSettingsReadDenied } from "../../settings/settings-request";
+import { settingsError } from "../../settings/settings-error";
 import { useEffect, useState } from "react";
 import { Button } from "react-aria-components";
 import { attachmentListSchema, type ScoreAttachment } from "../../../shared/attachments";

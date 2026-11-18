@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useLocation } from "react-router-dom";
 
 import { canAcceptUpdate, canApplyUpdate, noteUpdateInteraction, setUpdateRoute } from "../updates/update-safety";
-import { useUpdateStatus } from "../updates/update-status";
+import { useUpdateStatus } from "../updates/use-update-status";
 import { buildId, buildVersion } from "../../shared/build";
 import { UpdateCheckSchedule } from "../updates/update-check-schedule";
 import { UpdateController } from "../updates/update-controller";

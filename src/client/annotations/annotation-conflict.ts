@@ -1,9 +1,9 @@
-import { getCurrentLocale, getMessages, type AppLocale } from "../../i18n";
+import type { AppMessageKey } from "../../i18n/catalog-keys";
 import type { AnnotationPayload } from "../../shared/annotations";
 import type { AnnotationConflictRecord } from "../platform/local-database";
 
 export type ConflictStrategy = "discard" | "reapply" | "keep-both";
-export type ConflictChoice = { strategy: ConflictStrategy; label: string; consequence: string };
+export type ConflictChoice = { strategy: ConflictStrategy; labelKey: AppMessageKey<"reader">; consequenceKey: AppMessageKey<"reader"> };
 
 // A review is tied to both variants, never just an operation id. New edits must
 // be compared again before an irreversible local discard or a new cloud write.
@@ -12,21 +12,20 @@ export function conflictFingerprint(conflict: AnnotationConflictRecord) {
     conflict.localPayload, conflict.canonical]);
 }
 
-export function conflictChoices(conflict: AnnotationConflictRecord, locale: AppLocale = getCurrentLocale()): ConflictChoice[] {
-  const t = getMessages(locale, "reader");
+export function conflictChoices(conflict: AnnotationConflictRecord): ConflictChoice[] {
   const cloudDeleted = !conflict.canonical || conflict.canonical.deleted;
   const choices: ConflictChoice[] = [{
     strategy: "discard",
-    label: cloudDeleted ? t("acceptCloudDeletion") : conflict.localDeleted ? t("keepCloudNotes") : t("adoptCloudVersion"),
-    consequence: cloudDeleted ? t("discardLocalAndAcceptDeletion") : t("discardLocalAndKeepCloud"),
+    labelKey: cloudDeleted ? "acceptCloudDeletion" : conflict.localDeleted ? "keepCloudNotes" : "adoptCloudVersion",
+    consequenceKey: cloudDeleted ? "discardLocalAndAcceptDeletion" : "discardLocalAndKeepCloud",
   }];
   if (!conflict.localDeleted || !cloudDeleted) choices.unshift({
     strategy: "reapply",
-    label: conflict.localDeleted ? t("deleteAnyway") : cloudDeleted ? t("restoreLocalVersion") : t("useLocalChanges"),
-    consequence: conflict.localDeleted ? t("deleteCloudNote") : cloudDeleted ? t("resubmitLocalNote") : t("replaceCloudWithLocal"),
+    labelKey: conflict.localDeleted ? "deleteAnyway" : cloudDeleted ? "restoreLocalVersion" : "useLocalChanges",
+    consequenceKey: conflict.localDeleted ? "deleteCloudNote" : cloudDeleted ? "resubmitLocalNote" : "replaceCloudWithLocal",
   });
   if (!conflict.localDeleted && conflict.localPayload && !cloudDeleted && conflict.canonical?.payload) choices.push({
-    strategy: "keep-both", label: t("keepBothCopies"), consequence: t("keepBothCopiesHint"),
+    strategy: "keep-both", labelKey: "keepBothCopies", consequenceKey: "keepBothCopiesHint",
   });
   return choices;
 }

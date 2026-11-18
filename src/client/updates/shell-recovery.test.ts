@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { act, render, screen } from '@testing-library/react';
-import { usePageRecoveryStatus } from './page-recovery-status';
+import { usePageRecoveryStatus } from './use-update-status';
 import { ShellRecovery } from './shell-recovery';
 import { holdUpdate, setUpdateRoute } from './update-safety';
 

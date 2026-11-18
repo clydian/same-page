@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { canApplyUpdate } from "./update-safety";
-import { useUpdateStatus } from "./update-status";
+import { useUpdateStatus } from "./use-update-status";
 import "./update-notice.css";
 
 // One reminder per waiting worker in this page lifetime. Nothing is persisted or

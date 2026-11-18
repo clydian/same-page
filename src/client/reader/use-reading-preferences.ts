@@ -1,15 +1,25 @@
-import { useAppLocale, useMessages } from "../../i18n";
+import { getMessages, sourceLocale, useMessages } from "../../i18n";
 import type { AnnotationLayerSummary, DriveLayerPreferenceSummary } from "../../shared/annotations";
 import { useReadResource } from "../settings/use-read-resource";
 import { useReadingPreferenceIntents, currentReadingIntent, setReadingIntent, finishReadingIntent, clearReadingIntent } from "./reading-preference-intents";
 import { useEffect, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { captureLocalWorkspaceSession, type LocalWorkspace } from "../platform/local-workspace";
-import { localizeReadingPreferenceError, loadDriveReadingPreferences, restoreDriveReadingPreferences, projectDriveReadingPreferences, projectReadingPreferences, flushReadingPreferences, preferenceKey, readReadingPreferences, saveReadingPreference, type PreferenceTarget, type ReadingPreferenceChange } from "./reading-preferences";
+import { loadDriveReadingPreferences, restoreDriveReadingPreferences, projectDriveReadingPreferences, projectReadingPreferences, flushReadingPreferences, preferenceKey, readReadingPreferences, saveReadingPreference, type PreferenceTarget, type ReadingPreferenceChange } from "./reading-preferences";
+
+const preferenceErrorKeys = [
+  "preferenceSignInRequired",
+  "preferenceAccessDenied",
+  "preferenceCloudSaveFailed",
+  "preferenceConnectionFailed",
+  "preferenceLockUnavailable",
+] as const;
+
+const sourceMessage = getMessages(sourceLocale, "reader");
+const preferenceErrorKeyByMessage = new Map(preferenceErrorKeys.map(key => [sourceMessage(key), key]));
 
 export function useReadingPreferences(workspace: LocalWorkspace, signedIn: boolean) {
   const t = useMessages("reader");
-  const { locale } = useAppLocale();
   const lifetime = useRef<AbortController | null>(null);
   const savedRows = useLiveQuery(() => readReadingPreferences(workspace), [workspace.scopeKey], []);
   const intents = useReadingPreferenceIntents(workspace);
@@ -51,7 +61,8 @@ export function useReadingPreferences(workspace: LocalWorkspace, signedIn: boole
     if (intent && intent.localState !== "saved") return intent.localState === "failed"
       ? { message: t("preferencesLocalSaveFailed"), retry: () => void save(target, { subscribed: intent.subscribed, colorOverride: intent.colorOverride }) }
       : null;
-    return row?.error ? { message: localizeReadingPreferenceError(row.error, locale), retry: () => {
+    const errorKey = row?.error && preferenceErrorKeyByMessage.get(row.error);
+    return row?.error ? { message: errorKey ? t(errorKey) : row.error, retry: () => {
       if (signedIn) void captureLocalWorkspaceSession(workspace).then(current => flushReadingPreferences(current, undefined, lifetime.current?.signal, key)).catch(() => undefined);
     } } : null;
   };

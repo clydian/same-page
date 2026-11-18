@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { loginHref } from "../auth/login-return";
 import { TaskHeader } from "../components/task-header";
-import { settingsError } from "../settings/settings-request";
+import { settingsError } from "../settings/settings-error";
 import { SettingsFeedback } from "../settings/settings-feedback";
 import { authenticatedLocalOwnerKey, captureLocalWorkspaceSession, createLocalWorkspace, type LocalWorkspace } from "../platform/local-workspace";
 import { useDriveReadingPreferences } from "../reader/use-reading-preferences";

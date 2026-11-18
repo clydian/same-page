@@ -4,7 +4,10 @@ import { type ReleaseTarget, releaseContract } from '../../shared/release-channe
 import { readReleaseReceipt,writeReleaseReceipt } from '../../shared/release-receipt';
 import { refreshReleaseChannel, selectReleaseChannel, useReleaseChannel } from './release-channel';
 vi.mock('../../shared/build',()=>({buildId:'b'.repeat(40)}));
-vi.mock('react',()=>({useSyncExternalStore:(_subscribe: unknown,snapshot:()=>unknown)=>snapshot()}));
+vi.mock('react', async importOriginal => ({
+  ...await importOriginal<typeof import('react')>(),
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));
 const origin='https://same-page.test',A='a'.repeat(40),B='b'.repeat(40);
 const stable: ReleaseTarget={channel:'stable',target:A,intent:'default',revision:1,backend:A,contract:releaseContract};
 const beta: ReleaseTarget={...stable,channel:'beta',target:B,intent:'explicit-beta'};

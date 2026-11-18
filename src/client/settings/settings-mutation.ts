@@ -1,7 +1,8 @@
 import { useMessages, getCurrentLocale, getMessages } from "../../i18n";
 import { useEffect, useRef, useState } from "react";
 import { lifecycleError } from "../auth/lifecycle-error";
-import { SettingsRequestError, settingsError } from "./settings-request";
+import { SettingsRequestError } from "./settings-request";
+import { settingsError } from "./settings-error";
 import { captureSettingsLifetime, useSettingsLifetime } from "./use-settings-lifetime";
 
 type MutationResult =
