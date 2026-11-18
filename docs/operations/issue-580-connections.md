@@ -1,5 +1,11 @@
 # #580：双入口连接控制与受控上线
 
+当前持续覆盖：`connections.test.mjs` 只保留 Chromium/WebKit 真实会话的入口准备与
+主机专属 Cookie 检查。原先串联的冷启动切线、固定线路、XHR 上传确认丢失、
+音频切线、Range/PDF 和应急页面登录已删除；下文及验证记录中的相关浏览器结果属于历史验收。
+上传队列、不重放写入、连接状态机与协议权限测试仍保留；它们不能替代整条真实浏览器链，
+也不能证明原上传超时的产品根因已经修复。
+
 本次测试与评审见 [验证记录](verification-580.md)。需求以 [已确认方案](https://github.com/clydian/same-page/issues/580#issuecomment-6420913816) 为准。
 [ESA 试验记录](issue-580-esa-backup.md) 和 [原始脱敏结果](issue-580-esa-evidence.json) 记录的是公开读取验证；本变更的本地测试不替代生产和大陆网络验收。
 

@@ -30,11 +30,13 @@
 
 ## 验证
 
-`browser-tests/musicxml-offline.test.mjs` 使用持久 Chromium profile：
-上传 XML/MXL、确认完整版本就绪、关闭整个浏览器、断网启动、从目录进入 MXL、谱面实际渲染、
-非零音频采样、暂停、速度/声部设置、刷新、从阅读器进入 XML、再次实际出声和暂停；
-随后注入附件 403，验证当前原文被清除、其他原文和 PDF 保留。
-截图输出到 `artifacts/verification/musicxml-offline/`。
+原 `browser-tests/musicxml-offline.test.mjs` 的真实后端综合用例已移除：它把 SW 接管、
+XML/MXL 上传、关闭浏览器、断网重开、刷新、实际音频和失权清理串成同一条链。
+不再以该用例作为持续 CI 保障；历史验收结果不表示当前版本仍有同等端到端覆盖。
+确定性的原文缓存、权限/身份围栏和公共资源完整性保障仍保留在
+`offline-musicxml.test.ts`、`offline-player-assets.test.ts` 等现有测试中。
+既有双浏览器播放测试及 `verify-playback-upgrade.mjs` 仍保留，但不能替代真实后端
+上传后离线冷启动到失权清理的整条链。此次删除不表示已修复其前置上传步骤的失败根因。
 
 构建单测验证资源 URL 隔离、静态依赖闭包及共享依赖去重。存储与资源测试覆盖
 中断、重复准备、版本不符、损坏/被清除的缓存、配额失败、清理、退出 fence、
@@ -48,7 +50,7 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
-node --test browser-tests/musicxml-offline.test.mjs browser-tests/musicxml-playback.test.mjs
+node --test browser-tests/musicxml-playback.test.mjs
 npm run test:pwa-update
 ```
 
