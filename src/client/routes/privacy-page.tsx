@@ -57,6 +57,11 @@ export default function PrivacyPage() {
           <p>{t("privacy.processors.disclosure")}</p>
         </section>
 
+        <section aria-labelledby="privacy-payment-plans">
+          <h2 id="privacy-payment-plans">{t("privacy.payments.title")}</h2>
+          <p>{t.rich("privacy.payments.details", { pricing: children => <Link to="/pricing">{children}</Link> })}</p>
+        </section>
+
         <section aria-labelledby="privacy-google">
           <h2 id="privacy-google">{t("privacy.google.title")}</h2>
           <p>{t("privacy.google.identity")}</p>

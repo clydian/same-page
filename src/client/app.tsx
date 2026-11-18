@@ -44,6 +44,7 @@ const SharedLayerDetailsPage = lazy(
   () => import("./routes/shared-layer-details-page"),
 );
 const LocalStoragePage = lazy(() => import("./routes/local-storage-page"));
+const PolicyPage = lazy(() => import("./routes/policy-pages"));
 const PrivacyPage = lazy(() => import("./routes/privacy-page"));
 const DiagnosticsPage = lazy(() => import("./diagnostics/diagnostics-page"));
 
@@ -81,6 +82,7 @@ export function AppRoutes() {
             <Route path="/user/lifecycle" element={<RouteContent><UserLifecyclePage /></RouteContent>} />
             <Route path="/choirs/:choirId/memberships" element={<RouteContent><MembershipManagementPage /></RouteContent>} />
             <Route path="/login" element={<RouteContent><AuthPage /></RouteContent>} />
+            {(["pricing", "terms", "refunds"] as const).map(kind => <Route key={kind} path={`/${kind}`} element={<RouteContent showHeader={false}><PolicyPage kind={kind} /></RouteContent>} />)}
             <Route path="/privacy" element={<div className="privacy-page">
               {/* Keep the return control mounted while the policy body suspends. */}
               <TaskHeader title={t("privacy")} backTo="/drives" />

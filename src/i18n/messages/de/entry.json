@@ -188,6 +188,7 @@
     "tagline": "Eine gemeinsame Partitur, um jede Stelle zusammen zu proben.",
     "summary": "Chorpartituren und Probennotizen",
     "productHint": "Lerne Same Page und die Funktionen für Proben kennen",
+    "pricingHint": "Kostenpflichtige Tarife in Vorbereitung · Richtlinienentwürfe ansehen",
     "manualHint": "Erfahre, wie du Partituren liest, annotierst und übst",
     "feedbackHint": "Erzähl uns, welches Problem aufgetreten ist",
     "buildInfo": "Version und technische Informationen",
@@ -424,6 +425,10 @@
       "title": "Sichtbarer Bereich innerhalb der Wolkenscheibe",
       "visibility": "Persönliche Ebenen siehst standardmäßig nur du. Gemeinsame Ebenen und Partituren gehören zur jeweiligen Ablage. Mitglieder und Gäste mit Zugriff können sie ansehen. Mitglieder mit Bearbeitungsrecht können sie ändern. Gemeinsame Notizen können den Anzeigenamen ihres Urhebers oder der Person behalten, die sie zuletzt bearbeitet hat. Aktive Mitglieder können Anzeigenamen, Berechtigungen und den Umfang der delegierten Rechteverwaltung anderer aktiver Mitglieder derselben Ablage sehen. Entfernte Mitgliedschaften und den Status ihrer Entfernung oder Wiederherstellung sehen nur der Eigentümer der Ablage und Personen, die Mitglieder entfernen dürfen.",
       "identity": "Anmeldeinformationen von Drittanbietern werden nicht automatisch in allen Ablage zu Ihrer öffentlichen Identität; Sie können in verschiedenen Ablage unterschiedliche Anzeigenamen verwenden."
+    },
+    "payments": {
+      "title": "Kostenpflichtige Tarife in Vorbereitung · Noch kein Kauf möglich",
+      "details": "Wir planen, Paddle als Zahlungsdienstleister einzusetzen. Derzeit werden keine Bestellungen über Paddle abgewickelt. Wir klären, welche Zahlungsdaten erhoben werden, wofür und wie lange sie gespeichert werden und wer dafür verantwortlich ist. Vor dem Start der kostenpflichtigen Tarife aktualisieren wir diese Richtlinie. Siehe <pricing>Entwurf zu Preisen und Tarifen</pricing>."
     },
     "processors": {
       "title": "Dienstleister",

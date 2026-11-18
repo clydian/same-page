@@ -188,6 +188,7 @@
     "tagline": "Sur une même partition, répétez ensemble et par pupitre.",
     "summary": "Partitions et notes de répétition pour chorales",
     "productHint": "Découvrez Same Page et ses fonctions de répétition.",
+    "pricingHint": "Offres payantes en préparation · Voir les projets de politiques",
     "manualHint": "Apprenez à lire vos partitions, à les annoter et à répéter.",
     "feedbackHint": "Décrivez-nous le problème que vous avez rencontré.",
     "buildInfo": "Version et informations techniques",
@@ -424,6 +425,10 @@
       "title": "Plage visible dans le espace",
       "visibility": "Par défaut, vous seul pouvez voir vos calques personnels. Les calques partagés et les partitions appartiennent à l’espace qui les contient. Les membres et les invités qui disposent d’un accès peuvent les voir. Les membres disposant d’une autorisation de modification peuvent les modifier. Les annotations partagées peuvent conserver le nom affiché dans l’espace de leur auteur ou de la dernière personne à les avoir modifiées. Les membres actifs peuvent voir les noms affichés, les autorisations et le périmètre de gestion déléguée des autres membres actifs du même espace. Seuls le propriétaire et les personnes autorisées à retirer des membres peuvent voir les adhésions retirées et leur état de retrait ou de restauration.",
       "identity": "Les informations de connexion tierces ne deviendront pas automatiquement votre identité publique sur tous les espace ; vous pouvez utiliser différents noms d'affichage dans différents espace."
+    },
+    "payments": {
+      "title": "Offres payantes en préparation · Les achats ne sont pas encore disponibles",
+      "details": "Nous prévoyons d’utiliser Paddle comme prestataire de paiement. Aucune commande n’est actuellement traitée par Paddle. Nous confirmerons quelles données de paiement sont collectées, à quelles fins, pour quelle durée et sous la responsabilité de qui. Cette politique sera mise à jour avant le lancement des offres payantes. Consultez le <pricing>projet de tarifs et d’offres</pricing>."
     },
     "processors": {
       "title": "Fournisseur de services",

@@ -188,6 +188,7 @@
     "tagline": "Una partitura compartida para ensayar cada pasaje juntos.",
     "summary": "Partituras corales y notas de ensayo",
     "productHint": "Conoce las herramientas de ensayo de Same Page",
+    "pricingHint": "Planes de pago en preparación · Ver borradores de políticas",
     "manualHint": "Aprende a leer, anotar y practicar partituras",
     "feedbackHint": "Cuéntanos qué problema encontraste",
     "buildInfo": "Versión e información técnica",
@@ -424,6 +425,10 @@
       "title": "Rango visible dentro del unidad",
       "visibility": "De forma predeterminada, solo tú puedes ver tus capas personales. Las capas compartidas y las partituras pertenecen a la unidad correspondiente. Los miembros y visitantes con acceso pueden verlas, y los miembros con permiso de edición pueden modificarlas. Las anotaciones compartidas pueden conservar el nombre visible de quien las creó o editó por última vez. Los miembros activos pueden consultar los nombres visibles, los permisos y el alcance de la gestión delegada de otros miembros activos de la misma unidad. Solo el propietario y las personas con permiso para eliminar miembros pueden ver las membresías eliminadas y su estado de eliminación o recuperación.",
       "identity": "La información de inicio de sesión de terceros no se convertirá automáticamente en su identidad pública en todas las unidades de la nube; puede utilizar diferentes nombres para mostrar en diferentes unidades de nube."
+    },
+    "payments": {
+      "title": "Planes de pago en preparación · Las compras aún no están disponibles",
+      "details": "Planeamos usar Paddle como proveedor de pagos. Actualmente no procesamos pedidos a través de Paddle. Confirmaremos qué datos de pago se recopilan, para qué se usan, cuánto tiempo se conservan y quién es responsable de ellos. Actualizaremos esta política antes del lanzamiento de los planes de pago. Consulta el <pricing>borrador de precios y planes</pricing>."
     },
     "processors": {
       "title": "Proveedor de servicios",

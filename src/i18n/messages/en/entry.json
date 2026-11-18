@@ -188,6 +188,7 @@
     "tagline": "One shared score, every passage practiced together.",
     "summary": "Choir scores and rehearsal notes",
     "productHint": "Explore Same Page and its rehearsal tools",
+    "pricingHint": "Paid plans in preparation · View policy drafts",
     "manualHint": "Learn how to read, annotate, and practice scores",
     "feedbackHint": "Tell us what went wrong",
     "buildInfo": "Version and technical information",
@@ -424,6 +425,10 @@
       "title": "Who can see content within a Drive",
       "visibility": "Personal layers are visible only to you by default. Shared layers and scores belong to the corresponding Drive. Members or guests with access can view them, and members with the appropriate editing permissions can make changes. Shared notes may retain the Drive display name of their creator or last editor. Active members can see other active members’ display names, permissions, and delegated permission scopes in that Drive. Only the Drive owner and members with permission to remove members can see removed memberships and their removal or recovery status.",
       "identity": "Third-party sign-in information does not automatically become your public identity across all Drives. You can use a different display name in each Drive."
+    },
+    "payments": {
+      "title": "Paid plans in preparation · Purchases are not yet available",
+      "details": "We plan to use Paddle as our payment provider. We do not currently process orders through Paddle. We will confirm what payment information is collected, how it is used, how long it is kept, and who is responsible for it, then update this policy before paid plans launch. See the <pricing>pricing and plans draft</pricing>."
     },
     "processors": {
       "title": "Service providers",

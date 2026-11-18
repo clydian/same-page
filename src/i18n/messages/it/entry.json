@@ -188,6 +188,7 @@
     "tagline": "Uno spartito per tutti, per provare insieme ogni passaggio.",
     "summary": "Spartiti per coro e annotazioni per le prove",
     "productHint": "Scopri Same Page e le funzioni per le prove.",
+    "pricingHint": "Piani a pagamento in preparazione · Consulta le bozze delle condizioni",
     "manualHint": "Scopri come leggere, annotare e provare gli spartiti.",
     "feedbackHint": "Raccontaci il problema che hai riscontrato.",
     "buildInfo": "Versione e informazioni tecniche",
@@ -424,6 +425,10 @@
       "title": "Intervallo visibile all'interno del drive",
       "visibility": "Per impostazione predefinita, solo tu puoi vedere i tuoi livelli personali. I livelli condivisi e le partiture appartengono al relativo drive. I membri e gli ospiti con accesso possono visualizzarli e i membri con permessi di modifica possono cambiarli. Le annotazioni condivise possono conservare il nome visualizzato nel drive da chi le ha create o modificate per ultimo. I membri attivi possono vedere il nome visualizzato, i permessi e l’ambito di gestione delegata degli altri membri attivi dello stesso drive. Solo il proprietario e chi può rimuovere membri possono vedere le appartenenze rimosse e il loro stato di rimozione o ripristino.",
       "identity": "Le informazioni di accesso di terze parti non diventeranno automaticamente la tua identità pubblica in tutte le drive; puoi utilizzare nomi visualizzati diversi in diverse drive."
+    },
+    "payments": {
+      "title": "Piani a pagamento in preparazione · Gli acquisti non sono ancora disponibili",
+      "details": "Prevediamo di usare Paddle come fornitore di servizi di pagamento. Attualmente non elaboriamo ordini tramite Paddle. Verificheremo quali dati di pagamento vengono raccolti, a quali fini, per quanto tempo vengono conservati e chi ne è responsabile. Aggiorneremo questa informativa prima del lancio dei piani a pagamento. Consulta la <pricing>bozza di prezzi e piani</pricing>."
     },
     "processors": {
       "title": "Fornitore di servizi",

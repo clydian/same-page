@@ -188,6 +188,7 @@
     "tagline": "Uma partitura compartilhada para ensaiar juntos cada trecho.",
     "summary": "Partituras para coral e anotações de ensaio",
     "productHint": "Conheça os recursos de ensaio do Same Page",
+    "pricingHint": "Planos pagos em preparação · Ver rascunhos das políticas",
     "manualHint": "Saiba como ler, anotar e praticar partituras",
     "feedbackHint": "Conte para nós qual problema você encontrou",
     "buildInfo": "Versão e informações técnicas",
@@ -424,6 +425,10 @@
       "title": "Alcance visível dentro do disco da nuvem",
       "visibility": "Por padrão, só você pode ver suas camadas pessoais. As camadas compartilhadas e as partituras pertencem ao drive que as contém. Membros e visitantes com acesso podem visualizá-las, e membros com permissão de edição podem alterá-las. Anotações compartilhadas podem manter o nome de exibição de quem criou ou fez a última alteração no drive. Membros ativos podem ver o nome de exibição, as permissões e o escopo da gestão delegada de outros membros ativos do mesmo drive. Só o proprietário e quem pode remover membros podem ver as associações removidas e o status de remoção ou restauração.",
       "identity": "As informações de login de terceiros não se tornarão automaticamente sua identidade pública em todas as drive; você pode usar diferentes nomes de exibição em diferentes drive."
+    },
+    "payments": {
+      "title": "Planos pagos em preparação · As compras ainda não estão disponíveis",
+      "details": "Planejamos usar a Paddle como provedora de pagamentos. Atualmente, não processamos pedidos pela Paddle. Vamos confirmar quais dados de pagamento são coletados, para que são usados, por quanto tempo são mantidos e quem é responsável por eles. Esta política será atualizada antes do lançamento dos planos pagos. Confira o <pricing>rascunho de preços e planos</pricing>."
     },
     "processors": {
       "title": "Provedor de serviços",
