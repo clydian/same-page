@@ -49,7 +49,7 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   await launched.goto(fixture.origin);
   await expect(launched.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
   await expect(launched.getByRole("button", { name: "添加到桌面", exact: true })).toHaveCount(0);
-  await expect(launched.getByRole("link", { name: "注册 / 登录，开始记笔记", exact: true })).toBeVisible();
+  await expect(launched.getByRole("link", { name: "登录或注册", exact: true })).toBeVisible();
   await expect(launched.locator(".file-row__open")).toHaveCount(1);
   // Explicit home navigation must still stay home.
   await launched.goto(`${fixture.origin}/drives`);
