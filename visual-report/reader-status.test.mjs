@@ -13,7 +13,7 @@ test("failed local save blocks browser back and retains the draft through reconn
   t.after(async () => { await browser.close(); await app.stop(); });
   {
     const width = 390;
-    const context = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block", reducedMotion: "reduce" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width, height: 900 }, serviceWorkers: "block", reducedMotion: "reduce" });
     await context.addInitScript(() => {
       localStorage.setItem("reader-gesture-hint-seen", "true");
       window.fixtureOnline = true;

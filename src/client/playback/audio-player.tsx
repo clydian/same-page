@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { readerHref } from "../reader/reader-entry";
 import { useEffect, useRef, useState, useSyncExternalStore, type ComponentProps } from 'react';
 import { connections, connectionsEnabled, connectionUrl } from '../connection/connection';
@@ -14,6 +15,7 @@ import { scoreDisplayName } from '../../shared/score-display-name';
 import { useAppNavigation } from '../navigation/navigation-context';
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 export default function AudioPlayer({ source }: { source: PlaybackSource }) {
+  const t = useMessages("practice");
   const location = useLocation(), navigate = useNavigate(), navigation = useAppNavigation();
   const preview = location.pathname === `/choirs/${source.choirId}`;
   const showScore = () => navigation.afterEditing(() => {
@@ -26,7 +28,7 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
   const recoveredAutomatically = useRef(false);
   const [ready, setReady] = useState(false), [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0), [duration, setDuration] = useState(0), [speed, setSpeed] = useState(1);
-  const [error, setError] = useState<string | null>(null), [attempt, setAttempt] = useState(0);
+  const [error, setError] = useState<"audioCouldNotPlay" | "audioClickToResume" | "audioUnavailable" | null>(null), [attempt, setAttempt] = useState(0);
   const [canSeek, setCanSeek] = useState(false);
   usePlaybackLifetime(source);
   useEffect(() => { recoveredAutomatically.current = false; }, [source, attempt]);
@@ -48,25 +50,25 @@ export default function AudioPlayer({ source }: { source: PlaybackSource }) {
     const player = audio.current;
     if (!player) return;
     if (!player.paused) player.pause();
-    else { document.querySelectorAll('audio,video').forEach(other => { if (other !== player && other instanceof HTMLMediaElement) other.pause(); }); void player.play().catch(() => setError('暂时无法开始播放，请重试或下载音频。')); }
+    else { document.querySelectorAll('audio,video').forEach(other => { if (other !== player && other instanceof HTMLMediaElement) other.pause(); }); void player.play().catch(() => setError("audioCouldNotPlay")); }
   };
   return <>
-    <audio ref={audio} preload="metadata" onLoadedMetadata={() => { const player = audio.current; const value = player?.duration ?? 0; setDuration(Number.isFinite(value) ? value : 0); setCanSeek(Boolean(player?.seekable.length)); if (player) { player.playbackRate = speed; if (resume.current?.source === source) { player.currentTime = resume.current.time; player.playbackRate = resume.current.speed; setSpeed(resume.current.speed); if (resume.current.playing) void player.play().catch(() => setError('请点击播放继续。')); resume.current = null; } } setReady(true); setError(null); }}
+    <audio ref={audio} preload="metadata" onLoadedMetadata={() => { const player = audio.current; const value = player?.duration ?? 0; setDuration(Number.isFinite(value) ? value : 0); setCanSeek(Boolean(player?.seekable.length)); if (player) { player.playbackRate = speed; if (resume.current?.source === source) { player.currentTime = resume.current.time; player.playbackRate = resume.current.speed; setSpeed(resume.current.speed); if (resume.current.playing) void player.play().catch(() => setError("audioClickToResume")); resume.current = null; } } setReady(true); setError(null); }}
       onProgress={() => { const player = audio.current; const value = player?.duration ?? 0; if (Number.isFinite(value)) setDuration(value); setCanSeek(Boolean(player?.seekable.length)); }}
       onTimeUpdate={() => setPosition(audio.current?.currentTime ?? 0)} onPlay={() => { setError(null); setPlaying(true); }} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
-      onError={() => { setReady(false); setError('音频暂不可用，请检查网络或从附件菜单下载。'); if (connectionsEnabled && !recoveredAutomatically.current && audio.current?.error?.code === MediaError.MEDIA_ERR_NETWORK) { recoveredAutomatically.current = true; void connections.recoverMedia(route); } }} />
+      onError={() => { setReady(false); setError("audioUnavailable"); if (connectionsEnabled && !recoveredAutomatically.current && audio.current?.error?.code === MediaError.MEDIA_ERR_NETWORK) { recoveredAutomatically.current = true; void connections.recoverMedia(route); } }} />
     {preview ? <AttachmentShell title={source.attachment.name} subtitle={scoreDisplayName(source.score.fileName)} onClose={stopPlayback}>
       <div className="attachment-audio practice-audio-preview">
         <div className="attachment-audio-art"><FileAudio size={36} strokeWidth={1.3} aria-hidden="true" /></div>
-        <p>音频附件</p>
-        <Button className="practice-icon practice-play" aria-label={playing ? '暂停' : '播放'} isDisabled={!ready} onPress={play}>{playing ? <Pause size={20} fill="currentColor" aria-hidden="true" /> : <Play size={20} fill="currentColor" aria-hidden="true" />}</Button>
-        <label className="practice-field"><span>{time(position)} / {time(duration)}</span><input aria-label="播放位置" type="range" min="0" max={duration} step="0.1" value={position} disabled={!seekable} onChange={event => seek(Number(event.target.value))} /></label>
-        {!ready && !error && <p role="status">正在准备音频…</p>}
-        {error && <p role="alert">{error}<Button className="practice-action" onPress={() => { setError(null); setReady(false); setAttempt(value => value + 1); }}>重试</Button></p>}
-        <Button className="practice-action practice-listen-score" onPress={showScore}>边听边看谱</Button>
-        <p className="practice-hint">原 PDF 可手动翻页。音频附件需联网打开，不包含在主谱离线副本中。</p>
+        <p>{t("audioAttachment")}</p>
+        <Button className="practice-icon practice-play" aria-label={playing ? t("pause") : t("play")} isDisabled={!ready} onPress={play}>{playing ? <Pause size={20} fill="currentColor" aria-hidden="true" /> : <Play size={20} fill="currentColor" aria-hidden="true" />}</Button>
+        <label className="practice-field"><span>{time(position)} / {time(duration)}</span><input aria-label={t("playbackPosition")} type="range" min="0" max={duration} step="0.1" value={position} disabled={!seekable} onChange={event => seek(Number(event.target.value))} /></label>
+        {!ready && !error && <p role="status">{t("preparingAudio")}</p>}
+        {error && <p role="alert">{t(error)}<Button className="practice-action" onPress={() => { setError(null); setReady(false); setAttempt(value => value + 1); }}>{t("retry")}</Button></p>}
+        <Button className="practice-action practice-listen-score" onPress={showScore}>{t("listenAndRead")}</Button>
+        <p className="practice-hint">{t("audioOfflineHint")}</p>
       </div>
-    </AttachmentShell> : <AudioPracticePlayer source={source} ready={ready} playing={playing} message={error ?? (!ready ? '正在准备音频…' : '')} failed={Boolean(error)}
+    </AttachmentShell> : <AudioPracticePlayer source={source} ready={ready} playing={playing} message={error ? t(error) : !ready ? t("preparingAudio") : ""} failed={Boolean(error)}
       timeline={{value:position,max:duration,step:.1,disabled:!seekable,label:value => `${time(value)} / ${time(duration)}`,seek}}
       speed={speed} setSpeed={value => { if (audio.current) audio.current.playbackRate = value; setSpeed(value); }}
       position={time(position)} previousDisabled={!seekable || position <= 0} nextDisabled={!seekable || position >= duration}

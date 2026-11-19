@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { DrivePage } from "../score-library/drive-page";
 import { AppHeader } from "../components/app-header";
 import { guestSessionResponseSchema } from "../../shared/choirs";
@@ -23,6 +24,7 @@ function destination(userId: string, driveIds: string[]): EntryResult {
 // This component only exists for a startup intent. Explicit home visits never
 // mount it, so a late session/directory response cannot redirect those visits.
 export function StartupEntry({ identity, children }: { identity: ApplicationIdentity; children: ReactNode }) {
+  const t = useMessages("entry");
   const userId = identity.authenticatedUserId ?? identity.localUserId;
   const online = identity.onlineState === "authenticated";
   const [result, setResult] = useState<{ userId: string | null; value: EntryResult } | null>(null);
@@ -82,9 +84,9 @@ export function StartupEntry({ identity, children }: { identity: ApplicationIden
     const lastDrive = readLastDrive(userId);
     if (lastDrive) return <DrivePage choirId={lastDrive} />;
   }
-  if (!result || result.userId !== userId) return <div className="app-page"><AppHeader /><p className="page-shell" role="status">正在恢复云盘…</p></div>;
+  if (!result || result.userId !== userId) return <div className="app-page"><AppHeader /><p className="page-shell" role="status">{t("startup.restore")}</p></div>;
   if (typeof result.value === "object") return <Navigate to={result.value.path} replace state={{ missingLastDrive: result.value.missingLastDrive }} />;
-  if (result.value === "failed") return <div className="app-page"><AppHeader /><p className="page-shell" role="status">暂时无法加载已加入的云盘。<button className="text-button" onClick={() => { setResult(null); setRetry(value => value + 1); }}>重试</button> <Link to="/diagnostics">反馈问题</Link></p></div>;
+  if (result.value === "failed") return <div className="app-page"><AppHeader /><p className="page-shell" role="status">{t("startup.loadError")}<button className="text-button" onClick={() => { setResult(null); setRetry(value => value + 1); }}>{t("startup.retry")}</button> <Link to="/diagnostics">{t("startup.feedback")}</Link></p></div>;
   return children;
 }
 

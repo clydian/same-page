@@ -1,8 +1,10 @@
 import { FeedbackMessage } from '../components/feedback-message';
 import { useFeedbackMessage } from '../components/use-feedback-message';
+import { useMessages } from "../../i18n";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 export type Timeline = { value: number; min?: number; max: number; step?: number; disabled: boolean; label(value: number): string; seek(value: number): void; preview?(value: number | null): void };
 export function PlaybackTimeline({ timeline }: { timeline: Timeline }) {
+  const t = useMessages("practice");
   const [draft, setDraft] = useState<number | null>(null);
   const feedback = useFeedbackMessage();
   const { setMessage, dismiss } = feedback;
@@ -16,7 +18,7 @@ export function PlaybackTimeline({ timeline }: { timeline: Timeline }) {
   const latest = useRef(timeline);
   useEffect(() => { latest.current = timeline; }, [timeline]);
   const preview = (value: number) => { pending.current = value; setDraft(value); latest.current.preview?.(value); };
-  const cancel = useCallback(() => { if (interaction.current === null || interaction.current === 'cancelled') return; pending.current = null; interaction.current = 'cancelled'; setDraft(null); setMessage('已取消跳转，播放位置未改变', { duration: 5000 }); latest.current.preview?.(null); }, [setMessage]);
+  const cancel = useCallback(() => { if (interaction.current === null || interaction.current === 'cancelled') return; pending.current = null; interaction.current = 'cancelled'; setDraft(null); setMessage(t('seekCancelled'), { duration: 5000 }); latest.current.preview?.(null); }, [setMessage, t]);
   const commit = useCallback(() => {
     const value = pending.current;
     pending.current = null; interaction.current = null; setDraft(null);
@@ -51,11 +53,11 @@ export function PlaybackTimeline({ timeline }: { timeline: Timeline }) {
   const percent = timeline.max > min ? ((draft ?? timeline.value) - min) / (timeline.max - min) * 100 : 0;
   return <><div className="practice-timeline-track" style={{ '--practice-progress': `${percent}%` } as CSSProperties}>
     {draft !== null && <output ref={bubble} className="practice-timeline-preview" style={{ left: `clamp(${halfWidth}px, calc(${percent}% + ${10 - percent * .2}px), calc(100% - ${halfWidth}px))` }}>{label}</output>}
-    <input className="practice-timeline" aria-label="播放进度" aria-valuetext={label}
+    <input className="practice-timeline" aria-label={t("playbackProgress")} aria-valuetext={label}
       type="range" min={min} max={timeline.max} step={timeline.step ?? 1} disabled={timeline.disabled} value={draft ?? timeline.value}
       onPointerDown={event => { if (pointer.current && interaction.current !== 'cancelled') return; pointer.current = { id: event.pointerId, y: event.clientY }; dismiss(); interaction.current = 'pointer'; preview(timeline.value); }}
       onKeyDown={event => { if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key) && !pointer.current) interaction.current = 'keyboard'; if (event.key === 'Escape') cancel(); }}
       onChange={event => { const value = Number(event.target.value); if (interaction.current === null) timeline.seek(value); else if (interaction.current !== 'cancelled') preview(value); }}
       onKeyUp={() => { if (interaction.current === 'keyboard') commit(); }} onBlur={() => { if (interaction.current === 'keyboard') commit(); }} />
-  </div><FeedbackMessage feedback={feedback} closeLabel="关闭跳转提示" /></>;
+  </div><FeedbackMessage feedback={feedback} closeLabel={t("dismissSeekNotice")} /></>;
 }

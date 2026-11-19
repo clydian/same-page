@@ -1,3 +1,4 @@
+import { getMessages, getCurrentLocale } from "../../i18n";
 import { connectionFetch } from "../connection/connection";
 import { releaseChannelDiagnostics } from "../updates/release-channel";
 import { diagnosticReceiptSchema, diagnosticReportSchema, type DiagnosticReader, type DiagnosticReport } from "../../shared/diagnostic-report";
@@ -6,6 +7,8 @@ import { buildId, buildVersion } from "../../shared/build";
 import { currentUpdateFailure } from "../updates/update-diagnostics";
 
 // Only parsed, bounded tokens leave this function; never retain a raw user agent.
+const systemText = (key: string) => getMessages(getCurrentLocale(), "system")(key);
+
 export function diagnosticEnvironment(ua = navigator.userAgent): DiagnosticReport["environment"] {
   const browserPatterns = [
     ["edge", /(?:Edg|EdgiOS|EdgA)\/([\d.]+)/], ["firefox", /(?:Firefox|FxiOS)\/([\d.]+)/],
@@ -71,9 +74,9 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
   if (state.phase === "sending" || state.phase === "sent") return;
   let report: DiagnosticReport;
   try { report = state.report ?? captureDiagnosticReport(state.description, reader); }
-  catch { update({ ...state, message: "暂时无法准备反馈，请复制已有诊断信息。" }); return; }
+  catch { update({ ...state, message: systemText("diagnosticSubmission.prepareFailed") }); return; }
   const started = ++epoch;
-  update({ ...state, report, phase: "sending", message: "正在发送反馈…" });
+  update({ ...state, report, phase: "sending", message: systemText("diagnosticSubmission.sending") });
   const controller = new AbortController();
   pending = controller;
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -102,23 +105,23 @@ export async function sendDiagnosticReport(reader: DiagnosticReader | null) {
       if (started !== epoch) return;
     }
     if (response.status === 410) {
-      update({ ...state, phase: "failed", message: "这份反馈已被维护人员删除，请填写另一份反馈。" });
+      update({ ...state, phase: "failed", message: systemText("diagnosticSubmission.deleted") });
       return;
     }
     if (response.status === 429) {
-      update({ ...state, phase: "failed", message: "发送过于频繁，请稍后重试。当前反馈仍保留，也可复制。" });
+      update({ ...state, phase: "failed", message: systemText("diagnosticSubmission.throttled") });
       return;
     }
     if (!response.ok) throw new Error("unconfirmed");
     const receipt = diagnosticReceiptSchema.parse(await response.json());
     if (started !== epoch) return;
     if (receipt.id !== report.id) throw new Error("invalid_receipt");
-    update({ ...state, phase: "sent", message: report.retentionDays ? "已发送给合谱维护人员。" : "已发送给合谱维护人员，旧服务保存期限为 30 天。" });
+    update({ ...state, phase: "sent", message: report.retentionDays ? systemText("diagnosticSubmission.sent") : systemText("diagnosticSubmission.sentLegacy") });
   } catch {
     if (started !== epoch) return;
     update({ ...state, phase: "failed", message: navigator.onLine
-      ? "尚未确认收到反馈。当前内容仍保留，可重试或复制；重试不会重复创建反馈。"
-      : "当前离线，尚未确认收到反馈。请联网后重试，也可复制当前内容；重试不会重复创建反馈。" });
+      ? systemText("diagnosticSubmission.unconfirmed")
+      : systemText("diagnosticSubmission.offlineUnconfirmed") });
   } finally {
     clearTimeout(timeout);
     if (started === epoch) pending = null;

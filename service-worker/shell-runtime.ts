@@ -4,6 +4,7 @@ import type { InstallProgress } from '../src/shared/update-progress';
 import { configuredAssetReader } from "../src/shared/public-asset-fetch";
 import { networkFailure } from "../src/shared/read-transport";
 import { recoveryPage } from "./recovery-page";
+import { localeFromAcceptLanguage } from "../src/i18n/locales";
 import { ReleasePermission } from "./release-permission";
 import { assetValid, cachedPlaybackManifest, playbackAssetTypeValid, playbackCacheName, playbackCachePrefix, type PlaybackAsset } from '../src/shared/playback-assets';
 import { isApiPath } from '../src/client/pwa-navigation';
@@ -380,7 +381,7 @@ export class ShellRuntime {
     }
     return removed;
   }
-  async navigation() {
+  async navigation(acceptLanguage?: string | null) {
     const record = await this.current;
     try {
       if (this.permission && !await this.permission.permits(record.buildId)) throw new Error("release_not_permitted");
@@ -411,7 +412,7 @@ export class ShellRuntime {
           if (shell) { await this.permission?.displayed(previous.buildId); this.assetRecords = undefined; return shell; }
         } catch { /* Try another complete retained release; never a mixed shell. */ }
       }
-      return new Response(recoveryPage, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+      return new Response(recoveryPage(localeFromAcceptLanguage(acceptLanguage)), { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
   }
   auditAfterNavigation() {

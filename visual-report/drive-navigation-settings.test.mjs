@@ -13,7 +13,7 @@ after(async () => app?.stop());
 for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`${name}: drive switch, independent views, settings hierarchy and compact sort controls`, async t => {
     const browser = await engine.launch(); t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     const page = await context.newPage(); page.setDefaultTimeout(12000);
     const errors = []; page.on("pageerror", error => errors.push(error.message));
     const fixture = createVisualFixtureSession({ id: "library-long-list" });
@@ -171,7 +171,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
 
 test("chromium: native downward touch refreshes only the library and cancelled gestures do not refresh", async t => {
   const browser = await chromium.launch(); t.after(() => browser.close());
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "block" });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "block" });
   const page = await context.newPage();
   const fixture = createVisualFixtureSession({ id: "library-long-list" });
   let reads = 0;

@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages } from "../../i18n";
 import { untilAborted } from "../platform/abortable";
 import { ReaderOpening, readerOpeningFacts, type ReaderOpeningSnapshot } from "./reader-opening";
 import type { ReaderOpeningPhase, ReaderOpeningFacts } from "../../shared/reader-opening";
@@ -76,6 +77,7 @@ export class ReaderSession {
     this.lease = null;
   }
   private restoreDisplay() {
+    const t = getMessages(getCurrentLocale(), "reader");
     if (!this.retained) return false;
     const previous = this.retained;
     this.generation++;
@@ -87,7 +89,7 @@ export class ReaderSession {
     this.pdfFailed = false;
     this.deadline?.();
     this.opening.restorePresented(previous.opening);
-    this.publish({ opening: previous.opening, document: previous.document, status: "ready", error: null, displayMessage: "显示恢复未完成，已保留原谱面。" });
+    this.publish({ opening: previous.opening, document: previous.document, status: "ready", error: null, displayMessage: t("scoreDisplayRestoreFailed") });
     return true;
   }
   private lookupSequence = 0;
@@ -150,10 +152,11 @@ export class ReaderSession {
     this.started = true;
     this.fileWatcher = liveQuery(() => captureOfflineFileFence(this.workspace)).subscribe({ next: current => {
       void this.fileFence.then(initial => {
+        const t = getMessages(getCurrentLocale(), "reader");
         if (current === initial || this.disposed) return;
         this.filesCleared = true;
         this.releasePreparation();
-        this.publish({ offline: null, downloadMessage: "本机谱面文件已清理。当前谱面可继续阅读，再次打开时可重新下载。" });
+        this.publish({ offline: null, downloadMessage: t("offlineFileCleared") });
       }).catch(() => undefined);
     }, error: () => undefined });
     this.armDeadline();
@@ -195,11 +198,12 @@ export class ReaderSession {
   private armDeadline() {
     this.deadline?.();
     this.deadline = foregroundDeadline(() => {
+      const t = getMessages(getCurrentLocale(), "reader");
       if (this.retained) { this.restoreDisplay(); return; }
       if (this.state.status === "loading" || !this.state.score || !this.presentation.hasPresented(this.state.document)) {
         recordFailure({ operation: "pdf", category: "internal", stage: "prepare",
           step: this.state.document ? "reader-presentation" : this.source ? "reader-document" : "reader-source", errorType: "TimeoutError", pdfReason: "timeout", opening: readerOpeningFacts(this.opening.getSnapshot()) });
-        this.publish({ status: "error", error: "加载用时较长，可以重试或返回云盘。这不代表设备不兼容。" });
+        this.publish({ status: "error", error: t("loadingTimeout") });
         invalidateReaderDocument({ ...this.workspace });
         this.dispose();
       }
@@ -221,7 +225,7 @@ export class ReaderSession {
       recordFailure({ operation: "storage", category: "internal", stage: "prepare", step: "offline-read",
         errorType: diagnosticErrorType(error), opening: readerOpeningFacts(this.opening.getSnapshot()) });
       if (this.restoreDisplay()) return false;
-      this.publish({ status: "error", error: "PDF 已就绪，但暂时无法校验本机状态。请重试；已保存的乐谱和笔记仍然保留。" });
+      this.publish({ status: "error", error: getMessages(getCurrentLocale(), "reader")("localStateReadFailed") });
       this.dispose();
       return false;
     } finally { stopDeadline(); }
@@ -280,6 +284,7 @@ export class ReaderSession {
     this.prepareAutomaticOfflineCopy();
   }
   private async openOffline(offline: OfflineScoreRecord) {
+    const t = getMessages(getCurrentLocale(), "reader");
     if (this.source?.kind === "offline" && this.source.versionId === offline.versionId) return;
     const generation = this.generation;
     let data: ArrayBuffer | undefined;
@@ -287,7 +292,7 @@ export class ReaderSession {
     try { data = await readOfflineFileBytes(offline.blob); }
     catch {
       if (!await this.current() || generation !== this.generation) return;
-      this.publish({ offline: null, downloadMessage: "本机谱面读取失败，请重新下载；本机笔记仍然保留。" });
+      this.publish({ offline: null, downloadMessage: t("offlineReadFailed") });
       this.startCloudIfNeeded();
       this.resolveFailure();
       return;
@@ -357,10 +362,11 @@ export class ReaderSession {
       const preparation = new OfflinePreparation(this.workspace, score, this.authenticatedUserId, this.fileFence);
       this.preparation = preparation;
       preparation.subscribe(() => {
+        const t = getMessages(getCurrentLocale(), "reader");
         if (this.preparation !== preparation || this.disposed) return;
         const state = preparation.getSnapshot();
         this.publish({ preparation: state, downloading: state.phase === "preparing",
-          downloadMessage: state.phase === "ready" ? "离线副本已完整校验，可以离线打开。"
+          downloadMessage: state.phase === "ready" ? t("offlineVerified")
             : state.phase === "failed" ? offlinePreparationDescription(state, { record: this.state.offline, invalid: false }, this.state.score?.currentVersion.id ?? "") : null,
           ...(state.phase === "ready" ? { offline: state.record } : {}),
         });
@@ -389,7 +395,8 @@ export class ReaderSession {
     return this.prepareOffline("explicit");
   };
   cancel = () => {
-    this.publish({ status: "error", error: "加载已取消，本机草稿仍然保留。" });
+    const t = getMessages(getCurrentLocale(), "reader");
+    this.publish({ status: "error", error: t("loadingCancelled") });
     invalidateReaderDocument({ ...this.workspace });
     this.dispose();
   };
@@ -413,15 +420,17 @@ export class ReaderSession {
 function scorePath(workspace: LocalWorkspace) { return `/api/choirs/${encodeURIComponent(workspace.choirId)}/scores/${encodeURIComponent(workspace.scoreId)}`; }
 function cloudPdfSource(workspace: LocalWorkspace, versionId?: string) { return versionId ? `${scorePath(workspace)}/versions/${encodeURIComponent(versionId)}/pdf` : `${scorePath(workspace)}/pdf`; }
 function failureMessage(state: Exclude<CloudLookup["state"], "active">) {
-  return { trashed: "这份乐谱已移入回收站，当前设备没有可用的离线副本。", "permission-denied": "当前账号没有访问这份乐谱的权限。请返回云盘确认成员关系。", "network-unavailable": "网络暂时不可用，且当前设备没有这份乐谱的离线副本。", "service-unavailable": "服务暂时不可用或返回内容异常，请稍后重试；本机内容仍然保留。", missing: "这份乐谱不存在或已经被永久移除。" }[state];
+  const t = getMessages(getCurrentLocale(), "reader");
+  return { trashed: t("trashedWithoutOfflineCopy"), "permission-denied": t("scorePermissionDenied"), "network-unavailable": t("noOfflineCopy"), "service-unavailable": t("scoreServiceUnavailable"), missing: t("scoreMissing") }[state];
 }
 
 function pdfErrorMessage(error: unknown, source: Source["kind"]) {
+  const t = getMessages(getCurrentLocale(), "reader");
   const reason = pdfFailureReason(error);
-  if (reason === "engine-unavailable") return "当前浏览器无法启动 PDF 阅读引擎，请升级浏览器或系统。本机笔记仍然保留。";
+  if (reason === "engine-unavailable") return t("pdfEngineUnavailable");
   const category = pdfFailureCategory(error);
-  if (category === "permission") return "当前无法访问这份 PDF，请返回云盘确认登录状态和权限。";
-  if (category === "network") return "PDF 下载失败，请检查网络后重试。本机笔记仍然保留。";
-  if (error instanceof Error && error.name === "PasswordException") return "这份 PDF 需要密码，暂时无法在这里阅读。请重试或联系文件提供者。";
-  return source === "offline" ? "本机离线副本无法解析，现有笔记仍然保留。" : "PDF 无法解析或文件暂时不可用，请重试。";
+  if (category === "permission") return t("pdfAccessDenied");
+  if (category === "network") return t("pdfDownloadFailed");
+  if (error instanceof Error && error.name === "PasswordException") return t("pdfPasswordRequired");
+  return source === "offline" ? t("offlinePdfInvalid") : t("pdfParseFailed");
 }

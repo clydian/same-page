@@ -11,7 +11,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const posts = route => network.traffic.filter(item => item.method === 'POST' && item.path.startsWith(`/api/_entry/${route}/guest/session`)).length;
     for (const scenario of ['recheck', 'headers', 'body', 'both', 'manual', 'cancel']) {
       await t.test(scenario, async () => {
-        const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', ignoreHTTPSErrors: true });
+        const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: 'block', ignoreHTTPSErrors: true });
         let releaseRecheck;
         try {
           network.admissionFaults.direct = scenario === 'body' ? 'body' : 'headers';

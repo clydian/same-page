@@ -16,6 +16,7 @@ describe("authentication OTP email", () => {
     expect(message.subject).toBe(subject);
     expect(message.subject).not.toContain("123456");
     expect(message.text).toContain("验证码：123456");
+    expect(message.html).toContain("<p>验证码：</p>");
     expect(message.html).toContain(">123456<");
     expect(message.text).toContain("samepage.clyapps.com");
     expect(message.text).toContain(action);

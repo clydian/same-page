@@ -16,7 +16,7 @@ test("conflicts compare in place and require confirmation in Chromium and WebKit
     try {
       // Wide and narrowest layouts cover both dialog presentations.
       for (const width of [834, 320]) {
-        const context = await browser.newContext({ viewport: { width, height: width === 834 ? 1100 : 844 }, serviceWorkers: "block", reducedMotion: "reduce" });
+        const context = await browser.newContext({ locale: "zh-CN", viewport: { width, height: width === 834 ? 1100 : 844 }, serviceWorkers: "block", reducedMotion: "reduce" });
         try {
           await context.addInitScript(() => {
             localStorage.setItem("reader-gesture-hint-seen", "true");

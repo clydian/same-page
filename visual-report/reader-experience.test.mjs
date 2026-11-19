@@ -11,7 +11,7 @@ after(async () => { await server?.stop(); });
 async function open(context, identity = "member", experience = false) {
   const browser = await chromium.launch({ headless: true });
   context.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 1194, height: 700 }, hasTouch: true, serviceWorkers: "block" });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 1194, height: 700 }, hasTouch: true, serviceWorkers: "block" });
   await page.route("**/api/**", route => route.fulfill(resolveFixtureRequest({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: new URL(route.request().url()).searchParams.get("experience") === "1" ? "guest" : identity, scenarioId: "reader-controls-narrow", cookie: route.request().headers().cookie ?? "" })));
   await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
   await page.goto(`${server.origin}/choirs/visual-choir/scores/visual-score${experience ? "?experience=1" : ""}`);

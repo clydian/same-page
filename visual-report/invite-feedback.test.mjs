@@ -13,7 +13,7 @@ after(async () => app?.stop());
 for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`${name}: actual invitation card image joins through existing admission, versions and feedback remain accessible`, async t => {
     const browser = await engine.launch(); t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     await withBrowserEvidence(context, `artifacts/verification/issue-485/${name}-invitation-flow`, async () => {
     const page = await context.newPage(); page.setDefaultTimeout(15000);
     await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
@@ -93,7 +93,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
 
   test(`${name}: support-only inbox filters, marks and deletes with confirmation on narrow screens`, async t => {
     const browser = await engine.launch(); t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 320, height: 800 }, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 320, height: 800 }, serviceWorkers: "block" });
     const page = await context.newPage(), fixture = createVisualFixtureSession({ id: "library-invite-active" });
     const id = "11111111-1111-4111-8111-111111111111";
     let status = "new", deleted = false;

@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import type { ReactNode } from "react";
 import { Modal, ModalOverlay } from "react-aria-components";
 import { Dialog } from "../navigation/overlays";
@@ -18,5 +19,6 @@ export function LibraryTaskDialog({ title, onClose, busy = false, size = "regula
 }
 
 export function LibraryTaskLoading(props: TaskFrameProps) {
-  return <LibraryTaskDialog {...props}><LoadingStatus>正在准备…</LoadingStatus></LibraryTaskDialog>;
+  const t = useMessages("library");
+  return <LibraryTaskDialog {...props}><LoadingStatus>{t("libraryExportPreparing")}</LoadingStatus></LibraryTaskDialog>;
 }

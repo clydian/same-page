@@ -1,3 +1,4 @@
+import { PracticeOpeningError, type PracticeOpeningErrorCode } from "./practice-error";
 import { createPlayerSession, type PlayerSession } from '@same-page/player';
 import { acquirePlaybackPreparation, clearPlaybackPreparation } from './playback-preparation';
 import { resolveMusicXmlSource, MUSICXML_READ_TIMEOUT_MS, type MusicXmlReadProgress } from './musicxml-source';
@@ -13,6 +14,7 @@ export interface MusicXmlOpeningSnapshot {
   session: PlayerSession | null;
   progress: MusicXmlReadProgress;
   error: string | null;
+  errorCode?: PracticeOpeningErrorCode;
   offlineStatus: 'preparing' | 'ready' | 'failed';
 }
 interface OpeningTarget { source: PlaybackSource; container: HTMLDivElement; viewport: HTMLDivElement }
@@ -65,10 +67,10 @@ export function openMusicXmlPlayback({ source, container, viewport }: OpeningTar
     let firstSystem = false;
     let automaticStarted = false;
     const timeout = setTimeout(() => {
-      const reason = new Error('读取附件超时，请重试。');
+      const reason = new PracticeOpeningError("attachmentTimeout");
       abort.abort(reason);
       loading.end('error');
-      publish({ error: reason.message });
+      publish({ error: reason.message, errorCode: reason.code });
     }, MUSICXML_READ_TIMEOUT_MS);
     verifyAuthority = () => {
       // Focus is a fresh authority check, never a cached opening permission.
@@ -139,7 +141,8 @@ export function openMusicXmlPlayback({ source, container, viewport }: OpeningTar
       if (!active || abort.signal.aborted) return;
       loading.end('error');
       if (denied(reason)) { revoke(); return; }
-      publish({ error: reason instanceof Error ? reason.message : '读取失败。' });
+      const error = reason instanceof PracticeOpeningError ? reason : new PracticeOpeningError("readFailure");
+      publish({ error: reason instanceof Error ? reason.message : error.message, errorCode: error.code });
     });
   };
   const dispose = () => {

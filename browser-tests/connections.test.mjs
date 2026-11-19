@@ -10,7 +10,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const { origins } = fixture;
     t.after(() => fixture.stop());
     const browser = await engine.launch(name === "chromium" && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}); t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', ignoreHTTPSErrors: true }); t.after(() => context.close());
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: 'block', ignoreHTTPSErrors: true }); t.after(() => context.close());
     const page = await context.newPage();
     await page.goto(origins.direct + '/login');
     const status = await page.evaluate(async account => (await fetch('/api/_entry/direct/auth/sign-in/email', {

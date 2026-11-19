@@ -1,9 +1,11 @@
+import { useMessages } from "../../i18n";
 import { useEffect, useRef, useState } from 'react';
 import type { PlaybackSource } from './playback-store';
 import { MusicXmlPractice } from './musicxml-practice';
 import { openMusicXmlPlayback, type MusicXmlOpeningSnapshot } from './musicxml-opening';
 
 export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
+  const t = useMessages("practice");
   const container = useRef<HTMLDivElement>(null), viewport = useRef<HTMLDivElement>(null);
   const opening = useRef<ReturnType<typeof openMusicXmlPlayback> | null>(null);
   const [state, setState] = useState<MusicXmlOpeningSnapshot>({
@@ -16,7 +18,7 @@ export default function MusicXmlPlayer({ source }: { source: PlaybackSource }) {
     return () => { current.dispose(); opening.current = null; };
   }, [source]);
   return <MusicXmlPractice source={source} container={container} viewport={viewport}
-    session={state.session} error={state.error} offlineStatus={state.offlineStatus}
-    preparation={{ message: state.progress.phase === 'access' ? '正在确认乐谱…' : state.progress.phase === 'local' ? '正在读取本机乐谱…' : '正在下载乐谱…', loaded: state.progress.loaded, total: state.progress.total }}
+    session={state.session} error={state.errorCode ? t(state.errorCode) : state.error} offlineStatus={state.offlineStatus}
+    preparation={{ message: state.progress.phase === 'access' ? t("checkingScore") : state.progress.phase === 'local' ? t("readingLocalScore") : t("downloadingScore"), loaded: state.progress.loaded, total: state.progress.total }}
     retry={() => opening.current?.retry()} retryOffline={() => opening.current?.retryOffline()} />;
 }

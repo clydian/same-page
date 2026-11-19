@@ -1,3 +1,4 @@
+import { getMessages, sourceLocale, useMessages } from "../../i18n";
 import type { AnnotationLayerSummary, DriveLayerPreferenceSummary } from "../../shared/annotations";
 import { useReadResource } from "../settings/use-read-resource";
 import { useReadingPreferenceIntents, currentReadingIntent, setReadingIntent, finishReadingIntent, clearReadingIntent } from "./reading-preference-intents";
@@ -6,7 +7,19 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { captureLocalWorkspaceSession, type LocalWorkspace } from "../platform/local-workspace";
 import { loadDriveReadingPreferences, restoreDriveReadingPreferences, projectDriveReadingPreferences, projectReadingPreferences, flushReadingPreferences, preferenceKey, readReadingPreferences, saveReadingPreference, type PreferenceTarget, type ReadingPreferenceChange } from "./reading-preferences";
 
+const preferenceErrorKeys = [
+  "preferenceSignInRequired",
+  "preferenceAccessDenied",
+  "preferenceCloudSaveFailed",
+  "preferenceConnectionFailed",
+  "preferenceLockUnavailable",
+] as const;
+
+const sourceMessage = getMessages(sourceLocale, "reader");
+const preferenceErrorKeyByMessage = new Map(preferenceErrorKeys.map(key => [sourceMessage(key), key]));
+
 export function useReadingPreferences(workspace: LocalWorkspace, signedIn: boolean) {
+  const t = useMessages("reader");
   const lifetime = useRef<AbortController | null>(null);
   const savedRows = useLiveQuery(() => readReadingPreferences(workspace), [workspace.scopeKey], []);
   const intents = useReadingPreferenceIntents(workspace);
@@ -46,9 +59,10 @@ export function useReadingPreferences(workspace: LocalWorkspace, signedIn: boole
     const intent = intents.find(row => row.key === key);
     const row = savedRows.find(row => row.key === key);
     if (intent && intent.localState !== "saved") return intent.localState === "failed"
-      ? { message: "尚未保存到本机，请重试。", retry: () => void save(target, { subscribed: intent.subscribed, colorOverride: intent.colorOverride }) }
+      ? { message: t("preferencesLocalSaveFailed"), retry: () => void save(target, { subscribed: intent.subscribed, colorOverride: intent.colorOverride }) }
       : null;
-    return row?.error ? { message: row.error, retry: () => {
+    const errorKey = row?.error && preferenceErrorKeyByMessage.get(row.error);
+    return row?.error ? { message: errorKey ? t(errorKey) : row.error, retry: () => {
       if (signedIn) void captureLocalWorkspaceSession(workspace).then(current => flushReadingPreferences(current, undefined, lifetime.current?.signal, key)).catch(() => undefined);
     } } : null;
   };

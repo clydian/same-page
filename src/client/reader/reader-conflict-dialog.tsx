@@ -1,3 +1,4 @@
+import { getMessages, useAppLocale, useMessages, type AppLocale } from "../../i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button, Modal, ModalOverlay, Radio, RadioGroup } from "react-aria-components";
 import { ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
@@ -27,6 +28,8 @@ type Props = {
 };
 
 export function ReaderConflictDialog(props: Props) {
+  const t = useMessages("reader");
+  const { locale } = useAppLocale();
   const { conflicts, online, onRefresh, onClose } = props;
   const [selectedId, setSelectedId] = useState(conflicts[0]?.opId);
   const [refreshResult, setRefreshResult] = useState<{ request: Props["onRefresh"]; ok: boolean; checkedAt: number } | null>(null);
@@ -51,38 +54,38 @@ export function ReaderConflictDialog(props: Props) {
     setBusy(true); setMessage(null);
     try {
       const outcome = await props.onResolve(opId, strategy, reviewed);
-      setMessage(outcome === "conflict-changed" ? "笔记又有变化，请重新比较并选择。" :
-        outcome === "failed" || outcome === null ? "处理未完成，本机内容保留，请重试。" :
-        outcome === "local-saved" ? "选择已保存在本机，等待同步。" : null);
+      setMessage(outcome === "conflict-changed" ? t("resolveConflictChanged") :
+        outcome === "failed" || outcome === null ? t("resolveConflictFailed") :
+        outcome === "local-saved" ? t("resolveConflictSaved") : null);
       return outcome;
     } finally { setBusy(false); }
   };
   return <ModalOverlay className="modal-overlay conflict-backdrop" isOpen isDismissable={!busy} isKeyboardDismissDisabled={busy}
     onOpenChange={open => { if (!open && !busy) onClose(); }}>
     <Modal className="conflict-modal">
-      <Dialog ref={dialog} aria-label="比较冲突笔记" className="conflict-dialog" exitDisabled={busy}>
-        <header className="conflict-header"><div><h2>比较笔记</h2><span>{conflict ? `${index + 1} / ${conflicts.length}` : "已处理"}</span></div>
-          <Button className="reader-icon-button" aria-label="关闭笔记比较" isDisabled={busy} onPress={onClose}><X size={20} /></Button></header>
+      <Dialog ref={dialog} aria-label={t("compareConflictingNotes")} className="conflict-dialog" exitDisabled={busy}>
+        <header className="conflict-header"><div><h2>{t("compareNotes")}</h2><span>{conflict ? `${index + 1} / ${conflicts.length}` : t("resolved")}</span></div>
+          <Button className="reader-icon-button" aria-label={t("closeNoteComparison")} isDisabled={busy} onPress={onClose}><X size={20} /></Button></header>
         {conflict ? <>
-          <div className="conflict-context"><span>{props.layers.find(layer => layer.id === conflict.layerId)?.name ?? "原图层不可用"}</span>
-            <span>{!online ? "离线 · 显示已保存的云端快照" : refresh === "checking" ? "正在核对云端…" : refresh === "failed" ? "未能核对云端 · 显示已保存的快照" : `已核对云端 · ${formatConflictTime(refreshResult?.checkedAt)}`}</span></div>
+          <div className="conflict-context"><span>{props.layers.find(layer => layer.id === conflict.layerId)?.name ?? t("theOriginalLayerIsUnavailable")}</span>
+            <span>{!online ? t("offlineCloudSnapshot") : refresh === "checking" ? t("checkingCloud") : refresh === "failed" ? t("cloudReviewFailed") : t("cloudReviewedAt", { time: formatConflictTime(locale, refreshResult?.checkedAt) })}</span></div>
           <ConflictComparison key={conflictFingerprint(conflict)} {...props} conflict={conflict} busy={busy}
             onResolve={resolve} blocked={online && refresh !== "checked"} />
           {message && <p role="status" className="conflict-message">{message}</p>}
-          <footer className="conflict-footer"><Button className="secondary-button" isDisabled={busy} onPress={onClose}>稍后处理</Button>
+          <footer className="conflict-footer"><Button className="secondary-button" isDisabled={busy} onPress={onClose}>{t("resolveLater")}</Button>
             {refresh === "failed" && online && <Button className="secondary-button" isDisabled={busy} onPress={() => {
               setRefreshResult(null); void onRefresh().then(ok => setRefreshResult({ request: onRefresh, ok, checkedAt: Date.now() }));
-            }}>重新核对</Button>}
-            <div><Button className="reader-icon-button" aria-label="上一条冲突" isDisabled={busy || index === 0} onPress={() => { setSelectedId(conflicts[index - 1].opId); setMessage(null); }}><ChevronLeft size={20} /></Button>
-              <Button className="reader-icon-button" aria-label="下一条冲突" isDisabled={busy || index === conflicts.length - 1} onPress={() => { setSelectedId(conflicts[index + 1].opId); setMessage(null); }}><ChevronRight size={20} /></Button></div>
+            }}>{t("checkAgain")}</Button>}
+            <div><Button className="reader-icon-button" aria-label={t("previousConflict")} isDisabled={busy || index === 0} onPress={() => { setSelectedId(conflicts[index - 1].opId); setMessage(null); }}><ChevronLeft size={20} /></Button>
+              <Button className="reader-icon-button" aria-label={t("nextConflict")} isDisabled={busy || index === conflicts.length - 1} onPress={() => { setSelectedId(conflicts[index + 1].opId); setMessage(null); }}><ChevronRight size={20} /></Button></div>
           </footer>
-        </> : <><p role="status">这份乐谱的本机冲突已处理。</p>{message && <p role="status">{message}</p>}
+        </> : <><p role="status">{t("allConflictsResolved")}</p>{message && <p role="status">{message}</p>}
           {props.syncStatus.message && <p role="status">{props.syncStatus.message}</p>}
           <div className="conflict-complete-actions">
             {props.syncStatus.kind !== "quiet" && <Button className="secondary-button" isDisabled={busy || !props.canRetry} onPress={() => {
               setBusy(true); setMessage(null); void props.onRetry().finally(() => setBusy(false));
-            }}>{busy ? "正在同步…" : "重试同步"}</Button>}
-            <Button className="primary-button" isDisabled={busy} onPress={onClose}>返回看谱</Button>
+            }}>{busy ? t("synchronizing") : t("retrySynchronization")}</Button>}
+            <Button className="primary-button" isDisabled={busy} onPress={onClose}>{t("returnToScore")}</Button>
           </div></>}
       </Dialog>
     </Modal>
@@ -92,6 +95,8 @@ export function ReaderConflictDialog(props: Props) {
 function ConflictComparison({ conflict, document, layers, annotations, online, busy, blocked, onResolve }: Props & {
   conflict: AnnotationConflictRecord; busy: boolean; blocked: boolean;
 }) {
+  const t = useMessages("reader");
+  const { locale } = useAppLocale();
   const [source, setSource] = useState<"local" | "cloud">("local");
   const [choice, setChoice] = useState<ConflictStrategy | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -110,35 +115,35 @@ function ConflictComparison({ conflict, document, layers, annotations, online, b
     createdByDisplayName: "", updatedByDisplayName: source === "cloud" ? conflict.canonical?.updatedByDisplayName ?? "" : "", updatedAt: 0,
   }] : [];
   return <>
-    <div className="conflict-source-switch" role="group" aria-label="预览版本">
-      <Button aria-pressed={source === "local"} isDisabled={busy} onPress={() => setSource("local")}>本机修改{localPage ? ` · 第 ${localPage} 页` : ""}</Button>
-      <Button aria-pressed={source === "cloud"} isDisabled={busy} onPress={() => setSource("cloud")}>云端版本{cloudPage ? ` · 第 ${cloudPage} 页` : ""}</Button>
+    <div className="conflict-source-switch" role="group" aria-label={t("previewVersion")}>
+      <Button aria-pressed={source === "local"} isDisabled={busy} onPress={() => setSource("local")}>{t("localVersion")}{localPage ? t("localConflictPage", { localPage }) : ""}</Button>
+      <Button aria-pressed={source === "cloud"} isDisabled={busy} onPress={() => setSource("cloud")}>{t("cloudVersion")}{cloudPage ? t("cloudConflictPage", { cloudPage }) : ""}</Button>
     </div>
     {page !== null && page >= 1 && page <= document.numPages ? <ConflictPreview
       key={page} document={document} page={page} conflict={conflict} layers={layers}
       references={annotations.filter(annotation => annotation.id !== conflict.annotationId && !annotation.deleted)}
-      target={preview} /> : <div className="conflict-missing-page" role="status">{page ? `当前 PDF 没有第 ${page} 页，无法显示原谱位置。` : "没有可定位的谱面位置。"}</div>}
+      target={preview} /> : <div className="conflict-missing-page" role="status">{page ? t("originalScorePageUnavailable", { page }) : t("noScorePosition")}</div>}
     <div className="conflict-variant-detail" aria-live="polite">
-      <strong>{deleted ? source === "local" ? "本机已删除这条笔记" : "云端已删除这条笔记" : source === "local" ? "本机修改 · 尚未上传" : `云端版本${conflict.canonical?.updatedByDisplayName ? ` · ${conflict.canonical.updatedByDisplayName}` : ""}`}</strong>
-      {source === "cloud" && <span>{conflict.canonical ? `云端修改于 ${formatConflictTime(conflict.canonical.updatedAt, true)}` : "云端快照时间未知"}{!online ? " · 快照核对时间未知，联网后可重新核对" : ""}</span>}
+      <strong>{deleted ? source === "local" ? t("locallyDeletedNote") : t("cloudDeletedNote") : source === "local" ? t("localChangesNotUploaded") : t("cloudVersionAuthor", { value1: conflict.canonical?.updatedByDisplayName ? ` · ${conflict.canonical.updatedByDisplayName}` : "" })}</strong>
+      {source === "cloud" && <span>{conflict.canonical ? t("cloudUpdatedAt", { time: formatConflictTime(locale, conflict.canonical.updatedAt, true) }) : t("cloudSnapshotTimeUnknown")}{!online ? t("reconnectForCloudSnapshot") : ""}</span>}
       {!deleted && payload?.kind === "text" && <span>{payload.text}</span>}
-      {!deleted && payload?.kind === "ink" && <span>{payload.brush === "highlighter" ? "荧光笔笔记" : "画笔笔记"}</span>}
-      {!deleted && payload?.kind === "shape" && <span>{payload.shape === "rectangle" ? "矩形笔记" : "椭圆笔记"}</span>}
-      {deleted && !payload && <span>删除前的内容未保存在此版本中。</span>}
+      {!deleted && payload?.kind === "ink" && <span>{payload.brush === "highlighter" ? t("highlighterNote") : t("inkNote")}</span>}
+      {!deleted && payload?.kind === "shape" && <span>{payload.shape === "rectangle" ? t("rectangularNotes") : t("ovalNotes")}</span>}
+      {deleted && !payload && <span>{t("deletedNoteContentMissing")}</span>}
     </div>
-    {!target && <p role="alert">本机笔记暂不可读取，请关闭后重试。</p>}
-    <RadioGroup aria-label="处理这条笔记" className="conflict-choices" value={choice ?? ""} isDisabled={busy || blocked || !target}
+    {!target && <p role="alert">{t("conflictNoteReadFailed")}</p>}
+    <RadioGroup aria-label={t("resolveNote")} className="conflict-choices" value={choice ?? ""} isDisabled={busy || blocked || !target}
       onChange={value => { setChoice(value as ConflictStrategy); setConfirming(false); }}>
-      {choices.map(item => <Radio key={item.strategy} value={item.strategy} isDisabled={item.strategy !== "discard" && !editable}><span className="conflict-radio-mark" />{item.label}</Radio>)}
+      {choices.map(item => <Radio key={item.strategy} value={item.strategy} isDisabled={item.strategy !== "discard" && !editable}><span className="conflict-radio-mark" />{t(item.labelKey)}</Radio>)}
     </RadioGroup>
-    {!editable && <p className="conflict-message">原图层暂不可编辑，本机内容仍保留。</p>}
-    {confirming && selected ? <div className="conflict-confirm" role="group" aria-label="确认处理笔记">
-      <p>{selected.consequence}{!online && choice !== "discard" ? " 联网后才会提交。" : ""}</p>
-      <div><Button className="secondary-button" isDisabled={busy} onPress={() => setConfirming(false)}>返回选择</Button>
+    {!editable && <p className="conflict-message">{t("layerUnavailableForEditing")}</p>}
+    {confirming && selected ? <div className="conflict-confirm" role="group" aria-label={t("confirmNoteResolution")}>
+      <p>{t(selected.consequenceKey)}{!online && choice !== "discard" ? t("resolveWhenOnline") : ""}</p>
+      <div><Button className="secondary-button" isDisabled={busy} onPress={() => setConfirming(false)}>{t("backToChoices")}</Button>
         <Button className="primary-button" isDisabled={busy || blocked || !allowed} onPress={() => {
           void onResolve(conflict.opId, selected.strategy, conflict).then(result => { if (result === "failed" || result === "conflict-changed") setConfirming(false); });
-        }}>{busy ? "正在处理…" : "确认处理"}</Button></div>
-    </div> : <Button className="primary-button conflict-continue" isDisabled={!selected || busy || blocked || !allowed || !target} onPress={() => setConfirming(true)}>确认选择</Button>}
+        }}>{busy ? t("processing") : t("confirmResolution")}</Button></div>
+    </div> : <Button className="primary-button conflict-continue" isDisabled={!selected || busy || blocked || !allowed || !target} onPress={() => setConfirming(true)}>{t("confirmSelection")}</Button>}
   </>;
 }
 
@@ -146,6 +151,7 @@ function ConflictPreview({ document, page, conflict, layers, references, target 
   document: PDFDocumentProxy; page: number; conflict: AnnotationConflictRecord;
   layers: AnnotationLayerSummary[]; references: LocalAnnotationRecord[]; target: LocalAnnotationRecord[];
 }) {
+  const t = useMessages("reader");
   const ratio = usePdfPageAspectRatio(document, page);
   const viewport = useRef<HTMLDivElement>(null);
   const paper = useRef<HTMLDivElement>(null);
@@ -188,10 +194,10 @@ function ConflictPreview({ document, page, conflict, layers, references, target 
   };
   const targetLayers = layers.map(layer => layer.id === conflict.layerId ? { ...layer, subscribed: true } : layer);
   const bounds = target[0]?.payload ? annotationBounds(target[0].payload) : null;
-  return <section className="conflict-preview" aria-label="原谱位置预览">
-    <div className="conflict-preview-tools"><Button className="secondary-button" onPress={() => changeZoom(Math.min(1, height * ratio / width), true)}>查看整页</Button>
-      <div><Button className="reader-icon-button" aria-label="缩小比较谱面" isDisabled={zoom <= .2} onPress={() => changeZoom(Math.max(.2, zoom - .4))}><Minus size={18} /></Button>
-        <Button className="reader-icon-button" aria-label="放大比较谱面" isDisabled={zoom >= 3} onPress={() => changeZoom(Math.min(3, zoom + .4))}><Plus size={18} /></Button></div></div>
+  return <section className="conflict-preview" aria-label={t("scorePositionPreview")}>
+    <div className="conflict-preview-tools"><Button className="secondary-button" onPress={() => changeZoom(Math.min(1, height * ratio / width), true)}>{t("viewFullPage")}</Button>
+      <div><Button className="reader-icon-button" aria-label={t("zoomOutComparison")} isDisabled={zoom <= .2} onPress={() => changeZoom(Math.max(.2, zoom - .4))}><Minus size={18} /></Button>
+        <Button className="reader-icon-button" aria-label={t("zoomInComparison")} isDisabled={zoom >= 3} onPress={() => changeZoom(Math.min(3, zoom + .4))}><Plus size={18} /></Button></div></div>
     <div className="conflict-viewport" ref={viewport}>
       <div className="conflict-paper" ref={paper} style={{ width: width * zoom, aspectRatio: String(ratio) }}>
         <PdfPageCanvas document={document} pageNumber={page} width={width * zoom} aspectRatio={ratio} presentation={false} />
@@ -203,6 +209,7 @@ function ConflictPreview({ document, page, conflict, layers, references, target 
   </section>;
 }
 
-function formatConflictTime(at: number | undefined, includeDate = false) {
-  return at && Number.isFinite(at) ? new Date(at).toLocaleString("zh-CN", { ...(includeDate ? { month: "numeric", day: "numeric" } : {}), hour: "2-digit", minute: "2-digit" }) : "时间未知";
+function formatConflictTime(locale: AppLocale, at: number | undefined, includeDate = false) {
+  const t = getMessages(locale, "reader");
+  return at && Number.isFinite(at) ? new Date(at).toLocaleString(locale, { ...(includeDate ? { month: "numeric", day: "numeric" } : {}), hour: "2-digit", minute: "2-digit" }) : t("timeUnknown");
 }

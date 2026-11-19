@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { foregroundDeadline, waitForForeground } from "./foreground-deadline";
 import { pdfFailureCategory, pdfFailureReason, pdfEngineVersion, recordFailure } from "../diagnostics/diagnostics";
 import { acquireRenderSlot, sizeRenderCanvas, releaseRenderCanvas, renderBudgetFacts, subscribeRenderBudget, hasRenderCapacity } from "./render-budget";
@@ -31,6 +32,7 @@ export function PdfPageCanvas({
   maxPixels?: number;
   mode?: PdfRenderFacts["mode"];
 }) {
+  const t = useMessages("reader");
   const renderPriority = priority ?? (presentation ? 0 : 2);
   const pixelLimit = maxPixels ?? (presentation ? 4 * 1024 * 1024 : 64 * 1024);
   const renderMode = mode ?? (presentation ? "paged" : "thumbnail");
@@ -242,7 +244,7 @@ export function PdfPageCanvas({
       className={`${className}${error ? " pdf-page-canvas--error" : ""}`}
       data-page-number={pageNumber}
       role={error ? undefined : "img"}
-      aria-label={error ? undefined : `第 ${pageNumber} 页`}
+      aria-label={error ? undefined : t("pageNumber", { pageNumber })}
       style={{
         width: `${Math.max(1, width)}px`,
         height: `${Math.max(1, width / Math.max(0.001, aspectRatio))}px`,
@@ -259,7 +261,7 @@ export function PdfPageCanvas({
           }}
         />
       ))}
-      {error ? <div className="page-render-recovery"><p role="alert">这一页暂时无法显示</p><button onClick={() => { automaticRetries.current = 0; retry(); }}>重试本页</button>{presentation && retryDocument && <button onClick={retryDocument}>重新加载 PDF</button>}</div> : null}
+      {error ? <div className="page-render-recovery"><p role="alert">{t("pageUnavailable")}</p><button onClick={() => { automaticRetries.current = 0; retry(); }}>{t("retryPage")}</button>{presentation && retryDocument && <button onClick={retryDocument}>{t("reloadPdf")}</button>}</div> : null}
     </div>
   );
 }

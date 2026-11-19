@@ -1,19 +1,22 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import { assetUrl } from "../../shared/asset-url";
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import "../settings/settings-ux.css";
 
-export function AppHeader({ actions }: { actions?: ReactNode }) {
+export function AppHeader({ actions, onHome }: { actions?: ReactNode; onHome?: MouseEventHandler<HTMLAnchorElement> }) {
+  const t = useMessages("common");
+  const { locale } = useAppLocale();
+  const chineseBrand = locale === "zh-Hans" || locale === "zh-Hant-TW";
   return (
     <header className="app-header">
-      <Link className="brand-link" to="/" state={{ home: true }} aria-label="合谱 Same Page 首页">
+      <Link className="brand-link" to="/" state={{ home: true }} aria-label={t("brandHome")} onClick={onHome}>
         <img src={assetUrl("icon-192.png")} alt="" width="44" height="44" />
-        <span className="brand-name-zh" lang="zh-CN">合谱</span>
-        <span className="brand-name-en" lang="en">Same Page</span>
+        {chineseBrand && <span className="brand-name-zh" lang={locale}>{t("brandChinese")}</span>}
+        <span className={chineseBrand ? "brand-name-en" : undefined} lang="en">Same Page</span>
       </Link>
       <nav className="app-header__actions">
         {actions}
-
       </nav>
     </header>
   );

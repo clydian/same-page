@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useLiveQuery } from 'dexie-react-hooks';
 import { attachmentWorkspace, readAttachmentDirectory } from '../score-library/attachments/attachment-directory';
 import { useRef } from 'react';
@@ -10,6 +11,7 @@ import { startPlayback, type PlaybackSource } from './playback-store';
 import './practice-player.css';
 
 export function ReaderPracticeLauncher({ source, enabled, open, onOpenChange }: { source: Omit<PlaybackSource, 'attachment'>; enabled: boolean; open: boolean; onOpenChange(open: boolean): void }) {
+  const t = useMessages("practice");
   const identity = useApplicationIdentity();
   const current = identity.onlineState === 'authenticated' || identity.onlineState === 'signed-out';
   const active = enabled && current && identity.authenticatedSessionId === source.sessionId;
@@ -30,28 +32,28 @@ export function ReaderPracticeLauncher({ source, enabled, open, onOpenChange }: 
   const directoryKnown = metadata.statusFor(source.score.id) === 'ready';
   if (!items.length && (directoryKnown || !(source.score.musicXmlCount ?? 0))) return null;
   return <>
-    <div className="reader-playback-entries" aria-label="练习谱" aria-busy={metadata.loading || metadata.refreshing}>
-      <TooltipTrigger><Button ref={trigger} className="reader-playback-entry" aria-label="练习谱" aria-expanded={open} onPress={() => onOpenChange(!open)}>
+    <div className="reader-playback-entries" aria-label={t("practiceScores")} aria-busy={metadata.loading || metadata.refreshing}>
+      <TooltipTrigger><Button ref={trigger} className="reader-playback-entry" aria-label={t("practiceScores")} aria-expanded={open} onPress={() => onOpenChange(!open)}>
         <FileMusic size={21} aria-hidden="true" /><Play className="attachment-play-badge" size={12} fill="currentColor" aria-hidden="true" />
-      </Button><Tooltip className="practice-tooltip" placement="top">练习谱</Tooltip></TooltipTrigger>
+      </Button><Tooltip className="practice-tooltip" placement="top">{t("practiceScores")}</Tooltip></TooltipTrigger>
     </div>
     {open && <Popover triggerRef={trigger} isOpen onOpenChange={onOpenChange} placement="top end" offset={10} className="practice-popover">
-      <Dialog className="practice-panel reader-practice-launcher" aria-label="练习谱">
-        <h2>练习谱</h2>
-        {!active && <p role="status">已完成离线准备的练习谱可直接打开。</p>}
-        {metadata.error && <p role="status">暂时无法读取练习谱。<Button onPress={metadata.retry}>重试</Button></p>}
-        {metadata.loading && !items.length && <p role="status">正在读取练习谱…</p>}
+      <Dialog className="practice-panel reader-practice-launcher" aria-label={t("practiceScores")}>
+        <h2>{t("practiceScores")}</h2>
+        {!active && <p role="status">{t("offlineAvailable")}</p>}
+        {metadata.error && <p role="status">{t("listUnavailable")}<Button onPress={metadata.retry}>{t("retry")}</Button></p>}
+        {metadata.loading && !items.length && <p role="status">{t("readingPracticeScores")}</p>}
         {items.map(attachment => {
           const generated = attachment.source === 'generated';
-          const name = generated ? '自动生成练习版' : attachment.name;
+          const name = generated ? t("generatedVersion") : attachment.name;
           return <Button className="reader-practice-source" key={attachment.id} aria-label={name} onPress={() => {
             startPlayback({ ...source, attachment });
             onOpenChange(false);
           }}>
-            <FileMusic size={20} aria-hidden="true" /><span>{name}<small>{generated ? '自动生成 · Beta' : '用户上传'}</small></span><Play size={16} aria-hidden="true" />
+            <FileMusic size={20} aria-hidden="true" /><span>{name}<small>{generated ? t("generatedBadge") : t("uploadedByUser")}</small></span><Play size={16} aria-hidden="true" />
           </Button>;
         })}
-        {!metadata.loading && !metadata.error && active && !items.length && <p>暂无练习谱</p>}
+        {!metadata.loading && !metadata.error && active && !items.length && <p>{t("noScores")}</p>}
       </Dialog>
     </Popover>}
   </>;

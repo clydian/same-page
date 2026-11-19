@@ -9,7 +9,7 @@ after(async () => { await app?.stop(); });
 async function openReader(t, engine) {
   const browser = await engine.launch();
   t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 1194, height: 900 } });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 1194, height: 900 } });
   page.setDefaultTimeout(15_000);
   const fixture = createVisualFixtureSession({ dense: true });
   await page.route("**/api/**", route => route.fulfill(fixture.resolve({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "admin" })));

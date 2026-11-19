@@ -1,5 +1,6 @@
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
+import { useMessages } from "../../i18n";
 import { DriveSuggestion } from "../components/drive-suggestion";
 import { prepareInstallLink } from "./install-transfer";
 import { useEffect, useState } from "react";
@@ -8,22 +9,25 @@ import { Download } from "lucide-react";
 import { detectInstallGuide, useInstall } from "./install-context";
 
 export function InstallButton({ className }: { className?: string }) {
+  const t = useMessages("system");
   const install = useInstall();
   if (!install || install.hidden) return null;
-  return <Button className={`install-button ${className ?? (install.nativeAvailable ? "primary-button" : "secondary-button")}`} onPress={install.open}><Download size={18} aria-hidden="true" />{detectInstallGuide(navigator.userAgent, navigator.maxTouchPoints) === "android" ? "安装合谱" : "添加到桌面"}</Button>;
+  return <Button className={`install-button ${className ?? (install.nativeAvailable ? "primary-button" : "secondary-button")}`} onPress={install.open}><Download size={18} aria-hidden="true" />{detectInstallGuide(navigator.userAgent, navigator.maxTouchPoints) === "android" ? t("installEntry.install") : t("installEntry.add")}</Button>;
 }
 
 export function InstallSuggestion() {
+  const t = useMessages("system");
   const install = useInstall();
   if (!install?.suggest) return null;
-  return <DriveSuggestion id="install" label="安装建议" title="把合谱添加到桌面"
-    closeLabel="暂时不用，关闭安装建议" action={<InstallButton className="secondary-button" />}>
-    <p>下次排练，点一下图标就能打开。</p>
+  return <DriveSuggestion id="install" label={t("installEntry.suggestion")} title={t("installEntry.addApp")}
+    closeLabel={t("installEntry.dismiss")} action={<InstallButton className="secondary-button" />}>
+    <p>{t("installEntry.rehearse")}</p>
   </DriveSuggestion>;
 }
 
 
 export function CopyInstallLink({ url }: { url?: string } = {}) {
+  const t = useMessages("system");
   const feedback = useFeedbackMessage();
   const { message, setMessage } = feedback;
   const drive = /^\/choirs\/([^/]+)/.exec(window.location.pathname)?.[1];
@@ -36,14 +40,14 @@ export function CopyInstallLink({ url }: { url?: string } = {}) {
     void prepareInstallLink(drive, controller.signal).then(value => {
       if (controller.signal.aborted) return;
       setPrepared({ drive, url: value ?? new URL(`/choirs/${encodeURIComponent(drive)}`, window.location.origin).href });
-      if (!value) setMessage("已保留云盘入口；换浏览器后可能需要重新登录或使用原邀请。");
-    }).catch(() => { if (!controller.signal.aborted) setMessage("暂时无法准备链接，请重试。"); });
+      if (!value) setMessage("installEntry.signInAfterSwitch");
+    }).catch(() => { if (!controller.signal.aborted) setMessage("installEntry.linkFailed"); });
     return () => controller.abort();
   }, [url, drive, attempt, setMessage]);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(link); setMessage("网址已复制，请在浏览器中打开。", { duration: 5000 }); }
-    catch { setMessage("请长按或选中下方网址复制。"); }
+    try { await navigator.clipboard.writeText(link); setMessage("installEntry.copied", { duration: 5000 }); }
+    catch { setMessage("installEntry.copyManually"); }
   };
-  if (!link) return <div className="install-copy"><p role="status">{message || "正在准备云盘链接…"}</p>{message && <Button onPress={() => { setMessage(""); setAttempt(value => value + 1); }}>重试</Button>}</div>;
-  return <div className="install-copy"><Button className="secondary-button" onPress={() => void copy()}>复制链接</Button><input aria-label="合谱网址" readOnly value={link} onFocus={event => event.target.select()} /><FeedbackMessage feedback={feedback} /></div>;
+  if (!link) return <div className="install-copy"><p role="status">{t(message || "installEntry.preparing")}</p>{message && <Button onPress={() => { setMessage(""); setAttempt(value => value + 1); }}>{t("installEntry.retry")}</Button>}</div>;
+  return <div className="install-copy"><Button className="secondary-button" onPress={() => void copy()}>{t("installEntry.copy")}</Button><input aria-label={t("installEntry.webAddress")} readOnly value={link} onFocus={event => event.target.select()} /><FeedbackMessage feedback={{ ...feedback, message: message ? t(message) : null }} /></div>;
 }

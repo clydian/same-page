@@ -1,3 +1,4 @@
+import { useMessages, getCurrentLocale, getMessages } from "../../i18n";
 import { scoreDisplayName } from "../../shared/score-display-name";
 import type { DriveLibrary } from "./drive-library";
 import { useScoreFileAction } from "./use-score-file-action";
@@ -45,14 +46,16 @@ export function ScoreActionDialog({
   onClose: () => void;
   onComplete: (message: string) => void;
 }) {
+  const t = useMessages("library");
   if (selection.action === "replace") {
-    return <Suspense fallback={<LibraryTaskLoading title="替换 PDF" onClose={onClose} />}><PdfVersionDialog ownerUserId={ownerUserId} writable={writable} choirId={choirId} score={selection.score}
+    return <Suspense fallback={<LibraryTaskLoading title={t("replacePdf")} onClose={onClose} />}><PdfVersionDialog ownerUserId={ownerUserId} writable={writable} choirId={choirId} score={selection.score}
       onClose={onClose} onComplete={async message => { await library.changed(); onComplete(message); }} /></Suspense>;
   }
   return <BasicScoreActionDialog writable={writable} library={library} choirId={choirId} selection={selection} onClose={onClose} onComplete={onComplete} />;
 }
 
 function BasicScoreActionDialog({ writable = true, library, selection, onClose, onComplete }: Parameters<typeof ScoreActionDialog>[0]) {
+  const t = useMessages("library");
   const [renameValue, setRenameValue] = useState(scoreDisplayName(selection.score.fileName));
   const mutation = useScoreFileAction(library, selection.score, selection.action === "rename" ? "rename" : "trash", onComplete, writable);
   const busy = mutation.pending;
@@ -75,26 +78,25 @@ function BasicScoreActionDialog({ writable = true, library, selection, onClose, 
           {({ close }) => (
             <>
               <LibraryDialogHeading title={actionTitle(selection.action)} close={close} />
-              {!writable && <p role="status">连接或操作权限尚未恢复，输入已保留。</p>}
+              {!writable && <p role="status">{t("scoreAction")}</p>}
               <Form className="entry-form dialog-form" onSubmit={submit}>
                 {selection.action === "rename" ? (
                   <TextField isRequired value={renameValue} onChange={setRenameValue} maxLength={255}>
-                    <Label>文件名</Label>
+                    <Label>{t("markdownAttachmentFileName")}</Label>
                     <Input autoFocus />
                   </TextField>
                 ) : (
                   <p className="dialog-copy">
-                    “{selection.score.fileName}”将从文件库消失，三十天内可从回收站恢复。
-                  </p>
+                    {t("confirmTrashScore", { name: selection.score.fileName })}</p>
                 )}
                 <Button
                   type="submit"
                   isDisabled={mutation.blocked}
                 >
-                  {busy ? "正在处理…" : selection.action === "trash" ? "移到回收站" : "确认"}
+                  {busy ? t("pdfVersionProcessing") : selection.action === "trash" ? t("moveToTrash") : t("confirm")}
                 </Button>
               </Form>
-              {mutation.needsRefresh && <Button className="secondary-button" isDisabled={busy || !writable} onPress={() => void mutation.retry()}>重新读取状态</Button>}
+              {mutation.needsRefresh && <Button className="secondary-button" isDisabled={busy || !writable} onPress={() => void mutation.retry()}>{t("leaveDriveRereadStatus")}</Button>}
               {mutation.message ? (
                 <p className="form-message" role="alert">
                   {mutation.message}
@@ -109,6 +111,7 @@ function BasicScoreActionDialog({ writable = true, library, selection, onClose, 
 }
 
 function actionTitle(action: ScoreAction) {
-  if (action === "rename") return "重命名";
-  return "移到回收站";
+  const t = getMessages(getCurrentLocale(), "library");
+  if (action === "rename") return t("rename");
+  return t("moveToTrash");
 }

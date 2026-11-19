@@ -1,10 +1,11 @@
+import { useMessages } from "../../i18n";
 import { liveQuery, type Subscription } from "dexie";
 import { useEffect, useRef, useState } from "react";
 import type { ApplicationIdentity } from "../auth/application-identity";
 import { cleanupUncreatedDeleteConflicts } from "../annotations/annotation-state";
 import { assertLocalWorkspaceActive, isLocalWorkspaceActive, LocalWorkspaceOwnerChangedError, captureLocalWorkspaceSession, resolveLocalWorkspace, type LocalWorkspace } from "../platform/local-workspace";
 
-type WorkspaceState = { status: "opening" } | { status: "ready"; workspace: LocalWorkspace } | { status: "failed"; message: string };
+type WorkspaceState = { status: "opening" } | { status: "ready"; workspace: LocalWorkspace } | { status: "failed"; messageId: "workspaceOpenTimeout" | "workspaceOpenFailed" };
 interface Options {
   choirId: string;
   scoreId: string;
@@ -12,10 +13,8 @@ interface Options {
   identity: Pick<ApplicationIdentity, "localUserId" | "restoring" | "onlineState">;
 }
 
-const timeoutMessage = "打开本机工作区用时较长，可以重试或返回云盘。";
-const failureMessage = "本机工作区暂时无法打开，请重试；已保存的内容仍然保留。";
-
 export function useReaderWorkspace({ choirId, scoreId, experience, identity }: Options) {
+  const t = useMessages("reader");
   const [attempt, setAttempt] = useState(0);
   const key = JSON.stringify([choirId, scoreId, experience, identity.localUserId, attempt]);
   const [result, setResult] = useState<{ key: string; state: WorkspaceState }>();
@@ -35,16 +34,16 @@ export function useReaderWorkspace({ choirId, scoreId, experience, identity }: O
       subscription?.unsubscribe();
       clearTimeout(timer);
     };
-    const fail = (message: string) => {
+    const fail = (messageId: "workspaceOpenTimeout" | "workspaceOpenFailed") => {
       if (lifetime.signal.aborted) return;
       failedKey.current = key;
       stop();
-      publish({ status: "failed", message });
+      publish({ status: "failed", messageId });
     };
-    let timer = setTimeout(() => fail(timeoutMessage), 45_000);
+    let timer = setTimeout(() => fail("workspaceOpenTimeout"), 45_000);
     const restartDeadline = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => fail(timeoutMessage), 45_000);
+      timer = setTimeout(() => fail("workspaceOpenTimeout"), 45_000);
     };
     const prepare = async (resolved?: LocalWorkspace) => {
       preparation.abort();
@@ -82,7 +81,7 @@ export function useReaderWorkspace({ choirId, scoreId, experience, identity }: O
               if (validity !== "revoked") void prepare(base);
             }
           },
-          error: () => { if (current()) fail(failureMessage); },
+          error: () => { if (current()) fail("workspaceOpenFailed"); },
         });
       };
       let base = resolved;
@@ -105,7 +104,7 @@ export function useReaderWorkspace({ choirId, scoreId, experience, identity }: O
           // Ownership can disappear between observing an epoch and capturing it.
           // Keep waiting without reactivating that owner or publishing a bare scope.
           observe(base);
-        } else fail(failureMessage);
+        } else fail("workspaceOpenFailed");
       }
     };
     publish({ status: "opening" });
@@ -113,5 +112,6 @@ export function useReaderWorkspace({ choirId, scoreId, experience, identity }: O
     return stop;
   }, [key, choirId, scoreId, experience, identity.localUserId, waiting]);
   const state: WorkspaceState = result?.key === key ? result.state : { status: "opening" };
-  return { state, retry: () => setAttempt(value => value + 1) };
+  return { state: state.status === "failed" ? { status: state.status, message: t(state.messageId) } : state,
+    retry: () => setAttempt(value => value + 1) };
 }

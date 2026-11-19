@@ -1,3 +1,4 @@
+import { useMessages } from "../../../i18n";
 import { useEffect, useRef, useState } from "react";
 import { attachmentSchema, type ScoreAttachment } from "../../../shared/attachments";
 import { attachmentFetch as diagnosticFetch } from "./request";
@@ -22,6 +23,7 @@ export function useAttachmentMutation({ choirId, scoreId, id, enabled, onChanged
   onSaved?: (receipt: AttachmentReceipt) => void;
   onComplete?: () => void;
 }) {
+  const t = useMessages("library");
   const attempt = useRef<{ intent: AttachmentWrite; confirmed: boolean } | null>(null);
   const abort = useRef<AbortController | null>(null);
   const [saved, setSaved] = useState(false);
@@ -43,12 +45,12 @@ export function useAttachmentMutation({ choirId, scoreId, id, enabled, onChanged
       if (!isCurrent()) return;
       setDetail(null);
       if (recovery.state === "pending") {
-        setDetail("附件仍在保存，请稍后再次核对。");
+        setDetail(t("useAttachmentMutationAttachmentStillBeingSaved"));
         throw new SettingsRequestError(409);
       }
       if (creating && recovery.state === "absent") {
         setProgress(undefined);
-        setDetail("附件尚未保存，输入仍保留，可以重试。");
+        setDetail(t("useAttachmentMutationAttachmentHasNotBeen"));
       } else if (intent.kind === "trash" && (recovery.state === "trashed" || recovery.state === "absent")) {
         accept({ attachment: null });
       } else if (recovery.state === "available") {
@@ -57,12 +59,12 @@ export function useAttachmentMutation({ choirId, scoreId, id, enabled, onChanged
           const remote = await readMarkdown(choirId, scoreId, id);
           if (!isCurrent()) return;
           if (remote.text === intent.text && remote.attachment.name === intent.name) accept(remote);
-          else if (remote.attachment.revision === intent.revision) setDetail("文档尚未保存，草稿仍保留，可以重试。");
+          else if (remote.attachment.revision === intent.revision) setDetail(t("useAttachmentMutationDocumentHasNotBeen"));
           else conflict();
         } else if (intent.kind !== "trash" && row.name === intent.name
           && (intent.kind !== "link" && intent.kind !== "modify" || intent.url === undefined || row.url === intent.url)
           && (intent.kind !== "upload" || row.sizeBytes === intent.file.size)) accept({ attachment: row });
-        else if (!creating && "revision" in intent && row.revision === intent.revision) setDetail("修改尚未保存，可以重试。");
+        else if (!creating && "revision" in intent && row.revision === intent.revision) setDetail(t("useAttachmentMutationModificationHasNotBeen"));
         else conflict();
       } else throw new SettingsRequestError(404);
     }
@@ -70,7 +72,7 @@ export function useAttachmentMutation({ choirId, scoreId, id, enabled, onChanged
     if (isCurrent() && pending.confirmed) onComplete?.();
   } });
   function conflict(): never {
-    setDetail("附件已发生变化，当前修改仍保留；请下载草稿或重新打开附件核对。");
+    setDetail(t("useAttachmentMutationAttachmentHasChangedCurrent"));
     throw new SettingsRequestError(409);
   }
   const save = (intent: AttachmentWrite) => mutation.submit(async () => {

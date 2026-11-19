@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useSettingsIdentity } from "../auth/application-identity";
 import { SharedLayerDetailsForm } from "../settings/shared-layer-details-form";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
@@ -11,7 +12,8 @@ import {
 } from "../../shared/annotations";
 import { TaskHeader } from "../components/task-header";
 import { SettingsFeedback } from "../settings/settings-feedback";
-import { settingsError, settingsResponse } from "../settings/settings-request";
+import { settingsResponse } from "../settings/settings-request";
+import { settingsError } from "../settings/settings-error";
 
 export default function SharedLayerDetailsPage() {
   const { choirId = "", slot: slotParam = "" } = useParams();
@@ -20,6 +22,7 @@ export default function SharedLayerDetailsPage() {
 }
 
 function SharedLayerDetails({ choirId, slotParam, userId, ready }: { choirId: string; slotParam: string; userId: string | null; ready: boolean }) {
+  const t = useMessages("library");
   const parsedSlot = sharedLayerSlotSchema.safeParse(slotParam);
   const slot = parsedSlot.success ? parsedSlot.data : null;
   const resource = useReadResource({ owner: userId, driveId: choirId, kind: "shared-layer", variant: slotParam }, async signal => {
@@ -28,12 +31,12 @@ function SharedLayerDetails({ choirId, slotParam, userId, ready }: { choirId: st
   }, undefined, 0, ready);
   const driveName = resource.data?.drive.name ?? "";
   const layer = resource.data?.layers.find(entry => entry.slot === slot) ?? null;
-  const loadError = resource.error ? settingsError(resource.error, "暂时无法读取编辑权限。") : null;
+  const loadError = resource.error ? settingsError(resource.error, t("sharedLayerDetailsTemporarilyUnableReadEdit")) : null;
   const setLayer = (next: SharedLayerManagementSummary) => {
     if (resource.data) resource.confirm({ ...resource.data, layers: resource.data.layers.map(entry => entry.slot === next.slot ? next : entry) });
   };
 
-  const layerName = layer ? layer.name : slot ?? "共享层";
+  const layerName = layer ? layer.name : slot ?? t("sharedLayers");
 
 
   return (
@@ -41,11 +44,11 @@ function SharedLayerDetails({ choirId, slotParam, userId, ready }: { choirId: st
       <TaskHeader title={layerName} backTo={`/choirs/${choirId}/shared-layers`} />
       <main className="page-shell settings-page settings-ux">
         <header className="settings-heading">
-          <p className="eyebrow">云盘设置 · {driveName || "共享层"}</p>
+          <p className="eyebrow">{t("sharedLayerSettingsBreadcrumb", { name: driveName || t("sharedLayers") })}</p>
 
-          <p className="settings-copy">配置对当前云盘中的全部乐谱生效，不授予编辑内容的权限。停用的共享层暂停所有人的编辑，恢复后授权继续生效。</p>
+          <p className="settings-copy">{t("sharedLayerDetailsConfigurationTakesEffectAll")}</p>
         </header>
-        {slot ? <SettingsFeedback loading={resource.loading} loadError={loadError} message={null} retry={() => void resource.refresh().catch(() => undefined)} /> : <p role="alert">共享层不存在。</p>}
+        {slot ? <SettingsFeedback loading={resource.loading} loadError={loadError} message={null} retry={() => void resource.refresh().catch(() => undefined)} /> : <p role="alert">{t("sharedLayerDetailsSharedLayerDoesNot")}</p>}
         {layer && <SharedLayerDetailsForm choirId={choirId} layer={layer} onSaved={setLayer} authorized={resource.canMutate} refresh={resource.refresh} onRevoked={resource.clear} />}
       </main>
     </div>

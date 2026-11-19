@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useLayoutEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "react-aria-components";
@@ -13,6 +14,7 @@ export function ReaderPageGrid({ document, currentPage, onSelect }: {
   currentPage: number;
   onSelect(page: number): void;
 }) {
+  const t = useMessages("reader");
   const viewport = useRef<HTMLDivElement>(null);
   const size = useElementSize(viewport);
   const columns = Math.max(2, Math.floor(size.width / 112));
@@ -28,13 +30,13 @@ export function ReaderPageGrid({ document, currentPage, onSelect }: {
   useLayoutEffect(() => {
     if (size.width > 0) rows.scrollToIndex(Math.floor((initialPage.current - 1) / columns), { align: "center" });
   }, [columns, size.width, rows]);
-  return <div className="reader-page-grid" ref={viewport} tabIndex={0} aria-label="浏览所有页码">
+  return <div className="reader-page-grid" ref={viewport} tabIndex={0} aria-label={t("browseAllPages")}>
     <div style={{ height: rows.getTotalSize(), position: "relative" }}>
       {rows.getVirtualItems().map(row => <div key={row.index} className="reader-page-grid__row"
         style={{ transform: `translateY(${row.start}px)`, height: ROW_HEIGHT, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
         {Array.from({ length: Math.min(columns, document.numPages - row.index * columns) }, (_, index) => {
           const page = row.index * columns + index + 1;
-          return <Button key={page} className="reader-page-grid__page" aria-label={`第 ${page} 页`}
+          return <Button key={page} className="reader-page-grid__page" aria-label={t("pageLabel", { page })}
             aria-current={page === currentPage ? "page" : undefined} onPress={() => onSelect(page)}>
             <GridThumbnail document={document} page={page} />
             <span>{page}</span>

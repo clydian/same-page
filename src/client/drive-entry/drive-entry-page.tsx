@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "react-aria-components";
@@ -28,6 +29,7 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
   invitation: ReturnType<typeof useDriveInvitation>["invitation"]["link"];
   finishInvitation(): void;
 }) {
+  const t = useMessages("entry");
   const location = useLocation();
   const [joinOpen, setJoinOpen] = useState(new URLSearchParams(location.search).get("join") === "1" || Boolean(invitation));
   const [createOpen, setCreateOpen] = useState(false);
@@ -40,17 +42,17 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
   // JoinDriveFlow continues to block admission while identity is pending.
   const userId = identity.authenticatedUserId;
   const create = userId
-    ? <Button className="text-button" onPress={() => { setManualEntry(true); setCreateOpen(true); }}><Plus size={16} aria-hidden="true" />创建云盘</Button>
-    : <Link className="text-button" to="/login">登录后创建云盘</Link>;
+    ? <Button className="text-button" onPress={() => { setManualEntry(true); setCreateOpen(true); }}><Plus size={16} aria-hidden="true" />{t("drive.create")}</Button>
+    : <Link className="text-button" to="/login">{t("drive.loginToCreate")}</Link>;
   const finishJoin = () => { finishInvitation(); setJoinOpen(false); };
   return <div className="app-page drive-entry-page">
-    <AppHeader actions={identity.session.data?.user ? <><InstallButton className="header-action" /><PersonalMenu email={identity.session.data.user.email} /></> : !identity.session.isPending && <Link className="header-action" to="/login">登录</Link>} />
+    <AppHeader actions={identity.session.data?.user ? <><InstallButton className="header-action" /><PersonalMenu email={identity.session.data.user.email} /></> : !identity.session.isPending && <Link className="header-action" to="/login">{t("drive.login")}</Link>} />
     <main className="drive-entry-main">
       <IdentityNotice identity={identity} />
       {identity.localUserId ? <MemberEntry identity={identity} userId={identity.localUserId} create={create} onJoin={() => { setManualEntry(true); setJoinOpen(true); }} admissionOpen={manualEntry || joinOpen || createOpen} />
         : firstDriveShown ? <FirstDrive identity={identity} create={create} />
-        : identity.restoring || identity.onlineState === "checking" ? <p role="status">正在恢复本机内容…</p>
-        : <p role="status">暂时无法确认云盘目录，请连接网络后重试。</p>}
+        : identity.restoring || identity.onlineState === "checking" ? <p role="status">{t("drive.restoreLocal")}</p>
+        : <p role="status">{t("drive.directoryError")}</p>}
     </main>
     <JoinDriveDialog open={joinOpen} onClose={finishJoin} identity={identity} invitation={invitation} />
     {userId && <CreateDriveDialog userId={userId} open={createOpen} onOpenChange={setCreateOpen} />}
@@ -60,6 +62,7 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
 function MemberEntry({ identity, userId, create, onJoin, admissionOpen }: {
   identity: ApplicationIdentity; userId: string; create: ReactNode; onJoin(): void; admissionOpen: boolean;
 }) {
+  const t = useMessages("entry");
   const localOnly = !identity.authenticatedUserId;
   const membership = useMembershipDirectory(userId, localOnly);
   const location = useLocation();
@@ -75,19 +78,20 @@ function MemberEntry({ identity, userId, create, onJoin, admissionOpen }: {
   const target = missingLastDrive ? null : available.find(row => row.choir.id === lastDrive) ?? (available.length === 1 ? available[0] : null);
   if (target && !admissionOpen) return <Navigate to={`/choirs/${target.choir.id}`} replace />;
   return <section className="drive-entry-chooser" aria-labelledby="drive-entry-title">
-    <h1 id="drive-entry-title">选择云盘</h1>
-    <p className="drive-entry-copy">选择要打开的云盘。</p>
-    {missingLastDrive && <p className="drive-entry-notice" role="status">上次使用的云盘已不在可访问列表中，请选择其他云盘。</p>}
+    <h1 id="drive-entry-title">{t("drive.choose")}</h1>
+    <p className="drive-entry-copy">{t("drive.chooseHint")}</p>
+    {missingLastDrive && <p className="drive-entry-notice" role="status">{t("drive.lastUnavailable")}</p>}
     <MembershipDirectoryList membership={membership} localOnly={localOnly} replace />
-    <div className="drive-entry-actions"><Button className="text-button" isDisabled={!identity.authenticatedUserId} onPress={onJoin}><Plus size={16} aria-hidden="true" />加入云盘</Button>{create}</div>
+    <div className="drive-entry-actions"><Button className="text-button" isDisabled={!identity.authenticatedUserId} onPress={onJoin}><Plus size={16} aria-hidden="true" />{t("drive.join")}</Button>{create}</div>
   </section>;
 }
 
 function FirstDrive({ identity, create }: { identity: ApplicationIdentity; create: ReactNode }) {
+  const t = useMessages("entry");
   return <section className="drive-entry-welcome" aria-labelledby="drive-entry-title">
-    <h1 id="drive-entry-title">先加入你的云盘</h1>
-    <p className="drive-entry-copy">使用管理员发来的邀请卡或邀请码加入。</p>
+    <h1 id="drive-entry-title">{t("drive.first")}</h1>
+    <p className="drive-entry-copy">{t("drive.firstHint")}</p>
     <JoinDrivePanel identity={identity} onClose={() => undefined} />
-    <div className="drive-entry-create"><p>想为团队创建云盘？</p>{create}</div>
+    <div className="drive-entry-create"><p>{t("drive.createPrompt")}</p>{create}</div>
   </section>;
 }

@@ -119,13 +119,13 @@ it("invalidates ready output and refreshes layer choices when permission changes
 
 it("retries preparation and generation failures in the same session", async () => {
   const destroy = vi.fn();
-  io.prepare.mockReturnValueOnce({ promise: Promise.reject(new Error("来源失败")), destroy });
+  io.prepare.mockReturnValueOnce({ promise: Promise.reject(new Error("source failed")), destroy });
   const session = start(); await tick();
-  expect(session.getSnapshot().message).toBe("来源失败");
-  io.generate.mockRejectedValueOnce(new Error("生成失败"));
+  expect(session.getSnapshot().message).toBe("无法准备 PDF，请检查网络后重试。");
+  io.generate.mockRejectedValueOnce(new Error("generation failed"));
   session.retry(); await tick();
   expect(destroy).toHaveBeenCalled();
-  expect(session.getSnapshot().message).toBe("生成失败");
+  expect(session.getSnapshot().message).toBe("无法准备 PDF。请确认联网与笔记数据后重试。");
   session.retry(); await tick();
   expect(session.getSnapshot().file).not.toBeNull();
   expect(io.prepare).toHaveBeenCalledTimes(2);

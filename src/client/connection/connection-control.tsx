@@ -1,3 +1,4 @@
+import { useAppLocale, useMessages } from "../../i18n";
 import { LoaderCircle, Wifi, WifiOff, X } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Button, Heading, Modal, ModalOverlay } from "react-aria-components";
@@ -30,7 +31,6 @@ export function ConnectionHelp({ children }: { children?: ReactNode }) {
   return null;
 }
 
-const names = { direct: "直连", backup: "备用" };
 export function ConnectionControl({ children }: { children?: ReactNode } = {}) {
   const help = useContext(ConnectionHelpContext)?.help;
   const location = useLocation();
@@ -40,6 +40,9 @@ export function ConnectionControl({ children }: { children?: ReactNode } = {}) {
 }
 
 function ConnectionButton({ children }: { children?: ReactNode }) {
+  const t = useMessages("system");
+  const { locale } = useAppLocale();
+  const names = { direct: t("connectionControl.direct"), backup: t("connectionControl.backup") };
   const state = useSyncExternalStore(connections.subscribe, connections.getSnapshot);
   const session = authClient.useSession();
   const browserOnline = useNetworkStatus();
@@ -57,8 +60,10 @@ function ConnectionButton({ children }: { children?: ReactNode }) {
   const attention = !browserOnline || disconnected || state.identity[state.active] === "conflict" || state.identity[state.active] === "unprepared";
   const working = state.checking || state.preparing;
   const visible = scrollingVisible || attention || working || open;
-  const accessibleStatus = !browserOnline ? "浏览器离线" : disconnected ? "连接异常" : state.identity[state.active] === "conflict" ? "需处理" : null;
-  const currentStatus = !browserOnline ? "浏览器离线" : disconnected ? "暂时连不上" : availability === "stale" || availability === "unknown" ? "待检测" : state.identity[state.active] !== "ready" ? "待确认" : null;
+  const accessibleStatus = !browserOnline ? t("connection.browserOffline") : disconnected ? t("connectionControl.connectionIssue") : state.identity[state.active] === "conflict" ? t("connectionControl.actionRequired") : null;
+  const currentStatus = !browserOnline ? t("connection.browserOfflineDetail") : disconnected ? t("connection.offlineDetail")
+    : availability === "stale" || availability === "unknown" ? t("connection.pendingCheck")
+    : state.identity[state.active] !== "ready" ? t("connection.pendingConfirmation") : "";
   const refetch = session.refetch;
   const needsSessionRecovery = Boolean(session.error) || !session.data?.user;
   const check = useCallback(async () => {
@@ -79,21 +84,24 @@ function ConnectionButton({ children }: { children?: ReactNode }) {
     return () => { window.removeEventListener("online", recover); document.removeEventListener("visibilitychange", recover); };
   }, [check]);
   return <>
-    <Button ref={button} className="connection-fab" aria-label={["连接线路", accessibleStatus, working ? "正在检测…" : null].filter(Boolean).join("，")}
+    <Button ref={button} className="connection-fab" aria-label={[t("connectionControl.title"), accessibleStatus, working ? t("connectionControl.checking") : null].filter(Boolean).join(locale.startsWith("zh-") ? "，" : ", ")}
       aria-haspopup="dialog" aria-expanded={open} data-visible={visible} data-attention={attention || undefined} inert={!visible}
       onPress={() => { setNow(Date.now()); setOpen(true); void check(); }}>
       {working ? <LoaderCircle className="connection-spinner" size={19} aria-hidden="true" /> : !browserOnline || disconnected ? <WifiOff size={19} aria-hidden="true" /> : <Wifi size={19} aria-hidden="true" />}
     </Button>
     <ModalOverlay className="modal-overlay" isOpen={open} onOpenChange={setOpen} isDismissable>
-      <Modal className="app-modal app-modal--compact"><Dialog className="app-dialog connection-dialog" aria-label="连接线路">
-        <div className="connection-heading"><Heading slot="title">连接线路</Heading><Button className="icon-button" onPress={() => setOpen(false)} aria-label="关闭连接面板"><X size={20} aria-hidden="true" /></Button></div>
-        <p className="connection-current" role="status">{state.attempting ? `正在尝试${names[state.attempting]}…${!browserOnline ? "（浏览器离线）" : ""}` : `当前线路：${names[state.active]}${currentStatus ? `（${currentStatus}）` : ""}`}</p>
-        {window.location.origin === connectionWebsites.backup && <p className="connection-origin-note">当前为备用网站，本机草稿与原网站分开保存。</p>}
+      <Modal className="app-modal app-modal--compact"><Dialog className="app-dialog connection-dialog" aria-label={t("connectionControl.title")}>
+        <div className="connection-heading"><Heading slot="title">{t("connectionControl.title")}</Heading><Button className="icon-button" onPress={() => setOpen(false)} aria-label={t("connectionControl.close")}><X size={20} aria-hidden="true" /></Button></div>
+
+        <p className="connection-current" role="status">{state.attempting
+          ? t("connectionControl.trying", { route: names[state.attempting] }) + (!browserOnline ? t("connection.browserOfflineDetail") : "")
+          : t("connectionControl.current", { route: names[state.active], status: currentStatus })}</p>
+        {window.location.origin === connectionWebsites.backup && <p className="connection-origin-note">{t("connectionControl.backupSiteNote")}</p>}
         {children}
-        <fieldset className="connection-modes"><legend>线路选择</legend>
+        <fieldset className="connection-modes"><legend>{t("connectionControl.selection")}</legend>
           {(["auto", "direct", "backup"] as const).map(mode => <label key={mode} data-selected={state.mode === mode}>
             <input type="radio" name="connection-mode" value={mode} checked={state.mode === mode} onChange={() => { setConnectionMode(mode as ConnectionMode); void check(); }} />
-            <span className="connection-mode-label">{mode === "auto" ? <>自动<span className="connection-recommended">推荐</span></> : names[mode]}</span>
+            <span className="connection-mode-label">{mode === "auto" ? <>{t("connectionControl.automatic")}<span className="connection-recommended">{t("connectionControl.recommended")}</span></> : names[mode]}</span>
           </label>)}
         </fieldset>
         <ul className="connection-routes">{connectionRoutes.map(route => {
@@ -102,32 +110,32 @@ function ConnectionButton({ children }: { children?: ReactNode }) {
           const stale = Boolean(latest && now - latest.at > 45_000);
           const health = latest ? { state: latest.state } : { state: "unknown" };
           const age = latest ? Math.max(0, Math.floor((now - latest.at) / 1000)) : null;
-          const freshness = document.hidden ? "检测已暂停" : stale ? "检测已过期" : age === null ? "正在检测…" : age < 1 ? "刚刚检测" : `${age} 秒前检测`;
-          const result = state.identity[route] === "conflict" ? "登录不一致" : health.state === "reachable" ? "线路可达" : health.state === "unreachable" ? "暂时连不上" : "尚未检测";
+          const freshness = document.hidden ? t("connectionControl.paused") : stale ? t("connectionControl.stale") : age === null ? t("connectionControl.checking") : age < 1 ? t("connectionControl.checkedNow") : t("connectionControl.checkedSecondsAgo", { seconds: age });
+          const result = state.identity[route] === "conflict" ? t("connectionControl.conflictingAccount") : health.state === "reachable" ? t("connectionControl.reachable") : health.state === "unreachable" ? t("connectionControl.unreachable") : t("connectionControl.unchecked");
           const conflict = state.identity[route] === "conflict";
           return <li key={route}><div><strong>{names[route]}</strong><span className={`connection-health connection-health--${conflict ? "conflict" : stale ? "unknown" : health.state}`}>
-            {stale && !conflict ? "结果已过期" : result}</span></div>
-            <details className="connection-samples"><summary className="connection-observation" aria-label={`${names[route]}检测详情，${freshness}，${samples.length} 次采样`}><span className="connection-trail" aria-hidden="true">{Array.from({ length: 20 }, (_, i) => {
+            {stale && !conflict ? t("connectionControl.expired") : result}</span></div>
+            <details className="connection-samples"><summary className="connection-observation" aria-label={t("connectionControl.sampleDetails", { route: names[route], freshness, count: samples.length })}><span className="connection-trail" aria-hidden="true">{Array.from({ length: 20 }, (_, i) => {
               const sample = samples[i - (20 - samples.length)];
               return <i key={i} data-result={sample?.state ?? "unknown"} />;
             })}</span><small>{freshness}</small></summary>
-              <p>{route === "direct" ? "Cloudflare" : "阿里云 ESA（境外节点）"} · 仅代表各次检测，不代表持续可用。</p>
-              <p>实点为成功，空心点为失败或超时，灰点为尚未检测；按检测先后排列，间隔不等。</p>
-              {samples.length ? <ol>{[...samples].reverse().map((sample, i) => <li key={i}><time dateTime={new Date(sample.at).toISOString()}>{new Date(sample.at).toLocaleTimeString()}</time> · {sample.state === "reachable" ? `线路可达 · ${sample.latency} ms` : "暂时连不上（失败或超时）"}</li>)}</ol> : <p>尚未完成检测。</p>}
+              <p>{route === "direct" ? "Cloudflare" : t("connectionControl.backupProvider")} {t("connectionControl.sampleLimits")}</p>
+              <p>{t("connectionControl.sampleLegend")}</p>
+              {samples.length ? <ol>{[...samples].reverse().map((sample, i) => <li key={i}><time dateTime={new Date(sample.at).toISOString()}>{new Date(sample.at).toLocaleTimeString(locale)}</time> · {sample.state === "reachable" && sample.latency !== null ? t("connectionControl.sampleReachable", { latency: sample.latency }) : t("connectionControl.sampleUnreachable")}</li>)}</ol> : <p>{t("connectionControl.noSamples")}</p>}
             </details>
           </li>;
         })}</ul>
-        {(needsSessionRecovery || connectionRoutes.some(route => state.identity[route] === "conflict" || state.identity[route] === "unprepared")) && <Button className="secondary-button" isDisabled={working || session.isRefetching} onPress={() => void check()}>{working ? "正在恢复…" : "恢复连接"}</Button>}
-        {connectionRoutes.some(route => state.identity[route] === "conflict") && <p role="status" className="connection-copy">请在另一网站核对登录，退出不同的登录后恢复连接。不要清除站点数据，未同步草稿仍需保留。</p>}
-        {state.health[state.active].state === "reachable" && !working && state.identity[state.active] === "unprepared" && <p className="connection-copy" role="status">此线路暂时无法确认登录，请点击“恢复连接”。{!session.data?.user && <>仍无法使用时，可<Link to="/login" onClick={() => setOpen(false)}>前往登录</Link>。</>}</p>}
-        <details className="connection-help"><summary>状态与连接帮助</summary>
-          <p><strong>浏览器离线</strong>：浏览器报告离线，部分联网操作暂停。</p>
-          <p><strong>连接异常</strong>：当前线路最近的连通性检测或网络请求失败。</p>
-          <p><strong>需处理</strong>：当前线路的登录会话与预期不一致，需要核对。</p>
-          <p><strong>线路可达</strong>：上次健康检测成功，不代表持续可用。</p>
-          <p>线路检测只确认服务能否响应。登录、本机内容与更新状态请分别查看对应提示。</p>
-          <p>两条线路均不保证中国大陆境内访问稳定。</p>
-          <p>可尝试切换 Wi-Fi 或移动网络；如果已有可用的 VPN，也可以尝试开启。面板打开时会自动检测；需要重新确认登录时，可点击“恢复连接”。</p>
+        {(needsSessionRecovery || connectionRoutes.some(route => state.identity[route] === "conflict" || state.identity[route] === "unprepared")) && <Button className="secondary-button" isDisabled={working || session.isRefetching} onPress={() => void check()}>{working ? t("connectionControl.recovering") : t("connectionControl.restore")}</Button>}
+        {connectionRoutes.some(route => state.identity[route] === "conflict") && <p role="status" className="connection-copy">{t("connectionControl.resolveConflict")}</p>}
+        {state.health[state.active].state === "reachable" && !working && state.identity[state.active] === "unprepared" && <p className="connection-copy" role="status">{t("connectionControl.confirmLogin")} {!session.data?.user && t.rich("connection.relogin", { login: chunks => <Link to="/login" onClick={() => setOpen(false)}>{chunks}</Link> })}</p>}
+        <details className="connection-help"><summary>{t("connectionControl.help")}</summary>
+          <p>{t.rich("connection.browserOfflineHelp", { term: chunks => <strong>{chunks}</strong> })}</p>
+          <p>{t.rich("connection.issueHelp", { term: chunks => <strong>{chunks}</strong> })}</p>
+          <p>{t.rich("connection.identityHelp", { term: chunks => <strong>{chunks}</strong> })}</p>
+          <p>{t.rich("connection.reachableHelp", { term: chunks => <strong>{chunks}</strong> })}</p>
+          <p>{t("connection.statusScope")}</p>
+          <p>{t("connectionControl.availabilityNote")}</p>
+          <p>{t("connectionControl.troubleshooting")}</p>
         </details>
       </Dialog></Modal>
     </ModalOverlay>

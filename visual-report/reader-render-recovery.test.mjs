@@ -20,7 +20,7 @@ const engines = process.env.READER_TEST_CHROMIUM_ONLY ? { chromium } : { chromiu
 for (const [name, engine] of Object.entries(engines)) test(`${name}: high-DPR continuous scrolling keeps visible pages painted and page recovery preserves ink and position`, { timeout: 90000 }, async t => {
   const browser = await engine.launch({ headless: true, ...(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
   t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 1200, height: 2200 }, deviceScaleFactor: 2, serviceWorkers: 'block', reducedMotion: 'reduce' });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 1200, height: 2200 }, deviceScaleFactor: 2, serviceWorkers: 'block', reducedMotion: 'reduce' });
   await page.route('**/api/**', route => route.fulfill(resolveFixtureRequest({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: 'member', scenarioId: 'reader-controls-narrow', pdf, selectedScore: score })));
   await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
   await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);

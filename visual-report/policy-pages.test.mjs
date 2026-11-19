@@ -12,7 +12,8 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     try {
       browser = await engine.launch({ headless: true });
       for (const width of [320, 390, 1280]) {
-        const context = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
+        // Policy navigation does not exercise the home page demos. Keep them still when leaving home between cases.
+        const context = await browser.newContext({ locale: "zh-CN", reducedMotion: "reduce", viewport: { width, height: 900 }, serviceWorkers: "block" });
         await context.route("**/api/**", route => route.fulfill({ status: 200, contentType: "application/json", body: "null" }));
         const page = await context.newPage();
         const errors = [];

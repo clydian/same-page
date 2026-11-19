@@ -1,4 +1,5 @@
 import { ScoreDownloadProgress } from "./score-download-progress";
+import { useAppLocale, useMessages } from "../../i18n";
 import { useNetworkStatus } from "../platform/use-network-status";
 import { offlinePreparationDescription } from "../offline/offline-score-status";
 import { scoreDisplayName } from "../../shared/score-display-name";
@@ -16,6 +17,8 @@ import "./offline-score-control.css";
 export function OfflineScoreControl({ score, authenticatedUserId, authenticatedSessionId, experience = false, disabled = false, onOnlineOpen }: {
   score: ScoreSummary; authenticatedUserId: string | null; authenticatedSessionId: string | null; disabled?: boolean; experience?: boolean; onOnlineOpen?: () => void;
 }) {
+  const { locale } = useAppLocale();
+  const t = useMessages("library");
   const online = useNetworkStatus();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -53,8 +56,8 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
   const state = downloading ? "downloading" : failed || invalid || readFailed ? "error" : stale ? "stale" : record ? "ready" : "missing";
   const percent = attempt.phase === "preparing" && attempt.stage === "download" && attempt.totalBytes
     ? Math.min(100, Math.floor((attempt.loadedBytes ?? 0) / attempt.totalBytes * 100)) : null;
-  const description = percent !== null ? `正在下载：${percent}%` : offlinePreparationDescription(attempt, inspected ? { record, invalid: Boolean(invalid), readFailed } : null, score.currentVersion.id);
-  const actionLabel = failed ? "重试保存" : stale ? "更新离线副本" : "保存供离线使用";
+  const description = percent !== null ? t("offlineScoreControlDownloading", { percent: String(percent) }) : offlinePreparationDescription(attempt, inspected ? { record, invalid: Boolean(invalid), readFailed } : null, score.currentVersion.id, locale);
+  const actionLabel = failed ? t("offlineScoreControlRetrySaving") : stale ? t("offlineScoreControlUpdateOfflineCopy") : t("offlineScoreControlSaveOfflineUse");
   const Icon = state === "downloading" ? LoaderCircle : state === "error" ? CircleAlert : state === "stale" ? RefreshCw : state === "ready" ? HardDrive : HardDrive;
 
   return <div className="offline-score-control" data-state={state}>
@@ -62,7 +65,7 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
       <Button
         ref={triggerRef}
         className="offline-score-button"
-        aria-label={`离线副本：${scoreDisplayName(score.fileName)} · ${description}`}
+        aria-label={t("offlineScoreControl", { name: String(scoreDisplayName(score.fileName)), description: String(description) })}
         aria-haspopup="dialog"
         aria-expanded={detailsOpen}
         aria-controls={detailsOpen ? detailsId : undefined}
@@ -78,13 +81,13 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
     </TooltipTrigger>
     <Popover triggerRef={triggerRef} isOpen={detailsOpen} onOpenChange={setDetailsOpen} placement="bottom end" className="offline-score-popover">
       <Dialog id={detailsId} className="offline-score-details">
-        <Heading slot="title"><HardDriveDownload aria-hidden="true" size={18} />离线副本</Heading>
+        <Heading slot="title"><HardDriveDownload aria-hidden="true" size={18} />{t("offlineScoreControlOfflineCopy")}</Heading>
         <p role="status">{description}</p>
-        <p>保存在这台设备上，供断网时打开。</p>
-        {readFailed && <Button className="secondary-button" onPress={() => setInspectionAttempt(value => value + 1)}>重试校验</Button>}
-        {!readFailed && needsDownload && <Button className="secondary-button" isDisabled={!online || disabled || !workspace || explicitDownload} onPress={() => void prepare()}>{downloading ? explicitDownload ? "正在准备…" : "继续保存（切换页面不中断）" : actionLabel}</Button>}
-        {failed && online && !disabled && onOnlineOpen && <Button className="secondary-button" onPress={onOnlineOpen}>在线打开</Button>}
-        <Button className="text-button" onPress={() => setDetailsOpen(false)}>关闭</Button>
+        <p>{t("offlineScoreControl2")}</p>
+        {readFailed && <Button className="secondary-button" onPress={() => setInspectionAttempt(value => value + 1)}>{t("offlineScoreControlRetryVerification")}</Button>}
+        {!readFailed && needsDownload && <Button className="secondary-button" isDisabled={!online || disabled || !workspace || explicitDownload} onPress={() => void prepare()}>{downloading ? explicitDownload ? t("libraryExportPreparing") : t("offlineScoreControlContinueSavingNoInterruption") : actionLabel}</Button>}
+        {failed && online && !disabled && onOnlineOpen && <Button className="secondary-button" onPress={onOnlineOpen}>{t("offlineScoreControlOpenOnline")}</Button>}
+        <Button className="text-button" onPress={() => setDetailsOpen(false)}>{t("close")}</Button>
       </Dialog>
     </Popover>
   </div>;

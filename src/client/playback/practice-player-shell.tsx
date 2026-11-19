@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { PlaybackPreparationNotice } from './playback-preparation-notice';
 import { createPortal } from 'react-dom';
 import { FeedbackMessage } from '../components/feedback-message';
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export function PracticePlayerShell(props: Props) {
+  const t = useMessages("practice");
   const { source, focus } = props;
   const { controlsCollapsed, toolsCollapsed } = focus;
   useExitLayer(focus.focused, 'overlay', destination => {
@@ -35,6 +37,7 @@ export function PracticePlayerShell(props: Props) {
   });
   const readerView = useSyncExternalStore(playbackViewStore.subscribe, playbackViewStore.getSnapshot);
   const view = props.embedded ? 'xml' : readerView;
+  const viewLabels = { pdf: t("originalPdf"), xml: t("reflowedScore"), compare: t("compare") };
   const [panel, setPanel] = useState<'settings' | 'position' | 'speed' | null>(null);
   const positionTrigger = useRef<HTMLButtonElement>(null);
   const settingsTrigger = useRef<HTMLButtonElement>(null);
@@ -85,58 +88,58 @@ export function PracticePlayerShell(props: Props) {
   </TooltipTrigger>;
   return <>
     {!props.embedded && isXml && source && <PracticeSplit active={view === 'compare'} ownerKey={source.ownerKey} />}
-    {isXml && <header className="practice-header" aria-label="练习看谱" data-floating={!props.embedded || undefined} ref={header}>
+    {isXml && <header className="practice-header" aria-label={t("practiceReading")} data-floating={!props.embedded || undefined} ref={header}>
       <div id="practice-view-controls" className="practice-header-tools" hidden={toolsCollapsed}>
-      {props.embedded ? <strong>候选谱面与试听</strong> : <MenuTrigger>
-        <Button className="practice-view-trigger" aria-label="显示谱面" aria-description={`当前：${view === 'pdf' ? '原始 PDF' : view === 'compare' ? '对照' : '重排谱面'}`} data-short-label={view === 'pdf' ? 'PDF' : view === 'compare' ? '对照' : '重排'}><span className="practice-view-label">{view === 'pdf' ? '原始 PDF' : view === 'compare' ? '对照' : '重排谱面'}</span><ChevronDown size={14} aria-hidden="true" /></Button>
+      {props.embedded ? <strong>{t("candidatePreview")}</strong> : <MenuTrigger>
+        <Button className="practice-view-trigger" aria-label={t("showScore")} aria-description={t("currentView", { view: viewLabels[view] })} data-short-label={view === 'pdf' ? 'PDF' : view === 'compare' ? t("compare") : t("reflow")}><span className="practice-view-label">{viewLabels[view]}</span><ChevronDown size={14} aria-hidden="true" /></Button>
         <Popover className="practice-view-popover" placement="bottom start" offset={6}>
-          <Menu aria-label="显示谱面" selectionMode="single" selectedKeys={[view]} onAction={key => { if (key === 'pdf' || key === 'xml' || key === 'compare') selectView(key); }}>
-            {([['pdf','原始 PDF'],['xml','重排谱面'],['compare','对照']] as const).map(([key,label]) => <MenuItem key={key} id={key} textValue={label} className="practice-view-option"><span>{label}</span>{view === key && <Check size={16} aria-hidden="true" />}</MenuItem>)}
+          <Menu aria-label={t("showScore")} selectionMode="single" selectedKeys={[view]} onAction={key => { if (key === 'pdf' || key === 'xml' || key === 'compare') selectView(key); }}>
+            {(["pdf", "xml", "compare"] as const).map(key => <MenuItem key={key} id={key} textValue={viewLabels[key]} className="practice-view-option"><span>{viewLabels[key]}</span>{view === key && <Check size={16} aria-hidden="true" />}</MenuItem>)}
           </Menu>
         </Popover>
       </MenuTrigger>}
       {props.notationZoom && <NotationZoom {...props.notationZoom} />}
-      {!props.embedded && <TooltipTrigger><Button className="practice-chrome-toggle practice-fullscreen" isDisabled={focus.pending} aria-label={focus.focused ? '退出专注' : focus.supported ? '全屏看谱' : '专注看谱'} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); void (focus.focused ? focus.exit() : focus.enter()); }}>{focus.focused ? <Minimize size={16} aria-hidden="true" /> : <Maximize size={16} aria-hidden="true" />}<span>{focus.focused ? '退出' : focus.supported ? '全屏' : '专注'}</span></Button><Tooltip className="practice-tooltip" placement="bottom">{focus.focused ? '退出专注' : focus.supported ? '全屏看谱' : '专注看谱'}</Tooltip></TooltipTrigger>}
+      {!props.embedded && <TooltipTrigger><Button className="practice-chrome-toggle practice-fullscreen" isDisabled={focus.pending} aria-label={focus.focused ? t("exitFocus") : focus.supported ? t("fullScreenScore") : t("focusScore")} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); void (focus.focused ? focus.exit() : focus.enter()); }}>{focus.focused ? <Minimize size={16} aria-hidden="true" /> : <Maximize size={16} aria-hidden="true" />}<span>{focus.focused ? t("exit") : focus.supported ? t("fullScreen") : t("focus")}</span></Button><Tooltip className="practice-tooltip" placement="bottom">{focus.focused ? t("exitFocus") : focus.supported ? t("fullScreenScore") : t("focusScore")}</Tooltip></TooltipTrigger>}
       </div>
-      {!props.embedded && <TooltipTrigger><Button ref={toolsTrigger} className="practice-chrome-toggle practice-tools-toggle" aria-label={toolsCollapsed ? '展开看谱工具' : '收起看谱工具'} aria-expanded={!toolsCollapsed} aria-controls={`practice-view-controls${view === 'compare' ? ' practice-notation-tools' : ''}`} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); focus.setToolsCollapsed(!toolsCollapsed); }}>{toolsCollapsed ? <ChevronDown size={18} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}{!toolsCollapsed && <span aria-hidden="true">收起</span>}</Button><Tooltip className="practice-tooltip" placement="bottom">{toolsCollapsed ? '展开看谱工具' : '收起看谱工具'}</Tooltip></TooltipTrigger>}
+      {!props.embedded && <TooltipTrigger><Button ref={toolsTrigger} className="practice-chrome-toggle practice-tools-toggle" aria-label={toolsCollapsed ? t("readingToolsExpand") : t("readingToolsCollapse")} aria-expanded={!toolsCollapsed} aria-controls={`practice-view-controls${view === 'compare' ? ' practice-notation-tools' : ''}`} onPress={() => { toolsTrigger.current?.focus({ preventScroll: true }); focus.setToolsCollapsed(!toolsCollapsed); }}>{toolsCollapsed ? <ChevronDown size={18} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}{!toolsCollapsed && <span aria-hidden="true">{t("collapse")}</span>}</Button><Tooltip className="practice-tooltip" placement="bottom">{toolsCollapsed ? t("readingToolsExpand") : t("readingToolsCollapse")}</Tooltip></TooltipTrigger>}
     </header>}
     <div className="practice-dock" data-view={view} data-audio={!isXml || undefined} data-collapsed={controlsCollapsed || undefined} ref={dock}>
       {!props.ready && !props.failed && props.message
         ? <PlaybackPreparationNotice key={props.message} message={props.message} {...props.preparation} retry={props.retry} />
-        : props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>重试</Button>}</div>}
+        : props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>{t("retry")}</Button>}</div>}
       {props.hint}
-      <section className="practice-bar" aria-label={isXml ? '乐谱练习' : '音频播放'} data-testid="musicxml-player">
+      <section className="practice-bar" aria-label={isXml ? t("scorePractice") : t("audioPlayback")} data-testid="musicxml-player">
         <div id="practice-expanded-controls" className="practice-expanded-controls" hidden={controlsCollapsed}><PlaybackTimeline timeline={props.timeline} /></div>
 
         <div id="practice-bar-meta" className="practice-bar-meta" hidden={controlsCollapsed}>
-          <Button ref={positionTrigger} className="practice-position" aria-label={isXml ? '定位小节' : '定位时间'} aria-expanded={panel === 'position'} isDisabled={props.timeline.disabled} onPress={() => setPanel(panel === 'position' ? null : 'position')} aria-description={props.timeline.label(props.timeline.value)}>{props.position}</Button>
-          {props.setSpeed && (isXml ? <Button ref={speedTrigger} className="practice-speed" aria-label="调节速度" aria-expanded={panel === 'speed'} isDisabled={!props.ready} onPress={() => setPanel(panel === 'speed' ? null : 'speed')}>{(props.speed ?? 1).toFixed(2)}×</Button> : <select className="practice-speed" aria-label="速度" value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select>)}
+          <Button ref={positionTrigger} className="practice-position" aria-label={isXml ? t("findMeasure") : t("findTime")} aria-expanded={panel === 'position'} isDisabled={props.timeline.disabled} onPress={() => setPanel(panel === 'position' ? null : 'position')} aria-description={props.timeline.label(props.timeline.value)}>{props.position}</Button>
+          {props.setSpeed && (isXml ? <Button ref={speedTrigger} className="practice-speed" aria-label={t("adjustSpeed")} aria-expanded={panel === 'speed'} isDisabled={!props.ready} onPress={() => setPanel(panel === 'speed' ? null : 'speed')}>{(props.speed ?? 1).toFixed(2)}×</Button> : <select className="practice-speed" aria-label={t("speed")} value={props.speed} disabled={!props.ready} onChange={event => props.setSpeed?.(Number(event.target.value))}>{[.5,.75,1,1.25,1.5].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select>)}
         </div>
         <div className="practice-transport">
-        {!controlsCollapsed && icon(isXml ? '前一小节' : '后退 10 秒', <span className="practice-skip" aria-hidden="true"><RotateCcw size={26} /><span>{isXml ? 1 : 10}</span></span>, props.previous, !props.ready || props.previousDisabled)}
-        <TooltipTrigger><Button className="practice-icon practice-play" aria-label={props.playing ? '暂停' : '播放'} isDisabled={!props.ready} onPress={props.play}>
+        {!controlsCollapsed && icon(isXml ? t("previousMeasure") : t("rewindTen"), <span className="practice-skip" aria-hidden="true"><RotateCcw size={26} /><span>{isXml ? 1 : 10}</span></span>, props.previous, !props.ready || props.previousDisabled)}
+        <TooltipTrigger><Button className="practice-icon practice-play" aria-label={props.playing ? t("pause") : t("play")} isDisabled={!props.ready} onPress={props.play}>
           {!props.ready && !props.failed ? <LoaderCircle className="practice-loading-icon" size={18} aria-hidden="true" /> : props.playing ? <Pause size={18} fill="currentColor" aria-hidden="true" /> : <Play size={18} fill="currentColor" aria-hidden="true" />}
-        </Button><Tooltip className="practice-tooltip" placement="top">{props.playing ? '暂停' : '播放'}</Tooltip></TooltipTrigger>
-        {!controlsCollapsed && icon(isXml ? '后一小节' : '前进 10 秒', <span className="practice-skip" aria-hidden="true"><RotateCw size={26} /><span>{isXml ? 1 : 10}</span></span>, props.next, !props.ready || props.nextDisabled)}
+        </Button><Tooltip className="practice-tooltip" placement="top">{props.playing ? t("pause") : t("play")}</Tooltip></TooltipTrigger>
+        {!controlsCollapsed && icon(isXml ? t("nextMeasure") : t("forwardTen"), <span className="practice-skip" aria-hidden="true"><RotateCw size={26} /><span>{isXml ? 1 : 10}</span></span>, props.next, !props.ready || props.nextDisabled)}
 
         </div>
         <div className="practice-bar-actions">
           {props.children && <TooltipTrigger>
-          <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label="练习设置" aria-description={props.loopStatus ? `片段循环：${props.loopStatus}` : undefined} data-loop={props.loopStatus ? true : undefined} aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={17} aria-hidden="true" />{!controlsCollapsed && <span aria-hidden="true">练习</span>}</Button>
-          <Tooltip className="practice-tooltip" placement="top">{props.loopStatus ? `片段循环：${props.loopStatus}` : "练习设置"}</Tooltip>
+          <Button ref={settingsTrigger} className="practice-icon practice-settings" aria-label={t("settings")} aria-description={props.loopStatus ? t("loopSummary", { range: props.loopStatus }) : undefined} data-loop={props.loopStatus ? true : undefined} aria-expanded={panel === 'settings'} data-active={panel === 'settings' || undefined} onPress={() => setPanel(panel === 'settings' ? null : 'settings')}><SlidersHorizontal size={17} aria-hidden="true" />{!controlsCollapsed && <span aria-hidden="true">{t("practice")}</span>}</Button>
+          <Tooltip className="practice-tooltip" placement="top">{props.loopStatus ? t("loopSummary", { range: props.loopStatus }) : t("settings")}</Tooltip>
         </TooltipTrigger>}
         {!props.embedded && <div className="practice-session-actions">
-          <TooltipTrigger><Button className="practice-chrome-toggle practice-close" aria-label={isXml ? '退出练习' : '关闭音频'} onPress={closePlayer}><X size={18} aria-hidden="true" />{!controlsCollapsed && <span aria-hidden="true">{isXml ? '退出' : '关闭'}</span>}</Button><Tooltip className="practice-tooltip" placement="top">{isXml ? '退出练习' : '关闭音频'}</Tooltip></TooltipTrigger>
-          <TooltipTrigger><Button ref={controlsTrigger} className="practice-chrome-toggle practice-controls-toggle" aria-label={controlsCollapsed ? '展开练习控制' : '收起练习控制'} aria-expanded={!controlsCollapsed} aria-controls="practice-expanded-controls practice-bar-meta" onPress={() => { setPanel(null); controlsTrigger.current?.focus({ preventScroll: true }); focus.setControlsCollapsed(!controlsCollapsed); }}>{controlsCollapsed ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}{!controlsCollapsed && <span aria-hidden="true">收起</span>}</Button><Tooltip className="practice-tooltip" placement="top">{controlsCollapsed ? '展开练习控制' : '收起练习控制'}</Tooltip></TooltipTrigger>
+          <TooltipTrigger><Button className="practice-chrome-toggle practice-close" aria-label={isXml ? t("exitPractice") : t("closeAudio")} onPress={closePlayer}><X size={18} aria-hidden="true" />{!controlsCollapsed && <span aria-hidden="true">{isXml ? t("exit") : t("close")}</span>}</Button><Tooltip className="practice-tooltip" placement="top">{isXml ? t("exitPractice") : t("closeAudio")}</Tooltip></TooltipTrigger>
+          <TooltipTrigger><Button ref={controlsTrigger} className="practice-chrome-toggle practice-controls-toggle" aria-label={controlsCollapsed ? t("practiceControlsExpand") : t("practiceControlsCollapse")} aria-expanded={!controlsCollapsed} aria-controls="practice-expanded-controls practice-bar-meta" onPress={() => { setPanel(null); controlsTrigger.current?.focus({ preventScroll: true }); focus.setControlsCollapsed(!controlsCollapsed); }}>{controlsCollapsed ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}{!controlsCollapsed && <span aria-hidden="true">{t("collapse")}</span>}</Button><Tooltip className="practice-tooltip" placement="top">{controlsCollapsed ? t("practiceControlsExpand") : t("practiceControlsCollapse")}</Tooltip></TooltipTrigger>
         </div>}
         </div>
       </section>
     </div>
-    <FeedbackMessage feedback={focus.feedback} className="practice-focus-notice" closeLabel="关闭全屏提示" dismissible />
+    <FeedbackMessage feedback={focus.feedback} className="practice-focus-notice" closeLabel={t("dismissFullScreenNotice")} dismissible />
     {createPortal(<div ref={setPopoverBoundary} className="practice-popover-boundary" aria-hidden="true" />, document.body)}
     {panel && popoverBoundary && <Popover ref={popover} triggerRef={panelTrigger} scrollRef={panelScroll} boundaryElement={popoverBoundary} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover practice-player-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
-      <Dialog className="practice-panel" aria-label={panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}>
-        <header><div><strong>{panel === 'settings' ? '练习设置' : panel === 'speed' ? '调节速度' : isXml ? '定位小节' : '定位时间'}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? '关闭练习设置' : panel === 'speed' ? '关闭速度调节' : '关闭定位'} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
+      <Dialog className="practice-panel" aria-label={panel === 'settings' ? t("settings") : panel === 'speed' ? t("adjustSpeed") : isXml ? t("findMeasure") : t("findTime")}>
+        <header><div><strong>{panel === 'settings' ? t("settings") : panel === 'speed' ? t("adjustSpeed") : isXml ? t("findMeasure") : t("findTime")}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? t("closeSettings") : panel === 'speed' ? t("closeSpeed") : t("closeLocator")} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
         <div ref={panelScroll} className="practice-panel-content">
           {panel === 'settings' ? props.children : panel === 'speed' ? <PracticeSpeed speed={props.speed ?? 1} tempo={props.tempo} ready={props.ready} setSpeed={value => props.setSpeed?.(value)} /> : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}
         </div>
@@ -146,30 +149,34 @@ export function PracticePlayerShell(props: Props) {
 }
 
 function PositionLocator({ timeline, isXml, close }: { timeline: Timeline; isXml: boolean; close(): void }) {
+  const t = useMessages("practice");
   const [value, setValue] = useState(timeline.value);
   return <>
     <label className="practice-field"><span>{timeline.label(value)}</span>
-      <input aria-label={isXml ? '目标小节' : '目标时间'} type="range" min={timeline.min ?? 0} max={timeline.max} step={timeline.step ?? 1} value={value} aria-valuetext={timeline.label(value)} disabled={timeline.disabled} onChange={event => setValue(Number(event.target.value))} />
+      <input aria-label={isXml ? t("targetMeasure") : t("targetTime")} type="range" min={timeline.min ?? 0} max={timeline.max} step={timeline.step ?? 1} value={value} aria-valuetext={timeline.label(value)} disabled={timeline.disabled} onChange={event => setValue(Number(event.target.value))} />
     </label>
-    <Button className="practice-action" isDisabled={timeline.disabled} onPress={() => { timeline.seek(value); close(); }}>跳转</Button>
+    <Button className="practice-action" isDisabled={timeline.disabled} onPress={() => { timeline.seek(value); close(); }}>{t("goTo")}</Button>
   </>;
 }
 
-const tempoUnits = new Map<number, string>([[4, '全音符'], [3, '附点二分音符'], [2, '二分音符'], [1.5, '附点四分音符'], [1, '♩'], [.75, '附点八分音符'], [.5, '♪'], [.25, '十六分音符']]);
-const tempoUnitLabel = (unit: number) => tempoUnits.get(unit) ?? `${unit} 个四分音符`;
+const tempoUnits = { 4: 'wholeNote', 3: 'dottedHalfNote', 2: 'halfNote', 1.5: 'dottedQuarterNote', .75: 'dottedEighthNote', .25: 'sixteenthNote' } as const;
 function PracticeSpeed({ speed, tempo, ready, setSpeed }: { speed: number; tempo?: { bpm: number; unit: number }; ready: boolean; setSpeed(value: number): void }) {
+  const t = useMessages("practice");
   const unit = tempo?.unit ?? 1;
+  const notationSymbol = unit === 1 ? '♩' : unit === .5 ? '♪' : undefined;
+  const unitName = tempoUnits[unit as keyof typeof tempoUnits];
+  const beat = notationSymbol ?? (unitName ? t(unitName) : t("quarterNoteUnits", { count: unit }));
   const bpm = tempo ? tempo.bpm / unit : undefined;
   const rate = (value: number) => Number(value.toFixed(1)).toString();
-  return <section className="practice-speed-panel" aria-label="播放速度">
-    <label className="practice-field"><span>速度 <output>{speed.toFixed(2)}×</output></span>
-      <input aria-label="播放速度" aria-valuetext={`${speed.toFixed(2)} 倍${bpm ? `，当前速度 ${rate(bpm * speed)}` : ''}`} type="range" min="0.5" max="2" step="0.01" value={speed} disabled={!ready} onChange={event => setSpeed(Number(event.target.value))} />
+  return <section className="practice-speed-panel" aria-label={t("playbackSpeed")}>
+    <label className="practice-field"><span>{t("speed")} <output>{speed.toFixed(2)}×</output></span>
+      <input aria-label={t("playbackSpeed")} aria-valuetext={bpm ? t("currentSpeedWithTempo", { speed: speed.toFixed(2), bpm: rate(bpm * speed) }) : t("currentSpeed", { speed: speed.toFixed(2) })} type="range" min="0.5" max="2" step="0.01" value={speed} disabled={!ready} onChange={event => setSpeed(Number(event.target.value))} />
     </label>
-    {bpm !== undefined && <p className="practice-tempo" aria-live="polite">当前位置原速 {tempoUnitLabel(unit)} = {rate(bpm)}<br />调整后 {tempoUnitLabel(unit)} = {rate(bpm * speed)}</p>}
+    {bpm !== undefined && <p className="practice-tempo" aria-live="polite">{t("originalTempo", { beat, bpm: rate(bpm) })}<br />{t("adjustedTempo", { beat, bpm: rate(bpm * speed) })}</p>}
     <div className="practice-speed-actions">
-      <Button className="practice-action" aria-label="速度减少 0.01 倍" isDisabled={!ready || speed <= .5} onPress={() => setSpeed(speed - .01)}>− 0.01</Button>
-      <Button className="practice-action" isDisabled={!ready} onPress={() => setSpeed(1)}>恢复 1.00×</Button>
-      <Button className="practice-action" aria-label="速度增加 0.01 倍" isDisabled={!ready || speed >= 2} onPress={() => setSpeed(speed + .01)}>＋ 0.01</Button>
+      <Button className="practice-action" aria-label={t("decreaseSpeed")} isDisabled={!ready || speed <= .5} onPress={() => setSpeed(speed - .01)}>− 0.01</Button>
+      <Button className="practice-action" isDisabled={!ready} onPress={() => setSpeed(1)}>{t("resetSpeed")}</Button>
+      <Button className="practice-action" aria-label={t("increaseSpeed")} isDisabled={!ready || speed >= 2} onPress={() => setSpeed(speed + .01)}>＋ 0.01</Button>
     </div>
   </section>;
 }

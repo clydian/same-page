@@ -10,7 +10,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     t.after(async () => { await browser.close(); await app.stop(); });
     async function scenario(label, run) {
       await t.test(label, async subtest => {
-        const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+        const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
         subtest.after(() => page.context().close());
         page.setDefaultTimeout(12000);
         const fixture = createVisualFixtureSession({ id: "uiux-return", identity: "admin" });

@@ -9,7 +9,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`${name}: first-join and direct library entry use existing product flows`, async t => {
     const app = await startVisualServer({ script: "dev" }); t.after(() => app.stop());
     const browser = await engine.launch(); t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     t.after(() => context.close());
     await withBrowserEvidence(context, `artifacts/verification/drive-entry/${name}`, async () => {
       const fixture = createVisualFixtureSession();

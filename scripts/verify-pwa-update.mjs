@@ -56,7 +56,7 @@ try {
   }
 
   browser = await webkit.launch({ headless: true });
-  const context = await browser.newContext({ serviceWorkers: "allow" });
+  const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: "allow" });
   await context.addInitScript(observeInitialUpdateCheck);
   const page = await context.newPage();
 
@@ -140,7 +140,7 @@ try {
   // Normal updates require no update-button click: the browser takes over once
   // every old application window exits, even with our forced-activation guard.
   activeBuild = builds.first;
-  const automatic = await browser.newContext({ serviceWorkers: "allow" });
+  const automatic = await browser.newContext({ locale: "zh-CN", serviceWorkers: "allow" });
   const running = await automatic.newPage();
   await running.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
   await running.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
@@ -192,7 +192,7 @@ try {
   // Hold the browser's real activate event after skipWaiting has been accepted.
   // Slow storage/system scheduling must not turn a successful handover into an error.
   activationGate = new Promise(resolve => { releaseActivation = resolve; });
-  const fastContext = await browser.newContext({ serviceWorkers: "allow" });
+  const fastContext = await browser.newContext({ locale: "zh-CN", serviceWorkers: "allow" });
   await fastContext.addInitScript(() => {
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (!window.holdUpdateReload) return;
@@ -242,7 +242,7 @@ try {
 }
 
 async function verifyAnimationCaching(browser, origin) {
-  const context = await browser.newContext({ serviceWorkers: "allow", reducedMotion: "reduce" });
+  const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: "allow", reducedMotion: "reduce" });
   let sourceStopped = false;
   try {
     const page = await context.newPage();

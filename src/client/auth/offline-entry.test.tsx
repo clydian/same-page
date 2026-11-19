@@ -275,7 +275,7 @@ it("does not flash login preparation in the installed app while a remembered mem
   await findSavedScoreLink();
   await waitFor(() => expect(finishBootstrap).toBeDefined());
   expect(screen.queryByRole("complementary", { name: "排练准备" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "注册 / 登录，开始记笔记" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "登录或注册" })).not.toBeInTheDocument();
   await act(async () => finishBootstrap(Response.json(bootstrap)));
   await screen.findByRole("link", { name: /^cloud$/ });
   expect(screen.queryByRole("complementary", { name: "排练准备" })).not.toBeInTheDocument();

@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { ResourcePreparation } from "../updates/resource-preparation";
 import { assetUrl } from "../../shared/asset-url";
 import { AndroidInstallOption } from "./android-install-option";
@@ -23,6 +24,7 @@ function inAppMode() {
 }
 
 export function InstallProvider({ children }: { children: ReactNode }) {
+  const t = useMessages("system");
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const deviceGuide = detectInstallGuide(navigator.userAgent, navigator.maxTouchPoints);
@@ -61,8 +63,8 @@ export function InstallProvider({ children }: { children: ReactNode }) {
     try {
       const result = await event.prompt();
       if (result.outcome === "accepted") setRequested(true);
-      else setMessage("已取消安装。你可以继续使用合谱，稍后从菜单查看安装方法。");
-    } catch { setMessage("暂时无法打开安装窗口，请按下面的步骤添加。"); }
+      else setMessage("installProvider.cancelled");
+    } catch { setMessage("installProvider.promptFailed"); }
     finally { busyRef.current = false; setBusy(false); }
   };
   const show = () => {
@@ -80,22 +82,22 @@ export function InstallProvider({ children }: { children: ReactNode }) {
     {children}
     <ModalOverlay className="modal-overlay" isOpen={open && !runningInApp} onOpenChange={setOpen} isDismissable>
       <Modal className="app-modal install-modal"><Dialog className="app-dialog install-dialog">
-        <div className="dialog-heading"><Heading slot="title">{guide === "android" ? "安装合谱" : "添加到桌面"}</Heading><Button className="icon-button" aria-label="关闭安装引导" onPress={() => setOpen(false)}><X size={22} /></Button></div>
-        <div className="install-intro"><img src={assetUrl("icon-192.png")} width="56" height="56" alt="" /><div><strong>下次排练，一点就能打开</strong><p>添加到桌面，随时开始排练。</p></div></div>
+        <div className="dialog-heading"><Heading slot="title">{guide === "android" ? t("installProvider.install") : t("installProvider.add")}</Heading><Button className="icon-button" aria-label={t("installProvider.close")} onPress={() => setOpen(false)}><X size={22} /></Button></div>
+        <div className="install-intro"><img src={assetUrl("icon-192.png")} width="56" height="56" alt="" /><div><strong>{t("installProvider.rehearse")}</strong><p>{t("installProvider.intro")}</p></div></div>
         {!external && <ResourcePreparation install />}
         {requested ? <InstallCompletion guide={guide} /> : <>
-        {external && <p className="install-platform-note">{ios ? "先用 Safari 打开，再添加到桌面。" : "先在浏览器中打开，再添加到桌面。"}</p>}
+        {external && <p className="install-platform-note">{ios ? t("installProvider.useSafari") : t("installProvider.useBrowser")}</p>}
         {guide === "android" ? <AndroidInstallOption>
-          {prompt ? <Button className="primary-button install-native" isDisabled={busy} onPress={() => void install()}><Download size={18} />添加到桌面</Button> : <details className="install-choice-manual"><summary>查看浏览器安装步骤</summary><InstallSteps guide={guide} /></details>}
-        </AndroidInstallOption> : prompt && !external ? <Button className="primary-button install-native" isDisabled={busy} onPress={() => void install()}><Download size={18} />添加到桌面</Button> : <InstallSteps guide={guide} />}
-        <details className="install-fallback"><summary>{external ? "找不到浏览器选项？" : "添加时遇到问题？"}</summary>
-          {ios && <p>没有“添加到主屏幕”？向下滚动分享菜单，或在“编辑操作”中添加；也可以用 Safari 再试。</p>}
-          {android && <><p>添加后没有图标？到手机设置中找到当前浏览器 → 权限 / 其他权限，查找“创建桌面快捷方式”并允许；没有此项可跳过。</p><p>仍无法添加，可换浏览器尝试。Chrome 安装可能受 Google Play 服务或网络影响。</p></>}
+          {prompt ? <Button className="primary-button install-native" isDisabled={busy} onPress={() => void install()}><Download size={18} />{t("installProvider.add")}</Button> : <details className="install-choice-manual"><summary>{t("installProvider.manual")}</summary><InstallSteps guide={guide} /></details>}
+        </AndroidInstallOption> : prompt && !external ? <Button className="primary-button install-native" isDisabled={busy} onPress={() => void install()}><Download size={18} />{t("installProvider.add")}</Button> : <InstallSteps guide={guide} />}
+        <details className="install-fallback"><summary>{external ? t("installProvider.optionMissing") : t("installProvider.trouble")}</summary>
+          {ios && <p>{t("installProvider.safariHelp")}</p>}
+          {android && <><p>{t("installProvider.androidHelp")}</p><p>{t("installProvider.switchBrowser")}</p></>}
           {prompt && <InstallSteps guide={guide} />}
           <CopyInstallLink />
         </details>
-        {message && <p role="status" className="install-message">{message}</p>}
-        <p className="install-note">添加后，回到桌面，点合谱图标打开。</p>
+        {message && <p role="status" className="install-message">{t(message)}</p>}
+        <p className="install-note">{t("installProvider.openApp")}</p>
         </>}
       </Dialog></Modal>
     </ModalOverlay>

@@ -83,7 +83,9 @@ test('the source preparation Worker returns only its own protocol and transfers 
     assert.deepEqual(prepared, prepareMusicXmlForPlaybackBytes(repeated));
     assert.equal(messages[0][1].transfer[0], prepared.bytes.buffer);
     self.onmessage({ data: encode('not xml') });
-    assert.deepEqual(Object.keys(messages[1][0]), ['error']);
-    assert.equal(typeof messages[1][0].error, 'string');
+    assert.deepEqual(messages[1][0], {
+      error: 'XML 结构无效，请从制谱软件重新导出。',
+      code: 'validationXmlStructure',
+    });
   } finally { globalThis.self = previous; }
 });

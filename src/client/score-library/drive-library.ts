@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages } from "../../i18n";
 import { NAVIGATION_FRESH_MS, onDriveChange } from "../settings/navigation-events";
 import { revokeDriveReadResources, type ReadState } from "../settings/read-resource";
 import { localDatabase } from "../platform/local-database";
@@ -39,7 +40,7 @@ function localAccess(access: OpenedAccess): OpenedAccess {
   };
 }
 
-const refreshFailed = "暂时无法更新乐谱列表，当前内容已保留。请稍后重试。";
+const refreshFailed = "driveLibraryScoreListCannotUpdated";
 
 // One lifetime owns local/remote directory ordering, persistence, authority and view.
 // The React adapter only supplies browser events and committed-list scrolling.
@@ -293,6 +294,7 @@ export class DriveLibrary {
   };
 
   join = async (displayName: string) => {
+    const t = getMessages(getCurrentLocale(), "library");
     if (!this.isActive() || this.snapshot.joining) return;
     const controller = new AbortController();
     this.joinController = controller;
@@ -303,7 +305,7 @@ export class DriveLibrary {
       this.publish({ joinMessage: message });
       if (!message) await this.changed();
     } catch {
-      if (!controller.signal.aborted) this.publish({ joinMessage: "暂时无法加入这个云盘，请稍后再试。" });
+      if (!controller.signal.aborted) this.publish({ joinMessage: t("driveLibraryCloudDiskCannotAdded") });
     } finally {
       if (this.joinController === controller) {
         this.joinController = null;
@@ -380,12 +382,14 @@ export class DriveLibrary {
   }
 
   private retainedAccess(scores: ScoreSummary[]): OpenedAccess {
+    const t = getMessages(getCurrentLocale(), "library");
     return { kind: "opened", local: true, retained: true, isMember: false,
-      choir: { id: this.choirId, name: "本机保留的乐谱", guestAdmissionMode: "invite" },
+      choir: { id: this.choirId, name: t("driveLibraryMusicScoresRetainedDevice"), guestAdmissionMode: "invite" },
       result: { scores, permissions: { capabilities: noCapabilities() }, storage: { usedBytes: 0, limitBytes: 1 } } };
   }
 
   private watchRetained(captured: LocalWorkspace | null, ownerSignal: AbortSignal) {
+    const t = getMessages(getCurrentLocale(), "library");
     this.retainedSubscription?.unsubscribe();
     if (captured) this.retainedSubscription = liveQuery(() => readRetainedScores(captured)).subscribe({
       next: scores => {
@@ -396,14 +400,15 @@ export class DriveLibrary {
         const current = this.snapshot.access;
         if (!ownerSignal.aborted && current.kind === "opened" && current.retained) {
           if (error instanceof LocalWorkspaceOwnerChangedError) {
-            this.publish({ access: { ...current, result: { ...current.result, scores: [] } }, refreshMessage: "本机身份已变化，请重新打开云盘。" });
-          } else this.publish({ refreshMessage: "暂时无法读取本机目录，已显示的内容保留，请重试。" });
+            this.publish({ access: { ...current, result: { ...current.result, scores: [] } }, refreshMessage: t("driveLocalIdentityChanged") });
+          } else this.publish({ refreshMessage: t("driveLocalDirectoryReadFailed") });
         }
       },
     });
   }
 
   private async readLocal(signal: AbortSignal): Promise<OpenedAccess | null> {
+    const t = getMessages(getCurrentLocale(), "library");
     const captured = await this.workspace;
     if (this.ownerKey.startsWith("user:") && !captured) throw new Error("local_directory_unavailable");
     const directory = this.ownerKey.startsWith("user:")
@@ -415,34 +420,35 @@ export class DriveLibrary {
     return { kind: "opened", local: true, isMember: false,
       rememberedMembership: directory?.membership ?? false,
       managementVisible: hasManagement(directory?.capabilities ?? noCapabilities()), rememberedCapabilities: directory?.capabilities,
-      choir: directory?.choir ?? readDriveSummary(this.ownerKey, this.choirId) ?? { id: this.choirId, name: "云盘", guestAdmissionMode: "invite" },
+      choir: directory?.choir ?? readDriveSummary(this.ownerKey, this.choirId) ?? { id: this.choirId, name: t("drive"), guestAdmissionMode: "invite" },
       result: { scores: directory?.scores ?? [], storage: directory?.storage ?? { usedBytes: 0, limitBytes: 1 }, permissions: { capabilities: noCapabilities() } },
     };
   }
 
   private async failed(signal: AbortSignal, authenticationRequired = false) {
+    const t = getMessages(getCurrentLocale(), "library");
     this.confirmedAt = -Infinity;
     const current = this.snapshot.access;
     if (current.kind === "opened") {
       if (authenticationRequired) {
         invalidateDriveLibrary(this.ownerKey, this.choirId);
-        this.publish({ access: localAccess(current), reading: { request: "pending", authority: "signed-out" }, refreshMessage: "登录已失效，请重新登录后再试。" });
+        this.publish({ access: localAccess(current), reading: { request: "pending", authority: "signed-out" }, refreshMessage: t("driveLibraryLoginHasExpiredLog") });
       } else {
         if (!current.local) rememberDriveLibrary(this.ownerKey, this.choirId, current, -Infinity);
-        this.publish({ refreshMessage: refreshFailed });
+        this.publish({ refreshMessage: t(refreshFailed) });
       }
       return;
     }
     let local: OpenedAccess | null;
     try { local = await this.readLocal(signal); }
     catch {
-      if (!signal.aborted) this.publish({ access: { kind: "failed" }, refreshMessage: "本机目录暂时无法读取，请重试。" });
+      if (!signal.aborted) this.publish({ access: { kind: "failed" }, refreshMessage: t("driveLocalDirectoryUnreadable") });
       return;
     }
     if (signal.aborted) return;
     this.publish({ access: local ?? { kind: "opened", local: true, isMember: false,
-      choir: readDriveSummary(this.ownerKey, this.choirId) ?? { id: this.choirId, name: "云盘", guestAdmissionMode: "invite" },
-      result: { scores: [], permissions: { capabilities: noCapabilities() }, storage: { usedBytes: 0, limitBytes: 1 } } }, refreshMessage: refreshFailed });
+      choir: readDriveSummary(this.ownerKey, this.choirId) ?? { id: this.choirId, name: t("drive"), guestAdmissionMode: "invite" },
+      result: { scores: [], permissions: { capabilities: noCapabilities() }, storage: { usedBytes: 0, limitBytes: 1 } } }, refreshMessage: t(refreshFailed) });
   }
 
   private updateView(update: Partial<LibraryView>) {

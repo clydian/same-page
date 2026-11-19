@@ -12,7 +12,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   let browser;
   t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
   browser = await type.launch(engine === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
   await context.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
   await context.request.post(fixture.origin + '/api/auth/sign-in/email', { headers: { origin: fixture.origin }, data: { email: fixture.accounts[0].email, password: fixture.accounts[0].password } });
   const bytes = process.env.COMPARE_XML ? await readFile(process.env.COMPARE_XML) : musicXmlFixture(128), id = crypto.randomUUID();

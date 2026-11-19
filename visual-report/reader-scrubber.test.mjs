@@ -18,7 +18,7 @@ test('whole-score scrubber selects all 30 pages without horizontal scrolling', a
   for (const [name, engine] of Object.entries({ chromium, webkit })) await t.test(name, async () => {
     const browser = await engine.launch();
     try {
-      const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+      const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
       await page.route('**/api/**', route => route.fulfill(resolveFixtureRequest({
         pathname: new URL(route.request().url()).pathname, method: route.request().method(),
         identity: 'member', scenarioId: 'reader-scrubber', pdf, selectedScore,

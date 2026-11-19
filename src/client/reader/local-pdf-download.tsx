@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useLayoutEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
 import { scorePdfFileName } from "../../shared/score-display-name";
@@ -9,6 +10,7 @@ type Props = { workspace: LocalWorkspace; record: OfflineScoreRecord };
 // The caller supplies an already verified offline record; downloading needs no
 // PDF engine, network request, or change to local annotation data.
 export function LocalPdfDownload({ workspace, record }: Props) {
+  const t = useMessages("reader");
   const generation = useRef({ value: 0 });
   const pending = useRef(false);
   const urls = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -55,8 +57,8 @@ export function LocalPdfDownload({ workspace, record }: Props) {
       } finally { link.remove(); }
     } catch (error) {
       if (active()) setStatus({ workspace, record, busy: false, error: error instanceof LocalWorkspaceOwnerChangedError
-        ? "本机身份或会话已变化，请返回文件库重新打开乐谱后下载。"
-        : "下载未完成，请再次点击“下载原 PDF”重试。" });
+        ? t("downloadSessionChanged")
+        : t("downloadRetryHint") });
       return;
     } finally {
       if (active()) pending.current = false;
@@ -64,7 +66,7 @@ export function LocalPdfDownload({ workspace, record }: Props) {
     if (active()) setStatus({ workspace, record, busy: false });
   };
   return <>
-    <Button className="secondary-button" isDisabled={current?.busy} onPress={() => void download()}>下载原 PDF</Button>
+    <Button className="secondary-button" isDisabled={current?.busy} onPress={() => void download()}>{t("downloadOriginalPdf")}</Button>
     {current?.error && <p role="alert">{current.error}</p>}
   </>;
 }

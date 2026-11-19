@@ -1,0 +1,11 @@
+{
+  "registrationSubject": "Same Page 註冊驗證碼",
+  "resetSubject": "Same Page 密碼重設驗證碼",
+  "registrationIntro": "你正在 {site} 完成 Same Page 註冊。",
+  "resetIntro": "你正在 {site} 重設 Same Page 密碼。",
+  "codeLine": "驗證碼：{code}",
+  "expiry": "驗證碼將在 10 分鐘後失效，請勿轉傳給他人。",
+  "registrationUnexpected": "如果不是你本人操作，無須處理；註冊不會完成。",
+  "resetUnexpected": "如果不是你本人操作，無須處理；密碼不會變更。",
+  "codeLabel": "驗證碼："
+}

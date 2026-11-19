@@ -38,7 +38,7 @@ try{
  for(const [name,type]of [['chromium',chromium],['webkit',webkit]]){
   beta=B; const browser=await type.launch({headless:true});
   try{
-   const context=await browser.newContext(),page=await context.newPage();
+   const context=await browser.newContext({ locale: "zh-CN" }),page=await context.newPage();
    await page.goto(origin+'/drives');await page.evaluate(()=>navigator.serviceWorker.ready);await page.reload();
    await page.waitForFunction(()=>navigator.serviceWorker.controller&&window.fixtureBuild==='a'.repeat(40));
    const stage=async channel=>page.evaluate(async channel=>{
@@ -74,7 +74,7 @@ try{
    // Force automatic activation of the now-stale beta by removing all clients.
    await page.close();const recovered=await context.newPage();await recovered.goto(origin+'/drives');
    await recovered.waitForFunction(()=>window.fixtureBuild==='a'.repeat(40));
-   beta=C;const cold=await browser.newContext(),p=await cold.newPage();await p.goto(origin+'/choirs/new');await p.waitForFunction(()=>window.fixtureBuild==='a'.repeat(40));
+   beta=C;const cold=await browser.newContext({ locale: "zh-CN" }),p=await cold.newPage();await p.goto(origin+'/choirs/new');await p.waitForFunction(()=>window.fixtureBuild==='a'.repeat(40));
    await cold.close();await context.close();results.push({browser:name,version:browser.version(),coldStable:true,roundtrip:true,busyWindowVeto:true,missingStableRecovery:true,recoveryBusyVeto:true,staleCandidateRejected:true,staleAutomaticActivationCannotDisplayBeta:true});
   }finally{await browser.close()}
  }

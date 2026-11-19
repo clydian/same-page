@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useRef } from "react";
 import { scorePdfFileName } from "../../shared/score-display-name";
 import type { ScoreSummary } from "../../shared/scores";
@@ -9,6 +10,7 @@ import { uploadMessage } from "./library-format";
 // Mount inside the user/session/drive/selection-keyed dialog. Write
 // confirmation lives in the library so closing a dialog cannot bypass recovery.
 export function useScoreFileAction(library: DriveLibrary, score: ScoreSummary, action: "rename" | "trash", onComplete: (message: string) => void, enabled = true) {
+  const t = useMessages("library");
   const completed = useRef<ScoreFileChange | undefined>(undefined);
   const mutation = useSettingsMutation({
     enabled, paused: !enabled,
@@ -18,7 +20,7 @@ export function useScoreFileAction(library: DriveLibrary, score: ScoreSummary, a
       if (isCurrent()) completed.current = saved;
     },
   });
-  const complete = (completedAction = action) => onComplete(completedAction === "rename" ? "文件已重命名。" : "文件已移到回收站，将在三十天后自动删除。");
+  const complete = (completedAction = action) => onComplete(completedAction === "rename" ? t("useScoreFileActionFileHasBeenRenamed") : t("useScoreFileActionFileHasBeenMoved"));
 
   const submit = async (name: string) => {
     const change: ScoreFileChange = action === "rename"
@@ -26,7 +28,7 @@ export function useScoreFileAction(library: DriveLibrary, score: ScoreSummary, a
       : { kind: "trash", scoreId: score.id };
     const saved = await mutation.submit(
       () => library.requestScoreChange(change),
-      { rejectionMessage: (status, body) => status === 401 ? "登录已失效，请重新登录后再试。" : status === 403 ? "没有操作这份乐谱的权限，请联系云盘拥有者。" : uploadMessage(status, body) },
+      { rejectionMessage: (status, body) => status === 401 ? t("driveLibraryLoginHasExpiredLog") : status === 403 ? t("useScoreFileActionDoNotPermissionOperate") : uploadMessage(status, body) },
     );
     if (saved) complete();
   };

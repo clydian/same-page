@@ -1,8 +1,10 @@
+import { useMessages } from "../../i18n";
 import { useEffect, useState } from "react";
 import { userLifecycleSchema } from "../../shared/lifecycle";
 import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnostics";
 import { useSettingsMutation } from "./settings-mutation";
-import { SettingsRequestError, settingsError } from "./settings-request";
+import { SettingsRequestError } from "./settings-request";
+import { settingsError } from "./settings-error";
 import { useSettingsLifetime, captureSettingsLifetime } from "./use-settings-lifetime";
 
 async function loadUserLifecycle() {
@@ -12,6 +14,7 @@ async function loadUserLifecycle() {
 }
 
 export function useUserLifecycle() {
+  const t = useMessages("library");
   const lifetime = useSettingsLifetime();
   const [state, setState] = useState<ReturnType<typeof userLifecycleSchema.parse> | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -26,7 +29,7 @@ export function useUserLifecycle() {
       if (isCurrent()) {
         setNeedsRefresh(true);
         if (error instanceof SettingsRequestError && [401, 403].includes(error.status)) setState(null);
-        setMessage(settingsError(error, "暂时无法读取用户状态，请重试。"));
+        setMessage(settingsError(error, t("useUserLifecycleTemporarilyUnableReadUser")));
       }
       throw error;
     } finally { if (isCurrent()) setLoading(false); }
@@ -36,15 +39,15 @@ export function useUserLifecycle() {
     void loadUserLifecycle().then(next => {
       if (isCurrent()) { setState(next); setLoading(false); }
     }).catch(error => {
-      if (isCurrent()) { setLoading(false); setNeedsRefresh(true); setMessage(settingsError(error, "暂时无法读取用户状态，请重试。")); }
+      if (isCurrent()) { setLoading(false); setNeedsRefresh(true); setMessage(settingsError(error, t("useUserLifecycleTemporarilyUnableReadUser"))); }
     });
-  }, [lifetime]);
+  }, [lifetime, t]);
   const mutation = useSettingsMutation({ enabled: !loading && !needsRefresh, refresh: read, onRevoked: () => setState(null) });
   const perform = async (path: string, body: unknown, complete?: (isCurrent: () => boolean) => Promise<void>) => {
     setMessage(null);
     await mutation.submit(
       () => diagnosticFetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
-      { confirmed: complete ? (_response, isCurrent) => complete(isCurrent) : undefined, refresh: !complete, successMessage: complete ? undefined : "已保存。" },
+      { confirmed: complete ? (_response, isCurrent) => complete(isCurrent) : undefined, refresh: !complete, successMessage: complete ? undefined : t("useUserLifecycleSaved") },
     );
   };
   return { state, setState, message: mutation.message ?? message, setMessage, busy: mutation.pending, loading, blocked: mutation.blocked, reload: mutation.refresh, perform };

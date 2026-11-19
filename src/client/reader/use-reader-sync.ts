@@ -1,3 +1,4 @@
+import { useAppLocale } from "../../i18n";
 import type { AnnotationConflictRecord } from "../platform/local-database";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -19,6 +20,7 @@ type ReaderSyncAccess = {
 // Owns feedback, not synchronization: durable facts and request scheduling stay
 // in the annotation store, ReaderAnnotationActions and the existing sync modules.
 export function useReaderSync(workspace: LocalWorkspace | null, access: ReaderSyncAccess) {
+  const { locale } = useAppLocale();
   const [online, setOnline] = useState(navigator.onLine);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -80,7 +82,7 @@ export function useReaderSync(workspace: LocalWorkspace | null, access: ReaderSy
     pendingCount: annotationState?.pendingCount ?? 0,
     conflictCount: annotationState?.conflicts.length ?? 0,
     syncErrorCount: annotationState?.syncErrorCount ?? 0,
-  });
+  }, locale);
   const canRetry = !localOnly && online && !syncing && !access.trashed && actions !== null;
 
   const retry = async () => {

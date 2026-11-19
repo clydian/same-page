@@ -92,7 +92,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
         });
         // Actual Blob originals need a persistent WebKit profile on local macOS.
         // Each scenario owns its IDB, preparation cache, routes and error list.
-        context = await type.launchPersistentContext(profile, { viewport: { width: 1024, height: 768 }, serviceWorkers: 'block' });
+        context = await type.launchPersistentContext(profile, { locale: "zh-CN", viewport: { width: 1024, height: 768 }, serviceWorkers: 'block' });
         await context.addCookies(cookies);
         await context.addInitScript(() => {
           localStorage.setItem('reader-gesture-hint-seen', 'true');

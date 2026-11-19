@@ -1,0 +1,38 @@
+.app-language-select {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, max-content);
+  align-items: center;
+  gap: .45rem;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.app-language-error { grid-column: 1 / -1; font-size: .85rem; }
+
+.app-header .app-language-select { max-width: 13rem; font-size: .85rem; }
+.app-header .app-language-select select { field-sizing: content; min-inline-size: 6.5rem; }
+
+.app-language-select[data-labeled] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 14rem);
+  column-gap: .65rem;
+  color: var(--ink);
+  font-size: .9rem;
+}
+
+.app-language-select select {
+  min-height: 44px;
+  min-width: 0;
+  max-width: 14rem;
+  padding: .35rem .45rem;
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+
+.app-language-select select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

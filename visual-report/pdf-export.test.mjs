@@ -10,7 +10,7 @@ test("export preserves multipage source geometry and overlays text and ink on ro
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const page = await browser.newPage();
+  const page = await browser.newPage({ locale: "zh-CN" });
   page.setDefaultTimeout(15000);
   await page.goto(app.origin);
   const pdf = await PDFDocument.create();
@@ -96,7 +96,7 @@ test("reader export uses reading subscriptions even when opened from editing", a
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const page = await browser.newPage({ serviceWorkers: "block" });
+  const page = await browser.newPage({ locale: "zh-CN", serviceWorkers: "block" });
   page.setDefaultTimeout(15000);
   const fixture = createVisualFixtureSession();
   let revoked = false;
@@ -148,7 +148,7 @@ test("personal shapes retain object colors and highlighter exports translucent o
   const app = await startVisualServer({ script: "dev" });
   const browser = await chromium.launch({ headless: true });
   t.after(async () => { await browser.close(); await app.stop(); });
-  const page = await browser.newPage(); await page.goto(app.origin);
+  const page = await browser.newPage({ locale: "zh-CN" }); await page.goto(app.origin);
   const pdf = await PDFDocument.create();
   const sheet = pdf.addPage([500, 500]);
   sheet.drawLine({ start: { x: 40, y: 100 }, end: { x: 460, y: 100 }, thickness: 2, color: rgb(0, 0, 0) });

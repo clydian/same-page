@@ -68,14 +68,23 @@ export const playbackMeasureIndexAtRatio = (
   return Math.round(clampedRatio * (measures.length - 1));
 };
 
+export type PlaybackMeasureVisit = { number: string; visit?: number };
+
 /** Printed numbers identify score locations; repeated visits alone need disambiguation. */
+export function playbackMeasureVisits(numbers: string[]): PlaybackMeasureVisit[] {
+  const totals = new Map<string, number>(), visits = new Map<string, number>();
+  for (const number of numbers) totals.set(number, (totals.get(number) ?? 0) + 1);
+  return numbers.map(number => {
+    const visit = (visits.get(number) ?? 0) + 1;
+    visits.set(number, visit);
+    return { number, visit: totals.get(number)! > 1 ? visit : undefined };
+  });
+}
+
+export function playbackMeasureLabel({ number, visit }: PlaybackMeasureVisit): string {
+  return `第 ${number} 小节${visit !== undefined ? ` · 第 ${visit} 次经过` : ''}`;
+}
+
 export function playbackMeasureLabels(numbers: string[]): string[] {
-    const totals = new Map<string, number>(), visits = new Map<string, number>();
-    for (const number of numbers)
-        totals.set(number, (totals.get(number) ?? 0) + 1);
-    return numbers.map(number => {
-        const visit = (visits.get(number) ?? 0) + 1;
-        visits.set(number, visit);
-        return `第 ${number} 小节${totals.get(number)! > 1 ? ` · 第 ${visit} 次经过` : ''}`;
-    });
+  return playbackMeasureVisits(numbers).map(playbackMeasureLabel);
 }

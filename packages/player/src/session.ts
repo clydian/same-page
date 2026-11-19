@@ -1,21 +1,36 @@
-import { assignPlaybackChannels, loadPreparedMusicXml } from './engine.ts';
-import { createDocumentPlaybackApi as createPlaybackApi } from './document-playback.ts';
+import { assignPlaybackChannels, loadPreparedMusicXml, PlaybackChannelError } from './engine.ts';
+import { CollectionPlaybackError, createDocumentPlaybackApi as createPlaybackApi } from './document-playback.ts';
 import { solfegeDegreeLabel } from './solfege-degree.ts';
 import * as alphaTab from '@coderline/alphatab';
 import { applyTimbreProfile, classifyTimbreRoles } from './timbre-profile.ts';
 import { ScoreFollowSession, isPointerDrag } from './score-follow.ts';
 import { playbackTempo } from './practice-tempo.ts';
 import { readMusicXmlTempoMeasures, type MusicXmlTempoMeasure } from './musicxml-metronome.ts';
-import { playbackMeasureLabels } from './playback-measures.ts';
+import { playbackMeasureLabel, playbackMeasureVisits } from './playback-measures.ts';
+import { MusicXmlError, type MusicXmlErrorCode } from './format.ts';
 import type { PreparedMusicXml, PreparedMusicXmlDocument } from './musicxml-direction-timing.ts';
 import { isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 import { playbackAudioSession } from './playback-audio-session.ts';
 export { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 
-export interface PlayerPart { id: number; name: string; volume: number; baseVolume?: number; muted: boolean; solo: boolean }
-export interface PlayerMeasure { index: number; label: string; startTick: number; endTick: number }
+export interface PlayerPart { id: number; name: string; unnamed?: number; volume: number; baseVolume?: number; muted: boolean; solo: boolean }
+export interface PlayerMeasure { index: number; label: string; number?: string; visit?: number; startTick: number; endTick: number }
+type PlayerMessageCode =
+  | MusicXmlErrorCode
+  | PlaybackChannelError["code"]
+  | CollectionPlaybackError["code"]
+  | "preparingScore"
+  | "loadingSoundfont"
+  | "generatingPlayback"
+  | "layingOutScore"
+  | "playerPreparationTimeout"
+  | "playerResourceFailure"
+  | "scorePlaybackFailure"
+  | "scorePreparationFailure"
+  | "readFailure";
+
 export interface PlayerState {
-  status: 'preparing' | 'ready' | 'error'; message: string; playing: boolean;
+  status: 'preparing' | 'ready' | 'error'; message: string; messageCode?: PlayerMessageCode; playing: boolean;
   loadingProgress?: { loaded: number; total: number };
   audioHint?: string;
   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
@@ -58,7 +73,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     if (stage !== 'play-request' && stage !== 'playing') loadingStages.add(stage);
     try { options.onLoadingStage?.(stage); } catch { /* A timing sink cannot affect practice playback. */ }
   };
-  let state: PlayerState = { status: 'preparing', message: '正在处理乐谱…', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .6, solfegePart: null, focus: null, otherVolume: .25, following: true, loop: null };
+  let state: PlayerState = { status: 'preparing', message: '正在处理乐谱…', messageCode: 'preparingScore', playing: false, parts: [], measures: [], measure: 0, speed: 1, notationScale: .6, solfegePart: null, focus: null, otherVolume: .25, following: true, loop: null };
   const listeners = new Set<() => void>();
   const update = (next: Partial<PlayerState>) => {
     if (disposed) return;
@@ -265,20 +280,22 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   viewport?.addEventListener('pointercancel', pointerUp);
   viewport?.addEventListener('scroll', scroll, { passive: true });
   let worker: Worker | null = null;
-  const fail = (message: string) => {
+  const fail = (message: string, messageCode: PlayerMessageCode) => {
     if (disposed || state.status === 'error') return;
-    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); audioSession.release(); update({ status: 'error', message, playing: false });
+    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); audioSession.release(); update({ status: 'error', message, messageCode, playing: false });
   };
   // Soundfont transfer and synthesis preparation can exceed a minute on slow links.
   // Still bound each attempt; disposal and explicit retry cancel the old session.
-  const deadline = setTimeout(() => fail('准备播放用时过长，请检查网络后重试。'), 180_000);
-  api.error.on(error => fail(error instanceof Error ? error.message : '播放资源加载失败，请重试。'));
+  const deadline = setTimeout(() => fail('准备播放用时过长，请检查网络后重试。', 'playerPreparationTimeout'), 180_000);
+  api.error.on(error => fail(error instanceof Error ? error.message : '播放资源加载失败，请重试。', error instanceof CollectionPlaybackError ? error.code : 'playerResourceFailure'));
   let modelReady = false, midiReady = false, soundfontReady = false;
   let soundfontProgress: PlayerState['loadingProgress'];
   const reportPreparation = () => {
     if (disposed || state.status !== 'preparing') return;
     update({ message: !modelReady ? '正在处理乐谱…' : !soundfontReady ? '正在加载音色…'
       : !midiReady ? '正在生成播放数据…' : '正在完成谱面排版…',
+      messageCode: !modelReady ? 'preparingScore' : !soundfontReady ? 'loadingSoundfont'
+        : !midiReady ? 'generatingPlayback' : 'layingOutScore',
       loadingProgress: modelReady && !soundfontReady ? soundfontProgress : undefined });
   };
   api.soundFontLoad.on(event => {
@@ -310,7 +327,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       update({ focus: null, focusVolume: undefined, otherVolume: .25, solfegePart: null, parts: score.tracks.map((track, id) => {
         const name = names[id], key = name.trim().toLowerCase(), occurrence = (occurrences.get(key) ?? 0) + 1;
         occurrences.set(key, occurrence);
-        return { id, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
+        return { id, unnamed: track.name ? undefined : id + 1, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
       }) });
     }
     if (state.status === 'ready') applyMix(state.parts);
@@ -320,12 +337,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   const ready = () => {
     if (disposed || state.status === 'error' || state.status === 'ready' || !api.isReadyForPlayback || !api.score) return;
     const bars = api.tickCache?.masterBars ?? [];
-    const labels = api.isCollection ? api.playbackLabels : playbackMeasureLabels(bars.map(item => String(measureLabels[item.masterBar.index] ?? item.masterBar.index + 1)));
-    const measures = bars.map((item,index) => {
-      const label = labels[index];
-      return { index, label, startTick: item.start, endTick: item.end };
-    });
-    clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', loadingProgress: undefined, measures, tempo: tempoAt(0), metronome: false, beatVolume: .5, countIn: false }); loadingStage('ready');
+    const visits = api.isCollection ? api.playbackVisits
+      : playbackMeasureVisits(bars.map(item => String(measureLabels[item.masterBar.index] ?? item.masterBar.index + 1)));
+    const measures = bars.map((item, index) => ({
+      index, ...visits[index], label: playbackMeasureLabel(visits[index]), startTick: item.start, endTick: item.end,
+    }));
+    clearTimeout(deadline); applyMix(state.parts); update({ status: 'ready', message: '', messageCode: undefined, loadingProgress: undefined, measures, tempo: tempoAt(0), metronome: false, beatVolume: .5, countIn: false }); loadingStage('ready');
   };
   element.addEventListener('alphaTab.midiFileLoaded', ready);
   api.playerReady.on(ready);
@@ -417,16 +434,17 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       showScore(scores[0]);
       modelReady = true; reportPreparation();
       loadingStage('model-ready'); api.renderScores(scores, inputs);
-    } catch (error) { fail(error instanceof Error ? error.message : '无法播放此乐谱。'); }
+    } catch (error) { const code = error instanceof PlaybackChannelError || error instanceof MusicXmlError ? error.code : undefined;
+      fail(error instanceof Error ? error.message : '无法播放此乐谱。', code ?? 'scorePlaybackFailure'); }
   };
   if (options.prepared && isCompatibleMusicXmlPreparation(options.prepared)) queueMicrotask(() => render(options.prepared!));
   else {
     worker = new Worker(new URL('./prepare.worker.js', import.meta.url), { type: 'module' });
-    worker.onerror = () => fail('无法准备乐谱，请重试。');
-    worker.onmessage = (event: MessageEvent<{ error?: string; prepared?: PreparedMusicXmlDocument }>) => {
+    worker.onerror = () => fail('无法准备乐谱，请重试。', 'scorePreparationFailure');
+    worker.onmessage = (event: MessageEvent<{ error?: string; code?: MusicXmlErrorCode; prepared?: PreparedMusicXmlDocument }>) => {
       worker?.terminate();
       if (disposed || state.status === 'error') return;
-      if (event.data.error || !event.data.prepared) { fail(event.data.error ?? '读取失败。'); return; }
+      if (event.data.error || !event.data.prepared) { fail(event.data.error ?? '读取失败。', event.data.code ?? 'readFailure'); return; }
       options.onPrepared?.(event.data.prepared); render(event.data.prepared);
     };
     const copy = bytes.slice(); worker.postMessage(copy, [copy.buffer]);

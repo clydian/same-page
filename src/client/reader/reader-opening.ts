@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages, type AppLocale } from "../../i18n";
 import type { ReaderOpeningFacts, ReaderOpeningPhase } from "../../shared/reader-opening";
 
 export interface ReaderOpeningSnapshot {
@@ -46,16 +47,17 @@ export function readerOpeningFacts(snapshot: ReaderOpeningSnapshot, now = perfor
   };
 }
 
-export function readerOpeningLabel(phase: ReaderOpeningPhase, source: ReaderOpeningFacts["source"]) {
+export function readerOpeningLabel(phase: ReaderOpeningPhase, source: ReaderOpeningFacts["source"], locale: AppLocale = getCurrentLocale()) {
+  const t = getMessages(locale, "reader");
   switch (phase) {
-    case "source": return "正在确认打开方式…";
-    case "local-read": return "正在读取本机乐谱…";
-    case "engine": return "正在准备阅读器…";
-    case "file": return source === "offline" ? "正在载入本机文件…" : "正在获取 PDF 文件…";
-    case "document": return "正在解析 PDF…";
-    case "local-check": return "PDF 已就绪，正在校验本机状态…";
-    case "score": return "PDF 已就绪，正在确认乐谱信息…";
-    case "page": return "正在显示谱面…";
-    case "ready": return "乐谱已打开";
+    case "source": return t("checkingOpenMode");
+    case "local-read": return t("readingLocalScore");
+    case "engine": return t("preparingReader");
+    case "file": return source === "offline" ? t("openingLocalFile") : t("fetchingPdf");
+    case "document": return t("parsingPdf");
+    case "local-check": return t("checkingLocalState");
+    case "score": return t("checkingScoreDetails");
+    case "page": return t("showingScore");
+    case "ready": return t("scoreOpened");
   }
 }

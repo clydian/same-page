@@ -4,12 +4,15 @@ import test from 'node:test';
 import { AlphaTabApiBase, model } from '@coderline/alphatab';
 import { playbackAudioSession } from '../dist/playback-audio-session.js';
 import { playbackTempo } from '../dist/practice-tempo.js';
-import { playbackMeasureLabels } from '../dist/playback-measures.js';
+import { playbackMeasureLabel, playbackMeasureVisits } from '../dist/playback-measures.js';
+import { CollectionPlaybackError } from '../dist/document-playback.js';
+import { PlaybackChannelError } from '../dist/engine.js';
+import { MusicXmlError } from '../dist/format.js';
 import { ScoreFollowSession, isPointerDrag } from '../dist/score-follow.js';
 import { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from '../dist/musicxml-direction-timing.js';
 // Exercise the shipped session against deterministic engine/Worker adapters.
 const compiled = (await readFile(new URL('../dist/session.js', import.meta.url),'utf8')).replace(/^(?:import|export \{).*$/mg,'').replace('export function createPlayerSession','function createPlayerSession').replace(/new URL\([^\n]+import.meta.url\)/,'"prepare.worker.js"');
-const factory = new Function('createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabels','isCompatibleMusicXmlPreparation','playbackTempo','readMusicXmlTempoMeasures','playbackAudioSession',compiled+'\nreturn createPlayerSession;');
+const factory = new Function('createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabel','playbackMeasureVisits','CollectionPlaybackError','PlaybackChannelError','MusicXmlError','isCompatibleMusicXmlPreparation','playbackTempo','readMusicXmlTempoMeasures','playbackAudioSession',compiled+'\nreturn createPlayerSession;');
 function harness(options = {}) {
  let worker, workerCount = 0, parses = 0, ready, observer;
  const previous = globalThis.Worker, previousParser = globalThis.DOMParser, previousObserver = globalThis.MutationObserver;
@@ -20,7 +23,7 @@ function harness(options = {}) {
  const event = () => {const listeners=[];return {on(fn){listeners.push(fn);},emit(value){listeners.forEach(fn=>fn(value));}};};
  const api = {settings:{player:{},display:{resources:{mainGlyphColor:"black",secondaryGlyphColor:"black",staffLineColor:"gray",barSeparatorColor:"black",scoreInfoColor:"black",barNumberColor:"gray"}}},renderer:{partialRenderFinished:event()},isReadyForPlayback:options.playbackReady !== false,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),soundFontLoad:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},render(){},updateSettings(){},};
  api.scoreLoaded=event();api.renderScores=()=>api.renderScore();
- const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabels,isCompatibleMusicXmlPreparation,playbackTempo,()=>[],()=>playbackAudioSession(options.audioNavigator));
+ const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabel,playbackMeasureVisits,CollectionPlaybackError,PlaybackChannelError,MusicXmlError,isCompatibleMusicXmlPreparation,playbackTempo,()=>[],()=>playbackAudioSession(options.audioNavigator));
  const element={getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){},querySelector(){return null;}};
  const session = create(element,new Uint8Array([1]),options);
  if(worker) worker.onmessage({data:{prepared:{bytes:new Uint8Array([1])}}});
@@ -429,7 +432,7 @@ for (const collection of [false, true]) test(`following keeps the next complete 
  const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(){},removeEventListener(){}};
  const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
  try {
-  h.api.isCollection=collection;h.api.playbackLabels=['1','2','3'];h.api.tempoAt=()=>({bpm:80,unit:'quarter'});
+  h.api.isCollection=collection;h.api.playbackVisits=playbackMeasureVisits(['1','2','3']);h.api.tempoAt=()=>({bpm:80,unit:'quarter'});
   const rows=[100,320,540].map(y=>({realBounds:{x:0,y,w:300,h:180}}));
   h.api.tickCache.masterBars=rows.map((_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
   h.api.boundsLookup.staffSystems=rows;

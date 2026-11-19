@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import {
   type PointerEvent as ReactPointerEvent,
   useEffect,
@@ -72,6 +73,7 @@ export function AnnotationOverlay({
   interactionRef?: Ref<AnnotationInteractionHandle>;
   onInteractionChange?(interaction: AnnotationOverlayInteraction): void;
 }) {
+  const t = useMessages("reader");
   const pages = useContext(AnnotationPagesContext);
   const pageSession = useSyncExternalStore(pages?.subscribe ?? noPageSubscription, pages?.getSnapshot ?? noPageSnapshot);
   const activePage = !pages || (pageSession.activePage ?? pageNumber) === pageNumber;
@@ -401,7 +403,7 @@ export function AnnotationOverlay({
       tabIndex={-1}
       >
       <svg
-        aria-label={`第 ${pageNumber} 页笔记层`}
+        aria-label={t("pageNoteLayer", { pageNumber })}
         viewBox="0 0 1000 1000"
         preserveAspectRatio="none"
         onPointerDown={pointerDown}
@@ -428,7 +430,7 @@ export function AnnotationOverlay({
           }
           if (payload?.kind !== "ink" || annotation.id === draftId) return null;
           return (
-            <g key={annotation.id} opacity={reference ? 0.45 : 1} pointerEvents={reference ? "none" : undefined} role={selectable ? "button" : undefined} tabIndex={selectable ? 0 : undefined} aria-label={selectable ? payload.brush === "highlighter" ? "荧光笔笔记" : "画笔笔记" : undefined} onKeyDown={event => { if (selectable && selectedId !== annotation.id && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); adjustment.select(annotation.id); } }}>
+            <g key={annotation.id} opacity={reference ? 0.45 : 1} pointerEvents={reference ? "none" : undefined} role={selectable ? "button" : undefined} tabIndex={selectable ? 0 : undefined} aria-label={selectable ? payload.brush === "highlighter" ? t("highlighterNote") : t("inkNote") : undefined} onKeyDown={event => { if (selectable && selectedId !== annotation.id && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); adjustment.select(annotation.id); } }}>
               {editing && tool === "eraser" && annotation.layerId === activeLayerId ? (
                 <polyline
                   aria-hidden="true"
@@ -443,7 +445,7 @@ export function AnnotationOverlay({
                 />
               ) : null}
               {inkSvgPaths(payload, aspectRatio).map((path, index) => <path key={index} data-ink-stroke d={path} fill={color} fillRule={inkFillRule(payload, aspectRatio)} opacity={payload.opacity ?? 1} />)}
-              {inkRenderingDegraded(payload, aspectRatio) && <text x={payload.points[0]!.x * 1000} y={payload.points[0]!.y * 1000 - 12} fontSize="14" fill="#92400e" role="status">此笔迹已简化显示</text>}
+              {inkRenderingDegraded(payload, aspectRatio) && <text x={payload.points[0]!.x * 1000} y={payload.points[0]!.y * 1000 - 12} fontSize="14" fill="#92400e" role="status">{t("simplifiedInk")}</text>}
               {selectedId === annotation.id && tool === "select" && <path data-ink-selection d={inkSvgPaths(payload, aspectRatio).join("")} fill="none" stroke="#014653" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />}
 
             </g>
@@ -453,7 +455,7 @@ export function AnnotationOverlay({
         {editing && draftStroke ? (
           <g>{inkSvgPaths(draftStroke, aspectRatio).map((path, index) => <path key={index} data-ink-draft d={path} fill={activeLayerColor} fillRule={inkFillRule(draftStroke, aspectRatio)} opacity={draftStroke.opacity ?? 1} />)}</g>
         ) : null}
-        {hover && canStartEdit && <g pointerEvents="none" aria-label="笔尖预览">
+        {hover && canStartEdit && <g pointerEvents="none" aria-label={t("penTipPreview")}>
           {tool === "eraser" && <defs>
             <radialGradient id={eraserGradientId}>
               <stop offset="0" stopColor="#203b3b" />
@@ -482,7 +484,7 @@ export function AnnotationOverlay({
           <button
             aria-hidden={annotation.id === text.editingId || undefined}
             className={payload.kind === "text" ? "annotation-text" : "annotation-shape"}
-            aria-label={payload.kind === "shape" ? payload.shape === "rectangle" ? "矩形笔记" : "椭圆笔记" : undefined}
+            aria-label={payload.kind === "shape" ? payload.shape === "rectangle" ? t("rectangularNotes") : t("ovalNotes") : undefined}
             style={{
               visibility: annotation.id === text.editingId ? "hidden" : undefined,
               opacity: editing && annotation.layerId !== activeLayerId ? 0.45 : 1,
@@ -516,17 +518,17 @@ export function AnnotationOverlay({
         <>
           {activePage && (canStartEdit || finishing) && tool === "select" && selected?.payload && editor && <ObjectProperties editor={editor} layerId={selected.layerId} key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
           {activePage && !canStartEdit && !finishing && <aside className="annotation-storage-error" role="status">
-            <strong>此层已停止编辑</strong>
-            <p>共享层已停用、删除或权限已改变。当前输入可完成并保存在原层的本机草稿中；不会上传或转写其他层。</p>
+            <strong>{t("layerEditingUnavailable")}</strong>
+            <p>{t("layerEditingStoppedHint")}</p>
           </aside>}
           {activePage && persistence === "failed" && <aside className="annotation-storage-error" role="alert">
-            <strong>本机保存失败</strong>
-            <p>修改仍留在当前编辑器，尚未可靠保存。请保留此页面，释放设备空间后重试。</p>
-            <button type="button" onClick={() => void editor?.retry()}>重试本机保存</button>
+            <strong>{t("localSaveFailed")}</strong>
+            <p>{t("unsavedChangesHint")}</p>
+            <button type="button" onClick={() => void editor?.retry()}>{t("retryLocalSave")}</button>
           </aside>}
           <div
             aria-hidden={transformingObject ? undefined : "true"}
-            aria-label="拖到这里删除"
+            aria-label={t("dragHereToDelete")}
             className="annotation-delete-zone"
             data-active={deleteActive || undefined}
             data-visible={transformingObject || undefined}

@@ -1,0 +1,8 @@
+{
+  "title": "Same Page",
+  "unavailable": "Same Page is temporarily unavailable",
+  "offline": "Connect to the internet and try again. Your saved content is still on this device.",
+  "retry": "Try again",
+  "preparing": "Preparing an available version…",
+  "failed": "Couldn’t switch versions. Connect to the internet, save edits in other windows, and try again. Your saved content is still on this device."
+}

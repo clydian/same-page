@@ -2,16 +2,18 @@ import { holdUpdate } from "../updates/update-safety";
 import { RouterProvider as AriaRouterProvider } from "react-aria-components";
 import { useContext, useEffect, useLayoutEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { UNSAFE_DataRouterContext, useBlocker, useLocation, useNavigate, useNavigationType, useHref } from "react-router-dom";
+import { useMessages } from "../../i18n";
 
 import { DriveHistory } from "./drive-history";
 import { Context, type Exit } from "./navigation-context";
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
+  const t = useMessages("common");
   const entries = useRef<Exit[]>([]);
   const [returnState] = useState(() => new Map<string, unknown>());
   const [formsOnly, setFormsOnly] = useState(false);
   const [activeCount, update] = useState(0);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<"navigationSaveFailed" | "navigationExitFailed" | null>(null);
   const retryAction = useRef<(() => void) | null>(null);
   const setRetry = useCallback((retry: (() => void) | null) => { retryAction.current = retry; }, []);
   const running = useRef<Promise<boolean> | null>(null);
@@ -66,11 +68,11 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       for (const entry of ordered) {
         const result = await entry.leave(all);
         if (result === "cancelled") return false;
-        if (!result) { setMessage("本机保存未完成，请保留当前页面并重试。"); return false; }
+        if (!result) { setMessage("navigationSaveFailed"); return false; }
         if (!all) break;
       }
       return true;
-    } catch { setMessage("退出未完成，请重试；当前内容仍保留。"); return false; }
+    } catch { setMessage("navigationExitFailed"); return false; }
     }).finally(() => { running.current = null; releaseUpdate(); });
     return running.current;
   };
@@ -96,7 +98,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   return <AriaRouterProvider navigate={(to, options) => { void navigate(to, options); }} useHref={useHref}><Context value={{ register, back, afterEditing, returnState }}>
     {dataRouter && <HistoryExit routeExit={formsOnly} active={activeCount > 0} consume={consume} setRetry={setRetry} />}
     {!obsoleteDrive && children}
-    {message && <aside className="navigation-error" role="alert">{message}<button onClick={() => { if (retryAction.current) retryAction.current(); else void consume(false); }}>重试</button></aside>}
+    {message && <aside className="navigation-error" role="alert">{t(message)}<button onClick={() => { if (retryAction.current) retryAction.current(); else void consume(false); }}>{t("retry")}</button></aside>}
   </Context></AriaRouterProvider>;
 }
 

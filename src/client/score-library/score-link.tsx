@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { readerHref } from "../reader/reader-entry";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo, type ReactNode, type MouseEvent } from "react";
@@ -9,6 +10,7 @@ export function ScoreLink({ userId, choirId, scoreId, local, experience = false,
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
   explainUnavailable?: boolean; label: string; description: string; experience?: boolean; userId?: string; choirId: string; scoreId: string; local: boolean; children: ReactNode; onOpen: () => void;
 }) {
+  const t = useMessages("library");
   const guestOwner = useLiveQuery(async () => {
     if (userId || !local) return null;
     const owner = await currentLocalOwnerKey();
@@ -19,7 +21,7 @@ export function ScoreLink({ userId, choirId, scoreId, local, experience = false,
   const offline = useOfflineScore(workspace);
   const ready = offline?.scopeKey === workspace?.scopeKey && offline?.record && !offline.invalid;
   const inspected = Boolean(workspace && offline?.scopeKey === workspace.scopeKey);
-  const unavailable = inspected ? offline?.readFailed ? "本机副本暂时无法校验" : "此设备没有可用的离线副本" : "正在确认打开方式";
+  const unavailable = inspected ? offline?.readFailed ? t("scoreLinkLocalCopyCannotVerified") : t("localLibraryNoOfflineCopyAvailable") : t("scoreLinkConfirmingHowOpen");
   return local && !ready
     ? <div className="file-row__open" aria-disabled="true" aria-label={label} aria-description={`${description}，${unavailable}`} title={unavailable}>{children}{explainUnavailable && <span className="file-row__unavailable">{unavailable}</span>}</div>
     : <FileOpenLink aria-label={label} aria-description={description} className="file-row__open" to={readerHref({ choirId, scoreId, experience })} onClick={event => { onClick?.(event); if (!event.defaultPrevented) onOpen(); }}>{children}</FileOpenLink>;

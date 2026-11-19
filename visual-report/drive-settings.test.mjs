@@ -10,7 +10,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     const app = await startVisualServer({ script: "dev" });
     const browser = await engine.launch();
     t.after(async () => { await browser.close(); await app.stop(); });
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     const fixture = createVisualFixtureSession();
     let displayName = "林";
     let driveName = "示例云盘";
@@ -79,7 +79,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     const app = await startVisualServer({ script: "dev" });
     const browser = await engine.launch();
     t.after(async () => { await browser.close(); await app.stop(); });
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     const fixture = createVisualFixtureSession();
     const empty = { operations: [], sharedLayers: [] };
     const capabilities = { isOwner: false, operations: empty, management: empty };

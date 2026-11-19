@@ -1,14 +1,16 @@
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
+import { useAppLocale, useMessages, type AppLocale } from "../../i18n";
 import { useSettingsLifetime, captureSettingsLifetime, invalidateSettingsLifetime } from "../settings/use-settings-lifetime";
 import { captureReadIdentity } from "../settings/read-resource";
-import { SettingsRequestError, isSettingsReadDenied, settingsError } from "../settings/settings-request";
+import { SettingsRequestError, isSettingsReadDenied } from "../settings/settings-request";
+import { settingsError } from "../settings/settings-error";
 import { ConfirmDialog } from "../settings/confirm-dialog";
 import { Copy, Download, Share2, Link as LinkIcon } from "lucide-react";
 import { InviteCard } from "./invite-card";
 import { createInviteCardFile, deliverInviteCard } from "./save-invite-card";
 import { createInviteLink } from "../components/invite-link";
-import { useRef, useEffect, useState, type FormEvent } from "react";
+import { useRef, useEffect, useEffectEvent, useState, type FormEvent } from "react";
 import { Button, Form } from "react-aria-components";
 
 import { currentJoinCodeResponseSchema, rotateJoinCodeResponseSchema } from "../../shared/choirs";
@@ -17,12 +19,14 @@ import { diagnosticFetch, parseDiagnosticResponse } from "../diagnostics/diagnos
 import { parseJoinCodeInput } from "../components/join-code";
 
 export function InviteSharing({ choirId, choirName, writable = true }: { choirId: string; choirName: string; writable?: boolean }) {
+  const { locale } = useAppLocale();
+  const t = useMessages("library");
   const lifetime = useSettingsLifetime(writable);
   const cardRef = useRef<SVGSVGElement>(null);
   const [confirmRotation, setConfirmRotation] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [currentCode, setCurrentCode] = useState<string | null>(null);
-  const [cardFile, setCardFile] = useState<{ code: string; file: File } | null>(null);
+  const [cardFile, setCardFile] = useState<{ code: string; choirName: string; locale: AppLocale; file: File } | null>(null);
   const [cardError, setCardError] = useState(false);
   const [cardAttempt, setCardAttempt] = useState(0);
   const [originalCode, setOriginalCode] = useState("");
@@ -33,6 +37,9 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
   const { message, setMessage } = feedback;
   const [reload, setReload] = useState(0);
   const endpoint = `/api/choirs/${choirId}/join-code`;
+  const reportReadFailure = useEffectEvent((error: unknown) => {
+    setMessage(settingsError(error, t("inviteSharingInvitationCodeCannotRead")));
+  });
 
   useEffect(() => {
     if (!writable) return;
@@ -52,7 +59,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
             invalidateSettingsLifetime(lifetime);
             setCurrentCode(null); setCardFile(null); setLoaded(false); setOriginalCode(""); setConfirmRotation(false);
           }
-          setMessage(settingsError(error, "暂时无法读取邀请码，请重试。"));
+          reportReadFailure(error);
         }
       }
     })();
@@ -65,19 +72,19 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
   useEffect(() => {
     if (!currentCode || !cardRef.current) return;
     let active = true;
-    void createInviteCardFile(cardRef.current).then(file => {
-      if (active) { setCardFile({ code: currentCode, file }); setCardError(false); }
+    void createInviteCardFile(cardRef.current, locale).then(file => {
+      if (active) { setCardFile({ code: currentCode, choirName, locale, file }); setCardError(false); }
     }).catch(() => { if (active) setCardError(true); });
     return () => { active = false; };
-  }, [currentCode, choirName, cardAttempt]);
-  const readyFile = cardFile?.code === currentCode ? cardFile.file : null;
+  }, [currentCode, choirName, cardAttempt, locale]);
+  const readyFile = cardFile?.code === currentCode && cardFile.choirName === choirName && cardFile.locale === locale ? cardFile.file : null;
 
   async function copy(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setMessage(`${label}已复制。`, { duration: 5000 });
+      setMessage(t("inviteSharingHasBeenCopied", { label }), { duration: 5000 });
     } catch {
-      setMessage("复制失败，请重试或保存邀请卡分享。");
+      setMessage(t("inviteSharingCopyingFailedTryAgain"));
     }
   }
 
@@ -86,9 +93,9 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
     setSharing(true);
     try {
       const result = await deliverInviteCard(readyFile, share);
-      setMessage(result === "saved" ? "邀请卡已生成，请在下载中查看。" : null, { duration: 5000 });
+      setMessage(result === "saved" ? t("inviteSharingInvitationCardHasBeen") : null, { duration: 5000 });
     } catch {
-      setMessage("邀请卡生成或分享失败，请重试。");
+      setMessage(t("inviteSharingInvitationCardGenerationSharing"));
     } finally {
       setSharing(false);
     }
@@ -108,10 +115,10 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
       const rotated = await parseDiagnosticResponse(response, rotateJoinCodeResponseSchema);
       if (!current()) return;
       setCurrentCode(rotated.joinCode);
-      setMessage("邀请码已轮换，可随时在这里查看。", { duration: 5000 });
+      setMessage(t("inviteSharingInvitationCodeHasBeen"), { duration: 5000 });
     } catch {
       if (!current()) return;
-      setMessage("邀请码轮换失败，请重新打开确认当前邀请码。");
+      setMessage(t("inviteSharingInvitationCodeRotationFailed"));
       setLoaded(false);
       setCurrentCode(null);
     } finally {
@@ -137,15 +144,15 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
       });
       if (!current()) return;
       if (!response.ok) {
-        setMessage(response.status === 409 ? "输入的原码与当前有效邀请码不一致。" : "暂时无法保存邀请码，请重试。");
+        setMessage(response.status === 409 ? t("inviteSharingOriginalCodeEnteredInconsistent") : t("inviteSharingInvitationCodeCannotSaved"));
         return;
       }
       setCurrentCode(parsedCode);
       setOriginalCode("");
-      setMessage("已保存，原邀请码继续有效，可随时在这里查看。", { duration: 5000 });
+      setMessage(t("inviteSharingHasBeenSavedOriginal"), { duration: 5000 });
     } catch {
       if (!current()) return;
-      setMessage("暂时无法保存邀请码，请重试。");
+      setMessage(t("inviteSharingInvitationCodeCannotSaved"));
     } finally {
       setBusy(false);
       if (!current()) { setLoaded(false); setReload(value => value + 1); }
@@ -153,34 +160,34 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
   }
 
   return (
-    <section className="invite-sharing-dialog invite-sharing-page" aria-label="邀请加入云盘">
+    <section className="invite-sharing-dialog invite-sharing-page" aria-label={t("inviteSharingInvitationJoinCloudDisk")}>
           {currentCode ? (
             <>
               <InviteCard ref={cardRef} choirName={choirName} code={currentCode} link={createInviteLink(window.location.origin, currentCode)} />
               <div className="invite-share-actions">
-                <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing} onPress={() => void copy(createInviteLink(window.location.origin, currentCode), "邀请链接")}><LinkIcon size={18} />复制邀请链接</Button>
-                <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing} onPress={() => void copy(currentCode, "邀请码")}><Copy size={18} />复制邀请码</Button>
-                <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing || !readyFile} onPress={() => void deliver(true)}><Share2 size={18} />分享邀请卡</Button>
-                <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing || !readyFile} onPress={() => void deliver(false)}><Download size={18} />保存邀请卡</Button>
+                <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing} onPress={() => void copy(createInviteLink(window.location.origin, currentCode), t("inviteSharingInvitationLink"))}><LinkIcon size={18} />{t("inviteSharingCopyInvitationLink")}</Button>
+                <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing} onPress={() => void copy(currentCode, t("inviteCode"))}><Copy size={18} />{t("inviteSharingCopyInvitationCode")}</Button>
+                <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing || !readyFile} onPress={() => void deliver(true)}><Share2 size={18} />{t("inviteSharingShareInvitationCard")}</Button>
+                <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing || !readyFile} onPress={() => void deliver(false)}><Download size={18} />{t("inviteSharingSaveInvitationCard")}</Button>
               </div>
-              {cardError && <p role="alert">邀请卡生成失败。<Button onPress={() => { setCardError(false); setCardAttempt(value => value + 1); }}>重新生成</Button></p>}
+              {cardError && <p role="alert">{t("inviteSharingFailedGenerateInvitationCard")}<Button onPress={() => { setCardError(false); setCardAttempt(value => value + 1); }}>{t("inviteSharingRegenerate")}</Button></p>}
             </>
           ) : loaded ? (
             <>
-              <p className="drive-management-copy">当前邀请码尚未保存为可查看的形式。如果你保留了原码，可以补录；也可以轮换生成新码。</p>
+              <p className="drive-management-copy">{t("inviteSharingCurrentInvitationCodeHas")}</p>
               <Form className="entry-form" onSubmit={saveOriginal}>
                 <JoinCodeField value={originalCode} onChange={setOriginalCode} onCompositionChange={setOriginalCodeComposing} />
-                <Button type="submit" isDisabled={!writable || busy || originalCodeComposing || !parseJoinCodeInput(originalCode).code}>保存原邀请码</Button>
+                <Button type="submit" isDisabled={!writable || busy || originalCodeComposing || !parseJoinCodeInput(originalCode).code}>{t("inviteSharingSaveOriginalInvitationCode")}</Button>
               </Form>
             </>
-          ) : !message ? <p role="status">正在读取邀请码…</p> : null}
-          <div className="invite-rotation"><p className="drive-management-copy">轮换后，旧邀请码、邀请链接和二维码将一同失效。</p>
+          ) : !message ? <p role="status">{t("inviteSharingReadingInvitationCode")}</p> : null}
+          <div className="invite-rotation"><p className="drive-management-copy">{t("inviteSharingAfterRotationOldInvitation")}</p>
           <Button className="secondary-button" isDisabled={!writable || !loaded || busy || sharing} onPress={() => setConfirmRotation(true)}>
-            {busy ? "正在保存…" : "轮换邀请码"}
+            {busy ? t("saving") : t("inviteSharingRotatingInvitationCode")}
           </Button>
-          </div><ConfirmDialog confirmation={confirmRotation && writable ? { title: "轮换邀请码", action: "确认轮换", message: "当前邀请码、邀请链接和二维码会立即失效。请将新邀请方式发给需要加入的人。", onConfirm: rotate } : null} busy={busy} onClose={() => setConfirmRotation(false)} />
+          </div><ConfirmDialog confirmation={confirmRotation && writable ? { title: t("inviteSharingRotatingInvitationCode"), action: t("inviteSharingConfirmRotation"), message: t("inviteSharingCurrentInvitationCodeInvitation"), onConfirm: rotate } : null} busy={busy} onClose={() => setConfirmRotation(false)} />
           <FeedbackMessage feedback={feedback} className="library-message" />
-          {!loaded && message ? <Button isDisabled={!writable} onPress={() => setReload((value) => value + 1)}>重试</Button> : null}
+          {!loaded && message ? <Button isDisabled={!writable} onPress={() => setReload((value) => value + 1)}>{t("retry")}</Button> : null}
     </section>
   );
 }

@@ -14,7 +14,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   const fixture = await startStorageFixture();
   let browser;t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
   browser = await type.launch();
-  const page = await browser.newPage();
+  const page = await browser.newPage({ locale: "zh-CN" });
   await page.goto(fixture.origin);
   const reply = await page.evaluate(({url,xml}) => new Promise((resolve,reject) => {
    const worker = new Worker(url,{type:'module'});
@@ -42,7 +42,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
  test(`MusicXML attachment practice and PDF handoff (${engine})`, {timeout:180000}, async t => {
   const fixture=await startStorageFixture({authenticated:true,previewEntry:false});
   let browser;t.after(async()=>{try{await browser?.close();}finally{await fixture.stop();}});
-  browser=await type.launch(engine === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});const context=await browser.newContext({viewport:{width:1024,height:768},serviceWorkers:'block'});
+  browser=await type.launch(engine === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});const context=await browser.newContext({ locale: "zh-CN", viewport:{width:1024,height:768},serviceWorkers:'block'});
   assert.equal((await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}})).status(),200);
   await context.addInitScript(() => {
     window.__audioAnalysers = [];

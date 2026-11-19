@@ -10,7 +10,7 @@ import { createVisualFixtureSession } from "./fixtures.mjs";
 test("readers in two tabs serialize durable visibility intent", async t => {
   const server = await startVisualServer({ script: "dev" }); t.after(() => server.stop());
   const browser = await chromium.launch({ headless: true }); t.after(() => browser.close());
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: "block", reducedMotion: "reduce" });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1440, height: 900 }, serviceWorkers: "block", reducedMotion: "reduce" });
   t.after(() => context.close());
   const fixture = createVisualFixtureSession();
   const preferenceRequests = new EventEmitter();

@@ -1,12 +1,20 @@
 import { NavLink, Link } from "react-router-dom";
+import { useMessages } from "../../i18n";
 import { TaskHeader } from "../components/task-header";
 import "./policy-pages.css";
 
 const titles = { pricing: "价格与方案", terms: "服务条款", refunds: "取消与退款" };
 export default function PolicyPage({ kind }: { kind: keyof typeof titles }) {
+  const t = useMessages("common");
   return <div className="privacy-page policy-page">
-    <TaskHeader title={titles[kind]} backTo="/" />
-    <main className="privacy-document policy-document">
+    <TaskHeader title={t(kind)} backTo="/" />
+    <PolicyDocument kind={kind} />
+  </div>;
+}
+
+/* eslint-disable i18n/product-copy -- These review drafts describe the proposed China-market terms and carry their own document language. */
+function PolicyDocument({ kind }: { kind: keyof typeof titles }) {
+  return <main className="privacy-document policy-document" lang="zh-Hans">
       <header className="privacy-document__header">
         <p className="eyebrow">合谱 · Same Page</p>
         <p className="policy-status"><strong>审阅草稿 · 付费筹备中</strong><br />尚未开放购买。以下付费方案和政策均待实现、审阅与正式生效，当前不构成已上线能力或生效条款。</p>
@@ -20,8 +28,7 @@ export default function PolicyPage({ kind }: { kind: keyof typeof titles }) {
       {kind === "pricing" ? <Pricing /> : kind === "terms" ? <Terms /> : <Refunds />}
       <section><h2>正式开放前仍需确定</h2><p>经营者真实姓名／品牌及必要身份资料、生效日期、适用法律与争议处理条款、实际付款隐私字段与保留期限、升级补差价与降级规则、退款后的数据取回安排、支付失败及重试宽限规则，均待确定。未完成确认与实现前不开放购买。</p><p>咨询或反馈：<a href="mailto:admin@clyapps.com">admin@clyapps.com</a>。请勿发送密码、验证码、完整银行卡资料或私有乐谱。</p></section>
       <Link className="privacy-document__home" to="/" state={{ home: true }}>返回产品首页</Link>
-    </main>
-  </div>;
+  </main>;
 }
 
 function Pricing() {

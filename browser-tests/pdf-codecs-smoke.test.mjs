@@ -13,7 +13,7 @@ for (const engine of [chromium, webkit]) {
     const fixture = await startStorageFixture({ authenticated: true, pdf });
     t.after(() => fixture.stop());
     const profile = await mkdtemp(path.join(tmpdir(), "same-page-pdf-codecs-"));
-    const context = await engine.launchPersistentContext(profile, { headless: true, serviceWorkers: "allow" });
+    const context = await engine.launchPersistentContext(profile, { locale: "zh-CN", headless: true, serviceWorkers: "allow" });
     t.after(async () => { await context.close(); await rm(profile, { recursive: true, force: true }); });
     const account = fixture.accounts[0];
     assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
@@ -93,7 +93,7 @@ test("missing native Promise.withResolvers keeps explicit recovery without a fai
   t.after(() => fixture.stop());
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const context = await browser.newContext();
+  const context = await browser.newContext({ locale: "zh-CN" });
   const account = fixture.accounts[0];
   assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
     headers: { origin: fixture.origin }, data: { email: account.email, password: account.password },

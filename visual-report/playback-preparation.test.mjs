@@ -14,7 +14,7 @@ after(async () => app?.stop());
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
  test(`${name}: preparation exposes its real download phase and preserves the reader`, async t => {
   const browser = await engine.launch(); t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
   page.setDefaultTimeout(15000);
   const fixture = createVisualFixtureSession({ id: 'reader-practice-loading', buildId: app.buildId });
   let resumeDownload;
@@ -54,7 +54,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
  for (const [target, failureKind] of [['musicxml-player', '404'], ['musicxml-engine', '404'], ['audio-player', '404'], ['musicxml-player', 'network']]) {
   test(`${name}: ${target} recovers after ${failureKind} without applying an update`, { timeout: 90000 }, async t => {
    const browser = await engine.launch(); t.after(() => browser.close());
-   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
+   const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
    page.setDefaultTimeout(15000);
    const fixture = createVisualFixtureSession({ id: 'reader-practice-recovery', multipleSources: true, buildId: app.buildId });
    await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));

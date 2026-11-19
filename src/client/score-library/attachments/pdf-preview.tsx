@@ -1,3 +1,4 @@
+import { useMessages } from "../../../i18n";
 import { loadPdfDocument } from "../../reader/pdf-document";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
@@ -7,6 +8,7 @@ import "pdfjs-dist/web/pdf_viewer.css";
 
 // PDF.js owns rendering, text, paging and zoom. No main-score workspace is opened.
 export default function AttachmentPdfPreview({ url }: { url: string }) {
+  const t = useMessages("library");
   const container = useRef<HTMLDivElement>(null);
   const viewer = useRef<PDFViewer | null>(null);
   const [page, setPage] = useState(1);
@@ -37,13 +39,13 @@ export default function AttachmentPdfPreview({ url }: { url: string }) {
   }, [url]);
   return <div className="attachment-pdf">
     <div className="attachment-pdf-toolbar">
-      <Button aria-label="上一页" isDisabled={page <= 1} onPress={() => { if (viewer.current) viewer.current.currentPageNumber--; }}><ChevronLeft size={18} /></Button>
-      <span aria-live="polite">{pages ? `${page} / ${pages}` : "正在加载…"}</span>
-      <Button aria-label="下一页" isDisabled={!pages || page >= pages} onPress={() => { if (viewer.current) viewer.current.currentPageNumber++; }}><ChevronRight size={18} /></Button>
-      <Button aria-label="缩小" isDisabled={!pages} onPress={() => { if (viewer.current) viewer.current.currentScale = Math.max(0.25, viewer.current.currentScale / 1.2); }}><Minus size={18} /></Button>
-      <Button aria-label="放大" isDisabled={!pages} onPress={() => { if (viewer.current) viewer.current.currentScale = Math.min(4, viewer.current.currentScale * 1.2); }}><Plus size={18} /></Button>
+      <Button aria-label={t("pdfPreviewPreviousPage")} isDisabled={page <= 1} onPress={() => { if (viewer.current) viewer.current.currentPageNumber--; }}><ChevronLeft size={18} /></Button>
+      <span aria-live="polite">{pages ? `${page} / ${pages}` : t("pdfPreviewLoading")}</span>
+      <Button aria-label={t("pdfPreviewNextPage")} isDisabled={!pages || page >= pages} onPress={() => { if (viewer.current) viewer.current.currentPageNumber++; }}><ChevronRight size={18} /></Button>
+      <Button aria-label={t("pdfPreviewZoomOut")} isDisabled={!pages} onPress={() => { if (viewer.current) viewer.current.currentScale = Math.max(0.25, viewer.current.currentScale / 1.2); }}><Minus size={18} /></Button>
+      <Button aria-label={t("pdfPreviewEnlarge")} isDisabled={!pages} onPress={() => { if (viewer.current) viewer.current.currentScale = Math.min(4, viewer.current.currentScale * 1.2); }}><Plus size={18} /></Button>
     </div>
-    {error && <p role="alert">暂时无法预览此 PDF，请关闭后重试，或从附件的“⋯”菜单下载原文件。</p>}
+    {error && <p role="alert">{t("pdfPreviewPdfCannotPreviewedMoment")}</p>}
     <div className="attachment-pdf-container" ref={container}><div className="pdfViewer" /></div>
   </div>;
 }

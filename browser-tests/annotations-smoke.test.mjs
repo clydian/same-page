@@ -12,8 +12,8 @@ test("annotation commands retain offline and in-flight edits with real Worker/D1
   const browser = await chromium.launch({ headless: true });
   t.after(async () => { await browser.close(); await fixture.stop(); });
   try {
-  const context = await browser.newContext();
-  const observer = await browser.newContext();
+  const context = await browser.newContext({ locale: "zh-CN" });
+  const observer = await browser.newContext({ locale: "zh-CN" });
   const account = fixture.accounts[1];
   for (const client of [context, observer]) {
     const response = await client.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } });
@@ -87,7 +87,7 @@ test("annotation commands retain offline and in-flight edits with real Worker/D1
   assert.equal(await page.evaluate(async () => { const { db, workspace } = window.annotationTest; return db.annotationOutbox.where("scopeKey").equals(workspace.scopeKey).count(); }), 1);
   assert.equal((await readCloud()).filter(o => o.payload?.text === "mixed").length, 1);
 
-  const adminContext = await browser.newContext();
+  const adminContext = await browser.newContext({ locale: "zh-CN" });
   const admin = fixture.accounts[0];
   assert.equal((await adminContext.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: admin.email, password: admin.password } })).status(), 200);
   const { memberships } = await (await adminContext.request.get(`${fixture.origin}/api/choirs/${fixture.choirId}/memberships`)).json();

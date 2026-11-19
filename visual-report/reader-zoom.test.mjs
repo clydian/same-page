@@ -15,7 +15,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
   test(`${name}: landscape pinch preserves the paper point across fitted gutters`, async t => {
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
     await context.route("**/api/**", route => route.fulfill(resolveFixtureRequest({
       pathname: new URL(route.request().url()).pathname, method: route.request().method(),
       identity: "member", scenarioId: "reader-controls-narrow", cookie: "",
@@ -116,7 +116,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
   test(`${name}: continuous double tap restores width and centers short paper across mixed-size pages`, async t => {
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
     const original = resolveFixtureRequest({ pathname: "/api/choirs/visual-choir/scores/visual-score/pdf", identity: "member" });
     const pdf = await PDFDocument.load(original.body);
     pdf.getPage(1).setSize(1000, 500);
@@ -159,7 +159,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
   test(`${name}: edge double tap wins over delayed paging and second-down crosses the deadline`, async t => {
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
     await context.route("**/api/**", route => route.fulfill(resolveFixtureRequest({
       pathname: new URL(route.request().url()).pathname, method: route.request().method(),
       identity: "member", scenarioId: "reader-controls-narrow", cookie: "",
@@ -228,7 +228,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
   test(`${name}: zoom pins a distant hit page and fitted tail leaves the document start reachable`, async t => {
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
-    const context = await browser.newContext({ viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1194, height: 834 }, hasTouch: true, serviceWorkers: "block" });
     const pdf = await PDFDocument.create();
     for (let i = 0; i < 20; i++) pdf.addPage(i === 19 ? [1000, 500] : [600, 800]);
     const bytes = Buffer.from(await pdf.save());

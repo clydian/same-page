@@ -14,7 +14,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) test(
   t.after(() => app.stop());
   const browser = await engine.launch();
   t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: 'block' });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: 'block' });
   const fixture = createVisualFixtureSession({ id: 'reader-practice-ux', multipleSources: true });
   let finishDirectory;
   const directoryReady = new Promise(resolve => { finishDirectory = resolve; });

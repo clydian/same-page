@@ -3,7 +3,7 @@ import { canApplyUpdate, pageReloadBlocker } from './update-safety';
 import { setUpdateStatus } from './update-status';
 import { setPageRecoveryStatus } from './page-recovery-status';
 import { requestWorker } from './worker-request';
-const offlineRecoveryMessage = '当前离线，尚未确认播放器资源完整。请联网后重试；已有乐谱和笔记仍保留。';
+const offlineRecoveryMessage = "shellRecovery.offline";
 
 // Restore only this page, under the already-active worker. A reader/editor must
 // first finish its normal guarded navigation; recovery never flushes or discards
@@ -38,9 +38,9 @@ export class ShellRecovery {
       if (reply.available !== false) return;
       this.pending = 'activeReady' in reply && reply.activeReady === true && 'activeBuild' in reply &&
         typeof reply.activeBuild === 'string' && /^(?:[a-f0-9]{7,40}|development)$/.test(reply.activeBuild) ? reply.activeBuild : null;
-      setUpdateStatus({ phase: 'error', message: this.pending
-        ? '当前版本资源已失效，完成操作并返回文件库后将恢复。'
-        : '当前版本资源暂不可用，请联网后检查更新；本机内容仍保留。' });
+      setUpdateStatus({ phase: 'error', message: "", messageKey: this.pending
+        ? "shellRecovery.expired"
+        : "shellRecovery.unavailable" });
       this.tick();
     } finally { this.checking = false; }
   };
@@ -49,9 +49,9 @@ export class ShellRecovery {
     if (this.disposed || !this.pending) return;
     if (this.requested) {
       const blocker = pageReloadBlocker();
-      if (blocker) { setPageRecoveryStatus({ phase: 'waiting', message: blocker }); return; }
+      if (blocker) { setPageRecoveryStatus({ phase: 'waiting', message: "", messageKey: blocker }); return; }
       if (!navigator.onLine) {
-        if (this.offlineFailed) setPageRecoveryStatus({ phase: 'offline', message: offlineRecoveryMessage });
+        if (this.offlineFailed) setPageRecoveryStatus({ phase: 'offline', message: "", messageKey: offlineRecoveryMessage });
         else if (!this.verifyingReload) void this.reloadOffline();
         return;
       }
@@ -65,13 +65,13 @@ export class ShellRecovery {
       sessionStorage.setItem(key, 'attempted');
     } catch { return; }
     this.pending = null;
-    if (this.requested) setPageRecoveryStatus({ phase: 'reloading', message: '正在重新加载页面…' });
+    if (this.requested) setPageRecoveryStatus({ phase: 'reloading', message: "", messageKey: "shellRecovery.reloading" });
     this.reload();
   };
 
   private async reloadOffline() {
     this.verifyingReload = true;
-    setPageRecoveryStatus({ phase: 'checking', message: '正在检查本机播放器资源…' });
+    setPageRecoveryStatus({ phase: 'checking', message: "", messageKey: "shellRecovery.checking" });
     try {
       const worker = navigator.serviceWorker?.controller;
       const reply = worker && await requestWorker(worker, { type: 'SAME_PAGE_CHECK_SHELL', buildId }, 20_000);
@@ -80,13 +80,13 @@ export class ShellRecovery {
         'available' in reply && reply.available === true && 'activeReady' in reply && reply.activeReady === true;
       if (!verified) {
         this.offlineFailed = true;
-        setPageRecoveryStatus({ phase: 'offline', message: offlineRecoveryMessage });
+        setPageRecoveryStatus({ phase: 'offline', message: "", messageKey: offlineRecoveryMessage });
         return;
       }
       const blocker = pageReloadBlocker();
-      if (blocker) { setPageRecoveryStatus({ phase: 'waiting', message: blocker }); return; }
+      if (blocker) { setPageRecoveryStatus({ phase: 'waiting', message: "", messageKey: blocker }); return; }
       this.pending = null;
-      setPageRecoveryStatus({ phase: 'reloading', message: '本机资源完整，正在重新加载页面…' });
+      setPageRecoveryStatus({ phase: 'reloading', message: "", messageKey: "shellRecovery.verified" });
       this.reload();
     } finally { this.verifyingReload = false; }
   }

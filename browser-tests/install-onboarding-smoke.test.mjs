@@ -8,7 +8,7 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   const fixture = await startStorageFixture({ invite: true, authenticated: true });
   t.after(() => fixture.stop());
   const browser = await chromium.launch(); t.after(() => browser.close());
-  const wechat = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 MicroMessenger/8.0" });
+  const wechat = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 MicroMessenger/8.0" });
   const page = await wechat.newPage();
   await page.goto(`${fixture.origin}/?join=1#${new URLSearchParams({ invite: fixture.joinCode })}`);
   await expect(page.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
@@ -22,7 +22,7 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   assert.equal(new URL(bridge).pathname, "/install");
   assert.ok(new URL(bridge).hash.startsWith("#handoff="));
   await page.screenshot({ path: "artifacts/verification/install-onboarding/02-wechat.png" });
-  const safari = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1" });
+  const safari = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1" });
   const external = await safari.newPage();
   external.on("request", request => {
     if (new URL(request.url()).pathname === "/api/guest/install-handoff/redeem") assert.equal(new URL(external.url()).hash, "");
@@ -39,7 +39,7 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   const cookies = await safari.cookies();
   assert.ok(cookies.some(cookie => cookie.name === "same_page_guest"));
   // Models Safari 17.2+ documented cookie-copy contract, not actual OS install.
-  const installed = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const installed = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
   await installed.addCookies(cookies);
   const launched = await installed.newPage();
   await launched.addInitScript(() => {
@@ -49,16 +49,16 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   await launched.goto(fixture.origin);
   await expect(launched.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
   await expect(launched.getByRole("button", { name: "添加到桌面", exact: true })).toHaveCount(0);
-  await expect(launched.getByRole("link", { name: "注册 / 登录，开始记笔记", exact: true })).toBeVisible();
+  await expect(launched.getByRole("link", { name: "登录或注册", exact: true })).toBeVisible();
   await expect(launched.locator(".file-row__open")).toHaveCount(1);
   // Explicit home navigation must still stay home.
   await launched.goto(`${fixture.origin}/drives`);
   await expect(launched).toHaveURL(fixture.origin + "/drives");
   // A guest cannot mint a bridge to an unrelated drive.
   assert.equal((await safari.request.post(`${fixture.origin}/api/guest/install-handoff`, { data: { choirId: "other" } })).status(), 401);
-  const fresh = await browser.newContext();
+  const fresh = await browser.newContext({ locale: "zh-CN" });
   assert.equal((await fresh.request.post(`${fixture.origin}/api/guest/install-handoff`, { data: { choirId: fixture.choirId } })).status(), 401);
-  const android = await browser.newContext({ viewport: { width: 360, height: 800 }, userAgent: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0.0.0 Mobile Safari/537.36" });
+  const android = await browser.newContext({ locale: "zh-CN", viewport: { width: 360, height: 800 }, userAgent: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0.0.0 Mobile Safari/537.36" });
   const androidPage = await android.newPage();
   await androidPage.goto(bridge);
   await expect(androidPage.getByText("打开浏览器菜单 ⋮", { exact: false })).toBeVisible();

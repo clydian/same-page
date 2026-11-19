@@ -15,7 +15,7 @@ after(async () => { await server?.stop(); });
 async function openReader(t, engine, viewport, overrides = {}) {
   const browser = await engine.launch({ headless: true });
   t.after(() => browser.close());
-  const context = await browser.newContext({ viewport, hasTouch: true, serviceWorkers: "block" });
+  const context = await browser.newContext({ locale: "zh-CN", viewport, hasTouch: true, serviceWorkers: "block" });
   await context.route("**/api/**", route => route.fulfill(resolveFixtureRequest({
     pathname: new URL(route.request().url()).pathname, method: route.request().method(),
     identity: "member", scenarioId: "reader-controls-narrow", cookie: "", ...overrides,

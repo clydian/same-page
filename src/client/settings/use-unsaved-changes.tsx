@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Button, Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { useExitLayer } from "../navigation/navigation-context";
@@ -12,10 +13,11 @@ export function useUnsavedChanges(options: UnsavedOptions) {
   return useUnsavedChangesGuard(options).confirmation;
 }
 
-export function useUnsavedChangesGuard({ dirty, save, discard, saveState, subject = "修改" }: {
+export function useUnsavedChangesGuard({ dirty, save, discard, saveState, subject }: {
   dirty: boolean; subject?: string; save(): Promise<boolean>; discard(): void;
   saveState?: { blocked: boolean; message: string | null };
 }) {
+  const t = useMessages("library");
   const resolve = useRef<((result: boolean | "cancelled") => void) | null>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -35,18 +37,18 @@ export function useUnsavedChangesGuard({ dirty, save, discard, saveState, subjec
     setOpen(false); resolve.current?.(result); resolve.current = null;
   };
   const confirmation = <ModalOverlay className="modal-overlay" isOpen={open} isDismissable={!saving} onOpenChange={value => { if (!value && !saving) finish("cancelled"); }}>
-    <Modal className="app-modal app-modal--compact"><Dialog className="app-dialog" aria-label="处理未保存的修改">
-      <Heading slot="title">{dirty ? "有未保存的修改" : "修改已保存"}</Heading><p>{dirty ? `${subject}尚未保存。要保存后离开吗？` : "保存已确认，请核对后续处理结果。"}</p>
-      {failed && <p role="alert">{saveState?.message ?? "保存尚未确认，请核对后重试；修改仍保留。"}</p>}
+    <Modal className="app-modal app-modal--compact"><Dialog className="app-dialog" aria-label={t("useUnsavedChangesHandlingUnsavedChanges")}>
+      <Heading slot="title">{dirty ? t("useUnsavedChangesThereUnsavedChanges") : t("useUnsavedChangesModificationsSaved")}</Heading><p>{dirty ? t("useUnsavedChangesHasNotBeenSaved", { subject: subject ?? t("useUnsavedChangesModification") }) : t("useUnsavedChangesSaveHasBeenConfirmed")}</p>
+      {failed && <p role="alert">{saveState?.message ?? t("useUnsavedChangesSaveHasNotBeen")}</p>}
       <div className="unsaved-actions">
         <Button className="primary-button" isDisabled={saving || saveState?.blocked} onPress={async () => {
           setSaving(true);
           try { if (await save()) finish(true); else setFailed(true); }
           catch { setFailed(true); }
           finally { setSaving(false); }
-        }}>{saving ? "正在保存…" : "保存并返回"}</Button>
-        <Button className="secondary-button" autoFocus isDisabled={saving} onPress={() => finish("cancelled")}>继续编辑</Button>
-        <Button className="unsaved-discard" isDisabled={saving} onPress={() => { discard(); finish(true); }}>放弃修改</Button>
+        }}>{saving ? t("saving") : t("useUnsavedChangesSaveReturn")}</Button>
+        <Button className="secondary-button" autoFocus isDisabled={saving} onPress={() => finish("cancelled")}>{t("useUnsavedChangesContinueEditing")}</Button>
+        <Button className="unsaved-discard" isDisabled={saving} onPress={() => { discard(); finish(true); }}>{t("useUnsavedChangesAbandonModification")}</Button>
       </div>
     </Dialog></Modal>
   </ModalOverlay>;

@@ -12,7 +12,7 @@ after(async () => { await server?.stop(); });
 for (const [engine, width] of [[chromium, 390], [webkit, 834]]) {
   test(`serial multi-file uploads and uncertain-result verification in ${engine.name()}`, async () => {
     const browser = await engine.launch({ headless: true });
-    const context = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width, height: 900 }, serviceWorkers: "block" });
     const page = await context.newPage();
     const pending = [];
     const files = [];

@@ -1,8 +1,10 @@
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
+import { useMessages } from "../../i18n";
 import { useSettingsLifetime, captureSettingsLifetime, invalidateSettingsLifetime } from "../settings/use-settings-lifetime";
 import { captureReadIdentity } from "../settings/read-resource";
-import { SettingsRequestError, isSettingsReadDenied, settingsError } from "../settings/settings-request";
+import { SettingsRequestError, isSettingsReadDenied } from "../settings/settings-request";
+import { settingsError } from "../settings/settings-error";
 import { PurgeDialog } from "../drives/purge-dialog";
 import { ReplacedPdfTrash } from "./replaced-pdf-trash";
 import { AttachmentTrash } from "./attachments/attachment-trash";
@@ -37,6 +39,7 @@ export function TrashContents({
   writable?: boolean;
   onRestored: () => void | Promise<void>;
 }) {
+  const t = useMessages("library");
   const lifetime = useSettingsLifetime(writable);
   const [purging, setPurging] = useState<TrashedScoreSummary | null>(null);
   const [trash, setTrash] = useState<TrashedScoreSummary[]>([]);
@@ -61,13 +64,13 @@ export function TrashContents({
         if (active) {
           if (isSettingsReadDenied(error)) {
             invalidateSettingsLifetime(lifetime); setTrash([]); setRestoreConflict(null); setRestoreName(""); setPurging(null); }
-          setMessage(settingsError(error, "暂时无法打开回收站。")); setLoading(false);
+          setMessage(settingsError(error, t("trashContentsRecycleBinCannotOpened"))); setLoading(false);
         }
       });
     return () => {
       active = false;
     };
-  }, [choirId, attempt, writable, lifetime, setMessage]);
+  }, [choirId, attempt, writable, lifetime, setMessage, t]);
 
   if (purging && !writable) setPurging(null);
 
@@ -104,13 +107,13 @@ export function TrashContents({
         if (payload?.error !== "filename_conflict") { setMessage(uploadMessage(response.status, payload)); return; }
         setRestoreConflict(score);
         setRestoreName(scoreDisplayName(score.fileName));
-        setMessage("当前文件库已有同名文件，请先为恢复的文件换一个名称。");
+        setMessage(t("trashContents"));
         return;
       }
       if (response.status === 404) {
         setRestoreConflict(null);
         setTrash((current) => current.filter((entry) => entry.id !== score.id));
-        setMessage("这份乐谱已不在可恢复的回收站中，可能已到期或被处理。请刷新云盘。");
+        setMessage(t("trashContentsRefreshCloudDisk"));
         return;
       }
       if (!response.ok) throw new Error("restore_failed");
@@ -118,10 +121,10 @@ export function TrashContents({
       setTrash((current) => current.filter((entry) => entry.id !== score.id));
       confirmed = true;
       await onRestored();
-      if (current()) setMessage("文件已恢复，笔记和附件保持不变。", { duration: 5000 });
+      if (current()) setMessage(t("trashContents2"), { duration: 5000 });
     } catch {
       if (!current()) return;
-      setMessage(confirmed ? "文件已恢复，但刷新失败。请重新读取，不必再次恢复。" : "恢复未完成，请稍后重试。");
+      setMessage(confirmed ? t("trashRestoreRefreshFailed") : t("trashContentsRestoreNotCompletedTry"));
     } finally {
       setBusy(false);
       if (!current()) setAttempt(value => value + 1);
@@ -134,40 +137,34 @@ export function TrashContents({
   };
 
   return (
-    <section aria-label="回收站文件">
-              <p className="dialog-copy">
-                文件保留三十天，到期自动删除。仍占云盘空间；拥有者可提前彻底删除。
-              </p>
-              {loading ? <p role="status">正在读取回收站…</p> : trash.length > 0 ? (
+    <section aria-label={t("trashContentsRecycleBinFiles")}>
+              <p className="dialog-copy">{t("trashContents3")}</p>
+              {loading ? <p role="status">{t("trashContentsReadingRecycleBin")}</p> : trash.length > 0 ? (
                 <ul className="trash-list">
                   {trash.map((score) => (
                     <li key={score.id}>
                       <span>
                         <strong>{scoreDisplayName(score.fileName)}</strong>
-                        <small>{daysRemaining(score.trashExpiresAt)} 天后自动删除</small>
+                        <small>{t("trashExpiresAfter", { days: daysRemaining(score.trashExpiresAt) })}</small>
                       </span>
-                      <Button isDisabled={busy || !writable} onPress={() => void restoreScore(score)}>
-                        恢复
-                      </Button>
-                      {canPurge && <Button className="primary-button destructive-button" isDisabled={busy || !writable} onPress={() => setPurging(score)}>彻底删除</Button>}
+                      <Button isDisabled={busy || !writable} onPress={() => void restoreScore(score)}>{t("membershipManagementRecoveryMembership")}</Button>
+                      {canPurge && <Button className="primary-button destructive-button" isDisabled={busy || !writable} onPress={() => setPurging(score)}>{t("replacedPdfTrashCompletelyDeleted")}</Button>}
                     </li>
                   ))}
                 </ul>
               ) : (
-                message && !feedback.temporary ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>重新读取回收站</Button> : <p className="dialog-copy">没有已删除的乐谱。</p>
+                message && !feedback.temporary ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>{t("trashContentsReReadRecycleBin")}</Button> : <p className="dialog-copy">{t("trashContentsThereNoDeletedScores")}</p>
               )}
-              {purging && writable && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title="彻底删除乐谱" description={`“${scoreDisplayName(purging.fileName)}”的PDF 文件、附件和所有成员的笔记都会被删除。`} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
+              {purging && writable && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title={t("trashContentsCompletelyDeleteScore")} description={t("trashContentsPdfFilesAttachmentsNotes", { name: String(scoreDisplayName(purging.fileName)) })} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
               <ReplacedPdfTrash key={`pdf:${userId}:${choirId}`} userId={userId} choirId={choirId} canPurge={canPurge} writable={writable} onRestored={onRestored} />
               <AttachmentTrash writable={writable} key={`${userId}:${choirId}`} choirId={choirId} onRestored={onRestored} />
               {restoreConflict ? (
                 <Form className="entry-form restore-conflict" onSubmit={submitConflict}>
                   <TextField isRequired value={restoreName} onChange={setRestoreName} maxLength={255}>
-                    <Label>恢复时使用的新文件名</Label>
+                    <Label>{t("trashContentsNewFileNameUse")}</Label>
                     <Input autoFocus />
                   </TextField>
-                  <Button type="submit" isDisabled={busy || !writable}>
-                    重命名并恢复
-                  </Button>
+                  <Button type="submit" isDisabled={busy || !writable}>{t("trashContentsRenameRestore")}</Button>
                 </Form>
               ) : null}
               <FeedbackMessage feedback={feedback} className="form-message" />

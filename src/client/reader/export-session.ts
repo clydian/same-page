@@ -1,3 +1,4 @@
+import { getCurrentLocale, getMessages } from "../../i18n";
 import { liveQuery } from "dexie";
 import type { AnnotationLayerSummary } from "../../shared/annotations";
 import { scorePdfFileName } from "../../shared/score-display-name";
@@ -6,6 +7,7 @@ import { LocalWorkspaceOwnerChangedError, type LocalWorkspace } from "../platfor
 import { holdUpdate } from "../updates/update-safety";
 import type { PDFDocumentProxy } from "./pdf-document";
 import { exportScore } from "./export-score";
+import { ExportError } from "./export-error";
 import { prepareExport } from "./prepare-export";
 
 export type ExportTarget = {
@@ -91,12 +93,13 @@ export class ExportSession {
       try { return { state: await readScoreAnnotationState(this.target.workspace), error: null }; }
       catch (error) { return { state: null, error }; }
     }).subscribe(result => {
+      const t = getMessages(getCurrentLocale(), "reader");
       if (!this.active) return;
       if (!result.state) {
         this.observedSnapshot = null;
         this.cancelGeneration();
         this.publish({ file: null, readError: result.error instanceof LocalWorkspaceOwnerChangedError
-          ? "登录状态已变化，请关闭后重新打开分享。" : "无法读取本机笔记，请重试。" });
+          ? t("exportSessionChanged") : t("exportReadFailed") });
         return;
       }
       this.observedSnapshot = JSON.stringify(result.state);
@@ -121,8 +124,9 @@ export class ExportSession {
       this.publish({ prepared: true, selected });
       this.reconcile();
     }).catch(error => {
+      const t = getMessages(getCurrentLocale(), "reader");
       if (this.active && this.preparation === task) {
-        this.publish({ message: errorMessage(error, "无法准备 PDF，请检查网络后重试。") });
+        this.publish({ message: error instanceof ExportError ? t(error.messageId) : t("exportPrepareFailed") });
       }
     }).finally(release);
   }
@@ -176,6 +180,7 @@ export class ExportSession {
   }
 
   private async generate() {
+    const t = getMessages(getCurrentLocale(), "reader");
     if (!this.active || !this.source) return;
     const task = this.generation = { controller: new AbortController(), release: holdUpdate() };
     this.generated = null;
@@ -186,7 +191,7 @@ export class ExportSession {
       if (!this.active || this.generation !== task) return;
       this.generated = { file: new File([result.blob], scorePdfFileName(this.target.fileName), { type: "application/pdf" }), snapshot: result.snapshot };
     } catch (error) {
-      if (this.active && this.generation === task) this.publish({ message: errorMessage(error, "无法准备 PDF。请确认联网与笔记数据后重试。") });
+      if (this.active && this.generation === task) this.publish({ message: error instanceof ExportError ? t(error.messageId) : t("exportRenderFailed") });
     } finally {
       task.release();
       if (this.generation === task) {
@@ -198,6 +203,7 @@ export class ExportSession {
 
   // Invoke from the press itself: no awaited preparation before navigator.share.
   share = async () => {
+    const t = getMessages(getCurrentLocale(), "reader");
     const file = this.state.file;
     if (!this.active || !file || this.state.sharing) return;
     this.publish({ sharing: true, message: null });
@@ -205,7 +211,7 @@ export class ExportSession {
     try { await navigator.share({ files: [file] }); }
     catch (error) {
       if (!((error instanceof Error || error instanceof DOMException) && error.name === "AbortError")) {
-        this.publish({ shareFailed: true, message: "无法打开系统分享，请重试或下载 PDF。" });
+        this.publish({ shareFailed: true, message: t("exportShareFailed") });
       }
     } finally { this.publish({ sharing: false }); release(); this.releaseSharing = undefined; }
   };
@@ -213,8 +219,4 @@ export class ExportSession {
 
 function defaults(layers: AnnotationLayerSummary[]) {
   return layers.filter(layer => layer.subscribed || (layer.kind === "personal" && layer.canEdit)).map(layer => layer.id);
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && /[\u3400-\u9fff]/.test(error.message) ? error.message : fallback;
 }

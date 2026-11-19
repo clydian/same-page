@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { useMessages } from "../../i18n";
 import { Button } from "react-aria-components";
 import { Link } from "react-router-dom";
 import { loginHref } from "../auth/login-return";
@@ -8,36 +8,39 @@ import { useInstall } from "../install/install-context";
 import "./drive-preparation.css";
 
 export function DrivePreparation({ choirId, accountReady }: { choirId: string; accountReady: boolean }) {
+  const t = useMessages("library");
+  const entry = useMessages("entry");
   const install = useInstall();
   if (!install || (install.hidden && accountReady)) return null;
   const installed = install.hidden;
   const pendingInstall = install.requested && !installed;
-  const login = loginHref(`/choirs/${choirId}`);
-  return <DriveSuggestion id="preparation" label="排练准备" title="为下次排练做好准备"
-    closeLabel="暂时不用，关闭排练准备"
-    action={<>
-      {!installed && (pendingInstall
-        ? <Button className="secondary-button" onPress={install.open}>查看添加帮助</Button>
-        : <InstallButton className="primary-button" />)}
-      {installed && !accountReady && <Link className="primary-button" to={login}>
-        注册 / 登录，开始记笔记
-      </Link>}
-    </>}>
-    <ol className="preparation-steps">
-      <li data-complete={installed || undefined}>
-        <span className="preparation-step-marker" aria-hidden="true">{installed ? <Check size={16} /> : "1"}</span>
-        <div><strong>{installed ? "已添加到桌面" : pendingInstall ? "添加请求已提交" : "添加到桌面"}</strong>
-          {!installed && <p>{pendingInstall ? "回到桌面，点合谱图标打开。" : "像其他 App 一样，点合谱图标就能打开。"}</p>}
+  const installTitle = pendingInstall ? t("drivePreparationAddRequestSubmitted") : t("drivePreparationAddDesktop");
+  const installHint = pendingInstall ? t("drivePreparationReturnDesktopClickScore") : t("drivePreparationLikeOtherAppsOpened");
+  const joinTitle = t("drivePreparationJoinDrive");
+  const joinHint = t("drivePreparationJoinHint", { myDrives: entry("home.myDrives") });
+  return <DriveSuggestion id="preparation" label={t("drivePreparationRehearsalPreparation")} title={installed ? joinTitle : t("drivePreparationGetReadyNextRehearsal")}
+    closeLabel={t("drivePreparationNotUsedTimeBeing")}
+    action={installed
+      ? <Link className="primary-button" to={loginHref(`/choirs/${choirId}`)}>{entry("authIdentify")}</Link>
+      : pendingInstall
+        ? <Button className="secondary-button" onPress={install.open}>{t("drivePreparationViewAddingHelp")}</Button>
+        : <InstallButton className="primary-button" />}>
+    {installed ? <p>{joinHint}</p> : accountReady ? <>
+      {pendingInstall && <strong>{installTitle}</strong>}
+      <p>{installHint}</p>
+    </> : <ol className="preparation-steps">
+      <li>
+        <span className="preparation-step-marker" aria-hidden="true">1</span>
+        <div><strong>{installTitle}</strong>
+          <p>{installHint}</p>
         </div>
       </li>
-      <li data-complete={accountReady || undefined}>
-        <span className="preparation-step-marker" aria-hidden="true">{accountReady ? <Check size={16} /> : "2"}</span>
-        <div><strong>{accountReady ? "已登录并加入云盘" : "登录，保存并同步笔记"}</strong>
-          {!accountReady && <p>{install.runningInApp
-            ? "注册或登录并加入此云盘，换设备也能接着记。"
-            : "建议从桌面打开后登录，加入此云盘，让笔记随身同步。"}</p>}
+      <li>
+        <span className="preparation-step-marker" aria-hidden="true">2</span>
+        <div><strong>{joinTitle}</strong>
+          <p>{joinHint}</p>
         </div>
       </li>
-    </ol>
+    </ol>}
   </DriveSuggestion>;
 }

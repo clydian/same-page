@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useInteractOutside } from "react-aria";
 import { useId, useRef, useState, useSyncExternalStore } from "react";
 import { MousePointer2, SlidersHorizontal, ChevronDown, Eraser, Highlighter, Square, Circle, Lock, Pencil, Redo2, Type, Undo2, X } from "lucide-react";
@@ -42,6 +43,7 @@ export function ReaderEditingControls({
   onLayerChange(layerId: string): void;
   onOpenLayers?(tab: "display" | "manage"): void;
 }) {
+  const t = useMessages("reader");
   const styleAnchor = useRef<Element | null>(null);
   const styleDialogId = useId();
   const stylePopover = useRef<HTMLDivElement>(null);
@@ -61,9 +63,9 @@ export function ReaderEditingControls({
   const toolHasStyle = tool !== "eraser" && tool !== "select";
   const canUndo = useSyncExternalStore(editor.subscribe, () => editor.canUndo(activeLayerId));
   const canRedo = useSyncExternalStore(editor.subscribe, () => editor.canRedo(activeLayerId));
-  const toolNames = { select: "选择", text: "文字", ink: "画笔", highlighter: "荧光笔", rectangle: "矩形", ellipse: "椭圆", eraser: "橡皮" };
+  const toolNames = { select: t("select"), text: t("text"), ink: t("pen"), highlighter: t("highlighter"), rectangle: t("rectangle"), ellipse: t("ellipse"), eraser: t("eraser") };
   const selectedLayer = layers.find((layer) => layer.id === activeLayerId);
-  const audience = localOnly ? "体验 · 仅本机" : selectedLayer?.kind === "shared" ? "共享 · 云盘可见" : selectedLayer?.sharing ? "个人 · 云盘可见" : "个人 · 仅自己";
+  const audience = localOnly ? t("previewLocalOnly") : selectedLayer?.kind === "shared" ? t("sharedDriveVisible") : selectedLayer?.sharing ? t("personalDriveVisible") : t("personalOnly");
   const chooseLayer = (layerId: string) => {
     onLayerChange(layerId);
     setStyleSource(null);
@@ -72,21 +74,21 @@ export function ReaderEditingControls({
   const personalLayers = layers.filter((layer) => layer.kind === "personal" && layer.canEdit);
 
   return (
-    <section className="annotation-controls" aria-label="笔记工具">
+    <section className="annotation-controls" aria-label={t("noteTools")}>
       <DialogTrigger isOpen={choosingLayer} onOpenChange={setChoosingLayer}>
         <Button
           isDisabled={isDisabled}
           className="reader-edit-layer-trigger"
-          aria-label={`当前编辑层：${selectedLayer?.name ?? ""}，${audience}，编辑图层`}
+          aria-label={t("currentEditingLayer", { layer: selectedLayer?.name ?? "", audience })}
         >
           <span className="reader-edit-layer-identity"><span>{selectedLayer?.name}</span><small>{audience}</small></span>
           <ChevronDown aria-hidden="true" size={14} />
         </Button>
         <Popover className="reader-edit-layer-popover" placement="top" offset={12}>
-          <Dialog aria-label="编辑图层">
-            <div className="reader-target-heading"><h2>编辑图层</h2><Button className="icon-button" aria-label="关闭写入目标" onPress={() => setChoosingLayer(false)}><X aria-hidden="true" size={18} /></Button></div>
-            <p>共享层 · 此云盘可见</p>
-            <div className="annotation-layer-switcher" aria-label="编辑层">
+          <Dialog aria-label={t("chooseEditingLayer")}>
+            <div className="reader-target-heading"><h2>{t("chooseEditingLayer")}</h2><Button className="icon-button" aria-label={t("closeEditingLayer")} onPress={() => setChoosingLayer(false)}><X aria-hidden="true" size={18} /></Button></div>
+            <p>{t("sharedLayerAudience")}</p>
+            <div className="annotation-layer-switcher" aria-label={t("editingLayer")}>
               {layers.filter(layer => layer.kind === "shared").map((layer) => (
                 <LayerSlotButton
                   isDisabled={isDisabled}
@@ -97,19 +99,19 @@ export function ReaderEditingControls({
                 />
               ))}
             </div>
-            <p>个人层 · 只有你能编辑</p>
+            <p>{t("personalLayerAudience")}</p>
             <div className="annotation-layer-switcher">
               {personalLayers.map(layer => <LayerSlotButton key={layer.id} isDisabled={isDisabled} layer={layer} activeLayerId={activeLayerId} onLayerChange={chooseLayer} />)}
             </div>
             <div className="reader-layer-shortcuts">
-              <Button onPress={() => { setChoosingLayer(false); onOpenLayers?.("display"); }}>显示参考笔记<span aria-hidden="true">→</span></Button>
-              <Button onPress={() => { setChoosingLayer(false); onOpenLayers?.("manage"); }}>管理个人层<span aria-hidden="true">→</span></Button>
+              <Button onPress={() => { setChoosingLayer(false); onOpenLayers?.("display"); }}>{t("showReferenceNotes")}<span aria-hidden="true">→</span></Button>
+              <Button onPress={() => { setChoosingLayer(false); onOpenLayers?.("manage"); }}>{t("managePersonalLayers")}<span aria-hidden="true">→</span></Button>
             </div>
           </Dialog>
         </Popover>
       </DialogTrigger>
-      <div className="annotation-control-group annotation-drawing-tools" aria-label="工具">
-        <div className="segmented-control" aria-label="笔记工具">
+      <div className="annotation-control-group annotation-drawing-tools" aria-label={t("tools")}>
+        <div className="segmented-control" aria-label={t("noteTools")}>
           {(["select", "ink", "highlighter", "eraser", "text", "rectangle", "ellipse"] as const).map((entry) => (
             <Button
               isDisabled={isDisabled || !selectedLayer?.canEdit}
@@ -131,10 +133,10 @@ export function ReaderEditingControls({
           ))}
         </div>
       </div>
-      {selectedLayer?.kind === "personal" && <label className="annotation-toolbar-color"><span style={{ background: toolHasStyle ? toolColor : "#e5e7e5" }} /><input type="color" aria-label="工具颜色" title={toolHasStyle ? "工具颜色" : "当前工具不使用颜色"} disabled={isDisabled || !selectedLayer.canEdit || !toolHasStyle} value={toolHasStyle ? toolColor : "#e5e7e5"} onChange={event => onColorChange(event.target.value)} /></label>}
+      {selectedLayer?.kind === "personal" && <label className="annotation-toolbar-color"><span style={{ background: toolHasStyle ? toolColor : "#e5e7e5" }} /><input type="color" aria-label={t("toolColor")} title={toolHasStyle ? t("toolColor") : t("colorUnavailableForTool")} disabled={isDisabled || !selectedLayer.canEdit || !toolHasStyle} value={toolHasStyle ? toolColor : "#e5e7e5"} onChange={event => onColorChange(event.target.value)} /></label>}
       <Button
         className="annotation-tool-button annotation-style-trigger"
-        aria-label="工具设置"
+        aria-label={t("toolSettings")}
         aria-haspopup="dialog"
         aria-expanded={styleSource === "settings"}
         aria-controls={styleSource === "settings" ? styleDialogId : undefined}
@@ -151,17 +153,17 @@ export function ReaderEditingControls({
         placement="top"
         offset={12}
       >
-        <Dialog id={styleDialogId} aria-label="工具设置">
-          <header className="reader-style-heading"><strong>{toolNames[tool]}设置</strong><span>用于新笔记</span></header>
+        <Dialog id={styleDialogId} aria-label={t("toolSettings")}>
+          <header className="reader-style-heading"><strong>{t("namedToolSettings", { tool: toolNames[tool] })}</strong><span>{t("newNoteStyles")}</span></header>
           <div style={{ color: selectedLayer?.kind === "shared" ? selectedLayer.displayColor : toolColor }}>
             <StyleFields tool={tool} value={toolStyle} onChange={onStyleChange} />
           </div>
         </Dialog>
       </Popover>
-      <div className="annotation-control-group annotation-history-controls" aria-label="历史">
+      <div className="annotation-control-group annotation-history-controls" aria-label={t("history")}>
         <Button
           isDisabled={isDisabled || !selectedLayer?.canEdit || !canUndo}
-          aria-label="撤销"
+          aria-label={t("undo")}
           className="annotation-tool-button"
           onPress={() => activeLayerId ? void editor.undo(activeLayerId) : undefined}
         >
@@ -169,7 +171,7 @@ export function ReaderEditingControls({
         </Button>
         <Button
           isDisabled={isDisabled || !selectedLayer?.canEdit || !canRedo}
-          aria-label="重做"
+          aria-label={t("redo")}
           className="annotation-tool-button"
           onPress={() => activeLayerId ? void editor.redo(activeLayerId) : undefined}
         >
@@ -191,11 +193,12 @@ function LayerSlotButton({
   activeLayerId: string | null;
   onLayerChange(layerId: string): void;
 }) {
+  const t = useMessages("reader");
   const label = layer?.name ?? "";
   const button = (
     <Button
       isDisabled={isDisabled}
-      aria-label={`${label}${layer?.canEdit ? "" : "，只读，查看权限说明"}`}
+      aria-label={layer?.canEdit ? label : t("readOnlyLayerLabel", { label })}
       aria-pressed={layer?.id === activeLayerId}
       className="annotation-layer-slot"
       onPress={() => {
@@ -207,7 +210,7 @@ function LayerSlotButton({
       {layer && !layer.canEdit ? (
         <Lock aria-hidden="true" className="annotation-layer-slot__lock" size={11} />
       ) : null}
-      {layer && !layer.canEdit ? <small>需获得此层编辑权</small> : null}
+      {layer && !layer.canEdit ? <small>{t("layerEditingRequired")}</small> : null}
     </Button>
   );
   if (!layer || layer.canEdit) return button;
@@ -215,7 +218,7 @@ function LayerSlotButton({
     <DialogTrigger>
       {button}
       <Popover className="layer-permission-popover" offset={12} placement="top">
-        <Dialog aria-label="仅可查看" className="layer-permission-dialog">
+        <Dialog aria-label={t("viewOnly")} className="layer-permission-dialog">
           {({ close }) => <LayerPermissionContent layer={layer} onClose={close} />}
         </Dialog>
       </Popover>
@@ -230,15 +233,16 @@ function LayerPermissionContent({
   layer: AnnotationLayerSummary;
   onClose(): void;
 }) {
+  const t = useMessages("reader");
   return (
     <>
       <div className="layer-permission-dialog__icon">
         <Lock aria-hidden="true" size={20} />
       </div>
-      <h2>仅可查看</h2>
-      <p>{layer.name} 可以查看，但只有云盘拥有者和获得此层编辑权的成员可以编辑。</p>
-      <p>如需编辑权限，请联系云盘拥有者。</p>
-      <Button className="primary-button" onPress={onClose}>知道了</Button>
+      <h2>{t("viewOnly")}</h2>
+      <p>{t("layerReadOnlyDescription", { name: layer.name })}</p>
+      <p>{t("requestLayerPermission")}</p>
+      <Button className="primary-button" onPress={onClose}>{t("gotIt")}</Button>
     </>
   );
 }

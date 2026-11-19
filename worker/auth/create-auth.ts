@@ -4,6 +4,7 @@ import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins";
 
 import { PASSWORD_POLICY } from "../../src/shared/auth";
+import { sourceLocale, type AppLocale } from "../../src/i18n/locales";
 import { createDatabase } from "../db/database";
 import { schema } from "../db/schema";
 import { sendAuthOtp } from "../email/send-otp";
@@ -18,7 +19,7 @@ import {
   AUTH_OTP_WINDOW_SECONDS,
 } from "./otp-delivery-rate-limit";
 
-export function createAuth(env: Env, executionContext: WaitUntilContext) {
+export function createAuth(env: Env, executionContext: WaitUntilContext, locale: AppLocale = sourceLocale) {
   const database = createDatabase(env.DB);
 
   return betterAuth({
@@ -143,6 +144,7 @@ export function createAuth(env: Env, executionContext: WaitUntilContext) {
               email,
               otp,
               type === "sign-in" ? "registration" : type,
+              locale,
             ),
           );
         },

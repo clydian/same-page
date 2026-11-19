@@ -14,7 +14,7 @@ function mount(accountReady: boolean, installed = false) {
 it.each([
   { accountReady: false, installed: false, installation: true, login: null },
   { accountReady: true, installed: false, installation: true, login: null },
-  { accountReady: false, installed: true, installation: false, login: "注册 / 登录，开始记笔记" },
+  { accountReady: false, installed: true, installation: false, login: "登录或注册" },
   { accountReady: true, installed: true, installation: false, login: null },
 ])("shows only unfinished preparation: member=$accountReady installed=$installed", ({ accountReady, installed, installation, login }) => {
   mount(accountReady, installed);
@@ -22,6 +22,8 @@ it.each([
   if (login) expect(screen.getByRole("link", { name: login })).toHaveAttribute("href", "/login?returnTo=%2Fchoirs%2Fdrive");
   else expect(screen.queryByRole("link")).not.toBeInTheDocument();
   expect(Boolean(screen.queryByRole("complementary", { name: "排练准备" }))).toBe(!(accountReady && installed));
+  expect(screen.queryAllByRole("listitem")).toHaveLength(accountReady || installed ? 0 : 2);
+  expect(Boolean(screen.queryByText("加入后，下次登录就能从「我的云盘」直接打开。"))).toBe(!accountReady);
 });
 
 it("does not mark an accepted installation request complete before confirmation", async () => {
@@ -30,8 +32,9 @@ it("does not mark an accepted installation request complete before confirmation"
   Object.defineProperty(event, "prompt", { value: async () => ({ outcome: "accepted" }) });
   act(() => window.dispatchEvent(event));
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "添加到桌面" })));
-  expect(screen.getByRole("complementary", { name: "排练准备", hidden: true })).toHaveTextContent("添加请求已提交");
-  expect(screen.queryByText("已添加到桌面")).not.toBeInTheDocument();
+  const preparation = screen.getByRole("complementary", { name: "排练准备", hidden: true });
+  expect(preparation).toHaveTextContent("添加请求已提交");
+  expect(preparation).toHaveTextContent("查看添加帮助");
   act(() => window.dispatchEvent(new Event("appinstalled")));
   expect(screen.queryByRole("complementary", { name: "排练准备", hidden: true })).not.toBeInTheDocument();
 });

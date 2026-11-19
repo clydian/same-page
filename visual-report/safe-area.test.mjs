@@ -18,7 +18,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     t.after(() => server.stop());
     const browser = await engine.launch();
     t.after(() => browser.close());
-    const page = await browser.newPage({ viewport: { width: 834, height: 1194 }, serviceWorkers: "block" });
+    const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 834, height: 1194 }, serviceWorkers: "block" });
     await page.route("**/api/**", route => {
       const pathname = new URL(route.request().url()).pathname;
       const data = {
@@ -55,7 +55,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     t.after(() => server.stop());
     const browser = await engine.launch();
     t.after(() => browser.close());
-    const page = await browser.newPage({ viewport: { width: 834, height: 1000 }, serviceWorkers: "block" });
+    const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 834, height: 1000 }, serviceWorkers: "block" });
     await page.route("**/api/**", route => {
       const response = resolveFixtureRequest({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "guest", cookie: "" });
       const data = JSON.parse(response.body);

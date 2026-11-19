@@ -65,6 +65,8 @@ jobs:
         run: npm run lint
       - name: Type check
         run: npm run typecheck
+      - name: Verify translations
+        run: npm run i18n:check
       - name: Client tests
         if: needs.scope.outputs.client == 'true'
         run: npm run test

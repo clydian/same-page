@@ -1,0 +1,569 @@
+{
+  "drive": {
+    "create": "Créer un espace",
+    "loginToCreate": "Se connecter pour créer un espace",
+    "login": "Se connecter",
+    "restoreLocal": "Restaurer le contenu local…",
+    "directoryError": "Le répertoire du espace ne peut pas être confirmé temporairement. Veuillez vous connecter à Internet et réessayer.",
+    "choose": "Choisir un espace",
+    "chooseHint": "Choisissez l’espace à ouvrir.",
+    "lastUnavailable": "Le dernier espace utilisé n'est plus dans la liste accessible, veuillez sélectionner un autre espace.",
+    "join": "Rejoindre un espace",
+    "first": "Rejoignez votre premier espace",
+    "firstHint": "Utilisez la carte d'invitation ou le code d'invitation envoyé par l'administrateur pour vous joindre.",
+    "createPrompt": "Vous souhaitez créer un espace pour votre équipe ?"
+  },
+  "identity": {
+    "checking": "Connexion, le contenu enregistré peut continuer à être utilisé.",
+    "localUnavailable": "La vérification de l'identité locale n'est pas encore terminée et le contenu enregistré est toujours conservé.",
+    "unreachable": "Impossible de se connecter temporairement, le contenu enregistré est toujours conservé.",
+    "signedOut": "Après vous être reconnecté et synchronisé, le contenu enregistré peut continuer à être utilisé.",
+    "retrying": "Nouvelle tentative…",
+    "retryVerify": "Réessayez la vérification",
+    "retryConnection": "Réessayez la connexion",
+    "loginAgain": "Connectez-vous à nouveau"
+  },
+  "guestNotes": {
+    "title": "Connectez-vous pour prendre des notes de répétition",
+    "signIn": "Inscrivez-vous ou connectez-vous pour prendre des notes",
+    "keepReading": "Continuer la lecture de la partition",
+    "hint": "Vous naviguez en tant qu'invité. Inscrivez-vous ou connectez-vous et rejoignez ce espace pour enregistrer vos propres notes et les synchroniser sur différents appareils."
+  },
+  "startup": {
+    "restore": "Récupération du espace...",
+    "retry": "Réessayez",
+    "feedback": "Commentaires",
+    "loadError": "Le espace ajouté ne peut pas être chargé temporairement."
+  },
+  "logout": {
+    "checkError": "Impossible de vérifier le contenu à synchroniser sur cette machine, veuillez réessayer.",
+    "networkError": "Veuillez vous déconnecter après vous être connecté à Internet pour vous assurer que la session du serveur expire en même temps.",
+    "cleanupError": "Vous êtes déconnecté, mais l’effacement des données sur cet appareil n’est pas terminé. Réessayez de les effacer.",
+    "logoutError": "La sortie n'est pas terminée et les données locales ne sont pas effacées. Veuillez réessayer.",
+    "cleanDetails": "Après avoir quitté, la couche personnelle locale, les brouillons de documents, les autorisations d'édition et les préférences utilisateur seront effacés ; le contenu partagé téléchargé peut être conservé.",
+    "working": "Déconnexion…",
+    "discard": "Abandonner les modifications et se déconnecter",
+    "clear": "Se déconnecter et effacer les données",
+    "title": "Se déconnecter ?",
+    "return": "Vérifier les modifications",
+    "pendingDetails": "Sur cet appareil, il y a {pending, plural, one {# modification à synchroniser} other {# modifications à synchroniser}}, {conflicts, plural, one {# conflit local} other {# conflits locaux}} et {errors, plural, one {# erreur de synchronisation} other {# erreurs de synchronisation}}{drafts, plural, =0 {} one {, ainsi que # brouillon de document non enregistré} other {, ainsi que # brouillons de documents non enregistrés}}. Si vous continuez, ces éléments seront définitivement perdus."
+  },
+  "create": {
+    "capacity": "Essai gratuit · 10 partitions / 50 Mo / 20 membres",
+    "name": "Nom de l’espace",
+    "displayName": "Votre nom d’affichage dans cet espace",
+    "ownerHint": "Vous serez propriétaire de l’espace et pourrez inviter d’autres personnes avec un code. L’espace peut compter jusqu’à 20 membres, vous compris.",
+    "retention": "Un espace peut être supprimé si aucun membre n’y accède en ligne pendant plus de 30 jours consécutifs. Nous avertissons son propriétaire par courriel au moins 14 jours à l’avance. Si un membre ouvre l’espace en ligne pendant ce délai, la suppression est annulée.",
+    "cancel": "Annuler",
+    "back": "Revenir au choix de l’espace",
+    "uncertain": "Le résultat de la création n'a pas pu être confirmé. Veuillez fermer et relire le espace ajouté avant de décider de réessayer.",
+    "working": "Création en cours…",
+    "submit": "Créer gratuitement",
+    "terms": "Vous pouvez posséder un seul espace. Il peut être supprimé après une longue période d’inactivité. Nous vous avertirons par courriel au moins 14 jours à l’avance.",
+    "rules": "Règles d’utilisation et de suppression"
+  },
+  "purge": {
+    "refreshFailed": "Le contenu a été supprimé définitivement, mais la liste n’a pas pu être actualisée. Fermez cette fenêtre et rechargez la liste. Il est inutile de répéter la suppression.",
+    "unconfirmed": "La suppression n’a pas pu être confirmée. Fermez cette fenêtre et actualisez la liste pour vérifier le résultat. Ne répétez pas la suppression.",
+    "working": "Suppression…",
+    "confirm": "Confirmer la suppression complète",
+    "warning": "Les contenus supprimés définitivement ne peuvent pas être restaurés dans Same Page. La suppression libère du stockage dans l’espace.",
+    "name": "Saisir le nom de l’espace « {name} » pour confirmer"
+  },
+  "join": {
+    "guestError": "Impossible de préparer l'espace invité local, veuillez réessayer.",
+    "invalidLink": "Le lien d'invitation n'est pas valide, veuillez saisir le code d'invitation actuel.",
+    "newDrive": "Rejoindre un nouvel espace",
+    "checking": "Vérification…",
+    "enterShort": "Entrer",
+    "submitting": "Rejoindre…",
+    "submit": "Inscrivez-vous et entrez",
+    "close": "Fermer",
+    "exampleName": "Exemple : Camille",
+    "existing": "Mes espaces",
+    "loginToView": "Se connecter pour les voir",
+    "invitation": "Utilisez une carte d'invitation ou un code d'invitation",
+    "displayName": "Nom d’affichage",
+    "named": "Rejoindre « {name} »",
+    "setName": "Définissez votre nom affiché sur ce espace.",
+    "return": "Retour pour saisir le code d'invitation"
+  },
+  "home": {
+    "enter": "Ouvrir un espace",
+    "myDrives": "Mes espaces",
+    "preview": "Voir un exemple",
+    "more": "Découvrir les fonctionnalités",
+    "features": "Caractéristiques du produit",
+    "tagline": "Vos notes et ma partition",
+    "summaryEnglish": "Une bibliothèque de partitions en ligne pour les répétitions de chorale et les annotations partagées.",
+    "summary": "Une bibliothèque de partitions en ligne pour les répétitions de chorale et les annotations partagées.",
+    "title": "L’harmonie commence sur la même partition"
+  },
+  "scan": {
+    "unrecognized": "La carte d'invitation Same Page n'est pas reconnue. Veuillez pointer le code QR du carton d'invitation sur ce site ou saisir le code d'invitation.",
+    "cameraFeedError": "Impossible de lire l'écran de la caméra, veuillez l'identifier à partir de l'album ou saisir le code d'invitation.",
+    "cameraError": "Impossible d'ouvrir la caméra, veuillez autoriser les autorisations de la caméra ou identifier et saisir le code d'invitation de l'album.",
+    "reading": "Reconnaissance du carton d'invitation…",
+    "imageUnrecognized": "Le carton d'invitation de ce site n'est pas reconnu sur la photo. Veuillez sélectionner à nouveau ou saisir le code d'invitation.",
+    "imageError": "L'image ne peut pas être reconnue. Veuillez sélectionner une image de carte d'invitation ne dépassant pas 10 Mo ou saisir le code d'invitation.",
+    "stop": "Arrêter la numérisation",
+    "start": "Numérisation",
+    "fromPhoto": "Identifier à partir de l'album photo",
+    "chooseImage": "Sélectionnez l'image de la carte d'invitation",
+    "camera": "Écran de numérisation des cartes d'invitation"
+  },
+  "usage": {
+    "trial": "Version d'essai gratuite",
+    "title": "Utilisation de l’espace",
+    "error": "L'utilisation ne peut pas être lue pour le moment.",
+    "working": "Utilisation en lecture...",
+    "trash": "La corbeille et les PDF en attente prennent également de la place. Le propriétaire peut supprimer complètement le contenu indésirable de la corbeille.",
+    "refresh": "Actualiser l’utilisation",
+    "details": "Partitions {scores} · Stockage {used} / {limit} · Membres {members}"
+  },
+  "feature": {
+    "shared": {
+      "title": "Différentes voix, partagez des notes en couches",
+      "description": "Les exigences des répétitions sont partagées hiérarchiquement par voix. Les personnes autorisées peuvent laisser des notes et tout le monde peut les consulter sur la même partition."
+    },
+    "personal": {
+      "title": "Consultez les notes partagées à la demande et conservez vous-même vos notes personnelles",
+      "description": "Sélectionnez les notes de pièce que vous souhaitez afficher et vous pouvez également écrire vos propres rappels au niveau personnel. Par défaut, vous seul pouvez les voir."
+    },
+    "replace": {
+      "title": "Remplacez les partitions et conservez des notes",
+      "description": "Après avoir remplacé le PDF, les notes existantes seront conservées et seront toujours affichées en fonction du numéro et de la position de la page d'origine ; après les changements de mise en page, veuillez vérifier la position des notes."
+    },
+    "offline": {
+      "title": "Disponible hors ligne, synchronisé en ligne",
+      "description": "Enregistrez à l'avance pour une utilisation hors ligne. Vous pouvez continuer à lire des partitions musicales et à prendre des notes même si Internet est déconnecté. Une fois Internet restauré, les notes continueront à être synchronisées."
+    },
+    "devices": {
+      "title": "Une partition, disponible sur plusieurs appareils",
+      "description": "Installez Same Page sur Android, iPhone, iPad, Windows ou Mac pour retrouver les mêmes partitions et annotations sur vos appareils."
+    }
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "hint": "Cette adresse n'a pas de page correspondante, veuillez revenir sur mon espace pour continuer la navigation.",
+    "action": "Retour à mes espaces"
+  },
+  "admission": {
+    "unavailable": "Ce espace n'est pas accessible pour le moment, veuillez réessayer plus tard.",
+    "removed": "Cette relation d'adhésion doit être restaurée par une personne disposant des autorisations de restauration de membre.",
+    "rateLimit": "Trop de tentatives, veuillez réessayer plus tard.",
+    "invalidCode": "Le code d'invitation n'est pas valide ou a expiré.",
+    "timeout": "Le délai de connexion a expiré, le code d'invitation a été réservé, veuillez réessayer.",
+    "joinUnavailable": "Ce espace ne peut pas être ajouté pour le moment, veuillez réessayer plus tard."
+  },
+  "trial": {
+    "platformFull": "Le stockage d'essai gratuit est temporairement plein, veuillez le télécharger à nouveau plus tard. Le contenu existant est toujours disponible.",
+    "driveLimit": "Le quota de espace de l'essai gratuit est actuellement plein, veuillez réessayer plus tard. Vous pouvez toujours ajouter d'autres espace.",
+    "ownedLimit": "Chaque utilisateur peut disposer d'au plus un espace d'essai gratuit. Veuillez d'abord transférer ou supprimer le espace existant.",
+    "verifyIdentity": "Veuillez d'abord effectuer la vérification de l'e-mail ou vous connecter en utilisant une identité tierce vérifiée.",
+    "memberLimit": "Le nombre de membres du espace est plein. Veuillez contacter le propriétaire pour libérer le quota et réessayer.",
+    "scoreLimit": "Le nombre de partitions musicales dans la bibliothèque de fichiers a atteint la limite supérieure. Veuillez d'abord déplacer les partitions inutiles vers la corbeille.",
+    "retryLater": "L'opération est trop fréquente, veuillez réessayer plus tard.",
+    "confirmationMismatch": "Le nom du espace a changé ou l'entrée ne correspond pas. Veuillez actualiser et confirmer à nouveau.",
+    "accessChanged": "L'identité ou les autorisations ont changé, veuillez actualiser et réessayer.",
+    "deleted": "Le contenu a été complètement supprimé, veuillez actualiser.",
+    "generalError": "L'opération n'est pas terminée, veuillez vérifier le réseau et réessayer."
+  },
+  "lifecycle": {
+    "identityChanged": "L'identité de connexion a changé, veuillez relire le statut et confirmer à nouveau.",
+    "transferRequired": "Vous êtes toujours propriétaire du espace. Veuillez transférer la propriété ou supprimer le espace avant de continuer.",
+    "reauthenticate": "Veuillez revérifier la méthode de connexion d'origine et confirmer la suppression dans les dix minutes.",
+    "cannotRecover": "La période de récupération a expiré, l'authentification a expiré ou la méthode de connexion ne correspond pas, veuillez revérifier et vérifier l'état.",
+    "memberConflict": "L'adhésion a changé ou la période de récupération a expiré, veuillez relire le statut.",
+    "generalError": "L'opération n'est pas terminée, veuillez relire l'état et réessayer."
+  },
+  "about": {
+    "copied": "Les informations de version ont été copiées.",
+    "copyError": "La copie automatique a échoué. Sélectionnez les informations ci-dessous pour les copier manuellement.",
+    "version": "Same Page {version}\nBuild : {build}",
+    "run": "Exécution : {run}",
+    "currentVersion": "Cet appareil utilise la version {version}. Les heures de compilation sont indiquées à l’heure de Pékin.",
+    "title": "À propos de Same Page",
+    "links": "Aide et informations sur Same Page",
+    "tagline": "Sur une même partition, répétez ensemble et par pupitre.",
+    "summary": "Partitions et notes de répétition pour chorales",
+    "productHint": "Découvrez Same Page et ses fonctions de répétition.",
+    "pricingHint": "Offres payantes en préparation · Voir les projets de politiques",
+    "manualHint": "Apprenez à lire vos partitions, à les annoter et à répéter.",
+    "feedbackHint": "Décrivez-nous le problème que vous avez rencontré.",
+    "buildInfo": "Version et informations techniques",
+    "copy": "Copier les informations de version",
+    "recovery": "Restaurer le lecteur",
+    "recoveryHint": "Si toutes les ressources sont présentes sur cet appareil, vous pouvez recharger le lecteur hors connexion. Une connexion est nécessaire si des ressources manquent. Vos notes et le contenu local sont conservés.",
+    "product": "Présentation de Same Page",
+    "manual": "Guide d’utilisation",
+    "feedback": "Signaler un problème",
+    "privacy": "Politique de confidentialité",
+    "reload": "Recharger la page"
+  },
+  "help": {
+    "start": {
+      "title": "Premiers pas : préparer une répétition",
+      "intro": "Suivez d’abord le parcours qui va de la recherche d’une partition à son ouverture hors connexion. Consultez les autres fonctions au besoin.",
+      "walkthrough": {
+        "title": "Suivre les étapes",
+        "step1": "Connectez-vous par e-mail ou avec Google et ouvrez l’invitation reçue pour rejoindre un espace. Cliquez sur le nom de l’espace actuel pour changer d’espace, en rejoindre un ou en créer un. La page de sélection des espaces permet aussi d’en créer un. Dans l’espace, choisissez un nom que les autres membres reconnaîtront.",
+        "step2": "Dans l’espace, retrouvez la partition par son nom de fichier et ouvrez-la. Si elle manque, demandez à un membre ayant les droits d’importer le PDF.",
+        "step3": "Touchez le centre de la partition pour afficher les outils. Ouvrez « Calques d’annotations » et sélectionnez les calques partagés et personnels que vous souhaitez voir pendant la répétition.",
+        "step4": "Cliquez sur le crayon pour passer en mode édition. Sélectionnez « Mes notes », ajoutez une annotation et cliquez sur la coche pour terminer.",
+        "step5": "Consultez « Plus → Sauvegarde et synchronisation des notes ». Si une synchronisation est en attente ou a échoué, reconnectez-vous et suivez les instructions.",
+        "step6": "Dans « Plus → Utilisation hors connexion », enregistrez une copie et attendez l’indication « Disponible hors connexion ». Avant la répétition, coupez la connexion et rouvrez chaque partition nécessaire. Vérifiez que la partition et les notes sont visibles."
+      },
+      "try": {
+        "title": "Essayer avant de rejoindre un espace",
+        "paragraph1": "Les visiteurs peuvent lire les partitions et les notes partagées auxquelles ils ont accès. Pour prendre vos propres notes et les synchroniser entre appareils, créez un compte ou connectez-vous, puis rejoignez l’espace. Seule la démo publique permet d’essayer d’annoter dans le navigateur actuel. Ces notes restent sur cet appareil et ne modifient aucun contenu partagé. Elles ne deviennent pas automatiquement des notes personnelles après la connexion. Pour retrouver vos notes sur plusieurs appareils lors d’une répétition, connectez-vous et rejoignez l’espace."
+      }
+    },
+    "read": {
+      "title": "Trouver une partition et ajuster la lecture",
+      "intro": "Le mode lecture sert à consulter la partition. Le mode édition permet de modifier les notes sur la page actuelle.",
+      "navigation": {
+        "title": "Trouver une partition et tourner les pages",
+        "paragraph1": "Dans l’espace, recherchez la partition par son nom de fichier et cliquez dessus pour l’ouvrir. Touchez la partition au centre pour afficher les outils. Au clavier, utilisez Tab pour atteindre « Afficher les outils de lecture », puis Entrée ou Espace pour les ouvrir. En lecture page par page, touchez le bord de la partition ou balayez horizontalement pour tourner les pages. L’aperçu des pages permet d’atteindre rapidement une page.",
+        "paragraph2": "Dans « Plus → Mise en page et zoom », sélectionnez « Page par page » ou « Défilement continu ». Vous pouvez aussi agrandir, réduire ou sélectionner « Ajuster à la page ». Si votre appareil le permet, vous pouvez lire en plein écran."
+      },
+      "layers": {
+        "title": "Choisir les calques d’annotations",
+        "paragraph1": "Ouvrez « Calques d’annotations » et cochez les calques à afficher. Un calque personnel est visible par vous seul par défaut. Les calques partagés sont visibles par les personnes autorisées. L’affichage d’un calque ne confère pas le droit de le modifier.",
+        "paragraph2": "Dans le panneau, sélectionnez « Définir l’affichage par défaut pour cet espace » pour appliquer vos préférences à plusieurs partitions. Une partition réglée individuellement conserve ses propres réglages. Cliquez sur « Utiliser les réglages de l’espace » pour rétablir l’affichage et la couleur par défaut des calques partagés.",
+        "paragraph3": "La couleur à côté d’un calque partagé règle son affichage pour vous uniquement. La couleur d’origine des notes reste la même pour les autres membres. Chaque note personnelle a sa propre couleur, définie par l’outil d’édition."
+      }
+    },
+    "practice": {
+      "title": "Écouter un pupitre et travailler un passage",
+      "intro": "Les partitions de répétition sont remises en page et lues à partir d’un fichier MusicXML. Le PDF original reste la référence pour vérifier la partition.",
+      "open": {
+        "title": "Ouvrir une partition de répétition",
+        "step1": "Ouvrez la partition, touchez le centre pour afficher les outils et choisissez « Partitions de répétition » en bas à droite. Sélectionnez la version souhaitée. Cette option est visible lorsqu’un fichier MusicXML est disponible.",
+        "step2": "La mention « Générée automatiquement · Bêta » désigne une version de répétition créée automatiquement. Elle peut comporter des erreurs de lecture : vérifiez-la à l’aide du PDF original. Les versions ajoutées par les membres conservent leur nom de fichier. Vous pouvez aussi les ouvrir depuis les pièces jointes de la bibliothèque."
+      },
+      "repetition": {
+        "title": "Écouter les pupitres et travailler en boucle",
+        "paragraph1": "Lancez la lecture et réglez la vitesse dans la barre inférieure. Les « Réglages de répétition » permettent de cibler un pupitre, de régler les volumes, de couper une voix, de l’écouter en solo ou de jouer un passage en boucle. La « Boucle de passage » démarre sur la plage actuelle. Lorsque vous faites glisser A ou B, la lecture se met en pause pour prévisualiser le passage et le panneau s’atténue. Quand vous relâchez, la plage est mise à jour et l’état de lecture précédent est rétabli. Vous pouvez aussi régler le début ou la fin mesure par mesure. Désactivez la boucle pour l’arrêter. Tant qu’elle est active, la barre de progression, les sauts de mesure et les clics sur la partition restent dans la plage sélectionnée.",
+        "paragraph2": "Le son est synthétisé à partir du fichier MusicXML sélectionné et peut différer de la partition originale. La synthèse ne chante pas les paroles. Les pièces jointes audio utilisent les enregistrements ajoutés dans la bibliothèque. Depuis une pièce jointe audio, choisissez « Écouter en suivant la partition » pour ouvrir le PDF original."
+      },
+      "views": {
+        "title": "Changer d’affichage et terminer la répétition",
+        "paragraph1": "Une partition de répétition s’ouvre par défaut en mode remise en page. Le menu supérieur permet de basculer entre « PDF original », « Partition remise en page » et « Comparer » sans interrompre la répétition. La vue remise en page peut suivre la lecture, et ce suivi peut être réactivé après un déplacement manuel. Dans le PDF original, les pages se tournent à la main. Les deux vues n’ont pas de correspondance de position ni de défilement synchronisé.",
+        "paragraph2": "Vous pouvez réduire la barre inférieure et continuer à lancer la lecture, la mettre en pause ou ouvrir les réglages. Pour arrêter, cliquez sur « Terminer la répétition » en haut de l’écran, ou sur « Terminer » sur un écran étroit. Quitter la partition arrête également la lecture. Rouvrir la partition de répétition reprend au début."
+      },
+      "offline": {
+        "title": "Préparer la lecture hors connexion",
+        "step1": "Suivez d’abord la section « Préparer une répétition hors connexion et installer Same Page » pour enregistrer la partition principale. Ensuite, ouvrez chaque partition de répétition nécessaire en étant connecté.",
+        "step2": "Dans « Réglages de répétition », attendez le message « Cette partition peut être ouverte et jouée hors connexion ». Si la préparation échoue, sélectionnez « Relancer la préparation hors connexion ». La partition principale et les partitions de répétition sont préparées séparément.",
+        "step3": "Avant la répétition, coupez la connexion. Rouvrez la partition principale, choisissez la bonne version dans « Partitions de répétition » et lancez un essai. Répétez la préparation sur chaque appareil et navigateur utilisé. Les pièces jointes audio nécessitent une connexion."
+      }
+    },
+    "notes": {
+      "title": "Ajouter et corriger des notes",
+      "intro": "Avant d’écrire, vérifiez le calque que vous modifiez.",
+      "edit": {
+        "title": "Commencer et terminer une modification",
+        "step1": "Cliquez sur le crayon, puis sélectionnez votre calque personnel ou un calque partagé que vous avez le droit de modifier. Seul le calque actif est modifiable. Les autres calques affichés sont atténués et servent de repère.",
+        "step2": "Utilisez un doigt ou un stylet pour annoter, et deux doigts pour déplacer ou agrandir la page. En mode page par page, balayez horizontalement à deux doigts pour changer de page. En défilement continu, vous pouvez modifier chaque page visible et faire défiler à deux doigts. Chaque trait appartient à la page où il a commencé.",
+        "step3": "Cliquez sur la coche pour terminer. Sélectionnez les calques à afficher en mode lecture, puis reprenez la consultation."
+      },
+      "tools": {
+        "title": "Choisir le bon outil",
+        "paragraph1": "Utilisez le stylo pour écrire à la main, le surligneur pour mettre en évidence un passage, le texte pour ajouter des instructions et les rectangles ou ellipses pour entourer une zone. Vous pouvez régler la couleur, l’épaisseur du trait ou la taille du texte selon l’outil.",
+        "paragraph2": "Pour modifier une note, sélectionnez-la avec l’outil de sélection. Vous pouvez ensuite changer son style si l’objet le permet ou le supprimer. Annuler et Rétablir permettent de revenir sur une modification. Modifier les réglages de l’outil ne change pas les notes déjà tracées.",
+        "paragraph3": "Un nouvel espace comporte par défaut les calques partagés Ensemble, Soprano, Alto, Tenor et Bass. Les personnes autorisées à modifier un même calque partagé peuvent modifier les notes qu’il contient. Vérifiez le calque actif pour éviter d’écrire un rappel personnel dans un calque de répétition partagé."
+      },
+      "sync": {
+        "title": "Enregistrer sur l’appareil et synchroniser",
+        "paragraph1": "Une fois les modifications terminées, les notes sont d’abord enregistrées sur cet appareil. Elles sont envoyées en ligne dès que la connexion et les autorisations le permettent. Dans « Plus → Sauvegarde et synchronisation des notes », vérifiez s’il reste des modifications en attente, des échecs ou des conflits.",
+        "paragraph2": "L’état en ligne est mis à jour à l’ouverture d’une partition, après l’envoi réussi d’une modification ou lors d’une synchronisation manuelle. Il ne s’actualise pas à intervalles réguliers pendant la lecture. En répétition, lancez la synchronisation pour voir les dernières modifications. Lorsque la connexion revient, l’envoi reprend pour les brouillons en attente."
+      }
+    },
+    "sharing": {
+      "title": "Organiser et partager ses notes personnelles",
+      "intro": "Vous seul modifiez un calque personnel. Si vous le partagez, les autres membres peuvent le consulter en lecture seule.",
+      "newLayer": {
+        "title": "Créer un calque pour chaque usage",
+        "paragraph1": "Dans la zone des calques personnels de « Calques d’annotations », choisissez « Nouveau calque personnel » pour séparer vos notes de répétition, de concert ou d’un autre usage. Ouvrez la gestion des calques personnels pour modifier les calques existants. Leur nom sert à les identifier et ne change ni leur auteur ni leurs droits d’accès."
+      },
+      "share": {
+        "title": "Partager un calque et voir ceux des membres",
+        "paragraph1": "Dans « Calques d’annotations », activez « Partager » sur un calque personnel pour que les membres de cet espace puissent le consulter en lecture seule. Le partage inclut le contenu existant du calque et les modifications synchronisées à venir. Désactivez l’option pour arrêter le partage.",
+        "paragraph2": "Les autres membres peuvent afficher ce calque dans « Calques d’annotations → Partages des membres », pour cette partition. Chacun choisit de l’afficher ; ce choix ne s’applique pas automatiquement aux autres partitions.",
+        "paragraph3": "Le partage cesse lorsque vous le désactivez, lorsque vous quittez l’espace ou lorsque vous supprimez votre compte. Sur un appareil hors connexion, les copies téléchargées restent accessibles jusqu’à la prochaine synchronisation. Les fichiers exportés ne peuvent pas être rappelés à distance."
+      },
+      "restore": {
+        "title": "Supprimer et restaurer un calque personnel",
+        "paragraph1": "Supprimer un calque personnel met fin à son partage. Vous pouvez le restaurer pendant 30 jours dans « Gérer les calques personnels → Calques personnels supprimés ». Le partage ne reprend pas automatiquement. Si des modifications restent à synchroniser, traitez-les en suivant les instructions affichées."
+      }
+    },
+    "offline": {
+      "title": "Préparer une répétition hors connexion et installer Same Page",
+      "intro": "L’installation de Same Page, l’enregistrement d’une copie hors connexion et l’exportation d’un PDF se font séparément.",
+      "prepare": {
+        "title": "Préparer les partitions sur cet appareil",
+        "step1": "Ouvrez la partition en ligne. Dans « Plus → Utilisation hors connexion », choisissez « Enregistrer pour une utilisation hors connexion ». Si une nouvelle version existe, choisissez « Mettre à jour la copie hors connexion ».",
+        "step2": "Attendez la fin du téléchargement et de la vérification. « Disponible hors connexion » indique que la version en cours est prête. « Ancienne version disponible hors connexion » indique que la nouvelle version est encore en attente.",
+        "step3": "Vérifiez chaque partition nécessaire à la répétition. Coupez la connexion et rouvrez-les pour confirmer. Répétez la préparation si vous changez de téléphone, de tablette ou de navigateur."
+      },
+      "install": {
+        "title": "Ajouter à l’écran d’accueil",
+        "paragraph1": "Dans l’espace ou dans la liste des espaces, sélectionnez « Ajouter à l’écran d’accueil » dans la section de préparation de la répétition et suivez les instructions du navigateur. Ouvrez ensuite Same Page depuis le bureau ou l’écran d’accueil. Préparez à part les copies hors connexion dont vous avez besoin.",
+        "paragraph2": "Si vous êtes dans le navigateur de WeChat, le guide d’installation vous dirigera vers un navigateur externe. Les possibilités d’installation varient selon l’appareil et le navigateur. Same Page est également accessible dans le navigateur."
+      },
+      "storage": {
+        "title": "Libérer de la place sur l’appareil",
+        "paragraph1": "Dans « Stockage local », consultez et supprimez les fichiers de partition téléchargés dans cet espace. Cela libère de la place sur cet appareil et conserve les partitions en ligne, les brouillons, les modifications en attente de synchronisation et les conflits. Téléchargez à nouveau les partitions dont vous avez besoin hors connexion.",
+        "paragraph2": "Utilisez le nettoyage des fichiers dans Same Page. Effacer les données du site depuis le navigateur peut supprimer les brouillons non synchronisés et les notes de la démo."
+      }
+    },
+    "files": {
+      "title": "Importer, remplacer et exporter des partitions",
+      "intro": "La partition dans l’espace, ses versions PDF et les fichiers exportés sont gérés séparément.",
+      "upload": {
+        "title": "Importer et remplacer",
+        "paragraph1": "Les membres autorisés à importer des documents peuvent ajouter des PDF. La liste affiche les noms de fichiers. Les droits d’importation, de modification et de suppression se gèrent séparément. Pour renommer une partition ou remplacer son PDF, ouvrez le menu de la partition et vérifiez vos autorisations.",
+        "paragraph2": "Remplacer un PDF ne crée pas de nouvelle partition. Les notes restent affichées à leur page et à leur position d’origine, sans s’aligner automatiquement sur le nouveau fichier. Consultez l’aperçu avant de confirmer et vérifiez ensuite l’emplacement des notes si la mise en page a changé. Corrigez-le à la main si nécessaire. L’ancien PDF reste 30 jours dans la corbeille et peut être restauré comme partition indépendante. Mettez séparément à jour la copie de chaque appareil utilisé hors connexion."
+      },
+      "export": {
+        "title": "Exporter un PDF avec des notes",
+        "paragraph1": "Dans la liste des partitions ou dans la visionneuse, ouvrez l’exportation et sélectionnez les calques à inclure. Same Page assemble la partition originale et les notes que vous avez le droit de consulter dans un PDF indépendant. Le choix des calques à exporter ne modifie pas vos préférences d’affichage et ne prépare pas de copie hors connexion.",
+        "paragraph2": "Le fichier exporté est une copie du contenu actuel. Les modifications ultérieures des notes n’y sont pas répercutées. Avant d’envoyer le fichier, vérifiez que les notes personnelles qu’il contient peuvent être partagées."
+      },
+      "trash": {
+        "title": "Corbeille et suppression définitive",
+        "paragraph1": "Les membres autorisés à supprimer et restaurer peuvent placer une partition dans la corbeille, puis la restaurer dans les 30 jours. Quand un PDF est remplacé, l’ancien fichier va également dans la corbeille. Sa restauration crée une partition indépendante, sans remplacer le PDF actuel ni copier les notes ou les pièces jointes de la partition d’origine. La corbeille et les PDF en attente de confirmation occupent de l’espace de stockage.",
+        "paragraph2": "Le propriétaire peut supprimer définitivement les partitions et PDF de la corbeille ou l’espace entier. La suppression définitive met fin à l’accès et à la possibilité de restauration. Pour une partition ou un espace, elle efface également les notes associées."
+      }
+    },
+    "members": {
+      "title": "Créer un espace, inviter et gérer les membres",
+      "intro": "Les membres reçoivent les autorisations adaptées à leur rôle. Le propriétaire gère les droits et le transfert de propriété de l’espace.",
+      "create": {
+        "title": "Créer un espace et inviter des membres",
+        "paragraph1": "Cliquez sur le nom de l’espace actuel et sélectionnez « Créer un espace » au bas du panneau. L’option figure aussi sur la page de sélection des espaces. Chaque personne peut posséder un espace d’essai gratuit, avec jusqu’à 10 partitions actives, 50 Mo de PDF et 20 membres, propriétaire compris. L’essai n’a pas de date d’expiration fixe.",
+        "paragraph2": "Depuis la page d’invitation de l’espace, partagez le lien ou la carte d’invitation. Le code donne accès à l’espace, transmettez-le uniquement aux personnes concernées. Générer un nouveau code invalide l’ancien. Vous pouvez définir un nom différent dans chaque espace et le modifier dans « Mon profil → Identité dans l’espace »."
+      },
+      "permissions": {
+        "title": "Trouver une personne autorisée",
+        "paragraph1": "Cliquez sur l’engrenage en haut de l’espace, puis consultez « Paramètres de l’espace → Membres et autorisations », par membre ou par autorisation. Les personnes habilitées peuvent effectuer les actions correspondantes. Celles qui peuvent déléguer ces droits peuvent modifier les autorisations des autres membres.",
+        "paragraph2": "L’importation, la modification et la suppression de fichiers, la gestion des membres et l’édition des calques partagés font l’objet d’autorisations distinctes. Le propriétaire peut déléguer la gestion de certaines autorisations. Un gestionnaire délégué peut gérer les membres ordinaires uniquement dans le périmètre défini. Le propriétaire ne peut pas lire les calques personnels des autres membres qui ne lui sont pas partagés."
+      },
+      "retention": {
+        "title": "Conservation des espaces inactifs",
+        "paragraph1": "Un espace d’essai gratuit qu’aucun membre n’a ouvert en ligne pendant plus de 30 jours consécutifs peut être supprimé. Le propriétaire en est averti par e-mail au moins 14 jours à l’avance. Si un membre ouvre de nouveau l’espace en ligne pendant ce délai, la suppression est annulée.",
+        "paragraph2": "Le délai de 30 jours ne déclenche pas de suppression immédiate. L’e-mail indique comment conserver l’espace. Ouvrir une copie hors connexion ne compte pas comme une visite en ligne. Ouvrez l’espace en étant connecté avant la fin du délai indiqué."
+      }
+    },
+    "account": {
+      "title": "Quitter un espace, changer d’appareil et supprimer un compte",
+      "intro": "Revenir à la liste, quitter un espace et se déconnecter ont des effets différents.",
+      "sync": {
+        "title": "Vérifier la synchronisation avant de changer d’appareil",
+        "paragraph1": "Vérifiez la synchronisation des notes sur le premier appareil, puis connectez-vous au même compte sur le nouveau. Les brouillons non synchronisés se trouvent seulement sur le premier appareil. Préparez aussi les copies hors connexion sur le nouvel appareil."
+      },
+      "leave": {
+        "title": "Choisir comment quitter",
+        "paragraph1": "Revenir à la liste des espaces vous laisse membre de l’espace. Quitter un espace en tant que membre met fin aux droits d’accès en ligne et de synchronisation associés. Dans un espace ordinaire, vos calques personnels sont conservés 30 jours. Durant ce délai, une personne autorisée peut rétablir votre adhésion.",
+        "paragraph2": "La déconnexion efface les calques personnels, les droits de modification et les préférences du compte dans ce navigateur. Les contenus partagés téléchargés peuvent être conservés. Same Page vous alerte en cas de modifications en attente ou de conflits. « Ignorer les modifications et se déconnecter » supprime définitivement ces éléments locaux. Vous pouvez revenir en arrière pour les traiter d’abord."
+      },
+      "delete": {
+        "title": "Supprimer son compte",
+        "paragraph1": "Dans « Mon profil → Compte → Supprimer le compte », vérifiez de nouveau votre méthode de connexion initiale et confirmez. Si vous possédez un espace, transférez-en d’abord la propriété en suivant les instructions. La suppression coupe immédiatement l’accès. Vous disposez de 30 jours pour récupérer votre compte et vos calques personnels en présentant la méthode de connexion initiale et en confirmant la restauration.",
+        "paragraph2": "Passé le délai de récupération, les données effacées sont irrécupérables. Les notes partagées conservent le dernier nom utilisé dans l’espace. La suppression du compte ne supprime pas l’espace entier et ne rappelle pas les fichiers exportés."
+      }
+    },
+    "questions": {
+      "title": "Résoudre un problème",
+      "intro": "Vérifiez d’abord l’espace actif, le compte connecté et la connexion, puis suivez les étapes qui correspondent à votre situation.",
+      "finding": {
+        "title": "Partition introuvable ou modification impossible",
+        "paragraph1": "Si vous ne trouvez pas une partition, vérifiez l’espace et le nom de fichier. Actualisez la bibliothèque après vous être connecté ou demandez à un membre autorisé à importer des partitions de vérifier. Hors connexion, seules les copies préparées peuvent s’ouvrir.",
+        "paragraph2": "Si la modification est impossible, vérifiez que vous avez cliqué sur le crayon, sélectionné le bon calque et que vous êtes autorisé à le modifier. Restaurez d’abord les partitions passées à la corbeille. Pour demander une autorisation, consultez « Membres et autorisations »."
+      },
+      "sync": {
+        "title": "Échec de la synchronisation ou conflit",
+        "paragraph1": "Pour terminer la synchronisation, reconnectez-vous et suivez les instructions affichées. Si le problème persiste, utilisez « Signaler un problème » pour envoyer une description et les informations de diagnostic à l’équipe de maintenance. Si vous n’avez pas les droits nécessaires, contactez une personne habilitée et gardez le brouillon sur son appareil d’origine.",
+        "paragraph2": "Un conflit indique que le même objet a été modifié en ligne. Vérifiez le contenu local et en ligne présentés à l’écran pour décider de la suite. Gardez les modifications locales dont vous avez besoin et conservez les données du site."
+      },
+      "offline": {
+        "title": "Copie hors connexion indisponible ou problème d’affichage",
+        "paragraph1": "Dans « Plus → Utilisation hors connexion », relancez l’enregistrement ou la vérification. Si l’ancienne version reste disponible hors connexion, la copie précédente est conservée pendant le téléchargement de la nouvelle. En cas de problème d’affichage, utilisez les options de nouvel essai ou de récupération pour préserver les notes non synchronisées.",
+        "paragraph2": "Si le problème persiste, utilisez « Signaler un problème » ci-dessous pour envoyer sa description et le diagnostic à l’équipe de maintenance. Indiquez les étapes pour le reproduire et le résultat observé. Gardez les mots de passe, codes de vérification, codes d’invitation et partitions privées pour vous."
+      }
+    },
+    "updated": "Dernière mise à jour le <date>2026-10-21</date>",
+    "contentsLabel": "Sommaire du guide",
+    "lead": "Préparez vos partitions et vos notes pour la répétition. Pour une première utilisation, commencez par le premier chapitre. Le sommaire permet aussi de retrouver un sujet en particulier.",
+    "contents": "Sommaire",
+    "back": "Revenir au sommaire",
+    "feedbackHint": "En cas de problème, envoyez une description et les informations de diagnostic à l’équipe Same Page.",
+    "sendFeedback": "Signaler un problème"
+  },
+  "privacy": {
+    "updated": "Dernière mise à jour le 2026-11-17",
+    "lead": "Same Page est un espace de partitions musicales conçu pour les répétitions de chœurs. Cette politique explique quelles informations nous traitons lorsque vous utilisez le Service, pourquoi nous les traitons et comment vous pouvez nous contacter.",
+    "collect": {
+      "title": "Informations que nous traitons",
+      "identity": "<label>Informations d'utilisateur et de connexion :</label> Adresse e-mail, statut de vérification de l'e-mail, informations de connexion cryptées ou hachées, identification d'authentification stable renvoyée par le fournisseur de connexion tiers, ainsi que l'adresse IP et les informations du navigateur utilisées pour sécuriser la session.",
+      "google": "<label>Informations de connexion Google :</label> Lorsque vous choisissez activement une connexion tierce, nous recevrons les informations d'identité de base requises pour finaliser la connexion, telles qu'un e-mail vérifié, un surnom ou un avatar.",
+      "drive": "<label>Contenu des espaces :</label> Vos espaces, votre nom d’affichage et vos autorisations dans chacun, les partitions PDF importées et leurs noms de fichier, ainsi que les annotations, préférences et états de synchronisation des calques personnels et partagés.",
+      "local": "<label>Données locales de l'appareil :</label> Pour prendre en charge l'utilisation hors ligne, le navigateur peut enregistrer les scores, les notes, les préférences et les opérations en attente sur l'appareil actuel. Les enregistrements d'accès des invités et les copies hors ligne peuvent également être enregistrés sur l'appareil actuel.",
+      "usage": "<label>Utilisation des espaces :</label> Dans le client actuel, l’ouverture au premier plan d’un espace ordinaire ou d’une page de partition, le retour au premier plan ou une interaction d’un membre actif signale une visite en ligne, avec une granularité d’environ cinq minutes. L’utilisation hors ligne, les vérifications et la synchronisation en arrière-plan, les invités, la démonstration publique et les identités ayant des droits d’exploitation sont exclus. Nous conservons uniquement l’heure de la dernière visite de chaque adhésion. Nous ne collectons ni les détails de lecture, ni la durée, ni les noms des partitions, ni le contenu des annotations. Les responsables habilités aux opérations sur les partitions peuvent uniquement voir l’heure de la dernière visite et les nombres de membres agrégés de chaque espace. Les visites individuelles ne sont pas visibles. Une tâche planifiée supprime après 30 jours les heures de visite attachées aux adhésions. Les membres retirés et les utilisateurs supprimés ne sont plus comptés. L’espace conserve l’heure de sa dernière visite sans l’associer à l’identité d’un membre. Ces données servent à comprendre l’utilisation et ne déclenchent aucune suppression automatique."
+    },
+    "use": {
+      "title": "Comment nous utilisons ces informations",
+      "protectUser": "Créez et protégez les utilisateurs, complétez la connexion, la vérification des e-mails et la réinitialisation du mot de passe ;",
+      "access": "Déterminez vos autorisations d'accès et de modification au espace, aux partitions et aux couches de notes ;",
+      "sync": "Stockez, synchronisez et rendez les partitions et les notes disponibles hors ligne sur votre appareil ;",
+      "emails": "Envoyez les e-mails de sécurité de connexion nécessaires et les notifications de nettoyage de espace ;",
+      "security": "Prévenir les abus, résoudre les pannes et maintenir la sécurité et la fiabilité du Service.",
+      "advertising": "Nous ne vendons pas vos informations personnelles et ne les utilisons pas à des fins de publicité ciblée. Les notes de niveau personnel ne sont visibles que par vous par défaut."
+    },
+    "sharing": {
+      "title": "Plage visible dans le espace",
+      "visibility": "Par défaut, vous seul pouvez voir vos calques personnels. Les calques partagés et les partitions appartiennent à l’espace qui les contient. Les membres et les invités qui disposent d’un accès peuvent les voir. Les membres disposant d’une autorisation de modification peuvent les modifier. Les annotations partagées peuvent conserver le nom affiché dans l’espace de leur auteur ou de la dernière personne à les avoir modifiées. Les membres actifs peuvent voir les noms affichés, les autorisations et le périmètre de gestion déléguée des autres membres actifs du même espace. Seuls le propriétaire et les personnes autorisées à retirer des membres peuvent voir les adhésions retirées et leur état de retrait ou de restauration.",
+      "identity": "Les informations de connexion tierces ne deviendront pas automatiquement votre identité publique sur tous les espace ; vous pouvez utiliser différents noms d'affichage dans différents espace."
+    },
+    "payments": {
+      "title": "Offres payantes en préparation · Les achats ne sont pas encore disponibles",
+      "details": "Nous prévoyons d’utiliser Paddle comme prestataire de paiement. Aucune commande n’est actuellement traitée par Paddle. Nous confirmerons quelles données de paiement sont collectées, à quelles fins, pour quelle durée et sous la responsabilité de qui. Cette politique sera mise à jour avant le lancement des offres payantes. Consultez le <pricing>projet de tarifs et d’offres</pricing>."
+    },
+    "processors": {
+      "title": "Fournisseur de services",
+      "intro": "Nous utilisons les services suivants uniquement dans la mesure nécessaire pour fournir et protéger Same Page :",
+      "disclosure": "Ces prestataires de services traiteront les informations conformément à leurs conditions et politiques de confidentialité respectives. Nous pouvons également divulguer des informations pertinentes conformément à la loi lorsque la loi l'exige, pour protéger la sécurité des utilisateurs et des services, ou lorsque cela est nécessaire pour mener à bien une réorganisation organisationnelle.",
+      "cloudflare": "<label>Cloudflare :</label> Fournir des services de réseau, de sécurité, d'exploitation d'applications, de base de données et de stockage de fichiers PDF ;",
+      "resend": "<label>Renvoyer :</label> Envoyez les e-mails de sécurité de connexion nécessaires et les notifications de nettoyage de espace telles que la vérification de l'enregistrement et la réinitialisation du mot de passe ;",
+      "google": "<label>Google :</label> Authentification complète uniquement si vous choisissez la méthode appropriée."
+    },
+    "google": {
+      "title": "Données utilisateur Google",
+      "identity": "La connexion Google avec la même page utilise uniquement les informations d'identité de base nécessaires pour créer et connecter les utilisateurs, et ne s'applique pas à Google Drive, Contacts, Gmail ou autres autorisations de données supplémentaires. Les données Google ne sont utilisées que pour l'authentification, la sécurité de la connexion et pour vous fournir la même page, et non à des fins publicitaires.",
+      "compliance": "Notre utilisation des données utilisateur de Google est conforme à la <policy>Politique relative aux données utilisateur du service API Google</policy>, y compris les exigences d'utilisation limitée qui y figurent."
+    },
+    "retention": {
+      "title": "Conservation, suppression et copies hors ligne",
+      "deletedContent": "Les propriétaires de espace peuvent supprimer complètement les partitions de la corbeille, les fichiers PDF de la corbeille ou l'intégralité du espace. L'opération met immédiatement fin à l'accès du produit au contenu correspondant et toutes les notes des membres associées à la partition sont supprimées. Le produit ne fournit pas de fonctionnalités de récupération. Afin de gérer les pannes du système, les données pertinentes seront conservées en arrière-plan pendant 30 jours et seront nettoyées par des tâches planifiées après expiration ; la récupération n'est pas promise aux utilisateurs et les droits d'accès ne seront pas accordés aux données conservées.",
+      "devices": "Le contenu téléchargé sur l'appareil ne peut pas être récupéré à distance. La suppression d'un utilisateur déconnectera l'identité locale et les brouillons non synchronisés continueront à rester sous l'utilisateur d'origine et ne pourront pas être lus par les autres utilisateurs ; une fois la période de récupération après suppression terminée, le serveur ne peut pas restaurer les données nettoyées. Lorsque vous vous déconnectez explicitement, Same Page efface la couche personnelle, le statut modifiable et les préférences utilisateur du navigateur actuel ; le contenu partagé synchronisé et dépersonnalisé peut rester disponible pour une visualisation hors ligne. Vous pouvez également effacer les données du site via votre navigateur ou votre système d'exploitation.",
+      "inactive": "Pendant votre utilisation du service, nous conservons les données utilisateur et les données des espaces nécessaires à sa prestation. Un espace d’essai gratuit peut être supprimé si aucun membre n’y accède en ligne pendant plus de 30 jours consécutifs. Nous avertissons son propriétaire par courriel au moins 14 jours à l’avance. Si un membre ouvre l’espace en ligne pendant ce délai, la suppression est annulée. L’ouverture hors ligne d’une copie existante ne vaut pas accès en ligne.",
+      "membership": "Lorsqu’une personne quitte un espace ordinaire ou en est retirée, l’accès au cloud et la synchronisation que lui conférait son adhésion sont immédiatement révoqués. Les calques personnels sont conservés pendant 30 jours. Durant ce délai, une personne habilitée peut rétablir l’adhésion. Par défaut, vous seul pouvez voir vos calques personnels. Dans la démonstration publique, l’accès à vos calques personnels et leur conservation ne dépendent pas d’une adhésion.",
+      "user": "Le propriétaire peut transférer la propriété dans les « Membres et autorisations » du espace correspondant, puis revérifier la méthode de connexion d'origine depuis « Mon → Compte → Supprimer l'utilisateur » et confirmer la suppression. La suppression révoque immédiatement les sessions de produit et l'accès au cloud ; les données d'identité et les niveaux personnels entrent dans une période de récupération de 30 jours. Pendant cette période, après vérification à l'aide de la méthode de connexion utilisée lors de la suppression, vous ne pouvez que confirmer explicitement la récupération et ne pouvez pas accéder directement au espace. Après la période de récupération, la tâche planifiée nettoie les couches d'identité et personnelles. Les notes partagées continueront à conserver le nom final affiché sur le espace et ne seront pas signées avec l'adresse e-mail de connexion ou le nom du profil global.",
+      "pdfs": "Les PDF des candidats à confirmer expirent après 24 heures ; Les anciens PDF seront conservés dans la corbeille pendant 30 jours après avoir quitté la version actuelle et pourront être restaurés sous forme de partitions indépendantes. Les partitions et leurs versions déplacées dans la corbeille seront conservées pendant 30 jours à compter de leur déplacement. Le contenu expiré est recyclé par les tâches planifiées et réessayé en cas d'échec. La suppression physique peut être postérieure au délai d'expiration."
+    },
+    "security": {
+      "title": "Mesures de sécurité",
+      "safeguards": "Nous utilisons le cryptage de la transmission, la vérification des autorisations côté serveur, la limitation du courant de connexion, la protection des informations d'identification et d'autres mesures. Les jetons d'accès OAuth et les jetons d'actualisation sont chiffrés et enregistrés, et le jeton d'identification Google n'est pas conservé une fois l'authentification Google terminée. Aucun service réseau ne peut garantir une sécurité absolue ; si vous rencontrez des problèmes de sécurité, veuillez nous contacter dès que possible."
+    },
+    "diagnostics": {
+      "title": "Commentaires sur le problème",
+      "local": "Le client ne conserve que les 30 dernières minutes et jusqu'à 50 enregistrements d'erreurs dans la session de page en cours, qui seront effacés lors de l'actualisation ou du changement d'identité. Vous pouvez afficher, copier, effacer les informations de diagnostic ou envoyer des commentaires de manière proactive sur la page <feedback>Commentaires sur les problèmes</feedback> ou dans la fenêtre contextuelle des commentaires du lecteur ; il ne sera pas téléchargé sans cliquer sur Envoyer. Les rapports en attente et les descriptions facultatives ne sont conservés que dans la session en cours et seront effacés après l'actualisation, la fermeture de la page Web ou le changement d'identité.",
+      "report": "Les commentaires envoyés de manière proactive incluent le numéro d'erreur, l'heure, la fréquence, la version, la catégorie d'opération, l'étape et la possibilité de réessayer, ainsi que la version du navigateur et du système, la taille de la fenêtre, les invites réseau et l'état de la PWA ; lorsqu'il est envoyé depuis le lecteur, il inclut également le mode d'affichage du rythme, l'état de lecture ou d'édition, la synchronisation en attente et le nombre de conflits. Le système ne collecte pas automatiquement les partitions ou le texte des notes, les captures d'écran, les noms de fichiers, les adresses e-mail, les adresses IP originales, les informations d'identification, les URL complètes ou les exceptions originales. La description du problème que vous remplissez sera envoyée avec le rapport. Veuillez ne pas inclure de contenu privé, de mots de passe, de codes de vérification ou de codes d'invitation.",
+      "retention": "Le rapport est enregistré dans Cloudflare D1 via le service Same Page. Seuls les responsables autorisés peuvent visualiser et marquer l'état du traitement ; le numéro de retour n'accorde pas l'autorisation de lecture et l'autorisation de gestion du espace n'accorde pas la possibilité d'accéder au rapport. La nouvelle version des retours adopte clairement une durée de conservation pouvant aller jusqu'à 180 jours lors de leur soumission. Les rapports et rapports historiques soumis par l'ancienne version du client sont toujours traités selon la période initiale de 30 jours. Après expiration, l'accès ne sera plus fourni via la boîte de réception et sera supprimé par tâches horaires ; le personnel de maintenance autorisé à supprimer de manière indépendante peut supprimer définitivement le texte du rapport à l'avance, et l'enregistrement d'opération minimum est conservé pendant 180 jours, comprenant uniquement l'opérateur, le numéro de retour, l'action et l'heure ; pour éviter de réessayer de recréer le rapport supprimé, le système conserve pendant une longue période la marque de suppression du numéro de retour sans texte ni identité de l'utilisateur ; l’effacement du diagnostic local ne rappellera pas le rapport envoyé. Les rapports ne sont pas associés aux utilisateurs, aux espace ou aux scores, et ne sont pas automatiquement publiés sur GitHub ni envoyés à des plateformes de support tierces.",
+      "logs": "L'interface utilise une identification de limitation de courte durée pour éviter les abus et n'enregistre pas l'adresse IP ou les informations de connexion d'origine dans le rapport. Les journaux d'opérations structurés côté serveur sont toujours conservés pendant 3 ou 7 jours selon le plan Cloudflare, et la description du rapport n'est pas écrite. Le propre traitement des données du fournisseur d'infrastructure (y compris les journaux de sauvegarde et de sécurité) est régi séparément par ses politiques."
+    },
+    "rights": {
+      "title": "Votre choix et contactez-nous",
+      "contact": "Vous pouvez choisir de ne pas vous connecter avec Google et continuer à vous connecter avec votre email. Pour demander, corriger ou supprimer des informations utilisateur, retirer l'autorisation de connexion d'un tiers ou vous renseigner sur cette politique, veuillez envoyer un e-mail à <contact>{email}</contact>. La révocation de l'autorisation d'un tiers ne supprimera pas automatiquement les utilisateurs déjà établis sur la même page ou les données dont la conservation est requise par la loi."
+    },
+    "updates": {
+      "title": "Mise à jour de la politique",
+      "description": "Lorsqu'il y aura des changements importants dans le service ou les méthodes de traitement des données, nous mettrons à jour cette page et la date en haut ; si nécessaire, nous fournirons également des instructions via des invites en service ou des e-mails."
+    }
+  },
+  "authOauthFailed": "La connexion avec le fournisseur externe n’a pas abouti. Réessayez ou continuez avec votre adresse e-mail.",
+  "authRateLimited": "Trop de tentatives. Réessayez plus tard.",
+  "authContinueFailed": "Impossible de continuer pour le moment. Réessayez plus tard.",
+  "authInvalidCredentials": "L’adresse e-mail ou le mot de passe est incorrect.",
+  "authOtpSendFailed": "Impossible d’envoyer le code de vérification pour le moment. Réessayez plus tard.",
+  "authOtpSent": "Code de vérification envoyé. Vérifiez votre boîte de réception et vos courriers indésirables.",
+  "authOtpInvalid": "Le code est invalide ou a expiré. Demandez-en un nouveau.",
+  "authOtpResent": "Un nouveau code de vérification a été envoyé.",
+  "authResetOtpSent": "Le code de réinitialisation du mot de passe a été envoyé.",
+  "authResetOtpResent": "Un nouveau code de réinitialisation du mot de passe a été envoyé.",
+  "authOtpSendNetworkError": "Impossible d’envoyer le code de vérification. Vérifiez votre connexion et réessayez.",
+  "authOtpVerifyNetworkError": "Impossible de vérifier le code. Vérifiez votre connexion et réessayez.",
+  "authOtpInvalidOrLimit": "Le code est incorrect ou a expiré, ou vous avez atteint la limite de tentatives. Vérifiez le code ou demandez-en un nouveau.",
+  "authPasswordSetSignIn": "Votre mot de passe est défini. La connexion automatique n’a pas abouti. Connectez-vous avec votre nouveau mot de passe.",
+  "authPasswordUnknown": "Impossible de confirmer que votre mot de passe a été défini. Essayez de vous connecter avec le nouveau mot de passe. En cas d’échec, vérifiez votre adresse e-mail pour le réinitialiser.",
+  "authOtpInvalidForSetup": "Le code est invalide ou a expiré. Vérifiez à nouveau votre adresse e-mail pour définir un mot de passe.",
+  "authOtpInvalidNoReset": "Le code est invalide ou a expiré. Votre mot de passe est inchangé.",
+  "authPasswordResetSignIn": "Votre mot de passe a été réinitialisé. Connectez-vous avec le nouveau mot de passe.",
+  "authOauthNoSession": "La connexion avec le fournisseur externe n’a pas ouvert de session. Réessayez ou continuez avec votre adresse e-mail.",
+  "authOauthStartFailed": "Impossible de lancer la connexion avec le fournisseur externe. Réessayez ou continuez avec votre adresse e-mail.",
+  "authPasswordsMismatch": "Les mots de passe ne correspondent pas.",
+  "authPasswordRequirements": "Le mot de passe ne respecte pas les exigences.",
+  "authIdentify": "Se connecter ou s’inscrire",
+  "authContinuing": "Un instant…",
+  "authContinue": "Continuer",
+  "authSignIn": "Se connecter",
+  "authSignInDescription": "Connectez-vous à Same Page avec votre mot de passe.",
+  "authPassword": "Mot de passe",
+  "authSigningIn": "Connexion en cours…",
+  "authForgotPassword": "Mot de passe oublié",
+  "authChangeEmail": "Changer d’adresse e-mail",
+  "authSignUp": "S’inscrire",
+  "authSignUpDescription": "Définissez un mot de passe et nous vous enverrons un code pour vérifier votre adresse e-mail.",
+  "authConfirmPassword": "Confirmer le mot de passe",
+  "authSendingOtp": "Envoi en cours…",
+  "authSendOtp": "Envoyer le code de vérification",
+  "authVerifyEmail": "Vérifier l’adresse e-mail",
+  "authVerifyingOtp": "Vérification en cours…",
+  "authCompleteSignUp": "Terminer l’inscription",
+  "authSignInGoogle": "Se connecter avec Google",
+  "authSetPassword": "Définir un mot de passe pour Same Page",
+  "authSetPasswordGoogleDescription": "Vous vous êtes connecté avec Google et n’avez pas encore défini de mot de passe pour Same Page.",
+  "authSetPasswordDescription": "Vérifiez votre adresse e-mail pour définir un mot de passe pour Same Page.",
+  "authContinueGoogle": "Continuer avec Google",
+  "authSetPasswordForEmail": "Définir un mot de passe pour se connecter par e-mail",
+  "authBackSignInMethods": "Retour aux options de connexion",
+  "authChoosePasswordGoogleDescription": "Adresse e-mail vérifiée. Définissez un mot de passe propre à Same Page, distinct de celui de Google.",
+  "authChoosePasswordDescription": "Adresse e-mail vérifiée. Définissez un mot de passe pour Same Page.",
+  "authSettingPassword": "Configuration en cours…",
+  "authSetPasswordAndSignIn": "Définir le mot de passe et se connecter",
+  "authBackVerifyEmail": "Retour à la vérification de l’adresse e-mail",
+  "authPasswordSet": "Mot de passe défini",
+  "authPasswordSetGoogleDescription": "Vous pouvez maintenant vous connecter avec votre adresse e-mail et votre mot de passe ou avec Google.",
+  "authPasswordSetDescription": "Vous pouvez maintenant vous connecter avec votre adresse e-mail et votre mot de passe.",
+  "authRequestResetDescription": "Nous enverrons un code de réinitialisation du mot de passe à cette adresse e-mail.",
+  "authSendResetOtp": "Envoyer le code de réinitialisation",
+  "authBackSignIn": "Retour à la connexion",
+  "authResetPassword": "Réinitialiser le mot de passe",
+  "authResetPasswordDescription": "Après vérification, votre ancien mot de passe et vos autres sessions seront immédiatement invalidés.",
+  "authConfirmNewPassword": "Confirmer le nouveau mot de passe",
+  "authResettingPassword": "Réinitialisation en cours…",
+  "authResetPasswordAndSignIn": "Réinitialiser le mot de passe et se connecter",
+  "authJoinDrive": "Rejoindre l’espace partagé",
+  "authDisplayName": "Nom affiché",
+  "authDisplayNameExample": "Ex. : Camille",
+  "authJoiningDrive": "Vous rejoignez l’espace…",
+  "authJoinAndEnter": "Rejoindre et ouvrir",
+  "authSignedIn": "Connexion réussie",
+  "authJoinFailedDescription": "Vous êtes connecté, mais vous n’avez pas pu rejoindre l’espace partagé.",
+  "authRetryJoin": "Réessayer de rejoindre l’espace",
+  "authCancelToDriveList": "Annuler et revenir à la liste des espaces",
+  "authContinueReadOnly": "Continuer en lecture seule",
+  "authOtherSignInMethods": "Autres options de connexion",
+  "authEmail": "Adresse e-mail",
+  "authOtp": "Code à six chiffres",
+  "authResendOtp": "Renvoyer le code de vérification",
+  "authThisDrive": "cet espace partagé",
+  "authOtpRetry": "Trop de demandes. Réessayez dans {seconds, plural, one {# seconde} other {# secondes}}.",
+  "authOtpRetryAlreadySent": "Trop de demandes. Réessayez dans {seconds, plural, one {# seconde} other {# secondes}}. Vous pouvez encore utiliser un code déjà reçu.",
+  "authPasswordMinLabel": "Mot de passe (au moins {min} caractères)",
+  "authVerifyEmailDescription": "Saisissez le code de vérification envoyé à {email}.",
+  "authVerifySetPasswordDescription": "Saisissez le code envoyé à {email} pour définir votre mot de passe Same Page.",
+  "authNewPasswordMinLabel": "Nouveau mot de passe (au moins {min} caractères)",
+  "authJoinDriveDescription": "Vous êtes connecté. Choisissez votre nom affiché dans « {drive} ».",
+  "authEmailSummary": "Adresse e-mail : {email}",
+  "authResendOtpCountdown": "Renvoyer le code ({seconds} s)",
+  "authPasswordMinimum": "Le mot de passe doit contenir au moins {min} caractères.",
+  "authEmailExample": "name@example.com",
+  "authOtpExample": "000000",
+  "authFieldRequired": "Remplissez ce champ.",
+  "authEmailInvalid": "Saisissez une adresse e-mail valide.",
+  "authOtpDigits": "Saisissez le code à six chiffres.",
+  "authFieldTooLong": "Saisissez au maximum {max} caractères.",
+  "authFieldInvalid": "Saisissez une valeur valide."
+}

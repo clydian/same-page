@@ -1,11 +1,13 @@
+import { useMessages } from "../../../i18n";
 import { Component, useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { diagnosticErrorType, recordFailure } from "../../diagnostics/diagnostics";
 
 export function AttachmentRecovery() {
+  const t = useMessages("library");
   return <div className="attachment-module-error">
-    <p role="alert">附件暂时无法打开。可关闭此窗口，从附件的“⋯”菜单下载后打开，也可检查更新或反馈问题。</p>
-    <Link className="text-button" to="/about">检查更新</Link>{" "}<Link className="text-button" to="/diagnostics">反馈问题</Link>
+    <p role="alert">{t("attachmentModuleAttachmentCannotOpenedTemporarily")}</p>
+    <Link className="text-button" to="/about">{t("attachmentModuleCheckUpdates")}</Link>{" "}<Link className="text-button" to="/diagnostics">{t("attachmentModuleFeedbackQuestion")}</Link>
   </div>;
 }
 

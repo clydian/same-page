@@ -13,7 +13,7 @@ const longChineseText = "第一排男高音这里请统一提前吸气并保持�
 
 test("only explicit line breaks remain proportional across zoom", async context => {
   const browser = await testBrowser(context);
-  const page = await browser.newPage({ viewport: { width: 1800, height: 1800 } });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 1800, height: 1800 } });
   for (const [name, text, font] of [
     ["short", sampleText, 2.4],
     ["small-padding", "排".repeat(41), 1.2],
@@ -35,7 +35,7 @@ test("only explicit line breaks remain proportional across zoom", async context 
 
 test("nearby short notes remain individually selectable at their visible text", async context => {
   const browser = await testBrowser(context);
-  const page = await browser.newPage({ viewport: { width: 800, height: 500 } });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 800, height: 500 } });
   await setFixture(page, annotationPage("first-note", 600, "甲", 2.4, true));
   await page.locator("#first-note").evaluate(first => {
     const second = first.cloneNode(true);
@@ -58,7 +58,7 @@ test("nearby short notes remain individually selectable at their visible text", 
 
 test("lets long notes extend past the page without wrapping", async context => {
   const browser = await testBrowser(context);
-  const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 1000, height: 800 } });
   await setFixture(page, annotationPage("overflow", 600, "不自动换行".repeat(30), 2.4));
   await page.locator("#overflow").evaluate(element => { element.style.left = "98%"; });
   const [layout] = await measureTextLayouts(page);

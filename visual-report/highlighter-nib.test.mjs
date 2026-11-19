@@ -9,7 +9,7 @@ import { createVisualFixtureSession } from "./fixtures.mjs";
 for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}: same-stroke and separate-stroke overlap match SVG and exported PDF for round and chisel nibs`, async t => {
   const app = await startVisualServer({ script: "dev" }); const browser = await engine.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const page = await browser.newPage(); await page.goto(app.origin);
+  const page = await browser.newPage({ locale: "zh-CN" }); await page.goto(app.origin);
   const pdf = await PDFDocument.create(); pdf.addPage([500,500]);
   const evidence = await page.evaluate(async bytes => {
     const { inkSvgPaths } = await import("/src/client/annotations/ink-geometry.ts");
@@ -46,7 +46,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
 test("Pencil event samples persist tilt and twist, preview the nib, and keep successful saving quiet", async t => {
   const app = await startVisualServer({script:"dev"}), browser = await chromium.launch();
   t.after(async()=>{await browser.close();await app.stop();});
-  const page = await browser.newPage({viewport:{width:1280,height:900}}), fixture=createVisualFixtureSession({dense:true});
+  const page = await browser.newPage({ locale: "zh-CN", viewport:{width:1280,height:900}}), fixture=createVisualFixtureSession({dense:true});
   await page.route("**/api/**",route=>route.fulfill(fixture.resolve({pathname:new URL(route.request().url()).pathname,method:route.request().method(),identity:"admin"})));
   await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
   await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);
@@ -74,7 +74,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   const app = await startVisualServer({ script: "dev" });
   const browser = await engine.launch();
   t.after(async () => { await browser.close(); await app.stop(); });
-  const page = await browser.newPage(); await page.goto(app.origin);
+  const page = await browser.newPage({ locale: "zh-CN" }); await page.goto(app.origin);
   const pdf = await PDFDocument.create(); pdf.addPage([500, 500]);
   const evidence = await page.evaluate(async bytes => {
     const { inkSvgPaths, inkFillRule, inkHit } = await import("/src/client/annotations/ink-geometry.ts");

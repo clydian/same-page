@@ -10,7 +10,7 @@ test("real PDF.js permission and network failures reach private diagnostic repor
   const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
   try {
     for (const category of ["permission", "network"]) {
-      const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 320, height: 740 } });
+      const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: "block", viewport: { width: 320, height: 740 } });
       await context.route("**/api/**", async route => {
         const pathname = new URL(route.request().url()).pathname;
         if (category === "network" && pathname.endsWith("/pdf")) return route.abort("internetdisconnected");

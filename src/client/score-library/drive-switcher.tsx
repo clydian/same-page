@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { Button, DialogTrigger, Heading, Modal, ModalOverlay, Popover } from "react-aria-components";
@@ -14,6 +15,7 @@ import { loginHref } from "../auth/login-return";
 export function DriveSwitcher({ choirId, choirName, userId, localOnly, loading }: {
   choirId: string; choirName: string; userId?: string; localOnly: boolean; loading: boolean;
 }) {
+  const t = useMessages("library");
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<"join" | "create" | null>(null);
   const [returnAction, setReturnAction] = useState<"join" | "create" | null>(null);
@@ -34,16 +36,16 @@ export function DriveSwitcher({ choirId, choirName, userId, localOnly, loading }
     requestAnimationFrame(restoreLibraryPosition);
   };
   const narrow = useCompactLayout();
-  const content = <Dialog className="drive-switch-content" aria-label="切换云盘">{({ close }) => <>
-    <div className="dialog-heading"><Heading slot="title">切换云盘</Heading><Button className="icon-button" aria-label="关闭云盘选择" onPress={close}><X size={21} aria-hidden="true" /></Button></div>
-    {localOnly && userId && <p className="drive-switch-caption">本机目录</p>}
+  const content = <Dialog className="drive-switch-content" aria-label={t("driveSwitcherSwitchCloudDisk")}>{({ close }) => <>
+    <div className="dialog-heading"><Heading slot="title">{t("driveSwitcherSwitchCloudDisk")}</Heading><Button className="icon-button" aria-label={t("driveSwitcherCloseCloudDiskSelection")} onPress={close}><X size={21} aria-hidden="true" /></Button></div>
+    {localOnly && userId && <p className="drive-switch-caption">{t("driveLocalDirectory")}</p>}
     {userId ? <PickerDirectory userId={userId} currentChoirId={choirId} localOnly={localOnly} onSelect={close} />
-      : <Link className="secondary-link" to={loginHref(`/choirs/${choirId}`)} onClick={close}>登录后查看已加入的云盘</Link>}
+      : <Link className="secondary-link" to={loginHref(`/choirs/${choirId}`)} onClick={close}>{t("driveSwitcherCheckAddedCloudDisk")}</Link>}
     <footer className="drive-switch-actions">
-      <Button autoFocus={returnAction === "join"} isDisabled={localOnly} onPress={() => { setOpen(false); setAction("join"); }}><Plus size={17} aria-hidden="true" />{userId ? "加入新云盘" : "进入其他云盘"}</Button>
-      {identity.authenticatedUserId && <Button autoFocus={returnAction === "create"} className="drive-switch-create" isDisabled={localOnly} onPress={() => { setOpen(false); setAction("create"); }}>创建云盘</Button>}
+      <Button autoFocus={returnAction === "join"} isDisabled={localOnly} onPress={() => { setOpen(false); setAction("join"); }}><Plus size={17} aria-hidden="true" />{userId ? t("driveSwitcherAddNewCloudDisk") : t("driveSwitcherEnterOtherCloudDisks")}</Button>
+      {identity.authenticatedUserId && <Button autoFocus={returnAction === "create"} className="drive-switch-create" isDisabled={localOnly} onPress={() => { setOpen(false); setAction("create"); }}>{t("driveSwitcherCreateCloudDisk")}</Button>}
     </footer>
-    {localOnly && <p className="drive-switch-caption">联网后可加入或创建云盘。</p>}
+    {localOnly && <p className="drive-switch-caption">{t("driveSwitcherJoinCreateCloudDisk")}</p>}
   </>}</Dialog>;
   return <><DialogTrigger isOpen={open} onOpenChange={open => {
     setOpen(open);
@@ -55,7 +57,7 @@ export function DriveSwitcher({ choirId, choirName, userId, localOnly, loading }
       restoreLibraryPosition();
     });
   }}>
-    <Button ref={triggerRef} className="drive-switch-trigger" isDisabled={loading && !userId} aria-label={`切换云盘：${choirName}`}><span>{choirName}</span><ChevronDown size={17} aria-hidden="true" /></Button>
+    <Button ref={triggerRef} className="drive-switch-trigger" isDisabled={loading && !userId} aria-label={t("driveSwitcherSwitchCloudDisk2", { choirName: String(choirName) })}><span>{choirName}</span><ChevronDown size={17} aria-hidden="true" /></Button>
     {narrow ? <ModalOverlay className="drive-switch-overlay" isDismissable><Modal className="drive-switch-sheet">{content}</Modal></ModalOverlay>
       : <Popover className="drive-switch-popover" placement="bottom start">{content}</Popover>}
   </DialogTrigger>

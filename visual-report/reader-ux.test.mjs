@@ -18,7 +18,7 @@ const selectedScore = { id: 'visual-score', choirId: 'visual-choir', fileName: '
 async function open(t, engine = chromium) {
   const browser = await engine.launch();
   t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 834, height: 700 }, reducedMotion: 'reduce', serviceWorkers: 'block' });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 834, height: 700 }, reducedMotion: 'reduce', serviceWorkers: 'block' });
   await page.route('**/api/**', route => route.fulfill(resolveFixtureRequest({ pathname: new URL(route.request().url()).pathname,
     method: route.request().method(), identity: 'member', scenarioId: 'reader-ux', pdf, selectedScore })));
   await page.addInitScript(() => {

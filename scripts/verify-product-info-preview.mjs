@@ -1,7 +1,7 @@
 import { chromium } from "@playwright/test";
 const browser = await chromium.launch();
 for (const width of [390, 1280]) {
-  const page = await browser.newPage({ viewport: { width, height: 900 } });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width, height: 900 } });
   await page.goto("http://127.0.0.1:4177/drives");
   await page.getByRole("link", { name: "使用手册", exact: true }).waitFor();
   await page.getByText("正在加载已加入的云盘…", { exact: true }).waitFor({ state: "hidden" });

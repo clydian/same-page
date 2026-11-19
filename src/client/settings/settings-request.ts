@@ -9,14 +9,6 @@ export async function settingsResponse(response: Response) {
   return response.json() as Promise<unknown>;
 }
 
-export function settingsError(error: unknown, fallback: string) {
-  if (error instanceof SettingsRequestError) {
-    if (error.status === 401) return "登录已失效，请重新登录后再试。";
-    if (error.status === 403) return "你没有操作此设置的权限，请联系云盘拥有者。";
-  }
-  return fallback;
-}
-
 // These responses invalidate remembered display data for this endpoint.
 export function isSettingsReadDenied(error: unknown) {
   return error instanceof SettingsRequestError && [401, 403, 404].includes(error.status);

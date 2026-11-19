@@ -1,8 +1,9 @@
+import type { AppMessageKey } from "../../i18n/catalog-keys";
 import type { AnnotationPayload } from "../../shared/annotations";
 import type { AnnotationConflictRecord } from "../platform/local-database";
 
 export type ConflictStrategy = "discard" | "reapply" | "keep-both";
-export type ConflictChoice = { strategy: ConflictStrategy; label: string; consequence: string };
+export type ConflictChoice = { strategy: ConflictStrategy; labelKey: AppMessageKey<"reader">; consequenceKey: AppMessageKey<"reader"> };
 
 // A review is tied to both variants, never just an operation id. New edits must
 // be compared again before an irreversible local discard or a new cloud write.
@@ -15,16 +16,16 @@ export function conflictChoices(conflict: AnnotationConflictRecord): ConflictCho
   const cloudDeleted = !conflict.canonical || conflict.canonical.deleted;
   const choices: ConflictChoice[] = [{
     strategy: "discard",
-    label: cloudDeleted ? "接受云端删除" : conflict.localDeleted ? "保留云端笔记" : "采用云端版本",
-    consequence: cloudDeleted ? "放弃这条本机修改，接受云端删除。" : "放弃这条本机修改，保留云端笔记。",
+    labelKey: cloudDeleted ? "acceptCloudDeletion" : conflict.localDeleted ? "keepCloudNotes" : "adoptCloudVersion",
+    consequenceKey: cloudDeleted ? "discardLocalAndAcceptDeletion" : "discardLocalAndKeepCloud",
   }];
   if (!conflict.localDeleted || !cloudDeleted) choices.unshift({
     strategy: "reapply",
-    label: conflict.localDeleted ? "仍要删除" : cloudDeleted ? "恢复为本机版本" : "采用本机修改",
-    consequence: conflict.localDeleted ? "删除云端这条笔记。" : cloudDeleted ? "将本机笔记重新提交到云端。" : "用本机修改替换云端这条笔记。",
+    labelKey: conflict.localDeleted ? "deleteAnyway" : cloudDeleted ? "restoreLocalVersion" : "useLocalChanges",
+    consequenceKey: conflict.localDeleted ? "deleteCloudNote" : cloudDeleted ? "resubmitLocalNote" : "replaceCloudWithLocal",
   });
   if (!conflict.localDeleted && conflict.localPayload && !cloudDeleted && conflict.canonical?.payload) choices.push({
-    strategy: "keep-both", label: "两份都保留", consequence: "保留云端笔记，另存一条本机笔记；两条笔记可能重叠。",
+    strategy: "keep-both", labelKey: "keepBothCopies", consequenceKey: "keepBothCopiesHint",
   });
   return choices;
 }

@@ -13,7 +13,7 @@ test("diagnostic feedback survives lost receipts and offline retries in Chromium
     const browser = await engine.launch({ headless: true });
     let activePage;
     try {
-      const context = await browser.newContext({ viewport: { width, height }, serviceWorkers: "block" });
+      const context = await browser.newContext({ locale: "zh-CN", viewport: { width, height }, serviceWorkers: "block" });
       const page = await context.newPage();
       activePage = page;
       await page.goto(`${fixture.origin}/diagnostics`);

@@ -72,7 +72,7 @@ try {
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const origin=`http://127.0.0.1:${server.address().port}`, reader=`${origin}/choirs/visual-choir/scores/visual-score`;
   const profile=path.join(temporary,'profile');
-  context=await chromium.launchPersistentContext(profile,options);
+  context=await chromium.launchPersistentContext(profile,{ locale: "zh-CN", ...options });
   await context.addInitScript(()=>localStorage.setItem('reader-gesture-hint-seen','true'));
   page=await context.newPage(); page.setDefaultTimeout(30000);
   const open=async()=>{
@@ -137,7 +137,7 @@ try {
   console.log('B installed without reopening its player');
   await context.close(); context=null;
   online=false;
-  context=await chromium.launchPersistentContext(profile,options); await context.setOffline(true);
+  context=await chromium.launchPersistentContext(profile,{ locale: "zh-CN", ...options }); await context.setOffline(true);
   await context.addInitScript(()=>{
     window.__audioAnalysers=[]; const connect=AudioNode.prototype.connect;
     AudioNode.prototype.connect=function(destination,...args){if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();window.__audioAnalysers.push(analyser);connect.call(this,analyser);connect.call(analyser,destination);return destination;}return connect.call(this,destination,...args);};

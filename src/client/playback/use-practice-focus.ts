@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFeedbackMessage } from '../components/use-feedback-message';
 
@@ -11,6 +12,7 @@ export function usePracticeFocus(embedded?: boolean) {
   const preference = useRef(controlsCollapsed);
   const setControlsCollapsed = (value: boolean) => { preference.current = value; updateControlsCollapsed(value); };
   const [focused, setFocused] = useState(false);
+  const t = useMessages("practice");
   const feedback = useFeedbackMessage('');
   const { message: notice, setMessage: setNotice } = feedback;
   const [pending, setPending] = useState(false);
@@ -43,7 +45,7 @@ export function usePracticeFocus(embedded?: boolean) {
     if (ownsFullscreen.current && document.fullscreenElement) {
       setPending(true);
       try { await document.exitFullscreen(); ownsFullscreen.current = false; restore(); }
-      catch { setNotice('无法退出全屏，请使用浏览器的返回或退出全屏操作。'); }
+      catch { setNotice(t("focusExitFailure")); }
       finally { if (mounted.current) setPending(false); }
     } else restore();
   };
@@ -51,7 +53,7 @@ export function usePracticeFocus(embedded?: boolean) {
     if (pending) return;
     setFocused(true); updateControlsCollapsed(true); updateToolsCollapsed(true);
     if (!supported) {
-      setNotice('已进入专注模式。此浏览器不能全屏显示谱面，系统状态栏由系统保留。', { duration: 8000, once: 'focus-compatibility' });
+      setNotice(t("focusWithoutFullscreen"), { duration: 8000, once: 'focus-compatibility' });
       return;
     }
     if (document.fullscreenElement) return; // Preserve fullscreen owned by another surface.
@@ -66,7 +68,7 @@ export function usePracticeFocus(embedded?: boolean) {
     }
     catch {
       ownsFullscreen.current = false;
-      if (mounted.current) setNotice('全屏未能开启，已使用专注模式；无法强行隐藏系统状态栏。', { duration: 8000, once: 'focus-compatibility' });
+      if (mounted.current) setNotice(t("focusFullscreenFailure"), { duration: 8000, once: 'focus-compatibility' });
     } finally { if (mounted.current) setPending(false); }
   };
   return { toolsCollapsed, setToolsCollapsed, controlsCollapsed, setControlsCollapsed, focused, notice, feedback, dismissNotice: feedback.dismiss, pending, supported, enter, exit };

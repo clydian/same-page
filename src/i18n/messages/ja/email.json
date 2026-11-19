@@ -1,0 +1,11 @@
+{
+  "registrationSubject": "Same Page 登録用確認コード",
+  "resetSubject": "Same Page パスワード再設定用確認コード",
+  "registrationIntro": "{site} で Same Page の登録手続きが行われています。",
+  "resetIntro": "{site} で Same Page のパスワード再設定が行われています。",
+  "codeLine": "確認コード：{code}",
+  "expiry": "コードの有効期限は10分です。他の人に転送しないでください。",
+  "registrationUnexpected": "心当たりがない場合は、このメールを無視してください。登録は完了しません。",
+  "resetUnexpected": "心当たりがない場合は、このメールを無視してください。パスワードは変更されません。",
+  "codeLabel": "確認コード："
+}

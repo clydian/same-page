@@ -1,8 +1,9 @@
+import { useMessages } from "../../i18n";
 import { Component, lazy, Suspense, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from 'react-aria-components';
 import { diagnosticCauseType, diagnosticErrorType, recordFailure } from '../diagnostics/diagnostics';
-import { useUpdateStatus } from '../updates/update-status';
+import { useUpdateStatus } from '../updates/use-update-status';
 import { useAppNavigation } from '../navigation/navigation-context';
 import { playbackStore, setPlaybackView, stopPlayback } from './playback-store';
 class PlayerModuleLoadError extends Error {}
@@ -12,6 +13,7 @@ function loadPlayer<T>(load: () => Promise<T>) {
 const MusicXmlPlayer = lazy(() => loadPlayer(() => import('./musicxml-player')));
 const AudioPlayer = lazy(() => loadPlayer(() => import('./audio-player')));
 export function PlaybackGate() {
+  const t = useMessages("practice");
   const source = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
   const { pathname } = useLocation();
   const previous = useRef(pathname);
@@ -22,7 +24,7 @@ export function PlaybackGate() {
     previous.current = pathname;
   }, [pathname, allowed, source, base]);
   if (!allowed) return null;
-  const opening = <aside className="playback-loading" aria-label="播放准备" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: '#fcfdfb', color: '#31463a', padding: 8 }}>正在打开播放器…<Button onPress={stopPlayback}>取消</Button></aside>;
+  const opening = <aside className="playback-loading" aria-label={t("preparingPlayback")} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: '#fcfdfb', color: '#31463a', padding: 8 }}>{t("openingPlayer")}<Button onPress={stopPlayback}>{t("cancel")}</Button></aside>;
   return <PlaybackErrorBoundary key={playbackStore.getGeneration()}><Suspense fallback={opening}>
     {source.attachment.kind === 'musicxml'
       ? <MusicXmlPlayer key={`${playbackStore.getGeneration()}`} source={source} />
@@ -45,18 +47,19 @@ class PlaybackErrorBoundary extends Component<{ children: ReactNode }, { failed:
 }
 
 function PlaybackFailure() {
+  const t = useMessages("practice");
   const update = useUpdateStatus();
   const navigation = useAppNavigation();
   const navigate = useNavigate();
-  return <aside className="playback-loading" aria-label="播放器加载失败" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: '#fcfdfb', color: '#31463a', padding: 8 }}>
-    <p role="alert">播放器加载失败，乐谱和笔记仍可继续使用。请保存当前操作，再进入恢复播放器检查本机资源并重新加载。</p>
-    <p role="status">版本更新：{update.message}</p>
-    <Button onPress={stopPlayback}>关闭播放器</Button>
+  return <aside className="playback-loading" aria-label={t("playerLoadFailure")} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: '#fcfdfb', color: '#31463a', padding: 8 }}>
+    <p role="alert">{t("playerRecoveryInstructions")}</p>
+    <p role="status">{t("updateStatus", { status: update.message })}</p>
+    <Button onPress={stopPlayback}>{t("closePlayer")}</Button>
     <Button onPress={() => navigation.afterEditing(() => {
       stopPlayback();
       void navigate('/about', { state: { recoverPlayer: true } });
-    })}>恢复播放器</Button>
-    <Button isDisabled={["registering", "checking", "preparing", "applying", "unsupported"].includes(update.phase)} onPress={() => window.dispatchEvent(new Event('same-page-check-update'))}>检查更新</Button>
-    <Link to="/about">关于合谱与版本更新</Link>
+    })}>{t("restorePlayer")}</Button>
+    <Button isDisabled={["registering", "checking", "preparing", "applying", "unsupported"].includes(update.phase)} onPress={() => window.dispatchEvent(new Event('same-page-check-update'))}>{t("checkUpdates")}</Button>
+    <Link to="/about">{t("aboutAndUpdates")}</Link>
   </aside>;
 }

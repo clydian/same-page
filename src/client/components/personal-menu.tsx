@@ -1,3 +1,4 @@
+import { useMessages } from "../../i18n";
 import { useLocation } from "react-router-dom";
 import { UserRound, FolderOpen, Settings2, Layers, HardDrive, Palette, Info, LogOut, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ export interface PersonalDriveActions {
 }
 
 export function PersonalMenu({ drive }: { email?: string | null; drive?: PersonalDriveActions }) {
+  const t = useMessages("common");
   const logout = useLogout();
   const experience = new URLSearchParams(useLocation().search).get("experience") === "1";
   const identity = useApplicationIdentity();
@@ -33,27 +35,27 @@ export function PersonalMenu({ drive }: { email?: string | null; drive?: Persona
   }, [open, sessionKey, online]);
   const showAdmin = open && online && sessionKey !== null && adminFor === sessionKey;
   return <MenuTrigger isOpen={open} onOpenChange={next => { setOpen(next); setAdminFor(null); }}>
-    <Button className="drive-avatar" aria-label="我的"><UserRound aria-hidden="true" size={20} /></Button>
-    <Popover className="file-menu-popover account-menu-popover"><Menu aria-label="我的">
+    <Button className="drive-avatar" aria-label={t("myMenu")}><UserRound aria-hidden="true" size={20} /></Button>
+    <Popover className="file-menu-popover account-menu-popover"><Menu aria-label={t("myMenu")}>
       {drive && <MenuSection className="personal-menu-group">
         <Header className="personal-menu-scope">
-          <span className="personal-menu-scope-title"><FolderOpen size={15} aria-hidden="true" />当前云盘</span>
+          <span className="personal-menu-scope-title"><FolderOpen size={15} aria-hidden="true" />{t("currentDrive")}</span>
         </Header>
-        {drive.canManageIdentity && <MenuItem href={`/choirs/${drive.choirId}/me`} textValue="云盘内身份"><UserRound size={17} aria-hidden="true" /><span>云盘内身份</span></MenuItem>}
-        <MenuItem href={`/choirs/${drive.choirId}/preferences`} textValue="阅读偏好"><Layers size={17} aria-hidden="true" /><span>阅读偏好</span></MenuItem>
-        <MenuItem href={`/choirs/${drive.choirId}/storage`} textValue="本机存储"><HardDrive size={17} aria-hidden="true" /><span>本机存储</span></MenuItem>
+        {drive.canManageIdentity && <MenuItem href={`/choirs/${drive.choirId}/me`} textValue={t("driveIdentity")}><UserRound size={17} aria-hidden="true" /><span>{t("driveIdentity")}</span></MenuItem>}
+        <MenuItem href={`/choirs/${drive.choirId}/preferences`} textValue={t("readingPreferences")}><Layers size={17} aria-hidden="true" /><span>{t("readingPreferences")}</span></MenuItem>
+        <MenuItem href={`/choirs/${drive.choirId}/storage`} textValue={t("localStorage")}><HardDrive size={17} aria-hidden="true" /><span>{t("localStorage")}</span></MenuItem>
       </MenuSection>}
       <MenuSection className="personal-menu-group">
         <Header className="personal-menu-scope">
-          <span className="personal-menu-scope-title"><Settings2 size={15} aria-hidden="true" />应用设置</span>
+          <span className="personal-menu-scope-title"><Settings2 size={15} aria-hidden="true" />{t("appSettings")}</span>
         </Header>
-        <MenuItem href="/user" textValue="账户"><UserRound size={17} aria-hidden="true" /><span>账户</span></MenuItem>
-        <MenuItem href={experience ? "/appearance?experience=1" : "/appearance"} textValue="外观"><Palette size={17} aria-hidden="true" /><span>外观</span></MenuItem>
-        <MenuItem className="personal-menu-about" href="/about" textValue="关于与更新"><Info size={17} aria-hidden="true" /><span>关于与更新</span><small className="personal-menu-version" translate="no">{buildVersion}</small></MenuItem>
-        {showAdmin && <MenuItem href="/admin" textValue="产品后台"><ShieldCheck size={17} aria-hidden="true" /><span>产品后台</span></MenuItem>}
+        <MenuItem href="/user" textValue={t("account")}><UserRound size={17} aria-hidden="true" /><span>{t("account")}</span></MenuItem>
+        <MenuItem href={experience ? "/appearance?experience=1" : "/appearance"} textValue={t("appearance")}><Palette size={17} aria-hidden="true" /><span>{t("appearance")}</span></MenuItem>
+        <MenuItem className="personal-menu-about" href="/about" textValue={t("about")}><Info size={17} aria-hidden="true" /><span>{t("about")}</span><small className="personal-menu-version" translate="no">{buildVersion}</small></MenuItem>
+        {showAdmin && <MenuItem href="/admin" textValue={t("admin")}><ShieldCheck size={17} aria-hidden="true" /><span>{t("admin")}</span></MenuItem>}
       </MenuSection>
       <MenuSection className="personal-menu-group personal-menu-footer">
-        <MenuItem onAction={() => void logout.request()} textValue="退出登录"><LogOut size={17} aria-hidden="true" /><span>退出登录</span></MenuItem>
+        <MenuItem onAction={() => void logout.request()} textValue={t("signOut")}><LogOut size={17} aria-hidden="true" /><span>{t("signOut")}</span></MenuItem>
       </MenuSection>
     </Menu></Popover>
   </MenuTrigger>;

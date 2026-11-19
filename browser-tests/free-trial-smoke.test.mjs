@@ -8,7 +8,7 @@ test("real Worker: create trial, upload, permanently clear trash and close drive
   const fixture=await startStorageFixture({authenticated:true,previewEntry:false});
   t.after(()=>fixture.stop());
   const browser=await chromium.launch();t.after(()=>browser.close());
-  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"block"});
+  const context=await browser.newContext({ locale: "zh-CN", viewport:{width:390,height:844},serviceWorkers:"block"});
   const account=fixture.accounts[0];
   const login=await context.request.post(`${fixture.origin}/api/auth/sign-in/email`,{headers:{origin:fixture.origin},data:{email:account.email,password:account.password}});
   assert.equal(login.status(),200);

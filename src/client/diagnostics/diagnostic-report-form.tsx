@@ -1,5 +1,6 @@
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
+import { useAppLocale, useMessages } from "../../i18n";
 import { CheckCircle2, Send } from "lucide-react";
 import "../support-pages.css";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -9,6 +10,8 @@ import { captureDiagnosticReport, getDiagnosticSubmission, resetDiagnosticSubmis
   setDiagnosticDescription, subscribeDiagnosticSubmission } from "./diagnostic-submission";
 
 export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticReader | null }) {
+  const t = useMessages("system");
+  const { locale } = useAppLocale();
   const submission = useSyncExternalStore(subscribeDiagnosticSubmission, getDiagnosticSubmission);
   const [previewId] = useState(() => crypto.randomUUID());
   const [preview, setPreview] = useState(exportDiagnostics);
@@ -26,42 +29,42 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
   catch { /* Copying existing diagnostic categories remains available. */ }
   const copy = async (value: string, success: string) => {
     try { await navigator.clipboard.writeText(value); setMessage(success, { duration: 5000 }); }
-    catch { setMessage("无法自动复制，请选中诊断信息或反馈编号手动复制。"); }
+    catch { setMessage("diagnosticReportForm.copyFailed"); }
   };
   return <div className="diagnostic-report-form">
-    <label htmlFor="diagnostic-description">刚才遇到了什么问题？（选填）</label>
-    <textarea id="diagnostic-description" rows={5} maxLength={1000} placeholder="例如：打开乐谱后，翻到第二页时一直显示加载中…" autoComplete="off" value={submission.description}
+    <label htmlFor="diagnostic-description">{t("diagnosticReportForm.description")}</label>
+    <textarea id="diagnostic-description" rows={5} maxLength={1000} placeholder={t("diagnosticReportForm.placeholder")} autoComplete="off" value={submission.description}
       readOnly={submission.report !== null} aria-describedby="diagnostic-description-hint"
       onChange={event => setDiagnosticDescription(event.target.value)} />
-    <p id="diagnostic-description-hint" className="diagnostic-hint">可以描述操作步骤和看到的现象。请勿填写密码、验证码、邀请码或私人内容。</p>
-    <p className="diagnostic-privacy-note">发送时会附带设备与错误信息，帮助排查。不自动上传乐谱、笔记或登录凭据；没有错误记录也可以发送。</p>
+    <p id="diagnostic-description-hint" className="diagnostic-hint">{t("diagnosticReportForm.descriptionHelp")}</p>
+    <p className="diagnostic-privacy-note">{t("diagnosticReportForm.privacy")}</p>
     <div className="diagnostics-actions">
       <button className="diagnostic-send" type="button" disabled={submission.phase === "sending" || submission.phase === "sent"}
         onClick={() => { setMessage(""); void sendDiagnosticReport(reader); }}>
         <Send size={16} aria-hidden="true" />
-        {submission.phase === "sending" ? "正在发送…" : submission.phase === "sent" ? "已发送" : submission.phase === "failed" ? "重试发送" : "发送反馈"}
+        {submission.phase === "sending" ? t("diagnosticReportForm.sending") : submission.phase === "sent" ? t("diagnosticReportForm.sent") : submission.phase === "failed" ? t("diagnosticReportForm.retry") : t("diagnosticReportForm.send")}
       </button>
-      {submission.report && submission.phase !== "sending" && <button type="button" onClick={() => { resetDiagnosticSubmission(); setMessage(""); }}>填写另一份反馈</button>}
+      {submission.report && submission.phase !== "sending" && <button type="button" onClick={() => { resetDiagnosticSubmission(); setMessage(""); }}>{t("diagnosticReportForm.newReport")}</button>}
     </div>
     {submission.phase === "sent" && submission.report && <div className="diagnostic-receipt">
-      <CheckCircle2 size={24} aria-hidden="true" /><h3>反馈已收到，谢谢你</h3>
-      <p>维护人员会结合诊断信息排查。此页面暂不支持查看处理进度或接收回复。</p>
-      <p>反馈编号：<code>{submission.report.id}</code></p>
-      <button className="secondary-button" type="button" onClick={() => void copy(submission.report!.id, "已复制反馈编号。")}>复制反馈编号</button>
-      <p>如需通过已有渠道联系维护人员，可提供此编号，便于查找。</p>
+      <CheckCircle2 size={24} aria-hidden="true" /><h3>{t("diagnosticReportForm.received")}</h3>
+      <p>{t("diagnosticReportForm.investigation")}</p>
+      <p>{t.rich("diagnostic.reportId", { id: submission.report.id, value: chunks => <code>{chunks}</code> })}</p>
+      <button className="secondary-button" type="button" onClick={() => void copy(submission.report!.id, "diagnosticReportForm.copiedId")}>{t("diagnosticReportForm.copyId")}</button>
+      <p>{t("diagnosticReportForm.contact")}</p>
     </div>}
-    <FeedbackMessage feedback={feedback} fallback={submission.message} />
-    <p className="diagnostic-hint">发送前请保持此页面打开，刷新或关闭网页会清空待发送内容。发送失败可重试，不影响乐谱与本机草稿。</p>
+    <FeedbackMessage feedback={{ ...feedback, message: feedback.message ? t(feedback.message) : null }} fallback={submission.message} />
+    <p className="diagnostic-hint">{t("diagnosticReportForm.keepOpen")}</p>
     <details className="support-details diagnostic-details">
-      <summary>诊断信息与隐私说明</summary>
-      <p>点击“发送反馈”后，问题描述及诊断信息会发送给合谱维护人员，最多保存 {diagnosticReportRetentionDays} 天；维护人员也可提前删除。</p>
-      <p>包含最近 30 分钟最多 50 条错误、应用版本、浏览器与系统版本、窗口尺寸和网络/PWA 状态；阅读器内反馈还包含显示方式、编辑状态及待同步/冲突数量。未知信息留空，联网提示不代表服务可达。</p>
-      {!reader && <p>新版更新安装器还会提供失败分类。旧版应用更新失败时，可打开<a href="/api/support/update">独立更新诊断</a>检查本机缓存与数据库响应。</p>}
-      <label htmlFor="diagnostic-report">可发送给维护人员的诊断信息</label>
+      <summary>{t("diagnosticReportForm.details")}</summary>
+      <p>{t("diagnostic.retention", { days: diagnosticReportRetentionDays })}</p>
+      <p>{t("diagnosticReportForm.payload")}</p>
+      {!reader && <p>{t.rich("diagnostic.independent", { check: chunks => <a href={`/api/support/update?lang=${locale}`}>{chunks}</a> })}</p>}
+      <label htmlFor="diagnostic-report">{t("diagnosticReportForm.diagnosticData")}</label>
       <textarea id="diagnostic-report" readOnly value={current} rows={12} />
       <div className="diagnostics-actions diagnostic-utilities">
-      <button type="button" onClick={() => void copy(current, "已复制诊断信息。")}>复制诊断信息</button>
-      <button type="button" onClick={() => { clearDiagnostics(); setMessage("本机诊断信息已清空。", { duration: 5000 }); }}>清空诊断信息</button>
+      <button type="button" onClick={() => void copy(current, "diagnosticReportForm.copiedData")}>{t("diagnosticReportForm.copyData")}</button>
+      <button type="button" onClick={() => { clearDiagnostics(); setMessage("diagnosticReportForm.cleared", { duration: 5000 }); }}>{t("diagnosticReportForm.clear")}</button>
       </div>
     </details>
 

@@ -6,7 +6,7 @@ import { UpdateDetails } from "../components/reload-prompt";
 import { UpdateCheckSchedule } from "./update-check-schedule";
 import { UpdateController } from "./update-controller";
 import { canAcceptUpdate, holdUpdate, noteUpdateInteraction, setUpdateRoute } from "./update-safety";
-import { useUpdateStatus } from "./update-status";
+import { useUpdateStatus } from "./use-update-status";
 
 function deferred() {
   let resolve!: () => void;

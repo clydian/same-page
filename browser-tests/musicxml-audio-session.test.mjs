@@ -13,7 +13,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
     t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
     browser = await type.launch();
     for (const supported of [true, false]) {
-      const context = await browser.newContext({ serviceWorkers: 'block' });
+      const context = await browser.newContext({ locale: "zh-CN", serviceWorkers: 'block' });
       try {
         assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
           headers: { origin: fixture.origin }, data: { email: fixture.accounts[0].email, password: fixture.accounts[0].password },

@@ -1,0 +1,11 @@
+{
+  "registrationSubject": "Seu código de cadastro do Same Page",
+  "resetSubject": "Seu código para redefinir a senha do Same Page",
+  "registrationIntro": "Você está concluindo seu cadastro no Same Page em {site}.",
+  "resetIntro": "Você está redefinindo sua senha do Same Page em {site}.",
+  "codeLine": "Código de verificação: {code}",
+  "expiry": "O código expira em 10 minutos. Não o compartilhe com ninguém.",
+  "registrationUnexpected": "Se você não solicitou o código, pode ignorar este e-mail. O cadastro não será concluído.",
+  "resetUnexpected": "Se você não solicitou o código, pode ignorar este e-mail. Sua senha não será alterada.",
+  "codeLabel": "Código de verificação:"
+}

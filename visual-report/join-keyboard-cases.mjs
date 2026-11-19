@@ -18,7 +18,7 @@ export function registerJoinKeyboardTests(cases) {
     for (const [entry, width, height] of cases) {
       test(`${name}: ${entry} join code stays above keyboard`, async t => {
         const browser = await engine.launch(); t.after(() => browser.close());
-        const page = await browser.newPage({ viewport: { width, height } });
+        const page = await browser.newPage({ locale: "zh-CN", viewport: { width, height } });
         page.setDefaultTimeout(10000);
         await page.addInitScript(height => {
           const viewport = Object.assign(new EventTarget(), { height, offsetTop: 0, scale: 1 });
