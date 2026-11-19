@@ -1,0 +1,22 @@
+import {chromium,expect} from '/workspace/same-page/node_modules/@playwright/test/index.mjs';
+import {writeFile,readFile} from 'node:fs/promises';
+const b=await chromium.connectOverCDP('http://127.0.0.1:9226');const p=b.contexts()[0].pages()[0];
+await p.setViewportSize({width:1024,height:900});
+const size=p.getByRole('combobox',{name:'歌词字号',exact:true});
+await p.getByRole('button',{name:'声部混音',exact:true}).click();
+await p.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+const bar=p.getByTestId('musicxml-player');const progress=bar.getByRole('slider',{name:'播放进度',exact:true});await progress.fill('5');
+await bar.getByRole('button',{name:'播放',exact:true}).click();await expect(bar.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+await p.getByRole('button',{name:'练习设置',exact:true}).click();await size.selectOption('18');
+await expect.poll(()=>p.locator('svg text').evaluateAll(ns=>parseFloat(ns.find(n=>n.textContent==='春风轻轻吹').style.fontSize))).toBe(10.8);
+await expect(bar.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+const position=Number(await progress.inputValue());if(position<5)throw Error('playback reset');
+await p.getByRole('button',{name:'关闭练习设置',exact:true}).click();await bar.getByRole('button',{name:'暂停',exact:true}).click();
+await p.reload();await expect(p.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:30000});
+if(await p.getByRole('button',{name:'显示阅读器工具',exact:true}).count()){await p.getByRole('button',{name:'显示阅读器工具',exact:true}).focus();await p.keyboard.press('Enter');}
+await p.getByRole('button',{name:'练习谱',exact:true}).click();await p.getByRole('button',{name:'春风合唱.xml',exact:true}).click();
+await expect(p.getByTestId('musicxml-player').getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+await p.getByRole('button',{name:'练习设置',exact:true}).click();await expect(size).toHaveValue('18');
+await expect.poll(()=>p.locator('svg text').evaluateAll(ns=>parseFloat(ns.find(n=>n.textContent==='春风轻轻吹').style.fontSize))).toBe(10.8);
+await p.screenshot({path:'/tmp/settings-evidence/after-restored-large.png'});
+const results=JSON.parse(await readFile('/tmp/settings-evidence/validation.json','utf8'));results.playback={stayedPlaying:true,measureAfterChange:position};results.reopen={savedSize:18,nativePixels:10.8};await writeFile('/tmp/settings-evidence/validation.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results));await b.close();

@@ -1,0 +1,25 @@
+{
+  "sizes": [
+    {
+      "value": "12",
+      "actual": 7.2
+    },
+    {
+      "value": "16",
+      "actual": 9.6
+    },
+    {
+      "value": "18",
+      "actual": 10.8
+    }
+  ],
+  "revision": "13c6976",
+  "playback": {
+    "stayedPlaying": true,
+    "measureAfterChange": 5
+  },
+  "reopen": {
+    "savedSize": 18,
+    "nativePixels": 10.8
+  }
+}
