@@ -3,6 +3,7 @@ import { assertLocalWorkspaceActive, captureLocalWorkspaceSession, withLocalWork
 import { queueScoreDrafts, saveAnnotationDraft, type DraftInput } from "./annotation-state";
 import { untilAborted } from "../platform/abortable";
 import { diagnoseLocalOperation } from "../diagnostics/local-operation";
+import { moveAnnotation } from "./sync";
 import { requestOutboxRecovery } from "./outbox-recovery";
 
 export type EditingCompletion = "local-saved" | "failed" | null;
@@ -23,6 +24,8 @@ export class AnnotationEditor {
   private generation = 0;
   private active = false;
   private running = false;
+  private moving = false;
+  isMoving = () => this.moving;
   private state: Exclude<PersistenceState, "finishing"> = "idle";
   private completion: Promise<EditingCompletion> | null = null;
   private lifetime = new AbortController();
@@ -163,6 +166,7 @@ export class AnnotationEditor {
     this.generation++;
     this.active = false;
     this.running = false;
+    this.moving = false;
     for (const task of this.pending) task.complete(false);
     this.pending = [];
     this.committedObjects.clear();
@@ -176,6 +180,29 @@ export class AnnotationEditor {
   }
   undo(layerId: string) { return this.enqueue({ kind: "undo", layerId }); }
   redo(layerId: string) { return this.enqueue({ kind: "redo", layerId }); }
+
+  async moveToLayer(target: DraftInput & { payload: NonNullable<DraftInput["payload"]> }, layerId: string) {
+    if (this.moving || !await this.prepareNavigation() || this.moving) return false;
+    this.moving = true;
+    const generation = this.generation;
+    this.publish("saving");
+    try {
+      const object = await moveAnnotation(await this.workspace, target, layerId,
+        AbortSignal.any([this.lifetime.signal, AbortSignal.timeout(30_000)]));
+      if (!object || generation !== this.generation) return false;
+      // Older property/drag history belongs to the old layer and cannot move
+      // this object back implicitly through an ordinary undo.
+      for (const history of [this.undoByLayer, this.redoByLayer]) {
+        for (const [id, entries] of history) history.set(id, entries.filter(entry => entry.after.id !== target.id));
+      }
+      this.committedObjects.delete(target.id);
+      this.editRevision++;
+      return true;
+    } catch { return false; }
+    finally {
+      if (generation === this.generation) { this.moving = false; this.publish("idle"); }
+    }
+  }
 
   discard(id: string) {
     if (this.running) return false;
@@ -198,7 +225,7 @@ export class AnnotationEditor {
   }
 
   private enqueue(edit: Edit) {
-    if (!this.active) return Promise.resolve(false);
+    if (!this.active || this.moving) return Promise.resolve(false);
     this.editRevision++;
     const completion = new Promise<boolean>(resolve => {
       // Editing a failed text again replaces that unwritten intent, without

@@ -276,7 +276,7 @@
   "problemFeedback": "問題回饋",
   "processing": "正在處理…",
   "readFullScreen": "全螢幕閱讀",
-  "readOnlyLayerLabel": "{label} ，唯讀，查看權限說明",
+  "readOnlyLayerLabel": "{label}，唯讀",
   "readerControls": "閱讀器控制",
   "readerGuide": "閱譜指引",
   "readerGuideDialog": "閱讀器使用指引",
@@ -295,7 +295,7 @@
   "rename": "重新命名",
   "renameNamedLayer": "重新命名 {name}",
   "replaceCloudWithLocal": "用本機修改替換雲端這條筆記。",
-  "requestLayerPermission": "如需編輯權限，請聯絡雲端硬碟擁有者。",
+  "requestLayerPermission": "如需編輯，請聯絡雲盤擁有者或負責此共享層授權的受託權限管理者。",
   "resetLayerDisplay": "恢復預設顯示與顏色",
   "resetLayerDisplayDescription": "將這份樂譜的所有共享層恢復為我的雲端硬碟預設顯示和顏色",
   "resolveConflictChanged": "筆記又有變化，請重新比較並選擇。",
@@ -429,5 +429,10 @@
   "zoomInComparison": "放大比較譜面",
   "zoomOrReset": "放大／恢復",
   "zoomOut": "縮小",
-  "zoomOutComparison": "縮小比較譜面"
+  "zoomOutComparison": "縮小比較譜面",
+  "moveNoteToLayer": "移動到圖層",
+  "moveNoteNeedsConnection": "移動筆記需要連線",
+  "movingNote": "正在移動筆記…",
+  "moveNoteFailed": "無法確認移動。請連線後重試。",
+  "movedNoteToLayer": "已移動到{name}"
 }

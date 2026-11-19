@@ -93,9 +93,10 @@ export function AnnotationOverlay({
   }, [movement, annotations]);
   const interactionRef = useRef<AnnotationOverlayInteraction>("idle");
   const deleteTargetRef = useRef<HTMLDivElement>(null);
+  const [moveNotice, setMoveNotice] = useState<string | null>(null);
   const finishing = persistence === "finishing";
   const canStartEdit = editing && !finishing && layers.some(layer => layer.id === activeLayerId && layer.canEdit);
-  const canMoveObjects = canStartEdit && ["select", "text", "rectangle", "ellipse"].includes(tool);
+  const canMoveObjects = canStartEdit && !editor?.isMoving() && ["select", "text", "rectangle", "ellipse"].includes(tool);
   const visibleLayerIds = new Set(
     layers
       .filter((layer) => (layer.subscribed || (editing && layer.id === activeLayerId)))
@@ -153,7 +154,7 @@ export function AnnotationOverlay({
     text.openExisting({ id, x: payload.x, y: payload.y, initial: payload.text, fontScale: payload.fontScale, textAlign: payload.textAlign, pageWidth, color: payload.color });
   });
   useSelectionKeyboard({ editor, adjustment, root: overlayRef, enabled: editing && activePage && layers.some(layer => layer.id === activeLayerId && layer.canEdit), layerId: activeLayerId,
-    busy: () => interactionRef.current !== "idle" || movement.engaged, editText: editSelectedText });
+    busy: () => !!editor?.isMoving() || interactionRef.current !== "idle" || movement.engaged, editText: editSelectedText });
   useEffect(() => { if (selectedId && tool === "select") overlayRef.current?.focus({ preventScroll: true }); }, [selectedId, tool]);
 
   useEffect(
@@ -251,7 +252,7 @@ export function AnnotationOverlay({
 
   const pointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (pages?.forwardObjectPointer(pageNumber, "down", event)) return;
-    if (!canStartEdit || editor?.getSnapshot() === "finishing" || !activeLayerId) return;
+    if (!canStartEdit || editor?.isMoving() || editor?.getSnapshot() === "finishing" || !activeLayerId) return;
     setHover(null);
     if (movement.engaged) {
       addTransformPointer(event);
@@ -516,7 +517,8 @@ export function AnnotationOverlay({
       </div>
       {editing ? createPortal(
         <>
-          {activePage && (canStartEdit || finishing) && tool === "select" && selected?.payload && editor && <ObjectProperties editor={editor} layerId={selected.layerId} key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
+          {activePage && (canStartEdit || finishing) && tool === "select" && selected?.payload && editor && <ObjectProperties layers={layers} onMoved={name => setMoveNotice(t("movedNoteToLayer", { name }))} editor={editor} layerId={selected.layerId} key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
+          {activePage && moveNotice && <aside className="annotation-move-notice" role="status">{moveNotice}</aside>}
           {activePage && !canStartEdit && !finishing && <aside className="annotation-storage-error" role="status">
             <strong>{t("layerEditingUnavailable")}</strong>
             <p>{t("layerEditingStoppedHint")}</p>

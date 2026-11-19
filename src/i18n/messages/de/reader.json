@@ -276,7 +276,7 @@
   "problemFeedback": "Problem-Feedback",
   "processing": "Verarbeitung…",
   "readFullScreen": "Vollbild lesen",
-  "readOnlyLayerLabel": "{label}, schreibgeschützt, Berechtigungsbeschreibung anzeigen",
+  "readOnlyLayerLabel": "{label}, schreibgeschützt",
   "readerControls": "Leserkontrolle",
   "readerGuide": "Hilfe zum Notenlesen",
   "readerGuideDialog": "Reader-Benutzerhandbuch",
@@ -295,7 +295,7 @@
   "rename": "Umbenennen",
   "renameNamedLayer": "Benennen Sie {name} um",
   "replaceCloudWithLocal": "Ersetzen Sie die Notiz in der Cloud durch lokale Änderungen.",
-  "requestLayerPermission": "Wenn Sie eine Bearbeitungserlaubnis benötigen, wenden Sie sich bitte an den Besitzer der Ablage.",
+  "requestLayerPermission": "Für Bearbeitungsrechte wende dich an den Drive-Inhaber oder eine für diese gemeinsame Ebene zuständige beauftragte Berechtigungsverwaltung.",
   "resetLayerDisplay": "Standardanzeige und Standardfarben wiederherstellen",
   "resetLayerDisplayDescription": "Alle freigegebenen Ebenen dieser Partitur auf die Standardanzeige und -farbe meines Ablages zurücksetzen",
   "resolveConflictChanged": "Die Notizen haben sich erneut geändert, bitte vergleichen und erneut auswählen.",
@@ -429,5 +429,10 @@
   "zoomInComparison": "Diagramme vergrößern und vergleichen",
   "zoomOrReset": "Zoomen/Wiederherstellen",
   "zoomOut": "herauszoomen",
-  "zoomOutComparison": "Vergleichstabelle verkleinern"
+  "zoomOutComparison": "Vergleichstabelle verkleinern",
+  "moveNoteToLayer": "In Ebene verschieben",
+  "moveNoteNeedsConnection": "Zum Verschieben eine Verbindung herstellen",
+  "movingNote": "Notiz wird verschoben…",
+  "moveNoteFailed": "Verschieben nicht bestätigt. Verbindung herstellen und erneut versuchen.",
+  "movedNoteToLayer": "Nach {name} verschoben"
 }

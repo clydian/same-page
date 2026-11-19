@@ -276,7 +276,7 @@
   "problemFeedback": "问题反馈",
   "processing": "正在处理…",
   "readFullScreen": "全屏阅读",
-  "readOnlyLayerLabel": "{label}，只读，查看权限说明",
+  "readOnlyLayerLabel": "{label}，只读",
   "readerControls": "阅读器控制",
   "readerGuide": "阅读指引",
   "readerGuideDialog": "阅读器使用指引",
@@ -295,7 +295,7 @@
   "rename": "重命名",
   "renameNamedLayer": "重命名 {name}",
   "replaceCloudWithLocal": "用本机修改替换云端这条笔记。",
-  "requestLayerPermission": "如需编辑权限，请联系云盘拥有者。",
+  "requestLayerPermission": "如需编辑，请联系云盘拥有者或负责此共享层授权的受托权限管理者。",
   "resetLayerDisplay": "恢复默认显示与颜色",
   "resetLayerDisplayDescription": "将这份乐谱的所有共享层恢复为我的云盘默认显示和颜色",
   "resolveConflictChanged": "笔记又有变化，请重新比较并选择。",
@@ -429,5 +429,10 @@
   "zoomInComparison": "放大比较谱面",
   "zoomOrReset": "放大／恢复",
   "zoomOut": "缩小",
-  "zoomOutComparison": "缩小比较谱面"
+  "zoomOutComparison": "缩小比较谱面",
+  "moveNoteToLayer": "移动到图层",
+  "moveNoteNeedsConnection": "移动笔记需要联网",
+  "movingNote": "正在移动笔记…",
+  "moveNoteFailed": "未能确认移动。请联网后重试。",
+  "movedNoteToLayer": "已移动到{name}"
 }

@@ -1,18 +1,38 @@
 import { useMessages } from "../../i18n";
-import { ArrowLeft, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ArrowLeft, Layers, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import type { AnnotationEditor } from "./annotation-editor";
-import type { AnnotationPayload } from "../../shared/annotations";
+import { Button, Header, MenuItem, MenuSection, MenuTrigger, Popover } from "react-aria-components";
+import { Menu } from "../navigation/overlays";
+import { useNetworkStatus } from "../platform/use-network-status";
+import type { AnnotationLayerSummary, AnnotationPayload } from "../../shared/annotations";
 import type { SelectedObjectAdjustment } from "./selected-object-adjustment";
+import { LayerChoiceContent } from "../reader/layer-choice";
 import { StyleFields } from "./style-fields";
 import { defaultToolStyle, type ToolStyle } from "./tool-style";
 
-export function ObjectProperties({ payload, personal, adjustment, disabled = false, editor, layerId, onEditText }: {
+export function ObjectProperties({ payload, personal, adjustment, disabled = false, editor, layerId, layers, onMoved, onEditText }: {
   payload: AnnotationPayload; personal: boolean; adjustment: SelectedObjectAdjustment; disabled?: boolean;
-  editor: AnnotationEditor; layerId: string;
+  editor: AnnotationEditor; layerId: string; layers: AnnotationLayerSummary[];
+  onMoved(name: string): void;
   onEditText(): void;
 }) {
   const t = useMessages("reader");
+  const online = useNetworkStatus();
+  const [moving, setMoving] = useState(false);
+  const [moveFailed, setMoveFailed] = useState(false);
+  const permissionHelpId = useId();
+  const destinations = layers.filter(layer => layer.id !== layerId && (layer.canEdit || layer.kind === "shared"));
+  const hasReadOnlyLayers = destinations.some(layer => !layer.canEdit);
+  const move = async (destination: string) => {
+    if (moving || disabled || !destinations.some(layer => layer.id === destination && layer.canEdit)) return;
+    setMoving(true); setMoveFailed(false);
+    try {
+      if (!await adjustment.moveToLayer(destination)) { setMoveFailed(true); return; }
+      onMoved(layers.find(layer => layer.id === destination)!.name);
+    } finally { setMoving(false); }
+  };
+  disabled ||= moving;
   const { preview } = useSyncExternalStore(adjustment.subscribe, adjustment.getSnapshot);
   const changeHistory = async (direction: "undo" | "redo") => {
     if (await adjustment.commit()) await editor[direction](layerId);
@@ -69,8 +89,23 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
         onChange={event => adjustment.change("properties", value => ({ ...value, color: event.target.value }))} onBlur={() => { void adjustment.commit("properties"); }} /></label>}
       <div className="annotation-object-actions">
         {payload.kind === "text" && <button type="button" aria-label={t("editText")} onClick={onEditText}><TextCursorInput size={18} aria-hidden="true" /><span>{t("editText")}</span></button>}
+        {destinations.length > 0 && <MenuTrigger>
+          <Button aria-label={t("moveNoteToLayer")} aria-description={!online ? t("moveNoteNeedsConnection") : undefined} isDisabled={disabled || !online}><Layers size={18} aria-hidden="true" /><span>{t("moveNoteToLayer")}</span></Button>
+          <Popover className="annotation-move-popover layer-choice-panel" placement="top end">
+            {hasReadOnlyLayers && <p id={permissionHelpId} className="annotation-layer-permission-help">{t("requestLayerPermission")}</p>}
+            <Menu aria-label={t("moveNoteToLayer")} aria-describedby={hasReadOnlyLayers ? permissionHelpId : undefined} onAction={key => void move(String(key))}>
+              {(["shared", "personal"] as const).filter(kind => destinations.some(layer => layer.kind === kind)).map(kind => <MenuSection key={kind}>
+                <Header className="layer-choice-group-label">{t(kind === "shared" ? "sharedLayerAudience" : "personalLayerAudience")}</Header>
+                {destinations.filter(layer => layer.kind === kind).map(layer => <MenuItem key={layer.id} id={layer.id} className="layer-choice-row" textValue={layer.canEdit ? layer.name : t("readOnlyLayerLabel", { label: layer.name })} isDisabled={!layer.canEdit}>
+                  <LayerChoiceContent layer={layer} />
+                </MenuItem>)}
+              </MenuSection>)}
+            </Menu>
+          </Popover>
+        </MenuTrigger>}
         <button type="button" className="annotation-property-delete" aria-label={t("deleteNote")} onClick={() => adjustment.remove()}><Trash2 size={17} aria-hidden="true" /></button>
       </div>
     </fieldset>
+    {(moveFailed || moving) && <p className="annotation-move-status" role="status">{t(moving ? "movingNote" : "moveNoteFailed")}</p>}
   </aside>;
 }

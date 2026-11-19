@@ -568,3 +568,28 @@
 
 .page-reader__viewport[data-dismiss-label] .page-reader__sheet:not([data-page-turn-current]) { visibility: hidden; }
 .page-reader__viewport[data-dismiss-label] .page-reader__paper { box-shadow: 0 12px 32px #102b292e; }
+
+.annotation-move-popover { z-index: 100; max-height: 70dvh; overflow: auto; }
+.annotation-move-popover [role="menuitem"] { overflow-wrap: anywhere; }
+.annotation-move-status { margin: 8px 4px 0; font-size: 12px; color: var(--ui-muted); }
+.annotation-move-notice { position: fixed; top: max(72px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 8px 14px; border-radius: 12px; background: var(--ui-surface); color: var(--ui-ink); box-shadow: 0 4px 20px #0002; pointer-events: none; }
+
+
+.reader-edit-layer-popover .annotation-layer-slot[data-read-only]:hover { background: transparent; }
+
+/* Both layer pickers share rows and groups, retaining their native controls. */
+.layer-choice-panel { width: min(340px, calc(100vw - 24px)); padding: 12px; box-sizing: border-box; border: 1px solid var(--ui-line, #dce4de); border-radius: 18px; background: var(--ui-surface, #fcfdfb); color: var(--ui-ink, #31463a); box-shadow: 0 8px 32px #0003; }
+.layer-choice-panel .annotation-layer-permission-help { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--ui-muted, #728078); }
+.layer-choice-panel .layer-choice-group-label { display: block; margin: 10px 8px 4px; font-size: 12px; line-height: 1.5; color: var(--ui-muted, #728078); font-weight: 400; }
+.layer-choice-panel .layer-choice-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) 16px; gap: 8px; align-items: center; min-height: 52px; padding: 8px; border: 1px solid transparent; border-radius: 10px; box-sizing: border-box; text-align: start; font-size: 13px; line-height: 1.4; font-weight: 500; color: var(--ui-ink, #31463a); }
+.layer-choice-panel .layer-choice-row[disabled], .layer-choice-panel .layer-choice-row[aria-disabled="true"] { opacity: 1; color: var(--ui-muted, #728078); cursor: default; }
+.layer-choice-icon, .layer-choice-lock { display: flex; align-items: center; justify-content: center; width: 16px; }
+.layer-choice-panel .layer-choice-icon i { position: static; width: 10px; height: 10px; border-radius: 50%; }
+.layer-choice-text { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.layer-choice-panel .layer-choice-text small { grid-column: auto; margin: 0; font-size: 12px; line-height: 1.5; font-weight: 400; color: var(--ui-muted, #728078); }
+
+.layer-choice-panel .annotation-layer-switcher { gap: 0; }
+
+.layer-choice-panel [role="menu"] { outline: none; }
+.layer-choice-panel .layer-choice-row:is([data-focused], :hover):not([data-disabled], [disabled]) { background: var(--ui-soft, #edf2ed); }
+.layer-choice-panel .layer-choice-row[data-focus-visible] { outline: 2px solid var(--ui-accent, #4b7865); outline-offset: -2px; }
