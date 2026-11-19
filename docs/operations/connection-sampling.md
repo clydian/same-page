@@ -1,5 +1,12 @@
 # 连接线路面板采样
 
+当前持续覆盖：浏览器用例保留真实离线事件、面板键盘/布局、受控健康结果轨迹与关闭/隐藏采样。
+已删除把挂起业务请求、自动切线、目录 bootstrap、双路故障、关闭后恢复和固定线路串联的段落；
+这些状态转换仍由 `controller.test.ts`、`sampling.test.ts`、`connection-control.test.tsx` 和
+`use-drive-library-connection.test.tsx` 分别保障。下文该综合场景的结果与截图属于历史验收，
+不代表仍有同等端到端覆盖；此次不重启旧 bootstrap 超时调查，也不将其与上传超时归因在一起。
+
+
 基于 `65f1595d993e414f7e7ef3e74654f7c0b00abb62`，本次只修改客户端及本地测试，不涉及部署、DNS、服务端采集或持久历史。
 
 ## 展示与语义
