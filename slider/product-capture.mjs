@@ -1,0 +1,62 @@
+import {startStorageFixture} from './browser-tests/storage-fixture.mjs';
+import {chromium,expect} from '@playwright/test';
+import {musicXmlFixture} from './browser-tests/musicxml-fixture.mjs';
+import {writeFile,mkdir} from 'node:fs/promises';
+const fixture=await startStorageFixture({authenticated:true,previewEntry:false,script:'preview'});
+await mkdir('/tmp/slider-evidence',{recursive:true});
+const browser=await chromium.launch({args:['--no-sandbox','--remote-debugging-port=9227']});
+const context=await browser.newContext({locale:'zh-CN',viewport:{width:1024,height:900},serviceWorkers:'block',hasTouch:true});
+await context.addInitScript(()=>localStorage.setItem('reader-gesture-hint-seen','true'));
+await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}});
+let xml=musicXmlFixture(24).toString().replace('Soprano','女高音').replace('Alto','女低音');
+xml=xml.replaceAll('<duration>4</duration><type>whole</type></note>','<duration>4</duration><type>whole</type><lyric><text>春风轻轻吹</text></lyric></note>');
+const bytes=Buffer.from(xml), id=crypto.randomUUID();
+const upload=await context.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/attachments/${id}/file?name=春风合唱.xml&size=${bytes.length}`,{data:bytes,headers:{'content-length':String(bytes.length)}});
+console.log('UPLOAD',upload.status(),await upload.text());
+const page=await context.newPage();page.on('pageerror',e=>console.log('PAGEERROR',e.message));
+await page.goto(`${fixture.origin}/choirs/${fixture.choirId}/scores/${fixture.scoreId}`);
+await expect(page.locator('canvas[data-pdf-canvas-active]').first()).toBeVisible({timeout:30000});
+
+await page.screenshot({path:'/tmp/slider-evidence/diagnostic.png'});console.log('BODY',await page.locator('body').innerText());
+
+if(await page.getByRole('button',{name:'显示阅读器工具',exact:true}).count()){await page.getByRole('button',{name:'显示阅读器工具',exact:true}).focus();await page.keyboard.press('Enter');}
+await page.getByRole('button',{name:'练习谱',exact:true}).click();await page.getByRole('button',{name:'春风合唱.xml',exact:true}).click();
+await expect(page.getByTestId('musicxml-player').getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+await writeFile('/tmp/slider-evidence/url.txt',fixture.origin);
+console.log('READY',fixture.origin);
+
+const bar=page.getByTestId('musicxml-player');
+if(await page.getByRole('button',{name:'展开练习控制',exact:true}).isVisible()) await page.getByRole('button',{name:'展开练习控制',exact:true}).click();
+await page.getByRole('button',{name:'练习设置',exact:true}).click();
+const advanced=page.getByRole('button',{name:'进阶设置',exact:true});
+await expect(advanced).toHaveAttribute('aria-expanded','false');
+for(const name of ['节拍器','跳转后预备一小节'])await expect(page.getByRole('switch',{name,exact:true})).toHaveCount(0);
+await expect(page.getByRole('slider',{name:'歌词字号',exact:true})).toHaveCount(0);
+await expect(page.getByText('MusicXML 合成播放，不演唱歌词；原 PDF 需手动翻页。',{exact:true})).toHaveCount(0);
+await page.screenshot({path:'/tmp/slider-evidence/default-desktop.png'});
+await page.setViewportSize({width:390,height:844});await page.waitForTimeout(500);await page.screenshot({path:'/tmp/slider-evidence/default-mobile.png'});
+await page.setViewportSize({width:1024,height:900});await advanced.click();
+const slider=page.getByRole('slider',{name:'歌词字号',exact:true});
+await expect(slider).toHaveValue('16');
+for(const name of ['节拍器','跳转后预备一小节'])await expect(page.getByRole('switch',{name,exact:true})).not.toBeChecked();
+await page.screenshot({path:'/tmp/slider-evidence/advanced-desktop.png'});
+await page.setViewportSize({width:390,height:844});await page.waitForTimeout(500);await page.screenshot({path:'/tmp/slider-evidence/advanced-mobile.png'});
+await page.setViewportSize({width:1024,height:900});
+await page.evaluate(()=>{
+ window.__lyricWrites=[];const set=Storage.prototype.setItem;
+ Storage.prototype.setItem=function(key,value){if(key.startsWith('same-page:appearance:'))window.__lyricWrites.push(JSON.parse(value).lyricSize);return set.call(this,key,value);};
+});
+const font=()=>page.locator('svg text').evaluateAll(nodes=>parseFloat(nodes.find(n=>n.textContent==='春风轻轻吹')?.style.fontSize ?? '0'));
+const track=await page.locator('.practice-lyric-track').boundingBox();const thumb=await page.locator('.practice-lyric-thumb').boundingBox();
+await page.mouse.move(thumb.x+thumb.width/2,thumb.y+thumb.height/2);await page.mouse.down();
+await page.mouse.move(track.x+track.width*.75,track.y+22,{steps:12});
+await expect(slider).toHaveValue('16.5');
+if((await page.evaluate(()=>window.__lyricWrites.length))!==0)throw Error('storage write during drag');
+if(Math.abs((await font())-9.6)>.01)throw Error('native relayout during drag');
+await page.mouse.up();await expect.poll(font).toBe(9.9);
+if((await page.evaluate(()=>window.__lyricWrites.length))!==1)throw Error('expected one committed write');
+await slider.focus();await page.keyboard.press('ArrowRight');await expect(slider).toHaveValue('17');await expect.poll(font).toBe(10.2);
+await page.screenshot({path:'/tmp/slider-evidence/intermediate-desktop.png'});
+console.log('POINTER AND KEYBOARD OK');
+await writeFile('/tmp/slider-evidence/validation.json',JSON.stringify({drag:{preview:16.5,nativeDuringDrag:9.6,writesDuringDrag:0,writesAfterRelease:1,nativeAfterRelease:9.9},keyboard:{size:17,nativePixels:10.2}},null,2));
+console.log('CAPTURED');await new Promise(()=>{});

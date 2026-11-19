@@ -1,0 +1,31 @@
+{
+  "drag": {
+    "preview": 16.5,
+    "nativeDuringDrag": 9.6,
+    "writesDuringDrag": 0,
+    "writesAfterRelease": 1,
+    "nativeAfterRelease": 9.9
+  },
+  "keyboard": {
+    "size": 17,
+    "nativePixels": 10.2
+  },
+  "touch": {
+    "size": 16.5,
+    "noEarlyWrite": true
+  },
+  "playback": {
+    "stayedPlaying": true,
+    "measureAfterChange": 5,
+    "loopAndMixRetained": true
+  },
+  "reopen": {
+    "size": 16.5,
+    "nativePixels": 9.9,
+    "advancedCollapsed": true
+  },
+  "rhythmSwitches": {
+    "initiallyOff": true,
+    "bothToggle": true
+  }
+}
