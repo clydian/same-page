@@ -429,5 +429,10 @@
   "zoomInComparison": "Ampliar y comparar gráficos",
   "zoomOrReset": "Ampliar/Restaurar",
   "zoomOut": "alejar",
-  "zoomOutComparison": "Reducir el cuadro comparativo"
+  "zoomOutComparison": "Reducir el cuadro comparativo",
+  "moveNoteToLayer": "Mover a una capa",
+  "moveNoteNeedsConnection": "Conéctate para mover una nota",
+  "movingNote": "Moviendo nota…",
+  "moveNoteFailed": "No se pudo confirmar el movimiento. Reconéctate e inténtalo de nuevo.",
+  "movedNoteToLayer": "Se movió a {name}"
 }

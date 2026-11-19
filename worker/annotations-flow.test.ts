@@ -65,6 +65,38 @@ beforeEach(async () => {
 afterEach(() => network.resetHandlers());
 
 describe("annotation layers and object synchronization", () => {
+  it("moves one object atomically with both layer permissions, OCC, retry and private-source removal", async () => {
+    const fixture = await createFixture();
+    const member = await createMember(fixture.joinCode!, "move-reader@example.test", "读者");
+    const base = `/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
+    const layers = async (cookie: string) => (await (await callWorker(`${base}/layers`, { headers: { cookie } })).json() as { layers: { id: string; kind: string }[] }).layers;
+    const personal = (await layers(fixture.adminCookie)).find(layer => layer.kind === "personal")!;
+    const memberPersonal = (await layers(member.cookie)).find(layer => layer.kind === "personal")!;
+    const id = crypto.randomUUID();
+    const create = operation(id, fixture.layerId, 0, "保留内容、位置和样式");
+    await push(fixture, [create]);
+    const before = await (await callWorker(`${base}/annotations`, { headers: { cookie: member.cookie } })).json() as { cursor: number };
+    const move = { ...create, opId: crypto.randomUUID(), sourceLayerId: fixture.layerId, layerId: personal.id, baseVersion: 1 };
+    const asMember = { ...fixture, adminCookie: member.cookie, ownerUserId: member.userId };
+    // A writable destination never grants modification of a read-only source.
+    expect(await (await push(asMember, [{ ...move, layerId: memberPersonal.id }])).json()).toMatchObject({ results: [{ status: "permission_denied" }] });
+    const own = operation(crypto.randomUUID(), memberPersonal.id, 0, "个人笔记");
+    await push(asMember, [own]);
+    expect(await (await push(asMember, [{ ...own, opId: crypto.randomUUID(), baseVersion: 1, sourceLayerId: memberPersonal.id, layerId: fixture.layerId }])).json()).toMatchObject({ results: [{ status: "permission_denied" }] });
+    expect(await (await push(fixture, [{ ...move, opId: crypto.randomUUID(), baseVersion: 2 }])).json()).toMatchObject({ results: [{ status: "conflict" }] });
+    expect(await (await push(fixture, [move])).json()).toMatchObject({ results: [{ status: "accepted", object: { id, layerId: personal.id, version: 2, payload: create.payload } }] });
+    expect(await (await push(fixture, [move])).json()).toMatchObject({ results: [{ status: "accepted", object: { id, version: 2 } }] });
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM annotation_objects WHERE id = ?").bind(id).first()).toEqual({ count: 1 });
+    const removed = await (await callWorker(`${base}/annotations?cursor=${before.cursor}`, { headers: { cookie: member.cookie } })).json();
+    expect(removed).toMatchObject({ objects: expect.arrayContaining([expect.objectContaining({ id, layerId: fixture.layerId, version: 2, deleted: true, payload: null })]) });
+    expect(JSON.stringify(removed)).not.toContain(personal.id);
+    // A stale deployed client still cannot write the old layer over the move.
+    expect(await (await push(fixture, [{ ...create, opId: crypto.randomUUID(), baseVersion: 1 }])).json()).toMatchObject({ results: [{ status: "conflict" }] });
+    const back = { ...move, opId: crypto.randomUUID(), sourceLayerId: personal.id, layerId: fixture.layerId, baseVersion: 2 };
+    expect(await (await push(fixture, [back])).json()).toMatchObject({ results: [{ status: "accepted", object: { id, layerId: fixture.layerId, version: 3, payload: create.payload } }] });
+    expect(await (await callWorker(`${base}/annotations?cursor=${before.cursor}`, { headers: { cookie: member.cookie } })).json()).toMatchObject({ objects: expect.arrayContaining([expect.objectContaining({ id, deleted: false, payload: create.payload })]) });
+  });
+
   it("experience reads omit account layers and do not create a member personal layer", async (context) => {
     const stage = trackAnnotationStages(context, "experience");
     const fixture = await createFixture(() => stage("first-score"));

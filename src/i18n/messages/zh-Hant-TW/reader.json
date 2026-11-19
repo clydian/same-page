@@ -429,5 +429,10 @@
   "zoomInComparison": "放大比較譜面",
   "zoomOrReset": "放大／恢復",
   "zoomOut": "縮小",
-  "zoomOutComparison": "縮小比較譜面"
+  "zoomOutComparison": "縮小比較譜面",
+  "moveNoteToLayer": "移動到圖層",
+  "moveNoteNeedsConnection": "移動筆記需要連線",
+  "movingNote": "正在移動筆記…",
+  "moveNoteFailed": "無法確認移動。請連線後重試。",
+  "movedNoteToLayer": "已移動到{name}"
 }

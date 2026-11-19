@@ -429,5 +429,10 @@
   "zoomInComparison": "Zoom in on the preview",
   "zoomOrReset": "Zoom/Restore",
   "zoomOut": "zoom out",
-  "zoomOutComparison": "Zoom out of the preview"
+  "zoomOutComparison": "Zoom out of the preview",
+  "moveNoteToLayer": "Move to layer",
+  "moveNoteNeedsConnection": "Connect to move a note",
+  "movingNote": "Moving note…",
+  "moveNoteFailed": "Could not confirm the move. Reconnect and try again.",
+  "movedNoteToLayer": "Moved to {name}"
 }

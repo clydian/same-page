@@ -1,18 +1,38 @@
 import { useMessages } from "../../i18n";
-import { ArrowLeft, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
+import { ArrowLeft, Layers, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { AnnotationEditor } from "./annotation-editor";
-import type { AnnotationPayload } from "../../shared/annotations";
+import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
+import { Menu } from "../navigation/overlays";
+import { useNetworkStatus } from "../platform/use-network-status";
+import type { AnnotationLayerSummary, AnnotationPayload } from "../../shared/annotations";
 import type { SelectedObjectAdjustment } from "./selected-object-adjustment";
 import { StyleFields } from "./style-fields";
 import { defaultToolStyle, type ToolStyle } from "./tool-style";
 
-export function ObjectProperties({ payload, personal, adjustment, disabled = false, editor, layerId, onEditText }: {
+export function ObjectProperties({ payload, personal, adjustment, disabled = false, editor, layerId, layers, onMoved, onEditText }: {
   payload: AnnotationPayload; personal: boolean; adjustment: SelectedObjectAdjustment; disabled?: boolean;
-  editor: AnnotationEditor; layerId: string;
+  editor: AnnotationEditor; layerId: string; layers: AnnotationLayerSummary[];
+  onMoved(name: string): void;
   onEditText(): void;
 }) {
   const t = useMessages("reader");
+  const online = useNetworkStatus();
+  const [moving, setMoving] = useState(false);
+  const [moveFailed, setMoveFailed] = useState(false);
+  const destinations = layers.filter(layer => layer.canEdit && layer.id !== layerId);
+  const move = async (destination: string) => {
+    if (moving || disabled) return;
+    setMoving(true); setMoveFailed(false);
+    try {
+      if (!await adjustment.commit()) { setMoveFailed(true); return; }
+      const selected = adjustment.getSnapshot().selected;
+      if (!selected || !await editor.moveToLayer(selected, destination)) { setMoveFailed(true); return; }
+      adjustment.select(null);
+      onMoved(layers.find(layer => layer.id === destination)!.name);
+    } finally { setMoving(false); }
+  };
+  disabled ||= moving;
   const { preview } = useSyncExternalStore(adjustment.subscribe, adjustment.getSnapshot);
   const changeHistory = async (direction: "undo" | "redo") => {
     if (await adjustment.commit()) await editor[direction](layerId);
@@ -69,8 +89,15 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
         onChange={event => adjustment.change("properties", value => ({ ...value, color: event.target.value }))} onBlur={() => { void adjustment.commit("properties"); }} /></label>}
       <div className="annotation-object-actions">
         {payload.kind === "text" && <button type="button" aria-label={t("editText")} onClick={onEditText}><TextCursorInput size={18} aria-hidden="true" /><span>{t("editText")}</span></button>}
+        {destinations.length > 0 && <MenuTrigger>
+          <Button aria-label={t("moveNoteToLayer")} aria-description={!online ? t("moveNoteNeedsConnection") : undefined} isDisabled={disabled || !online}><Layers size={18} aria-hidden="true" /><span>{t("moveNoteToLayer")}</span></Button>
+          <Popover className="file-menu-popover annotation-move-popover" placement="top end"><Menu aria-label={t("moveNoteToLayer")} items={destinations} onAction={key => void move(String(key))}>
+            {layer => <MenuItem id={layer.id} textValue={layer.name}>{layer.name}</MenuItem>}
+          </Menu></Popover>
+        </MenuTrigger>}
         <button type="button" className="annotation-property-delete" aria-label={t("deleteNote")} onClick={() => adjustment.remove()}><Trash2 size={17} aria-hidden="true" /></button>
       </div>
     </fieldset>
+    {(moveFailed || moving) && <p className="annotation-move-status" role="status">{t(moving ? "movingNote" : "moveNoteFailed")}</p>}
   </aside>;
 }

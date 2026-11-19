@@ -449,43 +449,38 @@ annotationRoutes.get("/choirs/:choirId/scores/:scoreId/annotations", async (cont
 export async function readScoreAnnotations(context: Context<AppEnvironment>, access: ResolvedScoreAccess, cursor: number) {
   const userId = !access.experience && access.membership && access.principal.kind === "user" ? access.principal.userId : null;
   const rows = await context.env.DB.prepare(
-    `SELECT operations.sequence, objects.id, objects.layer_id, objects.version,
-            objects.deleted, objects.payload_json,
-            CASE
-              WHEN layers.owner_user_id = ? OR grants.id IS NOT NULL
-              THEN objects.created_by_display_name ELSE ''
-            END AS created_by_display_name,
-            CASE
-              WHEN layers.owner_user_id = ? OR grants.id IS NOT NULL
-              THEN objects.updated_by_display_name ELSE ''
-            END AS updated_by_display_name,
-            objects.updated_at
-     FROM annotation_sync_operations AS operations
-     INNER JOIN annotation_layers AS layers ON layers.id = operations.layer_id
-     INNER JOIN annotation_objects AS objects ON objects.id = operations.annotation_id
-     LEFT JOIN effective_shared_layer_permissions AS grants
-       ON grants.slot = layers.default_slot
-      AND grants.membership_id = ?
-      AND grants.choir_id = layers.choir_id
-     WHERE layers.deleted_at IS NULL AND operations.score_id = ? AND operations.choir_id = ?
-       AND operations.status = 'accepted' AND operations.sequence > ?
-       AND ((layers.kind = 'shared' AND EXISTS (SELECT 1 FROM choir_shared_layer_settings WHERE choir_id = layers.choir_id AND slot = layers.default_slot AND active = 1 AND deleted_at IS NULL))
-         OR layers.owner_user_id = ? OR (layers.kind = 'personal' AND layers.sharing = 1 AND EXISTS (SELECT 1 FROM memberships reader WHERE reader.id = ? AND reader.status = 'active')
-           AND EXISTS (SELECT 1 FROM memberships WHERE choir_id = layers.choir_id AND user_id = layers.owner_user_id AND status = 'active')
-           AND NOT EXISTS (SELECT 1 FROM user_lifecycle WHERE user_id = layers.owner_user_id)))
-     ORDER BY operations.sequence ASC
-     LIMIT 500`,
-  )
-    .bind(
-      userId,
-      userId,
-      userId ? access.membership?.id ?? null : null,
-      access.scoreId,
-      access.choirId,
-      cursor,
-      userId,
-      userId ? access.membership?.id ?? null : null,
-    )
+    `WITH scope AS (SELECT ? AS actor, ? AS membership, ? AS score, ? AS choir, ? AS cursor),
+     readable AS (
+       SELECT layers.id, layers.owner_user_id, grants.id AS grant_id
+       FROM annotation_layers layers JOIN scope
+       LEFT JOIN effective_shared_layer_permissions grants ON grants.slot = layers.default_slot
+         AND grants.membership_id = scope.membership AND grants.choir_id = scope.choir
+       WHERE layers.score_id = scope.score AND layers.choir_id = scope.choir AND layers.deleted_at IS NULL
+         AND ((layers.kind = 'shared' AND EXISTS (SELECT 1 FROM choir_shared_layer_settings
+           WHERE choir_id = layers.choir_id AND slot = layers.default_slot AND active = 1 AND deleted_at IS NULL))
+           OR layers.owner_user_id = scope.actor
+           OR (layers.kind = 'personal' AND layers.sharing = 1
+             AND EXISTS (SELECT 1 FROM memberships WHERE id = scope.membership AND status = 'active')
+             AND EXISTS (SELECT 1 FROM memberships WHERE choir_id = layers.choir_id AND user_id = layers.owner_user_id AND status = 'active')
+             AND NOT EXISTS (SELECT 1 FROM user_lifecycle WHERE user_id = layers.owner_user_id)))
+     )
+     SELECT operations.sequence, objects.id,
+       COALESCE(current.id, previous.id, source.id) AS layer_id, objects.version,
+       CASE WHEN current.id IS NULL THEN 1 ELSE objects.deleted END AS deleted,
+       CASE WHEN current.id IS NULL THEN NULL ELSE objects.payload_json END AS payload_json,
+       CASE WHEN current.owner_user_id = scope.actor OR current.grant_id IS NOT NULL THEN objects.created_by_display_name ELSE '' END AS created_by_display_name,
+       CASE WHEN current.owner_user_id = scope.actor OR current.grant_id IS NOT NULL THEN objects.updated_by_display_name ELSE '' END AS updated_by_display_name,
+       objects.updated_at
+     FROM annotation_sync_operations operations JOIN scope
+     JOIN annotation_objects objects ON objects.id = operations.annotation_id
+     LEFT JOIN readable current ON current.id = objects.layer_id
+     LEFT JOIN readable previous ON previous.id = operations.layer_id
+     LEFT JOIN readable source ON source.id = operations.source_layer_id
+     WHERE operations.score_id = scope.score AND operations.choir_id = scope.choir
+       AND operations.status = 'accepted' AND operations.sequence > scope.cursor
+       AND (current.id IS NOT NULL OR previous.id IS NOT NULL OR source.id IS NOT NULL)
+     ORDER BY operations.sequence ASC LIMIT 500`,
+  ).bind(userId, userId ? access.membership?.id ?? null : null, access.scoreId, access.choirId, cursor)
     .all<PullRow>();
   const latestById = new Map<string, AnnotationObjectRecord>();
   let nextCursor = cursor;

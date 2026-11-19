@@ -429,5 +429,10 @@
   "zoomInComparison": "Diagramme vergrößern und vergleichen",
   "zoomOrReset": "Zoomen/Wiederherstellen",
   "zoomOut": "herauszoomen",
-  "zoomOutComparison": "Vergleichstabelle verkleinern"
+  "zoomOutComparison": "Vergleichstabelle verkleinern",
+  "moveNoteToLayer": "In Ebene verschieben",
+  "moveNoteNeedsConnection": "Zum Verschieben eine Verbindung herstellen",
+  "movingNote": "Notiz wird verschoben…",
+  "moveNoteFailed": "Verschieben nicht bestätigt. Verbindung herstellen und erneut versuchen.",
+  "movedNoteToLayer": "Nach {name} verschoben"
 }

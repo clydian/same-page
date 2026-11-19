@@ -429,5 +429,10 @@
   "zoomInComparison": "차트 확대 및 비교",
   "zoomOrReset": "줌/복원",
   "zoomOut": "축소",
-  "zoomOutComparison": "비교 차트 축소"
+  "zoomOutComparison": "비교 차트 축소",
+  "moveNoteToLayer": "레이어로 이동",
+  "moveNoteNeedsConnection": "메모를 이동하려면 연결하세요",
+  "movingNote": "메모 이동 중…",
+  "moveNoteFailed": "이동을 확인할 수 없습니다. 연결 후 다시 시도하세요.",
+  "movedNoteToLayer": "{name}(으)로 이동했습니다"
 }

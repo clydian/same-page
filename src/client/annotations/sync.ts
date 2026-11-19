@@ -7,12 +7,14 @@ import { hasCompleteOfflineLayers } from "../offline/offline-score-verification"
 import { parseDiagnosticResponse, diagnosticFetch, recordFailure, diagnosticScope } from "../diagnostics/diagnostics";
 import {
   type AnnotationLayerSummary,
+  type AnnotationPayload,
+  annotationPayloadSchema,
   annotationPullResponseSchema,
   annotationLayerListResponseSchema,
   annotationPushResponseSchema,
 } from "../../shared/annotations";
 import {
-  localDatabase,
+  annotationRecordKey, localDatabase, type LocalAnnotationRecord,
 } from "../platform/local-database";
 import {
   assertLocalWorkspaceActive,
@@ -21,7 +23,7 @@ import {
   type LocalWorkspace,
   withLocalWorkspaceTransaction,
 } from "../platform/local-workspace";
-import { removeCachedPublications, cacheAnnotationLayers, readAnnotationLayers, applyPulledAnnotations, applyPushResults, prepareAnnotationPush } from "./annotation-state";
+import { removeCachedPublications, cacheAnnotationLayers, readAnnotationLayers, applyPulledAnnotations, applyPushResults, prepareAnnotationPush, queueScoreDrafts } from "./annotation-state";
 
 type SyncResult = { pushed: number; pulled: number };
 type SyncOptions = { pull: false; signal?: AbortSignal } | {
@@ -246,6 +248,47 @@ export async function pushPendingAnnotations(
     drainAnnotationOutbox(workspace, options),
     { ifAvailable: true },
   );
+}
+
+// A move needs a confirmed canonical version. Keep ordinary offline drafts in
+// their original layer until the server atomically accepts the new ownership.
+export async function moveAnnotation(workspace: LocalWorkspace, target: { id: string; layerId: string; payload: AnnotationPayload }, layerId: string, signal: AbortSignal) {
+  if (!workspace.ownerKey.startsWith("user:") || !navigator.onLine) throw new Error("annotation_move_requires_connection");
+  return withScoreSyncLock(workspace, async locked => {
+    await queueScoreDrafts(locked);
+    let layers: AnnotationLayerSummary[] = [];
+    const refresh = (push = true) => refreshAnnotations(locked, signal, () => {}, value => { layers = value; }, push, diagnosticScope());
+    await refresh();
+    const key = annotationRecordKey(locked.scopeKey, target.id);
+    const matches = (note: LocalAnnotationRecord | undefined) => note && !note.deleted && note.state === "synced"
+      && JSON.stringify(annotationPayloadSchema.parse(note.payload)) === JSON.stringify(annotationPayloadSchema.parse(target.payload));
+    const note = await localDatabase.annotations.get(key);
+    // A previous response may have been lost. Refresh settles it before retry.
+    if (matches(note) && note!.layerId === layerId) return note!;
+    if (!matches(note) || note!.layerId !== target.layerId || layerId === target.layerId
+      || ![target.layerId, layerId].every(id => layers.some(layer => layer.id === id && layer.canEdit))) throw new Error("annotation_move_unavailable");
+    const operation = { opId: crypto.randomUUID(), annotationId: target.id, sourceLayerId: target.layerId,
+      layerId, baseVersion: note!.version, type: "upsert", payload: note!.payload };
+    try {
+      const response = await diagnosticFetch(`/api/choirs/${locked.choirId}/scores/${locked.scoreId}/annotations/push`, {
+        method: "POST", signal, headers: { "content-type": "application/json", "x-same-page-owner-user-id": locked.ownerKey.slice(5) },
+        body: JSON.stringify({ operations: [operation] }),
+      });
+      if (!response.ok) throw new Error("annotation_move_failed");
+      const { results } = await parseDiagnosticResponse(response, annotationPushResponseSchema);
+      const result = results.length === 1 && results[0].opId === operation.opId ? results[0] : null;
+      if (result?.status !== "accepted" || !result.object) throw new Error("annotation_move_not_accepted");
+      const checkpoint = await localDatabase.annotationSyncCursors.get(locked.scopeKey);
+      await applyPulledAnnotations(locked, checkpoint?.cursor ?? 0, [result.object], checkpoint?.layerIds);
+      return result.object;
+    } catch (error) {
+      // No second write on an uncertain response: read back the same object.
+      await refresh(false).catch(() => undefined);
+      const current = await localDatabase.annotations.get(key);
+      if (matches(current) && current!.layerId === layerId) return current!;
+      throw error;
+    }
+  }, { signal });
 }
 
 async function drainAnnotationOutbox(

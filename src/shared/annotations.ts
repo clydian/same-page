@@ -81,11 +81,15 @@ export const annotationOperationSchema = z
     opId: z.uuid(),
     annotationId: z.uuid(),
     layerId: z.uuid(),
+    sourceLayerId: z.uuid().optional(),
     baseVersion: z.number().int().nonnegative(),
     type: z.enum(["upsert", "delete"]),
     payload: annotationPayloadSchema.nullable(),
   })
   .superRefine((operation, context) => {
+    if (operation.sourceLayerId && (operation.sourceLayerId === operation.layerId || operation.baseVersion === 0 || operation.type !== "upsert")) {
+      context.addIssue({ code: "custom", message: "move requires distinct layers and an existing object", path: ["sourceLayerId"] });
+    }
     if (
       (operation.type === "upsert" && operation.payload === null) ||
       (operation.type === "delete" && operation.payload !== null)

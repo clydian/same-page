@@ -46,7 +46,7 @@ export class SelectedObjectAdjustment {
   }
 
   select(id: string | null) {
-    if (!this.active || !this.scope.enabled || id === this.selectedId) return;
+    if (!this.active || this.editor?.isMoving() || !this.scope.enabled || id === this.selectedId) return;
     void this.commit();
     this.revision++;
     this.selectedId = id;
@@ -54,7 +54,7 @@ export class SelectedObjectAdjustment {
   }
 
   change(source: Input, update: (payload: AnnotationPayload) => AnnotationPayload) {
-    if (!this.active || !this.scope.enabled || !this.editor || ["failed", "finishing"].includes(this.editor.getSnapshot())) return;
+    if (!this.active || !this.scope.enabled || !this.editor || this.editor.isMoving() || ["failed", "finishing"].includes(this.editor.getSnapshot())) return;
     if (this.pending && this.pending.source !== source) void this.commit();
     const target = this.selected();
     if (!target) return;
@@ -80,7 +80,7 @@ export class SelectedObjectAdjustment {
 
   remove() {
     const target = this.selected();
-    if (!this.active || !target) return;
+    if (!this.active || this.editor?.isMoving() || !target) return;
     // Deletion supersedes the unfinished adjustment, not an already released edit.
     this.pending = null;
     this.selectedId = null;

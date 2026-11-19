@@ -429,5 +429,10 @@
   "zoomInComparison": "比較プレビューを拡大",
   "zoomOrReset": "拡大・元に戻す",
   "zoomOut": "縮小",
-  "zoomOutComparison": "比較プレビューを縮小"
+  "zoomOutComparison": "比較プレビューを縮小",
+  "moveNoteToLayer": "レイヤーに移動",
+  "moveNoteNeedsConnection": "移動には接続が必要です",
+  "movingNote": "移動中…",
+  "moveNoteFailed": "移動を確認できませんでした。接続して再試行してください。",
+  "movedNoteToLayer": "{name}に移動しました"
 }

@@ -429,5 +429,10 @@
   "zoomInComparison": "放大比较谱面",
   "zoomOrReset": "放大／恢复",
   "zoomOut": "缩小",
-  "zoomOutComparison": "缩小比较谱面"
+  "zoomOutComparison": "缩小比较谱面",
+  "moveNoteToLayer": "移动到图层",
+  "moveNoteNeedsConnection": "移动笔记需要联网",
+  "movingNote": "正在移动笔记…",
+  "moveNoteFailed": "未能确认移动。请联网后重试。",
+  "movedNoteToLayer": "已移动到{name}"
 }
