@@ -1,0 +1,7 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><style>body{margin:0;background:#fff;color:#000;font-family:sans-serif}#score{width:100%}</style><div id="score"></div><script type="module">
+import {createPlayerSession} from './packages/player/src/session.ts';
+const lyric=['春','风','轻轻','吹过','山','林','我们','歌唱'];
+const notes=Array.from({length:8},(_,m)=>`<measure number="${m+1}">${m===0?'<attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>':''}${Array.from({length:8},(_,n)=>`<note><pitch><step>${['C','D','E','G'][n%4]}</step><octave>4</octave></pitch><duration>1</duration><type>eighth</type><lyric number="1"><text>${lyric[n]}</text></lyric><lyric number="2"><text>${['Sing','with','joy','and','let','the','music','flow'][n]}</text></lyric></note>`).join('')}</measure>`).join('');
+const xml=`<score-partwise version="4.0"><work><work-title>春风 · 歌词排版检查</work-title></work><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1">${notes}</part></score-partwise>`;
+window.session=createPlayerSession(document.querySelector('#score'),new TextEncoder().encode(xml));
+</script></html>
