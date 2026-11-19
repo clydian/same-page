@@ -573,3 +573,11 @@
 .annotation-move-popover [role="menuitem"] { overflow-wrap: anywhere; }
 .annotation-move-status { margin: 8px 4px 0; font-size: 12px; color: var(--ui-muted); }
 .annotation-move-notice { position: fixed; top: max(72px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 8px 14px; border-radius: 12px; background: var(--ui-surface); color: var(--ui-ink); box-shadow: 0 4px 20px #0002; pointer-events: none; }
+
+.annotation-layer-permission-help { margin: 8px; font-size: 12px; line-height: 1.5; color: var(--ui-muted); }
+.annotation-move-popover [role="menuitem"] { display: flex; align-items: center; gap: 8px; }
+.annotation-move-popover [role="menuitem"] small { margin-inline-start: auto; white-space: nowrap; font-size: 12px; }
+.annotation-move-popover [role="menuitem"][aria-disabled="true"] { color: var(--ui-muted); cursor: default; }
+
+.reader-edit-layer-popover .annotation-layer-slot[data-read-only][disabled] { opacity: 1; color: var(--ui-muted); cursor: default; }
+.reader-edit-layer-popover .annotation-layer-slot[data-read-only]:hover { background: transparent; }

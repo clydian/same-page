@@ -1,6 +1,6 @@
 import { useMessages } from "../../i18n";
-import { ArrowLeft, Layers, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ArrowLeft, Lock, Layers, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import type { AnnotationEditor } from "./annotation-editor";
 import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { Menu } from "../navigation/overlays";
@@ -20,9 +20,11 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
   const online = useNetworkStatus();
   const [moving, setMoving] = useState(false);
   const [moveFailed, setMoveFailed] = useState(false);
-  const destinations = layers.filter(layer => layer.canEdit && layer.id !== layerId);
+  const permissionHelpId = useId();
+  const destinations = layers.filter(layer => layer.id !== layerId && (layer.canEdit || layer.kind === "shared"));
+  const hasReadOnlyLayers = destinations.some(layer => !layer.canEdit);
   const move = async (destination: string) => {
-    if (moving || disabled) return;
+    if (moving || disabled || !destinations.some(layer => layer.id === destination && layer.canEdit)) return;
     setMoving(true); setMoveFailed(false);
     try {
       if (!await adjustment.moveToLayer(destination)) { setMoveFailed(true); return; }
@@ -88,9 +90,14 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
         {payload.kind === "text" && <button type="button" aria-label={t("editText")} onClick={onEditText}><TextCursorInput size={18} aria-hidden="true" /><span>{t("editText")}</span></button>}
         {destinations.length > 0 && <MenuTrigger>
           <Button aria-label={t("moveNoteToLayer")} aria-description={!online ? t("moveNoteNeedsConnection") : undefined} isDisabled={disabled || !online}><Layers size={18} aria-hidden="true" /><span>{t("moveNoteToLayer")}</span></Button>
-          <Popover className="file-menu-popover annotation-move-popover" placement="top end"><Menu aria-label={t("moveNoteToLayer")} items={destinations} onAction={key => void move(String(key))}>
-            {layer => <MenuItem id={layer.id} textValue={layer.name}>{layer.name}</MenuItem>}
-          </Menu></Popover>
+          <Popover className="file-menu-popover annotation-move-popover" placement="top end">
+            {hasReadOnlyLayers && <p id={permissionHelpId} className="annotation-layer-permission-help">{t("requestLayerPermission")}</p>}
+            <Menu aria-label={t("moveNoteToLayer")} aria-describedby={hasReadOnlyLayers ? permissionHelpId : undefined} items={destinations} onAction={key => void move(String(key))}>
+              {layer => <MenuItem id={layer.id} textValue={layer.canEdit ? layer.name : t("readOnlyLayerLabel", { label: layer.name })} isDisabled={!layer.canEdit}>
+                {!layer.canEdit && <Lock size={14} aria-hidden="true" />}<span>{layer.name}</span>{!layer.canEdit && <small>{t("viewOnly")}</small>}
+              </MenuItem>}
+            </Menu>
+          </Popover>
         </MenuTrigger>}
         <button type="button" className="annotation-property-delete" aria-label={t("deleteNote")} onClick={() => adjustment.remove()}><Trash2 size={17} aria-hidden="true" /></button>
       </div>
