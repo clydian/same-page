@@ -233,7 +233,5 @@
   "opusPieceTimeout": "Die Vorbereitung eines Stücks dauerte zu lange.",
   "opusEmptyPiece": "Die Sammlung enthält ein Stück ohne abspielbare Takte.",
   "lyricSize": "Liedtextgröße",
-  "lyricSizeSmall": "Klein",
-  "lyricSizeStandard": "Standard",
-  "lyricSizeLarge": "Groß"
+  "advancedSettings": "Erweiterte Einstellungen"
 }

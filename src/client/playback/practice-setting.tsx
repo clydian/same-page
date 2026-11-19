@@ -12,10 +12,10 @@ export function PracticeSetting({ title, help, selected, disabled, onChange }: {
   return <div className="practice-setting-row"><span className="practice-setting-name">{title}</span><PracticeHelp title={title}>{help}</PracticeHelp><Switch className="practice-switch" aria-label={title} isSelected={selected} isDisabled={disabled} onChange={onChange}><span className="practice-switch-state" aria-hidden="true">{selected ? t("on") : t("off")}</span><span className="practice-switch-track" aria-hidden="true" /></Switch></div>;
 }
 
-export function PracticeDisclosure({ title, help, children, summary }: { title: string; help: ReactNode; children: ReactNode; summary?: string }) {
+export function PracticeDisclosure({ title, help, children, summary }: { title: string; help?: ReactNode; children: ReactNode; summary?: string }) {
   const [open, setOpen] = useState(false);
   const id = useId();
-  return <section className="practice-disclosure"><div className="practice-setting-row"><Button className="practice-disclosure-trigger" aria-label={title} aria-describedby={summary ? `${id}-summary` : undefined} aria-expanded={open} aria-controls={open ? id : undefined} onPress={() => setOpen(!open)}><span>{title}{summary && <small id={`${id}-summary`} className="practice-disclosure-summary">{summary}</small>}</span><span className="practice-disclosure-arrow" aria-hidden="true">{open ? '⌃' : '⌄'}</span></Button><PracticeHelp title={title}>{help}</PracticeHelp></div>{open && <div id={id} className="practice-setting-content practice-mixer">{children}</div>}</section>;
+  return <section className="practice-disclosure"><div className="practice-setting-row"><Button className="practice-disclosure-trigger" aria-label={title} aria-describedby={summary ? `${id}-summary` : undefined} aria-expanded={open} aria-controls={open ? id : undefined} onPress={() => setOpen(!open)}><span>{title}{summary && <small id={`${id}-summary`} className="practice-disclosure-summary">{summary}</small>}</span><span className="practice-disclosure-arrow" aria-hidden="true">{open ? '⌃' : '⌄'}</span></Button>{help && <PracticeHelp title={title}>{help}</PracticeHelp>}</div>{open && <div id={id} className="practice-setting-content practice-mixer">{children}</div>}</section>;
 }
 
 export function PracticeVolume({ title, value, disabled, onChange }: { title: string; value: number; disabled?: boolean; onChange(value: number): void }) {

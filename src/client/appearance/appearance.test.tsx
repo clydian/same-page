@@ -71,7 +71,8 @@ it('restores lyric size without dropping earlier appearance preferences', () => 
   const owner = 'user:lyric-reader';
   localStorage.setItem('same-page:appearance:' + owner, JSON.stringify({ interfaceTheme: 'dark', lightPaper: 'soft', invertAnnotations: true }));
   expect(readAppearance(owner)).toMatchObject({ lyricSize: 16, interfaceTheme: 'dark', lightPaper: 'soft', invertAnnotations: true });
-  saveAppearance(owner, { ...readAppearance(owner), lyricSize: 18 });
-  expect(parseAppearance(localStorage.getItem('same-page:appearance:' + owner))).toMatchObject({ lyricSize: 18, interfaceTheme: 'dark', lightPaper: 'soft', invertAnnotations: true });
+  saveAppearance(owner, { ...readAppearance(owner), lyricSize: 16.5 });
+  expect(parseAppearance(localStorage.getItem('same-page:appearance:' + owner))).toMatchObject({ lyricSize: 16.5, interfaceTheme: 'dark', lightPaper: 'soft', invertAnnotations: true });
   expect(parseAppearance('{"lyricSize":999}').lyricSize).toBe(16);
+  for (const lyricSize of [12, 16, 18]) expect(parseAppearance(JSON.stringify({ lyricSize })).lyricSize).toBe(lyricSize);
 });

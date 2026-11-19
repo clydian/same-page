@@ -6,7 +6,7 @@ export type AppearancePreferences = {
   darkPaper: PaperTheme;
   invertAnnotations: boolean;
   /** Native lyric font units; standard remains 16 for older saved preferences. */
-  lyricSize?: 12 | 16 | 18;
+  lyricSize?: number;
 };
 export const defaultAppearance: AppearancePreferences = {
   interfaceTheme: "system", lightPaper: "original", darkPaper: "soft", invertAnnotations: false,
@@ -28,7 +28,7 @@ export function parseAppearance(raw: string | null): AppearancePreferences {
       interfaceTheme: value.interfaceTheme === "light" || value.interfaceTheme === "dark" ? value.interfaceTheme : "system",
       lightPaper: paper(value.lightPaper, "original"), darkPaper: paper(value.darkPaper, "soft"),
       invertAnnotations: value.invertAnnotations === true,
-      lyricSize: value.lyricSize === 12 || value.lyricSize === 18 ? value.lyricSize : 16,
+      lyricSize: typeof value.lyricSize === 'number' && Number.isFinite(value.lyricSize) && value.lyricSize >= 12 && value.lyricSize <= 18 ? Math.round(value.lyricSize * 2) / 2 : 16,
     };
   } catch { return defaultAppearance; }
 }

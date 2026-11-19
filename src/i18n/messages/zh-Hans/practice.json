@@ -233,7 +233,5 @@
   "opusPieceTimeout": "准备曲目用时过长。",
   "opusEmptyPiece": "合集包含没有可播放小节的曲目。",
   "lyricSize": "歌词字号",
-  "lyricSizeSmall": "小",
-  "lyricSizeStandard": "标准",
-  "lyricSizeLarge": "大"
+  "advancedSettings": "进阶设置"
 }

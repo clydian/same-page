@@ -233,7 +233,5 @@
   "opusPieceTimeout": "Se agotó el tiempo de preparación de una pieza.",
   "opusEmptyPiece": "La colección contiene una pieza sin compases reproducibles.",
   "lyricSize": "Tamaño de letra",
-  "lyricSizeSmall": "Pequeño",
-  "lyricSizeStandard": "Estándar",
-  "lyricSizeLarge": "Grande"
+  "advancedSettings": "Configuración avanzada"
 }

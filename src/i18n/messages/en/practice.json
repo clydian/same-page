@@ -233,7 +233,5 @@
   "opusPieceTimeout": "Preparing a piece took too long.",
   "opusEmptyPiece": "The collection contains a piece with no playable measures.",
   "lyricSize": "Lyric size",
-  "lyricSizeSmall": "Small",
-  "lyricSizeStandard": "Standard",
-  "lyricSizeLarge": "Large"
+  "advancedSettings": "Advanced settings"
 }

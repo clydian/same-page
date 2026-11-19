@@ -451,7 +451,7 @@ test('lyric sizes relayout the native font without changing transport or mix',()
  try {
   h.session.seek(0); h.session.loop(0,0); h.session.mix(0,{volume:.6,muted:true});
   const before=h.session.getSnapshot();
-  for(const size of [12,18,16]) {
+  for(const size of [12,16.5,18,16]) {
    h.session.lyricSize(size);
    assert.equal(h.api.settings.display.resources.elementFonts.get(NotationElement.EffectLyrics).size,size);
    assert.deepEqual(h.session.getSnapshot(),before);

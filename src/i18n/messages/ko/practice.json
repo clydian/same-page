@@ -233,7 +233,5 @@
   "opusPieceTimeout": "곡 준비 시간이 초과되었습니다.",
   "opusEmptyPiece": "모음에 재생할 수 있는 마디가 없는 곡이 있습니다.",
   "lyricSize": "가사 크기",
-  "lyricSizeSmall": "작게",
-  "lyricSizeStandard": "기본",
-  "lyricSizeLarge": "크게"
+  "advancedSettings": "고급 설정"
 }
