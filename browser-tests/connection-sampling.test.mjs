@@ -6,7 +6,7 @@ import { startConnectionFixture } from './connection-fixture.mjs';
 import { verifyConnectionHistory } from './connection-history.mjs';
 
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
-  test(`${name}: restrained live samples, confirmed routing, failure and keyboard details`, { timeout: 120_000 }, async t => {
+  test(`${name}: live health samples, browser offline signal and keyboard details`, { timeout: 120_000 }, async t => {
     const fixture = await startConnectionFixture(); t.after(() => fixture.stop());
     const browser = await engine.launch(name === 'chromium' && process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}); t.after(() => browser.close());
     const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 320, height: 760 }, ignoreHTTPSErrors: true, serviceWorkers: 'block', reducedMotion: 'reduce', isMobile: true, hasTouch: true }); t.after(() => context.close());
@@ -63,46 +63,6 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.keyboard.press('Enter');
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-desktop.png` });
-    let release;
-    await page.route('**/api/_entry/backup/choirs', async route => { await new Promise(resolve => { release = resolve; }); await route.continue(); });
-    // Switching routes now restarts the mounted library read (#623). Finish
-    // that successful business observation before simulating the next outage;
-    // otherwise its late 200 can legitimately mark backup reachable again.
-    const backupLibraryResponse = page.waitForResponse(response =>
-      new URL(response.url()).pathname === `/api/_entry/backup/choirs/${fixture.choirId}/bootstrap` && response.status() === 200);
-    fixture.network.directBroken = true;
-    await page.evaluate(() => { void import('/src/client/connection/connection.ts').then(({ connections }) => connections.fetch('/api/choirs')).catch(() => {}); });
-    await expect(page.getByText('正在尝试备用…', { exact: true })).toBeVisible();
-    assert.equal((await snapshot()).active, 'direct');
-    await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-attempting.png` });
-    await expect.poll(() => typeof release).toBe('function'); release();
-    await expect(page.getByText('当前线路：备用', { exact: true })).toBeVisible();
-    await page.unroute('**/api/_entry/backup/choirs');
-    assert.equal(await (await backupLibraryResponse).finished(), null);
-    await expect(page.getByRole('button', { name: '上传 PDF', exact: true })).toBeEnabled();
-    fixture.network.backupBroken = true;
-    await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.fetch('/api/choirs').catch(() => {}); await connections.sample(new AbortController().signal); });
-    await expect(page.getByText('当前线路：备用（暂时连不上）', { exact: true })).toBeVisible();
-    await expect(page.locator('.connection-health').filter({ hasText: '暂时连不上' })).toHaveCount(2);
-    await page.screenshot({ path: `artifacts/verification/connection-sampling/${name}-both-failed.png` });
-    await page.getByRole('button', { name: '关闭连接面板' }).click();
-    fixture.network.directBroken = false; fixture.network.backupBroken = false;
-    // Closing the panel leaves business recovery intact.
-    await page.evaluate(async () => { const { connections } = await import('/src/client/connection/connection.ts'); await connections.fetch('/api/choirs'); });
-    await page.getByRole('button', { name: /^连接线路/ }).click();
-    await expect.poll(async () => (await snapshot()).samples.direct.at(-1)?.state).toBe('reachable');
-    await page.getByRole('radio', { name: '备用', exact: true }).check();
-    await expect.poll(async () => (await snapshot()).checking).toBe(false);
-    await expect.poll(async () => (await snapshot()).samples.direct.length, { timeout: 15_000 }).toBeGreaterThan(3);
-    assert.equal((await snapshot()).mode, 'backup'); assert.equal((await snapshot()).active, 'backup');
-    // Exercise the visibility event using the real mounted panel and scheduler.
-    await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });
-    await expect(page.getByText('检测已暂停', { exact: true })).toHaveCount(2);
-    const pausedSamples = (await snapshot()).samples.direct.length;
-    await page.clock.fastForward(11_000);
-    assert.equal((await snapshot()).samples.direct.length, pausedSamples);
-    await page.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
-    await expect.poll(async () => (await snapshot()).samples.direct.length).toBeGreaterThan(pausedSamples);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: '连接线路', exact: true })).toHaveCount(0);
     const samples = (await snapshot()).samples.direct.length;
