@@ -1,4 +1,5 @@
 import * as at from '@coderline/alphatab';
+import { PartTimbres, type PartTimbre } from './part-timbre.ts';
 import { createPlaybackApi, preparePianoPlaybackMidi } from './engine.ts';
 import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
 import { playbackMeasureVisits, type PlaybackMeasureVisit } from './playback-measures.ts';
@@ -33,6 +34,8 @@ export type DocumentPlaybackApi = Omit<Native, 'boundsLookup' | 'renderer' | 'ti
   readonly playbackVisits: PlaybackMeasureVisit[];
   sourceIndex(bar: at.model.MasterBar): number;
   tempoAt(tick: number): { bpm: number; unit: number };
+  partTimbre(id: number): PartTimbre;
+  changePartTimbre(id: number, value: PartTimbre): Promise<boolean>;
   renderScores(scores: at.model.Score[], prepared: PreparedMusicXml[]): void;
 };
 
@@ -49,6 +52,13 @@ export class CollectionPlaybackError extends Error {
  * an opus supplies independent notation views and offsets into that same transport. */
 export function createDocumentPlaybackApi(element: HTMLElement, settings: ConstructorParameters<typeof at.AlphaTabApi>[1]): DocumentPlaybackApi {
   const native = createPlaybackApi(element, settings);
+  const timbres = new WeakMap<at.model.Score, PartTimbres>();
+  let timbreReplyTick: number | null = null;
+  let singleMidi: at.midi.MidiFile | undefined;
+  native.midiLoad.on(file => {
+    singleMidi = file;
+    if (native.score) timbres.get(native.score)?.apply(file);
+  });
   let pieces: Piece[] = [], active = 0, collection = false, disposed = false;
   let range: at.synth.PlaybackRange | null = null, looping = false, wantedPlaying = false;
   let cancelMidiLoad: (() => void) | undefined;
@@ -167,7 +177,14 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
     } catch (reason) { fail(reason); } finally { switching = false; if (pending && !disposed) void switchPending(); }
   }
   native.playerPositionChanged.on(event => {
-    if (!collection) { position.emit(event); return; }
+    if (switching) return;
+    if (!collection) {
+      if (timbreReplyTick !== null) {
+        if (!event.isSeek || Math.abs(event.currentTick - timbreReplyTick) > 1) return;
+        timbreReplyTick = null;
+      }
+      position.emit(event); return;
+    }
     if (disposed || switching || pending || !pieces[active]?.lookup) return;
     const piece = pieces[active];
     if (replyTick !== null && event.countInBeats === 0) {
@@ -331,7 +348,40 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
     play() { if (!collection) return native.play(); wantedPlaying = true; if (pending) pending.resume = true; if (!switching) return player().play(); return true; },
     pause() { if (!collection) { native.pause(); return; } wantedPlaying = false; if (pending) pending.resume = false; player().pause(); },
     render() { if (!collection) native.render(); else invalidateLayout(); },
+    partTimbre(id: number) { const score = collection ? pieces[active]?.score : native.score; return score ? timbres.get(score)?.get(id) ?? 'score' : 'score'; },
+    async changePartTimbre(id: number, value: PartTimbre) {
+      if (disposed || switching || pending) return false;
+      const score = collection ? pieces[active]?.score : native.score;
+      const file = collection ? pieces[active]?.midi : singleMidi;
+      if (!score || !file || !player().isReadyForPlayback) return false;
+      const selection = timbres.get(score)!;
+      if (selection.get(id) === value) return true;
+      // No score mutation or MIDI regeneration: tick lookup, notation, source
+      // preparation and the other pieces' MIDI keep their exact identities.
+      const tick = player().tickPosition;
+      const notationTick = native.tickPosition;
+      const savedRange = player().playbackRange, savedLooping = player().isLooping;
+      switching = true;
+      try {
+        selection.set(id, value); selection.apply(file);
+        player().pause();
+        await new Promise<void>((resolve, reject) => {
+          let armed = false, off: () => void = () => {};
+          const finish = () => { clearTimeout(timer); off(); cancelMidiLoad = undefined; resolve(); };
+          const timer = setTimeout(() => { off(); cancelMidiLoad = undefined; reject(new Error('更换音色用时过长，请重新打开乐谱。')); }, 30_000);
+          cancelMidiLoad = finish;
+          off = player().midiLoaded.on(() => { if (armed) finish(); });
+          armed = true; player().loadMidiFile(file);
+        });
+        if (disposed) return false;
+        player().playbackRange = savedRange; player().isLooping = savedLooping;
+        player().tickPosition = tick;
+        if (collection) replyTick = tick; else timbreReplyTick = notationTick;
+        return true;
+      } finally { switching = false; }
+    },
     renderScores(scores: at.model.Score[], prepared: PreparedMusicXml[]) {
+      for (const score of scores) timbres.set(score, new PartTimbres(score));
       collection = scores.length > 1; visits = []; sourcePiece.clear();
       let sourceOffset = 0;
       pieces = scores.map((score, index) => {
