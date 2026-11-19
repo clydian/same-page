@@ -270,7 +270,7 @@ export async function moveAnnotation(workspace: LocalWorkspace, target: { id: st
     const operation = { opId: crypto.randomUUID(), annotationId: target.id, sourceLayerId: target.layerId,
       layerId, baseVersion: note!.version, type: "upsert", payload: note!.payload };
     try {
-      const response = await diagnosticFetch(`/api/choirs/${locked.choirId}/scores/${locked.scoreId}/annotations/push`, {
+      const response = await diagnosticFetch(`/api/choirs/${locked.choirId}/scores/${locked.scoreId}/annotations/move`, {
         method: "POST", signal, headers: { "content-type": "application/json", "x-same-page-owner-user-id": locked.ownerKey.slice(5) },
         body: JSON.stringify({ operations: [operation] }),
       });

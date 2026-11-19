@@ -10,6 +10,7 @@ import {
   sharedLayerLifecycleSchema,
   annotationPayloadSchema,
   annotationPushRequestSchema,
+  annotationOperationSchema,
   sharedLayerSlotSchema,
   defaultSharedLayers,
   driveLayerPreferenceUpdateSchema,
@@ -410,7 +411,17 @@ annotationRoutes.put("/choirs/:choirId/scores/:scoreId/personal-layers/:layerId/
   return context.json({ subscribed: body.subscribed });
 });
 
-annotationRoutes.post("/choirs/:choirId/scores/:scoreId/annotations/push", async (context) => {
+// Moving is an online command, separate from the frozen offline push format.
+const annotationMoveRequestSchema = z.object({
+  operations: z.array(annotationOperationSchema.safeExtend({ sourceLayerId: z.uuid() }).refine(
+    operation => operation.sourceLayerId !== operation.layerId && operation.baseVersion > 0 && operation.type === "upsert",
+    { message: "move requires distinct layers and an existing object" },
+  )).length(1),
+});
+annotationRoutes.post("/choirs/:choirId/scores/:scoreId/annotations/push", context => pushAnnotationOperations(context, false));
+annotationRoutes.post("/choirs/:choirId/scores/:scoreId/annotations/move", context => pushAnnotationOperations(context, true));
+
+async function pushAnnotationOperations(context: Context<AppEnvironment>, moving: boolean) {
   const access = await resolveScoreAccess(context);
   if (access instanceof Response) return access;
   if (access.principal.kind !== "user") {
@@ -423,7 +434,7 @@ annotationRoutes.post("/choirs/:choirId/scores/:scoreId/annotations/push", async
   ) {
     return context.json({ error: "local_workspace_owner_changed" }, 409);
   }
-  const parsed = annotationPushRequestSchema.safeParse(
+  const parsed = (moving ? annotationMoveRequestSchema : annotationPushRequestSchema).safeParse(
     await context.req.json().catch(() => null),
   );
   if (!parsed.success) return context.json({ error: "invalid_operations" }, 400);
@@ -437,7 +448,7 @@ annotationRoutes.post("/choirs/:choirId/scores/:scoreId/annotations/push", async
     if (error instanceof AnnotationScopeAccessError) return context.json({ error: error.message }, error.status);
     throw error;
   }
-});
+}
 
 annotationRoutes.get("/choirs/:choirId/scores/:scoreId/annotations", async (context) => {
   const access = await resolveScoreAccess(context);

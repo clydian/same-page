@@ -1260,7 +1260,7 @@ function push(
   operations: unknown[],
 ) {
   return callWorker(
-    `/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/annotations/push`,
+    `/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/annotations/${operations.some(operation => typeof operation === "object" && operation !== null && "sourceLayerId" in operation) ? "move" : "push"}`,
     jsonRequest(
       fixture.adminCookie,
       { operations },
