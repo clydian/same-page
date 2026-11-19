@@ -87,7 +87,13 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   const api = createPlaybackApi(element, {
     core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
     importer: { mergePartGroupsInMusicXml: false },
-    display: { scale: .6, resources: { secondaryGlyphColor: '#000000', barNumberColor: '#78867b' } },
+    // Give enlarged lyrics room between beats, including ragged final systems.
+    display: { scale: .6, stretchForce: 1.5, resources: {
+      secondaryGlyphColor: '#000000', barNumberColor: '#78867b',
+      // Native lyric measurement and lane height must use the same larger font
+      // as painting; keep other notation fonts at their existing sizes.
+      elementFonts: new Map([['EffectLyrics', 'italic 16px Georgia, serif']]),
+    } },
     player: { playerMode: alphaTab.PlayerMode.EnabledSynthesizer, soundFont: '/soundfont/sonivox.sf2', enableCursor: true,
       enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: false,
       scrollElement: viewport ?? element, scrollMode: alphaTab.ScrollMode.Off },
