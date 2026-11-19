@@ -1,0 +1,84 @@
+{
+  "opus": [
+    {
+      "load": 0,
+      "programs": [
+        [
+          0,
+          52
+        ],
+        [
+          1,
+          52
+        ]
+      ]
+    },
+    {
+      "load": 1,
+      "programs": [
+        [
+          0,
+          53
+        ],
+        [
+          1,
+          52
+        ]
+      ]
+    },
+    {
+      "load": 2,
+      "programs": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "load": 3,
+      "programs": [
+        [
+          0,
+          52
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "load": 4,
+      "programs": [
+        [
+          0,
+          53
+        ],
+        [
+          1,
+          52
+        ]
+      ]
+    },
+    {
+      "load": 5,
+      "programs": [
+        [
+          0,
+          52
+        ],
+        [
+          1,
+          52
+        ]
+      ]
+    }
+  ],
+  "otherChannelExact": true,
+  "restoredMidiExact": true
+}

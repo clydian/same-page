@@ -1,0 +1,29 @@
+{
+  "soundfontSha256": "4978cf37e7164206f2d22dc4fdf4020ffe040787210bf781e31bdc79961f59ef",
+  "results": [
+    {
+      "name": "piano",
+      "program": 0,
+      "samples": 110336,
+      "rms": 0.09292940465586103,
+      "peak": 0.31157392263412476,
+      "sha256": "893e374371992610aeab82c2aab31d0261b293340ef33910e30a048b2e826855"
+    },
+    {
+      "name": "aahs",
+      "program": 52,
+      "samples": 110336,
+      "rms": 0.07691383055322339,
+      "peak": 0.3139030933380127,
+      "sha256": "c0cd36192c16d46e60d37a421f0801c5a22e06284607d0dbfa4ac5ad7eaad76f"
+    },
+    {
+      "name": "oohs",
+      "program": 53,
+      "samples": 110336,
+      "rms": 0.1405779763400888,
+      "peak": 0.2497326135635376,
+      "sha256": "11139c21c71e14d248cc4283f55b0eba24efd4dc14751e72615a78e2efc64733"
+    }
+  ]
+}
