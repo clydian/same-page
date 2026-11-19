@@ -66,3 +66,12 @@ it("guest settings and guest experience share choices while signed-in experience
   expect(readAppearance("experience:appearance-user").interfaceTheme).toBe("dark");
   expect(readAppearance("user:appearance-user").interfaceTheme).toBe("system");
 });
+
+it('restores lyric size without dropping earlier appearance preferences', () => {
+  const owner = 'user:lyric-reader';
+  localStorage.setItem('same-page:appearance:' + owner, JSON.stringify({ interfaceTheme: 'dark', lightPaper: 'soft', invertAnnotations: true }));
+  expect(readAppearance(owner)).toMatchObject({ lyricSize: 16, interfaceTheme: 'dark', lightPaper: 'soft', invertAnnotations: true });
+  saveAppearance(owner, { ...readAppearance(owner), lyricSize: 18 });
+  expect(parseAppearance(localStorage.getItem('same-page:appearance:' + owner))).toMatchObject({ lyricSize: 18, interfaceTheme: 'dark', lightPaper: 'soft', invertAnnotations: true });
+  expect(parseAppearance('{"lyricSize":999}').lyricSize).toBe(16);
+});

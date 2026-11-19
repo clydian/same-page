@@ -231,5 +231,9 @@
   "validationOpusTotalSize": "Le recueil décodé dépasse la limite totale de 20 Mio.",
   "validationOpusRequiresCollection": "L’Opus contient plusieurs partitions indépendantes. Utilisez la préparation du recueil.",
   "opusPieceTimeout": "La préparation d’une pièce a expiré.",
-  "opusEmptyPiece": "Le recueil contient une pièce sans mesures lisibles."
+  "opusEmptyPiece": "Le recueil contient une pièce sans mesures lisibles.",
+  "lyricSize": "Taille des paroles",
+  "lyricSizeSmall": "Petite",
+  "lyricSizeStandard": "Standard",
+  "lyricSizeLarge": "Grande"
 }

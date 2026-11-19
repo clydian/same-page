@@ -231,5 +231,9 @@
   "validationOpusTotalSize": "디코딩한 모음의 전체 크기가 20 MiB를 초과했습니다.",
   "validationOpusRequiresCollection": "Opus에 개별 악보가 여러 개 들어 있습니다. 모음 준비 옵션을 사용하세요.",
   "opusPieceTimeout": "곡 준비 시간이 초과되었습니다.",
-  "opusEmptyPiece": "모음에 재생할 수 있는 마디가 없는 곡이 있습니다."
+  "opusEmptyPiece": "모음에 재생할 수 있는 마디가 없는 곡이 있습니다.",
+  "lyricSize": "가사 크기",
+  "lyricSizeSmall": "작게",
+  "lyricSizeStandard": "기본",
+  "lyricSizeLarge": "크게"
 }

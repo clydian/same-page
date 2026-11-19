@@ -231,5 +231,9 @@
   "validationOpusTotalSize": "デコード後の曲集の合計サイズが 20 MiB を超えています。",
   "validationOpusRequiresCollection": "Opus に複数の楽譜が含まれています。曲集の準備機能を使ってください。",
   "opusPieceTimeout": "曲の準備がタイムアウトしました。",
-  "opusEmptyPiece": "曲集に再生できる小節のない曲が含まれています。"
+  "opusEmptyPiece": "曲集に再生できる小節のない曲が含まれています。",
+  "lyricSize": "歌詞の文字サイズ",
+  "lyricSizeSmall": "小",
+  "lyricSizeStandard": "標準",
+  "lyricSizeLarge": "大"
 }

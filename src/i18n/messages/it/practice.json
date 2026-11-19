@@ -231,5 +231,9 @@
   "validationOpusTotalSize": "La raccolta decodificata supera il limite totale di 20 MiB.",
   "validationOpusRequiresCollection": "Opus contiene partiture separate. Usa l’opzione di preparazione della raccolta.",
   "opusPieceTimeout": "Tempo scaduto durante la preparazione di un brano.",
-  "opusEmptyPiece": "La raccolta contiene un brano senza battute riproducibili."
+  "opusEmptyPiece": "La raccolta contiene un brano senza battute riproducibili.",
+  "lyricSize": "Dimensione testo",
+  "lyricSizeSmall": "Piccola",
+  "lyricSizeStandard": "Standard",
+  "lyricSizeLarge": "Grande"
 }

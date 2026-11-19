@@ -43,6 +43,8 @@ export interface PlayerSession {
   rhythm(value: { metronome?: boolean; countIn?: boolean; volume?: number }): void;
   mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
   notationScale(value: number): void;
+  /** Re-layout lyrics only; keeps the loaded model and audio transport. */
+  lyricSize?(value: 12 | 16 | 18): void;
   /** Display only; keeps the existing playback and source model. */
   notationTheme?(theme: "original" | "inverted"): void;
   solfege(visible: boolean, part?: number | null): void;
@@ -594,6 +596,17 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       api.settings.display.scale = notationScale;
       api.updateSettings();
       update({ notationScale });
+      api.render();
+    },
+    lyricSize(value) {
+      if (disposed || state.status !== 'ready' || ![12, 16, 18].includes(value)) return;
+      const fonts = api.settings.display.resources.elementFonts;
+      const key = alphaTab.NotationElement.EffectLyrics;
+      const font = fonts.get(key)!;
+      if (font.size === value) return;
+      captureAnchor();
+      fonts.set(key, font.withSize(value));
+      api.updateSettings();
       api.render();
     },
     notationTheme(theme) {
