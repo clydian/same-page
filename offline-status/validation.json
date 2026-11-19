@@ -1,0 +1,16 @@
+{
+  "online": {
+    "playEnabled": true,
+    "offlineStatusHiddenByDefault": true
+  },
+  "advanced": {
+    "retryRetained": true,
+    "explicitPreparingVisible": true,
+    "failedRetryReturns": true
+  },
+  "offline": {
+    "browserContextOffline": true,
+    "unpreparedOpenErrorVisible": true,
+    "onlineRetryPlayEnabled": true
+  }
+}

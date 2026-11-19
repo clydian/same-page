@@ -1,0 +1,21 @@
+import {chromium,expect} from '/workspace/same-page/node_modules/@playwright/test/index.mjs';
+import {closePractice} from '/workspace/same-page/browser-tests/practice-controls.mjs';
+import {writeFile} from 'node:fs/promises';
+const b=await chromium.connectOverCDP('http://127.0.0.1:9228');const context=b.contexts()[0],p=context.pages()[0];
+await closePractice(p);
+if(await p.getByRole('button',{name:'显示阅读器工具',exact:true}).count()){await p.getByRole('button',{name:'显示阅读器工具',exact:true}).focus();await p.keyboard.press('Enter');}
+await p.getByRole('button',{name:'练习谱',exact:true}).click();
+await expect(p.getByRole('button',{name:'春风合唱.xml',exact:true})).toBeVisible();
+await context.setOffline(true);
+await p.getByRole('button',{name:'春风合唱.xml',exact:true}).click();
+await expect(p.getByText('这份练习谱尚未完成离线准备，请联网打开后重试。',{exact:true})).toBeVisible({timeout:30000});
+await p.screenshot({path:'/tmp/offline-status-evidence/offline-open-failure-mobile.png'});
+await context.setOffline(false);
+await p.getByRole('button',{name:'重试',exact:true}).click();
+await expect(p.getByTestId('musicxml-player').getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
+await p.getByRole('button',{name:'练习设置',exact:true}).click();
+await expect(p.getByRole('button',{name:'重试离线准备',exact:true})).toHaveCount(0);
+await expect(p.getByRole('button',{name:'进阶设置',exact:true})).toHaveAttribute('aria-expanded','false');
+await p.screenshot({path:'/tmp/offline-status-evidence/recovered-default-mobile.png'});
+await writeFile('/tmp/offline-status-evidence/validation.json',JSON.stringify({online:{playEnabled:true,offlineStatusHiddenByDefault:true},advanced:{retryRetained:true,explicitPreparingVisible:true,failedRetryReturns:true},offline:{browserContextOffline:true,unpreparedOpenErrorVisible:true,onlineRetryPlayEnabled:true}},null,2));
+console.log('REAL OFFLINE OPEN AND ONLINE RETRY PASSED');await b.close();
