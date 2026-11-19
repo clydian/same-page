@@ -1,12 +1,13 @@
 import { useMessages } from "../../i18n";
-import { ArrowLeft, Lock, Layers, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
+import { ArrowLeft, Layers, TextCursorInput, Trash2, Undo2, Redo2 } from "lucide-react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import type { AnnotationEditor } from "./annotation-editor";
-import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
+import { Button, Header, MenuItem, MenuSection, MenuTrigger, Popover } from "react-aria-components";
 import { Menu } from "../navigation/overlays";
 import { useNetworkStatus } from "../platform/use-network-status";
 import type { AnnotationLayerSummary, AnnotationPayload } from "../../shared/annotations";
 import type { SelectedObjectAdjustment } from "./selected-object-adjustment";
+import { LayerChoiceContent } from "../reader/layer-choice";
 import { StyleFields } from "./style-fields";
 import { defaultToolStyle, type ToolStyle } from "./tool-style";
 
@@ -90,12 +91,15 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
         {payload.kind === "text" && <button type="button" aria-label={t("editText")} onClick={onEditText}><TextCursorInput size={18} aria-hidden="true" /><span>{t("editText")}</span></button>}
         {destinations.length > 0 && <MenuTrigger>
           <Button aria-label={t("moveNoteToLayer")} aria-description={!online ? t("moveNoteNeedsConnection") : undefined} isDisabled={disabled || !online}><Layers size={18} aria-hidden="true" /><span>{t("moveNoteToLayer")}</span></Button>
-          <Popover className="file-menu-popover annotation-move-popover" placement="top end">
+          <Popover className="annotation-move-popover layer-choice-panel" placement="top end">
             {hasReadOnlyLayers && <p id={permissionHelpId} className="annotation-layer-permission-help">{t("requestLayerPermission")}</p>}
-            <Menu aria-label={t("moveNoteToLayer")} aria-describedby={hasReadOnlyLayers ? permissionHelpId : undefined} items={destinations} onAction={key => void move(String(key))}>
-              {layer => <MenuItem id={layer.id} textValue={layer.canEdit ? layer.name : t("readOnlyLayerLabel", { label: layer.name })} isDisabled={!layer.canEdit}>
-                {!layer.canEdit && <Lock size={14} aria-hidden="true" />}<span>{layer.name}</span>{!layer.canEdit && <small>{t("viewOnly")}</small>}
-              </MenuItem>}
+            <Menu aria-label={t("moveNoteToLayer")} aria-describedby={hasReadOnlyLayers ? permissionHelpId : undefined} onAction={key => void move(String(key))}>
+              {(["shared", "personal"] as const).filter(kind => destinations.some(layer => layer.kind === kind)).map(kind => <MenuSection key={kind}>
+                <Header className="layer-choice-group-label">{t(kind === "shared" ? "sharedLayerAudience" : "personalLayerAudience")}</Header>
+                {destinations.filter(layer => layer.kind === kind).map(layer => <MenuItem key={layer.id} id={layer.id} className="layer-choice-row" textValue={layer.canEdit ? layer.name : t("readOnlyLayerLabel", { label: layer.name })} isDisabled={!layer.canEdit}>
+                  <LayerChoiceContent layer={layer} />
+                </MenuItem>)}
+              </MenuSection>)}
             </Menu>
           </Popover>
         </MenuTrigger>}

@@ -1,7 +1,7 @@
 import { useMessages } from "../../i18n";
 import { useInteractOutside } from "react-aria";
 import { useId, useRef, useState, useSyncExternalStore } from "react";
-import { MousePointer2, SlidersHorizontal, ChevronDown, Eraser, Highlighter, Square, Circle, Lock, Pencil, Redo2, Type, Undo2, X } from "lucide-react";
+import { MousePointer2, SlidersHorizontal, ChevronDown, Eraser, Highlighter, Square, Circle, Pencil, Redo2, Type, Undo2, X } from "lucide-react";
 import { Button,  DialogTrigger, Popover } from "react-aria-components";
 import { Dialog } from "../navigation/overlays";
 
@@ -11,6 +11,7 @@ import {
 import type { AnnotationTool } from "../annotations/annotation-overlay";
 import type { AnnotationEditor } from "../annotations/annotation-editor";
 import "./reader-ux.css";
+import { LayerChoiceContent } from "./layer-choice";
 import { StyleFields } from "../annotations/style-fields";
 import { defaultToolStyle, type ToolStyle } from "../annotations/tool-style";
 
@@ -86,11 +87,11 @@ export function ReaderEditingControls({
           <span className="reader-edit-layer-identity"><span>{selectedLayer?.name}</span><small>{audience}</small></span>
           <ChevronDown aria-hidden="true" size={14} />
         </Button>
-        <Popover className="reader-edit-layer-popover" placement="top" offset={12}>
+        <Popover className="reader-edit-layer-popover layer-choice-panel" placement="top" offset={12}>
           <Dialog aria-label={t("chooseEditingLayer")} aria-describedby={hasReadOnlyLayers ? permissionHelpId : undefined}>
             <div className="reader-target-heading"><h2>{t("chooseEditingLayer")}</h2><Button className="icon-button" aria-label={t("closeEditingLayer")} onPress={() => setChoosingLayer(false)}><X aria-hidden="true" size={18} /></Button></div>
-            <p>{t("sharedLayerAudience")}</p>
             {hasReadOnlyLayers && <p id={permissionHelpId} className="annotation-layer-permission-help">{t("requestLayerPermission")}</p>}
+            <p className="layer-choice-group-label">{t("sharedLayerAudience")}</p>
             <div className="annotation-layer-switcher" aria-label={t("editingLayer")}>
               {layers.filter(layer => layer.kind === "shared").map((layer) => (
                 <LayerSlotButton
@@ -102,7 +103,7 @@ export function ReaderEditingControls({
                 />
               ))}
             </div>
-            <p>{t("personalLayerAudience")}</p>
+            <p className="layer-choice-group-label">{t("personalLayerAudience")}</p>
             <div className="annotation-layer-switcher">
               {personalLayers.map(layer => <LayerSlotButton key={layer.id} isDisabled={isDisabled} layer={layer} activeLayerId={activeLayerId} onLayerChange={chooseLayer} />)}
             </div>
@@ -192,7 +193,7 @@ function LayerSlotButton({
   onLayerChange,
 }: {
   isDisabled: boolean;
-  layer: AnnotationLayerSummary | undefined;
+  layer: AnnotationLayerSummary;
   activeLayerId: string | null;
   onLayerChange(layerId: string): void;
 }) {
@@ -203,18 +204,13 @@ function LayerSlotButton({
       isDisabled={isDisabled || !layer?.canEdit}
       aria-label={layer?.canEdit ? label : t("readOnlyLayerLabel", { label })}
       aria-pressed={layer?.id === activeLayerId}
-      className="annotation-layer-slot"
+      className="annotation-layer-slot layer-choice-row"
       data-read-only={!layer?.canEdit || undefined}
       onPress={() => {
         if (layer?.canEdit) onLayerChange(layer.id);
       }}
     >
-      {layer?.kind === "shared" && <i aria-hidden="true" style={{ background: layer.displayColor }} />}
-      <span>{layer?.name}</span>
-      {layer && !layer.canEdit ? (
-        <Lock aria-hidden="true" className="annotation-layer-slot__lock" size={11} />
-      ) : null}
-      {layer && !layer.canEdit ? <small>{t("viewOnly")}</small> : null}
+      <LayerChoiceContent layer={layer} />
     </Button>
   );
   return button;
