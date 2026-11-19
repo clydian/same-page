@@ -78,6 +78,15 @@ export class SelectedObjectAdjustment {
     return result;
   }
 
+  async moveToLayer(layerId: string) {
+    if (!this.active || !this.editor || !await this.commit()) return false;
+    const target = this.selected();
+    if (!target || !await this.editor.moveToLayer(target, layerId)) return false;
+    this.movement.discard(target.id);
+    this.select(null);
+    return true;
+  }
+
   remove() {
     const target = this.selected();
     if (!this.active || this.editor?.isMoving() || !target) return;

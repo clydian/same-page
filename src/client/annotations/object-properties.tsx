@@ -25,10 +25,7 @@ export function ObjectProperties({ payload, personal, adjustment, disabled = fal
     if (moving || disabled) return;
     setMoving(true); setMoveFailed(false);
     try {
-      if (!await adjustment.commit()) { setMoveFailed(true); return; }
-      const selected = adjustment.getSnapshot().selected;
-      if (!selected || !await editor.moveToLayer(selected, destination)) { setMoveFailed(true); return; }
-      adjustment.select(null);
+      if (!await adjustment.moveToLayer(destination)) { setMoveFailed(true); return; }
       onMoved(layers.find(layer => layer.id === destination)!.name);
     } finally { setMoving(false); }
   };
