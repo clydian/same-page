@@ -310,7 +310,6 @@ export function MusicXmlPractice({
           )}
           {view === "pdf" && <p className="practice-hint">{t("scaleDegreesReflowHint")}</p>}
         </div>
-        {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? t("offlineReady") : offlineStatus === 'preparing' ? t("offlinePreparing") : <>{t("offlineIncomplete")}<Button className="practice-inline-action" onPress={retryOffline}>{t("retryOffline")}</Button></>}</p>}
         {state.audioHint && <p className="practice-hint">{t("audioHint")}</p>}
         <PracticeDisclosure title={t("advancedSettings")}>
           <PracticeSetting title={t("metronome")} help={t("metronomeHelp")} selected={Boolean(state.metronome)} disabled={!ready} onChange={metronome => session?.rhythm({ metronome })} />
@@ -321,6 +320,7 @@ export function MusicXmlPractice({
             setLyricSaveFailed(!saveAppearance(owner, { ...readAppearance(owner), lyricSize: size }));
           }} />
           {lyricSaveFailed && <p className="practice-hint" role="status">{systemMessages("appearance.unsaved")}</p>}
+          {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? t("offlineReady") : offlineStatus === 'preparing' ? t("offlinePreparing") : <>{t("offlineIncomplete")}<Button className="practice-inline-action" onPress={retryOffline}>{t("retryOffline")}</Button></>}</p>}
         </PracticeDisclosure>
       </PracticePlayerShell>
     </>
