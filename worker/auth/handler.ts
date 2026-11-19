@@ -37,7 +37,9 @@ export async function handleAuthRequest(context: Context<AppEnvironment>) {
       providers: configuredSocialProviderIds(context.env),
     });
   }
-  const auth = createAuth(context.env, context.executionCtx, localeFromAcceptLanguage(context.req.header("Accept-Language")));
+  const language = context.req.header("Accept-Language");
+  // Older clients without a language preference keep the original email copy.
+  const auth = createAuth(context.env, context.executionCtx, language ? localeFromAcceptLanguage(language) : undefined);
 
   if (path === REGISTRATION_REQUEST_PATH && context.req.method === "POST") {
     return requestRegistrationOtp(context, auth);

@@ -35,7 +35,7 @@ export function matchLocales(requested: Iterable<string>): AppLocale {
       // Ignore invalid language tags and try the remaining preferences.
     }
   }
-  return sourceLocale;
+  return "en";
 }
 
 export function localeFromAcceptLanguage(header?: string | null): AppLocale {
