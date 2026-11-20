@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';import {readFile,writeFile} from 'node:fs/promises';
+const dir='artifacts/verification/timbre-v2/';
+const captures=JSON.parse(await readFile(dir+'opus-midi.json'));
+const rows=captures.map((f,i)=>({load:i,programs:f.tracks[0].events.filter(e=>e.type===192).map(e=>[e.channel,e.program])}));
+assert.deepEqual(rows.map(r=>r.programs),[[[0,52],[1,52]],[[0,53],[1,52]],[[0,0],[1,0]],[[0,52],[1,0]],[[0,53],[1,52]],[[0,52],[1,52]]]);
+assert.deepEqual(captures.at(-1),captures[0]);
+const other=f=>f.tracks[0].events.filter(e=>e.channel===1);
+for(const i of [1,4,5])assert.deepEqual(other(captures[i]),other(captures[0]));
+assert.deepEqual(other(captures[3]),other(captures[2]));
+const single=JSON.parse(await readFile(dir+'actual-midi.json'));
+for(const file of single)assert.deepEqual(other(file),other(single[0]));
+assert.deepEqual(single.at(-1),single[0]);
+await writeFile(dir+'midi-summary.json',JSON.stringify({opus:rows,otherChannelExact:true,restoredMidiExact:true},null,2));console.log('PASS per-piece MIDI isolation and exact restore');

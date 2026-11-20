@@ -1,0 +1,2444 @@
+[
+  {
+    "division": 960,
+    "tickShift": 0,
+    "tracks": [
+      {
+        "events": [
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 7,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 10,
+            "value": 48
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 192,
+            "channel": 0,
+            "program": 52
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 7,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 10,
+            "value": 56
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 192,
+            "channel": 1,
+            "program": 52
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 81,
+            "beatsPerMinute": 80
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 15360,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 47
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "division": 960,
+    "tickShift": 0,
+    "tracks": [
+      {
+        "events": [
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 7,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 10,
+            "value": 48
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 192,
+            "channel": 0,
+            "program": 53
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 7,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 10,
+            "value": 56
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 192,
+            "channel": 1,
+            "program": 52
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 81,
+            "beatsPerMinute": 80
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 15360,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 47
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "division": 960,
+    "tickShift": 0,
+    "tracks": [
+      {
+        "events": [
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 7,
+            "value": 104
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 10,
+            "value": 64
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 192,
+            "channel": 0,
+            "program": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 7,
+            "value": 120
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 10,
+            "value": 64
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 192,
+            "channel": 1,
+            "program": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 81,
+            "beatsPerMinute": 80
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 15360,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 47
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "division": 960,
+    "tickShift": 0,
+    "tracks": [
+      {
+        "events": [
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 7,
+            "value": 104
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 10,
+            "value": 64
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 192,
+            "channel": 0,
+            "program": 52
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 7,
+            "value": 120
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 10,
+            "value": 64
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 192,
+            "channel": 1,
+            "program": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 81,
+            "beatsPerMinute": 80
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 15360,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 47
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "division": 960,
+    "tickShift": 0,
+    "tracks": [
+      {
+        "events": [
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 7,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 10,
+            "value": 48
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 192,
+            "channel": 0,
+            "program": 53
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 7,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 10,
+            "value": 56
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 192,
+            "channel": 1,
+            "program": 52
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 81,
+            "beatsPerMinute": 80
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 15360,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 47
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "division": 960,
+    "tickShift": 0,
+    "tracks": [
+      {
+        "events": [
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 7,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 10,
+            "value": 48
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 176,
+            "channel": 0,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 192,
+            "channel": 0,
+            "program": 52
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 7,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 10,
+            "value": 56
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 11,
+            "value": 127
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 100,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 101,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 38,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 6,
+            "value": 16
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 0,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 176,
+            "channel": 1,
+            "controller": 32,
+            "value": 0
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 192,
+            "channel": 1,
+            "program": 52
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 81,
+            "beatsPerMinute": 80
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 0,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 0,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 3840,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 3840,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 7680,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 7680,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 88,
+            "numerator": 4,
+            "denominatorIndex": 2,
+            "midiClocksPerMetronomeClick": 48,
+            "thirdySecondNodesInQuarter": 8
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 96,
+            "channel": 0,
+            "noteKey": 64,
+            "value": 2147483648
+          },
+          {
+            "track": 0,
+            "tick": 11520,
+            "type": 128,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 96,
+            "channel": 1,
+            "noteKey": 60,
+            "value": 2147483648
+          },
+          {
+            "track": 1,
+            "tick": 11520,
+            "type": 128,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 144,
+            "channel": 0,
+            "noteKey": 64,
+            "noteVelocity": 79
+          },
+          {
+            "track": 1,
+            "tick": 15360,
+            "type": 144,
+            "channel": 1,
+            "noteKey": 60,
+            "noteVelocity": 79
+          },
+          {
+            "track": 0,
+            "tick": 15360,
+            "type": 47
+          }
+        ]
+      }
+    ]
+  }
+]

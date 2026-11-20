@@ -1,0 +1,10 @@
+{
+  "focusedAfterReload": {
+    "0": 0.8,
+    "1": 0.15
+  },
+  "independentAfterFocusOff": {
+    "0": 0.65,
+    "1": 0.45
+  }
+}
