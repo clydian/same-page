@@ -86,12 +86,13 @@
   "otherParts": "Altre parti",
   "focusKeepsMix": "L’evidenza conserva le impostazioni di muto e solo.",
   "partTimbre": "Suono della parte",
-  "partTimbreHelp": "Solo per il movimento attuale di questa sessione. Il cambio ricarica brevemente l’audio mantenendo posizione e mix. Il suono della partitura ripristina il suono originale e i suoi cambiamenti.",
+  "partTimbreHelp": "Solo per il movimento attuale di questa sessione. Il cambio ricarica brevemente l’audio mantenendo posizione e mix. Il suono predefinito include l’elaborazione automatica e i cambi di suono del lettore.",
   "timbrePart": "Parte da modificare",
-  "timbreScore": "Suono della partitura",
+  "timbreScore": "Suono predefinito",
   "timbrePiano": "Pianoforte",
   "timbreAahs": "Coro ah",
   "timbreOohs": "Voce oh",
+  "timbreSessionHint": "Solo per questa sessione; il cambio ricarica brevemente l’audio.",
   "timbreLoading": "Cambio del suono…",
   "partMixer": "Mixer delle parti",
   "partMixerHelp": "Regola il volume di ogni parte, silenziala o ascolta solo le parti selezionate. Chiudere il pannello non cambia la riproduzione. Con una parte in evidenza, le altre condividono il controllo del volume.",
@@ -239,5 +240,7 @@
   "validationOpusTotalSize": "La raccolta decodificata supera il limite totale di 20 MiB.",
   "validationOpusRequiresCollection": "Opus contiene partiture separate. Usa l’opzione di preparazione della raccolta.",
   "opusPieceTimeout": "Tempo scaduto durante la preparazione di un brano.",
-  "opusEmptyPiece": "La raccolta contiene un brano senza battute riproducibili."
+  "opusEmptyPiece": "La raccolta contiene un brano senza battute riproducibili.",
+  "lyricSize": "Dimensione testo",
+  "advancedSettings": "Impostazioni avanzate"
 }

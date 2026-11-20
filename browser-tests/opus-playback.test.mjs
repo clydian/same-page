@@ -37,6 +37,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`flat
  await page.mouse.up();await expect(timeline).toHaveValue('2');
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.getByRole('button',{name:'声部混音',exact:true}).click();
  await expect(page.getByRole('button',{name:'静音 Piano',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'进阶设置',exact:true}).click();
  await page.getByRole('switch',{name:'跳转后预备一小节',exact:true}).locator('xpath=ancestor::label').click();
  await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  await timeline.fill('3');await bar.getByRole('button',{name:'播放',exact:true}).click();
@@ -52,6 +53,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`flat
  const noteBox=await pickup.boundingBox();assert.ok(noteBox);await page.mouse.click(noteBox.x+noteBox.width/2,noteBox.y+noteBox.height/2);await expect(timeline).toHaveValue('4');
  await timeline.fill('0');await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.getByRole('button',{name:'声部混音',exact:true}).click();
  await expect(page.getByRole('button',{name:'静音 Bass',exact:true})).toBeVisible();await page.getByRole('button',{name:'独奏 Bass',exact:true}).click();
+ await page.getByRole('button',{name:'进阶设置',exact:true}).click();
  await page.getByRole('switch',{name:'跳转后预备一小节',exact:true}).locator('xpath=ancestor::label').click();
  await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  await timeline.fill('2');await bar.getByRole('button',{name:'练习设置',exact:true}).click();await page.getByRole('button',{name:'声部混音',exact:true}).click();

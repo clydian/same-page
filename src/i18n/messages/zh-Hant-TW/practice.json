@@ -86,12 +86,13 @@
   "otherParts": "其他聲部",
   "focusKeepsMix": "聲部聚焦會保留靜音與獨奏設定。",
   "partTimbre": "聲部音色",
-  "partTimbreHelp": "僅用於本次練習的目前樂章。更換時聲音會短暫重新載入，保留進度與混音；使用樂譜音色可還原播放器原有音色及變化。",
+  "partTimbreHelp": "僅用於本次練習的目前樂章。更換時聲音會短暫重新載入，保留進度與混音；預設播放音色沿用播放器的自動處理及音色變化。",
   "timbrePart": "編輯聲部",
-  "timbreScore": "使用樂譜音色",
+  "timbreScore": "使用預設播放音色",
   "timbrePiano": "鋼琴",
   "timbreAahs": "合唱啊聲",
   "timbreOohs": "人聲哦聲",
+  "timbreSessionHint": "僅限本次練習；更換時聲音會短暫重新載入。",
   "timbreLoading": "正在更換音色…",
   "partMixer": "聲部混音",
   "partMixerHelp": "可分別調整各聲部音量，將聲部靜音，或只聽選取的聲部。收合面板不影響播放；開啟聲部聚焦時，其他聲部共用音量控制。",
@@ -239,5 +240,7 @@
   "validationOpusTotalSize": "合集解碼後的總大小超過 20 MiB。",
   "validationOpusRequiresCollection": "Opus 包含多份獨立樂譜，請使用合集準備入口。",
   "opusPieceTimeout": "準備曲目逾時。",
-  "opusEmptyPiece": "合集包含沒有可播放小節的曲目。"
+  "opusEmptyPiece": "合集包含沒有可播放小節的曲目。",
+  "lyricSize": "歌詞字級",
+  "advancedSettings": "進階設定"
 }

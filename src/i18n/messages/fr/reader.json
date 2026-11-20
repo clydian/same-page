@@ -276,7 +276,7 @@
   "problemFeedback": "Commentaires sur les problèmes",
   "processing": "Traitement…",
   "readFullScreen": "Lire en plein écran",
-  "readOnlyLayerLabel": "{label}, lecture seule, afficher la description de l'autorisation",
+  "readOnlyLayerLabel": "{label}, lecture seule",
   "readerControls": "Contrôle du lecteur",
   "readerGuide": "Guide de lecture",
   "readerGuideDialog": "Guide de l'utilisateur du lecteur",
@@ -295,7 +295,7 @@
   "rename": "Renommer",
   "renameNamedLayer": "Renommer {name}",
   "replaceCloudWithLocal": "Remplacez la note dans le cloud par des modifications locales.",
-  "requestLayerPermission": "Si vous avez besoin d'une autorisation de modification, veuillez contacter le propriétaire du espace.",
+  "requestLayerPermission": "Pour modifier ce calque partagé, contactez le propriétaire du Drive ou un gestionnaire délégué habilité à gérer ses autorisations.",
   "resetLayerDisplay": "Restaurer l'affichage et les couleurs par défaut",
   "resetLayerDisplayDescription": "Restaurer toutes les couches partagées de cette partition sur l'affichage et la couleur par défaut de mon espace",
   "resolveConflictChanged": "Les notes ont encore changé, veuillez comparer et sélectionner à nouveau.",
@@ -429,5 +429,10 @@
   "zoomInComparison": "Agrandir et comparer les graphiques",
   "zoomOrReset": "Zoom/Restaurer",
   "zoomOut": "dézoomer",
-  "zoomOutComparison": "Réduire le tableau de comparaison"
+  "zoomOutComparison": "Réduire le tableau de comparaison",
+  "moveNoteToLayer": "Déplacer vers un calque",
+  "moveNoteNeedsConnection": "Connectez-vous pour déplacer une note",
+  "movingNote": "Déplacement en cours…",
+  "moveNoteFailed": "Déplacement non confirmé. Reconnectez-vous et réessayez.",
+  "movedNoteToLayer": "Déplacé vers {name}"
 }

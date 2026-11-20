@@ -276,7 +276,7 @@
   "problemFeedback": "問題を報告",
   "processing": "処理中…",
   "readFullScreen": "全画面表示",
-  "readOnlyLayerLabel": "{label}、閲覧のみ。権限の説明を表示",
+  "readOnlyLayerLabel": "{label}、閲覧のみ",
   "readerControls": "閲覧ツール",
   "readerGuide": "楽譜の閲覧ガイド",
   "readerGuideDialog": "楽譜の閲覧ガイド",
@@ -295,7 +295,7 @@
   "rename": "名前を変更",
   "renameNamedLayer": "{name} の名前を変更",
   "replaceCloudWithLocal": "クラウド内のメモをローカルの変更に置き換えます。",
-  "requestLayerPermission": "編集権限が必要な場合は、ドライブの所有者にお問い合わせください。",
+  "requestLayerPermission": "編集権限については、ドライブの所有者またはこの共有レイヤーの権限を管理できる委任された権限管理者に連絡してください。",
   "resetLayerDisplay": "既定の表示と色に戻す",
   "resetLayerDisplayDescription": "この楽譜の共有レイヤーを、ドライブの既定の表示と色に戻します",
   "resolveConflictChanged": "書き込みが再度変更されました。版を比較して選び直してください。",
@@ -429,5 +429,10 @@
   "zoomInComparison": "比較プレビューを拡大",
   "zoomOrReset": "拡大・元に戻す",
   "zoomOut": "縮小",
-  "zoomOutComparison": "比較プレビューを縮小"
+  "zoomOutComparison": "比較プレビューを縮小",
+  "moveNoteToLayer": "レイヤーに移動",
+  "moveNoteNeedsConnection": "移動には接続が必要です",
+  "movingNote": "移動中…",
+  "moveNoteFailed": "移動を確認できませんでした。接続して再試行してください。",
+  "movedNoteToLayer": "{name}に移動しました"
 }

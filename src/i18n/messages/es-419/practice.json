@@ -86,12 +86,13 @@
   "otherParts": "Otras voces",
   "focusKeepsMix": "El enfoque de voz conserva los ajustes de silencio y solo.",
   "partTimbre": "Sonido de la voz",
-  "partTimbreHelp": "Para el movimiento actual de esta sesión. El cambio recarga brevemente el audio y conserva la posición y la mezcla. El sonido de la partitura restaura el sonido original y sus cambios.",
+  "partTimbreHelp": "Para el movimiento actual de esta sesión. El cambio recarga brevemente el audio y conserva la posición y la mezcla. El sonido predeterminado incluye el procesamiento automático y los cambios de sonido del reproductor.",
   "timbrePart": "Voz a editar",
-  "timbreScore": "Usar sonido de la partitura",
+  "timbreScore": "Usar sonido predeterminado",
   "timbrePiano": "Piano",
   "timbreAahs": "Coro ah",
   "timbreOohs": "Voz oh",
+  "timbreSessionHint": "Solo para esta sesión; al cambiar, el audio se recarga brevemente.",
   "timbreLoading": "Cambiando sonido…",
   "partMixer": "Mezclador de voces",
   "partMixerHelp": "Ajusta el volumen de cada voz, silencia una voz o escucha solo las seleccionadas. Cerrar el panel no afecta la reproducción. Con el enfoque activo, las demás voces comparten un control de volumen.",
@@ -239,5 +240,7 @@
   "validationOpusTotalSize": "La colección decodificada supera el límite total de 20 MiB.",
   "validationOpusRequiresCollection": "Opus contiene partituras independientes. Usa la opción para preparar la colección.",
   "opusPieceTimeout": "Se agotó el tiempo de preparación de una pieza.",
-  "opusEmptyPiece": "La colección contiene una pieza sin compases reproducibles."
+  "opusEmptyPiece": "La colección contiene una pieza sin compases reproducibles.",
+  "lyricSize": "Tamaño de letra",
+  "advancedSettings": "Configuración avanzada"
 }

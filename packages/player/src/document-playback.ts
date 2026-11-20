@@ -366,11 +366,15 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
         selection.set(id, value); selection.apply(file);
         player().pause();
         await new Promise<void>((resolve, reject) => {
-          let armed = false, off: () => void = () => {};
-          const finish = () => { clearTimeout(timer); off(); cancelMidiLoad = undefined; resolve(); };
-          const timer = setTimeout(() => { off(); cancelMidiLoad = undefined; reject(new Error('更换音色用时过长，请重新打开乐谱。')); }, 30_000);
+          let armed = false, loaded = false, off: () => void = () => {}, offMidi: () => void = () => {};
+          const finish = () => { clearTimeout(timer); off(); offMidi(); cancelMidiLoad = undefined; resolve(); };
+          const timer = setTimeout(() => { off(); offMidi(); cancelMidiLoad = undefined; reject(new Error('更换音色用时过长，请重新打开乐谱。')); }, 30_000);
           cancelMidiLoad = finish;
-          off = player().midiLoaded.on(() => { if (armed) finish(); });
+          // The proxy emits readiness once with its old flags before midiLoaded,
+          // then again when the synth actually finishes loading the new presets.
+          // That latter event reapplies score volumes: restore our mix after it.
+          offMidi = player().midiLoaded.on(() => { if (armed) loaded = true; });
+          off = player().readyForPlayback.on(() => { if (armed && loaded) finish(); });
           armed = true; player().loadMidiFile(file);
         });
         if (disposed) return false;

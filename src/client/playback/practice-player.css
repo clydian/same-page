@@ -389,3 +389,29 @@
 .practice-preparation progress { display: block; width: 100%; height: 3px; border: 0; accent-color: var(--ui-ink, #365747); }
 .practice-preparation-slow { font-size: 12px; color: var(--ui-muted, #65756a); }
 .practice-preparation-slow button { flex-shrink: 0; font: inherit; text-decoration: underline; }
+
+/* Compact expanded settings retain the existing 44px controls. */
+.practice-inline-field { display: grid; grid-template-columns: minmax(0,1fr) minmax(100px,auto); align-items: center; gap: 8px; min-height: 52px; }
+.practice-inline-field select { min-width: 0; width: 100%; min-height: 44px; }
+.practice-disclosure-summary { margin-inline-start: 8px; color: var(--ui-muted, #607267); font-size: 12px; font-weight: 400; }
+.practice-focus-content { display: grid; gap: 8px; padding-bottom: 8px; }
+.practice-focus-content .practice-field:has(select) { display: grid; grid-template-columns: minmax(0,1fr) minmax(100px,1fr); align-items: center; }
+.practice-focus-content .practice-focus-volumes { gap: 8px; }
+.practice-loop-content { gap: 6px; padding: 8px; }
+.practice-loop-content .practice-loop-preview { margin: 0; }
+.practice-loop-content .practice-endpoint { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 44px; padding: 6px 8px; }
+.practice-loop-content .practice-loop-stepper { padding-top: 6px; gap: 6px; }
+
+.practice-lyric-slider { display: grid; gap: 2px; font-size: 13px; }
+.practice-lyric-track { position: relative; height: 44px; margin-inline: 12px; }
+.practice-lyric-track::before, .practice-lyric-fill { position: absolute; top: 20px; height: 4px; border-radius: 4px; background: var(--ui-muted, #718077); }
+.practice-lyric-track::before { content: ''; inset-inline: 0; }
+.practice-lyric-fill { background: var(--ui-accent-fill, #365747); }
+.practice-lyric-thumb { top: 22px; width: 44px; height: 44px; display: grid; place-items: center; outline: none; touch-action: none; }
+.practice-lyric-thumb::after { content: ''; width: 18px; height: 18px; border-radius: 50%; background: var(--ui-accent-fill, #365747); }
+.practice-lyric-thumb[data-focus-visible]::after { outline: 2px solid var(--ui-accent, #365747); outline-offset: 3px; }
+.practice-lyric-slider[data-disabled] { opacity: .45; }
+
+/* Keep the two occasional sound controls distinct within the mixer. */
+.practice-timbre-fields { display: grid; gap: 12px; }
+.practice-timbre-fields .practice-hint { margin: 0; }

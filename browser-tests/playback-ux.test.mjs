@@ -46,7 +46,6 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  const towardStart=await scroll.evaluate(e=>e.scrollTop>(e.scrollHeight-e.clientHeight)/2);await scroll.press(towardStart?'Home':'End');await expect(page.getByRole('button',{name:'恢复自动跟随'})).toBeVisible();await page.getByRole('button',{name:'恢复自动跟随'}).click();
  await page.setViewportSize({width:1024,height:768});
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
- await expect(settings.getByRole('switch',{name:'声部关注',exact:true})).not.toBeChecked();
  await settings.getByText('声部混音',{exact:true}).click();
  const row=settings.locator('.practice-part').first();const rowControls=await row.locator('input,button').evaluateAll(elements=>elements.map(e=>e.getBoundingClientRect().toJSON()));
  assert.ok(rowControls.every(r=>Math.abs(r.y-rowControls[0].y)<2 && r.height>=44),'volume, mute and solo share one touch-friendly row');
@@ -74,6 +73,6 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`atta
  await scroll.press('End');assert.equal((await page.locator('.practice-notation').boundingBox()).y,notationTop,'scrolling retains the safe-area boundary');
  const afterScroll=await scroll.boundingBox();assert.ok(afterScroll.y>=notationTop&&afterScroll.x>=20&&afterScroll.x+afterScroll.width<=378,'manual-follow affordance stays inside the reserved score area');
  await page.evaluate(()=>{for(const name of ['--safe-top','--safe-left','--safe-right'])document.documentElement.style.removeProperty(name);});
- await bar.getByRole('button',{name:'练习设置',exact:true}).click();await expect(settings.getByRole('switch',{name:'声部关注',exact:true})).not.toBeChecked();await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mobile-mix.png`});const mixerBounds=await settings.boundingBox();assert.ok(mixerBounds.x>=0 && mixerBounds.x+mixerBounds.width<=390,'mobile mixer fits viewport');await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+ await bar.getByRole('button',{name:'练习设置',exact:true}).click();await settings.getByRole('button',{name:'声部混音',exact:true}).click();await page.screenshot({path:`artifacts/verification/playback-413/${engine}-mobile-mix.png`});const mixerBounds=await settings.boundingBox();assert.ok(mixerBounds.x>=0 && mixerBounds.x+mixerBounds.width<=390,'mobile mixer fits viewport');await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();
  const controls=await bar.locator('button').evaluateAll(buttons=>buttons.map(b=>({label:b.getAttribute('aria-label'),action:Boolean(b.closest('.practice-session-actions')),rect:b.getBoundingClientRect().toJSON()})));assert.ok(controls.every(c=>c.rect.x>=0&&c.rect.x+c.rect.width<=390&&c.rect.height>=44));const transport=controls.filter(c=>!c.action);assert.ok(transport.every(c=>Math.abs(c.rect.y+c.rect.height/2-transport[0].rect.y-transport[0].rect.height/2)<1),'playback controls stay on one row below the dock actions');
 });

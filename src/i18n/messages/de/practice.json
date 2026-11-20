@@ -86,12 +86,13 @@
   "otherParts": "Andere Stimmen",
   "focusKeepsMix": "Der Stimmfokus behält Stumm- und Solo-Einstellungen bei.",
   "partTimbre": "Stimmenklang",
-  "partTimbreHelp": "Gilt für das aktuelle Stück dieser Übung. Der Klangwechsel lädt das Audio kurz neu und behält Position und Mischung bei. Der Partiturklang stellt den ursprünglichen Klang und seine Wechsel wieder her.",
+  "partTimbreHelp": "Gilt für das aktuelle Stück dieser Übung. Der Klangwechsel lädt das Audio kurz neu und behält Position und Mischung bei. Der Standardklang enthält die automatische Verarbeitung und Klangwechsel des Players.",
   "timbrePart": "Stimme bearbeiten",
-  "timbreScore": "Partiturklang verwenden",
+  "timbreScore": "Standard-Wiedergabeklang",
   "timbrePiano": "Klavier",
   "timbreAahs": "Chor Ah",
   "timbreOohs": "Stimme Oh",
+  "timbreSessionHint": "Nur für diese Übung; ein Klangwechsel lädt das Audio kurz neu.",
   "timbreLoading": "Klang wird geändert…",
   "partMixer": "Stimmenmixer",
   "partMixerHelp": "Regeln Sie jede Stimme einzeln, schalten Sie sie stumm oder hören Sie ausgewählte Stimmen solo. Das Schließen ändert die Wiedergabe nicht. Bei aktivem Fokus werden die anderen Stimmen gemeinsam geregelt.",
@@ -239,5 +240,7 @@
   "validationOpusTotalSize": "Die decodierte Sammlung überschreitet die Gesamtgrenze von 20 MiB.",
   "validationOpusRequiresCollection": "Das Opus enthält getrennte Partituren. Verwenden Sie die Vorbereitung für Sammlungen.",
   "opusPieceTimeout": "Die Vorbereitung eines Stücks dauerte zu lange.",
-  "opusEmptyPiece": "Die Sammlung enthält ein Stück ohne abspielbare Takte."
+  "opusEmptyPiece": "Die Sammlung enthält ein Stück ohne abspielbare Takte.",
+  "lyricSize": "Liedtextgröße",
+  "advancedSettings": "Erweiterte Einstellungen"
 }

@@ -5,9 +5,12 @@ export type AppearancePreferences = {
   lightPaper: PaperTheme;
   darkPaper: PaperTheme;
   invertAnnotations: boolean;
+  /** Native lyric font units; standard remains 16 for older saved preferences. */
+  lyricSize?: number;
 };
 export const defaultAppearance: AppearancePreferences = {
   interfaceTheme: "system", lightPaper: "original", darkPaper: "soft", invertAnnotations: false,
+  lyricSize: 16,
 };
 const prefix = "same-page:appearance:";
 export const appearanceOwnerKey = "same-page:appearance-owner";
@@ -25,6 +28,7 @@ export function parseAppearance(raw: string | null): AppearancePreferences {
       interfaceTheme: value.interfaceTheme === "light" || value.interfaceTheme === "dark" ? value.interfaceTheme : "system",
       lightPaper: paper(value.lightPaper, "original"), darkPaper: paper(value.darkPaper, "soft"),
       invertAnnotations: value.invertAnnotations === true,
+      lyricSize: typeof value.lyricSize === 'number' && Number.isFinite(value.lyricSize) && value.lyricSize >= 12 && value.lyricSize <= 18 ? Math.round(value.lyricSize * 2) / 2 : 16,
     };
   } catch { return defaultAppearance; }
 }

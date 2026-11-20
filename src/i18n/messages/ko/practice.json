@@ -86,12 +86,13 @@
   "otherParts": "다른 성부",
   "focusKeepsMix": "성부 집중 중에도 음소거와 솔로가 유지됩니다.",
   "partTimbre": "성부 음색",
-  "partTimbreHelp": "이번 연습의 현재 악장에만 적용됩니다. 변경 시 오디오를 잠시 다시 불러오며 위치와 믹스를 유지합니다. 악보 음색은 원래 음색과 변화를 복원합니다.",
+  "partTimbreHelp": "이번 연습의 현재 악장에만 적용됩니다. 변경 시 오디오를 잠시 다시 불러오며 위치와 믹스를 유지합니다. 기본 재생 음색에는 플레이어의 자동 처리와 음색 변화가 포함됩니다.",
   "timbrePart": "편집할 성부",
-  "timbreScore": "악보 음색 사용",
+  "timbreScore": "기본 재생 음색 사용",
   "timbrePiano": "피아노",
   "timbreAahs": "합창 아",
   "timbreOohs": "보이스 우",
+  "timbreSessionHint": "이번 연습에만 적용되며, 변경 시 오디오를 잠시 다시 불러옵니다.",
   "timbreLoading": "음색 변경 중…",
   "partMixer": "성부 믹서",
   "partMixerHelp": "성부마다 음량, 음소거, 솔로를 설정합니다. 패널을 닫아도 재생은 그대로입니다. 성부 집중을 켜면 다른 성부의 음량을 함께 조절합니다.",
@@ -239,5 +240,7 @@
   "validationOpusTotalSize": "디코딩한 모음의 전체 크기가 20 MiB를 초과했습니다.",
   "validationOpusRequiresCollection": "Opus에 개별 악보가 여러 개 들어 있습니다. 모음 준비 옵션을 사용하세요.",
   "opusPieceTimeout": "곡 준비 시간이 초과되었습니다.",
-  "opusEmptyPiece": "모음에 재생할 수 있는 마디가 없는 곡이 있습니다."
+  "opusEmptyPiece": "모음에 재생할 수 있는 마디가 없는 곡이 있습니다.",
+  "lyricSize": "가사 크기",
+  "advancedSettings": "고급 설정"
 }

@@ -162,10 +162,12 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     const beforeEditing = writes.length;
     await page.getByRole("button", { name: /^(编辑|完成编辑)$/, exact: true }).click();
     await page.getByRole("button", { name: /当前编辑层/ }).click();
-    await page.getByRole("button", { name: "Soprano，只读，查看权限说明" }).click();
-    await page.getByRole("dialog", { name: "仅可查看" }).waitFor();
+    // Read-only layers now explain permission inline, without a nested dialog.
+    const readOnlyLayer = page.getByRole("button", { name: "Soprano，只读", exact: true });
+    await readOnlyLayer.waitFor({ state: "visible" });
+    assert.equal(await readOnlyLayer.isDisabled(), true, "read-only layers cannot become the writing layer");
+    await page.getByText("如需编辑，请联系云盘拥有者或负责此共享层授权的受托权限管理者。", { exact: true }).waitFor({ state: "visible" });
     await capture(page, `${engineName}-permission`);
-    await page.getByRole("button", { name: "知道了" }).click();
     await page.getByRole("button", { name: "Ensemble", exact: true }).click();
     await page.getByText("第一排男高音这里请统一提前吸气并保持轻声进入", { exact: true }).waitFor();
     const referenceNote = page.getByRole("button", { name: "换气", exact: true });

@@ -276,7 +276,7 @@
   "problemFeedback": "Report an issue",
   "processing": "Processing…",
   "readFullScreen": "Read full screen",
-  "readOnlyLayerLabel": "{label}, read-only. View permissions.",
+  "readOnlyLayerLabel": "{label}, read-only",
   "readerControls": "Reader control",
   "readerGuide": "Reader guide",
   "readerGuideDialog": "Reader guide",
@@ -295,7 +295,7 @@
   "rename": "Rename",
   "renameNamedLayer": "Rename {name}",
   "replaceCloudWithLocal": "Replace the cloud note with the local changes.",
-  "requestLayerPermission": "Ask the Drive owner for editing permission.",
+  "requestLayerPermission": "For editing permission, contact the Drive owner or a delegated permission manager authorized to manage this shared layer.",
   "resetLayerDisplay": "Restore default display and colors",
   "resetLayerDisplayDescription": "Restore the display and colors for all shared layers in this score to my Drive defaults",
   "resolveConflictChanged": "The notes changed again. Compare the versions and choose again.",
@@ -429,5 +429,10 @@
   "zoomInComparison": "Zoom in on the preview",
   "zoomOrReset": "Zoom/Restore",
   "zoomOut": "zoom out",
-  "zoomOutComparison": "Zoom out of the preview"
+  "zoomOutComparison": "Zoom out of the preview",
+  "moveNoteToLayer": "Move to layer",
+  "moveNoteNeedsConnection": "Connect to move a note",
+  "movingNote": "Moving note…",
+  "moveNoteFailed": "Could not confirm the move. Reconnect and try again.",
+  "movedNoteToLayer": "Moved to {name}"
 }

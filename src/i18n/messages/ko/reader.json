@@ -276,7 +276,7 @@
   "problemFeedback": "문제 피드백",
   "processing": "처리 중…",
   "readFullScreen": "전체 화면 읽기",
-  "readOnlyLayerLabel": "{label}, 읽기 전용, 권한 설명 보기",
+  "readOnlyLayerLabel": "{label}, 읽기 전용",
   "readerControls": "리더 제어",
   "readerGuide": "악보 열람 안내",
   "readerGuideDialog": "리더 사용자 가이드",
@@ -295,7 +295,7 @@
   "rename": "이름 바꾸기",
   "renameNamedLayer": "{name} 이름 바꾸기",
   "replaceCloudWithLocal": "클라우드의 메모를 로컬 수정 사항으로 대체합니다.",
-  "requestLayerPermission": "편집 권한이 필요한 경우 드라이브 소유자에게 문의하세요.",
+  "requestLayerPermission": "편집 권한이 필요하면 드라이브 소유자 또는 이 공유 레이어의 권한을 관리하도록 위임받은 권한 관리자에게 문의하세요.",
   "resetLayerDisplay": "기본 디스플레이 및 색상 복원",
   "resetLayerDisplayDescription": "이 악보의 모든 공유 레이어를 내 드라이브 기본 디스플레이 및 색상으로 복원합니다.",
   "resolveConflictChanged": "메모가 다시 변경되었습니다. 비교 후 다시 선택해 주세요.",
@@ -429,5 +429,10 @@
   "zoomInComparison": "차트 확대 및 비교",
   "zoomOrReset": "줌/복원",
   "zoomOut": "축소",
-  "zoomOutComparison": "비교 차트 축소"
+  "zoomOutComparison": "비교 차트 축소",
+  "moveNoteToLayer": "레이어로 이동",
+  "moveNoteNeedsConnection": "메모를 이동하려면 연결하세요",
+  "movingNote": "메모 이동 중…",
+  "moveNoteFailed": "이동을 확인할 수 없습니다. 연결 후 다시 시도하세요.",
+  "movedNoteToLayer": "{name}(으)로 이동했습니다"
 }

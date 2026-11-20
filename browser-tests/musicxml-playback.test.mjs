@@ -46,9 +46,11 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   assert.equal((await context.request.post(fixture.origin+'/api/auth/sign-in/email',{headers:{origin:fixture.origin},data:{email:fixture.accounts[0].email,password:fixture.accounts[0].password}})).status(),200);
   await context.addInitScript(() => {
     window.__audioAnalysers = [];
+    window.__partVolumeCommands = [];
     window.__sourceBracketTransfers = [];
     const post = Worker.prototype.postMessage;
     Worker.prototype.postMessage = function(message, ...args) {
+      if (message?.cmd === 'alphaSynth.setChannelVolume') window.__partVolumeCommands.push({channel:message.channel,volume:message.volume});
       const seen = new WeakSet(), counts = [];
       function walk(value) {
         if (value == null) return;
@@ -123,7 +125,24 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   assert.equal(await page.locator('.at-surface svg').evaluateAll(svgs => svgs.flatMap(svg => [...svg.querySelectorAll('path,text')]).some(element => /^rgba\(0, 0, 0, 0\./.test(getComputedStyle(element).fill))), false, 'secondary-voice notation stays opaque');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
 
+  await settings.getByRole('button',{name:'声部混音',exact:true}).click();
+  await page.evaluate(()=>{window.__partVolumeCommands=[];});
   await settings.getByRole('switch',{name:'声部关注',exact:true}).locator('xpath=ancestor::label').click();await settings.getByLabel('关注声部',{exact:true}).selectOption('1');
+  await expect.poll(()=>page.evaluate(()=>{const volumes=new Map(window.__partVolumeCommands.map(({channel,volume})=>[channel,volume]));return volumes.get(0)===.25 && volumes.get(1)>.25;})).toBe(true);
+  // Sound reload must finish native initialization before restoring active focus.
+  const channelVolumes = () => page.evaluate(() => Object.fromEntries(window.__partVolumeCommands.map(({channel,volume})=>[channel,volume])));
+  await settings.getByRole('button',{name:'声部音色',exact:true}).click();
+  await settings.getByRole('combobox',{name:'编辑声部',exact:true}).selectOption('1');
+  const sound = settings.getByRole('combobox',{name:'声部音色',exact:true});
+  await sound.selectOption('oohs');await expect(sound).toBeEnabled();
+  await expect.poll(channelVolumes).toEqual({'0':.25,'1':.75});
+  await expect(settings.getByRole('switch',{name:'声部关注',exact:true})).toBeChecked();
+  await settings.getByRole('switch',{name:'声部关注',exact:true}).locator('xpath=ancestor::label').click();
+  await expect.poll(channelVolumes).toEqual({'0':.75,'1':.75});
+  await settings.getByRole('switch',{name:'声部关注',exact:true}).locator('xpath=ancestor::label').click();
+  await sound.selectOption('score');await expect(sound).toBeEnabled();
+  await expect.poll(channelVolumes).toEqual({'0':.25,'1':.75});
+  await settings.getByRole('button',{name:'声部音色',exact:true}).click();
   await setLoopRange(page,0,2);
 
   await expect(settings.getByRole('switch',{name:'片段循环',exact:true})).toBeVisible();
@@ -197,6 +216,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await player.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(page);
   await expect(page.getByRole('button',{name:'显示谱面',exact:true})).toHaveText('重排谱面');
   await player.getByRole('button',{name:'练习设置',exact:true}).click();
+  await settings.getByRole('button',{name:'声部混音',exact:true}).click();
   await expect(settings.getByRole('switch',{name:'声部关注',exact:true})).not.toBeChecked();
   await expect(player.getByLabel('播放进度',{exact:true})).toHaveValue('0');
   await settings.getByRole('button',{name:'关闭练习设置',exact:true}).click();

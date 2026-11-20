@@ -1927,13 +1927,14 @@ it("keeps a single exit while the PDF never settles", async () => {
           .querySelectorAll<HTMLButtonElement>(".annotation-layer-slot"),
         (button) => button.getAttribute("aria-label"),
       ),
-    ).toEqual(["Ensemble", "Soprano，只读，查看权限说明", "Alto，只读，查看权限说明", "Tenor，只读，查看权限说明", "Bass，只读，查看权限说明", "我的笔记"]);
+    ).toEqual(["Ensemble", "Soprano，只读", "Alto，只读", "Tenor，只读", "Bass，只读", "我的笔记"]);
     expect(
-      screen.getByRole("button", { name: "Soprano，只读，查看权限说明" }),
-    ).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "Soprano，只读，查看权限说明" }));
-    expect(screen.getByRole("dialog", { name: "仅可查看" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "知道了" }));
+      screen.getByRole("button", { name: "Soprano，只读" }),
+    ).toBeDisabled();
+    expect(screen.getByText("如需编辑，请联系云盘拥有者或负责此共享层授权的受托权限管理者。")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Soprano，只读" }));
+    expect(screen.getByRole("button", { name: "我的笔记" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("dialog", { name: "仅可查看" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Ensemble" }));
     expect(screen.getByRole("button", { name: /当前编辑层：Ensemble/ })).toBeInTheDocument();
     expect(

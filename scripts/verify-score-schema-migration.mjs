@@ -185,6 +185,12 @@ try {
   verifyAttachmentMigration();
   verifyPdfTrashMigration();
   verifyDriveVisitsMigration();
+  const beforeMoves = queryNamed({ notes: "SELECT * FROM annotation_objects ORDER BY id", operations: "SELECT * FROM annotation_sync_operations ORDER BY op_id" });
+  applyMigrations("0041_annotation_moves.sql");
+  const afterMoves = queryNamed({ notes: "SELECT * FROM annotation_objects ORDER BY id", operations: "SELECT * FROM annotation_sync_operations ORDER BY op_id" });
+  assert(afterMoves.operations.every(row => row.source_layer_id === null));
+  for (const row of afterMoves.operations) delete row.source_layer_id;
+  assert.deepEqual(afterMoves, beforeMoves, "Move migration preserves existing notes and deployed-client operations");
   process.stdout.write("Verified legacy score schema migration, including image retirement and score attachments.\n");
 } finally {
   rmSync(persistencePath, { recursive: true, force: true });

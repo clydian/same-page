@@ -86,12 +86,13 @@
   "otherParts": "他のパート",
   "focusKeepsMix": "パートに集中している間もミュートとソロの設定は保持されます。",
   "partTimbre": "パートの音色",
-  "partTimbreHelp": "今回の練習の現在の楽章に適用します。変更時は音声を短時間読み直し、位置とミックスを保持します。楽譜の音色で元の音色と変化を復元します。",
+  "partTimbreHelp": "今回の練習の現在の楽章に適用します。変更時は音声を短時間読み直し、位置とミックスを保持します。既定の再生音色にはプレーヤーの自動処理と音色の変化が含まれます。",
   "timbrePart": "編集するパート",
-  "timbreScore": "楽譜の音色を使用",
+  "timbreScore": "既定の再生音色を使用",
   "timbrePiano": "ピアノ",
   "timbreAahs": "合唱アー",
   "timbreOohs": "ボイス・ウー",
+  "timbreSessionHint": "今回の練習のみ。変更時は音声を短時間読み直します。",
   "timbreLoading": "音色を変更中…",
   "partMixer": "パートミキサー",
   "partMixerHelp": "パートごとに音量、ミュート、ソロを設定できます。パネルを閉じても再生には影響しません。対象パートに集中している間、他のパートはまとめて音量を調整します。",
@@ -239,5 +240,7 @@
   "validationOpusTotalSize": "デコード後の曲集の合計サイズが 20 MiB を超えています。",
   "validationOpusRequiresCollection": "Opus に複数の楽譜が含まれています。曲集の準備機能を使ってください。",
   "opusPieceTimeout": "曲の準備がタイムアウトしました。",
-  "opusEmptyPiece": "曲集に再生できる小節のない曲が含まれています。"
+  "opusEmptyPiece": "曲集に再生できる小節のない曲が含まれています。",
+  "lyricSize": "歌詞の文字サイズ",
+  "advancedSettings": "詳細設定"
 }

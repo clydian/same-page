@@ -172,6 +172,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
               assert.equal(await hasStoredOriginal(page, attachmentId), false, 'abandoned access cannot automatically save later');
               const start = requests.length, midi = await page.evaluate(() => window.__xmlStartup.midi);
               await page.getByTestId('musicxml-player').getByRole('button', { name: '练习设置', exact: true }).click();
+              await page.getByRole('button', { name: '进阶设置', exact: true }).click();
               const retry = page.getByRole('button', { name: '重试离线准备', exact: true });
               await expect(retry).toBeVisible();
               assert.equal(await hasStoredOriginal(page, attachmentId), false, 'opening settings is not a new save intent');

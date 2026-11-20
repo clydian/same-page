@@ -2,7 +2,7 @@ import { annotationPayloadSchema, DEFAULT_TEXT_FONT_SCALE, type AnnotationPayloa
 
 interface Operation {
   opId: string; annotationId: string; layerId: string; baseVersion: number;
-  type: "upsert" | "delete"; payload: AnnotationPayload | null;
+  sourceLayerId?: string; type: "upsert" | "delete"; payload: AnnotationPayload | null;
 }
 interface Scope { choirId: string; scoreId: string; userId: string }
 export class AnnotationScopeAccessError extends Error {
@@ -30,11 +30,12 @@ const inputCte = `WITH input AS (SELECT value AS op FROM json_each(?)),
     LEFT JOIN memberships m ON m.user_id = scope.actor AND m.choir_id = c.id AND m.status = 'active'
     LEFT JOIN effective_shared_layer_permissions g ON g.choir_id = c.id AND g.membership_id = m.id AND g.slot = l.default_slot
     WHERE l.deleted_at IS NULL AND l.choir_id = c.id AND l.score_id = s.id
-      AND l.id IN (SELECT json_extract(op, '$.layerId') FROM input)
+      AND l.id IN (SELECT json_extract(op, '$.layerId') FROM input UNION SELECT json_extract(op, '$.sourceLayerId') FROM input)
       AND NOT EXISTS (SELECT 1 FROM user_lifecycle WHERE user_id = scope.actor)
   )`;
 const identity = `o.choir_id = scope.choir AND o.score_id = scope.score AND o.actor_user_id = scope.actor
  AND o.annotation_id = json_extract(i.op, '$.annotationId') AND o.layer_id = json_extract(i.op, '$.layerId')
+ AND o.source_layer_id IS json_extract(i.op, '$.sourceLayerId')
  AND o.base_version = json_extract(i.op, '$.baseVersion') AND o.operation_type = json_extract(i.op, '$.type')
  AND o.payload_hash IN (json_extract(i.op, '$.hash'), json_extract(i.op, '$.legacyHash'))`;
 
@@ -49,8 +50,8 @@ export async function synchronizeOperations(db: D1Database, scope: Scope, operat
     const legacyHash = p?.kind === "text" && p.textAlign === undefined && p.fontScale === DEFAULT_TEXT_FONT_SCALE
       ? await sha256(`${op.type}:${JSON.stringify({ pageNumber: p.pageNumber, kind: p.kind, x: p.x, y: p.y, text: p.text })}`)
       : hash;
-    const { opId, annotationId, layerId, baseVersion, type } = op;
-    const json = JSON.stringify({ opId, annotationId, layerId, baseVersion, type, payloadJson, hash, legacyHash });
+    const { opId, annotationId, layerId, sourceLayerId, baseVersion, type } = op;
+    const json = JSON.stringify({ opId, annotationId, layerId, sourceLayerId, baseVersion, type, payloadJson, hash, legacyHash });
     return { annotationId: op.annotationId, opId: op.opId, json, bytes: new TextEncoder().encode(json).byteLength };
   }));
   // Each wave fits one D1 parameter. Repeated object/op IDs retain request order.
@@ -72,14 +73,14 @@ export async function synchronizeOperations(db: D1Database, scope: Scope, operat
     const query = (sql: string) => db.prepare(`${inputCte} ${sql}`).bind(json, scope.choirId, scope.scoreId, scope.userId);
     statements.push(
       query(`INSERT OR IGNORE INTO annotation_sync_operations
-        (op_id, choir_id, score_id, layer_id, annotation_id, actor_user_id, base_version, operation_type, payload_json, payload_hash, status, created_at)
+        (op_id, choir_id, score_id, layer_id, annotation_id, actor_user_id, base_version, operation_type, payload_json, payload_hash, status, created_at, source_layer_id)
         SELECT json_extract(i.op, '$.opId'), scope.choir, scope.score, p.id, json_extract(i.op, '$.annotationId'), scope.actor,
-          json_extract(i.op, '$.baseVersion'), json_extract(i.op, '$.type'), json_extract(i.op, '$.payloadJson'), json_extract(i.op, '$.hash'), 'processing', ${Date.now()}
-        FROM input i JOIN scope JOIN permission p ON p.id = json_extract(i.op, '$.layerId') WHERE p.editable = 1`),
+          json_extract(i.op, '$.baseVersion'), json_extract(i.op, '$.type'), json_extract(i.op, '$.payloadJson'), json_extract(i.op, '$.hash'), 'processing', ${Date.now()}, json_extract(i.op, '$.sourceLayerId')
+        FROM input i JOIN scope JOIN permission p ON p.id = json_extract(i.op, '$.layerId') WHERE p.editable = 1 AND (json_extract(i.op, '$.sourceLayerId') IS NULL OR EXISTS (SELECT 1 FROM permission source WHERE source.id = json_extract(i.op, '$.sourceLayerId') AND source.editable = 1))`),
       query(`UPDATE annotation_sync_operations AS o SET resulting_version = base_version + 1
         WHERE status = 'processing' AND EXISTS (SELECT 1 FROM input i JOIN scope WHERE o.op_id = json_extract(i.op, '$.opId') AND ${identity})
           AND ((base_version = 0 AND operation_type = 'upsert' AND NOT EXISTS (SELECT 1 FROM annotation_objects a WHERE a.id = o.annotation_id))
-          OR (base_version > 0 AND EXISTS (SELECT 1 FROM annotation_objects a WHERE a.id = o.annotation_id AND a.choir_id = o.choir_id AND a.score_id = o.score_id AND a.layer_id = o.layer_id AND a.version = o.base_version)))`),
+          OR (base_version > 0 AND EXISTS (SELECT 1 FROM annotation_objects a WHERE a.id = o.annotation_id AND a.choir_id = o.choir_id AND a.score_id = o.score_id AND a.layer_id = COALESCE(o.source_layer_id, o.layer_id) AND a.version = o.base_version AND (o.source_layer_id IS NULL OR a.deleted = 0))))`),
       query(`INSERT INTO annotation_objects
         (id, choir_id, score_id, layer_id, version, deleted, payload_json, created_by_user_id, created_by_display_name, updated_by_user_id, updated_by_display_name, created_at, updated_at)
         SELECT o.annotation_id, o.choir_id, o.score_id, o.layer_id, o.resulting_version, o.operation_type = 'delete', o.payload_json,
@@ -87,7 +88,7 @@ export async function synchronizeOperations(db: D1Database, scope: Scope, operat
         FROM annotation_sync_operations o JOIN input i ON o.op_id = json_extract(i.op, '$.opId') JOIN scope
         LEFT JOIN memberships m ON m.choir_id = scope.choir AND m.user_id = scope.actor AND m.status = 'active'
         WHERE o.status = 'processing' AND o.resulting_version IS NOT NULL AND ${identity}
-        ON CONFLICT(id) DO UPDATE SET version = excluded.version, deleted = excluded.deleted, payload_json = CASE
+        ON CONFLICT(id) DO UPDATE SET layer_id = excluded.layer_id, version = excluded.version, deleted = excluded.deleted, payload_json = CASE
           WHEN json_extract(excluded.payload_json, '$.kind') = 'text'
             AND json_extract(annotation_objects.payload_json, '$.kind') = 'text'
             AND json_type(excluded.payload_json, '$.textAlign') IS NULL
@@ -98,7 +99,7 @@ export async function synchronizeOperations(db: D1Database, scope: Scope, operat
       query(`UPDATE annotation_sync_operations AS o SET status = CASE WHEN resulting_version IS NULL THEN 'conflict' ELSE 'accepted' END, payload_json = NULL
         WHERE status = 'processing' AND EXISTS (SELECT 1 FROM input i JOIN scope WHERE o.op_id = json_extract(i.op, '$.opId') AND ${identity})`),
       query(`SELECT json_extract(i.op, '$.opId') AS opId,
-        CASE WHEN COALESCE(p.editable, 0) = 0 THEN 'permission_denied'
+        CASE WHEN COALESCE(p.editable, 0) = 0 OR (json_extract(i.op, '$.sourceLayerId') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM permission source WHERE source.id = json_extract(i.op, '$.sourceLayerId') AND source.editable = 1)) THEN 'permission_denied'
           WHEN o.op_id IS NULL OR NOT (${identity}) THEN 'op_id_reused' ELSE o.status END AS status,
         CASE WHEN p.editable = 1 AND ${identity} AND (l.kind = 'shared' OR l.owner_user_id = scope.actor)
           THEN json_object('id', a.id, 'layerId', a.layer_id, 'version', a.version, 'deleted', json(CASE WHEN a.deleted THEN 'true' ELSE 'false' END),
