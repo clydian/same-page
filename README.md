@@ -22,8 +22,10 @@
 
 ## 方法与限制
 
-`review/capture-system-follow.mjs` 是独立验收脚本，复制到主仓库 scripts 下运行；先 npm ci、npm run build、安装 Playwright Chromium/WebKit。脚本仅在生成的 dist/session.js 暂时暴露已有 api/session，finally 还原；没有在产品源码留下调试接口。dev 模式版本化资源未由 Vite 直接托管，所以 route 用同版本 dist/client/playback 原始字体/SF2 响应，不替换合成器。baseline-session.js、candidate-session.js 是录制所用的临时编译快照；原脚本 /tmp 路径可指向它们。phase=before/candidate/final 选择录制；ENGINE=webkit 选择引擎。视频起止由 natural.json 的 clipStart/clipDuration 裁剪，比较两边均截 10 秒。
+`review/capture-system-follow.mjs` 是独立验收脚本，复制到主仓库 scripts 下运行；先 npm ci、npm run build、安装 Playwright Chromium/WebKit。脚本仅在生成的 dist/session.js 暂时暴露已有 api/session，finally 还原；没有在产品源码留下调试接口。dev 模式版本化资源未由 Vite 直接托管，所以 route 用同版本 dist/client/playback 原始字体/SF2 响应，不替换合成器。baseline-session.js、candidate-session.js 是录制所用的临时编译快照；原脚本 /tmp 路径可指向它们。PHASE=before/candidate/final 选择录制；ENGINE=webkit 选择引擎。视频起止由 natural.json 的 clipStart/clipDuration 裁剪，比较两边均截 10 秒。
 
 WebKit 缺少系统动态库，使用 apt 下载到 /tmp 解包并补充本地 Playwright 启动器库搜索路径后实际运行；未改系统安装。不是 Safari/iOS 真机验收。无 iPad、PWA、真实触屏惯性、真实曲库或主观视唱验收。截图与视频只含本地合成内容。
 
 参考 [Soundslice 默认顶部注视区](https://www.soundslice.com/help/en/player/advanced/116/playhead-scrolling-options/) 与[官方滚动设计目标](https://www.soundslice.com/blog/28/new-smooth-scrolling-during-playback/)。其文档没有给出可直接照抄的时长；本次不复制其设置或提前滚动。最终在进入当前系统才判断，不提前遮掉上一行最后一拍。
+
+最终产品 head：`451b89dfe6b311cd1035ebb3a3de5ce0edf7152f`。验证：播放器 396/396；工具栏客户端 1/1；生产构建的既有 Chromium `playback-scrub.test.mjs` 1/1；lint、typecheck、build、预缓存审计、diff whitespace 全通过。草稿 PR https://github.com/clydian/same-page/pull/684 。未合并、部署。
