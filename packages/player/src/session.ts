@@ -164,10 +164,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   let previewOverlays: HTMLDivElement[] = [];
   const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
   let preview: { playing: boolean; scrollTop: number; scrollLeft: number; restoreView?: () => void; index: number; range: { start: number; end: number } } | null = null;
+  let followedSystem: object | null = null;
   const scrollToMeasure = (index: number, clearance = 16) => {
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
     if (masterBar) api.ensureMeasure?.(masterBar);
     const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
+    followedSystem = measureBounds?.staffSystemBounds ?? null;
     const bounds = measureBounds?.realBounds ?? measureBounds?.staffSystemBounds?.realBounds;
     if (viewport && bounds) {
       const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
@@ -252,7 +254,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
     if (system?.bars[0]) anchor = { bar: system.bars[0].index, offset: origin + system.realBounds.y - top };
   };
-  api.renderStarted.on(() => { musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
+  api.renderStarted.on(() => { followedSystem = null; musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
   api.postRenderFinished.on(() => {
     renderDegrees(); renderMeasureLabels();
     if (preview) markRange(preview.range.start, preview.range.end); else highlightLoop();
@@ -363,6 +365,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     // Reassert the declaration at actual playback entry as well.
     if (playing) audioSession.request(); else audioSession.release();
     playRequested = playing;
+    if (!playing) followedSystem = null;
     update({ playing }); if (playing) loadingStage('playing');
     if (!playing && awaitingPause) {
       awaitingPause = false;
@@ -393,23 +396,29 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     }
     const index = state.measures.findLastIndex(item => item.startTick <= event.currentTick);
     const tempo = tempoAt(event.currentTick);
-    if (index >= 0 && (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit)) {
-      update({ measure: index, tempo });
-      if (state.following && viewport && !preview) {
-        const measure = api.boundsLookup?.findMasterBar(api.tickCache!.masterBars[index].masterBar);
-        const row = measure?.staffSystemBounds?.realBounds ?? measure?.realBounds;
-        if (!row) scrollToMeasure(index);
-        else {
-          const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
-          const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
-          const clearance = Math.max(16, parseFloat(viewport.ownerDocument?.defaultView?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
-          const next = api.boundsLookup?.staffSystems.find(system => system.realBounds.y > row.y + 1)?.realBounds;
-          const top = origin.top + row.y * scale, bottom = top + row.h * scale;
-          // Keep a complete next system available to read, without scrolling on every beat.
-          const nextBottom = next && origin.top + (next.y + next.h) * scale;
-          if (top < view.top + clearance - 1 || bottom > view.bottom || nextBottom && nextBottom > view.bottom && top > view.top + clearance + 1) scrollToMeasure(index, clearance);
-        }
-      }
+    if (index < 0) return;
+    const previousMeasure = state.measure;
+    if (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit) update({ measure: index, tempo });
+    if (state.following && viewport && !preview) {
+      const master = api.tickCache?.masterBars[index]?.masterBar;
+      if (master) api.ensureMeasure?.(master);
+      const measure = master && api.boundsLookup?.findMasterBar(master);
+      const system = measure?.staffSystemBounds;
+      // Retry unavailable bounds at the first position that can locate the system.
+      if (!system) return;
+      const previousSystem = followedSystem;
+      const discontinuity = event.isSeek || index < previousMeasure;
+      if (system === previousSystem && !discontinuity) return;
+      followedSystem = system;
+      const row = system.realBounds;
+      const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
+      const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
+      const clearance = Math.max(16, parseFloat(viewport.ownerDocument?.defaultView?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
+      const top = origin.top + row.y * scale, bottom = top + row.h * scale;
+      // A system already near the top and fully readable stays still. Decide once
+      // on system entry, never from the horizontal position of a later measure.
+      if (top >= view.top + clearance - 1 && top <= view.top + clearance + viewport.clientHeight * .25 && bottom <= view.bottom) return;
+      viewport.scrollTop += top - view.top - clearance;
     }
   });
   const render = async (document: PreparedMusicXmlDocument) => {

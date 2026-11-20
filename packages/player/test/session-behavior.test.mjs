@@ -428,22 +428,38 @@ test('notation theme changes render resources without resetting practice state o
  }finally{h.dispose();}
 });
 
-for (const collection of [false, true]) test(`following keeps the next complete system in view without constant scrolling (collection=${collection})`,async()=>{
+for (const collection of [false, true]) test(`following moves on system entry, never its second measure (collection=${collection})`,async()=>{
  const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(){},removeEventListener(){}};
  const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
  try {
-  h.api.isCollection=collection;h.api.playbackVisits=playbackMeasureVisits(['1','2','3']);h.api.tempoAt=()=>({bpm:80,unit:'quarter'});
-  const rows=[100,320,540].map(y=>({realBounds:{x:0,y,w:300,h:180}}));
-  h.api.tickCache.masterBars=rows.map((_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
+  h.api.isCollection=collection;h.api.playbackVisits=playbackMeasureVisits(['1','2','3','4','5','6']);h.api.tempoAt=()=>({bpm:80,unit:'quarter'});
+  const rows=[100,420,740].map(y=>({realBounds:{x:0,y,w:300,h:280}}));
+  h.api.tickCache.masterBars=Array.from({length:6},(_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
   h.api.boundsLookup.staffSystems=rows;
-  h.api.boundsLookup.findMasterBar=bar=>({realBounds:rows[bar.index].realBounds,staffSystemBounds:rows[bar.index]});
+  h.api.boundsLookup.findMasterBar=bar=>({realBounds:{...rows[Math.floor(bar.index/2)].realBounds,y:rows[Math.floor(bar.index/2)].realBounds.y+25},staffSystemBounds:rows[Math.floor(bar.index/2)]});
   await Promise.resolve();h.api.playerStateChanged.emit({state:1});
-  h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0,'ample reading space keeps the score still');
-  h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,304,'scrolls while the current row is still fully visible, before the next is clipped');
-  h.api.playerPositionChanged.emit({currentTick:150});assert.equal(viewport.scrollTop,304,'same row does not scroll on each beat');
-  h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,304,'last row needs no fictional next row');
-  h.session.suspendFollow();viewport.scrollTop=0;h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,0,'manual browsing remains untouched');
+  h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0,'first system is already in a reasonable reading position');
+  h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,0,'second measure cannot trigger the old next-system visibility rule');
+  h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,404,'entry aligns the whole system rather than the measure bounds');
+  h.api.playerPositionChanged.emit({currentTick:300});assert.equal(viewport.scrollTop,404,'second measure leaves the system fixed');
+  h.api.playerPositionChanged.emit({currentTick:400});assert.equal(viewport.scrollTop,724);
+  h.api.playerPositionChanged.emit({currentTick:0});assert.equal(viewport.scrollTop,84,'repeat back to an earlier system repositions');
+  h.session.suspendFollow();viewport.scrollTop=0;h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,0,'manual browsing remains untouched');
  }finally{h.dispose();}
+});
+
+test('first position retries missing system bounds without waiting for another measure',async()=>{
+ const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  const row={realBounds:{x:0,y:320,w:300,h:180}};
+  h.api.boundsLookup.findMasterBar=()=>undefined;
+  await Promise.resolve();
+  h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0);
+  h.api.boundsLookup.findMasterBar=()=>({staffSystemBounds:row});
+  h.api.playerPositionChanged.emit({currentTick:2});assert.equal(viewport.scrollTop,304);
+  h.api.playerPositionChanged.emit({currentTick:3});assert.equal(viewport.scrollTop,304);
+ } finally {h.dispose();}
 });
 
 test('lyric sizes relayout the native font without changing transport or mix',()=>{

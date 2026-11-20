@@ -8,6 +8,8 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
     const scroll = viewport.current;
     if (!scroll || !session || !enabled) return;
     let frame = 0;
+    let measure = session.getSnapshot().measure;
+    let waitingForCursor = false;
     const previousPadding = scroll.style.scrollPaddingTop;
     const place = () => {
       frame = 0;
@@ -26,24 +28,31 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
       const bottom = area.bottom - 8;
       // Oversized systems cannot fit vertically: align their first staff so it
       // remains readable. Otherwise move only when chrome/edges obscure them.
-      if (clearance < bottom - 44 && (bar.top < clearance || bar.bottom > bottom)) {
+      if (!waitingForCursor && clearance < bottom - 44 && (bar.top < clearance || bar.bottom > bottom)) {
         scroll.scrollTop = Math.max(0, scroll.scrollTop + bar.top - clearance);
       }
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(place); };
-    const release = session.subscribe(schedule);
+    const release = session.subscribe(() => {
+      const next = session.getSnapshot().measure;
+      // Position state can arrive before alphaTab paints the new bar cursor.
+      // Do not undo the system follow using the previous system's rectangle.
+      if (next !== measure) { measure = next; waitingForCursor = true; }
+      schedule();
+    });
     const observer = new ResizeObserver(schedule);
     observer.observe(scroll);
     document.querySelectorAll('.practice-header[data-floating], .practice-notation-tools').forEach(toolbar => observer.observe(toolbar));
     // alphaTab may move its cursor after publishing the player snapshot. Watch
     // that one DOM node so a late seek/reflow cannot leave the active system
     // behind chrome or outside the viewport. Beat cursor animation is ignored.
-    const cursorObserver = new MutationObserver(schedule);
+    const cursorObserver = new MutationObserver(() => { waitingForCursor = false; schedule(); });
     let watchedCursor: HTMLElement | null = null;
     const watchCursor = () => {
       const cursor = scroll.querySelector<HTMLElement>('.at-cursor-bar');
       if (cursor !== watchedCursor) {
         cursorObserver.disconnect(); watchedCursor = cursor;
+        waitingForCursor = false;
         if (cursor) cursorObserver.observe(cursor, { attributes: true, attributeFilter: ['style'] });
       }
     };
