@@ -231,5 +231,7 @@
   "validationOpusTotalSize": "合集解碼後的總大小超過 20 MiB。",
   "validationOpusRequiresCollection": "Opus 包含多份獨立樂譜，請使用合集準備入口。",
   "opusPieceTimeout": "準備曲目逾時。",
-  "opusEmptyPiece": "合集包含沒有可播放小節的曲目。"
+  "opusEmptyPiece": "合集包含沒有可播放小節的曲目。",
+  "lyricSize": "歌詞字級",
+  "advancedSettings": "進階設定"
 }

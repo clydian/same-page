@@ -231,5 +231,7 @@
   "validationOpusTotalSize": "A coleção decodificada excede o limite total de 20 MiB.",
   "validationOpusRequiresCollection": "Opus contém partituras separadas. Use a opção de preparação de coleção.",
   "opusPieceTimeout": "O tempo de preparação de uma peça se esgotou.",
-  "opusEmptyPiece": "A coleção contém uma peça sem compassos que possam ser reproduzidos."
+  "opusEmptyPiece": "A coleção contém uma peça sem compassos que possam ser reproduzidos.",
+  "lyricSize": "Tamanho da letra",
+  "advancedSettings": "Configurações avançadas"
 }

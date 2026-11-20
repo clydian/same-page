@@ -231,5 +231,7 @@
   "validationOpusTotalSize": "Die decodierte Sammlung überschreitet die Gesamtgrenze von 20 MiB.",
   "validationOpusRequiresCollection": "Das Opus enthält getrennte Partituren. Verwenden Sie die Vorbereitung für Sammlungen.",
   "opusPieceTimeout": "Die Vorbereitung eines Stücks dauerte zu lange.",
-  "opusEmptyPiece": "Die Sammlung enthält ein Stück ohne abspielbare Takte."
+  "opusEmptyPiece": "Die Sammlung enthält ein Stück ohne abspielbare Takte.",
+  "lyricSize": "Liedtextgröße",
+  "advancedSettings": "Erweiterte Einstellungen"
 }

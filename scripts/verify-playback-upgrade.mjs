@@ -74,6 +74,7 @@ try {
   const profile=path.join(temporary,'profile');
   context=await chromium.launchPersistentContext(profile,{ locale: "zh-CN", ...options });
   await context.addInitScript(()=>localStorage.setItem('reader-gesture-hint-seen','true'));
+  await observeAudio(context);
   page=await context.newPage(); page.setDefaultTimeout(30000);
   const open=async()=>{
     await page.locator('canvas[data-pdf-canvas-active]').first().waitFor();
@@ -82,6 +83,12 @@ try {
     await page.getByRole('button',{name:'升级离线练习.mxl',exact:true}).click();
     await expect(page.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
     await expect(page.locator('.practice-notation .at-surface svg').first()).toBeVisible();
+  };
+  const playAndCheckAudio=async()=>{
+    await page.getByRole('button',{name:'播放',exact:true}).click();
+    await expect(page.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
+    await expect.poll(()=>page.evaluate(()=>window.__audioAnalysers.some(analyser=>{const samples=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(samples);return samples.some(value=>Math.abs(value)>.0001);})),{timeout:15000}).toBe(true);
+    await page.getByRole('button',{name:'暂停',exact:true}).click();
   };
   await page.goto(origin+'/about');
   const initialBar=page.getByRole('progressbar',{name:'更新资源准备进度'});
@@ -99,13 +106,14 @@ try {
   await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
   await open();
   console.log('Opened MXL in A');
-  await page.getByRole('button',{name:'展开练习控制',exact:true}).click();
-  await page.getByRole('button',{name:'练习设置',exact:true}).click();
-  await expect(page.getByText('此练习谱可离线打开与播放。',{exact:true})).toBeVisible({timeout:60000});
-  await page.getByRole('button',{name:'关闭练习设置',exact:true}).click();
+  await expect.poll(async()=>(await originalRecords(page)).length).toBe(1);
   await closePractice(page);
   const original=await originalRecords(page);
   assert.equal(original.length,1,'A saves the MXL original');
+  await context.setOffline(true);
+  await page.reload(); await open();
+  await playAndCheckAudio(); await closePractice(page);
+  await context.setOffline(false);
   await page.goto(origin+'/about');
   await expect(page.getByText('检查完成，当前版本继续运行',{exact:true})).toBeVisible();
   console.log('A MXL is offline-ready');
@@ -138,18 +146,12 @@ try {
   await context.close(); context=null;
   online=false;
   context=await chromium.launchPersistentContext(profile,{ locale: "zh-CN", ...options }); await context.setOffline(true);
-  await context.addInitScript(()=>{
-    window.__audioAnalysers=[]; const connect=AudioNode.prototype.connect;
-    AudioNode.prototype.connect=function(destination,...args){if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();window.__audioAnalysers.push(analyser);connect.call(this,analyser);connect.call(analyser,destination);return destination;}return connect.call(this,destination,...args);};
-  });
+  await observeAudio(context);
   page=await context.newPage(); page.setDefaultTimeout(30000);
   await page.goto(reader);
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.buildId),ids[1]);
   await open();
-  await page.getByRole('button',{name:'播放',exact:true}).click();
-  await expect(page.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
-  await expect.poll(()=>page.evaluate(()=>window.__audioAnalysers.some(analyser=>{const samples=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(samples);return samples.some(value=>Math.abs(value)>.0001);})),{timeout:15000}).toBe(true);
-  await page.getByRole('button',{name:'暂停',exact:true}).click();
+  await playAndCheckAudio();
   await mkdir('artifacts/verification/playback-upgrade',{recursive:true});
   await page.screenshot({path:'artifacts/verification/playback-upgrade/chromium-offline-after-upgrade.png'});
   await page.reload(); await open();
@@ -193,4 +195,11 @@ async function originalRecords(page) {
       read.onsuccess=()=>{db.close();resolve(read.result.filter(row=>row.key.startsWith('["offline-musicxml",')).map(row=>({key:row.key,value:row.value,size:row.blob?.size})));};
     };
   }));
+}
+
+async function observeAudio(context) {
+  return context.addInitScript(()=>{
+    window.__audioAnalysers=[]; const connect=AudioNode.prototype.connect;
+    AudioNode.prototype.connect=function(destination,...args){if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();window.__audioAnalysers.push(analyser);connect.call(this,analyser);connect.call(analyser,destination);return destination;}return connect.call(this,destination,...args);};
+  });
 }

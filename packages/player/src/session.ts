@@ -43,6 +43,8 @@ export interface PlayerSession {
   rhythm(value: { metronome?: boolean; countIn?: boolean; volume?: number }): void;
   mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
   notationScale(value: number): void;
+  /** Re-layout lyrics only; keeps the loaded model and audio transport. */
+  lyricSize?(value: number): void;
   /** Display only; keeps the existing playback and source model. */
   notationTheme?(theme: "original" | "inverted"): void;
   solfege(visible: boolean, part?: number | null): void;
@@ -87,7 +89,13 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   const api = createPlaybackApi(element, {
     core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
     importer: { mergePartGroupsInMusicXml: false },
-    display: { scale: .6, resources: { secondaryGlyphColor: '#000000', barNumberColor: '#78867b' } },
+    // Give enlarged lyrics room between beats, including ragged final systems.
+    display: { scale: .6, stretchForce: 1.5, resources: {
+      secondaryGlyphColor: '#000000', barNumberColor: '#78867b',
+      // Native lyric measurement and lane height must use the same larger font
+      // as painting; keep other notation fonts at their existing sizes.
+      elementFonts: new Map([['EffectLyrics', 'italic 16px Georgia, serif']]),
+    } },
     player: { playerMode: alphaTab.PlayerMode.EnabledSynthesizer, soundFont: '/soundfont/sonivox.sf2', enableCursor: true,
       enableAnimatedBeatCursor: true, enableElementHighlighting: true, enableUserInteraction: false,
       scrollElement: viewport ?? element, scrollMode: alphaTab.ScrollMode.Off },
@@ -588,6 +596,18 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       api.settings.display.scale = notationScale;
       api.updateSettings();
       update({ notationScale });
+      api.render();
+    },
+    lyricSize(value) {
+      if (disposed || state.status !== 'ready' || !Number.isFinite(value) || value < 12 || value > 18) return;
+      const fonts = api.settings.display.resources.elementFonts;
+      const key = alphaTab.NotationElement.EffectLyrics;
+      const font = fonts.get(key)!;
+      const size = Math.round(value * 2) / 2;
+      if (font.size === size) return;
+      captureAnchor();
+      fonts.set(key, font.withSize(size));
+      api.updateSettings();
       api.render();
     },
     notationTheme(theme) {

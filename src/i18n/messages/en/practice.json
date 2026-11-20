@@ -231,5 +231,7 @@
   "validationOpusTotalSize": "The decoded collection exceeds the 20 MiB total size limit.",
   "validationOpusRequiresCollection": "The Opus contains separate scores. Use the collection preparation option.",
   "opusPieceTimeout": "Preparing a piece took too long.",
-  "opusEmptyPiece": "The collection contains a piece with no playable measures."
+  "opusEmptyPiece": "The collection contains a piece with no playable measures.",
+  "lyricSize": "Lyric size",
+  "advancedSettings": "Advanced settings"
 }

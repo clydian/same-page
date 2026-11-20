@@ -32,6 +32,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
  await speed.getByRole('button',{name:'恢复 1.00×',exact:true}).click();await page.getByRole('button',{name:'关闭速度调节',exact:true}).click();
  await bar.getByRole('button',{name:'练习设置',exact:true}).click();
  const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
+ await settings.getByRole('button',{name:'进阶设置',exact:true}).click();
  await expect(settings.getByRole('switch',{name:'节拍器',exact:true})).not.toBeChecked();
  await settings.getByRole('switch',{name:'跳转后预备一小节',exact:true}).locator('xpath=ancestor::label').click();
  await settings.getByRole('switch',{name:'节拍器',exact:true}).locator('xpath=ancestor::label').click();

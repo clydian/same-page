@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { AlphaTabApiBase, model } from '@coderline/alphatab';
+import { AlphaTabApiBase, model, NotationElement } from '@coderline/alphatab';
 import { playbackAudioSession } from '../dist/playback-audio-session.js';
 import { playbackTempo } from '../dist/practice-tempo.js';
 import { playbackMeasureLabel, playbackMeasureVisits } from '../dist/playback-measures.js';
@@ -21,9 +21,9 @@ function harness(options = {}) {
  globalThis.Worker = class { constructor() { worker=this;workerCount++; } terminate() {this.terminated=true;} postMessage(bytes) {this.bytes=bytes;} };
  globalThis.MutationObserver = class { constructor(fn) {observer=this;this.notify=fn;} observe() {} disconnect() {this.disconnected=true;} };
  const event = () => {const listeners=[];return {on(fn){listeners.push(fn);},emit(value){listeners.forEach(fn=>fn(value));}};};
- const api = {settings:{player:{},display:{resources:{mainGlyphColor:"black",secondaryGlyphColor:"black",staffLineColor:"gray",barSeparatorColor:"black",scoreInfoColor:"black",barNumberColor:"gray"}}},renderer:{partialRenderFinished:event()},isReadyForPlayback:options.playbackReady !== false,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),soundFontLoad:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},render(){},updateSettings(){},};
+ const api = {settings:{player:{},display:{resources:{elementFonts:new Map([[NotationElement.EffectLyrics,new model.Font('Georgia, serif',16,1)]]),mainGlyphColor:"black",secondaryGlyphColor:"black",staffLineColor:"gray",barSeparatorColor:"black",scoreInfoColor:"black",barNumberColor:"gray"}}},renderer:{partialRenderFinished:event()},isReadyForPlayback:options.playbackReady !== false,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),soundFontLoad:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},render(){},updateSettings(){},};
  api.scoreLoaded=event();api.renderScores=()=>api.renderScore();
- const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabel,playbackMeasureVisits,CollectionPlaybackError,PlaybackChannelError,MusicXmlError,isCompatibleMusicXmlPreparation,playbackTempo,()=>[],()=>playbackAudioSession(options.audioNavigator));
+ const create = factory(()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{NotationElement,PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabel,playbackMeasureVisits,CollectionPlaybackError,PlaybackChannelError,MusicXmlError,isCompatibleMusicXmlPreparation,playbackTempo,()=>[],()=>playbackAudioSession(options.audioNavigator));
  const element={getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){},querySelector(){return null;}};
  const session = create(element,new Uint8Array([1]),options);
  if(worker) worker.onmessage({data:{prepared:{bytes:new Uint8Array([1])}}});
@@ -443,5 +443,20 @@ for (const collection of [false, true]) test(`following keeps the next complete 
   h.api.playerPositionChanged.emit({currentTick:150});assert.equal(viewport.scrollTop,304,'same row does not scroll on each beat');
   h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,304,'last row needs no fictional next row');
   h.session.suspendFollow();viewport.scrollTop=0;h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,0,'manual browsing remains untouched');
+ }finally{h.dispose();}
+});
+
+test('lyric sizes relayout the native font without changing transport or mix',()=>{
+ const h=harness();
+ try {
+  h.session.seek(0); h.session.loop(0,0); h.session.mix(0,{volume:.6,muted:true});
+  const before=h.session.getSnapshot();
+  for(const size of [12,16.5,18,16]) {
+   h.session.lyricSize(size);
+   assert.equal(h.api.settings.display.resources.elementFonts.get(NotationElement.EffectLyrics).size,size);
+   assert.deepEqual(h.session.getSnapshot(),before);
+  }
+  h.session.lyricSize(99);
+  assert.equal(h.api.settings.display.resources.elementFonts.get(NotationElement.EffectLyrics).size,16);
  }finally{h.dispose();}
 });

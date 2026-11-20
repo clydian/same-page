@@ -115,16 +115,12 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
   test(`${engineName}: public footer supports keyboard navigation and direct privacy access`, async (t) => {
     const browser = await engine.launch({ headless: true });
     t.after(() => browser.close());
-    const page = await openPage(browser, footerIdentity);
-    const evidence = `artifacts/verification/footer-navigation/${engineName}-${footerIdentity}`;
+    // Signed-in root entry intentionally resumes a drive; exercise the public homepage as a guest.
+    const page = await openPage(browser, "guest");
+    const evidence = `artifacts/verification/footer-navigation/${engineName}-guest`;
     await withFooterNavigationEvidence(page, evidence, async record => {
     await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto(`${origin}/privacy`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "隐私政策", exact: true }).waitFor();
-    await page.getByRole("button", { name: "返回", exact: true }).click();
-    await page.waitForURL(`${origin}/drives`);
-    await page.getByRole("contentinfo").getByRole("link", { name: "隐私政策", exact: true }).waitFor();
-    await page.getByRole("link", { name: "合谱 Same Page 首页", exact: true }).click();
+    await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "Harmony begins on the Same Page", exact: true }).waitFor();
     assert.equal(new URL(page.url()).pathname, "/");
     const footer = page.getByRole("contentinfo");
@@ -138,7 +134,7 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     for (const [name, pathname] of [["关于与更新", "/about"], ["隐私政策", "/privacy"]]) {
       const link = footer.getByRole("link", { name, exact: true });
       await link.focus();
-      await capture(page, `${engineName}-footer-${footerIdentity}-320`);
+      await capture(page, `${engineName}-footer-guest-320`);
       await record("before-link", { name });
       await page.keyboard.press("Enter");
       await page.getByRole("heading", { name, exact: true }).waitFor();

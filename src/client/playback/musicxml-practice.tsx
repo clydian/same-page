@@ -1,4 +1,5 @@
 import { useAppLocale, useMessages } from "../../i18n";
+import { readAppearance, saveAppearance } from "../appearance/appearance-store";
 import { useAppearance } from "../appearance/appearance-context";
 import {
   useEffect,
@@ -17,6 +18,7 @@ import type { PlaybackPreparationProgress } from './playback-preparation-notice'
 import { PracticePlayerShell } from "./practice-player-shell";
 import { usePracticeFocus } from "./use-practice-focus";
 import { PracticeDisclosure, PracticeSetting, PracticeVolume } from "./practice-setting";
+import { LyricSizeControl } from "./lyric-size-control";
 import { LoopRangeEditor } from "./loop-range-editor";
 import { PlaybackAudioHint } from './playback-audio-hint';
 import { useMeasureLabel } from "./measure-label";
@@ -63,7 +65,10 @@ export function MusicXmlPractice({
 }) {
   const focus = usePracticeFocus(embedded);
   const t = useMessages("practice");
-  const { preferences, dark } = useAppearance();
+  const { preferences, owner, dark } = useAppearance();
+  const lyricSize = preferences.lyricSize ?? 16;
+  const [lyricSaveFailed, setLyricSaveFailed] = useState(false);
+  const systemMessages = useMessages("system");
   const { locale } = useAppLocale();
   const paper = dark ? preferences.darkPaper : preferences.lightPaper;
   useEffect(() => { session?.notationTheme?.(paper === "inverted" ? "inverted" : "original"); }, [session, paper]);
@@ -92,6 +97,7 @@ export function MusicXmlPractice({
     session?.playPause();
   };
   const ready = state.status === "ready" && !error;
+  useEffect(() => { if (ready) session?.lyricSize?.(lyricSize); }, [session, ready, lyricSize]);
   const formatMeasure = useMeasureLabel();
   const measureLabel = (index: number) => formatMeasure(state.measures[index], "—");
   const partName = (part: PlayerState["parts"][number]) => part.unnamed === undefined ? part.name : t("unnamedPart", { index: part.unnamed });
@@ -168,9 +174,10 @@ export function MusicXmlPractice({
         next={() => session?.seek(state.measure + 1)}
         retry={retry}
       >
+        <PracticeDisclosure title={t("partMixer")} help={t("partMixerHelp")} summary={typeof state.focus === "number" ? partName(state.parts.find(part => part.id === state.focus)!) : undefined}>
         <section className="practice-focus" aria-label={t("partFocus")}>
           <PracticeSetting title={t("partFocus")} help={t("partFocusHelp")} selected={typeof state.focus === 'number'} disabled={!ready || !state.parts.length} onChange={enabled => session?.focus(enabled ? (state.parts.find(part => part.id === (lastFocus?.session === session ? lastFocus?.id : null))?.id ?? state.parts[0]?.id ?? null) : null)} />
-          {typeof state.focus === 'number' && <div className="practice-setting-content">
+          {typeof state.focus === 'number' && <div className="practice-focus-content">
           <label className="practice-field">
             {t("focusedPart")}
             <select
@@ -205,7 +212,6 @@ export function MusicXmlPractice({
             </p>
           )}
         </section>
-        <PracticeDisclosure title={t("partMixer")} help={t("partMixerHelp")}>
           <p className="practice-hint practice-mixer-legend">
             {typeof state.focus === 'number' ? t("partMixerFocused") : t("partMixerIndependent")}
           </p>
@@ -274,12 +280,9 @@ export function MusicXmlPractice({
         </PracticeDisclosure>
         <LoopRangeEditor rememberedRange={savedLoop?.session === session ? savedLoop?.range : null} onRememberRange={range => setSavedLoop({ session, range })} session={session} state={state} ready={ready} onPreviewingChange={setLoopPreviewing} onPreview={() => { visual.reset(); if (view === "pdf") setPlaybackView("xml"); }} />
         <div className="practice-flat-settings">
-          <PracticeSetting title={t("metronome")} help={t("metronomeHelp")} selected={Boolean(state.metronome)} disabled={!ready} onChange={metronome => session?.rhythm({ metronome })} />
-          <PracticeSetting title={t("countInAfterSeek")} help={t("countInHelp")} selected={Boolean(state.countIn)} disabled={!ready} onChange={countIn => session?.rhythm({ countIn })} />
-
           <PracticeSetting title={t("scaleDegrees")} help={t("scaleDegreesHelp")} selected={Boolean(state.solfege)} disabled={!ready || view === 'pdf'} onChange={visible => session?.solfege(visible)} />
           {state.solfege && (
-            <label className="practice-field practice-setting-content">
+            <label className="practice-field practice-inline-field">
               <span>{t("annotationRange")}</span>
               <select
                 aria-label={t("annotationRange")}
@@ -307,9 +310,18 @@ export function MusicXmlPractice({
           )}
           {view === "pdf" && <p className="practice-hint">{t("scaleDegreesReflowHint")}</p>}
         </div>
-        {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? t("offlineReady") : offlineStatus === 'preparing' ? t("offlinePreparing") : <>{t("offlineIncomplete")}<Button className="practice-inline-action" onPress={retryOffline}>{t("retryOffline")}</Button></>}</p>}
         {state.audioHint && <p className="practice-hint">{t("audioHint")}</p>}
-        <p className="practice-hint">{t("musicXmlPlaybackHint")}</p>
+        <PracticeDisclosure title={t("advancedSettings")}>
+          <PracticeSetting title={t("metronome")} help={t("metronomeHelp")} selected={Boolean(state.metronome)} disabled={!ready} onChange={metronome => session?.rhythm({ metronome })} />
+          <PracticeSetting title={t("countInAfterSeek")} help={t("countInHelp")} selected={Boolean(state.countIn)} disabled={!ready} onChange={countIn => session?.rhythm({ countIn })} />
+
+          <LyricSizeControl key={owner} value={lyricSize} disabled={!ready || view === 'pdf'} onChange={size => {
+            session?.lyricSize?.(size);
+            setLyricSaveFailed(!saveAppearance(owner, { ...readAppearance(owner), lyricSize: size }));
+          }} />
+          {lyricSaveFailed && <p className="practice-hint" role="status">{systemMessages("appearance.unsaved")}</p>}
+          {offlineStatus && <p className="practice-hint" role="status">{offlineStatus === 'ready' ? t("offlineReady") : offlineStatus === 'preparing' ? t("offlinePreparing") : <>{t("offlineIncomplete")}<Button className="practice-inline-action" onPress={retryOffline}>{t("retryOffline")}</Button></>}</p>}
+        </PracticeDisclosure>
       </PracticePlayerShell>
     </>
   );
