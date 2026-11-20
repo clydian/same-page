@@ -1,0 +1,262 @@
+{
+  "before-chromium": {
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "tempo": 80,
+    "speed": 1,
+    "clipStartSeconds": 9.772,
+    "frameChanges": [
+      {
+        "ms": 0,
+        "scrollTop": 0
+      },
+      {
+        "ms": 3764,
+        "scrollTop": 72
+      },
+      {
+        "ms": 6750,
+        "scrollTop": 343
+      },
+      {
+        "ms": 6758,
+        "scrollTop": 72
+      },
+      {
+        "ms": 6774,
+        "scrollTop": 343
+      }
+    ],
+    "measures": [
+      {
+        "measure": 1,
+        "firstScrollTop": 0,
+        "lastScrollTop": 0,
+        "scrollValues": [
+          0
+        ]
+      },
+      {
+        "measure": 2,
+        "firstScrollTop": 72,
+        "lastScrollTop": 72,
+        "scrollValues": [
+          72
+        ]
+      },
+      {
+        "measure": 3,
+        "firstScrollTop": 343,
+        "lastScrollTop": 343,
+        "scrollValues": [
+          343,
+          72
+        ]
+      },
+      {
+        "measure": 4,
+        "firstScrollTop": 343,
+        "lastScrollTop": 343,
+        "scrollValues": [
+          343
+        ]
+      }
+    ]
+  },
+  "candidate-chromium": {
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "tempo": 80,
+    "speed": 1,
+    "clipStartSeconds": 8.374,
+    "frameChanges": [
+      {
+        "ms": 0,
+        "scrollTop": 0
+      },
+      {
+        "ms": 6623,
+        "scrollTop": 3
+      },
+      {
+        "ms": 6638,
+        "scrollTop": 343
+      },
+      {
+        "ms": 6654,
+        "scrollTop": 215
+      },
+      {
+        "ms": 6671,
+        "scrollTop": 275
+      },
+      {
+        "ms": 6688,
+        "scrollTop": 313
+      },
+      {
+        "ms": 6705,
+        "scrollTop": 333
+      },
+      {
+        "ms": 6721,
+        "scrollTop": 341
+      },
+      {
+        "ms": 6738,
+        "scrollTop": 343
+      }
+    ],
+    "measures": [
+      {
+        "measure": 1,
+        "firstScrollTop": 0,
+        "lastScrollTop": 0,
+        "scrollValues": [
+          0
+        ]
+      },
+      {
+        "measure": 2,
+        "firstScrollTop": 0,
+        "lastScrollTop": 0,
+        "scrollValues": [
+          0
+        ]
+      },
+      {
+        "measure": 3,
+        "firstScrollTop": 0,
+        "lastScrollTop": 343,
+        "scrollValues": [
+          0,
+          3,
+          343,
+          215,
+          275,
+          313,
+          333,
+          341
+        ]
+      },
+      {
+        "measure": 4,
+        "firstScrollTop": 343,
+        "lastScrollTop": 343,
+        "scrollValues": [
+          343
+        ]
+      }
+    ]
+  },
+  "final-chromium": {
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "tempo": 80,
+    "speed": 1,
+    "clipStartSeconds": 7.997,
+    "frameChanges": [
+      {
+        "ms": 0,
+        "scrollTop": 0
+      },
+      {
+        "ms": 6704,
+        "scrollTop": 343
+      }
+    ],
+    "measures": [
+      {
+        "measure": 1,
+        "firstScrollTop": 0,
+        "lastScrollTop": 0,
+        "scrollValues": [
+          0
+        ]
+      },
+      {
+        "measure": 2,
+        "firstScrollTop": 0,
+        "lastScrollTop": 0,
+        "scrollValues": [
+          0
+        ]
+      },
+      {
+        "measure": 3,
+        "firstScrollTop": 343,
+        "lastScrollTop": 343,
+        "scrollValues": [
+          343
+        ]
+      },
+      {
+        "measure": 4,
+        "firstScrollTop": 343,
+        "lastScrollTop": 343,
+        "scrollValues": [
+          343
+        ]
+      }
+    ]
+  },
+  "final-webkit": {
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "tempo": 80,
+    "speed": 1,
+    "clipStartSeconds": 11.299,
+    "frameChanges": [
+      {
+        "ms": 0,
+        "scrollTop": 0
+      },
+      {
+        "ms": 6579,
+        "scrollTop": 343
+      }
+    ],
+    "measures": [
+      {
+        "measure": 1,
+        "firstScrollTop": 0,
+        "lastScrollTop": 0,
+        "scrollValues": [
+          0
+        ]
+      },
+      {
+        "measure": 2,
+        "firstScrollTop": 0,
+        "lastScrollTop": 0,
+        "scrollValues": [
+          0
+        ]
+      },
+      {
+        "measure": 3,
+        "firstScrollTop": 343,
+        "lastScrollTop": 343,
+        "scrollValues": [
+          343
+        ]
+      },
+      {
+        "measure": 4,
+        "firstScrollTop": 343,
+        "lastScrollTop": 343,
+        "scrollValues": [
+          343
+        ]
+      }
+    ]
+  }
+}
