@@ -425,6 +425,11 @@ function ReaderPageContent() {
       {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
       {!xmlPracticing && chromeVisible && !guide.visible ? (
       <header className="reader-chrome" data-editing={editing || undefined} aria-label={t("readerControls")} style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
+          {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint">
+            <strong>{t("editing")}</strong><span className="reader-edit-gesture-hint__detail">
+              <span aria-hidden="true">·</span>{layout === "page" ? t("twoFingerPageSwipe") : t("twoFingerScroll")}
+            </span>
+          </p>}
           {!editing && <div className="reader-chrome__leading"><Button ref={readerBackTrigger} aria-label={t("backToDrive")} className="reader-chrome__back reader-icon-button" onPress={closeScore}>
             <ArrowLeft aria-hidden="true" size={21} />
           </Button>
@@ -610,11 +615,6 @@ function ReaderPageContent() {
       ) : null}
 
       {guide.visible && <ReaderGuide layout={layout} onDismiss={guide.dismiss} />}
-      {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint">
-        <strong>{t("editing")}</strong><span className="reader-edit-gesture-hint__detail">
-          <span aria-hidden="true">·</span>{layout === "page" ? t("twoFingerPageSwipe") : t("twoFingerScroll")}
-        </span>
-      </p>}
 
       {hasNewOfflineVersion ? (
         <aside className="reader-alert" role="status">
