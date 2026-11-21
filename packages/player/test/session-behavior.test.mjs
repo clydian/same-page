@@ -502,5 +502,7 @@ for(const collection of [false,true]) test(`following only moves in the final pl
   h.session.seek(0);h.api.playerStateChanged.emit({state:0});h.api.playerStateChanged.emit({state:1});h.api.playerPositionChanged.emit({currentTick:0,isSeek:true});viewport.scrollTop=0;
   now=300;h.api.playerPositionChanged.emit({currentTick:3610});assert.equal(frames.size,1);
   handlers.get('wheel')();assert.equal(frames.size,0);h.api.playerPositionChanged.emit({currentTick:3611});assert.equal(frames.size,0,'pending user input cannot restart the cancelled transition');
+  h.session.follow();viewport.scrollTop=0;h.api.renderStarted.emit();h.api.playerPositionChanged.emit({currentTick:3612});assert.equal(viewport.scrollTop,0);assert.equal(frames.size,0,'pending reflow cannot consume old bounds');
+  h.api.postRenderFinished.emit();h.api.playerPositionChanged.emit({currentTick:3613});assert.equal(frames.size,1,'current bounds restore follow after reflow');
  }finally{h.dispose();}
 });

@@ -10,10 +10,10 @@ it('publishes stable viewport clearance without scrolling or following cursor mu
  vi.spyOn(window,'cancelAnimationFrame').mockImplementation(()=>{});
  let resized=()=>{};
  vi.stubGlobal('ResizeObserver',class{constructor(fn:()=>void){resized=fn;}observe(){}disconnect(){}});
- let height=80;
+ let height=80,viewportHeight=700;
  vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(function(this:HTMLElement){
   if(this.classList.contains('practice-header'))return new DOMRect(0,0,320,height);
-  return new DOMRect(0,0,400,700);
+  return new DOMRect(0,0,400,viewportHeight);
  });
  const session={getSnapshot:vi.fn(),subscribe:vi.fn(()=>()=>{})};
  function Harness(){const ref=useRef<HTMLDivElement>(null);useNotationToolbarClearance(ref,session,true);return <><div className="practice-header" data-floating/><div ref={ref} data-testid="viewport"><div className="at-cursor-bar" /></div></>;}
@@ -25,4 +25,6 @@ it('publishes stable viewport clearance without scrolling or following cursor mu
  expect(viewport.style.scrollPaddingTop).toBe('92px');expect(changed).toHaveBeenCalledTimes(1);
  height=100;act(()=>{resized();frames.splice(0).forEach(fn=>fn(0));});
  expect(viewport.style.scrollPaddingTop).toBe('112px');expect(viewport.scrollTop).toBe(500);expect(changed).toHaveBeenCalledTimes(2);
+ viewportHeight=600;act(()=>{resized();frames.splice(0).forEach(fn=>fn(0));});
+ expect(viewport.style.scrollPaddingTop).toBe('112px');expect(viewport.scrollTop).toBe(500);expect(changed).toHaveBeenCalledTimes(3);
 });

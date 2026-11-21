@@ -173,6 +173,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   let lastPositionIndex = -1;
   const cancelFollowScroll = () => { followScroll.cancel(); anticipatedSystem = null; };
   let followedSystem: number | null = null;
+  let layingOut = false;
   // Collection lookups return translated copies; layout y identifies a row until reflow.
   const systemKey = (system: { realBounds: { y: number } }) => system.realBounds.y;
   const systemPosition = (system: { realBounds: { y: number; h: number } }) => {
@@ -276,8 +277,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
     if (system?.bars[0]) anchor = { bar: system.bars[0].index, offset: origin + system.realBounds.y - top };
   };
-  api.renderStarted.on(() => { cancelFollowScroll(); followedSystem = null; musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
+  api.renderStarted.on(() => { cancelFollowScroll(); layingOut = true; followedSystem = null; musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
   api.postRenderFinished.on(() => {
+    layingOut = false;
     renderDegrees(); renderMeasureLabels();
     if (preview) markRange(preview.range.start, preview.range.end); else highlightLoop();
     reportReadableSystem();
@@ -314,7 +316,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   viewport?.addEventListener('scroll', scroll, { passive: true });
   const clearanceChanged = () => {
     cancelFollowScroll();
-    if (!state.following || state.status !== 'ready' || preview) return;
+    if (!state.following || state.status !== 'ready' || preview || layingOut) return;
     const master = api.tickCache?.masterBars[state.measure]?.masterBar;
     const system = master && api.boundsLookup?.findMasterBar(master)?.staffSystemBounds;
     const position = system && systemPosition(system);
@@ -432,7 +434,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const tempo = tempoAt(event.currentTick);
     if (index < 0) return;
     if (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit) update({ measure: index, tempo });
-    if (state.following && viewport && !preview) {
+    if (state.following && viewport && !preview && !layingOut) {
       const master = api.tickCache?.masterBars[index]?.masterBar;
       if (master) api.ensureMeasure?.(master);
       const measure = master && api.boundsLookup?.findMasterBar(master);

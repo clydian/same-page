@@ -8,6 +8,7 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
     const scroll = viewport.current;
     if (!scroll || !session || !enabled) return;
     let frame = 0;
+    let width = -1, height = -1;
     const previousPadding = scroll.style.scrollPaddingTop;
     const place = () => {
       frame = 0;
@@ -17,7 +18,8 @@ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | nu
         .filter(tools => tools.width > 0 && tools.height > 0 && tools.right > area.left && tools.left < area.right && tools.bottom > area.top)
         .reduce((top, tools) => Math.max(top, tools.bottom + 12), area.top + 12) - area.top;
       const padding = `${clearance}px`;
-      if (scroll.style.scrollPaddingTop === padding) return;
+      if (scroll.style.scrollPaddingTop === padding && area.width === width && area.height === height) return;
+      width = area.width; height = area.height;
       scroll.style.scrollPaddingTop = padding;
       scroll.dispatchEvent(new Event('samepage:notation-clearance'));
     };
