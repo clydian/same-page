@@ -10,5 +10,5 @@ export const toolStyleSchema = z.object({
 });
 export type ToolStyle = z.infer<typeof toolStyleSchema>;
 export function defaultToolStyle(tool: AnnotationTool): ToolStyle {
-  return { nib: tool === "highlighter" ? "chisel" : "round", strokeWidth: tool === "highlighter" ? 0.018 : 0.003, opacity: tool === "highlighter" ? 0.3 : 1, pressureMode: "uniform", fontScale: 0.016, textAlign: "center" };
+  return { nib: tool === "highlighter" ? "chisel" : "round", strokeWidth: tool === "highlighter" ? 0.018 : 0.003, opacity: tool === "highlighter" ? 0.3 : 1, pressureMode: tool === "ink" ? "pressure" : "uniform", fontScale: 0.016, textAlign: "center" };
 }

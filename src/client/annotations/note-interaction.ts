@@ -31,6 +31,14 @@ function sampleInkPoint(point: Point): Point {
   };
 }
 
+// Select the effective mode only for newly collected ink. A mouse, touch or
+// pressureless pen reports no pressure or the Pointer Events sentinel 0.5.
+// Explicitly use thinning=0 via uniform mode; do not change old annotations.
+function collectedInk(payload: Ink): Ink {
+  return payload.pressureMode === "pressure" && !payload.points.some(point => point.pressure !== undefined && point.pressure > 0 && point.pressure !== 0.5)
+    ? { ...payload, pressureMode: "uniform" } : payload;
+}
+
 // Owns only unreleased note intent. Released edits and durable-save recovery
 // remain in AnnotationEditor, so interruption cannot undo an earlier gesture.
 export class NoteInteraction {
@@ -136,13 +144,13 @@ export class NoteInteraction {
   dispose = () => { this.checkpoint(); this.cancelFrame(); };
   private cancelFrame() { if (this.frame !== null) cancelAnimationFrame(this.frame); this.frame = null; }
   private saveInk(active: Extract<Active, { kind: "ink" }>, coalesce = true) {
-    return this.editor?.persist({ id: active.id, layerId: active.layerId, payload: { ...active.payload, points: [...active.payload.points] } }, coalesce) ?? Promise.resolve(true);
+    return this.editor?.persist({ id: active.id, layerId: active.layerId, payload: { ...collectedInk(active.payload), points: [...active.payload.points] } }, coalesce) ?? Promise.resolve(true);
   }
   private publish() {
     const active = this.active;
     this.snapshot = active ? {
       draftId: active.kind === "ink" ? active.id : null,
-      stroke: active.kind === "ink" ? { ...active.payload, points: [...active.payload.points] } : null,
+      stroke: active.kind === "ink" ? { ...collectedInk(active.payload), points: [...active.payload.points] } : null,
       shape: active.kind === "shape" ? active.payload : null,
       erased: active.kind === "eraser" ? new Set(active.ids) : empty.erased,
     } : empty;

@@ -166,12 +166,11 @@ export function AnnotationOverlay({
     [onInteractionChange, pages, pageNumber],
   );
 
-  const point = (event: ReactPointerEvent<SVGSVGElement>, constrain = true) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
+  const point = (event: ReactPointerEvent<SVGSVGElement> | PointerEvent, constrain = true, bounds = overlayRef.current!.querySelector("svg")!.getBoundingClientRect()) => {
     return {
       x: constrain ? clamp((event.clientX - bounds.left) / bounds.width) : (event.clientX - bounds.left) / bounds.width,
       y: constrain ? clamp((event.clientY - bounds.top) / bounds.height) : (event.clientY - bounds.top) / bounds.height,
-      ...(event.pressure > 0 ? { pressure: event.pressure } : {}),
+      ...(event.pointerType === "pen" && event.pressure > 0 && event.pressure <= 1 ? { pressure: event.pressure } : {}),
       ...(event.pointerType === "pen" ? { tiltX: event.tiltX || 0, tiltY: event.tiltY || 0, twist: event.twist || 0 } : {}),
     };
   };
@@ -314,7 +313,7 @@ export function AnnotationOverlay({
     // outside, finish this note at the boundary; returning cannot extend it or
     // feed the same pointer into a neighbouring page.
     const bounds = event.currentTarget.getBoundingClientRect();
-    if (pages && notes.owns(event.pointerId) && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+    if (pages && !event.nativeEvent.getCoalescedEvents?.().length && notes.owns(event.pointerId) && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
       void notes.finishAtBoundary(event.pointerId, point(event, false), event.timeStamp);
       return;
     }
@@ -322,7 +321,18 @@ export function AnnotationOverlay({
       eraseAt(event);
       return;
     }
-    if (editing) notes.move(event.pointerId, point(event), event.timeStamp);
+    if (editing) {
+      // Coalesced samples are measured input, in temporal order. Predictions are
+      // deliberately excluded from both the draft and persisted annotation.
+      const samples = tool === "ink" ? event.nativeEvent.getCoalescedEvents?.() ?? [] : [];
+      for (const sample of samples.length ? samples : [event]) {
+        if (pages && notes.owns(event.pointerId) && (sample.clientX < bounds.left || sample.clientX > bounds.right || sample.clientY < bounds.top || sample.clientY > bounds.bottom)) {
+          void notes.finishAtBoundary(event.pointerId, point(sample, false, bounds), sample.timeStamp);
+          break;
+        }
+        notes.move(event.pointerId, point(sample, true, bounds), sample.timeStamp);
+      }
+    }
 
   };
 

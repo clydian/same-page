@@ -545,6 +545,9 @@ function AnnotatedPdfPage({
   return (
     <div
       className="annotated-pdf-page"
+      onContextMenu={event => {
+        if (!(event.target instanceof Element) || !event.target.closest('input, textarea, [contenteditable="true"]')) event.preventDefault();
+      }}
       style={{
         width: renderedWidth,
         height: renderedWidth / resolvedAspectRatio,

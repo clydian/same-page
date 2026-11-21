@@ -2604,6 +2604,9 @@ h1 {
 .page-reader__pager-track[data-page-turn-phase="settling"],
 .continuous-reader__page[data-page-turn-phase="settling"],
 [data-page-turn-phase="settling"] .annotated-pdf-page {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   transition: transform var(--page-turn-duration, 300ms) cubic-bezier(0.22, 0.72, 0.18, 1);
 }
 
@@ -3225,4 +3228,10 @@ h1 {
 @media (max-width: 520px) {
   .annotation-composer-styles { flex-wrap: wrap; width: max-content; }
   .annotation-composer-layer { order: -1; width: 100%; max-width: none; padding: 3px 8px; font-size: 11px; }
+}
+
+.annotated-pdf-page :is(input, textarea, [contenteditable="true"]) {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
