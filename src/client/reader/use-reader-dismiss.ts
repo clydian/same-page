@@ -51,8 +51,11 @@ export function useReaderDismiss({ containerRef, contentRef, enabled, onDismiss 
       pending.distance = Math.max(0, dy);
       if (contentRef.current) {
         const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-        contentRef.current.style.translate = reduced ? pending.previousTranslate : `0 ${Math.min(180, pending.distance * .65)}px`;
-        contentRef.current.style.scale = reduced ? pending.previousScale : String(1 - Math.min(.08, pending.distance / 2000));
+        const shrink = Math.min(.08, pending.distance / 2000);
+        // The shared zoom origin is top-left. Offset this independent scale
+        // by half the lost width to keep the paper's horizontal center fixed.
+        contentRef.current.style.translate = reduced ? pending.previousTranslate : `${contentRef.current.offsetWidth * shrink / 2}px ${Math.min(180, pending.distance * .65)}px`;
+        contentRef.current.style.scale = reduced ? pending.previousScale : String(1 - shrink);
       }
       containerRef.current?.setAttribute("data-dismiss-label", pending.distance >= threshold() ? t("releaseToReturnToDrive") : t("swipeDownToReturnToDrive"));
       return true;
