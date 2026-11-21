@@ -91,6 +91,7 @@ export function PageLayout({
   const containerRef = useRef<HTMLDivElement>(null);
   const noteInteraction = useRef<AnnotationInteractionHandle>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const previewBoundaryRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(containerRef);
   const position = useViewportPosition(containerRef);
@@ -134,10 +135,16 @@ export function PageLayout({
     tapEnabled: pager.phase === "idle",
     tapScope: document,
     tapRevision: `${currentPage}:${fitRequest}:${size.width}:${size.height}`,
-    gestureRevision: `${currentPage}:${fitRequest}:${size.width}:${size.height}`,
+    // The pager may commit the previous page while the next drag owns this contact.
+    gestureRevision: `${fitRequest}:${size.width}:${size.height}`,
 
     pageTurn: pager.gesture,
     pageTurnExtent: pageTurnDistance,
+    pageTurnProgress: () => {
+      if (pager.phase !== "settling") return pager.progress;
+      const track = trackRef.current;
+      return track ? new DOMMatrixReadOnly(getComputedStyle(track).transform).m41 / pageTurnDistance : pager.progress;
+    },
 
   });
 
@@ -172,6 +179,7 @@ export function PageLayout({
           >
             <div
               className="page-reader__pager-track"
+              ref={trackRef}
               {...pageTurnPresentation(pager, pageTurnDistance)}
             >
               {pageItems.map((item) => (
