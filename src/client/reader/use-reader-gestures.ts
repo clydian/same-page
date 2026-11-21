@@ -58,7 +58,7 @@ export function useReaderGestures({
   onEdgeTap?(direction: "previous" | "next"): void;
   pageTurn?: PageTurnGesture;
   pageTurnExtent?: number;
-  pageTurnProgress?(): number;
+  pageTurnProgress?(committed: boolean): number;
   nativeTouchScroll?: boolean;
   continuous?: boolean;
   onNavigationStart?(): void;
@@ -134,7 +134,7 @@ export function useReaderGestures({
       pageTurn?.cancel(0, true);
       pageTurn?.begin({ sessionId: 0, x: 0, y: 0, time, extent: session.extent });
     } else {
-      pageTurn?.move({ sessionId: 0, x: remaining, y: Math.abs(dx) > Math.abs(dy) ? 0 : dy, time, extent: session.extent, visualProgress: pageTurnProgress?.() });
+      pageTurn?.move({ sessionId: 0, x: remaining, y: Math.abs(dx) > Math.abs(dy) ? 0 : dy, time, extent: session.extent, visualProgress: pageTurnProgress });
     }
   };
 

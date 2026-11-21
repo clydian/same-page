@@ -93,6 +93,7 @@ export function PageLayout({
   const contentRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const previewBoundaryRef = useRef<HTMLDivElement>(null);
+  const takeover = useRef<{ page: number; outgoing: HTMLElement; incoming: HTMLElement; outgoingLeft: number; incomingLeft: number } | null>(null);
   const size = useElementSize(containerRef);
   const position = useViewportPosition(containerRef);
   useReturnViewport(containerRef, "page", size.width > 0);
@@ -119,6 +120,21 @@ export function PageLayout({
     if (containerRef.current) { containerRef.current.scrollLeft = 0; containerRef.current.scrollTop = 0; }
   }, [currentPage]);
   const requestPage = pager.request;
+  useLayoutEffect(() => {
+    const captured = takeover.current;
+    if (captured && captured.page !== pager.anchorPage) {
+      // Rebase both visible papers together. The old current paper changes
+      // from the centered slot to a fitted neighbor at the same handoff.
+      trackRef.current?.querySelectorAll<HTMLElement>(".page-reader__paper").forEach(paper => { paper.style.translate = ""; });
+      const movement = captured.incoming.getBoundingClientRect().left - captured.incomingLeft;
+      const correction = captured.outgoingLeft + movement - captured.outgoing.getBoundingClientRect().left;
+      captured.outgoing.parentElement!.style.translate = `${correction}px`;
+      takeover.current = null;
+    } else if (pager.phase === "idle") {
+      trackRef.current?.querySelectorAll<HTMLElement>(".page-reader__paper").forEach(paper => { paper.style.translate = ""; });
+      takeover.current = null;
+    }
+  });
   const gestureHandlers = useReaderGestures({
     containerRef,
     contentRef,
@@ -140,8 +156,24 @@ export function PageLayout({
 
     pageTurn: pager.gesture,
     pageTurnExtent: pageTurnDistance,
-    pageTurnProgress: () => {
-      if (pager.phase !== "settling") return pager.progress;
+    pageTurnProgress: committed => {
+      samplePageTurnAnimations(trackRef.current);
+      // The incoming paper also moves within its slot to arrive centered.
+      // Read its painted position before it becomes the current paper; the
+      // track alone omits that movement, especially in landscape gutters.
+      const viewport = containerRef.current;
+      const target = trackRef.current?.querySelector<HTMLElement>(
+        "[data-page-turn-target] .annotated-pdf-page",
+      );
+      if (committed && viewport && target && pager.targetPage !== null) {
+        const paper = target.getBoundingClientRect();
+        const outgoing = contentRef.current?.querySelector<HTMLElement>(".annotated-pdf-page");
+        if (outgoing) takeover.current = { page: pager.anchorPage, outgoing, incoming: target,
+          outgoingLeft: outgoing.getBoundingClientRect().left, incomingLeft: paper.left };
+        const bounds = viewport.getBoundingClientRect();
+        const centeredLeft = bounds.left + (viewport.clientWidth - paper.width) / 2;
+        return (paper.left - centeredLeft) / pageTurnDistance - Math.sign(pager.targetPage - pager.anchorPage);
+      }
       const track = trackRef.current;
       return track ? new DOMMatrixReadOnly(getComputedStyle(track).transform).m41 / pageTurnDistance : pager.progress;
     },
@@ -348,6 +380,21 @@ function pageTurnPresentation(pager: PagedReader, extent: number, slot = 0, top 
       if (active && slot === 0 && event.target === event.currentTarget && event.propertyName === "transform") pager.finishTransition();
     },
   };
+}
+
+function samplePageTurnAnimations(track: HTMLElement | null) {
+  // Pointer tasks can arrive between animation ticks. Sample at the input
+  // time rather than rebasing to the preceding main-thread frame while
+  // the compositor has already advanced the transition.
+  const timelineTime = window.document.timeline?.currentTime;
+  if (typeof timelineTime === "number") {
+    const elapsed = Math.max(0, performance.now() - timelineTime);
+    for (const animation of track?.getAnimations?.({ subtree: true }) ?? []) {
+      if (animation instanceof CSSTransition && animation.transitionProperty === "transform" && typeof animation.currentTime === "number") {
+        animation.currentTime += elapsed;
+      }
+    }
+  }
 }
 
 function useViewportPosition(ref: RefObject<HTMLElement | null>) {
