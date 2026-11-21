@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 
 export type PageTurnRequest = number | "previous" | "next";
 
@@ -15,7 +16,7 @@ export interface PageTurnSample {
   y: number;
   time: number;
   extent: number;
-  visualProgress?: number;
+  visualProgress?: number | ((committed: boolean) => number);
 }
 
 export interface PageTurnGesture {
@@ -350,6 +351,8 @@ export function usePagedReader({
       session.lastTime = sample.time;
       session.extent = Math.max(1, sample.extent);
       let current = viewRef.current;
+      let takeoverPage: number | null = null;
+      const takingOver = current.phase === "settling";
       if (current.phase === "preparing" ||
         (current.targetPage !== null && Math.abs(current.targetPage - current.anchorPage) > 1)) {
         session.progress = clamp(deltaX / session.extent, -1, 1);
@@ -363,10 +366,11 @@ export function usePagedReader({
           readyPages.current.get(documentKey)?.has(current.targetPage) &&
           admission.current.canCompletePage?.() !== false;
         const anchor = committed ? current.targetPage! : current.anchorPage;
-        session.originProgress = (sample.visualProgress ?? current.progress) + anchor - current.anchorPage;
+        const visualProgress = typeof sample.visualProgress === "function" ? sample.visualProgress(Boolean(committed)) : sample.visualProgress;
+        session.originProgress = (visualProgress ?? current.progress) + anchor - current.anchorPage;
         queuedTarget.current = null;
         current = { ...idleView(anchor), progress: session.originProgress };
-        if (anchor !== viewRef.current.anchorPage) onPageChangeRef.current(anchor);
+        if (anchor !== viewRef.current.anchorPage) takeoverPage = anchor;
       }
       const anchorPage = current.anchorPage;
       const requestedTarget = anchorPage + (deltaX < 0 ? 1 : -1);
@@ -376,6 +380,7 @@ export function usePagedReader({
           : null;
       if (targetPage !== null && failedPages.current.get(documentKey)?.has(targetPage)) {
         drag.current = null;
+        if (takeoverPage !== null) onPageChangeRef.current(takeoverPage);
         updateView(idleView(anchorPage));
         setFailure({ documentKey, page: targetPage });
         return true;
@@ -389,13 +394,20 @@ export function usePagedReader({
       const progress = visibleTarget >= 1 && visibleTarget <= pageCountRef.current && !readyPages.current.get(documentKey)?.has(visibleTarget)
         ? 0
         : offset;
-      updateView({
-        anchorPage,
-        targetPage,
-        phase: "dragging",
-        progress,
-        commitOnFinish: false,
-      });
+      const follow = () => {
+        if (takeoverPage !== null) onPageChangeRef.current(takeoverPage);
+        updateView({
+          anchorPage,
+          targetPage,
+          phase: "dragging",
+          progress,
+          commitOnFinish: false,
+        });
+      };
+      // Commit the sampled handoff before the compositor paints another frame
+      // of the previous transition. Later drag samples use normal batching.
+      if (takingOver) flushSync(follow);
+      else follow();
       return true;
     },
     end(sample) {
