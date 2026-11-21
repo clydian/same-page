@@ -247,14 +247,16 @@
   .reader-edit-layer-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .reader-shell .annotation-controls > .annotation-toolbar-color { grid-column: 2; grid-row: 1; width: 44px; height: 44px; }
   .reader-shell .annotation-history-controls { grid-column: 3; grid-row: 1; }
-  .reader-shell .annotation-drawing-tools { grid-column: 1 / -1; grid-row: 2; container: annotation-tools / inline-size; }
+  .reader-shell .annotation-drawing-tools { grid-column: 1 / -1; grid-row: 2; container: annotation-tools / inline-size; --tool-label-overhang: 8px; }
   .reader-shell .annotation-drawing-tools .segmented-control { width: 100%; display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); }
   .reader-shell .annotation-drawing-tools .annotation-tool-button { width: 100%; min-width: 44px; height: 44px; padding: 0; margin-left: 0; }
+  .annotation-tool-button:first-child .annotation-tool-name { left: calc(-1 * var(--tool-label-overhang, 0px)); transform: none; min-width: calc(100% + 2 * var(--tool-label-overhang, 0px)); }
+  .annotation-tool-button:last-child .annotation-tool-name { left: auto; right: calc(-1 * var(--tool-label-overhang, 0px)); transform: none; min-width: calc(100% + 2 * var(--tool-label-overhang, 0px)); }
 }
 @container annotation-tools (width < 308px) {
   .reader-shell .annotation-drawing-tools .segmented-control { grid-template-columns: repeat(4, minmax(44px, 1fr)); }
-  .annotation-tool-button:nth-child(4) .annotation-tool-name { left: auto; right: 0; transform: none; }
-  .annotation-tool-button:nth-child(5) .annotation-tool-name { left: 0; right: auto; transform: none; }
+  .annotation-tool-button:nth-child(4) .annotation-tool-name { left: auto; right: calc(-1 * var(--tool-label-overhang, 0px)); transform: none; min-width: calc(100% + 2 * var(--tool-label-overhang, 0px)); }
+  .annotation-tool-button:nth-child(5) .annotation-tool-name { left: calc(-1 * var(--tool-label-overhang, 0px)); right: auto; transform: none; min-width: calc(100% + 2 * var(--tool-label-overhang, 0px)); }
 }
 
 
@@ -462,9 +464,7 @@
 .reader-shell .annotation-tool-button { position: relative; display: inline-grid; place-items: center; }
 .reader-shell .annotation-tool-button > svg { transform: translateY(-3px); }
 .reader-shell .annotation-tool-button[aria-pressed="true"] { color: var(--ui-accent, #174d38); background: var(--ui-soft, #dce9df); box-shadow: inset 0 0 0 1px #799584; }
-.annotation-tool-name { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); width: max-content; max-width: calc(100% + 40px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; font-size: 10px; line-height: 1.1; }
-.annotation-tool-button:first-child .annotation-tool-name { left: 0; transform: none; }
-.annotation-tool-button:last-child .annotation-tool-name { left: auto; right: 0; transform: none; }
+.annotation-tool-name { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); width: max-content; max-width: calc(100% + 40px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; text-align: center; font-size: 10px; line-height: 1.1; }
 
 .reader-page-grid__paper .pdf-page-canvas { box-shadow: none; }
 

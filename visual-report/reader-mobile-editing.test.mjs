@@ -504,6 +504,12 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
       await expect(tools.nth(index)).toHaveAttribute('aria-pressed', 'true');
       assert.deepEqual(await geometry(), resting, 'selection keeps every hit target and icon in place');
       assert.equal(await page.locator('.annotation-tool-name').textContent(), await tools.nth(index).getAttribute('aria-label'), 'the full tool name remains available');
+      assert.ok(await tools.nth(index).evaluate(button => {
+        const range = document.createRange();
+        range.selectNodeContents(button.querySelector('.annotation-tool-name'));
+        const text = range.getBoundingClientRect(), icon = button.querySelector('svg').getBoundingClientRect();
+        return text.width > button.getBoundingClientRect().width || Math.abs(text.x + text.width / 2 - icon.x - icon.width / 2) < 1;
+      }), 'short labels stay centered under their icons, including row edges');
       assert.ok(await page.locator('.annotation-drawing-tools').evaluate(group => {
         const label = group.querySelector('.annotation-tool-name').getBoundingClientRect();
         const toolbar = group.closest('.annotation-controls').getBoundingClientRect();
