@@ -1,10 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { displayNameSchema, driveNameSchema } from "../../src/shared/choirs";
-import { AuthorizationError } from "../auth/authorization";
 import { resolveContextPrincipal } from "../auth/context-principal";
 import type { AppEnvironment } from "../env";
-import { readPermissionMember } from "../permissions/access";
+import { readPermissionMember, requireDriveOwner } from "../permissions/access";
 import { limitDriveMutation } from "../security/drive-rate-limit";
 import { provisionChoir } from "./provision";
 
@@ -43,8 +42,7 @@ trialRoutes.get("/choirs/:choirId/usage", async context => {
 
 trialRoutes.post("/choirs/:choirId/purge", async context => {
   const choirId = context.req.param("choirId");
-  const actor = await readPermissionMember(context.env.DB, await resolveContextPrincipal(context), choirId);
-  if (!actor.isOwner || (context.req.header("x-same-page-owner-user-id") && context.req.header("x-same-page-owner-user-id") !== actor.userId)) throw new AuthorizationError();
+  const actor = await requireDriveOwner(context.env.DB, await resolveContextPrincipal(context), choirId, context.req.header("x-same-page-owner-user-id"));
   const body = z.object({ confirm: z.literal(true), name: driveNameSchema }).strict().safeParse(await context.req.json().catch(() => null));
   if (!body.success) return context.json({ error: "confirmation_required" }, 400);
   const limited = await limitDriveMutation(context, actor.userId, "purge", 20);
@@ -58,8 +56,7 @@ trialRoutes.post("/choirs/:choirId/purge", async context => {
 
 trialRoutes.post("/choirs/:choirId/scores/:scoreId/purge", async context => {
   const { choirId, scoreId } = context.req.param();
-  const actor = await readPermissionMember(context.env.DB, await resolveContextPrincipal(context), choirId);
-  if (!actor.isOwner || (context.req.header("x-same-page-owner-user-id") && context.req.header("x-same-page-owner-user-id") !== actor.userId)) throw new AuthorizationError();
+  const actor = await requireDriveOwner(context.env.DB, await resolveContextPrincipal(context), choirId, context.req.header("x-same-page-owner-user-id"));
   if (!confirmationSchema.safeParse(await context.req.json().catch(() => null)).success) return context.json({ error: "confirmation_required" }, 400);
   const limited = await limitDriveMutation(context, actor.userId, "purge", 20);
   if (limited) return limited;
@@ -73,8 +70,7 @@ trialRoutes.post("/choirs/:choirId/scores/:scoreId/purge", async context => {
 
 trialRoutes.post("/choirs/:choirId/scores/:scoreId/versions/:versionId/purge", async context => {
   const { choirId, scoreId, versionId } = context.req.param();
-  const actor = await readPermissionMember(context.env.DB, await resolveContextPrincipal(context), choirId);
-  if (!actor.isOwner || (context.req.header("x-same-page-owner-user-id") && context.req.header("x-same-page-owner-user-id") !== actor.userId)) throw new AuthorizationError();
+  const actor = await requireDriveOwner(context.env.DB, await resolveContextPrincipal(context), choirId, context.req.header("x-same-page-owner-user-id"));
   if (!confirmationSchema.safeParse(await context.req.json().catch(() => null)).success) return context.json({ error: "confirmation_required" }, 400);
   const limited = await limitDriveMutation(context, actor.userId, "purge", 20);
   if (limited) return limited;
