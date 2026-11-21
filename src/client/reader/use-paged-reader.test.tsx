@@ -207,6 +207,42 @@ describe("usePagedReader", () => {
     expect(result.current.targetPage).toBe(4);
   });
 
+  it.each([
+    { scenario: "accepts a 170px swipe", distance: 170, cancel: false, firstAllowed: true, secondAllowed: true, finalPages: [3, 4] },
+    { scenario: "honors the second admission refusal", distance: 170, cancel: false, firstAllowed: true, secondAllowed: false, finalPages: [3] },
+    { scenario: "ignores an insufficient swipe", distance: 110, cancel: false, firstAllowed: true, secondAllowed: true, finalPages: [3] },
+    { scenario: "discards a cancelled swipe", distance: 170, cancel: true, firstAllowed: true, secondAllowed: true, finalPages: [3] },
+    { scenario: "discards the swipe when the first admission fails", distance: 170, cancel: false, firstAllowed: false, secondAllowed: true, finalPages: [] },
+  ])("releases buffered input after the first turn completes: $scenario", async ({ distance, cancel, firstAllowed, secondAllowed, finalPages }) => {
+    vi.stubGlobal("matchMedia", () => mediaQuery(true));
+    const admissions: ((allowed: boolean) => void)[] = [];
+    const beforePageChange = vi.fn(() => new Promise<boolean>(resolve => admissions.push(resolve)));
+    const onPageChange = vi.fn();
+    const { result } = renderPager(onPageChange, { beforePageChange });
+    finishRenders(result.current.beginPageRender, 3, 4);
+    act(() => result.current.request("next"));
+    flushFrame();
+    act(() => result.current.gesture.begin(sample(16, 500, 300, 10)));
+    act(() => result.current.gesture.move(sample(16, 500 - distance, 300, 410)));
+    if (cancel) act(() => { result.current.gesture.cancel(16); });
+    await act(async () => admissions[0](firstAllowed));
+    expect(result.current.anchorPage).toBe(firstAllowed ? 3 : 2);
+    expect(result.current.phase).toBe("idle");
+    // No further move: release must retain only the distance already sampled.
+    act(() => result.current.gesture.end(sample(16, 500 - distance, 300, 420)));
+    const expectsSecondAdmission = firstAllowed && !cancel && distance >= 160;
+    if (expectsSecondAdmission) {
+      expect(result.current.phase).toBe("preparing");
+      flushFrame();
+      expect(beforePageChange).toHaveBeenCalledTimes(2);
+      expect(onPageChange.mock.calls.map(([page]) => page)).toEqual([3]);
+      await act(async () => admissions[1](secondAllowed));
+    } else expect(beforePageChange).toHaveBeenCalledOnce();
+    expect(onPageChange.mock.calls.map(([page]) => page)).toEqual(finalPages);
+    expect(result.current.anchorPage).toBe(finalPages.at(-1) ?? 2);
+    expect(result.current.phase).toBe("idle");
+  });
+
   it("queues a swipe during a distant page jump without rebasing unrelated paper", () => {
     const onPageChange = vi.fn();
     const { result } = renderPager(onPageChange);

@@ -70,6 +70,7 @@ interface DragSession {
   axis: "pending" | "horizontal" | "vertical";
   extent: number;
   originProgress: number;
+  waitingForPage: number | null;
 }
 
 export const PAGE_TURN_SETTLE_MS = 360;
@@ -328,6 +329,7 @@ export function usePagedReader({
         velocity: 0,
         progress: 0,
         originProgress: 0,
+        waitingForPage: null,
         axis: "pending",
         extent: Math.max(1, sample.extent),
       };
@@ -351,6 +353,7 @@ export function usePagedReader({
       if (current.phase === "preparing" ||
         (current.targetPage !== null && Math.abs(current.targetPage - current.anchorPage) > 1)) {
         session.progress = clamp(deltaX / session.extent, -1, 1);
+        session.waitingForPage = current.targetPage;
         return true;
       }
       if (current.phase === "settling") {
@@ -404,8 +407,14 @@ export function usePagedReader({
       if (sample.time - session.lastTime > 100) session.velocity = 0;
       const sameDirection =
         Math.sign(session.velocity) === Math.sign(session.progress);
+      // The preceding turn may complete between this swipe's last move and release.
+      const targetPage = current.targetPage ?? (
+        current.phase === "idle" && session.waitingForPage === current.anchorPage
+          ? clampPage(current.anchorPage + (session.progress < 0 ? 1 : -1), pageCountRef.current)
+          : null
+      );
       const shouldCommit =
-        current.targetPage !== null &&
+        targetPage !== null &&
         (Math.abs(session.progress) >= COMMIT_PROGRESS ||
           (sameDirection && Math.abs(session.velocity) >= COMMIT_VELOCITY_PX_PER_MS));
       if (current.phase === "preparing" || current.phase === "settling") {
@@ -413,6 +422,8 @@ export function usePagedReader({
           const projected = queuedTarget.current ?? current.targetPage ?? current.anchorPage;
           queuedTarget.current = clampPage(projected + (session.progress < 0 ? 1 : -1), pageCountRef.current);
         }
+      } else if (current.phase === "idle") {
+        if (shouldCommit && targetPage !== null) startRequest(targetPage);
       } else settleDrag(shouldCommit);
       return true;
     },
@@ -430,7 +441,7 @@ export function usePagedReader({
       }
       return true;
     },
-  }), [documentKey, settleDrag, updateView]);
+  }), [documentKey, settleDrag, startRequest, updateView]);
 
   useLayoutEffect(() => {
     for (const key of readyPages.current.keys()) {
