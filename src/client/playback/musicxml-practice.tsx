@@ -333,12 +333,13 @@ function PartTimbreEditor({ session, state, ready }: { session: PlayerSession | 
   const t = useMessages("practice");
   const id = useId();
   const parts = state.parts.filter(part => part.canChangeTimbre);
+  const defaultNames = { piano: 'timbrePiano', aahs: 'timbreAahs', oohs: 'timbreOohs', harp: 'timbreHarp' } as const;
   if (!parts.length) return null;
   return <div className="practice-timbre"><PracticeDisclosure title={t("partTimbre")} help={t("partTimbreHelp")}>
     {parts.map(part => <label key={part.id} className="practice-field practice-part practice-timbre-part" htmlFor={`${id}-${part.id}`}>
       <span className="practice-part-name">{part.unnamed ? t("unnamedPart", { index: part.unnamed }) : part.name}</span>
       <select id={`${id}-${part.id}`} aria-describedby={`${id}-hint`} value={part.timbre ?? 'score'} disabled={!ready} onChange={event => session?.timbre(part.id, event.target.value as PartTimbre)}>
-        <option value="score">{t("timbreScore")}</option><option value="piano">{t("timbrePiano")}</option><option value="aahs">{t("timbreAahs")}</option><option value="oohs">{t("timbreOohs")}</option>
+        <option value="score">{part.defaultTimbre ? t("timbreDefaultNamed", { timbre: t(defaultNames[part.defaultTimbre]) }) : t("timbreScore")}</option><option value="piano">{t("timbrePiano")}</option><option value="aahs">{t("timbreAahs")}</option><option value="oohs">{t("timbreOohs")}</option>
       </select>
     </label>)}
     <p id={`${id}-hint`} className="practice-hint">{state.timbreLoading ? t("timbreLoading") : t("timbreSessionHint")}</p>

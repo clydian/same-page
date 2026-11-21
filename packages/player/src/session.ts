@@ -1,4 +1,4 @@
-import { isPartTimbre, type PartTimbre } from './part-timbre.ts';
+import { isPartTimbre, type PartTimbre, type DefaultPartTimbre } from './part-timbre.ts';
 export type { PartTimbre } from './part-timbre.ts';
 import { assignPlaybackChannels, loadPreparedMusicXml, PlaybackChannelError } from './engine.ts';
 import { CollectionPlaybackError, createDocumentPlaybackApi as createPlaybackApi } from './document-playback.ts';
@@ -15,7 +15,7 @@ import { isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 import { playbackAudioSession } from './playback-audio-session.ts';
 export { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 
-export interface PlayerPart { id: number; name: string; unnamed?: number; volume: number; baseVolume?: number; muted: boolean; solo: boolean; timbre?: PartTimbre; canChangeTimbre?: boolean }
+export interface PlayerPart { id: number; name: string; unnamed?: number; volume: number; baseVolume?: number; muted: boolean; solo: boolean; timbre?: PartTimbre; defaultTimbre?: DefaultPartTimbre | null; canChangeTimbre?: boolean }
 export interface PlayerMeasure { index: number; label: string; number?: string; visit?: number; startTick: number; endTick: number }
 type PlayerMessageCode =
   | MusicXmlErrorCode
@@ -339,7 +339,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       update({ focus: null, focusVolume: undefined, otherVolume: .25, solfegePart: null, parts: score.tracks.map((track, id) => {
         const name = names[id], key = name.trim().toLowerCase(), occurrence = (occurrences.get(key) ?? 0) + 1;
         occurrences.set(key, occurrence);
-        return { id, timbre: api.partTimbre(id), canChangeTimbre: !track.isPercussion, unnamed: track.name ? undefined : id + 1, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
+        return { id, timbre: api.partTimbre(id), defaultTimbre: api.partDefaultTimbre(id), canChangeTimbre: !track.isPercussion, unnamed: track.name ? undefined : id + 1, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
       }) });
     }
     if (state.status === 'ready') applyMix(state.parts);
@@ -358,7 +358,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   };
   element.addEventListener('alphaTab.midiFileLoaded', ready);
   api.playerReady.on(ready);
-  api.midiLoaded.on(() => { midiReady = true; loadingStage('midi-ready'); reportPreparation(); });
+  api.midiLoaded.on(() => { update({ parts: state.parts.map(part => ({ ...part, defaultTimbre: api.partDefaultTimbre(part.id) })) }); midiReady = true; loadingStage('midi-ready'); reportPreparation(); });
   api.soundFontLoaded.on(() => { soundfontReady = true; loadingStage('soundfont-ready'); reportPreparation(); });
   api.playerStateChanged.on(event => {
     const playing = event.state === alphaTab.synth.PlayerState.Playing;

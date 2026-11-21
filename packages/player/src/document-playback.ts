@@ -1,5 +1,5 @@
 import * as at from '@coderline/alphatab';
-import { PartTimbres, type PartTimbre } from './part-timbre.ts';
+import { PartTimbres, type PartTimbre, type DefaultPartTimbre } from './part-timbre.ts';
 import { createPlaybackApi, preparePianoPlaybackMidi } from './engine.ts';
 import type { PreparedMusicXml } from './musicxml-direction-timing.ts';
 import { playbackMeasureVisits, type PlaybackMeasureVisit } from './playback-measures.ts';
@@ -35,6 +35,7 @@ export type DocumentPlaybackApi = Omit<Native, 'boundsLookup' | 'renderer' | 'ti
   sourceIndex(bar: at.model.MasterBar): number;
   tempoAt(tick: number): { bpm: number; unit: number };
   partTimbre(id: number): PartTimbre;
+  partDefaultTimbre(id: number): DefaultPartTimbre | null;
   changePartTimbre(id: number, value: PartTimbre): Promise<boolean>;
   renderScores(scores: at.model.Score[], prepared: PreparedMusicXml[]): void;
 };
@@ -349,6 +350,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
     pause() { if (!collection) { native.pause(); return; } wantedPlaying = false; if (pending) pending.resume = false; player().pause(); },
     render() { if (!collection) native.render(); else invalidateLayout(); },
     partTimbre(id: number) { const score = collection ? pieces[active]?.score : native.score; return score ? timbres.get(score)?.get(id) ?? 'score' : 'score'; },
+    partDefaultTimbre(id: number) { const score = collection ? pieces[active]?.score : native.score; return score ? timbres.get(score)?.getDefault(id) ?? null : null; },
     async changePartTimbre(id: number, value: PartTimbre) {
       if (disposed || switching || pending) return false;
       const score = collection ? pieces[active]?.score : native.score;
@@ -401,6 +403,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
           if (disposed) return;
           const file = new at.midi.MidiFile(), handler = new at.midi.AlphaSynthMidiFileHandler(file), generator = new at.midi.MidiFileGenerator(piece.score, native.settings, handler);
           generator.applyTranspositionPitches = false; generator.generate(); preparePianoPlaybackMidi(piece.score, file, native.settings);
+          timbres.get(piece.score)!.apply(file);
           if (!generator.tickLookup.masterBars.length || !(generator.tickLookup.masterBars.at(-1)!.end > 0)) throw new CollectionPlaybackError('opusEmptyPiece', '合集包含没有可播放小节的曲目。');
           piece.lookup = generator.tickLookup; piece.midi = file; piece.shift = handler.tickShift; piece.transpositions = generator.transpositionPitches; piece.tickOffset = tickOffset;
           globalBars.push(...piece.lookup.masterBars.map(bar => Object.assign(Object.create(Object.getPrototypeOf(bar)), bar, { start: bar.start + tickOffset, end: bar.end + tickOffset })));

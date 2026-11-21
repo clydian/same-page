@@ -41,3 +41,22 @@ test('one part changes across its staves, another part/piece stays exact, and sc
   assert.equal(JSON.stringify(at.model.JsonConverter.scoreToJsObject(first.score)),first.model);
   assert.deepEqual(first.bytes,first.original);
 });
+
+test('default labels come from prepared sounding MIDI and stay stable through overrides, with conservative unknowns',()=>{
+  const names=['Soprano','Ordinary part','Harp'], programs=[1,null,47];
+  const source=`<score-partwise version="4.0"><part-list>${names.map((name,i)=>`<score-part id="P${i}"><part-name>${name}</part-name>${programs[i]===null?'':`<score-instrument id="I${i}"><instrument-name>${i===0?'Piano':'Harp'}</instrument-name></score-instrument><midi-instrument id="I${i}"><midi-channel>${i+1}</midi-channel><midi-program>${programs[i]}</midi-program></midi-instrument>`}</score-part>`).join('')}</part-list>${names.map((_,i)=>`<part id="P${i}"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part>`).join('')}</score-partwise>`;
+  const settings=new at.Settings(),score=loadMusicXml(new TextEncoder().encode(source),settings);
+  assignPlaybackChannels(score.tracks);applyTimbreProfile(score.tracks,'choir',classifyTimbreRoles(score.tracks,[]));
+  const file=new at.midi.MidiFile();new at.midi.MidiFileGenerator(score,settings,new at.midi.AlphaSynthMidiFileHandler(file)).generate();preparePianoPlaybackMidi(score,file,settings);
+  const choices=new PartTimbres(score),before=dump(file);choices.apply(file);
+  assert.deepEqual([0,1,2].map(id=>choices.getDefault(id)),['aahs','piano','harp']);
+  for(const id of [0,1,2]){choices.set(id,'oohs');choices.apply(file);assert.deepEqual([0,1,2].map(id=>choices.getDefault(id)),['aahs','piano','harp']);choices.set(id,'score');choices.apply(file);}
+  assert.deepEqual(dump(file),before);
+  const classify=events=>{const midi=new at.midi.MidiFile();events.forEach(e=>midi.addEvent(e));const value=new PartTimbres(score);value.apply(midi);return value.getDefault(0);};
+  const program=(tick,value)=>new at.midi.ProgramChangeEvent(0,tick,0,value),note=tick=>new at.midi.NoteOnEvent(0,tick,0,60,80);
+  assert.equal(classify([program(0,52),note(0),program(960,52),note(960)]),'aahs','repeated program is the same default');
+  assert.equal(classify([program(0,52),note(0),program(960,46)]),'aahs','silent program declarations do not imply a sounding change');
+  assert.equal(classify([program(0,52),note(0),program(960,46),note(960)]),null,'different sounding defaults stay generic');
+  assert.equal(classify([program(0,52),new at.midi.ControlChangeEvent(0,0,0,at.midi.ControllerType.BankSelectFine,1),note(0)]),null);
+  assert.equal(classify([program(0,90),note(0)]),null,'unverified preset stays generic');
+});
