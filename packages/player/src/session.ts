@@ -1,3 +1,5 @@
+import { isPartTimbre, type PartTimbre, type DefaultPartTimbre } from './part-timbre.ts';
+export type { PartTimbre } from './part-timbre.ts';
 import { assignPlaybackChannels, loadPreparedMusicXml, PlaybackChannelError } from './engine.ts';
 import { CollectionPlaybackError, createDocumentPlaybackApi as createPlaybackApi } from './document-playback.ts';
 import { solfegeDegreeLabel } from './solfege-degree.ts';
@@ -13,7 +15,7 @@ import { isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 import { playbackAudioSession } from './playback-audio-session.ts';
 export { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from './preparation-format.ts';
 
-export interface PlayerPart { id: number; name: string; unnamed?: number; volume: number; baseVolume?: number; muted: boolean; solo: boolean }
+export interface PlayerPart { id: number; name: string; unnamed?: number; volume: number; baseVolume?: number; muted: boolean; solo: boolean; timbre?: PartTimbre; defaultTimbre?: DefaultPartTimbre | null; canChangeTimbre?: boolean }
 export interface PlayerMeasure { index: number; label: string; number?: string; visit?: number; startTick: number; endTick: number }
 type PlayerMessageCode =
   | MusicXmlErrorCode
@@ -31,6 +33,7 @@ type PlayerMessageCode =
 
 export interface PlayerState {
   status: 'preparing' | 'ready' | 'error'; message: string; messageCode?: PlayerMessageCode; playing: boolean;
+  timbreLoading?: boolean;
   loadingProgress?: { loaded: number; total: number };
   audioHint?: string;
   parts: PlayerPart[]; measures: PlayerMeasure[]; measure: number; speed: number;
@@ -42,6 +45,7 @@ export interface PlayerSession {
   playPause(): void; pause(): void; seek(index: number): void; seekAt(x: number, y: number): void; speed(value: number): void;
   rhythm(value: { metronome?: boolean; countIn?: boolean; volume?: number }): void;
   mix(id: number, value: Partial<Pick<PlayerPart, 'volume' | 'muted' | 'solo'>>): void;
+  timbre(id: number, value: PartTimbre): void;
   notationScale(value: number): void;
   /** Re-layout lyrics only; keeps the loaded model and audio transport. */
   lyricSize?(value: number): void;
@@ -365,7 +369,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       update({ focus: null, focusVolume: undefined, otherVolume: .25, solfegePart: null, parts: score.tracks.map((track, id) => {
         const name = names[id], key = name.trim().toLowerCase(), occurrence = (occurrences.get(key) ?? 0) + 1;
         occurrences.set(key, occurrence);
-        return { id, unnamed: track.name ? undefined : id + 1, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
+        return { id, timbre: api.partTimbre(id), defaultTimbre: api.partDefaultTimbre(id), canChangeTimbre: !track.isPercussion, unnamed: track.name ? undefined : id + 1, name: names.filter(value => value.trim().toLowerCase() === key).length > 1 ? `${name} ${occurrence}` : name, volume: .75, baseVolume: .75, muted: false, solo: false };
       }) });
     }
     if (state.status === 'ready') applyMix(state.parts);
@@ -384,7 +388,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   };
   element.addEventListener('alphaTab.midiFileLoaded', ready);
   api.playerReady.on(ready);
-  api.midiLoaded.on(() => { midiReady = true; loadingStage('midi-ready'); reportPreparation(); });
+  api.midiLoaded.on(() => { update({ parts: state.parts.map(part => ({ ...part, defaultTimbre: api.partDefaultTimbre(part.id) })) }); midiReady = true; loadingStage('midi-ready'); reportPreparation(); });
   api.soundFontLoaded.on(() => { soundfontReady = true; loadingStage('soundfont-ready'); reportPreparation(); });
   api.playerStateChanged.on(event => {
     const playing = event.state === alphaTab.synth.PlayerState.Playing;
@@ -593,12 +597,13 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   return {
     getSnapshot: () => state,
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    playPause() { if (!disposed && state.status === 'ready' && !preview) {
+    playPause() { if (!disposed && state.status === 'ready' && !state.timbreLoading && !preview) {
       if (pendingSeek) { pendingSeek.resume = !pendingSeek.resume; pauseRequested = !pendingSeek.resume; if (pauseRequested) pendingCountIn = false; }
       else if ((state.playing || playRequested) && !pauseRequested || countInActive) { cancelFollowScroll(); pauseRequested = true; stopCountIn(); api.pause(); } else start();
     } },
     pause() { if (!disposed) { cancelFollowScroll(); pauseRequested = true; if (pendingSeek) { pendingSeek.resume = false; pendingCountIn = false; } stopCountIn(); if (!awaitingPause) api.pause(); } },
-    seek(index) { if (!disposed && state.status === 'ready' && Number.isInteger(index)) {
+    seek(index) { if (!disposed && state.status === 'ready' && !state.timbreLoading && Number.isInteger(index)) {
+
       const bounded = Math.max(state.loop?.start ?? 0, Math.min(state.loop?.end ?? state.measures.length - 1, index));
       if (state.measures[bounded]) {
         // Commit directly from the preview without replaying or restoring the old view.
@@ -608,7 +613,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     } },
     // Hosts normalize transformed viewport coordinates before crossing this seam.
     seekAt(x, y) {
-      if (disposed || preview || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
+      if (disposed || state.timbreLoading || preview || state.status !== 'ready' || !Number.isFinite(x) || !Number.isFinite(y)) return;
       const beat = api.boundsLookup?.getBeatAtPos(x, y);
       if (beat && api.tickCache) {
         const master = beat.voice?.bar.masterBar;
@@ -634,6 +639,19 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (!state.countIn) pendingCountIn = false;
       // During count-in keep its volume independent from the sustained metronome.
       api.countInVolume = countInActive ? beatVolume : 0;
+    },
+    timbre(id, value) {
+      if (disposed || state.status !== 'ready' || state.timbreLoading || preview || pendingSeek || countInActive || !isPartTimbre(value) || !state.parts.find(part => part.id === id)?.canChangeTimbre) return;
+      const resume = state.playing || playRequested;
+      update({ timbreLoading: true });
+      void api.changePartTimbre(id, value).then(changed => {
+        if (disposed) return;
+        if (changed) {
+          applyMix(state.parts.map(part => part.id === id ? { ...part, timbre: value } : part));
+          if (resume && !pauseRequested) play();
+        }
+        update({ timbreLoading: false });
+      }).catch(error => { update({ timbreLoading: false }); fail(error instanceof Error ? error.message : '无法更换音色，请重新打开乐谱。', 'scorePlaybackFailure'); });
     },
     mix(id, value) {
       if (disposed || state.status !== 'ready' || !api.score?.tracks[id] || value.volume !== undefined && !Number.isFinite(value.volume)) return;
@@ -680,7 +698,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     follow() { if (!disposed) setFollow(true); },
     suspendFollow() { if (!disposed && state.following) setFollow(false); },
     previewMeasure(index, range) {
-      if (disposed || state.status !== 'ready') return;
+      if (disposed || state.timbreLoading || state.status !== 'ready') return;
       if (index === null) { finishPreview(); return; }
       if (!state.measures[index] || range && (range.end < range.start || !state.measures[range.start] || !state.measures[range.end])) return;
       if (!preview) {
@@ -693,7 +711,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       showPreview(index);
     },
     loop(start, end) {
-      if (disposed || state.status !== 'ready') return;
+      if (disposed || state.timbreLoading || state.status !== 'ready') return;
       if (start !== null && (end === undefined || end < start || !state.measures[start] || !state.measures[end])) return;
       const resume = preview?.playing ?? false; preview = null; clearPreviewMarkers(); update({ previewing: false });
       if (start === null) { api.isLooping = false; api.playbackRange = null; update({ loop: null }); }

@@ -207,7 +207,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           assert.deepEqual(directoryFailures, []);
           assert.deepEqual(mutations, []);
           assert.deepEqual(errors, []);
-        });
+        }, { pdfLoad: engine === "webkit" });
       });
     }
   });
