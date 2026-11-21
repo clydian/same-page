@@ -13,7 +13,6 @@ import "../support-pages.css";
 
 export default function AboutPage() {
   const t = useMessages("entry");
-  const common = useMessages("common");
   const { state } = useLocation();
   const feedback = useFeedbackMessage();
   const { message, setMessage } = feedback;
@@ -36,7 +35,6 @@ export default function AboutPage() {
         <Link to="/" state={{ home: true }}><Globe size={20} aria-hidden="true" /><span>{t("about.product")}<small>{t("about.productHint")}</small></span><ChevronRight size={18} aria-hidden="true" /></Link>
         <Link to="/help"><BookOpen size={20} aria-hidden="true" /><span>{t("about.manual")}<small>{t("about.manualHint")}</small></span><ChevronRight size={18} aria-hidden="true" /></Link>
         <Link to="/diagnostics"><MessageSquare size={20} aria-hidden="true" /><span>{t("about.feedback")}<small>{t("about.feedbackHint")}</small></span><ArrowUpRight size={18} aria-hidden="true" /></Link>
-        <Link to="/pricing"><BookOpen size={20} aria-hidden="true" /><span>{common("pricing")}<small>{t("about.pricingHint")}</small></span><ChevronRight size={18} aria-hidden="true" /></Link>
         <Link to="/privacy"><ShieldCheck size={20} aria-hidden="true" /><span>{t("about.privacy")}</span><ChevronRight size={18} aria-hidden="true" /></Link>
       </nav>
       <details className="support-details about-build" open={message === "about.copyError" || undefined}>
