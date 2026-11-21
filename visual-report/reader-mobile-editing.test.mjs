@@ -493,9 +493,25 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     const hint = await page.locator('.reader-edit-gesture-hint').boundingBox();
     const done = await page.getByRole('button', { name: 'Finish editing', exact: true }).boundingBox();
     assert.ok(hint.x + hint.width <= done.x && done.width >= 44 && done.height >= 44);
-    await page.getByRole('button', { name: 'highlighter pen', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'highlighter pen', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    assert.ok(await page.locator('.annotation-tool-name').evaluate(contained), 'the selected tool label stays inside its button');
+    const tools = page.locator('.annotation-drawing-tools button');
+    const geometry = () => tools.evaluateAll(buttons => buttons.map(button => ({
+      button: button.getBoundingClientRect().toJSON(),
+      icon: button.querySelector('svg').getBoundingClientRect().toJSON(),
+    })));
+    const resting = await geometry();
+    for (let index = 0; index < 7; index++) {
+      await tools.nth(index).click();
+      await expect(tools.nth(index)).toHaveAttribute('aria-pressed', 'true');
+      assert.deepEqual(await geometry(), resting, 'selection keeps every hit target and icon in place');
+      assert.equal(await page.locator('.annotation-tool-name').textContent(), await tools.nth(index).getAttribute('aria-label'), 'the full tool name remains available');
+      assert.ok(await page.locator('.annotation-drawing-tools').evaluate(group => {
+        const label = group.querySelector('.annotation-tool-name').getBoundingClientRect();
+        const toolbar = group.closest('.annotation-controls').getBoundingClientRect();
+        const icons = [...group.querySelectorAll('svg')].map(icon => icon.getBoundingClientRect());
+        return label.left >= toolbar.left && label.right <= toolbar.right
+          && icons.every(icon => label.right <= icon.left || icon.right <= label.left || label.bottom <= icon.top || icon.bottom <= label.top);
+      }), 'the one current label stays inside the toolbar and clear of every icon');
+    }
     assert.ok(await page.locator('.annotation-drawing-tools').evaluate(group => {
       const boxes = [...group.querySelectorAll('button')].map(button => button.getBoundingClientRect());
       return boxes.every((box, index) => box.width >= 44 && box.height >= 44 && box.left >= 0 && box.right <= innerWidth && boxes.slice(index + 1).every(other => box.right <= other.left + 1 || other.right <= box.left + 1 || box.bottom <= other.top + 1 || other.bottom <= box.top + 1));

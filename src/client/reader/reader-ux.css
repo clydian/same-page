@@ -247,9 +247,14 @@
   .reader-edit-layer-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .reader-shell .annotation-controls > .annotation-toolbar-color { grid-column: 2; grid-row: 1; width: 44px; height: 44px; }
   .reader-shell .annotation-history-controls { grid-column: 3; grid-row: 1; }
-  .reader-shell .annotation-drawing-tools { grid-column: 1 / -1; grid-row: 2; }
-  .reader-shell .annotation-drawing-tools .segmented-control { width: 100%; display: flex; }
-  .reader-shell .annotation-drawing-tools .annotation-tool-button { flex: 1; }
+  .reader-shell .annotation-drawing-tools { grid-column: 1 / -1; grid-row: 2; container: annotation-tools / inline-size; }
+  .reader-shell .annotation-drawing-tools .segmented-control { width: 100%; display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); }
+  .reader-shell .annotation-drawing-tools .annotation-tool-button { width: 100%; min-width: 44px; height: 44px; padding: 0; margin-left: 0; }
+}
+@container annotation-tools (width < 308px) {
+  .reader-shell .annotation-drawing-tools .segmented-control { grid-template-columns: repeat(4, minmax(44px, 1fr)); }
+  .annotation-tool-button:nth-child(4) .annotation-tool-name { left: auto; right: 0; transform: none; }
+  .annotation-tool-button:nth-child(5) .annotation-tool-name { left: 0; right: auto; transform: none; }
 }
 
 
@@ -298,7 +303,7 @@
 
 }
 
-@media (max-width: 640px) { .reader-shell .annotation-history-controls { grid-column: 4; } .reader-shell .annotation-drawing-tools .annotation-tool-button { min-width: 0; padding-inline: 5px; } }
+@media (max-width: 640px) { .reader-shell .annotation-history-controls { grid-column: 4; } }
 
 /* Every layer reserves the same final columns, including member-shared notes. */
 .reader-layer-panel .layer-card__main.reader-layer-row {
@@ -453,9 +458,13 @@
 .reader-edit-layer-identity { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: 12rem; }
 .reader-edit-layer-identity > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reader-edit-layer-identity small { font-size: 11px; font-weight: 400; line-height: 1.3; color: var(--ui-muted, #4d5f54); white-space: normal; text-align: left; }
-.reader-shell .annotation-tool-button { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+/* Icons and hit targets do not move when the current tool name appears. */
+.reader-shell .annotation-tool-button { position: relative; display: inline-grid; place-items: center; }
+.reader-shell .annotation-tool-button > svg { transform: translateY(-3px); }
 .reader-shell .annotation-tool-button[aria-pressed="true"] { color: var(--ui-accent, #174d38); background: var(--ui-soft, #dce9df); box-shadow: inset 0 0 0 1px #799584; }
-.annotation-tool-name { font-size: 10px; line-height: 1.1; white-space: nowrap; }
+.annotation-tool-name { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); width: max-content; max-width: calc(100% + 40px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; font-size: 10px; line-height: 1.1; }
+.annotation-tool-button:first-child .annotation-tool-name { left: 0; transform: none; }
+.annotation-tool-button:last-child .annotation-tool-name { left: auto; right: 0; transform: none; }
 
 .reader-page-grid__paper .pdf-page-canvas { box-shadow: none; }
 
@@ -607,10 +616,6 @@
 .reader-shell .reader-done-button { min-width: 44px; }
 @media (max-width: 640px) {
   .reader-shell .reader-chrome[data-editing] .reader-edit-gesture-hint { margin-top: 0; }
-  .reader-shell .annotation-drawing-tools .segmented-control { flex-wrap: wrap; }
-  .reader-shell .annotation-drawing-tools .annotation-tool-button { flex: 1 0 44px; min-width: 44px; height: auto; padding: 4px 5px; }
-  .reader-shell .annotation-drawing-tools .annotation-tool-button[aria-pressed="true"] { flex-basis: max-content; max-width: 100%; }
-  .annotation-tool-name { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 }
 /* The gesture map remains spatial; its explanations follow normal document flow. */
 .reader-guide { background: rgb(var(--ui-surface-rgb, 234 243 236) / 97%); overflow-y: auto; touch-action: pan-y; }
