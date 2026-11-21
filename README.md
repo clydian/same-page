@@ -1,6 +1,6 @@
 # 连续翻页交接逐帧证据 · PR #692
 
-修前为 main `7858ad72db83847da8806d0a9a798455a0e60441`（已包含 #689），修后为 `0c2802e7451c9d4cd1960f7aeacb2f7a5784689a`。
+修前为 main `7858ad72db83847da8806d0a9a798455a0e60441`（已包含 #689），修后为 `63c736167844339700538a9b27ef4569a60fdabd`。
 
 同一 Chromium 156 headless、同一真实阅读器路由 `/choirs/visual-choir/scores/visual-score`、本地 Worker、合成 API 及六页着色 PDF，PDF.js 实际渲染。390×844、834×1100、1194×834，deviceScaleFactor=1、hasTouch=true、service worker 禁用。CDP Input.dispatchTouchEvent 原生输入：第一笔从 80% 宽度向左滑 42%，6 步；释放后 55ms 开始第二笔，第一步 12px，其余按 14%~42% 宽度滑动，每步等待 animation frame，最后等待 1500ms。两笔均从第 1 页前翻到第 3 页。MP4 由 CDP Page.screencastFrame 原始 PNG 和实际时间间隔编码成 30fps，未人为补造画面。
 
