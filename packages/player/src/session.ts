@@ -169,10 +169,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
   let preview: { playing: boolean; scrollTop: number; scrollLeft: number; restoreView?: () => void; index: number; range: { start: number; end: number } } | null = null;
   const followScroll = new ScoreFollowScroll(viewport);
-  let anticipatedSystem: object | null = null;
+  let anticipatedSystem: number | null = null;
   let lastPositionIndex = -1;
   const cancelFollowScroll = () => { followScroll.cancel(); anticipatedSystem = null; };
-  let followedSystem: object | null = null;
+  let followedSystem: number | null = null;
+  // Collection lookups return translated copies; layout y identifies a row until reflow.
+  const systemKey = (system: { realBounds: { y: number } }) => system.realBounds.y;
   const systemPosition = (system: { realBounds: { y: number; h: number } }) => {
     if (!viewport) return null;
     const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
@@ -189,7 +191,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
     if (masterBar) api.ensureMeasure?.(masterBar);
     const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
-    followedSystem = measureBounds?.staffSystemBounds ?? null;
+    followedSystem = measureBounds?.staffSystemBounds ? systemKey(measureBounds.staffSystemBounds) : null;
     const bounds = measureBounds?.realBounds ?? measureBounds?.staffSystemBounds?.realBounds;
     if (viewport && bounds) {
       const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
@@ -440,23 +442,29 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       const discontinuity = event.isSeek || index < lastPositionIndex || index > lastPositionIndex + 1;
       lastPositionIndex = index;
       if (discontinuity) cancelFollowScroll();
-      if (system !== followedSystem || discontinuity) {
-        if (anticipatedSystem === system) followScroll.finish(); else followScroll.cancel();
-        anticipatedSystem = null; followedSystem = system;
+      const key = systemKey(system);
+      if (key !== followedSystem || discontinuity) {
+        if (anticipatedSystem === key) followScroll.finish(); else followScroll.cancel();
+        anticipatedSystem = null;
         const position = systemPosition(system);
-        if (position && !position.readable) followScroll.move(position.target);
+        if (!position) { followedSystem = null; return; }
+        followedSystem = key;
+        if (!position.readable) followScroll.move(position.target);
       }
       if (!state.playing || pauseRequested || discontinuity || follow.shouldSuspendForScroll(performance.now(), dragged) || state.loop && index >= state.loop.end) return;
       const current = api.tickCache?.masterBars[index], next = api.tickCache?.masterBars[index + 1];
       if (!current || !next || current.masterBar.score !== next.masterBar.score || sourceIndex(next.masterBar) !== sourceIndex(current.masterBar) + 1) return;
       const nextSystem = api.boundsLookup?.findMasterBar(next.masterBar)?.staffSystemBounds;
-      const systems = api.boundsLookup?.staffSystems ?? [];
-      if (!nextSystem || nextSystem === system || systems.indexOf(nextSystem) !== systems.indexOf(system) + 1) return;
+      if (!nextSystem || systemKey(nextSystem) === key) return;
       const remaining = playbackMillisecondsUntil(current, event.currentTick, next.start, tempo.bpm, state.speed);
       // Use the actual next playback boundary, not the length of a beat. A late
       // notification or missing clock/geometry falls back to immediate entry.
       if (remaining === null || remaining <= 0 || remaining > ScoreFollowScroll.windowMs) return;
-      if (nextSystem === anticipatedSystem) {
+      const nextKey = systemKey(nextSystem);
+      const systems = api.boundsLookup?.staffSystems ?? [];
+      const currentRow = systems.findIndex(row => systemKey(row) === key);
+      if (currentRow < 0 || systems.findIndex(row => systemKey(row) === nextKey) !== currentRow + 1) return;
+      if (nextKey === anticipatedSystem) {
         if (remaining <= ScoreFollowScroll.settleMs) followScroll.finish();
         return;
       }
@@ -464,7 +472,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       if (!position || position.readable || viewport.ownerDocument?.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       const now = viewport.ownerDocument?.defaultView?.performance.now();
       if (now === undefined) return;
-      anticipatedSystem = nextSystem;
+      anticipatedSystem = nextKey;
       // Leave a render-frame margin; fresh position replies also complete the
       // same move before the first beat if rAF notifications are less frequent.
       followScroll.move(position.target, now + remaining - ScoreFollowScroll.settleMs);

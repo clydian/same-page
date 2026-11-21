@@ -459,9 +459,11 @@ test('first position retries missing system bounds without waiting for another m
   h.api.boundsLookup.findMasterBar=()=>undefined;
   await Promise.resolve();
   h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0);
+  h.api.boundsLookup.findMasterBar=()=>({staffSystemBounds:{...row,realBounds:{...row.realBounds,h:NaN}}});
+  h.api.playerPositionChanged.emit({currentTick:2});assert.equal(viewport.scrollTop,0);
   h.api.boundsLookup.findMasterBar=()=>({staffSystemBounds:row});
-  h.api.playerPositionChanged.emit({currentTick:2});assert.equal(viewport.scrollTop,484);
   h.api.playerPositionChanged.emit({currentTick:3});assert.equal(viewport.scrollTop,484);
+  h.api.playerPositionChanged.emit({currentTick:4});assert.equal(viewport.scrollTop,484);
  } finally {h.dispose();}
 });
 
@@ -480,15 +482,16 @@ test('lyric sizes relayout the native font without changing transport or mix',()
  }finally{h.dispose();}
 });
 
-test('following only moves in the final playback window and completes at the new system',async()=>{
+for(const collection of [false,true]) test(`following only moves in the final playback window and completes at the new system (collection=${collection})`,async()=>{
  let now=0,id=0;const frames=new Map(),handlers=new Map();
  const view={performance:{now:()=>now},document:{hidden:false},matchMedia:()=>({matches:false}),getComputedStyle:()=>({scrollPaddingTop:'16px'}),requestAnimationFrame(fn){frames.set(++id,fn);return id;},cancelAnimationFrame(key){frames.delete(key);}};
  const viewport={scrollTop:0,scrollHeight:2000,clientHeight:600,ownerDocument:{defaultView:view,addEventListener(){},removeEventListener(){}},getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(n,fn){handlers.set(n,fn);},removeEventListener(){}};
  const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
  try{
-  const rows=[100,500].map(y=>({realBounds:{x:0,y,w:300,h:180}}));
+  const rows=[100,500].map((y,index)=>({bars:[{index}],realBounds:{x:0,y,w:300,h:180}}));
+  h.api.isCollection=collection;h.api.sourceIndex=bar=>bar.index;h.api.playbackVisits=playbackMeasureVisits(['1','2']);h.api.tempoAt=()=>({bpm:120,unit:1});
   h.api.tickCache.masterBars=rows.map((_,index)=>({masterBar:{index},start:index*3840,end:(index+1)*3840,tempoChanges:[{tick:index*3840,tempo:120}]}));
-  h.api.boundsLookup.staffSystems=rows;h.api.boundsLookup.findMasterBar=bar=>({realBounds:rows[bar.index].realBounds,staffSystemBounds:rows[bar.index]});
+  h.api.boundsLookup.staffSystems=rows;h.api.boundsLookup.findMasterBar=bar=>({realBounds:rows[bar.index].realBounds,staffSystemBounds:collection?{...rows[bar.index],bars:[{index:bar.index}]}:rows[bar.index]});
   await Promise.resolve();h.api.playerStateChanged.emit({state:1});
   h.api.playerPositionChanged.emit({currentTick:100});h.api.playerPositionChanged.emit({currentTick:3600});assert.equal(viewport.scrollTop,0);assert.equal(frames.size,0,'125ms before entry remains still');
   now=100;h.api.playerPositionChanged.emit({currentTick:3610});assert.equal(frames.size,1);
