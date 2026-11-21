@@ -87,7 +87,6 @@
   "focusKeepsMix": "O foco na voz mantém os ajustes de mudo e solo.",
   "partTimbre": "Timbre da voz",
   "partTimbreHelp": "Para o movimento atual desta sessão. A mudança recarrega brevemente o áudio e mantém a posição e a mixagem. O timbre padrão inclui o processamento automático e as mudanças de som do reprodutor.",
-  "timbrePart": "Voz a editar",
   "timbreScore": "Usar timbre padrão de reprodução",
   "timbrePiano": "Piano",
   "timbreAahs": "Coro ah",

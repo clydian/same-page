@@ -87,7 +87,6 @@
   "focusKeepsMix": "Part focus keeps mute and solo settings.",
   "partTimbre": "Part sound",
   "partTimbreHelp": "Applies to this piece for this practice session. Changing sound briefly reloads audio and keeps your position and mix. Default playback sound includes the player’s automatic processing and sound changes.",
-  "timbrePart": "Part to edit",
   "timbreScore": "Use default playback sound",
   "timbrePiano": "Piano",
   "timbreAahs": "Choir aahs",

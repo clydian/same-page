@@ -132,8 +132,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   // Sound reload must finish native initialization before restoring active focus.
   const channelVolumes = () => page.evaluate(() => Object.fromEntries(window.__partVolumeCommands.map(({channel,volume})=>[channel,volume])));
   await settings.getByRole('button',{name:'声部音色',exact:true}).click();
-  await settings.getByRole('combobox',{name:'编辑声部',exact:true}).selectOption('1');
-  const sound = settings.getByRole('combobox',{name:'声部音色',exact:true});
+  const sound = settings.locator('.practice-timbre-part select').nth(1);
   await sound.selectOption('oohs');await expect(sound).toBeEnabled();
   await expect.poll(channelVolumes).toEqual({'0':.25,'1':.75});
   await expect(settings.getByRole('switch',{name:'声部关注',exact:true})).toBeChecked();

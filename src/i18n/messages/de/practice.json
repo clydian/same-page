@@ -87,7 +87,6 @@
   "focusKeepsMix": "Der Stimmfokus behält Stumm- und Solo-Einstellungen bei.",
   "partTimbre": "Stimmenklang",
   "partTimbreHelp": "Gilt für das aktuelle Stück dieser Übung. Der Klangwechsel lädt das Audio kurz neu und behält Position und Mischung bei. Der Standardklang enthält die automatische Verarbeitung und Klangwechsel des Players.",
-  "timbrePart": "Stimme bearbeiten",
   "timbreScore": "Standard-Wiedergabeklang",
   "timbrePiano": "Klavier",
   "timbreAahs": "Chor Ah",
