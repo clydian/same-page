@@ -418,7 +418,7 @@ export function usePagedReader({
         (Math.abs(session.progress) >= COMMIT_PROGRESS ||
           (sameDirection && Math.abs(session.velocity) >= COMMIT_VELOCITY_PX_PER_MS));
       if (current.phase === "preparing" || current.phase === "settling") {
-        if (shouldCommit) {
+        if (shouldCommit && current.commitOnFinish) {
           const projected = queuedTarget.current ?? current.targetPage ?? current.anchorPage;
           queuedTarget.current = clampPage(projected + (session.progress < 0 ? 1 : -1), pageCountRef.current);
         }

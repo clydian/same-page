@@ -243,6 +243,28 @@ describe("usePagedReader", () => {
     expect(result.current.phase).toBe("idle");
   });
 
+  it("discards buffered input while a refused first swipe rebounds", async () => {
+    let admit!: (allowed: boolean) => void;
+    const beforePageChange = vi.fn(() => new Promise<boolean>(resolve => { admit = resolve; }));
+    const onPageChange = vi.fn();
+    const { result } = renderPager(onPageChange, { beforePageChange });
+    finishRenders(result.current.beginPageRender, 3, 4);
+    act(() => result.current.gesture.begin(sample(17, 500, 300, 0)));
+    act(() => result.current.gesture.move(sample(17, 200, 300, 300)));
+    act(() => result.current.gesture.end(sample(17, 200, 300, 310)));
+    flushFrame();
+    act(() => result.current.gesture.begin(sample(18, 500, 300, 320)));
+    act(() => result.current.gesture.move(sample(18, 330, 300, 720)));
+    await act(async () => admit(false));
+    expect(result.current.phase).toBe("settling");
+    act(() => result.current.gesture.end(sample(18, 330, 300, 730)));
+    act(() => result.current.finishTransition());
+    expect(result.current.anchorPage).toBe(2);
+    expect(result.current.phase).toBe("idle");
+    expect(beforePageChange).toHaveBeenCalledOnce();
+    expect(onPageChange).not.toHaveBeenCalled();
+  });
+
   it("queues a swipe during a distant page jump without rebasing unrelated paper", () => {
     const onPageChange = vi.fn();
     const { result } = renderPager(onPageChange);
