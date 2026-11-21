@@ -146,6 +146,47 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
     const first = pieceAt(range?.startTick ?? 0), last = pieceAt(Math.max(0, (range?.endTick ?? Infinity) - 1));
     player().isLooping = looping && first === last;
   }
+  function loadPlaybackMidi(file: at.midi.MidiFile, reason: 'switch-piece' | 'change-timbre') {
+    const synth = player();
+    const changingTimbre = reason === 'change-timbre';
+    return new Promise<void>((resolve, reject) => {
+      let armed = false;
+      let loaded = false;
+      let stopMidi = () => {};
+      let stopReady = () => {};
+      const cleanup = () => {
+        clearTimeout(timer);
+        stopReady();
+        stopMidi();
+        cancelMidiLoad = undefined;
+      };
+      const finish = () => {
+        cleanup();
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(changingTimbre
+          ? new Error('更换音色用时过长，请重新打开乐谱。')
+          : new CollectionPlaybackError('opusPieceTimeout', '准备曲目用时过长。'));
+      }, 30_000);
+      cancelMidiLoad = finish;
+      // Native events can replay the previous MIDI on subscription.
+      stopMidi = synth.midiLoaded.on(() => {
+        if (!armed) return;
+        loaded = true;
+        if (!changingTimbre) finish();
+      });
+      if (changingTimbre) {
+        // The synth reapplies score volumes when the new presets become ready.
+        // Wait for readiness after this MIDI reply before restoring the mix.
+        stopReady = synth.readyForPlayback.on(() => { if (loaded) finish(); });
+      }
+      armed = true;
+      if (!changingTimbre) synth.resetChannelStates();
+      synth.loadMidiFile(file);
+    });
+  }
   async function switchPending() {
     if (switching || disposed || !collection) return;
     switching = true;
@@ -155,16 +196,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
         const index = Math.max(0, pieceAt(request.tick)), piece = pieces[index];
         player().pause();
         if (active !== index || !player().loadedMidiInfo) {
-          // Native wrapper events replay the previous MIDI on subscription. Only
-          // the asynchronous reply to this serialized load may complete it.
-          await new Promise<void>((resolve, reject) => {
-            let armed = false, off: () => void = () => {};
-            const finish = () => { clearTimeout(timer); off(); cancelMidiLoad = undefined; resolve(); };
-            const timer = setTimeout(() => { off(); cancelMidiLoad = undefined; reject(new CollectionPlaybackError('opusPieceTimeout', '准备曲目用时过长。')); }, 30_000);
-            cancelMidiLoad = finish;
-            off = player().midiLoaded.on(() => { if (armed) finish(); });
-            armed = true; player().resetChannelStates(); player().loadMidiFile(piece.midi!);
-          });
+          await loadPlaybackMidi(piece.midi!, 'switch-piece');
           if (disposed) return;
           active = index; player().applyTranspositionPitches(piece.transpositions); scoreLoaded.emit(piece.score);
         }
@@ -367,18 +399,7 @@ export function createDocumentPlaybackApi(element: HTMLElement, settings: Constr
       try {
         selection.set(id, value); selection.apply(file);
         player().pause();
-        await new Promise<void>((resolve, reject) => {
-          let armed = false, loaded = false, off: () => void = () => {}, offMidi: () => void = () => {};
-          const finish = () => { clearTimeout(timer); off(); offMidi(); cancelMidiLoad = undefined; resolve(); };
-          const timer = setTimeout(() => { off(); offMidi(); cancelMidiLoad = undefined; reject(new Error('更换音色用时过长，请重新打开乐谱。')); }, 30_000);
-          cancelMidiLoad = finish;
-          // The proxy emits readiness once with its old flags before midiLoaded,
-          // then again when the synth actually finishes loading the new presets.
-          // That latter event reapplies score volumes: restore our mix after it.
-          offMidi = player().midiLoaded.on(() => { if (armed) loaded = true; });
-          off = player().readyForPlayback.on(() => { if (armed && loaded) finish(); });
-          armed = true; player().loadMidiFile(file);
-        });
+        await loadPlaybackMidi(file, 'change-timbre');
         if (disposed) return false;
         player().playbackRange = savedRange; player().isLooping = savedLooping;
         player().tickPosition = tick;
