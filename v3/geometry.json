@@ -1,0 +1,98 @@
+[
+  {
+    "locale": "de",
+    "width": 320,
+    "i": 0,
+    "name": "Wählen Sie",
+    "centerOffset": -0.0078125,
+    "within": true
+  },
+  {
+    "locale": "de",
+    "width": 320,
+    "i": 4,
+    "name": "Text",
+    "centerOffset": -0.0078125,
+    "within": true
+  },
+  {
+    "locale": "de",
+    "width": 320,
+    "i": 6,
+    "name": "Ellipse",
+    "centerOffset": -0.0078125,
+    "within": true
+  },
+  {
+    "locale": "de",
+    "width": 320,
+    "i": 2,
+    "name": "Textmarker",
+    "centerOffset": 0,
+    "within": true
+  },
+  {
+    "locale": "en",
+    "width": 390,
+    "i": 0,
+    "name": "Choose",
+    "centerOffset": 0,
+    "within": true
+  },
+  {
+    "locale": "en",
+    "width": 390,
+    "i": 4,
+    "name": "text",
+    "centerOffset": 0,
+    "within": true
+  },
+  {
+    "locale": "en",
+    "width": 390,
+    "i": 6,
+    "name": "ellipse",
+    "centerOffset": 0,
+    "within": true
+  },
+  {
+    "locale": "en",
+    "width": 390,
+    "i": 2,
+    "name": "highlighter pen",
+    "centerOffset": 0,
+    "within": true
+  },
+  {
+    "locale": "zh-Hans",
+    "width": 834,
+    "i": 0,
+    "name": "选择",
+    "centerOffset": 0,
+    "within": true
+  },
+  {
+    "locale": "zh-Hans",
+    "width": 834,
+    "i": 4,
+    "name": "文字",
+    "centerOffset": 0,
+    "within": true
+  },
+  {
+    "locale": "zh-Hans",
+    "width": 834,
+    "i": 6,
+    "name": "椭圆",
+    "centerOffset": 0,
+    "within": true
+  },
+  {
+    "locale": "zh-Hans",
+    "width": 834,
+    "i": 2,
+    "name": "荧光笔",
+    "centerOffset": 0,
+    "within": true
+  }
+]
