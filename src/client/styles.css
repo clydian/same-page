@@ -2644,6 +2644,9 @@ h1 {
 }
 
 .annotated-pdf-page {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   position: relative;
   flex: none;
 }
@@ -3225,4 +3228,10 @@ h1 {
 @media (max-width: 520px) {
   .annotation-composer-styles { flex-wrap: wrap; width: max-content; }
   .annotation-composer-layer { order: -1; width: 100%; max-width: none; padding: 3px 8px; font-size: 11px; }
+}
+
+.annotated-pdf-page :is(input, textarea, [contenteditable="true"]) {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }

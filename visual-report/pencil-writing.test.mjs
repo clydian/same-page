@@ -6,7 +6,7 @@ import { createVisualFixtureSession } from "./fixtures.mjs";
 let app;
 before(async () => { app = await startVisualServer({ script: "dev" }); });
 after(async () => { await app?.stop(); });
-async function openReader(t, engine) {
+async function openReader(t, engine, legacy = false) {
   const browser = await engine.launch();
   t.after(() => browser.close());
   const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 1194, height: 900 } });
@@ -14,6 +14,9 @@ async function openReader(t, engine) {
   const fixture = createVisualFixtureSession({ dense: true });
   await page.route("**/api/**", route => route.fulfill(fixture.resolve({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "admin" })));
   await page.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
+  if (legacy) await page.addInitScript(() => {
+    localStorage.setItem("note-tool-style:user:visual-user-admin:ink", JSON.stringify({ nib: "round", pressureMode: "uniform", strokeWidth: .012, opacity: 1, fontScale: .016, textAlign: "center" }));
+  });
   await page.goto(`${app.origin}/choirs/visual-choir/scores/visual-score`);
   await page.locator(".annotated-pdf-page canvas:not([hidden])").first().waitFor();
   await page.locator(".annotated-pdf-page").first().click({ position: { x: 280, y: 300 } });
@@ -28,6 +31,113 @@ async function pointer(page, type, x, y, pose = {}) {
   }, { type, x, y, pose });
 }
 for (const [name, engine] of Object.entries({ chromium, webkit })) {
+  test(`${name}: selected tool closes on the second physical click, including icon target`, async t => {
+    const page = await openReader(t, engine);
+    const pen = page.getByRole("button", { name: "画笔", exact: true });
+    for (let i = 0; i < 3; i++) {
+      await pen.locator("svg").click();
+      await page.getByRole("dialog", { name: "工具设置", exact: true }).waitFor();
+      await pen.locator("svg").click();
+      await page.getByRole("dialog", { name: "工具设置", exact: true }).waitFor({ state: "hidden" });
+    }
+    const settings = page.getByRole("button", { name: "工具设置", exact: true });
+    await settings.click(); await settings.click();
+    await page.getByRole("dialog", { name: "工具设置", exact: true }).waitFor({ state: "hidden" });
+  });
+  test(`${name}: legacy default upgrades once and explicit uniform survives reload`, async t => {
+    const page = await openReader(t, engine, true);
+    await page.getByRole("button", { name: "画笔", exact: true }).click();
+    assert.equal(await page.getByRole("button", { name: "压感", exact: true }).getAttribute("aria-pressed"), "true");
+    await page.getByRole("button", { name: "等宽", exact: true }).click();
+    // The init script restores only the legacy data; the new choice marker must
+    // survive and therefore preserve the explicit uniform selection.
+    await page.reload();
+    await page.locator(".annotated-pdf-page canvas:not([hidden])").first().waitFor();
+    await page.locator(".annotated-pdf-page").first().click({ position: { x: 280, y: 300 } });
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    const pen = page.getByRole("button", { name: "画笔", exact: true });
+    if (await pen.getAttribute("aria-pressed") !== "true") await pen.click();
+    await pen.click();
+    assert.equal(await page.getByRole("button", { name: "等宽", exact: true }).getAttribute("aria-pressed"), "true");
+    const styles = await page.evaluate(() => JSON.parse(localStorage.getItem("note-tool-style:user:visual-user-admin:ink")));
+    assert.equal(styles.strokeWidth, .012);
+  });
+  test(`${name}: native callout suppression stays on paper and preserves text inputs`, async t => {
+    const page = await openReader(t, engine);
+    const result = await page.evaluate(() => {
+      const paper = document.querySelector(".annotated-pdf-page");
+      const svg = paper.querySelector("svg");
+      const input = document.createElement("textarea"); input.value = "select me"; paper.append(input);
+      const dispatch = target => { const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true }); target.dispatchEvent(event); return event.defaultPrevented; };
+      const result = { paper: dispatch(svg), input: dispatch(input), outside: dispatch(document.querySelector(".annotation-controls")), paperSelect: getComputedStyle(paper).userSelect, inputSelect: getComputedStyle(input).userSelect };
+      input.select(); result.selection = input.selectionEnd - input.selectionStart;
+      input.remove(); return result;
+    });
+    assert.deepEqual(result, { paper: true, input: false, outside: false, paperSelect: "none", inputSelect: "text", selection: 9 });
+    await pointer(page, "pointerdown", .2, .2); await pointer(page, "pointermove", .3, .3); await pointer(page, "pointerup", .3, .3);
+    await page.waitForFunction(() => document.querySelector('button[aria-label="撤销"]')?.disabled === false);
+  });
+  test(`${name}: same trajectory retains hooks and intentional corners from measured batches`, async t => {
+    const page = await openReader(t, engine);
+    const traces = [
+      { name: "Short hook", points: [[.18,.20],[.22,.20],[.26,.20],[.28,.18],[.27,.15],[.25,.16],[.26,.20],[.30,.20],[.34,.20]] },
+      { name: "Sharp turn", points: [[.18,.35],[.22,.35],[.26,.35],[.28,.31],[.28,.27],[.28,.23],[.28,.27],[.28,.31],[.28,.35]] },
+      { name: "Small lettering", points: [[.18,.48],[.20,.46],[.22,.48],[.24,.46],[.26,.48],[.28,.46],[.30,.48],[.32,.46],[.34,.48]] },
+    ];
+    for (const trace of traces) {
+      const paths = [];
+      for (const coalesced of [false, true]) {
+        await page.locator(".annotation-overlay svg").first().evaluate((svg, { points, coalesced }) => {
+          const b = svg.getBoundingClientRect();
+          const event = (type, [x,y]) => new PointerEvent(type, { bubbles:true, cancelable:true, pointerId:80, pointerType:"pen", buttons:type === "pointerup" ? 0 : 1, pressure:.5, clientX:b.left+x*b.width, clientY:b.top+y*b.height });
+          svg.dispatchEvent(event("pointerdown", points[0]));
+          for (let i=4; i<points.length; i+=4) {
+            const move = event("pointermove", points[i]);
+            if (coalesced) Object.defineProperty(move, "getCoalescedEvents", { value: () => points.slice(i-3,i+1).map(p => event("pointermove",p)) });
+            svg.dispatchEvent(move);
+          }
+        }, { points: trace.points, coalesced });
+        const draft = page.locator("[data-ink-draft]");
+        await draft.waitFor();
+        // Wait for the requestAnimationFrame publishing the complete batch.
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const live = await draft.getAttribute("d");
+        await page.evaluate(d => {
+          window.releaseFrames = [];
+          const frame = () => {
+            window.releaseFrames.push([...document.querySelectorAll("[data-ink-draft], [data-ink-stroke]")].some(path => path.getAttribute("d") === d));
+            if (window.releaseFrames.length < 6) requestAnimationFrame(frame);
+          };
+          requestAnimationFrame(frame);
+        }, live);
+        await pointer(page, "pointerup", ...trace.points.at(-1), { pressure: 0 });
+        await page.waitForFunction(d => [...document.querySelectorAll("[data-ink-stroke]")].some(path => path.getAttribute("d") === d), live);
+        await page.waitForFunction(() => window.releaseFrames.length === 6);
+        assert.deepEqual(await page.evaluate(() => window.releaseFrames), Array(6).fill(true), "release must retain the final outline on each observed animation frame");
+        paths.push(live);
+      }
+      assert.notEqual(paths[0], paths[1], `${trace.name}: intermediate measured input must affect the outline`);
+    }
+
+  });
+  test(`${name}: zero-pressure pen samples retain the same live and saved outline`, async t => {
+    const page = await openReader(t, engine);
+    await pointer(page, "pointerdown", .18, .5, { pressure: 0 });
+    await pointer(page, "pointermove", .4, .5, { pressure: .2 });
+    await pointer(page, "pointermove", .7, .5, { pressure: 0 });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const live = await page.locator("[data-ink-draft]").getAttribute("d");
+    await pointer(page, "pointerup", .7, .5, { pressure: 0 });
+    await page.waitForFunction(d => [...document.querySelectorAll("[data-ink-stroke]")].some(path => path.getAttribute("d") === d), live);
+    const payload = await page.evaluate(async () => {
+      const { localDatabase } = await import("/src/client/platform/local-database.ts");
+      return (await localDatabase.annotations.toArray()).find(note => note.payload?.kind === "ink" && note.payload.points[0]?.x === .18)?.payload;
+    });
+    assert.equal(payload.pressureMode, "pressure");
+    assert.deepEqual(payload.points.map(p => p.pressure), [0, 0, Math.fround(.2), 0]);
+    await page.getByRole("button", { name: "撤销", exact: true }).click();
+    await page.waitForFunction(d => ![...document.querySelectorAll("[data-ink-stroke], [data-ink-draft]")].some(path => path.getAttribute("d") === d), live);
+  });
   test(`${name}: crossing pen ink remains painted in live and saved SVG`, async t => {
     const page = await openReader(t, engine);
     await pointer(page, "pointerdown", .2, .2);

@@ -153,6 +153,7 @@ export function ReaderEditingControls({
         isNonModal
         triggerRef={styleAnchor}
         isOpen={styleSource !== null && !isDisabled && !!selectedLayer?.canEdit && toolHasStyle}
+        shouldCloseOnInteractOutside={element => !styleAnchor.current?.contains(element)}
         onOpenChange={open => { if (!open) setStyleSource(null); }}
         placement="top"
         offset={12}

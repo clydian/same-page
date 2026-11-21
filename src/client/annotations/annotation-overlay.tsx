@@ -79,7 +79,7 @@ export function AnnotationOverlay({
   const activePage = !pages || (pageSession.activePage ?? pageNumber) === pageNumber;
   const persistence = useEditorPersistence(editor);
   const notes = useMemo(() => new NoteInteraction(editor), [editor]);
-  const { draftId, stroke: draftStroke, shape: draftShape, erased: erasedPreview } = useSyncExternalStore(notes.subscribe, notes.getSnapshot);
+  const { released, draftId, stroke: draftStroke, shape: draftShape, erased: erasedPreview } = useSyncExternalStore(notes.subscribe, notes.getSnapshot);
   const eraserGradientId = useId();
   const [pageWidth, setPageWidth] = useState(1000);
   const [measuredAspectRatio, setAspectRatio] = useState(1);
@@ -90,7 +90,8 @@ export function AnnotationOverlay({
   const { annotations: projectedAnnotations, preview: objectTransformPreview, transforming: transformingObject, deleteActive } = useSyncExternalStore(movement.subscribe, movement.getSnapshot);
   useLayoutEffect(() => {
     movement.reconcile(annotations);
-  }, [movement, annotations]);
+    notes.reconcile(annotations);
+  }, [movement, notes, annotations]);
   const interactionRef = useRef<AnnotationOverlayInteraction>("idle");
   const deleteTargetRef = useRef<HTMLDivElement>(null);
   const [moveNotice, setMoveNotice] = useState<string | null>(null);
@@ -166,12 +167,11 @@ export function AnnotationOverlay({
     [onInteractionChange, pages, pageNumber],
   );
 
-  const point = (event: ReactPointerEvent<SVGSVGElement>, constrain = true) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
+  const point = (event: ReactPointerEvent<SVGSVGElement> | PointerEvent, constrain = true, bounds = overlayRef.current!.querySelector("svg")!.getBoundingClientRect()) => {
     return {
       x: constrain ? clamp((event.clientX - bounds.left) / bounds.width) : (event.clientX - bounds.left) / bounds.width,
       y: constrain ? clamp((event.clientY - bounds.top) / bounds.height) : (event.clientY - bounds.top) / bounds.height,
-      ...(event.pressure > 0 ? { pressure: event.pressure } : {}),
+      ...(event.pointerType === "pen" && event.pressure >= 0 && event.pressure <= 1 ? { pressure: event.pressure } : {}),
       ...(event.pointerType === "pen" ? { tiltX: event.tiltX || 0, tiltY: event.tiltY || 0, twist: event.twist || 0 } : {}),
     };
   };
@@ -314,7 +314,8 @@ export function AnnotationOverlay({
     // outside, finish this note at the boundary; returning cannot extend it or
     // feed the same pointer into a neighbouring page.
     const bounds = event.currentTarget.getBoundingClientRect();
-    if (pages && notes.owns(event.pointerId) && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+    const samples = tool === "ink" ? event.nativeEvent.getCoalescedEvents?.() ?? [] : [];
+    if (pages && !samples.length && notes.owns(event.pointerId) && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
       void notes.finishAtBoundary(event.pointerId, point(event, false), event.timeStamp);
       return;
     }
@@ -322,7 +323,17 @@ export function AnnotationOverlay({
       eraseAt(event);
       return;
     }
-    if (editing) notes.move(event.pointerId, point(event), event.timeStamp);
+    if (editing) {
+      // Coalesced samples are measured input, in temporal order. Predictions are
+      // deliberately excluded from both the draft and persisted annotation.
+      for (const sample of samples.length ? samples : [event]) {
+        if (pages && notes.owns(event.pointerId) && (sample.clientX < bounds.left || sample.clientX > bounds.right || sample.clientY < bounds.top || sample.clientY > bounds.bottom)) {
+          void notes.finishAtBoundary(event.pointerId, point(sample, false, bounds), sample.timeStamp);
+          break;
+        }
+        notes.move(event.pointerId, point(sample, true, bounds), sample.timeStamp);
+      }
+    }
 
   };
 
@@ -429,7 +440,7 @@ export function AnnotationOverlay({
               ? objectTransformPreview.payload : payload;
             return <g key={annotation.id} opacity={reference ? 0.45 : 1} pointerEvents={reference ? "none" : undefined}><ShapePreview payload={position} color={color} /></g>;
           }
-          if (payload?.kind !== "ink" || annotation.id === draftId) return null;
+          if (payload?.kind !== "ink" || annotation.id === draftId || released.has(annotation.id)) return null;
           return (
             <g key={annotation.id} opacity={reference ? 0.45 : 1} pointerEvents={reference ? "none" : undefined} role={selectable ? "button" : undefined} tabIndex={selectable ? 0 : undefined} aria-label={selectable ? payload.brush === "highlighter" ? t("highlighterNote") : t("inkNote") : undefined} onKeyDown={event => { if (selectable && selectedId !== annotation.id && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); adjustment.select(annotation.id); } }}>
               {editing && tool === "eraser" && annotation.layerId === activeLayerId ? (
@@ -453,6 +464,9 @@ export function AnnotationOverlay({
           );
         })}
         {editing && draftShape ? <ShapePreview payload={draftShape} color={activeLayerColor} /> : null}
+        {editing && [...released].filter(([, note]) => visibleLayerIds.has(note.layerId)).map(([id, { layerId, payload }]) => (
+          <g key={id}>{inkSvgPaths(payload, aspectRatio).map((path, index) => <path key={index} data-ink-draft d={path} fill={layerColors.get(layerId) ?? payload.color ?? toolColor} fillRule={inkFillRule(payload, aspectRatio)} opacity={payload.opacity ?? 1} />)}</g>
+        ))}
         {editing && draftStroke ? (
           <g>{inkSvgPaths(draftStroke, aspectRatio).map((path, index) => <path key={index} data-ink-draft d={path} fill={activeLayerColor} fillRule={inkFillRule(draftStroke, aspectRatio)} opacity={draftStroke.opacity ?? 1} />)}</g>
         ) : null}

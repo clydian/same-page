@@ -1,4 +1,5 @@
 import type { AnnotationPayload } from "../../shared/annotations";
+import type { LocalAnnotationRecord } from "../platform/local-database";
 import type { AnnotationEditor } from "./annotation-editor";
 
 type Ink = Extract<AnnotationPayload, { kind: "ink" }>;
@@ -11,12 +12,13 @@ type Active = { pointerId: number; layerId: string } & (
 );
 
 export interface NoteInteractionSnapshot {
+  released: ReadonlyMap<string, { layerId: string; payload: Ink; revision: number }>;
   draftId: string | null;
   stroke: Ink | null;
   shape: Shape | null;
   erased: ReadonlySet<string>;
 }
-const empty: NoteInteractionSnapshot = { draftId: null, stroke: null, shape: null, erased: new Set() };
+const empty: NoteInteractionSnapshot = { released: new Map(), draftId: null, stroke: null, shape: null, erased: new Set() };
 
 // Compact only newly collected ink. Existing objects and queued retries retain
 // their original payloads. Five decimals bound coordinate error to 0.0205px at 4096px.
@@ -31,19 +33,54 @@ function sampleInkPoint(point: Point): Point {
   };
 }
 
+// Select the effective mode only for newly collected ink. A mouse, touch or
+// pressureless pen reports no pressure or the Pointer Events sentinel 0.5.
+// Explicitly use thinning=0 via uniform mode; do not change old annotations.
+function collectedInk(payload: Ink): Ink {
+  return payload.pressureMode === "pressure" && !payload.points.some(point => point.pressure !== undefined && point.pressure > 0 && point.pressure !== 0.5)
+    ? { ...payload, pressureMode: "uniform" } : payload;
+}
+
 // Owns only unreleased note intent. Released edits and durable-save recovery
 // remain in AnnotationEditor, so interruption cannot undo an earlier gesture.
 export class NoteInteraction {
+  private released = new Map<string, { layerId: string; payload: Ink; revision: number }>();
   private active: Active | null = null;
+  private annotations: LocalAnnotationRecord[] = [];
+  private unsubscribeEditor: (() => void) | undefined;
   private frame: number | null = null;
   private snapshot = empty;
   private listeners = new Set<() => void>();
-  constructor(private editor: Pick<AnnotationEditor, "persist"> | null) {}
+  constructor(private editor: (Pick<AnnotationEditor, "persist"> & Partial<Pick<AnnotationEditor, "getEditRevision" | "getCommittedObject" | "subscribe">>) | null) {}
   getSnapshot = () => this.snapshot;
-  subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    // Queries and editor commits can arrive in either order, particularly when
+    // undo skips the released revision. Recheck both sources of acknowledgement.
+    this.unsubscribeEditor ??= this.editor?.subscribe?.(() => this.reconcile(this.annotations));
+    return () => {
+      this.listeners.delete(listener);
+      if (!this.listeners.size) { this.unsubscribeEditor?.(); this.unsubscribeEditor = undefined; }
+    };
+  };
   get drawing() { return this.active !== null; }
   owns(pointerId: number) { return this.active?.pointerId === pointerId; }
   erasing(pointerId: number) { return this.active?.kind === "eraser" && this.owns(pointerId); }
+
+  // A completed write may precede its reactive query. Keep each released
+  // outline until the query acknowledges it, including rapid consecutive notes.
+  reconcile(annotations: LocalAnnotationRecord[]) {
+    this.annotations = annotations;
+    let changed = false;
+    for (const [id, released] of this.released) {
+      const committed = this.editor?.getCommittedObject?.(id);
+      const superseded = committed && committed.revision > released.revision && JSON.stringify(committed.input.payload) !== JSON.stringify(released.payload);
+      if (superseded || annotations.some(note => note.id === id && JSON.stringify(note.payload) === JSON.stringify(released.payload))) {
+        this.released.delete(id); changed = true;
+      }
+    }
+    if (changed) this.publish();
+  }
 
   begin(pointerId: number, layerId: string, payload: Ink | Shape | "eraser", time: number) {
     if (this.active) return;
@@ -110,7 +147,7 @@ export class NoteInteraction {
     this.active = null;
     this.cancelFrame();
     const finishingEraser = active.kind === "eraser" && reason === "finish";
-    if (!finishingEraser) this.publish();
+    if (!finishingEraser && (active.kind !== "ink" || reason === "interrupt")) this.publish();
     if (active.kind === "ink") {
       if (reason === "interrupt") return this.editor?.persist({ id: active.id, layerId: active.layerId, payload: null, deleted: true }, true) ?? true;
       if (reason === "release" && point && active.payload.points.length < 5000) {
@@ -119,6 +156,8 @@ export class NoteInteraction {
         const last = active.lastPoint;
         if (point.x !== last.x || point.y !== last.y) active.payload.points.push(sampleInkPoint(point));
       }
+      this.released.set(active.id, { layerId: active.layerId, payload: { ...collectedInk(active.payload), points: [...active.payload.points] }, revision: this.editor?.getEditRevision?.() ?? 0 });
+      this.publish();
       return this.saveInk(active);
     }
     if (active.kind === "shape") {
@@ -136,16 +175,17 @@ export class NoteInteraction {
   dispose = () => { this.checkpoint(); this.cancelFrame(); };
   private cancelFrame() { if (this.frame !== null) cancelAnimationFrame(this.frame); this.frame = null; }
   private saveInk(active: Extract<Active, { kind: "ink" }>, coalesce = true) {
-    return this.editor?.persist({ id: active.id, layerId: active.layerId, payload: { ...active.payload, points: [...active.payload.points] } }, coalesce) ?? Promise.resolve(true);
+    return this.editor?.persist({ id: active.id, layerId: active.layerId, payload: { ...collectedInk(active.payload), points: [...active.payload.points] } }, coalesce) ?? Promise.resolve(true);
   }
   private publish() {
     const active = this.active;
     this.snapshot = active ? {
+      released: new Map(this.released),
       draftId: active.kind === "ink" ? active.id : null,
-      stroke: active.kind === "ink" ? { ...active.payload, points: [...active.payload.points] } : null,
+      stroke: active.kind === "ink" ? { ...collectedInk(active.payload), points: [...active.payload.points] } : null,
       shape: active.kind === "shape" ? active.payload : null,
       erased: active.kind === "eraser" ? new Set(active.ids) : empty.erased,
-    } : empty;
+    } : { ...empty, released: new Map(this.released) };
     for (const listener of this.listeners) listener();
   }
 }
