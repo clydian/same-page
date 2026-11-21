@@ -1448,15 +1448,16 @@ it("suppresses new text placement after cancellation until all object fingers le
   expect(screen.getByRole("textbox", { name: "笔记文本" })).toBeInTheDocument();
 });
 
-it.each(["mouse", "touch", "pressureless", "pen"])("collects measured batches and uses the correct width mode for %s", async input => {
+it.each(["mouse", "touch", "pressureless", "pressureless-zero", "pen"])("collects measured batches and uses the correct width mode for %s", async input => {
   const view = render(<AnnotationOverlay editor={editor} pageNumber={1} layers={layers} annotations={[]} editing tool="ink" activeLayerId={activeLayerId} />);
   const svg = view.container.querySelector("svg")!;
   vi.spyOn(svg, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 1000, bottom: 1000, width: 1000, height: 1000 } as DOMRect);
-  const pointerType = input === "pressureless" ? "pen" : input;
+  const pointerType = input.startsWith("pressureless") ? "pen" : input;
+  const fallbackPressure = input === "pressureless-zero" ? 0 : .5;
   const sample = (type: string, x: number, y: number, pressure: number) => new PointerEvent(type, { bubbles: true, pointerId: 77, pointerType, buttons: type === "pointerup" ? 0 : 1, clientX: x, clientY: y, pressure });
-  fireEvent(svg, sample("pointerdown", 100, 100, .5));
-  const move = sample("pointermove", 300, 100, .5);
-  Object.defineProperty(move, "getCoalescedEvents", { value: () => [sample("pointermove", 180, 160, input === "pen" ? .2 : .5), sample("pointermove", 240, 80, input === "pen" ? .8 : .5), move] });
+  fireEvent(svg, sample("pointerdown", 100, 100, fallbackPressure));
+  const move = sample("pointermove", 300, 100, fallbackPressure);
+  Object.defineProperty(move, "getCoalescedEvents", { value: () => [sample("pointermove", 180, 160, input === "pen" ? .2 : fallbackPressure), sample("pointermove", 240, 80, input === "pen" ? .8 : fallbackPressure), move] });
   const predictions = vi.fn(() => [sample("pointermove", 900, 900, .9)]);
   Object.defineProperty(move, "getPredictedEvents", { value: predictions });
   fireEvent(svg, move);
@@ -1468,7 +1469,7 @@ it.each(["mouse", "touch", "pressureless", "pen"])("collects measured batches an
   expect(payload).toMatchObject({ pressureMode: input === "pen" ? "pressure" : "uniform", points: expect.arrayContaining([expect.objectContaining({ x: .18, y: .16 }), expect.objectContaining({ x: .24, y: .08 })]) });
   if (payload.kind === "ink") {
     const measured = payload.points.find(point => point.x === .18)!;
-    if (pointerType === "pen") expect(measured.pressure).toBeCloseTo(input === "pen" ? .2 : .5);
+    if (pointerType === "pen" && fallbackPressure > 0) expect(measured.pressure).toBeCloseTo(input === "pen" ? .2 : fallbackPressure);
     else expect(measured.pressure).toBeUndefined();
   }
   expect(predictions).not.toHaveBeenCalled();

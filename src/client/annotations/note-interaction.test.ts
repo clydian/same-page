@@ -121,3 +121,23 @@ it("finishing submits the current eraser preview through durable editing complet
   expect(await saved()).toHaveLength(0);
   unregister();
 });
+
+it("hands consecutive released outlines to query results without clearing the next gesture or hiding undo", async () => {
+  notes.begin(10, layerId, ink(), 0);
+  notes.move(10, { x: .2, y: .2 }, 10);
+  await notes.end("release", 10, { x: .3, y: .3 });
+  const [firstId] = notes.getSnapshot().released.keys();
+  expect(notes.getSnapshot().released.get(firstId!)!.payload.points.at(-1)).toEqual({ x: .3, y: .3 });
+  notes.begin(11, layerId, ink(), 20);
+  expect(notes.getSnapshot().released.has(firstId!)).toBe(true);
+  notes.reconcile(await saved());
+  expect(notes.getSnapshot().released.size).toBe(0);
+  expect(notes.owns(11)).toBe(true);
+  await notes.end("release", 11, { x: .4, y: .4 });
+  expect(notes.getSnapshot().released.size).toBe(1);
+  // A reactive query can skip the released revision entirely when undo follows.
+  await editor.undo(layerId);
+  notes.reconcile(await saved());
+  expect(notes.getSnapshot().released.size).toBe(0);
+  expect(await saved()).toHaveLength(1);
+});
