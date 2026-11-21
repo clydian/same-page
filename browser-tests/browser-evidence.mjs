@@ -1,3 +1,4 @@
+import { recordPdfLoadEvidence } from "./pdf-load-evidence.mjs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -7,7 +8,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 // Only synthetic fixtures may use this recorder. Start after authentication.
 // No DOM snapshots, network bodies/headers, source files or screencast frames:
 // the action trace plus a masked failure screenshot is sufficient for these flows.
-export async function withBrowserEvidence(context, directory, run) {
+export async function withBrowserEvidence(context, directory, run, { pdfLoad = false } = {}) {
   const errors = [];
   const listeners = new Map();
   const observe = page => {
@@ -24,7 +25,9 @@ export async function withBrowserEvidence(context, directory, run) {
   context.pages().forEach(observe);
   context.on("page", observe);
   await context.tracing.start({ screenshots: false, snapshots: false, sources: false });
+  let pdf;
   try {
+    if (pdfLoad) pdf = await recordPdfLoadEvidence(context);
     return await run();
   } catch (error) {
     await mkdir(directory, { recursive: true });
@@ -33,6 +36,7 @@ export async function withBrowserEvidence(context, directory, run) {
       // Strip queries/fragments (which can contain credentials), never dump DOM text.
       urls: pages.map(page => { const url = new URL(page.url()); return `${url.origin}${url.pathname}`; }),
       pageErrors: errors,
+      ...(pdf ? { pdfLoad: pdf.events } : {}),
     }, null, 2));
     for (const [index, page] of pages.entries()) {
       await page.screenshot({ path: `${directory}/page-${index}.png`, mask: [page.locator("input, textarea, [contenteditable], .annotation-overlay")] }).catch(() => {});
@@ -45,6 +49,7 @@ export async function withBrowserEvidence(context, directory, run) {
     } finally { await rm(temporary, { recursive: true, force: true }); }
     throw error;
   } finally {
+    pdf?.dispose();
     context.off("page", observe);
     for (const [page, listener] of listeners) page.off("pageerror", listener);
     await context.tracing.stop().catch(() => {});
