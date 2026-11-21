@@ -147,7 +147,11 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await file.click({ button: "right" });
       assert.equal(await rightMenu, false);
       await page.keyboard.press("Escape");
-      // A held/withdrawn touch must not swallow the next ordinary touch opening.
+      // Hold again after mouse/keyboard menu actions: those inputs clear the
+      // touch state themselves, so the next tap must follow a held touch directly.
+      await hold(page, file);
+      await expect(page).toHaveURL(library);
+      assert.deepEqual(fileRequests, [], "repeated holding must not prepare a score");
       await file.tap();
       await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
     });
