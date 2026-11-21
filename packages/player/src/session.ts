@@ -3,7 +3,7 @@ import { CollectionPlaybackError, createDocumentPlaybackApi as createPlaybackApi
 import { solfegeDegreeLabel } from './solfege-degree.ts';
 import * as alphaTab from '@coderline/alphatab';
 import { applyTimbreProfile, classifyTimbreRoles } from './timbre-profile.ts';
-import { ScoreFollowSession, isPointerDrag } from './score-follow.ts';
+import { ScoreFollowSession, ScoreFollowScroll, playbackMillisecondsUntil, isPointerDrag } from './score-follow.ts';
 import { playbackTempo } from './practice-tempo.ts';
 import { readMusicXmlTempoMeasures, type MusicXmlTempoMeasure } from './musicxml-metronome.ts';
 import { playbackMeasureLabel, playbackMeasureVisits } from './playback-measures.ts';
@@ -164,8 +164,24 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   let previewOverlays: HTMLDivElement[] = [];
   const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
   let preview: { playing: boolean; scrollTop: number; scrollLeft: number; restoreView?: () => void; index: number; range: { start: number; end: number } } | null = null;
+  const followScroll = new ScoreFollowScroll(viewport);
+  let anticipatedSystem: object | null = null;
+  let lastPositionIndex = -1;
+  const cancelFollowScroll = () => { followScroll.cancel(); anticipatedSystem = null; };
   let followedSystem: object | null = null;
+  const systemPosition = (system: { realBounds: { y: number; h: number } }) => {
+    if (!viewport) return null;
+    const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
+    const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
+    const clearance = Math.max(16, parseFloat(viewport.ownerDocument?.defaultView?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
+    const top = origin.top + system.realBounds.y * scale, bottom = top + system.realBounds.h * scale;
+    if (!Number.isFinite(top) || !Number.isFinite(bottom)) return null;
+    return { target: viewport.scrollTop + top - view.top - clearance,
+      readable: top >= view.top + clearance - 1 && bottom <= view.bottom - 8 };
+  };
   const scrollToMeasure = (index: number, clearance = 16) => {
+    cancelFollowScroll();
+    clearance = Math.max(clearance, parseFloat(viewport?.ownerDocument?.defaultView?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
     if (masterBar) api.ensureMeasure?.(masterBar);
     const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
@@ -174,7 +190,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     if (viewport && bounds) {
       const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
       const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
-      viewport.scrollTop += origin.top + bounds.y * scale - view.top - clearance;
+      followScroll.move(viewport.scrollTop + origin.top + bounds.y * scale - view.top - clearance);
       if (scale > 1) {
         const left = origin.left + bounds.x * scale, right = left + bounds.w * scale;
         viewport.scrollLeft += left < view.left ? left - view.left : right > view.right ? right - view.right : 0;
@@ -254,7 +270,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
     if (system?.bars[0]) anchor = { bar: system.bars[0].index, offset: origin + system.realBounds.y - top };
   };
-  api.renderStarted.on(() => { followedSystem = null; musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
+  api.renderStarted.on(() => { cancelFollowScroll(); followedSystem = null; musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
   api.postRenderFinished.on(() => {
     renderDegrees(); renderMeasureLabels();
     if (preview) markRange(preview.range.start, preview.range.end); else highlightLoop();
@@ -269,11 +285,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   });
 
   const setFollow = (enabled: boolean) => {
+    cancelFollowScroll();
     if (enabled) follow.restore(); else follow.suspend();
     update({ following: enabled });
     if (enabled && state.status === 'ready') scrollToMeasure(state.measure);
   };
-  const intent = () => { anchor = null; follow.noteManualScrollIntent(performance.now()); };
+  const intent = () => { cancelFollowScroll(); anchor = null; follow.noteManualScrollIntent(performance.now()); };
   const keyDown = (event: KeyboardEvent) => {
     if (!event.defaultPrevented && !event.altKey && !event.ctrlKey && !event.metaKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) intent();
   };
@@ -289,10 +306,21 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
   viewport?.addEventListener('pointerup', pointerUp);
   viewport?.addEventListener('pointercancel', pointerUp);
   viewport?.addEventListener('scroll', scroll, { passive: true });
+  const clearanceChanged = () => {
+    cancelFollowScroll();
+    if (!state.following || state.status !== 'ready' || preview) return;
+    const master = api.tickCache?.masterBars[state.measure]?.masterBar;
+    const system = master && api.boundsLookup?.findMasterBar(master)?.staffSystemBounds;
+    const position = system && systemPosition(system);
+    if (position && !position.readable) followScroll.move(position.target);
+  };
+  const visibilityChanged = () => { cancelFollowScroll(); followedSystem = null; };
+  viewport?.addEventListener('samepage:notation-clearance', clearanceChanged);
+  viewport?.ownerDocument?.addEventListener('visibilitychange', visibilityChanged);
   let worker: Worker | null = null;
   const fail = (message: string, messageCode: PlayerMessageCode) => {
     if (disposed || state.status === 'error') return;
-    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); audioSession.release(); update({ status: 'error', message, messageCode, playing: false });
+    cancelFollowScroll(); clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); audioSession.release(); update({ status: 'error', message, messageCode, playing: false });
   };
   // Soundfont transfer and synthesis preparation can exceed a minute on slow links.
   // Still bound each attempt; disposal and explicit retry cancel the old session.
@@ -365,7 +393,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     // Reassert the declaration at actual playback entry as well.
     if (playing) audioSession.request(); else audioSession.release();
     playRequested = playing;
-    if (!playing) followedSystem = null;
+    if (!playing) { cancelFollowScroll(); followedSystem = null; }
     update({ playing }); if (playing) loadingStage('playing');
     if (!playing && awaitingPause) {
       awaitingPause = false;
@@ -397,7 +425,6 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     const index = state.measures.findLastIndex(item => item.startTick <= event.currentTick);
     const tempo = tempoAt(event.currentTick);
     if (index < 0) return;
-    const previousMeasure = state.measure;
     if (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit) update({ measure: index, tempo });
     if (state.following && viewport && !preview) {
       const master = api.tickCache?.masterBars[index]?.masterBar;
@@ -406,19 +433,37 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       const system = measure?.staffSystemBounds;
       // Retry unavailable bounds at the first position that can locate the system.
       if (!system) return;
-      const previousSystem = followedSystem;
-      const discontinuity = event.isSeek || index < previousMeasure;
-      if (system === previousSystem && !discontinuity) return;
-      followedSystem = system;
-      const row = system.realBounds;
-      const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
-      const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
-      const clearance = Math.max(16, parseFloat(viewport.ownerDocument?.defaultView?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
-      const top = origin.top + row.y * scale, bottom = top + row.h * scale;
-      // A system already near the top and fully readable stays still. Decide once
-      // on system entry, never from the horizontal position of a later measure.
-      if (top >= view.top + clearance - 1 && top <= view.top + clearance + viewport.clientHeight * .25 && bottom <= view.bottom) return;
-      viewport.scrollTop += top - view.top - clearance;
+      const discontinuity = event.isSeek || index < lastPositionIndex || index > lastPositionIndex + 1;
+      lastPositionIndex = index;
+      if (discontinuity) cancelFollowScroll();
+      if (system !== followedSystem || discontinuity) {
+        if (anticipatedSystem === system) followScroll.finish(); else followScroll.cancel();
+        anticipatedSystem = null; followedSystem = system;
+        const position = systemPosition(system);
+        if (position && !position.readable) followScroll.move(position.target);
+      }
+      if (!state.playing || pauseRequested || discontinuity || follow.shouldSuspendForScroll(performance.now(), dragged) || state.loop && index >= state.loop.end) return;
+      const current = api.tickCache?.masterBars[index], next = api.tickCache?.masterBars[index + 1];
+      if (!current || !next || current.masterBar.score !== next.masterBar.score || sourceIndex(next.masterBar) !== sourceIndex(current.masterBar) + 1) return;
+      const nextSystem = api.boundsLookup?.findMasterBar(next.masterBar)?.staffSystemBounds;
+      const systems = api.boundsLookup?.staffSystems ?? [];
+      if (!nextSystem || nextSystem === system || systems.indexOf(nextSystem) !== systems.indexOf(system) + 1) return;
+      const remaining = playbackMillisecondsUntil(current, event.currentTick, next.start, tempo.bpm, state.speed);
+      // Use the actual next playback boundary, not the length of a beat. A late
+      // notification or missing clock/geometry falls back to immediate entry.
+      if (remaining === null || remaining <= 0 || remaining > ScoreFollowScroll.windowMs) return;
+      if (nextSystem === anticipatedSystem) {
+        if (remaining <= ScoreFollowScroll.settleMs) followScroll.finish();
+        return;
+      }
+      const position = systemPosition(nextSystem);
+      if (!position || position.readable || viewport.ownerDocument?.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const now = viewport.ownerDocument?.defaultView?.performance.now();
+      if (now === undefined) return;
+      anticipatedSystem = nextSystem;
+      // Leave a render-frame margin; fresh position replies also complete the
+      // same move before the first beat if rAF notifications are less frequent.
+      followScroll.move(position.target, now + remaining - ScoreFollowScroll.settleMs);
     }
   });
   const render = async (document: PreparedMusicXmlDocument) => {
@@ -550,9 +595,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     playPause() { if (!disposed && state.status === 'ready' && !preview) {
       if (pendingSeek) { pendingSeek.resume = !pendingSeek.resume; pauseRequested = !pendingSeek.resume; if (pauseRequested) pendingCountIn = false; }
-      else if ((state.playing || playRequested) && !pauseRequested || countInActive) { pauseRequested = true; stopCountIn(); api.pause(); } else start();
+      else if ((state.playing || playRequested) && !pauseRequested || countInActive) { cancelFollowScroll(); pauseRequested = true; stopCountIn(); api.pause(); } else start();
     } },
-    pause() { if (!disposed) { pauseRequested = true; if (pendingSeek) { pendingSeek.resume = false; pendingCountIn = false; } stopCountIn(); if (!awaitingPause) api.pause(); } },
+    pause() { if (!disposed) { cancelFollowScroll(); pauseRequested = true; if (pendingSeek) { pendingSeek.resume = false; pendingCountIn = false; } stopCountIn(); if (!awaitingPause) api.pause(); } },
     seek(index) { if (!disposed && state.status === 'ready' && Number.isInteger(index)) {
       const bounded = Math.max(state.loop?.start ?? 0, Math.min(state.loop?.end ?? state.measures.length - 1, index));
       if (state.measures[bounded]) {
@@ -578,7 +623,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
     speed(value) { if (!disposed && Number.isFinite(value)) {
       const speed = Math.max(.5, Math.min(2, Math.round(value * 100) / 100));
       const restart = countInActive;
-      api.playbackSpeed = speed; update({ speed });
+      cancelFollowScroll(); api.playbackSpeed = speed; update({ speed });
       if (restart) seekTick(state.measures[state.measure].startTick);
     } },
     rhythm(value) {
@@ -659,8 +704,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
       highlightLoop(); if (resume) play();
     },
     dispose() {
-      if (disposed) return; stopCountIn(); disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); clearPreviewMarkers();
-      viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
+      if (disposed) return; cancelFollowScroll(); stopCountIn(); disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); clearPreviewMarkers();
+      viewport?.ownerDocument?.removeEventListener('visibilitychange', visibilityChanged); viewport?.removeEventListener('samepage:notation-clearance', clearanceChanged); viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
       viewport?.removeEventListener('keydown', keyDown);
       viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy(); audioSession.release();
     },
