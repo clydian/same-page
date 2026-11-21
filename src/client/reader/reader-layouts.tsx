@@ -554,13 +554,13 @@ function AnnotatedPdfPage({
   const renderedWidth = width ?? calculateFittedPageWidth(fitViewport!.width, fitViewport!.height, resolvedAspectRatio);
   return (
     <div
-      className="annotated-pdf-page"
       onPointerDownCapture={event => {
         if (event.pointerType !== "pen" || event.button !== 0 || !annotationProps.onPencilStart) return;
         // Commit the existing editor before this same event reaches the SVG.
         // Its bubble handler then records the initial contact without replay.
         flushSync(annotationProps.onPencilStart);
       }}
+      className="annotated-pdf-page"
       style={{
         width: renderedWidth,
         height: renderedWidth / resolvedAspectRatio,
