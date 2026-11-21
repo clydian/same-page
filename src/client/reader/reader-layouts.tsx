@@ -94,6 +94,7 @@ export function PageLayout({
   const trackRef = useRef<HTMLDivElement>(null);
   const previewBoundaryRef = useRef<HTMLDivElement>(null);
   const takeover = useRef<{ page: number; outgoing: HTMLElement; incoming: HTMLElement; outgoingLeft: number; incomingLeft: number } | null>(null);
+  const correctedPaper = useRef<HTMLElement | null>(null);
   const size = useElementSize(containerRef);
   const position = useViewportPosition(containerRef);
   useReturnViewport(containerRef, "page", size.width > 0);
@@ -125,13 +126,15 @@ export function PageLayout({
     if (captured && captured.page !== pager.anchorPage) {
       // Rebase both visible papers together. The old current paper changes
       // from the centered slot to a fitted neighbor at the same handoff.
-      trackRef.current?.querySelectorAll<HTMLElement>(".page-reader__paper").forEach(paper => { paper.style.translate = ""; });
+      if (correctedPaper.current) correctedPaper.current.style.translate = "";
       const movement = captured.incoming.getBoundingClientRect().left - captured.incomingLeft;
       const correction = captured.outgoingLeft + movement - captured.outgoing.getBoundingClientRect().left;
-      captured.outgoing.parentElement!.style.translate = `${correction}px`;
+      correctedPaper.current = captured.outgoing.parentElement;
+      correctedPaper.current!.style.translate = `${correction}px`;
       takeover.current = null;
     } else if (pager.phase === "idle") {
-      trackRef.current?.querySelectorAll<HTMLElement>(".page-reader__paper").forEach(paper => { paper.style.translate = ""; });
+      if (correctedPaper.current) correctedPaper.current.style.translate = "";
+      correctedPaper.current = null;
       takeover.current = null;
     }
   });
