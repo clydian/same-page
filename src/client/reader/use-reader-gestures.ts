@@ -22,7 +22,7 @@ interface Point {
   y: number;
 }
 
-type EditingPair = { origin: [Point, Point]; intent: "pending" | "navigation" | "zoom" };
+type EditingPair = { origin: [Point, Point]; intent: "pending" | "navigation" | "vertical-pan" | "zoom" };
 const PAIR_START_GRACE_MS = 64;
 const PAIR_MOVEMENT_SLOP = 6;
 
@@ -233,8 +233,9 @@ export function useReaderGestures({
     const scale = distance(first, second) / pair.distance;
     const spreadChanged = Math.abs(scale - 1) > 0.08;
     if (pair.editing) {
-      if (pair.editing.intent === "pending") {
-        const intent = editingPairIntent(pair.editing.origin, first, second, spreadChanged);
+      if (pair.editing.intent === "pending" || pair.editing.intent === "vertical-pan") {
+        const detected = editingPairIntent(pair.editing.origin, first, second, spreadChanged);
+        const intent = detected === "pending" ? pair.editing.intent : detected;
         pair.editing.intent = intent;
         if (intent === "pending" && !scaled.current && !(resolvePending && spreadChanged)) {
           // A single moving contact could be an anchored pinch or a leading finger.
@@ -248,13 +249,14 @@ export function useReaderGestures({
           return;
         }
         clearPairDecision();
-        // A delayed finger can still turn a provisional pinch preview into a swipe.
-        if (intent === "navigation" && scaled.current) {
-          cancelZoom();
+        // Once the second finger catches up, clear any provisional preview.
+        if ((intent === "navigation" || intent === "vertical-pan") && scaled.current) {
+          if (intent === "navigation") cancelZoom();
+          else pair.gesture.withdrawPreview();
           scaled.current = false;
         }
       }
-      if (pair.editing.intent === "navigation") {
+      if (pair.editing.intent === "navigation" || pair.editing.intent === "vertical-pan") {
         moveNavigation(center, time);
         return;
       }
@@ -442,15 +444,22 @@ function editingPairIntent([originFirst, originSecond]: [Point, Point], first: P
   const secondAlong = dot(secondMotion, sum) / travel;
   const trailing = Math.min(firstAlong, secondAlong);
   const leading = Math.max(firstAlong, secondAlong);
-  if (trailing >= Math.max(PAIR_MOVEMENT_SLOP, leading / 4) && dot(firstMotion, secondMotion) > 0) return "navigation";
+  const translating = trailing >= Math.max(PAIR_MOVEMENT_SLOP, leading / 4) && dot(firstMotion, secondMotion) > 0;
+  const vertical = Math.abs(sum.y) >= Math.abs(sum.x);
   if (spreadChanged) {
     const axis = { x: originSecond.x - originFirst.x, y: originSecond.y - originFirst.y };
     const span = distance(originFirst, originSecond);
     const firstRadial = dot(firstMotion, axis) / span;
     const secondRadial = dot(secondMotion, axis) / span;
     if (firstRadial * secondRadial < 0 && Math.min(Math.abs(firstRadial), Math.abs(secondRadial)) >= PAIR_MOVEMENT_SLOP) return "zoom";
+    // A moving pinch may carry both fingers vertically. Check the spacing motion
+    // along their original span independently of that shared travel.
+    const relativeAlongSpan = Math.abs(firstRadial - secondRadial);
+    const sharedAlongSpan = Math.abs(firstRadial + secondRadial);
+    if (translating && vertical && relativeAlongSpan >= Math.max(2 * PAIR_MOVEMENT_SLOP, 0.75 * sharedAlongSpan)) return "zoom";
   }
-  return "pending";
+  if (!translating) return "pending";
+  return vertical ? "vertical-pan" : "navigation";
 }
 
 function dot(first: Point, second: Point) {
