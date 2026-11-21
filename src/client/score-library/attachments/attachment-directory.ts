@@ -3,13 +3,15 @@ import type { ScoreSummary } from "../../../shared/scores";
 import { localDatabase, guestOwnerSystemKey } from "../../platform/local-database";
 import { captureLocalWorkspaceSession, createLocalWorkspace, withLocalWorkspaceTransaction, type LocalWorkspace, type LocalWorkspaceOwnerKey } from "../../platform/local-workspace";
 import { captureNavigationIdentity } from "../../settings/navigation-events";
-import { SettingsRequestError } from "../../settings/settings-request";
+import { isSettingsReadDenied, SettingsRequestError } from "../../settings/settings-request";
 import { attachmentFetch } from "./request";
+
+type DirectoryScore = Pick<ScoreSummary, "id" | "updatedAt" | "attachmentCount">;
 
 const prefix = "attachment-directory";
 const key = (workspace: LocalWorkspace) => JSON.stringify([prefix, workspace.ownerKey.replace(/^experience:/, ""), workspace.choirId, workspace.scoreId]);
 const fenceKey = (workspace: LocalWorkspace) => JSON.stringify(["attachment-directory-fence", workspace.ownerKey.replace(/^experience:/, ""), workspace.choirId]);
-export const attachmentRevision = (score: Pick<ScoreSummary, "id" | "updatedAt" | "attachmentCount">) => JSON.stringify([score.id, score.updatedAt, score.attachmentCount ?? 0]);
+export const attachmentRevision = (score: DirectoryScore) => JSON.stringify([score.id, score.updatedAt, score.attachmentCount ?? 0]);
 export function isAttachmentDirectoryKey(key: string, owner: string) {
   return key.startsWith(JSON.stringify([prefix, owner]).slice(0, -1));
 }
@@ -18,7 +20,7 @@ export async function attachmentWorkspace(owner: string, choirId: string, scoreI
   if (!actual) return null;
   return captureLocalWorkspaceSession(createLocalWorkspace(actual as LocalWorkspaceOwnerKey, choirId, scoreId));
 }
-export async function readAttachmentDirectory(workspace: LocalWorkspace, score: Pick<ScoreSummary, "id" | "updatedAt" | "attachmentCount">, retained = false) {
+export async function readAttachmentDirectory(workspace: LocalWorkspace, score: DirectoryScore, retained = false) {
   return withLocalWorkspaceTransaction(workspace, "r", [], async () => {
     const saved = await localDatabase.system.get(key(workspace));
     if (!saved) return null;
@@ -43,7 +45,7 @@ export async function captureAttachmentDirectoryWrite(input: LocalWorkspace) {
   const workspace = await captureLocalWorkspaceSession(input);
   const currentIdentity = captureNavigationIdentity();
   const fence = await withLocalWorkspaceTransaction(workspace, "r", [], async () => (await localDatabase.system.get(fenceKey(workspace)))?.value);
-  return async (score: Pick<ScoreSummary, "id" | "updatedAt" | "attachmentCount">, attachments: ScoreAttachment[], signal: AbortSignal) => {
+  return async (score: DirectoryScore, attachments: ScoreAttachment[], signal: AbortSignal) => {
     await withLocalWorkspaceTransaction(workspace, "rw", [], async () => {
       signal.throwIfAborted();
       if (!currentIdentity() || fence !== (await localDatabase.system.get(fenceKey(workspace)))?.value) return;
@@ -51,17 +53,45 @@ export async function captureAttachmentDirectoryWrite(input: LocalWorkspace) {
     });
   };
 }
+type DirectoryTarget = {
+  score: DirectoryScore;
+  workspace: LocalWorkspace | null;
+  save: Awaited<ReturnType<typeof captureAttachmentDirectoryWrite>> | null;
+};
+
+// Both callers capture their local write fences before the cloud request.
+// Only a definitive denial clears the retained directory for that drive.
+async function refreshDirectories(choirId: string, targets: DirectoryTarget[], signal: AbortSignal, persistence: "required" | "best-effort") {
+  const persist = (operation: Promise<void>) => persistence === "required" ? operation : operation.catch(() => undefined);
+  const query = new URLSearchParams({ scoreIds: targets.map(({ score }) => score.id).join(",") });
+  signal.throwIfAborted();
+  const response = await attachmentFetch(`/api/choirs/${encodeURIComponent(choirId)}/attachments?${query}`, { signal });
+  signal.throwIfAborted();
+  if (!response.ok) {
+    const error = new SettingsRequestError(response.status);
+    if (isSettingsReadDenied(error)) await Promise.all(targets.map(({ workspace }) => workspace ? persist(clearAttachmentDirectories(workspace)) : undefined));
+    throw error;
+  }
+  const { attachments } = attachmentListSchema.parse(await response.json());
+  signal.throwIfAborted();
+  await Promise.all(targets.map(({ score, save }) => save ? persist(save(score, attachments, signal)) : undefined));
+  signal.throwIfAborted();
+  return attachments;
+}
+
+// A live library batch still displays fresh results if local storage fails.
+export async function refreshLibraryAttachmentDirectories(choirId: string, scores: DirectoryScore[], owner: string | undefined, signal: AbortSignal) {
+  const targets = owner ? await Promise.all(scores.map(async score => {
+    const workspace = await attachmentWorkspace(owner, choirId, score.id).catch(() => null);
+    const save = workspace ? await captureAttachmentDirectoryWrite(workspace).catch(() => null) : null;
+    return { score, workspace, save };
+  })) : scores.map(score => ({ score, workspace: null, save: null }));
+  return refreshDirectories(choirId, targets, signal, "best-effort");
+}
+
 // Only metadata is requested. Failure cannot change the score's offline readiness.
 export async function prepareAttachmentDirectory(workspace: LocalWorkspace, score: ScoreSummary, parentSignal: AbortSignal) {
   const signal = AbortSignal.any([parentSignal, AbortSignal.timeout(5_000)]);
   const save = await captureAttachmentDirectoryWrite(workspace);
-  const query = new URLSearchParams({ scoreIds: score.id });
-  const response = await attachmentFetch(`/api/choirs/${encodeURIComponent(score.choirId)}/attachments?${query}`, { signal });
-  signal.throwIfAborted();
-  if (!response.ok) {
-    if ([401, 403, 404].includes(response.status)) await clearAttachmentDirectories(workspace);
-    throw new SettingsRequestError(response.status);
-  }
-  const { attachments } = attachmentListSchema.parse(await response.json());
-  await save(score, attachments, signal);
+  await refreshDirectories(score.choirId, [{ score, workspace, save }], signal, "required");
 }

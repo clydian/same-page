@@ -1,10 +1,9 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { attachmentWorkspace, readAttachmentDirectory, captureAttachmentDirectoryWrite, clearAttachmentDirectories } from "./attachment-directory";
+import { attachmentWorkspace, readAttachmentDirectory, refreshLibraryAttachmentDirectories } from "./attachment-directory";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { attachmentListSchema, type ScoreAttachment } from "../../../shared/attachments";
+import type { ScoreAttachment } from "../../../shared/attachments";
 import type { ScoreSummary } from "../../../shared/scores";
-import { attachmentFetch as diagnosticFetch } from "./request";
-import { SettingsRequestError } from "../../settings/settings-request";
+import { isSettingsReadDenied } from "../../settings/settings-request";
 
 const FRESH_MS = 30_000;
 const MAX_SCORES = 100;
@@ -35,7 +34,7 @@ class AttachmentMetadata {
     for (const [id, entry] of this.entries) this.entries.set(id, { ...entry, readAt: -Infinity });
     this.publish(this.snapshot.key, this.snapshot.failed, false);
   }
-  load(scoreKey: string, attempt: number, scores: Pick<ScoreSummary, "id" | "updatedAt" | "attachmentCount">[]) {
+  load(scoreKey: string, attempt: number) {
     const abort = new AbortController();
     const rows = JSON.parse(scoreKey) as ScoreRevision[];
     const visible = new Set(rows.map(row => row[0]));
@@ -49,25 +48,8 @@ class AttachmentMetadata {
     void (async () => {
       for (let start = 0; start < requested.length; start += 100) {
         const batch = requested.slice(start, start + 100);
-        const query = new URLSearchParams({ scoreIds: batch.map(row => row[0]).join(",") });
-        const writers = this.owner ? await Promise.all(batch.map(async row => {
-          const workspace = this.owner ? await attachmentWorkspace(this.owner, this.choirId, row[0]).catch(() => null) : null;
-          const save = workspace ? await captureAttachmentDirectoryWrite(workspace).catch(() => null) : null;
-          return { workspace, save };
-        })) : [];
-        abort.signal.throwIfAborted();
-        const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(this.choirId)}/attachments?${query}`, { signal: abort.signal });
-        abort.signal.throwIfAborted();
-        if (!response.ok) {
-          if ([401, 403, 404].includes(response.status)) await Promise.all(writers.map(({ workspace }) => workspace ? clearAttachmentDirectories(workspace).catch(() => undefined) : undefined));
-          throw new SettingsRequestError(response.status);
-        }
-        const { attachments } = attachmentListSchema.parse(await response.json());
-        if (abort.signal.aborted) return;
-        await Promise.all(batch.map((row, index) => {
-          const score = scores.find(score => score.id === row[0]);
-          return score ? writers[index]?.save?.(score, attachments, abort.signal).catch(() => undefined) : undefined;
-        }));
+        const attachments = await refreshLibraryAttachmentDirectories(this.choirId,
+          batch.map(([id, updatedAt, attachmentCount]) => ({ id, updatedAt, attachmentCount })), this.owner, abort.signal);
         if (abort.signal.aborted) return;
         for (const row of batch) {
           this.entries.delete(row[0]);
@@ -78,7 +60,7 @@ class AttachmentMetadata {
       }
     })().catch((error: unknown) => {
       if (abort.signal.aborted) return;
-      if (error instanceof SettingsRequestError && [401, 403, 404].includes(error.status)) this.entries.clear();
+      if (isSettingsReadDenied(error)) this.entries.clear();
       this.publish(key, true, false);
     });
     return () => abort.abort();
@@ -92,7 +74,7 @@ export function useLibraryAttachments(choirId: string, scores: ScoreSummary[], a
   const scoreKey = JSON.stringify(scores.filter(score => (score.attachmentCount ?? 0) > 0).map(score => [score.id, score.updatedAt, score.attachmentCount]));
   const key = JSON.stringify([owner ?? null, generation, scoreKey, attempt]);
   useEffect(() => {
-    if (active) return resource.load(scoreKey, attempt, JSON.parse(scoreKey).map(([id, updatedAt, attachmentCount]: ScoreRevision) => ({ id, updatedAt, attachmentCount })));
+    if (active) return resource.load(scoreKey, attempt);
     resource.pause();
   }, [resource, scoreKey, attempt, active]);
   const restored = useLiveQuery(async () => {
