@@ -3,19 +3,16 @@
 .offline-score-button:hover, .offline-score-button[data-hovered] { background: var(--brand-soft); }
 .offline-score-button[data-focus-visible] { outline: 2px solid var(--brand); outline-offset: 2px; }
 .offline-score-button[data-disabled] { opacity: .55; }
-.offline-score-control[data-state="ready"] { color: var(--muted); }
 .offline-score-control[data-state="error"], .offline-score-control[data-state="stale"] { color: var(--ui-warning, #9a5612); }
-.offline-score-check { position: absolute; right: 9px; top: 9px; border-radius: 50%; background: var(--surface, white); stroke-width: 3; }
 .offline-score-control[data-state="downloading"] .offline-score-button > svg { animation: offline-score-spin 1s linear infinite; }
-.offline-score-tooltip { max-width: min(18rem, calc(100vw - 2rem)); padding: .45rem .65rem; border-radius: .4rem; background: var(--ink); color: white; font-size: .8rem; }
-.offline-score-popover { max-width: min(20rem, calc(100vw - 2rem)); background: var(--surface, white); border: 1px solid var(--line); border-radius: .8rem; box-shadow: 0 8px 30px #0002; }
+.offline-score-tooltip { max-width: min(18rem, calc(100vw - 2rem)); padding: .45rem .65rem; border-radius: .4rem; background: var(--ink); color: var(--surface, white); overflow-wrap: anywhere; font-size: .8rem; }
+.offline-score-popover { max-width: min(20rem, calc(100vw - 2rem)); background: var(--surface, white); border: 1px solid var(--line); border-radius: .8rem; box-shadow: 0 8px 30px #0002; overflow-wrap: anywhere; }
 .offline-score-details { padding: 1rem; outline: none; }
-.offline-score-details h2 { display: flex; align-items: center; gap: .5rem; margin: 0; font-size: 1rem; }
+.offline-score-details h2 { margin: 0; font-size: 1rem; }
 .offline-score-details p { color: var(--muted); line-height: 1.6; font-size: .9rem; }
-.offline-score-details > button { min-height: 44px; }
+.offline-score-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.offline-score-actions button { min-height: 44px; max-inline-size: 100%; }
 @keyframes offline-score-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .offline-score-control[data-state="downloading"] .offline-score-button > svg { animation: none; } }
-
-.offline-score-control[data-state="ready"] .offline-score-button, .offline-score-control[data-state="missing"] .offline-score-button { opacity: .65; }
 
 .offline-score-control[data-state="downloading"] { color: var(--brand); }

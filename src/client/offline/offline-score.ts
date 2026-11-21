@@ -86,6 +86,7 @@ type PreparationTask = {
   state: OfflinePreparationState;
   result: Promise<OfflinePreparationState>;
 };
+type PreparationIntent = "automatic" | "opened" | "explicit";
 const preparations = new Map<string, PreparationTask>();
 const identityGenerations = new Map<string, number>();
 export function revokeOfflinePreparationIdentity(userId: string) {
@@ -94,7 +95,7 @@ export function revokeOfflinePreparationIdentity(userId: string) {
   identityGenerations.set(ownerKey, (identityGenerations.get(ownerKey) ?? 0) + 1);
   for (const task of preparations.values()) if (task.ownerKey === ownerKey) task.controller.abort();
 }
-const pendingRequests = new Map<OfflinePreparation, "automatic" | "explicit">();
+const pendingRequests = new Map<OfflinePreparation, PreparationIntent>();
 function cancelUnownedPreparations() {
   for (const task of preparations.values()) {
     const joining = [...pendingRequests.keys()].some(request => request.targetKey === task.targetKey);
@@ -103,8 +104,8 @@ function cancelUnownedPreparations() {
 }
 const observers = new Set<OfflinePreparation>();
 
-// A consumer owns only its automatic intent. Explicit intent belongs to this
-// tab until completion; unmounting its UI never releases the download.
+// A reader owns only its automatic intent. Explicit saves and successful
+// library opens can finish preparing in this tab after navigation.
 export class OfflinePreparation {
   private state: OfflinePreparationState = { phase: "idle" };
   private listeners = new Set<() => void>();
@@ -113,14 +114,17 @@ export class OfflinePreparation {
   private key = "";
   private task?: PreparationTask;
   readonly targetKey: string;
+  private readonly identityOwner: string;
   private identityGeneration = 0;
   private context: Promise<{ workspace: LocalWorkspace; fence: string }>;
 
   constructor(private readonly workspace: LocalWorkspace, readonly score: ScoreSummary, authenticatedUserId: string | null, fileFence?: Promise<string>) {
     this.targetKey = JSON.stringify([workspace.scopeKey, score.currentVersion.id]);
-    this.identityGeneration = identityGenerations.get(workspace.ownerKey) ?? 0;
+    const identityOwner = workspace.ownerKey.replace(/^experience:/, "");
+    this.identityOwner = identityOwner;
+    this.identityGeneration = identityGenerations.get(identityOwner) ?? 0;
     this.context = (async () => {
-      if (workspace.ownerKey.startsWith("user:") && workspace.ownerKey !== `user:${authenticatedUserId ?? ""}`) throw new Error("offline_identity_unconfirmed");
+      if (identityOwner.startsWith("user:") && identityOwner !== `user:${authenticatedUserId ?? ""}`) throw new Error("offline_identity_unconfirmed");
       const session = await captureLocalWorkspaceSession(workspace);
       const fence = await (fileFence ?? captureOfflineFileFence(session));
       this.key = JSON.stringify([session.scopeKey, session.sessionEpoch, this.identityGeneration, fence, score.currentVersion.id]);
@@ -143,32 +147,34 @@ export class OfflinePreparation {
     const task = preparations.get(this.key);
     this.publish(task?.state ?? this.state);
   }
-  prepare = async (intent: "automatic" | "explicit", pdfData?: () => Promise<Uint8Array>): Promise<OfflinePreparationState> => {
+  prepare = async (intent: PreparationIntent, pdfData?: () => Promise<Uint8Array>): Promise<OfflinePreparationState> => {
     if (this.disposed) return { phase: "cancelled" };
     if (intent === "automatic" && this.attempted) return this.state;
     this.attempted = true;
+    const survivesNavigation = intent !== "automatic";
+    const statusIntent = survivesNavigation ? "explicit" : "automatic";
     // Capture at the click, before any pending context can yield to cleanup.
+    // A library open uses the fence captured before it started loading the PDF.
     const requestFence = intent === "explicit" ? captureOfflineFileFence(this.workspace) : undefined;
     void requestFence?.catch(() => undefined);
     pendingRequests.set(this, intent);
-    this.publish({ phase: "preparing", intent });
+    this.publish({ phase: "preparing", intent: statusIntent });
     let context: Awaited<typeof this.context>;
     try {
       context = await this.context;
       await assertLocalWorkspaceActive(context.workspace);
-      if (this.identityGeneration !== (identityGenerations.get(context.workspace.ownerKey) ?? 0)) throw new Error("offline_identity_changed");
       const logout = await readLogoutFence();
-      if (logout && context.workspace.ownerKey === `user:${logout.userId}`) throw new Error("offline_identity_changed");
+      if (logout && this.identityOwner === `user:${logout.userId}`) throw new Error("offline_identity_changed");
       if (requestFence) context = { ...context, fence: await requestFence };
+      if (this.identityGeneration !== (identityGenerations.get(this.identityOwner) ?? 0)) throw new Error("offline_identity_changed");
       this.key = JSON.stringify([context.workspace.scopeKey, context.workspace.sessionEpoch, this.identityGeneration, context.fence, this.score.currentVersion.id]);
     }
     catch { pendingRequests.delete(this); cancelUnownedPreparations(); const state: OfflinePreparationState = { phase: "failed", reason: "identity" }; this.publish(state); return state; }
-    // Explicit requests survive disposal even while capturing the session/fence.
-    if (this.disposed && intent === "automatic") { pendingRequests.delete(this); cancelUnownedPreparations(); return { phase: "cancelled" }; }
+    if (this.disposed && !survivesNavigation) { pendingRequests.delete(this); cancelUnownedPreparations(); return { phase: "cancelled" }; }
     let task = preparations.get(this.key);
     if (!task || task.controller.signal.aborted) {
       const controller = new AbortController();
-      task = { controller, ownerKey: context.workspace.ownerKey, targetKey: this.targetKey, automatic: new Set(), explicit: false, state: { phase: "preparing", intent }, result: Promise.resolve({ phase: "idle" }) };
+      task = { controller, ownerKey: this.identityOwner, targetKey: this.targetKey, automatic: new Set(), explicit: false, state: { phase: "preparing", intent: statusIntent }, result: Promise.resolve({ phase: "idle" }) };
       preparations.set(this.key, task);
       const ownedTask = task;
       const key = this.key;
@@ -177,7 +183,7 @@ export class OfflinePreparation {
       const watcher = liveQuery(async () => {
         await assertLocalWorkspaceActive(context.workspace);
         const logout = await readLogoutFence();
-        if (logout && context.workspace.ownerKey === `user:${logout.userId}`) return false;
+        if (logout && this.identityOwner === `user:${logout.userId}`) return false;
         return await captureOfflineFileFence(context.workspace) === context.fence;
       }).subscribe({ next: valid => { if (!valid) controller.abort(); }, error: () => controller.abort() });
       task.result = (async (): Promise<OfflinePreparationState> => {
@@ -200,7 +206,7 @@ export class OfflinePreparation {
       notify();
     }
     this.task = task;
-    if (intent === "explicit") {
+    if (survivesNavigation) {
       task.explicit = true;
       task.state = { ...task.state, phase: "preparing", intent: "explicit" };
       for (const observer of observers) if (observer.key === this.key) observer.observe();

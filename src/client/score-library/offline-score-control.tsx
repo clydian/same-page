@@ -7,7 +7,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button,  Heading, Popover, Tooltip, TooltipTrigger } from "react-aria-components";
 import { Dialog } from "../navigation/overlays";
-import { CircleAlert, HardDriveDownload, LoaderCircle, RefreshCw, HardDrive, Check } from "lucide-react";
+import { CircleAlert, CircleCheck, CloudDownload, LoaderCircle, RefreshCw } from "lucide-react";
 import type { ScoreSummary } from "../../shared/scores";
 import { ACTIVE_LOCAL_OWNER_KEY, guestOwnerSystemKey, localDatabase } from "../platform/local-database";
 import { experienceOwnerKey, authenticatedLocalOwnerKey, createLocalWorkspace, resolveLocalWorkspace, type LocalWorkspaceOwnerKey } from "../platform/local-workspace";
@@ -58,7 +58,7 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
     ? Math.min(100, Math.floor((attempt.loadedBytes ?? 0) / attempt.totalBytes * 100)) : null;
   const description = percent !== null ? t("offlineScoreControlDownloading", { percent: String(percent) }) : offlinePreparationDescription(attempt, inspected ? { record, invalid: Boolean(invalid), readFailed } : null, score.currentVersion.id, locale);
   const actionLabel = failed ? t("offlineScoreControlRetrySaving") : stale ? t("offlineScoreControlUpdateOfflineCopy") : t("offlineScoreControlSaveOfflineUse");
-  const Icon = state === "downloading" ? LoaderCircle : state === "error" ? CircleAlert : state === "stale" ? RefreshCw : state === "ready" ? HardDrive : HardDrive;
+  const Icon = state === "downloading" ? LoaderCircle : state === "error" ? CircleAlert : state === "stale" ? RefreshCw : state === "ready" ? CircleCheck : CloudDownload;
 
   return <div className="offline-score-control" data-state={state}>
     <TooltipTrigger delay={400}>
@@ -74,20 +74,21 @@ export function OfflineScoreControl({ score, authenticatedUserId, authenticatedS
           setDetailsOpen(true);
         }}
       >
-        {downloading && percent !== null ? <ScoreDownloadProgress percent={percent} /> : <Icon aria-hidden="true" size={16} />}
-        {state === "ready" && <Check className="offline-score-check" aria-hidden="true" size={9} />}
+        {downloading && percent !== null ? <ScoreDownloadProgress percent={percent} /> : <Icon aria-hidden="true" size={18} />}
       </Button>
       <Tooltip className="offline-score-tooltip">{description}</Tooltip>
     </TooltipTrigger>
     <Popover triggerRef={triggerRef} isOpen={detailsOpen} onOpenChange={setDetailsOpen} placement="bottom end" className="offline-score-popover">
       <Dialog id={detailsId} className="offline-score-details">
-        <Heading slot="title"><HardDriveDownload aria-hidden="true" size={18} />{t("offlineScoreControlOfflineCopy")}</Heading>
+        <Heading slot="title">{t("offlineScoreControlOfflineCopy")}</Heading>
         <p role="status">{description}</p>
-        <p>{t("offlineScoreControl2")}</p>
-        {readFailed && <Button className="secondary-button" onPress={() => setInspectionAttempt(value => value + 1)}>{t("offlineScoreControlRetryVerification")}</Button>}
-        {!readFailed && needsDownload && <Button className="secondary-button" isDisabled={!online || disabled || !workspace || explicitDownload} onPress={() => void prepare()}>{downloading ? explicitDownload ? t("libraryExportPreparing") : t("offlineScoreControlContinueSavingNoInterruption") : actionLabel}</Button>}
-        {failed && online && !disabled && onOnlineOpen && <Button className="secondary-button" onPress={onOnlineOpen}>{t("offlineScoreControlOpenOnline")}</Button>}
-        <Button className="text-button" onPress={() => setDetailsOpen(false)}>{t("close")}</Button>
+        {state === "ready" && <p>{t("offlineScoreControl2")}</p>}
+        <div className="offline-score-actions">
+          {readFailed && <Button className="secondary-button" onPress={() => setInspectionAttempt(value => value + 1)}>{t("offlineScoreControlRetryVerification")}</Button>}
+          {!readFailed && needsDownload && <Button className="secondary-button" isDisabled={!online || disabled || !workspace || explicitDownload} onPress={() => void prepare()}>{downloading ? explicitDownload ? t("libraryExportPreparing") : t("offlineScoreControlContinueSavingNoInterruption") : actionLabel}</Button>}
+          {failed && online && !disabled && onOnlineOpen && <Button className="secondary-button" onPress={onOnlineOpen}>{t("offlineScoreControlOpenOnline")}</Button>}
+          <Button className="text-button" onPress={() => setDetailsOpen(false)}>{t("close")}</Button>
+        </div>
       </Dialog>
     </Popover>
   </div>;

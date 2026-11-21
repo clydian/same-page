@@ -9,7 +9,7 @@ import { startViteServer } from "../scripts/vite-server.mjs";
 
 // Each call owns a fresh local Worker store. Bindings are disposed before Vite
 // opens them, so the seed and server never contend for the same SQLite files.
-export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), productAdmin = false, releaseChannels = false, connectionOrigins } = {}) {
+export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), pageCount = 2, productAdmin = false, releaseChannels = false, connectionOrigins } = {}) {
   const accounts = authenticated ? [0, 1].map(() => ({ id: randomUUID(), email: `${randomUUID()}@example.test`, password: randomBytes(24).toString("hex") })) : [];
   const joinCode = invite ? Array.from(randomBytes(8), value => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[value & 31]).join("") : null;
   const choirId = randomUUID(), scoreId = randomUUID(), versionId = randomUUID();
@@ -50,7 +50,7 @@ export async function startStorageFixture({ authenticated = false, invite = fals
         await DB.batch([
           DB.prepare("INSERT INTO choirs (id, owner_membership_id, name, guest_admission_mode, is_preview_entry, storage_used_bytes) VALUES (?, ?, '本地链路云盘', 'open', ?, ?)").bind(choirId, ownerMembershipId, previewEntry ? 1 : 0, pdf.length),
           DB.prepare("INSERT INTO scores (id, choir_id, file_name, file_name_key, current_version_id) VALUES (?, ?, ?, ?, ?)").bind(scoreId, choirId, fileName, fileName, versionId),
-          DB.prepare("INSERT INTO score_versions (id, choir_id, score_id, version_number, object_key, size_bytes, sha256, etag, page_count, state) VALUES (?, ?, ?, 1, ?, ?, ?, ?, 2, 'ready')").bind(versionId, choirId, scoreId, objectKey, pdf.length, hash, object.etag),
+          DB.prepare("INSERT INTO score_versions (id, choir_id, score_id, version_number, object_key, size_bytes, sha256, etag, page_count, state) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, 'ready')").bind(versionId, choirId, scoreId, objectKey, pdf.length, hash, object.etag, pageCount),
           ...accountStatements,
         ]);
         if (productAdmin) {

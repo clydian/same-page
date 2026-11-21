@@ -13,6 +13,8 @@ import { useOfflineScore } from "../offline/use-offline-score";
 import { acquireReaderDocument } from "../reader/reader-document-cache";
 import { loadPdfDocument, type PdfDocumentSource, type PdfLoadProgress } from "../reader/pdf-document";
 import { acquireScorePdf } from "../offline/score-pdf-download";
+import { OfflinePreparation } from "../offline/offline-score";
+import { captureOfflineFileFence } from "../offline/local-files";
 import { pdfFailureCategory } from "../diagnostics/diagnostics";
 import { ScoreLink } from "./score-link";
 import { ScoreDownloadProgress } from "./score-download-progress";
@@ -42,7 +44,7 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
   const [stateTarget, setStateTarget] = useState(target);
   if (stateTarget !== target) { setStateTarget(target); setOpening(false); setMessage(null); }
   useLayoutEffect(() => () => { request.current?.cancel(); request.current = null; }, [target]);
-  const ready = offline?.scopeKey === workspace?.scopeKey && offline?.record && !offline.invalid;
+  const ready = offline?.scopeKey === workspace?.scopeKey && offline?.record?.versionId === score.currentVersion.id && !offline.invalid;
   const open = async () => {
     if (request.current) return;
     activeOpening?.cancel();
@@ -50,6 +52,7 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
     setOpening(true); setProgress(null); setMessage(null);
     let lease: ReturnType<typeof acquireReaderDocument> | null = null;
     let task: ReturnType<typeof loadPdfDocument> | null = null;
+    let preparation: OfflinePreparation | null = null;
     const abort = new AbortController();
     let cancelled = false;
     const release = () => { lease?.release(); if (task) void task.destroy().catch(() => undefined); };
@@ -69,25 +72,40 @@ export function PreparedScoreLink({ score, sessionId, children, ...props }: Prop
         authenticatedUserId: null, experience: props.experience, choirId: score.choirId, scoreId: score.id, signal,
       }), signal).catch(() => null);
       if (cancelled || activeOpening !== current) return;
+      if (targetWorkspace && (!props.userId || sessionId) && navigator.onLine) {
+        const fence = captureOfflineFileFence(targetWorkspace);
+        preparation = new OfflinePreparation(targetWorkspace, score, props.userId ?? null, fence);
+        void fence.catch(() => undefined);
+      }
+      let downloadedPdf: Uint8Array<ArrayBuffer> | undefined;
       const source: PdfDocumentSource = async (loadingSignal, report) => {
         const download = acquireScorePdf(targetWorkspace?.ownerKey ?? "online:guest", score, value => report({ phase: "file", ...value }), AbortSignal.any([abort.signal, loadingSignal]));
         try {
           // PDF.js may transfer its input buffer. Each decoder gets a copy;
           // the shared bytes remain intact for offline saving.
-          return (await download.promise).slice(0);
+          const data = await download.promise;
+          if (preparation) downloadedPdf = new Uint8Array(data);
+          return data.slice(0);
         } finally { download.release(); }
       };
       const onProgress = (value: PdfLoadProgress) => { if (!cancelled && activeOpening === current) setProgress(value); };
       lease = targetWorkspace ? acquireReaderDocument({ ...targetWorkspace, source, sourceKind: "cloud", versionId: score.currentVersion.id, onProgress }) : null;
       task = lease ? null : loadPdfDocument(source, score.currentVersion.id, onProgress);
-      await (lease?.promise ?? task!.promise);
+      const document = lease ? await lease.promise : (await task!.promise).document;
       if (cancelled || activeOpening !== current) return;
+      // A successful library open owns verification through navigation, using
+      // the complete download or the bytes of an already decoded document.
+      const bytes = downloadedPdf;
+      downloadedPdf = undefined;
+      void preparation?.prepare("opened", async () => bytes ?? document.getData());
       props.onOpen(scrollY);
       void navigate(readerHref({ choirId: score.choirId, scoreId: score.id, experience: props.experience === true }));
     } catch (error) {
       if (!cancelled && activeOpening === current) setMessage(pdfFailureCategory(error) === "network"
         ? t("scoreOpenNetworkRetry") : t("scoreOpenRetry"), { duration: 8000 });
     } finally {
+      preparation?.dispose();
+      preparation = null;
       if (!cancelled) release();
       if (activeOpening === current) activeOpening = null;
       if (request.current === current) { request.current = null; setOpening(false); }

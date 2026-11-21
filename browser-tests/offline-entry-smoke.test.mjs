@@ -7,6 +7,91 @@ import { chromium, webkit, request, expect } from "@playwright/test";
 import { expectSampleScoreContent } from "./pdf-content.mjs";
 import { startStorageFixture } from "./storage-fixture.mjs";
 import { withBrowserEvidence } from "./browser-evidence.mjs";
+import { PDFDocument } from "pdf-lib";
+import { createSampleScorePdf } from "../visual-report/fixtures.mjs";
+
+test("chromium: a first-page-only PDF open finishes saving after returning to the library", { timeout: 120_000 }, async t => {
+  const sample = await PDFDocument.load(createSampleScorePdf());
+  const document = await PDFDocument.create();
+  const pageCount = 12;
+  for (const sheet of await document.copyPages(sample, Array.from({ length: pageCount }, (_, index) => index % 2))) {
+    document.addPage(sheet);
+  }
+  const fixture = await startStorageFixture({ authenticated: true, previewEntry: false, pdf: Buffer.from(await document.save()), pageCount });
+  t.after(() => fixture.stop());
+  const drive = `${fixture.origin}/choirs/${fixture.choirId}`;
+  const options = { headless: true, serviceWorkers: "allow", viewport: { width: 390, height: 844 }, locale: "zh-CN",
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) };
+  const profile = await mkdtemp(path.join(tmpdir(), "same-page-offline-open-"));
+  let context;
+  t.after(async () => { try { await context?.close(); } finally { await rm(profile, { recursive: true, force: true }); } });
+  context = await chromium.launchPersistentContext(profile, options);
+  const account = fixture.accounts[1];
+  const login = await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, { headers: { origin: fixture.origin }, data: { email: account.email, password: account.password } });
+  assert.equal(login.status(), 200);
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("reader-gesture-hint-seen", "true");
+    let releaseLayers;
+    const layers = new Promise(resolve => { releaseLayers = resolve; });
+    window.__releaseLayers = releaseLayers;
+    window.__pendingLayerRequests = 0;
+    window.__pdfRequests = 0;
+    const fetch = window.fetch;
+    window.fetch = async (input, init) => {
+      const pathname = new URL(input instanceof Request ? input.url : input, location.origin).pathname;
+      if (pathname.endsWith("/layers")) {
+        window.__pendingLayerRequests++;
+        await layers;
+      }
+      if (!/\/versions\/[^/]+\/pdf$/.test(pathname)) return fetch(input, init);
+      window.__pdfRequests++;
+      assertNoRange(init);
+      const response = await fetch(input, init);
+      if (!response.ok || window.__pdfRequests > 1) return response;
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const split = Math.ceil(bytes.length / 2);
+      const stream = new ReadableStream({ start(controller) {
+        controller.enqueue(bytes.slice(0, split));
+        window.__releasePdf = () => { controller.enqueue(bytes.slice(split)); controller.close(); };
+      } });
+      return new Response(stream, { status: response.status, headers: response.headers });
+    };
+    function assertNoRange(init) {
+      if (new Headers(init?.headers).has("Range")) throw new Error("Library opens the complete PDF.");
+    }
+  });
+  const scoreName = fixture.fileName.replace(/\.pdf$/i, "");
+  await page.goto(drive);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.getByRole("link", { name: scoreName, exact: true }).click();
+  await expect(page.getByRole("progressbar", { name: "下载乐谱" })).toHaveAttribute("value", "50");
+  await expect(page).toHaveURL(drive);
+  await page.evaluate(() => window.__releasePdf());
+  await expectSampleScoreContent(page);
+  await expect(page.locator('[data-page-turn-current][data-page-number="1"]')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__pendingLayerRequests)).toBeGreaterThan(0);
+  await page.locator(".page-reader__viewport").click();
+  await page.getByRole("button", { name: "返回云盘", exact: true }).click();
+  await expect(page).toHaveURL(drive);
+  const copy = page.getByRole("button", { name: /^离线副本：/ });
+  await expect(copy).toHaveAccessibleName(/正在准备/);
+  await page.evaluate(() => window.__releaseLayers());
+  await expect(copy).toHaveAccessibleName(/可离线使用/);
+  assert.equal(await page.evaluate(() => window.__pdfRequests), 1);
+  await context.close();
+  context = await chromium.launchPersistentContext(profile, options);
+  await context.setOffline(true);
+  await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
+  const offline = await context.newPage();
+  await offline.goto(drive);
+  await offline.getByRole("link", { name: scoreName, exact: true }).click();
+  await expectSampleScoreContent(offline);
+  await offline.locator(".page-reader__viewport").click();
+  await offline.getByRole("slider", { name: "跳转页码" }).press("End");
+  await expect(offline.locator(`[data-page-turn-current][data-page-number="${pageCount}"]`)).toBeVisible();
+  await expectSampleScoreContent(offline);
+});
 
 for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]]) {
   test(`${engineName}: verified local score access`, async t => {

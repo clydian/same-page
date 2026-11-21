@@ -6,7 +6,7 @@ import { PreparedScoreLink } from "./prepared-score-link";
 const load = vi.hoisted(() => vi.fn());
 const offline = vi.hoisted(() => ({ ready: false }));
 vi.mock("../reader/reader-document-cache", () => ({ acquireReaderDocument: load }));
-vi.mock("../offline/use-offline-score", () => ({ useOfflineScore: (workspace: { scopeKey: string } | null) => offline.ready && workspace ? { scopeKey: workspace.scopeKey, record: {}, invalid: false } : undefined }));
+vi.mock("../offline/use-offline-score", () => ({ useOfflineScore: (workspace: { scopeKey: string } | null) => offline.ready && workspace ? { scopeKey: workspace.scopeKey, record: { versionId: "v1" }, invalid: false } : undefined }));
 vi.mock("dexie-react-hooks", () => ({ useLiveQuery: () => null }));
 const score = { id: "score", choirId: "drive", fileName: "排练.pdf", updatedAt: 1, currentVersion: { id: "v1", versionNumber: 1, sizeBytes: 100, sha256: "a".repeat(64), etag: "v1", pageCount: 1, createdAt: 1 } };
 function Route() { return <div aria-label="当前位置">{useLocation().pathname}</div>; }
