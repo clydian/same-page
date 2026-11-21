@@ -228,8 +228,8 @@ async function openMemberReader(browser, viewport, device = {}) {
   const browserContext = await browser.newContext({
     viewport,
     ...device,
-    colorScheme: "light",
-    locale: "zh-CN",
+    colorScheme: device.colorScheme ?? "light",
+    locale: device.locale ?? "zh-CN",
     reducedMotion: "reduce",
     serviceWorkers: "block",
     timezoneId: "Asia/Shanghai",
@@ -472,5 +472,57 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
       const { localDatabase } = await import('/src/client/platform/local-database.ts');
       return (await localDatabase.annotations.toArray()).some(note => note.payload?.kind === 'ink' && note.payload.points.length >= 2);
     });
+  });
+}
+
+for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
+  test(`${engineName}: translated editing labels reflow and reader help stays readable`, async context => {
+    const browser = await engine.launch({ headless: true });
+    context.after(() => browser.close());
+    const page = await openMemberReader(browser, { width: 320, height: 800 }, { locale: 'en', colorScheme: 'dark' });
+    await page.locator('.reader-reveal-tools').focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.locator('.annotation-controls').waitFor();
+    const contained = element => {
+      const box = element.getBoundingClientRect(), range = document.createRange();
+      range.selectNodeContents(element);
+      return [...range.getClientRects()].every(rect => rect.left >= box.left - 1 && rect.right <= box.right + 1);
+    };
+    assert.ok(await page.locator('.reader-edit-gesture-hint').evaluate(contained), 'the full hint wraps inside its surface');
+    const hint = await page.locator('.reader-edit-gesture-hint').boundingBox();
+    const done = await page.getByRole('button', { name: 'Finish editing', exact: true }).boundingBox();
+    assert.ok(hint.x + hint.width <= done.x && done.width >= 44 && done.height >= 44);
+    await page.getByRole('button', { name: 'highlighter pen', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'highlighter pen', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    assert.ok(await page.locator('.annotation-tool-name').evaluate(contained), 'the selected tool label stays inside its button');
+    assert.ok(await page.locator('.annotation-drawing-tools').evaluate(group => {
+      const boxes = [...group.querySelectorAll('button')].map(button => button.getBoundingClientRect());
+      return boxes.every((box, index) => box.width >= 44 && box.height >= 44 && box.left >= 0 && box.right <= innerWidth && boxes.slice(index + 1).every(other => box.right <= other.left + 1 || other.right <= box.left + 1 || box.bottom <= other.top + 1 || other.bottom <= box.top + 1));
+    }), 'tools retain nonoverlapping touch targets');
+    await page.getByRole('button', { name: 'Finish editing', exact: true }).click();
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByText('Read help', { exact: true }).click();
+    await page.getByRole('button', { name: 'View reader guide', exact: true }).click();
+    await page.locator('.reader-guide summary').click();
+    assert.ok(await page.locator('.reader-guide').evaluate(guide => {
+      const rgb = value => value.match(/[\d.]+/g).map(Number);
+      const background = rgb(getComputedStyle(guide).backgroundColor);
+      // Translucent help must remain readable even over white score paper.
+      const surface = background.slice(0, 3).map(value => value * (background[3] ?? 1) + 255 * (1 - (background[3] ?? 1)));
+      const luminance = color => color.slice(0, 3).map(value => value / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+      return [guide, ...guide.querySelectorAll('.reader-guide__detail')].every(element => {
+        const values = [luminance(rgb(getComputedStyle(element).color)), luminance(surface)].sort((a, b) => a - b);
+        return (values[1] + .05) / (values[0] + .05) >= 4.5;
+      });
+    }), 'help text retains minimum contrast over the score');
+    assert.ok(await page.locator('.reader-guide__footer').evaluate(footer => {
+      const [explanation, keyboard] = [...footer.children].map(element => element.getBoundingClientRect());
+      return explanation.bottom <= keyboard.top;
+    }), 'expanded keyboard help follows the zoom explanation');
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.getByRole('button', { name: 'Got it', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.reader-guide')).toHaveCount(0);
   });
 }

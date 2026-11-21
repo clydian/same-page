@@ -527,7 +527,7 @@
 .reader-layer-panel input[type="checkbox"]:checked { background: var(--ui-accent-fill, #446c56); border-color: var(--ui-accent, #446c56); }
 .reader-layer-panel input[type="checkbox"]:checked::after { content: ""; width: 8px; height: 4px; border: solid white; border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
 .reader-layer-panel input[type="checkbox"]:focus-visible { outline: 2px solid var(--ui-accent, #446c56); outline-offset: 3px; }
-.reader-shell > .reader-edit-gesture-hint, .annotation-composer-heading .annotation-composer-hint { border: 0; box-shadow: none; background: rgb(var(--ui-surface-rgb, 253 253 250) / 72%); color: var(--ui-muted, #53675a); }
+.reader-shell .reader-edit-gesture-hint, .annotation-composer-heading .annotation-composer-hint { border: 0; box-shadow: none; background: rgb(var(--ui-surface-rgb, 253 253 250) / 72%); color: var(--ui-muted, #53675a); }
 .reader-edit-gesture-hint strong { font-weight: 500; }
 .annotation-composer-layer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .annotation-composer-layer strong { color: var(--reader-ink); font-weight: 500; }
@@ -539,7 +539,7 @@
   .annotation-object-properties .annotation-style-label { display: none; }
   .annotation-composer-heading .annotation-composer-instruction { display: block; flex-basis: 100%; margin: 0; font-size: 11px; }
   .reader-panel.reader-layers-dialog { border-radius: 22px 22px 0 0; }
-  .reader-shell > .reader-edit-gesture-hint { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); transform: none; margin: 0; min-height: 44px; box-sizing: border-box; max-width: calc(100vw - 108px); }
+  .reader-shell .reader-edit-gesture-hint { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); transform: none; margin: 0; min-height: 44px; box-sizing: border-box; max-width: calc(100vw - 108px); }
   .reader-shell .annotation-controls, .annotation-object-properties, .annotation-composer-styles { width: 352px; max-width: calc(100vw - 24px); min-height: 112px; border-radius: 18px; padding: 8px; box-sizing: border-box; }
   .reader-shell .annotation-controls { row-gap: 8px; }
   .annotation-object-properties header { margin: 0 0 8px; border-bottom: 0; height: 44px; }
@@ -593,3 +593,40 @@
 .layer-choice-panel [role="menu"] { outline: none; }
 .layer-choice-panel .layer-choice-row:is([data-focused], :hover):not([data-disabled], [disabled]) { background: var(--ui-soft, #edf2ed); }
 .layer-choice-panel .layer-choice-row[data-focus-visible] { outline: 2px solid var(--ui-accent, #4b7865); outline-offset: -2px; }
+
+/* Status and completion share available space; translated hints can wrap. */
+.reader-chrome[data-editing] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+.reader-shell .reader-chrome[data-editing] .reader-edit-gesture-hint {
+  position: static; transform: none; justify-self: center; box-sizing: border-box;
+  min-width: 0; max-width: 100%; width: fit-content; margin: 7px 0 0;
+  display: block; border: 0; box-shadow: none;
+  background: rgb(var(--ui-surface-rgb, 253 253 250) / 72%);
+}
+.reader-edit-gesture-hint__detail { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.reader-chrome[data-editing] .reader-chrome__actions-stack { justify-self: end; }
+.reader-shell .reader-done-button { min-width: 44px; }
+@media (max-width: 640px) {
+  .reader-shell .reader-chrome[data-editing] .reader-edit-gesture-hint { margin-top: 0; }
+  .reader-shell .annotation-drawing-tools .segmented-control { flex-wrap: wrap; }
+  .reader-shell .annotation-drawing-tools .annotation-tool-button { flex: 1 0 44px; min-width: 44px; height: auto; padding: 4px 5px; }
+  .reader-shell .annotation-drawing-tools .annotation-tool-button[aria-pressed="true"] { flex-basis: max-content; max-width: 100%; }
+  .annotation-tool-name { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+}
+/* The gesture map remains spatial; its explanations follow normal document flow. */
+.reader-guide { background: rgb(var(--ui-surface-rgb, 234 243 236) / 97%); overflow-y: auto; touch-action: pan-y; }
+.reader-guide__surface { height: auto; min-height: 100%; }
+.reader-guide__content {
+  display: grid; grid-template-rows: auto minmax(12rem, 1fr) auto auto; gap: 24px;
+  box-sizing: border-box; height: auto; min-height: 100dvh;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+.reader-guide__heading { position: static; gap: 12px; }
+.reader-guide__heading button { flex-shrink: 0; }
+.reader-guide__zones { position: static; min-height: 0; margin-inline: -20px; }
+.reader-guide__zones > div { min-width: 0; overflow-wrap: anywhere; }
+.reader-guide__gestures { position: static; }
+.reader-guide__gestures > span { min-width: 0; overflow-wrap: anywhere; }
+.reader-guide__footer { display: grid; gap: 8px; }
+.reader-guide__detail { position: static; margin: 0; line-height: 1.5; }
+.reader-guide__detail summary { display: list-item; min-height: 44px; align-content: center; cursor: pointer; }
+.reader-guide__detail p { margin: 8px 0 0; }

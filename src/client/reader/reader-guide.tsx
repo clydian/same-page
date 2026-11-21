@@ -22,9 +22,11 @@ export function ReaderGuide({ layout, onDismiss }: { layout: "page" | "continuou
             ? <span><MoveVertical size={19} aria-hidden="true" /><strong>{t("swipeVertically")}</strong>{t("scrollContinuously")}</span>
             : <span><ArrowDown size={19} aria-hidden="true" /><strong>{t("swipeDownFullPage")}</strong>{t("closeSheetMusic")}</span>}
         </div>
-        {layout === "continuous" && <p className="reader-guide__detail">{t("continuousZoomHelp")}</p>}
-        {layout === "page" && <p className="reader-guide__detail">{t("pagedZoomHelp")}</p>}
-        <details className="reader-guide__detail"><summary>{t("keyboardEditing")}</summary><p>{t("keyboardShortcuts")}</p></details>
+        <footer className="reader-guide__footer">
+          {layout === "continuous" && <p className="reader-guide__detail">{t("continuousZoomHelp")}</p>}
+          {layout === "page" && <p className="reader-guide__detail">{t("pagedZoomHelp")}</p>}
+          <details className="reader-guide__detail"><summary>{t("keyboardEditing")}</summary><p>{t("keyboardShortcuts")}</p></details>
+        </footer>
       </Dialog>
     </Modal>
   </ModalOverlay>;
