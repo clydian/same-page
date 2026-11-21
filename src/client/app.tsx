@@ -1,3 +1,4 @@
+import { useApplicationIdentity } from "./auth/application-identity";
 import { FeedbackToastProvider } from "./components/feedback-toast";
 import { DriveVisitReporter } from "./drives/drive-visit-reporter";
 import { AppearanceProvider } from "./appearance/appearance";
@@ -116,9 +117,11 @@ export function AppRoutes() {
 
 function PageWithFooter() {
   const { pathname } = useLocation();
+  const identity = useApplicationIdentity();
+  const showPolicies = pathname === "/" && identity.onlineState === "signed-out" && !identity.localUserId;
   const showsFooter = ["/", "/drives"].includes(pathname);
   return <div className="page-with-footer"><Outlet />
-    {showsFooter && <AppFooter />}
+    {showsFooter && <AppFooter showPolicies={showPolicies} />}
   </div>;
 }
 
