@@ -3,13 +3,14 @@ import { readAppearance, saveAppearance } from "../appearance/appearance-store";
 import { useAppearance } from "../appearance/appearance-context";
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   useSyncExternalStore,
   type RefObject,
 } from "react";
 import { Button } from "react-aria-components";
-import type { PlayerSession, PlayerState } from "@same-page/player";
+import type { PlayerSession, PlayerState, PartTimbre } from "@same-page/player";
 import { setPlaybackView, playbackViewStore, type PlaybackSource } from "./playback-store";
 import { NotationZoom } from "./notation-zoom";
 import { useNotationPinch } from "./use-notation-pinch";
@@ -96,7 +97,7 @@ export function MusicXmlPractice({
     });
     session?.playPause();
   };
-  const ready = state.status === "ready" && !error;
+  const ready = state.status === "ready" && !state.timbreLoading && !error;
   useEffect(() => { if (ready) session?.lyricSize?.(lyricSize); }, [session, ready, lyricSize]);
   const formatMeasure = useMeasureLabel();
   const measureLabel = (index: number) => formatMeasure(state.measures[index], "—");
@@ -277,6 +278,7 @@ export function MusicXmlPractice({
               </Button>
             </div>
           ))}
+          <PartTimbreEditor session={session} state={state} ready={ready} />
         </PracticeDisclosure>
         <LoopRangeEditor rememberedRange={savedLoop?.session === session ? savedLoop?.range : null} onRememberRange={range => setSavedLoop({ session, range })} session={session} state={state} ready={ready} onPreviewingChange={setLoopPreviewing} onPreview={() => { visual.reset(); if (view === "pdf") setPlaybackView("xml"); }} />
         <div className="practice-flat-settings">
@@ -325,4 +327,21 @@ export function MusicXmlPractice({
       </PracticePlayerShell>
     </>
   );
+}
+
+function PartTimbreEditor({ session, state, ready }: { session: PlayerSession | null; state: PlayerState; ready: boolean }) {
+  const t = useMessages("practice");
+  const id = useId();
+  const parts = state.parts.filter(part => part.canChangeTimbre);
+  const defaultNames = { piano: 'timbrePiano', aahs: 'timbreAahs', oohs: 'timbreOohs', harp: 'timbreHarp' } as const;
+  if (!parts.length) return null;
+  return <div className="practice-timbre"><PracticeDisclosure title={t("partTimbre")} help={t("partTimbreHelp")}>
+    {parts.map(part => <label key={part.id} className="practice-field practice-part practice-timbre-part" htmlFor={`${id}-${part.id}`}>
+      <span className="practice-part-name">{part.unnamed ? t("unnamedPart", { index: part.unnamed }) : part.name}</span>
+      <select id={`${id}-${part.id}`} aria-describedby={`${id}-hint`} value={part.timbre ?? 'score'} disabled={!ready} onChange={event => session?.timbre(part.id, event.target.value as PartTimbre)}>
+        <option value="score">{part.defaultTimbre ? t("timbreDefaultNamed", { timbre: t(defaultNames[part.defaultTimbre]) }) : t("timbreScore")}</option><option value="piano">{t("timbrePiano")}</option><option value="aahs">{t("timbreAahs")}</option><option value="oohs">{t("timbreOohs")}</option>
+      </select>
+    </label>)}
+    <p id={`${id}-hint`} className="practice-hint">{state.timbreLoading ? t("timbreLoading") : t("timbreSessionHint")}</p>
+  </PracticeDisclosure></div>;
 }
