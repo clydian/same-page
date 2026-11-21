@@ -1,0 +1,12 @@
+/* Cover the whole library surface, including whitespace below a short list.
+   File links keep their own context-menu handling; editable text stays native. */
+.drive-page {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.drive-page :is(input, textarea, [contenteditable]:not([contenteditable="false"])) {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
