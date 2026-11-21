@@ -38,8 +38,8 @@ function send(type: string, x: number, time: number, editing: boolean) {
   }
   flush();
 }
-function contact(type: string, id: number, x: number, time: number) {
-  const event = new PointerEvent(type, { bubbles: true, pointerType: "touch", pointerId: id, clientX: x, clientY: 200 });
+function contact(type: string, id: number, x: number, time: number, y = 200) {
+  const event = new PointerEvent(type, { bubbles: true, pointerType: "touch", pointerId: id, clientX: x, clientY: y });
   Object.defineProperty(event, "timeStamp", { value: time });
   fireEvent(screen.getByTestId("viewport"), event);
 }
@@ -135,6 +135,41 @@ it.each(["opposed", "anchored", "cancelled"])("resolves %s pinch input while edi
   contact("pointerup", 1, first, 141);
   expect(viewport).toHaveAttribute("data-page", "2");
   expect(viewport).toHaveAttribute("data-zoom", kind === "cancelled" ? "1" : "2");
+});
+
+it.each(["pinch", "pan", "provisional preview then pan"])("settles a moving pinch on the current page after %s", start => {
+  render(<Harness editing initialZoom={2} />);
+  const viewport = screen.getByTestId("viewport");
+  const paper = screen.getByTestId("paper");
+  viewport.scrollTop = 400;
+  viewport.getBoundingClientRect = () => new DOMRect(0, 0, 834, 1194);
+  paper.getBoundingClientRect = () => new DOMRect(-viewport.scrollLeft, -viewport.scrollTop, 1668, 2200);
+  contact("pointerdown", 1, 300, 0);
+  contact("pointerdown", 2, 500, 10);
+  if (start === "provisional preview then pan") {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    contact("pointermove", 1, 350, 25, 235);
+    flush();
+    act(() => vi.advanceTimersByTime(100));
+    expect(paper).toHaveAttribute("data-gesture-preview");
+  }
+  if (start !== "pinch") {
+    contact("pointermove", 1, 304, 140, 250);
+    contact("pointermove", 2, 496, 140, 250);
+    flush();
+    expect(viewport.scrollTop).toBe(350);
+    expect(paper).not.toHaveAttribute("data-gesture-preview");
+  }
+
+  contact("pointermove", 1, 490, 160, 550);
+  contact("pointermove", 2, 510, 160, 550);
+  flush();
+  expect(paper).toHaveAttribute("data-gesture-preview");
+  expect(viewport).toHaveAttribute("data-progress", "0");
+  contact("pointerup", 1, 490, 170, 550);
+  contact("pointerup", 2, 510, 171, 550);
+  expect(viewport).toHaveAttribute("data-zoom", "1");
+  expect(viewport).toHaveAttribute("data-page", "2");
 });
 
 it("drains replaced pinch contacts without leaving an uncommitted transform", () => {
