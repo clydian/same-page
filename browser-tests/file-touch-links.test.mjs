@@ -19,6 +19,7 @@ async function hold(page, file) {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
     await expect(file).toHaveAttribute("data-touch-active", "");
     await delay(700);
+    assert.equal(await page.evaluate(() => getSelection().toString()), "");
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   } finally { await cdp.detach(); }
 }
