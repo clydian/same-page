@@ -1,0 +1,23 @@
+{
+  "label": "before",
+  "width": 390,
+  "height": 844,
+  "firstPair": "2",
+  "backPair": "1",
+  "handoffs": [
+    {
+      "direction": -1,
+      "phase": "settling",
+      "positions": null,
+      "page": "1"
+    },
+    {
+      "direction": 1,
+      "phase": "settling",
+      "positions": null,
+      "page": "2"
+    }
+  ],
+  "zoom": "2",
+  "durationMs": 2937
+}

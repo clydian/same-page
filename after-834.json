@@ -1,0 +1,29 @@
+{
+  "label": "after",
+  "width": 834,
+  "height": 1100,
+  "firstPair": "3",
+  "backPair": "1",
+  "handoffs": [
+    {
+      "direction": -1,
+      "phase": "dragging",
+      "positions": {
+        "before": 318.38616943359375,
+        "after": 306.385986328125
+      },
+      "page": "2"
+    },
+    {
+      "direction": 1,
+      "phase": "dragging",
+      "positions": {
+        "before": -318.861083984375,
+        "after": -306.8609924316406
+      },
+      "page": "2"
+    }
+  ],
+  "zoom": "2",
+  "durationMs": 2717
+}
