@@ -18,7 +18,6 @@ async function hold(page, file) {
   try {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
     await expect(file).toHaveAttribute("data-touch-active", "");
-    assert.equal(await file.evaluate(node => getComputedStyle(node).userSelect), "none");
     await delay(700);
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   } finally { await cdp.detach(); }
@@ -86,7 +85,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       }
       fixture.sessionCookies = (await seed.storageState()).cookies;
     } finally { await seed.dispose(); }
-    if (engine === "chromium") await scenario(t, fixture, engine, browserType, "touch-and-context-menu", async ({ page, context, library, file }) => {
+    if (engine === "chromium") await scenario(t, fixture, engine, browserType, "touch-and-context-menu", async ({ page, context, library, scorePath, file }) => {
       await page.getByRole("button", { name: "本地链路测试：1 个附件", exact: true }).tap();
       const external = page.getByRole("link", { name: "参考外链", exact: true });
       await expect(external).toHaveAttribute("target", "_blank");
@@ -105,7 +104,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await expect(page.getByRole("menu")).toHaveCount(0);
       assert.deepEqual(fileRequests, [], "holding must not start PDF or annotation preparation");
       await expect(file).not.toHaveAttribute("data-touch-active");
-      assert.notEqual(await file.evaluate(node => getComputedStyle(node).userSelect), "none");
+      // The library surface keeps selection disabled after release (#694).
+      // Check the gesture's visible result, then exercise scroll/menu/new input.
+      assert.equal(await page.evaluate(() => getSelection().toString()), "");
       const cdp = await context.newCDPSession(page);
       try {
         const box = await file.boundingBox(); assert.ok(box);
@@ -145,6 +146,9 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await file.click({ button: "right" });
       assert.equal(await rightMenu, false);
       await page.keyboard.press("Escape");
+      // A held/withdrawn touch must not swallow the next ordinary touch opening.
+      await file.tap();
+      await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
     });
     await scenario(t, fixture, engine, browserType, "native-modifier-navigation", async ({ page, context, library, scorePath, file }) => {
       // Only Chromium can exercise a native held touch in this harness.
