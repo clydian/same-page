@@ -1,0 +1,343 @@
+[
+  {
+    "name": "existing toolbar selected-state instability",
+    "status": "confirmed",
+    "detail": {
+      "before": [
+        {
+          "name": "Choose",
+          "selected": "false",
+          "box": {
+            "x": 28,
+            "y": 779,
+            "width": 47,
+            "height": 44,
+            "top": 779,
+            "right": 75,
+            "bottom": 823,
+            "left": 28
+          }
+        },
+        {
+          "name": "brush",
+          "selected": "false",
+          "box": {
+            "x": 75,
+            "y": 779,
+            "width": 47,
+            "height": 44,
+            "top": 779,
+            "right": 122,
+            "bottom": 823,
+            "left": 75
+          }
+        },
+        {
+          "name": "highlighter pen",
+          "selected": "false",
+          "box": {
+            "x": 122,
+            "y": 779,
+            "width": 47,
+            "height": 44,
+            "top": 779,
+            "right": 169,
+            "bottom": 823,
+            "left": 122
+          }
+        },
+        {
+          "name": "Eraser",
+          "selected": "false",
+          "box": {
+            "x": 169,
+            "y": 779,
+            "width": 47,
+            "height": 44,
+            "top": 779,
+            "right": 216,
+            "bottom": 823,
+            "left": 169
+          }
+        },
+        {
+          "name": "text",
+          "selected": "true",
+          "box": {
+            "x": 220,
+            "y": 779,
+            "width": 44,
+            "height": 44,
+            "top": 779,
+            "right": 264,
+            "bottom": 823,
+            "left": 220
+          }
+        },
+        {
+          "name": "Rectangle",
+          "selected": "false",
+          "box": {
+            "x": 268,
+            "y": 779,
+            "width": 47,
+            "height": 44,
+            "top": 779,
+            "right": 315,
+            "bottom": 823,
+            "left": 268
+          }
+        },
+        {
+          "name": "ellipse",
+          "selected": "false",
+          "box": {
+            "x": 315,
+            "y": 779,
+            "width": 47,
+            "height": 44,
+            "top": 779,
+            "right": 362,
+            "bottom": 823,
+            "left": 315
+          }
+        }
+      ],
+      "after": [
+        {
+          "name": "Choose",
+          "selected": "false",
+          "box": {
+            "x": 28,
+            "y": 735,
+            "width": 47.578125,
+            "height": 44,
+            "top": 735,
+            "right": 75.578125,
+            "bottom": 779,
+            "left": 28
+          }
+        },
+        {
+          "name": "brush",
+          "selected": "false",
+          "box": {
+            "x": 75.578125,
+            "y": 735,
+            "width": 47.578125,
+            "height": 44,
+            "top": 735,
+            "right": 123.15625,
+            "bottom": 779,
+            "left": 75.578125
+          }
+        },
+        {
+          "name": "highlighter pen",
+          "selected": "true",
+          "box": {
+            "x": 123.15625,
+            "y": 735,
+            "width": 88.109375,
+            "height": 44,
+            "top": 735,
+            "right": 211.265625,
+            "bottom": 779,
+            "left": 123.15625
+          }
+        },
+        {
+          "name": "Eraser",
+          "selected": "false",
+          "box": {
+            "x": 211.265625,
+            "y": 735,
+            "width": 47.578125,
+            "height": 44,
+            "top": 735,
+            "right": 258.84375,
+            "bottom": 779,
+            "left": 211.265625
+          }
+        },
+        {
+          "name": "text",
+          "selected": "false",
+          "box": {
+            "x": 262.84375,
+            "y": 735,
+            "width": 47.578125,
+            "height": 44,
+            "top": 735,
+            "right": 310.421875,
+            "bottom": 779,
+            "left": 262.84375
+          }
+        },
+        {
+          "name": "Rectangle",
+          "selected": "false",
+          "box": {
+            "x": 314.421875,
+            "y": 735,
+            "width": 47.578125,
+            "height": 44,
+            "top": 735,
+            "right": 362,
+            "bottom": 779,
+            "left": 314.421875
+          }
+        },
+        {
+          "name": "ellipse",
+          "selected": "false",
+          "box": {
+            "x": 28,
+            "y": 779,
+            "width": 334,
+            "height": 44,
+            "top": 779,
+            "right": 362,
+            "bottom": 823,
+            "left": 28
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "drive switch to second synthetic drive",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "list search empty/matching, actual search UI",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "sorting and expand synthetic XML/audio attachments",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "audio attachment open/play/pause",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "upload synthetic PDF through file picker",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "rename uploaded synthetic PDF",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "PDF paged keyboard next/previous",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "PDF continuous scroll to page two",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "PDF zoom up and fit reset",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "PDF text compose, size, finish",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "edit existing text; brush stroke; Undo/Redo works; English Undo label says Cancel",
+    "status": "confirmed",
+    "detail": "Undo action is mislabeled Cancel in en reader catalog"
+  },
+  {
+    "name": "personal/shared selection; rectangle on synthetic shared layer; complete/save/reopen retains text",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "manual Sync initiated after reopen",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "PDF expanded reader help; dismiss",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "WebKit en320 read-only shared-layer guide and disabled choice",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "WebKit complete editing and return",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "offline preparation in exploration context",
+    "status": "environment constraint",
+    "detail": "serviceWorkers:block intentionally prevents offline app shell; retry in separate SW-enabled context"
+  },
+  {
+    "name": "German 320 long-tool state and Undo label",
+    "status": "confirmed",
+    "detail": {
+      "history": [
+        "Abbrechen",
+        "Wiederholen"
+      ]
+    }
+  },
+  {
+    "name": "German 320 XML play/pause, speed, measure locator, mixer volume/mute/solo, loop endpoints, advanced expanded",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "XML progress keyboard seek, exit returns PDF",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "SW-enabled explicit PDF offline prepare and offline open",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "network restore/reload after offline PDF",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "zh-Hans light tablet: highlighter/rectangle/ellipse draw and eraser drag",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "personal layer create and display/reference tabs; no sharing/permission changes",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "appearance UI light/dark radio switches",
+    "status": "passed",
+    "detail": ""
+  },
+  {
+    "name": "native language selector zh-Hans to en in Account",
+    "status": "passed",
+    "detail": ""
+  }
+]
