@@ -84,7 +84,6 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       { name: "Sharp turn", points: [[.18,.35],[.22,.35],[.26,.35],[.28,.31],[.28,.27],[.28,.23],[.28,.27],[.28,.31],[.28,.35]] },
       { name: "Small lettering", points: [[.18,.48],[.20,.46],[.22,.48],[.24,.46],[.26,.48],[.28,.46],[.30,.48],[.32,.46],[.34,.48]] },
     ];
-    const comparisons = [];
     for (const trace of traces) {
       const paths = [];
       for (const coalesced of [false, true]) {
@@ -118,15 +117,26 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         paths.push(live);
       }
       assert.notEqual(paths[0], paths[1], `${trace.name}: intermediate measured input must affect the outline`);
-      comparisons.push({ name: trace.name, paths });
     }
-    if (name === "chromium" && process.env.PEN_EVIDENCE_PATH) {
-      const proof = await page.context().browser().newPage();
-      await proof.setViewportSize({width:1000,height:750});
-      const rows = comparisons.map(({name,paths}, index) => `<section><h2>${name}</h2>${paths.map((d,i) => `<svg viewBox="140 ${[110,200,410][index]} 250 ${[130,190,140][index]}"><path d="${d}" fill="#173c3c"/></svg>`).join("")}</section>`).join("");
-      await proof.setContent(`<style>body{font:18px system-ui;margin:36px;background:#f7f7f1;color:#173c3c}h1{font-size:27px}p{color:#536762}.labels,section{display:grid;grid-template-columns:200px 1fr 1fr;gap:20px}section{height:145px;align-items:center;border-top:1px solid #ccd4cb}h2{font-size:18px}svg{width:100%;height:140px;background:white;border-radius:12px}</style><h1>Measured samples preserve the intended path</h1><p>Synthetic PointerEvents · same trajectory / width / pressure · unchanged smoothing</p><div class="labels"><span></span><b>Before: delivered endpoints</b><b>After: measured batches</b></div>${rows}<p>Live outline equals saved outline after release in both cases.<br>Cloud Chromium simulation. No Apple Pencil or iPad device claim.</p>`);
-      await proof.screenshot({path:process.env.PEN_EVIDENCE_PATH});
-    }
+
+  });
+  test(`${name}: zero-pressure pen samples retain the same live and saved outline`, async t => {
+    const page = await openReader(t, engine);
+    await pointer(page, "pointerdown", .18, .5, { pressure: 0 });
+    await pointer(page, "pointermove", .4, .5, { pressure: .2 });
+    await pointer(page, "pointermove", .7, .5, { pressure: 0 });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const live = await page.locator("[data-ink-draft]").getAttribute("d");
+    await pointer(page, "pointerup", .7, .5, { pressure: 0 });
+    await page.waitForFunction(d => [...document.querySelectorAll("[data-ink-stroke]")].some(path => path.getAttribute("d") === d), live);
+    const payload = await page.evaluate(async () => {
+      const { localDatabase } = await import("/src/client/platform/local-database.ts");
+      return (await localDatabase.annotations.toArray()).find(note => note.payload?.kind === "ink" && note.payload.points[0]?.x === .18)?.payload;
+    });
+    assert.equal(payload.pressureMode, "pressure");
+    assert.deepEqual(payload.points.map(p => p.pressure), [0, 0, Math.fround(.2), 0]);
+    await page.getByRole("button", { name: "撤销", exact: true }).click();
+    await page.waitForFunction(d => ![...document.querySelectorAll("[data-ink-stroke], [data-ink-draft]")].some(path => path.getAttribute("d") === d), live);
   });
   test(`${name}: crossing pen ink remains painted in live and saved SVG`, async t => {
     const page = await openReader(t, engine);

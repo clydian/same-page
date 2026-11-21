@@ -171,7 +171,7 @@ export function AnnotationOverlay({
     return {
       x: constrain ? clamp((event.clientX - bounds.left) / bounds.width) : (event.clientX - bounds.left) / bounds.width,
       y: constrain ? clamp((event.clientY - bounds.top) / bounds.height) : (event.clientY - bounds.top) / bounds.height,
-      ...(event.pointerType === "pen" && event.pressure > 0 && event.pressure <= 1 ? { pressure: event.pressure } : {}),
+      ...(event.pointerType === "pen" && event.pressure >= 0 && event.pressure <= 1 ? { pressure: event.pressure } : {}),
       ...(event.pointerType === "pen" ? { tiltX: event.tiltX || 0, tiltY: event.tiltY || 0, twist: event.twist || 0 } : {}),
     };
   };

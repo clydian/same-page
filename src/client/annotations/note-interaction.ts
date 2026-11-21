@@ -46,12 +46,23 @@ function collectedInk(payload: Ink): Ink {
 export class NoteInteraction {
   private released = new Map<string, { layerId: string; payload: Ink; revision: number }>();
   private active: Active | null = null;
+  private annotations: LocalAnnotationRecord[] = [];
+  private unsubscribeEditor: (() => void) | undefined;
   private frame: number | null = null;
   private snapshot = empty;
   private listeners = new Set<() => void>();
-  constructor(private editor: (Pick<AnnotationEditor, "persist"> & Partial<Pick<AnnotationEditor, "getEditRevision" | "getCommittedObject">>) | null) {}
+  constructor(private editor: (Pick<AnnotationEditor, "persist"> & Partial<Pick<AnnotationEditor, "getEditRevision" | "getCommittedObject" | "subscribe">>) | null) {}
   getSnapshot = () => this.snapshot;
-  subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    // Queries and editor commits can arrive in either order, particularly when
+    // undo skips the released revision. Recheck both sources of acknowledgement.
+    this.unsubscribeEditor ??= this.editor?.subscribe?.(() => this.reconcile(this.annotations));
+    return () => {
+      this.listeners.delete(listener);
+      if (!this.listeners.size) { this.unsubscribeEditor?.(); this.unsubscribeEditor = undefined; }
+    };
+  };
   get drawing() { return this.active !== null; }
   owns(pointerId: number) { return this.active?.pointerId === pointerId; }
   erasing(pointerId: number) { return this.active?.kind === "eraser" && this.owns(pointerId); }
@@ -59,6 +70,7 @@ export class NoteInteraction {
   // A completed write may precede its reactive query. Keep each released
   // outline until the query acknowledges it, including rapid consecutive notes.
   reconcile(annotations: LocalAnnotationRecord[]) {
+    this.annotations = annotations;
     let changed = false;
     for (const [id, released] of this.released) {
       const committed = this.editor?.getCommittedObject?.(id);

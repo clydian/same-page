@@ -141,3 +141,33 @@ it("hands consecutive released outlines to query results without clearing the ne
   expect(notes.getSnapshot().released.size).toBe(0);
   expect(await saved()).toHaveLength(1);
 });
+
+it.each(["query-first", "commit-first"])("retires released ink when undo arrives %s, while retaining the next gesture", async order => {
+  const notifications = new Set<() => void>();
+  let committed: ReturnType<AnnotationEditor["getCommittedObject"]>;
+  let revision = 0;
+  const source = {
+    persist: vi.fn(async () => { revision++; return true; }),
+    getEditRevision: () => revision,
+    getCommittedObject: () => committed,
+    subscribe: (listener: () => void) => { notifications.add(listener); return () => { notifications.delete(listener); }; },
+  };
+  const interaction = new NoteInteraction(source);
+  const unsubscribe = interaction.subscribe(vi.fn());
+  interaction.begin(70, layerId, ink(), 0);
+  await interaction.end("release", 70, { x: .3, y: .3 });
+  const [id, released] = [...interaction.getSnapshot().released][0]!;
+  committed = { revision, input: { id, layerId, payload: released.payload } };
+  interaction.begin(71, layerId, ink(), 10);
+  expect(interaction.getSnapshot().released.size).toBe(1);
+  if (order === "query-first") interaction.reconcile([]);
+  committed = { revision: ++revision, input: { id, layerId, payload: null, deleted: true } };
+  notifications.forEach(notify => notify());
+  if (order === "commit-first") interaction.reconcile([]);
+  expect(interaction.getSnapshot().released.size).toBe(0);
+  expect(interaction.owns(71)).toBe(true);
+  expect(interaction.getSnapshot().stroke).not.toBeNull();
+  unsubscribe();
+  expect(notifications.size).toBe(0);
+  interaction.dispose();
+});

@@ -1,3 +1,4 @@
+import { inkSvgPaths } from "./ink-geometry";
 import { useReaderGestures } from "../reader/use-reader-gestures";
 import { createRef, useRef } from "react";
 import Dexie from "dexie";
@@ -1453,7 +1454,7 @@ it.each(["mouse", "touch", "pressureless", "pressureless-zero", "pen"])("collect
   const svg = view.container.querySelector("svg")!;
   vi.spyOn(svg, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 1000, bottom: 1000, width: 1000, height: 1000 } as DOMRect);
   const pointerType = input.startsWith("pressureless") ? "pen" : input;
-  const fallbackPressure = input === "pressureless-zero" ? 0 : .5;
+  const fallbackPressure = input === "pressureless-zero" ? 0 : input === "mouse" || input === "touch" ? .8 : .5;
   const sample = (type: string, x: number, y: number, pressure: number) => new PointerEvent(type, { bubbles: true, pointerId: 77, pointerType, buttons: type === "pointerup" ? 0 : 1, clientX: x, clientY: y, pressure });
   fireEvent(svg, sample("pointerdown", 100, 100, fallbackPressure));
   const move = sample("pointermove", 300, 100, fallbackPressure);
@@ -1469,8 +1470,29 @@ it.each(["mouse", "touch", "pressureless", "pressureless-zero", "pen"])("collect
   expect(payload).toMatchObject({ pressureMode: input === "pen" ? "pressure" : "uniform", points: expect.arrayContaining([expect.objectContaining({ x: .18, y: .16 }), expect.objectContaining({ x: .24, y: .08 })]) });
   if (payload.kind === "ink") {
     const measured = payload.points.find(point => point.x === .18)!;
-    if (pointerType === "pen" && fallbackPressure > 0) expect(measured.pressure).toBeCloseTo(input === "pen" ? .2 : fallbackPressure);
+    if (pointerType === "pen") expect(measured.pressure).toBeCloseTo(input === "pen" ? .2 : fallbackPressure);
     else expect(measured.pressure).toBeUndefined();
+    if (payload.pressureMode === "uniform") expect(inkSvgPaths(payload, 1)).toEqual(inkSvgPaths({ ...payload, points: payload.points.map(point => ({ ...point, pressure: .9 })) }, 1));
   }
   expect(predictions).not.toHaveBeenCalled();
+});
+
+
+it("preserves zero pen pressure through live outline, release, and persisted ink", async () => {
+  const view = render(<AnnotationOverlay editor={editor} pageNumber={1} layers={layers} annotations={[]} editing tool="ink" activeLayerId={activeLayerId} />);
+  const svg = view.container.querySelector("svg")!;
+  vi.spyOn(svg, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 1000, bottom: 1000, width: 1000, height: 1000 } as DOMRect);
+  const send = (type: string, x: number, pressure: number) => fireEvent(svg, new PointerEvent(type, { bubbles: true, pointerId: 88, pointerType: "pen", buttons: type === "pointerup" ? 0 : 1, clientX: x, clientY: 500, pressure }));
+  send("pointerdown", 100, 0);
+  send("pointermove", 500, .2);
+  send("pointermove", 800, 0);
+  await waitFor(() => expect(view.container.querySelector("[data-ink-draft]")?.getAttribute("d")).toBe(inkSvgPaths({ kind: "ink", brush: "pen", nib: "round", pressureMode: "pressure", pageNumber: 1, strokeWidth: .003, points: [{ x: .1, y: .5, pressure: 0 }, { x: .1, y: .5, pressure: 0 }, { x: .5, y: .5, pressure: Math.fround(.2) }, { x: .8, y: .5, pressure: 0 }] }, 1)[0]));
+  send("pointerup", 900, 0);
+  await editor.finish();
+  const saved = (await localDatabase.annotations.toArray()).find(note => note.payload?.kind === "ink")!.payload!;
+  expect(saved).toMatchObject({ pressureMode: "pressure", points: [
+    { x: .1, y: .5, pressure: 0 }, { x: .1, y: .5, pressure: 0 },
+    { x: .5, y: .5, pressure: expect.closeTo(.2) },
+    { x: .8, y: .5, pressure: 0 }, { x: .9, y: .5, pressure: 0 },
+  ] });
 });
