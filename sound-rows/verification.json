@@ -1,0 +1,59 @@
+{
+  "voiceOrder": [
+    "Soprano",
+    "Alto",
+    "Tenor",
+    "Bass"
+  ],
+  "otherPartsUnchanged": true,
+  "defaultRestoresExactMidi": true,
+  "focusAfterReload": {
+    "0": 0.8,
+    "1": 0.15,
+    "2": 0.15,
+    "3": 0.15
+  },
+  "independentAfterFocusOff": {
+    "0": 0.65,
+    "1": 0.45,
+    "2": 0.75,
+    "3": 0.75
+  },
+  "playbackResumed": true,
+  "loopAndSoloPreserved": true,
+  "mobileControls": [
+    {
+      "x": 117.65625,
+      "right": 346,
+      "y": 503.59375,
+      "bottom": 547.59375,
+      "width": 228.34375,
+      "height": 44
+    },
+    {
+      "x": 117.65625,
+      "right": 346,
+      "y": 564.59375,
+      "bottom": 608.59375,
+      "width": 228.34375,
+      "height": 44
+    },
+    {
+      "x": 117.65625,
+      "right": 346,
+      "y": 625.59375,
+      "bottom": 669.59375,
+      "width": 228.34375,
+      "height": 44
+    },
+    {
+      "x": 117.65625,
+      "right": 346,
+      "y": 686.59375,
+      "bottom": 730.59375,
+      "width": 228.34375,
+      "height": 44
+    }
+  ],
+  "pageErrors": []
+}
