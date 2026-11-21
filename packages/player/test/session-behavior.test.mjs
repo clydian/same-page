@@ -8,11 +8,12 @@ import { playbackMeasureLabel, playbackMeasureVisits } from '../dist/playback-me
 import { CollectionPlaybackError } from '../dist/document-playback.js';
 import { PlaybackChannelError } from '../dist/engine.js';
 import { MusicXmlError } from '../dist/format.js';
-import { ScoreFollowSession, isPointerDrag } from '../dist/score-follow.js';
+import { ScoreFollowSession, ScoreFollowScroll, playbackMillisecondsUntil, isPointerDrag } from '../dist/score-follow.js';
 import { CURRENT_IMPORT_INPUT_VERSION, isCompatibleMusicXmlPreparation } from '../dist/musicxml-direction-timing.js';
 // Exercise the shipped session against deterministic engine/Worker adapters.
 const compiled = (await readFile(new URL('../dist/session.js', import.meta.url),'utf8')).replace(/^(?:import|export \{).*$/mg,'').replace('export function createPlayerSession','function createPlayerSession').replace(/new URL\([^\n]+import.meta.url\)/,'"prepare.worker.js"');
-const factory = new Function('isPartTimbre','createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','isPointerDrag','playbackMeasureLabel','playbackMeasureVisits','CollectionPlaybackError','PlaybackChannelError','MusicXmlError','isCompatibleMusicXmlPreparation','playbackTempo','readMusicXmlTempoMeasures','playbackAudioSession',compiled+'\nreturn createPlayerSession;');
+const factory = new Function('isPartTimbre','createPlaybackApi','assignPlaybackChannels','loadPreparedMusicXml','alphaTab','applyTimbreProfile','classifyTimbreRoles','ScoreFollowSession','ScoreFollowScroll','playbackMillisecondsUntil','isPointerDrag','playbackMeasureLabel','playbackMeasureVisits','CollectionPlaybackError','PlaybackChannelError','MusicXmlError','isCompatibleMusicXmlPreparation','playbackTempo','readMusicXmlTempoMeasures','playbackAudioSession',compiled+'\nreturn createPlayerSession;');
+
 function harness(options = {}) {
  let worker, workerCount = 0, parses = 0, ready, observer;
  const previous = globalThis.Worker, previousParser = globalThis.DOMParser, previousObserver = globalThis.MutationObserver;
@@ -23,7 +24,8 @@ function harness(options = {}) {
  const event = () => {const listeners=[];return {on(fn){listeners.push(fn);},emit(value){listeners.forEach(fn=>fn(value));}};};
  const api = {settings:{player:{},display:{resources:{elementFonts:new Map([[NotationElement.EffectLyrics,new model.Font('Georgia, serif',16,1)]]),mainGlyphColor:"black",secondaryGlyphColor:"black",staffLineColor:"gray",barSeparatorColor:"black",scoreInfoColor:"black",barNumberColor:"gray"}}},renderer:{partialRenderFinished:event()},isReadyForPlayback:options.playbackReady !== false,score:{tracks:[{},{}]},boundsLookup:{findMasterBar:()=>({staffSystemBounds:{realBounds:{y:100}}})},tickCache:{masterBars:[{masterBar:{index:0},start:0,end:100}]},error:event(),renderStarted:event(),postRenderFinished:event(),playerReady:event(),midiLoaded:event(),soundFontLoaded:event(),soundFontLoad:event(),playerStateChanged:event(),playerPositionChanged:event(),changeTrackVolume(){},changeTrackMute(){},changeTrackSolo(){},renderScore(){ready();},playPause(){},play(){},pause(){},destroy(){},render(){},updateSettings(){},};
  api.partTimbre=()=> 'score';api.partDefaultTimbre=()=>null;api.scoreLoaded=event();api.renderScores=()=>api.renderScore();
- const create = factory(value=>['score','piano','aahs','oohs'].includes(value),()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{NotationElement,PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,isPointerDrag,playbackMeasureLabel,playbackMeasureVisits,CollectionPlaybackError,PlaybackChannelError,MusicXmlError,isCompatibleMusicXmlPreparation,playbackTempo,()=>[],()=>playbackAudioSession(options.audioNavigator));
+ const create = factory(value=>['score','piano','aahs','oohs'].includes(value),()=>api,()=>{},()=>({tracks:[{name:'Voice',index:0},{name:'Voice',index:1}]}),{NotationElement,PlayerMode:{EnabledSynthesizer:1},ScrollMode:{Off:0,OffScreen:2},synth:{PlayerState:{Playing:1}},model:{Color:model.Color,BarNumberDisplay:{Hide:1}}},()=>{},()=>[],ScoreFollowSession,ScoreFollowScroll,playbackMillisecondsUntil,isPointerDrag,playbackMeasureLabel,playbackMeasureVisits,CollectionPlaybackError,PlaybackChannelError,MusicXmlError,isCompatibleMusicXmlPreparation,playbackTempo,()=>[],()=>playbackAudioSession(options.audioNavigator));
+
 
  const element={getBoundingClientRect(){return {top:-(options.scrollElement?.scrollTop ?? 0)};},addEventListener(_,fn){ready=fn;},removeEventListener(){},querySelector(){return null;}};
  const session = create(element,new Uint8Array([1]),options);
@@ -429,22 +431,40 @@ test('notation theme changes render resources without resetting practice state o
  }finally{h.dispose();}
 });
 
-for (const collection of [false, true]) test(`following keeps the next complete system in view without constant scrolling (collection=${collection})`,async()=>{
+for (const collection of [false, true]) test(`following positions once per system and handles discontinuous entries (collection=${collection})`,async()=>{
  const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(){},removeEventListener(){}};
  const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
  try {
-  h.api.isCollection=collection;h.api.playbackVisits=playbackMeasureVisits(['1','2','3']);h.api.tempoAt=()=>({bpm:80,unit:'quarter'});
-  const rows=[100,320,540].map(y=>({realBounds:{x:0,y,w:300,h:180}}));
-  h.api.tickCache.masterBars=rows.map((_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
+  h.api.isCollection=collection;h.api.sourceIndex=bar=>bar.index;h.api.playbackVisits=playbackMeasureVisits(['1','2','3','4','5','6']);h.api.tempoAt=()=>({bpm:80,unit:'quarter'});
+  const rows=[100,420,740].map(y=>({realBounds:{x:0,y,w:300,h:280}}));
+  h.api.tickCache.masterBars=Array.from({length:6},(_,index)=>({masterBar:{index},start:index*100,end:(index+1)*100}));
   h.api.boundsLookup.staffSystems=rows;
-  h.api.boundsLookup.findMasterBar=bar=>({realBounds:rows[bar.index].realBounds,staffSystemBounds:rows[bar.index]});
+  h.api.boundsLookup.findMasterBar=bar=>({realBounds:{...rows[Math.floor(bar.index/2)].realBounds,y:rows[Math.floor(bar.index/2)].realBounds.y+25},staffSystemBounds:rows[Math.floor(bar.index/2)]});
   await Promise.resolve();h.api.playerStateChanged.emit({state:1});
-  h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0,'ample reading space keeps the score still');
-  h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,304,'scrolls while the current row is still fully visible, before the next is clipped');
-  h.api.playerPositionChanged.emit({currentTick:150});assert.equal(viewport.scrollTop,304,'same row does not scroll on each beat');
-  h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,304,'last row needs no fictional next row');
-  h.session.suspendFollow();viewport.scrollTop=0;h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,0,'manual browsing remains untouched');
+  h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0,'first system is already in a reasonable reading position');
+  h.api.playerPositionChanged.emit({currentTick:100});assert.equal(viewport.scrollTop,0,'same-system measure does not change the reading position');
+  h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,404,'entry aligns the whole system rather than the measure bounds');
+  h.api.playerPositionChanged.emit({currentTick:300});assert.equal(viewport.scrollTop,404,'second measure leaves the system fixed');
+  h.api.playerPositionChanged.emit({currentTick:400});assert.equal(viewport.scrollTop,724);
+  h.api.playerPositionChanged.emit({currentTick:0});assert.equal(viewport.scrollTop,84,'repeat back to an earlier system repositions');
+  h.session.suspendFollow();viewport.scrollTop=0;h.api.playerPositionChanged.emit({currentTick:200});assert.equal(viewport.scrollTop,0,'manual browsing remains untouched');
  }finally{h.dispose();}
+});
+
+test('first position retries missing system bounds without waiting for another measure',async()=>{
+ const viewport={scrollTop:0,clientHeight:600,getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(){},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try {
+  const row={realBounds:{x:0,y:500,w:300,h:180}};
+  h.api.boundsLookup.findMasterBar=()=>undefined;
+  await Promise.resolve();
+  h.api.playerPositionChanged.emit({currentTick:1});assert.equal(viewport.scrollTop,0);
+  h.api.boundsLookup.findMasterBar=()=>({staffSystemBounds:{...row,realBounds:{...row.realBounds,h:NaN}}});
+  h.api.playerPositionChanged.emit({currentTick:2});assert.equal(viewport.scrollTop,0);
+  h.api.boundsLookup.findMasterBar=()=>({staffSystemBounds:row});
+  h.api.playerPositionChanged.emit({currentTick:3});assert.equal(viewport.scrollTop,484);
+  h.api.playerPositionChanged.emit({currentTick:4});assert.equal(viewport.scrollTop,484);
+ } finally {h.dispose();}
 });
 
 test('lyric sizes relayout the native font without changing transport or mix',()=>{
@@ -459,5 +479,30 @@ test('lyric sizes relayout the native font without changing transport or mix',()
   }
   h.session.lyricSize(99);
   assert.equal(h.api.settings.display.resources.elementFonts.get(NotationElement.EffectLyrics).size,16);
+ }finally{h.dispose();}
+});
+
+for(const collection of [false,true]) test(`following only moves in the final playback window and completes at the new system (collection=${collection})`,async()=>{
+ let now=0,id=0;const frames=new Map(),handlers=new Map();
+ const view={performance:{now:()=>now},document:{hidden:false},matchMedia:()=>({matches:false}),getComputedStyle:()=>({scrollPaddingTop:'16px'}),requestAnimationFrame(fn){frames.set(++id,fn);return id;},cancelAnimationFrame(key){frames.delete(key);}};
+ const viewport={scrollTop:0,scrollHeight:2000,clientHeight:600,ownerDocument:{defaultView:view,addEventListener(){},removeEventListener(){}},getBoundingClientRect:()=>({top:0,bottom:600}),addEventListener(n,fn){handlers.set(n,fn);},removeEventListener(){}};
+ const h=harness({scrollElement:viewport,prepared:{bytes:new Uint8Array([1])}});
+ try{
+  const rows=[100,500].map((y,index)=>({bars:[{index}],realBounds:{x:0,y,w:300,h:180}}));
+  h.api.isCollection=collection;h.api.sourceIndex=bar=>bar.index;h.api.playbackVisits=playbackMeasureVisits(['1','2']);h.api.tempoAt=()=>({bpm:120,unit:1});
+  h.api.tickCache.masterBars=rows.map((_,index)=>({masterBar:{index},start:index*3840,end:(index+1)*3840,tempoChanges:[{tick:index*3840,tempo:120}]}));
+  h.api.boundsLookup.staffSystems=rows;h.api.boundsLookup.findMasterBar=bar=>({realBounds:rows[bar.index].realBounds,staffSystemBounds:collection?{...rows[bar.index],bars:[{index:bar.index}]}:rows[bar.index]});
+  await Promise.resolve();h.api.playerStateChanged.emit({state:1});
+  h.api.playerPositionChanged.emit({currentTick:100});h.api.playerPositionChanged.emit({currentTick:3600});assert.equal(viewport.scrollTop,0);assert.equal(frames.size,0,'125ms before entry remains still');
+  now=100;h.api.playerPositionChanged.emit({currentTick:3610});assert.equal(frames.size,1);
+  now=160;const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn());assert.ok(viewport.scrollTop>0&&viewport.scrollTop<484);
+  now=200;h.api.playerPositionChanged.emit({currentTick:3800});assert.equal(viewport.scrollTop,484);assert.equal(frames.size,0,'fresh clock reply settles before entry even without another rAF');
+  now=220;h.api.playerPositionChanged.emit({currentTick:3840});assert.equal(viewport.scrollTop,484);assert.equal(frames.size,0,'entry cannot retain an animation tail');
+  h.api.playerPositionChanged.emit({currentTick:3841});assert.equal(viewport.scrollTop,484);
+  h.session.seek(0);h.api.playerStateChanged.emit({state:0});h.api.playerStateChanged.emit({state:1});h.api.playerPositionChanged.emit({currentTick:0,isSeek:true});viewport.scrollTop=0;
+  now=300;h.api.playerPositionChanged.emit({currentTick:3610});assert.equal(frames.size,1);
+  handlers.get('wheel')();assert.equal(frames.size,0);h.api.playerPositionChanged.emit({currentTick:3611});assert.equal(frames.size,0,'pending user input cannot restart the cancelled transition');
+  h.session.follow();viewport.scrollTop=0;h.api.renderStarted.emit();h.api.playerPositionChanged.emit({currentTick:3612});assert.equal(viewport.scrollTop,0);assert.equal(frames.size,0,'pending reflow cannot consume old bounds');
+  h.api.postRenderFinished.emit();h.api.playerPositionChanged.emit({currentTick:3613});assert.equal(frames.size,1,'current bounds restore follow after reflow');
  }finally{h.dispose();}
 });

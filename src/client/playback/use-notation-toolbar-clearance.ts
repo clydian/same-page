@@ -2,58 +2,32 @@ import { useEffect, type RefObject } from 'react';
 import type { PlayerSession } from '@same-page/player';
 import type { PlaybackView } from './playback-store';
 
-/** Host chrome must not cover the followed system. Manual browsing remains free. */
+/** Publish stable chrome clearance; the player session alone owns scrolling. */
 export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | null>, session: Pick<PlayerSession, 'getSnapshot' | 'subscribe'> | null, enabled: boolean, view: PlaybackView = 'xml') {
   useEffect(() => {
     const scroll = viewport.current;
     if (!scroll || !session || !enabled) return;
     let frame = 0;
+    let width = -1, height = -1;
     const previousPadding = scroll.style.scrollPaddingTop;
     const place = () => {
       frame = 0;
-      const state = session.getSnapshot();
-      if (state.following === false || state.previewing) return;
-      const cursor = scroll.querySelector<HTMLElement>('.at-cursor-bar');
-      if (!cursor) return;
-      const bar = cursor.getBoundingClientRect(), area = scroll.getBoundingClientRect();
-      if (bar.width === 0 || bar.height === 0) return;
+      const area = scroll.getBoundingClientRect();
       const clearance = [...document.querySelectorAll<HTMLElement>('.practice-header[data-floating], .practice-notation-tools')]
         .map(toolbar => toolbar.getBoundingClientRect())
-        .filter(tools => tools.width > 0 && tools.height > 0 && bar.right > tools.left && bar.left < tools.right && tools.bottom > area.top)
-        .reduce((top, tools) => Math.max(top, tools.bottom + 12), area.top + 12);
-      // Share the actual reading edge with playback follow.
-      scroll.style.scrollPaddingTop = `${clearance - area.top}px`;
-      const bottom = area.bottom - 8;
-      // Oversized systems cannot fit vertically: align their first staff so it
-      // remains readable. Otherwise move only when chrome/edges obscure them.
-      if (clearance < bottom - 44 && (bar.top < clearance || bar.bottom > bottom)) {
-        scroll.scrollTop = Math.max(0, scroll.scrollTop + bar.top - clearance);
-      }
+        .filter(tools => tools.width > 0 && tools.height > 0 && tools.right > area.left && tools.left < area.right && tools.bottom > area.top)
+        .reduce((top, tools) => Math.max(top, tools.bottom + 12), area.top + 12) - area.top;
+      const padding = `${clearance}px`;
+      if (scroll.style.scrollPaddingTop === padding && area.width === width && area.height === height) return;
+      width = area.width; height = area.height;
+      scroll.style.scrollPaddingTop = padding;
+      scroll.dispatchEvent(new Event('samepage:notation-clearance'));
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(place); };
-    const release = session.subscribe(schedule);
     const observer = new ResizeObserver(schedule);
     observer.observe(scroll);
     document.querySelectorAll('.practice-header[data-floating], .practice-notation-tools').forEach(toolbar => observer.observe(toolbar));
-    // alphaTab may move its cursor after publishing the player snapshot. Watch
-    // that one DOM node so a late seek/reflow cannot leave the active system
-    // behind chrome or outside the viewport. Beat cursor animation is ignored.
-    const cursorObserver = new MutationObserver(schedule);
-    let watchedCursor: HTMLElement | null = null;
-    const watchCursor = () => {
-      const cursor = scroll.querySelector<HTMLElement>('.at-cursor-bar');
-      if (cursor !== watchedCursor) {
-        cursorObserver.disconnect(); watchedCursor = cursor;
-        if (cursor) cursorObserver.observe(cursor, { attributes: true, attributeFilter: ['style'] });
-      }
-    };
-    const structureObserver = new MutationObserver(() => { watchCursor(); schedule(); });
-    structureObserver.observe(scroll, { childList: true, subtree: true });
-    watchCursor();
-    const paper = scroll.querySelector<HTMLElement>('.practice-notation-paper');
-    if (paper) observer.observe(paper);
-    scroll.addEventListener('scroll', schedule, { passive: true });
     schedule();
-    return () => { scroll.style.scrollPaddingTop = previousPadding; release(); observer.disconnect(); cursorObserver.disconnect(); structureObserver.disconnect(); scroll.removeEventListener('scroll', schedule); cancelAnimationFrame(frame); };
+    return () => { scroll.style.scrollPaddingTop = previousPadding; observer.disconnect(); cancelAnimationFrame(frame); };
   }, [viewport, session, enabled, view]);
 }
