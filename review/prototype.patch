@@ -1,0 +1,264 @@
+diff --git a/packages/player/src/session.ts b/packages/player/src/session.ts
+index 1bca121..6a62eed 100644
+--- a/packages/player/src/session.ts
++++ b/packages/player/src/session.ts
+@@ -164,8 +164,34 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+   let previewOverlays: HTMLDivElement[] = [];
+   const clearPreviewMarkers = () => { previewOverlays.forEach(marker => marker.remove()); previewOverlays = []; };
+   let preview: { playing: boolean; scrollTop: number; scrollLeft: number; restoreView?: () => void; index: number; range: { start: number; end: number } } | null = null;
++  // Local experiment only: instant / boundary / pre. No product setting.
++  const getFollowVariant = (): string => 'boundary';
++  const followWindow = viewport?.ownerDocument?.defaultView;
++  let scrollFrame: number | null = null;
++  let anticipatedSystem: object | null = null;
++  let lastPositionIndex = -1;
++  const cancelScroll = () => {
++    if (scrollFrame !== null) followWindow?.cancelAnimationFrame(scrollFrame);
++    scrollFrame = null;
++  };
++  const moveScroll = (target: number, duration = 0) => {
++    if (!viewport) return;
++    cancelScroll();
++    const from = viewport.scrollTop;
++    const to = Math.max(0, Math.min(viewport.scrollHeight - viewport.clientHeight, target));
++    if (!duration || !followWindow || followWindow.matchMedia('(prefers-reduced-motion: reduce)').matches) { viewport.scrollTop = to; return; }
++    const began = followWindow.performance.now();
++    const step = (now: number) => {
++      const progress = Math.min(1, Math.max(0, (now - began) / duration));
++      viewport.scrollTop = from + (to - from) * (1 - (1 - progress) ** 3);
++      scrollFrame = progress < 1 ? followWindow.requestAnimationFrame(step) : null;
++    };
++    scrollFrame = followWindow.requestAnimationFrame(step);
++  };
+   let followedSystem: object | null = null;
+   const scrollToMeasure = (index: number, clearance = 16) => {
++    cancelScroll(); anticipatedSystem = null;
++    clearance = Math.max(clearance, parseFloat(viewport?.ownerDocument?.defaultView?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
+     const masterBar = api.tickCache?.masterBars[index]?.masterBar;
+     if (masterBar) api.ensureMeasure?.(masterBar);
+     const measureBounds = masterBar && api.boundsLookup?.findMasterBar(masterBar);
+@@ -174,7 +200,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+     if (viewport && bounds) {
+       const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
+       const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
+-      viewport.scrollTop += origin.top + bounds.y * scale - view.top - clearance;
++      viewport.scrollTop += origin.top + (measureBounds?.staffSystemBounds?.realBounds.y ?? bounds.y) * scale - view.top - clearance;
+       if (scale > 1) {
+         const left = origin.left + bounds.x * scale, right = left + bounds.w * scale;
+         viewport.scrollLeft += left < view.left ? left - view.left : right > view.right ? right - view.right : 0;
+@@ -254,7 +280,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+     const system = api.boundsLookup.staffSystems.find(system => origin + system.realBounds.y + system.realBounds.h > top);
+     if (system?.bars[0]) anchor = { bar: system.bars[0].index, offset: origin + system.realBounds.y - top };
+   };
+-  api.renderStarted.on(() => { followedSystem = null; musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
++  api.renderStarted.on(() => { cancelScroll(); anticipatedSystem = null; followedSystem = null; musicalSystemRendered = false; captureAnchor(); degreeOverlay?.remove(); degreeOverlay = null; measureOverlay?.remove(); measureOverlay = null; });
+   api.postRenderFinished.on(() => {
+     renderDegrees(); renderMeasureLabels();
+     if (preview) markRange(preview.range.start, preview.range.end); else highlightLoop();
+@@ -269,11 +295,12 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+   });
+ 
+   const setFollow = (enabled: boolean) => {
++    cancelScroll(); anticipatedSystem = null;
+     if (enabled) follow.restore(); else follow.suspend();
+     update({ following: enabled });
+     if (enabled && state.status === 'ready') scrollToMeasure(state.measure);
+   };
+-  const intent = () => { anchor = null; follow.noteManualScrollIntent(performance.now()); };
++  const intent = () => { cancelScroll(); anticipatedSystem = null; anchor = null; follow.noteManualScrollIntent(performance.now()); };
+   const keyDown = (event: KeyboardEvent) => {
+     if (!event.defaultPrevented && !event.altKey && !event.ctrlKey && !event.metaKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) intent();
+   };
+@@ -289,10 +316,17 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+   viewport?.addEventListener('pointerup', pointerUp);
+   viewport?.addEventListener('pointercancel', pointerUp);
+   viewport?.addEventListener('scroll', scroll, { passive: true });
++  const clearanceChanged = () => {
++    cancelScroll(); anticipatedSystem = null;
++    if (!state.following || state.status !== 'ready' || preview) return;
++    followedSystem = null;
++    scrollToMeasure(state.measure, Math.max(16, parseFloat(viewport?.style.scrollPaddingTop ?? '') || 0));
++  };
++  viewport?.addEventListener('samepage:notation-clearance', clearanceChanged);
+   let worker: Worker | null = null;
+   const fail = (message: string, messageCode: PlayerMessageCode) => {
+     if (disposed || state.status === 'error') return;
+-    clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); audioSession.release(); update({ status: 'error', message, messageCode, playing: false });
++    cancelScroll(); clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); stopCountIn(); api.pause(); audioSession.release(); update({ status: 'error', message, messageCode, playing: false });
+   };
+   // Soundfont transfer and synthesis preparation can exceed a minute on slow links.
+   // Still bound each attempt; disposal and explicit retry cancel the old session.
+@@ -365,7 +399,7 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+     // Reassert the declaration at actual playback entry as well.
+     if (playing) audioSession.request(); else audioSession.release();
+     playRequested = playing;
+-    if (!playing) followedSystem = null;
++    if (!playing) { cancelScroll(); anticipatedSystem = null; followedSystem = null; }
+     update({ playing }); if (playing) loadingStage('playing');
+     if (!playing && awaitingPause) {
+       awaitingPause = false;
+@@ -397,7 +431,6 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+     const index = state.measures.findLastIndex(item => item.startTick <= event.currentTick);
+     const tempo = tempoAt(event.currentTick);
+     if (index < 0) return;
+-    const previousMeasure = state.measure;
+     if (index !== state.measure || tempo.bpm !== state.tempo?.bpm || tempo.unit !== state.tempo?.unit) update({ measure: index, tempo });
+     if (state.following && viewport && !preview) {
+       const master = api.tickCache?.masterBars[index]?.masterBar;
+@@ -407,18 +440,44 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+       // Retry unavailable bounds at the first position that can locate the system.
+       if (!system) return;
+       const previousSystem = followedSystem;
+-      const discontinuity = event.isSeek || index < previousMeasure;
+-      if (system === previousSystem && !discontinuity) return;
+-      followedSystem = system;
++      const discontinuity = event.isSeek || index < lastPositionIndex || Math.abs(index - lastPositionIndex) > 1;
++      lastPositionIndex = index;
++      if (discontinuity) { cancelScroll(); anticipatedSystem = null; }
+       const row = system.realBounds;
+       const origin = element.getBoundingClientRect(), view = viewport.getBoundingClientRect();
+       const scale = element.offsetWidth ? origin.width / element.offsetWidth : 1;
+-      const clearance = Math.max(16, parseFloat(viewport.ownerDocument?.defaultView?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
++      const clearance = Math.max(16, parseFloat(followWindow?.getComputedStyle(viewport).scrollPaddingTop ?? '') || 0);
+       const top = origin.top + row.y * scale, bottom = top + row.h * scale;
+-      // A system already near the top and fully readable stays still. Decide once
+-      // on system entry, never from the horizontal position of a later measure.
+-      if (top >= view.top + clearance - 1 && top <= view.top + clearance + viewport.clientHeight * .25 && bottom <= view.bottom) return;
+-      viewport.scrollTop += top - view.top - clearance;
++      const systems = api.boundsLookup?.staffSystems ?? [];
++      const readable = (y: number, end: number) => y >= view.top + clearance - 1 && end <= view.bottom - 8;
++      if (system !== previousSystem || discontinuity) {
++        followedSystem = system;
++        anticipatedSystem = null;
++        cancelScroll();
++        if (!readable(top, bottom)) {
++          const adjacent = previousSystem && systems.indexOf(system) === systems.indexOf(previousSystem as typeof system) + 1;
++          const target = viewport.scrollTop + top - view.top - clearance;
++          moveScroll(target, getFollowVariant() !== 'instant' && state.playing && !discontinuity && adjacent && target > viewport.scrollTop && target - viewport.scrollTop <= viewport.clientHeight ? 120 : 0);
++        }
++      }
++      if (getFollowVariant() !== 'pre' || followWindow?.matchMedia('(prefers-reduced-motion: reduce)').matches || !state.playing || discontinuity || state.loop && index >= state.loop.end) return;
++      const next = api.tickCache?.masterBars[index + 1];
++      if (!next || sourceIndex(next.masterBar) !== sourceIndex(master!) + 1) return;
++      const nextSystem = api.boundsLookup?.findMasterBar(next.masterBar)?.staffSystemBounds;
++      if (!nextSystem || nextSystem === system || anticipatedSystem === nextSystem || systems.indexOf(nextSystem) !== systems.indexOf(system) + 1) return;
++      const remainingTicks = next.start - event.currentTick;
++      if (remainingTicks <= 0 || remainingTicks > 960 * tempo.unit) return;
++      const remainingMs = remainingTicks / 960 * 60000 / (tempo.bpm * state.speed);
++      if (remainingMs < 90) return;
++      const nextTop = origin.top + nextSystem.realBounds.y * scale;
++      const nextBottom = nextTop + nextSystem.realBounds.h * scale;
++      if (readable(nextTop, nextBottom)) return;
++      // Only expose the next system if the *whole current system* stays visible.
++      const minimum = nextBottom - (view.bottom - 8);
++      const maximum = top - view.top - clearance;
++      if (minimum <= 1 || maximum < minimum || maximum > viewport.clientHeight) return;
++      anticipatedSystem = nextSystem;
++      moveScroll(viewport.scrollTop + maximum, Math.min(120, remainingMs - 40));
+     }
+   });
+   const render = async (document: PreparedMusicXmlDocument) => {
+@@ -550,9 +609,9 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+     playPause() { if (!disposed && state.status === 'ready' && !preview) {
+       if (pendingSeek) { pendingSeek.resume = !pendingSeek.resume; pauseRequested = !pendingSeek.resume; if (pauseRequested) pendingCountIn = false; }
+-      else if ((state.playing || playRequested) && !pauseRequested || countInActive) { pauseRequested = true; stopCountIn(); api.pause(); } else start();
++      else if ((state.playing || playRequested) && !pauseRequested || countInActive) { cancelScroll(); pauseRequested = true; stopCountIn(); api.pause(); } else start();
+     } },
+-    pause() { if (!disposed) { pauseRequested = true; if (pendingSeek) { pendingSeek.resume = false; pendingCountIn = false; } stopCountIn(); if (!awaitingPause) api.pause(); } },
++    pause() { if (!disposed) { cancelScroll(); pauseRequested = true; if (pendingSeek) { pendingSeek.resume = false; pendingCountIn = false; } stopCountIn(); if (!awaitingPause) api.pause(); } },
+     seek(index) { if (!disposed && state.status === 'ready' && Number.isInteger(index)) {
+       const bounded = Math.max(state.loop?.start ?? 0, Math.min(state.loop?.end ?? state.measures.length - 1, index));
+       if (state.measures[bounded]) {
+@@ -659,8 +718,8 @@ export function createPlayerSession(element: HTMLElement, bytes: Uint8Array, opt
+       highlightLoop(); if (resume) play();
+     },
+     dispose() {
+-      if (disposed) return; stopCountIn(); disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); clearPreviewMarkers();
+-      viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
++      if (disposed) return; cancelScroll(); stopCountIn(); disposed = true; clearTimeout(deadline); worker?.terminate(); notationObserver?.disconnect(); element.removeEventListener('alphaTab.midiFileLoaded', ready); listeners.clear(); degreeOverlay?.remove(); clearPreviewMarkers();
++      viewport?.removeEventListener('samepage:notation-clearance', clearanceChanged); viewport?.removeEventListener('wheel', intent); viewport?.removeEventListener('touchmove', intent); viewport?.removeEventListener('pointerdown', pointerDown); viewport?.removeEventListener('pointermove', pointerMove);
+       viewport?.removeEventListener('keydown', keyDown);
+       viewport?.removeEventListener('pointerup', pointerUp); viewport?.removeEventListener('pointercancel', pointerUp); viewport?.removeEventListener('scroll', scroll); api.destroy(); audioSession.release();
+     },
+diff --git a/src/client/playback/use-notation-toolbar-clearance.ts b/src/client/playback/use-notation-toolbar-clearance.ts
+index 17b7ded..0a3c76d 100644
+--- a/src/client/playback/use-notation-toolbar-clearance.ts
++++ b/src/client/playback/use-notation-toolbar-clearance.ts
+@@ -2,67 +2,30 @@ import { useEffect, type RefObject } from 'react';
+ import type { PlayerSession } from '@same-page/player';
+ import type { PlaybackView } from './playback-store';
+ 
+-/** Host chrome must not cover the followed system. Manual browsing remains free. */
++/** Experiment: host publishes geometry; the session alone owns scrolling. */
+ export function useNotationToolbarClearance(viewport: RefObject<HTMLElement | null>, session: Pick<PlayerSession, 'getSnapshot' | 'subscribe'> | null, enabled: boolean, view: PlaybackView = 'xml') {
+   useEffect(() => {
+     const scroll = viewport.current;
+     if (!scroll || !session || !enabled) return;
+     let frame = 0;
+-    let measure = session.getSnapshot().measure;
+-    let waitingForCursor = false;
+     const previousPadding = scroll.style.scrollPaddingTop;
+     const place = () => {
+       frame = 0;
+-      const state = session.getSnapshot();
+-      if (state.following === false || state.previewing) return;
+-      const cursor = scroll.querySelector<HTMLElement>('.at-cursor-bar');
+-      if (!cursor) return;
+-      const bar = cursor.getBoundingClientRect(), area = scroll.getBoundingClientRect();
+-      if (bar.width === 0 || bar.height === 0) return;
++      const area = scroll.getBoundingClientRect();
+       const clearance = [...document.querySelectorAll<HTMLElement>('.practice-header[data-floating], .practice-notation-tools')]
+         .map(toolbar => toolbar.getBoundingClientRect())
+-        .filter(tools => tools.width > 0 && tools.height > 0 && bar.right > tools.left && bar.left < tools.right && tools.bottom > area.top)
+-        .reduce((top, tools) => Math.max(top, tools.bottom + 12), area.top + 12);
+-      // Share the actual reading edge with playback follow.
+-      scroll.style.scrollPaddingTop = `${clearance - area.top}px`;
+-      const bottom = area.bottom - 8;
+-      // Oversized systems cannot fit vertically: align their first staff so it
+-      // remains readable. Otherwise move only when chrome/edges obscure them.
+-      if (!waitingForCursor && clearance < bottom - 44 && (bar.top < clearance || bar.bottom > bottom)) {
+-        scroll.scrollTop = Math.max(0, scroll.scrollTop + bar.top - clearance);
+-      }
++        .filter(tools => tools.width > 0 && tools.height > 0 && tools.right > area.left && tools.left < area.right && tools.bottom > area.top)
++        .reduce((top, tools) => Math.max(top, tools.bottom + 12), area.top + 12) - area.top;
++      const padding = `${clearance}px`;
++      if (scroll.style.scrollPaddingTop === padding) return;
++      scroll.style.scrollPaddingTop = padding;
++      scroll.dispatchEvent(new Event('samepage:notation-clearance'));
+     };
+     const schedule = () => { if (!frame) frame = requestAnimationFrame(place); };
+-    const release = session.subscribe(() => {
+-      const next = session.getSnapshot().measure;
+-      // Position state can arrive before alphaTab paints the new bar cursor.
+-      // Do not undo the system follow using the previous system's rectangle.
+-      if (next !== measure) { measure = next; waitingForCursor = true; }
+-      schedule();
+-    });
+     const observer = new ResizeObserver(schedule);
+     observer.observe(scroll);
+     document.querySelectorAll('.practice-header[data-floating], .practice-notation-tools').forEach(toolbar => observer.observe(toolbar));
+-    // alphaTab may move its cursor after publishing the player snapshot. Watch
+-    // that one DOM node so a late seek/reflow cannot leave the active system
+-    // behind chrome or outside the viewport. Beat cursor animation is ignored.
+-    const cursorObserver = new MutationObserver(() => { waitingForCursor = false; schedule(); });
+-    let watchedCursor: HTMLElement | null = null;
+-    const watchCursor = () => {
+-      const cursor = scroll.querySelector<HTMLElement>('.at-cursor-bar');
+-      if (cursor !== watchedCursor) {
+-        cursorObserver.disconnect(); watchedCursor = cursor;
+-        waitingForCursor = false;
+-        if (cursor) cursorObserver.observe(cursor, { attributes: true, attributeFilter: ['style'] });
+-      }
+-    };
+-    const structureObserver = new MutationObserver(() => { watchCursor(); schedule(); });
+-    structureObserver.observe(scroll, { childList: true, subtree: true });
+-    watchCursor();
+-    const paper = scroll.querySelector<HTMLElement>('.practice-notation-paper');
+-    if (paper) observer.observe(paper);
+-    scroll.addEventListener('scroll', schedule, { passive: true });
+     schedule();
+-    return () => { scroll.style.scrollPaddingTop = previousPadding; release(); observer.disconnect(); cursorObserver.disconnect(); structureObserver.disconnect(); scroll.removeEventListener('scroll', schedule); cancelAnimationFrame(frame); };
++    return () => { scroll.style.scrollPaddingTop = previousPadding; observer.disconnect(); cancelAnimationFrame(frame); };
+   }, [viewport, session, enabled, view]);
+ }
