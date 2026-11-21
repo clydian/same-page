@@ -39,7 +39,7 @@ try{
  });
  await page.evaluate(async()=>{const {ScoreFollowScroll}=await import('/packages/player/dist/score-follow.js');const move=ScoreFollowScroll.prototype.move;ScoreFollowScroll.prototype.move=function(target,deadline){if(window.__record)window.__moves.push({time:performance.now(),tick:window.__tick,target,deadline,from:document.querySelector('.practice-notation-scroll').scrollTop});return move.call(this,target,deadline);};});
  const cases=[];for(const width of [390,768])for(const speed of fast?[2]:[1,1.5])cases.push({width,height:width===390?640:900,speed,bpm:fast?180:72});
- if(process.env.CHECKS==='1')for(const check of ['manual','seek','loop','visible','reduce'])cases.push({width:check==='visible'?768:390,height:check==='visible'?900:640,speed:1,bpm:72,check});
+ if(process.env.CHECKS==='1')for(const check of ['manual','seek','loop','visible','reduce','reflow','resize'])cases.push({width:check==='visible'?768:390,height:check==='visible'?900:640,speed:1,bpm:72,check});
  for(const cfg of cases){
   const name=`${cfg.width}-${cfg.speed}${cfg.check?`-${cfg.check}`:''}`;console.log('START',name);
   await page.emulateMedia({reducedMotion:cfg.check==='reduce'?'reduce':'no-preference'});
@@ -56,10 +56,10 @@ try{
   await page.evaluate(initialScroll=>{document.querySelector('.practice-notation-scroll').scrollTop=initialScroll;window.__frames=[];window.__positions=[];window.__moves=[];window.__record=true;const frame=()=>{if(!window.__record)return;window.__frames.push(window.__sample());requestAnimationFrame(frame);};requestAnimationFrame(frame);},initialScroll);
   const clipStart=(Date.now()-pageCreated)/1000;await bar.getByRole('button',{name:'播放',exact:true}).click();
   let action;
-  if(cfg.check==='manual'||cfg.check==='seek'){
+  if(['manual','seek','reflow','resize'].includes(cfg.check)){
    if(cfg.check==='manual')await page.mouse.move(380,300);
    await page.waitForFunction(()=>window.__moves.some(m=>m.deadline!==undefined),null,{polling:'raf',timeout:10000});action=await page.evaluate(()=>window.__sample());
-   if(cfg.check==='manual'){await page.mouse.wheel(0,-80);await page.waitForFunction(()=>window.__followSession.getSnapshot().following===false);}else{await page.evaluate(i=>window.__followSession.seek(i),targetIndex+2);await page.waitForFunction(i=>window.__followSession.getSnapshot().measure===i,targetIndex+2);}
+   if(cfg.check==='manual'){await page.mouse.wheel(0,-80);await page.waitForFunction(()=>window.__followSession.getSnapshot().following===false);}else if(cfg.check==='reflow'){const layout=await page.evaluate(()=>window.__layout);await page.evaluate(()=>{window.__followSession.notationScale(.7);window.__followSession.lyricSize(17);});await page.waitForFunction(n=>window.__layout>n,layout);}else if(cfg.check==='resize'){await page.setViewportSize({width:390,height:700});}else{await page.evaluate(i=>window.__followSession.seek(i),targetIndex+2);await page.waitForFunction(i=>window.__followSession.getSnapshot().measure===i,targetIndex+2);}
   }else{
   await page.waitForFunction(i=>window.__followSession.getSnapshot().measure===i,targetIndex,{timeout:15000});await page.screenshot({path:`${output}/${name}-entry.png`});
   await page.waitForFunction(i=>window.__followSession.getSnapshot().measure===i,cfg.check==='loop'?startIndex:targetIndex+1,{timeout:10000});

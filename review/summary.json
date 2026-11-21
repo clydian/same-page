@@ -13,52 +13,52 @@
     "action": null,
     "changes": [
       {
-        "time": 44795.39999999944,
-        "tick": 7555,
+        "time": 45838.10000000056,
+        "tick": 7565,
         "measure": 2,
-        "scrollTop": 59
+        "scrollTop": 123
       },
       {
-        "time": 44815.39999999944,
-        "tick": 7575,
+        "time": 45849.10000000056,
+        "tick": 7579,
         "measure": 2,
-        "scrollTop": 191
+        "scrollTop": 233
       },
       {
-        "time": 44826.5,
-        "tick": 7589,
+        "time": 45868.40000000037,
+        "tick": 7599,
         "measure": 2,
-        "scrollTop": 274
+        "scrollTop": 298
       },
       {
-        "time": 44845.39999999944,
-        "tick": 7612,
+        "time": 45888.10000000056,
+        "tick": 7622,
         "measure": 2,
-        "scrollTop": 319
+        "scrollTop": 330
       },
       {
-        "time": 44865.39999999944,
+        "time": 45899.60000000056,
         "tick": 7636,
         "measure": 2,
-        "scrollTop": 338
+        "scrollTop": 342
       },
       {
-        "time": 44875.5,
-        "tick": 7646,
+        "time": 45908.299999999814,
+        "tick": 7656,
         "measure": 2,
         "scrollTop": 343
       },
       {
-        "time": 48263.799999999814,
+        "time": 49290.200000000186,
         "tick": 3841,
         "measure": 2,
         "scrollTop": 72
       }
     ],
     "lastFrame": {
-      "sampleMs": 0.2999999998137355,
-      "time": 48726.09999999963,
-      "tick": 4339,
+      "sampleMs": 0.09999999962747097,
+      "time": 49731,
+      "tick": 4325,
       "measure": 1,
       "playing": true,
       "following": true,
@@ -101,9 +101,7 @@
           "right": 284.7135532307974
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     }
   },
   {
@@ -118,13 +116,13 @@
     "targetMeasure": 3,
     "check": "manual",
     "action": {
-      "sampleMs": 0,
-      "time": 36447.5,
-      "tick": 7572,
+      "sampleMs": 0.10000000055879354,
+      "time": 37486.60000000056,
+      "tick": 7562,
       "measure": 1,
       "playing": true,
       "following": true,
-      "scroll": 149,
+      "scroll": 123,
       "system": 0,
       "area": {
         "top": 0,
@@ -132,69 +130,67 @@
         "clearance": 72
       },
       "current": {
-        "top": -4.599999999999994,
-        "bottom": 260,
+        "top": 21.400000000000006,
+        "bottom": 286,
         "left": 55,
         "right": 319.8
       },
       "notes": [
         {
-          "top": 19.649,
-          "bottom": 25.049000000000007,
+          "top": 45.649,
+          "bottom": 51.04900000000001,
           "left": 278.3415532307974,
           "right": 284.7135532307974
         },
         {
-          "top": 85.049,
-          "bottom": 90.44900000000001,
+          "top": 111.049,
+          "bottom": 116.44900000000001,
           "left": 278.3415532307974,
           "right": 284.7135532307974
         },
         {
-          "top": 150.44900000000004,
-          "bottom": 155.84900000000005,
+          "top": 176.44900000000004,
+          "bottom": 181.84900000000005,
           "left": 278.3415532307974,
           "right": 284.7135532307974
         },
         {
-          "top": 215.84900000000005,
-          "bottom": 221.24900000000002,
+          "top": 241.84900000000005,
+          "bottom": 247.24900000000002,
           "left": 278.3415532307974,
           "right": 284.7135532307974
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "changes": [
       {
-        "time": 36445.39999999944,
+        "time": 37489.40000000037,
         "tick": 7565,
         "measure": 2,
-        "scrollTop": 149
+        "scrollTop": 123
       },
       {
-        "time": 36465.39999999944,
+        "time": 37508.200000000186,
         "tick": 7589,
         "measure": 2,
-        "scrollTop": 265
+        "scrollTop": 231
       },
       {
-        "time": 36499.299999999814,
-        "tick": 7599,
+        "time": 37539.60000000056,
+        "tick": 7602,
         "measure": 2,
-        "scrollTop": 185
+        "scrollTop": 151
       }
     ],
     "lastFrame": {
-      "sampleMs": 0.20000000018626451,
-      "time": 37041.799999999814,
-      "tick": 8251,
+      "sampleMs": 0.09999999962747097,
+      "time": 38031.5,
+      "tick": 8197,
       "measure": 2,
       "playing": true,
       "following": false,
-      "scroll": 185,
+      "scroll": 151,
       "system": 1,
       "area": {
         "top": 0,
@@ -202,40 +198,38 @@
         "clearance": 72
       },
       "current": {
-        "top": 230,
-        "bottom": 500.5999999999999,
+        "top": 264,
+        "bottom": 534.5999999999999,
         "left": 55,
         "right": 319.8
       },
       "notes": [
         {
-          "top": 256.949,
-          "bottom": 262.349,
+          "top": 290.949,
+          "bottom": 296.349,
           "left": 84.36160000000001,
           "right": 93.47680000000001
         },
         {
-          "top": 327.74899999999997,
-          "bottom": 333.14899999999994,
+          "top": 361.74899999999997,
+          "bottom": 367.14899999999994,
           "left": 84.36160000000001,
           "right": 93.47680000000001
         },
         {
-          "top": 393.149,
-          "bottom": 398.549,
+          "top": 427.149,
+          "bottom": 432.549,
           "left": 84.36160000000001,
           "right": 93.47680000000001
         },
         {
-          "top": 458.549,
-          "bottom": 463.94899999999996,
+          "top": 492.549,
+          "bottom": 497.94899999999996,
           "left": 84.36160000000001,
           "right": 93.47680000000001
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     }
   },
   {
@@ -252,16 +246,16 @@
     "action": null,
     "changes": [
       {
-        "time": 60545.5,
+        "time": 61378.200000000186,
         "tick": 7682,
         "measure": 3,
         "scrollTop": 343
       }
     ],
     "lastFrame": {
-      "sampleMs": 0.09999999962747097,
-      "time": 64340.59999999963,
-      "tick": 12053,
+      "sampleMs": 0,
+      "time": 65197.10000000056,
+      "tick": 12076,
       "measure": 3,
       "playing": true,
       "following": true,
@@ -304,9 +298,293 @@
           "right": 281.287062295981
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
+    }
+  },
+  {
+    "engine": "chromium",
+    "case": "390-1-reflow",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "check": "reflow",
+    "action": {
+      "sampleMs": 0,
+      "time": 68890.29999999981,
+      "tick": 7562,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 22,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 122.4,
+        "bottom": 387,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 146.649,
+          "bottom": 152.049,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 212.049,
+          "bottom": 217.449,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 277.44900000000007,
+          "bottom": 282.84900000000005,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 342.84900000000005,
+          "bottom": 348.249,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        }
+      ],
+      "notesVisible": true
+    },
+    "changes": [
+      {
+        "time": 68889.79999999981,
+        "tick": 7555,
+        "measure": 2,
+        "scrollTop": 22
+      },
+      {
+        "time": 68899,
+        "tick": 7565,
+        "measure": 2,
+        "scrollTop": 167
+      },
+      {
+        "time": 68943.90000000037,
+        "tick": 7575,
+        "measure": 2,
+        "scrollTop": 329
+      },
+      {
+        "time": 68961.60000000056,
+        "tick": 7636,
+        "measure": 2,
+        "scrollTop": 393
+      },
+      {
+        "time": 69015.60000000056,
+        "tick": 7679,
+        "measure": 2,
+        "scrollTop": 399
+      }
+    ],
+    "lastFrame": {
+      "sampleMs": 0.20000000018626451,
+      "time": 69397,
+      "tick": 8137,
+      "measure": 2,
+      "playing": true,
+      "following": true,
+      "scroll": 399,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 71.59999999999997,
+        "bottom": 392.89999999999986,
+        "left": 55,
+        "right": 320.3
+      },
+      "notes": [
+        {
+          "top": 103.04049999999995,
+          "bottom": 109.34049999999996,
+          "left": 261.3124300524901,
+          "right": 271.94683005249004
+        },
+        {
+          "top": 187.04049999999995,
+          "bottom": 193.3404999999999,
+          "left": 261.3124300524901,
+          "right": 271.94683005249004
+        },
+        {
+          "top": 264.7404999999999,
+          "bottom": 271.04049999999984,
+          "left": 261.3124300524901,
+          "right": 271.94683005249004
+        },
+        {
+          "top": 342.44049999999993,
+          "bottom": 348.7404999999999,
+          "left": 261.3124300524901,
+          "right": 271.94683005249004
+        }
+      ],
+      "notesVisible": true
+    }
+  },
+  {
+    "engine": "chromium",
+    "case": "390-1-resize",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 2,
+    "check": "resize",
+    "action": {
+      "sampleMs": 0.09999999962747097,
+      "time": 72965.79999999981,
+      "tick": 3722,
+      "measure": 0,
+      "playing": true,
+      "following": true,
+      "scroll": 163,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": -13.700000000000003,
+        "bottom": 300.59999999999997,
+        "left": 55,
+        "right": 320.3
+      },
+      "notes": [
+        {
+          "top": 17.740499999999983,
+          "bottom": 24.04049999999998,
+          "left": 110.9412,
+          "right": 121.5756
+        },
+        {
+          "top": 101.7405,
+          "bottom": 108.04050000000001,
+          "left": 110.9412,
+          "right": 121.5756
+        },
+        {
+          "top": 179.4405,
+          "bottom": 185.7405,
+          "left": 110.9412,
+          "right": 121.5756
+        },
+        {
+          "top": 257.1405,
+          "bottom": 263.4405,
+          "left": 110.9412,
+          "right": 121.5756
+        }
+      ],
+      "notesVisible": false
+    },
+    "changes": [
+      {
+        "time": 72968.90000000037,
+        "tick": 3725,
+        "measure": 1,
+        "scrollTop": 163
+      },
+      {
+        "time": 72989.20000000019,
+        "tick": 3749,
+        "measure": 1,
+        "scrollTop": 285
+      },
+      {
+        "time": 73001.40000000037,
+        "tick": 3762,
+        "measure": 1,
+        "scrollTop": 77
+      },
+      {
+        "time": 73018,
+        "tick": 3786,
+        "measure": 1,
+        "scrollTop": 279
+      },
+      {
+        "time": 73038,
+        "tick": 3806,
+        "measure": 1,
+        "scrollTop": 386
+      },
+      {
+        "time": 73038,
+        "tick": 3816,
+        "measure": 1,
+        "scrollTop": 399
+      }
+    ],
+    "lastFrame": {
+      "sampleMs": 0.09999999962747097,
+      "time": 73396.70000000019,
+      "tick": 4217,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 399,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 591,
+        "clearance": 72
+      },
+      "current": {
+        "top": 71.59999999999997,
+        "bottom": 392.89999999999986,
+        "left": 55,
+        "right": 320.3
+      },
+      "notes": [
+        {
+          "top": 99.89049999999997,
+          "bottom": 106.19049999999999,
+          "left": 208.01337253936754,
+          "right": 215.44737253936754
+        },
+        {
+          "top": 177.59049999999996,
+          "bottom": 183.89049999999997,
+          "left": 208.01337253936754,
+          "right": 215.44737253936754
+        },
+        {
+          "top": 255.29049999999995,
+          "bottom": 261.5904999999999,
+          "left": 208.01337253936754,
+          "right": 215.44737253936754
+        },
+        {
+          "top": 332.9904999999999,
+          "bottom": 339.29049999999984,
+          "left": 208.01337253936754,
+          "right": 215.44737253936754
+        }
+      ],
+      "notesVisible": true
     }
   },
   {
@@ -321,13 +599,13 @@
     "targetMeasure": 3,
     "check": "seek",
     "action": {
-      "sampleMs": 0.10000000055879354,
-      "time": 40650,
+      "sampleMs": 0,
+      "time": 41618.5,
       "tick": 7562,
       "measure": 1,
       "playing": true,
       "following": true,
-      "scroll": 51,
+      "scroll": 65,
       "system": 0,
       "area": {
         "top": 0,
@@ -335,59 +613,57 @@
         "clearance": 72
       },
       "current": {
-        "top": 93.4,
-        "bottom": 358,
+        "top": 79.4,
+        "bottom": 344,
         "left": 55,
         "right": 319.8
       },
       "notes": [
         {
-          "top": 117.649,
-          "bottom": 123.049,
+          "top": 103.649,
+          "bottom": 109.049,
           "left": 278.3415532307974,
           "right": 284.7135532307974
         },
         {
-          "top": 183.049,
-          "bottom": 188.449,
+          "top": 169.049,
+          "bottom": 174.449,
           "left": 278.3415532307974,
           "right": 284.7135532307974
         },
         {
-          "top": 248.44900000000004,
-          "bottom": 253.84900000000005,
+          "top": 234.44900000000004,
+          "bottom": 239.84900000000005,
           "left": 278.3415532307974,
           "right": 284.7135532307974
         },
         {
-          "top": 313.84900000000005,
-          "bottom": 319.249,
+          "top": 299.84900000000005,
+          "bottom": 305.249,
           "left": 278.3415532307974,
           "right": 284.7135532307974
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "changes": [
       {
-        "time": 40646.59999999963,
-        "tick": 7555,
+        "time": 41618,
+        "tick": 7552,
         "measure": 2,
-        "scrollTop": 51
+        "scrollTop": 65
       },
       {
-        "time": 40703.39999999944,
+        "time": 41657.799999999814,
         "tick": 6721,
         "measure": 5,
         "scrollTop": 614
       }
     ],
     "lastFrame": {
-      "sampleMs": 0.20000000018626451,
-      "time": 41175.09999999963,
-      "tick": 15855,
+      "sampleMs": 0.10000000055879354,
+      "time": 42199.60000000056,
+      "tick": 15946,
       "measure": 4,
       "playing": true,
       "following": true,
@@ -430,9 +706,7 @@
           "right": 93.47680000000001
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     }
   },
   {
@@ -445,8 +719,8 @@
       "height": 640
     },
     "targetMeasure": 3,
-    "onsetMsBeforeEntry": 99.0,
-    "settledMsBeforeEntry": 28.4,
+    "onsetMsBeforeEntry": 108.8,
+    "settledMsBeforeEntry": 29.2,
     "entryScrollTop": 343,
     "firstNewFrameScrollTop": 343,
     "secondMeasureScrollTopValues": [
@@ -454,9 +728,9 @@
     ],
     "monotonic": true,
     "previousRenderFrame": {
-      "sampleMs": 0.20000000018626451,
-      "time": 16825.89999999944,
-      "tick": 7672,
+      "sampleMs": 0,
+      "time": 17832.400000000373,
+      "tick": 7662,
       "measure": 1,
       "playing": true,
       "following": true,
@@ -499,14 +773,12 @@
           "right": 284.7135532307974
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "firstNewRenderFrame": {
-      "sampleMs": 0.09999999962747097,
-      "time": 16850.199999999255,
-      "tick": 7692,
+      "sampleMs": 0.7000000001862645,
+      "time": 17872.10000000056,
+      "tick": 7682,
       "measure": 2,
       "playing": true,
       "following": true,
@@ -549,61 +821,59 @@
           "right": 93.47680000000001
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 16716.099999999627,
+        "time": 17728.299999999814,
         "tick": 7472,
         "target": 343,
-        "deadline": 16809.576851851478,
+        "deadline": 17821.776851851664,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 16735.5,
-        "tick": 7507,
+        "time": 17738.400000000373,
+        "tick": 7492,
         "measure": 2,
-        "scrollTop": 96,
-        "entryRelativeMs": -99.0
+        "scrollTop": 43,
+        "entryRelativeMs": -108.8
       },
       {
-        "time": 16745.89999999944,
-        "tick": 7522,
+        "time": 17758.200000000186,
+        "tick": 7527,
         "measure": 2,
-        "scrollTop": 217,
-        "entryRelativeMs": -88.6
+        "scrollTop": 183,
+        "entryRelativeMs": -89.0
       },
       {
-        "time": 16765.39999999944,
-        "tick": 7557,
+        "time": 17769,
+        "tick": 7542,
         "measure": 2,
-        "scrollTop": 290,
-        "entryRelativeMs": -69.1
+        "scrollTop": 271,
+        "entryRelativeMs": -78.2
       },
       {
-        "time": 16786,
-        "tick": 7592,
+        "time": 17788,
+        "tick": 7577,
         "measure": 2,
-        "scrollTop": 330,
-        "entryRelativeMs": -48.5
+        "scrollTop": 318,
+        "entryRelativeMs": -59.2
       },
       {
-        "time": 16795.799999999814,
+        "time": 17808,
         "tick": 7612,
         "measure": 2,
-        "scrollTop": 341,
-        "entryRelativeMs": -38.7
+        "scrollTop": 338,
+        "entryRelativeMs": -39.2
       },
       {
-        "time": 16806.099999999627,
-        "tick": 7642,
+        "time": 17818,
+        "tick": 7632,
         "measure": 2,
         "scrollTop": 343,
-        "entryRelativeMs": -28.4
+        "entryRelativeMs": -29.2
       }
     ]
   },
@@ -617,8 +887,8 @@
       "height": 640
     },
     "targetMeasure": 3,
-    "onsetMsBeforeEntry": 108.3,
-    "settledMsBeforeEntry": 28.4,
+    "onsetMsBeforeEntry": 98.5,
+    "settledMsBeforeEntry": 17.3,
     "entryScrollTop": 343,
     "firstNewFrameScrollTop": 343,
     "secondMeasureScrollTopValues": [
@@ -626,9 +896,9 @@
     ],
     "monotonic": true,
     "previousRenderFrame": {
-      "sampleMs": 0.10000000055879354,
-      "time": 10209.5,
-      "tick": 7666,
+      "sampleMs": 0.19999999925494194,
+      "time": 11183.299999999814,
+      "tick": 7676,
       "measure": 1,
       "playing": true,
       "following": true,
@@ -671,14 +941,12 @@
           "right": 284.7135532307974
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "firstNewRenderFrame": {
       "sampleMs": 0,
-      "time": 10240,
-      "tick": 7689,
+      "time": 11210.100000000559,
+      "tick": 7686,
       "measure": 2,
       "playing": true,
       "following": true,
@@ -721,61 +989,59 @@
           "right": 93.47680000000001
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 10105.899999999441,
+        "time": 11069.100000000559,
         "tick": 7539,
         "target": 343,
-        "deadline": 10201.491666665921,
+        "deadline": 11164.891666667225,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 10115.399999999441,
-        "tick": 7552,
+        "time": 11088.100000000559,
+        "tick": 7562,
         "measure": 2,
-        "scrollTop": 37,
-        "entryRelativeMs": -108.3
+        "scrollTop": 126,
+        "entryRelativeMs": -98.5
       },
       {
-        "time": 10135.399999999441,
-        "tick": 7575,
+        "time": 11108.100000000559,
+        "tick": 7585,
         "measure": 2,
-        "scrollTop": 175,
-        "entryRelativeMs": -88.3
+        "scrollTop": 233,
+        "entryRelativeMs": -78.5
       },
       {
-        "time": 10145.299999999814,
-        "tick": 7589,
+        "time": 11118.5,
+        "tick": 7599,
         "measure": 2,
-        "scrollTop": 265,
-        "entryRelativeMs": -78.4
+        "scrollTop": 299,
+        "entryRelativeMs": -68.1
       },
       {
-        "time": 10165.299999999814,
-        "tick": 7609,
+        "time": 11138.200000000186,
+        "tick": 7622,
         "measure": 2,
-        "scrollTop": 314,
-        "entryRelativeMs": -58.4
+        "scrollTop": 330,
+        "entryRelativeMs": -48.4
       },
       {
-        "time": 10185.399999999441,
-        "tick": 7632,
-        "measure": 2,
-        "scrollTop": 337,
-        "entryRelativeMs": -38.3
-      },
-      {
-        "time": 10195.299999999814,
+        "time": 11158.100000000559,
         "tick": 7646,
         "measure": 2,
+        "scrollTop": 342,
+        "entryRelativeMs": -28.5
+      },
+      {
+        "time": 11169.299999999814,
+        "tick": 7656,
+        "measure": 2,
         "scrollTop": 343,
-        "entryRelativeMs": -28.4
+        "entryRelativeMs": -17.3
       }
     ]
   },
@@ -793,9 +1059,9 @@
     "action": null,
     "changes": [],
     "lastFrame": {
-      "sampleMs": 0.09999999962747097,
-      "time": 56607.59999999963,
-      "tick": 23619,
+      "sampleMs": 3,
+      "time": 57450.299999999814,
+      "tick": 23586,
       "measure": 6,
       "playing": true,
       "following": true,
@@ -838,9 +1104,7 @@
           "right": 260.3158844797422
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     }
   },
   {
@@ -853,8 +1117,8 @@
       "height": 900
     },
     "targetMeasure": 11,
-    "onsetMsBeforeEntry": 98.9,
-    "settledMsBeforeEntry": 27.0,
+    "onsetMsBeforeEntry": 108.8,
+    "settledMsBeforeEntry": 28.7,
     "entryScrollTop": 614,
     "firstNewFrameScrollTop": 614,
     "secondMeasureScrollTopValues": [
@@ -863,7 +1127,7 @@
     "monotonic": true,
     "previousRenderFrame": {
       "sampleMs": 0.20000000018626451,
-      "time": 29958.599999999627,
+      "time": 30965.200000000186,
       "tick": 38397,
       "measure": 9,
       "playing": true,
@@ -907,14 +1171,12 @@
           "right": 655.6381707600193
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "firstNewRenderFrame": {
-      "sampleMs": 0.20000000018626451,
-      "time": 29983.099999999627,
-      "tick": 38417,
+      "sampleMs": 0,
+      "time": 30985.60000000056,
+      "tick": 38412,
       "measure": 10,
       "playing": true,
       "following": true,
@@ -957,61 +1219,66 @@
           "right": 105.3288
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 29846.099999999627,
+        "time": 30848.299999999814,
         "tick": 38192,
         "target": 613.6,
-        "deadline": 29939.47685185185,
+        "deadline": 30941.776851851664,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 29865.5,
-        "tick": 38232,
+        "time": 30858.200000000186,
+        "tick": 38212,
         "measure": 10,
-        "scrollTop": 215,
-        "entryRelativeMs": -98.9
+        "scrollTop": 4,
+        "entryRelativeMs": -108.8
       },
       {
-        "time": 29878.89999999944,
-        "tick": 38247,
+        "time": 30869,
+        "tick": 38227,
         "measure": 10,
-        "scrollTop": 422,
-        "entryRelativeMs": -85.5
+        "scrollTop": 302,
+        "entryRelativeMs": -98.0
       },
       {
-        "time": 29897.5,
-        "tick": 38282,
+        "time": 30888,
+        "tick": 38262,
         "measure": 10,
-        "scrollTop": 548,
-        "entryRelativeMs": -66.9
+        "scrollTop": 456,
+        "entryRelativeMs": -79.0
       },
       {
-        "time": 29919.39999999944,
+        "time": 30908.10000000056,
+        "tick": 38297,
+        "measure": 10,
+        "scrollTop": 554,
+        "entryRelativeMs": -58.9
+      },
+      {
+        "time": 30919.60000000056,
         "tick": 38317,
         "measure": 10,
-        "scrollTop": 594,
-        "entryRelativeMs": -45.0
+        "scrollTop": 601,
+        "entryRelativeMs": -47.4
       },
       {
-        "time": 29926.89999999944,
-        "tick": 38332,
+        "time": 30938.200000000186,
+        "tick": 38352,
         "measure": 10,
-        "scrollTop": 612,
-        "entryRelativeMs": -37.5
+        "scrollTop": 613,
+        "entryRelativeMs": -28.8
       },
       {
-        "time": 29937.39999999944,
+        "time": 30938.299999999814,
         "tick": 38362,
         "measure": 10,
         "scrollTop": 614,
-        "entryRelativeMs": -27.0
+        "entryRelativeMs": -28.7
       }
     ]
   },
@@ -1025,8 +1292,8 @@
       "height": 900
     },
     "targetMeasure": 11,
-    "onsetMsBeforeEntry": 108.4,
-    "settledMsBeforeEntry": 18.7,
+    "onsetMsBeforeEntry": 108.7,
+    "settledMsBeforeEntry": 24.9,
     "entryScrollTop": 614,
     "firstNewFrameScrollTop": 614,
     "secondMeasureScrollTopValues": [
@@ -1035,8 +1302,8 @@
     "monotonic": true,
     "previousRenderFrame": {
       "sampleMs": 0.20000000018626451,
-      "time": 23325.799999999814,
-      "tick": 38389,
+      "time": 24373.5,
+      "tick": 38386,
       "measure": 9,
       "playing": true,
       "following": true,
@@ -1079,14 +1346,12 @@
           "right": 655.6381707600193
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "firstNewRenderFrame": {
       "sampleMs": 0,
-      "time": 23351.599999999627,
-      "tick": 38406,
+      "time": 24395.60000000056,
+      "tick": 38409,
       "measure": 10,
       "playing": true,
       "following": true,
@@ -1129,61 +1394,52 @@
           "right": 105.3288
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 23215.5,
+        "time": 24258.5,
         "tick": 38259,
         "target": 613.6,
-        "deadline": 23311.19166666611,
+        "deadline": 24354.291666666668,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 23226.5,
-        "tick": 38279,
+        "time": 24268.60000000056,
+        "tick": 38272,
         "measure": 10,
-        "scrollTop": 176,
-        "entryRelativeMs": -108.4
+        "scrollTop": 128,
+        "entryRelativeMs": -108.7
       },
       {
-        "time": 23247.39999999944,
+        "time": 24290.400000000373,
         "tick": 38295,
         "measure": 10,
-        "scrollTop": 389,
-        "entryRelativeMs": -87.5
+        "scrollTop": 361,
+        "entryRelativeMs": -86.9
       },
       {
-        "time": 23265.299999999814,
+        "time": 24330.60000000056,
         "tick": 38319,
         "measure": 10,
-        "scrollTop": 520,
-        "entryRelativeMs": -69.6
+        "scrollTop": 597,
+        "entryRelativeMs": -46.7
       },
       {
-        "time": 23285.5,
-        "tick": 38342,
-        "measure": 10,
-        "scrollTop": 585,
-        "entryRelativeMs": -49.4
-      },
-      {
-        "time": 23295.39999999944,
-        "tick": 38352,
+        "time": 24338,
+        "tick": 38356,
         "measure": 10,
         "scrollTop": 609,
-        "entryRelativeMs": -39.5
+        "entryRelativeMs": -39.3
       },
       {
-        "time": 23316.199999999255,
-        "tick": 38376,
+        "time": 24352.400000000373,
+        "tick": 38366,
         "measure": 10,
         "scrollTop": 614,
-        "entryRelativeMs": -18.7
+        "entryRelativeMs": -24.9
       }
     ]
   },
@@ -1197,8 +1453,8 @@
       "height": 640
     },
     "targetMeasure": 3,
-    "onsetMsBeforeEntry": 104.8,
-    "settledMsBeforeEntry": 20.8,
+    "onsetMsBeforeEntry": 120.8,
+    "settledMsBeforeEntry": 25.8,
     "entryScrollTop": 343,
     "firstNewFrameScrollTop": 343,
     "secondMeasureScrollTopValues": [
@@ -1207,7 +1463,7 @@
     "monotonic": true,
     "previousRenderFrame": {
       "sampleMs": 0,
-      "time": 18328,
+      "time": 18852,
       "tick": 7652,
       "measure": 1,
       "playing": true,
@@ -1251,14 +1507,12 @@
           "right": 297.06117893094495
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "firstNewRenderFrame": {
       "sampleMs": 0,
-      "time": 18367,
-      "tick": 7723,
+      "time": 18917,
+      "tick": 7763,
       "measure": 2,
       "playing": true,
       "following": true,
@@ -1301,47 +1555,59 @@
           "right": 93.47680000000001
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 18226,
+        "time": 18750,
         "tick": 7472,
         "target": 343,
-        "deadline": 18318.47685185185,
+        "deadline": 18843.47685185185,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 18237,
-        "tick": 7497,
+        "time": 18753,
+        "tick": 7482,
         "measure": 2,
-        "scrollTop": 72,
-        "entryRelativeMs": -104.8
+        "scrollTop": 21,
+        "entryRelativeMs": -120.8
       },
       {
-        "time": 18266,
-        "tick": 7537,
+        "time": 18780,
+        "tick": 7522,
         "measure": 2,
-        "scrollTop": 247,
-        "entryRelativeMs": -75.8
+        "scrollTop": 208,
+        "entryRelativeMs": -93.8
       },
       {
-        "time": 18298,
-        "tick": 7602,
+        "time": 18801,
+        "tick": 7562,
         "measure": 2,
-        "scrollTop": 337,
-        "entryRelativeMs": -43.8
+        "scrollTop": 306,
+        "entryRelativeMs": -72.8
       },
       {
-        "time": 18321,
+        "time": 18818,
+        "tick": 7592,
+        "measure": 2,
+        "scrollTop": 334,
+        "entryRelativeMs": -55.8
+      },
+      {
+        "time": 18837,
+        "tick": 7627,
+        "measure": 2,
+        "scrollTop": 342,
+        "entryRelativeMs": -36.8
+      },
+      {
+        "time": 18848,
         "tick": 7642,
         "measure": 2,
         "scrollTop": 343,
-        "entryRelativeMs": -20.8
+        "entryRelativeMs": -25.8
       }
     ]
   },
@@ -1355,8 +1621,8 @@
       "height": 640
     },
     "targetMeasure": 3,
-    "onsetMsBeforeEntry": 104.3,
-    "settledMsBeforeEntry": 19.3,
+    "onsetMsBeforeEntry": 117.3,
+    "settledMsBeforeEntry": 20.3,
     "entryScrollTop": 343,
     "firstNewFrameScrollTop": 343,
     "secondMeasureScrollTopValues": [
@@ -1365,7 +1631,7 @@
     "monotonic": true,
     "previousRenderFrame": {
       "sampleMs": 0,
-      "time": 11690,
+      "time": 12360,
       "tick": 7659,
       "measure": 1,
       "playing": true,
@@ -1409,14 +1675,12 @@
           "right": 297.06117893094495
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "firstNewRenderFrame": {
       "sampleMs": 0,
-      "time": 11723,
-      "tick": 7682,
+      "time": 12402,
+      "tick": 7706,
       "measure": 2,
       "playing": true,
       "following": true,
@@ -1459,54 +1723,45 @@
           "right": 93.47680000000001
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 11586,
+        "time": 12257,
         "tick": 7539,
         "target": 343,
-        "deadline": 11681.791666666666,
+        "deadline": 12352.791666666666,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 11602,
-        "tick": 7559,
+        "time": 12262,
+        "tick": 7545,
         "measure": 2,
-        "scrollTop": 121,
-        "entryRelativeMs": -104.3
+        "scrollTop": 31,
+        "entryRelativeMs": -117.3
       },
       {
-        "time": 11632,
-        "tick": 7592,
+        "time": 12296,
+        "tick": 7579,
         "measure": 2,
-        "scrollTop": 285,
-        "entryRelativeMs": -74.3
+        "scrollTop": 236,
+        "entryRelativeMs": -83.3
       },
       {
-        "time": 11652,
-        "tick": 7616,
+        "time": 12330,
+        "tick": 7622,
         "measure": 2,
-        "scrollTop": 327,
-        "entryRelativeMs": -54.3
+        "scrollTop": 335,
+        "entryRelativeMs": -49.3
       },
       {
-        "time": 11674,
-        "tick": 7642,
-        "measure": 2,
-        "scrollTop": 342,
-        "entryRelativeMs": -32.3
-      },
-      {
-        "time": 11687,
+        "time": 12359,
         "tick": 7656,
         "measure": 2,
         "scrollTop": 343,
-        "entryRelativeMs": -19.3
+        "entryRelativeMs": -20.3
       }
     ]
   },
@@ -1520,8 +1775,8 @@
       "height": 900
     },
     "targetMeasure": 12,
-    "onsetMsBeforeEntry": 111.8,
-    "settledMsBeforeEntry": 24.8,
+    "onsetMsBeforeEntry": 92.8,
+    "settledMsBeforeEntry": 23.8,
     "entryScrollTop": 613,
     "firstNewFrameScrollTop": 613,
     "secondMeasureScrollTopValues": [
@@ -1530,12 +1785,12 @@
     "monotonic": true,
     "previousRenderFrame": {
       "sampleMs": 0,
-      "time": 31826,
-      "tick": 42122,
+      "time": 32689,
+      "tick": 42152,
       "measure": 10,
       "playing": true,
       "following": true,
-      "scroll": 38,
+      "scroll": 222,
       "system": 1,
       "area": {
         "top": 0,
@@ -1543,44 +1798,42 @@
         "clearance": 72
       },
       "current": {
-        "top": 377,
-        "bottom": 647.5999999999999,
+        "top": 193,
+        "bottom": 463.5999999999999,
         "left": 63,
         "right": 705.2
       },
       "notes": [
         {
-          "top": 403.949,
-          "bottom": 409.349,
+          "top": 219.949,
+          "bottom": 225.349,
           "left": 655.3000573253396,
           "right": 664.4152573253396
         },
         {
-          "top": 474.74899999999997,
-          "bottom": 480.14899999999994,
+          "top": 290.74899999999997,
+          "bottom": 296.14899999999994,
           "left": 655.3000573253396,
           "right": 664.4152573253396
         },
         {
-          "top": 540.149,
-          "bottom": 545.549,
+          "top": 356.149,
+          "bottom": 361.549,
           "left": 655.3000573253396,
           "right": 664.4152573253396
         },
         {
-          "top": 605.549,
-          "bottom": 610.949,
+          "top": 421.549,
+          "bottom": 426.94899999999996,
           "left": 655.3000573253396,
           "right": 664.4152573253396
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "firstNewRenderFrame": {
-      "sampleMs": 1,
-      "time": 31913,
+      "sampleMs": 0,
+      "time": 32759,
       "tick": 42242,
       "measure": 11,
       "playing": true,
@@ -1624,40 +1877,38 @@
           "right": 213.06359704218707
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 31776,
+        "time": 32621,
         "tick": 42032,
         "target": 613.6,
-        "deadline": 31869.47685185185,
+        "deadline": 32714.47685185185,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 31784,
-        "tick": 42042,
+        "time": 32649,
+        "tick": 42062,
         "measure": 11,
-        "scrollTop": 38,
-        "entryRelativeMs": -111.8
+        "scrollTop": 222,
+        "entryRelativeMs": -92.8
       },
       {
-        "time": 31849,
-        "tick": 42127,
+        "time": 32702,
+        "tick": 42157,
         "measure": 11,
-        "scrollTop": 551,
-        "entryRelativeMs": -46.8
+        "scrollTop": 601,
+        "entryRelativeMs": -39.8
       },
       {
-        "time": 31871,
+        "time": 32718,
         "tick": 42202,
         "measure": 11,
         "scrollTop": 613,
-        "entryRelativeMs": -24.8
+        "entryRelativeMs": -23.8
       }
     ]
   },
@@ -1671,8 +1922,8 @@
       "height": 900
     },
     "targetMeasure": 12,
-    "onsetMsBeforeEntry": 84.3,
-    "settledMsBeforeEntry": 19.3,
+    "onsetMsBeforeEntry": 81.3,
+    "settledMsBeforeEntry": 15.3,
     "entryScrollTop": 613,
     "firstNewFrameScrollTop": 613,
     "secondMeasureScrollTopValues": [
@@ -1681,12 +1932,12 @@
     "monotonic": true,
     "previousRenderFrame": {
       "sampleMs": 0,
-      "time": 25031,
-      "tick": 42189,
+      "time": 25900,
+      "tick": 42199,
       "measure": 10,
       "playing": true,
       "following": true,
-      "scroll": 188,
+      "scroll": 245,
       "system": 1,
       "area": {
         "top": 0,
@@ -1694,45 +1945,43 @@
         "clearance": 72
       },
       "current": {
-        "top": 227,
-        "bottom": 497.5999999999999,
+        "top": 170,
+        "bottom": 440.5999999999999,
         "left": 63,
         "right": 705.2
       },
       "notes": [
         {
-          "top": 253.949,
-          "bottom": 259.349,
+          "top": 196.949,
+          "bottom": 202.349,
           "left": 655.3000573253396,
           "right": 664.4152573253396
         },
         {
-          "top": 324.74899999999997,
-          "bottom": 330.14899999999994,
+          "top": 267.74899999999997,
+          "bottom": 273.14899999999994,
           "left": 655.3000573253396,
           "right": 664.4152573253396
         },
         {
-          "top": 390.149,
-          "bottom": 395.549,
+          "top": 333.149,
+          "bottom": 338.549,
           "left": 655.3000573253396,
           "right": 664.4152573253396
         },
         {
-          "top": 455.549,
-          "bottom": 460.94899999999996,
+          "top": 398.549,
+          "bottom": 403.94899999999996,
           "left": 655.3000573253396,
           "right": 664.4152573253396
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "firstNewRenderFrame": {
       "sampleMs": 0,
-      "time": 25092,
-      "tick": 42242,
+      "time": 25960,
+      "tick": 42269,
       "measure": 11,
       "playing": true,
       "following": true,
@@ -1775,40 +2024,31 @@
           "right": 213.06359704218707
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 24955,
+        "time": 25812,
         "tick": 42099,
         "target": 613.6,
-        "deadline": 25050.791666666668,
+        "deadline": 25907.791666666668,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 24991,
-        "tick": 42115,
+        "time": 25852,
+        "tick": 42122,
         "measure": 11,
-        "scrollTop": 188,
-        "entryRelativeMs": -84.3
+        "scrollTop": 245,
+        "entryRelativeMs": -81.3
       },
       {
-        "time": 25049,
-        "tick": 42192,
-        "measure": 11,
-        "scrollTop": 608,
-        "entryRelativeMs": -26.3
-      },
-      {
-        "time": 25056,
-        "tick": 42216,
+        "time": 25918,
+        "tick": 42202,
         "measure": 11,
         "scrollTop": 613,
-        "entryRelativeMs": -19.3
+        "entryRelativeMs": -15.3
       }
     ]
   },
@@ -1822,16 +2062,16 @@
       "height": 640
     },
     "targetMeasure": 2,
-    "onsetMsBeforeEntry": 109.3,
-    "settledMsBeforeEntry": 28.5,
+    "onsetMsBeforeEntry": 108.8,
+    "settledMsBeforeEntry": 28.9,
     "entryScrollTop": 343,
     "firstNewFrameScrollTop": 343,
     "secondMeasureScrollTopValues": [],
     "monotonic": true,
     "previousRenderFrame": {
       "sampleMs": 0.09999999962747097,
-      "time": 7629.5,
-      "tick": 3745,
+      "time": 9436.400000000373,
+      "tick": 3812,
       "measure": 0,
       "playing": true,
       "following": true,
@@ -1874,13 +2114,11 @@
           "right": 283.9826207739308
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "firstNewRenderFrame": {
-      "sampleMs": 0.09999999962747097,
-      "time": 7663.4000000003725,
+      "sampleMs": 0.10000000055879354,
+      "time": 9458.100000000559,
       "tick": 3862,
       "measure": 1,
       "playing": true,
@@ -1924,68 +2162,66 @@
           "right": 280.651166598778
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 7524.800000000745,
+        "time": 9318.800000000745,
         "tick": 3144,
         "target": 343,
-        "deadline": 7618.855555556301,
+        "deadline": 9412.8555555563,
         "from": 0
       },
       {
-        "time": 8194.800000000745,
+        "time": 9988.100000000559,
         "tick": 6972,
         "target": 613.6,
-        "deadline": 8290.765277778522,
+        "deadline": 10084.065277778336,
         "from": 343
       }
     ],
     "changes": [
       {
-        "time": 7534.5,
-        "tick": 3177,
+        "time": 9328.400000000373,
+        "tick": 3194,
         "measure": 1,
-        "scrollTop": 46,
-        "entryRelativeMs": -109.3
+        "scrollTop": 12,
+        "entryRelativeMs": -108.8
       },
       {
-        "time": 7554.600000000559,
-        "tick": 3294,
+        "time": 9338.200000000186,
+        "tick": 3244,
         "measure": 1,
-        "scrollTop": 184,
-        "entryRelativeMs": -89.2
+        "scrollTop": 161,
+        "entryRelativeMs": -99.0
       },
       {
-        "time": 7564.5,
+        "time": 9359.100000000559,
         "tick": 3361,
         "measure": 1,
-        "scrollTop": 270,
-        "entryRelativeMs": -79.3
+        "scrollTop": 257,
+        "entryRelativeMs": -78.1
       },
       {
-        "time": 7584.700000000186,
+        "time": 9378.600000000559,
         "tick": 3478,
         "measure": 1,
-        "scrollTop": 317,
-        "entryRelativeMs": -59.1
+        "scrollTop": 311,
+        "entryRelativeMs": -58.6
       },
       {
-        "time": 7604.9000000003725,
-        "tick": 3595,
+        "time": 9388.900000000373,
+        "tick": 3545,
         "measure": 1,
-        "scrollTop": 338,
-        "entryRelativeMs": -38.9
+        "scrollTop": 336,
+        "entryRelativeMs": -48.3
       },
       {
-        "time": 7615.300000000745,
+        "time": 9408.300000000745,
         "tick": 3645,
         "measure": 1,
         "scrollTop": 343,
-        "entryRelativeMs": -28.5
+        "entryRelativeMs": -28.9
       }
     ]
   },
@@ -1999,8 +2235,8 @@
       "height": 900
     },
     "targetMeasure": 7,
-    "onsetMsBeforeEntry": 99.1,
-    "settledMsBeforeEntry": 17.6,
+    "onsetMsBeforeEntry": 98.8,
+    "settledMsBeforeEntry": 18.5,
     "entryScrollTop": 614,
     "firstNewFrameScrollTop": 614,
     "secondMeasureScrollTopValues": [
@@ -2008,8 +2244,8 @@
     ],
     "monotonic": true,
     "previousRenderFrame": {
-      "sampleMs": 0.09999999962747097,
-      "time": 9846.200000000186,
+      "sampleMs": 0,
+      "time": 11653.200000000186,
       "tick": 23012,
       "measure": 5,
       "playing": true,
@@ -2053,13 +2289,11 @@
           "right": 658.491981707291
         }
       ],
-      "lyrics": [],
-      "notesVisible": false,
-      "lyricsVisible": null
+      "notesVisible": false
     },
     "firstNewRenderFrame": {
-      "sampleMs": 0,
-      "time": 9869.100000000559,
+      "sampleMs": 0.10000000055879354,
+      "time": 11674.300000000745,
       "tick": 23062,
       "measure": 6,
       "playing": true,
@@ -2103,61 +2337,59 @@
           "right": 255.12085435876662
         }
       ],
-      "lyrics": [],
-      "notesVisible": true,
-      "lyricsVisible": null
+      "notesVisible": true
     },
     "moves": [
       {
-        "time": 9734.700000000186,
+        "time": 11538.200000000186,
         "tick": 22344,
         "target": 613.6,
-        "deadline": 9828.755555555741,
+        "deadline": 11632.255555555741,
         "from": 0
       }
     ],
     "changes": [
       {
-        "time": 9754.600000000559,
+        "time": 11558.5,
         "tick": 22444,
         "measure": 6,
-        "scrollTop": 194,
-        "entryRelativeMs": -99.1
+        "scrollTop": 248,
+        "entryRelativeMs": -98.8
       },
       {
-        "time": 9765.300000000745,
-        "tick": 22511,
+        "time": 11578.200000000186,
+        "tick": 22561,
         "measure": 6,
-        "scrollTop": 404,
-        "entryRelativeMs": -88.4
+        "scrollTop": 438,
+        "entryRelativeMs": -79.1
       },
       {
-        "time": 9784.5,
+        "time": 11590.300000000745,
         "tick": 22628,
         "measure": 6,
-        "scrollTop": 528,
-        "entryRelativeMs": -69.2
+        "scrollTop": 549,
+        "entryRelativeMs": -67.0
       },
       {
-        "time": 9804.700000000186,
-        "tick": 22745,
+        "time": 11608.400000000373,
+        "tick": 22728,
         "measure": 6,
-        "scrollTop": 588,
-        "entryRelativeMs": -49.0
+        "scrollTop": 597,
+        "entryRelativeMs": -48.9
       },
       {
-        "time": 9814.5,
-        "tick": 22795,
+        "time": 11628.200000000186,
+        "tick": 22845,
         "measure": 6,
-        "scrollTop": 611,
-        "entryRelativeMs": -39.2
+        "scrollTop": 612,
+        "entryRelativeMs": -29.1
       },
       {
-        "time": 9836.100000000559,
+        "time": 11638.800000000745,
         "tick": 22912,
         "measure": 6,
         "scrollTop": 614,
-        "entryRelativeMs": -17.6
+        "entryRelativeMs": -18.5
       }
     ]
   }
