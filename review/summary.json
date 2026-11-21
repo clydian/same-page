@@ -1,0 +1,2164 @@
+[
+  {
+    "engine": "chromium",
+    "case": "390-1-loop",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "check": "loop",
+    "action": null,
+    "changes": [
+      {
+        "time": 44795.39999999944,
+        "tick": 7555,
+        "measure": 2,
+        "scrollTop": 59
+      },
+      {
+        "time": 44815.39999999944,
+        "tick": 7575,
+        "measure": 2,
+        "scrollTop": 191
+      },
+      {
+        "time": 44826.5,
+        "tick": 7589,
+        "measure": 2,
+        "scrollTop": 274
+      },
+      {
+        "time": 44845.39999999944,
+        "tick": 7612,
+        "measure": 2,
+        "scrollTop": 319
+      },
+      {
+        "time": 44865.39999999944,
+        "tick": 7636,
+        "measure": 2,
+        "scrollTop": 338
+      },
+      {
+        "time": 44875.5,
+        "tick": 7646,
+        "measure": 2,
+        "scrollTop": 343
+      },
+      {
+        "time": 48263.799999999814,
+        "tick": 3841,
+        "measure": 2,
+        "scrollTop": 72
+      }
+    ],
+    "lastFrame": {
+      "sampleMs": 0.2999999998137355,
+      "time": 48726.09999999963,
+      "tick": 4339,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 72,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72.4,
+        "bottom": 337,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 96.649,
+          "bottom": 102.049,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 162.049,
+          "bottom": 167.449,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 227.44900000000004,
+          "bottom": 232.84900000000005,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 292.84900000000005,
+          "bottom": 298.249,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    }
+  },
+  {
+    "engine": "chromium",
+    "case": "390-1-manual",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "check": "manual",
+    "action": {
+      "sampleMs": 0,
+      "time": 36447.5,
+      "tick": 7572,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 149,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": -4.599999999999994,
+        "bottom": 260,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 19.649,
+          "bottom": 25.049000000000007,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 85.049,
+          "bottom": 90.44900000000001,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 150.44900000000004,
+          "bottom": 155.84900000000005,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 215.84900000000005,
+          "bottom": 221.24900000000002,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "changes": [
+      {
+        "time": 36445.39999999944,
+        "tick": 7565,
+        "measure": 2,
+        "scrollTop": 149
+      },
+      {
+        "time": 36465.39999999944,
+        "tick": 7589,
+        "measure": 2,
+        "scrollTop": 265
+      },
+      {
+        "time": 36499.299999999814,
+        "tick": 7599,
+        "measure": 2,
+        "scrollTop": 185
+      }
+    ],
+    "lastFrame": {
+      "sampleMs": 0.20000000018626451,
+      "time": 37041.799999999814,
+      "tick": 8251,
+      "measure": 2,
+      "playing": true,
+      "following": false,
+      "scroll": 185,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 230,
+        "bottom": 500.5999999999999,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 256.949,
+          "bottom": 262.349,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 327.74899999999997,
+          "bottom": 333.14899999999994,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 393.149,
+          "bottom": 398.549,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 458.549,
+          "bottom": 463.94899999999996,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    }
+  },
+  {
+    "engine": "chromium",
+    "case": "390-1-reduce",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "check": "reduce",
+    "action": null,
+    "changes": [
+      {
+        "time": 60545.5,
+        "tick": 7682,
+        "measure": 3,
+        "scrollTop": 343
+      }
+    ],
+    "lastFrame": {
+      "sampleMs": 0.09999999962747097,
+      "time": 64340.59999999963,
+      "tick": 12053,
+      "measure": 3,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72,
+        "bottom": 342.5999999999999,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 96.24899999999997,
+          "bottom": 101.64899999999994,
+          "left": 274.915062295981,
+          "right": 281.287062295981
+        },
+        {
+          "top": 161.649,
+          "bottom": 167.04899999999998,
+          "left": 274.915062295981,
+          "right": 281.287062295981
+        },
+        {
+          "top": 227.04899999999998,
+          "bottom": 232.44899999999996,
+          "left": 274.915062295981,
+          "right": 281.287062295981
+        },
+        {
+          "top": 292.44899999999996,
+          "bottom": 297.84899999999993,
+          "left": 274.915062295981,
+          "right": 281.287062295981
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    }
+  },
+  {
+    "engine": "chromium",
+    "case": "390-1-seek",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "check": "seek",
+    "action": {
+      "sampleMs": 0.10000000055879354,
+      "time": 40650,
+      "tick": 7562,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 51,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 93.4,
+        "bottom": 358,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 117.649,
+          "bottom": 123.049,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 183.049,
+          "bottom": 188.449,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 248.44900000000004,
+          "bottom": 253.84900000000005,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 313.84900000000005,
+          "bottom": 319.249,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "changes": [
+      {
+        "time": 40646.59999999963,
+        "tick": 7555,
+        "measure": 2,
+        "scrollTop": 51
+      },
+      {
+        "time": 40703.39999999944,
+        "tick": 6721,
+        "measure": 5,
+        "scrollTop": 614
+      }
+    ],
+    "lastFrame": {
+      "sampleMs": 0.20000000018626451,
+      "time": 41175.09999999963,
+      "tick": 15855,
+      "measure": 4,
+      "playing": true,
+      "following": true,
+      "scroll": 614,
+      "system": 2,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 71.60000000000002,
+        "bottom": 342.20000000000005,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 98.54900000000009,
+          "bottom": 103.94900000000007,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 169.34900000000005,
+          "bottom": 174.74900000000002,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 234.74900000000002,
+          "bottom": 240.149,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 300.149,
+          "bottom": 305.549,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    }
+  },
+  {
+    "engine": "chromium",
+    "case": "390-1.5",
+    "bpm": 72,
+    "speed": 1.5,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "onsetMsBeforeEntry": 99.0,
+    "settledMsBeforeEntry": 28.4,
+    "entryScrollTop": 343,
+    "firstNewFrameScrollTop": 343,
+    "secondMeasureScrollTopValues": [
+      343
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0.20000000018626451,
+      "time": 16825.89999999944,
+      "tick": 7672,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": -198.6,
+        "bottom": 66,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": -174.351,
+          "bottom": -168.951,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": -108.951,
+          "bottom": -103.55099999999999,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": -43.55099999999996,
+          "bottom": -38.150999999999954,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 21.849000000000046,
+          "bottom": 27.249000000000024,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0.09999999962747097,
+      "time": 16850.199999999255,
+      "tick": 7692,
+      "measure": 2,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72,
+        "bottom": 342.5999999999999,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 98.94900000000001,
+          "bottom": 104.34899999999999,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 169.74899999999997,
+          "bottom": 175.14899999999994,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 235.149,
+          "bottom": 240.54899999999998,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 300.549,
+          "bottom": 305.94899999999996,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 16716.099999999627,
+        "tick": 7472,
+        "target": 343,
+        "deadline": 16809.576851851478,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 16735.5,
+        "tick": 7507,
+        "measure": 2,
+        "scrollTop": 96,
+        "entryRelativeMs": -99.0
+      },
+      {
+        "time": 16745.89999999944,
+        "tick": 7522,
+        "measure": 2,
+        "scrollTop": 217,
+        "entryRelativeMs": -88.6
+      },
+      {
+        "time": 16765.39999999944,
+        "tick": 7557,
+        "measure": 2,
+        "scrollTop": 290,
+        "entryRelativeMs": -69.1
+      },
+      {
+        "time": 16786,
+        "tick": 7592,
+        "measure": 2,
+        "scrollTop": 330,
+        "entryRelativeMs": -48.5
+      },
+      {
+        "time": 16795.799999999814,
+        "tick": 7612,
+        "measure": 2,
+        "scrollTop": 341,
+        "entryRelativeMs": -38.7
+      },
+      {
+        "time": 16806.099999999627,
+        "tick": 7642,
+        "measure": 2,
+        "scrollTop": 343,
+        "entryRelativeMs": -28.4
+      }
+    ]
+  },
+  {
+    "engine": "chromium",
+    "case": "390-1",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "onsetMsBeforeEntry": 108.3,
+    "settledMsBeforeEntry": 28.4,
+    "entryScrollTop": 343,
+    "firstNewFrameScrollTop": 343,
+    "secondMeasureScrollTopValues": [
+      343
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0.10000000055879354,
+      "time": 10209.5,
+      "tick": 7666,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": -198.6,
+        "bottom": 66,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": -174.351,
+          "bottom": -168.951,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": -108.951,
+          "bottom": -103.55099999999999,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": -43.55099999999996,
+          "bottom": -38.150999999999954,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        },
+        {
+          "top": 21.849000000000046,
+          "bottom": 27.249000000000024,
+          "left": 278.3415532307974,
+          "right": 284.7135532307974
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0,
+      "time": 10240,
+      "tick": 7689,
+      "measure": 2,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72,
+        "bottom": 342.5999999999999,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 98.94900000000001,
+          "bottom": 104.34899999999999,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 169.74899999999997,
+          "bottom": 175.14899999999994,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 235.149,
+          "bottom": 240.54899999999998,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 300.549,
+          "bottom": 305.94899999999996,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 10105.899999999441,
+        "tick": 7539,
+        "target": 343,
+        "deadline": 10201.491666665921,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 10115.399999999441,
+        "tick": 7552,
+        "measure": 2,
+        "scrollTop": 37,
+        "entryRelativeMs": -108.3
+      },
+      {
+        "time": 10135.399999999441,
+        "tick": 7575,
+        "measure": 2,
+        "scrollTop": 175,
+        "entryRelativeMs": -88.3
+      },
+      {
+        "time": 10145.299999999814,
+        "tick": 7589,
+        "measure": 2,
+        "scrollTop": 265,
+        "entryRelativeMs": -78.4
+      },
+      {
+        "time": 10165.299999999814,
+        "tick": 7609,
+        "measure": 2,
+        "scrollTop": 314,
+        "entryRelativeMs": -58.4
+      },
+      {
+        "time": 10185.399999999441,
+        "tick": 7632,
+        "measure": 2,
+        "scrollTop": 337,
+        "entryRelativeMs": -38.3
+      },
+      {
+        "time": 10195.299999999814,
+        "tick": 7646,
+        "measure": 2,
+        "scrollTop": 343,
+        "entryRelativeMs": -28.4
+      }
+    ]
+  },
+  {
+    "engine": "chromium",
+    "case": "768-1-visible",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 768,
+      "height": 900
+    },
+    "targetMeasure": 6,
+    "check": "visible",
+    "action": null,
+    "changes": [],
+    "lastFrame": {
+      "sampleMs": 0.09999999962747097,
+      "time": 56607.59999999963,
+      "tick": 23619,
+      "measure": 6,
+      "playing": true,
+      "following": true,
+      "scroll": 0,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": 415,
+        "bottom": 685.5999999999999,
+        "left": 63,
+        "right": 690.2
+      },
+      "notes": [
+        {
+          "top": 441.949,
+          "bottom": 447.349,
+          "left": 251.20068447974216,
+          "right": 260.3158844797422
+        },
+        {
+          "top": 512.749,
+          "bottom": 518.1489999999999,
+          "left": 251.20068447974216,
+          "right": 260.3158844797422
+        },
+        {
+          "top": 578.149,
+          "bottom": 583.549,
+          "left": 251.20068447974216,
+          "right": 260.3158844797422
+        },
+        {
+          "top": 643.549,
+          "bottom": 648.949,
+          "left": 251.20068447974216,
+          "right": 260.3158844797422
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    }
+  },
+  {
+    "engine": "chromium",
+    "case": "768-1.5",
+    "bpm": 72,
+    "speed": 1.5,
+    "viewport": {
+      "width": 768,
+      "height": 900
+    },
+    "targetMeasure": 11,
+    "onsetMsBeforeEntry": 98.9,
+    "settledMsBeforeEntry": 27.0,
+    "entryScrollTop": 614,
+    "firstNewFrameScrollTop": 614,
+    "secondMeasureScrollTopValues": [
+      614
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0.20000000018626451,
+      "time": 29958.599999999627,
+      "tick": 38397,
+      "measure": 9,
+      "playing": true,
+      "following": true,
+      "scroll": 614,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": -199,
+        "bottom": 71.59999999999991,
+        "left": 63,
+        "right": 690.2
+      },
+      "notes": [
+        {
+          "top": -174.75100000000003,
+          "bottom": -169.35100000000006,
+          "left": 649.2661707600193,
+          "right": 655.6381707600193
+        },
+        {
+          "top": -109.351,
+          "bottom": -103.95100000000002,
+          "left": 649.2661707600193,
+          "right": 655.6381707600193
+        },
+        {
+          "top": -43.95100000000002,
+          "bottom": -38.551000000000045,
+          "left": 649.2661707600193,
+          "right": 655.6381707600193
+        },
+        {
+          "top": 21.448999999999955,
+          "bottom": 26.848999999999933,
+          "left": 649.2661707600193,
+          "right": 655.6381707600193
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0.20000000018626451,
+      "time": 29983.099999999627,
+      "tick": 38417,
+      "measure": 10,
+      "playing": true,
+      "following": true,
+      "scroll": 614,
+      "system": 2,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": 71.60000000000002,
+        "bottom": 342.20000000000005,
+        "left": 63,
+        "right": 690.2
+      },
+      "notes": [
+        {
+          "top": 98.54900000000009,
+          "bottom": 103.94900000000007,
+          "left": 96.2136,
+          "right": 105.3288
+        },
+        {
+          "top": 169.34900000000005,
+          "bottom": 174.74900000000002,
+          "left": 96.2136,
+          "right": 105.3288
+        },
+        {
+          "top": 234.74900000000002,
+          "bottom": 240.149,
+          "left": 96.2136,
+          "right": 105.3288
+        },
+        {
+          "top": 300.149,
+          "bottom": 305.549,
+          "left": 96.2136,
+          "right": 105.3288
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 29846.099999999627,
+        "tick": 38192,
+        "target": 613.6,
+        "deadline": 29939.47685185185,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 29865.5,
+        "tick": 38232,
+        "measure": 10,
+        "scrollTop": 215,
+        "entryRelativeMs": -98.9
+      },
+      {
+        "time": 29878.89999999944,
+        "tick": 38247,
+        "measure": 10,
+        "scrollTop": 422,
+        "entryRelativeMs": -85.5
+      },
+      {
+        "time": 29897.5,
+        "tick": 38282,
+        "measure": 10,
+        "scrollTop": 548,
+        "entryRelativeMs": -66.9
+      },
+      {
+        "time": 29919.39999999944,
+        "tick": 38317,
+        "measure": 10,
+        "scrollTop": 594,
+        "entryRelativeMs": -45.0
+      },
+      {
+        "time": 29926.89999999944,
+        "tick": 38332,
+        "measure": 10,
+        "scrollTop": 612,
+        "entryRelativeMs": -37.5
+      },
+      {
+        "time": 29937.39999999944,
+        "tick": 38362,
+        "measure": 10,
+        "scrollTop": 614,
+        "entryRelativeMs": -27.0
+      }
+    ]
+  },
+  {
+    "engine": "chromium",
+    "case": "768-1",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 768,
+      "height": 900
+    },
+    "targetMeasure": 11,
+    "onsetMsBeforeEntry": 108.4,
+    "settledMsBeforeEntry": 18.7,
+    "entryScrollTop": 614,
+    "firstNewFrameScrollTop": 614,
+    "secondMeasureScrollTopValues": [
+      614
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0.20000000018626451,
+      "time": 23325.799999999814,
+      "tick": 38389,
+      "measure": 9,
+      "playing": true,
+      "following": true,
+      "scroll": 614,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": -199,
+        "bottom": 71.59999999999991,
+        "left": 63,
+        "right": 690.2
+      },
+      "notes": [
+        {
+          "top": -174.75100000000003,
+          "bottom": -169.35100000000006,
+          "left": 649.2661707600193,
+          "right": 655.6381707600193
+        },
+        {
+          "top": -109.351,
+          "bottom": -103.95100000000002,
+          "left": 649.2661707600193,
+          "right": 655.6381707600193
+        },
+        {
+          "top": -43.95100000000002,
+          "bottom": -38.551000000000045,
+          "left": 649.2661707600193,
+          "right": 655.6381707600193
+        },
+        {
+          "top": 21.448999999999955,
+          "bottom": 26.848999999999933,
+          "left": 649.2661707600193,
+          "right": 655.6381707600193
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0,
+      "time": 23351.599999999627,
+      "tick": 38406,
+      "measure": 10,
+      "playing": true,
+      "following": true,
+      "scroll": 614,
+      "system": 2,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": 71.60000000000002,
+        "bottom": 342.20000000000005,
+        "left": 63,
+        "right": 690.2
+      },
+      "notes": [
+        {
+          "top": 98.54900000000009,
+          "bottom": 103.94900000000007,
+          "left": 96.2136,
+          "right": 105.3288
+        },
+        {
+          "top": 169.34900000000005,
+          "bottom": 174.74900000000002,
+          "left": 96.2136,
+          "right": 105.3288
+        },
+        {
+          "top": 234.74900000000002,
+          "bottom": 240.149,
+          "left": 96.2136,
+          "right": 105.3288
+        },
+        {
+          "top": 300.149,
+          "bottom": 305.549,
+          "left": 96.2136,
+          "right": 105.3288
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 23215.5,
+        "tick": 38259,
+        "target": 613.6,
+        "deadline": 23311.19166666611,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 23226.5,
+        "tick": 38279,
+        "measure": 10,
+        "scrollTop": 176,
+        "entryRelativeMs": -108.4
+      },
+      {
+        "time": 23247.39999999944,
+        "tick": 38295,
+        "measure": 10,
+        "scrollTop": 389,
+        "entryRelativeMs": -87.5
+      },
+      {
+        "time": 23265.299999999814,
+        "tick": 38319,
+        "measure": 10,
+        "scrollTop": 520,
+        "entryRelativeMs": -69.6
+      },
+      {
+        "time": 23285.5,
+        "tick": 38342,
+        "measure": 10,
+        "scrollTop": 585,
+        "entryRelativeMs": -49.4
+      },
+      {
+        "time": 23295.39999999944,
+        "tick": 38352,
+        "measure": 10,
+        "scrollTop": 609,
+        "entryRelativeMs": -39.5
+      },
+      {
+        "time": 23316.199999999255,
+        "tick": 38376,
+        "measure": 10,
+        "scrollTop": 614,
+        "entryRelativeMs": -18.7
+      }
+    ]
+  },
+  {
+    "engine": "webkit",
+    "case": "390-1.5",
+    "bpm": 72,
+    "speed": 1.5,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "onsetMsBeforeEntry": 104.8,
+    "settledMsBeforeEntry": 20.8,
+    "entryScrollTop": 343,
+    "firstNewFrameScrollTop": 343,
+    "secondMeasureScrollTopValues": [
+      343
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0,
+      "time": 18328,
+      "tick": 7652,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": -198.6,
+        "bottom": 66,
+        "left": 55,
+        "right": 334.79999999999995
+      },
+      "notes": [
+        {
+          "top": -174.351,
+          "bottom": -168.951,
+          "left": 290.68917893094493,
+          "right": 297.06117893094495
+        },
+        {
+          "top": -108.951,
+          "bottom": -103.55099999999999,
+          "left": 290.68917893094493,
+          "right": 297.06117893094495
+        },
+        {
+          "top": -43.55099999999996,
+          "bottom": -38.150999999999954,
+          "left": 290.68917893094493,
+          "right": 297.06117893094495
+        },
+        {
+          "top": 21.849000000000046,
+          "bottom": 27.249000000000024,
+          "left": 290.68917893094493,
+          "right": 297.06117893094495
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0,
+      "time": 18367,
+      "tick": 7723,
+      "measure": 2,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72,
+        "bottom": 342.5999999999999,
+        "left": 55,
+        "right": 334.79999999999995
+      },
+      "notes": [
+        {
+          "top": 98.94900000000001,
+          "bottom": 104.34899999999999,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 169.74899999999997,
+          "bottom": 175.14899999999994,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 235.149,
+          "bottom": 240.54899999999998,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 300.549,
+          "bottom": 305.94899999999996,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 18226,
+        "tick": 7472,
+        "target": 343,
+        "deadline": 18318.47685185185,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 18237,
+        "tick": 7497,
+        "measure": 2,
+        "scrollTop": 72,
+        "entryRelativeMs": -104.8
+      },
+      {
+        "time": 18266,
+        "tick": 7537,
+        "measure": 2,
+        "scrollTop": 247,
+        "entryRelativeMs": -75.8
+      },
+      {
+        "time": 18298,
+        "tick": 7602,
+        "measure": 2,
+        "scrollTop": 337,
+        "entryRelativeMs": -43.8
+      },
+      {
+        "time": 18321,
+        "tick": 7642,
+        "measure": 2,
+        "scrollTop": 343,
+        "entryRelativeMs": -20.8
+      }
+    ]
+  },
+  {
+    "engine": "webkit",
+    "case": "390-1",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 3,
+    "onsetMsBeforeEntry": 104.3,
+    "settledMsBeforeEntry": 19.3,
+    "entryScrollTop": 343,
+    "firstNewFrameScrollTop": 343,
+    "secondMeasureScrollTopValues": [
+      343
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0,
+      "time": 11690,
+      "tick": 7659,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": -198.6,
+        "bottom": 66,
+        "left": 55,
+        "right": 334.79999999999995
+      },
+      "notes": [
+        {
+          "top": -174.351,
+          "bottom": -168.951,
+          "left": 290.68917893094493,
+          "right": 297.06117893094495
+        },
+        {
+          "top": -108.951,
+          "bottom": -103.55099999999999,
+          "left": 290.68917893094493,
+          "right": 297.06117893094495
+        },
+        {
+          "top": -43.55099999999996,
+          "bottom": -38.150999999999954,
+          "left": 290.68917893094493,
+          "right": 297.06117893094495
+        },
+        {
+          "top": 21.849000000000046,
+          "bottom": 27.249000000000024,
+          "left": 290.68917893094493,
+          "right": 297.06117893094495
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0,
+      "time": 11723,
+      "tick": 7682,
+      "measure": 2,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72,
+        "bottom": 342.5999999999999,
+        "left": 55,
+        "right": 334.79999999999995
+      },
+      "notes": [
+        {
+          "top": 98.94900000000001,
+          "bottom": 104.34899999999999,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 169.74899999999997,
+          "bottom": 175.14899999999994,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 235.149,
+          "bottom": 240.54899999999998,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        },
+        {
+          "top": 300.549,
+          "bottom": 305.94899999999996,
+          "left": 84.36160000000001,
+          "right": 93.47680000000001
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 11586,
+        "tick": 7539,
+        "target": 343,
+        "deadline": 11681.791666666666,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 11602,
+        "tick": 7559,
+        "measure": 2,
+        "scrollTop": 121,
+        "entryRelativeMs": -104.3
+      },
+      {
+        "time": 11632,
+        "tick": 7592,
+        "measure": 2,
+        "scrollTop": 285,
+        "entryRelativeMs": -74.3
+      },
+      {
+        "time": 11652,
+        "tick": 7616,
+        "measure": 2,
+        "scrollTop": 327,
+        "entryRelativeMs": -54.3
+      },
+      {
+        "time": 11674,
+        "tick": 7642,
+        "measure": 2,
+        "scrollTop": 342,
+        "entryRelativeMs": -32.3
+      },
+      {
+        "time": 11687,
+        "tick": 7656,
+        "measure": 2,
+        "scrollTop": 343,
+        "entryRelativeMs": -19.3
+      }
+    ]
+  },
+  {
+    "engine": "webkit",
+    "case": "768-1.5",
+    "bpm": 72,
+    "speed": 1.5,
+    "viewport": {
+      "width": 768,
+      "height": 900
+    },
+    "targetMeasure": 12,
+    "onsetMsBeforeEntry": 111.8,
+    "settledMsBeforeEntry": 24.8,
+    "entryScrollTop": 613,
+    "firstNewFrameScrollTop": 613,
+    "secondMeasureScrollTopValues": [
+      613
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0,
+      "time": 31826,
+      "tick": 42122,
+      "measure": 10,
+      "playing": true,
+      "following": true,
+      "scroll": 38,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": 377,
+        "bottom": 647.5999999999999,
+        "left": 63,
+        "right": 705.2
+      },
+      "notes": [
+        {
+          "top": 403.949,
+          "bottom": 409.349,
+          "left": 655.3000573253396,
+          "right": 664.4152573253396
+        },
+        {
+          "top": 474.74899999999997,
+          "bottom": 480.14899999999994,
+          "left": 655.3000573253396,
+          "right": 664.4152573253396
+        },
+        {
+          "top": 540.149,
+          "bottom": 545.549,
+          "left": 655.3000573253396,
+          "right": 664.4152573253396
+        },
+        {
+          "top": 605.549,
+          "bottom": 610.949,
+          "left": 655.3000573253396,
+          "right": 664.4152573253396
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 1,
+      "time": 31913,
+      "tick": 42242,
+      "measure": 11,
+      "playing": true,
+      "following": true,
+      "scroll": 613,
+      "system": 2,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72.60000000000002,
+        "bottom": 343.20000000000005,
+        "left": 63,
+        "right": 705.2
+      },
+      "notes": [
+        {
+          "top": 96.84900000000005,
+          "bottom": 102.24900000000002,
+          "left": 206.69159704218708,
+          "right": 213.06359704218707
+        },
+        {
+          "top": 162.24900000000002,
+          "bottom": 167.649,
+          "left": 206.69159704218708,
+          "right": 213.06359704218707
+        },
+        {
+          "top": 227.649,
+          "bottom": 233.04899999999998,
+          "left": 206.69159704218708,
+          "right": 213.06359704218707
+        },
+        {
+          "top": 293.0490000000001,
+          "bottom": 298.44900000000007,
+          "left": 206.69159704218708,
+          "right": 213.06359704218707
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 31776,
+        "tick": 42032,
+        "target": 613.6,
+        "deadline": 31869.47685185185,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 31784,
+        "tick": 42042,
+        "measure": 11,
+        "scrollTop": 38,
+        "entryRelativeMs": -111.8
+      },
+      {
+        "time": 31849,
+        "tick": 42127,
+        "measure": 11,
+        "scrollTop": 551,
+        "entryRelativeMs": -46.8
+      },
+      {
+        "time": 31871,
+        "tick": 42202,
+        "measure": 11,
+        "scrollTop": 613,
+        "entryRelativeMs": -24.8
+      }
+    ]
+  },
+  {
+    "engine": "webkit",
+    "case": "768-1",
+    "bpm": 72,
+    "speed": 1,
+    "viewport": {
+      "width": 768,
+      "height": 900
+    },
+    "targetMeasure": 12,
+    "onsetMsBeforeEntry": 84.3,
+    "settledMsBeforeEntry": 19.3,
+    "entryScrollTop": 613,
+    "firstNewFrameScrollTop": 613,
+    "secondMeasureScrollTopValues": [
+      613
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0,
+      "time": 25031,
+      "tick": 42189,
+      "measure": 10,
+      "playing": true,
+      "following": true,
+      "scroll": 188,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": 227,
+        "bottom": 497.5999999999999,
+        "left": 63,
+        "right": 705.2
+      },
+      "notes": [
+        {
+          "top": 253.949,
+          "bottom": 259.349,
+          "left": 655.3000573253396,
+          "right": 664.4152573253396
+        },
+        {
+          "top": 324.74899999999997,
+          "bottom": 330.14899999999994,
+          "left": 655.3000573253396,
+          "right": 664.4152573253396
+        },
+        {
+          "top": 390.149,
+          "bottom": 395.549,
+          "left": 655.3000573253396,
+          "right": 664.4152573253396
+        },
+        {
+          "top": 455.549,
+          "bottom": 460.94899999999996,
+          "left": 655.3000573253396,
+          "right": 664.4152573253396
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0,
+      "time": 25092,
+      "tick": 42242,
+      "measure": 11,
+      "playing": true,
+      "following": true,
+      "scroll": 613,
+      "system": 2,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72.60000000000002,
+        "bottom": 343.20000000000005,
+        "left": 63,
+        "right": 705.2
+      },
+      "notes": [
+        {
+          "top": 96.84900000000005,
+          "bottom": 102.24900000000002,
+          "left": 206.69159704218708,
+          "right": 213.06359704218707
+        },
+        {
+          "top": 162.24900000000002,
+          "bottom": 167.649,
+          "left": 206.69159704218708,
+          "right": 213.06359704218707
+        },
+        {
+          "top": 227.649,
+          "bottom": 233.04899999999998,
+          "left": 206.69159704218708,
+          "right": 213.06359704218707
+        },
+        {
+          "top": 293.0490000000001,
+          "bottom": 298.44900000000007,
+          "left": 206.69159704218708,
+          "right": 213.06359704218707
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 24955,
+        "tick": 42099,
+        "target": 613.6,
+        "deadline": 25050.791666666668,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 24991,
+        "tick": 42115,
+        "measure": 11,
+        "scrollTop": 188,
+        "entryRelativeMs": -84.3
+      },
+      {
+        "time": 25049,
+        "tick": 42192,
+        "measure": 11,
+        "scrollTop": 608,
+        "entryRelativeMs": -26.3
+      },
+      {
+        "time": 25056,
+        "tick": 42216,
+        "measure": 11,
+        "scrollTop": 613,
+        "entryRelativeMs": -19.3
+      }
+    ]
+  },
+  {
+    "engine": "chromium-fast",
+    "case": "390-2",
+    "bpm": 180,
+    "speed": 2,
+    "viewport": {
+      "width": 390,
+      "height": 640
+    },
+    "targetMeasure": 2,
+    "onsetMsBeforeEntry": 109.3,
+    "settledMsBeforeEntry": 28.5,
+    "entryScrollTop": 343,
+    "firstNewFrameScrollTop": 343,
+    "secondMeasureScrollTopValues": [],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0.09999999962747097,
+      "time": 7629.5,
+      "tick": 3745,
+      "measure": 0,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 0,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": -198.6,
+        "bottom": 66,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": -171.651,
+          "bottom": -166.25099999999998,
+          "left": 277.6106207739308,
+          "right": 283.9826207739308
+        },
+        {
+          "top": -100.851,
+          "bottom": -95.451,
+          "left": 277.6106207739308,
+          "right": 283.9826207739308
+        },
+        {
+          "top": -35.450999999999965,
+          "bottom": -30.05099999999996,
+          "left": 277.6106207739308,
+          "right": 283.9826207739308
+        },
+        {
+          "top": 29.949000000000012,
+          "bottom": 35.34899999999999,
+          "left": 277.6106207739308,
+          "right": 283.9826207739308
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0.09999999962747097,
+      "time": 7663.4000000003725,
+      "tick": 3862,
+      "measure": 1,
+      "playing": true,
+      "following": true,
+      "scroll": 343,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 531,
+        "clearance": 72
+      },
+      "current": {
+        "top": 72,
+        "bottom": 342.5999999999999,
+        "left": 55,
+        "right": 319.8
+      },
+      "notes": [
+        {
+          "top": 96.24899999999997,
+          "bottom": 101.64899999999994,
+          "left": 274.27916659877803,
+          "right": 280.651166598778
+        },
+        {
+          "top": 161.649,
+          "bottom": 167.04899999999998,
+          "left": 274.27916659877803,
+          "right": 280.651166598778
+        },
+        {
+          "top": 227.04899999999998,
+          "bottom": 232.44899999999996,
+          "left": 274.27916659877803,
+          "right": 280.651166598778
+        },
+        {
+          "top": 292.44899999999996,
+          "bottom": 297.84899999999993,
+          "left": 274.27916659877803,
+          "right": 280.651166598778
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 7524.800000000745,
+        "tick": 3144,
+        "target": 343,
+        "deadline": 7618.855555556301,
+        "from": 0
+      },
+      {
+        "time": 8194.800000000745,
+        "tick": 6972,
+        "target": 613.6,
+        "deadline": 8290.765277778522,
+        "from": 343
+      }
+    ],
+    "changes": [
+      {
+        "time": 7534.5,
+        "tick": 3177,
+        "measure": 1,
+        "scrollTop": 46,
+        "entryRelativeMs": -109.3
+      },
+      {
+        "time": 7554.600000000559,
+        "tick": 3294,
+        "measure": 1,
+        "scrollTop": 184,
+        "entryRelativeMs": -89.2
+      },
+      {
+        "time": 7564.5,
+        "tick": 3361,
+        "measure": 1,
+        "scrollTop": 270,
+        "entryRelativeMs": -79.3
+      },
+      {
+        "time": 7584.700000000186,
+        "tick": 3478,
+        "measure": 1,
+        "scrollTop": 317,
+        "entryRelativeMs": -59.1
+      },
+      {
+        "time": 7604.9000000003725,
+        "tick": 3595,
+        "measure": 1,
+        "scrollTop": 338,
+        "entryRelativeMs": -38.9
+      },
+      {
+        "time": 7615.300000000745,
+        "tick": 3645,
+        "measure": 1,
+        "scrollTop": 343,
+        "entryRelativeMs": -28.5
+      }
+    ]
+  },
+  {
+    "engine": "chromium-fast",
+    "case": "768-2",
+    "bpm": 180,
+    "speed": 2,
+    "viewport": {
+      "width": 768,
+      "height": 900
+    },
+    "targetMeasure": 7,
+    "onsetMsBeforeEntry": 99.1,
+    "settledMsBeforeEntry": 17.6,
+    "entryScrollTop": 614,
+    "firstNewFrameScrollTop": 614,
+    "secondMeasureScrollTopValues": [
+      614
+    ],
+    "monotonic": true,
+    "previousRenderFrame": {
+      "sampleMs": 0.09999999962747097,
+      "time": 9846.200000000186,
+      "tick": 23012,
+      "measure": 5,
+      "playing": true,
+      "following": true,
+      "scroll": 614,
+      "system": 1,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": -199,
+        "bottom": 71.59999999999991,
+        "left": 63,
+        "right": 690.2
+      },
+      "notes": [
+        {
+          "top": -174.75100000000003,
+          "bottom": -169.35100000000006,
+          "left": 652.119981707291,
+          "right": 658.491981707291
+        },
+        {
+          "top": -109.351,
+          "bottom": -103.95100000000002,
+          "left": 652.119981707291,
+          "right": 658.491981707291
+        },
+        {
+          "top": -43.95100000000002,
+          "bottom": -38.551000000000045,
+          "left": 652.119981707291,
+          "right": 658.491981707291
+        },
+        {
+          "top": 21.448999999999955,
+          "bottom": 26.848999999999933,
+          "left": 652.119981707291,
+          "right": 658.491981707291
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": false,
+      "lyricsVisible": null
+    },
+    "firstNewRenderFrame": {
+      "sampleMs": 0,
+      "time": 9869.100000000559,
+      "tick": 23062,
+      "measure": 6,
+      "playing": true,
+      "following": true,
+      "scroll": 614,
+      "system": 2,
+      "area": {
+        "top": 0,
+        "bottom": 835,
+        "clearance": 72
+      },
+      "current": {
+        "top": 71.60000000000002,
+        "bottom": 342.20000000000005,
+        "left": 63,
+        "right": 690.2
+      },
+      "notes": [
+        {
+          "top": 98.54900000000009,
+          "bottom": 103.94900000000007,
+          "left": 248.74885435876664,
+          "right": 255.12085435876662
+        },
+        {
+          "top": 169.34900000000005,
+          "bottom": 174.74900000000002,
+          "left": 248.74885435876664,
+          "right": 255.12085435876662
+        },
+        {
+          "top": 234.74900000000002,
+          "bottom": 240.149,
+          "left": 248.74885435876664,
+          "right": 255.12085435876662
+        },
+        {
+          "top": 300.149,
+          "bottom": 305.549,
+          "left": 248.74885435876664,
+          "right": 255.12085435876662
+        }
+      ],
+      "lyrics": [],
+      "notesVisible": true,
+      "lyricsVisible": null
+    },
+    "moves": [
+      {
+        "time": 9734.700000000186,
+        "tick": 22344,
+        "target": 613.6,
+        "deadline": 9828.755555555741,
+        "from": 0
+      }
+    ],
+    "changes": [
+      {
+        "time": 9754.600000000559,
+        "tick": 22444,
+        "measure": 6,
+        "scrollTop": 194,
+        "entryRelativeMs": -99.1
+      },
+      {
+        "time": 9765.300000000745,
+        "tick": 22511,
+        "measure": 6,
+        "scrollTop": 404,
+        "entryRelativeMs": -88.4
+      },
+      {
+        "time": 9784.5,
+        "tick": 22628,
+        "measure": 6,
+        "scrollTop": 528,
+        "entryRelativeMs": -69.2
+      },
+      {
+        "time": 9804.700000000186,
+        "tick": 22745,
+        "measure": 6,
+        "scrollTop": 588,
+        "entryRelativeMs": -49.0
+      },
+      {
+        "time": 9814.5,
+        "tick": 22795,
+        "measure": 6,
+        "scrollTop": 611,
+        "entryRelativeMs": -39.2
+      },
+      {
+        "time": 9836.100000000559,
+        "tick": 22912,
+        "measure": 6,
+        "scrollTop": 614,
+        "entryRelativeMs": -17.6
+      }
+    ]
+  }
+]
