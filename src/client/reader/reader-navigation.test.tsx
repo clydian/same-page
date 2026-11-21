@@ -12,7 +12,7 @@ beforeEach(() => {
   vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
   vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 function flush() { act(() => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(0)); }); }
 function Harness({ editing, initialZoom }: { editing: boolean; initialZoom: number }) {
   const viewport = useRef<HTMLDivElement>(null);
@@ -34,11 +34,14 @@ function Harness({ editing, initialZoom }: { editing: boolean; initialZoom: numb
 }
 function send(type: string, x: number, time: number, editing: boolean) {
   for (const id of editing ? [1, 2] : [1]) {
-    const event = new PointerEvent(type, { bubbles: true, pointerType: "touch", pointerId: id, clientX: x + id * 100, clientY: 200 });
-    Object.defineProperty(event, "timeStamp", { value: time });
-    fireEvent(screen.getByTestId("viewport"), event);
+    contact(type, id, x + id * 100, time);
   }
   flush();
+}
+function contact(type: string, id: number, x: number, time: number) {
+  const event = new PointerEvent(type, { bubbles: true, pointerType: "touch", pointerId: id, clientX: x, clientY: 200 });
+  Object.defineProperty(event, "timeStamp", { value: time });
+  fireEvent(screen.getByTestId("viewport"), event);
 }
 for (const editing of [false, true]) {
   for (const zoom of [1, 2]) {
@@ -72,6 +75,67 @@ for (const editing of [false, true]) {
     });
   }
 }
+
+it.each([-1, 1])("keeps staggered editing swipes in the pager (direction %s)", direction => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  render(<Harness editing initialZoom={1} />);
+  const viewport = screen.getByTestId("viewport");
+  const paper = screen.getByTestId("paper");
+  viewport.getBoundingClientRect = paper.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 800);
+  contact("pointerdown", 1, 400, 0);
+  contact("pointerdown", 2, 480, 10);
+  contact("pointermove", 1, 400 + direction * 24, 30);
+  flush();
+  expect(paper).not.toHaveAttribute("data-gesture-preview");
+  expect(viewport).toHaveAttribute("data-progress", "0");
+
+  // A late second finger can still reclaim the gesture after a pinch preview.
+  if (direction < 0) {
+    act(() => vi.advanceTimersByTime(100));
+    expect(paper).toHaveAttribute("data-gesture-preview");
+  }
+  const next = direction < 0 ? 140 : 45;
+  contact("pointermove", 1, 400 + direction * 60, next);
+  contact("pointermove", 2, 480 + direction * 24, next + 4);
+  flush();
+  expect(Number(viewport.dataset.progress) * direction).toBeGreaterThan(0);
+  expect(paper).not.toHaveAttribute("data-gesture-preview");
+
+  contact("pointermove", 1, 400 + direction * 320, 160);
+  flush();
+  contact("pointermove", 2, 480 + direction * 290, 172);
+  contact("pointerup", 1, 400 + direction * 320, 178);
+  contact("pointerup", 2, 480 + direction * 290, 181);
+  flush();
+  expect(viewport).toHaveAttribute("data-page", String(2 - direction));
+  expect(viewport).toHaveAttribute("data-zoom", "1");
+});
+
+it.each(["opposed", "anchored", "cancelled"])("resolves %s pinch input while editing", kind => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  render(<Harness editing initialZoom={1} />);
+  const viewport = screen.getByTestId("viewport");
+  const paper = screen.getByTestId("paper");
+  viewport.getBoundingClientRect = paper.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 800);
+  const first = kind === "opposed" ? 350 : 400;
+  const second = kind === "opposed" ? 550 : 600;
+  contact("pointerdown", 1, 400, 0);
+  contact("pointerdown", 2, 500, 10);
+  if (kind === "opposed") contact("pointermove", 1, first, 30);
+  contact("pointermove", 2, second, 30);
+  flush();
+  if (kind !== "opposed") {
+    expect(paper).not.toHaveAttribute("data-gesture-preview");
+    if (kind === "cancelled") contact("pointercancel", 2, second, 35);
+    act(() => vi.advanceTimersByTime(100));
+  }
+  if (kind === "cancelled") expect(paper).not.toHaveAttribute("data-gesture-preview");
+  else expect(paper).toHaveAttribute("data-gesture-preview");
+  if (kind !== "cancelled") contact("pointerup", 2, second, 140);
+  contact("pointerup", 1, first, 141);
+  expect(viewport).toHaveAttribute("data-page", "2");
+  expect(viewport).toHaveAttribute("data-zoom", kind === "cancelled" ? "1" : "2");
+});
 
 it("drains replaced pinch contacts without leaving an uncommitted transform", () => {
   render(<Harness editing={false} initialZoom={1} />);

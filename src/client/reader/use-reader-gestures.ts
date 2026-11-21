@@ -22,6 +22,10 @@ interface Point {
   y: number;
 }
 
+type EditingPair = { origin: [Point, Point]; intent: "pending" | "navigation" | "zoom" };
+const PAIR_START_GRACE_MS = 64;
+const PAIR_MOVEMENT_SLOP = 6;
+
 export function useReaderGestures({
   containerRef,
   contentRef,
@@ -84,13 +88,14 @@ export function useReaderGestures({
     x: number;
     y: number;
   } | null>(null);
-  const pinch = useRef<{ distance: number; gesture: ReaderZoomGesture } | null>(null);
+  const pinch = useRef<{ distance: number; gesture: ReaderZoomGesture; editing: EditingPair | null } | null>(null);
   const pinched = useRef(false);
   const navigation = useRef<{ origin: Point; left: number; right: number; scrollLeft: number; scrollTop: number; extent: number } | null>(null);
   const scaled = useRef(false);
   const drained = useRef(false);
   const nativeAxis = useRef<"pending" | "horizontal" | "vertical">("pending");
   const pairFrame = useRef<number | null>(null);
+  const pairDecisionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pairTime = useRef(0);
   const taps = useReaderTaps({
     disabled: disabled || twoFingerOnly || !tapEnabled, scope: tapScope, revision: tapRevision,
@@ -138,13 +143,19 @@ export function useReaderGestures({
     }
   };
 
-  const cancelPairFrame = useCallback(() => {
-    if (pairFrame.current === null) return;
-    cancelAnimationFrame(pairFrame.current);
-    pairFrame.current = null;
+  const clearPairDecision = useCallback(() => {
+    if (pairDecisionTimer.current === null) return;
+    clearTimeout(pairDecisionTimer.current);
+    pairDecisionTimer.current = null;
   }, []);
 
-  useLayoutEffect(() => () => { cancelPairFrame(); }, [cancelPairFrame]);
+  const cancelPairSampling = useCallback(() => {
+    clearPairDecision();
+    if (pairFrame.current !== null) cancelAnimationFrame(pairFrame.current);
+    pairFrame.current = null;
+  }, [clearPairDecision]);
+
+  useLayoutEffect(() => cancelPairSampling, [cancelPairSampling]);
 
   useLayoutEffect(() => {
     // The drained sequence will swallow its release; retire the child
@@ -152,16 +163,16 @@ export function useReaderGestures({
     if (twoFingerOnly && points.current.size > 0) interruptNotes();
     cancelZoom();
     cancelDismiss();
-    cancelPairFrame();
+    cancelPairSampling();
     navigation.current = null;
     pinch.current = null;
     drained.current = points.current.size > 0;
-  }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairFrame, cancelZoom, cancelDismiss]);
+  }, [pageTurn, disabled, twoFingerOnly, tapScope, gestureRevision, cancelPairSampling, cancelZoom, cancelDismiss]);
 
   const drainSequence = () => {
     cancelZoom();
     cancelDismiss();
-    cancelPairFrame();
+    cancelPairSampling();
     navigation.current = null;
     pinch.current = null;
     drained.current = points.current.size > 0;
@@ -206,33 +217,59 @@ export function useReaderGestures({
     const center = midpoint(first, second);
     const gesture = zoomHandoff.begin(center);
     if (!gesture) return;
-    pinch.current = { distance: distance(first, second), gesture };
+    pinch.current = {
+      distance: distance(first, second), gesture,
+      editing: twoFingerOnly && pageTurn ? { origin: [first, second], intent: "pending" } : null,
+    };
     beginNavigation(center, event.timeStamp);
     pinched.current = true;
   };
 
-  const samplePair = (time: number) => {
-    if (drained.current || points.current.size !== 2 || !pinch.current) return;
+  const samplePair = (time: number, resolvePending = false) => {
+    const pair = pinch.current;
+    if (drained.current || points.current.size !== 2 || !pair) return;
     const [first, second] = [...points.current.values()];
     const center = midpoint(first, second);
-    if (pageTurn && !scaled.current && Math.abs(distance(first, second) / pinch.current.distance - 1) <= 0.08) {
+    const scale = distance(first, second) / pair.distance;
+    const spreadChanged = Math.abs(scale - 1) > 0.08;
+    if (pair.editing) {
+      if (pair.editing.intent === "pending") {
+        const intent = editingPairIntent(pair.editing.origin, first, second, spreadChanged);
+        pair.editing.intent = intent;
+        if (intent === "pending" && !scaled.current && !(resolvePending && spreadChanged)) {
+          // A single moving contact could be an anchored pinch or a leading finger.
+          if (!spreadChanged) clearPairDecision();
+          else if (pairDecisionTimer.current === null) {
+            pairDecisionTimer.current = setTimeout(() => {
+              cancelPairSampling();
+              samplePair(pairTime.current, true);
+            }, PAIR_START_GRACE_MS);
+          }
+          return;
+        }
+        clearPairDecision();
+        // A delayed finger can still turn a provisional pinch preview into a swipe.
+        if (intent === "navigation" && scaled.current) {
+          cancelZoom();
+          scaled.current = false;
+        }
+      }
+      if (pair.editing.intent === "navigation") {
+        moveNavigation(center, time);
+        return;
+      }
+    } else if (pageTurn && !scaled.current && !spreadChanged) {
       moveNavigation(center, time);
       return;
     }
-    if (continuous && twoFingerOnly && !scaled.current && Math.abs(distance(first, second) / pinch.current.distance - 1) <= 0.08) {
+    if (continuous && twoFingerOnly && !scaled.current && !spreadChanged) {
       // Small finger-spacing jitter is still browsing, not a new zoom.
-      pinch.current.gesture.update(center, 1);
+      pair.gesture.update(center, 1);
       return;
     }
     scaled.current = true;
-    pageTurn?.cancel(0, true);
-    pinch.current.gesture.update(center, distance(first, second) / pinch.current.distance);
-  };
-
-  const flushPair = () => {
-    if (pairFrame.current !== null) cancelAnimationFrame(pairFrame.current);
-    pairFrame.current = null;
-    samplePair(pairTime.current);
+    if (pair.editing?.intent !== "pending") pageTurn?.cancel(0, true);
+    pair.gesture.update(center, scale);
   };
   const pointerMove = (event: GesturePointer) => {
     if (disabled || !points.current.has(contactKey(event)) || drained.current) return;
@@ -264,7 +301,7 @@ export function useReaderGestures({
   };
 
   const finishPinch = () => {
-    cancelPairFrame();
+    cancelPairSampling();
     pinch.current?.gesture.finish();
     resetGesture();
   };
@@ -273,17 +310,24 @@ export function useReaderGestures({
     if (disabled || !points.current.has(contactKey(event))) return;
     const start = primary.current;
     const wasPinched = pinched.current;
-    if (wasPinched && points.current.size === 2 && pairFrame.current !== null) flushPair();
+    if (wasPinched && points.current.size === 2 && (pairFrame.current !== null || pairDecisionTimer.current !== null)) {
+      cancelPairSampling();
+      samplePair(pairTime.current, true);
+    }
     points.current.delete(contactKey(event));
     if (drained.current) {
       if (points.current.size === 0) resetGesture();
       return;
     }
     if (wasPinched) {
-      if (points.current.size === 1 && pageTurn && !scaled.current) {
-        pageTurn.end({ sessionId: 0, x: 0, y: 0, time: event.timeStamp, extent: pageTurnExtent ?? 1 });
-        cancelZoom();
-        drained.current = true;
+      if (points.current.size === 1 && pageTurn) {
+        if (!scaled.current) {
+          pageTurn.end({ sessionId: 0, x: 0, y: 0, time: event.timeStamp, extent: pageTurnExtent ?? 1 });
+          cancelZoom();
+          drained.current = true;
+        } else if (pinch.current?.editing?.intent === "pending") {
+          pageTurn.cancel(0, true);
+        }
       } else if (points.current.size === 0) finishPinch();
       return;
     }
@@ -303,13 +347,10 @@ export function useReaderGestures({
     dismiss.cancel();
     points.current.delete(contactKey(event));
     pageTurn?.cancel(0);
-    if (pairFrame.current !== null) cancelAnimationFrame(pairFrame.current);
-    pairFrame.current = null;
+    cancelPairSampling();
     if (pinched.current) {
       cancelZoom();
       drained.current = points.current.size > 0;
-      cancelPairFrame();
-
       if (points.current.size === 0) resetGesture();
     } else if (points.current.size === 0) {
       primary.current = null;
@@ -358,7 +399,7 @@ export function useReaderGestures({
     const objectActive = isObjectGestureActive?.() ?? false;
     if (objectPointers.current.size > 0 || objectActive) {
       pageTurn?.cancel(0, true);
-      cancelPairFrame(); cancelZoom();
+      cancelPairSampling(); cancelZoom();
       for (const id of points.current.keys()) objectPointers.current.add(id);
       points.current.clear();
       primary.current = null;
@@ -390,6 +431,30 @@ export function useReaderGestures({
     onPointerUp: (event: ReactPointerEvent<HTMLElement>) => { if (!twoFingerOnly && !(nativeTouchScroll && event.pointerType === "touch")) finishPointer(event); },
     onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => { if (!twoFingerOnly && !(nativeTouchScroll && event.pointerType === "touch")) cancelPointer(event); },
   };
+}
+
+function editingPairIntent([originFirst, originSecond]: [Point, Point], first: Point, second: Point, spreadChanged: boolean): EditingPair["intent"] {
+  const firstMotion = { x: first.x - originFirst.x, y: first.y - originFirst.y };
+  const secondMotion = { x: second.x - originSecond.x, y: second.y - originSecond.y };
+  const sum = { x: firstMotion.x + secondMotion.x, y: firstMotion.y + secondMotion.y };
+  const travel = Math.max(1, Math.hypot(sum.x, sum.y));
+  const firstAlong = dot(firstMotion, sum) / travel;
+  const secondAlong = dot(secondMotion, sum) / travel;
+  const trailing = Math.min(firstAlong, secondAlong);
+  const leading = Math.max(firstAlong, secondAlong);
+  if (trailing >= Math.max(PAIR_MOVEMENT_SLOP, leading / 4) && dot(firstMotion, secondMotion) > 0) return "navigation";
+  if (spreadChanged) {
+    const axis = { x: originSecond.x - originFirst.x, y: originSecond.y - originFirst.y };
+    const span = distance(originFirst, originSecond);
+    const firstRadial = dot(firstMotion, axis) / span;
+    const secondRadial = dot(secondMotion, axis) / span;
+    if (firstRadial * secondRadial < 0 && Math.min(Math.abs(firstRadial), Math.abs(secondRadial)) >= PAIR_MOVEMENT_SLOP) return "zoom";
+  }
+  return "pending";
+}
+
+function dot(first: Point, second: Point) {
+  return first.x * second.x + first.y * second.y;
 }
 
 function midpoint(first: Point, second: Point) {
