@@ -2,7 +2,7 @@ import { act, renderHook, waitFor, render, screen, fireEvent } from "@testing-li
 import { beforeEach, expect, it, vi } from "vitest";
 import { resolveLocalWorkspace, activateAuthenticatedLocalOwner } from "../../platform/local-workspace";
 import { localDatabase } from "../../platform/local-database";
-import { captureAttachmentDirectoryWrite, prepareAttachmentDirectory, readAttachmentDirectory } from "./attachment-directory";
+import { captureAttachmentDirectoryWrite, prepareAttachmentDirectory, readAttachmentDirectory, refreshLibraryAttachmentDirectories } from "./attachment-directory";
 import { rememberDriveAccessRevoked } from "../local-drive-directory";
 import { clearPrivateLocalDataAfterLogout } from "../../auth/logout-local-data";
 import { useLibraryAttachments } from "./use-library-attachments";
@@ -31,29 +31,35 @@ it("prepares only metadata and restores the attachment list after remounting off
   } finally { fetcher.mockRestore(); }
 });
 
-it("preserves metadata on transient failure, replaces it on success, and distinguishes empty from unknown", async () => {
+it.each(["offline preparation", "library refresh"])("%s preserves metadata on transient failure and replaces it on success", async entry => {
   const workspace = await resolveLocalWorkspace({ authenticatedUserId: "user", choirId: "drive", scoreId: "score" });
   const save = await captureAttachmentDirectoryWrite(workspace);
   await save(score, [audio], signal());
+  const refresh = () => entry === "offline preparation" ? prepareAttachmentDirectory(workspace, score, signal())
+    : refreshLibraryAttachmentDirectories(score.choirId, [score], workspace.ownerKey, signal());
   const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 503 }));
   try {
-    await expect(prepareAttachmentDirectory(workspace, score, signal())).rejects.toThrow();
+    await expect(refresh()).rejects.toThrow();
     expect(await readAttachmentDirectory(workspace, score)).toEqual([audio]);
     fetcher.mockResolvedValue(Response.json({ attachments: [] }));
-    await prepareAttachmentDirectory(workspace, score, signal());
+    await refresh();
     expect(await readAttachmentDirectory(workspace, score)).toEqual([]);
     expect(await readAttachmentDirectory(workspace, { ...score, id: "unknown" })).toBeNull();
   } finally { fetcher.mockRestore(); }
 });
 
-it.each(["drive denial", "attachment denial", "owner switch", "logout"])("does not resurrect protected metadata after %s", async reason => {
+it.each(["drive denial", "attachment denial", "library attachment denial", "owner switch", "logout"])("does not resurrect protected metadata after %s", async reason => {
   const workspace = await resolveLocalWorkspace({ authenticatedUserId: "user", choirId: "drive", scoreId: "score" });
   const save = await captureAttachmentDirectoryWrite(workspace);
   await save(score, [audio], signal());
   if (reason === "drive denial") await rememberDriveAccessRevoked(workspace, signal());
-  if (reason === "attachment denial") {
+  if (reason === "attachment denial" || reason === "library attachment denial") {
     const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 403 }));
-    try { await expect(prepareAttachmentDirectory(workspace, score, signal())).rejects.toThrow(); }
+    try {
+      const refresh = reason === "attachment denial" ? prepareAttachmentDirectory(workspace, score, signal())
+        : refreshLibraryAttachmentDirectories(score.choirId, [score], workspace.ownerKey, signal());
+      await expect(refresh).rejects.toThrow();
+    }
     finally { fetcher.mockRestore(); }
   }
   if (reason === "owner switch") { await activateAuthenticatedLocalOwner("other"); await activateAuthenticatedLocalOwner("user"); }
