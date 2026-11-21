@@ -183,3 +183,23 @@ it("restores an identity without overfilling a drive whose member slot was reuse
   expect(await env.DB.prepare("SELECT status, removed_for_deletion_id FROM memberships WHERE choir_id = ? AND user_id = ?").bind(drive,b.userId).first()).toEqual({status:"removed",removed_for_deletion_id:null});
   expect((await env.DB.prepare("SELECT count(*) AS n FROM memberships WHERE choir_id = ? AND status = 'active'").bind(drive).first())?.n).toBe(2);
 });
+
+it("rejects a stale owner identity across permanent deletion routes before changing data", async () => {
+  const a = await identity();
+  const drive = await trial(a.cookie);
+  const score = await upload(drive, 1);
+  const paths = [
+    `/choirs/${drive}/purge`,
+    `/choirs/${drive}/scores/${score.scoreId}/purge`,
+    `/choirs/${drive}/scores/${score.scoreId}/versions/${score.version.id}/purge`,
+    `/choirs/${drive}/pdf-trash/${score.version.id}/purge`,
+  ];
+  for (const path of paths) {
+    const init = json(a.cookie, { confirm: true, name: "试用云盘" });
+    init.headers = { ...init.headers, "x-same-page-owner-user-id": "previous-user" };
+    expect((await call(path, init)).status, path).toBe(403);
+  }
+  expect(await env.DB.prepare("SELECT purged_at FROM choirs WHERE id = ?").bind(drive).first()).toEqual({ purged_at: null });
+  expect(await env.DB.prepare("SELECT purged_at FROM scores WHERE id = ?").bind(score.scoreId).first()).toEqual({ purged_at: null });
+  expect(await env.DB.prepare("SELECT purged_at FROM score_versions WHERE id = ?").bind(score.version.id).first()).toEqual({ purged_at: null });
+});

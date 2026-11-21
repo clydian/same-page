@@ -2,8 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { scoreFileNameKey, scoreFileNameSchema } from "../../src/shared/scores";
 import { resolveContextPrincipal } from "../auth/context-principal";
-import { AuthorizationError } from "../auth/authorization";
-import { requireOperation, readPermissionMember } from "../permissions/access";
+import { requireOperation, requireDriveOwner } from "../permissions/access";
 import { limitDriveMutation } from "../security/drive-rate-limit";
 import type { AppEnvironment } from "../env";
 import { isFilenameConflictError } from "./storage";
@@ -86,8 +85,7 @@ pdfTrashRoutes.post(base + "/:versionId/restore", async context => {
 pdfTrashRoutes.post(base + "/:versionId/purge", async context => {
   const choirId = context.req.param("choirId")!;
   const versionId = context.req.param("versionId")!;
-  const member = await readPermissionMember(context.env.DB, await resolveContextPrincipal(context), choirId);
-  if (!member.isOwner || (context.req.header("x-same-page-owner-user-id") && context.req.header("x-same-page-owner-user-id") !== member.userId)) throw new AuthorizationError();
+  const member = await requireDriveOwner(context.env.DB, await resolveContextPrincipal(context), choirId, context.req.header("x-same-page-owner-user-id"));
   if (!z.object({ confirm: z.literal(true) }).safeParse(await context.req.json().catch(() => null)).success) return context.json({ error: "confirmation_required" }, 400);
   const limited = await limitDriveMutation(context, member.userId, "purge", 20);
   if (limited) return limited;

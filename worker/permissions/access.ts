@@ -17,6 +17,13 @@ export async function readPermissionMember(db: D1Database, principal: Principal 
   if (!row) throw new AuthorizationError();
   return { ...row, isOwner: row.is_owner === 1 };
 }
+// The optional identity fence is used by destructive requests from deployed
+// clients. Omitting it preserves callers that authorize only current ownership.
+export async function requireDriveOwner(db: D1Database, principal: Principal | null, choirId: string, expectedUserId?: string) {
+  const member = await readPermissionMember(db, principal, choirId);
+  if (!member.isOwner || (expectedUserId && expectedUserId !== member.userId)) throw new AuthorizationError();
+  return member;
+}
 export async function requireOperation(db: D1Database, principal: Principal | null, choirId: string, operation: Operation) {
   const member = await readPermissionMember(db, principal, choirId);
   if (!memberCapabilities(member).operations.operations.includes(operation)) throw new AuthorizationError();

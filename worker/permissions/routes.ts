@@ -4,7 +4,7 @@ import { isDelegated, mayChangePermissions, permissionSetSchema } from "../../sr
 import { AuthorizationError } from "../auth/authorization";
 import { resolveContextPrincipal } from "../auth/context-principal";
 import type { AppEnvironment } from "../env";
-import { memberCapabilities, readPermissionMember } from "./access";
+import { memberCapabilities, readPermissionMember, requireDriveOwner } from "./access";
 
 export const permissionRoutes = new Hono<AppEnvironment>();
 const updateSchema = z.object({ expectedRevision: z.number().int().nonnegative(), operations: permissionSetSchema, management: permissionSetSchema }).strict();
@@ -47,8 +47,7 @@ permissionRoutes.put("/choirs/:choirId/memberships/:membershipId/permissions", a
 });
 permissionRoutes.post("/choirs/:choirId/ownership", async context => {
   const choirId = context.req.param("choirId");
-  const actor = await readPermissionMember(context.env.DB, await resolveContextPrincipal(context), choirId);
-  if (!actor.isOwner) throw new AuthorizationError();
+  const actor = await requireDriveOwner(context.env.DB, await resolveContextPrincipal(context), choirId);
   const parsed = z.object({ membershipId: z.string(), confirm: z.literal(true) }).strict().safeParse(await context.req.json().catch(() => null));
   if (!parsed.success || parsed.data.membershipId === actor.id) return context.json({ error: "invalid_transfer" }, 400);
   const targetId = parsed.data.membershipId;
@@ -63,8 +62,7 @@ permissionRoutes.post("/choirs/:choirId/ownership", async context => {
 });
 permissionRoutes.get("/choirs/:choirId/permission-changes", async context => {
   const choirId = context.req.param("choirId");
-  const actor = await readPermissionMember(context.env.DB, await resolveContextPrincipal(context), choirId);
-  if (!actor.isOwner) throw new AuthorizationError();
+  await requireDriveOwner(context.env.DB, await resolveContextPrincipal(context), choirId);
   const changes = await context.env.DB.prepare(`SELECT id, actor_name AS actorName, target_name AS targetName, before_json AS before, after_json AS after, created_at AS createdAt
     FROM permission_changes WHERE choir_id = ? ORDER BY created_at DESC, id LIMIT 100`).bind(choirId).all();
   return context.json({ changes: changes.results });
