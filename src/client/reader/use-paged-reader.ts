@@ -15,6 +15,7 @@ export interface PageTurnSample {
   y: number;
   time: number;
   extent: number;
+  visualProgress?: number;
 }
 
 export interface PageTurnGesture {
@@ -68,12 +69,13 @@ interface DragSession {
   progress: number;
   axis: "pending" | "horizontal" | "vertical";
   extent: number;
+  originProgress: number;
 }
 
-export const PAGE_TURN_SETTLE_MS = 300;
+export const PAGE_TURN_SETTLE_MS = 360;
 
 const DRAG_LOCK_PX = 8;
-const COMMIT_PROGRESS = 0.22;
+const COMMIT_PROGRESS = 0.16;
 const COMMIT_VELOCITY_PX_PER_MS = 0.55;
 
 export function usePagedReader({
@@ -265,7 +267,7 @@ export function usePagedReader({
         const current = viewRef.current;
         if (current.targetPage !== page) return;
         if (current.phase === "preparing") schedulePreparedTransition(page);
-        else if (current.phase === "dragging" && drag.current) updateView({ ...current, progress: drag.current.progress });
+        else if (current.phase === "dragging" && drag.current) updateView({ ...current, progress: clamp(drag.current.originProgress + drag.current.progress, -1, 1) });
       },
       failed() {
         if (!active || renderGenerations.current.get(documentKey)?.get(page) !== generation) return;
@@ -316,7 +318,7 @@ export function usePagedReader({
 
   const gesture = useMemo<PageTurnGesture>(() => ({
     begin(sample) {
-      if (!enabledRef.current || viewRef.current.phase !== "idle") return;
+      if (!enabledRef.current || !["idle", "preparing", "settling"].includes(viewRef.current.phase)) return;
       drag.current = {
         sessionId: sample.sessionId,
         startX: sample.x,
@@ -325,6 +327,7 @@ export function usePagedReader({
         lastTime: sample.time,
         velocity: 0,
         progress: 0,
+        originProgress: 0,
         axis: "pending",
         extent: Math.max(1, sample.extent),
       };
@@ -344,7 +347,25 @@ export function usePagedReader({
       session.lastX = sample.x;
       session.lastTime = sample.time;
       session.extent = Math.max(1, sample.extent);
-      const anchorPage = viewRef.current.anchorPage;
+      let current = viewRef.current;
+      if (current.phase === "preparing" ||
+        (current.targetPage !== null && Math.abs(current.targetPage - current.anchorPage) > 1)) {
+        session.progress = clamp(deltaX / session.extent, -1, 1);
+        return true;
+      }
+      if (current.phase === "settling") {
+        // Keep the paper at its painted position when another swipe takes over.
+        // A committed turn has already passed local navigation admission.
+        const committed = current.commitOnFinish && current.targetPage !== null &&
+          readyPages.current.get(documentKey)?.has(current.targetPage) &&
+          admission.current.canCompletePage?.() !== false;
+        const anchor = committed ? current.targetPage! : current.anchorPage;
+        session.originProgress = (sample.visualProgress ?? current.progress) + anchor - current.anchorPage;
+        queuedTarget.current = null;
+        current = { ...idleView(anchor), progress: session.originProgress };
+        if (anchor !== viewRef.current.anchorPage) onPageChangeRef.current(anchor);
+      }
+      const anchorPage = current.anchorPage;
       const requestedTarget = anchorPage + (deltaX < 0 ? 1 : -1);
       const targetPage =
         requestedTarget >= 1 && requestedTarget <= pageCountRef.current
@@ -360,9 +381,11 @@ export function usePagedReader({
         ? clamp(deltaX / session.extent, -0.08, 0.08)
         : clamp(deltaX / session.extent, -1, 1);
       session.progress = gestureProgress;
-      const progress = targetPage !== null && !readyPages.current.get(documentKey)?.has(targetPage)
+      const offset = clamp(session.originProgress + gestureProgress, -1, 1);
+      const visibleTarget = anchorPage + (offset < 0 ? 1 : -1);
+      const progress = visibleTarget >= 1 && visibleTarget <= pageCountRef.current && !readyPages.current.get(documentKey)?.has(visibleTarget)
         ? 0
-        : gestureProgress;
+        : offset;
       updateView({
         anchorPage,
         targetPage,
@@ -385,14 +408,20 @@ export function usePagedReader({
         current.targetPage !== null &&
         (Math.abs(session.progress) >= COMMIT_PROGRESS ||
           (sameDirection && Math.abs(session.velocity) >= COMMIT_VELOCITY_PX_PER_MS));
-      settleDrag(shouldCommit);
+      if (current.phase === "preparing" || current.phase === "settling") {
+        if (shouldCommit) {
+          const projected = queuedTarget.current ?? current.targetPage ?? current.anchorPage;
+          queuedTarget.current = clampPage(projected + (session.progress < 0 ? 1 : -1), pageCountRef.current);
+        }
+      } else settleDrag(shouldCommit);
       return true;
     },
     cancel(sessionId, immediate = false) {
       const session = drag.current;
       if (!session || session.sessionId !== sessionId) return false;
       drag.current = null;
-      if (session.axis !== "horizontal") return true;
+      if (viewRef.current.phase === "preparing" || viewRef.current.phase === "settling") return false;
+      if (session.axis !== "horizontal") return viewRef.current.phase === "idle";
       if (immediate) {
         queuedTarget.current = null;
         updateView(idleView(viewRef.current.anchorPage));

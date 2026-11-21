@@ -35,6 +35,7 @@ export function useReaderGestures({
   onEdgeTap,
   pageTurn,
   pageTurnExtent,
+  pageTurnProgress,
   nativeTouchScroll = false,
   continuous = nativeTouchScroll,
   zoomGeometry,
@@ -57,6 +58,7 @@ export function useReaderGestures({
   onEdgeTap?(direction: "previous" | "next"): void;
   pageTurn?: PageTurnGesture;
   pageTurnExtent?: number;
+  pageTurnProgress?(): number;
   nativeTouchScroll?: boolean;
   continuous?: boolean;
   onNavigationStart?(): void;
@@ -110,8 +112,8 @@ export function useReaderGestures({
     const paper = content.getBoundingClientRect();
     const viewport = container.getBoundingClientRect();
     const extent = pageTurnExtent ?? viewport.width;
-    navigation.current = { origin: center, left: Math.max(0, viewport.left - paper.left),
-      right: Math.max(0, paper.right - viewport.right), scrollLeft: container.scrollLeft,
+    navigation.current = { origin: center, left: zoom <= 1 + FIT_ZOOM_TOLERANCE ? 0 : Math.max(0, viewport.left - paper.left),
+      right: zoom <= 1 + FIT_ZOOM_TOLERANCE ? 0 : Math.max(0, paper.right - viewport.right), scrollLeft: container.scrollLeft,
       scrollTop: container.scrollTop, extent };
     pageTurn?.begin({ sessionId: 0, x: 0, y: 0, time, extent });
   };
@@ -132,7 +134,7 @@ export function useReaderGestures({
       pageTurn?.cancel(0, true);
       pageTurn?.begin({ sessionId: 0, x: 0, y: 0, time, extent: session.extent });
     } else {
-      pageTurn?.move({ sessionId: 0, x: remaining, y: Math.abs(dx) > Math.abs(dy) ? 0 : dy, time, extent: session.extent });
+      pageTurn?.move({ sessionId: 0, x: remaining, y: Math.abs(dx) > Math.abs(dy) ? 0 : dy, time, extent: session.extent, visualProgress: pageTurnProgress?.() });
     }
   };
 

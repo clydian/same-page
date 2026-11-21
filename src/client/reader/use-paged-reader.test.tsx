@@ -138,6 +138,91 @@ describe("usePagedReader", () => {
     expect(claimed).toBe(false);
   });
 
+  it("takes over a settling turn at its painted position and accepts a second light swipe", () => {
+    const onPageChange = vi.fn();
+    const { result } = renderPager(onPageChange);
+    finishRenders(result.current.beginPageRender, 1, 2, 3, 4);
+    act(() => result.current.request("next"));
+    flushFrame();
+    act(() => result.current.gesture.begin(sample(11, 500, 300, 10)));
+    act(() => result.current.gesture.move({ ...sample(11, 340, 300, 410), visualProgress: -0.7 }));
+    expect(result.current.anchorPage).toBe(3);
+    expect(result.current.progress).toBeCloseTo(0.14);
+    expect(result.current.targetPage).toBe(4);
+    expect(onPageChange).toHaveBeenLastCalledWith(3);
+    act(() => result.current.gesture.end(sample(11, 340, 300, 420)));
+    flushFrame();
+    act(() => result.current.finishTransition());
+    expect(onPageChange.mock.calls.map(([page]) => page)).toEqual([3, 4]);
+  });
+
+  it("keeps the takeover offset when the next page finishes rendering", () => {
+    const { result } = renderPager(vi.fn());
+    finishRenders(result.current.beginPageRender, 2, 3);
+    act(() => result.current.request("next"));
+    flushFrame();
+    act(() => result.current.gesture.begin(sample(13, 500, 300, 10)));
+    act(() => result.current.gesture.move({ ...sample(13, 400, 300, 210), visualProgress: -0.7 }));
+    expect(result.current.progress).toBeCloseTo(0.2);
+    finishRenders(result.current.beginPageRender, 4);
+    expect(result.current.progress).toBeCloseTo(0.2);
+    act(() => result.current.gesture.cancel(13));
+    act(() => result.current.finishTransition());
+    expect(result.current.anchorPage).toBe(3);
+  });
+
+  it("takes over in reverse without jumping to the previous turn's endpoint", () => {
+    const onPageChange = vi.fn();
+    const { result } = renderPager(onPageChange);
+    finishRenders(result.current.beginPageRender, 2, 3);
+    act(() => result.current.request("next"));
+    flushFrame();
+    act(() => result.current.gesture.begin(sample(14, 500, 300, 10)));
+    act(() => result.current.gesture.move({ ...sample(14, 670, 300, 410), visualProgress: -0.7 }));
+    expect(result.current.anchorPage).toBe(3);
+    expect(result.current.progress).toBeCloseTo(0.47);
+    expect(result.current.targetPage).toBe(2);
+    act(() => result.current.gesture.end(sample(14, 670, 300, 420)));
+    flushFrame();
+    act(() => result.current.finishTransition());
+    expect(onPageChange.mock.calls.map(([page]) => page)).toEqual([3, 2]);
+  });
+
+  it("keeps a second short swipe while the first is preparing without bypassing admission", async () => {
+    let admit!: (allowed: boolean) => void;
+    const onPageChange = vi.fn();
+    const { result } = renderPager(onPageChange, {
+      beforePageChange: () => new Promise<boolean>(resolve => { admit = resolve; }),
+    });
+    finishRenders(result.current.beginPageRender, 3, 4);
+    act(() => result.current.request("next"));
+    flushFrame();
+    act(() => result.current.gesture.begin(sample(12, 500, 300, 10)));
+    act(() => result.current.gesture.move(sample(12, 330, 300, 410)));
+    act(() => result.current.gesture.end(sample(12, 330, 300, 420)));
+    expect(onPageChange).not.toHaveBeenCalled();
+    await act(async () => admit(true));
+    act(() => result.current.finishTransition());
+    expect(onPageChange).toHaveBeenLastCalledWith(3);
+    expect(result.current.targetPage).toBe(4);
+  });
+
+  it("queues a swipe during a distant page jump without rebasing unrelated paper", () => {
+    const onPageChange = vi.fn();
+    const { result } = renderPager(onPageChange);
+    finishRenders(result.current.beginPageRender, 5, 6);
+    act(() => result.current.request(5));
+    flushFrame();
+    act(() => result.current.gesture.begin(sample(15, 500, 300, 10)));
+    act(() => result.current.gesture.move({ ...sample(15, 330, 300, 410), visualProgress: -0.7 }));
+    expect(result.current.phase).toBe("settling");
+    expect(result.current.anchorPage).toBe(2);
+    act(() => result.current.gesture.end(sample(15, 330, 300, 420)));
+    act(() => result.current.finishTransition());
+    expect(onPageChange).toHaveBeenLastCalledWith(5);
+    expect(result.current.targetPage).toBe(6);
+  });
+
   it("keeps the minimal page window aligned while a drag commits", () => {
     const onPageChange = vi.fn();
     const { result } = renderPager(onPageChange);
