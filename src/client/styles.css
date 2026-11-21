@@ -2664,6 +2664,7 @@ h1 {
   touch-action: none;
 }
 
+.annotation-overlay[data-pencil-entry] svg,
 .annotation-overlay[data-editing] svg {
   pointer-events: auto;
 }

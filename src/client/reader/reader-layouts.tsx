@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import { useMessages } from "../../i18n";
 import { AnnotationPages, AnnotationPagesContext } from "../annotations/annotation-pages";
 import { usePdfPageAspectRatio } from "./use-pdf-page-geometry";
@@ -53,6 +54,7 @@ export interface AnnotationPageProps {
   layers: AnnotationLayerSummary[];
   annotations: LocalAnnotationRecord[];
   editing: boolean;
+  onPencilStart?(): void;
   tool: AnnotationTool;
   toolColor?: string;
   toolStyle?: ToolStyle;
@@ -211,7 +213,7 @@ export function PageLayout({
                       fitViewport={item.position === 0 ? undefined : size}
                       turn={item.position === 0 ? undefined : { position: item.position, progress: pager.progress }}
                       aspectRatio={item.page === currentPage ? pageRatio : undefined}
-                      annotationProps={item.position === 0 ? annotationProps : { ...annotationProps, editing: false }}
+                      annotationProps={{ ...annotationProps, editing: item.position === 0 && annotationProps.editing, onPencilStart: item.position === 0 && pager.phase === "idle" ? annotationProps.onPencilStart : undefined }}
                       interactionRef={annotationProps.editing && item.position === 0 ? noteInteraction : undefined}
                       onPageRenderStart={pager.beginPageRender}
                     />
@@ -553,6 +555,12 @@ function AnnotatedPdfPage({
   return (
     <div
       className="annotated-pdf-page"
+      onPointerDownCapture={event => {
+        if (event.pointerType !== "pen" || event.button !== 0 || !annotationProps.onPencilStart) return;
+        // Commit the existing editor before this same event reaches the SVG.
+        // Its bubble handler then records the initial contact without replay.
+        flushSync(annotationProps.onPencilStart);
+      }}
       style={{
         width: renderedWidth,
         height: renderedWidth / resolvedAspectRatio,
@@ -575,7 +583,7 @@ function AnnotatedPdfPage({
         <AnnotationOverlay
           {...annotationProps}
           interactionRef={interactionRef}
-          key={`${pageNumber}:${annotationProps.editing ? `edit:${annotationProps.activeLayerId}` : "read"}`}
+          key={pageNumber}
           pageNumber={pageNumber}
           pageAspectRatio={resolvedAspectRatio}
         />

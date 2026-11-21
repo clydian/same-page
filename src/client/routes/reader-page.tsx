@@ -266,7 +266,7 @@ function ReaderPageContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [editing, layout, moreOpen, playbackEntryOpen, guide.visible, readerPanel, requestPage, setZoom, showingPlayback, comparing]);
 
-  const beginEditing = () => {
+  const beginEditing = (pencil = false) => {
     if (cloudState === "trashed") {
       reportOutcome("trash-preserved");
       return;
@@ -275,10 +275,11 @@ function ReaderPageContent() {
     const preferenceKey = `reader-edit-layer:${workspace.scopeKey}`;
     const rememberedLayerId = readStringPreference(preferenceKey);
     const editableLayer =
-      layers.find((layer) => layer.id === rememberedLayerId && layer.canEdit) ??
+      layers.find((layer) => layer.id === rememberedLayerId && layer.canEdit && (!pencil || layer.kind === "personal")) ??
       layers.find((layer) => layer.kind === "personal" && layer.canEdit) ??
-      layers.find((layer) => layer.canEdit);
+      (pencil ? undefined : layers.find((layer) => layer.canEdit));
     if (!editableLayer || !editor?.begin()) return;
+    if (pencil || tool === "eraser") setTool("ink");
     setChromeVisible(true);
     setMoreOpen(false);
     setReaderPanel(null);
@@ -390,6 +391,9 @@ function ReaderPageContent() {
     setActiveLayerId(layerId);
     writeStringPreference(`reader-edit-layer:${workspace.scopeKey}`, layerId);
   };
+  const canEnterWithPencil = !editing && layout === "page" && !guestReadOnly && !practicing &&
+    !moreOpen && !playbackEntryOpen && !readerPanel && !exportOpen && !conflictOpen && !guide.visible &&
+    cloudState !== "trashed" && persistence !== "finishing" && layers.some(layer => layer.kind === "personal" && layer.canEdit);
   const annotationPageProps: AnnotationPageProps = {
     layers,
     annotations,
@@ -397,6 +401,7 @@ function ReaderPageContent() {
     tool,
     toolColor,
     toolStyle,
+    onPencilStart: canEnterWithPencil ? () => beginEditing(true) : undefined,
     onTextStyleChange: value => setToolStyle({ ...toolStyle, ...value }),
     activeLayerId,
     onInteractionChange: setAnnotationInteraction,
