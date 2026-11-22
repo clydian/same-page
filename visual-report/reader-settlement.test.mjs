@@ -129,6 +129,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         }
         await gesture(viewport, native, 0.1);
         await fitted(viewport, paper);
+        if (layout === "page") await expect(viewport.locator("[data-page-turn-current]")).toHaveAttribute("data-page-number", "1");
         if (native) {
           await viewport.evaluate(e => { e.scrollTop = e.scrollHeight; });
           await expect(page.locator(".reader-page-indicator")).toHaveText(/^2\s*\//);
