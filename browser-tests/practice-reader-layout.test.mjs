@@ -42,18 +42,20 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     } else {
       // WebKit's automation protocol has no multi-touch input command.
       await page.locator('.practice-notation-scroll').evaluate((element,{from,to}) => {
-        const points = distance => [-1,1].map((side,index) => new Touch({
+        const points = distance => [-1,1].map((side,index) => ({
           identifier:index+1,target:element,clientX:195+side*distance/2,clientY:300,
         }));
-        const send = (type,touches,changedTouches) => element.dispatchEvent(new TouchEvent(type,{
-          bubbles:true,cancelable:true,touches,targetTouches:touches,changedTouches,
-        }));
-        const start = points(from), moved = points(to);
+        const send = (type,touches) => {
+          const event = new Event(type,{bubbles:true,cancelable:true});
+          Object.defineProperty(event,'touches',{value:touches});
+          element.dispatchEvent(event);
+        };
+        const start = points(from);
         // Start a new contact sequence before joining the second finger.
-        send('touchstart',[start[0]],[start[0]]);
-        send('touchstart',start,[start[1]]);
-        send('touchmove',moved,moved);
-        send('touchend',[],moved);
+        send('touchstart',[start[0]]);
+        send('touchstart',start);
+        send('touchmove',points(to));
+        send('touchend',[]);
       },{from,to});
     }
   };
