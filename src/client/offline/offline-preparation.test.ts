@@ -2,7 +2,8 @@ import { Blob as NodeBlob } from 'node:buffer';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { OfflinePreparation, revokeOfflinePreparationIdentity } from './offline-score';
 import { localDatabase } from '../platform/local-database';
-import { activateAuthenticatedLocalOwner, createLocalWorkspace, resolveLocalWorkspace } from '../platform/local-workspace';
+import { activateAuthenticatedLocalOwner, createLocalWorkspace, experienceOwnerKey, resolveLocalWorkspace } from '../platform/local-workspace';
+import { clearLocalFiles } from './local-files';
 import { sha256Hex, findVerifiedOfflineScore } from './offline-score-verification';
 
 const clients: OfflinePreparation[] = [];
@@ -26,8 +27,25 @@ async function fixture(userId: string | null = null) {
     return new Response(null, { status: 404 });
   }));
   const client = (target = score, scope = workspace, identity = userId) => { const value = new OfflinePreparation(scope, target, identity); clients.push(value); return value; };
-  return { workspace, score, client, finish: () => finish(), takeFinish: () => finish, signal: () => signal, downloads: () => downloads };
+  return { workspace, score, bytes, client, finish: () => finish(), takeFinish: () => finish, signal: () => signal, downloads: () => downloads };
 }
+
+it.each(['cleanup', 'session loss'])('fences a detached library open after %s', async reason => {
+  const f = await fixture('a');
+  const workspace = createLocalWorkspace(experienceOwnerKey(f.workspace.ownerKey), 'drive', 'score');
+  const opened = f.client(f.score, workspace);
+  let resume!: () => void;
+  const provideBytes = vi.fn(() => new Promise<Uint8Array>(resolve => { resume = () => resolve(f.bytes); }));
+  const pending = opened.prepare('opened', provideBytes);
+  opened.dispose();
+  await vi.waitFor(() => expect(provideBytes).toHaveBeenCalledOnce());
+  if (reason === 'cleanup') await clearLocalFiles(workspace);
+  else revokeOfflinePreparationIdentity('a');
+  resume();
+  expect((await pending).phase).not.toBe('ready');
+  expect(await findVerifiedOfflineScore(workspace)).toBeNull();
+  expect(f.downloads()).toBe(0);
+});
 it('shares an automatic preparation with explicit intent and completes after both callers leave', async () => {
   const f = await fixture();
   const reader = f.client();
