@@ -57,8 +57,34 @@ describe('pitch and feedback', () => {
   it('detects pitch locally and leaves silence unvoiced', () => {
     expect(read(tone(69))).toBeCloseTo(69, 2);
     expect(read(tone(57.38))).toBeCloseTo(57.38, 2);
-    expect(read(new Float32Array(pitchWindowSize))).toBeNull();
-    expect(assessNotes(notes, []).map(row => row.status)).toEqual(notes.map(() => 'missed'));
+    const silence = read(new Float32Array(pitchWindowSize));
+    expect(silence).toBeNull();
+    const frames = notes.map(note => ({ time: (note.start + note.end) / 2, midi: silence }));
+    expect(assessNotes(notes, frames).map(row => row.status)).toEqual(notes.map(() => 'missed'));
+  });
+  it('distinguishes missing frames from sampled silence in consecutive thirty-second notes', () => {
+    const pitches = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65];
+    const secondsPerNote = 60 / 120 / 8;
+    const shortNotes = pitches.map((midi, index) => ({
+      midi, start: index * secondsPerNote, end: (index + 1) * secondsPerNote, bar: 0, visit: 0,
+    }));
+    const hop = pitchWindowSize / 2;
+    for (const [rate, unscored] of [[48000, [7, 9]], [44100, [9, 12]]] as const) {
+      const frames = [];
+      for (let sample = hop; sample < 2 * rate; sample += hop) {
+        const time = sample / rate;
+        frames.push({ time, midi: pitches[Math.floor(time / secondsPerNote)] ?? null });
+      }
+      const review = assessNotes(shortNotes, frames);
+      expect(review.map(row => row.status)).toEqual(pitches.map((_, index) =>
+        unscored.some(number => number === index + 1) ? 'insufficientData' : 'inTune'));
+      for (const number of unscored) {
+        expect(review[number - 1]).toMatchObject({ sung: null, cents: null, interval: null });
+        if (number < review.length) expect(review[number].interval).toBeNull();
+      }
+      const sampledSilence = [{ ...frames[0], midi: null }, ...frames.slice(1)];
+      expect(assessNotes(shortNotes, sampledSilence)[0].status).toBe('missed');
+    }
   });
   it('reports pitch and interval independently and breaks interval feedback across a missed note', () => {
     const result = assessNotes(notes, [

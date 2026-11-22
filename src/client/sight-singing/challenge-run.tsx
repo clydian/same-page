@@ -91,6 +91,7 @@ export function ChallengeRun({ document, voice, melody, visitLabel }: {
   const measure = melody.measures[melody.measures.findIndex(bar => elapsed < bar.end)] ?? melody.measures[melody.measures.length - 1];
   const target = melody.notes.find(note => note.start <= elapsed && elapsed < note.end);
   const review = state.phase === 'result' ? assessNotes(melody.notes, state.frames) : null;
+  const unscored = review?.filter(row => row.status === 'insufficientData').length ?? 0;
   const signed = (cents: number) => cents > 0 ? `+${cents}` : String(cents);
   const missing = '—';
 
@@ -121,7 +122,8 @@ export function ChallengeRun({ document, voice, melody, visitLabel }: {
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
     {state.phase === 'result' && review && <section className="challenge-review" aria-labelledby="challenge-review-title">
       <h3 id="challenge-review-title">{t('sight.review')}</h3>
-      <p>{t('sight.summary', { matched: review.filter(row => row.status === 'inTune').length, total: review.length })}</p>
+      {review.length > unscored && <p>{t('sight.summary', { matched: review.filter(row => row.status === 'inTune').length, total: review.length - unscored })}</p>}
+      {unscored > 0 && <p>{t('sight.unscoredCount', { count: unscored })}</p>}
       <audio ref={replay} controls controlsList="nodownload noremoteplayback" preload="metadata" src={state.url} aria-label={t('sight.replay')}
         onTimeUpdate={event => setReplayTime(event.currentTarget.currentTime)}
         onPlay={() => { const stop = run.current; run.current = null; stop?.(); setPreviewing(false); }} />

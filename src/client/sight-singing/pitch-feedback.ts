@@ -27,8 +27,14 @@ export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
       const midi = frames[cursor++].midi;
       if (midi !== null) pitches.push(midi);
     }
+    const sampled = cursor - first;
+    // A short note's scoring window may fall between pitch analysis frames.
+    if (sampled === 0) {
+      previous = null;
+      return { note, sung: null, cents: null, interval: null, status: 'insufficientData' } as const;
+    }
     pitches.sort((a, b) => a - b);
-    const voiced = pitches.length > 0 && pitches.length / (cursor - first) >= .5;
+    const voiced = pitches.length / sampled >= .5;
     const sung = voiced ? (pitches[Math.floor((pitches.length - 1) / 2)] + pitches[Math.floor(pitches.length / 2)]) / 2 : null;
     const cents = sung === null ? null : Math.round((sung - note.midi) * 100);
     const interval = sung === null || previous === null ? null : Math.round((sung - previous - (note.midi - notes[index - 1].midi)) * 100);
