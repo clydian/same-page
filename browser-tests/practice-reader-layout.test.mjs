@@ -27,6 +27,9 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   await expect(page.locator('.practice-measure-label').nth(1)).toHaveText('25');
   const size = page.getByRole('button',{name:'谱面大小',exact:true});
   await expect(size).toHaveText('60%');
+  const paper = page.locator('.practice-notation-paper');
+  const restoreZoom = page.getByRole('button',{name:'恢复查看比例',exact:true});
+  const resumeFollow = page.getByRole('button',{name:'恢复自动跟随',exact:true});
   // Magnify existing SVGs without changing their layout or engraving size.
   const pinch = async (from, to) => {
     if (engine === 'chromium') {
@@ -39,13 +42,20 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
     } else {
       // WebKit's automation protocol has no multi-touch input command.
       await page.locator('.practice-notation-scroll').evaluate((element,{from,to}) => {
-        const send = (type,distance) => {
-          const touches = distance ? [{identifier:1,target:element,clientX:195-distance/2,clientY:300},{identifier:2,target:element,clientX:195+distance/2,clientY:300}] : [];
+        const points = distance => [-1,1].map((side,index) => ({
+          identifier:index+1,target:element,clientX:195+side*distance/2,clientY:300,
+        }));
+        const send = (type,touches) => {
           const event = new Event(type,{bubbles:true,cancelable:true});
           Object.defineProperty(event,'touches',{value:touches});
           element.dispatchEvent(event);
         };
-        send('touchstart',from);send('touchmove',to);send('touchend',0);
+        const start = points(from);
+        // Start a new contact sequence before joining the second finger.
+        send('touchstart',[start[0]]);
+        send('touchstart',start);
+        send('touchmove',points(to));
+        send('touchend',[]);
       },{from,to});
     }
   };
@@ -55,22 +65,37 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   const engravingBefore = await engravingPositions();
   await pinch(80,120);
   await expect(size).toHaveText('60%');
-  await expect(page.locator('.practice-notation-paper')).toHaveCSS('transform', 'matrix(1.5, 0, 0, 1.5, 0, 0)');
+  await expect(paper).toHaveCSS('transform', 'matrix(1.5, 0, 0, 1.5, 0, 0)');
   assert.equal(await engraving.evaluate(e => e.isConnected), true, 'pinch retains mounted SVGs; lazy rendering of additional systems remains allowed');
   assert.deepEqual(await engravingPositions(), engravingBefore, 'pinch retains measure positions and line breaks');
-  await expect(page.getByRole('button',{name:'恢复查看比例',exact:true})).toBeVisible();
+  await expect(restoreZoom).toBeVisible();
   assert.equal(await page.evaluate(()=>visualViewport.scale),1,'pinch never magnifies the whole page');
   assert.deepEqual(await bar.boundingBox(),chromeBefore,'playback controls retain their geometry');
   await page.locator('.practice-notation .b1').first().click();
   await expect(bar.getByRole('slider',{name:'播放进度',exact:true})).toHaveValue('1');
+  // The size label stays at 60% throughout rotation. Wait for the paper and its rendered measures.
+  const paperWidth = () => paper.evaluate(element => parseFloat(element.style.width));
+  const portraitWidth = await paperWidth();
+  const engravedRows = positions => new Set(positions.map(([,top]) => top)).size;
+  const portraitRows = engravedRows(engravingBefore);
   await page.setViewportSize({width:844,height:390});
-  await expect(page.getByRole('button',{name:'恢复查看比例',exact:true})).toHaveCount(0);
+  await expect.poll(paperWidth).toBeGreaterThan(portraitWidth);
+  await expect.poll(async () => {
+    const positions = await engravingPositions();
+    return positions.length === engravingBefore.length && engravedRows(positions) < portraitRows;
+  }).toBe(true);
+  await expect(restoreZoom).toHaveCount(0);
   await page.setViewportSize({width:390,height:844});
+  await expect.poll(paperWidth).toBe(portraitWidth);
+  await expect.poll(engravingPositions).toEqual(engravingBefore);
+  await expect(resumeFollow).toHaveCount(0);
+  await pinch(80,120);
+  await expect(paper).toHaveCSS('transform', 'matrix(1.5, 0, 0, 1.5, 0, 0)');
   await expect(size).toHaveText('60%');
-  await pinch(120,80);
-  await expect(size).toHaveText('60%');
-  await expect(page.getByRole('button',{name:'恢复自动跟随',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'恢复自动跟随',exact:true}).click();
+  await expect(resumeFollow).toBeVisible();
+  await resumeFollow.click();
+  await expect(resumeFollow).toHaveCount(0);
+  await expect(restoreZoom).toHaveCount(0);
   if (engine === 'chromium') {
     const scroll = page.locator('.practice-notation-scroll');
     const cdp = await context.newCDPSession(page);
