@@ -1,0 +1,63 @@
+.challenge-page { max-width: 58rem; padding-block-end: 3rem; }
+.challenge-page h2, .challenge-page h3 { margin: 0; }
+.challenge-library-header, .challenge-workspace-header, .challenge-actions {
+  display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+}
+.challenge-library-header, .challenge-workspace-header { justify-content: space-between; margin-block-end: 1rem; }
+.challenge-library-header p, .challenge-source, .challenge-privacy, .challenge-empty { color: var(--muted); }
+.challenge-library-header p { margin: .3rem 0 0; }
+.challenge-workspace-header > h2 { flex: 1 1 12rem; overflow-wrap: anywhere; }
+.challenge-workspace-header > .text-button { flex-basis: 100%; text-align: start; }
+.challenge-empty, .challenge-list, .challenge-form, .challenge-run {
+  background: var(--ui-surface, var(--surface)); border: 1px solid var(--line); border-radius: 1rem;
+}
+.challenge-empty, .challenge-form, .challenge-run { padding: clamp(.75rem, 2.5vw, 1.25rem); }
+.challenge-list { list-style: none; padding: 0; overflow: hidden; }
+.challenge-list li + li { border-block-start: 1px solid var(--line); }
+.challenge-question {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
+  gap: .8rem; padding: .8rem 1rem; min-height: 52px; border: 0; width: 100%;
+  color: var(--ink); background: transparent; font: inherit; text-align: start; cursor: pointer;
+}
+.challenge-question span { overflow-wrap: anywhere; }
+.challenge-question:hover { background: var(--ui-surface-muted, var(--wash)); }
+.challenge-question:focus-visible { outline-offset: -3px; }
+.challenge-form { display: grid; gap: .45rem; max-width: 36rem; }
+.challenge-form label { font-weight: 600; }
+.challenge-form > label:not(:first-child), .challenge-range { margin-block-start: .55rem; }
+.challenge-form input, .challenge-form select {
+  box-sizing: border-box; width: 100%; min-width: 0; min-height: 48px; padding: .5rem .75rem;
+  border: 1px solid var(--line); border-radius: .6rem; background: var(--surface); color: var(--ink);
+  font: inherit; font-size: max(1rem, 1em);
+}
+.challenge-range { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .75rem; }
+.challenge-range > div { display: grid; gap: .45rem; }
+.challenge-actions { margin-block-start: .85rem; }
+.challenge-actions button, .challenge-library-header button { display: inline-flex; align-items: center; gap: .45rem; min-height: 48px; }
+.challenge-error { color: var(--ui-danger, #a33535); }
+.challenge-privacy, .challenge-source { margin-block: .25rem .65rem; }
+.challenge-notation {
+  background: #fff; color: #171a19; max-height: 18rem; overflow: auto;
+  border: 1px solid var(--line); border-radius: .55rem;
+}
+.challenge-notation-sheet { position: relative; }
+.challenge-notation-cursor { position: absolute; background: #3b9c8540; border-inline-start: 2px solid #277260; pointer-events: none; }
+.challenge-stage { margin-block: .85rem .3rem; font-weight: 650; }
+.challenge-pitches { display: flex; flex-wrap: wrap; gap: .3rem 1rem; color: var(--muted); }
+.challenge-graph { margin: .75rem 0 0; }
+.challenge-graph canvas {
+  display: block; width: 100%; height: clamp(6.5rem, 19vw, 10.875rem);
+  background: var(--ui-surface-muted, var(--wash)); border: 1px solid var(--line); border-radius: .55rem;
+}
+.challenge-graph figcaption { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-block-start: .5rem; color: var(--muted); font-size: .85rem; }
+.challenge-graph figcaption span::before {
+  content: ''; display: inline-block; width: .7rem; height: .45rem; margin-inline-end: .35rem; border-radius: .2rem; background: #548d85;
+}
+.challenge-graph figcaption span + span::before { background: #cf673c; }
+.challenge-review { margin-block-start: 1.4rem; border-block-start: 1px solid var(--line); padding-block-start: 1rem; }
+.challenge-review p { margin-block: .45rem .7rem; }
+.challenge-review audio { max-width: 100%; }
+.challenge-results { overflow-x: auto; margin-block-start: .75rem; }
+.challenge-results table { border-collapse: collapse; width: 100%; text-align: start; font-variant-numeric: tabular-nums; }
+.challenge-results th, .challenge-results td { padding: .5rem .55rem; text-align: start; border-block-end: 1px solid var(--line); }
+.challenge-results th { color: var(--muted); font-weight: 600; font-size: .85rem; }

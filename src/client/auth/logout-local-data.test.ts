@@ -1,3 +1,4 @@
+import { readQuestions, saveQuestion } from "../sight-singing/questions";
 import { storeOfflineScore } from "../platform/local-database";
 import { markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "../score-library/attachments/markdown-drafts";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -197,4 +198,21 @@ it("fences delayed identity activation and an old session until a new login succ
   await expect(activateAuthenticatedLocalOwner("revoked-user")).rejects.toThrow("local_workspace_owner_changed");
   expect(await acceptNewSession("revoked-user", "new-session")).toBe(true);
   await expect(activateAuthenticatedLocalOwner("revoked-user")).resolves.toBe("user:revoked-user");
+});
+
+
+it("scopes sight-singing questions by local owner and drive and clears the signing-out owner", async () => {
+  const question = { id: "question", title: "Local practice", scoreId: "score", attachmentId: "xml", revision: 2, voice: "0:0:0", first: 1, last: 3 };
+  const signal = new AbortController().signal;
+  await saveQuestion("user:user-1", "choir-1", question, signal);
+  expect(await readQuestions("user:user-1", "choir-2")).toEqual([]);
+  await activateAuthenticatedLocalOwner("user-2");
+  expect(await readQuestions("user:user-1", "choir-1")).toEqual([]);
+  await expect(saveQuestion("user:user-1", "choir-1", question, signal)).rejects.toThrow("local_workspace_owner_changed");
+  await saveQuestion("user:user-2", "choir-1", question, signal);
+  await clearPrivateLocalDataAfterLogout();
+  await activateAuthenticatedLocalOwner("user-1");
+  expect(await readQuestions("user:user-1", "choir-1")).toEqual([question]);
+  await activateAuthenticatedLocalOwner("user-2");
+  expect(await readQuestions("user:user-2", "choir-1")).toEqual([]);
 });

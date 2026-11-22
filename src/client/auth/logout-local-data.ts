@@ -1,3 +1,4 @@
+import { isSightSingingQuestionKey } from "../sight-singing/questions";
 import { clearUserAppearance } from "../appearance/appearance-store";
 import { membershipSnapshotKey } from "../score-library/membership-directory";
 import { isMusicXmlFileKey } from "../platform/musicxml-files";
@@ -67,7 +68,7 @@ export async function clearPrivateLocalDataAfterLogout() {
       localDatabase.offlineSnapshots,
     ],
     async () => {
-      await localDatabase.system.filter(record => owners.some(owner => record.key === membershipSnapshotKey(owner) || isAttachmentDirectoryKey(record.key, owner) || isMusicXmlFileKey(record.key, owner) || record.key.startsWith(JSON.stringify(["reading-defaults", owner]).slice(0, -1)) || record.key.startsWith(JSON.stringify(["reading-preference-version", owner]).slice(0, -1)))).delete();
+      await localDatabase.system.filter(record => owners.some(owner => record.key === membershipSnapshotKey(owner) || isAttachmentDirectoryKey(record.key, owner) || isMusicXmlFileKey(record.key, owner) || isSightSingingQuestionKey(record.key, owner) || record.key.startsWith(JSON.stringify(["reading-defaults", owner]).slice(0, -1)) || record.key.startsWith(JSON.stringify(["reading-preference-version", owner]).slice(0, -1)))).delete();
       await localDatabase.readingPreferences.where("ownerKey").anyOf(owners).delete();
       await localDatabase.driveDirectories.where("ownerKey").anyOf(owners).delete();
       const offlineScores = await localDatabase.offlineScores

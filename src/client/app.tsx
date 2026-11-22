@@ -28,6 +28,7 @@ const HelpPage = lazy(() => import("./routes/help-page"));
 const DriveManagementPage = lazy(() => import("./routes/drive-management-page"));
 const AboutPage = lazy(() => import("./routes/about-page"));
 const AppearancePage = lazy(() => import("./routes/appearance-page"));
+const SightSingingPage = lazy(() => import("./sight-singing/sight-singing-page"));
 const PersonalSettingsPage = lazy(() => import("./routes/personal-settings-page"));
 const LeaveDrivePage = lazy(() => import("./routes/leave-drive-page"));
 const UserLifecyclePage = lazy(() => import("./routes/user-lifecycle-page"));
@@ -71,6 +72,7 @@ export function AppRoutes() {
             <Route path="/" element={<RouteContent><HomePage startup={startup} /></RouteContent>} />
             <Route path="/drives" element={<RouteContent><DriveEntryPage /></RouteContent>} />
             <Route path="/choirs/:choirId/storage" element={<RouteContent><LocalStoragePage /></RouteContent>} />
+            <Route path="/choirs/:choirId/sight-singing" element={<RouteContent><SightSingingPage /></RouteContent>} />
             <Route path="/choirs/:choirId/me" element={<RouteContent><LeaveDrivePage /></RouteContent>} />
             <Route path="/install" element={<RouteContent><InstallPage /></RouteContent>} />
             <Route path="/help" element={<RouteContent><HelpPage /></RouteContent>} />

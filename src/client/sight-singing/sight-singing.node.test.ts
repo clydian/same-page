@@ -1,0 +1,92 @@
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import { zipSync } from 'fflate';
+import { describe, expect, it } from 'vitest';
+import { buildMelody, loadMelodyScore, type Melody } from './melody';
+import { assessNotes, createPitchReader, frequency, pitchWindowSize } from './pitch-feedback';
+
+const bytes = (text: string) => new TextEncoder().encode(text);
+const pitch = (step: string, octave = 4) => `<pitch><step>${step}</step><octave>${octave}</octave></pitch>`;
+const note = (step: string, tie?: 'start' | 'stop') => `<note>${pitch(step)}<duration>1</duration>${tie ? `<tie type="${tie}"/>` : ''}<type>quarter</type>${tie ? `<notations><tied type="${tie}"/></notations>` : ''}</note>`;
+const xml = `<?xml version="1.0"?><score-partwise version="4.0">
+<part-list><score-part id="P1"><part-name>Soprano</part-name></score-part><score-part id="P2"><part-name>Alto</part-name></score-part></part-list>
+<part id="P1"><measure number="0" implicit="yes"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><direction><sound tempo="120"/></direction>${note('A')}</measure>
+<measure number="1"><barline location="left"><repeat direction="forward"/></barline>${note('C', 'start')}<direction><sound tempo="60"/></direction>${note('C', 'stop')}</measure>
+<measure number="2"><note><rest/><duration>1</duration><type>quarter</type></note>${note('G')}<barline location="right"><repeat direction="backward"/></barline></measure></part>
+<part id="P2"><measure number="0" implicit="yes"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes>${note('G')}</measure>
+<measure number="1">${note('F')}<note><chord/>${pitch('A')}<duration>1</duration><type>quarter</type></note>${note('E')}</measure>
+<measure number="2">${note('F')}${note('D')}</measure></part></score-partwise>`;
+
+function melodyOf(input: string | Uint8Array = xml, first = 0, last = 4) {
+  const document = loadMelodyScore(typeof input === 'string' ? bytes(input) : input);
+  const melody = buildMelody(document, document.voices[0], first, last);
+  if (typeof melody === 'string') throw new Error(melody);
+  return { document, melody };
+}
+
+it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score timeline', () => {
+  const { document, melody } = melodyOf();
+  expect(document.visits).toEqual([
+    { number: '0' }, { number: '1', visit: 1 }, { number: '2', visit: 1 }, { number: '1', visit: 2 }, { number: '2', visit: 2 },
+  ]);
+  expect(document.voices.map(voice => voice.name)).toEqual(['Soprano', 'Alto']);
+  expect(melody.notes.slice(0, 3)).toEqual([
+    { midi: 69, start: 0, end: .5, visit: 0, bar: 0 },
+    { midi: 60, start: .5, end: 2, visit: 1, bar: 1 },
+    { midi: 67, start: 3, end: 4, visit: 2, bar: 2 },
+  ]);
+  const secondPass = buildMelody(document, document.voices[0], 3, 4) as Melody;
+  expect(secondPass.notes[0]).toMatchObject({ start: 0, visit: 3 });
+  expect(secondPass.notes[1].start).toBe(secondPass.measures[1].start + 1);
+  expect(buildMelody(document, document.voices[1], 1, 1)).toBe('ambiguousMelody');
+});
+
+it('accepts a compressed MusicXML attachment using the existing importer', () => {
+  const compressed = zipSync({
+    'META-INF/container.xml': bytes('<container><rootfiles><rootfile full-path="music.xml" media-type="application/vnd.recordare.musicxml+xml"/></rootfiles></container>'),
+    'music.xml': bytes(xml),
+  });
+  expect(melodyOf(compressed).melody).toEqual(melodyOf(xml).melody);
+});
+
+describe('pitch and feedback', () => {
+  const sampleRate = 48000;
+  const tone = (midi: number) => Float32Array.from({ length: pitchWindowSize }, (_, i) => .25 * Math.sin(2 * Math.PI * i * frequency(midi) / sampleRate));
+  const read = createPitchReader(sampleRate);
+  const notes = melodyOf().melody.notes;
+  it('detects pitch locally and leaves silence unvoiced', () => {
+    expect(read(tone(69))).toBeCloseTo(69, 2);
+    expect(read(tone(57.38))).toBeCloseTo(57.38, 2);
+    expect(read(new Float32Array(pitchWindowSize))).toBeNull();
+    expect(assessNotes(notes, []).map(row => row.status)).toEqual(notes.map(() => 'missed'));
+  });
+  it('reports pitch and interval independently and breaks interval feedback across a missed note', () => {
+    const result = assessNotes(notes, [
+      { time: .2, midi: 69.35 }, { time: .3, midi: 69.35 },
+      { time: 1, midi: 61 }, { time: 1.5, midi: 61 },
+      { time: 3.4, midi: null }, { time: 4.5, midi: 60 },
+    ]);
+    expect(result.slice(0, 3).map(({ status, cents, interval }) => ({ status, cents, interval }))).toEqual([
+      { status: 'sharp', cents: 35, interval: null }, { status: 'wrongNote', cents: 100, interval: 65 }, { status: 'missed', cents: null, interval: null },
+    ]);
+    expect(result[3].interval).toBe(null);
+  });
+});
+
+it('counts on input samples and captures exactly the selected duration without count-in samples', () => {
+  type Packet = { count?: number; samples?: Float32Array; done?: boolean };
+  const messages: Packet[] = [];
+  let create: new (options: { processorOptions: { beatFrames: number; beats: number; durationFrames: number } }) => { process(inputs: Float32Array[][]): boolean };
+  runInNewContext(readFileSync(new URL('./capture-processor.js', import.meta.url), 'utf8'), {
+    AudioWorkletProcessor: class { port = { postMessage: (message: Packet) => messages.push(message) }; },
+    registerProcessor: (_name: string, implementation: typeof create) => { create = implementation; },
+  });
+  const processor = new create!({ processorOptions: { beatFrames: 100, beats: 2, durationFrames: 2051 } });
+  expect(processor.process([])).toBe(true);
+  expect(processor.process([[new Float32Array(2255).map((_, i) => i)]])).toBe(false);
+  expect(messages.slice(0, 2)).toEqual([{ count: 2 }, { count: 1 }]);
+  expect(messages[2].samples?.length).toBe(2048);
+  expect(messages[2].samples?.[0]).toBe(200);
+  expect(Array.from(messages[3].samples ?? [])).toEqual([2248, 2249, 2250]);
+  expect(messages[3].done).toBe(true);
+});
