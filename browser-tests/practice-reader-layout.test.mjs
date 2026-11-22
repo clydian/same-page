@@ -73,14 +73,21 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) test(
   assert.deepEqual(await bar.boundingBox(),chromeBefore,'playback controls retain their geometry');
   await page.locator('.practice-notation .b1').first().click();
   await expect(bar.getByRole('slider',{name:'播放进度',exact:true})).toHaveValue('1');
-  // The size label stays at 60% throughout rotation. Wait for the measured paper width.
+  // The size label stays at 60% throughout rotation. Wait for the paper and its rendered measures.
   const paperWidth = () => paper.evaluate(element => parseFloat(element.style.width));
   const portraitWidth = await paperWidth();
+  const engravedRows = positions => new Set(positions.map(([,top]) => top)).size;
+  const portraitRows = engravedRows(engravingBefore);
   await page.setViewportSize({width:844,height:390});
   await expect.poll(paperWidth).toBeGreaterThan(portraitWidth);
+  await expect.poll(async () => {
+    const positions = await engravingPositions();
+    return positions.length === engravingBefore.length && engravedRows(positions) < portraitRows;
+  }).toBe(true);
   await expect(restoreZoom).toHaveCount(0);
   await page.setViewportSize({width:390,height:844});
   await expect.poll(paperWidth).toBe(portraitWidth);
+  await expect.poll(engravingPositions).toEqual(engravingBefore);
   await expect(resumeFollow).toHaveCount(0);
   await pinch(80,120);
   await expect(paper).toHaveCSS('transform', 'matrix(1.5, 0, 0, 1.5, 0, 0)');
