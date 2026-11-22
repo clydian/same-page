@@ -14,6 +14,7 @@ export interface ReaderZoomGeometry {
 }
 export interface ReaderZoomGesture {
   update(center: ReaderPoint, scale: number): void;
+  withdrawPreview(): void;
   finish(): void;
 }
 interface ZoomPreview {
@@ -162,6 +163,11 @@ export function useReaderZoom({ containerRef, contentRef, previewBoundaryRef,
           };
           session.preview = next;
           paintPreview(session, next);
+        },
+        withdrawPreview() {
+          if (active.current !== session || session.pending) return;
+          session.preview = null;
+          clearPreview(session);
         },
         finish() {
           if (active.current !== session || session.pending) return;
