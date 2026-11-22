@@ -140,12 +140,16 @@ describe("usePagedReader", () => {
 
   it("takes over a settling turn at its painted position and accepts a second light swipe", () => {
     const onPageChange = vi.fn();
+    const visualProgress = vi.fn(() => -0.7);
     const { result } = renderPager(onPageChange);
     finishRenders(result.current.beginPageRender, 1, 2, 3, 4);
     act(() => result.current.request("next"));
     flushFrame();
     act(() => result.current.gesture.begin(sample(11, 500, 300, 10)));
-    act(() => result.current.gesture.move({ ...sample(11, 340, 300, 410), visualProgress: -0.7 }));
+    act(() => result.current.gesture.move({ ...sample(11, 496, 300, 20), visualProgress }));
+    expect(visualProgress).not.toHaveBeenCalled();
+    act(() => result.current.gesture.move({ ...sample(11, 340, 300, 410), visualProgress }));
+    expect(visualProgress).toHaveBeenCalledOnce();
     expect(result.current.anchorPage).toBe(3);
     expect(result.current.progress).toBeCloseTo(0.14);
     expect(result.current.targetPage).toBe(4);

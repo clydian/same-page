@@ -51,6 +51,7 @@ export function AnnotationOverlay({
   layers,
   annotations,
   editing,
+  onPencilStart,
   tool,
   toolColor = tool === "highlighter" ? "#facc15" : "#dc2626",
   activeLayerId,
@@ -65,6 +66,7 @@ export function AnnotationOverlay({
   layers: AnnotationLayerSummary[];
   annotations: LocalAnnotationRecord[];
   editing: boolean;
+  onPencilStart?(): void;
   tool: AnnotationTool;
   toolColor?: string;
   toolStyle?: ToolStyle;
@@ -391,6 +393,16 @@ export function AnnotationOverlay({
     });
   }, [editing, pages, pageNumber]);
 
+  // Keep the input node across mode changes; retire its previous target first.
+  const previousTarget = useRef({ editing, activeLayerId });
+  useLayoutEffect(() => {
+    const previous = previousTarget.current;
+    previousTarget.current = { editing, activeLayerId };
+    if (previous.editing === editing && previous.activeLayerId === activeLayerId) return;
+    interrupt();
+    adjustment.select(null);
+  });
+
   const previousTool = useRef(tool);
   useLayoutEffect(() => {
     if (previousTool.current === tool) return;
@@ -404,6 +416,7 @@ export function AnnotationOverlay({
       <div
         className="annotation-overlay"
         data-editing={editing || undefined}
+        data-pencil-entry={Boolean(onPencilStart) || undefined}
         data-input-page={editing && activePage || undefined}
         onPointerDownCapture={event => {
           if (!editing || !pages || pages.ownsObjectGesture()) return;

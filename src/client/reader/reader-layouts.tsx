@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import { useMessages } from "../../i18n";
 import { AnnotationPages, AnnotationPagesContext } from "../annotations/annotation-pages";
 import { usePdfPageAspectRatio } from "./use-pdf-page-geometry";
@@ -53,6 +54,7 @@ export interface AnnotationPageProps {
   layers: AnnotationLayerSummary[];
   annotations: LocalAnnotationRecord[];
   editing: boolean;
+  onPencilStart?(): void;
   tool: AnnotationTool;
   toolColor?: string;
   toolStyle?: ToolStyle;
@@ -93,6 +95,8 @@ export function PageLayout({
   const contentRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const previewBoundaryRef = useRef<HTMLDivElement>(null);
+  const takeover = useRef<{ page: number; outgoing: HTMLElement; incoming: HTMLElement; outgoingLeft: number; incomingLeft: number } | null>(null);
+  const correctedPaper = useRef<HTMLElement | null>(null);
   const size = useElementSize(containerRef);
   const position = useViewportPosition(containerRef);
   useReturnViewport(containerRef, "page", size.width > 0);
@@ -119,6 +123,23 @@ export function PageLayout({
     if (containerRef.current) { containerRef.current.scrollLeft = 0; containerRef.current.scrollTop = 0; }
   }, [currentPage]);
   const requestPage = pager.request;
+  useLayoutEffect(() => {
+    const captured = takeover.current;
+    if (captured && captured.page !== pager.anchorPage) {
+      // Rebase both visible papers together. The old current paper changes
+      // from the centered slot to a fitted neighbor at the same handoff.
+      if (correctedPaper.current) correctedPaper.current.style.translate = "";
+      const movement = captured.incoming.getBoundingClientRect().left - captured.incomingLeft;
+      const correction = captured.outgoingLeft + movement - captured.outgoing.getBoundingClientRect().left;
+      correctedPaper.current = captured.outgoing.parentElement;
+      correctedPaper.current!.style.translate = `${correction}px`;
+      takeover.current = null;
+    } else if (pager.phase === "idle") {
+      if (correctedPaper.current) correctedPaper.current.style.translate = "";
+      correctedPaper.current = null;
+      takeover.current = null;
+    }
+  });
   const gestureHandlers = useReaderGestures({
     containerRef,
     contentRef,
@@ -140,8 +161,24 @@ export function PageLayout({
 
     pageTurn: pager.gesture,
     pageTurnExtent: pageTurnDistance,
-    pageTurnProgress: () => {
-      if (pager.phase !== "settling") return pager.progress;
+    pageTurnProgress: committed => {
+      samplePageTurnAnimations(trackRef.current);
+      // The incoming paper also moves within its slot to arrive centered.
+      // Read its painted position before it becomes the current paper; the
+      // track alone omits that movement, especially in landscape gutters.
+      const viewport = containerRef.current;
+      const target = trackRef.current?.querySelector<HTMLElement>(
+        "[data-page-turn-target] .annotated-pdf-page",
+      );
+      if (committed && viewport && target && pager.targetPage !== null) {
+        const paper = target.getBoundingClientRect();
+        const outgoing = contentRef.current?.querySelector<HTMLElement>(".annotated-pdf-page");
+        if (outgoing) takeover.current = { page: pager.anchorPage, outgoing, incoming: target,
+          outgoingLeft: outgoing.getBoundingClientRect().left, incomingLeft: paper.left };
+        const bounds = viewport.getBoundingClientRect();
+        const centeredLeft = bounds.left + (viewport.clientWidth - paper.width) / 2;
+        return (paper.left - centeredLeft) / pageTurnDistance - Math.sign(pager.targetPage - pager.anchorPage);
+      }
       const track = trackRef.current;
       return track ? new DOMMatrixReadOnly(getComputedStyle(track).transform).m41 / pageTurnDistance : pager.progress;
     },
@@ -211,7 +248,7 @@ export function PageLayout({
                       fitViewport={item.position === 0 ? undefined : size}
                       turn={item.position === 0 ? undefined : { position: item.position, progress: pager.progress }}
                       aspectRatio={item.page === currentPage ? pageRatio : undefined}
-                      annotationProps={item.position === 0 ? annotationProps : { ...annotationProps, editing: false }}
+                      annotationProps={{ ...annotationProps, editing: item.position === 0 && annotationProps.editing, onPencilStart: item.position === 0 && pager.phase === "idle" ? annotationProps.onPencilStart : undefined }}
                       interactionRef={annotationProps.editing && item.position === 0 ? noteInteraction : undefined}
                       onPageRenderStart={pager.beginPageRender}
                     />
@@ -348,6 +385,21 @@ function pageTurnPresentation(pager: PagedReader, extent: number, slot = 0, top 
       if (active && slot === 0 && event.target === event.currentTarget && event.propertyName === "transform") pager.finishTransition();
     },
   };
+}
+
+function samplePageTurnAnimations(track: HTMLElement | null) {
+  // Pointer tasks can arrive between animation ticks. Sample at the input
+  // time rather than rebasing to the preceding main-thread frame while
+  // the compositor has already advanced the transition.
+  const timelineTime = window.document.timeline?.currentTime;
+  if (typeof timelineTime === "number") {
+    const elapsed = Math.max(0, performance.now() - timelineTime);
+    for (const animation of track?.getAnimations?.({ subtree: true }) ?? []) {
+      if (animation instanceof CSSTransition && animation.transitionProperty === "transform" && typeof animation.currentTime === "number") {
+        animation.currentTime += elapsed;
+      }
+    }
+  }
 }
 
 function useViewportPosition(ref: RefObject<HTMLElement | null>) {
@@ -552,6 +604,12 @@ function AnnotatedPdfPage({
   const renderedWidth = width ?? calculateFittedPageWidth(fitViewport!.width, fitViewport!.height, resolvedAspectRatio);
   return (
     <div
+      onPointerDownCapture={event => {
+        if (event.pointerType !== "pen" || event.button !== 0 || !annotationProps.onPencilStart) return;
+        // Commit the existing editor before this same event reaches the SVG.
+        // Its bubble handler then records the initial contact without replay.
+        flushSync(annotationProps.onPencilStart);
+      }}
       className="annotated-pdf-page"
       onContextMenu={event => {
         if (!(event.target instanceof Element) || !event.target.closest('input, textarea, [contenteditable="true"]')) event.preventDefault();
@@ -578,7 +636,7 @@ function AnnotatedPdfPage({
         <AnnotationOverlay
           {...annotationProps}
           interactionRef={interactionRef}
-          key={`${pageNumber}:${annotationProps.editing ? `edit:${annotationProps.activeLayerId}` : "read"}`}
+          key={pageNumber}
           pageNumber={pageNumber}
           pageAspectRatio={resolvedAspectRatio}
         />
