@@ -1,6 +1,7 @@
 import { connectionOrigins } from "../connection/config";
 import { releasePrefix } from "../../src/shared/release-channels";
 import type { Env } from "../env";
+import { appShellPermissions } from "../static-assets";
 import { channels, manifest, preference } from "./catalog";
 const security = {
   "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "SAMEORIGIN",
@@ -48,6 +49,9 @@ async function releaseAssetResponse(request: Request, env: Env): Promise<Respons
     "Cache-Control": fixed ? "public, max-age=31536000, immutable" : "private, no-store", "X-Same-Page-Frontend": id });
   if (file === "sw.js") { headers.set("Service-Worker-Allowed", "/"); headers.set("Cache-Control", "private, no-store"); }
   // Prefix paths are physical files, never directory/HTML redirects.
-  if (file === "index.html") headers.set("Content-Location", releasePrefix(id) + "index.html");
+  if (file === "index.html") {
+    headers.set("Content-Location", releasePrefix(id) + "index.html");
+    headers.set("Permissions-Policy", appShellPermissions);
+  }
   return new Response(request.method === "HEAD" ? null : object.body, { headers });
 }
