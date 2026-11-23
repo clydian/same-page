@@ -297,6 +297,42 @@ it("does not acknowledge a newer cleanup request after a late upload finishes", 
 });
 
 const musicXml = new TextEncoder().encode('<score-partwise><part-list><score-part id="P1"><part-name>Alto</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>');
+it('publishes voice-neutral challenges only to active drive members and fences source and version changes', async () => {
+  const { id: attachmentId, response } = await upload('练习.musicxml', musicXml);
+  expect(response.status).toBe(201);
+  const path = `/api/choirs/${choirId}/sight-singing/questions`, id = crypto.randomUUID(), now = Date.now();
+  const owner = (await env.DB.prepare('SELECT user_id FROM memberships WHERE id = ?').bind(memberId).first<{ user_id: string }>())!.user_id;
+  const reader = crypto.randomUUID();
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO user (id,name,email,email_verified,created_at,updated_at) VALUES (?, '成员', 'sing-reader@example.test', 1, ?, ?)").bind(reader, now, now),
+    env.DB.prepare("INSERT INTO account (id,account_id,provider_id,user_id,password,created_at,updated_at) VALUES (?,?,'credential',?,?,?,?)")
+      .bind(crypto.randomUUID(), reader, reader, passwordHash, now, now),
+  ]);
+  const credentials = json({ email: 'sing-reader@example.test', password });
+  const login = await call('/api/auth/sign-in/email', { method: 'POST', body: credentials.body, headers: { ...credentials.headers, cookie: '', origin: 'https://same-page.test' } });
+  expect(login.status, await login.clone().text()).toBe(200);
+  const readerCookie = login.headers.get('set-cookie')!.split(';')[0];
+  const fields = { title: '排练题', scoreId, attachmentId, revision: 1, first: 0, last: 0, expectedVersion: null };
+  const publish = (body: unknown = fields, user = owner, session = cookie) => call(`${path}/${id}`, {
+    method: 'PUT', headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': user, cookie: session }, body: JSON.stringify(body),
+  });
+  expect((await call(path, { headers: { cookie: readerCookie } })).status).toBe(403);
+  const ownerSave = await publish(); expect(ownerSave.status, await ownerSave.clone().text()).toBe(200);
+  expect(await ownerSave.json()).toEqual({ question: { id, title: fields.title, scoreId, attachmentId, revision: 1, first: 0, last: 0, version: 1 } });
+  expect(await (await publish()).json()).toMatchObject({ question: { version: 1 } });
+  await env.DB.prepare("INSERT INTO memberships(id,choir_id,user_id,display_name,status) VALUES (?,?,?,'成员','active')").bind(crypto.randomUUID(), choirId, reader).run();
+  const visible = await call(path, { headers: { cookie: readerCookie } });
+  expect(visible.headers.get('cache-control')).toBe('no-store');
+  expect(await visible.json()).toMatchObject({ questions: [{ id, version: 1 }] });
+  expect((await publish({ ...fields, expectedVersion: 1 }, reader, readerCookie)).status).toBe(403);
+  await env.DB.prepare('UPDATE memberships SET permissions = ? WHERE user_id = ? AND choir_id = ?')
+    .bind(JSON.stringify({ operations: ['editDriveInfo'], sharedLayers: [] }), reader, choirId).run();
+  expect((await publish({ ...fields, voice: '0:0:0' })).status).toBe(400);
+  expect((await publish({ ...fields, expectedVersion: 1, revision: 2 }, reader, readerCookie)).status).toBe(409);
+  expect(await (await publish({ ...fields, expectedVersion: 1, title: '更新题' }, reader, readerCookie)).json()).toMatchObject({ question: { title: '更新题', version: 2 } });
+  expect((await publish({ ...fields, expectedVersion: 1, title: '旧版本' })).status).toBe(409);
+});
+
 it("keeps MusicXML original bytes and negotiates legacy lists, counts and trash", async () => {
   const originalUsage = await usage();
   // A newly created drive supports MusicXML without any rollout configuration.

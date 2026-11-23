@@ -38,7 +38,11 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
   const secondPass = buildMelody(document, document.voices[0], 3, 4) as Melody;
   expect(secondPass.notes[0]).toMatchObject({ start: 0, visit: 3 });
   expect(secondPass.notes[1].start).toBe(secondPass.measures[1].start + 1);
-  expect(buildMelody(document, document.voices[1], 1, 1)).toBe('ambiguousMelody');
+  const alto = buildMelody(document, document.voices[1], 1, 1) as Melody;
+  expect(alto.notes[0].chord).toEqual([65, 69]);
+  for (const [midi, target, status] of [[65.18, 65, 'inTune'], [65.36, 65, 'sharp'], [68.62, 69, 'flat'], [67.6, 69, 'wrongNote']] as const) {
+    expect(assessNotes(alto.notes, [{ time: .25, midi }])[0]).toMatchObject({ target, status });
+  }
 });
 
 it('accepts a compressed MusicXML attachment using the existing importer', () => {
@@ -107,8 +111,9 @@ describe('pitch and feedback', () => {
 it('counts on input samples and captures exactly the selected duration without count-in samples', () => {
   type Packet = { count?: number; samples?: Float32Array; done?: boolean };
   const messages: Packet[] = [];
-  let create: new (options: { processorOptions: { beatFrames: number; beats: number; durationFrames: number; chunkFrames: number } }) => { process(inputs: Float32Array[][]): boolean };
+  let create: new (options: { processorOptions: { beatFrames: number; beats: number; durationFrames: number; chunkFrames: number; startFrame?: number } }) => { process(inputs: Float32Array[][]): boolean };
   runInNewContext(readFileSync(new URL('./capture-processor.js', import.meta.url), 'utf8'), {
+    currentFrame: 80,
     AudioWorkletProcessor: class { port = { postMessage: (message: Packet) => messages.push(message) }; },
     registerProcessor: (_name: string, implementation: typeof create) => { create = implementation; },
   });
@@ -121,4 +126,9 @@ it('counts on input samples and captures exactly the selected duration without c
   expect(messages[3].samples?.[0]).toBe(1224);
   expect(Array.from(messages[4].samples ?? [])).toEqual([2248, 2249, 2250]);
   expect(messages[4].done).toBe(true);
+  messages.length = 0;
+  const accompanied = new create!({ processorOptions: { beatFrames: 4, beats: 1, durationFrames: 3, chunkFrames: 8, startFrame: 84 } });
+  expect(accompanied.process([[Float32Array.from({ length: 12 }, (_, i) => i)]])).toBe(false);
+  expect(messages[0]).toEqual({ count: 1 });
+  expect(Array.from(messages[1].samples ?? [])).toEqual([8, 9, 10]);
 });

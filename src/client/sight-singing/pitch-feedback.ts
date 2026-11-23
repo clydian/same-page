@@ -1,5 +1,5 @@
 import { PitchDetector } from 'pitchy';
-import type { MelodyNote } from './melody';
+import { targetPitches, type MelodyNote } from './melody';
 
 export type PitchFrame = { time: number; midi: number | null };
 // Overlap 43–46 ms windows to sample the middle of short notes at 44.1/48 kHz.
@@ -17,8 +17,8 @@ export function createPitchReader(sampleRate: number) {
 }
 
 export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
-  let cursor = 0, previous: number | null = null;
-  return notes.map((note, index) => {
+  let cursor = 0, previousError: number | null = null;
+  return notes.map(note => {
     const edge = Math.min(.065, (note.end - note.start) * .2);
     const insideStart = note.start + edge, insideEnd = note.end - edge;
     const pitches: number[] = [];
@@ -31,16 +31,18 @@ export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
     const sampled = cursor - first;
     // A short note's scoring window may fall between pitch analysis frames.
     if (sampled === 0) {
-      previous = null;
-      return { note, sung: null, cents: null, interval: null, status: 'insufficientData' } as const;
+      previousError = null;
+      return { note, target: null, sung: null, cents: null, interval: null, status: 'insufficientData' } as const;
     }
     pitches.sort((a, b) => a - b);
     const voiced = pitches.length / sampled >= .5;
     const sung = voiced ? (pitches[Math.floor((pitches.length - 1) / 2)] + pitches[Math.floor(pitches.length / 2)]) / 2 : null;
-    const cents = sung === null ? null : Math.round((sung - note.midi) * 100);
-    const interval = sung === null || previous === null ? null : Math.round((sung - previous - (note.midi - notes[index - 1].midi)) * 100);
-    previous = sung;
+    const target = sung === null ? null : targetPitches(note).reduce((nearest, midi) => Math.abs(sung - midi) < Math.abs(sung - nearest) ? midi : nearest, note.midi);
+    const error = sung === null || target === null ? null : (sung - target) * 100;
+    const cents = error === null ? null : Math.round(error);
+    const interval = error === null || previousError === null ? null : Math.round(error - previousError);
+    previousError = error;
     const status = cents === null ? 'missed' : Math.abs(cents) >= 50 ? 'wrongNote' : cents > 25 ? 'sharp' : cents < -25 ? 'flat' : 'inTune';
-    return { note, sung, cents, interval, status } as const;
+    return { note, target, sung, cents, interval, status } as const;
   });
 }

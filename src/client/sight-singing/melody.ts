@@ -3,9 +3,10 @@ import { loadPreparedMusicXml, prepareMusicXmlForPlaybackBytes } from '@same-pag
 import { playbackMeasureVisits } from '@same-page/player/playback-measures';
 
 export type MelodyError = 'noMelody' | 'ambiguousMelody' | 'unsupportedMelody' | 'tooLong';
-export type MelodyNote = { midi: number; start: number; end: number; visit: number; bar: number; beatIndex?: number };
+export type MelodyNote = { midi: number; chord?: number[]; start: number; end: number; visit: number; bar: number; beatIndex?: number };
+export const targetPitches = (note: MelodyNote) => note.chord ?? [note.midi];
 export type MelodyMeasure = { start: number; end: number; bar: number; visit: number };
-export type Melody = { notes: MelodyNote[]; measures: MelodyMeasure[]; duration: number; beatSeconds: number; beats: number };
+export type Melody = { notes: MelodyNote[]; measures: MelodyMeasure[]; duration: number; beatSeconds: number; beats: number; tonic: number };
 export type MelodyVoice = { id: string; track: number; staff: number; voice: number; name: string; multiple: boolean };
 
 export function loadMelodyScore(bytes: Uint8Array) {
@@ -41,7 +42,7 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   const selected = document.bars.slice(first, last + 1);
   const staff = document.score.tracks[voice.track].staves[voice.staff];
   const notes: MelodyNote[] = [], measures: MelodyMeasure[] = [];
-  let previous: alphaTab.model.Note | undefined;
+  let previous: alphaTab.model.Note[] = [];
   let seconds = 0;
   for (const [offset, bar] of selected.entries()) {
     const master = bar.masterBar;
@@ -64,24 +65,23 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
     const visit = first + offset;
     measures.push({ start: seconds, end, bar: master.index, visit });
     for (const beat of source.voices[voice.voice]?.beats ?? []) {
-      const sounding = beat.notes.filter(note => !note.isCue);
+      const sounding = beat.notes.filter(note => !note.isCue).sort((a, b) => a.realValue - b.realValue);
       if (!sounding.length) continue;
-      if (sounding.length > 1) return 'ambiguousMelody';
-      const note = sounding[0];
-      if (note.isPercussion || note.repeatPasses !== null || beat.graceType !== alphaTab.model.GraceType.None) return 'unsupportedMelody';
+      if (sounding.some(note => note.isPercussion || note.repeatPasses !== null) || beat.graceType !== alphaTab.model.GraceType.None) return 'unsupportedMelody';
       const startTick = Math.max(0, beat.playbackStart) + bar.start;
       const endTick = Math.min(bar.end, bar.start + beat.playbackStart + beat.playbackDuration);
       if (endTick <= startTick) return 'unsupportedMelody';
       const start = toSeconds(startTick), noteEnd = toSeconds(endTick);
-      const midi = note.realValue;
+      const pitches = [...new Set(sounding.map(note => note.realValue))];
+      const [midi] = pitches;
       const lastNote = notes.at(-1);
       if (lastNote && lastNote.end - start > .00001) return 'ambiguousMelody';
-      if (lastNote && previous && note.tieOrigin === previous && lastNote.midi === midi && Math.abs(lastNote.end - start) < .00001) {
+      if (lastNote && sounding.length === previous.length && sounding.every((note, index) => note.tieOrigin === previous[index] && note.realValue === previous[index].realValue) && Math.abs(lastNote.end - start) < .00001) {
         lastNote.end = noteEnd;
       } else {
-        notes.push({ midi, start, end: noteEnd, visit, bar: master.index, beatIndex: beat.index });
+        notes.push({ midi, ...(pitches.length > 1 && { chord: pitches }), start, end: noteEnd, visit, bar: master.index, beatIndex: beat.index });
       }
-      previous = note;
+      previous = sounding;
     }
     seconds = end;
   }
@@ -90,5 +90,7 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   const unit = 4 / opening.masterBar.timeSignatureDenominator;
   const beatSeconds = 60 / (opening.tempoChanges[0]?.tempo ?? document.score.tempo) * unit;
   const beats = Math.min(8, Math.max(1, opening.masterBar.timeSignatureNumerator));
-  return { notes, measures, duration: seconds, beatSeconds, beats };
+  const key = opening.masterBar.keySignature * 7 + (opening.masterBar.keySignatureType === alphaTab.model.KeySignatureType.Minor ? 9 : 0);
+  const tonic = 48 + (key % 12 + 12) % 12;
+  return { notes, measures, duration: seconds, beatSeconds, beats, tonic };
 }

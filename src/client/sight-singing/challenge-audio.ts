@@ -1,8 +1,9 @@
 import workletUrl from './capture-processor.js?url&no-inline';
-import type { Melody } from './melody';
+import { targetPitches, type Melody, type MelodyNote } from './melody';
 import { createPitchReader, frequency, pitchWindowSize, type PitchFrame } from './pitch-feedback';
 
 export type CaptureError = 'microphoneUnavailable' | 'microphoneDenied' | 'audioInterrupted' | 'audioFailure';
+export type Backing = { drone: boolean; others: MelodyNote[] };
 type CaptureCallbacks = {
   onCount(count: number): void;
   onFrame(frame: PitchFrame, elapsed: number): void;
@@ -10,7 +11,7 @@ type CaptureCallbacks = {
   onError(error: CaptureError): void;
 };
 
-export function beginCapture(melody: Melody, callbacks: CaptureCallbacks) {
+export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing?: Backing) {
   let active = true;
   let context: AudioContext | undefined, stream: MediaStream | undefined;
   let input: MediaStreamAudioSourceNode | undefined, worklet: AudioWorkletNode | undefined;
@@ -63,9 +64,11 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks) {
     for (const track of opened.getAudioTracks()) track.addEventListener('ended', () => fail('audioInterrupted'), { once: true });
     input = context.createMediaStreamSource(opened);
     const half = pitchWindowSize / 2;
+    // Put the accompaniment and the sample-counted recording on the same clock.
+    const startFrame = backing ? Math.ceil((context.currentTime + .15) * sampleRate / 128) * 128 : undefined;
     worklet = new AudioWorkletNode(context, 'sight-singing-capture', {
       channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1],
-      processorOptions: { beatFrames, beats: melody.beats, durationFrames, chunkFrames: half },
+      processorOptions: { beatFrames, beats: melody.beats, durationFrames, chunkFrames: half, startFrame },
     });
     worklet.onprocessorerror = () => fail('audioFailure');
     const pitch = createPitchReader(sampleRate);
@@ -97,6 +100,11 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks) {
     input.connect(worklet);
     // No microphone samples are copied to the node output.
     worklet.connect(context.destination);
+    if (startFrame !== undefined && backing) {
+      const start = (startFrame + melody.beats * beatFrames) / sampleRate;
+      if (backing.drone) scheduleDrone(context, melody.tonic, start, melody.duration);
+      if (backing.others.length) schedulePiano(context, backing.others, start, .1);
+    }
     deadline = setTimeout(() => fail('audioInterrupted'), 5000 + (beatFrames * melody.beats + durationFrames) / sampleRate * 1000);
   })().catch((reason: unknown) => {
     const name = reason instanceof DOMException ? reason.name : '';
@@ -124,6 +132,56 @@ function pcm16(samples: Float32Array) {
   return pcm.buffer;
 }
 
+function scheduleDrone(context: BaseAudioContext, midi: number, start: number, duration: number) {
+  const oscillator = context.createOscillator(), gain = context.createGain(), end = start + duration;
+  const ramp = Math.min(.02, duration / 3);
+  oscillator.frequency.value = frequency(midi);
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(.075, start + ramp);
+  gain.gain.setValueAtTime(.075, end - ramp);
+  gain.gain.linearRampToValueAtTime(0, end);
+  oscillator.connect(gain).connect(context.destination);
+  oscillator.start(start); oscillator.stop(end);
+}
+
+function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: number, volume: number) {
+  const tone = context.createPeriodicWave(new Float32Array(7), Float32Array.of(0, 1, .34, .26, .14, .09, .045));
+  for (const note of notes) {
+    const pitches = targetPitches(note);
+    const on = start + note.start, off = start + note.end, level = volume / Math.sqrt(pitches.length);
+    for (const midi of pitches) {
+      const oscillator = context.createOscillator(), gain = context.createGain();
+      oscillator.setPeriodicWave(tone);
+      oscillator.frequency.value = frequency(midi);
+      gain.gain.setValueAtTime(0, on);
+      gain.gain.linearRampToValueAtTime(level, on + Math.min(.007, (off - on) / 3));
+      gain.gain.exponentialRampToValueAtTime(Math.max(.001, level * Math.exp(-(off - on) * 4)), off);
+      gain.gain.exponentialRampToValueAtTime(.0001, off + .055);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(on); oscillator.stop(off + .055);
+    }
+  }
+}
+
+export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[]) {
+  // Input is the PCM WAV produced by beginCapture. Render on the recording's
+  // sample clock so the native player's seek and speed controls keep the mix aligned.
+  const data = new DataView(await recording.arrayBuffer());
+  const sampleRate = data.getUint32(24, true), length = data.getUint32(40, true) / 2;
+  const context = new OfflineAudioContext(1, length, sampleRate);
+  const buffer = context.createBuffer(1, length, sampleRate);
+  const samples = buffer.getChannelData(0);
+  for (let index = 0; index < length; index++) samples[index] = data.getInt16(44 + index * 2, true) / 32768;
+  const source = context.createBufferSource(), gain = context.createGain();
+  source.buffer = buffer;
+  gain.gain.value = .78;
+  source.connect(gain).connect(context.destination);
+  source.start();
+  schedulePiano(context, notes, 0, .18);
+  const mixed = await context.startRendering();
+  return waveFile([pcm16(mixed.getChannelData(0))], length, sampleRate);
+}
+
 export function playMelody(melody: Melody, firstOnly: boolean, onFinish: (failed: boolean) => void) {
   const context = new AudioContext();
   let active = true;
@@ -135,19 +193,8 @@ export function playMelody(melody: Melody, firstOnly: boolean, onFinish: (failed
   void context.resume().then(() => {
     if (!active) return;
     const start = context.currentTime + .04;
-    for (const note of firstOnly ? melody.notes.slice(0, 1) : melody.notes) {
-      const oscillator = context.createOscillator(), gain = context.createGain();
-      const on = start + (firstOnly ? 0 : note.start);
-      const end = firstOnly ? on + .6 : start + note.end;
-      const ramp = Math.min(.025, (end - on) / 3);
-      oscillator.frequency.value = frequency(note.midi);
-      gain.gain.setValueAtTime(0, on);
-      gain.gain.linearRampToValueAtTime(.23, on + ramp);
-      gain.gain.setValueAtTime(.23, end - ramp);
-      gain.gain.linearRampToValueAtTime(0, end);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(on); oscillator.stop(end);
-    }
+    const notes = firstOnly ? [{ ...melody.notes[0], start: 0, end: .6 }] : melody.notes;
+    schedulePiano(context, notes, start, .23);
     const sentinel = context.createConstantSource();
     sentinel.offset.value = 0;
     sentinel.connect(context.destination);

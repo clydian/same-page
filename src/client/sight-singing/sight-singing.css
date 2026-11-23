@@ -70,6 +70,7 @@
 .challenge-results th, .challenge-results td { padding: .35rem .5rem; text-align: start; border-block-end: 1px solid var(--line); }
 .challenge-results td { white-space: nowrap; }
 .challenge-results th { color: var(--muted); font-weight: 600; font-size: .85rem; }
+.challenge-results th:nth-child(-n+4) { white-space: nowrap; }
 .challenge-results tr[data-active="true"] { background: var(--brand-soft); }
 .challenge-note-replay {
   display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; padding: 0 .55rem;
@@ -79,3 +80,31 @@
 .challenge-note-replay:hover { border-color: var(--muted); }
 .challenge-note-replay:active { background: var(--ui-surface-muted, var(--wash)); }
 .challenge-note-replay:focus-visible { outline-offset: 2px; }
+
+.challenge-library-section + .challenge-library-section { margin-block-start: 1.6rem; }
+.challenge-library-section > :is(.challenge-list, .challenge-empty) { margin-block: .55rem 0; }
+.challenge-history summary {
+  display: list-item; padding: .85rem 1rem; cursor: pointer; overflow-wrap: anywhere;
+}
+.challenge-history summary > * { margin-inline-start: .55rem; }
+.challenge-history summary > span { color: var(--muted); }
+.challenge-history-detail { padding: 0 1rem 1rem; }
+.challenge-history-detail p { margin: .45rem 0; }
+.challenge-options {
+  display: grid; gap: .55rem; margin-block-end: 1rem; padding-block-end: .8rem;
+  border-block-end: 1px solid var(--line);
+}
+.challenge-voice { display: grid; gap: .35rem; max-width: 22rem; }
+.challenge-voice label { font-size: .9rem; font-weight: 650; }
+.challenge-voice select {
+  min-height: 44px; width: 100%; padding: .45rem .65rem; border: 1px solid var(--line);
+  border-radius: .6rem; background: var(--surface); color: var(--ink); font: inherit;
+}
+.challenge-backing summary { width: fit-content; min-height: 44px; padding-block: .55rem; cursor: pointer; font-weight: 650; }
+.challenge-backing summary span { margin-inline-start: .5rem; color: var(--muted); font-size: .85rem; }
+.challenge-backing p { color: var(--muted); margin: .2rem 0 .4rem; }
+.challenge-backing fieldset { border: 0; padding: .3rem 0 0; margin: 0; min-width: 0; }
+.challenge-backing legend { padding: 0; font-weight: 650; }
+.challenge-backing label, .challenge-answer { display: flex; align-items: center; gap: .5rem; min-height: 44px; width: fit-content; }
+.challenge-backing input, .challenge-answer input { accent-color: var(--brand); inline-size: 1.1rem; block-size: 1.1rem; }
+.challenge-review audio { display: block; margin-block: .25rem .6rem; }

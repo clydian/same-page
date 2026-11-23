@@ -1,4 +1,5 @@
 import { readQuestions, saveQuestion } from "../sight-singing/questions";
+import { readTakes, saveTake, type PracticeTake } from "../sight-singing/practice-history";
 import { storeOfflineScore } from "../platform/local-database";
 import { markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "../score-library/attachments/markdown-drafts";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -203,16 +204,25 @@ it("fences delayed identity activation and an old session until a new login succ
 
 it("scopes sight-singing questions by local owner and drive and clears the signing-out owner", async () => {
   const question = { id: "question", title: "Local practice", scoreId: "score", attachmentId: "xml", revision: 2, voice: "0:0:0", first: 1, last: 3 };
+  const take: PracticeTake = { id: 'take', at: 1, questionId: question.id, version: null, title: question.title, scoreId: question.scoreId,
+    attachmentId: question.attachmentId, revision: 2, first: 1, last: 3, range: '2–4', voiceId: question.voice, voiceName: 'Alto',
+    drone: true, accompaniment: ['Soprano'], percent: 100, matched: 1, total: 1,
+    notes: [{ measure: '2', target: 60, targets: [60, 65], sung: 60, cents: 0, interval: null, status: 'inTune' }] };
   const signal = new AbortController().signal;
   await saveQuestion("user:user-1", "choir-1", question, signal);
+  await saveTake("user:user-1", "choir-1", take);
   expect(await readQuestions("user:user-1", "choir-2")).toEqual([]);
+  expect(await readTakes("user:user-1", "choir-2")).toEqual([]);
   await activateAuthenticatedLocalOwner("user-2");
   expect(await readQuestions("user:user-1", "choir-1")).toEqual([]);
   await expect(saveQuestion("user:user-1", "choir-1", question, signal)).rejects.toThrow("local_workspace_owner_changed");
   await saveQuestion("user:user-2", "choir-1", question, signal);
+  await saveTake("user:user-2", "choir-1", take);
   await clearPrivateLocalDataAfterLogout();
   await activateAuthenticatedLocalOwner("user-1");
   expect(await readQuestions("user:user-1", "choir-1")).toEqual([question]);
+  expect(await readTakes("user:user-1", "choir-1")).toEqual([take]);
   await activateAuthenticatedLocalOwner("user-2");
   expect(await readQuestions("user:user-2", "choir-1")).toEqual([]);
+  expect(await readTakes("user:user-2", "choir-1")).toEqual([]);
 });

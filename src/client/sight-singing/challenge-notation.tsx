@@ -1,7 +1,7 @@
 import { AlphaTabApi, PlayerMode } from '@coderline/alphatab';
 import { useEffect, useRef } from 'react';
 import { useMessages } from '../../i18n';
-import type { Melody, MelodyScore, MelodyVoice } from './melody';
+import { targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
 import type { PitchFrame } from './pitch-feedback';
 
 export function ChallengeNotation({ score, voice, melody, currentBar, beatIndex }: {
@@ -65,15 +65,16 @@ export function PitchGraph({ melody, frames, elapsed, review }: { melody: Melody
     const end = review ? melody.duration : Math.min(melody.duration, start + 12);
     const notes = melody.notes.filter(note => note.start < end && note.end > start);
     const range = notes.length ? notes : melody.notes;
-    const low = range.reduce((value, note) => Math.min(value, note.midi), Infinity) - 4;
-    const high = range.reduce((value, note) => Math.max(value, note.midi), -Infinity) + 4;
+    const targets = range.flatMap(targetPitches);
+    const low = targets.reduce((value, midi) => Math.min(value, midi), Infinity) - 4;
+    const high = targets.reduce((value, midi) => Math.max(value, midi), -Infinity) + 4;
     const x = (time: number) => (time - start) / (end - start) * width;
     const y = (pitch: number) => 12 + (high - pitch) / (high - low) * (height - 24);
     drawing.clearRect(0, 0, width, height);
     drawing.fillStyle = '#768e96';
     for (const bar of melody.measures) if (bar.start > start && bar.start < end) drawing.fillRect(x(bar.start), 0, 1, height);
     drawing.fillStyle = '#548d85';
-    for (const note of notes) drawing.fillRect(x(note.start), y(note.midi) - 4, Math.max(2, x(note.end) - x(note.start) - 2), 8);
+    for (const note of notes) for (const midi of targetPitches(note)) drawing.fillRect(x(note.start), y(midi) - 4, Math.max(2, x(note.end) - x(note.start) - 2), 8);
     drawing.fillStyle = '#cf673c';
     for (let index = frames.length - 1; index >= 0; index--) {
       const frame = frames[index];
