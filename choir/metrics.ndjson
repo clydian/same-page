@@ -1,0 +1,4 @@
+{"name":"phone-zh-light","comparison":{"sameLength":true,"sampleRate":48000,"e":133.23265477887554,"c":4.221432082390002,"d":133.60747475919226},"schedule":[48,79,81]}
+{"name":"phone-en-dark","comparison":{"sameLength":true,"sampleRate":48000,"e":133.23265477887554,"c":4.221432082390002,"d":133.60747475919226},"schedule":[48,79,81]}
+{"name":"desktop-zh-dark","comparison":{"sameLength":true,"sampleRate":48000,"e":133.23265477887554,"c":4.221432082390002,"d":133.60747475919226},"schedule":[48,79,81]}
+{"name":"desktop-en-light","comparison":{"sameLength":true,"sampleRate":48000,"e":133.23265477887554,"c":4.221432082390002,"d":133.60747475919226},"schedule":[48,79,81]}
