@@ -1,9 +1,11 @@
-import { Mic, Play, RotateCcw, Square, Volume2 } from 'lucide-react';
+import { Mic, Music2, RotateCcw, SlidersHorizontal, Square, Volume2 } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import { holdUpdate } from '../updates/update-safety';
 import { beginCapture, mixPianoAnswer, playMelody, type CaptureError } from './challenge-audio';
-import { ChallengeNotation, PitchGraph } from './challenge-notation';
+import { ChallengeNotation } from './challenge-notation';
+import { ChallengeSettings } from './challenge-settings';
+import { PitchGraph } from './pitch-graph';
 import { targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
 import { FeedbackTable } from './practice-feedback';
 import { takeScore, type PracticeTake } from './practice-history';
@@ -15,20 +17,20 @@ export type TakeFeedback = Pick<PracticeTake, 'voiceId' | 'voiceName' | 'drone' 
 const pitchList = (pitches: number[]) => pitches.map(pitchName).join(' / ');
 type RunState = { phase: 'idle' | 'permission' }
   | { phase: 'count'; count: number }
-  | { phase: 'sing'; elapsed: number; frame: PitchFrame; frames: PitchFrame[] }
+  | { phase: 'sing'; frame: PitchFrame; frames: PitchFrame[] }
   | { phase: 'result'; frames: PitchFrame[]; url: string; recording: Blob; review: ReturnType<typeof assessNotes>; take: TakeFeedback };
 
-export function ChallengeRun({ document, selected, voices, selectVoice, visitLabel, onTake }: {
-  document: MelodyScore; selected: VoiceOption; voices: VoiceOption[]; selectVoice: (id: string) => void;
+export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, visitLabel, onTake }: {
+  document: MelodyScore; selected: VoiceOption; voices: VoiceOption[]; backingUnavailable: boolean; selectVoice: (id: string) => void;
   visitLabel: (index: number) => string; onTake: (take: TakeFeedback) => Promise<void>;
 }) {
   const t = useMessages('practice');
   const id = useId();
   const { voice, melody } = selected;
   const [drone, setDrone] = useState(false);
-  const [backing, setBacking] = useState<string[]>([]);
-  const otherVoices = voices.filter(option => option.voice.id !== voice.id);
-  const accompaniment = otherVoices.filter(option => backing.includes(option.voice.id));
+  const [backing, setBacking] = useState(false);
+  const settings = useRef<HTMLDialogElement>(null);
+  const accompaniment = backing && !backingUnavailable ? voices.filter(option => option.voice.id !== voice.id) : [];
   const [answer, setAnswer] = useState<'off' | 'loading' | { url: string }>('off');
   const [historyError, setHistoryError] = useState(false);
   const answerUrl = useRef<string | null>(null);
@@ -90,9 +92,9 @@ export function ChallengeRun({ document, selected, voices, selectVoice, visitLab
     const frames: PitchFrame[] = [];
     const stop = beginCapture(melody, {
       onCount: count => setState({ phase: 'count', count }),
-      onFrame: (frame, elapsed) => {
+      onFrame: frame => {
         frames.push(frame);
-        setState({ phase: 'sing', frame, elapsed, frames });
+        setState({ phase: 'sing', frame, frames });
       },
       onComplete: (result, recording) => {
         release();
@@ -106,7 +108,7 @@ export function ChallengeRun({ document, selected, voices, selectVoice, visitLab
         void onTake(take).catch(() => { if (recordingUrl.current === url) setHistoryError(true); });
       },
       onError: reason => { releaseUpdate(); release(); setError(reason); setState({ phase: 'idle' }); },
-    }, drone || accompaniment.length ? { drone, others: accompaniment.flatMap(option => option.melody.notes) } : undefined);
+    }, drone || accompaniment.length ? { drone, others: accompaniment.map(option => option.melody.notes) } : undefined);
     run.current = () => { stop(); releaseUpdate(); };
   };
   const cancel = () => { release(); setPreviewing(false); setState(current => current.phase === 'result' ? current : { phase: 'idle' }); };
@@ -116,10 +118,7 @@ export function ChallengeRun({ document, selected, voices, selectVoice, visitLab
     setAnswer('off');
     setReplayTime(0);
     setError(null);
-  };
-  const changeVoice = (next: string) => {
-    setBacking(previous => previous.filter(value => value !== next));
-    selectVoice(next);
+    settings.current?.showModal();
   };
   const playFrom = (time: number) => {
     const audio = replay.current;
@@ -151,69 +150,52 @@ export function ChallengeRun({ document, selected, voices, selectVoice, visitLab
     }
   };
   const recording = state.phase === 'permission' || state.phase === 'count' || state.phase === 'sing';
-  const elapsed = state.phase === 'sing' ? state.elapsed : state.phase === 'result' ? replayTime : 0;
-  // Compare the displayed voice with the target at the center of the same capture window.
-  const position = state.phase === 'sing' ? state.frame.time : elapsed;
+  // The detected voice and target use the center of the same capture window.
+  const position = state.phase === 'sing' ? state.frame.time : state.phase === 'result' ? replayTime : 0;
   const measure = melody.measures.find(bar => position < bar.end) ?? melody.measures[melody.measures.length - 1];
   const target = melody.notes.find(note => note.start <= position && position < note.end);
   const busy = recording || previewing;
   const unscored = state.phase === 'result' ? state.take.notes.length - state.take.total : 0;
 
-  return <div className="challenge-run">
-    {state.phase === 'idle' && !busy && <div className="challenge-options">
-      <div className="challenge-voice">
-        <label htmlFor={`${id}-voice`}>{t('sight.singVoice')}</label>
-        <select id={`${id}-voice`} value={voice.id} onChange={event => changeVoice(event.target.value)}>
-          {voices.map(option => <option key={option.voice.id} value={option.voice.id}>{option.label}</option>)}
-        </select>
-      </div>
-      <details className="challenge-backing">
-        <summary>{t('sight.accompaniment')}{(drone || accompaniment.length > 0) && <span>{t('sight.accompanimentOn')}</span>}</summary>
-        <p id={`${id}-headphones`}>{t('sight.headphones')}</p>
-        <label><input type="checkbox" checked={drone} aria-describedby={`${id}-headphones`} onChange={event => setDrone(event.target.checked)} />{t('sight.drone', { pitch: pitchName(melody.tonic) })}</label>
-        {otherVoices.length > 0 && <fieldset><legend>{t('sight.otherVoices')}</legend>
-          {otherVoices.map(option => <label key={option.voice.id}>
-            <input type="checkbox" checked={backing.includes(option.voice.id)} onChange={event => {
-              const checked = event.target.checked, voiceId = option.voice.id;
-              setBacking(previous => checked ? [...previous, voiceId] : previous.filter(value => value !== voiceId));
-            }} />{option.label}
-          </label>)}
-        </fieldset>}
-      </details>
-    </div>}
-    <div className="challenge-stage">
-      <div role="status">{previewing ? t('sight.playingReference')
-        : state.phase === 'count' ? t('sight.count', { count: state.count })
-        : state.phase === 'permission' ? t('sight.waitingMicrophone')
-        : state.phase === 'sing' ? t('sight.singNow')
-        : state.phase === 'result' ? state.take.percent === null ? t('sight.takeComplete') : t('sight.takeScore', { score: state.take.percent })
-        : t('sight.ready')}</div>
-      {state.phase === 'count' && <div className="challenge-count" aria-hidden="true">
-        {Array.from({ length: melody.beats }, (_, index) => <span key={index} data-passed={index <= melody.beats - state.count} />)}
-      </div>}
-      {state.phase === 'sing' && <div className="challenge-pitches">
-        <span>{visitLabel(measure.visit)}</span>
-        <span>{target ? t('sight.currentTarget', { pitch: pitchList(targetPitches(target)) }) : t('sight.rest')}</span>
-        <span>{state.frame.midi === null ? t('sight.noPitch') : t('sight.currentPitch', { pitch: pitchName(Math.round(state.frame.midi)) })}</span>
-      </div>}
-      {state.phase === 'result' && <span className="challenge-pitches">{state.take.voiceName}</span>}
-    </div>
-    <div className="challenge-actions">
+  return <div className="challenge-run" data-phase={state.phase}>
+    <ChallengeNotation score={document.score} voice={voice} melody={melody} currentBar={state.phase === 'idle' ? undefined : measure.bar}
+      beatIndex={target?.bar === measure.bar ? target?.beatIndex : undefined} />
+    <div className="challenge-transport" data-ready={state.phase === 'idle' && !busy}>
       {state.phase === 'idle' && !busy && <>
-        <button className="secondary-button" type="button" onClick={() => preview(true)}><Volume2 size={17} aria-hidden="true" />{t('sight.startingNote')}</button>
-        <button className="secondary-button" type="button" onClick={() => preview(false)}><Play size={17} aria-hidden="true" />{t('sight.listen')}</button>
-        <button className="primary-button" type="button" onClick={start}><Mic size={17} aria-hidden="true" />{t('sight.start')}</button>
+        <div className="challenge-tools">
+          <button className="challenge-tool" type="button" onClick={() => preview(true)}><Music2 size={18} aria-hidden="true" />{t('sight.startingNoteShort')}</button>
+          <button className="challenge-tool" type="button" onClick={() => preview(false)}><Volume2 size={18} aria-hidden="true" />{t('sight.listenShort')}</button>
+          <button className="challenge-tool challenge-tool-settings" type="button" aria-haspopup="dialog" onClick={() => settings.current?.showModal()}
+            aria-label={`${t('sight.practiceSetup')} · ${selected.label}`} title={t('sight.practiceSetup')}>
+            <SlidersHorizontal size={18} aria-hidden="true" /><span>{selected.label}</span>
+          </button>
+        </div>
+        <button className="primary-button challenge-start" type="button" onClick={start}><Mic size={18} aria-hidden="true" />{t('sight.start')}</button>
+      </>}
+      {busy && <>
+        <div className="challenge-stage">
+          <div role="status">{previewing ? t('sight.playingReference') : state.phase === 'count' ? t('sight.count', { count: state.count })
+            : state.phase === 'permission' ? t('sight.waitingMicrophone') : t('sight.singNow')}</div>
+          {state.phase === 'count' && <div className="challenge-count" aria-hidden="true">
+            {Array.from({ length: melody.beats }, (_, index) => <span key={index} data-passed={index <= melody.beats - state.count} />)}
+          </div>}
+        </div>
+        <button className="secondary-button challenge-stop" type="button" onClick={cancel}><Square size={15} aria-hidden="true" />{t('sight.stop')}</button>
       </>}
       {state.phase === 'result' && <>
-        <button className="primary-button" type="button" onClick={start}><RotateCcw size={17} aria-hidden="true" />{t('sight.retry')}</button>
-        <button className="secondary-button" type="button" onClick={configureTake}>{t('sight.practiceSetup')}</button>
+        <div className="challenge-stage challenge-score" role="status"><strong>{state.take.percent === null ? t('sight.takeComplete') : t('sight.takeScore', { score: state.take.percent })}</strong><span>{state.take.voiceName}</span></div>
+        <div className="challenge-result-tools">
+          <button className="challenge-tool" type="button" aria-haspopup="dialog" aria-label={t('sight.practiceSetup')} title={t('sight.practiceSetup')} onClick={configureTake}><SlidersHorizontal size={18} aria-hidden="true" /></button>
+          <button className="primary-button challenge-start" type="button" onClick={start}><RotateCcw size={18} aria-hidden="true" />{t('sight.retry')}</button>
+        </div>
       </>}
-      {(recording || previewing) && <button className="secondary-button" type="button" onClick={cancel}><Square size={17} aria-hidden="true" />{t('sight.stop')}</button>}
     </div>
+    <ChallengeSettings dialog={settings} selected={selected} voices={voices} selectVoice={selectVoice}
+      drone={drone} setDrone={setDrone} backing={backing} setBacking={setBacking} backingUnavailable={backingUnavailable} />
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
-    <ChallengeNotation score={document.score} voice={voice} melody={melody} currentBar={measure.bar}
-      beatIndex={target?.bar === measure.bar ? target.beatIndex : undefined} />
-    <PitchGraph melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={elapsed} review={state.phase === 'result'} />
+    {(state.phase === 'count' || state.phase === 'sing' || state.phase === 'result') && <PitchGraph melody={melody}
+      frames={'frames' in state ? state.frames : emptyFrames} elapsed={position} activePitch={state.phase === 'sing' ? state.frame.midi : null}
+      activeTarget={state.phase === 'sing' && target ? pitchList(targetPitches(target)) : undefined} />}
     {state.phase === 'result' && <section className="challenge-review" aria-labelledby={`${id}-review`}>
       <h3 id={`${id}-review`}>{t('sight.review')}</h3>
       {state.take.total > 0 && <p>{t('sight.summary', { matched: state.take.matched, total: state.take.total })}</p>}
@@ -230,7 +212,7 @@ export function ChallengeRun({ document, selected, voices, selectVoice, visitLab
         }}
         onTimeUpdate={event => setReplayTime(event.currentTarget.currentTime)}
         onPlay={() => { const stop = run.current; run.current = null; stop?.(); setPreviewing(false); }} />
-      <p className="challenge-feedback-guide">{t('sight.feedbackGuide')}</p>
+      <p className="challenge-feedback-guide">{t('sight.recordingPrivacy')}</p>
       <FeedbackTable notes={state.take.notes} active={state.review.findIndex(row => row.note === target)} onPlay={index => playFrom(state.review[index].note.start)} />
     </section>}
   </div>;

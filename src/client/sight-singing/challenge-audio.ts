@@ -3,7 +3,7 @@ import { targetPitches, type Melody, type MelodyNote } from './melody';
 import { createPitchReader, frequency, pitchWindowSize, type PitchFrame } from './pitch-feedback';
 
 export type CaptureError = 'microphoneUnavailable' | 'microphoneDenied' | 'audioInterrupted' | 'audioFailure';
-export type Backing = { drone: boolean; others: MelodyNote[] };
+export type Backing = { drone: boolean; others: MelodyNote[][] };
 type CaptureCallbacks = {
   onCount(count: number): void;
   onFrame(frame: PitchFrame, elapsed: number): void;
@@ -103,7 +103,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     if (startFrame !== undefined && backing) {
       const start = (startFrame + melody.beats * beatFrames) / sampleRate;
       if (backing.drone) scheduleDrone(context, melody.tonic, start, melody.duration);
-      if (backing.others.length) schedulePiano(context, backing.others, start, .1);
+      if (backing.others.length) schedulePiano(context, backing.others.flat(), start, .1 / Math.sqrt(backing.others.length));
     }
     deadline = setTimeout(() => fail('audioInterrupted'), 5000 + (beatFrames * melody.beats + durationFrames) / sampleRate * 1000);
   })().catch((reason: unknown) => {

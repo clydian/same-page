@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Mic, Plus } from 'lucide-react';
+import { ChevronRight, Mic, Pencil, Plus } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppLocale, useMessages } from '../../i18n';
@@ -32,12 +32,13 @@ export default function SightSingingPage() {
   const { snapshot: { access } } = useDriveLibraryResource(owner, choirId, Boolean(sessionId), Boolean(sessionId), sessionId);
   const userId = identity.authenticatedUserId;
   const allowed = online && Boolean(sessionId && userId) && access.kind === 'opened' && access.isMember && !access.local && !access.choir.isPreviewEntry;
+  if (allowed && sessionId && userId) return <QuestionLibrary key={JSON.stringify([owner, choirId, sessionId])}
+    owner={owner} choirId={choirId} driveName={access.choir.name} sessionId={sessionId} userId={userId}
+    canPublish={access.result.permissions.capabilities.operations.operations.includes('editDriveInfo')} scores={access.result.scores} />;
   return <div className="app-page">
-    <TaskHeader title={t('sight.title')} subtitle={allowed ? access.choir.name : undefined} backTo={`/choirs/${choirId}`} />
+    <TaskHeader title={t('sight.title')} backTo={`/choirs/${choirId}`} />
     <main className="page-shell settings-page challenge-page">
-      {allowed && sessionId && userId ? <QuestionLibrary key={JSON.stringify([owner, choirId, sessionId])} owner={owner} choirId={choirId} sessionId={sessionId}
-        userId={userId} canPublish={access.result.permissions.capabilities.operations.operations.includes('editDriveInfo')} scores={access.result.scores} />
-        : online && (identity.restoring || sessionId && access.kind === 'loading') ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
+      {online && (identity.restoring || sessionId && access.kind === 'loading') ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
         : <p role="status">{t('sight.needMember')}</p>}
     </main>
   </div>;
@@ -46,7 +47,7 @@ export default function SightSingingPage() {
 type DriveContext = { owner: DriveCacheOwnerKey; choirId: string; sessionId: string; userId: string; canPublish: boolean; scores: ScoreSummary[] };
 const publishedPath = (drive: string) => `/api/choirs/${encodeURIComponent(drive)}/sight-singing/questions`;
 
-function QuestionLibrary(props: DriveContext) {
+function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: string }) {
   const t = useMessages('practice');
   const questions = useLiveQuery(() => readQuestions(props.owner, props.choirId).catch(() => null), [props.owner, props.choirId]);
   const takes = useLiveQuery(() => readTakes(props.owner, props.choirId).catch(() => null), [props.owner, props.choirId]);
@@ -65,26 +66,29 @@ function QuestionLibrary(props: DriveContext) {
   if (selection) return <QuestionWorkspace {...props} question={selection.question} initiallyEditing={selection.edit}
     onBack={() => { setSelection(null); setReload(value => value + 1); }} />;
   const privateQuestions = questions?.filter(question => !published?.some(item => item.id === question.id));
-  return <>
-    <div className="challenge-library-header"><h2>{t('sight.questions')}</h2>
-      <button className="primary-button" type="button" onClick={() => setSelection({ edit: true })}><Plus size={18} aria-hidden="true" />{t('sight.create')}</button>
-    </div>
-    <section className="challenge-library-section"><h3>{t('sight.publishedQuestions')}</h3>
-      {published === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
-        : published === null ? <p role="alert">{t('sight.publishedError')} <button type="button" className="text-button" onClick={() => { setPublished(undefined); setReload(value => value + 1); }}>{t('sight.retryLoad')}</button></p>
-        : <QuestionList questions={published} empty={t('sight.noPublished')} open={question => setSelection({ question, edit: false })} />}
-    </section>
-    <section className="challenge-library-section"><h3>{t('sight.personalQuestions')}</h3>
-      {questions === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
-        : questions === null ? <p role="alert">{t('sight.storageError')}</p>
-        : <QuestionList questions={privateQuestions ?? []} empty={t('sight.empty')} open={question => setSelection({ question, edit: false })} />}
-    </section>
-    <section className="challenge-library-section"><h3>{t('sight.history')}</h3>
-      {takes === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
-        : takes === null ? <p role="alert">{t('sight.storageError')}</p>
-        : takes.length ? <PracticeHistory takes={takes} /> : <p className="challenge-empty">{t('sight.noHistory')}</p>}
-    </section>
-  </>;
+  return <div className="app-page">
+    <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}`} />
+    <main className="page-shell settings-page challenge-page">
+      <div className="challenge-library-header"><h2>{t('sight.questions')}</h2>
+        <button className="primary-button" type="button" onClick={() => setSelection({ edit: true })}><Plus size={18} aria-hidden="true" />{t('sight.create')}</button>
+      </div>
+      <section className="challenge-library-section"><h3>{t('sight.publishedQuestions')}</h3>
+        {published === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
+          : published === null ? <p role="alert">{t('sight.publishedError')} <button type="button" className="text-button" onClick={() => { setPublished(undefined); setReload(value => value + 1); }}>{t('sight.retryLoad')}</button></p>
+          : <QuestionList questions={published} empty={t('sight.noPublished')} open={question => setSelection({ question, edit: false })} />}
+      </section>
+      <section className="challenge-library-section"><h3>{t('sight.personalQuestions')}</h3>
+        {questions === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
+          : questions === null ? <p role="alert">{t('sight.storageError')}</p>
+          : <QuestionList questions={privateQuestions ?? []} empty={t('sight.empty')} open={question => setSelection({ question, edit: false })} />}
+      </section>
+      <section className="challenge-library-section"><h3>{t('sight.history')}</h3>
+        {takes === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
+          : takes === null ? <p role="alert">{t('sight.storageError')}</p>
+          : takes.length ? <PracticeHistory takes={takes} /> : <p className="challenge-empty">{t('sight.noHistory')}</p>}
+      </section>
+    </main>
+  </div>;
 }
 
 function QuestionList({ questions, empty, open }: { questions: SightSingingQuestion[]; empty: string; open: (question: SightSingingQuestion) => void }) {
@@ -116,7 +120,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublish, scor
 }) {
   const t = useMessages('practice');
   const id = useId();
-  const heading = useRef<HTMLHeadingElement>(null);
+  const heading = useRef<HTMLSpanElement>(null);
   const [saved, setSaved] = useState(question);
   const [questionId] = useState(() => question?.id ?? crypto.randomUUID());
   const [editing, setEditing] = useState(initiallyEditing);
@@ -195,58 +199,57 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublish, scor
   const needsSource = (!score && Boolean(scoreId)) || (score && status === 'ready' && !attachment && Boolean(fileChoice));
   const playable = Boolean(loaded.document && selected);
   const issue = !selected && loaded.document ? options[0]?.melody ?? 'noMelody' : null;
-  return <>
-    <div className="challenge-workspace-header">
-      <button className="text-button" type="button" onClick={onBack}>{t('sight.backToQuestions')}</button>
-      <h2 ref={heading} tabIndex={-1} id={`${id}-heading`}>{editing ? t(saved ? 'sight.edit' : 'sight.create') : saved?.title}</h2>
-      {!editing && (!saved?.version || canPublish) && <button type="button" className="secondary-button" onClick={() => setEditing(true)}>{t('sight.edit')}</button>}
-    </div>
-    {editing && <form className="challenge-form" aria-labelledby={`${id}-heading`} onSubmit={event => {
-      event.preventDefault();
-      const trigger = (event.nativeEvent as SubmitEvent).submitter;
-      void save(Boolean(saved?.version) || trigger?.getAttribute('value') === 'publish');
-    }}>
-      <label htmlFor={`${id}-name`}>{t('sight.name')}</label>
-      <input id={`${id}-name`} name="title" value={title} onChange={event => { setTitle(event.target.value); event.target.setCustomValidity(event.target.value && !event.target.value.trim() ? t('sight.nameRequired') : ''); }} maxLength={80} required />
-      <label htmlFor={`${id}-score`}>{t('sight.score')}</label>
-      <select id={`${id}-score`} name="score" value={score?.id ?? ''} required onChange={event => { setScoreId(event.target.value); setFileChoice(''); resetRange(); }}>
-        <option value="">{t('sight.chooseScore')}</option>
-        {candidates.map(item => <option key={item.id} value={item.id}>{item.fileName}</option>)}
-      </select>
-      {!candidates.length && <small>{t('sight.noScores')}</small>}
-      {status === 'ready' && <>
-        <label htmlFor={`${id}-files`}>MusicXML</label>
-        <select id={`${id}-files`} name="attachment" value={attachment ? fileKey(attachment) : ''} required onChange={event => { setFileChoice(event.target.value); resetRange(); }}>
-          <option value="">{t(files.length ? 'sight.chooseFile' : 'sight.noFiles')}</option>
-          {files.map(file => <option key={file.id} value={fileKey(file)}>{file.source === 'generated' ? t('generatedBadge') : file.name}</option>)}
+  const canEdit = !editing && (!saved?.version || canPublish);
+  const backingUnavailable = options.some(({ melody }) => typeof melody === 'string' && melody !== 'noMelody');
+  return <div className="app-page challenge-workspace">
+    <TaskHeader title={<span ref={heading} tabIndex={-1} id={`${id}-heading`}>{editing ? t(saved ? 'sight.edit' : 'sight.create') : saved?.title}</span>}
+      subtitle={editing || !loaded.document ? undefined : range} backTo={`/choirs/${choirId}`} onBack={onBack} backLabel={t('sight.backToQuestions')}
+      actions={canEdit && <button type="button" className="icon-button" aria-label={t('sight.edit')} title={t('sight.edit')} onClick={() => setEditing(true)}><Pencil size={18} aria-hidden="true" /></button>} />
+    <main className="page-shell challenge-page">
+      {editing && <form className="challenge-form" aria-labelledby={`${id}-heading`} onSubmit={event => {
+        event.preventDefault();
+        const trigger = (event.nativeEvent as SubmitEvent).submitter;
+        void save(Boolean(saved?.version) || trigger?.getAttribute('value') === 'publish');
+      }}>
+        <label htmlFor={`${id}-name`}>{t('sight.name')}</label>
+        <input id={`${id}-name`} name="title" value={title} onChange={event => { setTitle(event.target.value); event.target.setCustomValidity(event.target.value && !event.target.value.trim() ? t('sight.nameRequired') : ''); }} maxLength={80} required />
+        <label htmlFor={`${id}-score`}>{t('sight.score')}</label>
+        <select id={`${id}-score`} name="score" value={score?.id ?? ''} required onChange={event => { setScoreId(event.target.value); setFileChoice(''); resetRange(); }}>
+          <option value="">{t('sight.chooseScore')}</option>
+          {candidates.map(item => <option key={item.id} value={item.id}>{item.fileName}</option>)}
         </select>
-      </>}
-      {loaded.document && <>
-        <div className="challenge-range">
-          <div><label htmlFor={`${id}-first`}>{t('sight.first')}</label><select id={`${id}-first`} name="first" value={first} onChange={event => { const next = Number(event.target.value); setFirst(next); if (next > last) setLastChoice(next); }}>
-            {loaded.document.visits.map((_, index) => <option key={index} value={index}>{visitLabel(index)}</option>)}
-          </select></div>
-          <div><label htmlFor={`${id}-last`}>{t('sight.last')}</label><select id={`${id}-last`} name="last" value={last} onChange={event => setLastChoice(Number(event.target.value))}>
-            {loaded.document.visits.map((_, index) => index >= first && <option key={index} value={index}>{visitLabel(index)}</option>)}
-          </select></div>
+        {!candidates.length && <small>{t('sight.noScores')}</small>}
+        {status === 'ready' && <>
+          <label htmlFor={`${id}-files`}>MusicXML</label>
+          <select id={`${id}-files`} name="attachment" value={attachment ? fileKey(attachment) : ''} required onChange={event => { setFileChoice(event.target.value); resetRange(); }}>
+            <option value="">{t(files.length ? 'sight.chooseFile' : 'sight.noFiles')}</option>
+            {files.map(file => <option key={file.id} value={fileKey(file)}>{file.source === 'generated' ? t('generatedBadge') : file.name}</option>)}
+          </select>
+        </>}
+        {loaded.document && <>
+          <div className="challenge-range">
+            <div><label htmlFor={`${id}-first`}>{t('sight.first')}</label><select id={`${id}-first`} name="first" value={first} onChange={event => { const next = Number(event.target.value); setFirst(next); if (next > last) setLastChoice(next); }}>
+              {loaded.document.visits.map((_, index) => <option key={index} value={index}>{visitLabel(index)}</option>)}
+            </select></div>
+            <div><label htmlFor={`${id}-last`}>{t('sight.last')}</label><select id={`${id}-last`} name="last" value={last} onChange={event => setLastChoice(Number(event.target.value))}>
+              {loaded.document.visits.map((_, index) => index >= first && <option key={index} value={index}>{visitLabel(index)}</option>)}
+            </select></div>
+          </div>
+        </>}
+        <div className="challenge-actions">
+          <button type="submit" className="primary-button" disabled={saving || !playable || Boolean(saved?.version && !canPublish)}>{t(saved?.version ? 'sight.updatePublished' : 'sight.savePrivate')}</button>
+          {!saved?.version && canPublish && <button type="submit" value="publish" className="secondary-button" disabled={saving || !playable} aria-describedby={`${id}-publish`}>{t('sight.publish')}</button>}
         </div>
-      </>}
-      <div className="challenge-actions">
-        <button type="submit" className="primary-button" disabled={saving || !playable || Boolean(saved?.version && !canPublish)}>{t(saved?.version ? 'sight.updatePublished' : 'sight.savePrivate')}</button>
-        {!saved?.version && canPublish && <button type="submit" value="publish" className="secondary-button" disabled={saving || !playable} aria-describedby={`${id}-publish`}>{t('sight.publish')}</button>}
-      </div>
-      {canPublish && <small id={`${id}-publish`}>{t('sight.publishScope')}</small>}
-    </form>}
-    {(status === 'loading' || (source && !loaded.failed && !loaded.document)) && <LoadingStatus>{t('sight.loading')}</LoadingStatus>}
-    {status === 'error' && <p role="alert" className="challenge-error">{t('sight.sourceError')} <button type="button" className="text-button" onClick={attachments.retry}>{t('sight.tryLoad')}</button></p>}
-    {needsSource && <p role="alert" className="challenge-error">{t('sight.sourceChanged')}</p>}
-    {loaded.failed && <p role="alert" className="challenge-error">{t('sight.sourceError')} <button type="button" className="text-button" onClick={loaded.retry}>{t('sight.tryLoad')}</button></p>}
-    {typeof issue === 'string' && <p role="alert" className="challenge-error">{t(`sight.${issue}`)}</p>}
-    {failed && <p role="alert" className="challenge-error">{t(failed === 'publish' ? 'sight.publishError' : 'sight.storageError')}</p>}
-    {!editing && loaded.document && selected && <>
-      <p className="challenge-source">{range}{saved?.version && <> · {t('sight.questionVersion', { version: saved.version })}</>}</p>
-      <p className="challenge-privacy">{t('sight.recordingPrivacy')}</p>
-      <ChallengeRun document={loaded.document} selected={selected} voices={voices} selectVoice={setVoiceChoice} visitLabel={visitLabel} onTake={recordTake} />
-    </>}
-  </>;
+        {canPublish && <small id={`${id}-publish`}>{t('sight.publishScope')}</small>}
+      </form>}
+      {(status === 'loading' || (source && !loaded.failed && !loaded.document)) && <LoadingStatus>{t('sight.loading')}</LoadingStatus>}
+      {status === 'error' && <p role="alert" className="challenge-error">{t('sight.sourceError')} <button type="button" className="text-button" onClick={attachments.retry}>{t('sight.tryLoad')}</button></p>}
+      {needsSource && <p role="alert" className="challenge-error">{t('sight.sourceChanged')}</p>}
+      {loaded.failed && <p role="alert" className="challenge-error">{t('sight.sourceError')} <button type="button" className="text-button" onClick={loaded.retry}>{t('sight.tryLoad')}</button></p>}
+      {typeof issue === 'string' && <p role="alert" className="challenge-error">{t(`sight.${issue}`)}</p>}
+      {failed && <p role="alert" className="challenge-error">{t(failed === 'publish' ? 'sight.publishError' : 'sight.storageError')}</p>}
+      {!editing && loaded.document && selected && <ChallengeRun document={loaded.document} selected={selected} voices={voices}
+        backingUnavailable={backingUnavailable} selectVoice={setVoiceChoice} visitLabel={visitLabel} onTake={recordTake} />}
+    </main>
+  </div>;
 }
