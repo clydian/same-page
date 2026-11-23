@@ -1,5 +1,6 @@
-import { readQuestions, saveQuestion } from "../sight-singing/questions";
-import { readTakes, saveTake, type PracticeTake } from "../sight-singing/practice-history";
+import { Blob as NodeBlob } from "node:buffer";
+import { readQuestionSnapshot, readQuestions, saveQuestion, takeKeyPrefix } from "../sight-singing/questions";
+import { compactPracticeHistory, readTakes, saveTake, type PracticeTake } from "../sight-singing/practice-history";
 import { storeOfflineScore } from "../platform/local-database";
 import { markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "../score-library/attachments/markdown-drafts";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -202,21 +203,28 @@ it("fences delayed identity activation and an old session until a new login succ
 });
 
 
-it("scopes sight-singing questions by local owner and drive and clears the signing-out owner", async () => {
-  const question = { id: "question", title: "Local practice", scoreId: "score", attachmentId: "xml", revision: 2, voice: "0:0:0", first: 1, last: 3 };
-  const take: PracticeTake = { id: 'take', at: 1, questionId: question.id, version: null, title: question.title, scoreId: question.scoreId,
-    attachmentId: question.attachmentId, revision: 2, first: 1, last: 3, range: '2–4', voiceId: question.voice, voiceName: 'Alto',
-    drone: true, accompaniment: ['Soprano'], percent: 100, matched: 1, total: 1,
-    notes: [{ measure: '2', target: 60, targets: [60, 65], sung: 60, cents: 0, interval: null, status: 'inTune' }] };
+it("scopes frozen sight-singing questions and compact scores by owner and drive", async () => {
+  const question = { id: "question", title: "Local practice", scoreId: "score", attachmentId: "xml", revision: 2,
+    voice: "0:0:0", first: 1, last: 3, version: 1, snapshot: { name: "mock.musicxml" } };
+  const blob = new NodeBlob(["fixture score"]) as Blob;
+  const take: PracticeTake = { id: "take", at: 1, questionId: question.id, version: 1, title: question.title,
+    voiceId: question.voice, voiceName: "Alto", percent: 100, published: false };
+  const legacyKey = takeKeyPrefix("user:user-1", "choir-1") + take.id;
   const signal = new AbortController().signal;
-  await saveQuestion("user:user-1", "choir-1", question, signal);
-  await saveTake("user:user-1", "choir-1", take);
+  await saveQuestion("user:user-1", "choir-1", question, signal, blob);
+  await localDatabase.system.put({ key: legacyKey, value: JSON.stringify({ ...take, version: null,
+    notes: [{ measure: "2", sung: 60 }], accompaniment: ["Soprano"] }) });
+  await compactPracticeHistory("user:user-1");
+  expect(JSON.parse((await localDatabase.system.get(legacyKey))!.value)).toEqual(take);
+  expect(await (await readQuestionSnapshot("user:user-1", "choir-1", question.id, 1))?.text()).toBe("fixture score");
+  expect(await readQuestionSnapshot("user:user-1", "choir-1", question.id, 2)).toBeNull();
   expect(await readQuestions("user:user-1", "choir-2")).toEqual([]);
   expect(await readTakes("user:user-1", "choir-2")).toEqual([]);
   await activateAuthenticatedLocalOwner("user-2");
   expect(await readQuestions("user:user-1", "choir-1")).toEqual([]);
-  await expect(saveQuestion("user:user-1", "choir-1", question, signal)).rejects.toThrow("local_workspace_owner_changed");
-  await saveQuestion("user:user-2", "choir-1", question, signal);
+  expect(await readQuestionSnapshot("user:user-1", "choir-1", question.id, 1)).toBeNull();
+  await expect(saveQuestion("user:user-1", "choir-1", question, signal, blob)).rejects.toThrow("local_workspace_owner_changed");
+  await saveQuestion("user:user-2", "choir-1", question, signal, blob);
   await saveTake("user:user-2", "choir-1", take);
   await clearPrivateLocalDataAfterLogout();
   await activateAuthenticatedLocalOwner("user-1");
@@ -224,5 +232,6 @@ it("scopes sight-singing questions by local owner and drive and clears the signi
   expect(await readTakes("user:user-1", "choir-1")).toEqual([take]);
   await activateAuthenticatedLocalOwner("user-2");
   expect(await readQuestions("user:user-2", "choir-1")).toEqual([]);
+  expect(await readQuestionSnapshot("user:user-2", "choir-1", question.id, 1)).toBeNull();
   expect(await readTakes("user:user-2", "choir-1")).toEqual([]);
 });

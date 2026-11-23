@@ -182,7 +182,7 @@ export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[]) {
   return waveFile([pcm16(mixed.getChannelData(0))], length, sampleRate);
 }
 
-export function playMelody(melody: Melody, firstOnly: boolean, onFinish: (failed: boolean) => void) {
+export function playNote(midi: number, onFinish: (failed: boolean) => void) {
   const context = new AudioContext();
   let active = true;
   const stop = () => {
@@ -193,14 +193,13 @@ export function playMelody(melody: Melody, firstOnly: boolean, onFinish: (failed
   void context.resume().then(() => {
     if (!active) return;
     const start = context.currentTime + .04;
-    const notes = firstOnly ? [{ ...melody.notes[0], start: 0, end: .6 }] : melody.notes;
-    schedulePiano(context, notes, start, .23);
+    schedulePiano(context, [{ midi, start: 0, end: .6, bar: 0, visit: 0 }], start, .23);
     const sentinel = context.createConstantSource();
     sentinel.offset.value = 0;
     sentinel.connect(context.destination);
     sentinel.onended = () => { if (active) { stop(); onFinish(false); } };
     sentinel.start(start);
-    sentinel.stop(start + (firstOnly ? .6 : melody.duration));
+    sentinel.stop(start + .655);
   }).catch(() => { if (active) { stop(); onFinish(true); } });
   return stop;
 }

@@ -1,11 +1,12 @@
 import { Play } from 'lucide-react';
 import { useMessages } from '../../i18n';
-import { pitchName } from './pitch-feedback';
-import type { PracticeTake } from './practice-history';
+import { pitchName, type assessNotes } from './pitch-feedback';
+
+export type NoteFeedback = Omit<ReturnType<typeof assessNotes>[number], 'note'> & { measure: string; targets: number[] };
 
 const signed = (cents: number | null) => cents === null ? '—' : cents > 0 ? `+${cents}` : String(cents);
 
-export function FeedbackTable({ notes, active, onPlay }: { notes: PracticeTake['notes']; active?: number; onPlay?: (index: number) => void }) {
+export function FeedbackTable({ notes, active, onPlay }: { notes: NoteFeedback[]; active?: number; onPlay?: (index: number) => void }) {
   const t = useMessages('practice');
   return <div className="challenge-results" tabIndex={0} role="region" aria-label={t('sight.noteFeedback')}>
     <table><thead><tr>

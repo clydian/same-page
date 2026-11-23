@@ -14,6 +14,7 @@ export function loadMelodyScore(bytes: Uint8Array) {
   settings.importer.mergePartGroupsInMusicXml = false;
   const prepared = prepareMusicXmlForPlaybackBytes(bytes);
   const score = loadPreparedMusicXml(prepared, settings);
+  if (score.tracks.length > 1) score.stylesheet.multiTrackTrackNamePolicy = alphaTab.model.TrackNamePolicy.AllSystems;
   const midi = new alphaTab.midi.MidiFile();
   const generator = new alphaTab.midi.MidiFileGenerator(score, settings, new alphaTab.midi.AlphaSynthMidiFileHandler(midi));
   generator.generate();

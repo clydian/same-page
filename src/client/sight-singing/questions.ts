@@ -1,24 +1,40 @@
 import { readLogoutFence } from '../auth/logout-fence';
 import { localDatabase } from '../platform/local-database';
 import { currentLocalOwnerKey } from '../platform/local-workspace';
-import type { PublishedQuestion } from '../../shared/sight-singing';
 
 const prefix = 'same-page:sight-singing:v1:';
 const ownerPrefix = (user: string) => `${prefix}${encodeURIComponent(user)}:`;
 const questionKeyPrefix = (owner: string, drive: string) => `${ownerPrefix(owner)}${encodeURIComponent(drive)}:`;
-const takePrefix = (owner: string) => `same-page:sight-singing-takes:v1:${encodeURIComponent(owner)}:`;
-export const isSightSingingQuestionKey = (key: string, owner: string) => key.startsWith(ownerPrefix(owner)) || key.startsWith(takePrefix(owner));
-export const takeKeyPrefix = (owner: string, drive: string) => `${takePrefix(owner)}${encodeURIComponent(drive)}:`;
+export const takeOwnerKeyPrefix = (owner: string) => `same-page:sight-singing-takes:v1:${encodeURIComponent(owner)}:`;
+export const isSightSingingQuestionKey = (key: string, owner: string) => key.startsWith(ownerPrefix(owner)) || key.startsWith(takeOwnerKeyPrefix(owner));
+export const takeKeyPrefix = (owner: string, drive: string) => `${takeOwnerKeyPrefix(owner)}${encodeURIComponent(drive)}:`;
 
-// Older private questions store a voice. Keep it as a default when opened.
-export type SightSingingQuestion = Omit<PublishedQuestion, 'version'> & { voice?: string; version?: number };
+// Legacy records retain the source tuple until the original revision can be frozen.
+export type SightSingingQuestion = {
+  id: string;
+  title: string;
+  scoreId: string | null;
+  attachmentId: string | null;
+  revision: number | null;
+  first: number;
+  last: number;
+  voice?: string;
+  version?: number;
+  snapshot?: { name: string; editToken?: string };
+};
 
 function isQuestion(value: unknown): value is SightSingingQuestion {
   if (!value || typeof value !== 'object') return false;
   const q = value as Partial<SightSingingQuestion>;
-  return [q.id, q.title, q.scoreId, q.attachmentId].every(part => typeof part === 'string' && part.length > 0)
+  const library = typeof q.scoreId === 'string' && q.scoreId.length > 0 && typeof q.attachmentId === 'string'
+    && q.attachmentId.length > 0 && typeof q.revision === 'number' && Number.isSafeInteger(q.revision) && q.revision > 0;
+  const standalone = q.scoreId === null && q.attachmentId === null && q.revision === null && Boolean(q.snapshot);
+  return [q.id, q.title].every(part => typeof part === 'string' && part.length > 0)
+    && (library || standalone)
     && (q.voice === undefined || typeof q.voice === 'string')
-    && [q.revision, q.first, q.last].every(part => typeof part === 'number' && Number.isSafeInteger(part) && part >= 0)
+    && (q.version === undefined || Number.isSafeInteger(q.version) && q.version > 0)
+    && (q.snapshot === undefined || typeof q.snapshot?.name === 'string' && q.snapshot.name.length > 0)
+    && [q.first, q.last].every(part => typeof part === 'number' && Number.isSafeInteger(part) && part >= 0)
     && q.first! <= q.last!;
 }
 
@@ -36,17 +52,46 @@ export async function readQuestions(owner: string, drive: string) {
   });
 }
 
-export async function saveQuestion(owner: string, drive: string, question: SightSingingQuestion, signal: AbortSignal) {
-  await savePracticeData(owner, questionKeyPrefix(owner, drive) + question.id, question, signal);
+export async function readQuestionSnapshot(owner: string, drive: string, id: string, version: number) {
+  return localDatabase.transaction('r', localDatabase.system, async () => {
+    if (await currentLocalOwnerKey() !== owner || (await readLogoutFence())?.userId === owner.slice('user:'.length)) return null;
+    const row = await localDatabase.system.get(questionKeyPrefix(owner, drive) + id);
+    if (!row?.blob) return null;
+    try {
+      const question: unknown = JSON.parse(row.value);
+      return isQuestion(question) && question.snapshot && question.version === version ? row.blob : null;
+    } catch { return null; }
+  });
 }
 
-export async function savePracticeData(owner: string, key: string, value: unknown, signal?: AbortSignal) {
+export async function saveQuestion(owner: string, drive: string, question: SightSingingQuestion, signal: AbortSignal, blob?: Blob) {
+  if (Boolean(question.snapshot) !== Boolean(blob)) throw new Error('question_snapshot_missing');
+  await savePracticeData(owner, questionKeyPrefix(owner, drive) + question.id, question, signal, blob);
+}
+
+export async function freezeLegacyQuestion(owner: string, drive: string, question: SightSingingQuestion, name: string, blob: Blob, signal: AbortSignal) {
   await localDatabase.transaction('rw', localDatabase.system, async () => {
-    if (await currentLocalOwnerKey() !== owner || (await readLogoutFence())?.userId === owner.slice('user:'.length)) {
-      throw new Error('local_workspace_owner_changed');
-    }
+    await assertPracticeOwner(owner);
+    signal.throwIfAborted();
+    const key = questionKeyPrefix(owner, drive) + question.id;
+    const row = await localDatabase.system.get(key);
+    if (!row || row.blob || row.value !== JSON.stringify(question)) return;
+    await localDatabase.system.put({ key, value: JSON.stringify({ ...question, version: question.version ?? 1, snapshot: { name } }), blob });
+    signal.throwIfAborted();
+  });
+}
+
+export async function assertPracticeOwner(owner: string) {
+  if (await currentLocalOwnerKey() !== owner || (await readLogoutFence())?.userId === owner.slice('user:'.length)) {
+    throw new Error('local_workspace_owner_changed');
+  }
+}
+
+export async function savePracticeData(owner: string, key: string, value: unknown, signal?: AbortSignal, blob?: Blob) {
+  await localDatabase.transaction('rw', localDatabase.system, async () => {
+    await assertPracticeOwner(owner);
     signal?.throwIfAborted();
-    await localDatabase.system.put({ key, value: JSON.stringify(value) });
+    await localDatabase.system.put({ key, value: JSON.stringify(value), ...(blob && { blob }) });
     signal?.throwIfAborted();
   });
 }

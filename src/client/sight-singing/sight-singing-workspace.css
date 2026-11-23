@@ -1,0 +1,33 @@
+.challenge-question-meta {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.challenge-form input[type='file'] { padding: .58rem .72rem; }
+.challenge-source-file {
+  display: grid;
+  gap: .15rem;
+  margin: .4rem 0;
+  padding: .65rem .75rem;
+  border-radius: .65rem;
+  background: var(--ui-surface-muted, var(--wash));
+  overflow-wrap: anywhere;
+}
+.challenge-source-file span { color: var(--muted); font-size: .82rem; }
+.challenge-score-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: .8rem 1rem;
+  overflow-wrap: anywhere;
+}
+.challenge-score-list li > div:last-child { text-align: end; }
+.challenge-score-list small { display: block; margin-block-start: .2rem; color: var(--muted); }
+.challenge-published-results { margin-block-start: 1.2rem; }
+.challenge-run:not([data-phase="idle"], [data-phase="complete"]) + .challenge-published-results { display: none; }
+.challenge-published-results summary { cursor: pointer; padding-block: .65rem; }
+.challenge-published-results summary small { margin-inline-start: .3rem; color: var(--muted); }

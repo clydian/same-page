@@ -1,0 +1,24 @@
+.challenge-notation.challenge-ensemble-score {
+  max-block-size: clamp(17rem, 54svh, 32rem);
+  scroll-padding-block: 10px;
+}
+.challenge-ensemble-score .challenge-notation-sheet { flex-shrink: 0; }
+.challenge-ensemble-score .challenge-notation-sheet > :first-child { pointer-events: none; }
+.challenge-notation-sheet [data-challenge-part="context"] { opacity: .52; }
+.challenge-note-layer, .challenge-score-feedback-layer { position: absolute; inset: 0; pointer-events: none; }
+.challenge-score-feedback-layer { z-index: 1; }
+.challenge-note-layer { z-index: 2; }
+.challenge-notation-note {
+  position: absolute; transform: translate(-50%, -50%); box-sizing: border-box;
+  inline-size: 25px; block-size: 25px; border: 0; border-radius: .45rem; padding: 0;
+  background: transparent; pointer-events: auto; cursor: pointer; touch-action: manipulation;
+}
+.challenge-notation-note:active { background: var(--score-focus); }
+.challenge-notation-note:focus-visible { outline: 2px solid var(--score-cursor); outline-offset: -2px; z-index: 1; }
+.challenge-notation-feedback {
+  position: absolute; transform: translateX(-50%); box-sizing: border-box; min-inline-size: 1em;
+  padding: .15em .2em; border-radius: .25em; line-height: 1; text-align: center;
+  background: var(--score-paper); color: var(--muted); font-size: .75rem; font-weight: 700;
+}
+.challenge-notation-feedback[data-status="inTune"] { color: var(--brand); }
+.challenge-notation-feedback:is([data-status="sharp"], [data-status="flat"], [data-status="wrongNote"]) { color: var(--pitch-voice); }

@@ -1,7 +1,9 @@
 import { hashPassword } from "better-auth/crypto";
 import { env } from "cloudflare:workers";
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { zipSync } from "fflate";
 import { beforeEach, expect, it, vi } from "vitest";
+import { SIGHT_SINGING_PROTOCOL_HEADER } from "../src/shared/sight-singing";
 import worker from "./index";
 import { provisionChoir } from "./choirs/provision";
 import { cleanupScoreStorage } from "./scores/cleanup";
@@ -320,10 +322,12 @@ it('publishes voice-neutral challenges only to active drive members and fences s
   const ownerSave = await publish(); expect(ownerSave.status, await ownerSave.clone().text()).toBe(200);
   expect(await ownerSave.json()).toEqual({ question: { id, title: fields.title, scoreId, attachmentId, revision: 1, first: 0, last: 0, version: 1 } });
   expect(await (await publish()).json()).toMatchObject({ question: { version: 1 } });
+  expect((await call(`${path}/${id}/score?version=1`, { headers: { cookie: readerCookie } })).status).toBe(403);
   await env.DB.prepare("INSERT INTO memberships(id,choir_id,user_id,display_name,status) VALUES (?,?,?,'成员','active')").bind(crypto.randomUUID(), choirId, reader).run();
   const visible = await call(path, { headers: { cookie: readerCookie } });
   expect(visible.headers.get('cache-control')).toBe('no-store');
   expect(await visible.json()).toMatchObject({ questions: [{ id, version: 1 }] });
+  expect(new Uint8Array(await (await call(`${path}/${id}/score?version=1`, { headers: { cookie: readerCookie } })).arrayBuffer())).toEqual(musicXml);
   expect((await publish({ ...fields, expectedVersion: 1 }, reader, readerCookie)).status).toBe(403);
   await env.DB.prepare('UPDATE memberships SET permissions = ? WHERE user_id = ? AND choir_id = ?')
     .bind(JSON.stringify({ operations: ['editDriveInfo'], sharedLayers: [] }), reader, choirId).run();
@@ -331,6 +335,81 @@ it('publishes voice-neutral challenges only to active drive members and fences s
   expect((await publish({ ...fields, expectedVersion: 1, revision: 2 }, reader, readerCookie)).status).toBe(409);
   expect(await (await publish({ ...fields, expectedVersion: 1, title: '更新题' }, reader, readerCookie)).json()).toMatchObject({ question: { title: '更新题', version: 2 } });
   expect((await publish({ ...fields, expectedVersion: 1, title: '旧版本' })).status).toBe(409);
+});
+
+it('freezes library MusicXML independently and keeps the original bytes when the attachment is replaced or deleted', async () => {
+  const original = await uploadGenerated();
+  expect(original.response.status).toBe(201);
+  const path = `/api/choirs/${choirId}/sight-singing/questions/${crypto.randomUUID()}`;
+  const owner = (await env.DB.prepare('SELECT user_id FROM memberships WHERE id = ?').bind(memberId).first<{ user_id: string }>())!.user_id;
+  const headers = { 'x-same-page-owner-user-id': owner, [SIGHT_SINGING_PROTOCOL_HEADER]: '2' };
+  const publish = (fields: unknown) => {
+    const { body, headers: jsonHeaders } = json(fields);
+    return call(path, { method: 'PUT', headers: { ...headers, ...jsonHeaders }, body });
+  };
+  const fields = { title: '定稿', scoreId, attachmentId: original.id, revision: 1, first: 0, last: 0, expectedVersion: null };
+  expect(await (await publish(fields)).json()).toMatchObject({ question: { version: 1, snapshot: { name: '自动练习.musicxml' } } });
+  const replacement = new TextEncoder().encode(new TextDecoder().decode(musicXml).replace('<step>C</step>', '<step>E</step>'));
+  const query = new URLSearchParams({ size: String(replacement.length), name: '更新.musicxml', expectedRevision: '1', source: 'generated' });
+  expect((await call(`${base()}/${original.id}/file?${query}`, { method: 'PUT', body: replacement })).status).toBe(200);
+  expect(new Uint8Array(await (await call(`${path}/score?version=1`)).arrayBuffer())).toEqual(musicXml);
+  expect((await publish({ ...fields, expectedVersion: 1 })).status).toBe(409);
+  const updated = await publish({ ...fields, expectedVersion: 1, revision: 2 });
+  expect(updated.status, await updated.clone().text()).toBe(200);
+  const current = (await updated.json<{ question: { snapshot: { editToken: string } } }>()).question;
+  expect(current).toMatchObject({ version: 2, snapshot: { name: '更新.musicxml' } });
+
+  await env.DB.prepare('DELETE FROM score_attachments WHERE id = ?').bind(original.id).run();
+  await cleanupScoreStorage(env);
+  expect(new Uint8Array(await (await call(`${path}/score`)).arrayBuffer())).toEqual(replacement);
+  expect(new Uint8Array(await (await call(`${path}/score?version=1`)).arrayBuffer())).toEqual(musicXml);
+  const rename = { title: '依旧独立', first: 0, last: 0, expectedVersion: 2, reuseSnapshot: true, expectedEditToken: current.snapshot.editToken };
+  const renamed = (await (await publish(rename)).json<{ question: { snapshot: { editToken: string } } }>()).question;
+  expect(renamed).toMatchObject({ version: 2, title: '依旧独立', snapshot: { name: '更新.musicxml' } });
+  expect(await (await publish(rename)).json()).toEqual({ question: renamed });
+  expect((await publish({ ...rename, expectedEditToken: renamed.snapshot.editToken, title: fields.title })).status).toBe(200);
+  expect((await publish(rename)).status).toBe(409);
+  expect(await usage()).toBe(mainBytes.length + musicXml.length + replacement.length);
+  expect((await env.DB.prepare('SELECT COUNT(*) AS count FROM sight_singing_score_snapshots').first())).toEqual({ count: 2 });
+});
+
+it('publishes a standalone MXL with bounded provenance, safe retries and a compatible legacy list', async () => {
+  const files = zipSync({
+    'META-INF/container.xml': new TextEncoder().encode('<container><rootfiles><rootfile full-path="score.xml"/></rootfiles></container>'),
+    'score.xml': musicXml,
+  });
+  const listPath = `/api/choirs/${choirId}/sight-singing/questions`;
+  const path = `${listPath}/${crypto.randomUUID()}`;
+  await env.DB.prepare("UPDATE choirs SET plan = 'free', storage_limit_bytes = ? WHERE id = ?").bind(mainBytes.length + files.length - 1, choirId).run();
+  const owner = (await env.DB.prepare('SELECT user_id FROM memberships WHERE id = ?').bind(memberId).first<{ user_id: string }>())!.user_id;
+  const put = (name: string, bytes: Uint8Array) => {
+    const body = new FormData();
+    body.append('fields', JSON.stringify({ title: '独立片段', first: 0, last: 0, expectedVersion: null }));
+    body.append('file', new Blob([bytes.slice()]), name);
+    return call(path, { method: 'PUT', headers: { 'x-same-page-owner-user-id': owner, origin: 'https://same-page.test' }, body });
+  };
+  expect((await put('fake.pdf', files)).status).toBe(415);
+  expect((await put('bad.xml', new TextEncoder().encode('<html/>'))).status).toBe(422);
+  expect((await put('练习片段.mxl', files)).status).toBe(409);
+  expect(await usage()).toBe(mainBytes.length);
+  await env.DB.prepare('UPDATE choirs SET storage_limit_bytes = 52428800 WHERE id = ?').bind(choirId).run();
+  const response = await put('练习片段.mxl', files);
+  expect(response.status, await response.clone().text()).toBe(200);
+  const published = { title: '独立片段', scoreId: null, attachmentId: null, revision: null, first: 0, last: 0, version: 1, snapshot: { name: '练习片段.mxl' } };
+  expect(await response.json()).toMatchObject({ question: published });
+  expect(await (await put('练习片段.mxl', files)).json()).toMatchObject({ question: published });
+  expect(await (await call(listPath)).json()).toEqual({ questions: [] });
+  expect(await (await call(listPath, { headers: { [SIGHT_SINGING_PROTOCOL_HEADER]: '2' } })).json()).toMatchObject({ questions: [published] });
+  const copy = await call(`${path}/score`);
+  expect(copy.headers.get('content-type')).toBe('application/vnd.recordare.musicxml');
+  expect(copy.headers.get('cache-control')).toBe('no-store');
+  expect(new Uint8Array(await copy.arrayBuffer())).toEqual(files);
+  expect(await usage()).toBe(mainBytes.length + files.length);
+  const snapshot = (await env.DB.prepare('SELECT object_key FROM sight_singing_score_snapshots WHERE choir_id = ?').bind(choirId).first<{ object_key: string }>())!;
+  await env.DB.prepare('DELETE FROM choirs WHERE id = ?').bind(choirId).run();
+  expect(await env.DB.prepare('SELECT platform_bytes FROM score_object_deletions WHERE object_key = ?').bind(snapshot.object_key).first()).toEqual({ platform_bytes: files.length });
+  await cleanupScoreStorage(env);
+  expect(await env.SCORES_BUCKET.head(snapshot.object_key)).toBeNull();
 });
 
 it("keeps MusicXML original bytes and negotiates legacy lists, counts and trash", async () => {
