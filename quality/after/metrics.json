@@ -1,0 +1,1034 @@
+[
+  {
+    "name": "bass_harmonic",
+    "rate": 44100,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "sharp",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "sharp",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "bass_harmonic",
+    "rate": 48000,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "sharp",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "sharp",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "deviations",
+    "rate": 44100,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "sharp",
+      "flat",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "sharp",
+      "flat"
+    ],
+    "statuses": [
+      "inTune",
+      "sharp",
+      "flat",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "sharp",
+      "flat"
+    ]
+  },
+  {
+    "name": "deviations",
+    "rate": 48000,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "sharp",
+      "flat",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "sharp",
+      "flat"
+    ],
+    "statuses": [
+      "inTune",
+      "sharp",
+      "flat",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "sharp",
+      "flat"
+    ]
+  },
+  {
+    "name": "missed",
+    "rate": 44100,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "missed",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune"
+    ],
+    "statuses": [
+      "missed",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune"
+    ]
+  },
+  {
+    "name": "missed",
+    "rate": 48000,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "missed",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune"
+    ],
+    "statuses": [
+      "missed",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune"
+    ]
+  },
+  {
+    "name": "noise",
+    "rate": 44100,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed"
+    ],
+    "statuses": [
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed"
+    ]
+  },
+  {
+    "name": "noise",
+    "rate": 48000,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed"
+    ],
+    "statuses": [
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed"
+    ]
+  },
+  {
+    "name": "ordinary",
+    "rate": 44100,
+    "counts": {
+      "matched": 6,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "ordinary",
+    "rate": 48000,
+    "counts": {
+      "matched": 6,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "ordinary_early_45",
+    "rate": 44100,
+    "counts": {
+      "matched": 6,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "ordinary_early_45",
+    "rate": 48000,
+    "counts": {
+      "matched": 6,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "ordinary_late_55",
+    "rate": 44100,
+    "counts": {
+      "matched": 6,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "ordinary_late_55",
+    "rate": 48000,
+    "counts": {
+      "matched": 6,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_125",
+    "rate": 44100,
+    "counts": {
+      "matched": 11,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 1
+    },
+    "expected": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_125",
+    "rate": 48000,
+    "counts": {
+      "matched": 12,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_125_early_45",
+    "rate": 44100,
+    "counts": {
+      "matched": 9,
+      "falseMiss": 0,
+      "falseVoiced": 1,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 2
+    },
+    "expected": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "wrongNote",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_125_early_45",
+    "rate": 48000,
+    "counts": {
+      "matched": 10,
+      "falseMiss": 0,
+      "falseVoiced": 1,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 1
+    },
+    "expected": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_125_late_55",
+    "rate": 44100,
+    "counts": {
+      "matched": 7,
+      "falseMiss": 0,
+      "falseVoiced": 1,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 4
+    },
+    "expected": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "wrongNote",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "inTune",
+      "wrongNote"
+    ]
+  },
+  {
+    "name": "short_125_late_55",
+    "rate": 48000,
+    "counts": {
+      "matched": 7,
+      "falseMiss": 0,
+      "falseVoiced": 2,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 3
+    },
+    "expected": [
+      "inTune",
+      "sharp",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_62",
+    "rate": 44100,
+    "counts": {
+      "matched": 12,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_62",
+    "rate": 48000,
+    "counts": {
+      "matched": 12,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_62_bass",
+    "rate": 44100,
+    "counts": {
+      "matched": 5,
+      "falseMiss": 2,
+      "falseVoiced": 0,
+      "falseInTune": 1,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "inTune",
+      "inTune",
+      "sharp",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_62_bass",
+    "rate": 48000,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "inTune",
+      "inTune",
+      "sharp",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "inTune",
+      "flat",
+      "inTune",
+      "inTune",
+      "inTune",
+      "sharp",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_62_early_30",
+    "rate": 44100,
+    "counts": {
+      "matched": 5,
+      "falseMiss": 2,
+      "falseVoiced": 2,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 3
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "wrongNote",
+      "missed",
+      "inTune",
+      "wrongNote",
+      "missed",
+      "inTune",
+      "sharp",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_62_early_30",
+    "rate": 48000,
+    "counts": {
+      "matched": 5,
+      "falseMiss": 2,
+      "falseVoiced": 2,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 3
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "wrongNote",
+      "missed",
+      "missed",
+      "inTune",
+      "wrongNote",
+      "inTune",
+      "inTune",
+      "inTune"
+    ]
+  },
+  {
+    "name": "short_62_late_35",
+    "rate": 44100,
+    "counts": {
+      "matched": 3,
+      "falseMiss": 2,
+      "falseVoiced": 2,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 5
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "missed",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "wrongNote",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "missed"
+    ]
+  },
+  {
+    "name": "short_62_late_35",
+    "rate": 48000,
+    "counts": {
+      "matched": 3,
+      "falseMiss": 2,
+      "falseVoiced": 2,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 5
+    },
+    "expected": [
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune",
+      "inTune",
+      "missed",
+      "inTune",
+      "inTune",
+      "inTune"
+    ],
+    "statuses": [
+      "inTune",
+      "wrongNote",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "missed",
+      "missed",
+      "wrongNote",
+      "wrongNote",
+      "inTune",
+      "wrongNote",
+      "wrongNote"
+    ]
+  },
+  {
+    "name": "silence",
+    "rate": 44100,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed"
+    ],
+    "statuses": [
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed"
+    ]
+  },
+  {
+    "name": "silence",
+    "rate": 48000,
+    "counts": {
+      "matched": 8,
+      "falseMiss": 0,
+      "falseVoiced": 0,
+      "falseInTune": 0,
+      "unscored": 0,
+      "otherWrongPitch": 0
+    },
+    "expected": [
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed"
+    ],
+    "statuses": [
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed",
+      "missed"
+    ]
+  }
+]
