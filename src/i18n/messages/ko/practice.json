@@ -324,6 +324,7 @@
     "pitchGraph": "목표 음높이와 노래한 음높이의 변화",
     "targetLegend": "목표 음높이",
     "voiceLegend": "노래한 음높이",
+    "octaveAlignedTrace": "노래 음높이 궤적을 악보의 옥타브에 맞춰 표시",
     "count": "준비 · {count}",
     "waitingMicrophone": "마이크 권한을 기다리는 중…",
     "singNow": "지금 노래하세요",

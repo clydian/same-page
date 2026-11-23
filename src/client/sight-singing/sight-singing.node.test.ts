@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { buildMelody, loadMelodyScore, type Melody } from './melody';
+import { renderPracticeClicks } from '../playback/practice-metronome';
+import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { assessNotes, createPitchReader, frequency, pitchWindowSize } from './pitch-feedback';
 
 const bytes = (text: string) => new TextEncoder().encode(text);
@@ -38,6 +39,12 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
   const secondPass = buildMelody(document, document.voices[0], 3, 4) as Melody;
   expect(secondPass.notes[0]).toMatchObject({ start: 0, visit: 3 });
   expect(secondPass.notes[1].start).toBe(secondPass.measures[1].start + 1);
+  expect(melody.clicks.slice(0, 5)).toEqual([
+    { time: 0, accent: 2 }, { time: .5, accent: 2 }, { time: 1, accent: 0 }, { time: 2, accent: 2 }, { time: 3, accent: 0 },
+  ]);
+  const slower = melodyAtSpeed(melody, .5);
+  expect([slower.duration, slower.notes[1].end, slower.beatSeconds, slower.measures[1].start]).toEqual([16, 4, 1, 1]);
+  expect(slower.clicks[3]).toEqual({ time: 4, accent: 2 });
   const alto = buildMelody(document, document.voices[1], 1, 1) as Melody;
   expect(alto.notes[0].chord).toEqual([65, 69]);
   for (const [midi, target, status] of [[65.18, 65, 'inTune'], [65.36, 65, 'sharp'], [68.62, 69, 'flat'], [67.6, 69, 'wrongNote']] as const) {
@@ -106,6 +113,27 @@ describe('pitch and feedback', () => {
     ]);
     expect(result[3].interval).toBe(null);
   });
+  it('matches chord tones across octaves while retaining cents, sung pitches and real interval jumps', () => {
+    const chord = [{ midi: 60, chord: [60, 64], start: 0, end: 1, bar: 0, visit: 0 }];
+    for (const [midi, target, octave, cents, status] of [
+      [52, 64, -1, 0, 'inTune'], [76.32, 64, 1, 32, 'sharp'], [51.58, 64, -1, -42, 'flat'], [55, 64, -1, 300, 'wrongNote'],
+      [40, 64, -2, 0, 'inTune'],
+    ]) {
+      expect(assessNotes(chord, [{ time: .5, midi: Number(midi) }])[0]).toMatchObject({ sung: midi, target, octave, cents, status });
+    }
+    const review = assessNotes(notes.slice(0, 2), [{ time: .25, midi: 57 }, { time: 1, midi: 72 }]);
+    expect(review.map(row => row.status)).toEqual(['inTune', 'inTune']);
+    expect(review[1].interval).toBe(2400);
+  });
+});
+
+it('renders distinct native XML metronome samples for primary, secondary and weak beats', () => {
+  const [weak, secondary, strong] = renderPracticeClicks(readFileSync(new URL('../../../public/soundfont/sonivox.sf2', import.meta.url)));
+  const peak = (samples: Float32Array) => samples.reduce((value, sample) => Math.max(value, Math.abs(sample)), 0);
+  expect([weak, secondary, strong].every(samples => samples.every(Number.isFinite))).toBe(true);
+  expect(peak(weak)).toBeGreaterThan(.01);
+  expect(peak(secondary)).toBeGreaterThan(peak(weak));
+  expect(peak(strong)).toBeGreaterThan(peak(secondary));
 });
 
 it('counts on input samples and captures exactly the selected duration without count-in samples', () => {

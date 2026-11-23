@@ -16,6 +16,7 @@ import type { PracticeFocus } from './use-practice-focus';
 import { PracticeSplit } from './practice-split';
 import { PlaybackTimeline, type Timeline } from './playback-timeline';
 import { usePracticePopoverHeight } from './use-practice-popover-height';
+import { PracticeSpeed } from './practice-speed';
 
 type Props = {
   source?: PlaybackSource; embedded?: boolean; focus: PracticeFocus; notationZoom?: NotationZoomProps; ready: boolean; playing: boolean; message?: string; failed?: boolean;
@@ -157,26 +158,4 @@ function PositionLocator({ timeline, isXml, close }: { timeline: Timeline; isXml
     </label>
     <Button className="practice-action" isDisabled={timeline.disabled} onPress={() => { timeline.seek(value); close(); }}>{t("goTo")}</Button>
   </>;
-}
-
-const tempoUnits = { 4: 'wholeNote', 3: 'dottedHalfNote', 2: 'halfNote', 1.5: 'dottedQuarterNote', .75: 'dottedEighthNote', .25: 'sixteenthNote' } as const;
-function PracticeSpeed({ speed, tempo, ready, setSpeed }: { speed: number; tempo?: { bpm: number; unit: number }; ready: boolean; setSpeed(value: number): void }) {
-  const t = useMessages("practice");
-  const unit = tempo?.unit ?? 1;
-  const notationSymbol = unit === 1 ? '♩' : unit === .5 ? '♪' : undefined;
-  const unitName = tempoUnits[unit as keyof typeof tempoUnits];
-  const beat = notationSymbol ?? (unitName ? t(unitName) : t("quarterNoteUnits", { count: unit }));
-  const bpm = tempo ? tempo.bpm / unit : undefined;
-  const rate = (value: number) => Number(value.toFixed(1)).toString();
-  return <section className="practice-speed-panel" aria-label={t("playbackSpeed")}>
-    <label className="practice-field"><span>{t("speed")} <output>{speed.toFixed(2)}×</output></span>
-      <input aria-label={t("playbackSpeed")} aria-valuetext={bpm ? t("currentSpeedWithTempo", { speed: speed.toFixed(2), bpm: rate(bpm * speed) }) : t("currentSpeed", { speed: speed.toFixed(2) })} type="range" min="0.5" max="2" step="0.01" value={speed} disabled={!ready} onChange={event => setSpeed(Number(event.target.value))} />
-    </label>
-    {bpm !== undefined && <p className="practice-tempo" aria-live="polite">{t("originalTempo", { beat, bpm: rate(bpm) })}<br />{t("adjustedTempo", { beat, bpm: rate(bpm * speed) })}</p>}
-    <div className="practice-speed-actions">
-      <Button className="practice-action" aria-label={t("decreaseSpeed")} isDisabled={!ready || speed <= .5} onPress={() => setSpeed(speed - .01)}>− 0.01</Button>
-      <Button className="practice-action" isDisabled={!ready} onPress={() => setSpeed(1)}>{t("resetSpeed")}</Button>
-      <Button className="practice-action" aria-label={t("increaseSpeed")} isDisabled={!ready || speed >= 2} onPress={() => setSpeed(speed + .01)}>＋ 0.01</Button>
-    </div>
-  </section>;
 }

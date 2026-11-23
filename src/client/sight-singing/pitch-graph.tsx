@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { useMessages } from '../../i18n';
 import { targetPitches, type Melody } from './melody';
-import { pitchName, type PitchFrame } from './pitch-feedback';
+import { matchTargetPitch, pitchName, type PitchFrame } from './pitch-feedback';
 
 const windowSeconds = 12;
 const inlineInset = 8;
@@ -27,14 +27,22 @@ export function PitchGraph({ melody, frames, elapsed, activePitch, activeTarget 
   const trace: PitchFrame[] = [];
   const pitches = targets.size ? [...targets] : melody.notes.flatMap(targetPitches);
   let bottom = Math.min(...pitches), top = Math.max(...pitches);
+  let noteIndex = notes.length - 1, octaveAligned = false;
+  let markerPitch = activePitch;
   for (let index = frames.length - 1; index >= 0; index--) {
     const frame = frames[index];
     if (frame.time < start) break;
     if (frame.time > end) continue;
-    trace.push(frame);
-    if (frame.midi !== null) {
-      bottom = Math.min(bottom, Math.round(frame.midi));
-      top = Math.max(top, Math.round(frame.midi));
+    while (noteIndex >= 0 && frame.time < notes[noteIndex].start) noteIndex--;
+    const target = notes[noteIndex];
+    const octave = frame.midi !== null && target && frame.time < target.end ? matchTargetPitch(target, frame.midi).octave : 0;
+    const midi = frame.midi === null ? null : frame.midi - octave * 12;
+    if (trace.length === 0 && activePitch !== null && frame.time === elapsed) markerPitch = midi;
+    octaveAligned ||= octave !== 0;
+    trace.push({ time: frame.time, midi });
+    if (midi !== null) {
+      bottom = Math.min(bottom, Math.round(midi));
+      top = Math.max(top, Math.round(midi));
     }
   }
   const low = bottom - 1, high = top + 1;
@@ -104,10 +112,10 @@ export function PitchGraph({ melody, frames, elapsed, activePitch, activeTarget 
       previous = time;
     }
     draw.stroke();
-    if (activePitch !== null) {
+    if (markerPitch !== null) {
       draw.fillStyle = tone('voice');
       draw.beginPath();
-      draw.arc(x(elapsed), y(activePitch), 3.5, 0, 2 * Math.PI);
+      draw.arc(x(elapsed), y(markerPitch), 3.5, 0, 2 * Math.PI);
       draw.fill();
     }
   });
@@ -128,6 +136,7 @@ export function PitchGraph({ melody, frames, elapsed, activePitch, activeTarget 
         <span>{activeTarget ? t('sight.currentTarget', { pitch: activeTarget }) : t('sight.targetLegend')}</span>
         <span>{activePitch === null ? t('sight.voiceLegend') : t('sight.currentPitch', { pitch: pitchName(Math.round(activePitch)) })}</span>
       </div>
+      {octaveAligned && <small className="challenge-graph-alignment">{t('sight.octaveAlignedTrace')}</small>}
     </figcaption>
     <div className="challenge-graph-body" dir="ltr" aria-hidden="true">
       <div className="challenge-pitch-axis">

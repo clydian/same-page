@@ -324,6 +324,7 @@
     "pitchGraph": "目標音高與演唱音高軌跡",
     "targetLegend": "目標音高",
     "voiceLegend": "演唱音高",
+    "octaveAlignedTrace": "演唱軌跡已依譜面八度對齊",
     "count": "預備 · {count}",
     "waitingMicrophone": "等待麥克風權限…",
     "singNow": "開始唱",

@@ -1,4 +1,5 @@
 import workletUrl from './capture-processor.js?url&no-inline';
+import { loadPracticeClicks, practiceBeatAccent, schedulePracticeClicks } from '../playback/practice-metronome';
 import { targetPitches, type Melody, type MelodyNote } from './melody';
 import { createPitchReader, frequency, pitchWindowSize, type PitchFrame } from './pitch-feedback';
 
@@ -15,11 +16,13 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
   let active = true;
   let context: AudioContext | undefined, stream: MediaStream | undefined;
   let input: MediaStreamAudioSourceNode | undefined, worklet: AudioWorkletNode | undefined;
+  let cancelClicks: (() => void) | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
   const dispose = () => {
     if (!active) return;
     active = false;
     clearTimeout(deadline);
+    cancelClicks?.();
     stream?.getTracks().forEach(track => track.stop());
     worklet?.port.close();
     worklet?.disconnect();
@@ -39,6 +42,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     context = new AudioContext();
     const resumed = context.resume();
     const prepared = context.audioWorklet.addModule(workletUrl);
+    const clicks = loadPracticeClicks(context);
     // Permission can outlive cancellation. Claim its stream independently of
     // the worklet and stop late tracks even if another setup step failed.
     const microphone = navigator.mediaDevices.getUserMedia({
@@ -52,7 +56,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
       }
       return opened;
     });
-    const [,, opened] = await Promise.all([resumed, prepared, microphone]);
+    const [,, opened, clickBuffers] = await Promise.all([resumed, prepared, microphone, clicks]);
     if (!active) return;
     clearTimeout(deadline);
     const { sampleRate } = context;
@@ -64,8 +68,12 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     for (const track of opened.getAudioTracks()) track.addEventListener('ended', () => fail('audioInterrupted'), { once: true });
     input = context.createMediaStreamSource(opened);
     const half = pitchWindowSize / 2;
-    // Put the accompaniment and the sample-counted recording on the same clock.
-    const startFrame = backing ? Math.ceil((context.currentTime + .15) * sampleRate / 128) * 128 : undefined;
+    // Keep the count-in, clicks, accompaniment and recording on the audio clock.
+    const startFrame = Math.ceil((context.currentTime + .15) * sampleRate / 128) * 128;
+    const countStart = startFrame / sampleRate;
+    const countBeat = beatFrames / sampleRate;
+    const countDuration = melody.beats * countBeat;
+    const start = countStart + countDuration;
     worklet = new AudioWorkletNode(context, 'sight-singing-capture', {
       channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1],
       processorOptions: { beatFrames, beats: melody.beats, durationFrames, chunkFrames: half, startFrame },
@@ -100,8 +108,13 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     input.connect(worklet);
     // No microphone samples are copied to the node output.
     worklet.connect(context.destination);
-    if (startFrame !== undefined && backing) {
-      const start = (startFrame + melody.beats * beatFrames) / sampleRate;
+    cancelClicks = schedulePracticeClicks(context, clickBuffers, countStart, [
+      ...Array.from({ length: melody.beats }, (_, beat) => ({
+        time: beat * countBeat, accent: practiceBeatAccent(beat, melody.beats, melody.denominator),
+      })),
+      ...melody.clicks.map(click => ({ ...click, time: countDuration + click.time })),
+    ]);
+    if (backing) {
       if (backing.drone) scheduleDrone(context, melody.tonic, start, melody.duration);
       if (backing.others.length) schedulePiano(context, backing.others.flat(), start, .1 / Math.sqrt(backing.others.length));
     }

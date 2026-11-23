@@ -324,6 +324,7 @@
     "pitchGraph": "Zieltonhöhe und gesungene Tonhöhe im Zeitverlauf",
     "targetLegend": "Zieltonhöhe",
     "voiceLegend": "Gesungene Tonhöhe",
+    "octaveAlignedTrace": "Gesangskurve an die Notenoktave angepasst",
     "count": "Bereit machen · {count}",
     "waitingMicrophone": "Warte auf Mikrofonzugriff…",
     "singNow": "Jetzt singen",

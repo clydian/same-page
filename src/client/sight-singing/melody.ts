@@ -1,12 +1,16 @@
 import * as alphaTab from '@coderline/alphatab';
 import { loadPreparedMusicXml, prepareMusicXmlForPlaybackBytes } from '@same-page/player/engine';
 import { playbackMeasureVisits } from '@same-page/player/playback-measures';
+import { practiceBeatAccent, type PracticeClick } from '../playback/practice-metronome';
 
 export type MelodyError = 'noMelody' | 'ambiguousMelody' | 'unsupportedMelody' | 'tooLong';
 export type MelodyNote = { midi: number; chord?: number[]; start: number; end: number; visit: number; bar: number; beatIndex?: number };
 export const targetPitches = (note: MelodyNote) => note.chord ?? [note.midi];
 export type MelodyMeasure = { start: number; end: number; bar: number; visit: number };
-export type Melody = { notes: MelodyNote[]; measures: MelodyMeasure[]; duration: number; beatSeconds: number; beats: number; tonic: number };
+export type Melody = {
+  notes: MelodyNote[]; measures: MelodyMeasure[]; clicks: PracticeClick[]; duration: number;
+  beatSeconds: number; beats: number; denominator: number; tonic: number; tempo: { bpm: number; unit: number };
+};
 export type MelodyVoice = { id: string; track: number; staff: number; voice: number; name: string; multiple: boolean };
 
 export function loadMelodyScore(bytes: Uint8Array) {
@@ -42,7 +46,7 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   if (first < 0 || last < first || last >= document.bars.length) return 'noMelody';
   const selected = document.bars.slice(first, last + 1);
   const staff = document.score.tracks[voice.track].staves[voice.staff];
-  const notes: MelodyNote[] = [], measures: MelodyMeasure[] = [];
+  const notes: MelodyNote[] = [], measures: MelodyMeasure[] = [], clicks: PracticeClick[] = [];
   let previous: alphaTab.model.Note[] = [];
   let seconds = 0;
   for (const [offset, bar] of selected.entries()) {
@@ -65,6 +69,10 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
     if (end > 300) return 'tooLong';
     const visit = first + offset;
     measures.push({ start: seconds, end, bar: master.index, visit });
+    const beatTicks = Math.max(1, Math.floor(3840 / master.timeSignatureDenominator));
+    for (let beat = 0, tick = bar.start; tick < bar.end; beat++, tick += beatTicks) {
+      clicks.push({ time: toSeconds(tick), accent: practiceBeatAccent(beat, master.timeSignatureNumerator, master.timeSignatureDenominator) });
+    }
     for (const beat of source.voices[voice.voice]?.beats ?? []) {
       const sounding = beat.notes.filter(note => !note.isCue).sort((a, b) => a.realValue - b.realValue);
       if (!sounding.length) continue;
@@ -88,10 +96,20 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   }
   if (notes.length === 0) return 'noMelody';
   const opening = selected[0];
-  const unit = 4 / opening.masterBar.timeSignatureDenominator;
-  const beatSeconds = 60 / (opening.tempoChanges[0]?.tempo ?? document.score.tempo) * unit;
-  const beats = Math.min(8, Math.max(1, opening.masterBar.timeSignatureNumerator));
+  const denominator = opening.masterBar.timeSignatureDenominator;
+  const unit = 4 / denominator;
+  const bpm = opening.tempoChanges[0]?.tempo ?? document.score.tempo;
+  const beatSeconds = 60 / bpm * unit;
+  const beats = Math.max(1, opening.masterBar.timeSignatureNumerator);
   const key = opening.masterBar.keySignature * 7 + (opening.masterBar.keySignatureType === alphaTab.model.KeySignatureType.Minor ? 9 : 0);
   const tonic = 48 + (key % 12 + 12) % 12;
-  return { notes, measures, duration: seconds, beatSeconds, beats, tonic };
+  return { notes, measures, clicks, duration: seconds, beatSeconds, beats, denominator, tonic, tempo: { bpm, unit } };
+}
+
+export function melodyAtSpeed(melody: Melody, speed: number): Melody {
+  if (speed === 1) return melody;
+  const scale = <T extends { start: number; end: number }>(item: T) => ({ ...item, start: item.start / speed, end: item.end / speed });
+  return { ...melody, notes: melody.notes.map(scale), measures: melody.measures.map(scale),
+    clicks: melody.clicks.map(click => ({ ...click, time: click.time / speed })),
+    duration: melody.duration / speed, beatSeconds: melody.beatSeconds / speed };
 }

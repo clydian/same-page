@@ -92,6 +92,12 @@
   width: 100%; min-height: 46px; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: .7rem;
   color: var(--ink); background: var(--surface); font: inherit;
 }
+.challenge-speed { flex: 1 1 10rem; min-width: 0; }
+.challenge-speed label { display: grid; gap: .12rem; }
+.challenge-speed label > span { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem .55rem; color: var(--muted); font-size: .82rem; }
+.challenge-speed output { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.challenge-speed input { width: 100%; min-height: 36px; margin: 0; accent-color: var(--brand); }
+.challenge-speed small { font-size: .74rem; }
 .challenge-play-options { display: flex; align-items: center; flex-wrap: wrap; gap: .15rem .9rem; }
 .challenge-toggle { display: flex; align-items: center; gap: .42rem; min-height: 44px; cursor: pointer; font-size: .9rem; }
 .challenge-toggle input, .challenge-replay-timeline input { accent-color: var(--brand); }
@@ -100,22 +106,27 @@
 .challenge-headphones { display: flex; align-items: start; gap: .55rem; margin: .6rem 0 0; padding: .55rem .7rem; border-radius: .7rem; background: var(--brand-soft); font-size: .82rem; }
 .challenge-headphones svg { flex-shrink: 0; color: var(--brand); }
 
-.challenge-result { margin-block-start: .8rem; display: grid; gap: .65rem; }
+.challenge-result { margin-block-start: .85rem; display: grid; gap: .7rem; padding: .85rem 1rem;
+  border: 1px solid var(--line); border-radius: 1rem; background: var(--surface); }
 .challenge-result-top { display: flex; align-items: center; justify-content: space-between; gap: .7rem; }
 .challenge-score { display: flex; align-items: baseline; flex-wrap: wrap; gap: .15rem .8rem; }
 .challenge-score strong { font-size: clamp(1.5rem, 3.5vw, 2.25rem); letter-spacing: -.035em; line-height: 1.15; }
 .challenge-score span { font-size: .85rem; color: var(--muted); }
+.challenge-result-counts { display: flex; flex-wrap: wrap; gap: .45rem; margin: 0; }
+.challenge-result-counts > div { display: flex; align-items: baseline; gap: .45rem; padding: .28rem .56rem;
+  border-radius: .55rem; background: var(--pitch-surface); color: var(--muted); font-size: .8rem; }
+.challenge-result-counts > [data-status="inTune"] { background: var(--brand-soft); color: var(--ink); }
+.challenge-result-counts dd { margin: 0; color: var(--ink); font-weight: 675; font-variant-numeric: tabular-nums; }
 .challenge-replay-controls {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .65rem;
-  min-height: 56px; padding: .3rem .6rem .3rem .35rem; border: 1px solid var(--line); border-radius: .85rem;
-  background: var(--pitch-surface);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 .65rem;
+  min-height: 52px; padding-block: .35rem; border-block: 1px solid var(--line);
 }
-.challenge-review-play { width: 44px; min-height: 44px; padding: 0; border-radius: .65rem; }
-.challenge-replay-timeline { display: grid; gap: .12rem; color: var(--muted); font-size: .78rem; }
+.challenge-review-play { min-height: 44px; border-radius: .65rem; }
+.challenge-replay-timeline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .55rem; flex: 1 1 9rem; }
 .challenge-replay-timeline input { inline-size: 100%; margin: 0; }
 .challenge-replay-time { color: var(--muted); font-size: .74rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.challenge-current-feedback { display: flex; flex-wrap: wrap; gap: .25rem .65rem; color: var(--muted); font-size: .85rem; }
-.challenge-current-feedback strong { color: var(--ink); }
+.challenge-current-feedback { display: flex; flex-wrap: wrap; gap: .55rem 1rem; margin: 0; color: var(--muted); font-size: .8rem; }
+.challenge-current-feedback dd { margin: .08rem 0 0; font-weight: 650; color: var(--ink); }
 .challenge-review-details { margin-block-start: .8rem; border-block: 1px solid var(--line); }
 .challenge-review-details summary { cursor: pointer; min-height: 44px; align-content: center; font-weight: 650; }
 .challenge-review-details summary span { display: inline-block; margin-inline-start: .65rem; color: var(--muted); font-weight: 400; font-size: .82rem; }
@@ -138,6 +149,7 @@
   vertical-align: middle; border-radius: 1rem; background: var(--pitch-target);
 }
 .challenge-graph-legend span + span::before { background: var(--pitch-voice); }
+.challenge-graph-alignment { flex-basis: 100%; color: var(--muted); font-size: .75rem; }
 .challenge-graph-body { display: grid; grid-template-columns: 2.45rem minmax(0, 1fr); grid-template-rows: clamp(9.6rem, 20vw, 13rem) 1.05rem; margin-inline-start: -.15rem; }
 .challenge-plot { position: relative; min-width: 0; overflow: hidden; border-inline-start: 1px solid var(--pitch-grid-strong); border-block-end: 1px solid var(--pitch-grid-strong); }
 .challenge-plot canvas { position: absolute; display: block; inset: 0; width: 100%; height: 100%; }
@@ -154,13 +166,13 @@
   .challenge-play-options { gap: .1rem 1rem; }
   .challenge-confirm > button { width: 100%; }
 }
-.challenge-results { overflow-x: auto; margin-block-start: .75rem; }
+.challenge-results { overflow: auto; max-block-size: min(24rem, 65vh); margin-block-start: .75rem; }
 .challenge-results:focus-visible { outline-offset: -2px; }
 .challenge-results table { border-collapse: collapse; width: 100%; text-align: start; font-variant-numeric: tabular-nums; }
 .challenge-results th, .challenge-results td { padding: .35rem .5rem; text-align: start; border-block-end: 1px solid var(--line); }
-.challenge-results td { white-space: nowrap; }
+.challenge-results td, .challenge-results th { white-space: nowrap; }
 .challenge-results th { color: var(--muted); font-weight: 600; font-size: .85rem; }
-.challenge-results th:nth-child(-n+4) { white-space: nowrap; }
+.challenge-results thead th { position: sticky; inset-block-start: 0; z-index: 1; background: var(--surface); }
 .challenge-results tr[data-active="true"] { background: var(--brand-soft); }
 .challenge-note-replay {
   display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; padding: 0 .55rem;
