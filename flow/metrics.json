@@ -1,0 +1,395 @@
+{
+  "buildId": "ded163c7b7063bbaa01d1f244dd796e0847a699e",
+  "setup": "Isolated production preview, Chromium, synthetic SATB scores with intercepted drive APIs and 48 kHz calibrated notes sent to the actual AudioWorklet",
+  "checks": [
+    {
+      "identity": "phone-zh-light",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "replay": {
+        "sampleRate": 48000,
+        "alignedPianoOvertoneRatio": 4.67
+      },
+      "publishedScores": [
+        {
+          "version": 1,
+          "score": 75,
+          "voice": "Alto"
+        }
+      ],
+      "questionSaves": [
+        {
+          "version": 1,
+          "source": "drive",
+          "first": 0,
+          "last": 1
+        },
+        {
+          "version": 1,
+          "source": "upload",
+          "first": 0,
+          "last": 7
+        },
+        {
+          "version": 2,
+          "source": "upload",
+          "first": 0,
+          "last": 7
+        }
+      ],
+      "snapshotsServed": [
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "admin",
+          "version": 2,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 2,
+          "exists": true
+        }
+      ],
+      "publishedLists": [
+        {
+          "version": 1,
+          "count": 1
+        },
+        {
+          "version": 2,
+          "count": 0
+        }
+      ],
+      "screenshots": [
+        "phone-zh-light-01-create-from-drive.png",
+        "phone-zh-light-02-question-list.png",
+        "phone-zh-light-03-score-visible-settings.png",
+        "phone-zh-light-04-ensemble-and-headphone-tip.png",
+        "phone-zh-light-05-count-in.png",
+        "phone-zh-light-05-singing.png",
+        "phone-zh-light-06-score-review-default-publish.png",
+        "phone-zh-light-06b-note-by-note-feedback.png",
+        "phone-zh-light-07-linked-score-replay.png",
+        "phone-zh-light-08-published-summary.png",
+        "phone-zh-light-08b-member-published-score-list.png",
+        "phone-zh-light-08c-retake-ready.png",
+        "phone-zh-light-09-standalone-mxl-upload.png",
+        "phone-zh-light-10-long-score-ready.png",
+        "phone-zh-light-11-long-count-in.png",
+        "phone-zh-light-11-long-singing.png",
+        "phone-zh-light-12-long-score-follow-and-seek.png",
+        "phone-zh-light-13-publication-opt-out.png",
+        "phone-zh-light-14-private-confirmed-summary.png",
+        "phone-zh-light-15-update-question-version.png",
+        "phone-zh-light-16-reopen-version-two.png"
+      ]
+    },
+    {
+      "identity": "phone-en-dark",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "replay": {
+        "sampleRate": 48000,
+        "alignedPianoOvertoneRatio": 4.67
+      },
+      "publishedScores": [
+        {
+          "version": 1,
+          "score": 75,
+          "voice": "Alto"
+        }
+      ],
+      "questionSaves": [
+        {
+          "version": 1,
+          "source": "drive",
+          "first": 0,
+          "last": 1
+        }
+      ],
+      "snapshotsServed": [
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 1,
+          "exists": true
+        }
+      ],
+      "publishedLists": [
+        {
+          "version": 1,
+          "count": 1
+        }
+      ],
+      "screenshots": [
+        "phone-en-dark-01-create-from-drive.png",
+        "phone-en-dark-02-question-list.png",
+        "phone-en-dark-03-score-visible-settings.png",
+        "phone-en-dark-04-ensemble-and-headphone-tip.png",
+        "phone-en-dark-05-count-in.png",
+        "phone-en-dark-05-singing.png",
+        "phone-en-dark-06-score-review-default-publish.png",
+        "phone-en-dark-07-linked-score-replay.png",
+        "phone-en-dark-08-published-summary.png",
+        "phone-en-dark-08b-member-published-score-list.png"
+      ]
+    },
+    {
+      "identity": "desktop-zh-dark",
+      "viewport": {
+        "width": 1200,
+        "height": 1030
+      },
+      "replay": {
+        "sampleRate": 48000,
+        "alignedPianoOvertoneRatio": 4.67
+      },
+      "publishedScores": [
+        {
+          "version": 1,
+          "score": 75,
+          "voice": "Alto"
+        }
+      ],
+      "questionSaves": [
+        {
+          "version": 1,
+          "source": "drive",
+          "first": 0,
+          "last": 1
+        }
+      ],
+      "snapshotsServed": [
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 1,
+          "exists": true
+        }
+      ],
+      "publishedLists": [
+        {
+          "version": 1,
+          "count": 1
+        }
+      ],
+      "screenshots": [
+        "desktop-zh-dark-01-create-from-drive.png",
+        "desktop-zh-dark-02-question-list.png",
+        "desktop-zh-dark-03-score-visible-settings.png",
+        "desktop-zh-dark-04-ensemble-and-headphone-tip.png",
+        "desktop-zh-dark-05-count-in.png",
+        "desktop-zh-dark-05-singing.png",
+        "desktop-zh-dark-06-score-review-default-publish.png",
+        "desktop-zh-dark-07-linked-score-replay.png",
+        "desktop-zh-dark-08-published-summary.png",
+        "desktop-zh-dark-08b-member-published-score-list.png"
+      ]
+    },
+    {
+      "identity": "desktop-en-light",
+      "viewport": {
+        "width": 1200,
+        "height": 1030
+      },
+      "replay": {
+        "sampleRate": 48000,
+        "alignedPianoOvertoneRatio": 4.67
+      },
+      "publishedScores": [
+        {
+          "version": 1,
+          "score": 75,
+          "voice": "Alto"
+        }
+      ],
+      "questionSaves": [
+        {
+          "version": 1,
+          "source": "drive",
+          "first": 0,
+          "last": 1
+        }
+      ],
+      "snapshotsServed": [
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 1,
+          "exists": true
+        }
+      ],
+      "publishedLists": [
+        {
+          "version": 1,
+          "count": 1
+        }
+      ],
+      "screenshots": [
+        "desktop-en-light-01-create-from-drive.png",
+        "desktop-en-light-02-question-list.png",
+        "desktop-en-light-03-score-visible-settings.png",
+        "desktop-en-light-04-ensemble-and-headphone-tip.png",
+        "desktop-en-light-05-count-in.png",
+        "desktop-en-light-05-singing.png",
+        "desktop-en-light-06-score-review-default-publish.png",
+        "desktop-en-light-07-linked-score-replay.png",
+        "desktop-en-light-08-published-summary.png",
+        "desktop-en-light-08b-member-published-score-list.png"
+      ]
+    }
+  ],
+  "supplement": {
+    "replacementFrame": "phone-zh-light-13-publication-opt-out.png",
+    "additionalFrame": "phone-zh-light-14b-summary-only-practice-history.png",
+    "check": {
+      "identity": "phone-zh-light",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "replay": {
+        "sampleRate": 48000,
+        "alignedPianoOvertoneRatio": 4.67
+      },
+      "publishedScores": [
+        {
+          "version": 1,
+          "score": 75,
+          "voice": "Alto"
+        }
+      ],
+      "questionSaves": [
+        {
+          "version": 1,
+          "source": "drive",
+          "first": 0,
+          "last": 1
+        },
+        {
+          "version": 1,
+          "source": "upload",
+          "first": 0,
+          "last": 7
+        },
+        {
+          "version": 2,
+          "source": "upload",
+          "first": 0,
+          "last": 7
+        }
+      ],
+      "snapshotsServed": [
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "admin",
+          "version": 1,
+          "exists": true
+        },
+        {
+          "identity": "admin",
+          "version": 2,
+          "exists": true
+        },
+        {
+          "identity": "member",
+          "version": 2,
+          "exists": true
+        }
+      ],
+      "publishedLists": [
+        {
+          "version": 1,
+          "count": 1
+        },
+        {
+          "version": 2,
+          "count": 0
+        }
+      ],
+      "screenshots": [
+        "phone-zh-light-01-create-from-drive.png",
+        "phone-zh-light-02-question-list.png",
+        "phone-zh-light-03-score-visible-settings.png",
+        "phone-zh-light-04-ensemble-and-headphone-tip.png",
+        "phone-zh-light-05-count-in.png",
+        "phone-zh-light-05-singing.png",
+        "phone-zh-light-06-score-review-default-publish.png",
+        "phone-zh-light-06b-note-by-note-feedback.png",
+        "phone-zh-light-07-linked-score-replay.png",
+        "phone-zh-light-08-published-summary.png",
+        "phone-zh-light-08b-member-published-score-list.png",
+        "phone-zh-light-08c-retake-ready.png",
+        "phone-zh-light-09-standalone-mxl-upload.png",
+        "phone-zh-light-10-long-score-ready.png",
+        "phone-zh-light-11-long-count-in.png",
+        "phone-zh-light-11-long-singing.png",
+        "phone-zh-light-12-long-score-follow-and-seek.png",
+        "phone-zh-light-13-publication-opt-out.png",
+        "phone-zh-light-14-private-confirmed-summary.png",
+        "phone-zh-light-14b-summary-only-practice-history.png",
+        "phone-zh-light-15-update-question-version.png",
+        "phone-zh-light-16-reopen-version-two.png"
+      ]
+    }
+  }
+}
