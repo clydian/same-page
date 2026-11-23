@@ -146,10 +146,10 @@
 .challenge-time-axis span:first-child { transform: translateX(-25%); }
 .challenge-time-axis span:last-child { transform: translateX(-85%); }
 @media (max-width: 36rem) {
-  .challenge-transport[data-ready="true"] { display: grid; gap: .5rem; align-items: stretch; }
-  .challenge-transport[data-ready="true"] .challenge-tools { display: grid; grid-template-columns: auto auto minmax(0, 1fr); }
+  .challenge-transport[data-ready="true"] { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; align-items: stretch; }
+  .challenge-transport[data-ready="true"] .challenge-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .challenge-tool-settings { max-inline-size: 100%; }
-  .challenge-tool { padding-inline: .55rem; }
+  .challenge-tool { min-width: 0; padding-inline: .45rem; gap: .35rem; }
   .challenge-settings { inset: auto 0 0; margin: 0; width: 100%; max-width: none; border-radius: 1.35rem 1.35rem 0 0; padding-block-end: max(1.2rem, env(safe-area-inset-bottom)); }
 }
 .challenge-review { margin-block-start: 1.4rem; border-block-start: 1px solid var(--line); padding-block-start: 1rem; }
