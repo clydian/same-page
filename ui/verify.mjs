@@ -127,6 +127,7 @@ async function check(browser, app, { language, mobile, theme }) {
       await expect(member.getByRole('dialog')).toHaveCount(0);
       await expect(member.getByText(labels.hint)).toHaveCount(0);
       assert.ok(await member.evaluate(() => document.documentElement.scrollWidth === window.innerWidth));
+      assert.ok(await member.locator('.challenge-tool-settings span').evaluate(node => node.scrollWidth <= node.clientWidth + 1));
     }
     await member.screenshot({ path: `${output}/${name}-ready.png` });
     if (before) {
@@ -143,6 +144,7 @@ async function check(browser, app, { language, mobile, theme }) {
       const dialog = member.getByRole('dialog', { name: labels.settings });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByText(labels.hint)).toHaveCount(0);
+      await member.screenshot({ path: `${output}/${name}-settings-off.png` });
       await member.keyboard.press('Escape');
       await expect(trigger).toBeFocused();
       await trigger.click();
@@ -158,6 +160,7 @@ async function check(browser, app, { language, mobile, theme }) {
       await dialog.getByRole('checkbox', { name: labels.drone }).check();
       await expect(dialog.getByText(labels.hint)).toBeVisible();
       await dialog.getByRole('checkbox', { name: labels.backing }).check();
+      await expect(notation).toContainText('Alto');
       await member.screenshot({ path: `${output}/${name}-settings.png` });
       await dialog.getByRole('button', { name: labels.close, exact: true }).click();
       await expect(trigger).toBeFocused();

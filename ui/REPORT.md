@@ -1,6 +1,6 @@
 # #701 练习页重排与音高轨迹
 
-对照提交 `ab3b4e327c2a2aef1a69a5cb613bf74bc5b4abb9`，候选提交 `9dfb7fd9b4c6be6b315fcaaf5a9fbaf832ffd17b`。
+对照提交 `ab3b4e327c2a2aef1a69a5cb613bf74bc5b4abb9`，候选提交 `deaed2b78372097808bc137e7f1c0cd267ebeeb9`。
 
 ## 界面
 
