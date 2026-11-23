@@ -1,0 +1,4 @@
+{"name":"phone-zh-light","scoreTop":80,"scoreHeight":245,"startBottom":437,"comparison":{"sameLength":true,"sampleRate":48000,"e":133.23265477887554,"c":4.221432082390002,"d":133.60747475919226},"schedule":[48,79,81,72,71,48,52,53,55]}
+{"name":"phone-en-dark","scoreTop":79,"scoreHeight":245,"startBottom":436,"comparison":{"sameLength":true,"sampleRate":48000,"e":133.23265477887554,"c":4.221432082390002,"d":133.60747475919226},"schedule":[48,79,81,72,71,48,52,53,55]}
+{"name":"desktop-zh-dark","scoreTop":88,"scoreHeight":296,"startBottom":444,"comparison":{"sameLength":true,"sampleRate":48000,"e":133.23265477887554,"c":4.221432082390002,"d":133.60747475919226},"schedule":[48,79,81,72,71,48,52,53,55]}
+{"name":"desktop-en-light","scoreTop":87,"scoreHeight":296,"startBottom":443,"comparison":{"sameLength":true,"sampleRate":48000,"e":133.23265477887554,"c":4.221432082390002,"d":133.60747475919226},"schedule":[48,79,81,72,71,48,52,53,55]}
