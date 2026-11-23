@@ -1,8 +1,9 @@
-import { useAppLocale, useMessages } from "../../i18n";
+import { useMessages } from "../../i18n";
 import { useDriveInvitation } from "../drives/use-drive-invitation";
 import { JoinDriveDialog } from "../drives/join-drive-dialog";
 import { FeatureAnimation } from "../components/feature-animation";
 import { InstallButton } from "../install/install-entry";
+import { createDriveHref, loginHref } from "../auth/login-return";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { StartupEntry } from "../auth/startup-entry";
 import type { ApplicationIdentity } from "../auth/application-identity";
@@ -58,14 +59,14 @@ export function HomePage({ startup = false }: { startup?: boolean }) {
 function HomeContent({ identity, startup, linkInvite, finishInvitation }: { identity: ApplicationIdentity; startup: boolean; linkInvite: ReturnType<typeof readInviteLink>; finishInvitation: () => void }) {
   const { session } = identity;
   const t = useMessages("entry");
-  const { locale } = useAppLocale();
-  const bilingual = locale === "zh-Hans";
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [startupDismissed, setStartupDismissed] = useState(false);
   const startupIntent = startup && !startupDismissed && location.pathname === "/" && !location.search && !location.hash && !linkInvite;
   const [joinOpen, setJoinOpen] = useState(searchParams.get("join") === "1" || linkInvite !== null);
-  const [previewChoir, setPreviewChoir] = useState<ChoirSummary | null>(null);
+  const [previewChoir, setPreviewChoir] = useState<ChoirSummary | null>();
+  const [previewAttempt, setPreviewAttempt] = useState(0);
+  const hasDriveIdentity = Boolean(identity.authenticatedUserId || identity.localUserId);
   const userId = session.data?.user.id;
   useEffect(() => {
     let active = true;
@@ -82,7 +83,7 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
     return () => {
       active = false;
     };
-  }, [session.isPending, userId]);
+  }, [previewAttempt, userId]);
 
   useEffect(() => {
     if (session.isPending || !userId) return;
@@ -113,36 +114,34 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
         <section className="marketing-hero" aria-labelledby="page-title">
           <div className="marketing-hero__content">
             <p className="hero-mark">合谱 · Same Page</p>
-            <h1 id="page-title" lang={bilingual ? "en" : undefined}>
-              {t("home.title")}
-            </h1>
-            {bilingual && <p className="hero-zh" lang="zh-CN">
-              {t("home.tagline")}
-            </p>}
-            <div className="hero-description">
-              {bilingual && <p lang="en">
-                {t("home.summaryEnglish")}
-              </p>}
-              <p lang={bilingual ? "zh-CN" : undefined}>{t("home.summary")}</p>
-            </div>
+            <h1 id="page-title">{t("home.title")}</h1>
+            <div className="hero-description"><p>{t("home.summary")}</p></div>
             <div className="hero-actions">
-              {identity.authenticatedUserId || identity.localUserId ? <Link className="primary-button hero-cta" to="/drives">{t("home.myDrives")}</Link> : <Button
-                className="primary-button hero-cta"
-                onPress={() => { setStartupDismissed(true); setJoinOpen(true); }}
-              >
-                {t("home.enter")}
-              </Button>}
+              {hasDriveIdentity && <Link className="primary-button hero-cta" to="/drives">{t("home.myDrives")}</Link>}
               {previewChoir ? (
                 <Link
-                  className="hero-preview-link"
+                  className={hasDriveIdentity ? "hero-text-link" : "primary-button hero-cta"}
                   to={`/choirs/${previewChoir.id}`}
                   onClick={() => startLoadingJourney("enter-drive", "warm")}
                 >
                   {t("home.preview")}
                 </Link>
-              ) : null}
-              <InstallButton />
+              ) : !hasDriveIdentity && (
+                <Button className="primary-button hero-cta" isDisabled={previewChoir === undefined} aria-describedby="home-preview-status" onPress={() => {
+                  setPreviewChoir(undefined);
+                  setPreviewAttempt(attempt => attempt + 1);
+                }}>
+                  {t(previewChoir === null ? "startup.retry" : "home.preview")}
+                </Button>
+              )}
+              {!hasDriveIdentity && <>
+                <Button className="secondary-button" onPress={() => { setStartupDismissed(true); setJoinOpen(true); }}>
+                  {t("home.join")}
+                </Button>
+                <Link className="hero-text-link" to={loginHref(createDriveHref)}>{t("home.create")}</Link>
+              </>}
             </div>
+            {!hasDriveIdentity && <p id="home-preview-status" className="hero-preview-status" role="status">{previewChoir === null ? t("home.previewUnavailable") : ""}</p>}
           </div>
           <a className="marketing-more-features" href="#features">
             {t("home.more")} <span aria-hidden="true">↓</span>
@@ -180,6 +179,7 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
               />}
             </article>
           ))}
+          <div className="marketing-install"><InstallButton /></div>
         </section>
       </main>
 

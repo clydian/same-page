@@ -89,15 +89,16 @@
     "return": "Ritorna per inserire il codice invito"
   },
   "home": {
+    "previewUnavailable": "L’esempio non è al momento disponibile.",
+    "create": "Crea un archivio gratuito",
+    "join": "Accedi con un invito",
     "enter": "Apri un drive",
     "myDrives": "I miei drive",
-    "preview": "Vedi un esempio",
+    "preview": "Vedi uno spartito annotato",
     "more": "Scopri le funzionalità",
     "features": "Caratteristiche del prodotto",
-    "tagline": "I tuoi appunti e il mio punteggio",
-    "summaryEnglish": "Una raccolta di partiture online per le prove corali e le annotazioni condivise.",
-    "summary": "Una raccolta di partiture online per le prove corali e le annotazioni condivise.",
-    "title": "L’armonia inizia dalla stessa partitura"
+    "summary": "Carica un PDF, consulta le note di prova per ogni parte vocale e conserva i tuoi promemoria.",
+    "title": "Provate insieme sullo stesso spartito"
   },
   "scan": {
     "unrecognized": "La carta di invito Same Page non viene riconosciuta. Punta il codice QR del biglietto d'invito su questo sito o inserisci il codice invito.",

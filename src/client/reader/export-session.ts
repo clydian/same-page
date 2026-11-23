@@ -53,7 +53,7 @@ export class ExportSession {
     this.selectionInitialized = target.layers !== undefined;
     this.state = {
       prepared: Boolean(target.source), layers: target.layers ?? [],
-      selected: defaults(target.layers ?? []), includeNotes: true,
+      selected: defaults(target.layers ?? []), includeNotes: false,
       file: null, message: null, readError: null, sharing: false, shareFailed: false,
     };
   }
@@ -218,5 +218,5 @@ export class ExportSession {
 }
 
 function defaults(layers: AnnotationLayerSummary[]) {
-  return layers.filter(layer => layer.subscribed || (layer.kind === "personal" && layer.canEdit)).map(layer => layer.id);
+  return layers.filter(layer => layer.kind === "shared" && layer.subscribed).map(layer => layer.id);
 }

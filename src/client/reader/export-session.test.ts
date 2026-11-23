@@ -47,9 +47,9 @@ afterEach(() => { sessions.splice(0).forEach(session => session.dispose()); vi.u
 it("invalidates a ready file immediately and coalesces rapid selection changes", async () => {
   const session = start(); await tick();
   expect(session.getSnapshot().file?.name).toBe("score.pdf");
-  session.setIncludeNotes(false);
+  session.setIncludeNotes(true);
   expect(session.getSnapshot().file).toBeNull();
-  session.setIncludeNotes(true); session.setIncludeNotes(false);
+  session.setIncludeNotes(false); session.setIncludeNotes(true);
   await tick();
   expect(io.generate).toHaveBeenCalledTimes(2);
   expect(session.getSnapshot().file).not.toBeNull();
@@ -61,7 +61,7 @@ it("ignores a cancelled generation completing after its replacement, including i
   io.generate.mockReturnValueOnce(old.promise).mockReturnValueOnce(replacement.promise);
   const session = start(); await tick();
   const signal = io.generate.mock.calls[0][5] as AbortSignal;
-  session.setIncludeNotes(false); await tick();
+  session.setIncludeNotes(true); await tick();
   expect(signal.aborted).toBe(true);
   old.resolve(pdf()); await tick();
   expect(session.getSnapshot().file).toBeNull();
@@ -103,6 +103,7 @@ it("invalidates ready output and refreshes layer choices when permission changes
   io.read.mockResolvedValue(permitted); io.generate.mockResolvedValue(pdf(permitted));
   const session = start(); await tick();
   expect(session.getSnapshot().selected).toEqual(["shared"]);
+  session.setIncludeNotes(true); await tick();
   const observations: ReturnType<ExportSession["getSnapshot"]>[] = [];
   const unsubscribe = session.subscribe(() => observations.push(session.getSnapshot()));
   io.read.mockResolvedValue(state); io.refresh(); await vi.advanceTimersByTimeAsync(0);
@@ -190,14 +191,29 @@ it("invokes system share synchronously, prevents duplicate presses, and preserve
   expect(session.getSnapshot().message).toBeNull();
 });
 
-it("initializes library defaults from prepared layers rather than an earlier empty local read", async () => {
+it("starts with the original score and leaves personal layers opt-in after preparation", async () => {
   const pending = deferred<{ source: object; layers: object[] }>();
   io.prepare.mockReturnValueOnce({ promise: pending.promise, destroy: vi.fn() });
   const session = start(); await tick();
   expect(session.getSnapshot().selected).toEqual([]);
-  pending.resolve({ source: {}, layers: [{ id: "ensemble", kind: "shared", subscribed: true }] });
+  const layers = [
+    { id: "ensemble", kind: "shared", subscribed: true },
+    { id: "personal", kind: "personal", subscribed: true, canEdit: true },
+  ];
+  const prepared = { ...state, layers };
+  pending.resolve({ source: {}, layers });
+  io.read.mockResolvedValue(prepared);
+  io.generate.mockResolvedValue(pdf(prepared));
+  io.refresh();
   await tick();
-  expect(session.getSnapshot().selected).toEqual(["ensemble"]);
+  expect(session.getSnapshot()).toMatchObject({ includeNotes: false, selected: ["ensemble"] });
+  expect(io.generate.mock.lastCall?.[3]).toEqual([]);
+  session.setIncludeNotes(true);
+  await tick();
+  expect(io.generate.mock.lastCall?.[3]).toEqual(["ensemble"]);
+  session.setLayerSelected("personal", true);
+  await tick();
+  expect(io.generate.mock.lastCall?.[3]).toEqual(["ensemble", "personal"]);
 });
 
 it("releases the native share hold on disposal and ignores its late settlement", async () => {

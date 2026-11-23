@@ -1,4 +1,7 @@
 {
+  "uploadInviteMembers": "Inviter des membres",
+  "attachmentPracticeLabel": "Partition de travail",
+  "uploadMusicXmlAttachmentHint": "Importez la partition principale en PDF. Pour écouter les voix, ajoutez un fichier MusicXML à cette partition.",
   "allDrives": "Liste des disques cloud",
   "choirOpenAccess": "Accès libre",
   "choirFillDisplayNameCloud": "Saisissez votre nom d’affichage dans cet espace pour le rejoindre.",

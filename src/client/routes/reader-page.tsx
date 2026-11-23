@@ -109,8 +109,10 @@ function ReaderPageContent() {
   const navigate = useNavigate();
   const experience = new URLSearchParams(location.search).get("experience") === "1";
   const navigationType = useNavigationType();
-  const returnedPanel = navigationType !== "POP" && location.state?.readerReturnPanel === "layers";
+  const readerReturn = navigationType !== "POP" ? location.state?.readerReturn : undefined;
+  const returnedPanel = readerReturn?.panel === "layers";
   const { choirId = "", scoreId = "" } = useParams();
+  const scorePath = `/choirs/${choirId}/scores/${scoreId}`;
   const identity = useApplicationIdentity();
   const opening = useReaderWorkspace({ choirId, scoreId, experience, identity });
   const playback = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
@@ -131,7 +133,8 @@ function ReaderPageContent() {
   const { style: toolStyle, setStyle: setToolStyle } = useToolStyle(workspace?.ownerKey ?? `user:${identity.localUserId ?? "guest"}`, tool);
   const { color: toolColor, setColor: setToolColor } = useToolColor(workspace?.ownerKey ?? `user:${identity.localUserId ?? "guest"}`, tool);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
-  const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel);
+  const [resumeNotes, setResumeNotes] = useState(readerReturn?.action === "annotate");
+  const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel || resumeNotes);
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
   const [layerPanelTab, setLayerPanelTab] = useState<"display" | "manage">("display");
   const [playbackEntryOpen, setPlaybackEntryOpen] = useState(false);
@@ -211,10 +214,12 @@ function ReaderPageContent() {
   const { layout, currentPage, setLayout, setCurrentPage } =
     useReaderPreferences({
       pageCount: document?.numPages,
+      initialPage: readerReturn?.page,
       identity: identity.localUserId ?? "guest",
       choirId,
       scoreId,
     });
+  const signInToAnnotate = loginHref(scorePath, { page: currentPage, action: "annotate" });
   const presentation = useReaderPresentation(reader.presentation, document, currentPage, editing);
   const pager = usePagedReader({
     currentPage,
@@ -286,6 +291,7 @@ function ReaderPageContent() {
     setActiveLayerId(editableLayer.id);
     writeStringPreference(preferenceKey, editableLayer.id);
     setEditingEditor(editor);
+    setResumeNotes(false);
 
   };
 
@@ -336,16 +342,18 @@ function ReaderPageContent() {
   const displayChoices = <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>{t("retryPdfReader")}</Button>;
   const loadError = reader.snapshot.error;
   if (loadError) {
+    const signInRequired = reader.snapshot.accessDenied && identity.onlineState === "signed-out";
     return (
       <main className="page-shell compact-page">
         <p className="eyebrow">{t("scoreReader")}</p>
         <h1>{t("cannotOpen")}</h1>
         <p className="hero__copy" role="alert">
-          {loadError}
+          {signInRequired ? t("signInRequiredForScore") : loadError}
         </p>
-        {reader.snapshot.opening && <p>{t("loadingStoppedAt", { phase: readerOpeningLabel(reader.snapshot.opening.phase, reader.snapshot.opening.source, locale).replace(/…$/, "") })}</p>}
-        <BackButton className="primary-link" to={`/choirs/${choirId}`}>{t("backToDrive")}</BackButton>
-        <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>{t("retryLoading")}</Button>
+        {!signInRequired && reader.snapshot.opening && <p>{t("loadingStoppedAt", { phase: readerOpeningLabel(reader.snapshot.opening.phase, reader.snapshot.opening.source, locale).replace(/…$/, "") })}</p>}
+        {signInRequired && <Link className="primary-link" to={loginHref(scorePath, { action: "open" })}>{t("signInToOpenScore")}</Link>}
+        <BackButton className={signInRequired ? "secondary-button" : "primary-link"} to={`/choirs/${choirId}`}>{t("backToDrive")}</BackButton>
+        {!signInRequired && <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>{t("retryLoading")}</Button>}
         <details><summary>{t("moreHelp")}</summary>{diagnosticDialog}</details>
       </main>
     );
@@ -408,6 +416,7 @@ function ReaderPageContent() {
     editor,
   };
 
+  const canResumeNotes = resumeNotes && Boolean(identity.authenticatedUserId) && !guestReadOnly && editAvailability === "ready";
   return (
     <ReaderPresentationContext.Provider value={{ ...presentation.context, retryDocument: () => navigation.afterEditing(reader.retry) }}>
     <main tabIndex={-1} className="reader-shell" data-practicing={xmlPracticing || undefined} data-playback-view={showingPlayback || comparing ? 'xml' : undefined} aria-hidden={showingPlayback || comparing || undefined} inert={showingPlayback || comparing} data-chrome-visible={(chromeVisible && annotationInteraction !== "composing-text") || undefined}>
@@ -427,7 +436,7 @@ function ReaderPageContent() {
         <span>{t("pageFailedDraftRetained")}</span>{displayChoices}{diagnosticDialog}
       </div> : null}
       {reader.snapshot.displayMessage && <ReaderDisplayNotice key={reader.snapshot.displayMessage} message={reader.snapshot.displayMessage} onDismiss={reader.dismissDisplayMessage} />}
-      {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
+      {guestNoteOpen && <GuestNoteDialog signInHref={signInToAnnotate} onClose={() => setGuestNoteOpen(false)} />}
       {!xmlPracticing && chromeVisible && !guide.visible ? (
       <header className="reader-chrome" data-editing={editing || undefined} aria-label={t("readerControls")} style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint">
@@ -443,9 +452,9 @@ function ReaderPageContent() {
             <div className="reader-chrome__actions">
               <Button
                 aria-describedby={editAvailability === "ready" ? undefined : "reader-edit-status"}
-                aria-label={editing ? t("finishEditing") : t("edit")}
+                aria-label={editing ? t("finishEditing") : canResumeNotes ? t("continueAnnotating") : t("edit")}
                 aria-description={editing ? t("resumeReadingHint") : t("startEditingHint")}
-                className={editing ? "reader-done-button" : "reader-icon-button"}
+                className={editing || canResumeNotes ? "reader-done-button" : "reader-icon-button"}
                 data-state={editAvailability}
                 isDisabled={
                   editAvailability === "preparing" ||
@@ -454,7 +463,7 @@ function ReaderPageContent() {
                 }
                 onPress={() => editing ? navigation.afterEditing(() => { /* Completion is performed by the editing exit layer. */ }) : requestEditing()}
               >
-                {editing ? <span>{t("done")}</span> : <Pencil aria-hidden="true" size={21} />}
+                {editing ? t("done") : canResumeNotes ? t("continueAnnotating") : <Pencil aria-hidden="true" size={21} />}
               </Button>
               {!editing && <><Button
                 ref={layersTrigger}
@@ -487,7 +496,7 @@ function ReaderPageContent() {
                   : editAvailability === "failed"
                     ? t("retryEditPreparation")
                     : editAvailability === "read-only"
-                      ? <>{t("scoreReadOnly")}{!identity.localUserId && <Link to={loginHref(`/choirs/${choirId}/scores/${scoreId}`)}>{t("signInToAnnotate")}</Link>}</>
+                      ? <>{t("scoreReadOnly")}{!identity.localUserId && <Link to={signInToAnnotate}>{t("signInToAnnotate")}</Link>}</>
                       : t("restoreToEdit")}
               </p>
             ) : null}
@@ -642,6 +651,7 @@ function ReaderPageContent() {
               </header>
               <ReaderLayerPanel
                 key={`${workspace.scopeKey}:${layerPanelTab}`}
+                page={currentPage}
                 initialTab={layerPanelTab}
                 workspace={workspace}
                 layers={activeAnnotations?.layers ?? []}

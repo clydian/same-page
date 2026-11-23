@@ -8,13 +8,14 @@ import { Dialog } from "../navigation/overlays";
 import { LibraryDialogHeading } from "./library-dialog-heading";
 import { useUploadQueue } from "./use-upload-queue";
 
-export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpenChange, onComplete, onQuotaChange, onInspect }: {
+export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpenChange, onComplete, onInvite, onQuotaChange, onInspect }: {
   writable?: boolean;
   choirId: string;
   storage?: { usedBytes: number; limitBytes: number };
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete: () => void | Promise<void>;
+  onInvite?: () => void;
   onQuotaChange: (blocked: boolean) => void;
   onInspect: (fileName: string) => void;
 }) {
@@ -43,6 +44,7 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
     <Modal className="app-modal"><Dialog className="app-dialog">
       <LibraryDialogHeading title={t("uploadUploadPdf")} close={() => changeOpen(false)} />
       {storage && <p className="dialog-copy">{t("uploadStorageCapacity", { available: formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes)), limit: formatBytes(storage.limitBytes) })}</p>}
+      <p className="dialog-copy">{t("uploadMusicXmlAttachmentHint")}</p>
       <p className="dialog-copy">{t("uploadSelectMultiplePdfsDrag")}</p>
       <p className="dialog-copy">{t("uploadClosingWindowStopWaiting")}</p>
       <details className="upload-help"><summary>{t("uploadWhenLeavingPageUploading")}</summary>
@@ -79,6 +81,8 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
           {item.status === "unknown" || item.status === "success" ? <Button className="text-button" aria-label={t("uploadCheck", { name: String(item.name) })} onPress={() => { changeOpen(false); onInspect(item.name); }}>{t("uploadCheckFileLibrary")}</Button> : null}
         </li>)}
       </ul> : null}
+      {writable && onInvite && !hasUnfinished && queue.items.some(item => item.status === "success") &&
+        <Button className="primary-button" onPress={() => { changeOpen(false); onInvite(); }}>{t("uploadInviteMembers")}</Button>}
     </Dialog></Modal>
   </ModalOverlay>;
 }

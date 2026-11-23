@@ -683,14 +683,6 @@ h1 {
   text-wrap: balance;
 }
 
-.hero-zh {
-  margin: 1.25rem 0 0;
-  color: var(--brand);
-  font-size: clamp(2rem, 4.1vw, 3.6rem);
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
 
 .hero-description {
   display: grid;
@@ -750,7 +742,10 @@ h1 {
   min-width: 9.5rem;
 }
 
-.hero-preview-link {
+.hero-text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   border-radius: 0.55rem;
   padding: 0.55rem 0.3rem;
   color: var(--brand);
@@ -758,8 +753,12 @@ h1 {
   text-underline-offset: 0.22em;
 }
 
-.hero-preview-link:hover,
-.hero-preview-link:focus-visible {
+.hero-preview-status { margin: .65rem 0 0; color: var(--muted); }
+.hero-preview-status:empty { margin: 0; }
+.marketing-install { display: flex; justify-content: center; padding-block: 1.5rem; }
+
+.hero-text-link:hover,
+.hero-text-link:focus-visible {
   color: var(--brand-strong);
 }
 
@@ -2957,9 +2956,6 @@ h1 {
     font-size: clamp(1.65rem, 6vw, 2.25rem);
   }
 
-  .hero-zh {
-    font-size: 1.65rem;
-  }
 
   .hero-description {
     max-width: 20rem;
@@ -2975,7 +2971,7 @@ h1 {
     width: 100%;
   }
 
-  .hero-preview-link {
+  .hero-text-link {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3147,8 +3143,6 @@ h1 {
 .invite-sharing-dialog > .drive-management-copy { margin: 0; font-size: 12px; }
 @media (max-width: 380px) { .invite-share-actions { gap: 8px; } .invite-share-actions button { font-size: .8rem; gap: 4px; } }
 
-.hero-description p[lang="zh-CN"] { font-size: 1rem; }
-.hero-description p[lang="en"] { font-size: .85rem; }
 @media (max-width: 60rem) {
   .marketing-hero { grid-template-columns: 1fr; gap: 1.5rem; min-height: auto; padding-block: 2.5rem; }
   .marketing-more-features { margin-top: .5rem; }
@@ -3157,9 +3151,9 @@ h1 {
 @media (max-width: 40rem) {
   .marketing-hero { padding-block: 1.5rem; gap: 2rem; }
   .marketing-hero h1 { font-size: clamp(1.65rem, 6vw, 2.25rem); }
-  .hero-zh { margin-top: 1rem; font-size: clamp(1.8rem, 7.5vw, 2.6rem); }
   .hero-actions { position: relative; flex-direction: row; align-items: center; margin-top: 1.25rem; gap: 1rem; }
-  .hero-cta { width: auto; min-width: 8rem; }
+  .marketing-hero .hero-actions .hero-cta { flex: 0 0 100%; min-width: 0; box-sizing: border-box; }
+  .marketing-hero .hero-actions > :not(.hero-cta) { flex: 1 1 auto; justify-content: center; text-align: center; }
   .marketing-feature:first-child .marketing-animation { order: -1; }
 }
 

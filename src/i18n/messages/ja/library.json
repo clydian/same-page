@@ -1,4 +1,7 @@
 {
+  "uploadInviteMembers": "メンバーを招待",
+  "attachmentPracticeLabel": "練習譜",
+  "uploadMusicXmlAttachmentHint": "まず主楽譜の PDF をアップロードします。声部を聴くには、その楽譜に MusicXML を追加してください。",
   "allDrives": "ドライブリスト",
   "choirOpenAccess": "オープンアクセス",
   "choirFillDisplayNameCloud": "このクラウド ディスクに表示名を入力して参加します。",

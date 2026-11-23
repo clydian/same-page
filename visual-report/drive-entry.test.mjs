@@ -66,7 +66,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       // An explicit product homepage visit retains its intent.
       await page.goto(`${app.origin}/about`);
       await page.getByRole("link", { name: /^产品介绍/ }).click();
-      await expect(page.getByRole("heading", { name: "Harmony begins on the Same Page", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "合唱排练，在同一份谱上记笔记", exact: true })).toBeVisible();
       await page.evaluate(key => sessionStorage.setItem(key, "pending"), missingDriveSeed);
       failed = true;
       await page.goto(`${app.origin}/drives`);

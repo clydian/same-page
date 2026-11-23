@@ -1,4 +1,7 @@
 {
+  "uploadInviteMembers": "邀請團員",
+  "attachmentPracticeLabel": "練習譜",
+  "uploadMusicXmlAttachmentHint": "先上傳 PDF 主譜。想聽聲部，可在該譜下新增 MusicXML。",
   "allDrives": "雲端硬碟列表",
   "choirOpenAccess": "開放准入",
   "choirFillDisplayNameCloud": "填寫你在這個雲端硬碟中的顯示名後即可加入。",

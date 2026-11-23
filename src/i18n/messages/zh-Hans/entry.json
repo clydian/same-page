@@ -89,15 +89,16 @@
     "return": "返回输入邀请码"
   },
   "home": {
+    "previewUnavailable": "示例暂时无法打开。",
+    "create": "创建免费云盘",
+    "join": "用邀请加入",
     "enter": "进入云盘",
     "myDrives": "我的云盘",
-    "preview": "先看示例",
+    "preview": "看带笔记的示例",
     "more": "了解更多功能",
     "features": "产品特点",
-    "tagline": "你的笔记我的谱",
-    "summaryEnglish": "A cloud-based score library built for choir rehearsals and shared annotations.",
-    "summary": "为合唱排练与共享笔记打造的乐谱云盘。",
-    "title": "Harmony begins on the Same Page"
+    "summary": "上传 PDF，查看各声部的排练要求，也能记下只给自己的提醒。",
+    "title": "合唱排练，在同一份谱上记笔记"
   },
   "scan": {
     "unrecognized": "未识别到合谱邀请卡，请对准本站邀请卡二维码，或输入邀请码。",

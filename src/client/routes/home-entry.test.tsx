@@ -180,7 +180,7 @@ it("does not put a saved public preview into offline drive selection or default 
   vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false, error: { status: 503 }, refetch: vi.fn() } as unknown as ReturnType<typeof authClient.useSession>);
   vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
   render(tree());
-  await screen.findByRole("heading", { name: "Harmony begins on the Same Page" });
+  await screen.findByRole("heading", { name: "合唱排练，在同一份谱上记笔记" });
   expectPath("/");
   expect(screen.queryByRole("link", { name: /公开体验/ })).not.toBeInTheDocument();
 });
@@ -230,7 +230,7 @@ it("cancels a delayed invitation without late navigation and clears its guest se
 it("shows the homepage after the local check without waiting for the first online identity check", async () => {
   session(null, true);
   render(tree());
-  expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).toBeInTheDocument();
 });
 
 
@@ -248,25 +248,25 @@ it("keeps the homepage when the user cancels startup before memberships resolve"
   expect(signal?.aborted).toBe(true);
   await act(async () => finish(Response.json({ memberships })));
   expectPath("/");
-  expect(screen.getByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).toBeInTheDocument();
 });
 
 it("keeps a first visitor on the homepage even when session checking fails", async () => {
   session(null, true);
   const view = render(tree());
-  expect(await screen.findByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).toBeInTheDocument();
   vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false, error: { status: 503 }, refetch: vi.fn() } as unknown as ReturnType<typeof authClient.useSession>);
   view.rerender(tree());
   await act(async () => {});
   expectPath("/");
-  expect(screen.getByRole("heading", { name: "Harmony begins on the Same Page" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).toBeInTheDocument();
 });
 
 
 it("preserves a first visitor's invitation input while identity checking finishes", async () => {
   session(null, true);
   const view = render(tree());
-  fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
+  fireEvent.click(await screen.findByRole("button", { name: "用邀请加入" }));
   fireEvent.change(screen.getByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });
   expect(screen.getByRole("button", { name: "进入" })).toBeDisabled();
   session(null);
@@ -284,7 +284,7 @@ it("opens a remembered startup drive without showing marketing or awaiting onlin
   await localDatabase.driveDirectories.put({ key: "one", ownerKey: authenticatedLocalOwnerKey("user-a"), choirId: "one", choir: membership("one").choir, scores: [], membership: true });
   session(null, true);
   render(tree());
-  expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).not.toBeInTheDocument();
   expect(await screen.findByRole("heading", { name: /^云盘 one/ })).toBeInTheDocument();
   expectPath("/choirs/one");
   expect(fetch).not.toHaveBeenCalledWith("/api/choirs", expect.anything());

@@ -1,4 +1,7 @@
 {
+  "uploadInviteMembers": "邀请团员",
+  "attachmentPracticeLabel": "练习谱",
+  "uploadMusicXmlAttachmentHint": "先上传 PDF 主谱。想听声部，可在该谱下添加 MusicXML。",
   "allDrives": "云盘列表",
   "choirOpenAccess": "开放准入",
   "choirFillDisplayNameCloud": "填写你在这个云盘中的显示名后即可加入。",

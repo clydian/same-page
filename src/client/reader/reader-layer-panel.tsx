@@ -19,6 +19,7 @@ type ReaderLayerPanelProps = {
   workspace: LocalWorkspace;
   layers: AnnotationLayerSummary[];
   signedIn: boolean;
+  page?: number;
   initialTab?: "display" | "manage";
 };
 
@@ -26,7 +27,7 @@ export function ReaderLayerPanel(props: ReaderLayerPanelProps) {
   return <ReaderLayerPanelContent key={`${props.workspace.scopeKey}:${props.workspace.sessionEpoch ?? ""}`} {...props} />;
 }
 
-function ReaderLayerPanelContent({ workspace, layers: storedLayers, signedIn, initialTab = "display" }: ReaderLayerPanelProps) {
+function ReaderLayerPanelContent({ workspace, layers: storedLayers, signedIn, page, initialTab = "display" }: ReaderLayerPanelProps) {
   const t = useMessages("reader");
   const visibilityPrefix = useId();
   const managementTrigger = useRef<HTMLButtonElement>(null);
@@ -124,7 +125,7 @@ function ReaderLayerPanelContent({ workspace, layers: storedLayers, signedIn, in
           ))}
         </div>
       </div>
-      <div className="reader-layer-preferences">{isLocalExperience(workspace) ? <span>{t("localPreviewDisplay")}</span> : signedIn ? <Link to={`/choirs/${workspace.choirId}/preferences`}>{t("driveDisplayDefaults")}</Link> : <Link to={loginHref(`/choirs/${workspace.choirId}/scores/${workspace.scoreId}`, "layers")}>{t("signInForDisplayDefaults")}</Link>}</div>
+      <div className="reader-layer-preferences">{isLocalExperience(workspace) ? <span>{t("localPreviewDisplay")}</span> : signedIn ? <Link to={`/choirs/${workspace.choirId}/preferences`}>{t("driveDisplayDefaults")}</Link> : <Link to={loginHref(`/choirs/${workspace.choirId}/scores/${workspace.scoreId}`, { panel: "layers", page })}>{t("signInForDisplayDefaults")}</Link>}</div>
       {personalSection}
       {publishedLayers.length ? <div className="layer-section"><h3>{t("memberShares")}</h3>
         <p className="reader-layer-help">{t("memberSharesReadOnly")}</p>

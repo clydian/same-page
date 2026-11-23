@@ -89,15 +89,16 @@
     "return": "Volte para inserir o código de convite"
   },
   "home": {
+    "previewUnavailable": "O exemplo está temporariamente indisponível.",
+    "create": "Criar um drive gratuito",
+    "join": "Entrar com um convite",
     "enter": "Abrir um drive",
     "myDrives": "Meus drives",
-    "preview": "Ver um exemplo",
+    "preview": "Ver partitura com notas",
     "more": "Explorar recursos",
     "features": "Recursos do produto",
-    "tagline": "Suas notas e minha pontuação",
-    "summaryEnglish": "Uma biblioteca de partituras na nuvem para ensaios de coral e anotações compartilhadas.",
-    "summary": "Uma biblioteca de partituras na nuvem para ensaios de coral e anotações compartilhadas.",
-    "title": "A harmonia começa na mesma partitura"
+    "summary": "Envie um PDF, consulte as notas de ensaio de cada voz e guarde seus próprios lembretes.",
+    "title": "Ensaie com todos na mesma partitura"
   },
   "scan": {
     "unrecognized": "O cartão de convite Same Page não é reconhecido. Aponte para o código QR do cartão de convite neste site ou insira o código do convite.",

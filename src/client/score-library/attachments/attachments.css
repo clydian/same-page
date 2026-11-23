@@ -2,6 +2,9 @@
 .score-file-group:last-child { border-bottom: 0; }
 .score-file-group .file-row { border-bottom: 0; }
 .attachment-count { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: .2rem; width: 44px; height: 44px; padding: 0; border: 0; border-radius: .5rem; background: none; color: var(--muted); font: inherit; font-size: .7rem; font-variant-numeric: tabular-nums; cursor: pointer; }
+.attachment-count[data-playable] { width: auto; min-width: 44px; max-width: min(30vw, 8rem); min-height: 44px; height: auto; padding: .2rem .45rem; color: var(--brand); font-weight: 600; line-height: 1.2; }
+.attachment-count[data-playable] svg { flex-shrink: 0; }
+.attachment-count[data-playable] span { overflow-wrap: anywhere; }
 .attachment-count:hover:not(:disabled) { background: var(--brand-soft); }
 .attachment-count:disabled { cursor: default; }
 .attachment-list { list-style: none; margin: -.2rem 0 .65rem; padding: 0 .65rem 0 3.95rem; }

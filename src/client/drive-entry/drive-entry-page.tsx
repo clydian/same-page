@@ -2,9 +2,10 @@ import { useMessages } from "../../i18n";
 import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "react-aria-components";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useApplicationIdentity, type ApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
+import { createDriveHref, loginHref } from "../auth/login-return";
 import { AppHeader } from "../components/app-header";
 import { PersonalMenu } from "../components/personal-menu";
 import { CreateDriveDialog } from "../drives/create-drive";
@@ -32,8 +33,10 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
   const t = useMessages("entry");
   const location = useLocation();
   const [joinOpen, setJoinOpen] = useState(new URLSearchParams(location.search).get("join") === "1" || Boolean(invitation));
-  const [createOpen, setCreateOpen] = useState(false);
-  const [manualEntry, setManualEntry] = useState(joinOpen);
+  const navigate = useNavigate();
+  const createRequested = location.pathname + location.search === createDriveHref;
+  const [createOpen, setCreateOpen] = useState(createRequested);
+  const [manualEntry, setManualEntry] = useState(joinOpen || createOpen);
   const firstDriveReady = !identity.localUserId && !identity.restoring && identity.onlineState === "signed-out";
   const [firstDriveShown, setFirstDriveShown] = useState(firstDriveReady);
   if (firstDriveReady && !firstDriveShown) setFirstDriveShown(true);
@@ -43,7 +46,7 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
   const userId = identity.authenticatedUserId;
   const create = userId
     ? <Button className="text-button" onPress={() => { setManualEntry(true); setCreateOpen(true); }}><Plus size={16} aria-hidden="true" />{t("drive.create")}</Button>
-    : <Link className="text-button" to="/login">{t("drive.loginToCreate")}</Link>;
+    : <Link className="text-button" to={loginHref(createDriveHref)}>{t("drive.loginToCreate")}</Link>;
   const finishJoin = () => { finishInvitation(); setJoinOpen(false); };
   return <div className="app-page drive-entry-page">
     <AppHeader actions={identity.session.data?.user ? <><InstallButton className="header-action" /><PersonalMenu email={identity.session.data.user.email} /></> : !identity.session.isPending && <Link className="header-action" to="/login">{t("drive.login")}</Link>} />
@@ -55,7 +58,10 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
         : <p role="status">{t("drive.directoryError")}</p>}
     </main>
     <JoinDriveDialog open={joinOpen} onClose={finishJoin} identity={identity} invitation={invitation} />
-    {userId && <CreateDriveDialog userId={userId} open={createOpen} onOpenChange={setCreateOpen} />}
+    {userId && <CreateDriveDialog userId={userId} open={createOpen} onOpenChange={open => {
+      setCreateOpen(open);
+      if (!open && createRequested) void navigate("/drives", { replace: true });
+    }} />}
   </div>;
 }
 

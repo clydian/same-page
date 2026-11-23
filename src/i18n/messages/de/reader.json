@@ -1,4 +1,8 @@
 {
+  "selectedNotesVisibleToRecipients": "Ausgewählte Notizen werden in das PDF übernommen und sind für alle sichtbar, die es erhalten.",
+  "continueAnnotating": "Weiter Notizen machen",
+  "signInRequiredForScore": "Melde dich mit einem Konto an, das Zugriff hat. Bitte die Leitung um eine Einladung, wenn du noch nicht beigetreten bist.",
+  "signInToOpenScore": "Anmelden und diese Partitur öffnen",
   "acceptCloudDeletion": "Löschung der Cloud-Notiz übernehmen",
   "addPersonalLayer": "+ Erstellen Sie eine neue persönliche Ebene",
   "adoptCloudVersion": "Cloud-Version verwenden",
@@ -347,7 +351,6 @@
   "selectedNoteColor": "Ausgewählte Notizfarbe",
   "selectedNoteKind": "Ausgewählte {label}",
   "selectedNoteProperties": "Ausgewählte Notizeigenschaften",
-  "selectingNotesToIncludeWillNotChange": "Durch die Auswahl der einzuschließenden Notizen werden die Anzeigeeinstellungen beim Lesen nicht geändert.",
   "share": "Teilen",
   "shareContents": "Inhalte teilen",
   "shareNamedLayer": "Teilen {name}",

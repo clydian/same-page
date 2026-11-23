@@ -117,25 +117,16 @@ describe("AppRoutes", () => {
     expect(screen.queryByRole("heading", { name: "页面不存在" })).not.toBeInTheDocument();
   });
 
-  it("opens with the cloud-drive entry and keeps invitation admission focused", async () => {
+  it("explains rehearsal notes and keeps invitation admission focused", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <AppRoutes />
       </MemoryRouter>,
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Harmony begins on the Same Page" }),
-    ).toHaveAttribute("lang", "en");
-    expect(screen.getByText("你的笔记我的谱")).toHaveAttribute("lang", "zh-CN");
-    expect(
-      screen.getByText(
-        "A cloud-based score library built for choir rehearsals and shared annotations.",
-      ),
-    ).toHaveAttribute("lang", "en");
-    expect(
-      screen.getByText("为合唱排练与共享笔记打造的乐谱云盘。"),
-    ).toHaveAttribute("lang", "zh-CN");
+    expect(await screen.findByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).toBeVisible();
+    expect(screen.getByText("上传 PDF，查看各声部的排练要求，也能记下只给自己的提醒。")).toBeVisible();
+    expect(screen.getByRole("link", { name: "创建免费云盘" })).toHaveAttribute("href", "/login?returnTo=%2Fdrives%3Fcreate%3D1");
     expect(screen.getByRole("link", { name: "登录" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "关于与更新" })).toHaveAttribute(
       "href",
@@ -143,7 +134,7 @@ describe("AppRoutes", () => {
     );
     expect(screen.queryByLabelText("邀请码")).not.toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
+    fireEvent.click(await screen.findByRole("button", { name: "用邀请加入" }));
 
     expect(screen.getByRole("dialog", { name: "进入云盘" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "我已加入的云盘" })).toBeInTheDocument();
@@ -339,13 +330,14 @@ describe("AppRoutes", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/choirs/choir-1/memberships/member/permissions", expect.objectContaining({ method: "PUT", body: JSON.stringify({ expectedRevision: 0, operations: { operations: ["uploadFiles"], sharedLayers: [] }, management: { operations: [], sharedLayers: ["S"] } }) })));
   });
 
-  it("shows the public preview as the third independent signed-out entry", async () => {
+  it("keeps the public preview available through a failed lookup and retry", async () => {
+    let failed = true;
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation((input: string) =>
         Promise.resolve(
           input === "/api/guest/preview-choir"
-            ? Response.json({
+            ? failed ? new Response(null, { status: 503 }) : Response.json({
                 choir: {
                   id: "preview-choir",
                   name: "公开体验云盘",
@@ -362,11 +354,14 @@ describe("AppRoutes", () => {
       </MemoryRouter>,
     );
 
+    expect(await screen.findByText("示例暂时无法打开。")).toHaveAttribute("role", "status");
+    failed = false;
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
     expect(
-      await screen.findByRole("link", { name: "先看示例" }),
+      await screen.findByRole("link", { name: "看带笔记的示例" }),
     ).toHaveAttribute("href", "/choirs/preview-choir");
 
-    fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
+    fireEvent.click(await screen.findByRole("button", { name: "用邀请加入" }));
     expect(screen.queryByText("公开体验云盘")).not.toBeInTheDocument();
   });
 
@@ -392,7 +387,7 @@ describe("AppRoutes", () => {
 
   it("automatically admits an invitation received while the home page is already open", async () => {
     render(<MemoryRouter><Link to="/?join=1#invite=ABCDEFGH">打开测试邀请</Link><AppRoutes /></MemoryRouter>);
-    await screen.findByRole("button", { name: "进入云盘" });
+    await screen.findByRole("button", { name: "用邀请加入" });
     fireEvent.click(screen.getByRole("link", { name: "打开测试邀请" }));
     expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
     expect(screen.queryByLabelText("显示名")).not.toBeInTheDocument();
@@ -489,7 +484,7 @@ describe("AppRoutes", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
+    fireEvent.click(await screen.findByRole("button", { name: "用邀请加入" }));
     fireEvent.change(await screen.findByLabelText("邀请码"), {
       target: { value: "abcd-efgh" },
     });
@@ -515,7 +510,7 @@ describe("AppRoutes", () => {
       ? new Promise<Response>(resolve => { finish = resolve; }) : original(input, init));
     render(<MemoryRouter initialEntries={["/"]}><AppRoutes /></MemoryRouter>);
     await waitFor(() => expect(finish).toBeDefined());
-    fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
+    fireEvent.click(await screen.findByRole("button", { name: "用邀请加入" }));
     const input = await screen.findByLabelText("邀请码");
     fireEvent.change(input, { target: { value: "abcd-efgh" } });
     await act(async () => finish(Response.json({ choir: { id: "old-drive", name: "之前的云盘", guestAdmissionMode: "invite" }, entryKind: "admission" })));
@@ -543,7 +538,7 @@ describe("AppRoutes", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
+    fireEvent.click(await screen.findByRole("button", { name: "用邀请加入" }));
     fireEvent.change(await screen.findByLabelText("邀请码"), {
       target: { value: "AAAAAAAA" },
     });
@@ -572,7 +567,7 @@ describe("AppRoutes", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "进入云盘" }));
+    fireEvent.click(await screen.findByRole("button", { name: "用邀请加入" }));
     fireEvent.change(await screen.findByLabelText("邀请码"), {
       target: { value: "ABCDEFGH" },
     });

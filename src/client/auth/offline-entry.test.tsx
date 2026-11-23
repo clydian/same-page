@@ -63,7 +63,7 @@ it("offers the last local user's saved score after a cold-start network failure"
   // and directory hydration; allow that bounded cold-start sequence to settle.
   expect(await findSavedScoreLink(4000)).toHaveAttribute("href", "/choirs/drive/scores/score");
   await screen.findByText(/暂时无法连接/);
-  expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).not.toBeInTheDocument();
 });
 
 it.each(["valid", "corrupt"] as const)("keeps the directory entry unopenable until %s bytes finish verification", async kind => {
@@ -143,7 +143,7 @@ it.each([503, 401, 200])("keeps local files when cold-start authentication retur
   open();
   await findSavedScoreLink();
   await screen.findByText(status === 503 ? /暂时无法连接/ : /重新登录后同步/);
-  expect(screen.queryByRole("heading", { name: "Harmony begins on the Same Page" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).not.toBeInTheDocument();
 });
 
 it("rechecks the same user on reconnect and keeps the drive route", async () => {
@@ -182,7 +182,7 @@ it("does not recover the previous user's directory after explicit local logout c
   await clearPrivateLocalDataAfterLogout();
   vi.stubGlobal("fetch", vi.fn(async () => Response.json(null)));
   open();
-  await screen.findByRole("heading", { name: "Harmony begins on the Same Page" });
+  await screen.findByRole("heading", { name: "合唱排练，在同一份谱上记笔记" });
   expect(screen.queryByText("a")).not.toBeInTheDocument();
 });
 

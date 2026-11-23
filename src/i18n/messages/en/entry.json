@@ -89,15 +89,16 @@
     "return": "Back to invitation code"
   },
   "home": {
+    "previewUnavailable": "The example is temporarily unavailable.",
+    "create": "Create a free drive",
+    "join": "Join with an invitation",
     "enter": "Open a Drive",
     "myDrives": "My Drives",
-    "preview": "See an example",
+    "preview": "See a score with notes",
     "more": "Explore features",
     "features": "Features",
-    "tagline": "Your notes and my score",
-    "summaryEnglish": "A cloud-based score library built for choir rehearsals and shared annotations.",
-    "summary": "A cloud-based score library built for choir rehearsals and shared annotations.",
-    "title": "Harmony begins on the Same Page"
+    "summary": "Upload a PDF, see rehearsal notes for each voice part, and keep your own reminders.",
+    "title": "Rehearse together on the same score"
   },
   "scan": {
     "unrecognized": "We couldn't recognize a Same Page invitation card. Aim at the QR code on a Same Page card or enter the invitation code.",

@@ -1,4 +1,7 @@
 {
+  "uploadInviteMembers": "Invite members",
+  "attachmentPracticeLabel": "Practice score",
+  "uploadMusicXmlAttachmentHint": "Upload a PDF as the main score. To hear the parts, add MusicXML to that score.",
   "allDrives": "Drives",
   "choirOpenAccess": "Open access",
   "choirFillDisplayNameCloud": "Enter your display name for this Drive to join.",

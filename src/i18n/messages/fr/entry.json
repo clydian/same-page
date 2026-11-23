@@ -89,15 +89,16 @@
     "return": "Retour pour saisir le code d'invitation"
   },
   "home": {
+    "previewUnavailable": "L’exemple est temporairement indisponible.",
+    "create": "Créer un espace gratuit",
+    "join": "Rejoindre avec une invitation",
     "enter": "Ouvrir un espace",
     "myDrives": "Mes espaces",
-    "preview": "Voir un exemple",
+    "preview": "Voir une partition annotée",
     "more": "Découvrir les fonctionnalités",
     "features": "Caractéristiques du produit",
-    "tagline": "Vos notes et ma partition",
-    "summaryEnglish": "Une bibliothèque de partitions en ligne pour les répétitions de chorale et les annotations partagées.",
-    "summary": "Une bibliothèque de partitions en ligne pour les répétitions de chorale et les annotations partagées.",
-    "title": "L’harmonie commence sur la même partition"
+    "summary": "Importez un PDF, consultez les notes de répétition de chaque pupitre et gardez vos propres repères.",
+    "title": "Répétez sur la même partition"
   },
   "scan": {
     "unrecognized": "La carte d'invitation Same Page n'est pas reconnue. Veuillez pointer le code QR du carton d'invitation sur ce site ou saisir le code d'invitation.",

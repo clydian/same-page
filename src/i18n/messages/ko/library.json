@@ -1,4 +1,7 @@
 {
+  "uploadInviteMembers": "단원 초대",
+  "attachmentPracticeLabel": "연습 악보",
+  "uploadMusicXmlAttachmentHint": "먼저 PDF를 기본 악보로 올리세요. 성부를 들으려면 해당 악보에 MusicXML을 추가하세요.",
   "allDrives": "드라이브 목록",
   "choirOpenAccess": "오픈 액세스",
   "choirFillDisplayNameCloud": "참여하려면 이 드라이브에 표시 이름을 입력하세요.",

@@ -89,15 +89,16 @@
     "return": "返回輸入邀請碼"
   },
   "home": {
+    "previewUnavailable": "暫時無法開啟範例。",
+    "create": "建立免費雲端硬碟",
+    "join": "用邀請加入",
     "enter": "開啟雲端硬碟",
     "myDrives": "我的雲端硬碟",
-    "preview": "先看範例",
+    "preview": "看有筆記的範例",
     "more": "探索更多功能",
     "features": "產品特點",
-    "tagline": "你的筆記我的譜",
-    "summaryEnglish": "為合唱排練及共用筆記打造的樂譜雲端硬碟。",
-    "summary": "為合唱排練及共用筆記打造的樂譜雲端硬碟。",
-    "title": "每次排練，都在同一頁"
+    "summary": "上傳 PDF，查看各聲部的排練要求，也能記下只給自己的提醒。",
+    "title": "合唱排練，在同一份譜上記筆記"
   },
   "scan": {
     "unrecognized": "未辨識到合譜邀請卡，請對準本站邀請卡QR 碼，或輸入邀請碼。",

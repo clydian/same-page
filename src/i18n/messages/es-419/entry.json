@@ -89,15 +89,16 @@
     "return": "Regresar para ingresar el código de invitación"
   },
   "home": {
+    "previewUnavailable": "El ejemplo no está disponible por el momento.",
+    "create": "Crear una unidad gratuita",
+    "join": "Entrar con una invitación",
     "enter": "Abrir una unidad",
     "myDrives": "Mis unidades",
-    "preview": "Ver un ejemplo",
+    "preview": "Ver partitura con notas",
     "more": "Explorar funciones",
     "features": "Características del producto",
-    "tagline": "Tus notas y mi puntuación",
-    "summaryEnglish": "Una biblioteca de partituras en la nube para ensayos de coro y anotaciones compartidas.",
-    "summary": "Una biblioteca de partituras en la nube para ensayos de coro y anotaciones compartidas.",
-    "title": "La armonía empieza en la misma partitura"
+    "summary": "Sube un PDF, consulta las notas de ensayo de cada voz y guarda tus propios recordatorios.",
+    "title": "Ensayen con la misma partitura"
   },
   "scan": {
     "unrecognized": "No se reconoce la tarjeta de invitación de Same Page. Señale el código QR de la tarjeta de invitación en este sitio o ingrese el código de invitación.",

@@ -27,7 +27,7 @@ it.each([
   const fetcher = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
   const view = renderHook(() => useLibraryAttachmentPresentation('drive', [raw], collapsed, false, 'offline', 'user:user'));
   await waitFor(() => expect(view.result.current.statusFor(raw.id)).toBe('ready'));
-  expect(view.result.current.forScore(raw)).toEqual({ count, hasGeneratedXml });
+  expect(view.result.current.forScore(raw)).toEqual({ count, hasGeneratedXml, hasPlayableAttachment: items.includes(userXml) });
   expect(raw.attachmentCount).toBe(items.length || 1);
   expect(raw.hasGeneratedXml).toBeUndefined();
   expect(await readAttachmentDirectory(workspace, raw)).toEqual(items);
@@ -41,7 +41,7 @@ it('does not infer generated availability from a directory for a different score
   const newer = { ...legacy, updatedAt: 2 };
   const view = renderHook(() => useLibraryAttachmentPresentation('drive', [newer], collapsed, false, 'offline', 'user:user'));
   await waitFor(() => expect(view.result.current.statusFor(newer.id)).toBe('unavailable'));
-  expect(view.result.current.forScore(newer)).toEqual({ count: 1, hasGeneratedXml: false });
+  expect(view.result.current.forScore(newer)).toEqual({ count: 1, hasGeneratedXml: false, hasPlayableAttachment: false });
 });
 
 it('keeps modern collapsed summaries on demand without fetching their directories', async () => {
@@ -49,6 +49,6 @@ it('keeps modern collapsed summaries on demand without fetching their directorie
   const modern = { ...legacy, hasGeneratedXml: true, musicXmlCount: 1 };
   const view = renderHook(() => useLibraryAttachmentPresentation('drive', [modern], collapsed, true, 'online'));
   await waitFor(() => expect(view.result.current.refreshing).toBe(false));
-  expect(view.result.current.forScore(modern)).toEqual({ count: 0, hasGeneratedXml: true });
+  expect(view.result.current.forScore(modern)).toEqual({ count: 0, hasGeneratedXml: true, hasPlayableAttachment: false });
   expect(fetcher).not.toHaveBeenCalled();
 });

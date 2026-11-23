@@ -1,4 +1,8 @@
 {
+  "selectedNotesVisibleToRecipients": "選んだメモは PDF に書き込まれ、ファイルを受け取った人全員に表示されます。",
+  "continueAnnotating": "メモの続きを書く",
+  "signInRequiredForScore": "アクセス権のあるアカウントでログインしてください。ドライブにまだ参加していない場合は、主催者に招待を依頼してください。",
+  "signInToOpenScore": "ログインしてこの楽譜を開く",
   "acceptCloudDeletion": "クラウド側のメモの削除を反映",
   "addPersonalLayer": "＋ 個人レイヤーを追加",
   "adoptCloudVersion": "クラウド側の版を採用",
@@ -347,7 +351,6 @@
   "selectedNoteColor": "選んだ書き込みの色",
   "selectedNoteKind": "選択中の{label}",
   "selectedNoteProperties": "選んだ書き込みの設定",
-  "selectingNotesToIncludeWillNotChange": "共有 PDF に含める書き込みを選んでも、閲覧中の表示設定は変わりません。",
   "share": "共有",
   "shareContents": "共有する内容",
   "shareNamedLayer": "{name} を共有",

@@ -1,4 +1,7 @@
 {
+  "uploadInviteMembers": "Invita i membri",
+  "attachmentPracticeLabel": "Spartito per lo studio",
+  "uploadMusicXmlAttachmentHint": "Carica uno spartito principale in PDF. Per ascoltare le parti, aggiungi un file MusicXML a quello spartito.",
   "allDrives": "Elenco dei dischi cloud",
   "choirOpenAccess": "Accesso aperto",
   "choirFillDisplayNameCloud": "Inserisci il tuo nome visualizzato in questo drive per partecipare.",

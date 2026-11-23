@@ -56,6 +56,7 @@ it("localizes the preview layer label and preserves user-entered layer names", a
   render(<AppLocaleContext.Provider value={{ locale: "en", setLocale: () => undefined, requestedLocale: null, loadFailed: false }}>
     <ExportDialog workspace={workspace} versionId="v1" fileName="score.pdf" authenticatedUserId="reader" onClose={() => {}} />
   </AppLocaleContext.Provider>);
-  expect(await screen.findByRole("checkbox", { name: "Local preview notes" })).toBeInTheDocument();
+  fireEvent.click(await screen.findByRole("radio", { name: "Include notes" }));
+  expect(await screen.findByRole("checkbox", { name: "Local preview notes" })).not.toBeChecked();
   expect(screen.getByRole("checkbox", { name: previewLayer.name })).toBeInTheDocument();
 });

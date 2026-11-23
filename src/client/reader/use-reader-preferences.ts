@@ -17,15 +17,20 @@ export function useReaderPreferences({
   choirId,
   scoreId,
   pageCount,
+  initialPage,
 }: {
   identity: string;
   choirId: string;
   scoreId: string;
   pageCount?: number;
+  initialPage?: number;
 }) {
   const key = `reader-preferences:${identity}:${choirId}:${scoreId}`;
   const [state, setState] = useState<{ key: string; value: ReaderPreferences }>(
-    () => ({ key, value: readPreferences(key) }),
+    () => {
+      const saved = readPreferences(key);
+      return { key, value: initialPage === undefined ? saved : { ...saved, page: initialPage } };
+    },
   );
   const stored = state.key === key ? state.value : readPreferences(key);
   const preferences = useMemo(() => pageCount && stored.page > pageCount ? { ...stored, page: pageCount } : stored, [pageCount, stored]);

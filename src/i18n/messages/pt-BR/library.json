@@ -1,4 +1,7 @@
 {
+  "uploadInviteMembers": "Convidar membros",
+  "attachmentPracticeLabel": "Partitura de estudo",
+  "uploadMusicXmlAttachmentHint": "Envie um PDF como partitura principal. Para ouvir as vozes, adicione MusicXML a essa partitura.",
   "allDrives": "Lista de discos na nuvem",
   "choirOpenAccess": "Acesso aberto",
   "choirFillDisplayNameCloud": "Preencha seu nome de exibição neste drive para ingressar.",

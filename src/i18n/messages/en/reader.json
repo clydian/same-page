@@ -1,4 +1,8 @@
 {
+  "selectedNotesVisibleToRecipients": "Selected notes are written into the PDF and visible to anyone who receives it.",
+  "continueAnnotating": "Continue taking notes",
+  "signInRequiredForScore": "Log in with an account that has access. If you haven’t joined the drive, ask the organizer for an invitation.",
+  "signInToOpenScore": "Log in to open this score",
   "acceptCloudDeletion": "Accept the note’s deletion in the cloud",
   "addPersonalLayer": "+ New personal layer",
   "adoptCloudVersion": "Use the cloud version",
@@ -347,7 +351,6 @@
   "selectedNoteColor": "Selected note color",
   "selectedNoteKind": "Selected {label}",
   "selectedNoteProperties": "Selected note properties",
-  "selectingNotesToIncludeWillNotChange": "Selecting notes to include does not change the display settings while reading.",
   "share": "Share",
   "shareContents": "What to share",
   "shareNamedLayer": "Share {name}",

@@ -94,6 +94,10 @@ test("valid invitations automatically admit guests, existing members and named n
         await page.locator(".file-row__open").click();
         await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
         await page.locator(".page-reader__viewport").click({ position: { x: 195, y: 340 } });
+        await page.getByRole("button", { name: /^展开页码网格/ }).click();
+        await page.getByRole("button", { name: "第 2 页", exact: true }).click();
+        const currentPage = page.getByRole("button", { name: /第 2 页，共 2 页/ });
+        await expect(currentPage).toBeVisible();
         await page.getByRole("button", { name: "编辑", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: "登录后，记下你的排练笔记" });
         await expect(dialog).toBeVisible();
@@ -104,14 +108,15 @@ test("valid invitations automatically admit guests, existing members and named n
         await dialog.getByRole("link", { name: "注册 / 登录，开始记笔记" }).click();
         const target = `/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
         await expect.poll(() => new URL(page.url()).searchParams.get("returnTo")).toBe(target);
+        assert.equal(new URL(page.url()).searchParams.get("page"), "2");
         await page.getByLabel("邮箱", { exact: true }).fill(fixture.accounts[0].email);
         await page.getByRole("button", { name: "继续", exact: true }).click();
         await page.getByLabel("密码", { exact: true }).fill(fixture.accounts[0].password);
         await page.getByRole("button", { name: "登录", exact: true }).click();
         await expect(page).toHaveURL(fixture.origin + target);
         await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
-        await page.locator(".page-reader__viewport").click({ position: { x: 195, y: 340 } });
-        await page.getByRole("button", { name: "编辑", exact: true }).click();
+        await expect(currentPage).toBeVisible();
+        await page.getByRole("button", { name: "继续记笔记", exact: true }).click();
         await expect(page.locator(".annotation-controls")).toBeVisible();
 
       }
