@@ -1,4 +1,6 @@
 import { midi, synth } from '@coderline/alphatab';
+import { assetUrl } from '../../shared/asset-url';
+import { buildId } from '../../shared/build';
 
 export type BeatAccent = 0 | 1 | 2;
 export type PracticeClick = { time: number; accent: BeatAccent };
@@ -43,7 +45,8 @@ export function renderPracticeClicks(soundFont: Uint8Array) {
 let pendingSamples: Promise<Float32Array[]> | undefined;
 
 export async function loadPracticeClicks(context: AudioContext) {
-  pendingSamples ??= fetch('/soundfont/sonivox.sf2').then(async response => {
+  const soundfont = assetUrl(import.meta.env.DEV ? 'soundfont/sonivox.sf2' : `playback/${encodeURIComponent(buildId)}/soundfont/sonivox.sf2`);
+  pendingSamples ??= fetch(soundfont).then(async response => {
     if (!response.ok) throw new Error('metronome_soundfont_unavailable');
     return renderPracticeClicks(new Uint8Array(await response.arrayBuffer()));
   }).catch(error => { pendingSamples = undefined; throw error; });

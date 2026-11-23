@@ -128,7 +128,8 @@ describe('pitch and feedback', () => {
 });
 
 it('renders distinct native XML metronome samples for primary, secondary and weak beats', () => {
-  const [weak, secondary, strong] = renderPracticeClicks(readFileSync(new URL('../../../public/soundfont/sonivox.sf2', import.meta.url)));
+  const soundfont = new URL('./soundfont/sonivox.sf2', import.meta.resolve('@coderline/alphatab'));
+  const [weak, secondary, strong] = renderPracticeClicks(readFileSync(soundfont));
   const peak = (samples: Float32Array) => samples.reduce((value, sample) => Math.max(value, Math.abs(sample)), 0);
   expect([weak, secondary, strong].every(samples => samples.every(Number.isFinite))).toBe(true);
   expect(peak(weak)).toBeGreaterThan(.01);
