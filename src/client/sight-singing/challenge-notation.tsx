@@ -3,7 +3,8 @@ import { ScoreFollowScroll } from '@same-page/player/score-follow';
 import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useMessages } from '../../i18n';
 import type { Melody, MelodyScore, MelodyVoice } from './melody';
-import { pitchName, type assessNotes } from './pitch-feedback';
+import { pitchName, type assessNotes, type PitchFrame } from './pitch-feedback';
+import { ScorePitchTrace } from './score-pitch-trace';
 import './challenge-notation.css';
 
 export type NotationNoteHit = { midi: number; track: number; staff: number; voice: number; bar: number; beatIndex: number };
@@ -110,9 +111,10 @@ const FeedbackMarkers = memo(function FeedbackMarkers({ feedback, notes, voice, 
   </div>;
 });
 
-export function ChallengeNotation({ score, voice, melody, currentBar, currentVisit, beatIndex, onNote, feedback }: {
+export function ChallengeNotation({ score, voice, melody, currentBar, currentVisit, beatIndex, onNote, feedback, pitchFrames, liveTrace = false }: {
   score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; currentBar?: number; currentVisit?: number; beatIndex?: number;
   onNote?: (note: NotationNoteHit) => void; feedback?: readonly NotationFeedback[];
+  pitchFrames?: PitchFrame[]; liveTrace?: boolean;
 }) {
   const t = useMessages('practice');
   const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
@@ -198,6 +200,8 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
       <div ref={notation} aria-hidden="true" />
       <div ref={cursor} className="challenge-notation-cursor" hidden aria-hidden="true" />
       <div ref={beatCursor} className="challenge-notation-beat" hidden aria-hidden="true" />
+      {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={score} voice={voice}
+        beats={melody.staffBeats} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} viewport={viewport} /> : null}
       {feedback && <FeedbackMarkers feedback={feedback} notes={notes} voice={voice} visit={currentVisit} />}
       {onNote && <NotationButtons notes={notes} voice={voice} onNote={onNote} />}
     </div>

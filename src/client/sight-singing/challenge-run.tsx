@@ -50,6 +50,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
   const [error, setError] = useState<CaptureError | null>(null);
   const take = useRef<string | null>(null);
   const run = useRef<(() => void) | null>(null);
@@ -170,6 +171,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const position = state.phase === 'sing' ? state.frame.time : state.phase === 'result' ? replayTime : 0;
   const measure = melody.measures.find(bar => position < bar.end) ?? melody.measures[melody.measures.length - 1];
   const target = melody.notes.find(note => note.start <= position && position < note.end);
+  const staffBeat = melody.staffBeats.find(beat => beat.visit === measure.visit && beat.start <= position && position < beat.end);
   const review = state.phase === 'result' ? state.review : undefined;
   const feedback = useMemo(() => review?.flatMap(row => row.note.beatIndex === undefined ? [] : [{
     bar: row.note.bar, beatIndex: row.note.beatIndex, visit: row.note.visit, status: row.status, midi: row.target ?? undefined,
@@ -188,8 +190,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       const position = replay.current?.currentTime ?? 0;
       const visit = melody.measures.find(bar => position < bar.end)?.visit;
       const part = voices.find(option => option.voice.track === hit.track && option.voice.staff === hit.staff && option.voice.voice === hit.voice);
-      const notes = part?.melody.notes.filter(note => note.bar === hit.bar && note.beatIndex === hit.beatIndex);
-      const note = notes?.find(candidate => candidate.visit === visit) ?? notes?.reduce<(typeof melody.notes)[number] | undefined>((closest, candidate) =>
+      const notes = part?.melody.staffBeats.filter(note => note.bar === hit.bar && note.beatIndex === hit.beatIndex && note.pitches.includes(hit.midi));
+      const note = notes?.find(candidate => candidate.visit === visit) ?? notes?.reduce<(typeof melody.staffBeats)[number] | undefined>((closest, candidate) =>
         !closest || Math.abs(candidate.start - position * speed) < Math.abs(closest.start - position * speed) ? candidate : closest, undefined);
       const bar = melody.measures.find(candidate => candidate.bar === hit.bar && candidate.visit === visit) ?? melody.measures.find(candidate => candidate.bar === hit.bar);
       if (note) playFrom(note.start / speed);
@@ -232,8 +234,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
 
   return <div className="challenge-run" data-phase={state.phase}>
     <ChallengeNotation score={document.score} voice={voice} melody={melody} currentBar={recording || state.phase === 'result' ? measure.bar : undefined}
-      currentVisit={measure.visit} beatIndex={target?.bar === measure.bar ? target?.beatIndex : undefined} feedback={feedback}
-      onNote={canTap ? selectNote : undefined} />
+      currentVisit={measure.visit} beatIndex={staffBeat?.beatIndex} feedback={feedback}
+      onNote={canTap ? selectNote : undefined} pitchFrames={'frames' in state ? state.frames : undefined} liveTrace={state.phase === 'sing'} />
 
     {state.phase === 'idle' && <div className="challenge-practice-controls">
       <label className="challenge-part-control" htmlFor={`${id}-part`}><span>{t('sight.singVoice')}</span>
@@ -261,6 +263,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
           {Array.from({ length: melody.beats }, (_, index) => <span key={index} data-passed={index <= melody.beats - state.count} />)}
         </div>}
       </div>
+      {state.phase === 'sing' && state.frame.midi !== null && <span className="challenge-staff-current-pitch">
+        {t('sight.currentPitch', { pitch: pitchName(Math.round(state.frame.midi)) })}
+      </span>}
       <button className="secondary-button challenge-stop" type="button" onClick={reset}><Square size={15} aria-hidden="true" />{t('sight.stop')}</button>
     </div>}
 
@@ -302,9 +307,13 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
 
     {showHeadphones && <p className="challenge-headphones" role="status"><Headphones size={17} aria-hidden="true" />{t('sight.audioGuidance')}</p>}
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
-    {(state.phase === 'count' || state.phase === 'sing' || state.phase === 'result') && <PitchGraph melody={melody}
-      frames={'frames' in state ? state.frames : emptyFrames} elapsed={position} activePitch={state.phase === 'sing' ? state.frame.midi : null}
-      activeTarget={state.phase === 'sing' && target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
+    {(state.phase === 'count' || state.phase === 'sing' || state.phase === 'result') && <details className="challenge-pitch-details"
+      open={graphOpen} onToggle={event => setGraphOpen(event.currentTarget.open)}>
+      <summary>{t('sight.pitchMonitor')}</summary>
+      {graphOpen && <PitchGraph melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
+        activePitch={state.phase === 'sing' ? state.frame.midi : null}
+        activeTarget={state.phase === 'sing' && target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
+    </details>}
 
     {state.phase === 'result' && <>
       <details className="challenge-review-details" onToggle={event => setDetailsOpen(event.currentTarget.open)}>

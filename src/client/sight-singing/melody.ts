@@ -7,8 +7,9 @@ export type MelodyError = 'noMelody' | 'ambiguousMelody' | 'unsupportedMelody' |
 export type MelodyNote = { midi: number; chord?: number[]; start: number; end: number; visit: number; bar: number; beatIndex?: number };
 export const targetPitches = (note: MelodyNote) => note.chord ?? [note.midi];
 export type MelodyMeasure = { start: number; end: number; bar: number; visit: number };
+export type StaffBeat = MelodyMeasure & { beatIndex: number; pitches: number[] };
 export type Melody = {
-  notes: MelodyNote[]; measures: MelodyMeasure[]; clicks: PracticeClick[]; duration: number;
+  notes: MelodyNote[]; measures: MelodyMeasure[]; staffBeats: StaffBeat[]; clicks: PracticeClick[]; duration: number;
   beatSeconds: number; beats: number; denominator: number; tonic: number; tempo: { bpm: number; unit: number };
 };
 export type MelodyVoice = { id: string; track: number; staff: number; voice: number; name: string; multiple: boolean };
@@ -46,7 +47,7 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   if (first < 0 || last < first || last >= document.bars.length) return 'noMelody';
   const selected = document.bars.slice(first, last + 1);
   const staff = document.score.tracks[voice.track].staves[voice.staff];
-  const notes: MelodyNote[] = [], measures: MelodyMeasure[] = [], clicks: PracticeClick[] = [];
+  const notes: MelodyNote[] = [], measures: MelodyMeasure[] = [], staffBeats: StaffBeat[] = [], clicks: PracticeClick[] = [];
   let previous: alphaTab.model.Note[] = [];
   let seconds = 0;
   for (const [offset, bar] of selected.entries()) {
@@ -75,13 +76,17 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
     }
     for (const beat of source.voices[voice.voice]?.beats ?? []) {
       const sounding = beat.notes.filter(note => !note.isCue).sort((a, b) => a.realValue - b.realValue);
-      if (!sounding.length) continue;
-      if (sounding.some(note => note.isPercussion || note.repeatPasses !== null) || beat.graceType !== alphaTab.model.GraceType.None) return 'unsupportedMelody';
+      if (sounding.length && (sounding.some(note => note.isPercussion || note.repeatPasses !== null) || beat.graceType !== alphaTab.model.GraceType.None)) return 'unsupportedMelody';
       const startTick = Math.max(0, beat.playbackStart) + bar.start;
       const endTick = Math.min(bar.end, bar.start + beat.playbackStart + beat.playbackDuration);
-      if (endTick <= startTick) return 'unsupportedMelody';
+      if (endTick <= startTick) {
+        if (sounding.length) return 'unsupportedMelody';
+        continue;
+      }
       const start = toSeconds(startTick), noteEnd = toSeconds(endTick);
       const pitches = [...new Set(sounding.map(note => note.realValue))];
+      staffBeats.push({ start, end: noteEnd, bar: master.index, visit, beatIndex: beat.index, pitches });
+      if (!pitches.length) continue;
       const [midi] = pitches;
       const lastNote = notes.at(-1);
       if (lastNote && lastNote.end - start > .00001) return 'ambiguousMelody';
@@ -103,13 +108,13 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   const beats = Math.max(1, opening.masterBar.timeSignatureNumerator);
   const key = opening.masterBar.keySignature * 7 + (opening.masterBar.keySignatureType === alphaTab.model.KeySignatureType.Minor ? 9 : 0);
   const tonic = 48 + (key % 12 + 12) % 12;
-  return { notes, measures, clicks, duration: seconds, beatSeconds, beats, denominator, tonic, tempo: { bpm, unit } };
+  return { notes, measures, staffBeats, clicks, duration: seconds, beatSeconds, beats, denominator, tonic, tempo: { bpm, unit } };
 }
 
 export function melodyAtSpeed(melody: Melody, speed: number): Melody {
   if (speed === 1) return melody;
   const scale = <T extends { start: number; end: number }>(item: T) => ({ ...item, start: item.start / speed, end: item.end / speed });
-  return { ...melody, notes: melody.notes.map(scale), measures: melody.measures.map(scale),
+  return { ...melody, notes: melody.notes.map(scale), measures: melody.measures.map(scale), staffBeats: melody.staffBeats.map(scale),
     clicks: melody.clicks.map(click => ({ ...click, time: click.time / speed })),
     duration: melody.duration / speed, beatSeconds: melody.beatSeconds / speed };
 }

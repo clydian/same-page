@@ -7,6 +7,11 @@
 .challenge-notation-sheet [data-challenge-part="context"] { opacity: .52; }
 .challenge-note-layer, .challenge-score-feedback-layer { position: absolute; inset: 0; pointer-events: none; }
 .challenge-score-feedback-layer { z-index: 1; }
+.challenge-staff-trace { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+.challenge-staff-trace path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.challenge-staff-trace-halo { stroke: var(--score-paper); stroke-width: 3.8; opacity: .85; }
+.challenge-staff-trace-curve { stroke: var(--pitch-voice); stroke-width: 2.15; }
+.challenge-staff-trace circle { fill: var(--pitch-voice); stroke: var(--score-paper); stroke-width: 1.3; }
 .challenge-note-layer { z-index: 2; }
 .challenge-notation-note {
   position: absolute; transform: translate(-50%, -50%); box-sizing: border-box;

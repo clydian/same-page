@@ -69,7 +69,7 @@
 }
 .challenge-notation-sheet { position: relative; margin-block: auto; }
 .challenge-notation-sheet > div:first-child { position: relative; }
-[data-ui-theme="dark"] .challenge-notation-sheet svg { filter: invert(.9) hue-rotate(180deg); }
+[data-ui-theme="dark"] .challenge-notation-sheet > div:first-child svg { filter: invert(.9) hue-rotate(180deg); }
 .challenge-notation-cursor, .challenge-notation-beat { position: absolute; pointer-events: none; }
 .challenge-notation-cursor { background: var(--score-focus); border-radius: .45rem; }
 .challenge-notation-beat { width: 2px; border-radius: 2px; background: var(--score-cursor); }
@@ -80,6 +80,7 @@
 .challenge-start { border-radius: .85rem; padding-inline: 1.25rem; font-weight: 700; }
 .challenge-stop { border-radius: .85rem; }
 .challenge-stage { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem .8rem; font-weight: 650; }
+.challenge-staff-current-pitch { margin-inline-start: auto; color: var(--pitch-voice); font-size: .84rem; font-weight: 650; }
 .challenge-count { display: flex; gap: .4rem; }
 .challenge-count span { width: .55rem; height: .55rem; border: 1px solid var(--muted); border-radius: 50%; }
 .challenge-count span[data-passed="true"] { background: var(--brand); border-color: var(--brand); }
@@ -128,8 +129,9 @@
 .challenge-replay-time { color: var(--muted); font-size: .74rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .challenge-current-feedback { display: flex; flex-wrap: wrap; gap: .55rem 1rem; margin: 0; color: var(--muted); font-size: .8rem; }
 .challenge-current-feedback dd { margin: .08rem 0 0; font-weight: 650; color: var(--ink); }
-.challenge-review-details { margin-block-start: .8rem; border-block: 1px solid var(--line); }
-.challenge-review-details summary { cursor: pointer; min-height: 44px; align-content: center; font-weight: 650; }
+.challenge-review-details, .challenge-pitch-details { margin-block-start: .65rem; border-block: 1px solid var(--line); }
+.challenge-review-details summary, .challenge-pitch-details summary { cursor: pointer; min-height: 44px; align-content: center; font-weight: 650; }
+.challenge-pitch-details .challenge-graph { margin: 0 0 .65rem; }
 .challenge-review-details summary span { display: inline-block; margin-inline-start: .65rem; color: var(--muted); font-weight: 400; font-size: .82rem; }
 .challenge-confirm {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .65rem;

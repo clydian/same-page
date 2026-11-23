@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { renderPracticeClicks } from '../playback/practice-metronome';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { assessNotes, createPitchReader, frequency, pitchWindowSize } from './pitch-feedback';
+import { staffPitchY } from './staff-pitch';
 
 const bytes = (text: string) => new TextEncoder().encode(text);
 const pitch = (step: string, octave = 4) => `<pitch><step>${step}</step><octave>${octave}</octave></pitch>`;
@@ -36,6 +37,9 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
     { midi: 60, start: .5, end: 2, visit: 1, bar: 1, beatIndex: 0 },
     { midi: 67, start: 3, end: 4, visit: 2, bar: 2, beatIndex: 1 },
   ]);
+  expect(melody.staffBeats.slice(0, 5).map(beat => [beat.start, beat.end, beat.bar, beat.pitches])).toEqual([
+    [0, .5, 0, [69]], [.5, 1, 1, [60]], [1, 2, 1, [60]], [2, 3, 2, []], [3, 4, 2, [67]],
+  ]);
   const secondPass = buildMelody(document, document.voices[0], 3, 4) as Melody;
   expect(secondPass.notes[0]).toMatchObject({ start: 0, visit: 3 });
   expect(secondPass.notes[1].start).toBe(secondPass.measures[1].start + 1);
@@ -50,6 +54,19 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
   for (const [midi, target, status] of [[65.18, 65, 'inTune'], [65.36, 65, 'sharp'], [68.62, 69, 'flat'], [67.6, 69, 'wrongNote']] as const) {
     expect(assessNotes(alto.notes, [{ time: .25, midi }])[0]).toMatchObject({ target, status });
   }
+});
+
+it('projects sung pitches through diatonic staff steps anchored to the written notehead', () => {
+  const c = { y: 100, stepSize: 5, step: 28, writtenMidi: 60, signature: 0 };
+  const e = { ...c, step: 30, writtenMidi: 64 };
+  expect(staffPitchY(c, 0)).toBe(100);
+  expect(staffPitchY(c, 1)).toBe(97.5); // C to D spans two semitones.
+  expect(staffPitchY(e, 1)).toBe(95); // E to F spans one semitone.
+  expect(staffPitchY(c, -1)).toBe(105); // C to B spans the octave boundary.
+  const cSharp = { ...c, writtenMidi: 61, signature: 2 };
+  expect(staffPitchY(cSharp, 0)).toBe(100);
+  expect(staffPitchY(cSharp, .4)).toBe(98);
+  expect(staffPitchY(cSharp, -.4)).toBe(101);
 });
 
 it('accepts a compressed MusicXML attachment using the existing importer', () => {
