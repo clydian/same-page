@@ -70,7 +70,7 @@
 .challenge-results th, .challenge-results td { padding: .35rem .5rem; text-align: start; border-block-end: 1px solid var(--line); }
 .challenge-results td { white-space: nowrap; }
 .challenge-results th { color: var(--muted); font-weight: 600; font-size: .85rem; }
-.challenge-results tr[data-active="true"] { background: var(--ui-surface-muted, var(--wash)); }
+.challenge-results tr[data-active="true"] { background: var(--brand-soft); }
 .challenge-note-replay {
   display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; padding: 0 .55rem;
   border: 1px solid var(--line); border-radius: .5rem; background: var(--surface); color: var(--ink);
