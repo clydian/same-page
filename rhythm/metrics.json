@@ -1,0 +1,52 @@
+{
+  "product": "d41b1338f14a63b652a633855c0c94504749f1d6",
+  "evidence": [
+    {
+      "name": "phone-zh",
+      "beats": 4,
+      "speed": 0.75,
+      "score": 100,
+      "clicks": 12,
+      "beatSeconds": 0.6666666666666666,
+      "duration": 5.333333333333333,
+      "peaks": [
+        0.1367,
+        0.0885,
+        0.0885,
+        0.0885
+      ]
+    },
+    {
+      "name": "desktop-en",
+      "beats": 4,
+      "speed": 1,
+      "score": 75,
+      "clicks": 12,
+      "beatSeconds": 0.5,
+      "duration": 4,
+      "peaks": [
+        0.1367,
+        0.0885,
+        0.0885,
+        0.0885
+      ]
+    },
+    {
+      "name": "phone-68",
+      "beats": 6,
+      "speed": 1,
+      "score": 100,
+      "clicks": 30,
+      "beatSeconds": 0.3333333333333333,
+      "duration": 8,
+      "peaks": [
+        0.1367,
+        0.0885,
+        0.0885,
+        0.107,
+        0.0885,
+        0.0885
+      ]
+    }
+  ]
+}
