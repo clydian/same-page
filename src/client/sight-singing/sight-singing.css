@@ -109,9 +109,10 @@
 .challenge-result { margin-block-start: .85rem; display: grid; gap: .7rem; padding: .85rem 1rem;
   border: 1px solid var(--line); border-radius: 1rem; background: var(--surface); }
 .challenge-result-top { display: flex; align-items: center; justify-content: space-between; gap: .7rem; }
+.challenge-result-top > .challenge-stop { flex: 0 0 auto; max-inline-size: 55%; }
 .challenge-score { display: flex; align-items: baseline; flex-wrap: wrap; gap: .15rem .8rem; }
 .challenge-score strong { font-size: clamp(1.5rem, 3.5vw, 2.25rem); letter-spacing: -.035em; line-height: 1.15; }
-.challenge-score span { font-size: .85rem; color: var(--muted); }
+.challenge-score span { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
 .challenge-result-counts { display: flex; flex-wrap: wrap; gap: .45rem; margin: 0; }
 .challenge-result-counts > div { display: flex; align-items: baseline; gap: .45rem; padding: .28rem .56rem;
   border-radius: .55rem; background: var(--pitch-surface); color: var(--muted); font-size: .8rem; }
