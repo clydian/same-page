@@ -306,6 +306,8 @@
     "summary": "{total} 個音符中有 {matched} 個音準達標",
     "unscoredCount": "有 {count} 個音符的取樣不足，未計入本次成績。",
     "replay": "回聽本次演唱",
+    "replayFromNote": "從第 {index} 音（{pitch}）開始回聽",
+    "feedbackGuide": "音高誤差比較每個音與譜面目標。音程誤差比較相鄰兩音的距離與譜面音程。",
     "noteFeedback": "逐音回饋",
     "measure": "小節",
     "expected": "目標",

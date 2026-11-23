@@ -306,6 +306,8 @@
     "summary": "{total}개 음표 중 {matched}개의 음정이 정확합니다",
     "unscoredCount": "샘플이 부족한 음표 {count}개는 이번 결과에서 제외했습니다.",
     "replay": "내 녹음 다시 듣기",
+    "replayFromNote": "{index}번째 음({pitch})부터 재생",
+    "feedbackGuide": "음높이 오차는 각 음을 악보와 비교합니다. 음정 오차는 이웃한 두 음의 간격을 악보의 음정과 비교합니다.",
     "noteFeedback": "음표별 피드백",
     "measure": "마디",
     "expected": "목표",

@@ -306,6 +306,8 @@
     "summary": "{matched} of {total} notes in tune",
     "unscoredCount": "{count, plural, one {# note had too few samples and was excluded from this result.} other {# notes had too few samples and were excluded from this result.}}",
     "replay": "Play back your take",
+    "replayFromNote": "Play from note {index} ({pitch})",
+    "feedbackGuide": "Pitch error compares each note with the score. Interval error compares the gap between adjacent notes with the written interval.",
     "noteFeedback": "Note-by-note feedback",
     "measure": "Measure",
     "expected": "Target",

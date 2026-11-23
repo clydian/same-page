@@ -62,9 +62,10 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks) {
     });
     for (const track of opened.getAudioTracks()) track.addEventListener('ended', () => fail('audioInterrupted'), { once: true });
     input = context.createMediaStreamSource(opened);
+    const half = pitchWindowSize / 2;
     worklet = new AudioWorkletNode(context, 'sight-singing-capture', {
       channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1],
-      processorOptions: { beatFrames, beats: melody.beats, durationFrames },
+      processorOptions: { beatFrames, beats: melody.beats, durationFrames, chunkFrames: half },
     });
     worklet.onprocessorerror = () => fail('audioFailure');
     const pitch = createPitchReader(sampleRate);
@@ -75,7 +76,6 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks) {
       if (!active) return;
       if ('count' in data) { callbacks.onCount(data.count); return; }
       const { samples, done } = data;
-      const half = pitchWindowSize / 2;
       if (received > 0) {
         window.copyWithin(0, half);
         window.fill(0, half);

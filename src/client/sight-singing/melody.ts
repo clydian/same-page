@@ -3,7 +3,7 @@ import { loadPreparedMusicXml, prepareMusicXmlForPlaybackBytes } from '@same-pag
 import { playbackMeasureVisits } from '@same-page/player/playback-measures';
 
 export type MelodyError = 'noMelody' | 'ambiguousMelody' | 'unsupportedMelody' | 'tooLong';
-export type MelodyNote = { midi: number; start: number; end: number; visit: number; bar: number };
+export type MelodyNote = { midi: number; start: number; end: number; visit: number; bar: number; beatIndex?: number };
 export type MelodyMeasure = { start: number; end: number; bar: number; visit: number };
 export type Melody = { notes: MelodyNote[]; measures: MelodyMeasure[]; duration: number; beatSeconds: number; beats: number };
 export type MelodyVoice = { id: string; track: number; staff: number; voice: number; name: string; multiple: boolean };
@@ -79,7 +79,7 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
       if (lastNote && previous && note.tieOrigin === previous && lastNote.midi === midi && Math.abs(lastNote.end - start) < .00001) {
         lastNote.end = noteEnd;
       } else {
-        notes.push({ midi, start, end: noteEnd, visit, bar: master.index });
+        notes.push({ midi, start, end: noteEnd, visit, bar: master.index, beatIndex: beat.index });
       }
       previous = note;
     }

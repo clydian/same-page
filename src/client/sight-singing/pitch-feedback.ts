@@ -2,7 +2,8 @@ import { PitchDetector } from 'pitchy';
 import type { MelodyNote } from './melody';
 
 export type PitchFrame = { time: number; midi: number | null };
-export const pitchWindowSize = 4096;
+// Overlap 43–46 ms windows to sample the middle of short notes at 44.1/48 kHz.
+export const pitchWindowSize = 2048;
 export const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 export const pitchName = (midi: number) => `${['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 

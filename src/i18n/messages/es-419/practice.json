@@ -306,6 +306,8 @@
     "summary": "{matched} de {total} notas afinadas",
     "unscoredCount": "El resultado excluye {count} notas por falta de muestras.",
     "replay": "Escuchar tu grabación",
+    "replayFromNote": "Reproducir desde la nota {index} ({pitch})",
+    "feedbackGuide": "El error de afinación compara cada nota con la partitura. El error de intervalo compara la distancia cantada entre dos notas consecutivas con la indicada.",
     "noteFeedback": "Resultados nota por nota",
     "measure": "Compás",
     "expected": "Objetivo",

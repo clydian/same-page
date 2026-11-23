@@ -3,14 +3,15 @@
 // The input stream is routed into a silent node. Sample counts determine both
 // the countdown and recording boundaries, independent of UI scheduling.
 class SightSingingCapture extends AudioWorkletProcessor {
-  constructor({ processorOptions: { beatFrames, beats, durationFrames } }) {
+  constructor({ processorOptions: { beatFrames, beats, durationFrames, chunkFrames } }) {
     super();
     this.beatFrames = beatFrames;
     this.beats = beats;
     this.durationFrames = durationFrames;
     this.position = -beatFrames * beats;
     this.count = 0;
-    this.chunk = new Float32Array(2048);
+    this.chunkFrames = chunkFrames;
+    this.chunk = new Float32Array(chunkFrames);
     this.used = 0;
   }
 
@@ -31,7 +32,7 @@ class SightSingingCapture extends AudioWorkletProcessor {
           const samples = this.used === this.chunk.length ? this.chunk : this.chunk.slice(0, this.used);
           this.port.postMessage({ samples, done }, [samples.buffer]);
           if (done) return false;
-          this.chunk = new Float32Array(2048);
+          this.chunk = new Float32Array(this.chunkFrames);
           this.used = 0;
         }
       }

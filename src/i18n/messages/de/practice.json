@@ -306,6 +306,8 @@
     "summary": "{matched} von {total} Tönen getroffen",
     "unscoredCount": "Die Wertung schließt {count} Noten mit zu wenigen Messdaten aus.",
     "replay": "Aufnahme anhören",
+    "replayFromNote": "Ab Ton {index} ({pitch}) abspielen",
+    "feedbackGuide": "Die Tonhöhenabweichung vergleicht jeden Ton mit der Vorlage. Die Intervallabweichung vergleicht den gesungenen Abstand zweier aufeinanderfolgender Töne mit der Vorlage.",
     "noteFeedback": "Auswertung je Note",
     "measure": "Takt",
     "expected": "Ziel",

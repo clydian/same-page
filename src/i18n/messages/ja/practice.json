@@ -306,6 +306,8 @@
     "summary": "{total} 音中 {matched} 音が合っています",
     "unscoredCount": "{count} 音はサンプル不足のため、今回の結果に含まれません。",
     "replay": "録音を聴き返す",
+    "replayFromNote": "{index} 番目の音（{pitch}）から再生",
+    "feedbackGuide": "音高のずれは各音を楽譜と比べます。音程のずれは隣り合う二つの音の間隔を楽譜の音程と比べます。",
     "noteFeedback": "音符ごとの結果",
     "measure": "小節",
     "expected": "目標",

@@ -31,9 +31,9 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
   ]);
   expect(document.voices.map(voice => voice.name)).toEqual(['Soprano', 'Alto']);
   expect(melody.notes.slice(0, 3)).toEqual([
-    { midi: 69, start: 0, end: .5, visit: 0, bar: 0 },
-    { midi: 60, start: .5, end: 2, visit: 1, bar: 1 },
-    { midi: 67, start: 3, end: 4, visit: 2, bar: 2 },
+    { midi: 69, start: 0, end: .5, visit: 0, bar: 0, beatIndex: 0 },
+    { midi: 60, start: .5, end: 2, visit: 1, bar: 1, beatIndex: 0 },
+    { midi: 67, start: 3, end: 4, visit: 2, bar: 2, beatIndex: 1 },
   ]);
   const secondPass = buildMelody(document, document.voices[0], 3, 4) as Melody;
   expect(secondPass.notes[0]).toMatchObject({ start: 0, visit: 3 });
@@ -68,7 +68,7 @@ describe('pitch and feedback', () => {
     const shortNotes = pitches.map((midi, index) => ({
       midi, start: index * secondsPerNote, end: (index + 1) * secondsPerNote, bar: 0, visit: 0,
     }));
-    const hop = pitchWindowSize / 2;
+    const hop = 2048; // Keep the former sparse cadence as an explicit control.
     for (const [rate, unscored] of [[48000, [7, 9]], [44100, [9, 12]]] as const) {
       const frames = [];
       for (let sample = hop; sample < 2 * rate; sample += hop) {
@@ -84,6 +84,11 @@ describe('pitch and feedback', () => {
       }
       const sampledSilence = [{ ...frames[0], midi: null }, ...frames.slice(1)];
       expect(assessNotes(shortNotes, sampledSilence)[0].status).toBe('missed');
+      const denseFrames = Array.from({ length: Math.floor(2 * rate / (pitchWindowSize / 2)) }, (_, index) => {
+        const time = (index + 1) * (pitchWindowSize / 2) / rate;
+        return { time, midi: pitches[Math.floor(time / secondsPerNote)] ?? null };
+      });
+      expect(assessNotes(shortNotes, denseFrames).map(row => row.status)).toEqual(pitches.map(() => 'inTune'));
     }
   });
   it('reports pitch and interval independently and breaks interval feedback across a missed note', () => {
@@ -102,17 +107,18 @@ describe('pitch and feedback', () => {
 it('counts on input samples and captures exactly the selected duration without count-in samples', () => {
   type Packet = { count?: number; samples?: Float32Array; done?: boolean };
   const messages: Packet[] = [];
-  let create: new (options: { processorOptions: { beatFrames: number; beats: number; durationFrames: number } }) => { process(inputs: Float32Array[][]): boolean };
+  let create: new (options: { processorOptions: { beatFrames: number; beats: number; durationFrames: number; chunkFrames: number } }) => { process(inputs: Float32Array[][]): boolean };
   runInNewContext(readFileSync(new URL('./capture-processor.js', import.meta.url), 'utf8'), {
     AudioWorkletProcessor: class { port = { postMessage: (message: Packet) => messages.push(message) }; },
     registerProcessor: (_name: string, implementation: typeof create) => { create = implementation; },
   });
-  const processor = new create!({ processorOptions: { beatFrames: 100, beats: 2, durationFrames: 2051 } });
+  const processor = new create!({ processorOptions: { beatFrames: 100, beats: 2, durationFrames: 2051, chunkFrames: pitchWindowSize / 2 } });
   expect(processor.process([])).toBe(true);
   expect(processor.process([[new Float32Array(2255).map((_, i) => i)]])).toBe(false);
   expect(messages.slice(0, 2)).toEqual([{ count: 2 }, { count: 1 }]);
-  expect(messages[2].samples?.length).toBe(2048);
+  expect(messages[2].samples?.length).toBe(1024);
   expect(messages[2].samples?.[0]).toBe(200);
-  expect(Array.from(messages[3].samples ?? [])).toEqual([2248, 2249, 2250]);
-  expect(messages[3].done).toBe(true);
+  expect(messages[3].samples?.[0]).toBe(1224);
+  expect(Array.from(messages[4].samples ?? [])).toEqual([2248, 2249, 2250]);
+  expect(messages[4].done).toBe(true);
 });

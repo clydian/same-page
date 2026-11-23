@@ -306,6 +306,8 @@
     "summary": "{matched} note intonate su {total}",
     "unscoredCount": "Il risultato esclude {count} note per campioni insufficienti.",
     "replay": "Riascolta la registrazione",
+    "replayFromNote": "Riproduci dalla nota {index} ({pitch})",
+    "feedbackGuide": "L’errore di intonazione confronta ogni nota con lo spartito. L’errore di intervallo confronta la distanza cantata tra due note consecutive con quella scritta.",
     "noteFeedback": "Risultato nota per nota",
     "measure": "Battuta",
     "expected": "Riferimento",

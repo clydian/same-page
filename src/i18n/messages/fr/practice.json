@@ -306,6 +306,8 @@
     "summary": "{matched} notes justes sur {total}",
     "unscoredCount": "Le résultat exclut {count} notes faute d’échantillons suffisants.",
     "replay": "Réécouter votre prise",
+    "replayFromNote": "Écouter à partir de la note {index} ({pitch})",
+    "feedbackGuide": "L’erreur de hauteur compare chaque note à la partition. L’erreur d’intervalle compare l’écart chanté entre deux notes consécutives à l’intervalle écrit.",
     "noteFeedback": "Bilan note par note",
     "measure": "Mesure",
     "expected": "Cible",
