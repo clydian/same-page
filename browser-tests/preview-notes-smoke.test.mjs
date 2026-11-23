@@ -174,15 +174,16 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             stage = `${entry}:entry`;
             if (entry === "missing") await page.goto(reader);
             else {
-              // Cached rows can render before the fresh directory request finishes.
-              // Wait for that exact response before navigation unmounts the library.
+              await openLibrary();
+              // Expanding the row starts the directory read. Cached rows can render
+              // before it finishes, so wait for it before opening an attachment.
+              const attachments = page.getByRole("button", { name: "本地链路测试：2 个附件 · 练习谱", exact: true });
               const [response] = await Promise.all([
                 page.waitForResponse(response => directoryRequest(response.request())),
-                openLibrary(),
+                attachments.click(),
               ]);
               assert.equal(response.status(), 200);
               await response.finished();
-              await page.getByRole("button", { name: "本地链路测试：2 个附件 · 练习谱", exact: true }).click();
               stage = `${entry}:open-attachment`;
               await page.getByRole("button", { name: entry === "audio" ? "试听.wav" : "试唱.musicxml", exact: true }).click();
               if (entry === "audio") await page.getByRole("button", { name: "边听边看谱", exact: true }).click();
