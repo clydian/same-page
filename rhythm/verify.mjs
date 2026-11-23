@@ -3,9 +3,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 const require = createRequire(process.cwd()+'/package.json');
 const { chromium, expect } = require('@playwright/test');
-const origin = process.env.SIGHT_QA_URL || 'http://127.0.0.1:4192';
-const output = process.argv[2] || '/tmp/sight-play-preview/rhythm-evidence-final';
-const product = 'd41b1338f14a63b652a633855c0c94504749f1d6';
+const origin = process.env.SIGHT_QA_URL || 'http://127.0.0.1:4193';
+const output = process.argv[2] || '/tmp/sight-play-preview/rhythm-evidence-release';
+const product = '9ae353094a71a0b6074c4a219298b8ceaf7f8ea6';
 
 function installCapture() {
   const worklets = new WeakMap();
@@ -110,7 +110,9 @@ try {
     }
     await speed.blur();
     await page.screenshot({path:output+'/'+name+'-ready.png'});
+    const soundfont = page.waitForResponse(response => response.url().includes('/playback/'+product+'/soundfont/sonivox.sf2') && response.ok());
     await page.getByRole('button',{name:l.start,exact:true}).click();
+    await soundfont;
     await expect(page.getByText(l.beat).first()).toBeVisible();
     await page.screenshot({path:output+'/'+name+'-count.png'});
     await page.locator('.challenge-run[data-phase="sing"]').waitFor();

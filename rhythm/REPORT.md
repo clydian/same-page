@@ -1,6 +1,6 @@
 # 视唱速度、节拍和跨八度验收
 
-产品提交 `d41b1338f14a63b652a633855c0c94504749f1d6`。浏览器测试使用完整的生产构建、合成 SATB MusicXML 与 48 kHz 合成演唱。测试经过实际 AudioWorklet、Pitchy、AlphaTab 点击音频、Web Audio 和本地钢琴混音。Sites 答题接口用浏览器内的夹具模拟。
+产品提交 `9ae353094a71a0b6074c4a219298b8ceaf7f8ea6`。浏览器测试使用完整的生产构建、合成 SATB MusicXML 与 48 kHz 合成演唱。测试经过实际 AudioWorklet、Pitchy、AlphaTab 点击音频、Web Audio 和本地钢琴混音。Sites 答题接口用浏览器内的夹具模拟。浏览器确认拍声加载 XML 播放器的同一版音色，路径也在生产构建的离线清单中。
 
 | 场景 | 预期与实际 |
 | --- | --- |
