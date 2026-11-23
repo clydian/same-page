@@ -17,7 +17,7 @@
 
 Ella 公开演示中，谱面从准备持续到试唱和成绩阶段。App Store 上的 PitchMonitor – Vocal Visual 的麦克风和分析截图使用带八度的音名作纵轴，显示实时轨迹。合谱采用自己的主题色和排版，并保留谱面、目标音与逐音反馈之间的对应。 [Ella 官方演示](https://www.ensemble-education.com/apps/ella/top.mp4) · [PitchMonitor 截图](https://apps.apple.com/us/app/pitchmonitor-vocal-visual/id6751228637)
 
-浏览器测试使用合成输入与本地测试云盘，仍需在 iPad Safari 和主屏幕入口实测真人录音及伴奏串音。
+另在 Linux WebKit 中对四组视口验证了打开题目、谱面与开唱按钮首屏可达、设置选择与关闭。`webkit.ndjson` 记录位置。浏览器录音测试使用合成输入与本地测试云盘，仍需在 iPad Safari 和主屏幕入口实测真人录音及伴奏串音。
 
 ## 重跑
 
