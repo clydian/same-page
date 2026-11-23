@@ -130,8 +130,10 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await fab.press("Enter");
       await expect(page.getByRole("dialog", { name: "上传 PDF", exact: true })).toBeVisible();
     });
-    // Keep the two-score fixture tall enough to exercise the upload button's overlap and manual scrolling.
-    const attachmentViewportHeight = 595;
+    // With the preparation card below the scores, a 595 px viewport fits
+    // both attachments above the upload button. Keep this fixture short
+    // enough to exercise actual overlap with and without a bottom safe area.
+    const attachmentViewportHeight = 460;
     for (const safeBottom of [0, 34]) {
       await scenario(`short-attachments-${safeBottom}`, async page => {
         await page.goto(`${app.origin}/choirs/visual-choir`);

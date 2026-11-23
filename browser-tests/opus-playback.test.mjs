@@ -21,7 +21,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`flat
  await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
  await page.getByRole('button',{name:'本地链路测试 更多操作',exact:true}).click();await page.getByRole('menuitem',{name:'添加附件',exact:true}).click();await page.getByRole('button',{name:'可播放乐谱',exact:true}).click();
  await page.getByLabel('选择附件文件').setInputFiles({name:'Original-opus.mxl',mimeType:'application/vnd.recordare.musicxml',buffer:bytes});await page.getByRole('button',{name:'上传',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
- await page.getByRole('button',{name:'本地链路测试：1 个附件',exact:true}).click();await page.getByRole('button',{name:'Original-opus.mxl',exact:true}).click();
+ await page.getByRole('button',{name:'本地链路测试：1 个附件 · 练习谱',exact:true}).click();await page.getByRole('button',{name:'Original-opus.mxl',exact:true}).click();
  const bar=page.getByTestId('musicxml-player'),timeline=bar.getByRole('slider',{name:'播放进度',exact:true});
  await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
  await expect(timeline).toHaveAttribute('max','5');
@@ -83,7 +83,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]) test(`flat
  const longBytes=await opusMusicXmlFixture(24);
  assert.equal((await context.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/scores/${fixture.scoreId}/attachments/${crypto.randomUUID()}/file?name=Original-long-opus.mxl&size=${longBytes.length}`,{data:longBytes})).status(),201);
  await page.setViewportSize({width:390,height:844});await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
- await page.getByRole('button',{name:'本地链路测试：2 个附件',exact:true}).click();await page.getByRole('button',{name:'Original-long-opus.mxl',exact:true}).click();
+ await page.getByRole('button',{name:'本地链路测试：2 个附件 · 练习谱',exact:true}).click();await page.getByRole('button',{name:'Original-long-opus.mxl',exact:true}).click();
  await expect(bar.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
  await expect(page.locator('.practice-score-piece')).toHaveCount(24);
  const mounted=page.locator('.practice-score-piece:has(svg)');assert.ok(await mounted.count()<8,'offscreen scores are neither engraved nor mounted');

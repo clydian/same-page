@@ -58,7 +58,7 @@ for (const [engine, type] of [["chromium", chromium], ["webkit", webkit]]) {
         try {
           const library = `${fixture.origin}/choirs/${fixture.choirId}`;
           await page.goto(library);
-          await page.getByRole("button", { name: "本地链路测试：1 个附件", exact: true }).click();
+          await page.getByRole("button", { name: "本地链路测试：1 个附件 · 练习谱", exact: true }).click();
           await page.getByRole("button", { name: "初始化.musicxml", exact: true }).click();
           const player = page.getByTestId("musicxml-player");
           await expect(player.getByRole("button", { name: "播放", exact: true })).toBeEnabled({ timeout: 60000 });

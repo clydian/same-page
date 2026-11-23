@@ -72,8 +72,8 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
       for (const fault of ['hidden', 'changed']) {
         network.attachmentFault = fault;
         await page.goto(library);
-        await expect(page.getByRole('button', { name: '本地链路测试：1 个附件', exact: true })).toBeVisible();
-        await page.getByRole('button', { name: '本地链路测试：1 个附件', exact: true }).click();
+        await expect(page.getByRole('button', { name: '本地链路测试：1 个附件 · 练习谱', exact: true })).toBeVisible();
+        await page.getByRole('button', { name: '本地链路测试：1 个附件 · 练习谱', exact: true }).click();
         await page.getByRole('button', { name: '跨域练习.xml', exact: true }).click();
         const message = page.getByText(fault === 'hidden' ? '暂时无法校验附件版本，请检查连接后重试。' : '附件已更新，请从附件列表重新打开。', { exact: true });
         await expect(message).toBeVisible();
@@ -116,7 +116,7 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
       }, { source, bytes: [...mp3] });
       assert.equal(uploadStatus, 201);
       await page.goto(`${origins.backup}/choirs/${fixture.choirId}`);
-      await page.getByRole('button', { name: '本地链路测试：2 个附件', exact: true }).click();
+      await page.getByRole('button', { name: '本地链路测试：2 个附件 · 练习谱', exact: true }).click();
       await page.getByRole('button', { name: '跨域录音.mp3', exact: true }).click();
       await expect.poll(() => page.locator('audio').evaluate(audio => audio.readyState)).toBeGreaterThanOrEqual(1);
       assert.equal(await page.locator('audio').evaluate(audio => new URL(audio.src).origin), origins.direct);

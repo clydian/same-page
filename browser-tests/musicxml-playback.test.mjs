@@ -90,7 +90,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await page.getByLabel('选择附件文件').setInputFiles({name:'分声部练习.mxl',mimeType:'application/vnd.recordare.musicxml',buffer:Buffer.from(bytes)});
   await page.getByRole('button',{name:'上传',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button',{name:'本地链路测试：1 个附件',exact:true}).click();
+  await page.getByRole('button',{name:'本地链路测试：1 个附件 · 练习谱',exact:true}).click();
   await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
   const player=page.getByTestId('musicxml-player');
   const settings=page.getByRole('dialog',{name:'练习设置',exact:true});
@@ -209,7 +209,7 @@ for (const [engine, type] of [['chromium',chromium],['webkit',webkit]]) {
   await expect(player).toHaveCount(0);
   await expect(notation).toHaveCount(0);
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
-  await page.getByRole('button',{name:'本地链路测试：1 个附件',exact:true}).click();
+  await page.getByRole('button',{name:'本地链路测试：1 个附件 · 练习谱',exact:true}).click();
   await page.getByRole('button',{name:'分声部练习.mxl',exact:true}).click();
   await expect(player.getByRole('button',{name:'播放',exact:true})).toBeEnabled({timeout:60000});
   await player.getByRole('button',{name:'展开练习控制',exact:true}).click(); await expandPracticeTools(page);
