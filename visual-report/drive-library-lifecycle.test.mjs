@@ -58,6 +58,8 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       Date.now = () => time;
     }, initialTime + intervals * 61_000);
     const library = page.getByRole("region", { name: "乐谱", exact: true });
+    // Scroll can hide the floating button while it remains mounted for this member.
+    const upload = page.getByRole("button", { name: "上传 PDF", exact: true, includeHidden: true });
     await page.goto(`${server.origin}/choirs/visual-choir`);
     await expect(page.locator(".file-row")).toHaveCount(60);
     await expect(library).toHaveAttribute("aria-busy", "false");
@@ -80,7 +82,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await expect(page.locator(".file-row")).toHaveCount(60);
     await expect(library).toHaveAttribute("aria-busy", "true");
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(savedTop);
-    await expect(page.getByRole("button", { name: "上传 PDF", exact: true })).toBeAttached();
+    await expect(upload).toBeAttached();
     await page.screenshot({ path: path.join(evidence, `${name}-cached-return.png`) });
 
     // Scroll again before revalidation finishes. The old return target is spent.
@@ -88,7 +90,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     const currentTop = await page.evaluate(() => window.scrollY);
     release(); waiting = null;
     await expect(library).toHaveAttribute("aria-busy", "false");
-    await expect(page.getByRole("button", { name: "上传 PDF", exact: true })).toBeAttached();
+    await expect(upload).toBeAttached();
     // WebKit may adjust its scroll anchor by a CSS pixel as management controls return.
     await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - currentTop)).toBeLessThanOrEqual(2);
 
