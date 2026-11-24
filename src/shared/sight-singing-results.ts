@@ -8,17 +8,18 @@ export const sightSingingScoringRuleSchema = z.literal(currentSingingScoringRule
 export const sightSingingScoreSchema = z.number().min(0).max(100)
   .refine(score => Math.round(score * 100) / 100 === score, { message: 'Use at most two decimal places' });
 export const sightSingingVoiceNameSchema = z.string().trim().min(1).max(240);
-export const sightSingingResultSubmissionSchema = z.object({
+const sightSingingResultFields = z.object({
   id: z.uuid(),
   version: z.number().int().positive(),
   score: sightSingingScoreSchema,
   voiceId: z.string().max(64).regex(/^\d+:\d+:\d+$/),
   voiceName: sightSingingVoiceNameSchema,
   speed: sightSingingSpeedSchema.optional(),
-  scoringRule: sightSingingScoringRuleSchema.optional(),
 }).strict();
+export const sightSingingResultSubmissionSchema = sightSingingResultFields.extend({ scoringRule: sightSingingScoringRuleSchema });
 
-const publishedSightSingingResultSchema = sightSingingResultSubmissionSchema.extend({
+const publishedSightSingingResultSchema = sightSingingResultFields.extend({
+  scoringRule: sightSingingScoringRuleSchema.optional(),
   questionId: z.uuid(),
   displayName: z.string(),
   own: z.boolean(),

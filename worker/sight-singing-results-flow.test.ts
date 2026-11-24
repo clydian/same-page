@@ -59,7 +59,8 @@ it('keeps one best published score per version and withdraws only the selected o
 
   const resultPath = `${questionPath}/results`, listPath = `${resultPath}?version=1`;
   const read = (path: string, viewer = singer) => call(path, { headers: { cookie: viewer.cookie } });
-  const result = { id: crypto.randomUUID(), version: 1, score: 84, voiceId: '0:0:0', voiceName: 'Alto' };
+  const resultFields = { id: crypto.randomUUID(), version: 1, score: 84, voiceId: '0:0:0', voiceName: 'Alto' };
+  const result = { ...resultFields, scoringRule: 3 };
   const send = (body: unknown = result, author = singer, userId = author.id, path = resultPath) => call(path, {
     method: 'POST', headers: { cookie: author.cookie, 'content-type': 'application/json', 'x-same-page-owner-user-id': userId },
     body: JSON.stringify(body),
@@ -78,8 +79,9 @@ it('keeps one best published score per version and withdraws only the selected o
   expect((await send(result, singer, singer.id, `${questionsPath}/${liveQuestionId}/results`)).status).toBe(404);
   expect((await send({ ...result, recording: 'RIFF', notes: [{ midi: 64 }] })).status).toBe(400);
   expect((await send({ ...result, scoringRule: 2 })).status).toBe(400);
+  expect((await send({ ...result, scoringRule: undefined })).status).toBe(400);
 
-  const own = { ...result, questionId, displayName: '云盘里的 Alto', own: true };
+  const own = { ...resultFields, questionId, displayName: '云盘里的 Alto', own: true };
   const first = await send();
   expect(first.status, await first.clone().text()).toBe(200);
   expect(await first.json()).toEqual({ result: own });
