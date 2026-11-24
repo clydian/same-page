@@ -11,7 +11,7 @@ CREATE TABLE sight_singing_best_results (
   perfect INTEGER NOT NULL CHECK (perfect IN (0, 1)),
   written_octave INTEGER NOT NULL CHECK (written_octave IN (0, 1) AND written_octave <= perfect),
   achieved_order INTEGER NOT NULL,
-  PRIMARY KEY (choir_id, question_id, version, membership_id, voice_id),
+  PRIMARY KEY (choir_id, question_id, version, membership_id, voice_id, speed),
   FOREIGN KEY (choir_id, question_id, version)
     REFERENCES sight_singing_question_versions(choir_id, question_id, version) ON DELETE CASCADE
 );

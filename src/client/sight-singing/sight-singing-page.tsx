@@ -26,7 +26,8 @@ import { useSightSingingScoreFormat } from './format-score';
 import { buildMelody } from './melody';
 import { readQuestions, type SightSingingQuestion } from './questions';
 import { ScoreBadges } from './score-badge';
-import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult } from './result-publication';
+import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult,
+  type SightSingingResultFilters } from './result-publication';
 import type { PublishedSightSingingResult, SightSingingLeaderboard, SightSingingResultSubmission } from '../../shared/sight-singing-results';
 import { publishedPath, useMelodySource, type MelodySource } from './use-melody-source';
 import './sight-singing.css';
@@ -189,7 +190,7 @@ function QuestionCard({ question, top, count, choirId, ready, open }: {
   useEffect(() => {
     if (!expanded) return;
     const controller = new AbortController();
-    void readSightSingingResults(choirId, question.id, null, '', controller.signal).then(payload => {
+    void readSightSingingResults(choirId, question.id, {}, controller.signal).then(payload => {
       if (!controller.signal.aborted) setDetails({ retry, rows: payload.results });
     }).catch(() => {
       if (!controller.signal.aborted) setDetails({ retry, rows: null });
@@ -296,29 +297,27 @@ function PublishedResults({ choirId, questionId, version, generation, userId }: 
 }) {
   const t = useMessages('practice');
   const showVersions = version > 1;
-  const [filter, setFilter] = useState<number | null>(null);
-  const [voice, setVoice] = useState('');
+  const speedFilterId = useId();
+  const [filters, setFilters] = useState<SightSingingResultFilters>({});
   const [voices, setVoices] = useState<string[]>([]);
   const [retry, setRetry] = useState(0);
-  const [state, setState] = useState<{ generation: number; retry: number; filter: number | null;
-    voice: string; rows: PublishedSightSingingResult[] | null }>();
-  const [versions, setVersions] = useState([version]);
+  const [state, setState] = useState<{ generation: number; retry: number; filters: SightSingingResultFilters;
+    rows: PublishedSightSingingResult[] | null }>();
   const [removing, setRemoving] = useState<PublishedSightSingingResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [withdrawFailed, setWithdrawFailed] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    void readSightSingingResults(choirId, questionId, filter, voice, controller.signal).then(payload => {
+    void readSightSingingResults(choirId, questionId, filters, controller.signal).then(payload => {
       if (controller.signal.aborted) return;
-      setState({ generation, retry, filter, voice, rows: payload.results });
-      setVersions(payload.versions);
+      setState({ generation, retry, filters, rows: payload.results });
       setVoices(payload.voices);
     }).catch(() => {
-      if (!controller.signal.aborted) setState({ generation, retry, filter, voice, rows: null });
+      if (!controller.signal.aborted) setState({ generation, retry, filters, rows: null });
     });
     return () => controller.abort();
-  }, [choirId, questionId, filter, voice, generation, retry]);
-  const rows = state?.generation === generation && state.retry === retry && state.filter === filter && state.voice === voice
+  }, [choirId, questionId, filters, generation, retry]);
+  const rows = state?.generation === generation && state.retry === retry && state.filters === filters
     ? state.rows : undefined;
   const removeLabel = (edition: number) => showVersions ? t('sight.withdrawResult', { version: versionTag(edition) }) : t('sight.withdrawAction');
   const withdraw = async () => {
@@ -337,12 +336,25 @@ function PublishedResults({ choirId, questionId, version, generation, userId }: 
       <div className="challenge-result-filters">
         {showVersions && <label className="challenge-version-filter">
           <span className="visually-hidden">{t('sight.resultVersionFilter')}</span>
-          <select value={filter ?? ''} onChange={event => setFilter(event.target.value ? Number(event.target.value) : null)}>
+          <select value={filters.version ?? ''} onChange={event => {
+            const latest = event.target.value !== '';
+            setFilters(current => ({ ...current, version: latest ? version : undefined }));
+          }}>
             <option value="">{t('sight.allVersions')}</option>
-            {versions.map(edition => <option key={edition} value={edition}>{versionTag(edition)}</option>)}
+            <option value={version}>{t('sight.latestVersion')}</option>
           </select>
         </label>}
-        <VoiceFilter voice={voice} voices={voices} onChange={setVoice} />
+        <VoiceFilter voice={filters.voice ?? ''} voices={voices} onChange={voice => setFilters(current => ({ ...current, voice }))} />
+        <label className="challenge-version-filter" htmlFor={speedFilterId}>
+          <span className="visually-hidden">{t('sight.resultSpeedFilter')}</span>
+          <select id={speedFilterId} value={filters.speed ?? ''} onChange={event => {
+            const standard = event.target.value === '1';
+            setFilters(current => ({ ...current, speed: standard ? 1 : undefined }));
+          }}>
+            <option value="">{t('sight.allSpeeds')}</option>
+            <option value="1">1.00×</option>
+          </select>
+        </label>
       </div>
       {withdrawFailed && <p role="alert">{t('sight.withdrawFailed')}</p>}
       {rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>

@@ -5,7 +5,7 @@ export type PitchFrame = { time: number; midi: number | null };
 // Overlap 43–46 ms windows to sample the middle of short notes at 44.1/48 kHz.
 export const pitchWindowSize = 2048;
 const fullCreditCents = 15;
-const wrongNoteCents = 50;
+const maxMatchedCents = 50;
 export const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 export function formatCents(cents: number) {
   const rounded = Math.sign(cents) * Math.round(Math.abs(cents));
@@ -56,7 +56,7 @@ export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
     const sung = voiced ? (pitches[Math.floor((pitches.length - 1) / 2)] + pitches[Math.floor(pitches.length / 2)]) / 2 : null;
     const match = sung === null ? null : matchTargetPitch(note, sung);
     const cents = match ? Math.round(match.error * 1000) / 10 : null;
-    const status = cents === null ? 'missed' : Math.abs(cents) >= wrongNoteCents ? 'wrongNote'
+    const status = cents === null ? 'missed' : Math.abs(cents) > maxMatchedCents ? 'wrongNote'
       : cents > fullCreditCents ? 'sharp' : cents < -fullCreditCents ? 'flat' : 'inTune';
     return { note, target: match?.midi ?? null, octave: match?.octave ?? null, sung, cents, status } as const;
   });
@@ -69,7 +69,8 @@ export function takeScore(review: ReturnType<typeof assessNotes>) {
     total++;
     if (cents === null || status === 'wrongNote') continue;
     matched++;
-    points += 100 * Math.min(1, (wrongNoteCents - Math.abs(cents)) / (wrongNoteCents - fullCreditCents));
+    const excessCents = Math.max(0, Math.abs(cents) - fullCreditCents);
+    points += 100 - 50 * excessCents / (maxMatchedCents - fullCreditCents);
   }
   const perfect = matched > 0 && matched === review.length;
   return { total, matched, perfect, writtenOctave: perfect && review.every(row => row.octave === 0),

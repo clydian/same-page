@@ -42,7 +42,7 @@ export const sightSingingResultResponseSchema = z.object({
   result: publishedSightSingingResultSchema, published: z.boolean(), standing: sightSingingStandingSchema,
 });
 export const sightSingingResultsResponseSchema = z.object({
-  results: z.array(publishedSightSingingResultSchema), versions: z.array(z.number().int().positive()),
+  results: z.array(publishedSightSingingResultSchema),
   voices: z.array(sightSingingVoiceNameSchema),
 });
 const leaderboardEntry = publishedSightSingingResultSchema.pick({

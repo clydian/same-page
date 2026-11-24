@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import {
-  sightSingingResultSubmissionSchema, sightSingingVoiceNameSchema, type PublishedSightSingingResult, type SightSingingLeaderboard,
+  sightSingingResultSubmissionSchema, sightSingingSpeedSchema, sightSingingVoiceNameSchema, type PublishedSightSingingResult, type SightSingingLeaderboard,
   type SightSingingStandingNeighbor,
 } from '../../src/shared/sight-singing-results';
 import { AuthorizationError } from '../auth/authorization';
@@ -76,6 +76,8 @@ sightSingingResultRoutes.get(path, async context => {
   const version = versionNumber.optional().safeParse(context.req.query('version'));
   const voice = sightSingingVoiceNameSchema.optional().safeParse(context.req.query('voice'));
   if (!id.success || !version.success || !voice.success) return context.json({ error: 'invalid_question_version' }, 400);
+  const speed = z.coerce.number().pipe(sightSingingSpeedSchema).optional().safeParse(context.req.query('speed'));
+  if (!speed.success) return context.json({ error: 'invalid_speed' }, 400);
   const requested = version.data ?? null;
   if (!await hasQuestionVersion(db, choirId, id.data, requested, member.id)) return context.json({ error: 'question_version_not_found' }, 404);
   const scores = db.prepare(`WITH ranked AS (
@@ -83,7 +85,7 @@ sightSingingResultRoutes.get(path, async context => {
       ROW_NUMBER() OVER (PARTITION BY membership_id ORDER BY result.score_hundredths DESC, achieved_order) AS position
     FROM sight_singing_best_results result
     WHERE choir_id = ? AND question_id = ? AND (? IS NULL OR version = ?)
-      AND (? IS NULL OR voice_name = ?)
+      AND (? IS NULL OR voice_name = ?) AND (? IS NULL OR speed = ?)
   )
   SELECT result.id, result.question_id AS questionId, result.version, result.score_hundredths / 100.0 AS score, result.speed,
     result.perfect, result.written_octave AS writtenOctave,
@@ -93,19 +95,17 @@ sightSingingResultRoutes.get(path, async context => {
     ON singer.id = result.membership_id AND singer.choir_id = result.choir_id
   WHERE result.position = 1 AND ${activeActor}
   ORDER BY result.score_hundredths DESC, result.achieved_order`)
-    .bind(choirId, id.data, requested, requested, voice.data ?? null, voice.data ?? null, member.id, member.id);
-  const versions = db.prepare(`SELECT version FROM sight_singing_question_versions
-    WHERE choir_id = ? AND question_id = ? AND ${activeActor} ORDER BY version DESC`).bind(choirId, id.data, member.id);
+    .bind(choirId, id.data, requested, requested, voice.data ?? null, voice.data ?? null,
+      speed.data ?? null, speed.data ?? null, member.id, member.id);
   const facets = db.prepare(`SELECT DISTINCT result.voice_name AS voice
     FROM sight_singing_best_results result JOIN membership_capabilities singer
     ON singer.id = result.membership_id AND singer.choir_id = result.choir_id
     WHERE result.choir_id = ? AND result.question_id = ? AND ${activeActor} ORDER BY voice`)
     .bind(choirId, id.data, member.id);
-  const [listing, editions, metadata] = await db.batch([scores, versions, facets]);
+  const [listing, metadata] = await db.batch([scores, facets]);
   const results = (listing.results as ResultRow[]).map(({ own, perfect, writtenOctave, ...row }) =>
     ({ ...row, own: own === 1, ...resultBadges(perfect, writtenOctave) }));
-  return context.json({ results, versions: (editions.results as { version: number }[]).map(row => row.version),
-    voices: (metadata.results as { voice: string }[]).map(row => row.voice) });
+  return context.json({ results, voices: (metadata.results as { voice: string }[]).map(row => row.voice) });
 });
 
 sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context => {
@@ -137,8 +137,8 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
       (choir_id, question_id, version, membership_id, id, score_hundredths, voice_id, voice_name, speed, perfect, written_octave, achieved_order)
     SELECT choir_id, question_id, version, membership_id, id, ?, ?, ?, ?, ?, ?, sequence
     FROM sight_singing_result_receipts WHERE choir_id = ? AND question_id = ? AND id = ? AND claim = ?
-    ON CONFLICT(choir_id, question_id, version, membership_id, voice_id) DO UPDATE SET id = excluded.id,
-      score_hundredths = excluded.score_hundredths, voice_name = excluded.voice_name, speed = excluded.speed,
+    ON CONFLICT(choir_id, question_id, version, membership_id, voice_id, speed) DO UPDATE SET id = excluded.id,
+      score_hundredths = excluded.score_hundredths, voice_name = excluded.voice_name,
       perfect = excluded.perfect, written_octave = excluded.written_octave, achieved_order = excluded.achieved_order
     WHERE excluded.score_hundredths > sight_singing_best_results.score_hundredths`)
     .bind(hundredths, voiceId, voiceName, speed, Number(perfect), Number(writtenOctave), choirId, id.data, resultId, claim);

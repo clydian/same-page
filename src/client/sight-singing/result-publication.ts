@@ -19,11 +19,14 @@ export async function publishSightSingingResult(choirId: string, questionId: str
   return { published, standing };
 }
 
-export async function readSightSingingResults(choirId: string, questionId: string, version: number | null,
-  voice: string, signal?: AbortSignal) {
+export type SightSingingResultFilters = { version?: number; voice?: string; speed?: SightSingingResultSubmission['speed'] };
+
+export async function readSightSingingResults(choirId: string, questionId: string,
+  { version, voice, speed }: SightSingingResultFilters, signal?: AbortSignal) {
   const query = new URLSearchParams();
-  if (version !== null) query.set('version', String(version));
+  if (version !== undefined) query.set('version', String(version));
   if (voice) query.set('voice', voice);
+  if (speed !== undefined) query.set('speed', String(speed));
   const response = await diagnosticFetch(resultPath(choirId, questionId) + (query.size ? `?${query}` : ''), { signal });
   if (!response.ok) throw new Error('published_results_unavailable');
   return parseDiagnosticResponse(response, sightSingingResultsResponseSchema);

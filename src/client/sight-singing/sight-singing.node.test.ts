@@ -151,10 +151,10 @@ describe('pitch and feedback', () => {
     const targets = Array.from({ length: 7 }, (_, index) => ({ midi: 60, start: index, end: index + 1, bar: 0, visit: 0 }));
     const frames = [60.15, 59.65, 60.499, 59.5, 60.51, null].map((midi, index) => ({ midi, time: index + .5 }));
     const review = assessNotes(targets, frames);
-    expect(review.map(row => row.status)).toEqual(['inTune', 'flat', 'sharp', 'wrongNote', 'wrongNote', 'missed', 'insufficientData']);
-    expect(review.map(row => takeScore([row]).percent)).toEqual([100, 42.86, .29, 0, 0, 0, null]);
-    expect(takeScore(review)).toEqual({ total: 6, matched: 3, perfect: false, writtenOctave: false, percent: 23.86 });
-    expect(takeScore(review.slice(0, 2))).toEqual({ total: 2, matched: 2, perfect: true, writtenOctave: true, percent: 71.43 });
+    expect(review.map(row => row.status)).toEqual(['inTune', 'flat', 'sharp', 'flat', 'wrongNote', 'missed', 'insufficientData']);
+    expect(review.map(row => takeScore([row]).percent)).toEqual([100, 71.43, 50.14, 50, 0, 0, null]);
+    expect(takeScore(review)).toEqual({ total: 6, matched: 4, perfect: false, writtenOctave: false, percent: 45.26 });
+    expect(takeScore(review.slice(0, 2))).toEqual({ total: 2, matched: 2, perfect: true, writtenOctave: true, percent: 85.71 });
     expect(takeScore([review[0], review[6]])).toMatchObject({ matched: 1, perfect: false, writtenOctave: false });
     const octaveTakes = [[60, 48], [72, 72], [48, 48]];
     for (const pitches of octaveTakes) {
@@ -165,7 +165,10 @@ describe('pitch and feedback', () => {
     expect(takeScore(writtenChordTone)).toMatchObject({ perfect: true, writtenOctave: true });
     expect([15.4, -35.5, -.1].map(formatCents)).toEqual(['+15', '-36', '0']);
     const nearBoundary = assessNotes(targets.slice(0, 2), [{ midi: 60.48, time: .5 }, { midi: 59.51, time: 1.5 }]);
-    expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([5.71, 2.86]);
+    expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([52.86, 51.43]);
+    const boundary = assessNotes(targets.slice(0, 4), [60.5, 59.5, 60.325, 59.499].map((midi, index) => ({ midi, time: index + .5 })));
+    expect(boundary.map(row => takeScore([row]).percent)).toEqual([50, 50, 75, 0]);
+    expect(takeScore(boundary.slice(0, 2))).toMatchObject({ percent: 50, matched: 2, perfect: true });
   });
   it('distinguishes missing frames from sampled silence in consecutive thirty-second notes', () => {
     const pitches = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65];

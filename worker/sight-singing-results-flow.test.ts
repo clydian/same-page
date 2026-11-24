@@ -37,7 +37,7 @@ const score = `<score-partwise version="4.0"><part-list><score-part id="P1"><par
   <clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch>
   <duration>4</duration><type>whole</type></note></measure></part></score-partwise>`;
 
-it('keeps one best published score per version and withdraws only the selected owned entry', async () => {
+it('keeps one best score per version, voice and speed and withdraws only the selected owned entry', async () => {
   const owner = await account('版主'), singer = await account('演唱者'), outsider = await account('访客');
   const { choirId, joinCode } = await provisionChoir({ binding: env.DB, ownerUserId: owner.id, ownerDisplayName: '管理员', inviteSecret: env.INVITE_SECRET });
   const joined = await call('/api/choirs/join', {
@@ -95,12 +95,18 @@ it('keeps one best published score per version and withdraws only the selected o
   const bestPath = resultPath;
   const newTake = (fields: { version?: number; score: number; speed: number; voiceName?: string }) =>
     ({ ...result, id: crypto.randomUUID(), ...fields });
-  const tie = newTake({ score: 84, speed: .75, voiceName: 'Soprano' });
+  const tie = newTake({ score: 84, speed: 1, voiceName: 'Soprano' });
   expect(await (await send(tie, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
-  const better = newTake({ score: 94, speed: 1.5 }), inferior = newTake({ score: 89, speed: .5 });
+  const better = newTake({ score: 94, speed: 1.5 }), inferior = newTake({ score: 89, speed: 1.5 });
   const concurrent = await Promise.all([send(better, singer, singer.id, bestPath), send(inferior, singer, singer.id, bestPath)]);
   expect(concurrent.map(response => response.status)).toEqual([200, 200]);
-  expect(await (await read(bestPath)).json()).toMatchObject({ versions: [2, 1], results: [{ id: better.id, score: 94, speed: 1.5 }] });
+  const slower = newTake({ score: 82, speed: .5 });
+  expect(await (await send(slower)).json()).toMatchObject({ published: true });
+  expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: better.id, score: 94, speed: 1.5 }] });
+  const standardSpeed = bestPath + '?version=1&voice=Alto&speed=1.00';
+  expect(await (await read(standardSpeed)).json()).toMatchObject({ results: [{ id: result.id, score: 84, speed: 1 }] });
+  expect(await (await read(bestPath + '?speed=0.50')).json()).toMatchObject({ results: [{ id: slower.id, score: 82 }] });
+  expect((await read(bestPath + '?speed=1.75')).status).toBe(400);
   const v2 = newTake({ version: 2, score: 70, speed: 1.25 });
   expect(await (await send(v2, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
   expect(await (await read(bestPath + '?version=2')).json()).toMatchObject({ results: [{ id: v2.id, version: 2 }] });
@@ -113,13 +119,13 @@ it('keeps one best published score per version and withdraws only the selected o
   expect((await withdraw(owner)).status).toBe(204);
   expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: better.id }] });
   expect((await withdraw(singer)).status).toBe(204);
-  expect(await (await read(listPath)).json()).toMatchObject({ results: [] });
+  expect(await (await read(bestPath + '?speed=1.5')).json()).toMatchObject({ results: [] });
   expect(await (await send(better, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
   expect(await (await send(inferior, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
-  expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: v2.id, score: 70 }] });
-  const fresh = newTake({ score: 77, speed: 1 });
+  expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: result.id, score: 84 }] });
+  const fresh = newTake({ score: 77, speed: 1.5 });
   expect(await (await send(fresh, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
-  expect(await (await read(bestPath + '?version=1')).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
+  expect(await (await read(bestPath + '?version=1&speed=1.5')).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
 
   const overview = `/api/choirs/${choirId}/sight-singing/leaderboard`;
   expect((await read(overview, outsider)).status).toBe(403);
@@ -163,7 +169,7 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(await (await send(singerPrecise)).json()).toMatchObject({ published: true });
   expect(await (await send(singerPrecise)).json()).toMatchObject({ published: true });
   expect((await send({ ...singerPrecise, writtenOctave: false })).status).toBe(409);
-  expect(await (await send(partTake(89.4, 1))).json()).toMatchObject({ published: false });
+  expect(await (await send({ ...partTake(89.4, 1), speed: .5 })).json()).toMatchObject({ published: false });
   expect((await send(partTake(89.401, 1))).status).toBe(400);
   const podium = await (await read(overview)).json<{ results: object[] }>();
   expect(podium.results).toMatchObject([
@@ -182,6 +188,7 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(afterReplacement).toMatchObject({ id: replacement.id, score: 92, speed: 1.5 });
   expect(afterReplacement).not.toHaveProperty('perfect');
   expect(afterReplacement).not.toHaveProperty('writtenOctave');
+  expect(await (await read(standardSpeed)).json()).toMatchObject({ results: [{ id: altoV1.id, score: 89, speed: 1 }] });
 
   const fourthTie = partTake(81, 2);
   expect(await (await send(fourthTie, fourth, fourth.id, bestPath)).json()).toMatchObject({ published: true });
