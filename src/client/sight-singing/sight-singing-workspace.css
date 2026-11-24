@@ -116,7 +116,6 @@
 }
 .challenge-header-actions .icon-button:is(:hover, [data-pressed]) { background: var(--ui-surface-muted, var(--wash)); }
 .challenge-header-actions .icon-button:is(:focus-visible, [data-focus-visible]) { outline-offset: -3px; }
-.challenge-header-actions .icon-button[data-active] { background: var(--brand-soft); color: var(--brand); }
 .challenge-panel > .dialog-heading { margin-block-end: .75rem; }
 .challenge-settings-switch {
   display: flex; align-items: center; justify-content: space-between; gap: .75rem;
@@ -139,5 +138,3 @@
 .challenge-version-filter select { max-inline-size: 100%; }
 .challenge-version-filter select { min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line);
   border-radius: .6rem; background: var(--surface); color: var(--ink); font: inherit; }
-.challenge-filter-options { display: grid; gap: .85rem; }
-.challenge-filter-options .challenge-version-filter { display: grid; min-inline-size: 0; gap: .3rem; }

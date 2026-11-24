@@ -17,7 +17,7 @@ const activeActor = `EXISTS (SELECT 1 FROM membership_capabilities actor JOIN ch
   WHERE actor.id = ? AND drive.purged_at IS NULL AND drive.is_preview_entry = 0)`;
 const exactVersion = `EXISTS (SELECT 1 FROM sight_singing_question_versions edition
   JOIN sight_singing_questions question ON question.choir_id = edition.choir_id AND question.id = edition.question_id
-  WHERE edition.choir_id = ? AND edition.question_id = ? AND (? IS NULL OR edition.version = ?) AND question.publication = 'official')`;
+  WHERE edition.choir_id = ? AND edition.question_id = ? AND (? IS NULL OR edition.version = ?))`;
 const versionNumber = z.coerce.number().int().positive();
 const uuid = z.uuid();
 const rankScore = 'COALESCE(result.score_hundredths, result.score * 100)';
@@ -56,7 +56,7 @@ sightSingingResultRoutes.get(leaderboardPath, async context => {
   const scope = `FROM sight_singing_best_results result
     JOIN sight_singing_questions question ON question.choir_id = result.choir_id AND question.id = result.question_id
     JOIN membership_capabilities singer ON singer.choir_id = result.choir_id AND singer.id = result.membership_id
-    WHERE result.choir_id = ? AND question.publication = 'official' AND ${activeActor} AND result.scoring_rule = ?`;
+    WHERE result.choir_id = ? AND ${activeActor} AND result.scoring_rule = ?`;
   const filter = `${scope} AND (? = 'all' OR result.version = question.version)`;
   const values = [choirId, member.id, currentSingingScoringRule, versions.data];
   const podium = context.req.query('podium') === '1';

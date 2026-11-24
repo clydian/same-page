@@ -33,7 +33,6 @@ export const sightSingingResultsResponseSchema = z.object({
   voices: z.array(sightSingingVoiceNameSchema).optional(),
 });
 export const sightSingingVersionFilterSchema = z.enum(['all', 'latest']);
-export type SightSingingVersionFilter = z.infer<typeof sightSingingVersionFilterSchema>;
 const leaderboardEntry = publishedSightSingingResultSchema.pick({
   id: true, questionId: true, version: true, score: true, voiceName: true, displayName: true, speed: true, perfect: true, writtenOctave: true,
 });

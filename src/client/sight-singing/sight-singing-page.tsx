@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronDown, ChevronRight, ListFilter, Pencil, Settings, Trophy, UsersRound, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Settings, Trophy, UsersRound, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, DialogTrigger, Heading, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, Switch } from 'react-aria-components';
 import { useParams } from 'react-router-dom';
@@ -28,7 +28,7 @@ import { readQuestions, type SightSingingQuestion } from './questions';
 import { ScoreBadges } from './score-badge';
 import { compactPracticeHistory, markTakeWithdrawn, saveTake } from './practice-history';
 import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult } from './result-publication';
-import type { PublishedSightSingingResult, SightSingingLeaderboard, SightSingingVersionFilter } from '../../shared/sight-singing-results';
+import type { PublishedSightSingingResult, SightSingingLeaderboard } from '../../shared/sight-singing-results';
 import { publishedPath, sightSingingProtocol, useMelodySource, type MelodySource } from './use-melody-source';
 import './sight-singing.css';
 import './sight-singing-workspace.css';
@@ -79,10 +79,7 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const questions = useLiveQuery(() => readQuestions(props.owner, props.choirId).catch(() => null), [props.owner, props.choirId]);
   const [published, setPublished] = useState<PublishedQuestion[] | null>();
   const [reload, setReload] = useState(0);
-  const [edition, setEdition] = useState<SightSingingVersionFilter>('all');
-  const [voice, setVoice] = useState('');
-  const [parts, setParts] = useState<string[]>([]);
-  const [board, setBoard] = useState<{ edition: SightSingingVersionFilter; voice: string; reload: number; leaderboard: SightSingingLeaderboard | null }>();
+  const [board, setBoard] = useState<{ reload: number; leaderboard: SightSingingLeaderboard | null }>();
   const [selection, setSelection] = useState<{ question?: PublishedQuestion; legacy?: SightSingingQuestion } | null>(null);
   const [pitchTraceEnabled, setPitchTraceEnabled] = useState(false);
   useEffect(() => {
@@ -99,44 +96,27 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   }, [props.choirId, reload]);
   useEffect(() => {
     const controller = new AbortController();
-    void readSightSingingLeaderboard(props.choirId, edition, voice, controller.signal).then(payload => {
-      if (controller.signal.aborted) return;
-      setParts(payload.voices);
-      setBoard({ edition, voice, reload, leaderboard: payload });
+    void readSightSingingLeaderboard(props.choirId, controller.signal).then(payload => {
+      if (!controller.signal.aborted) setBoard({ reload, leaderboard: payload });
     }).catch(() => {
-      if (!controller.signal.aborted) setBoard({ edition, voice, reload, leaderboard: null });
+      if (!controller.signal.aborted) setBoard({ reload, leaderboard: null });
     });
     return () => controller.abort();
-  }, [props.choirId, edition, voice, reload]);
-  const ranked = board?.edition === edition && board.voice === voice && board.reload === reload ? board.leaderboard : undefined;
+  }, [props.choirId, reload]);
+  const ranked = board?.reload === reload ? board.leaderboard : undefined;
   if (selection) return <QuestionWorkspace {...props} {...selection} pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
     onBack={() => { setSelection(null); setReload(value => value + 1); }} />;
   const legacyQuestions = questions?.filter(question => !published?.some(item => item.id === question.id));
   return <div className="app-page challenge-library">
-    <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}`}
-      actions={<div className="challenge-header-actions">
-        <PracticePanel title={t('sight.rankFilters')} icon={<ListFilter size={21} aria-hidden="true" />}
-          active={edition !== 'all' || voice !== ''} compact>
-          <div className="challenge-filter-options">
-            <label className="challenge-version-filter">
-              <span>{t('sight.resultVersionFilter')}</span>
-              <select value={edition} onChange={event => setEdition(event.target.value === 'latest' ? 'latest' : 'all')}>
-                <option value="all">{t('sight.allVersions')}</option>
-                <option value="latest">{t('sight.latestVersion')}</option>
-              </select>
-            </label>
-            <VoiceFilter voice={voice} voices={parts} onChange={setVoice} showLabel />
-          </div>
-        </PracticePanel>
-      </div>} />
+    <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}`} />
     <main className="page-shell settings-page challenge-page">
       <section className="challenge-library-section" aria-label={t('sight.publishedQuestions')}>
         {ranked === null && <p role="alert">{t('sight.publishedResultsError')} <button className="text-button" type="button"
           onClick={() => setReload(value => value + 1)}>{t('sight.retryLoad')}</button></p>}
         {published === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
           : published === null ? <p role="alert">{t('sight.publishedError')} <button type="button" className="text-button" onClick={() => { setPublished(undefined); setReload(value => value + 1); }}>{t('sight.retryLoad')}</button></p>
-          : <QuestionList questions={published} leaderboard={ranked} participants={board?.leaderboard?.participants}
-            choirId={props.choirId} edition={edition} voice={voice} open={question => setSelection({ question })} />}
+          : <QuestionList questions={published} leaderboard={ranked} choirId={props.choirId}
+            open={question => setSelection({ question })} />}
       </section>
       {questions === null ? <p role="alert">{t('sight.storageError')}</p> : Boolean(legacyQuestions?.length) &&
         <details className="challenge-legacy-questions">
@@ -153,10 +133,10 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   </div>;
 }
 
-function VoiceFilter({ voice, voices, onChange, showLabel }: { voice: string; voices: string[]; showLabel?: boolean; onChange: (voice: string) => void }) {
+function VoiceFilter({ voice, voices, onChange }: { voice: string; voices: string[]; onChange: (voice: string) => void }) {
   const t = useMessages('practice');
   return <label className="challenge-version-filter">
-    <span className={showLabel ? undefined : 'visually-hidden'}>{t('sight.voiceFilter')}</span>
+    <span className="visually-hidden">{t('sight.voiceFilter')}</span>
     <select value={voice} onChange={event => onChange(event.target.value)}>
       <option value="">{t('sight.allVoices')}</option>
       {Array.from(new Set(voice ? [...voices, voice] : voices)).map(name => <option key={name}>{name}</option>)}
@@ -181,9 +161,8 @@ function RankBadge({ place, tied }: { place: number; tied: boolean }) {
   </span>;
 }
 
-function QuestionList({ questions, leaderboard, participants, choirId, edition, voice, open }: {
-  questions: PublishedQuestion[]; leaderboard?: SightSingingLeaderboard | null;
-  participants?: SightSingingLeaderboard['participants']; choirId: string; edition: SightSingingVersionFilter; voice: string;
+function QuestionList({ questions, leaderboard, choirId, open }: {
+  questions: PublishedQuestion[]; leaderboard?: SightSingingLeaderboard | null; choirId: string;
   open: (question: PublishedQuestion) => void;
 }) {
   const t = useMessages('practice');
@@ -193,36 +172,35 @@ function QuestionList({ questions, leaderboard, participants, choirId, edition, 
     top.push(score);
     byQuestion.set(score.questionId, top);
   }
-  const counts = participants && new Map(participants.map(item => [item.questionId, item.count]));
+  const counts = leaderboard?.participants && new Map(leaderboard.participants.map(item => [item.questionId, item.count]));
   return questions.length ? <ul className="challenge-card-grid" role="list" aria-busy={leaderboard === undefined}>
     {questions.map(question => <QuestionCard key={question.id} question={question} top={byQuestion.get(question.id)}
-      choirId={choirId} versionFilter={edition === 'latest' ? question.version : null} voiceFilter={voice}
-      count={question.publisher?.kind === 'member' || !counts ? undefined : counts.get(question.id) ?? 0}
+      choirId={choirId} count={counts ? counts.get(question.id) ?? 0 : undefined}
       ready={Boolean(leaderboard)} open={() => open(question)} />)}
   </ul> : <p className="challenge-empty">{t('sight.noPublished')}</p>;
 }
 
-function QuestionCard({ question, top, count, choirId, versionFilter, voiceFilter, ready, open }: {
+function QuestionCard({ question, top, count, choirId, ready, open }: {
   question: PublishedQuestion; top?: SightSingingLeaderboard['results']; count?: number; ready: boolean; open: () => void;
-  choirId: string; versionFilter: number | null; voiceFilter: string;
+  choirId: string;
 }) {
   const t = useMessages('practice');
   const formatScore = useSightSingingScoreFormat();
   const rankingId = useId();
   const [expanded, setExpanded] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [details, setDetails] = useState<{ version: number | null; voice: string; retry: number; rows: PublishedSightSingingResult[] | null }>();
+  const [details, setDetails] = useState<{ retry: number; rows: PublishedSightSingingResult[] | null }>();
   useEffect(() => {
     if (!expanded) return;
     const controller = new AbortController();
-    void readSightSingingResults(choirId, question.id, versionFilter, voiceFilter, controller.signal).then(payload => {
-      if (!controller.signal.aborted) setDetails({ version: versionFilter, voice: voiceFilter, retry, rows: payload.results });
+    void readSightSingingResults(choirId, question.id, null, '', controller.signal).then(payload => {
+      if (!controller.signal.aborted) setDetails({ retry, rows: payload.results });
     }).catch(() => {
-      if (!controller.signal.aborted) setDetails({ version: versionFilter, voice: voiceFilter, retry, rows: null });
+      if (!controller.signal.aborted) setDetails({ retry, rows: null });
     });
     return () => controller.abort();
-  }, [expanded, choirId, question.id, versionFilter, voiceFilter, retry]);
-  const loaded = details?.version === versionFilter && details.voice === voiceFilter && details.retry === retry ? details.rows : undefined;
+  }, [expanded, choirId, question.id, retry]);
+  const loaded = details?.retry === retry ? details.rows : undefined;
   const rows = expanded ? loaded : top;
   const showDetailsButton = expanded || Boolean(top?.length);
   const showVersions = question.version > 1;
@@ -258,19 +236,18 @@ function QuestionCard({ question, top, count, choirId, versionFilter, voiceFilte
         </ol> : expanded && rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
           : rows === null ? <p className="challenge-card-empty" role="alert">{t('sight.publishedResultsError')}{' '}
             <button className="text-button" type="button" onClick={() => setRetry(value => value + 1)}>{t('sight.retryLoad')}</button></p>
-          : <p className="challenge-card-empty">{question.publisher?.kind === 'member'
-            ? t('sight.localCardScores') : expanded || ready ? t('sight.noCardScores') : '—'}</p>}
+          : <p className="challenge-card-empty">{expanded || ready ? t('sight.noCardScores') : '—'}</p>}
       </div>
     </div>
   </li>;
 }
 
-function PracticePanel({ title, icon, active, compact, children }: {
-  title: string; icon: ReactNode; active?: boolean; compact?: boolean; children: ReactNode;
+function PracticePanel({ title, icon, compact, children }: {
+  title: string; icon: ReactNode; compact?: boolean; children: ReactNode;
 }) {
   const t = useMessages('practice');
   return <DialogTrigger>
-    <Button className="icon-button" aria-label={title} data-active={active || undefined}>{icon}</Button>
+    <Button className="icon-button" aria-label={title}>{icon}</Button>
     <ModalOverlay className="modal-overlay" isDismissable>
       <Modal className={`app-modal${compact ? ' app-modal--compact' : ''}`}>
         <Dialog className="app-dialog challenge-panel">{({ close }) => <>
@@ -514,23 +491,19 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     } catch { if (!controller.signal.aborted && current()) setFailed(true); }
     finally { saveLifetime.current = null; if (!controller.signal.aborted) setSaving(false); }
   };
-  const canPublishResult = Boolean(saved?.snapshot && saved.publisher?.kind !== 'member');
   const recordResult = async (attempt: ScoredTake): Promise<ResultSave> => {
     if (!saved) throw new Error('result_question_missing');
     const controller = new AbortController(), current = captureNavigationIdentity();
     resultLifetimes.current.add(controller);
-    const summary = { id: attempt.id, at: Date.now(), title: saved.title, questionId: saved.id, version: attempt.version,
-      voiceId: attempt.voiceId, voiceName: attempt.voiceName, speed: attempt.speed, scoringRule: attempt.scoringRule,
-      published: false, percent: attempt.score, perfect: attempt.perfect, writtenOctave: attempt.writtenOctave };
     try {
-      const localBest = await saveTake(owner, choirId, summary, controller.signal);
-      if (!canPublishResult) return localBest ? 'local' : 'previous';
-      controller.signal.throwIfAborted();
-      if (!current()) throw new Error('result_identity_changed');
       const published = await publishSightSingingResult(choirId, saved.id, userId, attempt, controller.signal);
       if (!controller.signal.aborted && current()) {
         setResultGeneration(value => value + 1);
-        if (published && localBest) await saveTake(owner, choirId, { ...summary, published }, controller.signal).catch(() => undefined);
+        if (published) await saveTake(owner, choirId, {
+          id: attempt.id, at: Date.now(), title: saved.title, questionId: saved.id, version: attempt.version,
+          voiceId: attempt.voiceId, voiceName: attempt.voiceName, speed: attempt.speed, scoringRule: attempt.scoringRule,
+          published, percent: attempt.score, perfect: attempt.perfect, writtenOctave: attempt.writtenOctave,
+        }, controller.signal).catch(() => undefined);
       }
       return published ? 'published' : 'previous';
     } finally {
@@ -553,7 +526,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       actions={!editing && <div className="challenge-header-actions">
         {canEdit && <button type="button" className="icon-button" aria-label={t('sight.edit')} title={t('sight.edit')}
           onClick={() => { setSourceMode(saved?.snapshot ? 'saved' : 'library'); setEditing(true); }}><Pencil size={18} aria-hidden="true" /></button>}
-        {canPublishResult && saved && <PracticePanel title={t('sight.bestResults')} icon={<Trophy size={19} aria-hidden="true" />}>
+        {saved?.snapshot && <PracticePanel title={t('sight.bestResults')} icon={<Trophy size={19} aria-hidden="true" />}>
           <PublishedResults key={`${saved.id}:${version}`} choirId={choirId} owner={owner} userId={userId} questionId={saved.id}
             version={version} generation={resultGeneration} />
         </PracticePanel>}
@@ -637,7 +610,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       {failed && <p role="alert" className="challenge-error">{t('sight.publishError')}</p>}
       {!editing && loaded.document && selected && <ChallengeRun document={loaded.document} selected={selected} voices={voices}
         backingUnavailable={backingUnavailable} selectVoice={setVoiceChoice} questionVersion={version}
-        canPublishResult={canPublishResult} pitchTraceEnabled={pitchTraceEnabled} onScored={recordResult} />}
+        pitchTraceEnabled={pitchTraceEnabled} onScored={recordResult} />}
     </main>
   </div>;
 }

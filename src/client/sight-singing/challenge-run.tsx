@@ -15,7 +15,7 @@ import { ScoreBadges } from './score-badge';
 const emptyFrames: PitchFrame[] = [];
 const TuningFork = createLucideIcon('TuningFork', [['path', { d: 'M7 3v8a5 5 0 0 0 10 0V3M12 16v5', key: 'fork' }]]);
 type Speed = NonNullable<SightSingingResultSubmission['speed']>;
-export type ResultSave = 'published' | 'previous' | 'local';
+export type ResultSave = 'published' | 'previous';
 export type VoiceOption = { voice: MelodyVoice; melody: Melody; label: string };
 export type ScoredTake = SightSingingResultSubmission & {
   speed: Speed; scoringRule: typeof currentSingingScoringRule; perfect: boolean; writtenOctave: boolean;
@@ -27,10 +27,10 @@ type RunState = { phase: 'idle' | 'permission' }
   | { phase: 'sing'; frame: PitchFrame; frames: PitchFrame[] }
   | { phase: 'result'; id: string; frames: PitchFrame[]; review: Review; score: ReturnType<typeof takeScore>; answer: Answer; save: ResultSave | 'saving' | 'failed' | 'unscored' };
 
-export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, canPublishResult, pitchTraceEnabled, onScored }: {
+export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, pitchTraceEnabled, onScored }: {
   document: MelodyScore; selected: VoiceOption; voices: VoiceOption[]; backingUnavailable: boolean;
   selectVoice: (id: string) => void; questionVersion: number;
-  canPublishResult: boolean; pitchTraceEnabled: boolean; onScored: (take: ScoredTake) => Promise<ResultSave>;
+  pitchTraceEnabled: boolean; onScored: (take: ScoredTake) => Promise<ResultSave>;
 }) {
   const t = useMessages('practice');
   const formatScore = useSightSingingScoreFormat();
@@ -282,7 +282,6 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
           }}><UsersRound size={18} aria-hidden="true" />{t('sight.ensembleBacking')}</button>
       </div>
       {backingUnavailable && <small>{t('sight.backingUnavailable')}</small>}
-      {canPublishResult && <small className="challenge-auto-publish">{t('sight.autoPublish')}</small>}
       <button className="primary-button challenge-start" type="button" onClick={start}><Mic size={18} aria-hidden="true" />{t('sight.start')}</button>
     </div>}
 

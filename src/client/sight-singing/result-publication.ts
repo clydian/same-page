@@ -1,6 +1,6 @@
 import {
   sightSingingLeaderboardSchema, sightSingingResultResponseSchema, sightSingingResultsResponseSchema,
-  type SightSingingResultSubmission, type SightSingingVersionFilter,
+  type SightSingingResultSubmission,
 } from '../../shared/sight-singing-results';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 
@@ -31,9 +31,8 @@ export async function readSightSingingResults(choirId: string, questionId: strin
   return parseDiagnosticResponse(response, sightSingingResultsResponseSchema);
 }
 
-export async function readSightSingingLeaderboard(choirId: string, versions: SightSingingVersionFilter, voice: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ versions, precision: '2', details: '1', writtenOctave: '1', podium: '1' });
-  if (voice) query.set('voice', voice);
+export async function readSightSingingLeaderboard(choirId: string, signal?: AbortSignal) {
+  const query = new URLSearchParams({ precision: '2', details: '1', writtenOctave: '1', podium: '1' });
   const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard?${query}`, { signal });
   if (!response.ok) throw new Error('published_results_unavailable');
   return parseDiagnosticResponse(response, sightSingingLeaderboardSchema);

@@ -361,13 +361,25 @@ it('publishes voice-neutral challenges only to active drive members and fences s
   expect((await call(`${path}/${ownId}/score`, { headers: { cookie: '' } })).status).toBe(403);
   expect(new Uint8Array(await (await call(`${path}/${ownId}/score`)).arrayBuffer())).toEqual(musicXml);
   const summary = { id: crypto.randomUUID(), version: 1, score: 95, voiceId: '0:0:0', voiceName: 'Alto', scoringRule: currentSingingScoringRule };
-  expect((await call(`${path}/${ownId}/results`, { method: 'POST', ...json(summary),
-    headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': reader, cookie: readerCookie } })).status).toBe(404);
+  const resultPath = `${path}/${ownId}/results`;
+  const driveLeaderboard = `/api/choirs/${choirId}/sight-singing/leaderboard?podium=1&precision=2`;
+  expect(await (await call(`${resultPath}?view=best`, { method: 'POST', ...json(summary),
+    headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': reader, cookie: readerCookie } })).json()).toMatchObject({
+    result: { id: summary.id, questionId: ownId, score: 95, own: true }, published: true,
+  });
+  expect(await (await call(`${resultPath}?view=best&version=1&voice=Alto`)).json()).toMatchObject({
+    results: [{ id: summary.id, displayName: '成员', score: 95, own: false }],
+  });
+  expect(await (await call(driveLeaderboard)).json()).toMatchObject({
+    results: [{ id: summary.id, questionId: ownId, score: 95 }], participants: [{ questionId: ownId, count: 1 }],
+  });
+  expect((await call(`${resultPath}?view=best`, { headers: { cookie: '' } })).status).toBe(403);
 
   const { choirId: other } = await provisionChoir({ binding: env.DB, ownerUserId: reader, ownerDisplayName: '其他团', inviteSecret: env.INVITE_SECRET });
   const otherPath = `/api/choirs/${other}/sight-singing/questions`;
   expect(await (await call(otherPath, { headers: { ...protocol, cookie: readerCookie } })).json()).toEqual({ questions: [] });
   expect((await call(`${otherPath}/${ownId}/score`, { headers: { cookie: readerCookie } })).status).toBe(404);
+  expect((await call(`${otherPath}/${ownId}/results?view=best`, { headers: { cookie: readerCookie } })).status).toBe(404);
   expect((await publishOwn(memberFields, reader, readerCookie, `${otherPath}/${crypto.randomUUID()}`)).status).toBe(409);
 
   await env.DB.prepare('UPDATE memberships SET permissions = ? WHERE user_id = ? AND choir_id = ?')
