@@ -4,6 +4,7 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { zipSync } from "fflate";
 import { beforeEach, expect, it, vi } from "vitest";
 import { SIGHT_SINGING_PROTOCOL_HEADER } from "../src/shared/sight-singing";
+import { currentSingingScoringRule } from "../src/shared/sight-singing-results";
 import worker from "./index";
 import { provisionChoir } from "./choirs/provision";
 import { cleanupScoreStorage } from "./scores/cleanup";
@@ -359,7 +360,7 @@ it('publishes voice-neutral challenges only to active drive members and fences s
   expect(await (await publishOwn(edit)).json()).toMatchObject({ question: { title: edit.title, version: 1 } });
   expect((await call(`${path}/${ownId}/score`, { headers: { cookie: '' } })).status).toBe(403);
   expect(new Uint8Array(await (await call(`${path}/${ownId}/score`)).arrayBuffer())).toEqual(musicXml);
-  const summary = { id: crypto.randomUUID(), version: 1, score: 95, voiceId: '0:0:0', voiceName: 'Alto' };
+  const summary = { id: crypto.randomUUID(), version: 1, score: 95, voiceId: '0:0:0', voiceName: 'Alto', scoringRule: currentSingingScoringRule };
   expect((await call(`${path}/${ownId}/results`, { method: 'POST', ...json(summary),
     headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': reader, cookie: readerCookie } })).status).toBe(404);
 
