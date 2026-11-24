@@ -374,6 +374,7 @@
     "stopReplay": "停止回听",
     "matchedNotes": "唱对 {matched}/{total}",
     "allNotesMatched": "所有音符都唱对",
+    "allNotesMatchedDetail": "每个音符都唱对。换八度唱对也算。",
     "allNotesInWrittenOctave": "所有音符都在谱面原八度唱对",
     "intonationScore": "音准 {score} 分",
     "scoringRuleFilter": "评分规则",

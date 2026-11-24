@@ -300,10 +300,10 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     </div>}
 
     {state.phase === 'result' && <section className="challenge-result" aria-label={t('sight.review')}>
-      <div className="challenge-score"><strong>{state.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(state.score.percent) })}</strong>
-        {state.score.total > 0 && (state.score.perfect
-          ? <ScoreBadges perfect writtenOctave={state.score.writtenOctave} size={22} />
-          : <span>{t('sight.matchedNotes', { matched: state.score.matched, total: state.score.total })}</span>)}
+      <div className="challenge-score">
+        <ScoreBadges perfect={state.score.perfect} writtenOctave={state.score.writtenOctave} size={22} />
+        <strong>{state.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(state.score.percent) })}</strong>
+        {state.score.total > 0 && !state.score.perfect && <span>{t('sight.matchedNotes', { matched: state.score.matched, total: state.score.total })}</span>}
       </div>
       <div className="challenge-replay-controls">
         {state.answer.status === 'ready' && <audio ref={replay} src={state.answer.url} preload="auto"

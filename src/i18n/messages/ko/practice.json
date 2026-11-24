@@ -374,6 +374,7 @@
     "stopReplay": "다시 듣기 중지",
     "matchedNotes": "{matched}/{total}개 음 맞음",
     "allNotesMatched": "모든 음을 맞힘",
+    "allNotesMatchedDetail": "모든 음을 맞혔습니다. 다른 옥타브로 불러도 맞은 것으로 봅니다.",
     "allNotesInWrittenOctave": "모든 음을 악보에 적힌 옥타브로 맞힘",
     "intonationScore": "음정 정확도 {score}점",
     "scoringRuleFilter": "채점 방식",

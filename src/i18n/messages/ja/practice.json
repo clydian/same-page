@@ -374,6 +374,7 @@
     "stopReplay": "再生を停止",
     "matchedNotes": "{matched}/{total} 音正解",
     "allNotesMatched": "すべての音が正解",
+    "allNotesMatchedDetail": "すべての音が正解です。別のオクターブで歌っても正解になります。",
     "allNotesInWrittenOctave": "すべての音が楽譜どおりのオクターブで正解",
     "intonationScore": "音程の正確さ {score} 点",
     "scoringRuleFilter": "採点方式",

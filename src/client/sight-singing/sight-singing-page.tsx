@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronDown, ChevronRight, ListFilter, Pencil, Settings, Trash2, Trophy, UsersRound, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ListFilter, Pencil, Settings, Trophy, UsersRound, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Button, DialogTrigger, Heading, Modal, ModalOverlay, Switch } from 'react-aria-components';
+import { Button, DialogTrigger, Heading, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, Switch } from 'react-aria-components';
 import { useParams } from 'react-router-dom';
 import { useAppLocale, useMessages } from '../../i18n';
 import { attachmentAccept, attachmentFormat, attachmentNameSchema } from '../../shared/attachments';
@@ -17,7 +17,7 @@ import { useNetworkStatus } from '../platform/use-network-status';
 import { useLibraryAttachments } from '../score-library/attachments/use-library-attachments';
 import { driveCacheOwnerKey, type DriveCacheOwnerKey } from '../score-library/drive-library-cache';
 import { useDriveLibraryResource } from '../score-library/use-drive-library';
-import { Dialog } from '../navigation/overlays';
+import { Dialog, Menu } from '../navigation/overlays';
 import { captureNavigationIdentity } from '../settings/navigation-events';
 import { ConfirmDialog } from '../settings/confirm-dialog';
 import { ChallengeRun, type ResultSave, type ScoredTake, type VoiceOption } from './challenge-run';
@@ -217,8 +217,10 @@ function QuestionCard({ question, top, count, ready, open }: {
           <RankBadge place={place} tied={tied} />
           <div className="challenge-card-result">
             <div className="challenge-card-result-main"><span>{row.displayName}</span>
-              <strong className="challenge-marked-score">{t('sight.takeScore', { score: formatScore(row.score) })}
-                <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} /></strong>
+              <strong className="challenge-marked-score">
+                <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} />
+                {t('sight.takeScore', { score: formatScore(row.score) })}
+              </strong>
             </div>
             {expanded && <small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}
               {row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small>}
@@ -250,11 +252,43 @@ function PracticePanel({ title, icon, active, compact, children }: {
   </DialogTrigger>;
 }
 
+function PublishedResultRow({ row, place, tied, showVersions, onRemove }: {
+  row: PublishedSightSingingResult; place: number; tied: boolean; showVersions: boolean; onRemove: () => void;
+}) {
+  const t = useMessages('practice');
+  const formatScore = useSightSingingScoreFormat();
+  const [open, setOpen] = useState(false);
+  const person = <>
+    <RankBadge place={place} tied={tied} />
+    <span><strong>{row.displayName}</strong><small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}
+      {row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small></span>
+  </>;
+  return <li data-own={row.own || undefined} onContextMenu={row.own ? event => {
+    if (!(event.target instanceof Element) || !event.currentTarget.contains(event.target) || event.target.closest('.challenge-score-badge-button')) return;
+    event.preventDefault();
+    if (event.button === 2) setOpen(true);
+  } : undefined}>
+    {row.own ? <MenuTrigger trigger="longPress" isOpen={open} onOpenChange={setOpen}>
+      <Button className="challenge-ranked-person challenge-score-menu-trigger" onPress={event => {
+        if (event.pointerType === 'keyboard' || event.pointerType === 'virtual') setOpen(true);
+      }}>{person}</Button>
+      <Popover className="file-menu-popover challenge-score-menu" placement="bottom start">
+        <Menu aria-label={t('sight.withdrawAction')} autoFocus="first" onAction={onRemove}>
+          <MenuItem id="withdraw" className="challenge-withdraw-item">{t('sight.withdrawAction')}</MenuItem>
+        </Menu>
+      </Popover>
+    </MenuTrigger> : <div className="challenge-ranked-person">{person}</div>}
+    <strong className="challenge-marked-score">
+      <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} />
+      {t('sight.takeScore', { score: formatScore(row.score) })}
+    </strong>
+  </li>;
+}
+
 function PublishedResults({ choirId, questionId, version, generation, owner, userId }: {
   choirId: string; questionId: string; version: number; generation: number; owner: DriveCacheOwnerKey; userId: string;
 }) {
   const t = useMessages('practice');
-  const formatScore = useSightSingingScoreFormat();
   const showVersions = version > 1;
   const ruleId = useId();
   const [filter, setFilter] = useState<number | null>(null);
@@ -325,16 +359,9 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
       {rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
         : rows === null ? <p role="alert">{t('sight.publishedResultsError')} <button type="button" className="text-button" onClick={() => setRetry(value => value + 1)}>{t('sight.retryLoad')}</button></p>
         : rows.length === 0 ? <p className="challenge-empty">{t('sight.publishedResultsEmpty')}</p>
-          : <ul className="challenge-list challenge-score-list">{rankScores(rows).map(({ row, place, tied }) => <li key={row.id}>
-            <div className="challenge-ranked-person"><RankBadge place={place} tied={tied} />
-              <div><strong>{row.displayName}</strong><small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}{row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small></div>
-            </div>
-            <div className="challenge-ranked-action"><strong className="challenge-marked-score">{t('sight.takeScore', { score: formatScore(row.score) })}
-              <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} /></strong>
-              {row.own && <button type="button" className="text-button" aria-label={removeLabel(row.version)}
-                onClick={() => setRemoving(row)}><Trash2 size={16} aria-hidden="true" /></button>}
-            </div>
-          </li>)}</ul>}
+          : <ul className="challenge-list challenge-score-list">{rankScores(rows).map(({ row, place, tied }) =>
+            <PublishedResultRow key={row.id} row={row} place={place} tied={tied} showVersions={showVersions} onRemove={() => setRemoving(row)} />
+          )}</ul>}
       <ConfirmDialog busy={busy} onClose={() => setRemoving(null)} confirmation={removing && {
         title: removeLabel(removing.version), message: t('sight.withdrawDescription'),
         action: t('sight.withdrawAction'), destructive: true, onConfirm: withdraw,

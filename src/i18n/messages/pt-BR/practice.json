@@ -374,6 +374,7 @@
     "stopReplay": "Parar reprodução",
     "matchedNotes": "{matched}/{total} notas corretas",
     "allNotesMatched": "Todas as notas corretas",
+    "allNotesMatchedDetail": "Todas as notas estavam corretas. Cantar em outra oitava também conta.",
     "allNotesInWrittenOctave": "Todas as notas corretas na oitava escrita",
     "intonationScore": "Afinação · {score}",
     "scoringRuleFilter": "Método de pontuação",
