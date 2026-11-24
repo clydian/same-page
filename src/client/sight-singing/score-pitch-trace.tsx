@@ -2,6 +2,7 @@ import { model, type rendering } from '@coderline/alphatab';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { MelodyNote, MelodyScore, MelodyVoice, StaffBeat } from './melody';
 import { matchTargetPitch, type PitchFrame } from './pitch-feedback';
+import { firstFrameAt, pitchFramesConnect } from './pitch-trace';
 import { staffPitchY, type StaffPitchAnchor } from './staff-pitch';
 
 // The top line of the treble, alto, tenor and bass clefs is respectively
@@ -52,23 +53,14 @@ function scorePitchLayout(lookup: rendering.BoundsLookup, score: MelodyScore['sc
   });
 }
 
-function firstFrameAt(frames: PitchFrame[], time: number) {
-  let first = 0, last = frames.length;
-  while (first < last) {
-    const middle = (first + last) >>> 1;
-    if (frames[middle].time < time) first = middle + 1;
-    else last = middle;
-  }
-  return first;
-}
-
 function tracePath(beats: TraceBeat[], frames: PitchFrame[]) {
   const path: string[] = [];
-  let previous: { x: number; y: number; time: number; system: number } | undefined;
+  let previous: { x: number; y: number; time: number; system: number; index: number; end: number } | undefined;
   for (const beat of beats) {
     const { target } = beat;
     for (let index = firstFrameAt(frames, target.start); index < frames.length; index++) {
-      const { time, midi } = frames[index];
+      const frame = frames[index];
+      const { time, midi } = frame;
       if (time >= target.end) break;
       if (midi === null) { previous = undefined; continue; }
       const match = matchTargetPitch(target, midi), head = beat.heads.get(match.midi);
@@ -76,10 +68,12 @@ function tracePath(beats: TraceBeat[], frames: PitchFrame[]) {
       const progress = (time - target.start) / (target.end - target.start);
       const x = head.x + progress * Math.max(1, beat.endX - head.x);
       const y = Math.min(beat.bottom, Math.max(beat.top, staffPitchY(head, match.error)));
-      const connected = previous && previous.system === beat.system && time - previous.time < .085 && x >= previous.x;
+      const connected = previous && previous.system === beat.system && previous.index + 1 === index &&
+        target.start <= previous.end + 1e-6 && x >= previous.x && Math.abs(y - previous.y) <= 3 * head.stepSize &&
+        pitchFramesConnect(frames[previous.index], frame);
       path.push(`${connected ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`);
       if (!connected) path.push(`h.1`);
-      previous = { x, y, time, system: beat.system };
+      previous = { x, y, time, system: beat.system, index, end: target.end };
     }
   }
   return { path: path.join(' '), point: previous };

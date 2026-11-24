@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { renderPracticeClicks } from '../playback/practice-metronome';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { assessNotes, createPitchReader, frequency, pitchWindowSize } from './pitch-feedback';
+import { createPitchTrace, octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { staffPitchY } from './staff-pitch';
 
 const bytes = (text: string) => new TextEncoder().encode(text);
@@ -67,6 +68,19 @@ it('projects sung pitches through diatonic staff steps anchored to the written n
   expect(staffPitchY(cSharp, 0)).toBe(100);
   expect(staffPitchY(cSharp, .4)).toBe(98);
   expect(staffPitchY(cSharp, -.4)).toBe(101);
+});
+
+it('omits brief pitch spikes and keeps a sustained octave jump as a separate segment', () => {
+  const trace = createPitchTrace();
+  const frames = [55, 55.1, 55, 82, 82.1, null, 67, 67.16, 67.14, 67.1, 67];
+  const shown = frames.map((midi, index) => trace.append({ midi, time: index * 1024 / 48000 }).midi);
+  expect(shown.slice(0, 5)).toEqual([null, null, 55, null, null]);
+  expect(trace.frames.map(frame => frame.midi)).toEqual([55, 55.1, 55, null, null, null, 67, 67.16, 67.14, 67.1, 67]);
+  expect(pitchFramesConnect(trace.frames[2], trace.frames[6])).toBe(false);
+  expect(pitchFramesConnect({ time: 0, midi: 55 }, { time: .021, midi: 67 })).toBe(false);
+  expect(pitchFramesConnect(trace.frames[7], trace.frames[8])).toBe(true);
+  expect(octaveGuides([79], 33, 91)).toEqual([43, 55, 67, 91]); // G2–G6, excluding written G5.
+  expect(octaveGuides([67, 79], 43, 81)).toEqual([43, 55]);
 });
 
 it('accepts a compressed MusicXML attachment using the existing importer', () => {

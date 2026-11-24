@@ -10,6 +10,7 @@ import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type Melod
 import { FeedbackTable } from './practice-feedback';
 import { takeScore } from './practice-history';
 import { assessNotes, formatCents, pitchName, type PitchFrame } from './pitch-feedback';
+import { createPitchTrace } from './pitch-trace';
 
 const emptyFrames: PitchFrame[] = [];
 export type VoiceOption = { voice: MelodyVoice; melody: Melody; label: string };
@@ -130,18 +131,17 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     const takeId = crypto.randomUUID();
     take.current = takeId;
     const releaseUpdate = holdUpdate();
-    const frames: PitchFrame[] = [];
+    const trace = createPitchTrace();
     const stop = beginCapture(melody, {
       onCount: count => setState({ phase: 'count', count }),
       onFrame: frame => {
-        frames.push(frame);
-        setState({ phase: 'sing', frame, frames });
+        setState({ phase: 'sing', frame: trace.append(frame), frames: trace.frames });
       },
       onComplete: (result, recording) => {
         release();
         const review = assessNotes(melody.notes, result), score = takeScore(review);
         setPublish(canPublishResult && score.percent !== null);
-        setState({ phase: 'result', id: takeId, frames: result, review, score, answer: { status: 'preparing' } });
+        setState({ phase: 'result', id: takeId, frames: trace.frames, review, score, answer: { status: 'preparing' } });
         void prepareAnswer(takeId, recording, review);
       },
       onError: reason => { releaseUpdate(); discard(); setError(reason); setState({ phase: 'idle' }); },
@@ -311,8 +311,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       open={graphOpen} onToggle={event => setGraphOpen(event.currentTarget.open)}>
       <summary>{t('sight.pitchMonitor')}</summary>
       {graphOpen && <PitchGraph melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
-        activePitch={state.phase === 'sing' ? state.frame.midi : null}
-        activeTarget={state.phase === 'sing' && target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
+        reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
     </details>}
 
     {state.phase === 'result' && <>
