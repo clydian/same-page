@@ -3,17 +3,17 @@ import { ScoreFollowScroll } from '@same-page/player/score-follow';
 import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useMessages } from '../../i18n';
 import type { Melody, MelodyScore, MelodyVoice } from './melody';
-import { pitchName, type assessNotes, type PitchFrame } from './pitch-feedback';
+import { formatCents, pitchName, type assessNotes, type PitchFrame } from './pitch-feedback';
 import { ScorePitchTrace } from './score-pitch-trace';
 import './challenge-notation.css';
 
 export type NotationNoteHit = { midi: number; track: number; staff: number; voice: number; bar: number; beatIndex: number };
 export type NotationFeedback = {
   bar: number; beatIndex: number; visit: number; midi?: number | null;
-  status: ReturnType<typeof assessNotes>[number]['status'];
+  status: ReturnType<typeof assessNotes>[number]['status']; cents: number | null;
 };
 type Bounds = { x: number; y: number; w: number; h: number };
-type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; label: string; singleStem: boolean };
+type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; system: Bounds; label: string; singleStem: boolean };
 type Part = Pick<NotationNoteHit, 'track' | 'staff' | 'voice'>;
 type Geometry = {
   score: MelodyScore['score']; min: number; max: number; lookup: rendering.BoundsLookup;
@@ -39,15 +39,15 @@ function buildGeometry(api: AlphaTabApi, score: Geometry['score'], min: number, 
       for (const { note, noteHeadBounds: bounds } of heads ?? []) {
         if (note.isCue || note.isPercussion || note.isDead || !note.isVisible || bounds.w <= 0 || bounds.h <= 0) continue;
         notes.push({ ...part, key: `${system.index}:${note.id}`, beatClass: `b${beat.id}`, midi: note.realValue, bounds,
-          bar: master.index, beatIndex: beat.index, label: staff.track.name, singleStem });
+          bar: master.index, beatIndex: beat.index, label: staff.track.name, singleStem, system: system.realBounds });
       }
     }
   }
   return { score, min, max, lookup, notes, parts };
 }
 
-const NotationButtons = memo(function NotationButtons({ notes, voice, statuses, onNote }: {
-  notes: readonly NoteTarget[]; voice: MelodyVoice; statuses: ReadonlyMap<string, NotationFeedback['status']>;
+const NotationButtons = memo(function NotationButtons({ notes, voice, results, onNote }: {
+  notes: readonly NoteTarget[]; voice: MelodyVoice; results: ReadonlyMap<string, NotationFeedback>;
   onNote(hit: NotationNoteHit): void;
 }) {
   const t = useMessages('practice');
@@ -72,13 +72,17 @@ const NotationButtons = memo(function NotationButtons({ notes, voice, statuses, 
   };
   return <div ref={buttons} className="challenge-note-layer">
     {notes.map((note, index) => {
-      const status = statuses.get(note.key);
+      const result = results.get(note.key);
+      const description = result ? [
+        t(`sight.${result.status}`),
+        ...(result.cents === null ? [] : [`${t('sight.pitchError')} ${formatCents(result.cents)}`]),
+      ].join(' · ') : undefined;
       return <button key={note.key} type="button" className="challenge-notation-note"
       style={{ left: centerX(note.bounds), top: centerY(note.bounds) }}
       data-midi={note.midi} data-bar={note.bar} data-track={note.track} data-staff={note.staff} data-voice={note.voice}
       data-beat-index={note.beatIndex} data-focused-part={samePart(note, voice)} tabIndex={focused === note ? 0 : -1}
       aria-label={t('sight.notationNote', { part: note.label || t('sight.voice'), pitch: pitchName(note.midi), measure: note.bar + 1 })}
-      aria-description={status ? t(`sight.${status}`) : undefined}
+      aria-description={description}
       aria-keyshortcuts="ArrowLeft ArrowRight Home End" onFocus={() => setFocusKey(note.key)} onClick={event => activate(event, note)}
       onKeyDown={event => {
         const next = event.key === 'ArrowRight' ? index + 1 : event.key === 'ArrowLeft' ? index - 1
@@ -101,6 +105,40 @@ function feedbackAtVisit(feedback: readonly NotationFeedback[] | undefined, visi
     if (!current || visit !== undefined && Math.abs(visit - item.visit) < Math.abs(visit - current.visit)) beatFeedback.set(key, item);
   }
   return beatFeedback;
+}
+
+const labelHeight = 16;
+const overlaps = (a: Bounds, b: Bounds) =>
+  a.x < b.x + b.w + 1 && a.x + a.w + 1 > b.x && a.y < b.y + b.h + 1 && a.y + a.h + 1 > b.y;
+
+function placePitchLabels(notes: NoteTarget[], results: ReadonlyMap<string, NotationFeedback>) {
+  if (!results.size) return [];
+  const occupied = new Map<Bounds, Bounds[]>();
+  for (const note of notes) {
+    const existing = occupied.get(note.system) ?? [];
+    existing.push(note.bounds);
+    occupied.set(note.system, existing);
+  }
+  return notes.flatMap(note => {
+    const result = results.get(note.key);
+    if (!result || result.cents === null) return [];
+    const text = formatCents(result.cents), width = text.length * 7 + 6;
+    const { x, y, w, h } = note.system;
+    const left = Math.max(x, Math.min(x + w - width, centerX(note.bounds) - width / 2));
+    const below = note.bounds.y + note.bounds.h + 3, above = note.bounds.y - labelHeight - 3;
+    const obstacles = occupied.get(note.system)!;
+    let position: Bounds | undefined;
+    for (let offset = 0; offset < h && !position; offset += labelHeight + 2) {
+      for (const top of [below + offset, above - offset]) {
+        if (top < y || top + labelHeight > y + h) continue;
+        const candidate = { x: left, y: top, w: width, h: labelHeight };
+        if (!obstacles.some(bounds => overlaps(candidate, bounds))) { position = candidate; break; }
+      }
+    }
+    position ??= { x: left, y: Math.max(y, Math.min(y + h - labelHeight, below)), w: width, h: labelHeight };
+    obstacles.push(position);
+    return [{ key: note.key, status: result.status, text, position }];
+  });
 }
 
 type AssessedHead = Pick<NoteTarget, 'bounds' | 'singleStem'> & { status: NotationFeedback['status'] };
@@ -148,20 +186,20 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
   const min = Math.min(...played), max = Math.max(...played);
   const rendered = geometry?.score === score && geometry.min === min && geometry.max === max ? geometry : null;
   const notes = useMemo(() => rendered?.notes.filter(note => played.has(note.bar)) ?? [], [played, rendered]);
-  const { statuses, tinted } = useMemo(() => {
-    const results = feedbackAtVisit(feedback, currentVisit);
-    const statuses = new Map<string, NotationFeedback['status']>(), tinted = new Map<string, AssessedHead[]>();
+  const { results, tinted, labels } = useMemo(() => {
+    const visited = feedbackAtVisit(feedback, currentVisit);
+    const results = new Map<string, NotationFeedback>(), tinted = new Map<string, AssessedHead[]>();
     for (const note of notes) {
       if (!samePart(note, voice)) continue;
-      const result = results.get(`${note.bar}:${note.beatIndex}`);
+      const result = visited.get(`${note.bar}:${note.beatIndex}`);
       if (!result || result.midi != null && result.midi !== note.midi) continue;
-      statuses.set(note.key, result.status);
+      results.set(note.key, result);
       if (result.status === 'insufficientData') continue;
       const heads = tinted.get(note.beatClass) ?? [];
       heads.push({ bounds: note.bounds, status: result.status, singleStem: note.singleStem });
       tinted.set(note.beatClass, heads);
     }
-    return { statuses, tinted };
+    return { results, tinted, labels: placePitchLabels(notes, results) };
   }, [feedback, currentVisit, notes, voice]);
 
   useEffect(() => {
@@ -264,7 +302,11 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
       <div ref={notation} aria-hidden="true" />
       {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={score} voice={voice}
         beats={melody.staffBeats} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} through={traceThrough} viewport={viewport} /> : null}
-      {onNote && <NotationButtons notes={notes} voice={voice} statuses={statuses} onNote={onNote} />}
+      {onNote && <NotationButtons notes={notes} voice={voice} results={results} onNote={onNote} />}
+      {labels.length > 0 && <div className="challenge-pitch-labels" aria-hidden="true">
+        {labels.map(({ key, position, status, text }) => <span key={key} data-status={status}
+          style={{ left: position.x, top: position.y, width: position.w, height: position.h }}>{text}</span>)}
+      </div>}
     </div>
   </div>;
 }

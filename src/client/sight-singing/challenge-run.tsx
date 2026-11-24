@@ -1,4 +1,4 @@
-import { ChevronDown, Headphones, Mic, Minus, Play, Plus, RotateCcw, Square, UserRound, UsersRound, X, createLucideIcon } from 'lucide-react';
+import { ChevronDown, CircleCheck, Headphones, Mic, Minus, Play, Plus, RotateCcw, Square, UserRound, UsersRound, X, createLucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import { currentSingingScoringRule, sightSingingSpeeds, type SightSingingResultSubmission } from '../../shared/sight-singing-results';
@@ -8,7 +8,6 @@ import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
 import { useSightSingingScoreFormat } from './format-score';
 import { PitchGraph } from './pitch-graph';
 import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
-import { FeedbackTable } from './practice-feedback';
 import { assessNotes, pitchName, takeScore, type PitchFrame } from './pitch-feedback';
 import { createPitchTrace } from './pitch-trace';
 
@@ -25,10 +24,10 @@ type RunState = { phase: 'idle' | 'permission' }
   | { phase: 'sing'; frame: PitchFrame; frames: PitchFrame[] }
   | { phase: 'result'; id: string; frames: PitchFrame[]; review: Review; score: ReturnType<typeof takeScore>; answer: Answer; save: ResultSave | 'saving' | 'failed' | 'unscored' };
 
-export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, visitLabel, questionVersion, canPublishResult, onScored }: {
+export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, canPublishResult, pitchTraceEnabled, onScored }: {
   document: MelodyScore; selected: VoiceOption; voices: VoiceOption[]; backingUnavailable: boolean;
-  selectVoice: (id: string) => void; visitLabel: (index: number) => string; questionVersion: number;
-  canPublishResult: boolean; onScored: (take: ScoredTake) => Promise<ResultSave>;
+  selectVoice: (id: string) => void; questionVersion: number;
+  canPublishResult: boolean; pitchTraceEnabled: boolean; onScored: (take: ScoredTake) => Promise<ResultSave>;
 }) {
   const t = useMessages('practice');
   const formatScore = useSightSingingScoreFormat();
@@ -44,8 +43,6 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [headphones, setHeadphones] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [replayTime, setReplayTime] = useState(0);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [graphOpen, setGraphOpen] = useState(false);
   const [error, setError] = useState<CaptureError | null>(null);
   const take = useRef<string | null>(null);
   const run = useRef<(() => void) | null>(null);
@@ -168,7 +165,6 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     const preview = tonicPreview.current;
     tonicPreview.current = null;
     discard(); setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
-    setDetailsOpen(false); setGraphOpen(false);
     setState({ phase: 'permission' });
     const takeId = crypto.randomUUID();
     take.current = takeId;
@@ -217,10 +213,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const target = melody.notes.find(note => note.start <= position && position < note.end);
   const review = state.phase === 'result' ? state.review : undefined;
   const feedback = useMemo(() => review?.flatMap(row => row.note.beatIndex === undefined ? [] : [{
-    bar: row.note.bar, beatIndex: row.note.beatIndex, visit: row.note.visit, status: row.status, midi: row.target ?? undefined,
+    bar: row.note.bar, beatIndex: row.note.beatIndex, visit: row.note.visit, status: row.status, midi: row.target ?? undefined, cents: row.cents,
   }]), [review]);
-  const reviewNotes = useMemo(() => review?.map(({ note, ...detail }) => ({ ...detail, measure: visitLabel(note.visit), targets: targetPitches(note) })), [review, visitLabel]);
-  const activeFeedback = review?.findIndex(row => row.note === target) ?? -1;
 
   const playMeasure = useCallback((index: number) => {
     const visit = measure.visit;
@@ -303,7 +297,11 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
 
     {state.phase === 'result' && <section className="challenge-result" aria-label={t('sight.review')}>
       <div className="challenge-score"><strong>{state.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(state.score.percent) })}</strong>
-        {state.score.total > 0 && <span>{t('sight.matchedNotes', { matched: state.score.matched, total: state.score.total })}</span>}
+        {state.score.total > 0 && (state.score.perfect
+          ? <span className="challenge-perfect" role="img" aria-label={t('sight.matchedNotes', { matched: state.score.matched, total: state.score.total })}>
+            <CircleCheck size={22} aria-hidden="true" />
+          </span>
+          : <span>{t('sight.matchedNotes', { matched: state.score.matched, total: state.score.total })}</span>)}
       </div>
       <div className="challenge-replay-controls">
         {state.answer.status === 'ready' && <audio ref={replay} src={state.answer.url} preload="auto"
@@ -318,26 +316,18 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         </button>
         <button className="secondary-button challenge-stop" type="button" onClick={reset}><RotateCcw size={17} aria-hidden="true" />{t('sight.retry')}</button>
       </div>
-      {state.save !== 'unscored' && <p className="challenge-save-status" role={state.save === 'failed' ? 'alert' : 'status'}>
-        {t(`sight.resultSave.${state.save}`)}
-        {state.save === 'failed' && state.score.percent !== null && <button type="button" className="text-button" onClick={() => {
+      {state.save === 'failed' && <p className="challenge-save-status" role="alert">
+        {t('sight.resultSave.failed')}
+        {state.score.percent !== null && <button type="button" className="text-button" onClick={() => {
           if (state.score.percent !== null) void saveResult(state.id, state.score.percent);
         }}>{t('sight.retryLoad')}</button>}
       </p>}
     </section>}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
-    {(state.phase === 'count' || state.phase === 'sing' || state.phase === 'result') && <details className="challenge-pitch-details"
-      open={graphOpen} onToggle={event => setGraphOpen(event.currentTarget.open)}>
-      <summary>{t('sight.pitchMonitor')}</summary>
-      {graphOpen && <PitchGraph melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
+    {pitchTraceEnabled && (state.phase === 'count' || state.phase === 'sing' || state.phase === 'result') &&
+      <PitchGraph melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
         following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
-    </details>}
 
-    {state.phase === 'result' && <details className="challenge-review-details" onToggle={event => setDetailsOpen(event.currentTarget.open)}>
-      <summary>{t('sight.noteFeedback')}</summary>
-      {detailsOpen && reviewNotes && <FeedbackTable notes={reviewNotes} active={activeFeedback}
-        onPlay={state.answer.status === 'ready' ? index => playFrom(state.review[index].note.start) : undefined} />}
-    </details>}
   </div>;
 }

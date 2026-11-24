@@ -7,7 +7,10 @@ export const pitchWindowSize = 2048;
 const fullCreditCents = 15;
 const wrongNoteCents = 50;
 export const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
-export const formatCents = (cents: number | null) => cents === null ? '—' : cents > 0 ? `+${cents}` : String(cents);
+export function formatCents(cents: number) {
+  const rounded = Math.sign(cents) * Math.round(Math.abs(cents));
+  return rounded > 0 ? `+${rounded}` : String(rounded);
+}
 export const pitchName = (midi: number) => `${['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 
 export function createPitchReader(sampleRate: number) {
@@ -73,5 +76,5 @@ export function takeScore(review: ReturnType<typeof assessNotes>) {
     matched++;
     points += 100 * Math.min(1, (wrongNoteCents - Math.abs(cents)) / (wrongNoteCents - fullCreditCents));
   }
-  return { total, matched, percent: total ? Math.round(points * 100 / total) / 100 : null };
+  return { total, matched, perfect: matched > 0 && matched === review.length, percent: total ? Math.round(points * 100 / total) / 100 : null };
 }

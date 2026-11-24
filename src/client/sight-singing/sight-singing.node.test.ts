@@ -4,7 +4,7 @@ import { zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { renderPracticeClicks } from '../playback/practice-metronome';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
-import { assessNotes, createPitchReader, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
+import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
 import { createPitchTrace, octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { keyPitchClasses, staffPitchY } from './staff-pitch';
 
@@ -124,7 +124,10 @@ describe('pitch and feedback', () => {
     const review = assessNotes(targets, frames);
     expect(review.map(row => row.status)).toEqual(['inTune', 'flat', 'sharp', 'wrongNote', 'wrongNote', 'missed', 'insufficientData']);
     expect(review.map(row => takeScore([row]).percent)).toEqual([100, 42.86, .29, 0, 0, 0, null]);
-    expect(takeScore(review)).toEqual({ total: 6, matched: 3, percent: 23.86 });
+    expect(takeScore(review)).toEqual({ total: 6, matched: 3, perfect: false, percent: 23.86 });
+    expect(takeScore(review.slice(0, 2))).toEqual({ total: 2, matched: 2, perfect: true, percent: 71.43 });
+    expect(takeScore([review[0], review[6]])).toMatchObject({ matched: 1, perfect: false });
+    expect([15.4, -35.5, -.1].map(formatCents)).toEqual(['+15', '-36', '0']);
     const nearBoundary = assessNotes(targets.slice(0, 2), [{ midi: 60.48, time: .5 }, { midi: 59.51, time: 1.5 }]);
     expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([5.71, 2.86]);
   });

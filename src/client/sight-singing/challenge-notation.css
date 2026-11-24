@@ -19,6 +19,14 @@
 }
 .challenge-notation-note:active { background: var(--score-focus); }
 .challenge-notation-note:focus-visible { outline: 2px solid var(--score-cursor); outline-offset: -2px; z-index: 1; }
+.challenge-pitch-labels { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.challenge-pitch-labels span {
+  position: absolute; display: grid; place-items: center; box-sizing: border-box;
+  border-radius: 4px; color: var(--feedback-in-tune); background: var(--score-paper);
+  font-size: 12px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; direction: ltr;
+}
+.challenge-pitch-labels :is([data-status="sharp"], [data-status="flat"]) { color: var(--feedback-detuned); }
+.challenge-pitch-labels [data-status="wrongNote"] { color: var(--feedback-wrong); }
 .challenge-notation-sheet :is([data-challenge-feedback="inTune"], [data-challenge-feedback="sharp"], [data-challenge-feedback="flat"]) {
   --note-feedback-ink: var(--score-in-tune);
 }
