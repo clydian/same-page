@@ -366,6 +366,7 @@ it('publishes voice-neutral challenges only to active drive members and fences s
   expect(await (await call(`${resultPath}?view=best`, { method: 'POST', ...json(summary),
     headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': reader, cookie: readerCookie } })).json()).toMatchObject({
     result: { id: summary.id, questionId: ownId, score: 95, own: true }, published: true,
+    standing: { place: 1, tied: false, participants: 1 },
   });
   expect(await (await call(`${resultPath}?view=best&version=1&voice=Alto`)).json()).toMatchObject({
     results: [{ id: summary.id, displayName: '成员', score: 95, own: false }],

@@ -28,6 +28,7 @@ type ExtraDetails = {
 };
 type ResultRow = Omit<PublishedSightSingingResult, 'own' | 'speed' | 'perfect' | 'writtenOctave'> & ExtraDetails & { own: number };
 type LeaderboardRow = Omit<SightSingingLeaderboard['results'][number], 'speed' | 'perfect' | 'writtenOctave'> & ExtraDetails;
+type StandingRow = { place: number; tied: number; participants: number; previousPlace: number; previousHundredths: number | null };
 
 function resultBadges(id: string, allNotesMatchedResultId: string | null, writtenOctaveResultId: string | null, includeWrittenOctave: boolean) {
   if (allNotesMatchedResultId !== id) return {};
@@ -144,8 +145,9 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
   const submission = sightSingingResultSubmissionSchema.safeParse(await context.req.json().catch(() => null));
   if (!id.success || !submission.success) return context.json({ error: 'invalid_result' }, 400);
   const { id: resultId, version, score, voiceId, voiceName, speed } = submission.data;
+  const bestView = context.req.query('view') === 'best';
   // Older workers ignore optional display markers and still accept the score.
-  const perfect = context.req.query('view') === 'best' && context.req.query('perfect') === '1' && score > 0;
+  const perfect = bestView && context.req.query('perfect') === '1' && score > 0;
   const writtenOctave = perfect && context.req.query('writtenOctave') === '1';
   if (!await hasQuestionVersion(db, choirId, id.data, version, member.id)) return context.json({ error: 'question_version_not_found' }, 404);
   const limited = await limitDriveMutation(context, member.userId, 'publish-sight-singing-result', 30);
@@ -155,6 +157,7 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(receiptFields)));
   const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   const claim = crypto.randomUUID();
+  const hundredths = Math.round(score * 100);
   // Only the request which inserts the receipt can change the best score.
   // Keep the receipt when the public entry is removed, so retries stay harmless.
   const receipt = db.prepare(`INSERT INTO sight_singing_result_receipts
@@ -173,7 +176,7 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
       written_octave_result_id = excluded.written_octave_result_id, achieved_order = excluded.achieved_order
     WHERE excluded.score_hundredths > COALESCE(sight_singing_best_results.score_hundredths, sight_singing_best_results.score * 100)`)
     .bind(currentSingingScoringRule, voiceId, Math.round(score),
-      Math.round(score * 100), voiceId, voiceName, speed ?? null, perfect ? resultId : null, writtenOctave ? resultId : null,
+      hundredths, voiceId, voiceName, speed ?? null, perfect ? resultId : null, writtenOctave ? resultId : null,
       choirId, id.data, resultId, claim);
   const verify = db.prepare(`SELECT singer.display_name AS displayName, EXISTS (
       SELECT 1 FROM sight_singing_best_results WHERE choir_id = ? AND question_id = ? AND scoring_rule = ?
@@ -184,13 +187,33 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
         WHERE choir_id = ? AND question_id = ? AND id = ? AND membership_id = ? AND fingerprint = ?)`)
     .bind(choirId, id.data, currentSingingScoringRule, version, member.id, resultId, member.id, member.id,
       choirId, id.data, resultId, member.id, fingerprint);
-  const [, , status] = await db.batch<{ displayName: string; published: number }>([receipt, promote, verify]);
-  const row = status.results[0];
+  // Compare both takes against the same active singers before promoting the new one.
+  const rank = db.prepare(`WITH cohort AS (
+      SELECT result.membership_id, ${rankScore} AS hundredths FROM sight_singing_best_results result
+      JOIN membership_capabilities singer ON singer.id = result.membership_id AND singer.choir_id = result.choir_id
+      WHERE result.choir_id = ? AND result.question_id = ? AND result.scoring_rule = ? AND result.version = ? AND result.rank_voice_id = ?
+    ), previous AS (
+      SELECT hundredths FROM cohort WHERE membership_id = ?
+    ), others AS (
+      SELECT hundredths FROM cohort WHERE membership_id <> ?
+    )
+    SELECT 1 + COUNT(CASE WHEN hundredths > ? THEN 1 END) AS place,
+      EXISTS (SELECT 1 FROM others WHERE hundredths = ?) AS tied,
+      1 + COUNT(*) AS participants,
+      1 + COUNT(CASE WHEN hundredths > (SELECT hundredths FROM previous) THEN 1 END) AS previousPlace,
+      (SELECT hundredths FROM previous) AS previousHundredths FROM others`)
+    .bind(choirId, id.data, currentSingingScoringRule, version, voiceId, member.id, member.id, hundredths, hundredths);
+  const batch = await db.batch([...(bestView ? [rank] : []), receipt, promote, verify]);
+  const row = batch.at(-1)?.results[0] as { displayName: string; published: number } | undefined;
   if (row) {
-    const bestView = context.req.query('view') === 'best';
+    const rankRow = bestView ? batch[0].results[0] as StandingRow : undefined;
+    const standing = rankRow && {
+      place: rankRow.place, tied: rankRow.tied === 1, participants: rankRow.participants,
+      ...(rankRow.previousHundredths !== null && { previous: { place: rankRow.previousPlace, score: rankRow.previousHundredths / 100 } }),
+    };
     return context.json({ result: { id: resultId, version, score, voiceId, voiceName,
       ...(bestView && speed !== undefined && { speed }), questionId: id.data, displayName: row.displayName, own: true },
-    ...(bestView && { published: row.published === 1 }) });
+    ...(bestView && { published: row.published === 1, standing }) });
   }
   if (!await hasQuestionVersion(db, choirId, id.data, version, member.id)) return context.json({ error: 'question_version_not_found' }, 404);
   return context.json({ error: 'result_conflict' }, 409);

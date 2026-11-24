@@ -1,10 +1,11 @@
 import { ChevronDown, Headphones, Mic, Minus, Play, Plus, RotateCcw, Square, UserRound, UsersRound, X, createLucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
-import { currentSingingScoringRule, sightSingingSpeeds, type SightSingingResultSubmission } from '../../shared/sight-singing-results';
+import { currentSingingScoringRule, sightSingingSpeeds, type SightSingingResultSubmission, type SightSingingStanding } from '../../shared/sight-singing-results';
 import { holdUpdate } from '../updates/update-safety';
 import { beginCapture, mixPianoAnswer, playNote, playSustainedTonic, type CaptureError } from './challenge-audio';
 import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
+import { ChallengeStanding } from './challenge-standing';
 import { useSightSingingScoreFormat } from './format-score';
 import { PitchGraph } from './pitch-graph';
 import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
@@ -15,7 +16,7 @@ import { ScoreBadges } from './score-badge';
 const emptyFrames: PitchFrame[] = [];
 const TuningFork = createLucideIcon('TuningFork', [['path', { d: 'M7 3v8a5 5 0 0 0 10 0V3M12 16v5', key: 'fork' }]]);
 type Speed = NonNullable<SightSingingResultSubmission['speed']>;
-export type ResultSave = 'published' | 'previous';
+export type ResultSave = { published: boolean; standing?: SightSingingStanding };
 export type VoiceOption = { voice: MelodyVoice; melody: Melody; label: string };
 export type ScoredTake = SightSingingResultSubmission & {
   speed: Speed; scoringRule: typeof currentSingingScoringRule; perfect: boolean; writtenOctave: boolean;
@@ -46,12 +47,14 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [headphones, setHeadphones] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [replayTime, setReplayTime] = useState(0);
+  const [dismissedStanding, setDismissedStanding] = useState<string>();
   const [error, setError] = useState<CaptureError | null>(null);
   const take = useRef<string | null>(null);
   const run = useRef<(() => void) | null>(null);
   const tonicPreview = useRef<ReturnType<typeof playSustainedTonic> | null>(null);
   const mixedUrl = useRef<string | null>(null);
   const replay = useRef<HTMLAudioElement>(null);
+  const reviewSection = useRef<HTMLElement>(null);
   const release = useCallback(() => {
     const stop = run.current;
     run.current = null;
@@ -241,6 +244,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const bpm = melody.tempoMarks.reduce((tempo, mark) => mark.start <= position ? mark.bpm : tempo, melody.tempo.bpm * speed);
   const positioned = state.phase === 'sing' || state.phase === 'result' && (playing || replayTime > 0);
   const canTap = state.phase === 'idle' || (state.phase === 'result' && state.answer.status === 'ready');
+  const standing = state.phase === 'result' && !playing && dismissedStanding !== state.id && typeof state.save === 'object' && state.save.standing
+    && state.score.percent !== null ? { id: state.id, score: state.score.percent, published: state.save.published, rank: state.save.standing } : null;
 
   return <div className="challenge-run" data-phase={state.phase} data-replaying={playing}>
     <ChallengeNotation score={document.score} voice={voice} melody={melody} currentBar={positioned ? measure.bar : undefined} bpm={Number(bpm.toFixed(1))}
@@ -298,7 +303,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       <button className="secondary-button challenge-stop" type="button" onClick={reset}><Square size={15} aria-hidden="true" />{t('sight.stop')}</button>
     </div>}
 
-    {state.phase === 'result' && <section className="challenge-result" aria-label={t('sight.review')}>
+    {state.phase === 'result' && <section ref={reviewSection} tabIndex={-1} className="challenge-result" aria-label={t('sight.review')}>
       <div className="challenge-score">
         <ScoreBadges perfect={state.score.perfect} writtenOctave={state.score.writtenOctave} size={22} />
         <strong>{state.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(state.score.percent) })}</strong>
@@ -323,6 +328,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
           {t('sight.retryLoad')}</button>}
       </p>}
     </section>}
+
+    {standing && <ChallengeStanding key={standing.id} standing={standing.rank} score={standing.score} published={standing.published}
+      part={selected.label} version={questionVersion} onClose={() => {
+        setDismissedStanding(standing.id);
+        requestAnimationFrame(() => reviewSection.current?.focus({ preventScroll: true }));
+      }} />}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
     {pitchTraceEnabled && (state.phase === 'count' || state.phase === 'sing' || state.phase === 'result') &&

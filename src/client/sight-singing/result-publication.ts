@@ -18,7 +18,8 @@ export async function publishSightSingingResult(choirId: string, questionId: str
     body: JSON.stringify(result),
   });
   if (!response.ok) throw new Error('publish_result_failed');
-  return (await parseDiagnosticResponse(response, sightSingingResultResponseSchema)).published ?? true;
+  const { published = true, standing } = await parseDiagnosticResponse(response, sightSingingResultResponseSchema);
+  return { published, standing };
 }
 
 export async function readSightSingingResults(choirId: string, questionId: string, version: number | null,

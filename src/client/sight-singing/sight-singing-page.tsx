@@ -496,16 +496,16 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     const controller = new AbortController(), current = captureNavigationIdentity();
     resultLifetimes.current.add(controller);
     try {
-      const published = await publishSightSingingResult(choirId, saved.id, userId, attempt, controller.signal);
+      const result = await publishSightSingingResult(choirId, saved.id, userId, attempt, controller.signal);
       if (!controller.signal.aborted && current()) {
         setResultGeneration(value => value + 1);
-        if (published) await saveTake(owner, choirId, {
+        if (result.published) await saveTake(owner, choirId, {
           id: attempt.id, at: Date.now(), title: saved.title, questionId: saved.id, version: attempt.version,
           voiceId: attempt.voiceId, voiceName: attempt.voiceName, speed: attempt.speed, scoringRule: attempt.scoringRule,
-          published, percent: attempt.score, perfect: attempt.perfect, writtenOctave: attempt.writtenOctave,
+          published: true, percent: attempt.score, perfect: attempt.perfect, writtenOctave: attempt.writtenOctave,
         }, controller.signal).catch(() => undefined);
       }
-      return published ? 'published' : 'previous';
+      return result;
     } finally {
       resultLifetimes.current.delete(controller);
     }

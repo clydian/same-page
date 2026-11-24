@@ -213,6 +213,15 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(withdrawal.status).toBe(204);
   expect(await (await read(overview + '?podium=1')).json()).toMatchObject({ participants: [{ questionId, count: 3 }] });
 
+  const onTie = await send(partTake(89.4, 2), singer, singer.id, bestPath);
+  expect(await onTie.json()).toMatchObject({ published: true, standing: {
+    place: 1, tied: true, participants: 2, previous: { place: 2, score: 72 },
+  } });
+  const belowBest = await send(partTake(86, 2), singer, singer.id, bestPath);
+  expect(await belowBest.json()).toMatchObject({ published: false, standing: {
+    place: 2, tied: false, participants: 2, previous: { place: 1, score: 89.4 },
+  } });
+
   await env.DB.prepare("UPDATE memberships SET status = 'removed' WHERE choir_id = ? AND user_id = ?").bind(choirId, singer.id).run();
   expect((await read(listPath)).status).toBe(403);
   expect((await send()).status).toBe(403);

@@ -27,7 +27,16 @@ const publishedSightSingingResultSchema = sightSingingResultFields.extend({
   writtenOctave: z.literal(true).optional(),
 });
 
-export const sightSingingResultResponseSchema = z.object({ result: publishedSightSingingResultSchema, published: z.boolean().optional() });
+const standingPlace = z.number().int().positive();
+const sightSingingStandingSchema = z.object({
+  place: standingPlace, tied: z.boolean(), participants: standingPlace,
+  previous: z.object({ place: standingPlace, score: sightSingingScoreSchema }).optional(),
+});
+export type SightSingingStanding = z.infer<typeof sightSingingStandingSchema>;
+
+export const sightSingingResultResponseSchema = z.object({
+  result: publishedSightSingingResultSchema, published: z.boolean().optional(), standing: sightSingingStandingSchema.optional(),
+});
 export const sightSingingResultsResponseSchema = z.object({
   results: z.array(publishedSightSingingResultSchema), versions: z.array(z.number().int().positive()).optional(),
   voices: z.array(sightSingingVoiceNameSchema).optional(),
