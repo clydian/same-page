@@ -1,0 +1,18 @@
+{
+  "version": "27.2",
+  "touchCalloutSupported": false,
+  "searchDoubleClick": "Allegro",
+  "brush": {
+    "userSelect": "none"
+  },
+  "highlighter pen": {
+    "userSelect": "none"
+  },
+  "Eraser": {
+    "userSelect": "none"
+  },
+  "settingsDoubleClick": "",
+  "layerDoubleClick": "",
+  "noteDoubleClick": "Allegro",
+  "inviteCopied": true
+}

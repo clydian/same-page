@@ -1,0 +1,34 @@
+{
+  "version": "156.0.8078.4",
+  "touchCalloutSupported": false,
+  "searchHold": {
+    "during": "",
+    "after": ""
+  },
+  "searchDoubleClick": "Allegro",
+  "brush": {
+    "userSelect": "none"
+  },
+  "highlighter pen": {
+    "userSelect": "none"
+  },
+  "Eraser": {
+    "userSelect": "none"
+  },
+  "penHold": {
+    "during": "",
+    "after": ""
+  },
+  "settingsHold": {
+    "during": "",
+    "after": ""
+  },
+  "settingsDoubleClick": "",
+  "layerDoubleClick": "",
+  "noteHold": {
+    "during": "",
+    "after": "Allegro"
+  },
+  "noteDoubleClick": "Allegro",
+  "inviteCopied": true
+}
