@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Pencil, Plus, Settings, Trash2, Trophy, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ListFilter, Pencil, Settings, Trash2, Trophy, UsersRound, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, DialogTrigger, Heading, Modal, ModalOverlay, Switch } from 'react-aria-components';
 import { useParams } from 'react-router-dom';
@@ -10,6 +10,7 @@ import { publishedQuestionResponseSchema, publishedQuestionsSchema, SIGHT_SINGIN
   type PublishedQuestion, type QuestionPublication } from '../../shared/sight-singing';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 import { useApplicationIdentity } from '../auth/application-identity';
+import { FloatingAddButton } from '../components/floating-add-button';
 import { LoadingStatus } from '../components/loading-status';
 import { TaskHeader } from '../components/task-header';
 import { useNetworkStatus } from '../platform/use-network-status';
@@ -71,7 +72,7 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const [edition, setEdition] = useState<SightSingingVersionFilter>('all');
   const [voice, setVoice] = useState('');
   const [parts, setParts] = useState<string[]>([]);
-  const [board, setBoard] = useState<{ edition: SightSingingVersionFilter; voice: string; reload: number; results: SightSingingLeaderboard['results'] | null }>();
+  const [board, setBoard] = useState<{ edition: SightSingingVersionFilter; voice: string; reload: number; leaderboard: SightSingingLeaderboard | null }>();
   const [selection, setSelection] = useState<{ question?: PublishedQuestion; legacy?: SightSingingQuestion } | null>(null);
   const [pitchTraceEnabled, setPitchTraceEnabled] = useState(false);
   useEffect(() => {
@@ -91,38 +92,41 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
     void readSightSingingLeaderboard(props.choirId, edition, voice, controller.signal).then(payload => {
       if (controller.signal.aborted) return;
       setParts(payload.voices);
-      setBoard({ edition, voice, reload, results: payload.results });
+      setBoard({ edition, voice, reload, leaderboard: payload });
     }).catch(() => {
-      if (!controller.signal.aborted) setBoard({ edition, voice, reload, results: null });
+      if (!controller.signal.aborted) setBoard({ edition, voice, reload, leaderboard: null });
     });
     return () => controller.abort();
   }, [props.choirId, edition, voice, reload]);
-  const ranked = board?.edition === edition && board.voice === voice && board.reload === reload ? board.results : undefined;
+  const ranked = board?.edition === edition && board.voice === voice && board.reload === reload ? board.leaderboard : undefined;
   if (selection) return <QuestionWorkspace {...props} {...selection} pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
     onBack={() => { setSelection(null); setReload(value => value + 1); }} />;
   const legacyQuestions = questions?.filter(question => !published?.some(item => item.id === question.id));
-  return <div className="app-page">
-    <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}`} />
+  return <div className="app-page challenge-library">
+    <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}`}
+      actions={<div className="challenge-header-actions">
+        <PracticePanel title={t('sight.rankFilters')} icon={<ListFilter size={21} aria-hidden="true" />}
+          active={edition !== 'all' || voice !== ''} compact>
+          <div className="challenge-filter-options">
+            <label className="challenge-version-filter">
+              <span>{t('sight.resultVersionFilter')}</span>
+              <select value={edition} onChange={event => setEdition(event.target.value === 'latest' ? 'latest' : 'all')}>
+                <option value="all">{t('sight.allVersions')}</option>
+                <option value="latest">{t('sight.latestVersion')}</option>
+              </select>
+            </label>
+            <VoiceFilter voice={voice} voices={parts} onChange={setVoice} showLabel />
+          </div>
+        </PracticePanel>
+      </div>} />
     <main className="page-shell settings-page challenge-page">
-      <div className="challenge-library-header"><h2>{t('sight.questions')}</h2>
-        <button className="primary-button" type="button" onClick={() => setSelection({})}><Plus size={18} aria-hidden="true" />{t('sight.create')}</button>
-      </div>
       <section className="challenge-library-section" aria-label={t('sight.publishedQuestions')}>
-        <div className="challenge-result-filters">
-          <label className="challenge-version-filter">
-            <span className="visually-hidden">{t('sight.resultVersionFilter')}</span>
-            <select value={edition} onChange={event => setEdition(event.target.value === 'latest' ? 'latest' : 'all')}>
-              <option value="all">{t('sight.allVersions')}</option>
-              <option value="latest">{t('sight.latestVersion')}</option>
-            </select>
-          </label>
-          <VoiceFilter voice={voice} voices={parts} onChange={setVoice} />
-        </div>
         {ranked === null && <p role="alert">{t('sight.publishedResultsError')} <button className="text-button" type="button"
           onClick={() => setReload(value => value + 1)}>{t('sight.retryLoad')}</button></p>}
         {published === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
           : published === null ? <p role="alert">{t('sight.publishedError')} <button type="button" className="text-button" onClick={() => { setPublished(undefined); setReload(value => value + 1); }}>{t('sight.retryLoad')}</button></p>
-          : <QuestionList questions={published} scores={ranked} open={question => setSelection({ question })} />}
+          : <QuestionList questions={published} leaderboard={ranked} participants={board?.leaderboard?.participants}
+            open={question => setSelection({ question })} />}
       </section>
       {questions === null ? <p role="alert">{t('sight.storageError')}</p> : Boolean(legacyQuestions?.length) &&
         <details className="challenge-legacy-questions">
@@ -135,13 +139,14 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
           </li>)}</ul>
         </details>}
     </main>
+    <FloatingAddButton label={t('sight.create')} onPress={() => setSelection({})} />
   </div>;
 }
 
-function VoiceFilter({ voice, voices, onChange }: { voice: string; voices: string[]; onChange: (voice: string) => void }) {
+function VoiceFilter({ voice, voices, onChange, showLabel }: { voice: string; voices: string[]; showLabel?: boolean; onChange: (voice: string) => void }) {
   const t = useMessages('practice');
   return <label className="challenge-version-filter">
-    <span className="visually-hidden">{t('sight.voiceFilter')}</span>
+    <span className={showLabel ? undefined : 'visually-hidden'}>{t('sight.voiceFilter')}</span>
     <select value={voice} onChange={event => onChange(event.target.value)}>
       <option value="">{t('sight.allVoices')}</option>
       {Array.from(new Set(voice ? [...voices, voice] : voices)).map(name => <option key={name}>{name}</option>)}
@@ -149,43 +154,88 @@ function VoiceFilter({ voice, voices, onChange }: { voice: string; voices: strin
   </label>;
 }
 
-function QuestionList({ questions, scores, open }: {
-  questions: PublishedQuestion[]; scores?: SightSingingLeaderboard['results'] | null; open: (question: PublishedQuestion) => void;
+function rankScores<T extends { score: number }>(rows: T[]) {
+  let place = 0;
+  return rows.map((row, index) => {
+    const previousTied = rows[index - 1]?.score === row.score;
+    if (!previousTied) place = index + 1;
+    return { row, place, tied: previousTied || rows[index + 1]?.score === row.score };
+  });
+}
+
+function RankBadge({ place, tied }: { place: number; tied: boolean }) {
+  const t = useMessages('practice');
+  return <span className="challenge-rank" data-place={place}>
+    <span aria-hidden="true">{place}</span>
+    <span className="visually-hidden">{t(tied ? 'sight.rankTied' : 'sight.rankPlace', { place })}</span>
+  </span>;
+}
+
+function QuestionList({ questions, leaderboard, participants, open }: {
+  questions: PublishedQuestion[]; leaderboard?: SightSingingLeaderboard | null;
+  participants?: SightSingingLeaderboard['participants']; open: (question: PublishedQuestion) => void;
 }) {
   const t = useMessages('practice');
-  const formatScore = useSightSingingScoreFormat();
   const byQuestion = new Map<string, SightSingingLeaderboard['results']>();
-  for (const score of scores ?? []) {
+  for (const score of leaderboard?.results ?? []) {
     const top = byQuestion.get(score.questionId) ?? [];
     top.push(score);
     byQuestion.set(score.questionId, top);
   }
-  return questions.length ? <ul className="challenge-card-grid" role="list" aria-busy={scores === undefined}>
-    {questions.map(question => {
-      const top = byQuestion.get(question.id);
-      const showVersions = question.version > 1;
-      return <li className="challenge-card" key={question.id}>
-        <button type="button" className="challenge-card-open" onClick={() => open(question)}>
-          <span><strong>{question.title}</strong><small>{publisherLabel(question.publisher, t)}{showVersions && ` · ${versionTag(question.version)}`}</small></span>
-          <ChevronRight size={17} aria-hidden="true" />
-        </button>
-        {top?.length ? <ol className="challenge-card-ranks" aria-label={t('sight.topThree')}>
-          {top.map(row => <li key={row.id}>
-            <div><span>{row.displayName}</span><strong className="challenge-marked-score">{t('sight.takeScore', { score: formatScore(row.score) })}
-              <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} /></strong></div>
-            <small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}{row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small>
-          </li>)}
-        </ol> : <p className="challenge-card-empty">{question.publisher?.kind === 'member'
-          ? t('sight.localCardScores') : scores ? t('sight.noCardScores') : '—'}</p>}
-      </li>;
-    })}
+  const counts = participants && new Map(participants.map(item => [item.questionId, item.count]));
+  return questions.length ? <ul className="challenge-card-grid" role="list" aria-busy={leaderboard === undefined}>
+    {questions.map(question => <QuestionCard key={question.id} question={question} top={byQuestion.get(question.id)}
+      count={question.publisher?.kind === 'member' || !counts ? undefined : counts.get(question.id) ?? 0}
+      ready={Boolean(leaderboard)} open={() => open(question)} />)}
   </ul> : <p className="challenge-empty">{t('sight.noPublished')}</p>;
 }
 
-function PracticePanel({ title, icon, compact, children }: { title: string; icon: ReactNode; compact?: boolean; children: ReactNode }) {
+function QuestionCard({ question, top, count, ready, open }: {
+  question: PublishedQuestion; top?: SightSingingLeaderboard['results']; count?: number; ready: boolean; open: () => void;
+}) {
+  const t = useMessages('practice');
+  const formatScore = useSightSingingScoreFormat();
+  const rankingId = useId();
+  const [expanded, setExpanded] = useState(false);
+  const showVersions = question.version > 1;
+  return <li className="challenge-card">
+    <button type="button" className="challenge-card-open" onClick={open}>
+      <span><strong>{question.title}</strong><small>{publisherLabel(question.publisher, t)}{showVersions && ` · ${versionTag(question.version)}`}</small></span>
+      <ChevronRight size={17} aria-hidden="true" />
+    </button>
+    <div className="challenge-card-podium">
+      {(count !== undefined || Boolean(top?.length)) && <div className="challenge-card-summary">
+        {count !== undefined && <span className="challenge-card-participants"><UsersRound size={14} aria-hidden="true" />
+          {t('sight.participants', { count })}</span>}
+        {Boolean(top?.length) && <button type="button" className="challenge-card-detail-button" aria-label={t('sight.rankDetails')}
+          aria-controls={rankingId} aria-expanded={expanded} onClick={() => setExpanded(open => !open)}>
+          <ChevronDown size={17} aria-hidden="true" />
+        </button>}
+      </div>}
+      {top?.length ? <ol id={rankingId} className="challenge-card-ranks" role="list" aria-label={t('sight.topThree')}>
+        {rankScores(top).map(({ row, place, tied }) => <li key={row.id}>
+          <RankBadge place={place} tied={tied} />
+          <div className="challenge-card-result">
+            <div className="challenge-card-result-main"><span>{row.displayName}</span>
+              <strong className="challenge-marked-score">{t('sight.takeScore', { score: formatScore(row.score) })}
+                <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} /></strong>
+            </div>
+            {expanded && <small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}
+              {row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small>}
+          </div>
+        </li>)}
+      </ol> : <p className="challenge-card-empty">{question.publisher?.kind === 'member'
+        ? t('sight.localCardScores') : ready ? t('sight.noCardScores') : '—'}</p>}
+    </div>
+  </li>;
+}
+
+function PracticePanel({ title, icon, active, compact, children }: {
+  title: string; icon: ReactNode; active?: boolean; compact?: boolean; children: ReactNode;
+}) {
   const t = useMessages('practice');
   return <DialogTrigger>
-    <Button className="icon-button" aria-label={title}>{icon}</Button>
+    <Button className="icon-button" aria-label={title} data-active={active || undefined}>{icon}</Button>
     <ModalOverlay className="modal-overlay" isDismissable>
       <Modal className={`app-modal${compact ? ' app-modal--compact' : ''}`}>
         <Dialog className="app-dialog challenge-panel">{({ close }) => <>
@@ -275,8 +325,10 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
       {rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
         : rows === null ? <p role="alert">{t('sight.publishedResultsError')} <button type="button" className="text-button" onClick={() => setRetry(value => value + 1)}>{t('sight.retryLoad')}</button></p>
         : rows.length === 0 ? <p className="challenge-empty">{t('sight.publishedResultsEmpty')}</p>
-          : <ul className="challenge-list challenge-score-list">{rows.map(row => <li key={row.id}>
-            <div><strong>{row.displayName}</strong><small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}{row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small></div>
+          : <ul className="challenge-list challenge-score-list">{rankScores(rows).map(({ row, place, tied }) => <li key={row.id}>
+            <div className="challenge-ranked-person"><RankBadge place={place} tied={tied} />
+              <div><strong>{row.displayName}</strong><small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}{row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small></div>
+            </div>
             <div className="challenge-ranked-action"><strong className="challenge-marked-score">{t('sight.takeScore', { score: formatScore(row.score) })}
               <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} /></strong>
               {row.own && <button type="button" className="text-button" aria-label={removeLabel(row.version)}

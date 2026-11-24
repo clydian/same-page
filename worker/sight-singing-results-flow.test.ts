@@ -164,6 +164,9 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(await topIds('?versions=all')).toEqual([altoV1.id, ownerV2.id, otherV2.id]);
   expect(await topIds('?versions=latest')).toEqual([ownerV2.id, otherV2.id, altoV2.id]);
   expect(await topIds('?versions=latest&voice=Alto')).toEqual([ownerV2.id, altoV2.id, fourthV2.id]);
+  expect(await (await read(overview + '?versions=latest&voice=Soprano&podium=1')).json()).toMatchObject({
+    results: [], participants: [{ questionId, count: 4 }],
+  });
   const withdrawnPart = await call(`${resultPath}/${tenorV1.id}?version=1`, {
     method: 'DELETE', headers: { cookie: singer.cookie, 'x-same-page-owner-user-id': singer.id },
   });
@@ -210,8 +213,20 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(afterReplacement).not.toHaveProperty('perfect');
   expect(afterReplacement).not.toHaveProperty('writtenOctave');
 
+  const fourthTie = partTake(81, 2);
+  expect(await (await send(fourthTie, fourth, fourth.id, bestPath)).json()).toMatchObject({ published: true });
+  // Both singers at the cutoff share third place. Older clients still receive three rows.
+  expect(await topIds('?precision=2&podium=1')).toEqual([replacementId, ownerPrecise.id, otherV2.id, fourthTie.id]);
+  expect(await topIds('?precision=2')).toEqual([replacementId, ownerPrecise.id, otherV2.id]);
+  const withdrawal = await call(`${resultPath}/${fourthTie.id}?version=2`, {
+    method: 'DELETE', headers: { cookie: fourth.cookie, 'x-same-page-owner-user-id': fourth.id },
+  });
+  expect(withdrawal.status).toBe(204);
+  expect(await (await read(overview + '?podium=1')).json()).toMatchObject({ participants: [{ questionId, count: 3 }] });
+
   await env.DB.prepare("UPDATE memberships SET status = 'removed' WHERE choir_id = ? AND user_id = ?").bind(choirId, singer.id).run();
   expect((await read(listPath)).status).toBe(403);
   expect((await send()).status).toBe(403);
   expect(await (await read(listPath, owner)).json()).toEqual({ results: [] });
+  expect(await (await read(overview + '?podium=1', owner)).json()).toMatchObject({ participants: [{ questionId, count: 2 }] });
 });

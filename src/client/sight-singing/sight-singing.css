@@ -1,9 +1,9 @@
 .challenge-page { max-width: 58rem; padding-block-end: 3rem; }
 .challenge-page h2, .challenge-page h3 { margin: 0; }
-.challenge-library-header, .challenge-actions {
+.challenge-actions {
   display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
 }
-.challenge-library-header { justify-content: space-between; margin-block-end: 1rem; }
+.challenge-library .challenge-page { padding-block-end: calc(6rem + var(--safe-bottom)); }
 .challenge-empty { color: var(--muted); }
 .challenge-empty, .challenge-list, .challenge-form {
   background: var(--ui-surface, var(--surface)); border: 1px solid var(--line); border-radius: 1rem;
@@ -30,7 +30,7 @@
 .challenge-range { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .75rem; }
 .challenge-range > div { display: grid; gap: .45rem; }
 .challenge-actions { margin-block: .6rem .85rem; }
-.challenge-actions button, .challenge-library-header button { display: inline-flex; align-items: center; gap: .45rem; min-height: 48px; }
+.challenge-actions button { display: inline-flex; align-items: center; gap: .45rem; min-height: 48px; }
 .challenge-error { color: var(--ui-danger, #a33535); }
 .challenge-workspace .challenge-page, .challenge-workspace .task-header { max-width: 49rem; margin-inline: auto; }
 .challenge-workspace .task-header { border-block-end: 0; padding: 1rem clamp(1rem, 4vw, 2rem); }

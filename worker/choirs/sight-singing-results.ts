@@ -53,12 +53,16 @@ sightSingingResultRoutes.get(leaderboardPath, async context => {
   const versions = sightSingingVersionFilterSchema.default('all').safeParse(context.req.query('versions'));
   const voice = sightSingingVoiceNameSchema.optional().safeParse(context.req.query('voice'));
   if (!versions.success || !voice.success) return context.json({ error: 'invalid_result_filter' }, 400);
-  const filter = `FROM sight_singing_best_results result
+  const scope = `FROM sight_singing_best_results result
     JOIN sight_singing_questions question ON question.choir_id = result.choir_id AND question.id = result.question_id
     JOIN membership_capabilities singer ON singer.choir_id = result.choir_id AND singer.id = result.membership_id
-    WHERE result.choir_id = ? AND question.publication = 'official' AND result.scoring_rule = ?
-      AND (? = 'all' OR result.version = question.version) AND ${activeActor}`;
-  const values = [choirId, currentSingingScoringRule, versions.data, member.id];
+    WHERE result.choir_id = ? AND question.publication = 'official' AND ${activeActor}`;
+  const filter = `${scope} AND result.scoring_rule = ? AND (? = 'all' OR result.version = question.version)`;
+  const values = [choirId, member.id, currentSingingScoringRule, versions.data];
+  const podium = context.req.query('podium') === '1';
+  // The achievement order still keeps ties stable without splitting their places.
+  const place = podium ? 'RANK() OVER (PARTITION BY questionId ORDER BY hundredths DESC)'
+    : 'ROW_NUMBER() OVER (PARTITION BY questionId ORDER BY hundredths DESC, achieved_order)';
   const scoreColumn = context.req.query('precision') === '2' ? 'hundredths / 100.0' : 'score';
   const top = db.prepare(`WITH per_singer AS (
       SELECT result.id, result.question_id AS questionId, result.version, result.score, result.voice_name AS voiceName,
@@ -67,20 +71,23 @@ sightSingingResultRoutes.get(leaderboardPath, async context => {
         ROW_NUMBER() OVER (PARTITION BY result.question_id, result.membership_id ORDER BY ${rankScore} DESC, result.achieved_order) AS best
       ${filter} AND (? IS NULL OR result.voice_name = ?)
     ), top_three AS (
-      SELECT *, ROW_NUMBER() OVER (PARTITION BY questionId ORDER BY hundredths DESC, achieved_order) AS place
+      SELECT *, ${place} AS place
       FROM per_singer WHERE best = 1
     )
     SELECT id, questionId, version, ${scoreColumn} AS score, voiceName, displayName, speed, allNotesMatchedResultId, writtenOctaveResultId
-    FROM top_three WHERE place <= 3 ORDER BY questionId, place`)
+    FROM top_three WHERE place <= 3 ORDER BY questionId, place, achieved_order`)
     .bind(...values, voice.data ?? null, voice.data ?? null);
   const parts = db.prepare(`SELECT DISTINCT result.voice_name AS voiceName ${filter} ORDER BY voiceName`).bind(...values);
-  const [results, voices] = await db.batch([top, parts]);
+  const participants = db.prepare(`SELECT result.question_id AS questionId, COUNT(DISTINCT result.membership_id) AS count
+    ${scope} GROUP BY result.question_id`).bind(choirId, member.id);
+  const [results, voices, counts] = await db.batch(podium ? [top, parts, participants] : [top, parts]);
   const details = context.req.query('details') === '1';
   const includeWrittenOctave = context.req.query('writtenOctave') === '1';
   const rows = (results.results as LeaderboardRow[]).map(({ speed, allNotesMatchedResultId, writtenOctaveResultId, ...row }) =>
     ({ ...row, ...(details && speed !== null && { speed }),
       ...(details && resultBadges(row.id, allNotesMatchedResultId, writtenOctaveResultId, includeWrittenOctave)) }));
-  return context.json({ results: rows, voices: (voices.results as { voiceName: string }[]).map(row => row.voiceName) });
+  return context.json({ results: rows, voices: (voices.results as { voiceName: string }[]).map(row => row.voiceName),
+    ...(counts && { participants: counts.results }) });
 });
 
 sightSingingResultRoutes.get(path, async context => {

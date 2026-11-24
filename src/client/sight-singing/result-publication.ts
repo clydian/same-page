@@ -32,7 +32,7 @@ export async function readSightSingingResults(choirId: string, questionId: strin
 }
 
 export async function readSightSingingLeaderboard(choirId: string, versions: SightSingingVersionFilter, voice: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ versions, precision: '2', details: '1', writtenOctave: '1' });
+  const query = new URLSearchParams({ versions, precision: '2', details: '1', writtenOctave: '1', podium: '1' });
   if (voice) query.set('voice', voice);
   const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard?${query}`, { signal });
   if (!response.ok) throw new Error('published_results_unavailable');

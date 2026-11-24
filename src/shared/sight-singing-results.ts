@@ -41,7 +41,10 @@ export type SightSingingVersionFilter = z.infer<typeof sightSingingVersionFilter
 const leaderboardEntry = publishedSightSingingResultSchema.pick({
   id: true, questionId: true, version: true, score: true, voiceName: true, displayName: true, speed: true, perfect: true, writtenOctave: true,
 });
-export const sightSingingLeaderboardSchema = z.object({ results: z.array(leaderboardEntry), voices: z.array(sightSingingVoiceNameSchema) });
+export const sightSingingLeaderboardSchema = z.object({
+  results: z.array(leaderboardEntry), voices: z.array(sightSingingVoiceNameSchema),
+  participants: z.array(z.object({ questionId: z.uuid(), count: z.number().int().nonnegative() })).optional(),
+});
 export type SightSingingLeaderboard = z.infer<typeof sightSingingLeaderboardSchema>;
 export type SightSingingResultSubmission = z.infer<typeof sightSingingResultSubmissionSchema>;
 export type PublishedSightSingingResult = z.infer<typeof publishedSightSingingResultSchema>;
