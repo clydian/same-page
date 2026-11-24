@@ -45,11 +45,24 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       }
       await route.fulfill(result);
     });
-    await context.addInitScript(() => localStorage.setItem("reader-gesture-hint-seen", "true"));
+    const initialTime = Date.parse("2026-09-10T00:00:00Z");
+    await context.addInitScript(time => {
+      localStorage.setItem("reader-gesture-hint-seen", "true");
+      // Age the cached directory while keeping the browser's animation frames native.
+      Date.now = () => time;
+      // Measure the application's restoration when traversing browser history.
+      history.scrollRestoration = "manual";
+    }, initialTime);
     const page = await context.newPage();
-    await page.clock.setFixedTime(new Date("2026-09-10T00:00:00Z"));
+    const advanceFreshnessClock = intervals => page.evaluate(time => {
+      Date.now = () => time;
+    }, initialTime + intervals * 61_000);
+    const library = page.getByRole("region", { name: "乐谱", exact: true });
+    // Scroll can hide the floating button while it remains mounted for this member.
+    const upload = page.getByRole("button", { name: "上传 PDF", exact: true, includeHidden: true });
     await page.goto(`${server.origin}/choirs/visual-choir`);
     await expect(page.locator(".file-row")).toHaveCount(60);
+    await expect(library).toHaveAttribute("aria-busy", "false");
     await page.getByRole("searchbox", { name: /搜索.*中的乐谱/ }).fill("秋日");
     const score = page.locator('a.file-row__open[href$="/scores/visual-score"]');
     await score.scrollIntoViewIfNeeded();
@@ -64,25 +77,26 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     assert.ok(savedTop > 500);
     await page.locator("[data-pdf-canvas-active]").first().waitFor();
     hold();
-    await page.clock.setFixedTime(new Date("2026-09-10T00:01:01Z"));
+    await advanceFreshnessClock(1);
     await page.goBack();
     await expect(page.locator(".file-row")).toHaveCount(60);
+    await expect(library).toHaveAttribute("aria-busy", "true");
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(savedTop);
-    await expect(page.getByRole("button", { name: "上传 PDF", exact: true })).toBeAttached();
+    await expect(upload).toBeAttached();
     await page.screenshot({ path: path.join(evidence, `${name}-cached-return.png`) });
 
     // Scroll again before revalidation finishes. The old return target is spent.
     await page.evaluate(() => window.scrollTo(0, 900));
     const currentTop = await page.evaluate(() => window.scrollY);
     release(); waiting = null;
-    await expect(page.getByRole("region", { name: "乐谱", exact: true })).toHaveAttribute("aria-busy", "false");
-    await expect(page.getByRole("button", { name: "上传 PDF", exact: true })).toBeAttached();
+    await expect(library).toHaveAttribute("aria-busy", "false");
+    await expect(upload).toBeAttached();
     // WebKit may adjust its scroll anchor by a CSS pixel as management controls return.
     await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - currentTop)).toBeLessThanOrEqual(2);
 
     hold();
     const before = requests;
-    await page.clock.setFixedTime(new Date("2026-09-10T00:02:02Z"));
+    await advanceFreshnessClock(2);
     await page.evaluate(() => {
       window.dispatchEvent(new Event("focus"));
       window.dispatchEvent(new Event("online"));
@@ -93,16 +107,16 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await chooseLibrarySort(page, "updated");
     unavailable = true;
     release(); waiting = null;
-    await expect(page.getByRole("region", { name: "乐谱", exact: true })).toHaveAttribute("aria-busy", "false");
+    await expect(library).toHaveAttribute("aria-busy", "false");
     await expect(page.getByText(/暂时无法更新乐谱列表，当前内容已保留/)).toHaveCount(0);
     await expect(page.locator(".file-row")).toHaveCount(1);
     await page.screenshot({ path: path.join(evidence, `${name}-refresh-failed.png`) });
     unavailable = false;
     const failedRequests = requests;
-    await page.clock.setFixedTime(new Date("2026-09-10T00:03:03Z"));
+    await advanceFreshnessClock(3);
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await expect.poll(() => requests).toBe(failedRequests + 1);
-    await expect(page.getByRole("region", { name: "乐谱", exact: true })).toHaveAttribute("aria-busy", "false");
+    await expect(library).toHaveAttribute("aria-busy", "false");
     await expect(page.getByText(/暂时无法更新乐谱列表，当前内容已保留/)).toHaveCount(0);
     await expect(page.getByRole("searchbox", { name: /搜索.*中的乐谱/ })).toHaveValue("040");
     await expect(page.getByRole("button", { name: "按最近更新排序，最新在前" })).toBeVisible();
