@@ -88,7 +88,7 @@ export function PracticePlayerShell(props: Props) {
   </TooltipTrigger>;
   return <>
     {!props.embedded && isXml && source && <PracticeSplit active={view === 'compare'} ownerKey={source.ownerKey} />}
-    {isXml && <header className="practice-header" aria-label={t("practiceReading")} data-floating={!props.embedded || undefined} ref={header}>
+    {isXml && <header className="practice-header" aria-label={t("practiceReading")} data-no-native-selection data-floating={!props.embedded || undefined} ref={header}>
       <div id="practice-view-controls" className="practice-header-tools" hidden={toolsCollapsed}>
       {props.embedded ? <strong>{t("candidatePreview")}</strong> : <MenuTrigger>
         <Button className="practice-view-trigger" aria-label={t("showScore")} aria-description={t("currentView", { view: viewLabels[view] })} data-short-label={view === 'pdf' ? 'PDF' : view === 'compare' ? t("compare") : t("reflow")}><span className="practice-view-label">{viewLabels[view]}</span><ChevronDown size={14} aria-hidden="true" /></Button>
@@ -108,7 +108,7 @@ export function PracticePlayerShell(props: Props) {
         ? <PlaybackPreparationNotice key={props.message} message={props.message} {...props.preparation} retry={props.retry} />
         : props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>{t("retry")}</Button>}</div>}
       {props.hint}
-      <section className="practice-bar" aria-label={isXml ? t("scorePractice") : t("audioPlayback")} data-testid="musicxml-player">
+      <section className="practice-bar" aria-label={isXml ? t("scorePractice") : t("audioPlayback")} data-no-native-selection data-testid="musicxml-player">
         <div id="practice-expanded-controls" className="practice-expanded-controls" hidden={controlsCollapsed}><PlaybackTimeline timeline={props.timeline} /></div>
 
         <div id="practice-bar-meta" className="practice-bar-meta" hidden={controlsCollapsed}>
@@ -138,7 +138,7 @@ export function PracticePlayerShell(props: Props) {
     <FeedbackMessage feedback={focus.feedback} className="practice-focus-notice" closeLabel={t("dismissFullScreenNotice")} dismissible />
     {createPortal(<div ref={setPopoverBoundary} className="practice-popover-boundary" aria-hidden="true" />, document.body)}
     {panel && popoverBoundary && <Popover ref={popover} triggerRef={panelTrigger} scrollRef={panelScroll} boundaryElement={popoverBoundary} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover practice-player-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
-      <Dialog className="practice-panel" aria-label={panel === 'settings' ? t("settings") : panel === 'speed' ? t("adjustSpeed") : isXml ? t("findMeasure") : t("findTime")}>
+      <Dialog className="practice-panel" data-no-native-selection aria-label={panel === 'settings' ? t("settings") : panel === 'speed' ? t("adjustSpeed") : isXml ? t("findMeasure") : t("findTime")}>
         <header><div><strong>{panel === 'settings' ? t("settings") : panel === 'speed' ? t("adjustSpeed") : isXml ? t("findMeasure") : t("findTime")}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? t("closeSettings") : panel === 'speed' ? t("closeSpeed") : t("closeLocator")} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
         <div ref={panelScroll} className="practice-panel-content">
           {panel === 'settings' ? props.children : panel === 'speed' ? <PracticeSpeed speed={props.speed ?? 1} tempo={props.tempo} ready={props.ready} setSpeed={value => props.setSpeed?.(value)} /> : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}

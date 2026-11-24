@@ -341,10 +341,10 @@ export function useTextComposition({ editor, pageNumber, activeLayerId, editing,
         }}
       >
         {textEditor && <button type="submit" className="reader-composer-done" aria-label={t("finishTextInput")} disabled={textSaving || finishing}>{t("done")}</button>}
-        {textEditor && <div className="annotation-composer-heading" ref={textHeaderRef}>
+        {textEditor && <div className="annotation-composer-heading" data-no-native-selection ref={textHeaderRef}>
           <p className="reader-edit-gesture-hint annotation-composer-hint"><strong>{t("enteringText")}</strong><span className="annotation-composer-instruction">{t("tapBlankToFinish")}</span></p>
         </div>}
-        <div ref={textToolbarRef} className="annotation-composer-styles" role="group" aria-label={t("textStyle")} onPointerDown={event => {
+        <div ref={textToolbarRef} className="annotation-composer-styles" data-no-native-selection role="group" aria-label={t("textStyle")} onPointerDown={event => {
           const input = textInputRef.current;
           textSelection.current = input ? { start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection } : null;
           if ((event.target as HTMLElement).closest("button")) event.preventDefault();

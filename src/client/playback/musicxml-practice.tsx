@@ -124,6 +124,7 @@ export function MusicXmlPractice({
         <div
           ref={viewport}
           className="practice-notation-scroll"
+          data-no-native-selection
           onContextMenu={(event) => event.preventDefault()}
           role="region"
           aria-label={t("scrollScore")}

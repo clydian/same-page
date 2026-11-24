@@ -36,7 +36,7 @@ export function DriveSwitcher({ choirId, choirName, userId, localOnly, loading }
     requestAnimationFrame(restoreLibraryPosition);
   };
   const narrow = useCompactLayout();
-  const content = <Dialog className="drive-switch-content" aria-label={t("driveSwitcherSwitchCloudDisk")}>{({ close }) => <>
+  const content = <Dialog className="drive-switch-content" aria-label={t("driveSwitcherSwitchCloudDisk")} data-no-native-selection>{({ close }) => <>
     <div className="dialog-heading"><Heading slot="title">{t("driveSwitcherSwitchCloudDisk")}</Heading><Button className="icon-button" aria-label={t("driveSwitcherCloseCloudDiskSelection")} onPress={close}><X size={21} aria-hidden="true" /></Button></div>
     {localOnly && userId && <p className="drive-switch-caption">{t("driveLocalDirectory")}</p>}
     {userId ? <PickerDirectory userId={userId} currentChoirId={choirId} localOnly={localOnly} onSelect={close} />

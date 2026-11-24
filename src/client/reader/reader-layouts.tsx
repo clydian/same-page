@@ -193,6 +193,7 @@ export function PageLayout({
       </aside>}
       <div
         className="page-reader__viewport"
+        data-no-native-selection
         data-zoom={zoom}
         data-editing={annotationProps.editing || undefined}
         ref={containerRef}
@@ -331,6 +332,7 @@ export function ContinuousLayout({
     <AnnotationPagesContext.Provider value={annotationProps.editing ? pages : null}>
     <section
       className="continuous-reader"
+      data-no-native-selection
       data-current-page={currentPage}
       tabIndex={0}
       data-underfit={zoom < 1 || undefined}
@@ -474,7 +476,7 @@ export function PageNavigatorPanel({
         </Button>
         <ModalOverlay className="reader-panel-backdrop" isDismissable>
           <Modal className="reader-panel reader-page-grid-dialog">
-            <Dialog aria-label={t("pageOverview")}>
+            <Dialog aria-label={t("pageOverview")} data-no-native-selection>
               <header className="reader-panel__header"><strong>{t("pageOverview")}</strong>
                 <Button className="icon-button" aria-label={t("closePageOverview")} onPress={() => setGridOpen(false)}><X size={21} aria-hidden="true" /></Button>
               </header>
