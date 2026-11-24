@@ -6,7 +6,7 @@ import { renderPracticeClicks } from '../playback/practice-metronome';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { assessNotes, createPitchReader, frequency, pitchWindowSize } from './pitch-feedback';
 import { createPitchTrace, octaveGuides, pitchFramesConnect } from './pitch-trace';
-import { staffPitchY } from './staff-pitch';
+import { keyPitchClasses, staffPitchY } from './staff-pitch';
 
 const bytes = (text: string) => new TextEncoder().encode(text);
 const pitch = (step: string, octave = 4) => `<pitch><step>${step}</step><octave>${octave}</octave></pitch>`;
@@ -68,6 +68,20 @@ it('projects sung pitches through diatonic staff steps anchored to the written n
   expect(staffPitchY(cSharp, 0)).toBe(100);
   expect(staffPitchY(cSharp, .4)).toBe(98);
   expect(staffPitchY(cSharp, -.4)).toBe(101);
+});
+
+it('keeps the written key changes on the selected playback and speed timeline', () => {
+  const changing = xml
+    .replace('<divisions>1</divisions><time>', '<divisions>1</divisions><key><fifths>1</fifths></key><time>')
+    .replace(note('C', 'stop'), `<attributes><key><fifths>-1</fifths></key></attributes>${note('C', 'stop')}`);
+  const { melody } = melodyOf(changing);
+  expect(melody.keyChanges).toEqual([
+    { start: 0, signature: 1 }, { start: 1, signature: -1 },
+    { start: 4, signature: 1 }, { start: 5, signature: -1 },
+  ]);
+  expect(melodyAtSpeed(melody, .5).keyChanges.map(key => key.start)).toEqual([0, 2, 8, 10]);
+  const [g, f] = melody.keyChanges.map(key => keyPitchClasses(key.signature));
+  expect([g.has(6), g.has(5), g.has(10), f.has(6), f.has(5), f.has(10)]).toEqual([true, false, false, false, true, true]);
 });
 
 it('omits brief pitch spikes and keeps a sustained octave jump as a separate segment', () => {

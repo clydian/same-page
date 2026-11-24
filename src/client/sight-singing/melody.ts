@@ -8,8 +8,10 @@ export type MelodyNote = { midi: number; chord?: number[]; start: number; end: n
 export const targetPitches = (note: MelodyNote) => note.chord ?? [note.midi];
 export type MelodyMeasure = { start: number; end: number; bar: number; visit: number };
 export type StaffBeat = MelodyMeasure & { beatIndex: number; pitches: number[] };
+type KeyChange = { start: number; signature: number };
 export type Melody = {
   notes: MelodyNote[]; measures: MelodyMeasure[]; staffBeats: StaffBeat[]; clicks: PracticeClick[]; duration: number;
+  keyChanges: KeyChange[];
   beatSeconds: number; beats: number; denominator: number; tonic: number; tempo: { bpm: number; unit: number };
 };
 export type MelodyVoice = { id: string; track: number; staff: number; voice: number; name: string; multiple: boolean };
@@ -48,6 +50,10 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   const selected = document.bars.slice(first, last + 1);
   const staff = document.score.tracks[voice.track].staves[voice.staff];
   const notes: MelodyNote[] = [], measures: MelodyMeasure[] = [], staffBeats: StaffBeat[] = [], clicks: PracticeClick[] = [];
+  const keyChanges: KeyChange[] = [];
+  const addKey = (start: number, signature: number) => {
+    if (keyChanges.at(-1)?.signature !== signature) keyChanges.push({ start, signature });
+  };
   let previous: alphaTab.model.Note[] = [];
   let seconds = 0;
   for (const [offset, bar] of selected.entries()) {
@@ -70,6 +76,12 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
     if (end > 300) return 'tooLong';
     const visit = first + offset;
     measures.push({ start: seconds, end, bar: master.index, visit });
+    addKey(seconds, source.getKeySignatureAt(0));
+    for (const { displayStart, keySignature } of source.notationChanges ?? []) {
+      if (keySignature !== null && displayStart > 0 && bar.start + displayStart < bar.end) {
+        addKey(toSeconds(bar.start + displayStart), keySignature);
+      }
+    }
     const beatTicks = Math.max(1, Math.floor(3840 / master.timeSignatureDenominator));
     for (let beat = 0, tick = bar.start; tick < bar.end; beat++, tick += beatTicks) {
       clicks.push({ time: toSeconds(tick), accent: practiceBeatAccent(beat, master.timeSignatureNumerator, master.timeSignatureDenominator) });
@@ -108,13 +120,14 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   const beats = Math.max(1, opening.masterBar.timeSignatureNumerator);
   const key = opening.masterBar.keySignature * 7 + (opening.masterBar.keySignatureType === alphaTab.model.KeySignatureType.Minor ? 9 : 0);
   const tonic = 48 + (key % 12 + 12) % 12;
-  return { notes, measures, staffBeats, clicks, duration: seconds, beatSeconds, beats, denominator, tonic, tempo: { bpm, unit } };
+  return { notes, measures, staffBeats, clicks, keyChanges, duration: seconds, beatSeconds, beats, denominator, tonic, tempo: { bpm, unit } };
 }
 
 export function melodyAtSpeed(melody: Melody, speed: number): Melody {
   if (speed === 1) return melody;
   const scale = <T extends { start: number; end: number }>(item: T) => ({ ...item, start: item.start / speed, end: item.end / speed });
   return { ...melody, notes: melody.notes.map(scale), measures: melody.measures.map(scale), staffBeats: melody.staffBeats.map(scale),
+    keyChanges: melody.keyChanges.map(key => ({ ...key, start: key.start / speed })),
     clicks: melody.clicks.map(click => ({ ...click, time: click.time / speed })),
     duration: melody.duration / speed, beatSeconds: melody.beatSeconds / speed };
 }

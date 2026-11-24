@@ -41,9 +41,15 @@
   --score-paper: #fffefa;
   --score-focus: #2f8d7415;
   --score-cursor: #318469;
+  --feedback-in-tune: #237044;
+  --feedback-detuned: #a64e0c;
+  --feedback-wrong: #b12840;
+  --score-in-tune: var(--feedback-in-tune);
+  --score-detuned: var(--feedback-detuned);
+  --score-wrong: var(--feedback-wrong);
   --pitch-surface: #f7faf8;
-  --pitch-accidental: #e2ebe638;
-  --pitch-grid: #dce7e1;
+  --pitch-grid: #e1e9e5;
+  --pitch-grid-scale: #acbeb5;
   --pitch-grid-strong: #bdcfc5;
   --pitch-target: #548d80;
   --pitch-octave: #719b90;
@@ -54,9 +60,16 @@
   --score-paper: #151d1c;
   --score-focus: #81d9b820;
   --score-cursor: #86d2b6;
+  --feedback-in-tune: #78bb94;
+  --feedback-detuned: #de985d;
+  --feedback-wrong: #f88999;
+  /* AlphaTab's dark-mode SVG filter is also applied to the notehead fill. */
+  --score-in-tune: #286a49;
+  --score-detuned: #af510d;
+  --score-wrong: #d23848;
   --pitch-surface: #141b19;
-  --pitch-accidental: #706f831c;
-  --pitch-grid: #293b34;
+  --pitch-grid: #26362f;
+  --pitch-grid-scale: #4c665b;
   --pitch-grid-strong: #40594e;
   --pitch-target: #72ac98;
   --pitch-octave: #629080;
@@ -120,6 +133,13 @@
 .challenge-result-counts > div { display: flex; align-items: baseline; gap: .45rem; padding: .28rem .56rem;
   border-radius: .55rem; background: var(--pitch-surface); color: var(--muted); font-size: .8rem; }
 .challenge-result-counts > [data-status="inTune"] { background: var(--brand-soft); color: var(--ink); }
+.challenge-result-counts dt::before {
+  content: ''; display: inline-block; inline-size: .45rem; block-size: .45rem; border-radius: 50%;
+  margin-inline-end: .3rem; vertical-align: .08em; background: var(--feedback-dot, currentColor);
+}
+.challenge-result-counts [data-status="inTune"] { --feedback-dot: var(--feedback-in-tune); }
+.challenge-result-counts :is([data-status="sharp"], [data-status="flat"]) { --feedback-dot: var(--feedback-detuned); }
+.challenge-result-counts :is([data-status="wrongNote"], [data-status="missed"]) { --feedback-dot: var(--feedback-wrong); }
 .challenge-result-counts dd { margin: 0; color: var(--ink); font-weight: 675; font-variant-numeric: tabular-nums; }
 .challenge-replay-controls {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0 .65rem;
@@ -175,6 +195,8 @@
 }
 .challenge-pitch-axis span, .challenge-time-axis span { position: absolute; color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .challenge-pitch-axis span { inset-inline-end: .45rem; transform: translateY(-50%); }
+.challenge-pitch-axis span[data-in-key="true"] { color: var(--ink); font-weight: 550; }
+.challenge-pitch-axis span[data-alternate="true"] { font-weight: 550; }
 .challenge-pitch-axis span[data-target="true"] { color: var(--ink); font-weight: 700; }
 .challenge-time-axis span { inset-block-start: .22rem; transform: translateX(-50%); }
 .challenge-time-axis span:first-child { transform: translateX(-25%); }

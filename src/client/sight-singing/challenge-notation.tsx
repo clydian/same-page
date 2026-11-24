@@ -1,4 +1,4 @@
-import { AlphaTabApi, LayoutMode, NotationElement, PlayerMode, StaveProfile, type rendering } from '@coderline/alphatab';
+import { AlphaTabApi, LayoutMode, model, NotationElement, PlayerMode, StaveProfile, type rendering } from '@coderline/alphatab';
 import { ScoreFollowScroll } from '@same-page/player/score-follow';
 import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useMessages } from '../../i18n';
@@ -13,7 +13,7 @@ export type NotationFeedback = {
   status: ReturnType<typeof assessNotes>[number]['status'];
 };
 type Bounds = { x: number; y: number; w: number; h: number };
-type NoteTarget = NotationNoteHit & { key: string; bounds: Bounds; label: string };
+type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; label: string };
 type Part = Pick<NotationNoteHit, 'track' | 'staff' | 'voice'>;
 type Geometry = {
   score: MelodyScore['score']; min: number; max: number; lookup: rendering.BoundsLookup;
@@ -36,7 +36,7 @@ function buildGeometry(api: AlphaTabApi, score: Geometry['score'], min: number, 
       parts.set(`b${beat.id}`, part);
       for (const { note, noteHeadBounds: bounds } of heads ?? []) {
         if (note.isCue || note.isPercussion || note.isDead || !note.isVisible || bounds.w <= 0 || bounds.h <= 0) continue;
-        notes.push({ ...part, key: `${system.index}:${note.id}`, midi: note.realValue, bounds,
+        notes.push({ ...part, key: `${system.index}:${note.id}`, beatClass: `b${beat.id}`, midi: note.realValue, bounds,
           bar: master.index, beatIndex: beat.index, label: staff.track.name });
       }
     }
@@ -44,8 +44,9 @@ function buildGeometry(api: AlphaTabApi, score: Geometry['score'], min: number, 
   return { score, min, max, lookup, notes, parts };
 }
 
-const NotationButtons = memo(function NotationButtons({ notes, voice, onNote }: {
-  notes: readonly NoteTarget[]; voice: MelodyVoice; onNote(hit: NotationNoteHit): void;
+const NotationButtons = memo(function NotationButtons({ notes, voice, statuses, onNote }: {
+  notes: readonly NoteTarget[]; voice: MelodyVoice; statuses: ReadonlyMap<string, NotationFeedback['status']>;
+  onNote(hit: NotationNoteHit): void;
 }) {
   const t = useMessages('practice');
   const [focusKey, setFocusKey] = useState('');
@@ -68,11 +69,14 @@ const NotationButtons = memo(function NotationButtons({ notes, voice, onNote }: 
     onNote(selected);
   };
   return <div ref={buttons} className="challenge-note-layer">
-    {notes.map((note, index) => <button key={note.key} type="button" className="challenge-notation-note"
+    {notes.map((note, index) => {
+      const status = statuses.get(note.key);
+      return <button key={note.key} type="button" className="challenge-notation-note"
       style={{ left: centerX(note.bounds), top: centerY(note.bounds) }}
       data-midi={note.midi} data-bar={note.bar} data-track={note.track} data-staff={note.staff} data-voice={note.voice}
       data-beat-index={note.beatIndex} data-focused-part={samePart(note, voice)} tabIndex={focused === note ? 0 : -1}
       aria-label={t('sight.notationNote', { part: note.label || t('sight.voice'), pitch: pitchName(note.midi), measure: note.bar + 1 })}
+      aria-description={status ? t(`sight.${status}`) : undefined}
       aria-keyshortcuts="ArrowLeft ArrowRight Home End" onFocus={() => setFocusKey(note.key)} onClick={event => activate(event, note)}
       onKeyDown={event => {
         const next = event.key === 'ArrowRight' ? index + 1 : event.key === 'ArrowLeft' ? index - 1
@@ -81,35 +85,40 @@ const NotationButtons = memo(function NotationButtons({ notes, voice, onNote }: 
         event.preventDefault();
         const target = buttons.current?.children.item(next);
         if (target instanceof HTMLButtonElement) target.focus();
-      }} />)}
+      }} />;
+    })}
   </div>;
 });
 
-const feedbackSymbols: Record<NotationFeedback['status'], string> = {
-  inTune: '✓', sharp: '↑', flat: '↓', wrongNote: '×', missed: '–', insufficientData: '?',
-};
-
-const FeedbackMarkers = memo(function FeedbackMarkers({ feedback, notes, voice, visit }: {
-  feedback: readonly NotationFeedback[]; notes: readonly NoteTarget[]; voice: MelodyVoice; visit?: number;
-}) {
+function feedbackAtVisit(feedback: readonly NotationFeedback[] | undefined, visit?: number) {
   const beatFeedback = new Map<string, NotationFeedback>();
-  for (const item of feedback) {
+  for (const item of feedback ?? []) {
     const key = `${item.bar}:${item.beatIndex}`, current = beatFeedback.get(key);
     // The same printed bar can play more than once. Put the feedback for the
     // nearest selected visit on the page rather than painting several passes.
     if (!current || visit !== undefined && Math.abs(visit - item.visit) < Math.abs(visit - current.visit)) beatFeedback.set(key, item);
   }
-  return <div className="challenge-score-feedback-layer" aria-hidden="true">
-    {notes.flatMap(note => {
-      if (!samePart(note, voice)) return [];
-      const key = `${note.bar}:${note.beatIndex}`, item = beatFeedback.get(key);
-      if (!item || item.midi != null && item.midi !== note.midi) return [];
-      beatFeedback.delete(key);
-      return <span key={key} className="challenge-notation-feedback" data-status={item.status} data-visit={item.visit}
-        style={{ left: centerX(note.bounds), top: note.bounds.y + note.bounds.h + 6 }}>{feedbackSymbols[item.status]}</span>;
-    })}
-  </div>;
-});
+  return beatFeedback;
+}
+
+type AssessedHead = { bounds: Bounds; status: NotationFeedback['status'] };
+
+function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect, scale: number) {
+  // SVG music symbols carry the same translated origin as AlphaTab's notehead
+  // lookup. Match inside the beat so chord tones do not color their neighbors.
+  for (const glyph of group.querySelectorAll<SVGGElement>('g.at')) {
+    const text = glyph.querySelector<SVGTextElement>('text');
+    if (text?.textContent?.length !== 1) continue;
+    const symbol = text.textContent.charCodeAt(0);
+    if (!model.MusicFontSymbol[symbol]?.startsWith('Notehead') || symbol === model.MusicFontSymbol.NoteheadParenthesis) continue;
+    const origin = glyph.getScreenCTM();
+    if (!origin) continue;
+    const x = (origin.e - sheet.left) / scale, y = (origin.f - sheet.top) / scale;
+    const head = heads.find(({ bounds }) => Math.abs(centerY(bounds) - y) < 1.5 &&
+      Math.min(Math.abs(bounds.x - x), Math.abs(centerX(bounds) - x)) < 1.5);
+    if (head) text.dataset.challengeFeedback = head.status;
+  }
+}
 
 export function ChallengeNotation({ score, voice, melody, currentBar, currentVisit, beatIndex, onNote, feedback, pitchFrames, liveTrace = false }: {
   score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; currentBar?: number; currentVisit?: number; beatIndex?: number;
@@ -126,6 +135,21 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
   const min = Math.min(...played), max = Math.max(...played);
   const rendered = geometry?.score === score && geometry.min === min && geometry.max === max ? geometry : null;
   const notes = useMemo(() => rendered?.notes.filter(note => played.has(note.bar)) ?? [], [played, rendered]);
+  const { statuses, tinted } = useMemo(() => {
+    const results = feedbackAtVisit(feedback, currentVisit);
+    const statuses = new Map<string, NotationFeedback['status']>(), tinted = new Map<string, AssessedHead[]>();
+    for (const note of notes) {
+      if (!samePart(note, voice)) continue;
+      const result = results.get(`${note.bar}:${note.beatIndex}`);
+      if (!result || result.midi != null && result.midi !== note.midi) continue;
+      statuses.set(note.key, result.status);
+      if (result.status === 'insufficientData') continue;
+      const heads = tinted.get(note.beatClass) ?? [];
+      heads.push({ bounds: note.bounds, status: result.status });
+      tinted.set(note.beatClass, heads);
+    }
+    return { statuses, tinted };
+  }, [feedback, currentVisit, notes, voice]);
 
   useEffect(() => {
     const host = viewport.current, element = notation.current;
@@ -151,10 +175,17 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
     const element = notation.current;
     if (!rendered || !element) return;
     const shade = () => {
+      for (const text of element.querySelectorAll('[data-challenge-feedback]')) text.removeAttribute('data-challenge-feedback');
+      const sheet = element.getBoundingClientRect();
+      const scale = element.offsetWidth ? sheet.width / element.offsetWidth : 1;
       // alphaTab uses .b${beat.id} groups for the rendered beat, including lyrics.
       for (const group of element.querySelectorAll<SVGGElement>('g[class^="b"]')) {
-        const part = rendered.parts.get(group.getAttribute('class') ?? '');
-        if (part) group.dataset.challengePart = samePart(part, voice) ? 'focus' : 'context';
+        const beat = group.getAttribute('class') ?? '';
+        const part = rendered.parts.get(beat);
+        if (!part) continue;
+        group.dataset.challengePart = samePart(part, voice) ? 'focus' : 'context';
+        const heads = tinted.get(beat);
+        if (heads && scale > 0) tintNoteheads(group, heads, sheet, scale);
       }
     };
     // Worker system SVGs mount lazily when they enter the viewport.
@@ -162,7 +193,7 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
     observer.observe(element, { childList: true, subtree: true });
     shade();
     return () => observer.disconnect();
-  }, [rendered, voice]);
+  }, [rendered, tinted, voice]);
 
   useEffect(() => {
     const host = viewport.current, element = notation.current, marker = cursor.current, noteMarker = beatCursor.current;
@@ -202,8 +233,7 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
       <div ref={beatCursor} className="challenge-notation-beat" hidden aria-hidden="true" />
       {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={score} voice={voice}
         beats={melody.staffBeats} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} viewport={viewport} /> : null}
-      {feedback && <FeedbackMarkers feedback={feedback} notes={notes} voice={voice} visit={currentVisit} />}
-      {onNote && <NotationButtons notes={notes} voice={voice} onNote={onNote} />}
+      {onNote && <NotationButtons notes={notes} voice={voice} statuses={statuses} onNote={onNote} />}
     </div>
   </div>;
 }

@@ -11,6 +11,14 @@ function writtenPitch(step: number, signature: number) {
   return 12 * (octave + 1) + naturalPitches[degree] + accidental;
 }
 
+export function pitchClass(midi: number) {
+  return (midi % 12 + 12) % 12;
+}
+
+export function keyPitchClasses(signature: number) {
+  return new Set(naturalPitches.map((_, step) => pitchClass(writtenPitch(step, signature))));
+}
+
 // A fitted pitch sits at its actual notehead, including written accidentals.
 // Between adjacent diatonic positions the distance scales with that interval.
 export function staffPitchY(anchor: StaffPitchAnchor, error: number) {

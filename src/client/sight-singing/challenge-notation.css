@@ -5,8 +5,7 @@
 .challenge-ensemble-score .challenge-notation-sheet { flex-shrink: 0; }
 .challenge-ensemble-score .challenge-notation-sheet > :first-child { pointer-events: none; }
 .challenge-notation-sheet [data-challenge-part="context"] { opacity: .52; }
-.challenge-note-layer, .challenge-score-feedback-layer { position: absolute; inset: 0; pointer-events: none; }
-.challenge-score-feedback-layer { z-index: 1; }
+.challenge-note-layer { position: absolute; inset: 0; pointer-events: none; }
 .challenge-staff-trace { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
 .challenge-staff-trace path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .challenge-staff-trace-halo { stroke: var(--score-paper); stroke-width: 3.8; opacity: .85; }
@@ -20,10 +19,7 @@
 }
 .challenge-notation-note:active { background: var(--score-focus); }
 .challenge-notation-note:focus-visible { outline: 2px solid var(--score-cursor); outline-offset: -2px; z-index: 1; }
-.challenge-notation-feedback {
-  position: absolute; transform: translateX(-50%); box-sizing: border-box; min-inline-size: 1em;
-  padding: .15em .2em; border-radius: .25em; line-height: 1; text-align: center;
-  background: var(--score-paper); color: var(--muted); font-size: .75rem; font-weight: 700;
-}
-.challenge-notation-feedback[data-status="inTune"] { color: var(--brand); }
-.challenge-notation-feedback:is([data-status="sharp"], [data-status="flat"], [data-status="wrongNote"]) { color: var(--pitch-voice); }
+.challenge-notation-sheet [data-challenge-feedback="inTune"] { fill: var(--score-in-tune); }
+.challenge-notation-sheet [data-challenge-feedback]:is([data-challenge-feedback="sharp"], [data-challenge-feedback="flat"]) { fill: var(--score-detuned); }
+.challenge-notation-sheet [data-challenge-feedback]:is([data-challenge-feedback="wrongNote"], [data-challenge-feedback="missed"]) { fill: var(--score-wrong); }
+.challenge-run[data-phase="result"] .challenge-staff-trace { opacity: .62; }

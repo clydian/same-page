@@ -3,12 +3,12 @@ import { useMessages } from '../../i18n';
 import { targetPitches, type Melody } from './melody';
 import { pitchName, type PitchFrame } from './pitch-feedback';
 import { firstFrameAt, octaveGuides, pitchFramesConnect } from './pitch-trace';
+import { keyPitchClasses, pitchClass } from './staff-pitch';
 
 const windowSeconds = 12;
 const inlineInset = 8;
 const blockInset = 12;
 const semitoneHeight = 16;
-const isAccidental = (midi: number) => [1, 3, 6, 8, 10].includes((midi % 12 + 12) % 12);
 
 function timeLabel(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -35,6 +35,12 @@ export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }:
   const start = Math.min(Math.max(0, Math.floor(elapsed / 6) * 6 - 3), Math.max(0, melody.duration - windowSeconds));
   const end = Math.min(melody.duration, start + windowSeconds);
   const span = end - start;
+  const keys = useMemo(() => melody.keyChanges.map((key, index) => ({
+    start: key.start, end: melody.keyChanges[index + 1]?.start ?? melody.duration,
+    scale: keyPitchClasses(key.signature),
+  })), [melody]);
+  const visibleKeys = keys.filter(key => key.start < end && key.end > start);
+  const currentKey = keys.find(key => key.start <= elapsed && elapsed < key.end) ?? keys.at(-1);
   const { notes, targets, alternates } = useMemo(() => {
     const notes = melody.notes.filter(note => note.start < end && note.end > start).map(note => {
       const written = targetPitches(note);
@@ -86,12 +92,16 @@ export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }:
     const y = (midi: number) => noteY(midi) - view.scrollTop;
     for (const midi of midiRows) {
       if (y(midi) < -semitoneHeight || y(midi) > height + semitoneHeight) continue;
-      if (isAccidental(midi)) {
-        draw.fillStyle = tone('accidental');
-        draw.fillRect(0, y(midi + .5), width, y(midi - .5) - y(midi + .5));
+      const row = Math.round(y(midi));
+      draw.fillStyle = tone('grid');
+      draw.fillRect(0, row, width, 1);
+      for (const key of visibleKeys) {
+        if (!key.scale.has(pitchClass(midi))) continue;
+        const left = key.start <= start ? 0 : x(key.start);
+        const right = key.end >= end ? width : x(key.end);
+        draw.fillStyle = tone('grid-scale');
+        draw.fillRect(left, row, right - left, 1);
       }
-      draw.fillStyle = targets.has(midi) ? tone('grid-strong') : tone('grid');
-      draw.fillRect(0, Math.round(y(midi)), width, 1);
     }
     draw.fillStyle = tone('grid');
     for (const time of ticks) draw.fillRect(Math.round(x(time)), 0, 1, height);
@@ -178,8 +188,8 @@ export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }:
       <div className="challenge-pitch-scroll" ref={viewport} role="region" aria-label={t('sight.pitchRange')} tabIndex={0}>
         <div className="challenge-pitch-field" aria-hidden="true" style={{ height: noteY(low) + blockInset }}>
           <div className="challenge-pitch-axis">
-            {midiRows.filter(midi => !isAccidental(midi) || targets.has(midi) || alternates.has(midi)).map(midi =>
-              <span key={midi} data-target={targets.has(midi)} style={{ top: noteY(midi) }}>{pitchName(midi)}</span>)}
+            {midiRows.map(midi => <span key={midi} data-in-key={currentKey?.scale.has(pitchClass(midi)) ?? false}
+              data-target={targets.has(midi)} data-alternate={alternates.has(midi)} style={{ top: noteY(midi) }}>{pitchName(midi)}</span>)}
           </div>
           <div className="challenge-plot"><canvas ref={canvas} /></div>
         </div>
