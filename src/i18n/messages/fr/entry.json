@@ -89,15 +89,15 @@
     "return": "Retour pour saisir le code d'invitation"
   },
   "home": {
-    "previewUnavailable": "L’exemple est temporairement indisponible.",
+    "previewUnavailable": "Impossible d’ouvrir l’exemple. Réessayez.",
     "create": "Créer un espace gratuit",
-    "join": "Rejoindre avec une invitation",
+    "join": "Saisir un code d’invitation",
     "enter": "Ouvrir un espace",
     "myDrives": "Mes espaces",
-    "preview": "Voir une partition annotée",
+    "preview": "Ouvrir une partition d’exemple",
     "more": "Découvrir les fonctionnalités",
     "features": "Caractéristiques du produit",
-    "summary": "Importez un PDF, consultez les notes de répétition de chaque pupitre et gardez vos propres repères.",
+    "summary": "Importez une partition PDF et partagez-la avec votre chœur. Chaque choriste peut lire les notes de son pupitre et garder des notes privées sur la même partition.",
     "title": "Répétez sur la même partition"
   },
   "scan": {

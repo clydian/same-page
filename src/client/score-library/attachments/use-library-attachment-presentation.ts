@@ -10,18 +10,9 @@ export function useLibraryAttachmentPresentation(choirId: string, scores: ScoreS
   return {
     ...metadata,
     forScore(score: ScoreSummary) {
-      if (metadata.statusFor(score.id) !== 'ready') return {
-        count: visibleAttachmentCount(score),
-        hasGeneratedXml: score.hasGeneratedXml ?? false,
-        hasPlayableAttachment: (score.musicXmlCount ?? 0) > Number(score.hasGeneratedXml ?? false),
-      };
+      if (metadata.statusFor(score.id) !== 'ready') return { count: visibleAttachmentCount(score), hasGeneratedXml: score.hasGeneratedXml ?? false };
       const items = metadata.items.filter(item => item.scoreId === score.id && !item.trashExpiresAt);
-      const attachments = items.filter(item => item.source !== 'generated');
-      return {
-        count: attachments.length,
-        hasGeneratedXml: items.some(item => item.source === 'generated'),
-        hasPlayableAttachment: attachments.some(item => item.kind === 'musicxml'),
-      };
+      return { count: items.filter(item => item.source !== 'generated').length, hasGeneratedXml: items.some(item => item.source === 'generated') };
     },
   };
 }

@@ -1,8 +1,7 @@
 {
   "selectedNotesVisibleToRecipients": "선택한 메모는 PDF에 포함되며 파일을 받은 사람 모두가 볼 수 있습니다.",
-  "continueAnnotating": "메모 계속 쓰기",
-  "signInRequiredForScore": "접근 권한이 있는 계정으로 로그인하세요. 드라이브에 아직 참여하지 않았다면 운영자에게 초대를 요청하세요.",
-  "signInToOpenScore": "로그인하여 이 악보 열기",
+  "signInRequiredForScore": "이 악보를 볼 수 있는 계정으로 로그인해 주세요.",
+  "signInToOpenScore": "로그인하여 악보 보기",
   "acceptCloudDeletion": "클라우드에서 메모가 삭제된 상태 적용",
   "addPersonalLayer": "+ 새 개인 레이어 만들기",
   "adoptCloudVersion": "클라우드 버전 사용",

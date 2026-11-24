@@ -690,7 +690,7 @@ h1 {
   max-width: 38rem;
   margin: 1.5rem 0 0;
   color: var(--muted);
-  font-size: 1rem;
+  font-size: 1.0625rem;
   line-height: 1.7;
 }
 
@@ -742,6 +742,11 @@ h1 {
   min-width: 9.5rem;
 }
 
+.hero-actions > * { font-size: 1rem; }
+.hero-preview { display: grid; align-self: flex-start; }
+.hero-preview > .primary-button { font-size: inherit; }
+.hero-preview [data-pending] { cursor: wait; }
+
 .hero-text-link {
   display: inline-flex;
   align-items: center;
@@ -753,8 +758,8 @@ h1 {
   text-underline-offset: 0.22em;
 }
 
-.hero-preview-status { margin: .65rem 0 0; color: var(--muted); }
-.hero-preview-status:empty { margin: 0; }
+.hero-preview-status { margin: 0; color: var(--muted); }
+.hero-preview-status:not(:empty) { margin-block-start: .45rem; }
 .marketing-install { display: flex; justify-content: center; padding-block: 1.5rem; }
 
 .hero-text-link:hover,
@@ -1126,6 +1131,12 @@ h1 {
 .auth-read-only {
   justify-self: center;
   min-height: 44px;
+}
+
+.score-sign-in-actions {
+  display: grid;
+  gap: .5rem;
+  margin-top: 1.5rem;
 }
 
 .social-auth-options {
@@ -1665,6 +1676,8 @@ h1 {
   flex-wrap: wrap;
   gap: 12px;
 }
+
+.upload-queue-status:empty { margin: 0; }
 
 .upload-help summary {
   min-height: 44px;
@@ -2958,7 +2971,7 @@ h1 {
 
 
   .hero-description {
-    max-width: 20rem;
+    max-width: 26rem;
   }
 
   .hero-actions {

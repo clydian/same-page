@@ -89,15 +89,15 @@
     "return": "Ritorna per inserire il codice invito"
   },
   "home": {
-    "previewUnavailable": "L’esempio non è al momento disponibile.",
+    "previewUnavailable": "Impossibile aprire l’esempio. Riprova.",
     "create": "Crea un archivio gratuito",
-    "join": "Accedi con un invito",
+    "join": "Inserisci un codice d’invito",
     "enter": "Apri un drive",
     "myDrives": "I miei drive",
-    "preview": "Vedi uno spartito annotato",
+    "preview": "Apri una partitura di esempio",
     "more": "Scopri le funzionalità",
     "features": "Caratteristiche del prodotto",
-    "summary": "Carica un PDF, consulta le note di prova per ogni parte vocale e conserva i tuoi promemoria.",
+    "summary": "Carica una partitura PDF e condividila con il coro. Ogni corista può leggere le note della propria sezione e scrivere note private sulla stessa partitura.",
     "title": "Provate insieme sullo stesso spartito"
   },
   "scan": {

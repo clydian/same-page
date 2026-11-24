@@ -1,8 +1,7 @@
 {
   "selectedNotesVisibleToRecipients": "Le note selezionate vengono incluse nel PDF e sono visibili a chiunque lo riceva.",
-  "continueAnnotating": "Continua a prendere appunti",
-  "signInRequiredForScore": "Accedi con un account autorizzato. Se non fai ancora parte dell’archivio, chiedi un invito a chi lo organizza.",
-  "signInToOpenScore": "Accedi per aprire questo spartito",
+  "signInRequiredForScore": "Usa un account con accesso a questa partitura.",
+  "signInToOpenScore": "Accedi per vedere la partitura",
   "acceptCloudDeletion": "Accetta l’eliminazione dell’annotazione nel cloud",
   "addPersonalLayer": "+ Crea un nuovo livello personale",
   "adoptCloudVersion": "Utilizza la versione cloud",

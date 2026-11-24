@@ -1,8 +1,7 @@
 {
   "selectedNotesVisibleToRecipients": "Les notes sélectionnées sont intégrées au PDF et visibles par toute personne qui reçoit le fichier.",
-  "continueAnnotating": "Reprendre les annotations",
-  "signInRequiredForScore": "Connectez-vous avec un compte qui a accès à cet espace. Si vous ne l’avez pas encore rejoint, demandez une invitation à la personne qui l’organise.",
-  "signInToOpenScore": "Se connecter pour ouvrir cette partition",
+  "signInRequiredForScore": "Utilisez un compte qui a accès à cette partition.",
+  "signInToOpenScore": "Connectez-vous pour voir la partition",
   "acceptCloudDeletion": "Accepter la suppression de l’annotation dans le cloud",
   "addPersonalLayer": "+ Créer un nouveau calque personnel",
   "adoptCloudVersion": "Utiliser la version cloud",

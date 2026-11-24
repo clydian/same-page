@@ -4,7 +4,7 @@ import { FeedbackMessage } from "../../components/feedback-message";
 import { useFeedbackMessage } from "../../components/use-feedback-message";
 import { useSyncExternalStore } from "react";
 import { connections, connectionUrl } from "../../connection/connection";
-import { FileAudio, FileMusic, FileText, Link as LinkIcon, MoreHorizontal, Paperclip, ExternalLink } from "lucide-react";
+import { FileAudio, FileText, Link as LinkIcon, MoreHorizontal, Paperclip, ExternalLink } from "lucide-react";
 import { Button, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { safeAttachmentUrl, type ScoreAttachment } from "../../../shared/attachments";
 import { scoreDisplayName } from "../../../shared/score-display-name";
@@ -17,19 +17,11 @@ import { LoadingStatus } from "../../components/loading-status";
 
 export type AttachmentSelection = { score: ScoreSummary; action: "add" | "upload" | "link" | "markdown" | "open" | "rename" | "trash"; attachment?: ScoreAttachment };
 
-export function AttachmentCount({ score, count, playable, expanded, disabled, onToggle }: {
-  score: ScoreSummary; count: number; playable?: boolean; expanded: boolean; disabled: boolean; onToggle: () => void;
-}) {
+export function AttachmentCount({ score, count, expanded, disabled, onToggle }: { score: ScoreSummary; count: number; expanded: boolean; disabled: boolean; onToggle: () => void }) {
   const t = useMessages("library");
-  const Icon = playable ? FileMusic : Paperclip;
-  const label = t("attachmentListAttachments", { name: String(scoreDisplayName(score.fileName)), count: String(count) });
-  const practiceLabel = playable ? t("attachmentPracticeLabel") : null;
-  return count ? <Button className="attachment-count" data-playable={playable || undefined} aria-label={practiceLabel ? `${label} · ${practiceLabel}` : label}
+  return count ? <Button className="attachment-count" aria-label={t("attachmentListAttachments", { name: String(scoreDisplayName(score.fileName)), count: String(count) })}
     aria-expanded={expanded} aria-controls={`score-attachments-${score.id}`} isDisabled={disabled} onPress={onToggle}
-    aria-description={expanded ? t("attachmentListCloseAttachmentsSheetMusic") : t("attachmentListExpandAttachmentSheetMusic")}>
-    <Icon size={13} aria-hidden="true" />
-    {practiceLabel ? <span>{practiceLabel}</span> : <span>{count}</span>}
-  </Button> : null;
+    aria-description={expanded ? t("attachmentListCloseAttachmentsSheetMusic") : t("attachmentListExpandAttachmentSheetMusic")}><Paperclip size={13} aria-hidden="true" /><span>{count}</span></Button> : null;
 }
 
 export function AttachmentRows({ score, choirId, items, canModify, canTrash, onSelect, available = true, revealRequest, onRevealHandled }: {
@@ -46,7 +38,7 @@ export function AttachmentRows({ score, choirId, items, canModify, canTrash, onS
   if (!rows.length) return null;
   return <><FeedbackMessage feedback={feedback} closeLabel={t("attachmentCloseFeedback")} /><ul ref={list} className="attachment-list" aria-label={t("attachmentListAttachment", { fileName: score.fileName })}>
     {rows.map(attachment => {
-      const Icon = attachment.kind === "audio" ? FileAudio : attachment.kind === "musicxml" ? FileMusic : attachment.kind === "link" ? LinkIcon : FileText;
+      const Icon = attachment.kind === "audio" ? FileAudio : attachment.kind === "link" ? LinkIcon : FileText;
       const content = <><Icon size={16} aria-hidden="true" /><span>{attachment.name}{attachment.source === "generated" && <small> {t("attachmentListAutomaticallyGeneratedBeta")}</small>}</span></>;
       return <li className="attachment-row" key={attachment.id}>
         {attachment.kind === "link" ? <FileOpenLink className="attachment-open" onClick={event => { if (!available) { event.preventDefault(); unavailable(); } }} href={safeAttachmentUrl(attachment.url ?? "")} target="_blank" rel="noopener noreferrer">{content}<ExternalLink size={13} aria-hidden="true" /></FileOpenLink>

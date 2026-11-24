@@ -43,13 +43,7 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
   return <ModalOverlay className="modal-overlay" isOpen={isOpen} onOpenChange={changeOpen} isDismissable>
     <Modal className="app-modal"><Dialog className="app-dialog">
       <LibraryDialogHeading title={t("uploadUploadPdf")} close={() => changeOpen(false)} />
-      {storage && <p className="dialog-copy">{t("uploadStorageCapacity", { available: formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes)), limit: formatBytes(storage.limitBytes) })}</p>}
       <p className="dialog-copy">{t("uploadMusicXmlAttachmentHint")}</p>
-      <p className="dialog-copy">{t("uploadSelectMultiplePdfsDrag")}</p>
-      <p className="dialog-copy">{t("uploadClosingWindowStopWaiting")}</p>
-      <details className="upload-help"><summary>{t("uploadWhenLeavingPageUploading")}</summary>
-        <p className="dialog-copy">{t("uploadLeavingCloudDiskSwitching")}</p>
-      </details>
       {!writable && <p role="status">{t("uploadConnectionUploadPermissionHas")}</p>}
       <div className="upload-dropzone"
         onDragOver={(event) => event.preventDefault()}
@@ -62,7 +56,13 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
           }} /></label>
         <small>{t("uploadMaximumMbPerCopy")}</small>
       </div>
-      <p role="status" aria-live="polite">{uploading ? t("uploadUploadingCopy") : t("uploadThereCurrentlyNoFiles")} {t("uploadQueueWaitingCount", { count: waiting })}</p>
+      <details className="upload-help"><summary>{t("uploadDetails")}</summary>
+        {storage && <p className="dialog-copy">{t("uploadStorageCapacity", { available: formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes)), limit: formatBytes(storage.limitBytes) })}</p>}
+        <p className="dialog-copy">{t("uploadSelectMultiplePdfsDrag")}</p>
+        <p className="dialog-copy">{t("uploadClosingWindowStopWaiting")}</p>
+        <p className="dialog-copy">{t("uploadLeavingCloudDiskSwitching")}</p>
+      </details>
+      <p className="upload-queue-status" role="status">{uploading && t("uploadUploadingCopy")}{waiting > 0 && t("uploadQueueWaitingCount", { count: waiting })}</p>
       {queue.paused ? <p className="library-message" role="alert">
         {queue.paused === "uncertain" ? t("uploadQueueHasBeenPaused")
           : queue.paused === "quota" ? t("uploadQueueHasBeenSuspended")

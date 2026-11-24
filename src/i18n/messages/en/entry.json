@@ -89,15 +89,15 @@
     "return": "Back to invitation code"
   },
   "home": {
-    "previewUnavailable": "The example is temporarily unavailable.",
+    "previewUnavailable": "The sample couldn’t open. Please try again.",
     "create": "Create a free drive",
-    "join": "Join with an invitation",
+    "join": "Enter an invite code",
     "enter": "Open a Drive",
     "myDrives": "My Drives",
-    "preview": "See a score with notes",
+    "preview": "Open a sample score",
     "more": "Explore features",
     "features": "Features",
-    "summary": "Upload a PDF, see rehearsal notes for each voice part, and keep your own reminders.",
+    "summary": "Upload a PDF score and share it with your choir. Singers can read section notes and keep private notes on the same score.",
     "title": "Rehearse together on the same score"
   },
   "scan": {

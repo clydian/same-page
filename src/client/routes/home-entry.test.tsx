@@ -266,7 +266,7 @@ it("keeps a first visitor on the homepage even when session checking fails", asy
 it("preserves a first visitor's invitation input while identity checking finishes", async () => {
   session(null, true);
   const view = render(tree());
-  fireEvent.click(await screen.findByRole("button", { name: "用邀请加入" }));
+  fireEvent.click(await screen.findByRole("button", { name: "输入邀请码" }));
   fireEvent.change(screen.getByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });
   expect(screen.getByRole("button", { name: "进入" })).toBeDisabled();
   session(null);

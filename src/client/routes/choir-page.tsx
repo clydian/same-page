@@ -279,6 +279,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
       }} disabled={!online}>
       <main className="page-shell file-library">
         {access.retained && <p role="status">{t("choirCloudDiskCannotAccessed")}</p>}
+        {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
+          !access.local && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
+          <DrivePreparation choirId={choirId} accountReady={Boolean(identity.authenticatedUserId) && access.isMember} />}
         <section className="library-workspace" aria-label={t("score")} aria-busy={snapshot.reading.request === "pending"}>
           {search.trim() && <p className="visually-hidden" role="status">{t(localFilesOnly ? "localScoreSearchResultCount" : "scoreSearchResultCount", { count: visibleScores.length })}</p>}
 
@@ -303,7 +306,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{opening ? t(percent !== null ? "scoreDownloading" : "scoreOpening") : formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label={t("choirThereAutomaticallyGeneratedPractice")} title={t("choirExerciseVersionHasBeen")}><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
                   </>}
                   </PreparedScoreLink>
-                  <AttachmentCount score={score} count={presentation.count} playable={presentation.hasPlayableAttachment} expanded={expandedScoreIds.has(score.id)} disabled={false}
+                  <AttachmentCount score={score} count={presentation.count} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => {
                       const expanding = !expandedScoreIds.has(score.id);
                       setAttachmentReveal(expanding ? { scoreId: score.id, scope: revealScope, scrollY: window.scrollY } : undefined);
@@ -349,12 +352,9 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
               })}
             </section>
           ) : (
-            <div className="library-empty-state">{access.retained && <BackButton className="secondary-link" to="/drives">{t("allDrives")}</BackButton>}{search.trim() ? <><p>{t("scoreSearchNoMatch", { search })}</p><Button className="secondary-button" onPress={() => updateSearch("")}>{t("choirClearSearch")}</Button></> : <><p>{access.retained ? t("choirThereNoReservedCopies") : access.local ? t("choirDirectoryMusicScoreCloud") : t("choirCloudDiskDoesNot")}</p><p>{can("uploadFiles") ? t("choirUploadFirstPdfStart") : access.isMember ? t("choirAfterMembersUploadPermission") : t("choirThereCurrentlyNoSheet")}</p>{can("uploadFiles") && <><p>{t("uploadMusicXmlAttachmentHint")}</p><Button className="secondary-button" onPress={openUpload}>{t("choirUploadFirstPdf")}</Button></>}</>}</div>
+            <div className="library-empty-state">{access.retained && <BackButton className="secondary-link" to="/drives">{t("allDrives")}</BackButton>}{search.trim() ? <><p>{t("scoreSearchNoMatch", { search })}</p><Button className="secondary-button" onPress={() => updateSearch("")}>{t("choirClearSearch")}</Button></> : <><p>{access.retained ? t("choirThereNoReservedCopies") : access.local ? t("choirDirectoryMusicScoreCloud") : t("choirCloudDiskDoesNot")}</p><p>{can("uploadFiles") ? t("choirUploadFirstPdfStart") : access.isMember ? t("choirAfterMembersUploadPermission") : t("choirThereCurrentlyNoSheet")}</p>{can("uploadFiles") && <Button className="secondary-button" onPress={openUpload}>{t("choirUploadFirstPdf")}</Button>}</>}</div>
           )}
         </section>
-        {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
-          !access.local && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") &&
-          <DrivePreparation choirId={choirId} accountReady={Boolean(identity.authenticatedUserId) && access.isMember} />}
       </main>
       </PullToRefresh>
 

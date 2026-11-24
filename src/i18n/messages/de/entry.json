@@ -89,15 +89,15 @@
     "return": "Kehren Sie zurück, um den Einladungscode einzugeben"
   },
   "home": {
-    "previewUnavailable": "Das Beispiel ist vorübergehend nicht verfügbar.",
+    "previewUnavailable": "Die Beispielpartitur ließ sich nicht öffnen. Bitte versuche es erneut.",
     "create": "Kostenloses Laufwerk erstellen",
-    "join": "Mit Einladung beitreten",
+    "join": "Einladungscode eingeben",
     "enter": "Ablage öffnen",
     "myDrives": "Meine Ablagen",
-    "preview": "Partitur mit Notizen ansehen",
+    "preview": "Beispielpartitur öffnen",
     "more": "Funktionen entdecken",
     "features": "Produktmerkmale",
-    "summary": "Lade ein PDF hoch, sieh die Probenhinweise für die einzelnen Stimmen und halte eigene Notizen fest.",
+    "summary": "Lade eine PDF-Partitur hoch und teile sie mit deinem Chor. Alle können Notizen ihrer Stimmgruppe lesen und private Notizen auf derselben Partitur machen.",
     "title": "Gemeinsam in derselben Partitur proben"
   },
   "scan": {

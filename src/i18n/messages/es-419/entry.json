@@ -89,15 +89,15 @@
     "return": "Regresar para ingresar el código de invitación"
   },
   "home": {
-    "previewUnavailable": "El ejemplo no está disponible por el momento.",
+    "previewUnavailable": "No se pudo abrir el ejemplo. Inténtalo de nuevo.",
     "create": "Crear una unidad gratuita",
-    "join": "Entrar con una invitación",
+    "join": "Ingresar código de invitación",
     "enter": "Abrir una unidad",
     "myDrives": "Mis unidades",
-    "preview": "Ver partitura con notas",
+    "preview": "Abrir partitura de ejemplo",
     "more": "Explorar funciones",
     "features": "Características del producto",
-    "summary": "Sube un PDF, consulta las notas de ensayo de cada voz y guarda tus propios recordatorios.",
+    "summary": "Sube una partitura en PDF y compártela con tu coro. Cada integrante puede consultar las notas de su cuerda y escribir notas privadas en la misma partitura.",
     "title": "Ensayen con la misma partitura"
   },
   "scan": {

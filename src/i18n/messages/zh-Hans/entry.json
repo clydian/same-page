@@ -89,15 +89,15 @@
     "return": "返回输入邀请码"
   },
   "home": {
-    "previewUnavailable": "示例暂时无法打开。",
+    "previewUnavailable": "示例没能打开，请再试一次。",
     "create": "创建免费云盘",
-    "join": "用邀请加入",
+    "join": "输入邀请码",
     "enter": "进入云盘",
     "myDrives": "我的云盘",
-    "preview": "看带笔记的示例",
+    "preview": "打开示例乐谱",
     "more": "了解更多功能",
     "features": "产品特点",
-    "summary": "上传 PDF，查看各声部的排练要求，也能记下只给自己的提醒。",
+    "summary": "上传 PDF 乐谱，团员可以查看声部笔记，也能写只给自己看的提醒。",
     "title": "合唱排练，在同一份谱上记笔记"
   },
   "scan": {

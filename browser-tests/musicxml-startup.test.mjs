@@ -108,7 +108,7 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
         const expandDirectory = async (target, count) => {
           // Persisted rows can appear before the fresh directory read completes.
           // Finish that exact transport before a file click unmounts the library.
-          const attachments = target.getByRole('button', { name: `本地链路测试：${count} 个附件 · 练习谱`, exact: true });
+          const attachments = target.getByRole('button', { name: `本地链路测试：${count} 个附件`, exact: true });
           const [response] = await Promise.all([
             target.waitForResponse(response => {
               const url = new URL(response.url());

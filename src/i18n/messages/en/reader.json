@@ -1,8 +1,7 @@
 {
   "selectedNotesVisibleToRecipients": "Selected notes are written into the PDF and visible to anyone who receives it.",
-  "continueAnnotating": "Continue taking notes",
-  "signInRequiredForScore": "Log in with an account that has access. If you haven’t joined the drive, ask the organizer for an invitation.",
-  "signInToOpenScore": "Log in to open this score",
+  "signInRequiredForScore": "Use an account that has access to this score.",
+  "signInToOpenScore": "Sign in to view this score",
   "acceptCloudDeletion": "Accept the note’s deletion in the cloud",
   "addPersonalLayer": "+ New personal layer",
   "adoptCloudVersion": "Use the cloud version",

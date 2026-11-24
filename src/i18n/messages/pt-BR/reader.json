@@ -1,8 +1,7 @@
 {
   "selectedNotesVisibleToRecipients": "As notas selecionadas serão incluídas no PDF e poderão ser vistas por quem receber o arquivo.",
-  "continueAnnotating": "Continuar anotando",
-  "signInRequiredForScore": "Entre com uma conta que tenha acesso. Se ainda não faz parte do drive, peça um convite à pessoa responsável.",
-  "signInToOpenScore": "Entre para abrir esta partitura",
+  "signInRequiredForScore": "Use uma conta que tenha acesso a esta partitura.",
+  "signInToOpenScore": "Entre para ver a partitura",
   "acceptCloudDeletion": "Aceitar a exclusão da anotação na nuvem",
   "addPersonalLayer": "+ Crie uma nova camada pessoal",
   "adoptCloudVersion": "Usar versão em nuvem",

@@ -89,15 +89,15 @@
     "return": "Volte para inserir o código de convite"
   },
   "home": {
-    "previewUnavailable": "O exemplo está temporariamente indisponível.",
+    "previewUnavailable": "Não foi possível abrir o exemplo. Tente de novo.",
     "create": "Criar um drive gratuito",
-    "join": "Entrar com um convite",
+    "join": "Inserir código de convite",
     "enter": "Abrir um drive",
     "myDrives": "Meus drives",
-    "preview": "Ver partitura com notas",
+    "preview": "Abrir partitura de exemplo",
     "more": "Explorar recursos",
     "features": "Recursos do produto",
-    "summary": "Envie um PDF, consulte as notas de ensaio de cada voz e guarde seus próprios lembretes.",
+    "summary": "Envie uma partitura em PDF e compartilhe com seu coro. Cada coralista pode ler as notas do seu naipe e fazer anotações privadas na mesma partitura.",
     "title": "Ensaie com todos na mesma partitura"
   },
   "scan": {

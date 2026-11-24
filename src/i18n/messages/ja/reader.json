@@ -1,8 +1,7 @@
 {
   "selectedNotesVisibleToRecipients": "選んだメモは PDF に書き込まれ、ファイルを受け取った人全員に表示されます。",
-  "continueAnnotating": "メモの続きを書く",
-  "signInRequiredForScore": "アクセス権のあるアカウントでログインしてください。ドライブにまだ参加していない場合は、主催者に招待を依頼してください。",
-  "signInToOpenScore": "ログインしてこの楽譜を開く",
+  "signInRequiredForScore": "この楽譜を閲覧できるアカウントでログインしてください。",
+  "signInToOpenScore": "ログインして楽譜を表示",
   "acceptCloudDeletion": "クラウド側のメモの削除を反映",
   "addPersonalLayer": "＋ 個人レイヤーを追加",
   "adoptCloudVersion": "クラウド側の版を採用",

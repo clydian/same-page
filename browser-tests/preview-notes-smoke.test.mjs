@@ -177,7 +177,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
               await openLibrary();
               // Expanding the row starts the directory read. Cached rows can render
               // before it finishes, so wait for it before opening an attachment.
-              const attachments = page.getByRole("button", { name: "本地链路测试：2 个附件 · 练习谱", exact: true });
+              const attachments = page.getByRole("button", { name: "本地链路测试：2 个附件", exact: true });
               const [response] = await Promise.all([
                 page.waitForResponse(response => directoryRequest(response.request())),
                 attachments.click(),

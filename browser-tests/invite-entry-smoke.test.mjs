@@ -72,6 +72,7 @@ test("valid invitations automatically admit guests, existing members and named n
       await expect(page.locator(".file-row__open")).toHaveCount(1);
       assert.equal(admissions, 1);
       if (mode === "fresh") {
+        await expect(page.locator(".drive-suggestion + .library-workspace")).toBeVisible();
         await expect(page.getByRole("complementary", { name: "排练准备" }).getByRole("link")).toHaveCount(0);
         if (process.env.LAYOUT_CAPTURE_DIR) {
           await mkdir(process.env.LAYOUT_CAPTURE_DIR, { recursive: true });
@@ -116,7 +117,9 @@ test("valid invitations automatically admit guests, existing members and named n
         await expect(page).toHaveURL(fixture.origin + target);
         await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
         await expect(currentPage).toBeVisible();
-        await page.getByRole("button", { name: "继续记笔记", exact: true }).click();
+        const edit = page.getByRole("button", { name: "编辑", exact: true });
+        await expect(edit.locator("svg.lucide-pencil")).toBeVisible();
+        await edit.click();
         await expect(page.locator(".annotation-controls")).toBeVisible();
 
       }

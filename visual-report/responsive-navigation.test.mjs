@@ -265,7 +265,7 @@ test("phone home invitation entry remains reachable on the narrowest screen", as
   const page = await openPage(browser, "guest");
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto(`${origin}/#home`);
-  await page.getByRole("link", { name: "看带笔记的示例", exact: true }).waitFor();
-  await page.getByRole("button", { name: "用邀请加入", exact: true }).click();
+  await page.getByRole("link", { name: "打开示例乐谱", exact: true }).waitFor();
+  await page.getByRole("button", { name: "输入邀请码", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
 });

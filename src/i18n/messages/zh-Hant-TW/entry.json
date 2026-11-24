@@ -89,15 +89,15 @@
     "return": "返回輸入邀請碼"
   },
   "home": {
-    "previewUnavailable": "暫時無法開啟範例。",
+    "previewUnavailable": "示範樂譜未能開啟，請再試一次。",
     "create": "建立免費雲端硬碟",
-    "join": "用邀請加入",
+    "join": "輸入邀請碼",
     "enter": "開啟雲端硬碟",
     "myDrives": "我的雲端硬碟",
-    "preview": "看有筆記的範例",
+    "preview": "開啟示範樂譜",
     "more": "探索更多功能",
     "features": "產品特點",
-    "summary": "上傳 PDF，查看各聲部的排練要求，也能記下只給自己的提醒。",
+    "summary": "上傳 PDF 樂譜，團員可以查看聲部筆記，也能寫只給自己看的提醒。",
     "title": "合唱排練，在同一份譜上記筆記"
   },
   "scan": {

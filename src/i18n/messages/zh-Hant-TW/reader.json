@@ -1,8 +1,7 @@
 {
   "selectedNotesVisibleToRecipients": "勾選的筆記會寫入 PDF，收到檔案的人都能看到。",
-  "continueAnnotating": "繼續記筆記",
-  "signInRequiredForScore": "請登入有存取權限的帳號。如果還沒加入雲端硬碟，請向主辦人索取邀請。",
-  "signInToOpenScore": "登入後開啟這份譜",
+  "signInRequiredForScore": "請用有存取權限的帳號登入。",
+  "signInToOpenScore": "登入後查看樂譜",
   "acceptCloudDeletion": "接受雲端刪除",
   "addPersonalLayer": "＋ 新建個人層",
   "adoptCloudVersion": "採用雲端版本",

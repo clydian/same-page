@@ -1,8 +1,7 @@
 {
   "selectedNotesVisibleToRecipients": "勾选的笔记会写进 PDF，收到文件的人都能看到。",
-  "continueAnnotating": "继续记笔记",
-  "signInRequiredForScore": "请登录有访问权限的账号。如果还没加入云盘，请向组织者索取邀请。",
-  "signInToOpenScore": "登录后打开这份谱",
+  "signInRequiredForScore": "请用有访问权限的账号登录。",
+  "signInToOpenScore": "登录后查看乐谱",
   "acceptCloudDeletion": "接受云端删除",
   "addPersonalLayer": "＋ 新建个人层",
   "adoptCloudVersion": "采用云端版本",
