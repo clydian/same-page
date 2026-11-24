@@ -1,7 +1,10 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
-import { legacySingingScoringRule, sightSingingResultSubmissionSchema, sightSingingScoringRuleSchema, type PublishedSightSingingResult } from '../../src/shared/sight-singing-results';
+import {
+  currentSingingScoringRule, legacySingingScoringRule, sightSingingResultSubmissionSchema, sightSingingScoringRuleSchema,
+  sightSingingVersionFilterSchema, sightSingingVoiceNameSchema, type PublishedSightSingingResult,
+} from '../../src/shared/sight-singing-results';
 import { AuthorizationError } from '../auth/authorization';
 import { resolveContextPrincipal } from '../auth/context-principal';
 import type { AppEnvironment } from '../env';
@@ -9,6 +12,7 @@ import { readPermissionMember } from '../permissions/access';
 import { limitDriveMutation } from '../security/drive-rate-limit';
 
 const path = '/choirs/:choirId/sight-singing/questions/:questionId/results';
+const leaderboardPath = '/choirs/:choirId/sight-singing/leaderboard';
 const activeActor = `EXISTS (SELECT 1 FROM membership_capabilities actor JOIN choirs drive ON drive.id = actor.choir_id
   WHERE actor.id = ? AND drive.purged_at IS NULL AND drive.is_preview_entry = 0)`;
 const exactVersion = `EXISTS (SELECT 1 FROM sight_singing_question_versions edition
@@ -29,6 +33,37 @@ async function hasQuestionVersion(db: D1Database, choirId: string, questionId: s
 export const sightSingingResultRoutes = new Hono<AppEnvironment>();
 sightSingingResultRoutes.use(path, async (context, next) => { context.header('Cache-Control', 'no-store'); await next(); });
 
+sightSingingResultRoutes.get(leaderboardPath, async context => {
+  const { choirId } = context.req.param();
+  const db = context.env.DB;
+  const member = await readPermissionMember(db, await resolveContextPrincipal(context), choirId);
+  if (!await db.prepare(`SELECT 1 WHERE ${activeActor}`).bind(member.id).first()) throw new AuthorizationError();
+  context.header('Cache-Control', 'no-store');
+  const versions = sightSingingVersionFilterSchema.default('all').safeParse(context.req.query('versions'));
+  const voice = sightSingingVoiceNameSchema.optional().safeParse(context.req.query('voice'));
+  if (!versions.success || !voice.success) return context.json({ error: 'invalid_result_filter' }, 400);
+  const filter = `FROM sight_singing_best_results result
+    JOIN sight_singing_questions question ON question.choir_id = result.choir_id AND question.id = result.question_id
+    JOIN membership_capabilities singer ON singer.choir_id = result.choir_id AND singer.id = result.membership_id
+    WHERE result.choir_id = ? AND question.publication = 'official' AND result.scoring_rule = ?
+      AND (? = 'all' OR result.version = question.version) AND ${activeActor}`;
+  const values = [choirId, currentSingingScoringRule, versions.data, member.id];
+  const top = db.prepare(`WITH per_singer AS (
+      SELECT result.id, result.question_id AS questionId, result.version, result.score, result.voice_name AS voiceName,
+        singer.display_name AS displayName, result.achieved_order,
+        ROW_NUMBER() OVER (PARTITION BY result.question_id, result.membership_id ORDER BY result.score DESC, result.achieved_order) AS best
+      ${filter} AND (? IS NULL OR result.voice_name = ?)
+    ), top_three AS (
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY questionId ORDER BY score DESC, achieved_order) AS place
+      FROM per_singer WHERE best = 1
+    )
+    SELECT id, questionId, version, score, voiceName, displayName FROM top_three WHERE place <= 3 ORDER BY questionId, place`)
+    .bind(...values, voice.data ?? null, voice.data ?? null);
+  const parts = db.prepare(`SELECT DISTINCT result.voice_name AS voiceName ${filter} ORDER BY voiceName`).bind(...values);
+  const [results, voices] = await db.batch([top, parts]);
+  return context.json({ results: results.results, voices: (voices.results as { voiceName: string }[]).map(row => row.voiceName) });
+});
+
 sightSingingResultRoutes.get(path, async context => {
   const { choirId, questionId } = context.req.param();
   const db = context.env.DB;
@@ -38,13 +73,16 @@ sightSingingResultRoutes.get(path, async context => {
   const version = (bestView ? versionNumber.optional() : versionNumber).safeParse(context.req.query('version'));
   const rule = sightSingingScoringRuleSchema.optional().safeParse(
     bestView && context.req.query('scoringRule') !== undefined ? Number(context.req.query('scoringRule')) : undefined);
-  if (!id.success || !version.success || !rule.success) return context.json({ error: 'invalid_question_version' }, 400);
+  const voice = sightSingingVoiceNameSchema.optional().safeParse(bestView ? context.req.query('voice') : undefined);
+  if (!id.success || !version.success || !rule.success || !voice.success) return context.json({ error: 'invalid_question_version' }, 400);
   const requested = version.data ?? null;
+  const scoringRule = rule.data ?? legacySingingScoringRule;
   if (!await hasQuestionVersion(db, choirId, id.data, requested, member.id)) return context.json({ error: 'question_version_not_found' }, 404);
   const scores = db.prepare(`WITH ranked AS (
     SELECT result.*, ROW_NUMBER() OVER (PARTITION BY membership_id ORDER BY score DESC, achieved_order) AS position
     FROM sight_singing_best_results result
     WHERE choir_id = ? AND question_id = ? AND scoring_rule = ? AND (? IS NULL OR version = ?)
+      AND (? IS NULL OR voice_name = ?)
   )
   SELECT result.id, result.question_id AS questionId, result.version, result.score, result.speed,
     result.voice_id AS voiceId, result.voice_name AS voiceName, singer.display_name AS displayName,
@@ -52,18 +90,23 @@ sightSingingResultRoutes.get(path, async context => {
   FROM ranked result JOIN membership_capabilities singer
     ON singer.id = result.membership_id AND singer.choir_id = result.choir_id
   WHERE result.position = 1 AND ${activeActor}
-  ORDER BY result.score DESC, result.achieved_order`).bind(choirId, id.data, rule.data ?? legacySingingScoringRule, requested, requested, member.id, member.id);
+  ORDER BY result.score DESC, result.achieved_order`)
+    .bind(choirId, id.data, scoringRule, requested, requested, voice.data ?? null, voice.data ?? null, member.id, member.id);
   const versions = db.prepare(`SELECT version FROM sight_singing_question_versions
     WHERE choir_id = ? AND question_id = ? AND ${activeActor} ORDER BY version DESC`).bind(choirId, id.data, member.id);
-  const legacyScores = db.prepare(`SELECT 1 FROM sight_singing_best_results result JOIN membership_capabilities singer
+  const facets = db.prepare(`SELECT DISTINCT result.scoring_rule AS rule, CASE WHEN result.scoring_rule = ? THEN result.voice_name END AS voice
+    FROM sight_singing_best_results result JOIN membership_capabilities singer
     ON singer.id = result.membership_id AND singer.choir_id = result.choir_id
-    WHERE result.choir_id = ? AND result.question_id = ? AND result.scoring_rule = ? AND ${activeActor} LIMIT 1`)
-    .bind(choirId, id.data, legacySingingScoringRule, member.id);
-  const [listing, editions, legacy] = await db.batch(rule.data === undefined ? [scores, versions] : [scores, versions, legacyScores]);
+    WHERE result.choir_id = ? AND result.question_id = ? AND ${activeActor} ORDER BY rule, voice`)
+    .bind(scoringRule, choirId, id.data, member.id);
+  const [listing, editions, metadata] = await db.batch(rule.data === undefined ? [scores, versions] : [scores, versions, facets]);
+  const entries = (metadata?.results ?? []) as { rule: number; voice: string | null }[];
   const results = (listing.results as ResultRow[]).map(({ speed, own, ...row }) =>
     ({ ...row, own: own === 1, ...(bestView && speed !== null && { speed }) }));
   return context.json({ results, ...(bestView && { versions: (editions.results as { version: number }[]).map(row => row.version) }),
-    ...(legacy && { hasLegacyScores: legacy.results.length > 0 }) });
+    ...(metadata && { hasLegacyScores: entries.some(row => row.rule === legacySingingScoringRule),
+      previousRules: [...new Set(entries.map(row => row.rule).filter(rule => rule !== currentSingingScoringRule))],
+      voices: entries.flatMap(row => row.voice === null ? [] : [row.voice]) }) });
 });
 
 sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context => {
@@ -94,12 +137,13 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
     ON CONFLICT(choir_id, question_id, id) DO NOTHING`).bind(choirId, id.data, version, member.id, resultId, fingerprint,
     claim, member.id, choirId, id.data, version, version, choirId, id.data, resultId);
   const promote = db.prepare(`INSERT INTO sight_singing_best_results
-      (choir_id, question_id, version, membership_id, scoring_rule, id, score, voice_id, voice_name, speed, achieved_order)
-    SELECT choir_id, question_id, version, membership_id, ?, id, ?, ?, ?, ?, sequence
+      (choir_id, question_id, version, membership_id, scoring_rule, rank_voice_id, id, score, voice_id, voice_name, speed, achieved_order)
+    SELECT choir_id, question_id, version, membership_id, ?, ?, id, ?, ?, ?, ?, sequence
     FROM sight_singing_result_receipts WHERE choir_id = ? AND question_id = ? AND id = ? AND claim = ?
-    ON CONFLICT(choir_id, question_id, scoring_rule, version, membership_id) DO UPDATE SET id = excluded.id, score = excluded.score,
+    ON CONFLICT(choir_id, question_id, scoring_rule, version, membership_id, rank_voice_id) DO UPDATE SET id = excluded.id, score = excluded.score,
       voice_id = excluded.voice_id, voice_name = excluded.voice_name, speed = excluded.speed, achieved_order = excluded.achieved_order
-    WHERE excluded.score > sight_singing_best_results.score`).bind(scoringRule, score, voiceId, voiceName, speed ?? null, choirId, id.data, resultId, claim);
+    WHERE excluded.score > sight_singing_best_results.score`).bind(scoringRule, scoringRule === currentSingingScoringRule ? voiceId : '',
+    score, voiceId, voiceName, speed ?? null, choirId, id.data, resultId, claim);
   const verify = db.prepare(`SELECT singer.display_name AS displayName, EXISTS (
       SELECT 1 FROM sight_singing_best_results WHERE choir_id = ? AND question_id = ? AND scoring_rule = ?
         AND version = ? AND membership_id = ? AND id = ?

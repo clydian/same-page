@@ -133,15 +133,14 @@ function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect
   }
 }
 
-export function ChallengeNotation({ score, voice, melody, currentBar, currentVisit, beatIndex, onNote, onMeasure, feedback, pitchFrames, liveTrace = false, traceThrough, bpm }: {
-  score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; currentBar?: number; currentVisit?: number; beatIndex?: number;
+export function ChallengeNotation({ score, voice, melody, currentBar, currentVisit, onNote, onMeasure, feedback, pitchFrames, liveTrace = false, traceThrough, bpm }: {
+  score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; currentBar?: number; currentVisit?: number;
   onNote?: (note: NotationNoteHit) => void; onMeasure?: (bar: number) => void; feedback?: readonly NotationFeedback[];
   pitchFrames?: PitchFrame[]; liveTrace?: boolean;
   traceThrough?: number; bpm: number;
 }) {
   const t = useMessages('practice');
   const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
-  const cursor = useRef<HTMLDivElement>(null), beatCursor = useRef<HTMLDivElement>(null);
   const follow = useRef<ScoreFollowScroll | null>(null);
   const hadPosition = useRef(false);
   const [geometry, setGeometry] = useState<Geometry | null>(null);
@@ -221,8 +220,8 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
   }, [rendered, tinted, voice]);
 
   useEffect(() => {
-    const host = viewport.current, element = notation.current, marker = cursor.current, noteMarker = beatCursor.current;
-    if (!host || !element || !marker || !noteMarker) return;
+    const host = viewport.current, element = notation.current;
+    if (!host || !element) return;
     if (currentBar === undefined && hadPosition.current) {
       follow.current?.move(0);
       host.scrollLeft = 0;
@@ -233,23 +232,16 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
       const staff = item.beats[0]?.beat.voice.bar.staff;
       return staff?.track.index === voice.track && staff.index === voice.staff;
     })?.realBounds;
-    const beat = currentBar === undefined || beatIndex === undefined ? undefined
-      : score.tracks[voice.track]?.staves[voice.staff]?.bars[currentBar]?.voices[voice.voice]?.beats[beatIndex];
-    const hit = beat && rendered?.lookup.findBeat(beat);
-    marker.hidden = !bounds;
-    noteMarker.hidden = !bounds || !hit;
     if (!bounds) return;
-    Object.assign(marker.style, { left: `${bounds.x}px`, top: `${bounds.y}px`, width: `${bounds.w}px`, height: `${bounds.h}px` });
-    if (hit) Object.assign(noteMarker.style, { left: `${hit.onNotesX - 1}px`, top: `${bounds.y}px`, height: `${bounds.h}px` });
     const sheet = element.getBoundingClientRect(), view = host.getBoundingClientRect();
     const scale = element.offsetWidth ? sheet.width / element.offsetWidth : 1;
     const system = master?.staffSystemBounds?.realBounds;
     const row = system && system.h * scale + 20 <= host.clientHeight ? system : bounds;
     const top = sheet.top + row.y * scale, bottom = top + row.h * scale;
     if (top < view.top || bottom > view.bottom) follow.current?.move(host.scrollTop + top - view.top - 10);
-    const left = sheet.left + (hit?.onNotesX ?? bounds.x) * scale;
+    const left = sheet.left + bounds.x * scale;
     if (left < view.left || left > view.right - 8) host.scrollLeft += left - view.left - 20;
-  }, [rendered, score, voice, currentBar, beatIndex]);
+  }, [rendered, voice, currentBar]);
 
   return <div ref={viewport} className="challenge-notation challenge-ensemble-score" role="group" aria-label={t('sight.notation')}
     onClick={onMeasure ? event => {
@@ -270,8 +262,6 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
     <span className="challenge-notation-tempo" aria-label={t('adjustedTempo', { beat: '♩', bpm: String(bpm) })}>♩ = {bpm}</span>
     <div className="challenge-notation-sheet">
       <div ref={notation} aria-hidden="true" />
-      <div ref={cursor} className="challenge-notation-cursor" hidden aria-hidden="true" />
-      <div ref={beatCursor} className="challenge-notation-beat" hidden aria-hidden="true" />
       {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={score} voice={voice}
         beats={melody.staffBeats} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} through={traceThrough} viewport={viewport} /> : null}
       {onNote && <NotationButtons notes={notes} voice={voice} statuses={statuses} onNote={onNote} />}

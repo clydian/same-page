@@ -219,6 +219,10 @@ it("scopes frozen sight-singing questions and compact scores by owner and drive"
   const current = { ...take, id: "intonation", at: 2, percent: 80, scoringRule: 2 as const };
   expect(await saveTake("user:user-1", "choir-1", current)).toBe(true);
   expect(await saveTake("user:user-1", "choir-1", { ...current, id: "lower", at: 3, percent: 79 })).toBe(false);
+  const alto = { ...take, id: "strict-alto", at: 4, percent: 83, scoringRule: 3 as const };
+  const tenor = { ...alto, id: "strict-tenor", at: 5, percent: 70, voiceId: "1:0:0", voiceName: "Tenor" };
+  expect(await saveTake("user:user-1", "choir-1", alto)).toBe(true);
+  expect(await saveTake("user:user-1", "choir-1", tenor)).toBe(true);
   await compactPracticeHistory("user:user-1");
   expect(await (await readQuestionSnapshot("user:user-1", "choir-1", question.id, 1))?.text()).toBe("fixture score");
   expect(await readQuestionSnapshot("user:user-1", "choir-1", question.id, 2)).toBeNull();
@@ -233,7 +237,7 @@ it("scopes frozen sight-singing questions and compact scores by owner and drive"
   await clearPrivateLocalDataAfterLogout();
   await activateAuthenticatedLocalOwner("user-1");
   expect(await readQuestions("user:user-1", "choir-1")).toEqual([question]);
-  expect(await readTakes("user:user-1", "choir-1")).toEqual([current, take]);
+  expect(await readTakes("user:user-1", "choir-1")).toEqual([tenor, alto, current, take]);
   await activateAuthenticatedLocalOwner("user-2");
   expect(await readQuestions("user:user-2", "choir-1")).toEqual([]);
   expect(await readQuestionSnapshot("user:user-2", "choir-1", question.id, 1)).toBeNull();

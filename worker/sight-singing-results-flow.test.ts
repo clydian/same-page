@@ -16,14 +16,18 @@ async function call(path: string, init: RequestInit = {}) {
 }
 
 const passwordHash = await hashPassword(TEST_PASSWORD);
-async function account(name: string) {
+async function account(name: string, address?: string) {
   const id = crypto.randomUUID(), email = `${id}@sight-singing.test`, now = Date.now();
   await env.DB.batch([
     env.DB.prepare('INSERT INTO user(id,name,email,email_verified,created_at,updated_at) VALUES (?,?,?,1,?,?)').bind(id, name, email, now, now),
     env.DB.prepare("INSERT INTO account(id,account_id,provider_id,user_id,password,created_at,updated_at) VALUES (?,?,'credential',?,?,?,?)")
       .bind(crypto.randomUUID(), id, id, passwordHash, now, now),
   ]);
-  const login = await signInWithPassword({ callWorker: call, email });
+  const login = await signInWithPassword({ email, callWorker: (path, init) => {
+    const headers = new Headers(init?.headers);
+    if (address) headers.set('CF-Connecting-IP', address);
+    return call(path, { ...init, headers });
+  } });
   expect(login.status, await login.clone().text()).toBe(200);
   return { id, cookie: cookieFrom(login) };
 }
@@ -129,6 +133,44 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(withdrawIntonation.status).toBe(204);
   expect(await (await send(intonation, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
   expect(await (await read(listPath)).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
+
+  const overview = `/api/choirs/${choirId}/sight-singing/leaderboard`;
+  expect((await read(overview, outsider)).status).toBe(403);
+  const fourth = await account('第四位歌者', '192.0.2.4');
+  for (const person of [outsider, fourth]) await env.DB.prepare(
+    "INSERT INTO memberships(id,choir_id,user_id,display_name,status) VALUES (?,?,?,?,'active')",
+  ).bind(crypto.randomUUID(), choirId, person.id, person === outsider ? '次中音团员' : '第四位歌者').run();
+  const partTake = (score: number, version: number, tenor = false) => ({
+    ...newTake({ score, version, speed: 1, voiceName: tenor ? 'Tenor' : 'Alto' }),
+    scoringRule: 3, voiceId: tenor ? '1:0:0' : '0:0:0',
+  });
+  const altoV1 = partTake(89, 1), tenorV1 = partTake(78, 1, true), altoV2 = partTake(72, 2);
+  const ownerV2 = partTake(85, 2), otherV2 = partTake(81, 2, true), fourthV2 = partTake(68, 2);
+  for (const [attempt, author] of [[altoV1, singer], [tenorV1, singer], [altoV2, singer],
+    [ownerV2, owner], [otherV2, outsider], [fourthV2, fourth]] as const) {
+    expect(await (await send(attempt, author, author.id, bestPath)).json()).toMatchObject({ published: true });
+  }
+  expect(await (await send(partTake(77, 1, true), singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
+  const listing = bestPath + '&scoringRule=3';
+  expect(await (await read(listing + '&voice=Tenor&version=1')).json()).toMatchObject({
+    results: [{ id: tenorV1.id, score: 78 }], voices: ['Alto', 'Tenor'],
+  });
+  const topIds = async (query: string) => {
+    const response = await read(overview + query);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const { results } = await response.json<{ results: { id: string }[] }>();
+    return results.map(row => row.id);
+  };
+  expect(await topIds('?versions=all')).toEqual([altoV1.id, ownerV2.id, otherV2.id]);
+  expect(await topIds('?versions=latest')).toEqual([ownerV2.id, otherV2.id, altoV2.id]);
+  expect(await topIds('?versions=latest&voice=Alto')).toEqual([ownerV2.id, altoV2.id, fourthV2.id]);
+  const withdrawnPart = await call(`${resultPath}/${tenorV1.id}?version=1`, {
+    method: 'DELETE', headers: { cookie: singer.cookie, 'x-same-page-owner-user-id': singer.id },
+  });
+  expect(withdrawnPart.status).toBe(204);
+  expect(await (await read(listing + '&voice=Tenor&version=1')).json()).toMatchObject({ results: [] });
+  expect(await (await send(tenorV1, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
+  expect(await (await read(listing + '&voice=Alto&version=1')).json()).toMatchObject({ results: [{ id: altoV1.id }] });
 
   await env.DB.prepare("UPDATE memberships SET status = 'removed' WHERE choir_id = ? AND user_id = ?").bind(choirId, singer.id).run();
   expect((await read(listPath)).status).toBe(403);

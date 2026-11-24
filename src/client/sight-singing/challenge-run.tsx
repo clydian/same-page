@@ -176,7 +176,6 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const position = state.phase === 'sing' ? state.frame.time : state.phase === 'result' ? replayTime : 0;
   const measure = melody.measures.find(bar => position < bar.end) ?? melody.measures[melody.measures.length - 1];
   const target = melody.notes.find(note => note.start <= position && position < note.end);
-  const staffBeat = melody.staffBeats.find(beat => beat.visit === measure.visit && beat.start <= position && position < beat.end);
   const review = state.phase === 'result' ? state.review : undefined;
   const feedback = useMemo(() => review?.flatMap(row => row.note.beatIndex === undefined ? [] : [{
     bar: row.note.bar, beatIndex: row.note.beatIndex, visit: row.note.visit, status: row.status, midi: row.target ?? undefined,
@@ -208,7 +207,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
 
   return <div className="challenge-run" data-phase={state.phase} data-replaying={playing}>
     <ChallengeNotation score={document.score} voice={voice} melody={melody} currentBar={positioned ? measure.bar : undefined} bpm={Number(bpm.toFixed(1))}
-      currentVisit={measure.visit} beatIndex={staffBeat?.beatIndex} feedback={feedback}
+      currentVisit={measure.visit} feedback={feedback}
       onNote={canTap ? selectNote : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
       pitchFrames={'frames' in state ? state.frames : undefined}
       liveTrace={state.phase === 'sing' || playing} traceThrough={state.phase === 'result' ? replayTime : undefined} />
@@ -293,7 +292,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       open={graphOpen} onToggle={event => setGraphOpen(event.currentTarget.open)}>
       <summary>{t('sight.pitchMonitor')}</summary>
       {graphOpen && <PitchGraph melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
-        reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
+        following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
     </details>}
 
     {state.phase === 'result' && <details className="challenge-review-details" onToggle={event => setDetailsOpen(event.currentTarget.open)}>

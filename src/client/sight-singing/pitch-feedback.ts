@@ -4,7 +4,7 @@ import type { MelodyNote } from './melody';
 export type PitchFrame = { time: number; midi: number | null };
 // Overlap 43–46 ms windows to sample the middle of short notes at 44.1/48 kHz.
 export const pitchWindowSize = 2048;
-const fullCreditCents = 25;
+const fullCreditCents = 15;
 const wrongNoteCents = 50;
 export const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 export const formatCents = (cents: number | null) => cents === null ? '—' : cents > 0 ? `+${cents}` : String(cents);

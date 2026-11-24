@@ -1,6 +1,6 @@
 import {
-  sightSingingResultResponseSchema, sightSingingResultsResponseSchema,
-  type SightSingingResultSubmission, type SightSingingScoringRule,
+  sightSingingLeaderboardSchema, sightSingingResultResponseSchema, sightSingingResultsResponseSchema,
+  type SightSingingResultSubmission, type SightSingingScoringRule, type SightSingingVersionFilter,
 } from '../../shared/sight-singing-results';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 
@@ -17,12 +17,22 @@ export async function publishSightSingingResult(choirId: string, questionId: str
   return (await parseDiagnosticResponse(response, sightSingingResultResponseSchema)).published ?? true;
 }
 
-export async function readSightSingingResults(choirId: string, questionId: string, version: number | null, scoringRule: SightSingingScoringRule, signal?: AbortSignal) {
+export async function readSightSingingResults(choirId: string, questionId: string, version: number | null,
+  scoringRule: SightSingingScoringRule, voice: string, signal?: AbortSignal) {
   const query = new URLSearchParams({ view: 'best', scoringRule: String(scoringRule) });
   if (version !== null) query.set('version', String(version));
+  if (voice) query.set('voice', voice);
   const response = await diagnosticFetch(`${resultPath(choirId, questionId)}?${query}`, { signal });
   if (!response.ok) throw new Error('published_results_unavailable');
   return parseDiagnosticResponse(response, sightSingingResultsResponseSchema);
+}
+
+export async function readSightSingingLeaderboard(choirId: string, versions: SightSingingVersionFilter, voice: string, signal?: AbortSignal) {
+  const query = new URLSearchParams({ versions });
+  if (voice) query.set('voice', voice);
+  const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard?${query}`, { signal });
+  if (!response.ok) throw new Error('published_results_unavailable');
+  return parseDiagnosticResponse(response, sightSingingLeaderboardSchema);
 }
 
 export async function withdrawSightSingingResult(choirId: string, questionId: string, userId: string, id: string, version: number) {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { legacySingingScoringRule, sightSingingScoringRuleSchema, sightSingingSpeedSchema } from '../../shared/sight-singing-results';
+import { currentSingingScoringRule, legacySingingScoringRule, sightSingingScoringRuleSchema, sightSingingSpeedSchema } from '../../shared/sight-singing-results';
 import { localDatabase } from '../platform/local-database';
 import { currentLocalOwnerKey } from '../platform/local-workspace';
 import { assertPracticeOwner, takeKeyPrefix, takeOwnerKeyPrefix } from './questions';
@@ -14,8 +14,11 @@ const takeSchema = z.object({
 });
 export type PracticeTake = z.infer<typeof takeSchema>;
 
-const takeGroup = ({ questionId, version, scoringRule }: PracticeTake) =>
-  scoringRule === legacySingingScoringRule ? `${questionId}:${version}` : `${questionId}:${version}:${scoringRule}`;
+const takeGroup = ({ questionId, version, scoringRule, voiceId }: PracticeTake) => {
+  const group = `${questionId}:${version}`;
+  if (scoringRule === legacySingingScoringRule) return group;
+  return scoringRule === currentSingingScoringRule ? `${group}:${scoringRule}:${voiceId}` : `${group}:${scoringRule}`;
+};
 
 function parseTake(key: string, value: string, prefix: string) {
   try {

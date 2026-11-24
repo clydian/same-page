@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef } from 'react';
 import { useMessages } from '../../i18n';
 import { targetPitches, type Melody } from './melody';
 import { pitchName, type PitchFrame } from './pitch-feedback';
@@ -16,15 +16,14 @@ function timeLabel(seconds: number) {
   return `${minutes}:${String(Math.floor(remainder)).padStart(2, '0')}${remainder % 1 ? String(remainder % 1).slice(1) : ''}`;
 }
 
-export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }: {
-  melody: Melody; frames: PitchFrame[]; elapsed: number; reviewing: boolean; activeTarget?: string;
+export function PitchGraph({ melody, frames, elapsed, following, reviewing, activeTarget }: {
+  melody: Melody; frames: PitchFrame[]; elapsed: number; following: boolean; reviewing: boolean; activeTarget?: string;
 }) {
   const t = useMessages('practice');
   const canvas = useRef<HTMLCanvasElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
-  const autoScrollTop = useRef(0), recenter = useRef(true);
-  const [following, setFollowing] = useState(true);
+  const centered = useRef(false);
   const { low, high, midiRows } = useMemo(() => {
     const pitches = melody.notes.flatMap(targetPitches);
     // Cover the pitch reader's 55–1500 Hz range and the whole written part.
@@ -64,13 +63,12 @@ export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }:
   for (let time = Math.ceil(start / step) * step; time <= end; time += step) ticks.push(time);
   useLayoutEffect(() => {
     const view = viewport.current;
-    if (!view?.clientHeight || !following || anchorY === undefined) return;
+    if (!view?.clientHeight || (!following && centered.current) || anchorY === undefined) return;
     const padding = view.clientHeight * .24;
     const offset = anchorY - view.scrollTop;
-    if (!recenter.current && offset >= padding && offset <= view.clientHeight - padding) return;
+    if (centered.current && offset >= padding && offset <= view.clientHeight - padding) return;
     view.scrollTop = anchorY - view.clientHeight / 2;
-    autoScrollTop.current = view.scrollTop;
-    recenter.current = false;
+    centered.current = true;
   }, [anchorY, following]);
 
   const paint = useEffectEvent(() => {
@@ -126,10 +124,6 @@ export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }:
     draw.strokeStyle = tone('target');
     draw.lineWidth = 5;
     drawTargets('written');
-    if (elapsed > 0) {
-      draw.fillStyle = tone('cursor');
-      draw.fillRect(Math.round(x(elapsed)), 0, 1, height);
-    }
     draw.strokeStyle = tone('voice');
     draw.lineWidth = 2.3;
     draw.lineJoin = 'round';
@@ -163,10 +157,7 @@ export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }:
     resize.observe(canvas.current);
     const theme = new MutationObserver(() => paint());
     theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ui-theme'] });
-    const scroll = () => {
-      if (Math.abs(view.scrollTop - autoScrollTop.current) > 1) setFollowing(false);
-      paint();
-    };
+    const scroll = () => paint();
     view.addEventListener('scroll', scroll, { passive: true });
     return () => { resize.disconnect(); theme.disconnect(); view.removeEventListener('scroll', scroll); };
   }, []);
@@ -174,10 +165,6 @@ export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }:
   return <figure className="challenge-graph" aria-label={t('sight.pitchGraph')}>
     <figcaption>
       <h3>{t('sight.pitchMonitor')}</h3>
-      <button className="challenge-pitch-follow" type="button" aria-pressed={following} onClick={() => {
-        recenter.current = !following;
-        setFollowing(!following);
-      }}>{t('sight.followPitch')}</button>
       <div className="challenge-graph-legend">
         <span data-kind="written">{activeTarget ? t('sight.currentTarget', { pitch: activeTarget }) : t('sight.targetLegend')}</span>
         <span data-kind="octave">{t('sight.octaveTargetLegend')}</span>
@@ -185,7 +172,7 @@ export function PitchGraph({ melody, frames, elapsed, reviewing, activeTarget }:
       </div>
     </figcaption>
     <div className="challenge-graph-body" dir="ltr" ref={body}>
-      <div className="challenge-pitch-scroll" ref={viewport} role="region" aria-label={t('sight.pitchRange')} tabIndex={0}>
+      <div className="challenge-pitch-scroll" data-following={following} ref={viewport} role="region" aria-label={t('sight.pitchRange')} tabIndex={0}>
         <div className="challenge-pitch-field" aria-hidden="true" style={{ height: noteY(low) + blockInset }}>
           <div className="challenge-pitch-axis">
             {midiRows.map(midi => <span key={midi} data-in-key={currentKey?.scale.has(pitchClass(midi)) ?? false}

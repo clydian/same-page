@@ -1,11 +1,32 @@
-.challenge-question-meta {
-  display: flex;
-  align-items: center;
-  gap: .45rem;
-  color: var(--muted);
-  font-size: .8rem;
+.challenge-card-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(.5rem, 2vw, 1rem);
+  list-style: none; padding: 0; margin-block: .65rem;
 }
-.challenge-question-label small { display: block; margin-block-start: .15rem; color: var(--muted); }
+@media (max-width: 350px) { .challenge-card-grid { grid-template-columns: minmax(0, 1fr); } }
+.challenge-card {
+  min-inline-size: 0; overflow: hidden; border: 1px solid var(--line); border-radius: .85rem;
+  background: var(--ui-surface, var(--surface));
+}
+.challenge-card-open {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: .3rem;
+  inline-size: 100%; min-block-size: 48px; padding: clamp(.55rem, 2vw, .85rem);
+  font: inherit; text-align: start; color: inherit; background: transparent; border: 0; cursor: pointer; overflow-wrap: anywhere;
+}
+.challenge-card-open:hover { background: var(--ui-surface-muted, var(--wash)); }
+.challenge-card-open:focus-visible { outline-offset: -3px; }
+.challenge-card-open svg { flex: none; margin-block-start: .18rem; color: var(--muted); }
+.challenge-card small { display: block; margin-block-start: .1rem; color: var(--muted); font-size: .78em; overflow-wrap: anywhere; }
+.challenge-card-ranks, .challenge-card-empty { margin: 0; padding: .5rem clamp(.55rem, 2vw, .85rem); border-block-start: 1px solid var(--line); }
+.challenge-card-ranks { padding-inline-start: clamp(1.45rem, 4vw, 1.8rem); }
+.challenge-card-ranks li { padding-inline-start: .1rem; padding-block: .25rem; }
+.challenge-card-ranks li::marker { color: var(--muted); font-size: .8rem; }
+.challenge-card-ranks li div {
+  display: flex;
+  flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 .4rem;
+  overflow-wrap: anywhere; font-size: .85rem;
+}
+.challenge-card-ranks li strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.challenge-card-empty { color: var(--muted); font-size: .82rem; }
 .challenge-legacy-questions { margin-block: 1.6rem; }
 .challenge-legacy-questions summary { cursor: pointer; }
 .challenge-legacy-questions p { color: var(--muted); }

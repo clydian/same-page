@@ -52,7 +52,7 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
   expect(slower.clicks[3]).toEqual({ time: 4, accent: 2 });
   const alto = buildMelody(document, document.voices[1], 1, 1) as Melody;
   expect(alto.notes[0].chord).toEqual([65, 69]);
-  for (const [midi, target, status] of [[65.18, 65, 'inTune'], [65.36, 65, 'sharp'], [68.62, 69, 'flat'], [67.6, 69, 'wrongNote']] as const) {
+  for (const [midi, target, status] of [[65.12, 65, 'inTune'], [65.36, 65, 'sharp'], [68.62, 69, 'flat'], [67.6, 69, 'wrongNote']] as const) {
     expect(assessNotes(alto.notes, [{ time: .25, midi }])[0]).toMatchObject({ target, status });
   }
 });
@@ -120,13 +120,13 @@ describe('pitch and feedback', () => {
   });
   it('counts detuned notes as correct and averages their partial credit with misses', () => {
     const targets = Array.from({ length: 7 }, (_, index) => ({ midi: 60, start: index, end: index + 1, bar: 0, visit: 0 }));
-    const frames = [60.25, 59.65, 60.499, 59.5, 60.51, null].map((midi, index) => ({ midi, time: index + .5 }));
+    const frames = [60.15, 59.65, 60.499, 59.5, 60.51, null].map((midi, index) => ({ midi, time: index + .5 }));
     const review = assessNotes(targets, frames);
     expect(review.map(row => row.status)).toEqual(['inTune', 'flat', 'sharp', 'wrongNote', 'wrongNote', 'missed', 'insufficientData']);
-    expect(review.map(row => takeScore([row]).percent)).toEqual([100, 60, 0, 0, 0, 0, null]);
-    expect(takeScore(review)).toEqual({ total: 6, matched: 3, percent: 27 });
+    expect(review.map(row => takeScore([row]).percent)).toEqual([100, 43, 0, 0, 0, 0, null]);
+    expect(takeScore(review)).toEqual({ total: 6, matched: 3, percent: 24 });
     const nearBoundary = assessNotes(targets.slice(0, 2), [{ midi: 60.48, time: .5 }, { midi: 59.51, time: 1.5 }]);
-    expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([8, 4]);
+    expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([6, 3]);
   });
   it('distinguishes missing frames from sampled silence in consecutive thirty-second notes', () => {
     const pitches = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65];
