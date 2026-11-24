@@ -27,7 +27,8 @@
 }
 .challenge-notation-sheet [data-challenge-feedback] {
   fill: var(--note-feedback-ink);
-  stroke: var(--note-feedback-ink);
+  /* AlphaTab sets stroke: none inline on the rendered glyphs. */
+  stroke: var(--note-feedback-ink) !important;
   stroke-width: .65;
   stroke-linejoin: round;
 }
