@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { sightSingingSpeedSchema } from '../../shared/sight-singing-results';
 import { localDatabase } from '../platform/local-database';
 import { currentLocalOwnerKey } from '../platform/local-workspace';
-import { assertPracticeOwner, savePracticeData, takeKeyPrefix, takeOwnerKeyPrefix } from './questions';
+import { assertPracticeOwner, takeKeyPrefix, takeOwnerKeyPrefix } from './questions';
 import type { assessNotes } from './pitch-feedback';
 
 const takeSchema = z.object({
@@ -9,6 +10,7 @@ const takeSchema = z.object({
   version: z.number().int().positive().nullable().transform(version => version ?? 1),
   voiceId: z.string(), voiceName: z.string(), percent: z.number().int().min(0).max(100).nullable(),
   published: z.boolean().default(false),
+  speed: sightSingingSpeedSchema.optional(),
 });
 export type PracticeTake = z.infer<typeof takeSchema>;
 
@@ -25,15 +27,21 @@ function parseTake(key: string, value: string, prefix: string) {
   } catch { return null; }
 }
 
+const bestFirst = (a: PracticeTake, b: PracticeTake) => (b.percent ?? -1) - (a.percent ?? -1) || a.at - b.at;
+const takeGroup = ({ questionId, version }: PracticeTake) => `${questionId}:${version}`;
+
 export async function readTakes(owner: string, drive: string) {
   const prefix = takeKeyPrefix(owner, drive);
   return localDatabase.transaction('r', localDatabase.system, async () => {
     if (await currentLocalOwnerKey() !== owner) return [];
     const rows = await localDatabase.system.where('key').startsWith(prefix).toArray();
-    return rows.flatMap(({ key, value }) => {
+    const ordered = rows.flatMap(({ key, value }) => {
       const take = parseTake(key, value, prefix);
-      return take ? [take] : [];
-    }).sort((a, b) => b.at - a.at);
+      return take?.percent != null ? [take] : [];
+    }).sort(bestFirst);
+    const best = new Map<string, PracticeTake>();
+    for (const take of ordered) if (!best.has(takeGroup(take))) best.set(takeGroup(take), take);
+    return [...best.values()].sort((a, b) => b.at - a.at);
   });
 }
 
@@ -52,7 +60,33 @@ export async function compactPracticeHistory(owner: string) {
   });
 }
 
-export function saveTake(owner: string, drive: string, take: PracticeTake, signal?: AbortSignal) {
+export async function saveTake(owner: string, drive: string, take: PracticeTake, signal?: AbortSignal) {
   const summary = takeSchema.parse(take);
-  return savePracticeData(owner, takeKeyPrefix(owner, drive) + summary.id, summary, signal);
+  if (summary.percent === null) return false;
+  const prefix = takeKeyPrefix(owner, drive), group = takeGroup(summary);
+  return localDatabase.transaction('rw', localDatabase.system, async () => {
+    await assertPracticeOwner(owner);
+    signal?.throwIfAborted();
+    const rows = await localDatabase.system.where('key').startsWith(prefix).toArray();
+    const previous = rows.flatMap(({ key, value }) => {
+      const other = parseTake(key, value, prefix);
+      return other?.percent != null && takeGroup(other) === group ? [other] : [];
+    }).sort(bestFirst)[0];
+    if (previous && previous.id !== summary.id && bestFirst(previous, summary) <= 0) return false;
+    const current = previous?.id === summary.id ? { ...previous, published: previous.published || summary.published } : summary;
+    await localDatabase.system.put({ key: prefix + group, value: JSON.stringify(current) });
+    signal?.throwIfAborted();
+    return true;
+  });
+}
+
+export async function markTakeWithdrawn(owner: string, drive: string, id: string) {
+  const prefix = takeKeyPrefix(owner, drive);
+  await localDatabase.transaction('rw', localDatabase.system, async () => {
+    await assertPracticeOwner(owner);
+    for (const { key, value } of await localDatabase.system.where('key').startsWith(prefix).toArray()) {
+      const take = parseTake(key, value, prefix);
+      if (take?.id === id && take.published) await localDatabase.system.put({ key, value: JSON.stringify({ ...take, published: false }) });
+    }
+  });
 }

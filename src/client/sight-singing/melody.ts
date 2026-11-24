@@ -12,6 +12,7 @@ type KeyChange = { start: number; signature: number };
 export type Melody = {
   notes: MelodyNote[]; measures: MelodyMeasure[]; staffBeats: StaffBeat[]; clicks: PracticeClick[]; duration: number;
   keyChanges: KeyChange[];
+  tempoMarks: { start: number; bpm: number }[];
   beatSeconds: number; beats: number; denominator: number; tonic: number; tempo: { bpm: number; unit: number };
 };
 export type MelodyVoice = { id: string; track: number; staff: number; voice: number; name: string; multiple: boolean };
@@ -51,6 +52,10 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   const staff = document.score.tracks[voice.track].staves[voice.staff];
   const notes: MelodyNote[] = [], measures: MelodyMeasure[] = [], staffBeats: StaffBeat[] = [], clicks: PracticeClick[] = [];
   const keyChanges: KeyChange[] = [];
+  const tempoMarks: Melody['tempoMarks'] = [];
+  const addTempo = (start: number, bpm: number) => {
+    if (tempoMarks.at(-1)?.bpm !== bpm) tempoMarks.push({ start, bpm });
+  };
   const addKey = (start: number, signature: number) => {
     if (keyChanges.at(-1)?.signature !== signature) keyChanges.push({ start, signature });
   };
@@ -76,6 +81,10 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
     if (end > 300) return 'tooLong';
     const visit = first + offset;
     measures.push({ start: seconds, end, bar: master.index, visit });
+    addTempo(seconds, changes[0]?.tempo ?? document.score.tempo);
+    for (const change of changes) {
+      if (change.tick > bar.start && change.tick < bar.end) addTempo(toSeconds(change.tick), change.tempo);
+    }
     addKey(seconds, source.getKeySignatureAt(0));
     for (const { displayStart, keySignature } of source.notationChanges ?? []) {
       if (keySignature !== null && displayStart > 0 && bar.start + displayStart < bar.end) {
@@ -120,7 +129,7 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   const beats = Math.max(1, opening.masterBar.timeSignatureNumerator);
   const key = opening.masterBar.keySignature * 7 + (opening.masterBar.keySignatureType === alphaTab.model.KeySignatureType.Minor ? 9 : 0);
   const tonic = 48 + (key % 12 + 12) % 12;
-  return { notes, measures, staffBeats, clicks, keyChanges, duration: seconds, beatSeconds, beats, denominator, tonic, tempo: { bpm, unit } };
+  return { notes, measures, staffBeats, clicks, keyChanges, tempoMarks, duration: seconds, beatSeconds, beats, denominator, tonic, tempo: { bpm, unit } };
 }
 
 export function melodyAtSpeed(melody: Melody, speed: number): Melody {
@@ -128,6 +137,7 @@ export function melodyAtSpeed(melody: Melody, speed: number): Melody {
   const scale = <T extends { start: number; end: number }>(item: T) => ({ ...item, start: item.start / speed, end: item.end / speed });
   return { ...melody, notes: melody.notes.map(scale), measures: melody.measures.map(scale), staffBeats: melody.staffBeats.map(scale),
     keyChanges: melody.keyChanges.map(key => ({ ...key, start: key.start / speed })),
+    tempoMarks: melody.tempoMarks.map(mark => ({ start: mark.start / speed, bpm: mark.bpm * speed })),
     clicks: melody.clicks.map(click => ({ ...click, time: click.time / speed })),
     duration: melody.duration / speed, beatSeconds: melody.beatSeconds / speed };
 }

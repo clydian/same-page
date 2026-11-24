@@ -13,7 +13,7 @@ export type NotationFeedback = {
   status: ReturnType<typeof assessNotes>[number]['status'];
 };
 type Bounds = { x: number; y: number; w: number; h: number };
-type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; label: string };
+type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; label: string; singleStem: boolean };
 type Part = Pick<NotationNoteHit, 'track' | 'staff' | 'voice'>;
 type Geometry = {
   score: MelodyScore['score']; min: number; max: number; lookup: rendering.BoundsLookup;
@@ -33,11 +33,13 @@ function buildGeometry(api: AlphaTabApi, score: Geometry['score'], min: number, 
       // Worker-deserialized BarBounds does not carry a bar model reference.
       const { staff } = beat.voice.bar;
       const part = { track: staff.track.index, staff: staff.index, voice: beat.voice.index };
+      const singleStem = heads?.length === 1 && beat.voice.bar.voices.every(candidate =>
+        candidate === beat.voice || candidate.beats.every(other => other.isRest));
       parts.set(`b${beat.id}`, part);
       for (const { note, noteHeadBounds: bounds } of heads ?? []) {
         if (note.isCue || note.isPercussion || note.isDead || !note.isVisible || bounds.w <= 0 || bounds.h <= 0) continue;
         notes.push({ ...part, key: `${system.index}:${note.id}`, beatClass: `b${beat.id}`, midi: note.realValue, bounds,
-          bar: master.index, beatIndex: beat.index, label: staff.track.name });
+          bar: master.index, beatIndex: beat.index, label: staff.track.name, singleStem });
       }
     }
   }
@@ -101,9 +103,10 @@ function feedbackAtVisit(feedback: readonly NotationFeedback[] | undefined, visi
   return beatFeedback;
 }
 
-type AssessedHead = { bounds: Bounds; status: NotationFeedback['status'] };
+type AssessedHead = Pick<NoteTarget, 'bounds' | 'singleStem'> & { status: NotationFeedback['status'] };
+type Stem = { element: SVGRectElement; bounds: DOMRect };
 
-function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect, scale: number) {
+function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect, scale: number, stems: Stem[]) {
   // SVG music symbols carry the same translated origin as AlphaTab's notehead
   // lookup. Match inside the beat so chord tones do not color their neighbors.
   for (const glyph of group.querySelectorAll<SVGGElement>('g.at')) {
@@ -116,14 +119,25 @@ function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect
     const x = (origin.e - sheet.left) / scale, y = (origin.f - sheet.top) / scale;
     const head = heads.find(({ bounds }) => Math.abs(centerY(bounds) - y) < 1.5 &&
       Math.min(Math.abs(bounds.x - x), Math.abs(centerX(bounds) - x)) < 1.5);
-    if (head) text.dataset.challengeFeedback = head.status;
+    if (!head) continue;
+    text.dataset.challengeFeedback = head.status;
+    if (!head.singleStem) continue;
+    const { bounds } = head;
+    const matches = stems.filter(({ bounds: stem }) => {
+      const sx = (stem.left + stem.width / 2 - sheet.left) / scale;
+      const top = (stem.top - sheet.top) / scale, bottom = (stem.bottom - sheet.top) / scale;
+      return Math.min(Math.abs(sx - bounds.x), Math.abs(sx - (bounds.x + bounds.w))) < 1.6 &&
+        Math.min(Math.abs(top - y), Math.abs(bottom - y)) < 2;
+    });
+    if (matches.length === 1) matches[0].element.dataset.challengeFeedback = head.status;
   }
 }
 
-export function ChallengeNotation({ score, voice, melody, currentBar, currentVisit, beatIndex, onNote, feedback, pitchFrames, liveTrace = false }: {
+export function ChallengeNotation({ score, voice, melody, currentBar, currentVisit, beatIndex, onNote, onMeasure, feedback, pitchFrames, liveTrace = false, traceThrough, bpm }: {
   score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; currentBar?: number; currentVisit?: number; beatIndex?: number;
-  onNote?: (note: NotationNoteHit) => void; feedback?: readonly NotationFeedback[];
+  onNote?: (note: NotationNoteHit) => void; onMeasure?: (bar: number) => void; feedback?: readonly NotationFeedback[];
   pitchFrames?: PitchFrame[]; liveTrace?: boolean;
+  traceThrough?: number; bpm: number;
 }) {
   const t = useMessages('practice');
   const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
@@ -145,7 +159,7 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
       statuses.set(note.key, result.status);
       if (result.status === 'insufficientData') continue;
       const heads = tinted.get(note.beatClass) ?? [];
-      heads.push({ bounds: note.bounds, status: result.status });
+      heads.push({ bounds: note.bounds, status: result.status, singleStem: note.singleStem });
       tinted.set(note.beatClass, heads);
     }
     return { statuses, tinted };
@@ -164,6 +178,7 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
     });
     api.settings.notation.elements.set(NotationElement.ScoreTitle, false);
     api.settings.notation.elements.set(NotationElement.ScoreSubTitle, false);
+    api.settings.notation.elements.set(NotationElement.EffectTempo, false);
     api.updateSettings();
     const update = () => setGeometry(buildGeometry(api, score, min, max));
     api.postRenderFinished.on(update);
@@ -178,6 +193,9 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
       for (const text of element.querySelectorAll('[data-challenge-feedback]')) text.removeAttribute('data-challenge-feedback');
       const sheet = element.getBoundingClientRect();
       const scale = element.offsetWidth ? sheet.width / element.offsetWidth : 1;
+      // AlphaTab emits the stems as tall, narrow rectangles alongside the beat
+      // groups. Match only a unique endpoint so a shared chord stem stays neutral.
+      const stems = new Map<SVGSVGElement, Stem[]>();
       // alphaTab uses .b${beat.id} groups for the rendered beat, including lyrics.
       for (const group of element.querySelectorAll<SVGGElement>('g[class^="b"]')) {
         const beat = group.getAttribute('class') ?? '';
@@ -185,7 +203,14 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
         if (!part) continue;
         group.dataset.challengePart = samePart(part, voice) ? 'focus' : 'context';
         const heads = tinted.get(beat);
-        if (heads && scale > 0) tintNoteheads(group, heads, sheet, scale);
+        if (!heads || scale <= 0) continue;
+        const svg = group.ownerSVGElement;
+        if (svg && !stems.has(svg)) {
+          stems.set(svg, [...svg.querySelectorAll<SVGRectElement>('rect')]
+            .filter(rect => rect.width.baseVal.value > 0 && rect.width.baseVal.value < 1.2 && rect.height.baseVal.value >= 12)
+            .map(rect => ({ element: rect, bounds: rect.getBoundingClientRect() })));
+        }
+        tintNoteheads(group, heads, sheet, scale, svg ? stems.get(svg) ?? [] : []);
       }
     };
     // Worker system SVGs mount lazily when they enter the viewport.
@@ -226,13 +251,29 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
     if (left < view.left || left > view.right - 8) host.scrollLeft += left - view.left - 20;
   }, [rendered, score, voice, currentBar, beatIndex]);
 
-  return <div ref={viewport} className="challenge-notation challenge-ensemble-score" role="group" aria-label={t('sight.notation')}>
+  return <div ref={viewport} className="challenge-notation challenge-ensemble-score" role="group" aria-label={t('sight.notation')}
+    onClick={onMeasure ? event => {
+      if (!rendered || !(event.target instanceof Element) || event.target.closest('button')) return;
+      const element = notation.current;
+      if (!element?.offsetWidth) return;
+      const sheet = element.getBoundingClientRect(), scale = sheet.width / element.offsetWidth;
+      if (!scale) return;
+      const x = (event.clientX - sheet.left) / scale, y = (event.clientY - sheet.top) / scale;
+      for (const system of rendered.lookup.staffSystems) for (const bar of system.bars) {
+        const bounds = bar.realBounds;
+        if (played.has(bar.index) && x >= bounds.x && x < bounds.x + bounds.w && y >= bounds.y && y < bounds.y + bounds.h) {
+          onMeasure(bar.index);
+          return;
+        }
+      }
+    } : undefined}>
+    <span className="challenge-notation-tempo" aria-label={t('adjustedTempo', { beat: '♩', bpm: String(bpm) })}>♩ = {bpm}</span>
     <div className="challenge-notation-sheet">
       <div ref={notation} aria-hidden="true" />
       <div ref={cursor} className="challenge-notation-cursor" hidden aria-hidden="true" />
       <div ref={beatCursor} className="challenge-notation-beat" hidden aria-hidden="true" />
       {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={score} voice={voice}
-        beats={melody.staffBeats} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} viewport={viewport} /> : null}
+        beats={melody.staffBeats} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} through={traceThrough} viewport={viewport} /> : null}
       {onNote && <NotationButtons notes={notes} voice={voice} statuses={statuses} onNote={onNote} />}
     </div>
   </div>;

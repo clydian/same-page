@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Mic, Pencil, Plus } from 'lucide-react';
+import { ChevronRight, Mic, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppLocale, useMessages } from '../../i18n';
@@ -15,11 +15,12 @@ import { useLibraryAttachments } from '../score-library/attachments/use-library-
 import { driveCacheOwnerKey, type DriveCacheOwnerKey } from '../score-library/drive-library-cache';
 import { useDriveLibraryResource } from '../score-library/use-drive-library';
 import { captureNavigationIdentity } from '../settings/navigation-events';
-import { ChallengeRun, type ResultDecision, type VoiceOption } from './challenge-run';
+import { ConfirmDialog } from '../settings/confirm-dialog';
+import { ChallengeRun, type ResultSave, type ScoredTake, type VoiceOption } from './challenge-run';
 import { buildMelody } from './melody';
 import { freezeLegacyQuestion, readQuestions, saveQuestion, type SightSingingQuestion } from './questions';
-import { compactPracticeHistory, readTakes, saveTake, type PracticeTake } from './practice-history';
-import { publishSightSingingResult, readSightSingingResults } from './result-publication';
+import { compactPracticeHistory, markTakeWithdrawn, readTakes, saveTake, type PracticeTake } from './practice-history';
+import { publishSightSingingResult, readSightSingingResults, withdrawSightSingingResult } from './result-publication';
 import type { PublishedSightSingingResult } from '../../shared/sight-singing-results';
 import { publishedPath, sightSingingProtocol, useMelodySource, type MelodySource } from './use-melody-source';
 import './sight-singing.css';
@@ -111,35 +112,75 @@ function PracticeHistory({ takes }: { takes: PracticeTake[] }) {
   const { locale } = useAppLocale();
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
   return <ul className="challenge-list challenge-score-list">{takes.map(take => <li key={take.id}>
-    <div><strong>{take.title}</strong><small>{take.voiceName} · {versionTag(take.version)} · {t(take.published ? 'sight.scorePublishedTag' : 'sight.scorePrivateTag')}</small></div>
+    <div><strong>{take.title}</strong><small>{take.voiceName} · {versionTag(take.version)}{take.speed !== undefined && ` · ${take.speed.toFixed(2)}×`}</small></div>
     <div><strong>{take.percent === null ? '—' : t('sight.takeScore', { score: take.percent })}</strong><small><time dateTime={new Date(take.at).toISOString()}>{date.format(take.at)}</time></small></div>
   </li>)}</ul>;
 }
 
-function PublishedResults({ choirId, questionId, version, generation }: { choirId: string; questionId: string; version: number; generation: number }) {
+function PublishedResults({ choirId, questionId, version, generation, owner, userId }: {
+  choirId: string; questionId: string; version: number; generation: number; owner: DriveCacheOwnerKey; userId: string;
+}) {
   const t = useMessages('practice');
   const [expanded, setExpanded] = useState(false);
+  const [filter, setFilter] = useState<number | null>(null);
   const [retry, setRetry] = useState(0);
-  const [state, setState] = useState<{ generation: number; retry: number; rows: PublishedSightSingingResult[] | null }>();
+  const [state, setState] = useState<{ generation: number; retry: number; filter: number | null; rows: PublishedSightSingingResult[] | null }>();
+  const [versions, setVersions] = useState([version]);
+  const [removing, setRemoving] = useState<PublishedSightSingingResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [withdrawFailed, setWithdrawFailed] = useState(false);
   useEffect(() => {
     if (!expanded) return;
     const controller = new AbortController();
-    void readSightSingingResults(choirId, questionId, version, controller.signal).then(rows => {
-      if (!controller.signal.aborted) setState({ generation, retry, rows });
+    void readSightSingingResults(choirId, questionId, filter, controller.signal).then(payload => {
+      if (controller.signal.aborted) return;
+      setState({ generation, retry, filter, rows: payload.results });
+      if (payload.versions) setVersions(payload.versions);
     }).catch(() => {
-      if (!controller.signal.aborted) setState({ generation, retry, rows: null });
+      if (!controller.signal.aborted) setState({ generation, retry, filter, rows: null });
     });
     return () => controller.abort();
-  }, [choirId, questionId, version, expanded, generation, retry]);
-  const rows = state?.generation === generation && state.retry === retry ? state.rows : undefined;
+  }, [choirId, questionId, filter, expanded, generation, retry]);
+  const rows = state?.generation === generation && state.retry === retry && state.filter === filter ? state.rows : undefined;
+  const withdraw = async () => {
+    if (!removing || busy) return;
+    setBusy(true); setWithdrawFailed(false);
+    try {
+      await withdrawSightSingingResult(choirId, questionId, userId, removing.id, removing.version);
+      setRetry(value => value + 1);
+      await markTakeWithdrawn(owner, choirId, removing.id).catch(() => undefined);
+    } catch {
+      setWithdrawFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
   return <details className="challenge-published-results" onToggle={event => setExpanded(event.currentTarget.open)}>
-    <summary>{t('sight.publishedResults')} <small>{versionTag(version)}</small></summary>
-    {expanded && (rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
-      : rows === null ? <p role="alert">{t('sight.publishedResultsError')} <button type="button" className="text-button" onClick={() => setRetry(value => value + 1)}>{t('sight.retryLoad')}</button></p>
-      : rows.length === 0 ? <p>{t('sight.publishedResultsEmpty')}</p>
-      : <ul className="challenge-list challenge-score-list">{rows.map(row => <li key={row.id}>
-        <div><strong>{row.displayName}</strong><small>{row.voiceName} · {versionTag(row.version)}</small></div><strong>{t('sight.takeScore', { score: row.score })}</strong>
-      </li>)}</ul>)}
+    <summary>{t('sight.bestResults')}</summary>
+    {expanded && <>
+      <label className="challenge-version-filter">
+        <span className="visually-hidden">{t('sight.resultVersionFilter')}</span>
+        <select value={filter ?? ''} onChange={event => setFilter(event.target.value ? Number(event.target.value) : null)}>
+          <option value="">{t('sight.allVersions')}</option>
+          {versions.map(edition => <option key={edition} value={edition}>{versionTag(edition)}</option>)}
+        </select>
+      </label>
+      {withdrawFailed && <p role="alert">{t('sight.withdrawFailed')}</p>}
+      {rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
+        : rows === null ? <p role="alert">{t('sight.publishedResultsError')} <button type="button" className="text-button" onClick={() => setRetry(value => value + 1)}>{t('sight.retryLoad')}</button></p>
+        : rows.length === 0 ? <p className="challenge-empty">{t('sight.publishedResultsEmpty')}</p>
+          : <ul className="challenge-list challenge-score-list">{rows.map(row => <li key={row.id}>
+            <div><strong>{row.displayName}</strong><small>{row.voiceName} · {versionTag(row.version)}{row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small></div>
+            <div className="challenge-ranked-action"><strong>{t('sight.takeScore', { score: row.score })}</strong>
+              {row.own && <button type="button" className="text-button" aria-label={t('sight.withdrawResult', { version: versionTag(row.version) })}
+                onClick={() => setRemoving(row)}><Trash2 size={16} aria-hidden="true" /></button>}
+            </div>
+          </li>)}</ul>}
+      <ConfirmDialog busy={busy} onClose={() => setRemoving(null)} confirmation={removing && {
+        title: t('sight.withdrawResult', { version: versionTag(removing.version) }), message: t('sight.withdrawDescription'),
+        action: t('sight.withdrawAction'), destructive: true, onConfirm: withdraw,
+      }} />
+    </>}
   </details>;
 }
 
@@ -168,8 +209,11 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublish, scor
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState<'local' | 'publish' | null>(null);
   const saveLifetime = useRef<AbortController | null>(null);
-  const resultLifetime = useRef<AbortController | null>(null);
-  useEffect(() => () => { saveLifetime.current?.abort(); resultLifetime.current?.abort(); }, []);
+  const resultLifetimes = useRef(new Set<AbortController>());
+  useEffect(() => {
+    const pending = resultLifetimes.current;
+    return () => { saveLifetime.current?.abort(); for (const controller of pending) controller.abort(); };
+  }, []);
 
   const visibleSource = editing ? sourceMode : saved?.snapshot ? 'saved' : 'library';
   const candidates = useMemo(() => scores.filter(score => (score.musicXmlCount ?? score.attachmentCount ?? 0) > 0), [scores]);
@@ -268,27 +312,26 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublish, scor
     finally { saveLifetime.current = null; if (!controller.signal.aborted) setSaving(false); }
   };
   const canPublishResult = Boolean(shared && saved?.snapshot);
-  const confirmResult = async (decision: ResultDecision) => {
-    if (!saved || decision.score === null) return;
-    if (resultLifetime.current) throw new Error('result_confirmation_pending');
+  const recordResult = async (attempt: ScoredTake): Promise<ResultSave> => {
+    if (!saved) throw new Error('result_question_missing');
     const controller = new AbortController(), current = captureNavigationIdentity();
-    resultLifetime.current = controller;
+    resultLifetimes.current.add(controller);
+    const summary = { id: attempt.id, at: Date.now(), title: saved.title, questionId: saved.id, version: attempt.version,
+      voiceId: attempt.voiceId, voiceName: attempt.voiceName, speed: attempt.speed, published: false, percent: attempt.score };
     try {
-      const published = decision.publish && canPublishResult;
-      if (published) {
-        await publishSightSingingResult(choirId, saved.id, userId, { id: decision.id, version, score: decision.score,
-          voiceId: decision.voiceId, voiceName: decision.voiceName }, controller.signal);
-      }
+      const localBest = await saveTake(owner, choirId, summary, controller.signal);
+      if (!canPublishResult) return localBest ? 'local' : 'previous';
       controller.signal.throwIfAborted();
-      if (!current()) throw new Error('result_confirmation_identity_changed');
-      const history = saveTake(owner, choirId, { id: decision.id, at: Date.now(), title: saved.title, questionId: saved.id, version,
-        voiceId: decision.voiceId, voiceName: decision.voiceName, published, percent: decision.score }, controller.signal);
-      if (published) {
-        setResultGeneration(prev => prev + 1);
-        // The cloud entry is authoritative after confirmation. Local history is optional.
-        await history.catch(() => undefined);
-      } else await history;
-    } finally { resultLifetime.current = null; }
+      if (!current()) throw new Error('result_identity_changed');
+      const published = await publishSightSingingResult(choirId, saved.id, userId, attempt, controller.signal);
+      if (!controller.signal.aborted && current()) {
+        setResultGeneration(value => value + 1);
+        if (published && localBest) await saveTake(owner, choirId, { ...summary, published }, controller.signal).catch(() => undefined);
+      }
+      return published ? 'published' : 'previous';
+    } finally {
+      resultLifetimes.current.delete(controller);
+    }
   };
   const status = score && attachments.statusFor(score.id);
   const needsSource = visibleSource === 'library' && ((!score && Boolean(scoreId)) || (score && status === 'ready' && !attachment && Boolean(fileChoice)));
@@ -363,9 +406,9 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublish, scor
       {failed && <p role="alert" className="challenge-error">{t(failed === 'publish' ? 'sight.publishError' : 'sight.storageError')}</p>}
       {!editing && loaded.document && selected && <ChallengeRun document={loaded.document} selected={selected} voices={voices}
         backingUnavailable={backingUnavailable} selectVoice={setVoiceChoice} visitLabel={visitLabel} questionVersion={version}
-        canPublishResult={canPublishResult} onConfirm={confirmResult} />}
+        canPublishResult={canPublishResult} onScored={recordResult} />}
       {!editing && canPublishResult && saved && <PublishedResults key={`${saved.id}:${version}`}
-        choirId={choirId} questionId={saved.id} version={version} generation={resultGeneration} />}
+        choirId={choirId} owner={owner} userId={userId} questionId={saved.id} version={version} generation={resultGeneration} />}
     </main>
   </div>;
 }

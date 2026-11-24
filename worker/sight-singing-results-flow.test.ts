@@ -33,7 +33,7 @@ const score = `<score-partwise version="4.0"><part-list><score-part id="P1"><par
   <clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch>
   <duration>4</duration><type>whole</type></note></measure></part></score-partwise>`;
 
-it('publishes only explicitly submitted scores for a frozen version and shows them only to current drive members', async () => {
+it('keeps one best published score per version and withdraws only the selected owned entry', async () => {
   const owner = await account('版主'), singer = await account('演唱者'), outsider = await account('访客');
   const { choirId, joinCode } = await provisionChoir({ binding: env.DB, ownerUserId: owner.id, ownerDisplayName: '管理员', inviteSecret: env.INVITE_SECRET });
   const joined = await call('/api/choirs/join', {
@@ -86,6 +86,36 @@ it('publishes only explicitly submitted scores for a frozen version and shows th
   const publicList = await read(listPath, owner);
   expect(publicList.headers.get('Cache-Control')).toBe('no-store');
   expect(await publicList.json()).toEqual({ results: [{ ...own, own: false }] });
+
+  const bestPath = `${resultPath}?view=best`;
+  const newTake = (fields: { version?: number; score: number; speed: number; voiceName?: string }) =>
+    ({ ...result, id: crypto.randomUUID(), ...fields });
+  const tie = newTake({ score: 84, speed: .75, voiceName: 'Soprano' });
+  expect(await (await send(tie, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
+  const better = newTake({ score: 94, speed: 1.5 }), inferior = newTake({ score: 89, speed: .5 });
+  const concurrent = await Promise.all([send(better, singer, singer.id, bestPath), send(inferior, singer, singer.id, bestPath)]);
+  expect(concurrent.map(response => response.status)).toEqual([200, 200]);
+  expect(await (await read(bestPath)).json()).toMatchObject({ versions: [2, 1], results: [{ id: better.id, score: 94, speed: 1.5 }] });
+  const v2 = newTake({ version: 2, score: 80, speed: 1.25 });
+  expect(await (await send(v2, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
+  expect(await (await read(bestPath + '&version=2')).json()).toMatchObject({ results: [{ id: v2.id, version: 2 }] });
+  expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: better.id, score: 94 }] });
+
+  const withdraw = (author: typeof singer) => call(`${resultPath}/${better.id}?version=1`, {
+    method: 'DELETE', headers: { cookie: author.cookie, 'x-same-page-owner-user-id': author.id },
+  });
+  expect((await withdraw(outsider)).status).toBe(403);
+  expect((await withdraw(owner)).status).toBe(204);
+  expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: better.id }] });
+  expect((await withdraw(singer)).status).toBe(204);
+  expect(await (await read(listPath)).json()).toEqual({ results: [] });
+  expect(await (await send(better, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
+  expect(await (await send(inferior, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
+  expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: v2.id, score: 80 }] });
+  const fresh = newTake({ score: 77, speed: 1 });
+  expect(await (await send(fresh, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
+  expect(await (await read(bestPath + '&version=1')).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
+
   await env.DB.prepare("UPDATE memberships SET status = 'removed' WHERE choir_id = ? AND user_id = ?").bind(choirId, singer.id).run();
   expect((await read(listPath)).status).toBe(403);
   expect((await send()).status).toBe(403);

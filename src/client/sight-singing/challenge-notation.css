@@ -23,3 +23,4 @@
 .challenge-notation-sheet [data-challenge-feedback]:is([data-challenge-feedback="sharp"], [data-challenge-feedback="flat"]) { fill: var(--score-detuned); }
 .challenge-notation-sheet [data-challenge-feedback]:is([data-challenge-feedback="wrongNote"], [data-challenge-feedback="missed"]) { fill: var(--score-wrong); }
 .challenge-run[data-phase="result"] .challenge-staff-trace { opacity: .62; }
+.challenge-run[data-replaying="true"] .challenge-staff-trace { opacity: 1; }

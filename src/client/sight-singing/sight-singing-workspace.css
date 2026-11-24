@@ -28,6 +28,12 @@
 .challenge-score-list li > div:last-child { text-align: end; }
 .challenge-score-list small { display: block; margin-block-start: .2rem; color: var(--muted); }
 .challenge-published-results { margin-block-start: 1.2rem; }
-.challenge-run:not([data-phase="idle"], [data-phase="complete"]) + .challenge-published-results { display: none; }
+.challenge-run:not([data-phase="idle"], [data-phase="result"]) + .challenge-published-results { display: none; }
 .challenge-published-results summary { cursor: pointer; padding-block: .65rem; }
 .challenge-published-results summary small { margin-inline-start: .3rem; color: var(--muted); }
+
+.challenge-version-filter { display: block; margin-block: .3rem .75rem; }
+.challenge-version-filter select { min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line);
+  border-radius: .6rem; background: var(--surface); color: var(--ink); font: inherit; }
+.challenge-ranked-action { display: flex; align-items: center; gap: .45rem; white-space: nowrap; }
+.challenge-ranked-action button { min-width: 44px; min-height: 44px; }
