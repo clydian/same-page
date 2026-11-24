@@ -1,0 +1,36 @@
+{
+  "build": "156920f064821b8d7e96558407694a3bf3e43c9d",
+  "score": 40,
+  "correct": 2,
+  "paused": 0.521586,
+  "barStart": 2.6666666666666665,
+  "firstVersions": [
+    "V1",
+    "V2"
+  ],
+  "inks": {
+    "inTune": {
+      "fill": "rgb(10, 154, 53)",
+      "stroke": "rgb(10, 154, 53)",
+      "width": 0.65
+    },
+    "sharp": {
+      "fill": "rgb(10, 154, 53)",
+      "stroke": "rgb(10, 154, 53)",
+      "width": 0.65
+    },
+    "wrongNote": {
+      "fill": "rgb(227, 36, 70)",
+      "stroke": "rgb(227, 36, 70)",
+      "width": 0.65
+    },
+    "missed": {
+      "fill": "rgb(227, 36, 70)",
+      "stroke": "rgb(227, 36, 70)",
+      "width": 0.65
+    }
+  },
+  "signedError": "+35",
+  "api": [],
+  "errors": []
+}
