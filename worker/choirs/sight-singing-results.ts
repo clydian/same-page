@@ -11,8 +11,9 @@ import { limitDriveMutation } from '../security/drive-rate-limit';
 const path = '/choirs/:choirId/sight-singing/questions/:questionId/results';
 const activeActor = `EXISTS (SELECT 1 FROM membership_capabilities actor JOIN choirs drive ON drive.id = actor.choir_id
   WHERE actor.id = ? AND drive.purged_at IS NULL AND drive.is_preview_entry = 0)`;
-const exactVersion = `EXISTS (SELECT 1 FROM sight_singing_question_versions
-  WHERE choir_id = ? AND question_id = ? AND (? IS NULL OR version = ?))`;
+const exactVersion = `EXISTS (SELECT 1 FROM sight_singing_question_versions edition
+  JOIN sight_singing_questions question ON question.choir_id = edition.choir_id AND question.id = edition.question_id
+  WHERE edition.choir_id = ? AND edition.question_id = ? AND (? IS NULL OR edition.version = ?) AND question.publication = 'official')`;
 const versionNumber = z.coerce.number().int().positive();
 const uuid = z.uuid();
 

@@ -69,18 +69,6 @@ export async function saveQuestion(owner: string, drive: string, question: Sight
   await savePracticeData(owner, questionKeyPrefix(owner, drive) + question.id, question, signal, blob);
 }
 
-export async function freezeLegacyQuestion(owner: string, drive: string, question: SightSingingQuestion, name: string, blob: Blob, signal: AbortSignal) {
-  await localDatabase.transaction('rw', localDatabase.system, async () => {
-    await assertPracticeOwner(owner);
-    signal.throwIfAborted();
-    const key = questionKeyPrefix(owner, drive) + question.id;
-    const row = await localDatabase.system.get(key);
-    if (!row || row.blob || row.value !== JSON.stringify(question)) return;
-    await localDatabase.system.put({ key, value: JSON.stringify({ ...question, version: question.version ?? 1, snapshot: { name } }), blob });
-    signal.throwIfAborted();
-  });
-}
-
 export async function assertPracticeOwner(owner: string) {
   if (await currentLocalOwnerKey() !== owner || (await readLogoutFence())?.userId === owner.slice('user:'.length)) {
     throw new Error('local_workspace_owner_changed');

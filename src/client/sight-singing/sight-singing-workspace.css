@@ -5,6 +5,19 @@
   color: var(--muted);
   font-size: .8rem;
 }
+.challenge-question-label small { display: block; margin-block-start: .15rem; color: var(--muted); }
+.challenge-legacy-questions { margin-block: 1.6rem; }
+.challenge-legacy-questions summary { cursor: pointer; }
+.challenge-legacy-questions p { color: var(--muted); }
+.challenge-publish-role {
+  display: flex; flex-wrap: wrap; gap: 0 .85rem; min-inline-size: 0;
+  margin: .6rem 0 0; padding: .15rem 0 0; border: 0;
+}
+.challenge-publish-role legend { padding: 0; font-weight: 650; }
+.challenge-publish-role label { display: flex; align-items: center; gap: .45rem; min-block-size: 44px; }
+.challenge-publish-role input[type="radio"] {
+  inline-size: 1.1rem; block-size: 1.1rem; min-block-size: 0; padding: 0; accent-color: var(--brand);
+}
 
 .challenge-form input[type='file'] { padding: .58rem .72rem; }
 .challenge-source-file {

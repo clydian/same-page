@@ -13,7 +13,7 @@ import { loadMelodyScore, type MelodyScore } from './melody';
 import { readQuestionSnapshot } from './questions';
 
 export const publishedPath = (drive: string) => `/api/choirs/${encodeURIComponent(drive)}/sight-singing/questions`;
-export const sightSingingProtocol = { [SIGHT_SINGING_PROTOCOL_HEADER]: '2' };
+export const sightSingingProtocol = { [SIGHT_SINGING_PROTOCOL_HEADER]: '3' };
 
 type QuestionSnapshot = { choirId: string; questionId: string; version: number; name: string };
 export type MelodySource =
