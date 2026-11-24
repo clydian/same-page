@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import {
-  currentSingingScoringRule, legacySingingScoringRule, sightSingingResultSubmissionSchema, sightSingingScoringRuleSchema,
+  currentSingingScoringRule, sightSingingResultSubmissionSchema,
   sightSingingVersionFilterSchema, sightSingingVoiceNameSchema, type PublishedSightSingingResult, type SightSingingLeaderboard,
 } from '../../src/shared/sight-singing-results';
 import { AuthorizationError } from '../auth/authorization';
@@ -56,8 +56,8 @@ sightSingingResultRoutes.get(leaderboardPath, async context => {
   const scope = `FROM sight_singing_best_results result
     JOIN sight_singing_questions question ON question.choir_id = result.choir_id AND question.id = result.question_id
     JOIN membership_capabilities singer ON singer.choir_id = result.choir_id AND singer.id = result.membership_id
-    WHERE result.choir_id = ? AND question.publication = 'official' AND ${activeActor}`;
-  const filter = `${scope} AND result.scoring_rule = ? AND (? = 'all' OR result.version = question.version)`;
+    WHERE result.choir_id = ? AND question.publication = 'official' AND ${activeActor} AND result.scoring_rule = ?`;
+  const filter = `${scope} AND (? = 'all' OR result.version = question.version)`;
   const values = [choirId, member.id, currentSingingScoringRule, versions.data];
   const podium = context.req.query('podium') === '1';
   // The achievement order still keeps ties stable without splitting their places.
@@ -79,7 +79,7 @@ sightSingingResultRoutes.get(leaderboardPath, async context => {
     .bind(...values, voice.data ?? null, voice.data ?? null);
   const parts = db.prepare(`SELECT DISTINCT result.voice_name AS voiceName ${filter} ORDER BY voiceName`).bind(...values);
   const participants = db.prepare(`SELECT result.question_id AS questionId, COUNT(DISTINCT result.membership_id) AS count
-    ${scope} GROUP BY result.question_id`).bind(choirId, member.id);
+    ${scope} GROUP BY result.question_id`).bind(choirId, member.id, currentSingingScoringRule);
   const [results, voices, counts] = await db.batch(podium ? [top, parts, participants] : [top, parts]);
   const details = context.req.query('details') === '1';
   const includeWrittenOctave = context.req.query('writtenOctave') === '1';
@@ -97,12 +97,9 @@ sightSingingResultRoutes.get(path, async context => {
   const id = uuid.safeParse(questionId);
   const bestView = context.req.query('view') === 'best';
   const version = (bestView ? versionNumber.optional() : versionNumber).safeParse(context.req.query('version'));
-  const rule = sightSingingScoringRuleSchema.optional().safeParse(
-    bestView && context.req.query('scoringRule') !== undefined ? Number(context.req.query('scoringRule')) : undefined);
   const voice = sightSingingVoiceNameSchema.optional().safeParse(bestView ? context.req.query('voice') : undefined);
-  if (!id.success || !version.success || !rule.success || !voice.success) return context.json({ error: 'invalid_question_version' }, 400);
+  if (!id.success || !version.success || !voice.success) return context.json({ error: 'invalid_question_version' }, 400);
   const requested = version.data ?? null;
-  const scoringRule = rule.data ?? legacySingingScoringRule;
   const scoreColumn = bestView && context.req.query('precision') === '2' ? 'result.hundredths / 100.0' : 'result.score';
   if (!await hasQuestionVersion(db, choirId, id.data, requested, member.id)) return context.json({ error: 'question_version_not_found' }, 404);
   const scores = db.prepare(`WITH ranked AS (
@@ -120,25 +117,22 @@ sightSingingResultRoutes.get(path, async context => {
     ON singer.id = result.membership_id AND singer.choir_id = result.choir_id
   WHERE result.position = 1 AND ${activeActor}
   ORDER BY result.hundredths DESC, result.achieved_order`)
-    .bind(choirId, id.data, scoringRule, requested, requested, voice.data ?? null, voice.data ?? null, member.id, member.id);
+    .bind(choirId, id.data, currentSingingScoringRule, requested, requested, voice.data ?? null, voice.data ?? null, member.id, member.id);
   const versions = db.prepare(`SELECT version FROM sight_singing_question_versions
     WHERE choir_id = ? AND question_id = ? AND ${activeActor} ORDER BY version DESC`).bind(choirId, id.data, member.id);
-  const facets = db.prepare(`SELECT DISTINCT result.scoring_rule AS rule, CASE WHEN result.scoring_rule = ? THEN result.voice_name END AS voice
+  const facets = db.prepare(`SELECT DISTINCT result.voice_name AS voice
     FROM sight_singing_best_results result JOIN membership_capabilities singer
     ON singer.id = result.membership_id AND singer.choir_id = result.choir_id
-    WHERE result.choir_id = ? AND result.question_id = ? AND ${activeActor} ORDER BY rule, voice`)
-    .bind(scoringRule, choirId, id.data, member.id);
-  const [listing, editions, metadata] = await db.batch(rule.data === undefined ? [scores, versions] : [scores, versions, facets]);
-  const entries = (metadata?.results ?? []) as { rule: number; voice: string | null }[];
+    WHERE result.choir_id = ? AND result.question_id = ? AND result.scoring_rule = ? AND ${activeActor} ORDER BY voice`)
+    .bind(choirId, id.data, currentSingingScoringRule, member.id);
+  const [listing, editions, metadata] = await db.batch(bestView ? [scores, versions, facets] : [scores]);
   const details = bestView && context.req.query('details') === '1';
   const includeWrittenOctave = context.req.query('writtenOctave') === '1';
   const results = (listing.results as ResultRow[]).map(({ speed, own, allNotesMatchedResultId, writtenOctaveResultId, ...row }) =>
     ({ ...row, own: own === 1, ...(bestView && speed !== null && { speed }),
       ...(details && resultBadges(row.id, allNotesMatchedResultId, writtenOctaveResultId, includeWrittenOctave)) }));
-  return context.json({ results, ...(bestView && { versions: (editions.results as { version: number }[]).map(row => row.version) }),
-    ...(metadata && { hasLegacyScores: entries.some(row => row.rule === legacySingingScoringRule),
-      previousRules: [...new Set(entries.map(row => row.rule).filter(rule => rule !== currentSingingScoringRule))],
-      voices: entries.flatMap(row => row.voice === null ? [] : [row.voice]) }) });
+  return context.json({ results, ...(editions && { versions: (editions.results as { version: number }[]).map(row => row.version) }),
+    ...(metadata && { voices: (metadata.results as { voice: string }[]).map(row => row.voice) }) });
 });
 
 sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context => {
@@ -149,18 +143,15 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
   const id = uuid.safeParse(questionId);
   const submission = sightSingingResultSubmissionSchema.safeParse(await context.req.json().catch(() => null));
   if (!id.success || !submission.success) return context.json({ error: 'invalid_result' }, 400);
-  const { id: resultId, version, score, voiceId, voiceName, speed, scoringRule = legacySingingScoringRule } = submission.data;
+  const { id: resultId, version, score, voiceId, voiceName, speed } = submission.data;
   // Older workers ignore optional display markers and still accept the score.
-  const perfect = context.req.query('view') === 'best' && context.req.query('perfect') === '1' && scoringRule === currentSingingScoringRule && score > 0;
+  const perfect = context.req.query('view') === 'best' && context.req.query('perfect') === '1' && score > 0;
   const writtenOctave = perfect && context.req.query('writtenOctave') === '1';
-  if (scoringRule !== currentSingingScoringRule && !Number.isInteger(score)) return context.json({ error: 'invalid_result' }, 400);
   if (!await hasQuestionVersion(db, choirId, id.data, version, member.id)) return context.json({ error: 'question_version_not_found' }, 404);
   const limited = await limitDriveMutation(context, member.userId, 'publish-sight-singing-result', 30);
   if (limited) return limited;
 
-  // Preserve the fingerprints of previous client submissions.
-  const receiptFields = [version, score, voiceId, voiceName, speed ?? null];
-  if (scoringRule !== legacySingingScoringRule) receiptFields.push(scoringRule);
+  const receiptFields = [version, score, voiceId, voiceName, speed ?? null, currentSingingScoringRule];
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(receiptFields)));
   const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   const claim = crypto.randomUUID();
@@ -169,9 +160,8 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
   const receipt = db.prepare(`INSERT INTO sight_singing_result_receipts
       (choir_id, question_id, version, membership_id, id, fingerprint, claim)
     SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${activeActor} AND ${exactVersion}
-      AND NOT EXISTS (SELECT 1 FROM sight_singing_results WHERE choir_id = ? AND question_id = ? AND id = ?)
     ON CONFLICT(choir_id, question_id, id) DO NOTHING`).bind(choirId, id.data, version, member.id, resultId, fingerprint,
-    claim, member.id, choirId, id.data, version, version, choirId, id.data, resultId);
+    claim, member.id, choirId, id.data, version, version);
   const promote = db.prepare(`INSERT INTO sight_singing_best_results
       (choir_id, question_id, version, membership_id, scoring_rule, rank_voice_id, id, score, score_hundredths, voice_id, voice_name, speed,
         all_notes_matched_result_id, written_octave_result_id, achieved_order)
@@ -182,21 +172,18 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
       speed = excluded.speed, all_notes_matched_result_id = excluded.all_notes_matched_result_id,
       written_octave_result_id = excluded.written_octave_result_id, achieved_order = excluded.achieved_order
     WHERE excluded.score_hundredths > COALESCE(sight_singing_best_results.score_hundredths, sight_singing_best_results.score * 100)`)
-    .bind(scoringRule, scoringRule === currentSingingScoringRule ? voiceId : '', Math.round(score),
+    .bind(currentSingingScoringRule, voiceId, Math.round(score),
       Math.round(score * 100), voiceId, voiceName, speed ?? null, perfect ? resultId : null, writtenOctave ? resultId : null,
       choirId, id.data, resultId, claim);
   const verify = db.prepare(`SELECT singer.display_name AS displayName, EXISTS (
       SELECT 1 FROM sight_singing_best_results WHERE choir_id = ? AND question_id = ? AND scoring_rule = ?
         AND version = ? AND membership_id = ? AND id = ?
     ) AS published
-    FROM membership_capabilities singer WHERE singer.id = ? AND ${activeActor} AND (
-      EXISTS (SELECT 1 FROM sight_singing_result_receipts
-        WHERE choir_id = ? AND question_id = ? AND id = ? AND membership_id = ? AND fingerprint = ?) OR
-      (? = 1 AND ? IS NULL AND EXISTS (SELECT 1 FROM sight_singing_results
-        WHERE choir_id = ? AND question_id = ? AND id = ? AND version = ? AND membership_id = ? AND score = ? AND voice_id = ? AND voice_name = ?))
-    )`).bind(choirId, id.data, scoringRule, version, member.id, resultId, member.id, member.id,
-    choirId, id.data, resultId, member.id, fingerprint, scoringRule, speed ?? null,
-    choirId, id.data, resultId, version, member.id, score, voiceId, voiceName);
+    FROM membership_capabilities singer WHERE singer.id = ? AND ${activeActor}
+      AND EXISTS (SELECT 1 FROM sight_singing_result_receipts
+        WHERE choir_id = ? AND question_id = ? AND id = ? AND membership_id = ? AND fingerprint = ?)`)
+    .bind(choirId, id.data, currentSingingScoringRule, version, member.id, resultId, member.id, member.id,
+      choirId, id.data, resultId, member.id, fingerprint);
   const [, , status] = await db.batch<{ displayName: string; published: number }>([receipt, promote, verify]);
   const row = status.results[0];
   if (row) {
@@ -219,7 +206,7 @@ sightSingingResultRoutes.delete(`${path}/:resultId`, async context => {
     return context.json({ error: 'invalid_result' }, 400);
   }
   await db.prepare(`DELETE FROM sight_singing_best_results
-    WHERE choir_id = ? AND question_id = ? AND version = ? AND id = ? AND membership_id = ? AND ${activeActor}`)
-    .bind(choirId, questionId, version.data, resultId, member.id, member.id).run();
+    WHERE choir_id = ? AND question_id = ? AND version = ? AND id = ? AND membership_id = ? AND scoring_rule = ? AND ${activeActor}`)
+    .bind(choirId, questionId, version.data, resultId, member.id, currentSingingScoringRule, member.id).run();
   return context.body(null, 204, { 'Cache-Control': 'no-store' });
 });

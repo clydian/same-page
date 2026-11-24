@@ -27,8 +27,7 @@ import { readQuestions, type SightSingingQuestion } from './questions';
 import { ScoreBadges } from './score-badge';
 import { compactPracticeHistory, markTakeWithdrawn, saveTake } from './practice-history';
 import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult } from './result-publication';
-import { currentSingingScoringRule, legacySingingScoringRule, previousSingingScoringRule, sightSingingScoringRuleSchema,
-  type PublishedSightSingingResult, type SightSingingLeaderboard, type SightSingingScoringRule, type SightSingingVersionFilter } from '../../shared/sight-singing-results';
+import type { PublishedSightSingingResult, SightSingingLeaderboard, SightSingingVersionFilter } from '../../shared/sight-singing-results';
 import { publishedPath, sightSingingProtocol, useMelodySource, type MelodySource } from './use-melody-source';
 import './sight-singing.css';
 import './sight-singing-workspace.css';
@@ -126,7 +125,7 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
         {published === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
           : published === null ? <p role="alert">{t('sight.publishedError')} <button type="button" className="text-button" onClick={() => { setPublished(undefined); setReload(value => value + 1); }}>{t('sight.retryLoad')}</button></p>
           : <QuestionList questions={published} leaderboard={ranked} participants={board?.leaderboard?.participants}
-            open={question => setSelection({ question })} />}
+            choirId={props.choirId} edition={edition} voice={voice} open={question => setSelection({ question })} />}
       </section>
       {questions === null ? <p role="alert">{t('sight.storageError')}</p> : Boolean(legacyQuestions?.length) &&
         <details className="challenge-legacy-questions">
@@ -171,9 +170,10 @@ function RankBadge({ place, tied }: { place: number; tied: boolean }) {
   </span>;
 }
 
-function QuestionList({ questions, leaderboard, participants, open }: {
+function QuestionList({ questions, leaderboard, participants, choirId, edition, voice, open }: {
   questions: PublishedQuestion[]; leaderboard?: SightSingingLeaderboard | null;
-  participants?: SightSingingLeaderboard['participants']; open: (question: PublishedQuestion) => void;
+  participants?: SightSingingLeaderboard['participants']; choirId: string; edition: SightSingingVersionFilter; voice: string;
+  open: (question: PublishedQuestion) => void;
 }) {
   const t = useMessages('practice');
   const byQuestion = new Map<string, SightSingingLeaderboard['results']>();
@@ -185,18 +185,35 @@ function QuestionList({ questions, leaderboard, participants, open }: {
   const counts = participants && new Map(participants.map(item => [item.questionId, item.count]));
   return questions.length ? <ul className="challenge-card-grid" role="list" aria-busy={leaderboard === undefined}>
     {questions.map(question => <QuestionCard key={question.id} question={question} top={byQuestion.get(question.id)}
+      choirId={choirId} versionFilter={edition === 'latest' ? question.version : null} voiceFilter={voice}
       count={question.publisher?.kind === 'member' || !counts ? undefined : counts.get(question.id) ?? 0}
       ready={Boolean(leaderboard)} open={() => open(question)} />)}
   </ul> : <p className="challenge-empty">{t('sight.noPublished')}</p>;
 }
 
-function QuestionCard({ question, top, count, ready, open }: {
+function QuestionCard({ question, top, count, choirId, versionFilter, voiceFilter, ready, open }: {
   question: PublishedQuestion; top?: SightSingingLeaderboard['results']; count?: number; ready: boolean; open: () => void;
+  choirId: string; versionFilter: number | null; voiceFilter: string;
 }) {
   const t = useMessages('practice');
   const formatScore = useSightSingingScoreFormat();
   const rankingId = useId();
   const [expanded, setExpanded] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [details, setDetails] = useState<{ version: number | null; voice: string; retry: number; rows: PublishedSightSingingResult[] | null }>();
+  useEffect(() => {
+    if (!expanded) return;
+    const controller = new AbortController();
+    void readSightSingingResults(choirId, question.id, versionFilter, voiceFilter, controller.signal).then(payload => {
+      if (!controller.signal.aborted) setDetails({ version: versionFilter, voice: voiceFilter, retry, rows: payload.results });
+    }).catch(() => {
+      if (!controller.signal.aborted) setDetails({ version: versionFilter, voice: voiceFilter, retry, rows: null });
+    });
+    return () => controller.abort();
+  }, [expanded, choirId, question.id, versionFilter, voiceFilter, retry]);
+  const loaded = details?.version === versionFilter && details.voice === voiceFilter && details.retry === retry ? details.rows : undefined;
+  const rows = expanded ? loaded : top;
+  const showDetailsButton = expanded || Boolean(top?.length);
   const showVersions = question.version > 1;
   return <li className="challenge-card">
     <button type="button" className="challenge-card-open" onClick={open}>
@@ -204,30 +221,35 @@ function QuestionCard({ question, top, count, ready, open }: {
       <ChevronRight size={17} aria-hidden="true" />
     </button>
     <div className="challenge-card-podium">
-      {(count !== undefined || Boolean(top?.length)) && <div className="challenge-card-summary">
+      {(count !== undefined || showDetailsButton) && <div className="challenge-card-summary">
         {count !== undefined && <span className="challenge-card-participants"><UsersRound size={14} aria-hidden="true" />
           {t('sight.participants', { count })}</span>}
-        {Boolean(top?.length) && <button type="button" className="challenge-card-detail-button" aria-label={t('sight.rankDetails')}
-          aria-controls={rankingId} aria-expanded={expanded} onClick={() => setExpanded(open => !open)}>
+        {showDetailsButton && <button type="button" className="challenge-card-detail-button" aria-label={t('sight.rankDetails')}
+          aria-controls={rankingId} aria-expanded={expanded} onClick={() => { if (expanded) setDetails(undefined); setExpanded(!expanded); }}>
           <ChevronDown size={17} aria-hidden="true" />
         </button>}
       </div>}
-      {top?.length ? <ol id={rankingId} className="challenge-card-ranks" role="list" aria-label={t('sight.topThree')}>
-        {rankScores(top).map(({ row, place, tied }) => <li key={row.id}>
-          <RankBadge place={place} tied={tied} />
-          <div className="challenge-card-result">
-            <div className="challenge-card-result-main"><span>{row.displayName}</span>
-              <strong className="challenge-marked-score">
-                <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} />
-                {t('sight.takeScore', { score: formatScore(row.score) })}
-              </strong>
+      <div id={rankingId}>
+        {rows?.length ? <ol className="challenge-card-ranks" role="list" aria-label={t(expanded ? 'sight.bestResults' : 'sight.topThree')}>
+          {rankScores(rows).map(({ row, place, tied }) => <li key={row.id}>
+            <RankBadge place={place} tied={tied} />
+            <div className="challenge-card-result">
+              <div className="challenge-card-result-main"><span>{row.displayName}</span>
+                <strong className="challenge-marked-score">
+                  <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} />
+                  {t('sight.takeScore', { score: formatScore(row.score) })}
+                </strong>
+              </div>
+              {expanded && <small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}
+                {row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small>}
             </div>
-            {expanded && <small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}
-              {row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small>}
-          </div>
-        </li>)}
-      </ol> : <p className="challenge-card-empty">{question.publisher?.kind === 'member'
-        ? t('sight.localCardScores') : ready ? t('sight.noCardScores') : '—'}</p>}
+          </li>)}
+        </ol> : expanded && rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
+          : rows === null ? <p className="challenge-card-empty" role="alert">{t('sight.publishedResultsError')}{' '}
+            <button className="text-button" type="button" onClick={() => setRetry(value => value + 1)}>{t('sight.retryLoad')}</button></p>
+          : <p className="challenge-card-empty">{question.publisher?.kind === 'member'
+            ? t('sight.localCardScores') : expanded || ready ? t('sight.noCardScores') : '—'}</p>}
+      </div>
     </div>
   </li>;
 }
@@ -290,14 +312,11 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
 }) {
   const t = useMessages('practice');
   const showVersions = version > 1;
-  const ruleId = useId();
   const [filter, setFilter] = useState<number | null>(null);
   const [voice, setVoice] = useState('');
   const [voices, setVoices] = useState<string[]>([]);
-  const [scoringRule, setScoringRule] = useState<SightSingingScoringRule>(currentSingingScoringRule);
-  const [previousRules, setPreviousRules] = useState<SightSingingScoringRule[]>([]);
   const [retry, setRetry] = useState(0);
-  const [state, setState] = useState<{ generation: number; retry: number; filter: number | null; scoringRule: SightSingingScoringRule;
+  const [state, setState] = useState<{ generation: number; retry: number; filter: number | null;
     voice: string; rows: PublishedSightSingingResult[] | null }>();
   const [versions, setVersions] = useState([version]);
   const [removing, setRemoving] = useState<PublishedSightSingingResult | null>(null);
@@ -305,22 +324,18 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
   const [withdrawFailed, setWithdrawFailed] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    void readSightSingingResults(choirId, questionId, filter, scoringRule, voice, controller.signal).then(payload => {
+    void readSightSingingResults(choirId, questionId, filter, voice, controller.signal).then(payload => {
       if (controller.signal.aborted) return;
-      setState({ generation, retry, filter, scoringRule, voice, rows: payload.results });
+      setState({ generation, retry, filter, voice, rows: payload.results });
       if (payload.versions) setVersions(payload.versions);
-      setPreviousRules(payload.previousRules ?? (payload.hasLegacyScores ? [legacySingingScoringRule] : []));
       setVoices(payload.voices ?? []);
     }).catch(() => {
-      if (!controller.signal.aborted) setState({ generation, retry, filter, scoringRule, voice, rows: null });
+      if (!controller.signal.aborted) setState({ generation, retry, filter, voice, rows: null });
     });
     return () => controller.abort();
-  }, [choirId, questionId, filter, scoringRule, voice, generation, retry]);
-  const rows = state?.generation === generation && state.retry === retry && state.filter === filter && state.scoringRule === scoringRule && state.voice === voice
+  }, [choirId, questionId, filter, voice, generation, retry]);
+  const rows = state?.generation === generation && state.retry === retry && state.filter === filter && state.voice === voice
     ? state.rows : undefined;
-  const rules = [...new Set<SightSingingScoringRule>([currentSingingScoringRule, ...previousRules, scoringRule])];
-  const ruleLabel = (rule: SightSingingScoringRule) => rule === legacySingingScoringRule
-    ? t('sight.legacyScoringRule') : t('sight.intonationRule', { cents: rule === previousSingingScoringRule ? 25 : 15 });
   const removeLabel = (edition: number) => showVersions ? t('sight.withdrawResult', { version: versionTag(edition) }) : t('sight.withdrawAction');
   const withdraw = async () => {
     if (!removing || busy) return;
@@ -345,15 +360,6 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
           </select>
         </label>}
         <VoiceFilter voice={voice} voices={voices} onChange={setVoice} />
-        {rules.length > 1 && <div className="challenge-version-filter">
-          <label htmlFor={ruleId} className="visually-hidden">{t('sight.scoringRuleFilter')}</label>
-          <select id={ruleId} value={scoringRule} onChange={event => {
-            const selected = sightSingingScoringRuleSchema.safeParse(Number(event.target.value));
-            if (selected.success) { setScoringRule(selected.data); setVoice(''); setVoices([]); }
-          }}>
-            {rules.map(rule => <option key={rule} value={rule}>{ruleLabel(rule)}</option>)}
-          </select>
-        </div>}
       </div>
       {withdrawFailed && <p role="alert">{t('sight.withdrawFailed')}</p>}
       {rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>

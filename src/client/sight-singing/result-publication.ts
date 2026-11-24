@@ -1,6 +1,6 @@
 import {
   sightSingingLeaderboardSchema, sightSingingResultResponseSchema, sightSingingResultsResponseSchema,
-  type SightSingingResultSubmission, type SightSingingScoringRule, type SightSingingVersionFilter,
+  type SightSingingResultSubmission, type SightSingingVersionFilter,
 } from '../../shared/sight-singing-results';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 
@@ -22,8 +22,8 @@ export async function publishSightSingingResult(choirId: string, questionId: str
 }
 
 export async function readSightSingingResults(choirId: string, questionId: string, version: number | null,
-  scoringRule: SightSingingScoringRule, voice: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ view: 'best', scoringRule: String(scoringRule), precision: '2', details: '1', writtenOctave: '1' });
+  voice: string, signal?: AbortSignal) {
+  const query = new URLSearchParams({ view: 'best', precision: '2', details: '1', writtenOctave: '1' });
   if (version !== null) query.set('version', String(version));
   if (voice) query.set('voice', voice);
   const response = await diagnosticFetch(`${resultPath(choirId, questionId)}?${query}`, { signal });

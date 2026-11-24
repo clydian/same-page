@@ -2,11 +2,8 @@ import { z } from 'zod';
 
 export const sightSingingSpeeds = [.5, .75, 1, 1.25, 1.5] as const;
 export const sightSingingSpeedSchema = z.literal(sightSingingSpeeds);
-export const legacySingingScoringRule = 1;
-export const previousSingingScoringRule = 2;
 export const currentSingingScoringRule = 3;
-export const sightSingingScoringRuleSchema = z.literal([legacySingingScoringRule, previousSingingScoringRule, currentSingingScoringRule]);
-export type SightSingingScoringRule = z.infer<typeof sightSingingScoringRuleSchema>;
+export const sightSingingScoringRuleSchema = z.literal(currentSingingScoringRule);
 
 export const sightSingingScoreSchema = z.number().min(0).max(100)
   .refine(score => Math.round(score * 100) / 100 === score, { message: 'Use at most two decimal places' });
@@ -32,8 +29,6 @@ const publishedSightSingingResultSchema = sightSingingResultSubmissionSchema.ext
 export const sightSingingResultResponseSchema = z.object({ result: publishedSightSingingResultSchema, published: z.boolean().optional() });
 export const sightSingingResultsResponseSchema = z.object({
   results: z.array(publishedSightSingingResultSchema), versions: z.array(z.number().int().positive()).optional(),
-  hasLegacyScores: z.boolean().optional(),
-  previousRules: z.array(sightSingingScoringRuleSchema).optional(),
   voices: z.array(sightSingingVoiceNameSchema).optional(),
 });
 export const sightSingingVersionFilterSchema = z.enum(['all', 'latest']);

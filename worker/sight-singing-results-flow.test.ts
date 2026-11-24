@@ -77,6 +77,7 @@ it('keeps one best published score per version and withdraws only the selected o
     .bind(choirId, liveQuestionId).run();
   expect((await send(result, singer, singer.id, `${questionsPath}/${liveQuestionId}/results`)).status).toBe(404);
   expect((await send({ ...result, recording: 'RIFF', notes: [{ midi: 64 }] })).status).toBe(400);
+  expect((await send({ ...result, scoringRule: 2 })).status).toBe(400);
 
   const own = { ...result, questionId, displayName: '云盘里的 Alto', own: true };
   const first = await send();
@@ -100,7 +101,7 @@ it('keeps one best published score per version and withdraws only the selected o
   const concurrent = await Promise.all([send(better, singer, singer.id, bestPath), send(inferior, singer, singer.id, bestPath)]);
   expect(concurrent.map(response => response.status)).toEqual([200, 200]);
   expect(await (await read(bestPath)).json()).toMatchObject({ versions: [2, 1], results: [{ id: better.id, score: 94, speed: 1.5 }] });
-  const v2 = newTake({ version: 2, score: 80, speed: 1.25 });
+  const v2 = newTake({ version: 2, score: 70, speed: 1.25 });
   expect(await (await send(v2, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
   expect(await (await read(bestPath + '&version=2')).json()).toMatchObject({ results: [{ id: v2.id, version: 2 }] });
   expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: better.id, score: 94 }] });
@@ -115,24 +116,10 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(await (await read(listPath)).json()).toEqual({ results: [] });
   expect(await (await send(better, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
   expect(await (await send(inferior, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
-  expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: v2.id, score: 80 }] });
+  expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: v2.id, score: 70 }] });
   const fresh = newTake({ score: 77, speed: 1 });
   expect(await (await send(fresh, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
   expect(await (await read(bestPath + '&version=1')).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
-
-  const intonationPath = bestPath + '&scoringRule=2';
-  expect(await (await read(intonationPath)).json()).toMatchObject({ results: [], hasLegacyScores: true });
-  const intonation = { ...newTake({ score: 71, speed: 1 }), scoringRule: 2 };
-  expect(await (await send(intonation, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
-  expect(await (await read(intonationPath)).json()).toMatchObject({ results: [{ id: intonation.id, score: 71 }], hasLegacyScores: true });
-  expect(await (await read(bestPath + '&scoringRule=1')).json()).toMatchObject({ results: [{ id: v2.id, score: 80 }] });
-  expect((await send({ ...intonation, scoringRule: 1 })).status).toBe(409);
-  const withdrawIntonation = await call(`${resultPath}/${intonation.id}?version=1`, {
-    method: 'DELETE', headers: { cookie: singer.cookie, 'x-same-page-owner-user-id': singer.id },
-  });
-  expect(withdrawIntonation.status).toBe(204);
-  expect(await (await send(intonation, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
-  expect(await (await read(listPath)).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
 
   const overview = `/api/choirs/${choirId}/sight-singing/leaderboard`;
   expect((await read(overview, outsider)).status).toBe(403);
@@ -151,7 +138,7 @@ it('keeps one best published score per version and withdraws only the selected o
     expect(await (await send(attempt, author, author.id, bestPath)).json()).toMatchObject({ published: true });
   }
   expect(await (await send(partTake(77, 1, true), singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
-  const listing = bestPath + '&scoringRule=3';
+  const listing = bestPath;
   expect(await (await read(listing + '&voice=Tenor&version=1')).json()).toMatchObject({
     results: [{ id: tenorV1.id, score: 78 }], voices: ['Alto', 'Tenor'],
   });
