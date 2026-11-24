@@ -1,0 +1,15 @@
+{
+  "build": "73a0d748174d5fb0b4ff102475328ce67fad6409",
+  "colors": {
+    "inTune": "rgb(35, 112, 68)",
+    "sharp": "rgb(166, 78, 12)",
+    "wrongNote": "rgb(177, 40, 64)",
+    "missed": "rgb(177, 40, 64)"
+  },
+  "theme": "light",
+  "checkedKeys": [
+    "G",
+    "F"
+  ],
+  "score": 25
+}
