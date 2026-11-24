@@ -374,6 +374,7 @@
     "stopReplay": "Arrêter la réécoute",
     "matchedNotes": "{matched}/{total} notes correctes",
     "allNotesMatched": "Toutes les notes sont justes",
+    "allNotesInWrittenOctave": "Toutes les notes sont justes à l’octave écrite",
     "intonationScore": "Justesse · {score}",
     "scoringRuleFilter": "Méthode de notation",
     "currentScoringRule": "Notation de la justesse",

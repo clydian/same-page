@@ -10,14 +10,16 @@ import { PitchGraph } from './pitch-graph';
 import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
 import { assessNotes, pitchName, takeScore, type PitchFrame } from './pitch-feedback';
 import { createPitchTrace } from './pitch-trace';
-import { AllNotesMatched } from './score-badge';
+import { ScoreBadges } from './score-badge';
 
 const emptyFrames: PitchFrame[] = [];
 const TuningFork = createLucideIcon('TuningFork', [['path', { d: 'M7 3v8a5 5 0 0 0 10 0V3M12 16v5', key: 'fork' }]]);
 type Speed = NonNullable<SightSingingResultSubmission['speed']>;
 export type ResultSave = 'published' | 'previous' | 'local';
 export type VoiceOption = { voice: MelodyVoice; melody: Melody; label: string };
-export type ScoredTake = SightSingingResultSubmission & { speed: Speed; scoringRule: typeof currentSingingScoringRule; perfect: boolean };
+export type ScoredTake = SightSingingResultSubmission & {
+  speed: Speed; scoringRule: typeof currentSingingScoringRule; perfect: boolean; writtenOctave: boolean;
+};
 type Review = ReturnType<typeof assessNotes>;
 type Answer = { status: 'preparing' } | { status: 'ready'; url: string } | { status: 'failed'; recording: Blob };
 type RunState = { phase: 'idle' | 'permission' }
@@ -128,12 +130,13 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     }
   };
 
-  const saveResult = async (id: string, score: number, perfect: boolean) => {
+  const saveResult = async (id: string, { percent, perfect, writtenOctave }: ReturnType<typeof takeScore>) => {
+    if (percent === null) return;
     const update = (save: ResultSave | 'failed' | 'saving') =>
       setState(current => current.phase === 'result' && current.id === id ? { ...current, save } : current);
     update('saving');
     try {
-      update(await onScored({ id, score, speed, perfect, scoringRule: currentSingingScoringRule,
+      update(await onScored({ id, score: percent, speed, perfect, writtenOctave, scoringRule: currentSingingScoringRule,
         version: questionVersion, voiceId: voice.id, voiceName: selected.label }));
     } catch {
       update('failed');
@@ -182,7 +185,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         const review = assessNotes(melody.notes, result), score = takeScore(review);
         setState({ phase: 'result', id: takeId, frames: trace.frames, review, score,
           answer: { status: 'preparing' }, save: score.percent === null ? 'unscored' : 'saving' });
-        if (score.percent !== null) void saveResult(takeId, score.percent, score.perfect);
+        void saveResult(takeId, score);
         void prepareAnswer(takeId, recording, review);
       },
       onError: reason => { releaseUpdate(); discard(); setDrone(false); setError(reason); setState({ phase: 'idle' }); },
@@ -299,7 +302,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     {state.phase === 'result' && <section className="challenge-result" aria-label={t('sight.review')}>
       <div className="challenge-score"><strong>{state.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(state.score.percent) })}</strong>
         {state.score.total > 0 && (state.score.perfect
-          ? <AllNotesMatched size={22} />
+          ? <ScoreBadges perfect writtenOctave={state.score.writtenOctave} size={22} />
           : <span>{t('sight.matchedNotes', { matched: state.score.matched, total: state.score.total })}</span>)}
       </div>
       <div className="challenge-replay-controls">
@@ -317,9 +320,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       </div>
       {state.save === 'failed' && <p className="challenge-save-status" role="alert">
         {t('sight.resultSave.failed')}
-        {state.score.percent !== null && <button type="button" className="text-button" onClick={() => {
-          if (state.score.percent !== null) void saveResult(state.id, state.score.percent, state.score.perfect);
-        }}>{t('sight.retryLoad')}</button>}
+        {state.score.percent !== null && <button type="button" className="text-button" onClick={() => void saveResult(state.id, state.score)}>
+          {t('sight.retryLoad')}</button>}
       </p>}
     </section>}
 

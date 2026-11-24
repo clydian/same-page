@@ -27,8 +27,12 @@
 }
 .challenge-card-ranks li strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .challenge-marked-score { display: inline-flex; align-items: center; gap: .3rem; }
-.challenge-perfect { display: inline-flex; flex: none; color: #80581b; }
+.challenge-score-badges { display: inline-flex; align-items: center; gap: .3rem; flex: none; }
+.challenge-score-badges > span { display: inline-flex; }
+.challenge-perfect { color: #80581b; }
 [data-ui-theme="dark"] .challenge-perfect { color: #f1bf65; }
+.challenge-written-octave { color: #126767; }
+[data-ui-theme="dark"] .challenge-written-octave { color: #8cd2c7; }
 .challenge-card-empty { color: var(--muted); font-size: .82rem; }
 .challenge-legacy-questions { margin-block: 1.6rem; }
 .challenge-legacy-questions summary { cursor: pointer; }

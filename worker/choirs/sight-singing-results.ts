@@ -22,9 +22,17 @@ const versionNumber = z.coerce.number().int().positive();
 const uuid = z.uuid();
 const rankScore = 'COALESCE(result.score_hundredths, result.score * 100)';
 
-type ExtraDetails = { speed: NonNullable<PublishedSightSingingResult['speed']> | null; allNotesMatchedResultId: string | null };
-type ResultRow = Omit<PublishedSightSingingResult, 'own' | 'speed' | 'perfect'> & ExtraDetails & { own: number };
-type LeaderboardRow = Omit<SightSingingLeaderboard['results'][number], 'speed' | 'perfect'> & ExtraDetails;
+type ExtraDetails = {
+  speed: NonNullable<PublishedSightSingingResult['speed']> | null;
+  allNotesMatchedResultId: string | null; writtenOctaveResultId: string | null;
+};
+type ResultRow = Omit<PublishedSightSingingResult, 'own' | 'speed' | 'perfect' | 'writtenOctave'> & ExtraDetails & { own: number };
+type LeaderboardRow = Omit<SightSingingLeaderboard['results'][number], 'speed' | 'perfect' | 'writtenOctave'> & ExtraDetails;
+
+function resultBadges(id: string, allNotesMatchedResultId: string | null, writtenOctaveResultId: string | null, includeWrittenOctave: boolean) {
+  if (allNotesMatchedResultId !== id) return {};
+  return { perfect: true, ...(includeWrittenOctave && writtenOctaveResultId === id && { writtenOctave: true }) };
+}
 
 async function hasQuestionVersion(db: D1Database, choirId: string, questionId: string, version: number | null, membershipId: string) {
   const row = await db.prepare(`SELECT ${activeActor} AS authorized, ${exactVersion} AS available`)
@@ -54,7 +62,7 @@ sightSingingResultRoutes.get(leaderboardPath, async context => {
   const scoreColumn = context.req.query('precision') === '2' ? 'hundredths / 100.0' : 'score';
   const top = db.prepare(`WITH per_singer AS (
       SELECT result.id, result.question_id AS questionId, result.version, result.score, result.voice_name AS voiceName,
-        result.speed, result.all_notes_matched_result_id AS allNotesMatchedResultId,
+        result.speed, result.all_notes_matched_result_id AS allNotesMatchedResultId, result.written_octave_result_id AS writtenOctaveResultId,
         singer.display_name AS displayName, result.achieved_order, ${rankScore} AS hundredths,
         ROW_NUMBER() OVER (PARTITION BY result.question_id, result.membership_id ORDER BY ${rankScore} DESC, result.achieved_order) AS best
       ${filter} AND (? IS NULL OR result.voice_name = ?)
@@ -62,14 +70,16 @@ sightSingingResultRoutes.get(leaderboardPath, async context => {
       SELECT *, ROW_NUMBER() OVER (PARTITION BY questionId ORDER BY hundredths DESC, achieved_order) AS place
       FROM per_singer WHERE best = 1
     )
-    SELECT id, questionId, version, ${scoreColumn} AS score, voiceName, displayName, speed, allNotesMatchedResultId
+    SELECT id, questionId, version, ${scoreColumn} AS score, voiceName, displayName, speed, allNotesMatchedResultId, writtenOctaveResultId
     FROM top_three WHERE place <= 3 ORDER BY questionId, place`)
     .bind(...values, voice.data ?? null, voice.data ?? null);
   const parts = db.prepare(`SELECT DISTINCT result.voice_name AS voiceName ${filter} ORDER BY voiceName`).bind(...values);
   const [results, voices] = await db.batch([top, parts]);
   const details = context.req.query('details') === '1';
-  const rows = (results.results as LeaderboardRow[]).map(({ speed, allNotesMatchedResultId, ...row }) =>
-    ({ ...row, ...(details && speed !== null && { speed }), ...(details && allNotesMatchedResultId === row.id && { perfect: true }) }));
+  const includeWrittenOctave = context.req.query('writtenOctave') === '1';
+  const rows = (results.results as LeaderboardRow[]).map(({ speed, allNotesMatchedResultId, writtenOctaveResultId, ...row }) =>
+    ({ ...row, ...(details && speed !== null && { speed }),
+      ...(details && resultBadges(row.id, allNotesMatchedResultId, writtenOctaveResultId, includeWrittenOctave)) }));
   return context.json({ results: rows, voices: (voices.results as { voiceName: string }[]).map(row => row.voiceName) });
 });
 
@@ -96,7 +106,7 @@ sightSingingResultRoutes.get(path, async context => {
       AND (? IS NULL OR voice_name = ?)
   )
   SELECT result.id, result.question_id AS questionId, result.version, ${scoreColumn} AS score, result.speed,
-    result.all_notes_matched_result_id AS allNotesMatchedResultId,
+    result.all_notes_matched_result_id AS allNotesMatchedResultId, result.written_octave_result_id AS writtenOctaveResultId,
     result.voice_id AS voiceId, result.voice_name AS voiceName, singer.display_name AS displayName,
     result.membership_id = ? AS own
   FROM ranked result JOIN membership_capabilities singer
@@ -114,9 +124,10 @@ sightSingingResultRoutes.get(path, async context => {
   const [listing, editions, metadata] = await db.batch(rule.data === undefined ? [scores, versions] : [scores, versions, facets]);
   const entries = (metadata?.results ?? []) as { rule: number; voice: string | null }[];
   const details = bestView && context.req.query('details') === '1';
-  const results = (listing.results as ResultRow[]).map(({ speed, own, allNotesMatchedResultId, ...row }) =>
+  const includeWrittenOctave = context.req.query('writtenOctave') === '1';
+  const results = (listing.results as ResultRow[]).map(({ speed, own, allNotesMatchedResultId, writtenOctaveResultId, ...row }) =>
     ({ ...row, own: own === 1, ...(bestView && speed !== null && { speed }),
-      ...(details && allNotesMatchedResultId === row.id && { perfect: true }) }));
+      ...(details && resultBadges(row.id, allNotesMatchedResultId, writtenOctaveResultId, includeWrittenOctave)) }));
   return context.json({ results, ...(bestView && { versions: (editions.results as { version: number }[]).map(row => row.version) }),
     ...(metadata && { hasLegacyScores: entries.some(row => row.rule === legacySingingScoringRule),
       previousRules: [...new Set(entries.map(row => row.rule).filter(rule => rule !== currentSingingScoringRule))],
@@ -132,8 +143,9 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
   const submission = sightSingingResultSubmissionSchema.safeParse(await context.req.json().catch(() => null));
   if (!id.success || !submission.success) return context.json({ error: 'invalid_result' }, 400);
   const { id: resultId, version, score, voiceId, voiceName, speed, scoringRule = legacySingingScoringRule } = submission.data;
-  // Older workers ignore this optional display marker and still accept the score.
+  // Older workers ignore optional display markers and still accept the score.
   const perfect = context.req.query('view') === 'best' && context.req.query('perfect') === '1' && scoringRule === currentSingingScoringRule && score > 0;
+  const writtenOctave = perfect && context.req.query('writtenOctave') === '1';
   if (scoringRule !== currentSingingScoringRule && !Number.isInteger(score)) return context.json({ error: 'invalid_result' }, 400);
   if (!await hasQuestionVersion(db, choirId, id.data, version, member.id)) return context.json({ error: 'question_version_not_found' }, 404);
   const limited = await limitDriveMutation(context, member.userId, 'publish-sight-singing-result', 30);
@@ -154,15 +166,18 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
     ON CONFLICT(choir_id, question_id, id) DO NOTHING`).bind(choirId, id.data, version, member.id, resultId, fingerprint,
     claim, member.id, choirId, id.data, version, version, choirId, id.data, resultId);
   const promote = db.prepare(`INSERT INTO sight_singing_best_results
-      (choir_id, question_id, version, membership_id, scoring_rule, rank_voice_id, id, score, score_hundredths, voice_id, voice_name, speed, all_notes_matched_result_id, achieved_order)
-    SELECT choir_id, question_id, version, membership_id, ?, ?, id, ?, ?, ?, ?, ?, ?, sequence
+      (choir_id, question_id, version, membership_id, scoring_rule, rank_voice_id, id, score, score_hundredths, voice_id, voice_name, speed,
+        all_notes_matched_result_id, written_octave_result_id, achieved_order)
+    SELECT choir_id, question_id, version, membership_id, ?, ?, id, ?, ?, ?, ?, ?, ?, ?, sequence
     FROM sight_singing_result_receipts WHERE choir_id = ? AND question_id = ? AND id = ? AND claim = ?
     ON CONFLICT(choir_id, question_id, scoring_rule, version, membership_id, rank_voice_id) DO UPDATE SET id = excluded.id, score = excluded.score,
       score_hundredths = excluded.score_hundredths, voice_id = excluded.voice_id, voice_name = excluded.voice_name,
-      speed = excluded.speed, all_notes_matched_result_id = excluded.all_notes_matched_result_id, achieved_order = excluded.achieved_order
+      speed = excluded.speed, all_notes_matched_result_id = excluded.all_notes_matched_result_id,
+      written_octave_result_id = excluded.written_octave_result_id, achieved_order = excluded.achieved_order
     WHERE excluded.score_hundredths > COALESCE(sight_singing_best_results.score_hundredths, sight_singing_best_results.score * 100)`)
     .bind(scoringRule, scoringRule === currentSingingScoringRule ? voiceId : '', Math.round(score),
-      Math.round(score * 100), voiceId, voiceName, speed ?? null, perfect ? resultId : null, choirId, id.data, resultId, claim);
+      Math.round(score * 100), voiceId, voiceName, speed ?? null, perfect ? resultId : null, writtenOctave ? resultId : null,
+      choirId, id.data, resultId, claim);
   const verify = db.prepare(`SELECT singer.display_name AS displayName, EXISTS (
       SELECT 1 FROM sight_singing_best_results WHERE choir_id = ? AND question_id = ? AND scoring_rule = ?
         AND version = ? AND membership_id = ? AND id = ?

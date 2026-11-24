@@ -374,6 +374,7 @@
     "stopReplay": "停止回聽",
     "matchedNotes": "唱對 {matched}/{total}",
     "allNotesMatched": "所有音符都唱對",
+    "allNotesInWrittenOctave": "所有音符都在譜面原八度唱對",
     "intonationScore": "音準 {score} 分",
     "scoringRuleFilter": "評分規則",
     "currentScoringRule": "按音準評分",

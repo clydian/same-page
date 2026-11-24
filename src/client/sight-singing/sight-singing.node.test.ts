@@ -124,9 +124,16 @@ describe('pitch and feedback', () => {
     const review = assessNotes(targets, frames);
     expect(review.map(row => row.status)).toEqual(['inTune', 'flat', 'sharp', 'wrongNote', 'wrongNote', 'missed', 'insufficientData']);
     expect(review.map(row => takeScore([row]).percent)).toEqual([100, 42.86, .29, 0, 0, 0, null]);
-    expect(takeScore(review)).toEqual({ total: 6, matched: 3, perfect: false, percent: 23.86 });
-    expect(takeScore(review.slice(0, 2))).toEqual({ total: 2, matched: 2, perfect: true, percent: 71.43 });
-    expect(takeScore([review[0], review[6]])).toMatchObject({ matched: 1, perfect: false });
+    expect(takeScore(review)).toEqual({ total: 6, matched: 3, perfect: false, writtenOctave: false, percent: 23.86 });
+    expect(takeScore(review.slice(0, 2))).toEqual({ total: 2, matched: 2, perfect: true, writtenOctave: true, percent: 71.43 });
+    expect(takeScore([review[0], review[6]])).toMatchObject({ matched: 1, perfect: false, writtenOctave: false });
+    const octaveTakes = [[60, 48], [72, 72], [48, 48]];
+    for (const pitches of octaveTakes) {
+      const notes = assessNotes(targets.slice(0, 2), pitches.map((midi, index) => ({ midi, time: index + .5 })));
+      expect(takeScore(notes)).toMatchObject({ matched: 2, perfect: true, writtenOctave: false, percent: 100 });
+    }
+    const writtenChordTone = assessNotes([{ ...targets[0], chord: [60, 72] }], [{ midi: 72, time: .5 }]);
+    expect(takeScore(writtenChordTone)).toMatchObject({ perfect: true, writtenOctave: true });
     expect([15.4, -35.5, -.1].map(formatCents)).toEqual(['+15', '-36', '0']);
     const nearBoundary = assessNotes(targets.slice(0, 2), [{ midi: 60.48, time: .5 }, { midi: 59.51, time: 1.5 }]);
     expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([5.71, 2.86]);

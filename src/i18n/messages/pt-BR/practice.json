@@ -374,6 +374,7 @@
     "stopReplay": "Parar reprodução",
     "matchedNotes": "{matched}/{total} notas corretas",
     "allNotesMatched": "Todas as notas corretas",
+    "allNotesInWrittenOctave": "Todas as notas corretas na oitava escrita",
     "intonationScore": "Afinação · {score}",
     "scoringRuleFilter": "Método de pontuação",
     "currentScoringRule": "Pontuação da afinação",

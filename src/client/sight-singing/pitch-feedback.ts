@@ -76,5 +76,7 @@ export function takeScore(review: ReturnType<typeof assessNotes>) {
     matched++;
     points += 100 * Math.min(1, (wrongNoteCents - Math.abs(cents)) / (wrongNoteCents - fullCreditCents));
   }
-  return { total, matched, perfect: matched > 0 && matched === review.length, percent: total ? Math.round(points * 100 / total) / 100 : null };
+  const perfect = matched > 0 && matched === review.length;
+  return { total, matched, perfect, writtenOctave: perfect && review.every(row => row.octave === 0),
+    percent: total ? Math.round(points * 100 / total) / 100 : null };
 }

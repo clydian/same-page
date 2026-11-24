@@ -13,6 +13,7 @@ const takeSchema = z.object({
   published: z.boolean().default(false),
   speed: sightSingingSpeedSchema.optional(),
   perfect: z.boolean().optional(),
+  writtenOctave: z.boolean().optional(),
   scoringRule: sightSingingScoringRuleSchema.default(legacySingingScoringRule),
 });
 export type PracticeTake = z.infer<typeof takeSchema>;

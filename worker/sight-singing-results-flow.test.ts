@@ -174,9 +174,10 @@ it('keeps one best published score per version and withdraws only the selected o
   // Both round to 89 for older clients. The later 89.41 wins on the live board.
   const ownerPrecise = partTake(89.4, 2), singerPrecise = { ...partTake(89.41, 1), speed: .5 };
   const matchedPath = bestPath + '&perfect=1';
-  expect(await (await send(ownerPrecise, owner, owner.id, bestPath)).json()).toMatchObject({ published: true });
-  expect(await (await send(singerPrecise, singer, singer.id, matchedPath)).json()).toMatchObject({ published: true });
-  expect(await (await send(singerPrecise, singer, singer.id, matchedPath)).json()).toMatchObject({ published: true });
+  const writtenPath = matchedPath + '&writtenOctave=1';
+  expect(await (await send(ownerPrecise, owner, owner.id, matchedPath)).json()).toMatchObject({ published: true });
+  expect(await (await send(singerPrecise, singer, singer.id, writtenPath)).json()).toMatchObject({ published: true });
+  expect(await (await send(singerPrecise, singer, singer.id, writtenPath)).json()).toMatchObject({ published: true });
   expect(await (await send(partTake(89.4, 1), singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
   expect((await send(partTake(89.401, 1), singer, singer.id, bestPath)).status).toBe(400);
   const previousTop = await (await read(overview + '?precision=2')).json<{ results: object[] }>();
@@ -186,9 +187,17 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(previousTop.results[0]).not.toHaveProperty('perfect');
   const currentTop = await (await read(overview + '?precision=2&details=1')).json<{ results: object[] }>();
   expect(currentTop.results[0]).toMatchObject({ id: singerPrecise.id, score: 89.41, perfect: true, speed: .5 });
-  expect(currentTop.results[1]).not.toHaveProperty('perfect');
+  expect(currentTop.results[0]).not.toHaveProperty('writtenOctave');
   const recentPart = listing + '&voice=Alto&version=1&precision=2';
-  expect(await (await read(recentPart + '&details=1')).json()).toMatchObject({ results: [{ score: 89.41, perfect: true, speed: .5 }] });
+  const octaveDetails = '&details=1&writtenOctave=1';
+  const octaveTop = await (await read(overview + '?precision=2' + octaveDetails)).json<{ results: object[] }>();
+  expect(octaveTop.results[0]).toMatchObject({ id: singerPrecise.id, writtenOctave: true, perfect: true, speed: .5 });
+  expect(octaveTop.results[1]).toMatchObject({ id: ownerPrecise.id, perfect: true });
+  expect(octaveTop.results[1]).not.toHaveProperty('writtenOctave');
+  const previousPart = await (await read(recentPart + '&details=1')).json<{ results: object[] }>();
+  expect(previousPart.results[0]).toMatchObject({ score: 89.41, perfect: true, speed: .5 });
+  expect(previousPart.results[0]).not.toHaveProperty('writtenOctave');
+  expect(await (await read(recentPart + octaveDetails)).json()).toMatchObject({ results: [{ writtenOctave: true, perfect: true }] });
   expect((await (await read(recentPart)).json<{ results: object[] }>()).results[0]).not.toHaveProperty('perfect');
   expect(await (await read(listing + '&voice=Alto&version=1')).json()).toMatchObject({ results: [{ score: 89 }] });
 
@@ -196,9 +205,10 @@ it('keeps one best published score per version and withdraws only the selected o
   const replacementId = crypto.randomUUID();
   await env.DB.prepare('UPDATE sight_singing_best_results SET id = ?, score = 92, speed = 1.5 WHERE id = ?')
     .bind(replacementId, singerPrecise.id).run();
-  const afterReplacement = (await (await read(recentPart + '&details=1')).json<{ results: object[] }>()).results[0];
+  const afterReplacement = (await (await read(recentPart + octaveDetails)).json<{ results: object[] }>()).results[0];
   expect(afterReplacement).toMatchObject({ id: replacementId, score: 92, speed: 1.5 });
   expect(afterReplacement).not.toHaveProperty('perfect');
+  expect(afterReplacement).not.toHaveProperty('writtenOctave');
 
   await env.DB.prepare("UPDATE memberships SET status = 'removed' WHERE choir_id = ? AND user_id = ?").bind(choirId, singer.id).run();
   expect((await read(listPath)).status).toBe(403);

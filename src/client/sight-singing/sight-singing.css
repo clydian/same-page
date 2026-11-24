@@ -127,8 +127,8 @@
 .challenge-headphones button { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
 .challenge-score { display: flex; align-items: baseline; flex-wrap: wrap; gap: .15rem .8rem; }
 .challenge-score strong { font-size: clamp(1.5rem, 4vw, 2.25rem); letter-spacing: -.035em; line-height: 1.15; }
-.challenge-score > span:not(.challenge-perfect) { font-size: .85rem; color: var(--muted); }
-.challenge-score .challenge-perfect { align-self: center; }
+.challenge-score > span:not(.challenge-score-badges) { font-size: .85rem; color: var(--muted); }
+.challenge-score-badges { align-self: center; }
 .challenge-replay-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
 .challenge-review-play { border-radius: .85rem; }
 .challenge-save-status { display: flex; align-items: baseline; gap: .4rem; margin: 0; min-height: 1.2em; }

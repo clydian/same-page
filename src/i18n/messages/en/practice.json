@@ -374,6 +374,7 @@
     "stopReplay": "Stop replay",
     "matchedNotes": "{matched}/{total} notes correct",
     "allNotesMatched": "All notes correct",
+    "allNotesInWrittenOctave": "All notes correct in the written octave",
     "intonationScore": "Intonation · {score}",
     "scoringRuleFilter": "Scoring method",
     "currentScoringRule": "Intonation scoring",
