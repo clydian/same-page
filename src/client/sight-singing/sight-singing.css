@@ -44,9 +44,8 @@
   --feedback-in-tune: #237044;
   --feedback-detuned: #a64e0c;
   --feedback-wrong: #b12840;
-  --score-in-tune: var(--feedback-in-tune);
-  --score-detuned: var(--feedback-detuned);
-  --score-wrong: var(--feedback-wrong);
+  --score-in-tune: #00823d;
+  --score-wrong: #dc203e;
   --pitch-surface: #f7faf8;
   --pitch-grid: #e1e9e5;
   --pitch-grid-scale: #acbeb5;
@@ -63,10 +62,9 @@
   --feedback-in-tune: #78bb94;
   --feedback-detuned: #de985d;
   --feedback-wrong: #f88999;
-  /* AlphaTab's dark-mode SVG filter is also applied to the notehead fill. */
-  --score-in-tune: #286a49;
-  --score-detuned: #af510d;
-  --score-wrong: #d23848;
+  /* Input colors for the dark-mode filter on AlphaTab's SVG. */
+  --score-in-tune: #0a9a35;
+  --score-wrong: #e32446;
   --pitch-surface: #141b19;
   --pitch-grid: #26362f;
   --pitch-grid-scale: #4c665b;

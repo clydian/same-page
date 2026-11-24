@@ -1,9 +1,8 @@
 import { z } from 'zod';
-import { sightSingingSpeedSchema } from '../../shared/sight-singing-results';
+import { legacySingingScoringRule, sightSingingScoringRuleSchema, sightSingingSpeedSchema } from '../../shared/sight-singing-results';
 import { localDatabase } from '../platform/local-database';
 import { currentLocalOwnerKey } from '../platform/local-workspace';
 import { assertPracticeOwner, takeKeyPrefix, takeOwnerKeyPrefix } from './questions';
-import type { assessNotes } from './pitch-feedback';
 
 const takeSchema = z.object({
   id: z.string(), at: z.number().nonnegative().max(8.64e15), title: z.string(), questionId: z.string(),
@@ -11,24 +10,22 @@ const takeSchema = z.object({
   voiceId: z.string(), voiceName: z.string(), percent: z.number().int().min(0).max(100).nullable(),
   published: z.boolean().default(false),
   speed: sightSingingSpeedSchema.optional(),
+  scoringRule: sightSingingScoringRuleSchema.default(legacySingingScoringRule),
 });
 export type PracticeTake = z.infer<typeof takeSchema>;
 
-export function takeScore(review: ReturnType<typeof assessNotes>) {
-  const total = review.filter(row => row.status !== 'insufficientData').length;
-  const matched = review.filter(row => row.status === 'inTune').length;
-  return { total, matched, percent: total ? Math.round(100 * matched / total) : null };
-}
+const takeGroup = ({ questionId, version, scoringRule }: PracticeTake) =>
+  scoringRule === legacySingingScoringRule ? `${questionId}:${version}` : `${questionId}:${version}:${scoringRule}`;
 
 function parseTake(key: string, value: string, prefix: string) {
   try {
     const take = takeSchema.safeParse(JSON.parse(value));
-    return take.success && key === prefix + take.data.id ? take.data : null;
+    if (!take.success) return null;
+    return key === prefix + take.data.id || key === prefix + takeGroup(take.data) ? take.data : null;
   } catch { return null; }
 }
 
 const bestFirst = (a: PracticeTake, b: PracticeTake) => (b.percent ?? -1) - (a.percent ?? -1) || a.at - b.at;
-const takeGroup = ({ questionId, version }: PracticeTake) => `${questionId}:${version}`;
 
 export async function readTakes(owner: string, drive: string) {
   const prefix = takeKeyPrefix(owner, drive);
@@ -49,8 +46,9 @@ export async function readTakes(owner: string, drive: string) {
 export async function compactPracticeHistory(owner: string) {
   await localDatabase.transaction('rw', localDatabase.system, async () => {
     await assertPracticeOwner(owner);
-    for (const { key, value, blob } of await localDatabase.system.where('key').startsWith(takeOwnerKeyPrefix(owner)).toArray()) {
-      const take = parseTake(key, value, key.slice(0, key.lastIndexOf(':') + 1));
+    const prefix = takeOwnerKeyPrefix(owner);
+    for (const { key, value, blob } of await localDatabase.system.where('key').startsWith(prefix).toArray()) {
+      const take = parseTake(key, value, key.slice(0, key.indexOf(':', prefix.length) + 1));
       if (!take || take.percent === null) await localDatabase.system.delete(key);
       else {
         const summary = JSON.stringify(take);

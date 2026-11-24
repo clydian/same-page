@@ -19,8 +19,18 @@
 }
 .challenge-notation-note:active { background: var(--score-focus); }
 .challenge-notation-note:focus-visible { outline: 2px solid var(--score-cursor); outline-offset: -2px; z-index: 1; }
-.challenge-notation-sheet [data-challenge-feedback="inTune"] { fill: var(--score-in-tune); }
-.challenge-notation-sheet [data-challenge-feedback]:is([data-challenge-feedback="sharp"], [data-challenge-feedback="flat"]) { fill: var(--score-detuned); }
-.challenge-notation-sheet [data-challenge-feedback]:is([data-challenge-feedback="wrongNote"], [data-challenge-feedback="missed"]) { fill: var(--score-wrong); }
+.challenge-notation-sheet :is([data-challenge-feedback="inTune"], [data-challenge-feedback="sharp"], [data-challenge-feedback="flat"]) {
+  --note-feedback-ink: var(--score-in-tune);
+}
+.challenge-notation-sheet :is([data-challenge-feedback="wrongNote"], [data-challenge-feedback="missed"]) {
+  --note-feedback-ink: var(--score-wrong);
+}
+.challenge-notation-sheet [data-challenge-feedback] {
+  fill: var(--note-feedback-ink);
+  stroke: var(--note-feedback-ink);
+  stroke-width: .65;
+  stroke-linejoin: round;
+}
+.challenge-notation-sheet rect[data-challenge-feedback] { stroke-width: 1; }
 .challenge-run[data-phase="result"] .challenge-staff-trace { opacity: .62; }
 .challenge-run[data-replaying="true"] .challenge-staff-trace { opacity: 1; }

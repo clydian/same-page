@@ -32,7 +32,8 @@
 .challenge-published-results summary { cursor: pointer; padding-block: .65rem; }
 .challenge-published-results summary small { margin-inline-start: .3rem; color: var(--muted); }
 
-.challenge-version-filter { display: block; margin-block: .3rem .75rem; }
+.challenge-result-filters { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .3rem .75rem; }
+.challenge-version-filter select { max-inline-size: 100%; }
 .challenge-version-filter select { min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line);
   border-radius: .6rem; background: var(--surface); color: var(--ink); font: inherit; }
 .challenge-ranked-action { display: flex; align-items: center; gap: .45rem; white-space: nowrap; }

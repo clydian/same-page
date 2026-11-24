@@ -21,7 +21,7 @@ import { buildMelody } from './melody';
 import { freezeLegacyQuestion, readQuestions, saveQuestion, type SightSingingQuestion } from './questions';
 import { compactPracticeHistory, markTakeWithdrawn, readTakes, saveTake, type PracticeTake } from './practice-history';
 import { publishSightSingingResult, readSightSingingResults, withdrawSightSingingResult } from './result-publication';
-import type { PublishedSightSingingResult } from '../../shared/sight-singing-results';
+import { currentSingingScoringRule, legacySingingScoringRule, type PublishedSightSingingResult, type SightSingingScoringRule } from '../../shared/sight-singing-results';
 import { publishedPath, sightSingingProtocol, useMelodySource, type MelodySource } from './use-melody-source';
 import './sight-singing.css';
 import './sight-singing-workspace.css';
@@ -112,7 +112,8 @@ function PracticeHistory({ takes }: { takes: PracticeTake[] }) {
   const { locale } = useAppLocale();
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
   return <ul className="challenge-list challenge-score-list">{takes.map(take => <li key={take.id}>
-    <div><strong>{take.title}</strong><small>{take.voiceName} · {versionTag(take.version)}{take.speed !== undefined && ` · ${take.speed.toFixed(2)}×`}</small></div>
+    <div><strong>{take.title}</strong><small>{take.voiceName} · {versionTag(take.version)}{take.speed !== undefined && ` · ${take.speed.toFixed(2)}×`}
+      {take.scoringRule === legacySingingScoringRule && ` · ${t('sight.legacyScoringRule')}`}</small></div>
     <div><strong>{take.percent === null ? '—' : t('sight.takeScore', { score: take.percent })}</strong><small><time dateTime={new Date(take.at).toISOString()}>{date.format(take.at)}</time></small></div>
   </li>)}</ul>;
 }
@@ -121,10 +122,13 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
   choirId: string; questionId: string; version: number; generation: number; owner: DriveCacheOwnerKey; userId: string;
 }) {
   const t = useMessages('practice');
+  const ruleId = useId();
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<number | null>(null);
+  const [scoringRule, setScoringRule] = useState<SightSingingScoringRule>(currentSingingScoringRule);
+  const [hasLegacyScores, setHasLegacyScores] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [state, setState] = useState<{ generation: number; retry: number; filter: number | null; rows: PublishedSightSingingResult[] | null }>();
+  const [state, setState] = useState<{ generation: number; retry: number; filter: number | null; scoringRule: SightSingingScoringRule; rows: PublishedSightSingingResult[] | null }>();
   const [versions, setVersions] = useState([version]);
   const [removing, setRemoving] = useState<PublishedSightSingingResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -132,16 +136,18 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
   useEffect(() => {
     if (!expanded) return;
     const controller = new AbortController();
-    void readSightSingingResults(choirId, questionId, filter, controller.signal).then(payload => {
+    void readSightSingingResults(choirId, questionId, filter, scoringRule, controller.signal).then(payload => {
       if (controller.signal.aborted) return;
-      setState({ generation, retry, filter, rows: payload.results });
+      setState({ generation, retry, filter, scoringRule, rows: payload.results });
       if (payload.versions) setVersions(payload.versions);
+      setHasLegacyScores(Boolean(payload.hasLegacyScores));
     }).catch(() => {
-      if (!controller.signal.aborted) setState({ generation, retry, filter, rows: null });
+      if (!controller.signal.aborted) setState({ generation, retry, filter, scoringRule, rows: null });
     });
     return () => controller.abort();
-  }, [choirId, questionId, filter, expanded, generation, retry]);
-  const rows = state?.generation === generation && state.retry === retry && state.filter === filter ? state.rows : undefined;
+  }, [choirId, questionId, filter, scoringRule, expanded, generation, retry]);
+  const rows = state?.generation === generation && state.retry === retry && state.filter === filter && state.scoringRule === scoringRule
+    ? state.rows : undefined;
   const withdraw = async () => {
     if (!removing || busy) return;
     setBusy(true); setWithdrawFailed(false);
@@ -158,13 +164,23 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
   return <details className="challenge-published-results" onToggle={event => setExpanded(event.currentTarget.open)}>
     <summary>{t('sight.bestResults')}</summary>
     {expanded && <>
-      <label className="challenge-version-filter">
-        <span className="visually-hidden">{t('sight.resultVersionFilter')}</span>
-        <select value={filter ?? ''} onChange={event => setFilter(event.target.value ? Number(event.target.value) : null)}>
-          <option value="">{t('sight.allVersions')}</option>
-          {versions.map(edition => <option key={edition} value={edition}>{versionTag(edition)}</option>)}
-        </select>
-      </label>
+      <div className="challenge-result-filters">
+        <label className="challenge-version-filter">
+          <span className="visually-hidden">{t('sight.resultVersionFilter')}</span>
+          <select value={filter ?? ''} onChange={event => setFilter(event.target.value ? Number(event.target.value) : null)}>
+            <option value="">{t('sight.allVersions')}</option>
+            {versions.map(edition => <option key={edition} value={edition}>{versionTag(edition)}</option>)}
+          </select>
+        </label>
+        {(hasLegacyScores || scoringRule === legacySingingScoringRule) && <div className="challenge-version-filter">
+          <label htmlFor={ruleId} className="visually-hidden">{t('sight.scoringRuleFilter')}</label>
+          <select id={ruleId} value={scoringRule} onChange={event => setScoringRule(
+            event.target.value === String(legacySingingScoringRule) ? legacySingingScoringRule : currentSingingScoringRule)}>
+            <option value={currentSingingScoringRule}>{t('sight.currentScoringRule')}</option>
+            <option value={legacySingingScoringRule}>{t('sight.legacyScoringRule')}</option>
+          </select>
+        </div>}
+      </div>
       {withdrawFailed && <p role="alert">{t('sight.withdrawFailed')}</p>}
       {rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
         : rows === null ? <p role="alert">{t('sight.publishedResultsError')} <button type="button" className="text-button" onClick={() => setRetry(value => value + 1)}>{t('sight.retryLoad')}</button></p>
@@ -317,7 +333,8 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublish, scor
     const controller = new AbortController(), current = captureNavigationIdentity();
     resultLifetimes.current.add(controller);
     const summary = { id: attempt.id, at: Date.now(), title: saved.title, questionId: saved.id, version: attempt.version,
-      voiceId: attempt.voiceId, voiceName: attempt.voiceName, speed: attempt.speed, published: false, percent: attempt.score };
+      voiceId: attempt.voiceId, voiceName: attempt.voiceName, speed: attempt.speed, scoringRule: attempt.scoringRule,
+      published: false, percent: attempt.score };
     try {
       const localBest = await saveTake(owner, choirId, summary, controller.signal);
       if (!canPublishResult) return localBest ? 'local' : 'previous';

@@ -4,7 +4,7 @@ import { zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { renderPracticeClicks } from '../playback/practice-metronome';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
-import { assessNotes, createPitchReader, frequency, pitchWindowSize } from './pitch-feedback';
+import { assessNotes, createPitchReader, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
 import { createPitchTrace, octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { keyPitchClasses, staffPitchY } from './staff-pitch';
 
@@ -117,6 +117,16 @@ describe('pitch and feedback', () => {
     expect(silence).toBeNull();
     const frames = notes.map(note => ({ time: (note.start + note.end) / 2, midi: silence }));
     expect(assessNotes(notes, frames).map(row => row.status)).toEqual(notes.map(() => 'missed'));
+  });
+  it('counts detuned notes as correct and averages their partial credit with misses', () => {
+    const targets = Array.from({ length: 7 }, (_, index) => ({ midi: 60, start: index, end: index + 1, bar: 0, visit: 0 }));
+    const frames = [60.25, 59.65, 60.499, 59.5, 60.51, null].map((midi, index) => ({ midi, time: index + .5 }));
+    const review = assessNotes(targets, frames);
+    expect(review.map(row => row.status)).toEqual(['inTune', 'flat', 'sharp', 'wrongNote', 'wrongNote', 'missed', 'insufficientData']);
+    expect(review.map(row => takeScore([row]).percent)).toEqual([100, 60, 0, 0, 0, 0, null]);
+    expect(takeScore(review)).toEqual({ total: 6, matched: 3, percent: 27 });
+    const nearBoundary = assessNotes(targets.slice(0, 2), [{ midi: 60.48, time: .5 }, { midi: 59.51, time: 1.5 }]);
+    expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([8, 4]);
   });
   it('distinguishes missing frames from sampled silence in consecutive thirty-second notes', () => {
     const pitches = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65];

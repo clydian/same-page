@@ -116,6 +116,20 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(await (await send(fresh, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
   expect(await (await read(bestPath + '&version=1')).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
 
+  const intonationPath = bestPath + '&scoringRule=2';
+  expect(await (await read(intonationPath)).json()).toMatchObject({ results: [], hasLegacyScores: true });
+  const intonation = { ...newTake({ score: 71, speed: 1 }), scoringRule: 2 };
+  expect(await (await send(intonation, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
+  expect(await (await read(intonationPath)).json()).toMatchObject({ results: [{ id: intonation.id, score: 71 }], hasLegacyScores: true });
+  expect(await (await read(bestPath + '&scoringRule=1')).json()).toMatchObject({ results: [{ id: v2.id, score: 80 }] });
+  expect((await send({ ...intonation, scoringRule: 1 })).status).toBe(409);
+  const withdrawIntonation = await call(`${resultPath}/${intonation.id}?version=1`, {
+    method: 'DELETE', headers: { cookie: singer.cookie, 'x-same-page-owner-user-id': singer.id },
+  });
+  expect(withdrawIntonation.status).toBe(204);
+  expect(await (await send(intonation, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
+  expect(await (await read(listPath)).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
+
   await env.DB.prepare("UPDATE memberships SET status = 'removed' WHERE choir_id = ? AND user_id = ?").bind(choirId, singer.id).run();
   expect((await read(listPath)).status).toBe(403);
   expect((await send()).status).toBe(403);

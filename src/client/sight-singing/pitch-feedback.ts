@@ -4,6 +4,8 @@ import type { MelodyNote } from './melody';
 export type PitchFrame = { time: number; midi: number | null };
 // Overlap 43–46 ms windows to sample the middle of short notes at 44.1/48 kHz.
 export const pitchWindowSize = 2048;
+const fullCreditCents = 25;
+const wrongNoteCents = 50;
 export const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 export const formatCents = (cents: number | null) => cents === null ? '—' : cents > 0 ? `+${cents}` : String(cents);
 export const pitchName = (midi: number) => `${['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
@@ -53,10 +55,23 @@ export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
     const match = sung === null ? null : matchTargetPitch(note, sung);
     // Score the pitch class while measuring intervals in the sung register.
     const error = sung === null || !match ? null : (sung - match.midi) * 100;
-    const cents = match ? Math.round(match.error * 100) : null;
+    const cents = match ? Math.round(match.error * 1000) / 10 : null;
     const interval = error === null || previousError === null ? null : Math.round(error - previousError);
     previousError = error;
-    const status = cents === null ? 'missed' : Math.abs(cents) >= 50 ? 'wrongNote' : cents > 25 ? 'sharp' : cents < -25 ? 'flat' : 'inTune';
+    const status = cents === null ? 'missed' : Math.abs(cents) >= wrongNoteCents ? 'wrongNote'
+      : cents > fullCreditCents ? 'sharp' : cents < -fullCreditCents ? 'flat' : 'inTune';
     return { note, target: match?.midi ?? null, octave: match?.octave ?? null, sung, cents, interval, status } as const;
   });
+}
+
+export function takeScore(review: ReturnType<typeof assessNotes>) {
+  let total = 0, matched = 0, points = 0;
+  for (const { cents, status } of review) {
+    if (status === 'insufficientData') continue;
+    total++;
+    if (cents === null || status === 'wrongNote') continue;
+    matched++;
+    points += 100 * Math.min(1, (wrongNoteCents - Math.abs(cents)) / (wrongNoteCents - fullCreditCents));
+  }
+  return { total, matched, percent: total ? Math.round(points / total) : null };
 }

@@ -1,6 +1,6 @@
 import {
   sightSingingResultResponseSchema, sightSingingResultsResponseSchema,
-  type SightSingingResultSubmission,
+  type SightSingingResultSubmission, type SightSingingScoringRule,
 } from '../../shared/sight-singing-results';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 
@@ -17,8 +17,8 @@ export async function publishSightSingingResult(choirId: string, questionId: str
   return (await parseDiagnosticResponse(response, sightSingingResultResponseSchema)).published ?? true;
 }
 
-export async function readSightSingingResults(choirId: string, questionId: string, version: number | null, signal?: AbortSignal) {
-  const query = new URLSearchParams({ view: 'best' });
+export async function readSightSingingResults(choirId: string, questionId: string, version: number | null, scoringRule: SightSingingScoringRule, signal?: AbortSignal) {
+  const query = new URLSearchParams({ view: 'best', scoringRule: String(scoringRule) });
   if (version !== null) query.set('version', String(version));
   const response = await diagnosticFetch(`${resultPath(choirId, questionId)}?${query}`, { signal });
   if (!response.ok) throw new Error('published_results_unavailable');
