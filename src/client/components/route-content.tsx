@@ -18,6 +18,7 @@ export function RouteContent({ children, showHeader = true }: { children: ReactN
 
 function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean; showHeader?: boolean }) {
   const t = useMessages("common");
+  const practice = useMessages("practice");
   const { pathname } = useLocation();
   const drive = pathname.match(/^\/choirs\/([^/]+)/)?.[1];
   if (!failed && drive && pathname === `/choirs/${drive}`) return <DrivePage choirId={drive} />;
@@ -29,6 +30,7 @@ function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean
     : pathname.endsWith("/memberships") ? t("membership")
     : pathname === "/login" ? t("signIn")
     : pathname === "/user/lifecycle" ? t("accountLifecycle")
+    : pathname.endsWith("/sight-singing") ? practice("sight.title")
     : pathname.endsWith("/me") ? t("driveIdentity")
     : pathname === "/appearance" ? t("appearance")
     : pathname === "/user" ? t("account")

@@ -20,7 +20,7 @@ it.each([
     ['阅读偏好', '/choirs/drive-a/preferences'], ['本机存储', '/choirs/drive-a/storage'],
   ] },
   { label: 'with membership identity management', drive: { choirId: 'drive-a', choirName: '排练云盘', localOnly: false, canManageIdentity: true }, driveLinks: [
-    ['云盘内身份', '/choirs/drive-a/me'], ['阅读偏好', '/choirs/drive-a/preferences'], ['本机存储', '/choirs/drive-a/storage'],
+    ['云盘内身份', '/choirs/drive-a/me'], ['视唱挑战', '/choirs/drive-a/sight-singing'], ['阅读偏好', '/choirs/drive-a/preferences'], ['本机存储', '/choirs/drive-a/storage'],
   ] },
 ])('routes personal actions in their correct scope $label', async ({ drive, driveLinks }) => {
   vi.stubGlobal('fetch', vi.fn(async () => Response.json(capabilities)));

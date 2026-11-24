@@ -1,7 +1,7 @@
 import { isApiPath } from "../src/client/pwa-navigation";
 import { legacyAsset, serveReleaseAsset } from "./releases/assets";
 import { releaseRoutes } from "./releases/routes";
-import { serveStaticAsset } from "./static-assets";
+import { serveStaticAppShell, serveStaticAsset } from "./static-assets";
 import { updateDiagnosticRoutes } from "./support/update-diagnostics";
 import { adminRoutes } from './admin/routes';
 import { adminDiagnosticRoutes } from './admin/diagnostic-routes';
@@ -11,6 +11,8 @@ import { attachmentRoutes } from "./attachments/routes";
 import { androidReleaseRoutes } from "./android-release";
 import { trialRoutes } from "./choirs/trial-routes";
 import { visitRoutes, cleanupDriveVisits } from "./choirs/visits";
+import { sightSingingRoutes } from './choirs/sight-singing';
+import { sightSingingResultRoutes } from './choirs/sight-singing-results';
 import { driveUsageRoutes } from "./admin/drive-usage";
 import { excludeDeletedResources } from "./choirs/deleted-access";
 import { permissionRoutes } from "./permissions/routes";
@@ -51,7 +53,7 @@ for (const path of ['/assets/*', '/pdfjs/*', '/font/*', '/soundfont/*', '/playba
     const match = /^\/_releases\/([a-f0-9]{40})\/(.*)$/.exec(url.pathname);
     if (match) {
       url.pathname = match[2] === 'index.html' ? '/' : '/' + match[2];
-      if (match[2] === 'index.html') return c.env.ASSETS.fetch(new Request(url, c.req.raw));
+      if (match[2] === 'index.html') return serveStaticAppShell(new Request(url, c.req.raw), c.env.ASSETS);
     }
     const response = await serveStaticAsset(new Request(url, c.req.raw), c.env.ASSETS);
     return response.status === 404 ? await legacyAsset(c.req.raw, c.env) ?? response : response;
@@ -91,6 +93,8 @@ app.route("/api", adminRoutes);
 app.route("/api", adminDiagnosticRoutes);
 app.route("/api", trialRoutes);
 app.route("/api", visitRoutes);
+app.route("/api", sightSingingRoutes);
+app.route("/api", sightSingingResultRoutes);
 app.route("/api", driveUsageRoutes);
 app.route("/api", diagnosticReportRoutes);
 app.route("/api", permissionRoutes);
@@ -101,7 +105,7 @@ app.route("/api", scoreRoutes);
 app.route("/api", attachmentRoutes);
 app.route("/api", annotationRoutes);
 
-app.notFound((c) => isApiPath(new URL(c.req.url).pathname) ? c.json({ error: "not_found" }, 404) : c.env.ASSETS.fetch(c.req.raw));
+app.notFound((c) => isApiPath(new URL(c.req.url).pathname) ? c.json({ error: "not_found" }, 404) : serveStaticAppShell(c.req.raw, c.env.ASSETS));
 
 app.onError((error, context) => {
   if (error instanceof AttachmentError) return context.json({ error: error.code }, error.status);

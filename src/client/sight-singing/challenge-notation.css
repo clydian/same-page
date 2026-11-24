@@ -1,0 +1,46 @@
+.challenge-notation.challenge-ensemble-score {
+  max-block-size: clamp(17rem, 54svh, 32rem);
+  scroll-padding-block: 10px;
+}
+.challenge-ensemble-score .challenge-notation-sheet { flex-shrink: 0; }
+.challenge-ensemble-score .challenge-notation-sheet > :first-child { pointer-events: none; }
+.challenge-notation-sheet [data-challenge-part="context"] { opacity: .52; }
+.challenge-note-layer { position: absolute; inset: 0; pointer-events: none; }
+.challenge-staff-trace { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+.challenge-staff-trace path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.challenge-staff-trace-halo { stroke: var(--score-paper); stroke-width: 3.8; opacity: .85; }
+.challenge-staff-trace-curve { stroke: var(--pitch-voice); stroke-width: 2.15; }
+.challenge-staff-trace circle { fill: var(--pitch-voice); stroke: var(--score-paper); stroke-width: 1.3; }
+.challenge-note-layer { z-index: 2; }
+.challenge-notation-note {
+  position: absolute; transform: translate(-50%, -50%); box-sizing: border-box;
+  inline-size: 25px; block-size: 25px; border: 0; border-radius: .45rem; padding: 0;
+  background: transparent; pointer-events: auto; cursor: pointer; touch-action: manipulation;
+}
+.challenge-notation-note:active { background: var(--score-focus); }
+.challenge-notation-note:focus-visible { outline: 2px solid var(--score-cursor); outline-offset: -2px; z-index: 1; }
+.challenge-pitch-labels { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.challenge-pitch-labels span {
+  position: absolute; display: grid; place-items: center; box-sizing: border-box;
+  border-radius: 4px; color: var(--feedback-in-tune); background: var(--score-paper);
+  font-size: 12px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; direction: ltr;
+}
+.challenge-pitch-labels :is([data-status="sharp"], [data-status="flat"]) { color: var(--feedback-detuned); }
+.challenge-pitch-labels [data-status="wrongNote"] { color: var(--feedback-wrong); }
+.challenge-notation-sheet :is([data-challenge-feedback="inTune"], [data-challenge-feedback="sharp"], [data-challenge-feedback="flat"]) {
+  --note-feedback-ink: var(--score-in-tune);
+}
+.challenge-notation-sheet :is([data-challenge-feedback="wrongNote"], [data-challenge-feedback="missed"]) {
+  --note-feedback-ink: var(--score-wrong);
+}
+.challenge-notation-sheet [data-challenge-feedback] {
+  fill: var(--note-feedback-ink);
+  /* AlphaTab sets stroke: none inline on the rendered glyphs. */
+  stroke: var(--note-feedback-ink) !important;
+  stroke-width: .65;
+  stroke-linejoin: round;
+}
+.challenge-notation-sheet rect[data-challenge-feedback] { stroke-width: 1; }
+.challenge-run[data-phase="result"] .challenge-staff-trace { opacity: .62; }
+.challenge-run[data-replaying="true"] .challenge-staff-trace { opacity: 1; }
+.challenge-run[data-replaying="true"] .challenge-pitch-labels { display: none; }

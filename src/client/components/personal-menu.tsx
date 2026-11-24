@@ -1,6 +1,6 @@
 import { useMessages } from "../../i18n";
 import { useLocation } from "react-router-dom";
-import { UserRound, FolderOpen, Settings2, Layers, HardDrive, Palette, Info, LogOut, ShieldCheck } from "lucide-react";
+import { UserRound, FolderOpen, Settings2, Layers, HardDrive, Mic, Palette, Info, LogOut, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Header, MenuItem, MenuSection, MenuTrigger, Popover } from "react-aria-components";
 import { useLogout } from "../auth/logout-context";
@@ -17,6 +17,7 @@ export interface PersonalDriveActions {
 
 export function PersonalMenu({ drive }: { email?: string | null; drive?: PersonalDriveActions }) {
   const t = useMessages("common");
+  const practice = useMessages("practice");
   const logout = useLogout();
   const experience = new URLSearchParams(useLocation().search).get("experience") === "1";
   const identity = useApplicationIdentity();
@@ -42,6 +43,7 @@ export function PersonalMenu({ drive }: { email?: string | null; drive?: Persona
           <span className="personal-menu-scope-title"><FolderOpen size={15} aria-hidden="true" />{t("currentDrive")}</span>
         </Header>
         {drive.canManageIdentity && <MenuItem href={`/choirs/${drive.choirId}/me`} textValue={t("driveIdentity")}><UserRound size={17} aria-hidden="true" /><span>{t("driveIdentity")}</span></MenuItem>}
+        {drive.canManageIdentity && !drive.localOnly && !experience && <MenuItem href={`/choirs/${drive.choirId}/sight-singing`} textValue={practice("sight.title")}><Mic size={17} aria-hidden="true" /><span>{practice("sight.title")}</span></MenuItem>}
         <MenuItem href={`/choirs/${drive.choirId}/preferences`} textValue={t("readingPreferences")}><Layers size={17} aria-hidden="true" /><span>{t("readingPreferences")}</span></MenuItem>
         <MenuItem href={`/choirs/${drive.choirId}/storage`} textValue={t("localStorage")}><HardDrive size={17} aria-hidden="true" /><span>{t("localStorage")}</span></MenuItem>
       </MenuSection>}
