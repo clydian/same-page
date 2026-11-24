@@ -51,5 +51,16 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
       t.diagnostic('Native iOS touch callouts require device verification; this engine does not support -webkit-touch-callout.');
     }
     await expect(page.locator('.practice-notation-scroll')).toHaveCSS('touch-action', 'pan-x pan-y');
+
+    await page.getByRole('button', { name: '展开看谱工具', exact: true }).click();
+    await expect(page.locator('.practice-view-label')).toBeVisible();
+    await expect(page.locator('.practice-view-label')).toHaveCSS('user-select', 'none');
+    await player.getByRole('button', { name: '展开练习控制', exact: true }).click();
+    await player.getByRole('button', { name: '调节速度', exact: true }).click();
+    const speed = page.getByRole('dialog', { name: '调节速度', exact: true });
+    await speed.locator('header strong').dblclick();
+    assert.equal(await page.evaluate(() => getSelection()?.toString()), '');
+    await speed.getByRole('slider', { name: '播放速度', exact: true }).press('ArrowRight');
+    await expect(speed.locator('output')).toHaveText('1.01×');
   });
 }
