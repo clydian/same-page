@@ -326,6 +326,8 @@
     "tooLong": "此片段超过 5 分钟，请缩短选段。",
     "measureVisit": "第 {measure} 小节 · 第 {visit} 次经过",
     "measureNumber": "第 {measure} 小节",
+    "wholePiece": "全曲",
+    "questionMeasureRange": "{first}–{last} 小节",
     "recordingPrivacy": "录音只留在本次练习。分数与逐音反馈保存在本机。",
     "notation": "练习乐谱及当前小节",
     "notationNote": "{part} · {pitch} · 第 {measure} 小节",

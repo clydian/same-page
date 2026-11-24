@@ -326,6 +326,8 @@
     "tooLong": "Der Abschnitt dauert länger als 5 Minuten. Wähle einen kürzeren Abschnitt.",
     "measureVisit": "Takt {measure} · Durchgang {visit}",
     "measureNumber": "Takt {measure}",
+    "wholePiece": "Ganzes Stück",
+    "questionMeasureRange": "Takte {first}–{last}",
     "recordingPrivacy": "Audio bleibt in dieser Aufnahme. Punkte und Rückmeldungen bleiben auf diesem Gerät.",
     "notation": "Übepartitur und aktueller Takt",
     "notationNote": "{part} · {pitch} · Takt {measure}",

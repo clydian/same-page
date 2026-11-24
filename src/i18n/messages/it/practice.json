@@ -326,6 +326,8 @@
     "tooLong": "La sezione supera i 5 minuti. Scegli una sezione più breve.",
     "measureVisit": "Battuta {measure} · Passaggio {visit}",
     "measureNumber": "Battuta {measure}",
+    "wholePiece": "Brano intero",
+    "questionMeasureRange": "Battute {first}–{last}",
     "recordingPrivacy": "L’audio resta in questa prova. I punteggi e il riscontro per nota vengono salvati su questo dispositivo.",
     "notation": "Partitura di pratica e battuta corrente",
     "notationNote": "{part} · {pitch} · Battuta {measure}",

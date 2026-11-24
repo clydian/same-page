@@ -326,6 +326,8 @@
     "tooLong": "La sección supera los 5 minutos. Elige una sección más corta.",
     "measureVisit": "Compás {measure} · Pasada {visit}",
     "measureNumber": "Compás {measure}",
+    "wholePiece": "Obra completa",
+    "questionMeasureRange": "Compases {first}–{last}",
     "recordingPrivacy": "El audio se conserva solo durante este intento. La puntuación y los comentarios se guardan en este dispositivo.",
     "notation": "Partitura de práctica y compás actual",
     "notationNote": "{part} · {pitch} · Compás {measure}",

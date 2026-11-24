@@ -326,6 +326,8 @@
     "tooLong": "この範囲は5分を超えています。短い範囲を選んでください。",
     "measureVisit": "第 {measure} 小節 · {visit} 回目",
     "measureNumber": "第 {measure} 小節",
+    "wholePiece": "全曲",
+    "questionMeasureRange": "第 {first}–{last} 小節",
     "recordingPrivacy": "録音はこの試行中のみ再生できます。スコアと音ごとの結果はこの端末に保存されます。",
     "notation": "練習楽譜と現在の小節",
     "notationNote": "{part} · {pitch} · 第 {measure} 小節",

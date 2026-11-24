@@ -326,6 +326,8 @@
     "tooLong": "Este trecho tem mais de 5 minutos. Escolha um trecho mais curto.",
     "measureVisit": "Compasso {measure} · Passagem {visit}",
     "measureNumber": "Compasso {measure}",
+    "wholePiece": "Peça inteira",
+    "questionMeasureRange": "Compassos {first}–{last}",
     "recordingPrivacy": "O áudio fica nesta tentativa. A pontuação e o retorno por nota são salvos neste dispositivo.",
     "notation": "Partitura de prática e compasso atual",
     "notationNote": "{part} · {pitch} · Compasso {measure}",

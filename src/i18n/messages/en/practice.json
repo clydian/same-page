@@ -326,6 +326,8 @@
     "tooLong": "This section is longer than 5 minutes. Choose a shorter section.",
     "measureVisit": "Measure {measure} · Pass {visit}",
     "measureNumber": "Measure {measure}",
+    "wholePiece": "Full piece",
+    "questionMeasureRange": "Measures {first}–{last}",
     "recordingPrivacy": "Audio stays in this take. Scores and note feedback are saved on this device.",
     "notation": "Practice score and current measure",
     "notationNote": "{part} · {pitch} · Measure {measure}",

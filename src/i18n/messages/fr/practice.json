@@ -326,6 +326,8 @@
     "tooLong": "Ce passage dépasse 5 minutes. Choisissez un passage plus court.",
     "measureVisit": "Mesure {measure} · Passage {visit}",
     "measureNumber": "Mesure {measure}",
+    "wholePiece": "Morceau entier",
+    "questionMeasureRange": "Mesures {first}–{last}",
     "recordingPrivacy": "L’audio reste dans cet essai. Le score et le retour par note sont conservés sur cet appareil.",
     "notation": "Partition d’entraînement et mesure en cours",
     "notationNote": "{part} · {pitch} · Mesure {measure}",

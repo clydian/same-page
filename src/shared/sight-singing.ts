@@ -2,10 +2,11 @@ import { z } from 'zod';
 import { ATTACHMENT_LIMITS, attachmentNameSchema } from './attachments';
 
 export const SIGHT_SINGING_SCORE_MAX_BYTES = ATTACHMENT_LIMITS.musicxml;
+export const SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH = 80;
 export const SIGHT_SINGING_PROTOCOL_HEADER = 'X-Same-Page-Sight-Singing';
 
 const rangeFields = z.object({
-  title: z.string().trim().min(1).max(80),
+  title: z.string().trim().min(1).max(SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH),
   first: z.number().int().nonnegative(), last: z.number().int().nonnegative(),
 });
 const attachmentFields = z.object({

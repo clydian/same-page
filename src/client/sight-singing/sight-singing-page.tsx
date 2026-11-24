@@ -5,8 +5,9 @@ import { Button, DialogTrigger, Heading, MenuItem, MenuTrigger, Modal, ModalOver
 import { useParams } from 'react-router-dom';
 import { useAppLocale, useMessages } from '../../i18n';
 import { attachmentAccept, attachmentFormat, attachmentNameSchema } from '../../shared/attachments';
+import { scoreDisplayName } from '../../shared/score-display-name';
 import type { ScoreSummary } from '../../shared/scores';
-import { publishedQuestionResponseSchema, publishedQuestionsSchema, SIGHT_SINGING_SCORE_MAX_BYTES,
+import { publishedQuestionResponseSchema, publishedQuestionsSchema, SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH, SIGHT_SINGING_SCORE_MAX_BYTES,
   type PublishedQuestion, type QuestionPublication } from '../../shared/sight-singing';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 import { useApplicationIdentity } from '../auth/application-identity';
@@ -57,6 +58,16 @@ export default function SightSingingPage() {
 type DriveContext = { owner: DriveCacheOwnerKey; choirId: string; sessionId: string; userId: string; canPublishOfficial: boolean; scores: ScoreSummary[] };
 type SourceMode = 'saved' | 'library' | 'upload';
 const versionTag = (version: number) => `V${version}`;
+
+function questionNameWithRange(name: string, range: string) {
+  const title = name.replace(/\s+/g, ' ').trim();
+  const suffix = ` ${range.replace(/\s+/g, ' ').trim()}`;
+  const available = SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH - suffix.length;
+  const prefix = title.slice(0, available >= 2 ? available : SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH)
+    .replace(/[\uD800-\uDBFF]$/u, '').trimEnd();
+  return available >= 2 ? `${prefix}${suffix}` : prefix;
+}
+
 function publisherLabel(publisher: PublishedQuestion['publisher'], t: ReturnType<typeof useMessages<'practice'>>) {
   if (publisher?.kind !== 'member') return t('sight.officialPublisher');
   if (publisher.own) return t('sight.selfPublisher');
@@ -394,7 +405,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const [questionId] = useState(() => question?.id ?? crypto.randomUUID());
   const [editing, setEditing] = useState(!question);
   useEffect(() => { heading.current?.focus(); }, [editing]);
-  const [title, setTitle] = useState(draft?.title ?? '');
+  const [titleOverride, setTitleOverride] = useState(draft?.title);
   const [scoreId, setScoreId] = useState(draft?.scoreId ?? '');
   const [fileChoice, setFileChoice] = useState(draft?.attachmentId ? `${draft.attachmentId}:${draft.revision}` : '');
   const [voiceChoice, setVoiceChoice] = useState(legacy?.voice ?? '');
@@ -455,6 +466,18 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     setUpload({ key: crypto.randomUUID(), file });
   };
   const range = first === last ? visitLabel(first) : `${visitLabel(first)} – ${visitLabel(last)}`;
+  const visits = loaded.document?.visits;
+  const firstVisit = visits?.[first], lastVisit = visits?.[last];
+  const uploadedName = source?.kind === 'upload' && loadedName
+    ? loaded.document?.score.title.trim() || loaded.document?.score.subTitle.trim()
+      || loadedName.replace(/\.(?:musicxml|mxl|xml)$/i, '').trim() || loadedName : '';
+  const scoreName = score ? scoreDisplayName(score.fileName) : uploadedName;
+  const nameRange = visits && firstVisit && lastVisit
+    ? first === 0 && last === visits.length - 1 ? t('sight.wholePiece')
+      : first === last || firstVisit.visit || lastVisit.visit ? range
+      : t('sight.questionMeasureRange', { first: firstVisit.number, last: lastVisit.number })
+    : '';
+  const title = titleOverride ?? (scoreName && nameRange ? questionNameWithRange(scoreName, nameRange) : '');
   const editable = saved?.canEdit ?? canPublishOfficial;
   const save = async () => {
     if (!title.trim() || !source || !loadedBytes || !loadedName || !selected || saveLifetime.current || (saved && !editable)) return;
@@ -484,7 +507,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       if (!response.ok) throw new Error('publish_question_failed');
       const { question: next } = await parseDiagnosticResponse(response, publishedQuestionResponseSchema);
       if (!controller.signal.aborted && current()) {
-        setTitle(next.title); setFirst(next.first); setLastChoice(next.last);
+        setTitleOverride(next.title); setFirst(next.first); setLastChoice(next.last);
         setScoreId(next.scoreId ?? ''); setFileChoice(next.attachmentId ? `${next.attachmentId}:${next.revision}` : '');
         setSaved(next); setSourceMode(next.snapshot ? 'saved' : 'library'); setUpload(null); setEditing(false);
       }
@@ -545,8 +568,6 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
         event.preventDefault();
         void save();
       }}>
-        <label htmlFor={`${id}-name`}>{t('sight.name')}</label>
-        <input id={`${id}-name`} name="title" value={title} onChange={event => { setTitle(event.target.value); event.target.setCustomValidity(event.target.value && !event.target.value.trim() ? t('sight.nameRequired') : ''); }} maxLength={80} disabled={saving} required />
         <label htmlFor={`${id}-source`}>{t('sight.questionSource')}</label>
         <select id={`${id}-source`} name="source" value={sourceMode} disabled={saving} onChange={event => changeSourceMode(event.target.value as SourceMode)}>
           {savedSource?.snapshot && <option value="saved">{t('sight.keepSnapshot')}</option>}
@@ -594,6 +615,13 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
           <label><input type="radio" name="publication" value="official" checked={publication === 'official'}
             onChange={() => setPublication('official')} />{t('sight.officialPublisher')}</label>
         </fieldset>}
+        <label htmlFor={`${id}-name`}>{t('sight.name')}</label>
+        <input id={`${id}-name`} name="title" value={title} maxLength={SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH} disabled={saving} required
+          onChange={event => {
+            const value = event.target.value;
+            setTitleOverride(value);
+            event.target.setCustomValidity(value && !value.trim() ? t('sight.nameRequired') : '');
+          }} />
         <div className="challenge-actions">
           <button type="submit" className="primary-button" aria-describedby={!saved ? `${id}-publish` : undefined}
             disabled={saving || !playable || (Boolean(saved) && !editable)}>{t(replace ? 'sight.replacePublished' : saved ? 'sight.updatePublished' : 'sight.publish')}</button>

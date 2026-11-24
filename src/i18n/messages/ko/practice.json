@@ -326,6 +326,8 @@
     "tooLong": "이 구간은 5분을 넘습니다. 더 짧은 구간을 선택하세요.",
     "measureVisit": "{measure} 마디 · {visit}번째",
     "measureNumber": "{measure} 마디",
+    "wholePiece": "전체 곡",
+    "questionMeasureRange": "{first}–{last} 마디",
     "recordingPrivacy": "녹음은 이번 연습에서만 유지됩니다. 점수와 음별 피드백은 이 기기에 저장됩니다.",
     "notation": "연습 악보와 현재 마디",
     "notationNote": "{part} · {pitch} · {measure} 마디",
