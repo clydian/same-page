@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import type { AppLocale } from '../../i18n';
-import { SIGHT_SINGING_PROTOCOL_HEADER, SIGHT_SINGING_SCORE_MAX_BYTES } from '../../shared/sight-singing';
+import { SIGHT_SINGING_SCORE_MAX_BYTES } from '../../shared/sight-singing';
 import { diagnosticFetch } from '../diagnostics/diagnostics';
 import { readAttachment } from '../score-library/attachments/api';
 import { isSettingsReadDenied } from '../settings/settings-request';
@@ -13,7 +13,6 @@ import { loadMelodyScore, type MelodyScore } from './melody';
 import { readQuestionSnapshot } from './questions';
 
 export const publishedPath = (drive: string) => `/api/choirs/${encodeURIComponent(drive)}/sight-singing/questions`;
-export const sightSingingProtocol = { [SIGHT_SINGING_PROTOCOL_HEADER]: '3' };
 
 type QuestionSnapshot = { choirId: string; questionId: string; version: number; name: string };
 export type MelodySource =
@@ -74,7 +73,7 @@ export function useMelodySource(source: MelodySource | null) {
       }
       if (source.kind === 'cloud') {
         const response = await diagnosticFetch(`${publishedPath(choirId)}/${encodeURIComponent(source.questionId)}/score?version=${source.version}`, {
-          signal, headers: sightSingingProtocol,
+          signal,
         });
         if (response.ok) return { bytes: new Uint8Array(await response.arrayBuffer()), name: source.name };
       }

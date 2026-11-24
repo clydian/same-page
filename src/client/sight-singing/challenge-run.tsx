@@ -1,7 +1,7 @@
 import { ChevronDown, Headphones, Mic, Minus, Play, Plus, RotateCcw, Square, UserRound, UsersRound, X, createLucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
-import { currentSingingScoringRule, sightSingingSpeeds, type SightSingingResultSubmission, type SightSingingStanding } from '../../shared/sight-singing-results';
+import { sightSingingSpeeds, type SightSingingResultSubmission, type SightSingingStanding } from '../../shared/sight-singing-results';
 import { holdUpdate } from '../updates/update-safety';
 import { beginCapture, mixPianoAnswer, playNote, playSustainedTonic, type CaptureError } from './challenge-audio';
 import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
@@ -15,12 +15,9 @@ import { ScoreBadges } from './score-badge';
 
 const emptyFrames: PitchFrame[] = [];
 const TuningFork = createLucideIcon('TuningFork', [['path', { d: 'M7 3v8a5 5 0 0 0 10 0V3M12 16v5', key: 'fork' }]]);
-type Speed = NonNullable<SightSingingResultSubmission['speed']>;
-export type ResultSave = { published: boolean; standing?: SightSingingStanding };
+type Speed = SightSingingResultSubmission['speed'];
+export type ResultSave = { published: boolean; standing: SightSingingStanding };
 export type VoiceOption = { voice: MelodyVoice; melody: Melody; label: string };
-export type ScoredTake = SightSingingResultSubmission & {
-  speed: Speed; scoringRule: typeof currentSingingScoringRule; perfect: boolean; writtenOctave: boolean;
-};
 type Review = ReturnType<typeof assessNotes>;
 type Answer = { status: 'preparing' } | { status: 'ready'; url: string } | { status: 'failed'; recording: Blob };
 type RunState = { phase: 'idle' | 'permission' }
@@ -31,7 +28,7 @@ type RunState = { phase: 'idle' | 'permission' }
 export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, pitchTraceEnabled, onScored }: {
   document: MelodyScore; selected: VoiceOption; voices: VoiceOption[]; backingUnavailable: boolean;
   selectVoice: (id: string) => void; questionVersion: number;
-  pitchTraceEnabled: boolean; onScored: (take: ScoredTake) => Promise<ResultSave>;
+  pitchTraceEnabled: boolean; onScored: (take: SightSingingResultSubmission) => Promise<ResultSave>;
 }) {
   const t = useMessages('practice');
   const formatScore = useSightSingingScoreFormat();
@@ -139,7 +136,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       setState(current => current.phase === 'result' && current.id === id ? { ...current, save } : current);
     update('saving');
     try {
-      update(await onScored({ id, score: percent, speed, perfect, writtenOctave, scoringRule: currentSingingScoringRule,
+      update(await onScored({ id, score: percent, speed, perfect, writtenOctave,
         version: questionVersion, voiceId: voice.id, voiceName: selected.label }));
     } catch {
       update('failed');

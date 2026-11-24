@@ -32,7 +32,7 @@ export function ChallengeStanding({ standing, score, published, onClose }: {
           : t('sight.standingUnlisted')}</p>}
         {improved && <p className="challenge-standing-note" data-improved="true">{movedUp
           ? t('sight.standingMovedUp', { count: previous.place - place }) : t('sight.standingPersonalBest')}</p>}
-        {standing.nearby?.length ? <StandingNeighbors standing={standing} score={score} movedUp={movedUp} /> : null}
+        {standing.nearby.length ? <StandingNeighbors standing={standing} score={score} movedUp={movedUp} /> : null}
         <Button className="primary-button" onPress={onClose}>{t('sight.standingViewScore')}</Button>
       </Dialog>
     </Modal>
@@ -45,7 +45,7 @@ function StandingNeighbors({ standing, score, movedUp }: { standing: SightSingin
   const list = useRef<HTMLOListElement>(null), from = useRef<HTMLLIElement>(null), target = useRef<HTMLLIElement>(null);
   const [travelling, setTravelling] = useState(() => movedUp && !matchMedia('(prefers-reduced-motion: reduce)').matches);
   const current = { id: 'current', position: standing.place - .5, place: standing.place, tied: standing.tied, score, name: t('sight.standingYou') };
-  const rows = (standing.nearby ?? []).filter(row => travelling || row.position >= standing.place - 2 && row.position <= standing.place + 1)
+  const rows = standing.nearby.filter(row => travelling || row.position >= standing.place - 2 && row.position <= standing.place + 1)
     .map(row => ({ ...row, name: row.displayName, place: row.place + Number(row.score < score), tied: row.tied || row.score === score }));
   const previous = standing.previous;
   const entries = [...rows, current, ...(travelling && previous ? [{

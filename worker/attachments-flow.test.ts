@@ -3,8 +3,6 @@ import { env } from "cloudflare:workers";
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { zipSync } from "fflate";
 import { beforeEach, expect, it, vi } from "vitest";
-import { SIGHT_SINGING_PROTOCOL_HEADER } from "../src/shared/sight-singing";
-import { currentSingingScoringRule } from "../src/shared/sight-singing-results";
 import worker from "./index";
 import { provisionChoir } from "./choirs/provision";
 import { cleanupScoreStorage } from "./scores/cleanup";
@@ -315,13 +313,16 @@ it('publishes voice-neutral challenges only to active drive members and fences s
   const login = await call('/api/auth/sign-in/email', { method: 'POST', body: credentials.body, headers: { ...credentials.headers, cookie: '', origin: 'https://same-page.test' } });
   expect(login.status, await login.clone().text()).toBe(200);
   const readerCookie = login.headers.get('set-cookie')!.split(';')[0];
-  const fields = { title: '排练题', scoreId, attachmentId, revision: 1, first: 0, last: 0, expectedVersion: null };
+  const fields = { title: '排练题', publication: 'official', scoreId, attachmentId, revision: 1, first: 0, last: 0, expectedVersion: null };
   const publish = (body: unknown = fields, user = owner, session = cookie) => call(`${path}/${id}`, {
     method: 'PUT', headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': user, cookie: session }, body: JSON.stringify(body),
   });
   expect((await call(path, { headers: { cookie: readerCookie } })).status).toBe(403);
   const ownerSave = await publish(); expect(ownerSave.status, await ownerSave.clone().text()).toBe(200);
-  expect(await ownerSave.json()).toEqual({ question: { id, title: fields.title, scoreId, attachmentId, revision: 1, first: 0, last: 0, version: 1 } });
+  const original = await ownerSave.json<{ question: { snapshot: { editToken: string } } }>();
+  expect(original).toMatchObject({ question: { id, title: fields.title, scoreId, attachmentId, revision: 1, first: 0, last: 0,
+    version: 1, publisher: { kind: 'official' }, canEdit: true } });
+  const officialVersion = { expectedVersion: 1, expectedEditToken: original.question.snapshot.editToken };
   expect(await (await publish()).json()).toMatchObject({ question: { version: 1 } });
   expect((await call(`${path}/${id}/score?version=1`, { headers: { cookie: readerCookie } })).status).toBe(403);
   await env.DB.prepare("INSERT INTO memberships(id,choir_id,user_id,display_name,status) VALUES (?,?,?,'成员','active')").bind(crypto.randomUUID(), choirId, reader).run();
@@ -330,10 +331,10 @@ it('publishes voice-neutral challenges only to active drive members and fences s
   expect(await visible.json()).toMatchObject({ questions: [{ id, version: 1 }] });
   expect(new Uint8Array(await (await call(`${path}/${id}/score?version=1`, { headers: { cookie: readerCookie } })).arrayBuffer())).toEqual(musicXml);
   expect((await publish({ ...fields, expectedVersion: 1 }, reader, readerCookie)).status).toBe(403);
-  const ownId = crypto.randomUUID(), protocol = { [SIGHT_SINGING_PROTOCOL_HEADER]: '3' };
+  const ownId = crypto.randomUUID();
   const memberFields = { ...fields, title: '团员题', publication: 'member' };
   const publishOwn = (body: unknown, author = reader, session = readerCookie, target = `${path}/${ownId}`) => call(target, {
-    method: 'PUT', headers: { ...protocol, 'content-type': 'application/json', 'x-same-page-owner-user-id': author, cookie: session },
+    method: 'PUT', headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': author, cookie: session },
     body: JSON.stringify(body),
   });
   expect((await publishOwn({ ...memberFields, publication: 'official' })).status).toBe(403);
@@ -344,50 +345,49 @@ it('publishes voice-neutral challenges only to active drive members and fences s
   const { question: own } = await memberSave.json<{ question: { snapshot: { editToken: string } } }>();
   expect(own).toMatchObject({ id: ownId, publisher: { kind: 'member', name: '成员', own: true }, canEdit: true });
   expect(await (await publishOwn(memberFields)).json()).toMatchObject({ question: own });
-  const listing = await (await call(path, { headers: { ...protocol, cookie: readerCookie } })).json<{ questions: unknown[] }>();
+  const listing = await (await call(path, { headers: { cookie: readerCookie } })).json<{ questions: unknown[] }>();
   expect(listing.questions).toHaveLength(2);
   expect(listing.questions).toEqual(expect.arrayContaining([
     expect.objectContaining({ id, publisher: { kind: 'official' }, canEdit: false }),
     expect.objectContaining({ id: ownId, publisher: { kind: 'member', name: '成员', own: true } }),
   ]));
-  expect(await (await call(path, { headers: protocol })).json()).toMatchObject({
+  expect(await (await call(path)).json()).toMatchObject({
     questions: expect.arrayContaining([expect.objectContaining({ id: ownId, publisher: { kind: 'member', name: '成员', own: false }, canEdit: false })]),
   });
-  expect(await (await call(path, { headers: { [SIGHT_SINGING_PROTOCOL_HEADER]: '2' } })).json()).toMatchObject({ questions: [{ id }] });
   const edit = { title: '题名已改', first: 0, last: 0, expectedVersion: 1, expectedEditToken: own.snapshot.editToken, reuseSnapshot: true };
   expect((await publishOwn(edit, owner, cookie)).status).toBe(403);
   expect((await publishOwn({ ...edit, publication: 'official' })).status).toBe(409);
   expect(await (await publishOwn(edit)).json()).toMatchObject({ question: { title: edit.title, version: 1 } });
   expect((await call(`${path}/${ownId}/score`, { headers: { cookie: '' } })).status).toBe(403);
   expect(new Uint8Array(await (await call(`${path}/${ownId}/score`)).arrayBuffer())).toEqual(musicXml);
-  const summary = { id: crypto.randomUUID(), version: 1, score: 95, voiceId: '0:0:0', voiceName: 'Alto', scoringRule: currentSingingScoringRule };
+  const summary = { id: crypto.randomUUID(), version: 1, score: 95, voiceId: '0:0:0', voiceName: 'Alto', speed: 1, perfect: false, writtenOctave: false };
   const resultPath = `${path}/${ownId}/results`;
-  const driveLeaderboard = `/api/choirs/${choirId}/sight-singing/leaderboard?podium=1&precision=2`;
-  expect(await (await call(`${resultPath}?view=best`, { method: 'POST', ...json(summary),
+  const driveLeaderboard = `/api/choirs/${choirId}/sight-singing/leaderboard`;
+  expect(await (await call(`${resultPath}`, { method: 'POST', ...json(summary),
     headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': reader, cookie: readerCookie } })).json()).toMatchObject({
     result: { id: summary.id, questionId: ownId, score: 95, own: true }, published: true,
     standing: { place: 1, tied: false, participants: 1 },
   });
-  expect(await (await call(`${resultPath}?view=best&version=1&voice=Alto`)).json()).toMatchObject({
+  expect(await (await call(`${resultPath}?version=1&voice=Alto`)).json()).toMatchObject({
     results: [{ id: summary.id, displayName: '成员', score: 95, own: false }],
   });
   expect(await (await call(driveLeaderboard)).json()).toMatchObject({
     results: [{ id: summary.id, questionId: ownId, score: 95 }], participants: [{ questionId: ownId, count: 1 }],
   });
-  expect((await call(`${resultPath}?view=best`, { headers: { cookie: '' } })).status).toBe(403);
+  expect((await call(`${resultPath}`, { headers: { cookie: '' } })).status).toBe(403);
 
   const { choirId: other } = await provisionChoir({ binding: env.DB, ownerUserId: reader, ownerDisplayName: '其他团', inviteSecret: env.INVITE_SECRET });
   const otherPath = `/api/choirs/${other}/sight-singing/questions`;
-  expect(await (await call(otherPath, { headers: { ...protocol, cookie: readerCookie } })).json()).toEqual({ questions: [] });
+  expect(await (await call(otherPath, { headers: { cookie: readerCookie } })).json()).toEqual({ questions: [] });
   expect((await call(`${otherPath}/${ownId}/score`, { headers: { cookie: readerCookie } })).status).toBe(404);
-  expect((await call(`${otherPath}/${ownId}/results?view=best`, { headers: { cookie: readerCookie } })).status).toBe(404);
+  expect((await call(`${otherPath}/${ownId}/results`, { headers: { cookie: readerCookie } })).status).toBe(404);
   expect((await publishOwn(memberFields, reader, readerCookie, `${otherPath}/${crypto.randomUUID()}`)).status).toBe(409);
 
   await env.DB.prepare('UPDATE memberships SET permissions = ? WHERE user_id = ? AND choir_id = ?')
     .bind(JSON.stringify({ operations: ['editDriveInfo'], sharedLayers: [] }), reader, choirId).run();
   expect((await publish({ ...fields, voice: '0:0:0' })).status).toBe(400);
-  expect((await publish({ ...fields, expectedVersion: 1, revision: 2 }, reader, readerCookie)).status).toBe(409);
-  expect(await (await publish({ ...fields, expectedVersion: 1, title: '更新题' }, reader, readerCookie)).json()).toMatchObject({ question: { title: '更新题', version: 2 } });
+  expect((await publish({ ...fields, ...officialVersion, revision: 2 }, reader, readerCookie)).status).toBe(409);
+  expect(await (await publish({ ...fields, ...officialVersion, title: '更新题' }, reader, readerCookie)).json()).toMatchObject({ question: { title: '更新题', version: 2 } });
   expect((await publish({ ...fields, expectedVersion: 1, title: '旧版本' })).status).toBe(409);
 });
 
@@ -396,19 +396,21 @@ it('freezes library MusicXML independently and keeps the original bytes when the
   expect(original.response.status).toBe(201);
   const path = `/api/choirs/${choirId}/sight-singing/questions/${crypto.randomUUID()}`;
   const owner = (await env.DB.prepare('SELECT user_id FROM memberships WHERE id = ?').bind(memberId).first<{ user_id: string }>())!.user_id;
-  const headers = { 'x-same-page-owner-user-id': owner, [SIGHT_SINGING_PROTOCOL_HEADER]: '2' };
+  const headers = { 'x-same-page-owner-user-id': owner };
   const publish = (fields: unknown) => {
     const { body, headers: jsonHeaders } = json(fields);
     return call(path, { method: 'PUT', headers: { ...headers, ...jsonHeaders }, body });
   };
   const fields = { title: '定稿', scoreId, attachmentId: original.id, revision: 1, first: 0, last: 0, expectedVersion: null };
-  expect(await (await publish(fields)).json()).toMatchObject({ question: { version: 1, snapshot: { name: '自动练习.musicxml' } } });
+  const created = await (await publish(fields)).json<{ question: { snapshot: { editToken: string } } }>();
+  expect(created).toMatchObject({ question: { version: 1, snapshot: { name: '自动练习.musicxml' } } });
+  const fromV1 = { expectedVersion: 1, expectedEditToken: created.question.snapshot.editToken };
   const replacement = new TextEncoder().encode(new TextDecoder().decode(musicXml).replace('<step>C</step>', '<step>E</step>'));
   const query = new URLSearchParams({ size: String(replacement.length), name: '更新.musicxml', expectedRevision: '1', source: 'generated' });
   expect((await call(`${base()}/${original.id}/file?${query}`, { method: 'PUT', body: replacement })).status).toBe(200);
   expect(new Uint8Array(await (await call(`${path}/score?version=1`)).arrayBuffer())).toEqual(musicXml);
   expect((await publish({ ...fields, expectedVersion: 1 })).status).toBe(409);
-  const updated = await publish({ ...fields, expectedVersion: 1, revision: 2 });
+  const updated = await publish({ ...fields, ...fromV1, revision: 2 });
   expect(updated.status, await updated.clone().text()).toBe(200);
   const current = (await updated.json<{ question: { snapshot: { editToken: string } } }>()).question;
   expect(current).toMatchObject({ version: 2, snapshot: { name: '更新.musicxml' } });
@@ -427,7 +429,7 @@ it('freezes library MusicXML independently and keeps the original bytes when the
   expect((await env.DB.prepare('SELECT COUNT(*) AS count FROM sight_singing_score_snapshots').first())).toEqual({ count: 2 });
 });
 
-it('publishes a standalone MXL with bounded provenance, safe retries and a compatible legacy list', async () => {
+it('publishes a standalone MXL with bounded provenance, safe retries and a shared list', async () => {
   const files = zipSync({
     'META-INF/container.xml': new TextEncoder().encode('<container><rootfiles><rootfile full-path="score.xml"/></rootfiles></container>'),
     'score.xml': musicXml,
@@ -452,8 +454,7 @@ it('publishes a standalone MXL with bounded provenance, safe retries and a compa
   const published = { title: '独立片段', scoreId: null, attachmentId: null, revision: null, first: 0, last: 0, version: 1, snapshot: { name: '练习片段.mxl' } };
   expect(await response.json()).toMatchObject({ question: published });
   expect(await (await put('练习片段.mxl', files)).json()).toMatchObject({ question: published });
-  expect(await (await call(listPath)).json()).toEqual({ questions: [] });
-  expect(await (await call(listPath, { headers: { [SIGHT_SINGING_PROTOCOL_HEADER]: '2' } })).json()).toMatchObject({ questions: [published] });
+  expect(await (await call(listPath)).json()).toMatchObject({ questions: [published] });
   const copy = await call(`${path}/score`);
   expect(copy.headers.get('content-type')).toBe('application/vnd.recordare.musicxml');
   expect(copy.headers.get('cache-control')).toBe('no-store');

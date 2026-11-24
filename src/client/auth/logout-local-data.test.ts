@@ -1,6 +1,5 @@
 import { Blob as NodeBlob } from "node:buffer";
-import { readQuestionSnapshot, readQuestions, saveQuestion, takeKeyPrefix } from "../sight-singing/questions";
-import { compactPracticeHistory, readTakes, saveTake, type PracticeTake } from "../sight-singing/practice-history";
+import { readQuestionSnapshot, readQuestions } from "../sight-singing/questions";
 import { storeOfflineScore } from "../platform/local-database";
 import { markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "../score-library/attachments/markdown-drafts";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -203,44 +202,29 @@ it("fences delayed identity activation and an old session until a new login succ
 });
 
 
-it("scopes frozen sight-singing questions and compact scores by owner and drive", async () => {
+it("recovers existing sight-singing drafts only for their owner and clears them on logout", async () => {
   const question = { id: "question", title: "Local practice", scoreId: "score", attachmentId: "xml", revision: 2,
-    voice: "0:0:0", first: 1, last: 3, version: 1, snapshot: { name: "mock.musicxml" } };
+    first: 1, last: 3, version: 1, snapshot: { name: "mock.musicxml" } };
   const blob = new NodeBlob(["fixture score"]) as Blob;
-  const take: PracticeTake = { id: "take", at: 1, questionId: question.id, version: 1, title: question.title,
-    voiceId: question.voice, voiceName: "Alto", percent: 100, published: false, scoringRule: 3 };
-  const rawKey = takeKeyPrefix("user:user-1", "choir-1") + take.id;
-  const signal = new AbortController().signal;
-  await saveQuestion("user:user-1", "choir-1", question, signal, blob);
-  await localDatabase.system.put({ key: rawKey, value: JSON.stringify({ ...take, version: null,
-    notes: [{ measure: "2", sung: 60 }], accompaniment: ["Soprano"] }) });
-  await compactPracticeHistory("user:user-1");
-  expect(JSON.parse((await localDatabase.system.get(rawKey))!.value)).toEqual(take);
-  const earlierEdition = { ...take, version: 2, id: "another-version", at: 2, percent: 80 };
-  expect(await saveTake("user:user-1", "choir-1", earlierEdition)).toBe(true);
-  expect(await saveTake("user:user-1", "choir-1", { ...earlierEdition, id: "lower", at: 3, percent: 79 })).toBe(false);
-  const alto = { ...take, version: 3, id: "strict-alto", at: 4, percent: 83.12 };
-  const tenor = { ...alto, id: "strict-tenor", at: 5, percent: 70, voiceId: "1:0:0", voiceName: "Tenor" };
-  expect(await saveTake("user:user-1", "choir-1", alto)).toBe(true);
-  expect(await saveTake("user:user-1", "choir-1", tenor)).toBe(true);
-  expect(await saveTake("user:user-1", "choir-1", { ...alto, id: "strict-lower", at: 6, percent: 83.11 })).toBe(false);
-  await compactPracticeHistory("user:user-1");
+  const seed = (owner: string) => localDatabase.system.put({
+    key: `same-page:sight-singing:v1:${encodeURIComponent(owner)}:choir-1:${question.id}`,
+    value: JSON.stringify(question), blob,
+  });
+  await seed("user:user-1");
   expect(await (await readQuestionSnapshot("user:user-1", "choir-1", question.id, 1))?.text()).toBe("fixture score");
   expect(await readQuestionSnapshot("user:user-1", "choir-1", question.id, 2)).toBeNull();
   expect(await readQuestions("user:user-1", "choir-2")).toEqual([]);
-  expect(await readTakes("user:user-1", "choir-2")).toEqual([]);
   await activateAuthenticatedLocalOwner("user-2");
   expect(await readQuestions("user:user-1", "choir-1")).toEqual([]);
   expect(await readQuestionSnapshot("user:user-1", "choir-1", question.id, 1)).toBeNull();
-  await expect(saveQuestion("user:user-1", "choir-1", question, signal, blob)).rejects.toThrow("local_workspace_owner_changed");
-  await saveQuestion("user:user-2", "choir-1", question, signal, blob);
-  await saveTake("user:user-2", "choir-1", take);
+  await seed("user:user-2");
+  const oldTakeKey = "same-page:sight-singing-takes:v1:user%3Auser-2:choir-1:take";
+  await localDatabase.system.put({ key: oldTakeKey, value: "{}" });
   await clearPrivateLocalDataAfterLogout();
+  expect(await localDatabase.system.get(oldTakeKey)).toBeUndefined();
   await activateAuthenticatedLocalOwner("user-1");
   expect(await readQuestions("user:user-1", "choir-1")).toEqual([question]);
-  expect(await readTakes("user:user-1", "choir-1")).toEqual([tenor, alto, earlierEdition, take]);
   await activateAuthenticatedLocalOwner("user-2");
   expect(await readQuestions("user:user-2", "choir-1")).toEqual([]);
   expect(await readQuestionSnapshot("user:user-2", "choir-1", question.id, 1)).toBeNull();
-  expect(await readTakes("user:user-2", "choir-1")).toEqual([]);
 });

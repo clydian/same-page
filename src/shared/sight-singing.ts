@@ -3,7 +3,6 @@ import { ATTACHMENT_LIMITS, attachmentNameSchema } from './attachments';
 
 export const SIGHT_SINGING_SCORE_MAX_BYTES = ATTACHMENT_LIMITS.musicxml;
 export const SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH = 80;
-export const SIGHT_SINGING_PROTOCOL_HEADER = 'X-Same-Page-Sight-Singing';
 
 const rangeFields = z.object({
   title: z.string().trim().min(1).max(SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH),
@@ -12,7 +11,6 @@ const rangeFields = z.object({
 const attachmentFields = z.object({
   scoreId: z.string().min(1).max(128), attachmentId: z.string().min(1).max(128), revision: z.number().int().positive(),
 });
-export const questionFields = rangeFields.extend(attachmentFields.shape);
 const publicationKind = z.enum(['official', 'member']);
 export type QuestionPublication = z.infer<typeof publicationKind>;
 const publication = rangeFields.extend({ expectedVersion: z.number().int().positive().nullable(),
@@ -27,10 +25,10 @@ const publisher = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('member'), name: z.string(), own: z.boolean() }),
 ]);
 const publishedFields = rangeFields.extend({ id: z.uuid(), version: z.number().int().positive(),
-  publisher: publisher.optional(), canEdit: z.boolean().optional() });
+  publisher, canEdit: z.boolean() });
 const snapshotFields = z.object({ name: attachmentNameSchema, editToken: z.uuid() });
 export const publishedQuestionSchema = z.union([
-  publishedFields.extend({ ...attachmentFields.shape, snapshot: snapshotFields.optional() }),
+  publishedFields.extend({ ...attachmentFields.shape, snapshot: snapshotFields }),
   publishedFields.extend({ scoreId: z.null(), attachmentId: z.null(), revision: z.null(), snapshot: snapshotFields }),
 ]);
 export const publishedQuestionResponseSchema = z.object({ question: publishedQuestionSchema });

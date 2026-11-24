@@ -1,12 +1,14 @@
 import workletUrl from './capture-processor.js?url&no-inline';
 import { loadPracticeClicks, practiceBeatAccent, schedulePracticeClicks } from '../playback/practice-metronome';
+import { loadPracticeSoundFont } from '../playback/practice-soundfont';
+import { createChoirBacking, scheduleChoirBacking } from './choir-backing';
 import { targetPitches, type Melody, type MelodyNote } from './melody';
 import { createPitchReader, frequency, pitchWindowSize, type PitchFrame } from './pitch-feedback';
 
 export type CaptureError = 'microphoneUnavailable' | 'microphoneDenied' | 'audioInterrupted' | 'audioFailure';
 type CaptureCallbacks = {
   onCount(count: number): void;
-  onFrame(frame: PitchFrame, elapsed: number): void;
+  onFrame(frame: PitchFrame): void;
   onComplete(frames: PitchFrame[], recording: Blob): void;
   onError(error: CaptureError): void;
 };
@@ -16,12 +18,14 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
   let context = previewContext, stream: MediaStream | undefined;
   let input: MediaStreamAudioSourceNode | undefined, worklet: AudioWorkletNode | undefined;
   let cancelClicks: (() => void) | undefined;
+  let cancelBacking: (() => void) | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
   const dispose = () => {
     if (!active) return;
     active = false;
     clearTimeout(deadline);
     cancelClicks?.();
+    cancelBacking?.();
     stream?.getTracks().forEach(track => track.stop());
     worklet?.port.close();
     worklet?.disconnect();
@@ -55,10 +59,11 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
       }
       return opened;
     });
-    const [,, opened, clickBuffers] = await Promise.all([resumed, prepared, microphone, clicks]);
+    const [,, opened, clickBuffers, soundFont] = await Promise.all([resumed, prepared, microphone, clicks, backing.length ? loadPracticeSoundFont() : null]);
     if (!active) return;
     clearTimeout(deadline);
     const { sampleRate } = context;
+    const choirBacking = soundFont ? createChoirBacking(backing, melody.duration, soundFont, sampleRate) : null;
     const beatFrames = Math.round(melody.beatSeconds * sampleRate);
     const durationFrames = Math.round(melody.duration * sampleRate);
     context.addEventListener('statechange', () => {
@@ -92,10 +97,10 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
         window.set(samples, half);
         const frame = { time: received / sampleRate, midi: pitch(window) };
         frames.push(frame);
-        callbacks.onFrame(frame, (received + samples.length) / sampleRate);
+        callbacks.onFrame(frame);
       } else {
         window.set(samples, half);
-        callbacks.onFrame({ time: 0, midi: null }, samples.length / sampleRate);
+        callbacks.onFrame({ time: 0, midi: null });
       }
       chunks.push(pcm16(samples));
       received += samples.length;
@@ -113,8 +118,8 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
       })),
       ...melody.clicks.map(click => ({ ...click, time: countDuration + click.time })),
     ]);
-    if (backing.length) schedulePiano(context, backing.flat(), start, .1 / Math.sqrt(backing.length));
     deadline = setTimeout(() => fail('audioInterrupted'), 5000 + (beatFrames * melody.beats + durationFrames) / sampleRate * 1000);
+    if (choirBacking) cancelBacking = scheduleChoirBacking(context, choirBacking, start, () => fail('audioFailure'));
   })().catch((reason: unknown) => {
     const name = reason instanceof DOMException ? reason.name : '';
     fail(name === 'NotAllowedError' || name === 'SecurityError' ? 'microphoneDenied' : name === 'NotFoundError' ? 'microphoneUnavailable' : 'audioFailure');

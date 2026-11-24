@@ -5,9 +5,8 @@ import { currentLocalOwnerKey } from '../platform/local-workspace';
 const prefix = 'same-page:sight-singing:v1:';
 const ownerPrefix = (user: string) => `${prefix}${encodeURIComponent(user)}:`;
 const questionKeyPrefix = (owner: string, drive: string) => `${ownerPrefix(owner)}${encodeURIComponent(drive)}:`;
-export const takeOwnerKeyPrefix = (owner: string) => `same-page:sight-singing-takes:v1:${encodeURIComponent(owner)}:`;
+const takeOwnerKeyPrefix = (owner: string) => `same-page:sight-singing-takes:v1:${encodeURIComponent(owner)}:`;
 export const isSightSingingQuestionKey = (key: string, owner: string) => key.startsWith(ownerPrefix(owner)) || key.startsWith(takeOwnerKeyPrefix(owner));
-export const takeKeyPrefix = (owner: string, drive: string) => `${takeOwnerKeyPrefix(owner)}${encodeURIComponent(drive)}:`;
 
 // Legacy records retain the source tuple until the original revision can be frozen.
 export type SightSingingQuestion = {
@@ -61,25 +60,5 @@ export async function readQuestionSnapshot(owner: string, drive: string, id: str
       const question: unknown = JSON.parse(row.value);
       return isQuestion(question) && question.snapshot && question.version === version ? row.blob : null;
     } catch { return null; }
-  });
-}
-
-export async function saveQuestion(owner: string, drive: string, question: SightSingingQuestion, signal: AbortSignal, blob?: Blob) {
-  if (Boolean(question.snapshot) !== Boolean(blob)) throw new Error('question_snapshot_missing');
-  await savePracticeData(owner, questionKeyPrefix(owner, drive) + question.id, question, signal, blob);
-}
-
-export async function assertPracticeOwner(owner: string) {
-  if (await currentLocalOwnerKey() !== owner || (await readLogoutFence())?.userId === owner.slice('user:'.length)) {
-    throw new Error('local_workspace_owner_changed');
-  }
-}
-
-export async function savePracticeData(owner: string, key: string, value: unknown, signal?: AbortSignal, blob?: Blob) {
-  await localDatabase.transaction('rw', localDatabase.system, async () => {
-    await assertPracticeOwner(owner);
-    signal?.throwIfAborted();
-    await localDatabase.system.put({ key, value: JSON.stringify(value), ...(blob && { blob }) });
-    signal?.throwIfAborted();
   });
 }

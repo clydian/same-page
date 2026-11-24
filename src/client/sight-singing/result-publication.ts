@@ -8,33 +8,29 @@ const resultPath = (choirId: string, questionId: string) =>
   `/api/choirs/${encodeURIComponent(choirId)}/sight-singing/questions/${encodeURIComponent(questionId)}/results`;
 
 export async function publishSightSingingResult(choirId: string, questionId: string, userId: string,
-  { perfect, writtenOctave, ...result }: SightSingingResultSubmission & { perfect: boolean; writtenOctave: boolean }, signal?: AbortSignal) {
-  const query = new URLSearchParams({ view: 'best' });
-  if (perfect) query.set('perfect', '1');
-  if (perfect && writtenOctave) query.set('writtenOctave', '1');
-  const response = await diagnosticFetch(`${resultPath(choirId, questionId)}?${query}`, {
+  result: SightSingingResultSubmission, signal?: AbortSignal) {
+  const response = await diagnosticFetch(resultPath(choirId, questionId), {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': userId },
     body: JSON.stringify(result),
   });
   if (!response.ok) throw new Error('publish_result_failed');
-  const { published = true, standing } = await parseDiagnosticResponse(response, sightSingingResultResponseSchema);
+  const { published, standing } = await parseDiagnosticResponse(response, sightSingingResultResponseSchema);
   return { published, standing };
 }
 
 export async function readSightSingingResults(choirId: string, questionId: string, version: number | null,
   voice: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ view: 'best', precision: '2', details: '1', writtenOctave: '1' });
+  const query = new URLSearchParams();
   if (version !== null) query.set('version', String(version));
   if (voice) query.set('voice', voice);
-  const response = await diagnosticFetch(`${resultPath(choirId, questionId)}?${query}`, { signal });
+  const response = await diagnosticFetch(resultPath(choirId, questionId) + (query.size ? `?${query}` : ''), { signal });
   if (!response.ok) throw new Error('published_results_unavailable');
   return parseDiagnosticResponse(response, sightSingingResultsResponseSchema);
 }
 
 export async function readSightSingingLeaderboard(choirId: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ precision: '2', details: '1', writtenOctave: '1', podium: '1' });
-  const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard?${query}`, { signal });
+  const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard`, { signal });
   if (!response.ok) throw new Error('published_results_unavailable');
   return parseDiagnosticResponse(response, sightSingingLeaderboardSchema);
 }

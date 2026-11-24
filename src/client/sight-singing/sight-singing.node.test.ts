@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import { midi } from '@coderline/alphatab';
+import { TONE_PROFILES } from '@same-page/player/timbre-profile';
 import { zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { renderPracticeClicks } from '../playback/practice-metronome';
+import { exportPracticeAudio } from '../playback/practice-soundfont';
+import { createChoirBacking } from './choir-backing';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
 import { createPitchTrace, octaveGuides, pitchFramesConnect } from './pitch-trace';
@@ -54,6 +58,31 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
   expect(alto.notes[0].chord).toEqual([65, 69]);
   for (const [midi, target, status] of [[65.12, 65, 'inTune'], [65.36, 65, 'sharp'], [68.62, 69, 'flat'], [67.6, 69, 'wrongNote']] as const) {
     expect(assessNotes(alto.notes, [{ time: .25, midi }])[0]).toMatchObject({ target, status });
+  }
+});
+
+it('renders the XML choir preset and sustains overlapping unisons on the score clock', () => {
+  const font = readFileSync(new URL('./soundfont/sonivox.sf2', import.meta.resolve('@coderline/alphatab')));
+  const sampleRate = 48000;
+  const note = { midi: 69, bar: 0, visit: 0 };
+  const voices = [[{ ...note, start: .25, end: .6 }], [{ ...note, start: .5, end: 1 }]];
+  const backing = createChoirBacking(voices, 1.1, font, sampleRate);
+  const reference = new midi.MidiFile();
+  reference.division = 1000;
+  const handler = new midi.AlphaSynthMidiFileHandler(reference);
+  handler.addTempo(0, 60);
+  handler.addControlChange(0, 0, 0, midi.ControllerType.BankSelectCoarse, TONE_PROFILES.choir.bank);
+  handler.addProgramChange(0, 0, 0, TONE_PROFILES.choir.program);
+  handler.addNote(0, 250, 750, 69, 80, 0);
+  handler.finishTrack(0, 1100);
+  const choir = exportPracticeAudio(reference, font, sampleRate, .75 / Math.sqrt(2));
+  for (let part = 0; part < 2; part++) {
+    const actual = backing.render(500)!.samples;
+    expect(Buffer.from(actual.buffer, actual.byteOffset, actual.byteLength)).toEqual(
+      Buffer.from(choir.render(500)!.samples.buffer),
+    );
+    if (part === 0) expect(actual.subarray(0, sampleRate / 3).every(sample => sample === 0)).toBe(true);
+    expect(actual.some(sample => Math.abs(sample) > .005)).toBe(true);
   }
 });
 
@@ -155,8 +184,7 @@ describe('pitch and feedback', () => {
       expect(review.map(row => row.status)).toEqual(pitches.map((_, index) =>
         unscored.some(number => number === index + 1) ? 'insufficientData' : 'inTune'));
       for (const number of unscored) {
-        expect(review[number - 1]).toMatchObject({ sung: null, cents: null, interval: null });
-        if (number < review.length) expect(review[number].interval).toBeNull();
+        expect(review[number - 1]).toMatchObject({ sung: null, cents: null });
       }
       const sampledSilence = [{ ...frames[0], midi: null }, ...frames.slice(1)];
       expect(assessNotes(shortNotes, sampledSilence)[0].status).toBe('missed');
@@ -167,18 +195,17 @@ describe('pitch and feedback', () => {
       expect(assessNotes(shortNotes, denseFrames).map(row => row.status)).toEqual(pitches.map(() => 'inTune'));
     }
   });
-  it('reports pitch and interval independently and breaks interval feedback across a missed note', () => {
+  it('distinguishes a sharp note, a wrong note and a missed note', () => {
     const result = assessNotes(notes, [
       { time: .2, midi: 69.35 }, { time: .3, midi: 69.35 },
       { time: 1, midi: 61 }, { time: 1.5, midi: 61 },
       { time: 3.4, midi: null }, { time: 4.5, midi: 60 },
     ]);
-    expect(result.slice(0, 3).map(({ status, cents, interval }) => ({ status, cents, interval }))).toEqual([
-      { status: 'sharp', cents: 35, interval: null }, { status: 'wrongNote', cents: 100, interval: 65 }, { status: 'missed', cents: null, interval: null },
+    expect(result.slice(0, 3).map(({ status, cents }) => ({ status, cents }))).toEqual([
+      { status: 'sharp', cents: 35 }, { status: 'wrongNote', cents: 100 }, { status: 'missed', cents: null },
     ]);
-    expect(result[3].interval).toBe(null);
   });
-  it('matches chord tones across octaves while retaining cents, sung pitches and real interval jumps', () => {
+  it('matches chord tones across octaves while retaining cents and the sung register', () => {
     const chord = [{ midi: 60, chord: [60, 64], start: 0, end: 1, bar: 0, visit: 0 }];
     for (const [midi, target, octave, cents, status] of [
       [52, 64, -1, 0, 'inTune'], [76.32, 64, 1, 32, 'sharp'], [51.58, 64, -1, -42, 'flat'], [55, 64, -1, 300, 'wrongNote'],
@@ -188,7 +215,6 @@ describe('pitch and feedback', () => {
     }
     const review = assessNotes(notes.slice(0, 2), [{ time: .25, midi: 57 }, { time: 1, midi: 72 }]);
     expect(review.map(row => row.status)).toEqual(['inTune', 'inTune']);
-    expect(review[1].interval).toBe(2400);
   });
 });
 

@@ -35,7 +35,7 @@ export function matchTargetPitch(note: MelodyNote, sung: number) {
 }
 
 export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
-  let cursor = 0, previousError: number | null = null;
+  let cursor = 0;
   return notes.map(note => {
     const edge = Math.min(.065, (note.end - note.start) * .2);
     const insideStart = note.start + edge, insideEnd = note.end - edge;
@@ -49,21 +49,16 @@ export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
     const sampled = cursor - first;
     // A short note's scoring window may fall between pitch analysis frames.
     if (sampled === 0) {
-      previousError = null;
-      return { note, target: null, octave: null, sung: null, cents: null, interval: null, status: 'insufficientData' } as const;
+      return { note, target: null, octave: null, sung: null, cents: null, status: 'insufficientData' } as const;
     }
     pitches.sort((a, b) => a - b);
     const voiced = pitches.length / sampled >= .5;
     const sung = voiced ? (pitches[Math.floor((pitches.length - 1) / 2)] + pitches[Math.floor(pitches.length / 2)]) / 2 : null;
     const match = sung === null ? null : matchTargetPitch(note, sung);
-    // Score the pitch class while measuring intervals in the sung register.
-    const error = sung === null || !match ? null : (sung - match.midi) * 100;
     const cents = match ? Math.round(match.error * 1000) / 10 : null;
-    const interval = error === null || previousError === null ? null : Math.round(error - previousError);
-    previousError = error;
     const status = cents === null ? 'missed' : Math.abs(cents) >= wrongNoteCents ? 'wrongNote'
       : cents > fullCreditCents ? 'sharp' : cents < -fullCreditCents ? 'flat' : 'inTune';
-    return { note, target: match?.midi ?? null, octave: match?.octave ?? null, sung, cents, interval, status } as const;
+    return { note, target: match?.midi ?? null, octave: match?.octave ?? null, sung, cents, status } as const;
   });
 }
 

@@ -21,15 +21,14 @@ import { useDriveLibraryResource } from '../score-library/use-drive-library';
 import { Dialog, Menu } from '../navigation/overlays';
 import { captureNavigationIdentity } from '../settings/navigation-events';
 import { ConfirmDialog } from '../settings/confirm-dialog';
-import { ChallengeRun, type ResultSave, type ScoredTake, type VoiceOption } from './challenge-run';
+import { ChallengeRun, type ResultSave, type VoiceOption } from './challenge-run';
 import { useSightSingingScoreFormat } from './format-score';
 import { buildMelody } from './melody';
 import { readQuestions, type SightSingingQuestion } from './questions';
 import { ScoreBadges } from './score-badge';
-import { compactPracticeHistory, markTakeWithdrawn, saveTake } from './practice-history';
 import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult } from './result-publication';
-import type { PublishedSightSingingResult, SightSingingLeaderboard } from '../../shared/sight-singing-results';
-import { publishedPath, sightSingingProtocol, useMelodySource, type MelodySource } from './use-melody-source';
+import type { PublishedSightSingingResult, SightSingingLeaderboard, SightSingingResultSubmission } from '../../shared/sight-singing-results';
+import { publishedPath, useMelodySource, type MelodySource } from './use-melody-source';
 import './sight-singing.css';
 import './sight-singing-workspace.css';
 
@@ -69,7 +68,7 @@ function questionNameWithRange(name: string, range: string) {
 }
 
 function publisherLabel(publisher: PublishedQuestion['publisher'], t: ReturnType<typeof useMessages<'practice'>>) {
-  if (publisher?.kind !== 'member') return t('sight.officialPublisher');
+  if (publisher.kind !== 'member') return t('sight.officialPublisher');
   if (publisher.own) return t('sight.selfPublisher');
   return publisher.name ? t('sight.namedPublisher', { name: publisher.name }) : t('sight.memberPublisher');
 }
@@ -83,11 +82,8 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const [selection, setSelection] = useState<{ question?: PublishedQuestion; legacy?: SightSingingQuestion } | null>(null);
   const [pitchTraceEnabled, setPitchTraceEnabled] = useState(false);
   useEffect(() => {
-    void compactPracticeHistory(props.owner).catch(() => undefined);
-  }, [props.owner]);
-  useEffect(() => {
     const controller = new AbortController();
-    void diagnosticFetch(publishedPath(props.choirId), { signal: controller.signal, headers: sightSingingProtocol }).then(async response => {
+    void diagnosticFetch(publishedPath(props.choirId), { signal: controller.signal }).then(async response => {
       if (!response.ok) throw new Error('questions_unavailable');
       const payload = await parseDiagnosticResponse(response, publishedQuestionsSchema);
       if (!controller.signal.aborted) setPublished(payload.questions);
@@ -230,7 +226,7 @@ function QuestionCard({ question, top, count, choirId, ready, open }: {
                 </strong>
               </div>
               {expanded && <small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}
-                {row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small>}
+                {` · ${row.speed.toFixed(2)}×`}</small>}
             </div>
           </li>)}
         </ol> : expanded && rows === undefined ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
@@ -271,7 +267,7 @@ function PublishedResultRow({ row, place, tied, showVersions, onRemove }: {
   const person = <>
     <RankBadge place={place} tied={tied} />
     <span><strong>{row.displayName}</strong><small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}
-      {row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small></span>
+      {` · ${row.speed.toFixed(2)}×`}</small></span>
   </>;
   return <li data-own={row.own || undefined} onContextMenu={row.own ? event => {
     if (!(event.target instanceof Element) || !event.currentTarget.contains(event.target) || event.target.closest('.challenge-score-badge-button')) return;
@@ -295,8 +291,8 @@ function PublishedResultRow({ row, place, tied, showVersions, onRemove }: {
   </li>;
 }
 
-function PublishedResults({ choirId, questionId, version, generation, owner, userId }: {
-  choirId: string; questionId: string; version: number; generation: number; owner: DriveCacheOwnerKey; userId: string;
+function PublishedResults({ choirId, questionId, version, generation, userId }: {
+  choirId: string; questionId: string; version: number; generation: number; userId: string;
 }) {
   const t = useMessages('practice');
   const showVersions = version > 1;
@@ -315,8 +311,8 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
     void readSightSingingResults(choirId, questionId, filter, voice, controller.signal).then(payload => {
       if (controller.signal.aborted) return;
       setState({ generation, retry, filter, voice, rows: payload.results });
-      if (payload.versions) setVersions(payload.versions);
-      setVoices(payload.voices ?? []);
+      setVersions(payload.versions);
+      setVoices(payload.voices);
     }).catch(() => {
       if (!controller.signal.aborted) setState({ generation, retry, filter, voice, rows: null });
     });
@@ -331,7 +327,6 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
     try {
       await withdrawSightSingingResult(choirId, questionId, userId, removing.id, removing.version);
       setRetry(value => value + 1);
-      await markTakeWithdrawn(owner, choirId, removing.id).catch(() => undefined);
     } catch {
       setWithdrawFailed(true);
     } finally {
@@ -397,7 +392,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     return () => { saveLifetime.current?.abort(); for (const controller of pending) controller.abort(); };
   }, []);
 
-  const visibleSource = editing ? sourceMode : saved?.snapshot ? 'saved' : 'library';
+  const visibleSource = editing ? sourceMode : 'saved';
   const candidates = useMemo(() => scores.filter(score => (score.musicXmlCount ?? score.attachmentCount ?? 0) > 0), [scores]);
   const score = visibleSource === 'library' ? candidates.find(row => row.id === scoreId) : undefined;
   const attachments = useLibraryAttachments(choirId, score ? [score] : [], Boolean(score), sessionId, owner);
@@ -463,7 +458,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     const current = captureNavigationIdentity();
     setSaving(true); setFailed(false);
     try {
-      const headers: Record<string, string> = { ...sightSingingProtocol, 'x-same-page-owner-user-id': userId };
+      const headers: Record<string, string> = { 'x-same-page-owner-user-id': userId };
       const payload = { title: title.trim(), first, last, expectedVersion: saved?.version ?? null,
         ...(saved?.snapshot && { expectedEditToken: saved.snapshot.editToken }),
         ...(!saved && { publication: canPublishOfficial ? publication : 'member' }) };
@@ -486,25 +481,18 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       if (!controller.signal.aborted && current()) {
         setTitleOverride(next.title); setFirst(next.first); setLastChoice(next.last);
         setScoreId(next.scoreId ?? ''); setFileChoice(next.attachmentId ? `${next.attachmentId}:${next.revision}` : '');
-        setSaved(next); setSourceMode(next.snapshot ? 'saved' : 'library'); setUpload(null); setEditing(false);
+        setSaved(next); setSourceMode('saved'); setUpload(null); setEditing(false);
       }
     } catch { if (!controller.signal.aborted && current()) setFailed(true); }
     finally { saveLifetime.current = null; if (!controller.signal.aborted) setSaving(false); }
   };
-  const recordResult = async (attempt: ScoredTake): Promise<ResultSave> => {
+  const recordResult = async (attempt: SightSingingResultSubmission): Promise<ResultSave> => {
     if (!saved) throw new Error('result_question_missing');
     const controller = new AbortController(), current = captureNavigationIdentity();
     resultLifetimes.current.add(controller);
     try {
       const result = await publishSightSingingResult(choirId, saved.id, userId, attempt, controller.signal);
-      if (!controller.signal.aborted && current()) {
-        setResultGeneration(value => value + 1);
-        if (result.published) await saveTake(owner, choirId, {
-          id: attempt.id, at: Date.now(), title: saved.title, questionId: saved.id, version: attempt.version,
-          voiceId: attempt.voiceId, voiceName: attempt.voiceName, speed: attempt.speed, scoringRule: attempt.scoringRule,
-          published: true, percent: attempt.score, perfect: attempt.perfect, writtenOctave: attempt.writtenOctave,
-        }, controller.signal).catch(() => undefined);
-      }
+      if (!controller.signal.aborted && current()) setResultGeneration(value => value + 1);
       return result;
     } finally {
       resultLifetimes.current.delete(controller);
@@ -515,7 +503,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const playable = Boolean(loaded.document && selected);
   const issue = !selected && loaded.document ? options[0]?.melody ?? 'noMelody' : null;
   const canEdit = !editing && editable;
-  const replace = Boolean(saved?.snapshot && (sourceMode !== 'saved' || first !== saved.first || last !== saved.last));
+  const replace = Boolean(saved && (sourceMode !== 'saved' || first !== saved.first || last !== saved.last));
   const badUpload = invalidUpload || (source?.kind === 'upload' && loaded.failed);
   const backingUnavailable = options.some(({ melody }) => typeof melody === 'string' && melody !== 'noMelody');
   const versionSuffix = version > 1 ? ` · ${versionTag(version)}` : '';
@@ -525,9 +513,9 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       backTo={`/choirs/${choirId}`} onBack={onBack} backLabel={t('sight.backToQuestions')}
       actions={!editing && <div className="challenge-header-actions">
         {canEdit && <button type="button" className="icon-button" aria-label={t('sight.edit')} title={t('sight.edit')}
-          onClick={() => { setSourceMode(saved?.snapshot ? 'saved' : 'library'); setEditing(true); }}><Pencil size={18} aria-hidden="true" /></button>}
-        {saved?.snapshot && <PracticePanel title={t('sight.bestResults')} icon={<Trophy size={19} aria-hidden="true" />}>
-          <PublishedResults key={`${saved.id}:${version}`} choirId={choirId} owner={owner} userId={userId} questionId={saved.id}
+          onClick={() => { setSourceMode('saved'); setEditing(true); }}><Pencil size={18} aria-hidden="true" /></button>}
+        {saved && <PracticePanel title={t('sight.bestResults')} icon={<Trophy size={19} aria-hidden="true" />}>
+          <PublishedResults key={`${saved.id}:${version}`} choirId={choirId} userId={userId} questionId={saved.id}
             version={version} generation={resultGeneration} />
         </PracticePanel>}
         <PracticePanel title={t('settings')} compact icon={<Settings size={20} aria-hidden="true" />}>

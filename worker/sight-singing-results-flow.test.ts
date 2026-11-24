@@ -46,55 +46,53 @@ it('keeps one best published score per version and withdraws only the selected o
   });
   expect(joined.status).toBe(201);
   const questionId = crypto.randomUUID(), questionsPath = `/api/choirs/${choirId}/sight-singing/questions`, questionPath = `${questionsPath}/${questionId}`;
+  let editToken: string | undefined;
   async function freezeVersion(expectedVersion: number | null, pitch: string) {
     const form = new FormData();
-    form.append('fields', JSON.stringify({ title: '和声练习', first: 0, last: 0, expectedVersion }));
+    form.append('fields', JSON.stringify({ title: '和声练习', first: 0, last: 0, expectedVersion, expectedEditToken: editToken }));
     form.append('file', new File([score.replace('<step>C</step>', `<step>${pitch}</step>`)], 'score.musicxml', { type: 'application/vnd.recordare.musicxml+xml' }));
     const response = await call(questionPath, { method: 'PUT', body: form, headers: { cookie: owner.cookie, 'x-same-page-owner-user-id': owner.id } });
     expect(response.status, await response.clone().text()).toBe(200);
-    expect(await response.json()).toMatchObject({ question: { id: questionId, version: (expectedVersion ?? 0) + 1 } });
+    const payload = await response.json<{ question: { snapshot: { editToken: string } } }>();
+    expect(payload).toMatchObject({ question: { id: questionId, version: (expectedVersion ?? 0) + 1 } });
+    editToken = payload.question.snapshot.editToken;
   }
   await freezeVersion(null, 'C');
   await freezeVersion(1, 'E');
 
   const resultPath = `${questionPath}/results`, listPath = `${resultPath}?version=1`;
   const read = (path: string, viewer = singer) => call(path, { headers: { cookie: viewer.cookie } });
-  const resultFields = { id: crypto.randomUUID(), version: 1, score: 84, voiceId: '0:0:0', voiceName: 'Alto' };
-  const result = { ...resultFields, scoringRule: 3 };
+  const resultFields = { id: crypto.randomUUID(), version: 1, score: 84, speed: 1, voiceId: '0:0:0', voiceName: 'Alto' };
+  const result = { ...resultFields, perfect: false, writtenOctave: false };
   const send = (body: unknown = result, author = singer, userId = author.id, path = resultPath) => call(path, {
     method: 'POST', headers: { cookie: author.cookie, 'content-type': 'application/json', 'x-same-page-owner-user-id': userId },
     body: JSON.stringify(body),
   });
 
-  expect(await (await read(listPath)).json()).toEqual({ results: [] });
+  expect(await (await read(listPath)).json()).toMatchObject({ results: [] });
   expect((await read(listPath, outsider)).status).toBe(403);
   expect((await send(result, outsider)).status).toBe(403);
   expect((await send(result, singer, owner.id)).status).toBe(403);
   expect((await send({ ...result, version: 3 })).status).toBe(404);
   expect((await send(result, singer, singer.id, `${questionsPath}/${crypto.randomUUID()}/results`)).status).toBe(404);
-  const liveQuestionId = crypto.randomUUID();
-  await env.DB.prepare(`INSERT INTO sight_singing_questions(choir_id, id, title, score_id, attachment_id,
-    attachment_revision, first_visit, last_visit, version) VALUES (?, ?, '未冻结的旧题', 'old-score', 'old-file', 1, 0, 0, 1)`)
-    .bind(choirId, liveQuestionId).run();
-  expect((await send(result, singer, singer.id, `${questionsPath}/${liveQuestionId}/results`)).status).toBe(404);
   expect((await send({ ...result, recording: 'RIFF', notes: [{ midi: 64 }] })).status).toBe(400);
-  expect((await send({ ...result, scoringRule: 2 })).status).toBe(400);
-  expect((await send({ ...result, scoringRule: undefined })).status).toBe(400);
+  expect((await send({ ...result, speed: undefined })).status).toBe(400);
+  expect((await send({ ...result, writtenOctave: true })).status).toBe(400);
 
   const own = { ...resultFields, questionId, displayName: '云盘里的 Alto', own: true };
   const first = await send();
   expect(first.status, await first.clone().text()).toBe(200);
-  expect(await first.json()).toEqual({ result: own });
-  expect(await (await send()).json()).toEqual({ result: own });
+  expect(await first.json()).toMatchObject({ result: own, published: true });
+  expect(await (await send()).json()).toMatchObject({ result: own, published: true });
   expect((await send({ ...result, score: 99 })).status).toBe(409);
   expect((await send(result, owner)).status).toBe(409);
-  expect(await (await read(`${resultPath}?version=2`)).json()).toEqual({ results: [] });
+  expect(await (await read(`${resultPath}?version=2`)).json()).toMatchObject({ results: [] });
 
   const publicList = await read(listPath, owner);
   expect(publicList.headers.get('Cache-Control')).toBe('no-store');
-  expect(await publicList.json()).toEqual({ results: [{ ...own, own: false }] });
+  expect(await publicList.json()).toMatchObject({ results: [{ ...own, own: false }] });
 
-  const bestPath = `${resultPath}?view=best`;
+  const bestPath = resultPath;
   const newTake = (fields: { version?: number; score: number; speed: number; voiceName?: string }) =>
     ({ ...result, id: crypto.randomUUID(), ...fields });
   const tie = newTake({ score: 84, speed: .75, voiceName: 'Soprano' });
@@ -105,7 +103,7 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(await (await read(bestPath)).json()).toMatchObject({ versions: [2, 1], results: [{ id: better.id, score: 94, speed: 1.5 }] });
   const v2 = newTake({ version: 2, score: 70, speed: 1.25 });
   expect(await (await send(v2, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
-  expect(await (await read(bestPath + '&version=2')).json()).toMatchObject({ results: [{ id: v2.id, version: 2 }] });
+  expect(await (await read(bestPath + '?version=2')).json()).toMatchObject({ results: [{ id: v2.id, version: 2 }] });
   expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: better.id, score: 94 }] });
 
   const withdraw = (author: typeof singer) => call(`${resultPath}/${better.id}?version=1`, {
@@ -115,13 +113,13 @@ it('keeps one best published score per version and withdraws only the selected o
   expect((await withdraw(owner)).status).toBe(204);
   expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: better.id }] });
   expect((await withdraw(singer)).status).toBe(204);
-  expect(await (await read(listPath)).json()).toEqual({ results: [] });
+  expect(await (await read(listPath)).json()).toMatchObject({ results: [] });
   expect(await (await send(better, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
   expect(await (await send(inferior, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
   expect(await (await read(bestPath)).json()).toMatchObject({ results: [{ id: v2.id, score: 70 }] });
   const fresh = newTake({ score: 77, speed: 1 });
   expect(await (await send(fresh, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
-  expect(await (await read(bestPath + '&version=1')).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
+  expect(await (await read(bestPath + '?version=1')).json()).toMatchObject({ results: [{ id: fresh.id, score: 77 }] });
 
   const overview = `/api/choirs/${choirId}/sight-singing/leaderboard`;
   expect((await read(overview, outsider)).status).toBe(403);
@@ -131,7 +129,7 @@ it('keeps one best published score per version and withdraws only the selected o
   ).bind(crypto.randomUUID(), choirId, person.id, person === outsider ? '次中音团员' : '第四位歌者').run();
   const partTake = (score: number, version: number, tenor = false) => ({
     ...newTake({ score, version, speed: 1, voiceName: tenor ? 'Tenor' : 'Alto' }),
-    scoringRule: 3, voiceId: tenor ? '1:0:0' : '0:0:0',
+    voiceId: tenor ? '1:0:0' : '0:0:0',
   });
   const altoV1 = partTake(89, 1), tenorV1 = partTake(78, 1, true), altoV2 = partTake(72, 2);
   const ownerV2 = partTake(85, 2), otherV2 = partTake(81, 2, true), fourthV2 = partTake(68, 2);
@@ -141,77 +139,59 @@ it('keeps one best published score per version and withdraws only the selected o
   }
   expect(await (await send(partTake(77, 1, true), singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
   const listing = bestPath;
-  expect(await (await read(listing + '&voice=Tenor&version=1')).json()).toMatchObject({
+  expect(await (await read(listing + '?voice=Tenor&version=1')).json()).toMatchObject({
     results: [{ id: tenorV1.id, score: 78 }], voices: ['Alto', 'Tenor'],
   });
-  const topIds = async (query: string) => {
-    const response = await read(overview + query);
+  const topIds = async () => {
+    const response = await read(overview);
     expect(response.headers.get('cache-control')).toBe('no-store');
     const { results } = await response.json<{ results: { id: string }[] }>();
     return results.map(row => row.id);
   };
-  expect(await topIds('?versions=all')).toEqual([altoV1.id, ownerV2.id, otherV2.id]);
-  expect(await topIds('?versions=latest')).toEqual([ownerV2.id, otherV2.id, altoV2.id]);
-  expect(await topIds('?versions=latest&voice=Alto')).toEqual([ownerV2.id, altoV2.id, fourthV2.id]);
-  expect(await (await read(overview + '?versions=latest&voice=Soprano&podium=1')).json()).toMatchObject({
-    results: [], participants: [{ questionId, count: 4 }],
-  });
+  expect(await topIds()).toEqual([altoV1.id, ownerV2.id, otherV2.id]);
+  expect(await (await read(overview)).json()).toMatchObject({ participants: [{ questionId, count: 4 }] });
   const withdrawnPart = await call(`${resultPath}/${tenorV1.id}?version=1`, {
     method: 'DELETE', headers: { cookie: singer.cookie, 'x-same-page-owner-user-id': singer.id },
   });
   expect(withdrawnPart.status).toBe(204);
-  expect(await (await read(listing + '&voice=Tenor&version=1')).json()).toMatchObject({ results: [] });
+  expect(await (await read(listing + '?voice=Tenor&version=1')).json()).toMatchObject({ results: [] });
   expect(await (await send(tenorV1, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
-  expect(await (await read(listing + '&voice=Alto&version=1')).json()).toMatchObject({ results: [{ id: altoV1.id }] });
-  // Both round to 89 for older clients. The later 89.41 wins on the live board.
-  const ownerPrecise = partTake(89.4, 2), singerPrecise = { ...partTake(89.41, 1), speed: .5 };
-  const matchedPath = bestPath + '&perfect=1';
-  const writtenPath = matchedPath + '&writtenOctave=1';
-  expect(await (await send(ownerPrecise, owner, owner.id, matchedPath)).json()).toMatchObject({ published: true });
-  expect(await (await send(singerPrecise, singer, singer.id, writtenPath)).json()).toMatchObject({ published: true });
-  expect(await (await send(singerPrecise, singer, singer.id, writtenPath)).json()).toMatchObject({ published: true });
-  expect(await (await send(partTake(89.4, 1), singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
-  expect((await send(partTake(89.401, 1), singer, singer.id, bestPath)).status).toBe(400);
-  const previousTop = await (await read(overview + '?precision=2')).json<{ results: object[] }>();
-  expect(previousTop).toMatchObject({
-    results: [{ id: singerPrecise.id, score: 89.41 }, { id: ownerPrecise.id, score: 89.4 }, { id: otherV2.id, score: 81 }],
+  expect(await (await read(listing + '?voice=Alto&version=1')).json()).toMatchObject({ results: [{ id: altoV1.id }] });
+  const ownerPrecise = { ...partTake(89.4, 2), perfect: true };
+  const singerPrecise = { ...partTake(89.41, 1), speed: .5, perfect: true, writtenOctave: true };
+  expect(await (await send(ownerPrecise, owner)).json()).toMatchObject({ published: true });
+  expect(await (await send(singerPrecise)).json()).toMatchObject({ published: true });
+  expect(await (await send(singerPrecise)).json()).toMatchObject({ published: true });
+  expect((await send({ ...singerPrecise, writtenOctave: false })).status).toBe(409);
+  expect(await (await send(partTake(89.4, 1))).json()).toMatchObject({ published: false });
+  expect((await send(partTake(89.401, 1))).status).toBe(400);
+  const podium = await (await read(overview)).json<{ results: object[] }>();
+  expect(podium.results).toMatchObject([
+    { id: singerPrecise.id, score: 89.41, perfect: true, writtenOctave: true, speed: .5 },
+    { id: ownerPrecise.id, score: 89.4, perfect: true },
+    { id: otherV2.id, score: 81 },
+  ]);
+  expect(podium.results[1]).not.toHaveProperty('writtenOctave');
+  const recentPart = listing + '?voice=Alto&version=1';
+  expect(await (await read(recentPart)).json()).toMatchObject({
+    results: [{ id: singerPrecise.id, score: 89.41, perfect: true, writtenOctave: true }],
   });
-  expect(previousTop.results[0]).not.toHaveProperty('perfect');
-  const currentTop = await (await read(overview + '?precision=2&details=1')).json<{ results: object[] }>();
-  expect(currentTop.results[0]).toMatchObject({ id: singerPrecise.id, score: 89.41, perfect: true, speed: .5 });
-  expect(currentTop.results[0]).not.toHaveProperty('writtenOctave');
-  const recentPart = listing + '&voice=Alto&version=1&precision=2';
-  const octaveDetails = '&details=1&writtenOctave=1';
-  const octaveTop = await (await read(overview + '?precision=2' + octaveDetails)).json<{ results: object[] }>();
-  expect(octaveTop.results[0]).toMatchObject({ id: singerPrecise.id, writtenOctave: true, perfect: true, speed: .5 });
-  expect(octaveTop.results[1]).toMatchObject({ id: ownerPrecise.id, perfect: true });
-  expect(octaveTop.results[1]).not.toHaveProperty('writtenOctave');
-  const previousPart = await (await read(recentPart + '&details=1')).json<{ results: object[] }>();
-  expect(previousPart.results[0]).toMatchObject({ score: 89.41, perfect: true, speed: .5 });
-  expect(previousPart.results[0]).not.toHaveProperty('writtenOctave');
-  expect(await (await read(recentPart + octaveDetails)).json()).toMatchObject({ results: [{ writtenOctave: true, perfect: true }] });
-  expect((await (await read(recentPart)).json<{ results: object[] }>()).results[0]).not.toHaveProperty('perfect');
-  expect(await (await read(listing + '&voice=Alto&version=1')).json()).toMatchObject({ results: [{ score: 89 }] });
-
-  // A worker from before the marker existed replaces the winning take ID only.
-  const replacementId = crypto.randomUUID();
-  await env.DB.prepare('UPDATE sight_singing_best_results SET id = ?, score = 92, speed = 1.5 WHERE id = ?')
-    .bind(replacementId, singerPrecise.id).run();
-  const afterReplacement = (await (await read(recentPart + octaveDetails)).json<{ results: object[] }>()).results[0];
-  expect(afterReplacement).toMatchObject({ id: replacementId, score: 92, speed: 1.5 });
+  const replacement = { ...partTake(92, 1), speed: 1.5 };
+  expect(await (await send(replacement)).json()).toMatchObject({ published: true });
+  const afterReplacement = (await (await read(recentPart)).json<{ results: object[] }>()).results[0];
+  expect(afterReplacement).toMatchObject({ id: replacement.id, score: 92, speed: 1.5 });
   expect(afterReplacement).not.toHaveProperty('perfect');
   expect(afterReplacement).not.toHaveProperty('writtenOctave');
 
   const fourthTie = partTake(81, 2);
   expect(await (await send(fourthTie, fourth, fourth.id, bestPath)).json()).toMatchObject({ published: true });
-  // Both singers at the cutoff share third place. Older clients still receive three rows.
-  expect(await topIds('?precision=2&podium=1')).toEqual([replacementId, ownerPrecise.id, otherV2.id, fourthTie.id]);
-  expect(await topIds('?precision=2')).toEqual([replacementId, ownerPrecise.id, otherV2.id]);
+  // Both singers at the cutoff share third place.
+  expect(await topIds()).toEqual([replacement.id, ownerPrecise.id, otherV2.id, fourthTie.id]);
   const withdrawal = await call(`${resultPath}/${fourthTie.id}?version=2`, {
     method: 'DELETE', headers: { cookie: fourth.cookie, 'x-same-page-owner-user-id': fourth.id },
   });
   expect(withdrawal.status).toBe(204);
-  expect(await (await read(overview + '?podium=1')).json()).toMatchObject({ participants: [{ questionId, count: 3 }] });
+  expect(await (await read(overview)).json()).toMatchObject({ participants: [{ questionId, count: 3 }] });
 
   const onTie = await send(partTake(89.4, 2), singer, singer.id, bestPath);
   expect(await onTie.json()).toMatchObject({ published: true, standing: {
@@ -231,6 +211,6 @@ it('keeps one best published score per version and withdraws only the selected o
   await env.DB.prepare("UPDATE memberships SET status = 'removed' WHERE choir_id = ? AND user_id = ?").bind(choirId, singer.id).run();
   expect((await read(listPath)).status).toBe(403);
   expect((await send()).status).toBe(403);
-  expect(await (await read(listPath, owner)).json()).toEqual({ results: [] });
-  expect(await (await read(overview + '?podium=1', owner)).json()).toMatchObject({ participants: [{ questionId, count: 2 }] });
+  expect(await (await read(listPath, owner)).json()).toMatchObject({ results: [] });
+  expect(await (await read(overview, owner)).json()).toMatchObject({ participants: [{ questionId, count: 2 }] });
 });
