@@ -373,6 +373,7 @@
     "autoPublish": "Best scores publish automatically to drive members",
     "stopReplay": "Stop replay",
     "matchedNotes": "{matched}/{total} notes correct",
+    "allNotesMatched": "All notes correct",
     "intonationScore": "Intonation · {score}",
     "scoringRuleFilter": "Scoring method",
     "currentScoringRule": "Intonation scoring",

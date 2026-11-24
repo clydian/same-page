@@ -7,8 +7,11 @@ import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnos
 const resultPath = (choirId: string, questionId: string) =>
   `/api/choirs/${encodeURIComponent(choirId)}/sight-singing/questions/${encodeURIComponent(questionId)}/results`;
 
-export async function publishSightSingingResult(choirId: string, questionId: string, userId: string, result: SightSingingResultSubmission, signal?: AbortSignal) {
-  const response = await diagnosticFetch(resultPath(choirId, questionId) + '?view=best', {
+export async function publishSightSingingResult(choirId: string, questionId: string, userId: string,
+  { perfect, ...result }: SightSingingResultSubmission & { perfect: boolean }, signal?: AbortSignal) {
+  const query = new URLSearchParams({ view: 'best' });
+  if (perfect) query.set('perfect', '1');
+  const response = await diagnosticFetch(`${resultPath(choirId, questionId)}?${query}`, {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': userId },
     body: JSON.stringify(result),
@@ -19,7 +22,7 @@ export async function publishSightSingingResult(choirId: string, questionId: str
 
 export async function readSightSingingResults(choirId: string, questionId: string, version: number | null,
   scoringRule: SightSingingScoringRule, voice: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ view: 'best', scoringRule: String(scoringRule), precision: '2' });
+  const query = new URLSearchParams({ view: 'best', scoringRule: String(scoringRule), precision: '2', details: '1' });
   if (version !== null) query.set('version', String(version));
   if (voice) query.set('voice', voice);
   const response = await diagnosticFetch(`${resultPath(choirId, questionId)}?${query}`, { signal });
@@ -28,7 +31,7 @@ export async function readSightSingingResults(choirId: string, questionId: strin
 }
 
 export async function readSightSingingLeaderboard(choirId: string, versions: SightSingingVersionFilter, voice: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ versions, precision: '2' });
+  const query = new URLSearchParams({ versions, precision: '2', details: '1' });
   if (voice) query.set('voice', voice);
   const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard?${query}`, { signal });
   if (!response.ok) throw new Error('published_results_unavailable');

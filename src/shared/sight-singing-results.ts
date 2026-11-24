@@ -25,6 +25,7 @@ const publishedSightSingingResultSchema = sightSingingResultSubmissionSchema.ext
   questionId: z.uuid(),
   displayName: z.string(),
   own: z.boolean(),
+  perfect: z.literal(true).optional(),
 });
 
 export const sightSingingResultResponseSchema = z.object({ result: publishedSightSingingResultSchema, published: z.boolean().optional() });
@@ -36,7 +37,9 @@ export const sightSingingResultsResponseSchema = z.object({
 });
 export const sightSingingVersionFilterSchema = z.enum(['all', 'latest']);
 export type SightSingingVersionFilter = z.infer<typeof sightSingingVersionFilterSchema>;
-const leaderboardEntry = publishedSightSingingResultSchema.pick({ id: true, questionId: true, version: true, score: true, voiceName: true, displayName: true });
+const leaderboardEntry = publishedSightSingingResultSchema.pick({
+  id: true, questionId: true, version: true, score: true, voiceName: true, displayName: true, speed: true, perfect: true,
+});
 export const sightSingingLeaderboardSchema = z.object({ results: z.array(leaderboardEntry), voices: z.array(sightSingingVoiceNameSchema) });
 export type SightSingingLeaderboard = z.infer<typeof sightSingingLeaderboardSchema>;
 export type SightSingingResultSubmission = z.infer<typeof sightSingingResultSubmissionSchema>;

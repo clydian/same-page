@@ -373,6 +373,7 @@
     "autoPublish": "Les meilleurs scores sont publiés automatiquement aux membres du disque",
     "stopReplay": "Arrêter la réécoute",
     "matchedNotes": "{matched}/{total} notes correctes",
+    "allNotesMatched": "Toutes les notes sont justes",
     "intonationScore": "Justesse · {score}",
     "scoringRuleFilter": "Méthode de notation",
     "currentScoringRule": "Notation de la justesse",

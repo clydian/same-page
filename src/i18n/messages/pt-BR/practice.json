@@ -373,6 +373,7 @@
     "autoPublish": "As melhores notas são publicadas automaticamente para os membros do drive",
     "stopReplay": "Parar reprodução",
     "matchedNotes": "{matched}/{total} notas corretas",
+    "allNotesMatched": "Todas as notas corretas",
     "intonationScore": "Afinação · {score}",
     "scoringRuleFilter": "Método de pontuação",
     "currentScoringRule": "Pontuação da afinação",

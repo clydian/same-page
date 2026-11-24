@@ -373,6 +373,7 @@
     "autoPublish": "최고 점수가 드라이브 멤버에게 자동 공개됩니다",
     "stopReplay": "다시 듣기 중지",
     "matchedNotes": "{matched}/{total}개 음 맞음",
+    "allNotesMatched": "모든 음을 맞힘",
     "intonationScore": "음정 정확도 {score}점",
     "scoringRuleFilter": "채점 방식",
     "currentScoringRule": "음정 정확도 채점",

@@ -23,6 +23,7 @@ import { ChallengeRun, type ResultSave, type ScoredTake, type VoiceOption } from
 import { useSightSingingScoreFormat } from './format-score';
 import { buildMelody } from './melody';
 import { readQuestions, type SightSingingQuestion } from './questions';
+import { AllNotesMatched } from './score-badge';
 import { compactPracticeHistory, markTakeWithdrawn, saveTake } from './practice-history';
 import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult } from './result-publication';
 import { currentSingingScoringRule, legacySingingScoringRule, previousSingingScoringRule, sightSingingScoringRuleSchema,
@@ -170,8 +171,9 @@ function QuestionList({ questions, scores, open }: {
         </button>
         {top?.length ? <ol className="challenge-card-ranks" aria-label={t('sight.topThree')}>
           {top.map(row => <li key={row.id}>
-            <div><span>{row.displayName}</span><strong>{t('sight.takeScore', { score: formatScore(row.score) })}</strong></div>
-            <small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}</small>
+            <div><span>{row.displayName}</span><strong className="challenge-marked-score">{t('sight.takeScore', { score: formatScore(row.score) })}
+              {row.perfect && <AllNotesMatched />}</strong></div>
+            <small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}{row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small>
           </li>)}
         </ol> : <p className="challenge-card-empty">{question.publisher?.kind === 'member'
           ? t('sight.localCardScores') : scores ? t('sight.noCardScores') : '—'}</p>}
@@ -275,7 +277,8 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
         : rows.length === 0 ? <p className="challenge-empty">{t('sight.publishedResultsEmpty')}</p>
           : <ul className="challenge-list challenge-score-list">{rows.map(row => <li key={row.id}>
             <div><strong>{row.displayName}</strong><small>{row.voiceName}{showVersions && ` · ${versionTag(row.version)}`}{row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small></div>
-            <div className="challenge-ranked-action"><strong>{t('sight.takeScore', { score: formatScore(row.score) })}</strong>
+            <div className="challenge-ranked-action"><strong className="challenge-marked-score">{t('sight.takeScore', { score: formatScore(row.score) })}
+              {row.perfect && <AllNotesMatched />}</strong>
               {row.own && <button type="button" className="text-button" aria-label={removeLabel(row.version)}
                 onClick={() => setRemoving(row)}><Trash2 size={16} aria-hidden="true" /></button>}
             </div>
@@ -410,7 +413,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     resultLifetimes.current.add(controller);
     const summary = { id: attempt.id, at: Date.now(), title: saved.title, questionId: saved.id, version: attempt.version,
       voiceId: attempt.voiceId, voiceName: attempt.voiceName, speed: attempt.speed, scoringRule: attempt.scoringRule,
-      published: false, percent: attempt.score };
+      published: false, percent: attempt.score, perfect: attempt.perfect };
     try {
       const localBest = await saveTake(owner, choirId, summary, controller.signal);
       if (!canPublishResult) return localBest ? 'local' : 'previous';

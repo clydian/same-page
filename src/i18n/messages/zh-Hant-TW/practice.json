@@ -373,6 +373,7 @@
     "autoPublish": "最佳成績自動發布給雲端硬碟成員",
     "stopReplay": "停止回聽",
     "matchedNotes": "唱對 {matched}/{total}",
+    "allNotesMatched": "所有音符都唱對",
     "intonationScore": "音準 {score} 分",
     "scoringRuleFilter": "評分規則",
     "currentScoringRule": "按音準評分",

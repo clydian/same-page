@@ -26,6 +26,9 @@
   overflow-wrap: anywhere; font-size: .85rem;
 }
 .challenge-card-ranks li strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.challenge-marked-score { display: inline-flex; align-items: center; gap: .3rem; }
+.challenge-perfect { display: inline-flex; flex: none; color: #80581b; }
+[data-ui-theme="dark"] .challenge-perfect { color: #f1bf65; }
 .challenge-card-empty { color: var(--muted); font-size: .82rem; }
 .challenge-legacy-questions { margin-block: 1.6rem; }
 .challenge-legacy-questions summary { cursor: pointer; }
@@ -61,8 +64,12 @@
 }
 .challenge-score-list li > div:last-child { text-align: end; }
 .challenge-score-list small { display: block; margin-block-start: .2rem; color: var(--muted); }
-.challenge-header-actions { display: flex; align-items: center; }
-.challenge-header-actions .icon-button { inline-size: 44px; block-size: 44px; }
+.challenge-header-actions { display: flex; align-items: center; gap: .25rem; }
+.challenge-header-actions .icon-button {
+  inline-size: 44px; block-size: 44px; border-radius: .6rem; background: transparent; color: var(--ink);
+}
+.challenge-header-actions .icon-button:is(:hover, [data-pressed]) { background: var(--ui-surface-muted, var(--wash)); }
+.challenge-header-actions .icon-button:is(:focus-visible, [data-focus-visible]) { outline-offset: -3px; }
 .challenge-panel > .dialog-heading { margin-block-end: .75rem; }
 .challenge-settings-switch {
   display: flex; align-items: center; justify-content: space-between; gap: .75rem;

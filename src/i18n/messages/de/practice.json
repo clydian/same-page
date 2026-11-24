@@ -373,6 +373,7 @@
     "autoPublish": "Bestleistungen werden automatisch für Laufwerksmitglieder veröffentlicht",
     "stopReplay": "Wiedergabe stoppen",
     "matchedNotes": "{matched}/{total} Töne richtig",
+    "allNotesMatched": "Alle Töne richtig",
     "intonationScore": "Intonation · {score}",
     "scoringRuleFilter": "Bewertungsmethode",
     "currentScoringRule": "Intonationswertung",

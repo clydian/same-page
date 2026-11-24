@@ -17,7 +17,7 @@ type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bo
 type Part = Pick<NotationNoteHit, 'track' | 'staff' | 'voice'>;
 type Geometry = {
   score: MelodyScore['score']; min: number; max: number; lookup: rendering.BoundsLookup;
-  notes: NoteTarget[]; parts: Map<string, Part>;
+  notes: NoteTarget[]; notesByBeat: Map<string, NoteTarget[]>; parts: Map<string, Part>;
 };
 
 const samePart = (a: Part, b: Part) => a.track === b.track && a.staff === b.staff && a.voice === b.voice;
@@ -27,7 +27,7 @@ const centerY = (bounds: Bounds) => bounds.y + bounds.h / 2;
 function buildGeometry(api: AlphaTabApi, score: Geometry['score'], min: number, max: number): Geometry | null {
   const lookup = api.boundsLookup;
   if (!lookup) return null;
-  const notes: NoteTarget[] = [], parts = new Map<string, Part>();
+  const notes: NoteTarget[] = [], notesByBeat = new Map<string, NoteTarget[]>(), parts = new Map<string, Part>();
   for (const system of lookup.staffSystems) for (const master of system.bars) for (const bar of master.bars) {
     for (const { beat, notes: heads } of bar.beats) {
       // Worker-deserialized BarBounds does not carry a bar model reference.
@@ -35,15 +35,20 @@ function buildGeometry(api: AlphaTabApi, score: Geometry['score'], min: number, 
       const part = { track: staff.track.index, staff: staff.index, voice: beat.voice.index };
       const singleStem = heads?.length === 1 && beat.voice.bar.voices.every(candidate =>
         candidate === beat.voice || candidate.beats.every(other => other.isRest));
-      parts.set(`b${beat.id}`, part);
+      const beatClass = `b${beat.id}`, beatNotes: NoteTarget[] = [];
+      parts.set(beatClass, part);
       for (const { note, noteHeadBounds: bounds } of heads ?? []) {
         if (note.isCue || note.isPercussion || note.isDead || !note.isVisible || bounds.w <= 0 || bounds.h <= 0) continue;
-        notes.push({ ...part, key: `${system.index}:${note.id}`, beatClass: `b${beat.id}`, midi: note.realValue, bounds,
+        beatNotes.push({ ...part, key: `${system.index}:${note.id}`, beatClass, midi: note.realValue, bounds,
           bar: master.index, beatIndex: beat.index, label: staff.track.name, singleStem, system: system.realBounds });
+      }
+      if (beatNotes.length) {
+        notes.push(...beatNotes);
+        notesByBeat.set(beatClass, beatNotes);
       }
     }
   }
-  return { score, min, max, lookup, notes, parts };
+  return { score, min, max, lookup, notes, notesByBeat, parts };
 }
 
 const NotationButtons = memo(function NotationButtons({ notes, voice, results, onNote }: {
@@ -124,18 +129,15 @@ function placePitchLabels(notes: NoteTarget[], results: ReadonlyMap<string, Nota
     if (!result || result.cents === null) return [];
     const text = formatCents(result.cents), width = text.length * 7 + 6;
     const { x, y, w, h } = note.system;
-    const left = Math.max(x, Math.min(x + w - width, centerX(note.bounds) - width / 2));
-    const below = note.bounds.y + note.bounds.h + 3, above = note.bounds.y - labelHeight - 3;
+    const left = Math.max(x, Math.min(x + w - width, note.bounds.x + note.bounds.w + 3));
+    const above = Math.max(y, Math.min(y + h - labelHeight, centerY(note.bounds) - labelHeight - 2));
     const obstacles = occupied.get(note.system)!;
     let position: Bounds | undefined;
-    for (let offset = 0; offset < h && !position; offset += labelHeight + 2) {
-      for (const top of [below + offset, above - offset]) {
-        if (top < y || top + labelHeight > y + h) continue;
-        const candidate = { x: left, y: top, w: width, h: labelHeight };
-        if (!obstacles.some(bounds => overlaps(candidate, bounds))) { position = candidate; break; }
-      }
+    for (let top = above; top >= y; top -= labelHeight + 2) {
+      const candidate = { x: left, y: top, w: width, h: labelHeight };
+      if (!obstacles.some(bounds => overlaps(candidate, bounds))) { position = candidate; break; }
     }
-    position ??= { x: left, y: Math.max(y, Math.min(y + h - labelHeight, below)), w: width, h: labelHeight };
+    position ??= { x: left, y: above, w: width, h: labelHeight };
     obstacles.push(position);
     return [{ key: note.key, status: result.status, text, position }];
   });
@@ -143,6 +145,17 @@ function placePitchLabels(notes: NoteTarget[], results: ReadonlyMap<string, Nota
 
 type AssessedHead = Pick<NoteTarget, 'bounds' | 'singleStem'> & { status: NotationFeedback['status'] };
 type Stem = { element: SVGRectElement; bounds: DOMRect };
+
+function findStem(bounds: Bounds, stems: Stem[], sheet: DOMRect, scale: number) {
+  const y = centerY(bounds);
+  const matches = stems.filter(({ bounds: stem }) => {
+    const x = (stem.left + stem.width / 2 - sheet.left) / scale;
+    const top = (stem.top - sheet.top) / scale, bottom = (stem.bottom - sheet.top) / scale;
+    return Math.min(Math.abs(x - bounds.x), Math.abs(x - (bounds.x + bounds.w))) < 1.6 &&
+      Math.min(Math.abs(top - y), Math.abs(bottom - y)) < 2;
+  });
+  return matches.length === 1 ? matches[0].element : undefined;
+}
 
 function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect, scale: number, stems: Stem[]) {
   // SVG music symbols carry the same translated origin as AlphaTab's notehead
@@ -160,14 +173,8 @@ function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect
     if (!head) continue;
     text.dataset.challengeFeedback = head.status;
     if (!head.singleStem) continue;
-    const { bounds } = head;
-    const matches = stems.filter(({ bounds: stem }) => {
-      const sx = (stem.left + stem.width / 2 - sheet.left) / scale;
-      const top = (stem.top - sheet.top) / scale, bottom = (stem.bottom - sheet.top) / scale;
-      return Math.min(Math.abs(sx - bounds.x), Math.abs(sx - (bounds.x + bounds.w))) < 1.6 &&
-        Math.min(Math.abs(top - y), Math.abs(bottom - y)) < 2;
-    });
-    if (matches.length === 1) matches[0].element.dataset.challengeFeedback = head.status;
+    const stem = findStem(head.bounds, stems, sheet, scale);
+    if (stem) stem.dataset.challengeFeedback = head.status;
   }
 }
 
@@ -227,28 +234,36 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
     const element = notation.current;
     if (!rendered || !element) return;
     const shade = () => {
-      for (const text of element.querySelectorAll('[data-challenge-feedback]')) text.removeAttribute('data-challenge-feedback');
+      for (const glyph of element.querySelectorAll('[data-challenge-feedback]')) glyph.removeAttribute('data-challenge-feedback');
       const sheet = element.getBoundingClientRect();
       const scale = element.offsetWidth ? sheet.width / element.offsetWidth : 1;
       // AlphaTab emits the stems as tall, narrow rectangles alongside the beat
       // groups. Match only a unique endpoint so a shared chord stem stays neutral.
       const stems = new Map<SVGSVGElement, Stem[]>();
+      const stemParts = new Map<SVGRectElement, boolean>();
       // alphaTab uses .b${beat.id} groups for the rendered beat, including lyrics.
       for (const group of element.querySelectorAll<SVGGElement>('g[class^="b"]')) {
         const beat = group.getAttribute('class') ?? '';
         const part = rendered.parts.get(beat);
         if (!part) continue;
-        group.dataset.challengePart = samePart(part, voice) ? 'focus' : 'context';
-        const heads = tinted.get(beat);
-        if (!heads || scale <= 0) continue;
+        const focused = samePart(part, voice);
+        group.dataset.challengePart = focused ? 'focus' : 'context';
+        if (scale <= 0) continue;
         const svg = group.ownerSVGElement;
         if (svg && !stems.has(svg)) {
           stems.set(svg, [...svg.querySelectorAll<SVGRectElement>('rect')]
             .filter(rect => rect.width.baseVal.value > 0 && rect.width.baseVal.value < 1.2 && rect.height.baseVal.value >= 12)
             .map(rect => ({ element: rect, bounds: rect.getBoundingClientRect() })));
         }
-        tintNoteheads(group, heads, sheet, scale, svg ? stems.get(svg) ?? [] : []);
+        const candidates = svg ? stems.get(svg) ?? [] : [];
+        for (const note of rendered.notesByBeat.get(beat) ?? []) {
+          const stem = findStem(note.bounds, candidates, sheet, scale);
+          if (stem) stemParts.set(stem, focused || stemParts.get(stem) === true);
+        }
+        const heads = tinted.get(beat);
+        if (heads) tintNoteheads(group, heads, sheet, scale, candidates);
       }
+      for (const [stem, focused] of stemParts) stem.dataset.challengePart = focused ? 'focus' : 'context';
     };
     // Worker system SVGs mount lazily when they enter the viewport.
     const observer = new MutationObserver(shade);

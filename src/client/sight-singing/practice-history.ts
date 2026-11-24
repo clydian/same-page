@@ -12,6 +12,7 @@ const takeSchema = z.object({
   voiceId: z.string(), voiceName: z.string(), percent: sightSingingScoreSchema.nullable(),
   published: z.boolean().default(false),
   speed: sightSingingSpeedSchema.optional(),
+  perfect: z.boolean().optional(),
   scoringRule: sightSingingScoringRuleSchema.default(legacySingingScoringRule),
 });
 export type PracticeTake = z.infer<typeof takeSchema>;

@@ -373,6 +373,7 @@
     "autoPublish": "ベストスコアはドライブのメンバーに自動公開されます",
     "stopReplay": "再生を停止",
     "matchedNotes": "{matched}/{total} 音正解",
+    "allNotesMatched": "すべての音が正解",
     "intonationScore": "音程の正確さ {score} 点",
     "scoringRuleFilter": "採点方式",
     "currentScoringRule": "音程の正確さで採点",

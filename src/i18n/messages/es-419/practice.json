@@ -373,6 +373,7 @@
     "autoPublish": "Los mejores puntajes se publican automáticamente para los miembros de la unidad",
     "stopReplay": "Detener reproducción",
     "matchedNotes": "{matched}/{total} notas correctas",
+    "allNotesMatched": "Todas las notas correctas",
     "intonationScore": "Afinación · {score}",
     "scoringRuleFilter": "Método de puntuación",
     "currentScoringRule": "Puntuación de afinación",
