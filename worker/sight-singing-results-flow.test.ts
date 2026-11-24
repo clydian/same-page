@@ -171,6 +171,17 @@ it('keeps one best published score per version and withdraws only the selected o
   expect(await (await read(listing + '&voice=Tenor&version=1')).json()).toMatchObject({ results: [] });
   expect(await (await send(tenorV1, singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
   expect(await (await read(listing + '&voice=Alto&version=1')).json()).toMatchObject({ results: [{ id: altoV1.id }] });
+  // Both round to 89 for older clients. The later 89.41 wins on the live board.
+  const ownerPrecise = partTake(89.4, 2), singerPrecise = partTake(89.41, 1);
+  expect(await (await send(ownerPrecise, owner, owner.id, bestPath)).json()).toMatchObject({ published: true });
+  expect(await (await send(singerPrecise, singer, singer.id, bestPath)).json()).toMatchObject({ published: true });
+  expect(await (await send(partTake(89.4, 1), singer, singer.id, bestPath)).json()).toMatchObject({ published: false });
+  expect((await send(partTake(89.401, 1), singer, singer.id, bestPath)).status).toBe(400);
+  expect(await (await read(overview + '?precision=2')).json()).toMatchObject({
+    results: [{ id: singerPrecise.id, score: 89.41 }, { id: ownerPrecise.id, score: 89.4 }, { id: otherV2.id, score: 81 }],
+  });
+  expect(await (await read(listing + '&voice=Alto&version=1&precision=2')).json()).toMatchObject({ results: [{ score: 89.41 }] });
+  expect(await (await read(listing + '&voice=Alto&version=1')).json()).toMatchObject({ results: [{ score: 89 }] });
 
   await env.DB.prepare("UPDATE memberships SET status = 'removed' WHERE choir_id = ? AND user_id = ?").bind(choirId, singer.id).run();
   expect((await read(listPath)).status).toBe(403);

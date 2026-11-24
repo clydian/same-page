@@ -3,8 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import { currentSingingScoringRule, sightSingingSpeeds, type SightSingingResultSubmission } from '../../shared/sight-singing-results';
 import { holdUpdate } from '../updates/update-safety';
-import { beginCapture, mixPianoAnswer, playNote, type CaptureError } from './challenge-audio';
+import { beginCapture, mixPianoAnswer, playNote, playSustainedTonic, type CaptureError } from './challenge-audio';
 import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
+import { useSightSingingScoreFormat } from './format-score';
 import { PitchGraph } from './pitch-graph';
 import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
 import { FeedbackTable } from './practice-feedback';
@@ -30,6 +31,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   canPublishResult: boolean; onScored: (take: ScoredTake) => Promise<ResultSave>;
 }) {
   const t = useMessages('practice');
+  const formatScore = useSightSingingScoreFormat();
   const { voice } = selected;
   const [speed, setSpeed] = useState<Speed>(1);
   const speedIndex = sightSingingSpeeds.indexOf(speed);
@@ -47,6 +49,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [error, setError] = useState<CaptureError | null>(null);
   const take = useRef<string | null>(null);
   const run = useRef<(() => void) | null>(null);
+  const tonicPreview = useRef<ReturnType<typeof playSustainedTonic> | null>(null);
   const mixedUrl = useRef<string | null>(null);
   const replay = useRef<HTMLAudioElement>(null);
   const release = useCallback(() => {
@@ -55,19 +58,28 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     stop?.();
     replay.current?.pause();
   }, []);
+  const stopTonic = useCallback(() => {
+    const preview = tonicPreview.current;
+    tonicPreview.current = null;
+    preview?.stop();
+  }, []);
   const discard = useCallback(() => {
     take.current = null;
     release();
+    stopTonic();
     if (mixedUrl.current) URL.revokeObjectURL(mixedUrl.current);
     mixedUrl.current = null;
-  }, [release]);
+  }, [release, stopTonic]);
   useEffect(() => {
     const interrupt = () => {
       if (window.document.visibilityState !== 'hidden') return;
       release();
+      stopTonic();
+      setDrone(false);
+      setHeadphones(false);
       setState(current => current.phase === 'permission' || current.phase === 'count' || current.phase === 'sing' ? { phase: 'idle' } : current);
     };
-    const pageHide = () => { discard(); setState({ phase: 'idle' }); };
+    const pageHide = () => { discard(); setDrone(false); setHeadphones(false); setState({ phase: 'idle' }); };
     window.document.addEventListener('visibilitychange', interrupt);
     window.addEventListener('pagehide', pageHide);
     return () => {
@@ -75,7 +87,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       window.removeEventListener('pagehide', pageHide);
       discard();
     };
-  }, [discard, release]);
+  }, [discard, release, stopTonic]);
+
+  useEffect(() => { tonicPreview.current?.setPitch(melody.tonic); }, [melody.tonic]);
 
   useEffect(() => {
     if (!playing || state.phase !== 'result') return;
@@ -128,7 +142,31 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     }
   };
 
+  const toggleTonic = () => {
+    if (tonicPreview.current) {
+      stopTonic();
+      setDrone(false);
+      if (!backing) setHeadphones(false);
+      return;
+    }
+    setError(null);
+    try {
+      const preview = playSustainedTonic(melody.tonic, () => {
+        if (tonicPreview.current !== preview) return;
+        stopTonic();
+        setDrone(false);
+        setError('audioFailure');
+      });
+      tonicPreview.current = preview;
+      setDrone(true);
+      setHeadphones(true);
+    } catch { setError('audioFailure'); }
+  };
+
   const start = () => {
+    // Transfer the audible oscillator to the capture session without restarting it.
+    const preview = tonicPreview.current;
+    tonicPreview.current = null;
     discard(); setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
     setDetailsOpen(false); setGraphOpen(false);
     setState({ phase: 'permission' });
@@ -143,18 +181,19 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       },
       onComplete: (result, recording) => {
         release();
+        setDrone(false);
         const review = assessNotes(melody.notes, result), score = takeScore(review);
         setState({ phase: 'result', id: takeId, frames: trace.frames, review, score,
           answer: { status: 'preparing' }, save: score.percent === null ? 'unscored' : 'saving' });
         if (score.percent !== null) void saveResult(takeId, score.percent);
         void prepareAnswer(takeId, recording, review);
       },
-      onError: reason => { releaseUpdate(); discard(); setError(reason); setState({ phase: 'idle' }); },
-    }, drone || accompaniment.length ? { drone, others: accompaniment.map(option => melodyAtSpeed(option.melody, speed).notes) } : undefined);
+      onError: reason => { releaseUpdate(); discard(); setDrone(false); setError(reason); setState({ phase: 'idle' }); },
+    }, accompaniment.map(option => melodyAtSpeed(option.melody, speed).notes), preview?.context);
     run.current = () => { stop(); releaseUpdate(); };
   };
   const reset = () => {
-    discard(); setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
+    discard(); setDrone(false); setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
     setState({ phase: 'idle' });
   };
   const seek = useCallback((time: number) => {
@@ -236,9 +275,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
             <Plus size={18} aria-hidden="true" />
           </button>
         </div>
-        <button type="button" className="challenge-option" aria-pressed={drone} onClick={() => {
-          setDrone(!drone); if (!drone) setHeadphones(true);
-        }}><TuningFork size={18} aria-hidden="true" />{t('sight.sustainedTonic')}</button>
+        <button type="button" className="challenge-option" aria-pressed={drone} onClick={toggleTonic}>
+          <TuningFork size={18} aria-hidden="true" />{t('sight.sustainedTonic')}
+        </button>
         <button type="button" className="challenge-option" aria-pressed={accompaniment.length > 0}
           disabled={backingUnavailable || otherVoices.length === 0} onClick={() => {
             setBacking(!backing); if (!backing) setHeadphones(true);
@@ -263,7 +302,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     </div>}
 
     {state.phase === 'result' && <section className="challenge-result" aria-label={t('sight.review')}>
-      <div className="challenge-score"><strong>{state.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: state.score.percent })}</strong>
+      <div className="challenge-score"><strong>{state.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(state.score.percent) })}</strong>
         {state.score.total > 0 && <span>{t('sight.matchedNotes', { matched: state.score.matched, total: state.score.total })}</span>}
       </div>
       <div className="challenge-replay-controls">

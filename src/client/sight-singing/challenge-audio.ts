@@ -4,7 +4,6 @@ import { targetPitches, type Melody, type MelodyNote } from './melody';
 import { createPitchReader, frequency, pitchWindowSize, type PitchFrame } from './pitch-feedback';
 
 export type CaptureError = 'microphoneUnavailable' | 'microphoneDenied' | 'audioInterrupted' | 'audioFailure';
-export type Backing = { drone: boolean; others: MelodyNote[][] };
 type CaptureCallbacks = {
   onCount(count: number): void;
   onFrame(frame: PitchFrame, elapsed: number): void;
@@ -12,9 +11,9 @@ type CaptureCallbacks = {
   onError(error: CaptureError): void;
 };
 
-export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing?: Backing) {
+export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing: MelodyNote[][], previewContext?: AudioContext) {
   let active = true;
-  let context: AudioContext | undefined, stream: MediaStream | undefined;
+  let context = previewContext, stream: MediaStream | undefined;
   let input: MediaStreamAudioSourceNode | undefined, worklet: AudioWorkletNode | undefined;
   let cancelClicks: (() => void) | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -39,7 +38,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
       queueMicrotask(() => fail('microphoneUnavailable'));
       return;
     }
-    context = new AudioContext();
+    context ??= new AudioContext();
     const resumed = context.resume();
     const prepared = context.audioWorklet.addModule(workletUrl);
     const clicks = loadPracticeClicks(context);
@@ -114,10 +113,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
       })),
       ...melody.clicks.map(click => ({ ...click, time: countDuration + click.time })),
     ]);
-    if (backing) {
-      if (backing.drone) scheduleDrone(context, melody.tonic, start, melody.duration);
-      if (backing.others.length) schedulePiano(context, backing.others.flat(), start, .1 / Math.sqrt(backing.others.length));
-    }
+    if (backing.length) schedulePiano(context, backing.flat(), start, .1 / Math.sqrt(backing.length));
     deadline = setTimeout(() => fail('audioInterrupted'), 5000 + (beatFrames * melody.beats + durationFrames) / sampleRate * 1000);
   })().catch((reason: unknown) => {
     const name = reason instanceof DOMException ? reason.name : '';
@@ -145,16 +141,31 @@ function pcm16(samples: Float32Array) {
   return pcm.buffer;
 }
 
-function scheduleDrone(context: BaseAudioContext, midi: number, start: number, duration: number) {
-  const oscillator = context.createOscillator(), gain = context.createGain(), end = start + duration;
-  const ramp = Math.min(.02, duration / 3);
-  oscillator.frequency.value = frequency(midi);
-  gain.gain.setValueAtTime(0, start);
-  gain.gain.linearRampToValueAtTime(.075, start + ramp);
-  gain.gain.setValueAtTime(.075, end - ramp);
-  gain.gain.linearRampToValueAtTime(0, end);
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start(start); oscillator.stop(end);
+export function playSustainedTonic(midi: number, onError: () => void) {
+  const context = new AudioContext();
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    if (context.state !== 'closed') void context.close().catch(() => {});
+  };
+  try {
+    const oscillator = context.createOscillator(), gain = context.createGain();
+    const start = context.currentTime;
+    oscillator.frequency.value = frequency(midi);
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(.075, start + .02);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(start);
+    void context.resume().catch(() => { if (!stopped) { stop(); onError(); } });
+    return {
+      context, stop,
+      setPitch: (pitch: number) => oscillator.frequency.setTargetAtTime(frequency(pitch), context.currentTime, .01),
+    };
+  } catch (error) {
+    stop();
+    throw error;
+  }
 }
 
 function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: number, volume: number) {

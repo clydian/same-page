@@ -123,10 +123,10 @@ describe('pitch and feedback', () => {
     const frames = [60.15, 59.65, 60.499, 59.5, 60.51, null].map((midi, index) => ({ midi, time: index + .5 }));
     const review = assessNotes(targets, frames);
     expect(review.map(row => row.status)).toEqual(['inTune', 'flat', 'sharp', 'wrongNote', 'wrongNote', 'missed', 'insufficientData']);
-    expect(review.map(row => takeScore([row]).percent)).toEqual([100, 43, 0, 0, 0, 0, null]);
-    expect(takeScore(review)).toEqual({ total: 6, matched: 3, percent: 24 });
+    expect(review.map(row => takeScore([row]).percent)).toEqual([100, 42.86, .29, 0, 0, 0, null]);
+    expect(takeScore(review)).toEqual({ total: 6, matched: 3, percent: 23.86 });
     const nearBoundary = assessNotes(targets.slice(0, 2), [{ midi: 60.48, time: .5 }, { midi: 59.51, time: 1.5 }]);
-    expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([6, 3]);
+    expect(nearBoundary.map(row => takeScore([row]).percent)).toEqual([5.71, 2.86]);
   });
   it('distinguishes missing frames from sampled silence in consecutive thirty-second notes', () => {
     const pitches = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65];

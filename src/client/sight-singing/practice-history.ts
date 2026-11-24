@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { currentSingingScoringRule, legacySingingScoringRule, sightSingingScoringRuleSchema, sightSingingSpeedSchema } from '../../shared/sight-singing-results';
+import {
+  currentSingingScoringRule, legacySingingScoringRule, sightSingingScoreSchema, sightSingingScoringRuleSchema, sightSingingSpeedSchema,
+} from '../../shared/sight-singing-results';
 import { localDatabase } from '../platform/local-database';
 import { currentLocalOwnerKey } from '../platform/local-workspace';
 import { assertPracticeOwner, takeKeyPrefix, takeOwnerKeyPrefix } from './questions';
@@ -7,7 +9,7 @@ import { assertPracticeOwner, takeKeyPrefix, takeOwnerKeyPrefix } from './questi
 const takeSchema = z.object({
   id: z.string(), at: z.number().nonnegative().max(8.64e15), title: z.string(), questionId: z.string(),
   version: z.number().int().positive().nullable().transform(version => version ?? 1),
-  voiceId: z.string(), voiceName: z.string(), percent: z.number().int().min(0).max(100).nullable(),
+  voiceId: z.string(), voiceName: z.string(), percent: sightSingingScoreSchema.nullable(),
   published: z.boolean().default(false),
   speed: sightSingingSpeedSchema.optional(),
   scoringRule: sightSingingScoringRuleSchema.default(legacySingingScoringRule),

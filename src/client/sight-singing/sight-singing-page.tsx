@@ -18,6 +18,7 @@ import { useDriveLibraryResource } from '../score-library/use-drive-library';
 import { captureNavigationIdentity } from '../settings/navigation-events';
 import { ConfirmDialog } from '../settings/confirm-dialog';
 import { ChallengeRun, type ResultSave, type ScoredTake, type VoiceOption } from './challenge-run';
+import { useSightSingingScoreFormat } from './format-score';
 import { buildMelody } from './melody';
 import { readQuestions, type SightSingingQuestion } from './questions';
 import { compactPracticeHistory, markTakeWithdrawn, saveTake } from './practice-history';
@@ -148,6 +149,7 @@ function QuestionList({ questions, scores, open }: {
   questions: PublishedQuestion[]; scores?: SightSingingLeaderboard['results'] | null; open: (question: PublishedQuestion) => void;
 }) {
   const t = useMessages('practice');
+  const formatScore = useSightSingingScoreFormat();
   const byQuestion = new Map<string, SightSingingLeaderboard['results']>();
   for (const score of scores ?? []) {
     const top = byQuestion.get(score.questionId) ?? [];
@@ -164,7 +166,7 @@ function QuestionList({ questions, scores, open }: {
         </button>
         {top?.length ? <ol className="challenge-card-ranks" aria-label={t('sight.topThree')}>
           {top.map(row => <li key={row.id}>
-            <div><span>{row.displayName}</span><strong>{t('sight.takeScore', { score: row.score })}</strong></div>
+            <div><span>{row.displayName}</span><strong>{t('sight.takeScore', { score: formatScore(row.score) })}</strong></div>
             <small>{row.voiceName} · {versionTag(row.version)}</small>
           </li>)}
         </ol> : <p className="challenge-card-empty">{question.publisher?.kind === 'member'
@@ -178,6 +180,7 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
   choirId: string; questionId: string; version: number; generation: number; owner: DriveCacheOwnerKey; userId: string;
 }) {
   const t = useMessages('practice');
+  const formatScore = useSightSingingScoreFormat();
   const ruleId = useId();
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<number | null>(null);
@@ -252,7 +255,7 @@ function PublishedResults({ choirId, questionId, version, generation, owner, use
         : rows.length === 0 ? <p className="challenge-empty">{t('sight.publishedResultsEmpty')}</p>
           : <ul className="challenge-list challenge-score-list">{rows.map(row => <li key={row.id}>
             <div><strong>{row.displayName}</strong><small>{row.voiceName} · {versionTag(row.version)}{row.speed !== undefined && ` · ${row.speed.toFixed(2)}×`}</small></div>
-            <div className="challenge-ranked-action"><strong>{t('sight.takeScore', { score: row.score })}</strong>
+            <div className="challenge-ranked-action"><strong>{t('sight.takeScore', { score: formatScore(row.score) })}</strong>
               {row.own && <button type="button" className="text-button" aria-label={t('sight.withdrawResult', { version: versionTag(row.version) })}
                 onClick={() => setRemoving(row)}><Trash2 size={16} aria-hidden="true" /></button>}
             </div>

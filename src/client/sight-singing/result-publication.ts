@@ -19,7 +19,7 @@ export async function publishSightSingingResult(choirId: string, questionId: str
 
 export async function readSightSingingResults(choirId: string, questionId: string, version: number | null,
   scoringRule: SightSingingScoringRule, voice: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ view: 'best', scoringRule: String(scoringRule) });
+  const query = new URLSearchParams({ view: 'best', scoringRule: String(scoringRule), precision: '2' });
   if (version !== null) query.set('version', String(version));
   if (voice) query.set('voice', voice);
   const response = await diagnosticFetch(`${resultPath(choirId, questionId)}?${query}`, { signal });
@@ -28,7 +28,7 @@ export async function readSightSingingResults(choirId: string, questionId: strin
 }
 
 export async function readSightSingingLeaderboard(choirId: string, versions: SightSingingVersionFilter, voice: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ versions });
+  const query = new URLSearchParams({ versions, precision: '2' });
   if (voice) query.set('voice', voice);
   const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard?${query}`, { signal });
   if (!response.ok) throw new Error('published_results_unavailable');
