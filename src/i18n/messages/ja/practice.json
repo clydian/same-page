@@ -324,7 +324,6 @@
     "pitchGraph": "目標と歌声の音高の推移",
     "targetLegend": "目標の音高",
     "voiceLegend": "歌声の音高",
-    "octaveAlignedTrace": "歌声の軌跡を楽譜のオクターブに合わせて表示",
     "count": "準備 · {count}",
     "waitingMicrophone": "マイクの許可を待っています…",
     "singNow": "歌ってください",

@@ -324,7 +324,6 @@
     "pitchGraph": "Target pitch and sung pitch over time",
     "targetLegend": "Target pitch",
     "voiceLegend": "Sung pitch",
-    "octaveAlignedTrace": "Sung trace aligned to the score octave",
     "count": "Get ready · {count}",
     "waitingMicrophone": "Waiting for microphone access…",
     "singNow": "Sing now",

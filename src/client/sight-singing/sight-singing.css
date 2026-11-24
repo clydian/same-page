@@ -152,7 +152,6 @@
   vertical-align: middle; border-radius: 1rem; background: var(--pitch-target);
 }
 .challenge-graph-legend span + span::before { background: var(--pitch-voice); }
-.challenge-graph-alignment { flex-basis: 100%; color: var(--muted); font-size: .75rem; }
 .challenge-graph-body { display: grid; grid-template-columns: 2.45rem minmax(0, 1fr); grid-template-rows: clamp(9.6rem, 20vw, 13rem) 1.05rem; margin-inline-start: -.15rem; }
 .challenge-plot { position: relative; min-width: 0; overflow: hidden; border-inline-start: 1px solid var(--pitch-grid-strong); border-block-end: 1px solid var(--pitch-grid-strong); }
 .challenge-plot canvas { position: absolute; display: block; inset: 0; width: 100%; height: 100%; }

@@ -324,7 +324,6 @@
     "pitchGraph": "Andamento dell’altezza di riferimento e cantata",
     "targetLegend": "Altezza di riferimento",
     "voiceLegend": "Altezza cantata",
-    "octaveAlignedTrace": "Traccia vocale allineata all’ottava della partitura",
     "count": "Preparati · {count}",
     "waitingMicrophone": "In attesa dell’accesso al microfono…",
     "singNow": "Canta ora",

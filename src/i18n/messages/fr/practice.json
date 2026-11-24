@@ -324,7 +324,6 @@
     "pitchGraph": "Hauteurs cible et chantée au fil du temps",
     "targetLegend": "Hauteur cible",
     "voiceLegend": "Hauteur chantée",
-    "octaveAlignedTrace": "Courbe du chant alignée sur l’octave de la partition",
     "count": "Préparez-vous · {count}",
     "waitingMicrophone": "En attente de l’accès au micro…",
     "singNow": "Chantez maintenant",
