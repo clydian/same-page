@@ -6,6 +6,8 @@
 
 `android/twa-manifest.json` 管理包名、版本和正式签名公钥指纹。固定 Bubblewrap core 1.25.0 生成工程，使用仓库图标、JDK 17、SDK/build-tools 36、模板的 AGP 8.9.1 / Gradle 8.11.1 / Android Browser Helper 2.6.2。工具升级必须审查生成差异。最低 SDK 23 是包的安装下限，不代表该版本所有浏览器已通过实际排练验收。
 
+Android 构建使用 Node.js 24。`android/package.json` 临时覆盖 `googleapis-common@5.1.0` 的 `uuid` 依赖。该包以 CommonJS 加载 `uuid`，只调用 `v4()` 生成 multipart 边界，Node.js 24 可同步加载 `uuid` 14 的 ESM 导出。Bubblewrap 发布采用已修复或已移除 `uuid` 的依赖链后，移除此覆盖并重新验证生成工程和 unsigned APK。
+
 ```sh
 npm ci --prefix android
 npm run generate --prefix android
