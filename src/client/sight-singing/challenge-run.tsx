@@ -330,7 +330,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     </section>}
 
     {standing && <ChallengeStanding key={standing.id} standing={standing.rank} score={standing.score} published={standing.published}
-      part={selected.label} version={questionVersion} onClose={() => {
+      onClose={() => {
         setDismissedStanding(standing.id);
         requestAnimationFrame(() => reviewSection.current?.focus({ preventScroll: true }));
       }} />}

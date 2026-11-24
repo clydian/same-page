@@ -149,24 +149,28 @@
 .challenge-standing p { margin: 0; }
 .challenge-standing-scope, .challenge-standing-note { color: var(--muted); font-size: .9rem; }
 .challenge-standing-rank {
-  display: grid; overflow: hidden; margin-block-start: .45rem; padding-block: .2rem;
+  margin-block-start: .45rem; padding-block: .2rem;
   color: var(--brand); font-size: clamp(1.8rem, 7vw, 3.1rem); font-weight: 750;
   letter-spacing: -.025em; line-height: 1.1; font-variant-numeric: tabular-nums;
 }
-.challenge-standing-rank > * { grid-area: 1 / 1; }
-.challenge-standing-rank-before { opacity: 0; }
 .challenge-standing-score { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .challenge-standing-note[data-improved="true"] { color: var(--brand); }
 .challenge-standing > button { min-block-size: 44px; inline-size: 100%; margin-block-start: .8rem; }
-@media (prefers-reduced-motion: no-preference) {
-  .challenge-standing-rank[data-rise] .challenge-standing-rank-before { animation: challenge-rank-depart .45s .18s both; }
-  .challenge-standing-rank[data-rise] .challenge-standing-rank-now { animation: challenge-rank-arrive .55s .26s backwards; }
+.challenge-standing-nearby {
+  position: relative; box-sizing: border-box; inline-size: 100%; max-block-size: 7.5rem;
+  margin: .45rem 0 0; padding: 0; overflow: auto; overscroll-behavior: contain;
+  border: 1px solid var(--line); border-radius: .7rem; list-style: none; text-align: start; scrollbar-width: thin;
 }
-@keyframes challenge-rank-depart {
-  from { opacity: 1; }
-  to { opacity: 0; transform: translateY(-85%); }
+.challenge-standing-nearby[data-travelling] { block-size: 7.5rem; padding-block: 2.75rem; }
+.challenge-standing-nearby li {
+  display: grid; grid-template-columns: minmax(1.5rem, max-content) minmax(0, 1fr) auto;
+  align-items: center; gap: .45rem; min-block-size: 2.45rem;
+  padding: .25rem .65rem; font-size: .85rem;
 }
-@keyframes challenge-rank-arrive {
-  from { opacity: 0; transform: translateY(85%); }
-  to { opacity: 1; transform: translateY(0); }
-}
+.challenge-standing-nearby :is([data-standing-row="current"], [data-standing-row="previous"]) { font-weight: 700; }
+.challenge-standing-nearby [data-standing-row="current"] { background: var(--brand-soft); color: var(--brand); }
+.challenge-standing-nearby [data-standing-row="previous"] { background: var(--wash); color: var(--muted); }
+.challenge-standing-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.challenge-standing-nearby strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.challenge-standing-nearby .challenge-standing-gap { display: block; min-block-size: 0; color: var(--muted); text-align: center; }
+.challenge-standing-gap::before { content: '…'; }

@@ -28,9 +28,15 @@ const publishedSightSingingResultSchema = sightSingingResultFields.extend({
 });
 
 const standingPlace = z.number().int().positive();
+const standingNeighbor = z.object({
+  id: z.uuid(), displayName: z.string(), score: sightSingingScoreSchema,
+  position: standingPlace, place: standingPlace, tied: z.boolean(),
+});
+export type SightSingingStandingNeighbor = z.infer<typeof standingNeighbor>;
 const sightSingingStandingSchema = z.object({
   place: standingPlace, tied: z.boolean(), participants: standingPlace,
   previous: z.object({ place: standingPlace, score: sightSingingScoreSchema }).optional(),
+  nearby: z.array(standingNeighbor).max(8).optional(),
 });
 export type SightSingingStanding = z.infer<typeof sightSingingStandingSchema>;
 

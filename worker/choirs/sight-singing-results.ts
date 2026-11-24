@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   currentSingingScoringRule, sightSingingResultSubmissionSchema,
   sightSingingVersionFilterSchema, sightSingingVoiceNameSchema, type PublishedSightSingingResult, type SightSingingLeaderboard,
+  type SightSingingStandingNeighbor,
 } from '../../src/shared/sight-singing-results';
 import { AuthorizationError } from '../auth/authorization';
 import { resolveContextPrincipal } from '../auth/context-principal';
@@ -28,7 +29,7 @@ type ExtraDetails = {
 };
 type ResultRow = Omit<PublishedSightSingingResult, 'own' | 'speed' | 'perfect' | 'writtenOctave'> & ExtraDetails & { own: number };
 type LeaderboardRow = Omit<SightSingingLeaderboard['results'][number], 'speed' | 'perfect' | 'writtenOctave'> & ExtraDetails;
-type StandingRow = { place: number; tied: number; participants: number; previousPlace: number; previousHundredths: number | null };
+type StandingRow = { place: number; tied: number; participants: number; previousPlace: number; previousHundredths: number | null; nearby: string };
 
 function resultBadges(id: string, allNotesMatchedResultId: string | null, writtenOctaveResultId: string | null, includeWrittenOctave: boolean) {
   if (allNotesMatchedResultId !== id) return {};
@@ -187,22 +188,36 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
         WHERE choir_id = ? AND question_id = ? AND id = ? AND membership_id = ? AND fingerprint = ?)`)
     .bind(choirId, id.data, currentSingingScoringRule, version, member.id, resultId, member.id, member.id,
       choirId, id.data, resultId, member.id, fingerprint);
-  // Compare both takes against the same active singers before promoting the new one.
-  const rank = db.prepare(`WITH cohort AS (
-      SELECT result.membership_id, ${rankScore} AS hundredths FROM sight_singing_best_results result
+  // Use the same best-per-member scope as the question card, before promoting this take.
+  const rank = db.prepare(`WITH personal_bests AS (
+      SELECT result.id, result.membership_id, singer.display_name, result.achieved_order, ${rankScore} AS hundredths,
+        ROW_NUMBER() OVER (PARTITION BY result.membership_id ORDER BY ${rankScore} DESC, result.achieved_order) AS best
+      FROM sight_singing_best_results result
       JOIN membership_capabilities singer ON singer.id = result.membership_id AND singer.choir_id = result.choir_id
-      WHERE result.choir_id = ? AND result.question_id = ? AND result.scoring_rule = ? AND result.version = ? AND result.rank_voice_id = ?
+      WHERE result.choir_id = ? AND result.question_id = ? AND result.scoring_rule = ?
     ), previous AS (
-      SELECT hundredths FROM cohort WHERE membership_id = ?
+      SELECT hundredths FROM personal_bests WHERE membership_id = ? AND best = 1
     ), others AS (
-      SELECT hundredths FROM cohort WHERE membership_id <> ?
+      SELECT id, display_name, hundredths,
+        ROW_NUMBER() OVER (ORDER BY hundredths DESC, achieved_order) AS position,
+        RANK() OVER (ORDER BY hundredths DESC) AS place,
+        COUNT(*) OVER (PARTITION BY hundredths) > 1 AS tied
+      FROM personal_bests WHERE membership_id <> ? AND best = 1
+    ), standing AS (
+      SELECT 1 + COUNT(CASE WHEN hundredths > ? THEN 1 END) AS place,
+        EXISTS (SELECT 1 FROM others WHERE hundredths = ?) AS tied,
+        1 + COUNT(*) AS participants,
+        1 + COUNT(CASE WHEN hundredths > (SELECT hundredths FROM previous) THEN 1 END) AS previousPlace,
+        (SELECT hundredths FROM previous) AS previousHundredths FROM others
     )
-    SELECT 1 + COUNT(CASE WHEN hundredths > ? THEN 1 END) AS place,
-      EXISTS (SELECT 1 FROM others WHERE hundredths = ?) AS tied,
-      1 + COUNT(*) AS participants,
-      1 + COUNT(CASE WHEN hundredths > (SELECT hundredths FROM previous) THEN 1 END) AS previousPlace,
-      (SELECT hundredths FROM previous) AS previousHundredths FROM others`)
-    .bind(choirId, id.data, currentSingingScoringRule, version, voiceId, member.id, member.id, hundredths, hundredths);
+    SELECT standing.*, (SELECT json_group_array(json_object('id', id, 'displayName', display_name,
+      'score', hundredths / 100.0, 'position', position, 'place', place, 'tied', tied)) FROM (
+        SELECT * FROM others
+        WHERE position BETWEEN standing.place - 2 AND standing.place + 1
+          OR (standing.previousPlace > standing.place AND position BETWEEN standing.previousPlace - 2 AND standing.previousPlace + 1)
+        ORDER BY position
+      )) AS nearby FROM standing`)
+    .bind(choirId, id.data, currentSingingScoringRule, member.id, member.id, hundredths, hundredths);
   const batch = await db.batch([...(bestView ? [rank] : []), receipt, promote, verify]);
   const row = batch.at(-1)?.results[0] as { displayName: string; published: number } | undefined;
   if (row) {
@@ -210,6 +225,8 @@ sightSingingResultRoutes.post(path, bodyLimit({ maxSize: 4096 }), async context 
     const standing = rankRow && {
       place: rankRow.place, tied: rankRow.tied === 1, participants: rankRow.participants,
       ...(rankRow.previousHundredths !== null && { previous: { place: rankRow.previousPlace, score: rankRow.previousHundredths / 100 } }),
+      nearby: (JSON.parse(rankRow.nearby) as (Omit<SightSingingStandingNeighbor, 'tied'> & { tied: number })[])
+        .map(row => ({ ...row, tied: row.tied === 1 })),
     };
     return context.json({ result: { id: resultId, version, score, voiceId, voiceName,
       ...(bestView && speed !== undefined && { speed }), questionId: id.data, displayName: row.displayName, own: true },
