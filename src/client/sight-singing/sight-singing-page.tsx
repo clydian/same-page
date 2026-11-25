@@ -163,7 +163,8 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
     return <ChallengeEntry choirId={props.choirId} denied signedOut={published.authority === 'signed-out'} retry={refresh} />;
   }
   if (selection) return <QuestionWorkspace {...reads} {...selection} pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
-    onBack={() => { setSelection(null); refresh(); }} />;
+    canEditQuestion={published.data?.questions.find(question => question.id === selection.question?.id)?.canEdit}
+    revalidateAccess={refresh} onBack={() => { setSelection(null); refresh(); }} />;
   const legacyQuestions = questions?.filter(question => !published.data?.questions.some(item => item.id === question.id));
   const listPending = props.canReadCloud && !published.data && !published.error;
   const boardPending = props.canReadCloud && !board.data && !board.error;
@@ -386,7 +387,8 @@ function PublishedResults({ reads, questionId, version, generation, userId }: {
     try {
       await withdrawSightSingingResult(choirId, questionId, userId, removing.id, removing.version);
       refreshResults();
-    } catch {
+    } catch (error) {
+      if (isSightSingingMemberDenied(error)) reads.onMemberDenied?.();
       setWithdrawFailed(true);
     } finally {
       setBusy(false);
@@ -430,9 +432,10 @@ function PublishedResults({ reads, questionId, version, generation, userId }: {
   </div>;
 }
 
-function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOfficial, scores, canReadCloud, retryConnection, onMemberDenied, question, legacy, onBack,
+function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOfficial, scores, canReadCloud, retryConnection, onMemberDenied, question, legacy, onBack, canEditQuestion, revalidateAccess,
   pitchTraceEnabled, setPitchTraceEnabled }: DriveContext & {
   question?: PublishedQuestion; legacy?: SightSingingQuestion; onBack: () => void; onMemberDenied: () => void;
+  canEditQuestion?: boolean; revalidateAccess: () => void;
   pitchTraceEnabled: boolean; setPitchTraceEnabled: (enabled: boolean) => void;
 }) {
   const t = useMessages('practice');
@@ -538,7 +541,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       : t('sight.questionMeasureRange', { first: firstVisit.number, last: lastVisit.number })
     : '';
   const title = titleOverride ?? (scoreName && nameRange ? questionNameWithRange(scoreName, nameRange) : '');
-  const editable = saved?.canEdit ?? canPublishOfficial;
+  const editable = canEditQuestion ?? saved?.canEdit ?? canPublishOfficial;
   const save = async () => {
     if (!canReadCloud || !title.trim() || !source || !loadedBytes || !loadedName || !selected || saveLifetime.current || (saved && !editable)) return;
     const controller = new AbortController();
@@ -563,7 +566,13 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
         form.set('file', new Blob([loadedBytes]), loadedName);
         body = form;
       }
-      const response = await diagnosticFetch(`${publishedPath(choirId)}/${questionId}`, { method: 'PUT', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]), headers, body });
+      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]);
+      const response = await diagnosticFetch(`${publishedPath(choirId)}/${questionId}`, { method: 'PUT', signal, headers, body });
+      signal.throwIfAborted();
+      if (current()) {
+        if (response.status === 401) onMemberDenied();
+        if (response.status === 403) revalidateAccess(); // An edit denial can be narrower than membership.
+      }
       if (!response.ok) throw new Error('publish_question_failed');
       const { question: next } = await parseDiagnosticResponse(response, publishedQuestionResponseSchema);
       if (!controller.signal.aborted && current()) {
@@ -585,6 +594,9 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       if (!current()) throw new Error('result_publication_unconfirmed');
       setResultGeneration(value => value + 1);
       return result;
+    } catch (error) {
+      if (!controller.signal.aborted && current() && isSightSingingMemberDenied(error)) onMemberDenied();
+      throw error;
     } finally {
       resultLifetimes.current.delete(controller);
     }

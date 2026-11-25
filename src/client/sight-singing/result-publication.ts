@@ -3,6 +3,7 @@ import {
   type SightSingingResultSubmission,
 } from '../../shared/sight-singing-results';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
+import { SettingsRequestError } from '../settings/settings-request';
 import { readSightSinging } from './read';
 
 const resultPath = (choirId: string, questionId: string) =>
@@ -15,7 +16,7 @@ export async function publishSightSingingResult(choirId: string, questionId: str
     headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': userId },
     body: JSON.stringify(result),
   });
-  if (!response.ok) throw new Error('publish_result_failed');
+  if (!response.ok) throw new SettingsRequestError(response.status);
   const { published, standing } = await parseDiagnosticResponse(response, sightSingingResultResponseSchema);
   return { published, standing };
 }
@@ -40,5 +41,5 @@ export async function withdrawSightSingingResult(choirId: string, questionId: st
   const response = await diagnosticFetch(`${resultPath(choirId, questionId)}/${encodeURIComponent(id)}?${query}`, {
     method: 'DELETE', headers: { 'x-same-page-owner-user-id': userId },
   });
-  if (!response.ok) throw new Error('withdraw_result_failed');
+  if (!response.ok) throw new SettingsRequestError(response.status);
 }

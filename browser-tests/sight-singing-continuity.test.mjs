@@ -129,4 +129,13 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   await cold.unroute(questions);
   await unavailable.getByRole("button", { name: "重新加载", exact: true }).click();
   await expect(cold.getByRole("button", { name: new RegExp(title) })).toBeVisible();
+
+  // Result publication has the same membership requirement as the GETs. A
+  // denial received from the write also closes a previously authorized view.
+  await cold.route(`${question}/results`, route => route.request().method() === "POST"
+    ? route.fulfill({ status: 403, json: { error: "permission_denied" } }) : route.continue());
+  await cold.getByRole("button", { name: new RegExp(title) }).click();
+  await cold.getByRole("button", { name: "开始唱", exact: true }).click();
+  await expect(cold.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible({ timeout: 12_000 });
+  await expect(cold.locator(".challenge-run")).toHaveCount(0);
 });
