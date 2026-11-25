@@ -247,7 +247,7 @@
   "sight": {
     "title": "视唱挑战",
     "loading": "正在读取…",
-    "needMember": "请联网并以当前云盘成员身份打开视唱挑战。",
+    "needMember": "视唱挑战仅对当前云盘成员开放。",
     "publishedQuestions": "云盘题目",
     "retryLoad": "重新加载",
     "publishedError": "无法加载云盘题目。",

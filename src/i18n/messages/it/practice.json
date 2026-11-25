@@ -247,7 +247,7 @@
   "sight": {
     "title": "Sfida di lettura cantata",
     "loading": "Caricamento…",
-    "needMember": "Connettiti a Internet e apri la sfida come membro di questa unità.",
+    "needMember": "Solo i membri di questa unità possono aprire la sfida di lettura cantata.",
     "publishedQuestions": "Esercizi del drive",
     "retryLoad": "Ricarica",
     "publishedError": "Impossibile caricare gli esercizi del drive.",

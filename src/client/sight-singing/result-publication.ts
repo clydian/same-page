@@ -3,6 +3,7 @@ import {
   type SightSingingResultSubmission,
 } from '../../shared/sight-singing-results';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
+import { readSightSinging } from './read';
 
 const resultPath = (choirId: string, questionId: string) =>
   `/api/choirs/${encodeURIComponent(choirId)}/sight-singing/questions/${encodeURIComponent(questionId)}/results`;
@@ -27,15 +28,11 @@ export async function readSightSingingResults(choirId: string, questionId: strin
   if (version !== undefined) query.set('version', String(version));
   if (voice) query.set('voice', voice);
   if (speed !== undefined) query.set('speed', String(speed));
-  const response = await diagnosticFetch(resultPath(choirId, questionId) + (query.size ? `?${query}` : ''), { signal });
-  if (!response.ok) throw new Error('published_results_unavailable');
-  return parseDiagnosticResponse(response, sightSingingResultsResponseSchema);
+  return readSightSinging(resultPath(choirId, questionId) + (query.size ? `?${query}` : ''), sightSingingResultsResponseSchema, signal);
 }
 
 export async function readSightSingingLeaderboard(choirId: string, signal?: AbortSignal) {
-  const response = await diagnosticFetch(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard`, { signal });
-  if (!response.ok) throw new Error('published_results_unavailable');
-  return parseDiagnosticResponse(response, sightSingingLeaderboardSchema);
+  return readSightSinging(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard`, sightSingingLeaderboardSchema, signal);
 }
 
 export async function withdrawSightSingingResult(choirId: string, questionId: string, userId: string, id: string, version: number) {

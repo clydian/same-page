@@ -38,6 +38,22 @@ it("retains the displayed owner through a session failure while local identity r
   expect(result.current.authenticatedUserId).toBe("another-owner");
 });
 
+it("treats a forbidden session read as a definitive cloud denial", async () => {
+  const previous = { ...state };
+  state.owner = Promise.resolve("user:owner" as LocalWorkspaceOwnerKey);
+  state.data = null;
+  state.error = { status: 403 };
+  const { result, unmount } = renderHook(() => useApplicationIdentity());
+  try {
+    await waitFor(() => expect(result.current.localUserId).toBe("owner"));
+    expect(result.current.onlineState).toBe("signed-out");
+    expect(result.current.authenticatedSessionId).toBeNull();
+  } finally {
+    unmount();
+    Object.assign(state, previous);
+  }
+});
+
 it("distinguishes cold local-owner waiting from the same page after an online identity has warmed it", async () => {
   const { useReaderWorkspace } = await import("../reader/use-reader-workspace");
   const { activateAuthenticatedLocalOwner } = await import("../platform/local-workspace");

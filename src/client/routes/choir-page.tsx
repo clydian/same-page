@@ -16,9 +16,8 @@ import { BackButton } from "../navigation/back-button";
 import { PreparedScoreLink } from "../score-library/prepared-score-link";
 import { useNetworkStatus } from "../platform/use-network-status";
 import { rememberLastDrive, forgetLastDrive } from "../score-library/last-drive";
-import { useApplicationIdentity } from "../auth/application-identity";
+import { presentationSessionId as resolvePresentationSessionId, useApplicationIdentity, type ApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
-import type { ApplicationIdentity } from "../auth/application-identity";
 import { FileMusic, LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
@@ -80,9 +79,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const { session } = identity;
   // A remembered session scopes the mounted view; only authenticatedUserId grants authority.
   const [dialogSession, setDialogSession] = useState(session.data?.session?.id ?? null);
-  const presentationSessionId = identity.onlineState === "signed-out" ? null
-    : identity.onlineState === "authenticated" ? identity.authenticatedSessionId
-    : session.data?.session?.id ?? dialogSession;
+  const presentationSessionId = resolvePresentationSessionId(identity, dialogSession);
   const userId = identity.localUserId ?? undefined;
   const online = useNetworkStatus();
   const { library, snapshot } = useDriveLibrary(cacheOwner, choirId, Boolean(identity.authenticatedUserId), !identity.restoring && (Boolean(userId) || identity.onlineState !== "checking"), presentationSessionId);

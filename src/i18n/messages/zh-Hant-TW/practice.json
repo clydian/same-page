@@ -247,7 +247,7 @@
   "sight": {
     "title": "視唱挑戰",
     "loading": "正在讀取…",
-    "needMember": "請連線並以此雲端硬碟成員身分開啟視唱挑戰。",
+    "needMember": "視唱挑戰僅對此雲端硬碟的成員開放。",
     "publishedQuestions": "雲端硬碟題目",
     "retryLoad": "重新載入",
     "publishedError": "無法載入雲端硬碟題目。",

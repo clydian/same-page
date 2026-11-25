@@ -9,7 +9,7 @@ const membershipChanges = new Set<() => void>();
 export const membershipDirectoryRevision = () => membershipRevision;
 export function onMembershipDirectoryChange(listener: () => void) { membershipChanges.add(listener); return () => { membershipChanges.delete(listener); }; }
 function invalidateMembershipDirectory() { membershipRevision++; for (const listener of membershipChanges) listener(); }
-export type DriveReadKind = "settings" | "management" | "permission-contacts" | "memberships" | "usage" | "shared-layers" | "shared-layer" | "layer-access" | "reading-defaults";
+export type DriveReadKind = "settings" | "management" | "permission-contacts" | "memberships" | "usage" | "shared-layers" | "shared-layer" | "layer-access" | "reading-defaults" | "sight-singing";
 // In-memory identity only: never parse owner/drive/variant strings as dependencies.
 export interface DriveReadIdentity {
   owner: string | null;

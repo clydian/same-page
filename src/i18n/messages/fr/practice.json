@@ -247,7 +247,7 @@
   "sight": {
     "title": "Défi de lecture chantée",
     "loading": "Chargement…",
-    "needMember": "Connectez-vous à Internet et ouvrez le défi en tant que membre de cet espace.",
+    "needMember": "Seuls les membres de cet espace peuvent ouvrir le défi de lecture chantée.",
     "publishedQuestions": "Exercices du disque",
     "retryLoad": "Recharger",
     "publishedError": "Impossible de charger les exercices du disque.",

@@ -247,7 +247,7 @@
   "sight": {
     "title": "Blattsing-Challenge",
     "loading": "Wird geladen…",
-    "needMember": "Öffne die Challenge online als Mitglied dieses Laufwerks.",
+    "needMember": "Nur Mitglieder dieses Laufwerks können die Blattsing-Challenge öffnen.",
     "publishedQuestions": "Geteilte Aufgaben",
     "retryLoad": "Neu laden",
     "publishedError": "Geteilte Aufgaben konnten nicht geladen werden.",

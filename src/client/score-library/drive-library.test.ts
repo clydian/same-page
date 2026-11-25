@@ -448,6 +448,21 @@ it("returns ten times without reading again, then quietly refreshes expired data
 });
 
 
+it("keeps the stored directory read-only when the first bootstrap explicitly requires authentication", async () => {
+  await activateAuthenticatedLocalOwner("one");
+  const { library: initial } = create(async () => opened());
+  await initial.refresh();
+  initial.stop();
+  clearDriveLibraryCache();
+  const { library } = create(async () => ({ kind: "failed", authenticationRequired: true }));
+  await library.refresh();
+  expect(library.getSnapshot()).toMatchObject({
+    access: { local: true, isMember: false },
+    reading: { authority: "signed-out", request: "idle" },
+  });
+  expect(library.getSnapshot().scores.map(score => score.fileName)).toEqual(["秋日.pdf"]);
+});
+
 describe("confirmed navigation changes across settings and directory consumers", () => {
   const kinds: DriveReadKind[] = ["settings", "management", "permission-contacts", "memberships", "usage", "shared-layers", "shared-layer", "layer-access", "reading-defaults"];
   it.each([

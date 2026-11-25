@@ -247,7 +247,7 @@
   "sight": {
     "title": "Desafío de lectura cantada",
     "loading": "Cargando…",
-    "needMember": "Conéctate a internet y abre el desafío como miembro de esta unidad.",
+    "needMember": "Solo los miembros de esta unidad pueden abrir el desafío de lectura cantada.",
     "publishedQuestions": "Ejercicios del disco",
     "retryLoad": "Volver a cargar",
     "publishedError": "No se pudieron cargar los ejercicios del disco.",
