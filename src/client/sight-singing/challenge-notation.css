@@ -12,7 +12,7 @@
   scroll-padding-block: 10px;
 }
 [data-score-view="line"] .challenge-notation {
-  min-block-size: 0; direction: ltr;
+  min-block-size: 10rem; direction: ltr;
 }
 [data-score-view="line"] .challenge-notation-sheet { inline-size: max-content; min-inline-size: 100%; }
 .challenge-ensemble-score .challenge-notation-sheet { flex-shrink: 0; }
