@@ -85,14 +85,21 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   const publish = page.getByRole("button", { name: "更新云盘题目", exact: true });
   await expect(publish).toBeDisabled();
   await expect(page.getByRole("status").filter({ hasText: noConnection })).toBeVisible();
+  // Hold the recovery read, then deliver a definitive denial to that same
+  // request. A focus event could legally coalesce with a read already running.
+  const revalidation = Promise.withResolvers();
+  await page.route(questions, async route => {
+    await revalidation.promise;
+    await route.fulfill({ status: 403, json: { error: "permission_denied" } });
+  });
+  t.after(() => revalidation.resolve());
   sessionDown = false;
   await page.getByRole("button", { name: "重试连接", exact: true }).click();
   await expect(publish).toBeEnabled({ timeout: 12_000 });
   await expect(name).toHaveValue("保留未发布的题目名称");
   assert.equal(publications, 0);
 
-  await page.route(questions, route => route.fulfill({ status: 403, json: { error: "permission_denied" } }));
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  revalidation.resolve();
   await expect(page.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible();
   await expect(name).toHaveCount(0);
   await page.unroute(questions);
@@ -105,10 +112,10 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   await expect(cold.getByRole("status").filter({ hasText: noConnection })).toBeVisible();
   await expect(cold.getByRole("button", { name: new RegExp(title) })).toHaveCount(0);
 
-  let failRead;
-  const gate = new Promise(resolve => { failRead = resolve; });
+  const coldRead = Promise.withResolvers();
+  t.after(() => coldRead.resolve());
   await cold.route(questions, async route => {
-    await gate;
+    await coldRead.promise;
     await route.fulfill({ status: 503, json: { error: "unavailable" } });
   });
   const read = cold.waitForRequest(questions);
@@ -116,9 +123,10 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   await read;
   await expect(cold.getByText("正在读取…", { exact: true })).toBeVisible();
   await expect(cold.getByText("这个云盘还没有已发布的题目。")).toHaveCount(0);
-  failRead();
-  await expect(cold.getByText("无法加载云盘题目。", { exact: true })).toBeVisible();
+  coldRead.resolve();
+  const unavailable = cold.getByRole("status").filter({ hasText: "无法加载云盘题目。" });
+  await expect(unavailable).toBeVisible();
   await cold.unroute(questions);
-  await cold.getByRole("button", { name: "重新加载", exact: true }).first().click();
+  await unavailable.getByRole("button", { name: "重新加载", exact: true }).click();
   await expect(cold.getByRole("button", { name: new RegExp(title) })).toBeVisible();
 });
