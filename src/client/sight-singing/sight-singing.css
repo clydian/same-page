@@ -77,7 +77,7 @@
   min-block-size: clamp(11.75rem, 29svh, 18.5rem); max-block-size: clamp(13rem, 46svh, 26rem);
   background: var(--score-paper);
 }
-.challenge-notation-tempo { flex: none; padding: .65rem .75rem 0; color: var(--ink); font: 1rem Georgia, serif; }
+.challenge-notation-tempo { flex: none; color: var(--ink); font: 1rem Georgia, serif; }
 .challenge-notation-sheet { position: relative; margin-block: auto; }
 .challenge-notation-sheet > div:first-child { position: relative; }
 [data-ui-theme="dark"] .challenge-notation-sheet > div:first-child svg { filter: invert(.9) hue-rotate(180deg); }

@@ -1,3 +1,4 @@
+import { playbackAudioSession } from '@same-page/player/playback-audio-session';
 import { ChevronDown, Headphones, Mic, Minus, Play, Plus, RotateCcw, Square, UserRound, UsersRound, X, createLucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
@@ -46,6 +47,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [replayTime, setReplayTime] = useState(0);
   const [dismissedStanding, setDismissedStanding] = useState<string>();
   const [error, setError] = useState<CaptureError | null>(null);
+  const [audioHint, setAudioHint] = useState(false);
+  const [audioSession] = useState(() => playbackAudioSession());
+  const [followRun, setFollowRun] = useState(0);
   const take = useRef<string | null>(null);
   const run = useRef<(() => void) | null>(null);
   const tonicPreview = useRef<ReturnType<typeof playSustainedTonic> | null>(null);
@@ -57,16 +61,18 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     run.current = null;
     stop?.();
     replay.current?.pause();
-  }, []);
+    if (!tonicPreview.current) audioSession.release();
+  }, [audioSession]);
   const stopTonic = useCallback(() => {
     const preview = tonicPreview.current;
     tonicPreview.current = null;
     preview?.stop();
-  }, []);
-  const discard = useCallback(() => {
+    if (preview && !run.current) audioSession.release();
+  }, [audioSession]);
+  const discard = useCallback((keepTonic = false) => {
     take.current = null;
     release();
-    stopTonic();
+    if (!keepTonic) stopTonic();
     if (mixedUrl.current) URL.revokeObjectURL(mixedUrl.current);
     mixedUrl.current = null;
   }, [release, stopTonic]);
@@ -151,6 +157,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       return;
     }
     setError(null);
+    setAudioHint(Boolean(audioSession.request()));
     try {
       const preview = playSustainedTonic(melody.tonic, () => {
         if (tonicPreview.current !== preview) return;
@@ -161,14 +168,21 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       tonicPreview.current = preview;
       setDrone(true);
       setHeadphones(true);
-    } catch { setError('audioFailure'); }
+    } catch {
+      if (!run.current) audioSession.release();
+      setError('audioFailure');
+    }
   };
 
   const start = () => {
     // Transfer the audible oscillator to the capture session without restarting it.
     const preview = tonicPreview.current;
+    discard(true);
     tonicPreview.current = null;
-    discard(); setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
+    setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
+    setFollowRun(value => value + 1);
+    // Declare simultaneous output and capture before the gesture starts Web Audio and getUserMedia.
+    setAudioHint(Boolean(audioSession.request('play-and-record')));
     setState({ phase: 'permission' });
     const takeId = crypto.randomUUID();
     take.current = takeId;
@@ -208,8 +222,14 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     setError(null);
     if (time !== undefined) seek(time);
     else if (audio.ended) seek(0);
-    void audio.play().catch(() => setError('audioFailure'));
-  }, [seek]);
+    setFollowRun(value => value + 1);
+    setAudioHint(Boolean(audioSession.request()));
+    void audio.play().catch((reason: unknown) => {
+      if (replay.current !== audio || reason instanceof DOMException && reason.name === 'AbortError') return;
+      if (audio.paused) audioSession.release();
+      setError('audioFailure');
+    });
+  }, [audioSession, seek]);
 
   const recording = state.phase === 'permission' || state.phase === 'count' || state.phase === 'sing';
   const position = state.phase === 'sing' ? state.frame.time : state.phase === 'result' ? replayTime : 0;
@@ -230,23 +250,28 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     if (state.phase === 'result') { playMeasure(hit.bar); return; }
     if (state.phase !== 'idle') return;
     release(); setError(null);
+    setAudioHint(Boolean(audioSession.request()));
     try {
       run.current = playNote(hit.midi, failed => {
         run.current = null;
+        if (!tonicPreview.current) audioSession.release();
         if (failed) setError('audioFailure');
       });
-    } catch { setError('audioFailure'); }
-  }, [playMeasure, release, state.phase]);
+    } catch {
+      if (!tonicPreview.current) audioSession.release();
+      setError('audioFailure');
+    }
+  }, [audioSession, playMeasure, release, state.phase]);
 
   const bpm = melody.tempoMarks.reduce((tempo, mark) => mark.start <= position ? mark.bpm : tempo, melody.tempo.bpm * speed);
-  const positioned = state.phase === 'sing' || state.phase === 'result' && (playing || replayTime > 0);
+  const positioned = state.phase === 'count' || state.phase === 'sing' || state.phase === 'result' && (playing || replayTime > 0);
   const canTap = state.phase === 'idle' || (state.phase === 'result' && state.answer.status === 'ready');
   const standing = state.phase === 'result' && !playing && dismissedStanding !== state.id && typeof state.save === 'object' && state.save.standing
     && state.score.percent !== null ? { id: state.id, score: state.score.percent, published: state.save.published, rank: state.save.standing } : null;
 
   return <div className="challenge-run" data-phase={state.phase} data-replaying={playing}>
-    <ChallengeNotation score={document.score} voice={voice} melody={melody} currentBar={positioned ? measure.bar : undefined} bpm={Number(bpm.toFixed(1))}
-      currentVisit={measure.visit} feedback={feedback}
+    <ChallengeNotation score={document.score} voice={voice} melody={melody} measure={measure} elapsed={position}
+      positioned={positioned} followRun={followRun} bpm={Number(bpm.toFixed(1))} feedback={feedback}
       onNote={canTap ? selectNote : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
       pitchFrames={'frames' in state ? state.frames : undefined}
       liveTrace={state.phase === 'sing' || playing} traceThrough={state.phase === 'result' ? replayTime : undefined} />
@@ -308,8 +333,13 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       </div>
       <div className="challenge-replay-controls">
         {state.answer.status === 'ready' && <audio ref={replay} src={state.answer.url} preload="auto"
-          onPlay={() => setPlaying(true)} onPause={event => { setPlaying(false); setReplayTime(event.currentTarget.currentTime); }}
-          onTimeUpdate={event => setReplayTime(event.currentTarget.currentTime)} onEnded={() => setPlaying(false)} onError={() => setError('audioFailure')} />}
+          onPlay={() => setPlaying(true)} onPause={event => {
+            if (!event.currentTarget.paused) return;
+            audioSession.release(); setPlaying(false); setReplayTime(event.currentTarget.currentTime);
+          }}
+          onTimeUpdate={event => setReplayTime(event.currentTarget.currentTime)}
+          onEnded={() => { audioSession.release(); setPlaying(false); }}
+          onError={() => { audioSession.release(); setError('audioFailure'); }} />}
         <button className="primary-button challenge-review-play" type="button" disabled={state.answer.status === 'preparing'} onClick={() => {
           if (state.answer.status === 'failed') void prepareAnswer(state.id, state.answer.recording, state.review);
           else if (playing) replay.current?.pause();
@@ -333,6 +363,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       }} />}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
+    {audioHint && <p className="challenge-save-status" role="status">{t('audioHint')}</p>}
     {pitchTraceEnabled && (state.phase === 'count' || state.phase === 'sing' || state.phase === 'result') &&
       <PitchGraph melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
         following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}

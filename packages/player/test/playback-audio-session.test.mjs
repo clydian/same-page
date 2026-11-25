@@ -19,6 +19,17 @@ test('release preserves a category subsequently selected by another audio owner'
   audio.request(); session.type = 'play-and-record'; audio.release();
   assert.equal(session.type, 'play-and-record');
 });
+test('one lease can change from playback to capture and restore the original category', () => {
+  const session = { type: 'auto' };
+  const audio = playbackAudioSession({ ...iphone, audioSession: session });
+  audio.request();
+  audio.request('play-and-record');
+  assert.equal(session.type, 'play-and-record');
+  audio.release();
+  assert.equal(session.type, 'auto');
+  audio.request();
+  assert.equal(session.type, 'playback');
+});
 test('missing, rejected and ignored declarations produce actionable iOS advice without throwing', () => {
   for (const session of [undefined, { get type() { return 'auto'; }, set type(_) { throw new Error('unsupported'); } }, { get type() { return 'auto'; }, set type(_) {} }]) {
     const audio = playbackAudioSession({ ...iphone, audioSession: session });

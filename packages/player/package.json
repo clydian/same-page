@@ -49,6 +49,10 @@
       "types": "./dist/score-follow.d.ts",
       "import": "./dist/score-follow.js"
     },
+    "./playback-audio-session": {
+      "types": "./dist/playback-audio-session.d.ts",
+      "import": "./dist/playback-audio-session.js"
+    },
     "./solfege-degree": {
       "types": "./dist/solfege-degree.d.ts",
       "import": "./dist/solfege-degree.js"

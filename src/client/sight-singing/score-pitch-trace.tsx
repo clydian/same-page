@@ -1,6 +1,7 @@
 import { model, type rendering } from '@coderline/alphatab';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import type { MelodyNote, MelodyScore, MelodyVoice, StaffBeat } from './melody';
+import type { MelodyNote, MelodyScore, StaffBeat } from './melody';
+import type { Part } from './notation-score';
 import { matchTargetPitch, type PitchFrame } from './pitch-feedback';
 import { firstFrameAt, pitchFramesConnect } from './pitch-trace';
 import { staffPitchY, type StaffPitchAnchor } from './staff-pitch';
@@ -18,7 +19,7 @@ type TraceBeat = {
   top: number; bottom: number;
 };
 
-function scorePitchLayout(lookup: rendering.BoundsLookup, score: MelodyScore['score'], voice: MelodyVoice, beats: StaffBeat[]) {
+function scorePitchLayout(lookup: rendering.BoundsLookup, score: MelodyScore['score'], voice: Part, beats: StaffBeat[]) {
   const staff = score.tracks[voice.track]?.staves[voice.staff];
   if (staff?.standardNotationLineCount !== 5) return [];
   return beats.flatMap(({ pitches, ...timing }): TraceBeat[] => {
@@ -80,7 +81,7 @@ function tracePath(beats: TraceBeat[], frames: PitchFrame[], through = Number.PO
 }
 
 export function ScorePitchTrace({ lookup, score, voice, beats, frames, currentVisit, live, through, viewport }: {
-  lookup: rendering.BoundsLookup; score: MelodyScore['score']; voice: MelodyVoice; beats: StaffBeat[];
+  lookup: rendering.BoundsLookup; score: MelodyScore['score']; voice: Part; beats: StaffBeat[];
   frames: PitchFrame[]; currentVisit?: number; live: boolean; viewport: RefObject<HTMLDivElement | null>;
   through?: number;
 }) {
