@@ -1,0 +1,7 @@
+.practice-range-track { position: relative; height: 44px; margin-inline: 10px; touch-action: none; }
+.practice-range-track::before, .practice-range-fill { position: absolute; top: 20px; height: 4px; border-radius: 4px; background: var(--ui-soft, #dce4de); }
+.practice-range-track::before { content: ''; inset-inline: 0; }
+.practice-range-fill { background: var(--ui-accent-fill, #365747); }
+.practice-range-thumb { top: 22px; width: 28px; height: 44px; display: grid; place-items: center; cursor: ew-resize; touch-action: none; outline: none; }
+.practice-range-thumb span { display: grid; place-items: center; width: 24px; height: 28px; border-radius: 8px; background: var(--ui-accent-fill, #365747); color: white; border: 2px solid var(--ui-line, #fcfdfb); font-size: 12px; font-weight: 600; }
+.practice-range-thumb[data-focus-visible] span { outline: 2px solid var(--ui-accent, #365747); outline-offset: 2px; }

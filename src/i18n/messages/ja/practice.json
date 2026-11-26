@@ -292,6 +292,7 @@
     "voice": "対象の声部",
     "voiceDetail": "{name} · 譜表 {staff} · 声部 {voice}",
     "part": "パート {number}",
+    "measureRange": "小節の範囲",
     "first": "開始小節",
     "last": "終了小節",
     "sourceError": "練習楽譜を読み込めませんでした。接続を確認するか、別のファイルをお試しください。",

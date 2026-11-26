@@ -292,6 +292,7 @@
     "voice": "Voz objetivo",
     "voiceDetail": "{name} · Pentagrama {staff} · Voz {voice}",
     "part": "Parte {number}",
+    "measureRange": "Rango de compases",
     "first": "Compás inicial",
     "last": "Compás final",
     "sourceError": "No se pudo leer la partitura de práctica. Revisa la conexión o prueba con otro archivo.",

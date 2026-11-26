@@ -1,0 +1,28 @@
+.challenge-range-editor { min-inline-size: 0; margin-block-start: .75rem; }
+.challenge-range-editor > h2 { font-size: 1rem; }
+.challenge-range-summary { margin-block: .3rem 0; font-size: .875rem; color: var(--muted); }
+.challenge-range-editor .practice-range-track { margin-inline: 1.25rem; }
+.challenge-range-editor .practice-range-thumb { inline-size: 36px; }
+.challenge-range-editor .practice-range-thumb[data-focus-visible] span { outline-color: var(--ink); }
+.challenge-range-editor .challenge-range { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.challenge-range-notation {
+  overflow: auto;
+  overscroll-behavior: contain;
+  max-block-size: clamp(8rem, 38svh, 20rem);
+  border: 1px solid var(--line);
+  border-radius: .65rem;
+  background: var(--surface);
+}
+.challenge-range-sheet { position: relative; }
+[data-ui-theme="dark"] .challenge-range-sheet svg { filter: invert(.9) hue-rotate(180deg); }
+.challenge-range-highlight {
+  position: absolute;
+  pointer-events: none;
+  border-block: 1px solid var(--line);
+  background: color-mix(in srgb, #318469 13%, transparent);
+}
+.challenge-range-highlight[data-active] {
+  border: 2px solid #318469;
+  border-radius: .25rem;
+  z-index: 1;
+}

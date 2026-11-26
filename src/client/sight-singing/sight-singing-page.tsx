@@ -28,6 +28,7 @@ import { ConfirmDialog } from '../settings/confirm-dialog';
 import { ChallengeRun, type ResultSave, type VoiceOption } from './challenge-run';
 import { useSightSingingScoreFormat } from './format-score';
 import { buildMelody } from './melody';
+import { QuestionRangeEditor } from './question-range-editor';
 import { readQuestions, type SightSingingQuestion } from './questions';
 import { ScoreBadges } from './score-badge';
 import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult,
@@ -681,16 +682,9 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
             </select>
           </>}
         </>}
-        {loaded.document && <>
-          <div className="challenge-range">
-            <div><label htmlFor={`${id}-first`}>{t('sight.first')}</label><select id={`${id}-first`} name="first" value={first} disabled={saving} onChange={event => { const next = Number(event.target.value); setFirst(next); if (next > last) setLastChoice(next); }}>
-              {loaded.document.visits.map((_, index) => <option key={index} value={index}>{visitLabel(index)}</option>)}
-            </select></div>
-            <div><label htmlFor={`${id}-last`}>{t('sight.last')}</label><select id={`${id}-last`} name="last" value={last} disabled={saving} onChange={event => setLastChoice(Number(event.target.value))}>
-              {loaded.document.visits.map((_, index) => index >= first && <option key={index} value={index}>{visitLabel(index)}</option>)}
-            </select></div>
-          </div>
-        </>}
+        {loaded.document && loaded.document.visits.length > 0 && <QuestionRangeEditor document={loaded.document}
+          first={first} last={last} disabled={saving} formatMeasure={visitLabel}
+          onRangeChange={(start, end) => { setFirst(start); setLastChoice(end); }} />}
         {!saved && canPublishOfficial && <fieldset className="challenge-publish-role" disabled={saving}>
           <legend>{t('sight.publishIdentity')}</legend>
           <label><input type="radio" name="publication" value="member" checked={publication === 'member'}

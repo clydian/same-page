@@ -292,6 +292,7 @@
     "voice": "Target voice",
     "voiceDetail": "{name} · Staff {staff} · Voice {voice}",
     "part": "Part {number}",
+    "measureRange": "Measure range",
     "first": "First measure",
     "last": "Last measure",
     "sourceError": "Couldn’t read the practice score. Check your connection or try another file.",

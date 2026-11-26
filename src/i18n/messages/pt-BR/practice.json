@@ -292,6 +292,7 @@
     "voice": "Voz-alvo",
     "voiceDetail": "{name} · Pauta {staff} · Voz {voice}",
     "part": "Parte {number}",
+    "measureRange": "Intervalo de compassos",
     "first": "Primeiro compasso",
     "last": "Último compasso",
     "sourceError": "Não foi possível ler a partitura. Verifique a conexão ou tente outro arquivo.",

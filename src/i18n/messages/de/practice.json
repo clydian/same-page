@@ -292,6 +292,7 @@
     "voice": "Zielstimme",
     "voiceDetail": "{name} · System {staff} · Stimme {voice}",
     "part": "Stimme {number}",
+    "measureRange": "Taktbereich",
     "first": "Erster Takt",
     "last": "Letzter Takt",
     "sourceError": "Die Übepartitur konnte nicht geladen werden. Prüfe die Verbindung oder wähle eine andere Datei.",

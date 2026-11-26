@@ -292,6 +292,7 @@
     "voice": "Voix cible",
     "voiceDetail": "{name} · Portée {staff} · Voix {voice}",
     "part": "Partie {number}",
+    "measureRange": "Plage de mesures",
     "first": "Première mesure",
     "last": "Dernière mesure",
     "sourceError": "Impossible de lire la partition. Vérifiez la connexion ou essayez un autre fichier.",

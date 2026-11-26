@@ -292,6 +292,7 @@
     "voice": "目標聲部",
     "voiceDetail": "{name} · 第 {staff} 行譜 · 聲部 {voice}",
     "part": "聲部 {number}",
+    "measureRange": "小節範圍",
     "first": "起始小節",
     "last": "結束小節",
     "sourceError": "無法讀取練習譜，請檢查網路或選擇其他附件。",

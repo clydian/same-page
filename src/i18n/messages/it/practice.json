@@ -292,6 +292,7 @@
     "voice": "Voce di riferimento",
     "voiceDetail": "{name} · Rigo {staff} · Voce {voice}",
     "part": "Parte {number}",
+    "measureRange": "Intervallo di battute",
     "first": "Prima battuta",
     "last": "Ultima battuta",
     "sourceError": "Impossibile leggere la partitura. Controlla la connessione o prova un altro file.",
