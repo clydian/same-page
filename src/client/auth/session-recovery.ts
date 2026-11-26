@@ -35,13 +35,17 @@ export function useSessionRecovery(onlineState: OnlineIdentityState, isRefetchin
       if (onlineState === "authenticated" && navigator.onLine && document.visibilityState === "visible") void recoverSession().catch(() => undefined);
       else schedule();
     };
+    const reconnect = () => {
+      if (transient) attempts.current = 0;
+      resume();
+    };
     schedule();
-    window.addEventListener("online", resume);
+    window.addEventListener("online", reconnect);
     window.addEventListener("offline", schedule);
     document.addEventListener("visibilitychange", resume);
     return () => {
       clearTimeout(timer);
-      window.removeEventListener("online", resume);
+      window.removeEventListener("online", reconnect);
       window.removeEventListener("offline", schedule);
       document.removeEventListener("visibilitychange", resume);
     };

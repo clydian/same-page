@@ -3,16 +3,15 @@ import type { AppLocale } from '../../i18n';
 import { SIGHT_SINGING_SCORE_MAX_BYTES } from '../../shared/sight-singing';
 import { diagnosticFetch } from '../diagnostics/diagnostics';
 import { readAttachment } from '../score-library/attachments/api';
-import { isSettingsReadDenied } from '../settings/settings-request';
-import { onDriveChange, onNavigationSuspend } from '../settings/navigation-events';
+import { isSettingsReadDenied, SettingsRequestError } from '../settings/settings-request';
+import { onDriveChange } from '../settings/navigation-events';
 import { acquirePlaybackPreparation } from '../playback/playback-preparation';
 import { MUSICXML_READ_TIMEOUT_MS, resolveMusicXmlSource } from '../playback/musicxml-source';
 import type { PlaybackSource } from '../playback/playback-store';
 import { validateMusicXmlFile } from '../playback/validate-musicxml';
 import { loadMelodyScore, type MelodyScore } from './melody';
 import { readQuestionSnapshot } from './questions';
-
-export const publishedPath = (drive: string) => `/api/choirs/${encodeURIComponent(drive)}/sight-singing/questions`;
+import { isSightSingingMemberDenied, publishedPath } from './read';
 
 type QuestionSnapshot = { choirId: string; questionId: string; version: number; name: string };
 export type MelodySource =
@@ -30,33 +29,37 @@ function sourceKey(source: MelodySource | null) {
     return JSON.stringify([source.kind, ownerKey, sessionId, choirId, score.id, attachment.id, attachment.revision]);
   }
   if (source.kind === 'upload') return JSON.stringify([source.kind, source.key]);
-  return JSON.stringify([source.kind, source.choirId, source.questionId, source.version]);
+  return JSON.stringify([source.kind, source.kind === 'local' ? source.owner : null, source.choirId, source.questionId, source.version]);
 }
 
-export function useMelodySource(source: MelodySource | null) {
+export function useMelodySource(source: MelodySource | null, canReadCloud: boolean, onMemberDenied: () => void) {
   const key = sourceKey(source);
   const currentSource = useEffectEvent(() => source);
   const [loaded, setLoaded] = useState<Loaded>();
   const [attempt, setAttempt] = useState(0);
+  const current = loaded?.key === key && loaded.attempt === attempt && 'document' in loaded ? loaded : null;
+  const waitingForConnection = !current && !canReadCloud && (source?.kind === 'cloud' || source?.kind === 'library');
+  const cloudAvailable = useEffectEvent(() => canReadCloud);
+  const memberDenied = useEffectEvent(onMemberDenied);
   const retry = useCallback(() => setAttempt(value => value + 1), []);
   useEffect(() => {
     const source = currentSource();
-    if (!source) return;
+    if (!source || waitingForConnection) return;
     const lifetime = new AbortController();
-    const signal = AbortSignal.any([lifetime.signal, AbortSignal.timeout(MUSICXML_READ_TIMEOUT_MS)]);
+    const signal = AbortSignal.any([lifetime.signal, AbortSignal.timeout(source.kind === 'cloud' ? 30_000 : MUSICXML_READ_TIMEOUT_MS)]);
     const playback = source.kind === 'library' ? source.playback : null;
     const choirId = source.kind === 'library' ? source.playback.choirId : source.choirId;
     const lease = playback ? acquirePlaybackPreparation(playback) : null;
     const revoke = () => { lifetime.abort(); setLoaded({ key, attempt, error: true }); };
-    const unobserve = onDriveChange(change => { if (change.driveId === choirId && change.dropAuthority) revoke(); });
-    const unsuspend = onNavigationSuspend(revoke);
+    const unobserve = onDriveChange(change => { if (playback && change.driveId === choirId && change.dropAuthority) revoke(); });
     const verify = () => {
-      if (!playback || document.visibilityState !== 'visible' || lifetime.signal.aborted) return;
+      if (!playback || !cloudAvailable() || document.visibilityState !== 'visible' || lifetime.signal.aborted) return;
       void readAttachment(playback.choirId, playback.score.id, playback.attachment.id, lifetime.signal).then(fresh => {
         if (!lifetime.signal.aborted && (fresh.revision !== playback.attachment.revision || fresh.trashExpiresAt)) revoke();
       }).catch(reason => { if (!lifetime.signal.aborted && isSettingsReadDenied(reason)) revoke(); });
     };
     window.addEventListener('focus', verify);
+    window.addEventListener('online', verify);
     const open = async (): Promise<{ bytes: Uint8Array<ArrayBuffer>; name: string }> => {
       if (source.kind === 'library' && lease) {
         const { bytes } = await resolveMusicXmlSource(source.playback, signal, lease);
@@ -75,7 +78,8 @@ export function useMelodySource(source: MelodySource | null) {
         const response = await diagnosticFetch(`${publishedPath(choirId)}/${encodeURIComponent(source.questionId)}/score?version=${source.version}`, {
           signal,
         });
-        if (response.ok) return { bytes: new Uint8Array(await response.arrayBuffer()), name: source.name };
+        if (!response.ok) throw new SettingsRequestError(response.status);
+        return { bytes: new Uint8Array(await response.arrayBuffer()), name: source.name };
       }
       throw new Error('question_source_unavailable');
     };
@@ -83,15 +87,19 @@ export function useMelodySource(source: MelodySource | null) {
       signal.throwIfAborted();
       if (bytes.byteLength > SIGHT_SINGING_SCORE_MAX_BYTES) throw new Error('question_source_too_large');
       setLoaded({ key, attempt, document: loadMelodyScore(bytes), bytes, name });
-    }).catch(() => { if (!lifetime.signal.aborted) setLoaded({ key, attempt, error: true }); });
+    }).catch(error => {
+      if (lifetime.signal.aborted) return;
+      if (source.kind === 'cloud' && isSightSingingMemberDenied(error)) memberDenied();
+      setLoaded({ key, attempt, error: true });
+    });
     return () => {
-      lifetime.abort(); lease?.release(); unobserve(); unsuspend();
+      lifetime.abort(); lease?.release(); unobserve();
       window.removeEventListener('focus', verify);
+      window.removeEventListener('online', verify);
     };
-  }, [key, attempt]);
-  const current = loaded?.key === key && loaded.attempt === attempt && 'document' in loaded ? loaded : null;
+  }, [key, attempt, waitingForConnection]);
   return {
     document: current?.document ?? null, bytes: current?.bytes ?? null, name: current?.name ?? null,
-    failed: loaded?.key === key && loaded.attempt === attempt && 'error' in loaded, retry,
+    failed: waitingForConnection || loaded?.key === key && loaded.attempt === attempt && 'error' in loaded, retry,
   };
 }

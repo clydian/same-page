@@ -247,7 +247,7 @@
   "sight": {
     "title": "Sight-singing challenge",
     "loading": "Loading…",
-    "needMember": "Connect to the internet and open the challenge as a member of this drive.",
+    "needMember": "Only members of this drive can open the sight-singing challenge.",
     "publishedQuestions": "Drive questions",
     "retryLoad": "Reload",
     "publishedError": "Couldn’t load drive questions.",

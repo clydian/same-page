@@ -17,7 +17,7 @@ export function useApplicationIdentity() {
   const session = blocked && !fence!.pending ? { ...remoteSession, data: null } : remoteSession;
   const rememberedOwner = useLiveQuery(() => currentLocalOwnerKey().catch(() => null));
   const onlineState: OnlineIdentityState = session.isPending ? "checking"
-    : session.error ? (session.error instanceof LocalSessionUnavailableError ? "local-unavailable" : session.error.status === 401 ? "signed-out" : "unreachable") : session.data?.user ? "authenticated" : "signed-out";
+    : session.error ? (session.error instanceof LocalSessionUnavailableError ? "local-unavailable" : [401, 403].includes(session.error.status ?? 0) ? "signed-out" : "unreachable") : session.data?.user ? "authenticated" : "signed-out";
   const confirmedUserId = !blocked && onlineState === "authenticated" ? session.data!.user.id : null;
   const sessionId = session.data?.session?.id;
   const previousIdentity = useRef({ userId: confirmedUserId, sessionId });
@@ -46,4 +46,12 @@ export function useSettingsIdentity() {
   const identity = useApplicationIdentity();
   return { userId: identity.localUserId,
     ready: !identity.restoring && (identity.onlineState === "authenticated" || identity.onlineState === "signed-out") };
+}
+
+// The presentation session only scopes an already-mounted view. Only the
+// authenticated session can authorize reads or writes.
+export function presentationSessionId(identity: ApplicationIdentity, previous: string | null) {
+  if (identity.onlineState === "signed-out") return null;
+  if (identity.onlineState === "authenticated") return identity.authenticatedSessionId;
+  return identity.session.data?.session?.id ?? previous;
 }
