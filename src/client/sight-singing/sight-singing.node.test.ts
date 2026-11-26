@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { midi } from '@coderline/alphatab';
+import { midi, model } from '@coderline/alphatab';
 import { TONE_PROFILES } from '@same-page/player/timbre-profile';
 import { zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
@@ -8,6 +8,7 @@ import { renderPracticeClicks } from '../playback/practice-metronome';
 import { exportPracticeAudio } from '../playback/practice-soundfont';
 import { createChoirBacking } from './choir-backing';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
+import { notationScore } from './notation-score';
 import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
 import { createPitchTrace, octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { keyPitchClasses, staffPitchY } from './staff-pitch';
@@ -59,6 +60,32 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
   for (const [midi, target, status] of [[65.12, 65, 'inTune'], [65.36, 65, 'sharp'], [68.62, 69, 'flat'], [67.6, 69, 'wrongNote']] as const) {
     expect(assessNotes(alto.notes, [{ time: .25, midi }])[0]).toMatchObject({ target, status });
   }
+});
+
+it('focuses a voice on a shared staff without changing the challenge timeline', () => {
+  const secondVoice = `<backup><duration>2</duration></backup>` + ['E', 'F'].map(step =>
+    `<note>${pitch(step)}<duration>1</duration><voice>2</voice><type>quarter</type>` +
+    `<lyric><text>${step === 'E' ? 'Sing' : 'on'}</text></lyric></note>`).join('');
+  const document = loadMelodyScore(bytes(xml.replace(`${note('C', 'stop')}</measure>`, `${note('C', 'stop')}${secondVoice}</measure>`)));
+  const part = document.voices.find(voice => voice.track === 0 && voice.voice === 1)!;
+  const source = document.score.tracks[0].staves[0].bars[1];
+  const full = notationScore(document.score, part, true, 1, 2);
+  const context = full.score.tracks[0].staves[0].bars[1].voices[0].beats[0];
+  expect(context.style?.colors.get(model.BeatSubElement.StandardNotationBeams)?.a).toBe(133);
+  expect(context.style?.colors.get(model.BeatSubElement.StandardNotationFlags)?.a).toBe(133);
+  expect(full.score.tracks[0].staves[0].bars[1].voices[1].beats[0].style).toBeUndefined();
+
+  const before = buildMelody(document, part, 1, 2);
+  const focused = notationScore(document.score, part, false, 1, 2);
+  expect(focused.tracks).toEqual([0]);
+  const staff = focused.score.tracks[0].staves[0];
+  expect(staff.bars.every(bar => bar.voices.length === 1)).toBe(true);
+  expect(staff.bars[1].voices[0].beats.map(beat => [beat.index, beat.notes[0].realValue, beat.lyrics?.[0]])).toEqual([
+    [0, 64, 'Sing'], [1, 65, 'on'],
+  ]);
+  expect(source.voices).toHaveLength(2);
+  expect(source.voices[0].beats[0].style).toBeUndefined();
+  expect(buildMelody(document, part, 1, 2)).toEqual(before);
 });
 
 it('renders the XML choir preset and sustains overlapping unisons on the score clock', () => {

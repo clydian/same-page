@@ -1,19 +1,20 @@
 type Session = { type: string };
 type AudioNavigator = { userAgent: string; platform: string; maxTouchPoints: number; audioSession?: Session };
+type PracticeAudioType = 'playback' | 'play-and-record';
 
 /** Declare intentional media playback without changing system volume or autoplay policy. */
 export function playbackAudioSession(nav: AudioNavigator | undefined = typeof navigator === 'undefined' ? undefined : navigator) {
   const ios = Boolean(nav && (/iPad|iPhone|iPod/.test(nav.userAgent) || nav.platform === 'MacIntel' && nav.maxTouchPoints > 1));
-  let owned: { session: Session; previous: string } | undefined;
+  let owned: { session: Session; previous: string; type: PracticeAudioType } | undefined;
   return {
-    request(): string | undefined {
+    request(type: PracticeAudioType = 'playback'): string | undefined {
       try {
         const session = nav?.audioSession;
         if (session) {
           const previous = session.type;
-          session.type = 'playback';
-          if (session.type === 'playback') {
-            owned ??= { session, previous };
+          session.type = type;
+          if (session.type === type) {
+            owned = { session, type, previous: owned?.session === session ? owned.previous : previous };
             return;
           }
         }
@@ -25,7 +26,7 @@ export function playbackAudioSession(nav: AudioNavigator | undefined = typeof na
       owned = undefined;
       try {
         // A later owner may have changed the category; preserve its choice.
-        if (lease?.session.type === 'playback') lease.session.type = lease.previous;
+        if (lease && lease.session.type === lease.type) lease.session.type = lease.previous;
       } catch { /* Teardown must still stop the synthesizer. */ }
     },
   };

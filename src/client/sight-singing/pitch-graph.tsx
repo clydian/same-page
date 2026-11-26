@@ -1,29 +1,30 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef } from 'react';
 import { useMessages } from '../../i18n';
-import { targetPitches, type Melody } from './melody';
+import { targetPitches, type Melody, type MelodyMeasure, type MelodyScore } from './melody';
 import { pitchName, type PitchFrame } from './pitch-feedback';
 import { firstFrameAt, octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { keyPitchClasses, pitchClass } from './staff-pitch';
 
-const windowSeconds = 12;
 const inlineInset = 8;
 const blockInset = 12;
 const semitoneHeight = 16;
 
-function timeLabel(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${minutes}:${String(Math.floor(remainder)).padStart(2, '0')}${remainder % 1 ? String(remainder % 1).slice(1) : ''}`;
-}
-
-export function PitchGraph({ melody, frames, elapsed, following, reviewing, activeTarget }: {
-  melody: Melody; frames: PitchFrame[]; elapsed: number; following: boolean; reviewing: boolean; activeTarget?: string;
+export function PitchGraph({ melody, visits, measure, frames, elapsed, following, reviewing, activeTarget, attemptReset, measureSpan, onMeasureSpanChange }: {
+  melody: Melody; visits: MelodyScore['visits']; measure: MelodyMeasure; frames: PitchFrame[]; elapsed: number;
+  following: boolean; reviewing: boolean; activeTarget?: string; attemptReset: number;
+  measureSpan: number; onMeasureSpanChange(count: number): void;
 }) {
   const t = useMessages('practice');
   const canvas = useRef<HTMLCanvasElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
-  const centered = useRef(false);
+  const centeredAttempt = useRef<number | null>(null);
+  const maxSpan = Math.min(8, melody.measures.length);
+  const count = Math.min(measureSpan, maxSpan);
+  const currentMeasure = measure.visit - melody.measures[0].visit;
+  const first = Math.min(Math.floor(currentMeasure / count) * count, melody.measures.length - count);
+  const measures = melody.measures.slice(first, first + count);
+  const start = measures[0].start, end = measures[count - 1].end;
   const { low, high, midiRows } = useMemo(() => {
     const pitches = melody.notes.flatMap(targetPitches);
     // Cover the pitch reader's 55–1500 Hz range and the whole written part.
@@ -31,9 +32,6 @@ export function PitchGraph({ melody, frames, elapsed, following, reviewing, acti
     return { low, high, midiRows: Array.from({ length: high - low + 1 }, (_, index) => high - index) };
   }, [melody]);
   const noteY = (midi: number) => blockInset + (high - midi) * semitoneHeight;
-  const start = Math.min(Math.max(0, Math.floor(elapsed / 6) * 6 - 3), Math.max(0, melody.duration - windowSeconds));
-  const end = Math.min(melody.duration, start + windowSeconds);
-  const span = end - start;
   const keys = useMemo(() => melody.keyChanges.map((key, index) => ({
     start: key.start, end: melody.keyChanges[index + 1]?.start ?? melody.duration,
     scale: keyPitchClasses(key.signature),
@@ -58,18 +56,16 @@ export function PitchGraph({ melody, frames, elapsed, following, reviewing, acti
   if (focusPitch === null && reviewing) focusPitch = trace.find(frame => frame.midi !== null)?.midi ?? null;
   const anchor = focusPitch ?? notes[0]?.midi ?? melody.notes[0]?.midi;
   const anchorY = anchor === undefined ? undefined : noteY(anchor);
-  const step = span >= 9 ? 3 : span >= 5 ? 2 : span >= 2 ? 1 : span >= 1 ? .5 : .25;
-  const ticks: number[] = [];
-  for (let time = Math.ceil(start / step) * step; time <= end; time += step) ticks.push(time);
   useLayoutEffect(() => {
     const view = viewport.current;
-    if (!view?.clientHeight || (!following && centered.current) || anchorY === undefined) return;
+    const centered = centeredAttempt.current === attemptReset;
+    if (!view?.clientHeight || (!following && centered) || anchorY === undefined) return;
     const padding = view.clientHeight * .24;
     const offset = anchorY - view.scrollTop;
-    if (centered.current && offset >= padding && offset <= view.clientHeight - padding) return;
+    if (centered && offset >= padding && offset <= view.clientHeight - padding) return;
     view.scrollTop = anchorY - view.clientHeight / 2;
-    centered.current = true;
-  }, [anchorY, following]);
+    centeredAttempt.current = attemptReset;
+  }, [anchorY, following, attemptReset]);
 
   const paint = useEffectEvent(() => {
     const element = canvas.current;
@@ -86,7 +82,16 @@ export function PitchGraph({ melody, frames, elapsed, following, reviewing, acti
     draw.clearRect(0, 0, width, height);
     const styles = getComputedStyle(element);
     const tone = (name: string) => styles.getPropertyValue(`--pitch-${name}`).trim();
-    const x = (time: number) => inlineInset + (time - start) / span * (width - 2 * inlineInset);
+    const plotWidth = width - 2 * inlineInset;
+    // Give each printed measure room even when a pickup or tempo change makes
+    // its duration shorter. Notes and sung samples use the same playback times.
+    const x = (time: number) => {
+      const index = measures.findIndex(bar => time < bar.end);
+      if (index < 0) return inlineInset + plotWidth;
+      const bar = measures[index];
+      const fraction = Math.max(0, (time - bar.start) / (bar.end - bar.start));
+      return inlineInset + (index + fraction) / count * plotWidth;
+    };
     const y = (midi: number) => noteY(midi) - view.scrollTop;
     for (const midi of midiRows) {
       if (y(midi) < -semitoneHeight || y(midi) > height + semitoneHeight) continue;
@@ -102,7 +107,7 @@ export function PitchGraph({ melody, frames, elapsed, following, reviewing, acti
       }
     }
     draw.fillStyle = tone('grid');
-    for (const time of ticks) draw.fillRect(Math.round(x(time)), 0, 1, height);
+    for (let index = 0; index <= count; index++) draw.fillRect(Math.round(inlineInset + index / count * plotWidth), 0, 1, height);
     const drawTargets = (kind: 'written' | 'guides') => {
       draw.beginPath();
       for (const note of notes) for (const midi of note[kind]) {
@@ -170,6 +175,12 @@ export function PitchGraph({ melody, frames, elapsed, following, reviewing, acti
         <span data-kind="octave">{t('sight.octaveTargetLegend')}</span>
         <span data-kind="voice">{activePitch === null ? t('sight.voiceLegend') : t('sight.currentPitch', { pitch: pitchName(Math.round(activePitch)) })}</span>
       </div>
+      <div className="practice-notation-size challenge-pitch-zoom" role="group" aria-label={t('sight.pitchMonitor')}>
+        <button type="button" className="practice-icon" aria-label={t('sight.pitchMoreMeasures')}
+          disabled={count >= maxSpan} onClick={() => onMeasureSpanChange(count + 1)}>−</button>
+        <button type="button" className="practice-icon" aria-label={t('sight.pitchFewerMeasures')}
+          disabled={count <= 1} onClick={() => onMeasureSpanChange(count - 1)}>+</button>
+      </div>
     </figcaption>
     <div className="challenge-graph-body" dir="ltr" ref={body}>
       <div className="challenge-pitch-scroll" data-following={following} ref={viewport} role="region" aria-label={t('sight.pitchRange')} tabIndex={0}>
@@ -181,9 +192,15 @@ export function PitchGraph({ melody, frames, elapsed, following, reviewing, acti
           <div className="challenge-plot"><canvas ref={canvas} /></div>
         </div>
       </div>
-      <div className="challenge-time-axis" aria-hidden="true">
-        {ticks.map(time => <span key={time} style={{ left: `${(time - start) / span * 100}%` }}>{timeLabel(time)}</span>)}
-      </div>
+      <ol className="challenge-measure-axis" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
+        {measures.map(bar => {
+          const { number, visit } = visits[bar.visit];
+          const label = visit === undefined ? t('printedMeasure', { measure: number }) : t('repeatedMeasure', { measure: number, visit });
+          return <li key={bar.visit} aria-current={bar.visit === measure.visit ? 'step' : undefined} aria-label={label} title={label}>
+            {number}{visit !== undefined && <sup aria-hidden="true">{visit}</sup>}
+          </li>;
+        })}
+      </ol>
     </div>
   </figure>;
 }

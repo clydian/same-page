@@ -629,7 +629,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const badUpload = invalidUpload || (source?.kind === 'upload' && loaded.failed);
   const backingUnavailable = options.some(({ melody }) => typeof melody === 'string' && melody !== 'noMelody');
   const versionSuffix = version > 1 ? ` · ${versionTag(version)}` : '';
-  return <div className="app-page challenge-workspace">
+  return <div className="app-page challenge-workspace" data-practice={!editing && playable || undefined}>
     <TaskHeader title={<span ref={heading} tabIndex={-1} id={`${id}-heading`}>{editing ? t(saved ? 'sight.edit' : 'sight.create') : saved?.title}</span>}
       subtitle={editing || !saved ? undefined : `${loaded.document ? `${range} · ` : ''}${publisherLabel(saved.publisher, t)}${versionSuffix}`}
       backTo={`/choirs/${choirId}`} onBack={onBack} backLabel={t('sight.backToQuestions')}

@@ -1,8 +1,10 @@
 import { AlphaTabApi, LayoutMode, model, NotationElement, PlayerMode, StaveProfile, type rendering } from '@coderline/alphatab';
-import { ScoreFollowScroll } from '@same-page/player/score-follow';
-import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { isPointerDrag, ScoreFollowSession, type PointerPosition } from '@same-page/player/score-follow';
+import { memo, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useMessages } from '../../i18n';
-import type { Melody, MelodyScore, MelodyVoice } from './melody';
+import { NotationZoom } from '../playback/notation-zoom';
+import type { Melody, MelodyMeasure, MelodyScore, MelodyVoice } from './melody';
+import { notationScore, samePart, type Part } from './notation-score';
 import { formatCents, pitchName, type assessNotes, type PitchFrame } from './pitch-feedback';
 import { ScorePitchTrace } from './score-pitch-trace';
 import './challenge-notation.css';
@@ -13,46 +15,41 @@ export type NotationFeedback = {
   status: ReturnType<typeof assessNotes>[number]['status']; cents: number | null;
 };
 type Bounds = { x: number; y: number; w: number; h: number };
+type ScrollDirection = 'vertical' | 'horizontal';
 type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; system: Bounds; label: string; singleStem: boolean };
-type Part = Pick<NotationNoteHit, 'track' | 'staff' | 'voice'>;
 type Geometry = {
-  score: MelodyScore['score']; min: number; max: number; lookup: rendering.BoundsLookup;
-  notes: NoteTarget[]; notesByBeat: Map<string, NoteTarget[]>; parts: Map<string, Part>;
+  score: MelodyScore['score']; direction: ScrollDirection; scale: number; lookup: rendering.BoundsLookup; notes: NoteTarget[];
 };
 
-const samePart = (a: Part, b: Part) => a.track === b.track && a.staff === b.staff && a.voice === b.voice;
+const defaultScale = .9;
 const centerX = (bounds: Bounds) => bounds.x + bounds.w / 2;
 const centerY = (bounds: Bounds) => bounds.y + bounds.h / 2;
 
-function buildGeometry(api: AlphaTabApi, score: Geometry['score'], min: number, max: number): Geometry | null {
+function buildGeometry(api: AlphaTabApi, score: Geometry['score'], direction: ScrollDirection, scale: number): Geometry | null {
   const lookup = api.boundsLookup;
   if (!lookup) return null;
-  const notes: NoteTarget[] = [], notesByBeat = new Map<string, NoteTarget[]>(), parts = new Map<string, Part>();
-  for (const system of lookup.staffSystems) for (const master of system.bars) for (const bar of master.bars) {
+  const notes: NoteTarget[] = [];
+  // Horizontal rendering reports the same system for each lazy SVG partial.
+  const systems = direction === 'horizontal' ? lookup.staffSystems.slice(0, 1) : lookup.staffSystems;
+  for (const system of systems) for (const master of system.bars) for (const bar of master.bars) {
     for (const { beat, notes: heads } of bar.beats) {
       // Worker-deserialized BarBounds does not carry a bar model reference.
       const { staff } = beat.voice.bar;
       const part = { track: staff.track.index, staff: staff.index, voice: beat.voice.index };
       const singleStem = heads?.length === 1 && beat.voice.bar.voices.every(candidate =>
         candidate === beat.voice || candidate.beats.every(other => other.isRest));
-      const beatClass = `b${beat.id}`, beatNotes: NoteTarget[] = [];
-      parts.set(beatClass, part);
       for (const { note, noteHeadBounds: bounds } of heads ?? []) {
         if (note.isCue || note.isPercussion || note.isDead || !note.isVisible || bounds.w <= 0 || bounds.h <= 0) continue;
-        beatNotes.push({ ...part, key: `${system.index}:${note.id}`, beatClass, midi: note.realValue, bounds,
+        notes.push({ ...part, key: `${system.index}:${note.id}`, beatClass: `b${beat.id}`, midi: note.realValue, bounds,
           bar: master.index, beatIndex: beat.index, label: staff.track.name, singleStem, system: system.realBounds });
-      }
-      if (beatNotes.length) {
-        notes.push(...beatNotes);
-        notesByBeat.set(beatClass, beatNotes);
       }
     }
   }
-  return { score, min, max, lookup, notes, notesByBeat, parts };
+  return { score, direction, scale, lookup, notes };
 }
 
 const NotationButtons = memo(function NotationButtons({ notes, voice, results, onNote }: {
-  notes: readonly NoteTarget[]; voice: MelodyVoice; results: ReadonlyMap<string, NotationFeedback>;
+  notes: readonly NoteTarget[]; voice: Part; results: ReadonlyMap<string, NotationFeedback>;
   onNote(hit: NotationNoteHit): void;
 }) {
   const t = useMessages('practice');
@@ -157,7 +154,7 @@ function findStem(bounds: Bounds, stems: Stem[], sheet: DOMRect, scale: number) 
   return matches.length === 1 ? matches[0].element : undefined;
 }
 
-function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect, scale: number, stems: Stem[]) {
+function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect, scale: number, stems: Stem[], marked: Set<SVGElement>) {
   // SVG music symbols carry the same translated origin as AlphaTab's notehead
   // lookup. Match inside the beat so chord tones do not color their neighbors.
   for (const glyph of group.querySelectorAll<SVGGElement>('g.at')) {
@@ -172,32 +169,49 @@ function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect
       Math.min(Math.abs(bounds.x - x), Math.abs(centerX(bounds) - x)) < 1.5);
     if (!head) continue;
     text.dataset.challengeFeedback = head.status;
+    marked.add(text);
     if (!head.singleStem) continue;
     const stem = findStem(head.bounds, stems, sheet, scale);
-    if (stem) stem.dataset.challengeFeedback = head.status;
+    if (stem) {
+      stem.dataset.challengeFeedback = head.status;
+      marked.add(stem);
+    }
   }
 }
 
-export function ChallengeNotation({ score, voice, melody, currentBar, currentVisit, onNote, onMeasure, feedback, pitchFrames, liveTrace = false, traceThrough, bpm }: {
-  score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; currentBar?: number; currentVisit?: number;
+export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, attemptReset, onNote, onMeasure, feedback, pitchFrames, liveTrace = false, traceThrough, bpm }: {
+  score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; measure: MelodyMeasure; elapsed: number; positioned: boolean; followRun: number;
+  attemptReset: number;
   onNote?: (note: NotationNoteHit) => void; onMeasure?: (bar: number) => void; feedback?: readonly NotationFeedback[];
   pitchFrames?: PitchFrame[]; liveTrace?: boolean;
   traceThrough?: number; bpm: number;
 }) {
   const t = useMessages('practice');
   const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
-  const follow = useRef<ScoreFollowScroll | null>(null);
   const hadPosition = useRef(false);
+  const browseAnchor = useRef<number | null>(null);
+  const pointer = useRef<PointerPosition | null>(null);
+  const autoScroll = useRef<PointerPosition | null>(null);
+  const [scrollIntent] = useState(() => new ScoreFollowSession());
+  const [paused, setPaused] = useState<string>();
+  const [scope, setScope] = useState<'part' | 'full'>('part');
+  const [direction, setDirection] = useState<ScrollDirection>('vertical');
+  const [scale, setScale] = useState(defaultScale);
+  const horizontal = direction === 'horizontal';
+  const followKey = `${attemptReset}:${followRun}`;
+  const manual = paused === followKey;
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const played = useMemo(() => new Set(melody.measures.map(bar => bar.bar)), [melody.measures]);
   const min = Math.min(...played), max = Math.max(...played);
-  const rendered = geometry?.score === score && geometry.min === min && geometry.max === max ? geometry : null;
+  const display = useMemo(() => notationScore(score, voice, scope === 'full', min, max), [score, voice, scope, min, max]);
+  const rendered = geometry?.score === display.score && geometry.direction === direction && geometry.scale === scale ? geometry : null;
   const notes = useMemo(() => rendered?.notes.filter(note => played.has(note.bar)) ?? [], [played, rendered]);
+  const currentVisit = measure.visit;
   const { results, tinted, labels } = useMemo(() => {
     const visited = feedbackAtVisit(feedback, currentVisit);
     const results = new Map<string, NotationFeedback>(), tinted = new Map<string, AssessedHead[]>();
     for (const note of notes) {
-      if (!samePart(note, voice)) continue;
+      if (!samePart(note, display.part)) continue;
       const result = visited.get(`${note.bar}:${note.beatIndex}`);
       if (!result || result.midi != null && result.midi !== note.midi) continue;
       results.set(note.key, result);
@@ -207,96 +221,206 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
       tinted.set(note.beatClass, heads);
     }
     return { results, tinted, labels: placePitchLabels(notes, results) };
-  }, [feedback, currentVisit, notes, voice]);
+  }, [feedback, currentVisit, notes, display.part]);
+
+  const rememberAnchor = () => {
+    const host = viewport.current, element = notation.current;
+    if (!host || !element || !rendered || (positioned && !manual) || browseAnchor.current !== null ||
+      (!host.scrollTop && !host.scrollLeft)) return;
+    const frame = host.getBoundingClientRect(), sheet = element.getBoundingClientRect();
+    const x = frame.left + host.clientWidth * .32 - sheet.left;
+    const y = frame.top + Math.min(32, host.clientHeight * .25) - sheet.top;
+    const system = rendered.lookup.staffSystems.find(item => item.realBounds.y + item.realBounds.h > y);
+    const bar = system?.findBarAtPos(x) ?? system?.bars[0];
+    browseAnchor.current = bar?.index ?? null;
+  };
+  const rememberResizeAnchor = useEffectEvent(rememberAnchor);
 
   useEffect(() => {
-    const host = viewport.current, element = notation.current;
-    if (!host || !element) return;
-    const scroller = new ScoreFollowScroll(host);
-    follow.current = scroller;
+    const element = notation.current;
+    if (!element) return;
     const api = new AlphaTabApi(element, {
       core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
-      display: { scale: .92, startBar: min + 1, barCount: max - min + 1, justifyLastSystem: true,
-        layoutMode: LayoutMode.Page, staveProfile: StaveProfile.Score },
+      display: { scale, startBar: min + 1, barCount: max - min + 1, justifyLastSystem: true,
+        layoutMode: horizontal ? LayoutMode.Horizontal : LayoutMode.Page, stretchForce: horizontal ? 1.5 : 1,
+        staveProfile: StaveProfile.Score,
+        resources: { secondaryGlyphColor: '#000000' } },
       player: { playerMode: PlayerMode.Disabled, enableUserInteraction: false },
     });
     api.settings.notation.elements.set(NotationElement.ScoreTitle, false);
     api.settings.notation.elements.set(NotationElement.ScoreSubTitle, false);
     api.settings.notation.elements.set(NotationElement.EffectTempo, false);
     api.updateSettings();
-    const update = () => setGeometry(buildGeometry(api, score, min, max));
+    const update = () => setGeometry(buildGeometry(api, display.score, direction, scale));
+    // AlphaTab doesn't reflow the horizontal layout on resize.
+    const resize = () => { if (!horizontal) rememberResizeAnchor(); };
+    api.resize.on(resize);
     api.postRenderFinished.on(update);
-    api.renderScore(score, score.tracks.map(track => track.index));
-    return () => { scroller.cancel(); follow.current = null; api.postRenderFinished.off(update); api.destroy(); };
-  }, [score, min, max]);
+    api.renderScore(display.score, display.tracks);
+    return () => { api.resize.off(resize); api.postRenderFinished.off(update); api.destroy(); };
+  }, [display, min, max, direction, horizontal, scale]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = notation.current;
-    if (!rendered || !element) return;
+    if (!rendered || !element || !tinted.size) return;
+    // AlphaTab caches detached SVGs for offscreen systems. Clear marks on the
+    // nodes we painted, including those that are no longer in the viewport.
+    const marked = new Set<SVGElement>();
+    const clear = () => {
+      for (const glyph of marked) glyph.removeAttribute('data-challenge-feedback');
+      marked.clear();
+    };
+    const engravingRatio = rendered.scale / defaultScale;
     const shade = () => {
-      for (const glyph of element.querySelectorAll('[data-challenge-feedback]')) glyph.removeAttribute('data-challenge-feedback');
+      clear();
       const sheet = element.getBoundingClientRect();
       const scale = element.offsetWidth ? sheet.width / element.offsetWidth : 1;
       // AlphaTab emits the stems as tall, narrow rectangles alongside the beat
       // groups. Match only a unique endpoint so a shared chord stem stays neutral.
       const stems = new Map<SVGSVGElement, Stem[]>();
-      const stemParts = new Map<SVGRectElement, boolean>();
-      // alphaTab uses .b${beat.id} groups for the rendered beat, including lyrics.
       for (const group of element.querySelectorAll<SVGGElement>('g[class^="b"]')) {
-        const beat = group.getAttribute('class') ?? '';
-        const part = rendered.parts.get(beat);
-        if (!part) continue;
-        const focused = samePart(part, voice);
-        group.dataset.challengePart = focused ? 'focus' : 'context';
-        if (scale <= 0) continue;
+        const heads = tinted.get(group.getAttribute('class') ?? '');
+        if (!heads || scale <= 0) continue;
         const svg = group.ownerSVGElement;
         if (svg && !stems.has(svg)) {
           stems.set(svg, [...svg.querySelectorAll<SVGRectElement>('rect')]
-            .filter(rect => rect.width.baseVal.value > 0 && rect.width.baseVal.value < 1.2 && rect.height.baseVal.value >= 12)
+            .filter(rect => rect.width.baseVal.value > 0 && rect.width.baseVal.value < 1.2 * engravingRatio &&
+              rect.height.baseVal.value >= 12 * engravingRatio)
             .map(rect => ({ element: rect, bounds: rect.getBoundingClientRect() })));
         }
         const candidates = svg ? stems.get(svg) ?? [] : [];
-        for (const note of rendered.notesByBeat.get(beat) ?? []) {
-          const stem = findStem(note.bounds, candidates, sheet, scale);
-          if (stem) stemParts.set(stem, focused || stemParts.get(stem) === true);
-        }
-        const heads = tinted.get(beat);
-        if (heads) tintNoteheads(group, heads, sheet, scale, candidates);
+        tintNoteheads(group, heads, sheet, scale, candidates, marked);
       }
-      for (const [stem, focused] of stemParts) stem.dataset.challengePart = focused ? 'focus' : 'context';
     };
     // Worker system SVGs mount lazily when they enter the viewport.
     const observer = new MutationObserver(shade);
     observer.observe(element, { childList: true, subtree: true });
     shade();
-    return () => observer.disconnect();
-  }, [rendered, tinted, voice]);
+    return () => {
+      observer.disconnect();
+      clear();
+    };
+  }, [rendered, tinted]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    scrollIntent.restore();
+    browseAnchor.current = null;
+    pointer.current = null;
+    autoScroll.current = null;
+    viewport.current?.scrollTo(0, 0);
+  }, [attemptReset, scrollIntent]);
+
+  useLayoutEffect(() => {
+    const host = viewport.current, element = notation.current, index = browseAnchor.current;
+    if (!host || !element || !rendered || index === null) return;
+    browseAnchor.current = null;
+    const bar = rendered.lookup.findMasterBarByIndex(index);
+    if (!bar) return;
+    const bounds = bar.realBounds;
+    const frame = host.getBoundingClientRect(), sheet = element.getBoundingClientRect();
+    host.scrollTo(horizontal ? host.scrollLeft + sheet.left + bounds.x - frame.left : 0,
+      host.scrollTop + sheet.top + bounds.y - frame.top);
+  }, [rendered, horizontal]);
+
+  const { row, anchors } = useMemo(() => {
+    if (!positioned || !rendered) return {};
+    const master = rendered.lookup.findMasterBarByIndex(measure.bar);
+    const row = master?.bars.find(item => {
+      const staff = item.beats[0]?.beat.voice.bar.staff;
+      return staff?.track.index === display.part.track && staff.index === display.part.staff;
+    })?.realBounds;
+    if (!row || !horizontal) return { row };
+    const staff = display.score.tracks[display.part.track].staves[display.part.staff];
+    const beats = staff.bars[measure.bar].voices[display.part.voice]?.beats;
+    const anchors = melody.staffBeats.filter(beat => beat.visit === measure.visit).flatMap(beat => {
+      const modelBeat = beats?.[beat.beatIndex];
+      const bounds = modelBeat && rendered.lookup.findBeat(modelBeat);
+      return bounds ? [{ time: beat.start, x: bounds.onNotesX }] : [];
+    });
+    if (!anchors.length || anchors[0].time > measure.start) anchors.unshift({ time: measure.start, x: row.x });
+    anchors.push({ time: measure.end, x: row.x + row.w });
+    return { row, anchors };
+  }, [positioned, rendered, measure, display, horizontal, melody.staffBeats]);
+  const nextAnchor = anchors?.findIndex(anchor => anchor.time > elapsed) ?? -1;
+  const from = nextAnchor === -1 ? anchors?.at(-1) : anchors?.[Math.max(0, nextAnchor - 1)];
+  const to = anchors?.[nextAnchor];
+  const cursor = from && (to && to.time > from.time
+    ? from.x + (to.x - from.x) * Math.max(0, (elapsed - from.time) / (to.time - from.time)) : from.x);
+
+  const followScore = useEffectEvent(() => {
     const host = viewport.current, element = notation.current;
     if (!host || !element) return;
-    if (currentBar === undefined && hadPosition.current) {
-      follow.current?.move(0);
-      host.scrollLeft = 0;
-    }
-    hadPosition.current = currentBar !== undefined;
-    const master = currentBar === undefined ? null : rendered?.lookup.findMasterBarByIndex(currentBar);
-    const bounds = master?.bars.find(item => {
-      const staff = item.beats[0]?.beat.voice.bar.staff;
-      return staff?.track.index === voice.track && staff.index === voice.staff;
-    })?.realBounds;
-    if (!bounds) return;
-    const sheet = element.getBoundingClientRect(), view = host.getBoundingClientRect();
+    if (!positioned && hadPosition.current) host.scrollTo(0, 0);
+    hadPosition.current = positioned;
+    if (!row || manual || pointer.current || scrollIntent.shouldSuspendForScroll(performance.now(), false)) return;
+    const sheet = element.getBoundingClientRect(), frame = host.getBoundingClientRect();
     const scale = element.offsetWidth ? sheet.width / element.offsetWidth : 1;
-    const system = master?.staffSystemBounds?.realBounds;
-    const row = system && system.h * scale + 20 <= host.clientHeight ? system : bounds;
-    const top = sheet.top + row.y * scale, bottom = top + row.h * scale;
-    if (top < view.top || bottom > view.bottom) follow.current?.move(host.scrollTop + top - view.top - 10);
-    const left = sheet.left + bounds.x * scale;
-    if (left < view.left || left > view.right - 8) host.scrollLeft += left - view.left - 20;
-  }, [rendered, voice, currentBar]);
+    if (cursor !== undefined) {
+      const left = sheet.left + cursor * scale - frame.left - host.clientWidth * .32;
+      host.scrollLeft = Math.max(0, host.scrollLeft + left);
+    }
+    const system = rendered?.lookup.findMasterBarByIndex(measure.bar)?.staffSystemBounds?.realBounds;
+    const vertical = system && system.h * scale + 20 <= host.clientHeight ? system : row;
+    const top = sheet.top + vertical.y * scale, bottom = top + vertical.h * scale;
+    if (top < frame.top || bottom > frame.bottom) host.scrollTop += top - frame.top - 10;
+    autoScroll.current = { x: host.scrollLeft, y: host.scrollTop };
+  });
+  useLayoutEffect(() => {
+    followScore();
+  }, [cursor, followKey, manual, measure.bar, positioned, rendered, row]);
+  useEffect(() => {
+    const host = viewport.current;
+    if (!host) return;
+    const observer = new ResizeObserver(() => followScore());
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
 
-  return <div ref={viewport} className="challenge-notation challenge-ensemble-score" role="group" aria-label={t('sight.notation')}
+  const noteScrollIntent = () => scrollIntent.noteManualScrollIntent(performance.now());
+
+  return <div className="challenge-score-view" data-score-scope={scope} data-scroll-direction={direction}>
+    <div className="challenge-notation-tools">
+      <span className="challenge-notation-tempo" aria-label={t('adjustedTempo', { beat: '♩', bpm: String(bpm) })}>♩ = {bpm}</span>
+      <NotationZoom ready={Boolean(rendered)} scale={scale} defaultScale={defaultScale} pinchHint={false} onChange={value => {
+        if (value === scale) return;
+        rememberAnchor();
+        setScale(value);
+      }} />
+      <select aria-label={t('sight.scoreScope')} value={scope} onChange={event => {
+        rememberAnchor();
+        setScope(event.target.value === 'full' ? 'full' : 'part');
+      }}>
+        <option value="part">{t('sight.scorePart')}</option>
+        <option value="full">{t('sight.scoreFull')}</option>
+      </select>
+      <select aria-label={t('sight.scoreScroll')} value={direction} onChange={event => {
+        rememberAnchor();
+        setDirection(event.target.value === 'horizontal' ? 'horizontal' : 'vertical');
+      }}>
+        <option value="vertical">{t('sight.scrollVertical')}</option>
+        <option value="horizontal">{t('sight.scrollHorizontal')}</option>
+      </select>
+    </div>
+    <div ref={viewport} className="challenge-notation" role="group" aria-label={t('sight.notation')} tabIndex={0}
+    onWheel={noteScrollIntent}
+    onKeyDown={event => {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) noteScrollIntent();
+    }}
+    onPointerDown={event => { pointer.current = { x: event.clientX, y: event.clientY }; }}
+    onPointerMove={event => {
+      const start = pointer.current;
+      if (start && isPointerDrag(start, { x: event.clientX, y: event.clientY })) noteScrollIntent();
+    }}
+    onPointerCancel={() => { pointer.current = null; noteScrollIntent(); }}
+    onPointerUp={() => { pointer.current = null; }} onPointerLeave={() => { pointer.current = null; }}
+    onScroll={event => {
+      const host = event.currentTarget, automatic = autoScroll.current;
+      if (automatic?.x === host.scrollLeft && automatic.y === host.scrollTop) return;
+      if (positioned && scrollIntent.shouldSuspendForScroll(performance.now(), false)) {
+        scrollIntent.restore();
+        setPaused(followKey);
+      }
+    }}
     onClick={onMeasure ? event => {
       if (!rendered || !(event.target instanceof Element) || event.target.closest('button')) return;
       const element = notation.current;
@@ -312,16 +436,22 @@ export function ChallengeNotation({ score, voice, melody, currentBar, currentVis
         }
       }
     } : undefined}>
-    <span className="challenge-notation-tempo" aria-label={t('adjustedTempo', { beat: '♩', bpm: String(bpm) })}>♩ = {bpm}</span>
     <div className="challenge-notation-sheet">
       <div ref={notation} aria-hidden="true" />
-      {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={score} voice={voice}
+      {row && <div className={cursor === undefined ? 'challenge-current-measure' : 'challenge-score-cursor'} aria-hidden="true"
+        style={{ left: cursor ?? row.x, top: row.y, width: cursor === undefined ? row.w : 2, height: row.h }} />}
+      {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={display.score} voice={display.part}
         beats={melody.staffBeats} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} through={traceThrough} viewport={viewport} /> : null}
-      {onNote && <NotationButtons notes={notes} voice={voice} results={results} onNote={onNote} />}
+      {onNote && <NotationButtons notes={notes} voice={display.part} results={results} onNote={onNote} />}
       {labels.length > 0 && <div className="challenge-pitch-labels" aria-hidden="true">
         {labels.map(({ key, position, status, text }) => <span key={key} data-status={status}
           style={{ left: position.x, top: position.y, width: position.w, height: position.h }}>{text}</span>)}
       </div>}
     </div>
+    </div>
+    {manual && positioned && <button type="button" className="secondary-button challenge-resume-follow" onClick={() => {
+      scrollIntent.restore();
+      setPaused(undefined);
+    }}>{t('resumeFollowing')}</button>}
   </div>;
 }
