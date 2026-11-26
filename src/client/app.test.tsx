@@ -117,15 +117,15 @@ describe("AppRoutes", () => {
     expect(screen.queryByRole("heading", { name: "页面不存在" })).not.toBeInTheDocument();
   });
 
-  it("explains rehearsal notes and keeps invitation admission focused", async () => {
+  it("explains sharing and practicing from scores and keeps invitation admission focused", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <AppRoutes />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).toBeVisible();
-    expect(screen.getByText("上传 PDF 乐谱，团员可以查看声部笔记，也能写只给自己看的提醒。")).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "同一份谱，一起排练" })).toBeVisible();
+    expect(screen.getByText("合谱是给合唱团用的乐谱云盘。团里一起看谱、共享声部笔记。有练习谱的曲目，还能听自己的声部、放慢速度、反复练难唱的小节。")).toBeVisible();
     expect(screen.getByRole("link", { name: "创建免费云盘" })).toHaveAttribute("href", "/login?returnTo=%2Fdrives%3Fcreate%3D1");
     expect(screen.getByRole("link", { name: "登录" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "关于与更新" })).toHaveAttribute(
@@ -428,7 +428,7 @@ describe("AppRoutes", () => {
     const view = render(tree);
     await waitFor(() => expect(router.state.location.hash).toBe(""));
     expect(screen.getByRole("heading", { name: "加入云盘" })).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "同一份谱，一起排练" })).not.toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls.some(([url, init]) => url === "/api/guest/session" && init?.method === "POST")).toBe(false);
     vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false } as ReturnType<typeof authClient.useSession>);
     view.rerender(<StrictMode><RouterProvider router={router} /></StrictMode>);

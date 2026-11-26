@@ -121,7 +121,7 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     await withFooterNavigationEvidence(page, evidence, async record => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "合唱排练，在同一份谱上记笔记", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "同一份谱，一起排练", exact: true }).waitFor();
     assert.equal(new URL(page.url()).pathname, "/");
     const footer = page.getByRole("contentinfo");
     for (const name of ["使用手册", "关于与更新", "隐私政策"]) {

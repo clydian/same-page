@@ -62,7 +62,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       assert.equal(new URL(page.url()).pathname, "/choirs/visual-choir");
       await page.goto(`${app.origin}/about`);
       await page.getByRole("link", { name: /^产品介绍/ }).click();
-      await page.getByRole("heading", { name: "合唱排练，在同一份谱上记笔记", exact: true }).waitFor();
+      await page.getByRole("heading", { name: "同一份谱，一起排练", exact: true }).waitFor();
       assert.equal(new URL(page.url()).pathname, "/");
       await page.getByRole("link", { name: "我的云盘", exact: true }).click();
       await page.getByRole("button", { name: /^切换云盘/ }).waitFor();
@@ -92,7 +92,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(information.getByRole("link", { name: /^使用手册/ })).toHaveAttribute("href", "/help");
       await expect(information.getByRole("link", { name: /^问题反馈/ })).toHaveAttribute("href", "/diagnostics");
       await information.getByRole("link", { name: /^产品介绍/ }).click();
-      await expect(page.getByRole("heading", { name: "合唱排练，在同一份谱上记笔记", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "同一份谱，一起排练", exact: true })).toBeVisible();
       assert.equal(new URL(page.url()).pathname, "/", "Explicit product introduction must not restore the last drive");
     });
     await scenario("drawer-keyboard-focus", async page => {
