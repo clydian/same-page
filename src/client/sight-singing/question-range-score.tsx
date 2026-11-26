@@ -10,12 +10,16 @@ function measureEdge(bar: rendering.MasterBarBounds, tick: number, duration: num
   const { x, w } = bar.realBounds;
   if (tick <= 0) return x;
   if (tick >= duration) return x + w;
-  let before = { tick: 0, x }, after = { tick: duration, x: x + w };
-  for (const staff of bar.bars) for (const { beat, realBounds } of staff.beats) {
-    const at = beat.playbackStart, left = realBounds.x;
-    if (at > 0 && at <= tick && (at > before.tick || at === before.tick && left < before.x)) before = { tick: at, x: left };
-    if (at > tick && (at < after.tick || at === after.tick && left < after.x)) after = { tick: at, x: left };
+  let before = { tick: -1, x }, after = { tick: duration, x: x + w };
+  for (const staff of bar.bars) for (const { beat, realBounds, onNotesX } of staff.beats) {
+    const at = beat.playbackStart;
+    // Use the printed note position for a cut within a sustained note. The
+    // barline may be well to the left of its onset, especially after a clef.
+    if (at >= 0 && at < tick && (at > before.tick || at === before.tick && onNotesX > before.x)) before = { tick: at, x: onNotesX };
+    if (at >= tick && (at < after.tick || at === after.tick && realBounds.x < after.x)) after = { tick: at, x: realBounds.x };
   }
+  if (after.tick === tick) return after.x;
+  if (before.tick < 0) before.tick = 0;
   return before.x + (after.x - before.x) * (tick - before.tick) / (after.tick - before.tick);
 }
 
