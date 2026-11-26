@@ -1,7 +1,6 @@
-import { useId } from 'react';
 import { Switch } from 'react-aria-components';
 import { useMessages } from '../../i18n';
-import { PracticeDisclosure, PracticeVolume } from '../playback/practice-setting';
+import { PracticeDisclosure, PracticeHelp, PracticeVolume } from '../playback/practice-setting';
 import type { ChallengeMix } from './use-challenge-mix';
 import '../playback/practice-player.css';
 
@@ -10,11 +9,19 @@ export function ChallengePracticeSettings({ pitchTraceEnabled, setPitchTraceEnab
   mix: ChallengeMix; setMix: (change: (current: ChallengeMix) => ChallengeMix) => void;
 }) {
   const t = useMessages('practice');
-  const metronomeHelp = useId();
+  const metronomeTitle = t('metronome');
   return <>
     <Switch className="challenge-settings-switch" isSelected={pitchTraceEnabled} onChange={setPitchTraceEnabled}>
       <span>{t('sight.pitchMonitor')}</span><span className="challenge-settings-switch-track" aria-hidden="true" />
     </Switch>
+    <div className="challenge-metronome-setting">
+      <span>{metronomeTitle}</span>
+      <PracticeHelp title={metronomeTitle}>{t('sight.metronomeHelp')}</PracticeHelp>
+      <Switch className="challenge-settings-switch" isSelected={mix.metronome} aria-label={metronomeTitle}
+        onChange={metronome => setMix(current => ({ ...current, metronome }))}>
+        <span className="challenge-settings-switch-track" aria-hidden="true" />
+      </Switch>
+    </div>
     <div className="challenge-mixer">
       <PracticeDisclosure title={t('sight.mixer')}>
         <PracticeVolume title={t('sight.replayVoice')} value={mix.voice} onChange={voice => setMix(current => ({ ...current, voice }))} />
@@ -22,10 +29,5 @@ export function ChallengePracticeSettings({ pitchTraceEnabled, setPitchTraceEnab
         <PracticeVolume title={t('sight.sustainedTonic')} value={mix.tonic} onChange={tonic => setMix(current => ({ ...current, tonic }))} />
       </PracticeDisclosure>
     </div>
-    <Switch className="challenge-settings-switch" isSelected={mix.metronome} aria-describedby={metronomeHelp}
-      onChange={metronome => setMix(current => ({ ...current, metronome }))}>
-      <span>{t('metronome')}</span><span className="challenge-settings-switch-track" aria-hidden="true" />
-    </Switch>
-    <p id={metronomeHelp} className="challenge-settings-hint">{t('sight.metronomeHelp')}</p>
   </>;
 }
