@@ -326,7 +326,6 @@
     "voiceLegend": "歌声の音高",
     "count": "準備 · {count}",
     "waitingMicrophone": "マイクの許可を待っています…",
-    "singNow": "歌ってください",
     "leadIn": "導入 · 採点なし",
     "takeComplete": "録音完了",
     "currentTarget": "目標 {pitch}",

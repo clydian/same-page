@@ -206,8 +206,20 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   const targetX = await firstTarget.evaluate(element => Number.parseFloat(element.style.left));
   const excludedX = await excludedEnd.evaluate(element => Number.parseFloat(element.style.left));
   await capture('practice-context.png');
-  await page.getByRole('button', { name: '开始唱', exact: true }).click();
-  await expect(page.getByText('跟谱 · 暂不计分', { exact: true })).toBeVisible({ timeout: 8000 });
+  const start = page.getByRole('button', { name: '开始唱', exact: true });
+  const transport = page.locator('.challenge-transport');
+  const stop = transport.getByRole('button', { name: '停止', exact: true });
+  const status = transport.getByRole('status');
+  await start.click();
+  await expect(status).toHaveText(/预备 · [1-4]/);
+  await expect(stop).toHaveCount(0);
+  const countRow = await transport.boundingBox();
+  await expect(status).toHaveText('跟谱 · 暂不计分', { timeout: 8000 });
+  await expect(status).toHaveClass('visually-hidden');
+  await expect(transport.getByRole('button')).toHaveCount(1);
+  const stopBox = await stop.boundingBox();
+  assert.ok(countRow && stopBox && Math.abs(countRow.width - stopBox.width) <= 1);
+  assert.ok(Math.abs(countRow.height - (await transport.boundingBox()).height) <= 1);
   assert.ok(await cursor.evaluate(element => Number.parseFloat(element.style.left)) < targetX);
   await expect(page.locator('.challenge-staff-trace')).toBeVisible();
   await capture('unscored-lead-in.png');
@@ -226,6 +238,12 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   await expect.poll(() => audio.evaluate(element => element.ended)).toBe(true);
   assert.ok(await cursor.evaluate(element => Number.parseFloat(element.style.left)) < excludedX);
   await capture('scored-crop-replay.png');
+  await page.getByRole('button', { name: '再试一次', exact: true }).click();
+  await start.click();
+  await expect(status).toHaveText('跟谱 · 暂不计分', { timeout: 8000 });
+  await stop.click();
+  await expect(start).toBeVisible();
+  await expect(page.locator('.challenge-result')).toHaveCount(0);
   await page.getByRole('button', { name: '返回题目列表', exact: true }).click();
 
   await create();

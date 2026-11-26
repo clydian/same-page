@@ -333,17 +333,16 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     </div>}
 
     {recording && <div className="challenge-controls challenge-transport">
-      <div className="challenge-stage" role="status">
+      <div className={state.phase === 'sing' ? 'visually-hidden' : 'challenge-stage'} role="status">
         {state.phase === 'count' ? t('sight.count', { count: state.count }) : state.phase === 'permission' ? t('sight.waitingMicrophone')
-          : t(inLeadIn ? 'sight.leadIn' : 'sight.singNow')}
+          : inLeadIn ? t('sight.leadIn') : null}
         {state.phase === 'count' && <div className="challenge-count" aria-hidden="true">
           {Array.from({ length: melody.beats }, (_, index) => <span key={index} data-passed={index <= melody.beats - state.count} />)}
         </div>}
       </div>
-      {state.phase === 'sing' && state.frame.midi !== null && <span className="challenge-staff-current-pitch">
-        {t('sight.currentPitch', { pitch: pitchName(Math.round(state.frame.midi)) })}
-      </span>}
-      <button className="secondary-button challenge-stop" type="button" onClick={reset}><Square size={15} aria-hidden="true" />{t('sight.stop')}</button>
+      {state.phase !== 'count' && <button className="secondary-button challenge-stop" type="button" onClick={reset}>
+        <Square size={15} aria-hidden="true" />{t('sight.stop')}
+      </button>}
     </div>}
 
     {state.phase === 'result' && <section ref={reviewSection} tabIndex={-1} className="challenge-controls challenge-result" aria-label={t('sight.review')}>

@@ -326,7 +326,6 @@
     "voiceLegend": "Sung pitch",
     "count": "Get ready · {count}",
     "waitingMicrophone": "Waiting for microphone access…",
-    "singNow": "Sing now",
     "leadIn": "Lead-in · unscored",
     "takeComplete": "Take complete",
     "currentTarget": "Target {pitch}",

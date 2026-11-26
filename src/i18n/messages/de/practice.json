@@ -326,7 +326,6 @@
     "voiceLegend": "Gesungene Tonhöhe",
     "count": "Bereit machen · {count}",
     "waitingMicrophone": "Warte auf Mikrofonzugriff…",
-    "singNow": "Jetzt singen",
     "leadIn": "Vorlauf · ohne Wertung",
     "takeComplete": "Aufnahme fertig",
     "currentTarget": "Ziel {pitch}",

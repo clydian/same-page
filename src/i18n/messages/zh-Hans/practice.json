@@ -326,7 +326,6 @@
     "voiceLegend": "演唱音高",
     "count": "预备 · {count}",
     "waitingMicrophone": "等待麦克风权限…",
-    "singNow": "开始唱",
     "leadIn": "跟谱 · 暂不计分",
     "takeComplete": "本次演唱已完成",
     "currentTarget": "目标 {pitch}",
