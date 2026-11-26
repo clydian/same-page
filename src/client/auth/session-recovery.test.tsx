@@ -18,11 +18,15 @@ it("bounds a foreground failure episode and shares manual concurrent retries", a
   }
   await act(() => vi.advanceTimersByTimeAsync(120_000));
   expect(session.refetch).toHaveBeenCalledTimes(3);
+  act(() => window.dispatchEvent(new Event("offline")));
+  act(() => window.dispatchEvent(new Event("online")));
+  await act(() => vi.advanceTimersByTimeAsync(2_000));
+  expect(session.refetch).toHaveBeenCalledTimes(4);
   let finish!: () => void;
   session.refetch.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
   const manual = recoverSession();
   expect(recoverSession()).toBe(manual);
-  expect(session.refetch).toHaveBeenCalledTimes(4);
+  expect(session.refetch).toHaveBeenCalledTimes(5);
   finish(); await manual;
 });
 

@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { PersonalMenu } from "../components/personal-menu";
+import { BottomNavigation } from "../components/bottom-navigation";
 import {
   previewChoirResponseSchema,
   type ChoirSummary,
@@ -154,9 +154,7 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
     <div className="marketing-page">
       <AppHeader
         actions={
-          session.data?.user ? (
-            <PersonalMenu email={session.data.user.email} />
-          ) : session.isPending ? null : (
+          session.data?.user || session.isPending ? null : (
             <Link className="header-action header-action--primary" to="/login">
               {t("drive.login")}
             </Link>
@@ -230,6 +228,7 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
 
 
       <JoinDriveDialog open={joinOpen} onClose={finishJoinDialog} identity={identity} />
+      {session.data?.user && <BottomNavigation />}
 
     </div>
   );

@@ -16,9 +16,8 @@ import { BackButton } from "../navigation/back-button";
 import { PreparedScoreLink } from "../score-library/prepared-score-link";
 import { useNetworkStatus } from "../platform/use-network-status";
 import { rememberLastDrive, forgetLastDrive } from "../score-library/last-drive";
-import { useApplicationIdentity } from "../auth/application-identity";
+import { presentationSessionId as resolvePresentationSessionId, useApplicationIdentity, type ApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
-import type { ApplicationIdentity } from "../auth/application-identity";
 import { FileMusic, LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
@@ -80,9 +79,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const { session } = identity;
   // A remembered session scopes the mounted view; only authenticatedUserId grants authority.
   const [dialogSession, setDialogSession] = useState(session.data?.session?.id ?? null);
-  const presentationSessionId = identity.onlineState === "signed-out" ? null
-    : identity.onlineState === "authenticated" ? identity.authenticatedSessionId
-    : session.data?.session?.id ?? dialogSession;
+  const presentationSessionId = resolvePresentationSessionId(identity, dialogSession);
   const userId = identity.localUserId ?? undefined;
   const online = useNetworkStatus();
   const { library, snapshot } = useDriveLibrary(cacheOwner, choirId, Boolean(identity.authenticatedUserId), !identity.restoring && (Boolean(userId) || identity.onlineState !== "checking"), presentationSessionId);
@@ -240,7 +237,8 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   if (access.kind === "loading") {
     return (
-      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? t("drive")} userId={userId} localOnly={!identity.authenticatedUserId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} />} />{attachmentDialog}</>
+      <><DrivePage choirId={choirId} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? t("drive")} userId={userId} localOnly={!identity.authenticatedUserId} search={search} onSearch={updateSearch} />}
+      />{attachmentDialog}</>
     );
   }
 
@@ -270,9 +268,10 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
     <IdentityNotice identity={identity} />
     {searchMessage && <p>{searchMessage}<Button onPress={() => void refresh()}>{t("retry")}</Button></p>}
   </div>;
+  const localOnly = Boolean(access.local) || !online;
 
   return (
-    <><DrivePage choirId={choirId} connectionHelp={connectionHelp} header={<DriveHeader choirId={choirId} choirName={choir.name} userId={userId} email={session.data?.user.email} localOnly={Boolean(access.local) || !online} canManageIdentity={access.isMember || access.rememberedMembership} search={search} onSearch={updateSearch} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
+    <><DrivePage choirId={choirId} connectionHelp={connectionHelp} header={<DriveHeader choirId={choirId} choirName={choir.name} userId={userId} localOnly={localOnly} search={search} onSearch={updateSearch} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
       <PullToRefresh key={`${cacheOwner}:${choirId}`} onRefresh={async () => {
         await refresh();
         if (library.getSnapshot().refreshMessage) throw new Error("drive_refresh_failed");

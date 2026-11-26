@@ -260,7 +260,7 @@
   "preferenceLockUnavailable": "当前浏览器不支持安全同步，选择已保存到本机。请更新浏览器后重试。",
   "preferenceSignInRequired": "登录已失效，重新登录后重试。",
   "preferencesLocalSaveFailed": "尚未保存到本机，请重试。",
-  "preparedPdfDownload": "PDF 已准备好，可以下载到本机。",
+  "preparedPdfDownload": "PDF 已准备好。",
   "preparedPdfShare": "PDF 已准备好，点击“分享 PDF”选择发送或保存位置。",
   "preparing": "正在准备…",
   "preparingNoteTools": "正在准备笔记工具…",

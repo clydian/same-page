@@ -1,3 +1,5 @@
+import { Blob as NodeBlob } from "node:buffer";
+import { readQuestionSnapshot, readQuestions } from "../sight-singing/questions";
 import { storeOfflineScore } from "../platform/local-database";
 import { markdownDraftEpoch, markdownDraftKey, readMarkdownDraft, writeMarkdownDraft } from "../score-library/attachments/markdown-drafts";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -197,4 +199,32 @@ it("fences delayed identity activation and an old session until a new login succ
   await expect(activateAuthenticatedLocalOwner("revoked-user")).rejects.toThrow("local_workspace_owner_changed");
   expect(await acceptNewSession("revoked-user", "new-session")).toBe(true);
   await expect(activateAuthenticatedLocalOwner("revoked-user")).resolves.toBe("user:revoked-user");
+});
+
+
+it("recovers existing sight-singing drafts only for their owner and clears them on logout", async () => {
+  const question = { id: "question", title: "Local practice", scoreId: "score", attachmentId: "xml", revision: 2,
+    first: 1, last: 3, version: 1, snapshot: { name: "mock.musicxml" } };
+  const blob = new NodeBlob(["fixture score"]) as Blob;
+  const seed = (owner: string) => localDatabase.system.put({
+    key: `same-page:sight-singing:v1:${encodeURIComponent(owner)}:choir-1:${question.id}`,
+    value: JSON.stringify(question), blob,
+  });
+  await seed("user:user-1");
+  expect(await (await readQuestionSnapshot("user:user-1", "choir-1", question.id, 1))?.text()).toBe("fixture score");
+  expect(await readQuestionSnapshot("user:user-1", "choir-1", question.id, 2)).toBeNull();
+  expect(await readQuestions("user:user-1", "choir-2")).toEqual([]);
+  await activateAuthenticatedLocalOwner("user-2");
+  expect(await readQuestions("user:user-1", "choir-1")).toEqual([]);
+  expect(await readQuestionSnapshot("user:user-1", "choir-1", question.id, 1)).toBeNull();
+  await seed("user:user-2");
+  const oldTakeKey = "same-page:sight-singing-takes:v1:user%3Auser-2:choir-1:take";
+  await localDatabase.system.put({ key: oldTakeKey, value: "{}" });
+  await clearPrivateLocalDataAfterLogout();
+  expect(await localDatabase.system.get(oldTakeKey)).toBeUndefined();
+  await activateAuthenticatedLocalOwner("user-1");
+  expect(await readQuestions("user:user-1", "choir-1")).toEqual([question]);
+  await activateAuthenticatedLocalOwner("user-2");
+  expect(await readQuestions("user:user-2", "choir-1")).toEqual([]);
+  expect(await readQuestionSnapshot("user:user-2", "choir-1", question.id, 1)).toBeNull();
 });

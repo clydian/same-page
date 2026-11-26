@@ -16,6 +16,7 @@ import type { PracticeFocus } from './use-practice-focus';
 import { PracticeSplit } from './practice-split';
 import { PlaybackTimeline, type Timeline } from './playback-timeline';
 import { usePracticePopoverHeight } from './use-practice-popover-height';
+import { PracticeSpeed } from './practice-speed';
 
 type Props = {
   source?: PlaybackSource; embedded?: boolean; focus: PracticeFocus; notationZoom?: NotationZoomProps; ready: boolean; playing: boolean; message?: string; failed?: boolean;
@@ -88,7 +89,7 @@ export function PracticePlayerShell(props: Props) {
   </TooltipTrigger>;
   return <>
     {!props.embedded && isXml && source && <PracticeSplit active={view === 'compare'} ownerKey={source.ownerKey} />}
-    {isXml && <header className="practice-header" aria-label={t("practiceReading")} data-floating={!props.embedded || undefined} ref={header}>
+    {isXml && <header className="practice-header" aria-label={t("practiceReading")} data-no-native-selection data-floating={!props.embedded || undefined} ref={header}>
       <div id="practice-view-controls" className="practice-header-tools" hidden={toolsCollapsed}>
       {props.embedded ? <strong>{t("candidatePreview")}</strong> : <MenuTrigger>
         <Button className="practice-view-trigger" aria-label={t("showScore")} aria-description={t("currentView", { view: viewLabels[view] })} data-short-label={view === 'pdf' ? 'PDF' : view === 'compare' ? t("compare") : t("reflow")}><span className="practice-view-label">{viewLabels[view]}</span><ChevronDown size={14} aria-hidden="true" /></Button>
@@ -108,7 +109,7 @@ export function PracticePlayerShell(props: Props) {
         ? <PlaybackPreparationNotice key={props.message} message={props.message} {...props.preparation} retry={props.retry} />
         : props.message && <div className="practice-notice" role="status"><span>{props.message}</span>{props.failed && <Button onPress={props.retry}>{t("retry")}</Button>}</div>}
       {props.hint}
-      <section className="practice-bar" aria-label={isXml ? t("scorePractice") : t("audioPlayback")} data-testid="musicxml-player">
+      <section className="practice-bar" aria-label={isXml ? t("scorePractice") : t("audioPlayback")} data-no-native-selection data-testid="musicxml-player">
         <div id="practice-expanded-controls" className="practice-expanded-controls" hidden={controlsCollapsed}><PlaybackTimeline timeline={props.timeline} /></div>
 
         <div id="practice-bar-meta" className="practice-bar-meta" hidden={controlsCollapsed}>
@@ -138,7 +139,7 @@ export function PracticePlayerShell(props: Props) {
     <FeedbackMessage feedback={focus.feedback} className="practice-focus-notice" closeLabel={t("dismissFullScreenNotice")} dismissible />
     {createPortal(<div ref={setPopoverBoundary} className="practice-popover-boundary" aria-hidden="true" />, document.body)}
     {panel && popoverBoundary && <Popover ref={popover} triggerRef={panelTrigger} scrollRef={panelScroll} boundaryElement={popoverBoundary} isOpen onOpenChange={open => { if (!open) setPanel(null); }} placement="top end" className="practice-popover practice-player-popover" data-loop-previewing={props.loopPreviewing || undefined} offset={10}>
-      <Dialog className="practice-panel" aria-label={panel === 'settings' ? t("settings") : panel === 'speed' ? t("adjustSpeed") : isXml ? t("findMeasure") : t("findTime")}>
+      <Dialog className="practice-panel" data-no-native-selection aria-label={panel === 'settings' ? t("settings") : panel === 'speed' ? t("adjustSpeed") : isXml ? t("findMeasure") : t("findTime")}>
         <header><div><strong>{panel === 'settings' ? t("settings") : panel === 'speed' ? t("adjustSpeed") : isXml ? t("findMeasure") : t("findTime")}</strong></div><Button className="practice-icon" aria-label={panel === 'settings' ? t("closeSettings") : panel === 'speed' ? t("closeSpeed") : t("closeLocator")} onPress={() => setPanel(null)}><X size={18} aria-hidden="true" /></Button></header>
         <div ref={panelScroll} className="practice-panel-content">
           {panel === 'settings' ? props.children : panel === 'speed' ? <PracticeSpeed speed={props.speed ?? 1} tempo={props.tempo} ready={props.ready} setSpeed={value => props.setSpeed?.(value)} /> : <PositionLocator timeline={props.timeline} isXml={isXml} close={() => setPanel(null)} />}
@@ -157,26 +158,4 @@ function PositionLocator({ timeline, isXml, close }: { timeline: Timeline; isXml
     </label>
     <Button className="practice-action" isDisabled={timeline.disabled} onPress={() => { timeline.seek(value); close(); }}>{t("goTo")}</Button>
   </>;
-}
-
-const tempoUnits = { 4: 'wholeNote', 3: 'dottedHalfNote', 2: 'halfNote', 1.5: 'dottedQuarterNote', .75: 'dottedEighthNote', .25: 'sixteenthNote' } as const;
-function PracticeSpeed({ speed, tempo, ready, setSpeed }: { speed: number; tempo?: { bpm: number; unit: number }; ready: boolean; setSpeed(value: number): void }) {
-  const t = useMessages("practice");
-  const unit = tempo?.unit ?? 1;
-  const notationSymbol = unit === 1 ? '♩' : unit === .5 ? '♪' : undefined;
-  const unitName = tempoUnits[unit as keyof typeof tempoUnits];
-  const beat = notationSymbol ?? (unitName ? t(unitName) : t("quarterNoteUnits", { count: unit }));
-  const bpm = tempo ? tempo.bpm / unit : undefined;
-  const rate = (value: number) => Number(value.toFixed(1)).toString();
-  return <section className="practice-speed-panel" aria-label={t("playbackSpeed")}>
-    <label className="practice-field"><span>{t("speed")} <output>{speed.toFixed(2)}×</output></span>
-      <input aria-label={t("playbackSpeed")} aria-valuetext={bpm ? t("currentSpeedWithTempo", { speed: speed.toFixed(2), bpm: rate(bpm * speed) }) : t("currentSpeed", { speed: speed.toFixed(2) })} type="range" min="0.5" max="2" step="0.01" value={speed} disabled={!ready} onChange={event => setSpeed(Number(event.target.value))} />
-    </label>
-    {bpm !== undefined && <p className="practice-tempo" aria-live="polite">{t("originalTempo", { beat, bpm: rate(bpm) })}<br />{t("adjustedTempo", { beat, bpm: rate(bpm * speed) })}</p>}
-    <div className="practice-speed-actions">
-      <Button className="practice-action" aria-label={t("decreaseSpeed")} isDisabled={!ready || speed <= .5} onPress={() => setSpeed(speed - .01)}>− 0.01</Button>
-      <Button className="practice-action" isDisabled={!ready} onPress={() => setSpeed(1)}>{t("resetSpeed")}</Button>
-      <Button className="practice-action" aria-label={t("increaseSpeed")} isDisabled={!ready || speed >= 2} onPress={() => setSpeed(speed + .01)}>＋ 0.01</Button>
-    </div>
-  </section>;
 }

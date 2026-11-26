@@ -47,8 +47,6 @@
 .practice-notation-scroll:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: -2px; }
 .practice-follow:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: 2px; }
 .practice-notation-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 16px; }
-/* Long presses belong to score interaction, including Safari's native callout. */
-.practice-notation-scroll, .practice-notation-scroll * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .practice-notation-paper { max-width: 1100px; margin: auto; padding: 12px; background: #fff; border-radius: 3px; box-shadow: 0 1px 5px #17352b0a; }
 /* Player styling: alphaTab supplies positions/classes; the host supplies their visible colors. */
 /* WebKit can retain old transformed cursor overflow after reflow. Contain only
@@ -146,10 +144,6 @@
 
 /* One shared practice shell at every viewport size. */
 .practice-header { position: fixed; z-index: 90; inset: 0 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: 4px 8px; box-sizing: border-box; padding: calc(var(--safe-top) + 4px) max(8px,var(--safe-right)) 4px max(8px,var(--safe-left)); background: var(--ui-surface, #fcfdfb); border-bottom: 1px solid var(--ui-line, #dce4de); color: var(--ui-ink, #31463a); }
-.practice-notation-size { display: flex; align-items: center; color: var(--ui-muted, #637268); }
-.practice-notation-size .practice-icon { font-size: 22px; }
-.practice-size-reset { min-width: 44px; min-height: 44px; padding: 0 2px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; }
-.practice-size-reset[data-disabled] { opacity: .4; }
 .practice-header button:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: 2px; }
 .practice-bar-actions { display: flex; align-items: center; justify-self: end; }
 .practice-skip { position: relative; display: inline-flex; align-items: center; justify-content: center; }
@@ -224,7 +218,6 @@
 
 .reader-shell[data-practicing], .reader-shell[data-practicing] .page-reader__canvas-stage { background: var(--ui-surface, #f3f4f0); }
 
-.practice-notation-size button[aria-disabled=true] { opacity: .35; cursor: default; }
 
 /* One floating tool group in every orientation. It reserves no viewport row. */
 .practice-header-tools { display: flex; align-items: center; }
@@ -310,13 +303,6 @@
 .practice-loop { display: grid; gap: 8px; }
 .practice-loop-range { padding: 0 8px; color: var(--ui-ink, #31463a); }
 .practice-loop-preview { width: fit-content; margin: 0 0 4px; padding: 3px 0; border-radius: 6px; min-height: 20px; font-size: 12px; color: var(--ui-muted, #607267); }
-.practice-range-track { position: relative; height: 44px; margin-inline: 10px; touch-action: none; }
-.practice-range-track::before, .practice-range-fill { position: absolute; top: 20px; height: 4px; border-radius: 4px; background: var(--ui-soft, #dce4de); }
-.practice-range-track::before { content: ''; inset-inline: 0; }
-.practice-range-fill { background: var(--ui-accent-fill, #365747); }
-.practice-range-thumb { top: 22px; width: 28px; height: 44px; display: grid; place-items: center; cursor: ew-resize; touch-action: none; outline: none; }
-.practice-range-thumb span { display: grid; place-items: center; width: 24px; height: 28px; border-radius: 8px; background: var(--ui-accent-fill, #365747); color: white; border: 2px solid var(--ui-line, #fcfdfb); font-size: 12px; font-weight: 600; }
-.practice-range-thumb[data-focus-visible] span { outline: 2px solid var(--ui-accent, #365747); outline-offset: 2px; }
 .practice-popover[data-loop-previewing] { background: transparent; border-color: transparent; box-shadow: none; }
 .practice-popover[data-loop-previewing] .practice-panel > header,
 .practice-popover[data-loop-previewing] .practice-panel-content > :not(.practice-loop),
@@ -417,4 +403,4 @@
 .practice-mixer .practice-timbre-part { grid-template-columns: minmax(64px,.8fr) minmax(0,2.7fr); gap: 6px; }
 .practice-timbre-part > .practice-part-name { grid-column: auto; min-height: 0; }
 .practice-timbre-part:last-of-type { border-bottom: 0; }
-.practice-timbre .practice-hint { margin-top: 8px; }
+.practice-timbre .practice-hint:not(:empty) { margin-top: 8px; }

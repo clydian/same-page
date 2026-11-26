@@ -39,6 +39,15 @@ it("keeps cold navigation stable while beta advances and selects one matching SW
   const target = await (await call("/api/client-release",{headers:{Cookie:`same-page-channel=beta.${intent}`}})).json();
   expect(target).toMatchObject({channel:"beta",target:C,intent});
 });
+it("permits a same-origin microphone prompt on the release shell and its PWA precache copy", async () => {
+  for (const path of ["/", "/choirs/deep/sight-singing", `/_releases/${A}/index.html`]) {
+    expect((await call(path)).headers.get("permissions-policy")).toBe("camera=(), geolocation=(), microphone=(self)");
+  }
+  for (const path of ["/sw.js", `/_releases/${A}/app.js`, "/missing.js"]) {
+    expect((await call(path)).headers.get("permissions-policy")).toBe("camera=(), geolocation=(), microphone=()");
+  }
+});
+
 it("never substitutes HTML for missing immutable resources or changes bytes based on cookies", async () => {
   const path = `/_releases/${A}/app.js`;
   expect(await (await call(path,{headers:{Cookie:`same-page-channel=beta.${crypto.randomUUID()}`}})).text()).toBe(A);
@@ -56,13 +65,15 @@ it("retains archived third-party resources while bridge routing is disabled", as
       ...env, RELEASE_CHANNELS_ENABLED: 'false',
       // The static service's SPA fallback must not become a legacy script.
       ASSETS: {
-        fetch: async () => new Response('<html>current shell</html>', { headers: { 'Content-Type': 'text/html' } }),
+        fetch: async () => new Response('<html>current shell</html>', { headers: { 'Content-Type': 'text/html', 'Permissions-Policy': 'camera=(), geolocation=(), microphone=()' } }),
         connect: () => { throw new Error('Static assets cannot open sockets'); },
       },
     }, context);
     await waitOnExecutionContext(context);
     return response;
   };
+  const shell = await bridgeCall('choirs/deep');
+  expect(shell.headers.get('permissions-policy')).toBe('camera=(), geolocation=(), microphone=(self)');
   const response = await bridgeCall(file);
   expect(response.status).toBe(200);
   expect(response.headers.get('content-type')).toBe('text/javascript');

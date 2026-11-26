@@ -38,6 +38,26 @@ a {
   font: inherit;
 }
 
+/* Action labels and gesture surfaces belong to the app. Plain links and prose
+   keep native selection; tool surfaces can opt in, including inside portals. */
+:where(button, summary, [role="button"], [role="tab"], [role="menu"], [role="listbox"], [role="tooltip"], [data-no-native-selection]) {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+
+  /* Carry selection through nested labels, including SVG text in WebKit. */
+  & * {
+    -webkit-user-select: inherit;
+    user-select: inherit;
+  }
+}
+
+[data-no-native-selection] :where(input, textarea, [contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]) {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .page-shell {
   width: min(72rem, calc(100% - 2rem));
   margin: 0 auto;
@@ -2656,9 +2676,6 @@ h1 {
 }
 
 .annotated-pdf-page {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
   position: relative;
   flex: none;
 }
@@ -3236,10 +3253,4 @@ h1 {
 @media (max-width: 520px) {
   .annotation-composer-styles { flex-wrap: wrap; width: max-content; }
   .annotation-composer-layer { order: -1; width: 100%; max-width: none; padding: 3px 8px; font-size: 11px; }
-}
-
-.annotated-pdf-page :is(input, textarea, [contenteditable="true"]) {
-  -webkit-touch-callout: default;
-  -webkit-user-select: text;
-  user-select: text;
 }

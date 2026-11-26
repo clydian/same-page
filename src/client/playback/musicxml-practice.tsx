@@ -124,6 +124,7 @@ export function MusicXmlPractice({
         <div
           ref={viewport}
           className="practice-notation-scroll"
+          data-no-native-selection
           onContextMenu={(event) => event.preventDefault()}
           role="region"
           aria-label={t("scrollScore")}
@@ -338,10 +339,10 @@ function PartTimbreEditor({ session, state, ready }: { session: PlayerSession | 
   return <div className="practice-timbre"><PracticeDisclosure title={t("partTimbre")} help={t("partTimbreHelp")}>
     {parts.map(part => <label key={part.id} className="practice-field practice-part practice-timbre-part" htmlFor={`${id}-${part.id}`}>
       <span className="practice-part-name">{part.unnamed ? t("unnamedPart", { index: part.unnamed }) : part.name}</span>
-      <select id={`${id}-${part.id}`} aria-describedby={`${id}-hint`} value={part.timbre ?? 'score'} disabled={!ready} onChange={event => session?.timbre(part.id, event.target.value as PartTimbre)}>
+      <select id={`${id}-${part.id}`} value={part.timbre ?? 'score'} disabled={!ready} onChange={event => session?.timbre(part.id, event.target.value as PartTimbre)}>
         <option value="score">{part.defaultTimbre ? t("timbreDefaultNamed", { timbre: t(defaultNames[part.defaultTimbre]) }) : t("timbreScore")}</option><option value="piano">{t("timbrePiano")}</option><option value="aahs">{t("timbreAahs")}</option><option value="oohs">{t("timbreOohs")}</option>
       </select>
     </label>)}
-    <p id={`${id}-hint`} className="practice-hint">{state.timbreLoading ? t("timbreLoading") : t("timbreSessionHint")}</p>
+    <p className="practice-hint" role="status">{state.timbreLoading ? t("timbreLoading") : null}</p>
   </PracticeDisclosure></div>;
 }

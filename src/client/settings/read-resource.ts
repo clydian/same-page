@@ -53,7 +53,7 @@ export class ReadResource<T> {
 
 const resources = new Map<string, { identity: DriveReadIdentity; resource: ReadResource<unknown> }>();
 export function getReadResource<T>(identity: DriveReadIdentity): ReadResource<T> {
-  const key = JSON.stringify([identity.owner, identity.driveId, identity.kind, identity.variant ?? null]);
+  const key = JSON.stringify([identity.owner, identity.driveId, identity.kind, identity.subjectId ?? null, identity.variant ?? null]);
   let resource = resources.get(key)?.resource;
   if (!resource) {
     resource = new ReadResource();
@@ -70,9 +70,10 @@ export function clearReadResources() { epoch++; for (const { resource } of resou
 onReaderIdentityChange(clearReadResources);
 onNavigationReset(clearReadResources);
 onNavigationSuspend(() => { epoch++; for (const { resource } of resources.values()) resource.invalidate(true); });
-onDriveChange(impact => {
-  for (const { identity, resource } of resources.values()) if (impact.affects(identity)) resource.invalidate(impact.dropAuthority);
-});
+export function invalidateReadResources(affects: (identity: DriveReadIdentity) => boolean, dropAuthority = false) {
+  for (const { identity, resource } of resources.values()) if (affects(identity)) resource.invalidate(dropAuthority);
+}
+onDriveChange(impact => invalidateReadResources(impact.affects, impact.dropAuthority));
 export function revokeDriveReadResources(driveId: string) {
   for (const { identity, resource } of resources.values()) if (identity.driveId === driveId) resource.clear();
 }

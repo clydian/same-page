@@ -44,7 +44,7 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
         page.getByRole("searchbox", { name: /搜索.*中的乐谱/ }),
         page.getByRole("button", { name: /^按.*排序/ }),
         page.getByRole("button", { name: /^切换云盘/ }),
-        page.getByRole("button", { name: "我的" }),
+        page.getByRole("link", { name: "我的" }),
       ].map(control => control.boundingBox()));
       assert.ok(boxes.every(box => box && box.width > 0 && box.height > 0 && box.x >= 0 && box.x + box.width <= width), `${width}: library controls are reachable ${JSON.stringify(boxes)}`);
       assert.ok(boxes.slice(0, 2).every(box => box.height >= 44), "search and sort retain their touch-sized controls");

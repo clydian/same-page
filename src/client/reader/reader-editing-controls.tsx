@@ -77,7 +77,7 @@ export function ReaderEditingControls({
   const personalLayers = layers.filter((layer) => layer.kind === "personal" && layer.canEdit);
 
   return (
-    <section className="annotation-controls" aria-label={t("noteTools")}>
+    <section className="annotation-controls" data-no-native-selection aria-label={t("noteTools")}>
       <DialogTrigger isOpen={choosingLayer} onOpenChange={setChoosingLayer}>
         <Button
           isDisabled={isDisabled}
@@ -88,7 +88,7 @@ export function ReaderEditingControls({
           <ChevronDown aria-hidden="true" size={14} />
         </Button>
         <Popover className="reader-edit-layer-popover layer-choice-panel" placement="top" offset={12}>
-          <Dialog aria-label={t("chooseEditingLayer")} aria-describedby={hasReadOnlyLayers ? permissionHelpId : undefined}>
+          <Dialog aria-label={t("chooseEditingLayer")} aria-describedby={hasReadOnlyLayers ? permissionHelpId : undefined} data-no-native-selection>
             <div className="reader-target-heading"><h2>{t("chooseEditingLayer")}</h2><Button className="icon-button" aria-label={t("closeEditingLayer")} onPress={() => setChoosingLayer(false)}><X aria-hidden="true" size={18} /></Button></div>
             {hasReadOnlyLayers && <p id={permissionHelpId} className="annotation-layer-permission-help">{t("requestLayerPermission")}</p>}
             <p className="layer-choice-group-label">{t("sharedLayerAudience")}</p>
@@ -158,7 +158,7 @@ export function ReaderEditingControls({
         placement="top"
         offset={12}
       >
-        <Dialog id={styleDialogId} aria-label={t("toolSettings")}>
+        <Dialog id={styleDialogId} aria-label={t("toolSettings")} data-no-native-selection>
           <header className="reader-style-heading"><strong>{t("namedToolSettings", { tool: toolNames[tool] })}</strong><span>{t("newNoteStyles")}</span></header>
           <div style={{ color: selectedLayer?.kind === "shared" ? selectedLayer.displayColor : toolColor }}>
             <StyleFields tool={tool} value={toolStyle} onChange={onStyleChange} />

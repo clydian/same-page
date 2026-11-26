@@ -260,7 +260,7 @@
   "preferenceLockUnavailable": "Il browser corrente non supporta la sincronizzazione sicura. La selezione è stata salvata su questo computer. Aggiorna il browser e riprova.",
   "preferenceSignInRequired": "Il login è scaduto. Effettua nuovamente l'accesso e riprova.",
   "preferencesLocalSaveFailed": "Non è stato salvato su questa macchina, riprova.",
-  "preparedPdfDownload": "Il PDF è pronto per essere scaricato sul tuo computer.",
+  "preparedPdfDownload": "Il PDF è pronto.",
   "preparedPdfShare": "Il PDF è pronto, clicca su \"Condividi PDF\" per scegliere dove inviarlo o salvarlo.",
   "preparing": "Preparazione…",
   "preparingNoteTools": "Preparazione degli strumenti per prendere appunti…",

@@ -260,7 +260,7 @@
   "preferenceLockUnavailable": "Le navigateur actuel ne prend pas en charge la synchronisation sécurisée. La sélection a été enregistrée sur cet ordinateur. Veuillez mettre à jour votre navigateur et réessayer.",
   "preferenceSignInRequired": "La connexion a expiré. Veuillez vous reconnecter et réessayer.",
   "preferencesLocalSaveFailed": "Il n'a pas été enregistré sur cette machine, veuillez réessayer.",
-  "preparedPdfDownload": "Le PDF est prêt à être téléchargé sur votre ordinateur.",
+  "preparedPdfDownload": "Le PDF est prêt.",
   "preparedPdfShare": "Le PDF est prêt, cliquez sur « Partager le PDF » pour choisir où l'envoyer ou l'enregistrer.",
   "preparing": "Préparation…",
   "preparingNoteTools": "Préparation des outils de prise de notes…",

@@ -260,7 +260,7 @@
   "preferenceLockUnavailable": "現在のブラウザは安全な同期をサポートしていません。選択内容はこのコンピュータに保存されました。ブラウザを更新してもう一度お試しください。",
   "preferenceSignInRequired": "ログインの有効期限が切れました。再度ログインして、もう一度お試しください。",
   "preferencesLocalSaveFailed": "端末に保存できませんでした。再試行してください。",
-  "preparedPdfDownload": "PDF の準備ができました。端末にダウンロードできます。",
+  "preparedPdfDownload": "PDF の準備ができました。",
   "preparedPdfShare": "PDF の準備ができました。[PDF を共有] をクリックして、送信または保存する場所を選択します。",
   "preparing": "準備中…",
   "preparingNoteTools": "書き込みツールを準備中…",

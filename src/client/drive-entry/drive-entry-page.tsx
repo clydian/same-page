@@ -7,7 +7,7 @@ import { useApplicationIdentity, type ApplicationIdentity } from "../auth/applic
 import { IdentityNotice } from "../auth/local-entry";
 import { createDriveHref, loginHref } from "../auth/login-return";
 import { AppHeader } from "../components/app-header";
-import { PersonalMenu } from "../components/personal-menu";
+import { BottomNavigation } from "../components/bottom-navigation";
 import { CreateDriveDialog } from "../drives/create-drive";
 import { JoinDriveDialog, JoinDrivePanel } from "../drives/join-drive-dialog";
 import { useDriveInvitation } from "../drives/use-drive-invitation";
@@ -49,7 +49,7 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
     : <Link className="text-button" to={loginHref(createDriveHref)}>{t("drive.loginToCreate")}</Link>;
   const finishJoin = () => { finishInvitation(); setJoinOpen(false); };
   return <div className="app-page drive-entry-page">
-    <AppHeader actions={identity.session.data?.user ? <><InstallButton className="header-action" /><PersonalMenu email={identity.session.data.user.email} /></> : !identity.session.isPending && <Link className="header-action" to="/login">{t("drive.login")}</Link>} />
+    <AppHeader actions={identity.session.data?.user ? <InstallButton className="header-action" /> : !identity.session.isPending && <Link className="header-action" to="/login">{t("drive.login")}</Link>} />
     <main className="drive-entry-main">
       <IdentityNotice identity={identity} />
       {identity.localUserId ? <MemberEntry identity={identity} userId={identity.localUserId} create={create} onJoin={() => { setManualEntry(true); setJoinOpen(true); }} admissionOpen={manualEntry || joinOpen || createOpen} />
@@ -62,6 +62,7 @@ function DriveEntryContent({ identity, invitation, finishInvitation }: {
       setCreateOpen(open);
       if (!open && createRequested) void navigate("/drives", { replace: true });
     }} />}
+    {identity.localUserId && <BottomNavigation active="scores" />}
   </div>;
 }
 

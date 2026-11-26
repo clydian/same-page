@@ -18,7 +18,7 @@ export function LibrarySortControl({ view, disabled, onSort, onDirection }: {
     <Button className="library-sort-trigger" isDisabled={disabled} aria-label={t("librarySortControlSort", { value1: t(labels[view.sort]), order: String(order) })}>
       {t(labels[view.sort])}<span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
     </Button>
-    <Popover className="library-sort-popover" placement="bottom end"><Dialog aria-label={t("librarySortControlScoreSorting")}>{({ close }) => <>
+    <Popover className="library-sort-popover" placement="bottom end"><Dialog aria-label={t("librarySortControlScoreSorting")} data-no-native-selection>{({ close }) => <>
       <div className="dialog-heading"><Heading slot="title">{t("librarySortControlArrangement")}</Heading><Button className="icon-button" aria-label={t("librarySortControlTurnOffSortingOptions")} onPress={close}><X size={20} aria-hidden="true" /></Button></div>
       <RadioGroup className="library-sort-options" value={view.sort} onChange={value => onSort(value as LibrarySort)}>
         <Label>{t("librarySortControlSort2")}</Label>

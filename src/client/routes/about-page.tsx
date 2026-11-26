@@ -4,7 +4,7 @@ import { useMessages } from "../../i18n";
 import { assetUrl } from "../../shared/asset-url";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowUpRight, BookOpen, ChevronRight, Globe, MessageSquare, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, BookOpen, ChevronRight, FileText, Globe, MessageSquare, ShieldCheck } from "lucide-react";
 import { buildId, buildRunId, buildVersion } from "../../shared/build";
 import { TaskHeader } from "../components/task-header";
 import { UpdateDetails } from "../components/reload-prompt";
@@ -13,6 +13,7 @@ import "../support-pages.css";
 
 export default function AboutPage() {
   const t = useMessages("entry");
+  const common = useMessages("common");
   const { state } = useLocation();
   const feedback = useFeedbackMessage();
   const { message, setMessage } = feedback;
@@ -36,6 +37,7 @@ export default function AboutPage() {
         <Link to="/help"><BookOpen size={20} aria-hidden="true" /><span>{t("about.manual")}<small>{t("about.manualHint")}</small></span><ChevronRight size={18} aria-hidden="true" /></Link>
         <Link to="/diagnostics"><MessageSquare size={20} aria-hidden="true" /><span>{t("about.feedback")}<small>{t("about.feedbackHint")}</small></span><ArrowUpRight size={18} aria-hidden="true" /></Link>
         <Link to="/privacy"><ShieldCheck size={20} aria-hidden="true" /><span>{t("about.privacy")}</span><ChevronRight size={18} aria-hidden="true" /></Link>
+        <Link to="/terms"><FileText size={20} aria-hidden="true" /><span>{common("terms")}</span><ChevronRight size={18} aria-hidden="true" /></Link>
       </nav>
       <details className="support-details about-build" open={message === "about.copyError" || undefined}>
         <summary>{t("about.buildInfo")}</summary>

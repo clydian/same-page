@@ -9,5 +9,10 @@
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1131.0",
     "@bubblewrap/core": "1.25.0"
+  },
+  "overrides": {
+    "googleapis-common@5.1.0": {
+      "uuid": "^14.0.3"
+    }
   }
 }

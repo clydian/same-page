@@ -28,8 +28,9 @@ export async function withBrowserEvidence(context, directory, run, { pdfLoad = f
   let pdf;
   try {
     if (pdfLoad) pdf = await recordPdfLoadEvidence(context);
-    return await run();
+    return await run(pdf?.mark);
   } catch (error) {
+    pdf?.mark("failure-before-teardown");
     await mkdir(directory, { recursive: true });
     const pages = context.pages().filter(page => !page.isClosed());
     await writeFile(`${directory}/failure.json`, JSON.stringify({

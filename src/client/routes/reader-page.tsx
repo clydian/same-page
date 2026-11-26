@@ -447,7 +447,7 @@ function ReaderPageContent() {
       {reader.snapshot.displayMessage && <ReaderDisplayNotice key={reader.snapshot.displayMessage} message={reader.snapshot.displayMessage} onDismiss={reader.dismissDisplayMessage} />}
       {guestNoteOpen && <GuestNoteDialog signInHref={signInToAnnotate} onClose={() => setGuestNoteOpen(false)} />}
       {!xmlPracticing && chromeVisible && !guide.visible ? (
-      <header className="reader-chrome" data-editing={editing || undefined} aria-label={t("readerControls")} style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
+      <header className="reader-chrome" data-no-native-selection data-editing={editing || undefined} aria-label={t("readerControls")} style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint">
             <strong>{t("editing")}</strong><span className="reader-edit-gesture-hint__detail">
               <span aria-hidden="true">·</span>{layout === "page" ? t("twoFingerPageSwipe") : t("twoFingerScroll")}
@@ -512,7 +512,7 @@ function ReaderPageContent() {
           </div>
           {!editing && moreOpen ? (
             <Popover triggerRef={moreTrigger} isOpen={moreOpen} onOpenChange={setMoreOpen} isNonModal placement="bottom end" className="reader-more-popover">
-            <Dialog className="reader-more-menu" aria-label={t("moreReaderOptions")}>
+            <Dialog className="reader-more-menu" aria-label={t("moreReaderOptions")} data-no-native-selection>
               <header className="reader-menu-heading"><strong>{t("readerOptions")}</strong><Button className="icon-button" aria-label={t("closeReaderOptions")} onPress={() => setMoreOpen(false)}><X size={20} aria-hidden="true" /></Button></header>
               <IdentityNotice identity={identity} />
               {guestExperience && <section aria-label={t("previewNotes")}><h2>{t("previewNotes")}</h2><p>{t("previewNotesRetention")}</p>
@@ -651,7 +651,7 @@ function ReaderPageContent() {
         <ModalOverlay className="reader-panel-backdrop reader-layers-backdrop" isOpen isDismissable
           onOpenChange={(open) => { if (!open) setReaderPanel(null); }}>
           <Modal className="reader-panel reader-layers-dialog">
-            <Dialog preserveOnNavigate aria-label={t("noteLayers")} className="reader-layers-content">
+            <Dialog preserveOnNavigate aria-label={t("noteLayers")} className="reader-layers-content" data-no-native-selection>
               <header className="reader-panel__header">
                 <strong>{t("noteLayers")}</strong>
                 <Button autoFocus className="icon-button" aria-label={t("closeLayerDisplay")} onPress={() => setReaderPanel(null)}>

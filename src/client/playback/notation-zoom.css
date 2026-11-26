@@ -1,0 +1,11 @@
+.practice-notation-size { display: flex; align-items: center; color: var(--ui-muted, #637268); }
+.practice-notation-size .practice-icon { font-size: 22px; }
+.practice-size-reset { min-width: 44px; min-height: 44px; padding: 0 2px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.practice-size-reset[data-disabled] { opacity: .4; }
+.practice-notation-size button:is(:disabled, [aria-disabled=true]) { opacity: .35; cursor: default; }
+.practice-notation-size .practice-icon {
+  display: inline-grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px;
+  padding: 0; border: 0; border-radius: 10px; background: transparent; color: inherit; cursor: pointer;
+}
+.practice-notation-size .practice-icon:is([data-hovered], [data-active]) { background: var(--ui-soft, #eaf0ea); }
+.practice-notation-size button:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: -2px; }

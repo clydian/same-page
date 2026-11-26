@@ -287,6 +287,9 @@ export class DriveLibrary {
     this.updateView({ scrollTop });
     prepareDriveLibraryReturn(this.ownerKey, this.choirId);
   };
+  requestScrollRestore = () => {
+    this.restorePending = true;
+  };
   restoreScroll = (apply: (scrollTop: number) => void) => {
     if (!this.isActive() || !this.restorePending || this.snapshot.access.kind !== "opened") return;
     this.restorePending = false;
@@ -439,16 +442,20 @@ export class DriveLibrary {
       }
       return;
     }
+    if (authenticationRequired) {
+      invalidateDriveLibrary(this.ownerKey, this.choirId);
+      this.publish({ reading: { request: "pending", authority: "signed-out" } });
+    }
     let local: OpenedAccess | null;
     try { local = await this.readLocal(signal); }
     catch {
-      if (!signal.aborted) this.publish({ access: { kind: "failed" }, refreshMessage: t("driveLocalDirectoryUnreadable") });
+      if (!signal.aborted) this.publish({ access: { kind: "failed" }, refreshMessage: t(authenticationRequired ? "driveLibraryLoginHasExpiredLog" : "driveLocalDirectoryUnreadable") });
       return;
     }
     if (signal.aborted) return;
     this.publish({ access: local ?? { kind: "opened", local: true, isMember: false,
       choir: readDriveSummary(this.ownerKey, this.choirId) ?? { id: this.choirId, name: t("drive"), guestAdmissionMode: "invite" },
-      result: { scores: [], permissions: { capabilities: noCapabilities() }, storage: { usedBytes: 0, limitBytes: 1 } } }, refreshMessage: t(refreshFailed) });
+      result: { scores: [], permissions: { capabilities: noCapabilities() }, storage: { usedBytes: 0, limitBytes: 1 } } }, refreshMessage: t(authenticationRequired ? "driveLibraryLoginHasExpiredLog" : refreshFailed) });
   }
 
   private updateView(update: Partial<LibraryView>) {
