@@ -4,12 +4,40 @@ import { chromium, expect } from '@playwright/test';
 import { musicXmlFixture } from './musicxml-fixture.mjs';
 import { startStorageFixture } from './storage-fixture.mjs';
 
-test('sight singing keeps score scope, scroll direction and bottom controls independent', { timeout: 90000 }, async t => {
+test('sight singing preserves its layout preferences and clears a completed take on retry', { timeout: 90000 }, async t => {
   const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
   let browser;
   t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
   const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 320, height: 650 }, serviceWorkers: 'block' });
+  await context.addInitScript(() => {
+    const Worklet = AudioWorkletNode;
+    window.sightSingingCaptures = [];
+    window.AudioWorkletNode = class extends Worklet {
+      constructor(audio, name, options) {
+        super(audio, name, options);
+        const { port1, port2 } = new MessageChannel();
+        this.capturePort = port1;
+        const frameSize = options.processorOptions.chunkFrames;
+        window.sightSingingCaptures.push({
+          count: () => port2.postMessage({ count: 4 }),
+          frame: () => port2.postMessage({ samples: new Float32Array(frameSize), done: false }),
+          complete: () => {
+            // Two written E4 measures. Supply one on-pitch and one off-pitch.
+            const framesPerBar = 3 * audio.sampleRate;
+            for (let offset = 0; offset < 2 * framesPerBar; offset += frameSize) {
+              const hz = offset < framesPerBar ? 329.6276 : 391.9954;
+              const samples = Float32Array.from({ length: frameSize }, (_, index) =>
+                .2 * Math.sin(2 * Math.PI * hz * (offset + index) / audio.sampleRate));
+              port2.postMessage({ samples, done: offset + frameSize >= 2 * framesPerBar }, [samples.buffer]);
+            }
+            port2.close();
+          },
+        });
+      }
+      get port() { return this.capturePort; }
+    };
+  });
   const { email, password } = fixture.accounts[0];
   const login = await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
     headers: { origin: fixture.origin }, data: { email, password },
@@ -73,4 +101,40 @@ test('sight singing keeps score scope, scroll direction and bottom controls inde
   await togglePitch();
   await expect(graph).toHaveCount(0);
   assert.equal((await score.boundingBox()).height, tallScore);
+
+  const run = page.locator('.challenge-run');
+  const start = page.getByRole('button', { name: '开始唱', exact: true });
+  const marks = score.locator('[data-challenge-feedback]');
+  await start.click();
+  await expect.poll(() => page.evaluate(() => window.sightSingingCaptures.length)).toBe(1);
+  await page.evaluate(() => window.sightSingingCaptures[0].complete());
+  await expect(run).toHaveAttribute('data-phase', 'result');
+  await page.getByRole('button', { name: '查看谱面', exact: true }).click();
+  await expect.poll(() => score.locator('[data-challenge-feedback="inTune"]').count()).toBeGreaterThan(0);
+  await expect.poll(() => score.locator('[data-challenge-feedback="wrongNote"]').count()).toBeGreaterThan(0);
+  await marks.first().evaluate(glyph => { window.reviewGlyph = glyph; });
+  await score.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect.poll(() => page.evaluate(() => window.reviewGlyph.isConnected)).toBe(false);
+
+  await page.getByRole('button', { name: '再试一次', exact: true }).click();
+  await expect(run).toHaveAttribute('data-phase', 'idle');
+  const retryScrollTop = await score.evaluate(el => {
+    const scrollTop = el.scrollTop;
+    el.scrollTop = 0;
+    return scrollTop;
+  });
+  await expect.poll(() => page.evaluate(() => window.reviewGlyph.isConnected)).toBe(true);
+  await expect(marks).toHaveCount(0);
+  assert.equal(retryScrollTop, 0);
+  await expect(scope).toHaveValue('part');
+  await expect(direction).toHaveValue('vertical');
+
+  await start.click();
+  await expect.poll(() => page.evaluate(() => window.sightSingingCaptures.length)).toBe(2);
+  await page.evaluate(() => window.sightSingingCaptures[1].count());
+  await expect(run).toHaveAttribute('data-phase', 'count');
+  await expect(marks).toHaveCount(0);
+  await page.evaluate(() => window.sightSingingCaptures[1].frame());
+  await expect(run).toHaveAttribute('data-phase', 'sing');
+  await expect(marks).toHaveCount(0);
 });

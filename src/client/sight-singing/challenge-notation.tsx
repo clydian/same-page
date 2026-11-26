@@ -1,6 +1,6 @@
 import { AlphaTabApi, LayoutMode, model, NotationElement, PlayerMode, StaveProfile, type rendering } from '@coderline/alphatab';
 import { isPointerDrag, ScoreFollowSession, type PointerPosition } from '@same-page/player/score-follow';
-import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useMessages } from '../../i18n';
 import type { Melody, MelodyMeasure, MelodyScore, MelodyVoice } from './melody';
 import { notationScore, samePart, type Part } from './notation-score';
@@ -152,7 +152,7 @@ function findStem(bounds: Bounds, stems: Stem[], sheet: DOMRect, scale: number) 
   return matches.length === 1 ? matches[0].element : undefined;
 }
 
-function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect, scale: number, stems: Stem[]) {
+function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect, scale: number, stems: Stem[], marked: Set<SVGElement>) {
   // SVG music symbols carry the same translated origin as AlphaTab's notehead
   // lookup. Match inside the beat so chord tones do not color their neighbors.
   for (const glyph of group.querySelectorAll<SVGGElement>('g.at')) {
@@ -167,14 +167,19 @@ function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect
       Math.min(Math.abs(bounds.x - x), Math.abs(centerX(bounds) - x)) < 1.5);
     if (!head) continue;
     text.dataset.challengeFeedback = head.status;
+    marked.add(text);
     if (!head.singleStem) continue;
     const stem = findStem(head.bounds, stems, sheet, scale);
-    if (stem) stem.dataset.challengeFeedback = head.status;
+    if (stem) {
+      stem.dataset.challengeFeedback = head.status;
+      marked.add(stem);
+    }
   }
 }
 
-export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, onNote, onMeasure, feedback, pitchFrames, liveTrace = false, traceThrough, bpm }: {
+export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, attemptReset, onNote, onMeasure, feedback, pitchFrames, liveTrace = false, traceThrough, bpm }: {
   score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; measure: MelodyMeasure; elapsed: number; positioned: boolean; followRun: number;
+  attemptReset: number;
   onNote?: (note: NotationNoteHit) => void; onMeasure?: (bar: number) => void; feedback?: readonly NotationFeedback[];
   pitchFrames?: PitchFrame[]; liveTrace?: boolean;
   traceThrough?: number; bpm: number;
@@ -189,7 +194,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const [scope, setScope] = useState<'part' | 'full'>('part');
   const [direction, setDirection] = useState<ScrollDirection>('vertical');
   const horizontal = direction === 'horizontal';
-  const followKey = `${followRun}:${scope}:${direction}`;
+  const followKey = `${attemptReset}:${followRun}:${scope}:${direction}`;
   const manual = paused === followKey;
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const played = useMemo(() => new Set(melody.measures.map(bar => bar.bar)), [melody.measures]);
@@ -235,11 +240,18 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     return () => { api.postRenderFinished.off(update); api.destroy(); };
   }, [display, min, max, direction, horizontal]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = notation.current;
     if (!rendered || !element || !tinted.size) return;
+    // AlphaTab caches detached SVGs for offscreen systems. Clear marks on the
+    // nodes we painted, including those that are no longer in the viewport.
+    const marked = new Set<SVGElement>();
+    const clear = () => {
+      for (const glyph of marked) glyph.removeAttribute('data-challenge-feedback');
+      marked.clear();
+    };
     const shade = () => {
-      for (const glyph of element.querySelectorAll('[data-challenge-feedback]')) glyph.removeAttribute('data-challenge-feedback');
+      clear();
       const sheet = element.getBoundingClientRect();
       const scale = element.offsetWidth ? sheet.width / element.offsetWidth : 1;
       // AlphaTab emits the stems as tall, narrow rectangles alongside the beat
@@ -255,7 +267,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
             .map(rect => ({ element: rect, bounds: rect.getBoundingClientRect() })));
         }
         const candidates = svg ? stems.get(svg) ?? [] : [];
-        tintNoteheads(group, heads, sheet, scale, candidates);
+        tintNoteheads(group, heads, sheet, scale, candidates, marked);
       }
     };
     // Worker system SVGs mount lazily when they enter the viewport.
@@ -264,9 +276,16 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     shade();
     return () => {
       observer.disconnect();
-      for (const glyph of element.querySelectorAll('[data-challenge-feedback]')) glyph.removeAttribute('data-challenge-feedback');
+      clear();
     };
   }, [rendered, tinted]);
+
+  useLayoutEffect(() => {
+    scrollIntent.restore();
+    pointer.current = null;
+    autoScroll.current = null;
+    viewport.current?.scrollTo(0, 0);
+  }, [attemptReset, scrollIntent]);
 
   const { row, anchors } = useMemo(() => {
     if (!positioned || !rendered) return {};

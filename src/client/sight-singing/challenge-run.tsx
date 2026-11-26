@@ -50,6 +50,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [audioHint, setAudioHint] = useState(false);
   const [audioSession] = useState(() => playbackAudioSession());
   const [followRun, setFollowRun] = useState(0);
+  const [attemptReset, setAttemptReset] = useState(0);
   const take = useRef<string | null>(null);
   const run = useRef<(() => void) | null>(null);
   const tonicPreview = useRef<ReturnType<typeof playSustainedTonic> | null>(null);
@@ -208,6 +209,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   };
   const reset = () => {
     discard(); setDrone(false); setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
+    setAttemptReset(value => value + 1);
     setState({ phase: 'idle' });
   };
   const seek = useCallback((time: number) => {
@@ -271,12 +273,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
 
   return <div className="challenge-run" data-phase={state.phase} data-replaying={playing}>
     <ChallengeNotation score={document.score} voice={voice} melody={melody} measure={measure} elapsed={position}
-      positioned={positioned} followRun={followRun} bpm={Number(bpm.toFixed(1))} feedback={feedback}
+      positioned={positioned} followRun={followRun} attemptReset={attemptReset} bpm={Number(bpm.toFixed(1))} feedback={feedback}
       onNote={canTap ? selectNote : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
       pitchFrames={'frames' in state ? state.frames : undefined}
       liveTrace={state.phase === 'sing' || playing} traceThrough={state.phase === 'result' ? replayTime : undefined} />
 
-    {pitchTraceEnabled && <PitchGraph key={voice.id} melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
+    {pitchTraceEnabled && <PitchGraph key={`${voice.id}:${attemptReset}`} melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
       following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
