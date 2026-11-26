@@ -82,9 +82,8 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   await context.setOffline(true);
   await expect(heading).toBeVisible();
   await expect(run).toHaveAttribute("data-phase", "result", { timeout: 12_000 });
-  await expect(page.getByRole("alert").filter({ hasText: "成绩保存或发布失败。" })).toBeVisible();
-  await expect(page.locator(".challenge-replay-controls audio")).toHaveAttribute("src", /^blob:/);
-  await page.getByRole("button", { name: "回听演唱与钢琴答案", exact: true }).click();
+  await expect(page.locator(".challenge-result audio")).toHaveAttribute("src", /^blob:/);
+  await page.getByRole("button", { name: "回听", exact: true }).click();
   await expect(run).toHaveAttribute("data-replaying", "true");
   assert.equal(publications, 0);
 
@@ -163,6 +162,7 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   });
   const oldResults = await holdNextRead(t, cold, filteredUrl);
   await cold.getByRole("button", { name: "开始唱", exact: true }).click();
+  await cold.getByRole("button", { name: "再试一次", exact: true }).click();
   await posting.promise;
   await cold.getByRole("button", { name: "最佳成绩", exact: true }).click();
   const resultsPanel = cold.getByRole("dialog", { name: "最佳成绩", exact: true });
@@ -175,10 +175,8 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   // complete even while that pre-write response is still held.
   const freshResults = cold.waitForResponse(filteredUrl, { timeout: 5_000 });
   releasePost.resolve();
-  await expect(cold.getByRole("dialog", { name: "本次视唱", exact: true })).toBeVisible();
   assert.equal((await (await freshResults).json()).results.length, 1);
   oldResults.release();
-  await cold.getByRole("button", { name: "查看谱面", exact: true }).click();
   const ownScore = resultsPanel.locator("li[data-own='true']");
   await expect(ownScore).toHaveCount(1);
   await expect(resultsPanel.getByLabel("成绩速度")).toHaveValue("1");
@@ -195,7 +193,6 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   await expect(resultsPanel.getByText("当前筛选下暂无成绩。")).toBeVisible();
   await expect(resultsPanel.getByLabel("成绩速度")).toHaveValue("1");
   await resultsPanel.getByRole("button", { name: "关闭", exact: true }).click();
-  await cold.getByRole("button", { name: "再试一次", exact: true }).click();
 
   // Result publication has the same membership requirement as the GETs. A
   // denial received from the write also closes a previously authorized view.
@@ -203,6 +200,7 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   await cold.route(resultsUrl, route => route.request().method() === "POST"
     ? route.fulfill({ status: 403, json: { error: "permission_denied" } }) : route.continue());
   await cold.getByRole("button", { name: "开始唱", exact: true }).click();
+  await cold.getByRole("button", { name: "再试一次", exact: true }).click();
   await expect(cold.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible({ timeout: 12_000 });
   await expect(cold.locator(".challenge-run")).toHaveCount(0);
 });

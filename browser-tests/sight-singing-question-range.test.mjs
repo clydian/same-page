@@ -170,13 +170,14 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   await expect(page.locator('.task-header-heading > p')).toHaveText(`${measureLabel} · 我发布`);
   const result = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/results'));
   await page.getByRole('button', { name: '开始唱', exact: true }).click();
+  await expect(page.getByRole('button', { name: '回听', exact: true })).toBeEnabled();
+  await expect.poll(() => page.locator('audio').evaluate(audio => audio.duration)).toBe(.75);
+  await page.getByRole('button', { name: '返回题目列表', exact: true }).click();
   const resultResponse = await result;
   assert.equal(resultResponse.status(), 200);
   assert.equal(resultResponse.request().postDataJSON().score, 100);
-  assert.deepEqual(await page.evaluate(() => window.durationFrames), [36000]);
-  await page.getByRole('button', { name: '查看谱面', exact: true }).click();
-  await expect(page.getByRole('button', { name: '回听演唱与钢琴答案', exact: true })).toBeEnabled();
-  await expect.poll(() => page.locator('audio').evaluate(audio => audio.duration)).toBe(.75);
+  assert.deepEqual(await page.evaluate(() => window.durationFrames), [69600]);
+  await page.locator('.challenge-card-open').filter({ hasText: question.title }).click();
   await page.getByRole('button', { name: '编辑题目', exact: true }).click();
   await expect(summary).toContainText('含第 1 拍');
   await expect(advanced).not.toHaveAttribute('open');
@@ -223,22 +224,21 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   assert.ok(await cursor.evaluate(element => Number.parseFloat(element.style.left)) < targetX);
   await expect(page.locator('.challenge-staff-trace')).toBeVisible();
   await capture('unscored-lead-in.png');
-  const contextResponse = await contextResult;
-  assert.equal(contextResponse.status(), 200);
-  // The fixed E4 tone is wrong for the lead-in's two D4s, then matches all eight scored notes.
-  assert.equal(contextResponse.request().postDataJSON().score, 100);
-  assert.deepEqual(await page.evaluate(() => window.durationFrames), [36000, 180000]);
-  await page.getByRole('button', { name: '查看谱面', exact: true }).click();
   await expect(page.locator('.challenge-pitch-labels span')).toHaveCount(8);
   const audio = page.locator('audio');
   await expect.poll(() => audio.evaluate(element => element.duration)).toBe(3.75);
-  await page.getByRole('button', { name: '回听演唱与钢琴答案', exact: true }).click();
+  await page.getByRole('button', { name: '回听', exact: true }).click();
   await expect(cursor).toBeVisible();
   await audio.evaluate(element => { element.currentTime = element.duration - .02; });
   await expect.poll(() => audio.evaluate(element => element.ended)).toBe(true);
   assert.ok(await cursor.evaluate(element => Number.parseFloat(element.style.left)) < excludedX);
   await capture('scored-crop-replay.png');
   await page.getByRole('button', { name: '再试一次', exact: true }).click();
+  const contextResponse = await contextResult;
+  assert.equal(contextResponse.status(), 200);
+  // The fixed E4 tone is wrong for the lead-in's two D4s, then matches all eight scored notes.
+  assert.equal(contextResponse.request().postDataJSON().score, 100);
+  assert.deepEqual(await page.evaluate(() => window.durationFrames), [69600, 213600]);
   await startSinging.click();
   await expect(status).toHaveText('跟谱 · 暂不计分', { timeout: 8000 });
   await stop.click();
