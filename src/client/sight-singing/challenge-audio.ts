@@ -66,6 +66,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     const choirBacking = soundFont ? createChoirBacking(backing, melody.duration, soundFont, sampleRate) : null;
     const beatFrames = Math.round(melody.beatSeconds * sampleRate);
     const durationFrames = Math.round(melody.duration * sampleRate);
+    const leadInFrames = Math.round(melody.leadIn * sampleRate);
     context.addEventListener('statechange', () => {
       if (context?.state !== 'running') fail('audioInterrupted');
     });
@@ -96,7 +97,9 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
         window.fill(0, half);
         window.set(samples, half);
         const frame = { time: received / sampleRate, midi: pitch(window) };
-        frames.push(frame);
+        // The pitch window straddles its timestamp. Keep lead-in audio in a
+        // replay without ever feeding those samples into the score.
+        if (received - half >= leadInFrames) frames.push(frame);
         callbacks.onFrame(frame);
       } else {
         window.set(samples, half);

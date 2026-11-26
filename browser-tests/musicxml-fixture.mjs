@@ -3,6 +3,19 @@ export function musicXmlFixture(measureCount = 8) {
  return Buffer.from(`<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>练习乐谱</work-title></work><part-list>${parts.map((name,i)=>`<score-part id="P${i}"><part-name>${name}</part-name></score-part>`).join('')}</part-list>${parts.map((_,i)=>`<part id="P${i}">${Array.from({length:measureCount},(_,j)=>`<measure number="${j+1}">${j===0?'<attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction><sound tempo="80"/></direction>':''}<note><pitch><step>${i?'C':'E'}</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure>`).join('')}</part>`).join('')}</score-partwise>`);
 }
 
+export function sightSingingContextFixture(measureCount = 24) {
+  return Buffer.from(musicXmlFixture(measureCount).toString().replaceAll(/<part id="P([01])">([\s\S]*?)<\/part>/g,
+    (_, part, measures) => `<part id="P${part}">${measures.replace('<measure number="4">', '<measure number="4"><attributes><divisions>1</divisions></attributes>')
+      .replaceAll(/<measure number="([23])">[\s\S]*?<\/measure>/g, (_, number) => {
+      const pitches = part === '1' ? 'CDCDEFEF' : number === '2' ? 'DDEEEEEE' : 'EEGGGGGG';
+      const notes = Array.from(pitches, (step, index) => {
+        const beam = ['begin', 'continue', 'continue', 'end'][index % 4];
+        return `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>1</duration><type>eighth</type><beam number="1">${beam}</beam></note>`;
+      });
+      return `<measure number="${number}"><attributes><divisions>2</divisions></attributes>${notes.join('')}</measure>`;
+    })}</part>`));
+}
+
 // A second voice in the same staff exercises alphaTab's secondary glyph color.
 export function polyphonicMusicXmlFixture(measureCount = 8) {
  const xml = musicXmlFixture(measureCount).toString();

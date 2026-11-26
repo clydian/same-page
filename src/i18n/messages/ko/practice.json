@@ -327,6 +327,7 @@
     "count": "준비 · {count}",
     "waitingMicrophone": "마이크 권한을 기다리는 중…",
     "singNow": "지금 노래하세요",
+    "leadIn": "도입부 · 채점 없음",
     "takeComplete": "녹음 완료",
     "currentTarget": "목표 {pitch}",
     "currentPitch": "노래한 음 {pitch}",

@@ -3,25 +3,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import type { QuestionBeats } from '../../shared/sight-singing';
 import { visitWindow, type MelodyScore } from './melody';
+import { measureEdge } from './notation-timing';
 
 type TickWindow = ReturnType<typeof visitWindow>;
-
-function measureEdge(bar: rendering.MasterBarBounds, tick: number, duration: number) {
-  const { x, w } = bar.realBounds;
-  if (tick <= 0) return x;
-  if (tick >= duration) return x + w;
-  let before = { tick: -1, x }, after = { tick: duration, x: x + w };
-  for (const staff of bar.bars) for (const { beat, realBounds, onNotesX } of staff.beats) {
-    const at = beat.playbackStart;
-    // Use the printed note position for a cut within a sustained note. The
-    // barline may be well to the left of its onset, especially after a clef.
-    if (at >= 0 && at < tick && (at > before.tick || at === before.tick && onNotesX > before.x)) before = { tick: at, x: onNotesX };
-    if (at >= tick && (at < after.tick || at === after.tick && realBounds.x < after.x)) after = { tick: at, x: realBounds.x };
-  }
-  if (after.tick === tick) return after.x;
-  if (before.tick < 0) before.tick = 0;
-  return before.x + (after.x - before.x) * (tick - before.tick) / (after.tick - before.tick);
-}
 
 function measureRect(bar: rendering.MasterBarBounds, window: TickWindow, duration: number) {
   const left = measureEdge(bar, window.from, duration);

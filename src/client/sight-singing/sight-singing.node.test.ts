@@ -293,14 +293,21 @@ it('crops inclusive beats on each expanded visit and never attacks a tie carried
   const throughFirstBeat = buildMelody(document, voices[0], 3, 3, { lastBeat: 1 }) as Melody;
   expect(throughFirstBeat.notes).toEqual([{ midi: 60, start: 0, end: throughFirstBeat.duration, visit: 3, bar: 1, beatIndex: 0 }]);
   expect(throughFirstBeat.clicks).toEqual([{ time: 0, accent: 2 }]);
-  expect(throughFirstBeat.measures[0].clip).toEqual({ from: 0, until: 960 });
+  expect(throughFirstBeat.measures[0].clip).toEqual({ from: 0, until: 960, duration: 1920 });
   const carryIn = buildMelody(document, voices[0], 1, 2, { firstBeat: 2 }) as Melody;
-  expect(carryIn.notes).toEqual([{ midi: 67, start: 2, end: 3, visit: 2, bar: 2, beatIndex: 1 }]);
-  expect(carryIn.staffBeats[0]).toMatchObject({ start: 0, end: 1, pitches: [] });
-  expect(carryIn.tempo).toEqual({ bpm: 60, unit: 1 });
+  expect(carryIn.leadIn).toBe(.5);
+  expect(carryIn.notes).toEqual([
+    { midi: 60, start: 0, end: 1.5, visit: 1, bar: 1, beatIndex: 0 },
+    { midi: 67, start: 2.5, end: 3.5, visit: 2, bar: 2, beatIndex: 1 },
+  ]);
+  expect(carryIn.clicks.slice(0, 2)).toEqual([{ time: 0, accent: 2 }, { time: .5, accent: 0 }]);
+  expect(carryIn.tempoMarks).toEqual([{ start: 0, bpm: 120 }, { start: .5, bpm: 60 }]);
   const alto = buildMelody(document, voices[1], 1, 2, { firstBeat: 2 }) as Melody;
-  expect(alto).toMatchObject({ duration: 3, notes: [{ midi: 64, start: 0, end: 1 }, { midi: 65, start: 1, end: 2 }, { midi: 62, start: 2, end: 3 }] });
-  expect(melodyAtSpeed(carryIn, .5)).toMatchObject({ duration: 6, notes: [{ start: 4, end: 6 }] });
+  expect(alto).toMatchObject({ duration: 3.5, leadIn: .5, notes: [
+    { midi: 65, start: 0, end: .5 }, { midi: 64, start: .5, end: 1.5 },
+    { midi: 65, start: 1.5, end: 2.5 }, { midi: 62, start: 2.5, end: 3.5 },
+  ] });
+  expect(melodyAtSpeed(carryIn, .5)).toMatchObject({ duration: 7, leadIn: 1, notes: [{ start: 0, end: 3 }, { start: 5, end: 7 }] });
 
   const sixteenth = (step: string) => `<note>${pitch(step)}<duration>1</duration><type>16th</type></note>`;
   const compound = loadMelodyScore(bytes(`<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Soprano</part-name></score-part></part-list>

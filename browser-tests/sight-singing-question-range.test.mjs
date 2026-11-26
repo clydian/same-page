@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import test from 'node:test';
 import { chromium, expect } from '@playwright/test';
-import { musicXmlFixture } from './musicxml-fixture.mjs';
+import { musicXmlFixture, sightSingingContextFixture } from './musicxml-fixture.mjs';
 import { startStorageFixture } from './storage-fixture.mjs';
 
 function pickupWithRepeat() {
@@ -25,7 +25,7 @@ test('choosing a sight-singing range follows the loaded score and saves only com
     headers: { origin }, data: { email: account.email, password: account.password },
   });
   assert.equal(login.status(), 200);
-  const attachment = crypto.randomUUID(), score = musicXmlFixture(24);
+  const attachment = crypto.randomUUID(), score = sightSingingContextFixture();
   const upload = await context.request.post(`${origin}/api/choirs/${choirId}/scores/${scoreId}/attachments/${attachment}/file?name=range.xml&size=${score.length}`,
     { data: score, headers: { 'content-length': String(score.length) } });
   assert.equal(upload.status(), 201);
@@ -182,6 +182,51 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   await expect(advanced).not.toHaveAttribute('open');
   await page.getByRole('button', { name: '返回题目列表', exact: true }).click();
   await expect(page.locator('.challenge-card-open strong')).toHaveText(question.title);
+
+  await page.setViewportSize({ width: 1040, height: 850 });
+  await create();
+  await page.locator('select[name="score"]').selectOption(scoreId);
+  await from.press('ArrowRight');
+  await to.press('Home');
+  await to.press('ArrowRight');
+  await advanced.locator('summary').click();
+  await startEndpoint.click();
+  await advanced.getByRole('button', { name: '后一拍', exact: true }).click();
+  await endEndpoint.click();
+  for (let step = 0; step < 3; step++) await previousBeat.click();
+  await expect(title).toHaveValue(/ 2–3 小节$/);
+  await page.getByRole('button', { name: '发布到云盘', exact: true }).click();
+  await page.getByRole('button', { name: '练习设置', exact: true }).click();
+  await page.getByRole('switch', { name: '音高轨迹', exact: true }).press('Space');
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
+  const contextResult = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/results'));
+  const cursor = page.locator('.challenge-score-cursor');
+  const firstTarget = page.locator('.challenge-notation-note[data-track="0"][data-bar="1"][data-beat-index="2"]');
+  const excludedEnd = page.locator('.challenge-notation-note[data-track="0"][data-bar="2"][data-beat-index="2"]');
+  const targetX = await firstTarget.evaluate(element => Number.parseFloat(element.style.left));
+  const excludedX = await excludedEnd.evaluate(element => Number.parseFloat(element.style.left));
+  await capture('practice-context.png');
+  await page.getByRole('button', { name: '开始唱', exact: true }).click();
+  await expect(page.getByText('跟谱 · 暂不计分', { exact: true })).toBeVisible({ timeout: 8000 });
+  assert.ok(await cursor.evaluate(element => Number.parseFloat(element.style.left)) < targetX);
+  await expect(page.locator('.challenge-staff-trace')).toBeVisible();
+  await capture('unscored-lead-in.png');
+  const contextResponse = await contextResult;
+  assert.equal(contextResponse.status(), 200);
+  // The fixed E4 tone is wrong for the lead-in's two D4s, then matches all eight scored notes.
+  assert.equal(contextResponse.request().postDataJSON().score, 100);
+  assert.deepEqual(await page.evaluate(() => window.durationFrames), [36000, 180000]);
+  await page.getByRole('button', { name: '查看谱面', exact: true }).click();
+  await expect(page.locator('.challenge-pitch-labels span')).toHaveCount(8);
+  const audio = page.locator('audio');
+  await expect.poll(() => audio.evaluate(element => element.duration)).toBe(3.75);
+  await page.getByRole('button', { name: '回听演唱与钢琴答案', exact: true }).click();
+  await expect(cursor).toBeVisible();
+  await audio.evaluate(element => { element.currentTime = element.duration - .02; });
+  await expect.poll(() => audio.evaluate(element => element.ended)).toBe(true);
+  assert.ok(await cursor.evaluate(element => Number.parseFloat(element.style.left)) < excludedX);
+  await capture('scored-crop-replay.png');
+  await page.getByRole('button', { name: '返回题目列表', exact: true }).click();
 
   await create();
   await page.locator('select[name="source"]').selectOption('upload');

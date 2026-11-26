@@ -327,6 +327,7 @@
     "count": "Prepárate · {count}",
     "waitingMicrophone": "Esperando acceso al micrófono…",
     "singNow": "Canta ahora",
+    "leadIn": "Entrada · sin puntaje",
     "takeComplete": "Grabación finalizada",
     "currentTarget": "Objetivo {pitch}",
     "currentPitch": "Cantada {pitch}",

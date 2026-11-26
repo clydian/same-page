@@ -327,6 +327,7 @@
     "count": "預備 · {count}",
     "waitingMicrophone": "等待麥克風權限…",
     "singNow": "開始唱",
+    "leadIn": "跟譜 · 暫不計分",
     "takeComplete": "本次演唱已完成",
     "currentTarget": "目標 {pitch}",
     "currentPitch": "唱出 {pitch}",
