@@ -276,6 +276,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const target = melody.notes.find(note => note.start <= position && position < note.end);
   const review = corrected?.review;
   const displayFrames = corrected?.frames ?? (state.phase === 'sing' ? state.frames : undefined);
+  const traceOffset = state.phase === 'sing' ? mix.latency / 1000 : 0;
   const feedback = useMemo(() => review?.flatMap(row => row.note.beatIndex === undefined ? [] : [{
     bar: row.note.bar, beatIndex: row.note.beatIndex, visit: row.note.visit, status: row.status, midi: row.target ?? undefined, cents: row.cents,
   }]), [review]);
@@ -320,10 +321,11 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         if (inside) selectNote(hit);
       } : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
       pitchFrames={displayFrames}
-      liveTrace={state.phase === 'sing' || playing} traceThrough={state.phase === 'result' ? replayTime : undefined} />
+      traceMode={state.phase === 'sing' ? 'recording' : playing ? 'replaying' : undefined}
+      traceThrough={state.phase === 'sing' || state.phase === 'result' ? position : undefined} traceOffset={traceOffset} />
 
     {pitchTraceEnabled && <PitchGraph key={voice.id} melody={melody} visits={document.visits} measure={measure} attemptReset={attemptReset}
-      measureSpan={pitchSpan} onMeasureSpanChange={setPitchSpan} frames={displayFrames ?? emptyFrames} elapsed={position}
+      measureSpan={pitchSpan} onMeasureSpanChange={setPitchSpan} frames={displayFrames ?? emptyFrames} elapsed={position} traceOffset={traceOffset}
       following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}

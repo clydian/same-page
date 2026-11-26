@@ -18,6 +18,10 @@ export function firstFrameAt(frames: PitchFrame[], time: number) {
   return first;
 }
 
+export function lastFrameThrough(frames: PitchFrame[], time: number) {
+  return firstFrameAt(frames, time + 1e-6) - 1;
+}
+
 export function octaveGuides(pitches: number[], low: number, high: number) {
   const written = new Set(pitches), guides = new Set<number>();
   for (const midi of written) {
