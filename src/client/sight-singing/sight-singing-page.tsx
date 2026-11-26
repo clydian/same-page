@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronDown, ChevronRight, Pencil, Settings, Trophy, UsersRound, X } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Button, DialogTrigger, Heading, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, Switch } from 'react-aria-components';
+import { Button, DialogTrigger, Heading, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover } from 'react-aria-components';
 import { Link, useParams } from 'react-router-dom';
 import { useAppLocale, useMessages } from '../../i18n';
 import { attachmentAccept, attachmentFormat, attachmentNameSchema } from '../../shared/attachments';
@@ -25,6 +25,7 @@ import { invalidateReadResources } from '../settings/read-resource';
 import { useReadResource } from '../settings/use-read-resource';
 import { captureSettingsLifetime, useSettingsLifetime } from '../settings/use-settings-lifetime';
 import { ConfirmDialog } from '../settings/confirm-dialog';
+import { ChallengePracticeSettings } from './challenge-practice-settings';
 import { ChallengeRun, type ResultSave, type VoiceOption } from './challenge-run';
 import { useSightSingingScoreFormat } from './format-score';
 import { buildMelody } from './melody';
@@ -35,6 +36,7 @@ import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingin
   type SightSingingResultFilters } from './result-publication';
 import type { PublishedSightSingingResult, SightSingingLeaderboard, SightSingingResultSubmission } from '../../shared/sight-singing-results';
 import { isSightSingingMemberDenied, publishedPath, readSightSinging } from './read';
+import { useChallengeMix } from './use-challenge-mix';
 import { useMelodySource, type MelodySource } from './use-melody-source';
 import './sight-singing.css';
 import './sight-singing-workspace.css';
@@ -140,6 +142,7 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const board = useChallengeRead(reads, { variant: 'leaderboard' }, signal => readSightSingingLeaderboard(props.choirId, signal), !denied);
   const [selection, setSelection] = useState<{ question?: PublishedQuestion; legacy?: SightSingingQuestion } | null>(null);
   const [pitchTraceEnabled, setPitchTraceEnabled] = useState(false);
+  const mix = useChallengeMix(props.userId);
   const [resultGeneration, setResultGeneration] = useState(0);
   const resultsChanged = (questionId: string) => {
     // Fence pre-write reads for the aggregate and every filter on this question.
@@ -177,6 +180,7 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
     return <ChallengeEntry choirId={props.choirId} denied signedOut={published.authority === 'signed-out'} retry={refresh} />;
   }
   if (selection) return <QuestionWorkspace {...reads} {...selection} pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
+    audioMix={mix}
     canEditQuestion={published.data?.questions.find(question => question.id === selection.question?.id)?.canEdit}
     resultGeneration={resultGeneration} onResultsChanged={resultsChanged} revalidateAccess={refresh} onBack={() => { setSelection(null); refresh(); }} />;
   const legacyQuestions = questions?.filter(question => !published.data?.questions.some(item => item.id === question.id));
@@ -453,11 +457,12 @@ function PublishedResults({ reads, questionId, version, generation, userId, onRe
 }
 
 function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOfficial, scores, canReadCloud, retryConnection, onMemberDenied, question, legacy, onBack, canEditQuestion, revalidateAccess,
-  resultGeneration, onResultsChanged, pitchTraceEnabled, setPitchTraceEnabled }: DriveContext & {
+  resultGeneration, onResultsChanged, pitchTraceEnabled, setPitchTraceEnabled, audioMix }: DriveContext & {
   question?: PublishedQuestion; legacy?: SightSingingQuestion; onBack: () => void; onMemberDenied: () => void;
   canEditQuestion?: boolean; revalidateAccess: () => void;
   resultGeneration: number; onResultsChanged: (questionId: string) => void;
   pitchTraceEnabled: boolean; setPitchTraceEnabled: (enabled: boolean) => void;
+  audioMix: ReturnType<typeof useChallengeMix>;
 }) {
   const t = useMessages('practice');
   const { locale } = useAppLocale();
@@ -650,9 +655,8 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
             version={version} generation={resultGeneration} onResultsChanged={onResultsChanged} />
         </PracticePanel>}
         <PracticePanel title={t('settings')} compact icon={<Settings size={20} aria-hidden="true" />}>
-          <Switch className="challenge-settings-switch" isSelected={pitchTraceEnabled} onChange={setPitchTraceEnabled}>
-            <span>{t('sight.pitchMonitor')}</span><span className="challenge-settings-switch-track" aria-hidden="true" />
-          </Switch>
+          <ChallengePracticeSettings pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
+            mix={audioMix[0]} setMix={audioMix[1]} />
         </PracticePanel>
       </div>} />
     <main className="page-shell challenge-page">
@@ -725,7 +729,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       {failed && <p role="alert" className="challenge-error">{t('sight.publishError')}</p>}
       {!editing && loaded.document && selected && <ChallengeRun document={loaded.document} selected={selected} voices={voices}
         backingUnavailable={backingUnavailable} selectVoice={setVoiceChoice} questionVersion={version}
-        pitchTraceEnabled={pitchTraceEnabled} onScored={recordResult} />}
+        pitchTraceEnabled={pitchTraceEnabled} mix={audioMix[0]} onScored={recordResult} />}
     </main>
   </div>;
 }

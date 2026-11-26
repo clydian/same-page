@@ -133,6 +133,9 @@
 }
 .challenge-settings-switch[data-selected] .challenge-settings-switch-track::before { background: var(--surface); }
 .challenge-settings-switch[data-focus-visible] .challenge-settings-switch-track { outline: 2px solid var(--brand); outline-offset: 3px; }
+.challenge-settings-hint { margin: 0; color: var(--muted); font-size: .85rem; }
+.challenge-mixer .practice-disclosure-trigger { font-size: inherit; }
+.challenge-mixer .practice-setting-content { gap: .45rem; box-shadow: none; }
 
 .challenge-result-filters { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .3rem .75rem; }
 .challenge-version-filter select { max-inline-size: 100%; }

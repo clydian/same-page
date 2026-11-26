@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import { sightSingingSpeeds, type SightSingingResultSubmission, type SightSingingStanding } from '../../shared/sight-singing-results';
 import { holdUpdate } from '../updates/update-safety';
-import { beginCapture, mixPianoAnswer, playNote, playSustainedTonic, type CaptureError } from './challenge-audio';
+import { beginCapture, playNote, playSustainedTonic, type CaptureError } from './challenge-audio';
 import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
 import { ChallengeStanding } from './challenge-standing';
 import { useSightSingingScoreFormat } from './format-score';
@@ -13,6 +13,8 @@ import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type Melod
 import { assessNotes, pitchName, takeScore, type PitchFrame } from './pitch-feedback';
 import { createPitchTrace } from './pitch-trace';
 import { ScoreBadges } from './score-badge';
+import { useChallengeAnswer } from './use-challenge-answer';
+import type { ChallengeMix } from './use-challenge-mix';
 
 const emptyFrames: PitchFrame[] = [];
 const TuningFork = createLucideIcon('TuningFork', [['path', { d: 'M7 3v8a5 5 0 0 0 10 0V3M12 16v5', key: 'fork' }]]);
@@ -20,16 +22,15 @@ type Speed = SightSingingResultSubmission['speed'];
 export type ResultSave = { published: boolean; standing: SightSingingStanding };
 export type VoiceOption = { voice: MelodyVoice; melody: Melody; label: string };
 type Review = ReturnType<typeof assessNotes>;
-type Answer = { status: 'preparing' } | { status: 'ready'; url: string } | { status: 'failed'; recording: Blob };
 type RunState = { phase: 'idle' | 'permission' }
   | { phase: 'count'; count: number }
   | { phase: 'sing'; frame: PitchFrame; frames: PitchFrame[] }
-  | { phase: 'result'; id: string; frames: PitchFrame[]; review: Review; score: ReturnType<typeof takeScore>; answer: Answer; save: ResultSave | 'saving' | 'failed' | 'unscored' };
+  | { phase: 'result'; id: string; frames: PitchFrame[]; review: Review; score: ReturnType<typeof takeScore>; recording: Blob; save: ResultSave | 'saving' | 'failed' | 'unscored' };
 
-export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, pitchTraceEnabled, onScored }: {
+export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, pitchTraceEnabled, mix, onScored }: {
   document: MelodyScore; selected: VoiceOption; voices: VoiceOption[]; backingUnavailable: boolean;
   selectVoice: (id: string) => void; questionVersion: number;
-  pitchTraceEnabled: boolean; onScored: (take: SightSingingResultSubmission) => Promise<ResultSave>;
+  pitchTraceEnabled: boolean; mix: ChallengeMix; onScored: (take: SightSingingResultSubmission) => Promise<ResultSave>;
 }) {
   const t = useMessages('practice');
   const formatScore = useSightSingingScoreFormat();
@@ -52,18 +53,31 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [followRun, setFollowRun] = useState(0);
   const [attemptReset, setAttemptReset] = useState(0);
   const [pitchSpan, setPitchSpan] = useState(3);
-  const take = useRef<string | null>(null);
-  const run = useRef<(() => void) | null>(null);
+  const run = useRef<{ stop: () => void; setMix?: (mix: Omit<ChallengeMix, 'voice'>) => void } | null>(null);
   const tonicPreview = useRef<ReturnType<typeof playSustainedTonic> | null>(null);
-  const mixedUrl = useRef<string | null>(null);
   const replay = useRef<HTMLAudioElement>(null);
   const reviewSection = useRef<HTMLElement>(null);
+  const { answer, retryAnswer } = useChallengeAnswer(state.phase === 'result' ? state.recording : undefined,
+    state.phase === 'result' ? state.review : undefined, mix.voice);
   const release = useCallback(() => {
-    const stop = run.current;
+    const active = run.current;
     run.current = null;
-    stop?.();
+    active?.stop();
     replay.current?.pause();
     if (!tonicPreview.current) audioSession.release();
+  }, [audioSession]);
+  const attachReplay = useCallback((audio: HTMLAudioElement | null) => {
+    replay.current = audio;
+    if (!audio) return;
+    return () => {
+      if (!audio.paused) {
+        audio.pause();
+        setPlaying(false);
+        setReplayTime(audio.currentTime);
+      }
+      audioSession.release();
+      replay.current = null;
+    };
   }, [audioSession]);
   const stopTonic = useCallback(() => {
     const preview = tonicPreview.current;
@@ -72,11 +86,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     if (preview && !run.current) audioSession.release();
   }, [audioSession]);
   const discard = useCallback((keepTonic = false) => {
-    take.current = null;
     release();
     if (!keepTonic) stopTonic();
-    if (mixedUrl.current) URL.revokeObjectURL(mixedUrl.current);
-    mixedUrl.current = null;
   }, [release, stopTonic]);
   useEffect(() => {
     const interrupt = () => {
@@ -98,6 +109,11 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   }, [discard, release, stopTonic]);
 
   useEffect(() => { tonicPreview.current?.setPitch(melody.tonic); }, [melody.tonic]);
+  const { backing: backingVolume, tonic: tonicVolume, metronome } = mix;
+  useEffect(() => {
+    tonicPreview.current?.setVolume(tonicVolume);
+    run.current?.setMix?.({ backing: backingVolume, tonic: tonicVolume, metronome });
+  }, [backingVolume, tonicVolume, metronome]);
 
   useEffect(() => {
     if (!playing || state.phase !== 'result') return;
@@ -114,29 +130,6 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     frame = requestAnimationFrame(follow);
     return () => cancelAnimationFrame(frame);
   }, [playing, state.phase]);
-
-  const prepareAnswer = async (takeId: string, recording: Blob, review: Review) => {
-    const update = (answer: Answer) => setState(current => current.phase === 'result' && current.id === takeId ? { ...current, answer } : current);
-    update({ status: 'preparing' });
-    try {
-      const octaves = new Map<number, number>();
-      for (const row of review) if (row.octave !== null && row.status !== 'wrongNote') {
-        octaves.set(row.octave, (octaves.get(row.octave) ?? 0) + 1);
-      }
-      const sungOctave = [...octaves].sort((a, b) => b[1] - a[1] || Math.abs(a[0]) - Math.abs(b[0]))[0]?.[0] ?? 0;
-      const notes = review.map(row => ({ ...row.note,
-        midi: (row.target ?? row.note.midi) + 12 * (row.octave ?? sungOctave),
-        chord: row.target === null ? row.note.chord?.map(midi => midi + 12 * sungOctave) : undefined,
-      }));
-      const mixed = await mixPianoAnswer(recording, notes);
-      if (take.current !== takeId) return;
-      const url = URL.createObjectURL(mixed);
-      mixedUrl.current = url;
-      update({ status: 'ready', url });
-    } catch {
-      if (take.current === takeId) update({ status: 'failed', recording });
-    }
-  };
 
   const saveResult = async (id: string, { percent, perfect, writtenOctave }: ReturnType<typeof takeScore>) => {
     if (percent === null) return;
@@ -161,7 +154,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     setError(null);
     setAudioHint(Boolean(audioSession.request()));
     try {
-      const preview = playSustainedTonic(melody.tonic, () => {
+      const preview = playSustainedTonic(melody.tonic, tonicVolume, () => {
         if (tonicPreview.current !== preview) return;
         stopTonic();
         setDrone(false);
@@ -187,10 +180,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     setAudioHint(Boolean(audioSession.request('play-and-record')));
     setState({ phase: 'permission' });
     const takeId = crypto.randomUUID();
-    take.current = takeId;
     const releaseUpdate = holdUpdate();
     const trace = createPitchTrace();
-    const stop = beginCapture(melody, {
+    const capture = beginCapture(melody, {
       onCount: count => setState({ phase: 'count', count }),
       onFrame: frame => {
         setState({ phase: 'sing', frame: trace.append(frame), frames: trace.frames });
@@ -202,13 +194,15 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         const firstScoredFrame = result[0]?.time ?? Infinity;
         const frames = melody.leadIn ? trace.frames.filter(frame => frame.time >= firstScoredFrame) : trace.frames;
         setState({ phase: 'result', id: takeId, frames, review, score,
-          answer: { status: 'preparing' }, save: score.percent === null ? 'unscored' : 'saving' });
+          recording, save: score.percent === null ? 'unscored' : 'saving' });
         void saveResult(takeId, score);
-        void prepareAnswer(takeId, recording, review);
       },
       onError: reason => { releaseUpdate(); discard(); setDrone(false); setError(reason); setState({ phase: 'idle' }); },
-    }, accompaniment.map(option => melodyAtSpeed(option.melody, speed).notes), preview?.context);
-    run.current = () => { stop(); releaseUpdate(); };
+    }, accompaniment.map(option => melodyAtSpeed(option.melody, speed).notes), mix, preview?.context);
+    run.current = {
+      stop: () => { capture.stop(); releaseUpdate(); },
+      setMix: next => { capture.setMix(next); preview?.setVolume(next.tonic); },
+    };
   };
   const reset = () => {
     discard(); setDrone(false); setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
@@ -258,11 +252,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     release(); setError(null);
     setAudioHint(Boolean(audioSession.request()));
     try {
-      run.current = playNote(hit.midi, failed => {
+      const stop = playNote(hit.midi, failed => {
         run.current = null;
         if (!tonicPreview.current) audioSession.release();
         if (failed) setError('audioFailure');
       });
+      run.current = { stop };
     } catch {
       if (!tonicPreview.current) audioSession.release();
       setError('audioFailure');
@@ -272,7 +267,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const bpm = melody.tempoMarks.reduce((tempo, mark) => mark.start <= position ? mark.bpm : tempo, melody.tempo.bpm * speed);
   const cropped = melody.measures.some(bar => bar.clip);
   const positioned = state.phase === 'count' && !cropped || state.phase === 'sing' || state.phase === 'result' && (playing || replayTime > 0);
-  const canTap = state.phase === 'idle' || (state.phase === 'result' && state.answer.status === 'ready');
+  const canTap = state.phase === 'idle' || (state.phase === 'result' && answer.status === 'ready');
   const standing = state.phase === 'result' && !playing && dismissedStanding !== state.id && typeof state.save === 'object' && state.save.standing
     && state.score.percent !== null ? { id: state.id, score: state.score.percent, published: state.save.published, rank: state.save.standing } : null;
 
@@ -352,7 +347,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         {state.score.total > 0 && !state.score.perfect && <span>{t('sight.matchedNotes', { matched: state.score.matched, total: state.score.total })}</span>}
       </div>
       <div className="challenge-replay-controls">
-        {state.answer.status === 'ready' && <audio ref={replay} src={state.answer.url} preload="auto"
+        {answer.status === 'ready' && <audio ref={attachReplay} src={answer.url} preload="auto"
+          onLoadedMetadata={event => { if (replayTime > 0) event.currentTarget.currentTime = replayTime; }}
           onPlay={() => setPlaying(true)} onPause={event => {
             if (!event.currentTarget.paused) return;
             audioSession.release(); setPlaying(false); setReplayTime(event.currentTarget.currentTime);
@@ -360,12 +356,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
           onTimeUpdate={event => setReplayTime(event.currentTarget.currentTime)}
           onEnded={() => { audioSession.release(); setPlaying(false); }}
           onError={() => { audioSession.release(); setError('audioFailure'); }} />}
-        <button className="primary-button challenge-review-play" type="button" disabled={state.answer.status === 'preparing'} onClick={() => {
-          if (state.answer.status === 'failed') void prepareAnswer(state.id, state.answer.recording, state.review);
+        <button className="primary-button challenge-review-play" type="button" disabled={answer.status === 'preparing'} onClick={() => {
+          if (answer.status === 'failed') retryAnswer();
           else if (playing) replay.current?.pause();
           else playFrom();
         }}>{playing ? <Square size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-          {t(state.answer.status === 'preparing' ? 'sight.mixingAnswer' : playing ? 'sight.stopReplay' : 'sight.replayMix')}
+          {t(answer.status === 'preparing' ? 'sight.mixingAnswer' : playing ? 'sight.stopReplay' : 'sight.replayMix')}
         </button>
         <button className="secondary-button challenge-stop" type="button" onClick={reset}><RotateCcw size={17} aria-hidden="true" />{t('sight.retry')}</button>
       </div>
