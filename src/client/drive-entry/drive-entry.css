@@ -22,7 +22,15 @@
 
 .drive-entry-chooser .drive-entry-copy { margin-bottom: 12px; }
 
-.installed-entry-actions { display: grid; gap: 12px; margin-top: 24px; }
+.startup-entry .drive-entry-main { padding-block: clamp(1.5rem, 5svh, 3.5rem) 2rem; }
+.startup-entry h1 { font-size: clamp(1.875rem, 1.6rem + 1.5vw, 2.5rem); font-weight: 700; text-wrap: balance; }
+.startup-entry .drive-entry-copy { margin: .5rem 0 1rem; line-height: 1.65; }
+.startup-entry .dialog-form { margin-top: 1rem; }
+.startup-entry :is(.primary-button, .entry-form > button[type="submit"]) { min-height: 3rem; }
+.page-with-footer:has(> .startup-entry) > .app-footer { max-width: 36rem; }
+.page-with-footer:has(> .startup-entry) > .app-footer nav { gap: 0 1rem; }
+
+.installed-entry-actions { display: grid; gap: .625rem; margin-top: 1rem; }
 .installed-entry-actions > a { display: flex; align-items: center; justify-content: center; text-align: center; }
 .installed-entry-actions > .secondary-button { text-decoration: none; }
 .installed-entry-actions > .hero-preview-status:empty { position: absolute; }

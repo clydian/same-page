@@ -58,7 +58,7 @@ export function HomePage({ startup = false }: { startup?: boolean }) {
   const owner = startup && !location.search && !location.hash && !invitation.link
     ? identity.localUserId : identity.session.data?.user.id;
   if (inviteEntry) {
-    return <div className="app-page drive-entry-page">
+    return <div className="app-page drive-entry-page startup-entry">
       <AppHeader />
       <main className="drive-entry-main">
         <section className="drive-entry-welcome" aria-labelledby="invite-entry-title">
@@ -136,7 +136,7 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
   const previewStatus = <p id="home-preview-status" className="hero-preview-status" role="status">{previewAttempt > 0 && previewChoir === null ? t("home.previewUnavailable") : ""}</p>;
 
   const content = appEntry ? (
-    <div className="app-page drive-entry-page">
+    <div className="app-page drive-entry-page startup-entry">
       <AppHeader actions={<Link className="header-action" to="/login">{t("drive.login")}</Link>} />
       <main className="drive-entry-main">
         <section className="drive-entry-welcome" aria-labelledby="app-entry-title">
@@ -165,7 +165,6 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
       <main className="marketing-content">
         <section className="marketing-hero" aria-labelledby="page-title">
           <div className="marketing-hero__content">
-            <p className="hero-mark">合谱 · Same Page</p>
             <h1 id="page-title">{t("home.title")}</h1>
             <div className="hero-description"><p>{t("home.summary")}</p></div>
             <div className="hero-actions">
