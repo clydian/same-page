@@ -15,6 +15,7 @@ export interface DriveReadIdentity {
   owner: string | null;
   driveId: string;
   kind: DriveReadKind;
+  subjectId?: string;
   variant?: string;
 }
 export interface DriveChangeImpact {

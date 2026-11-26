@@ -20,8 +20,10 @@ import { useLibraryAttachments } from '../score-library/attachments/use-library-
 import { driveCacheOwnerKey, type DriveCacheOwnerKey } from '../score-library/drive-library-cache';
 import { useDriveLibraryResource } from '../score-library/use-drive-library';
 import { Dialog, Menu } from '../navigation/overlays';
-import { captureNavigationIdentity } from '../settings/navigation-events';
+import { captureNavigationIdentity, type DriveReadIdentity } from '../settings/navigation-events';
+import { invalidateReadResources } from '../settings/read-resource';
 import { useReadResource } from '../settings/use-read-resource';
+import { captureSettingsLifetime, useSettingsLifetime } from '../settings/use-settings-lifetime';
 import { ConfirmDialog } from '../settings/confirm-dialog';
 import { ChallengeRun, type ResultSave, type VoiceOption } from './challenge-run';
 import { useSightSingingScoreFormat } from './format-score';
@@ -98,9 +100,9 @@ function ChallengeEntry({ choirId, denied, signedOut = false, loading = false, r
 type DriveContext = { owner: DriveCacheOwnerKey; choirId: string; sessionId: string; userId: string; canPublishOfficial: boolean; scores: ScoreSummary[]; canReadCloud: boolean; retryConnection: () => void };
 type ChallengeReads = Pick<DriveContext, 'owner' | 'choirId' | 'canReadCloud'> & { onMemberDenied?: () => void };
 
-function useChallengeRead<T>({ owner, choirId, canReadCloud, onMemberDenied }: ChallengeReads, variant: string,
+function useChallengeRead<T>({ owner, choirId, canReadCloud, onMemberDenied }: ChallengeReads, key: Pick<DriveReadIdentity, 'subjectId' | 'variant'>,
   load: (signal: AbortSignal) => Promise<T>, enabled = true) {
-  return useReadResource<T>({ owner, driveId: choirId, kind: 'sight-singing', variant }, async signal => {
+  return useReadResource<T>({ owner, driveId: choirId, kind: 'sight-singing', ...key }, async signal => {
     try { return await load(signal); }
     catch (error) {
       if (!signal.aborted && isSightSingingMemberDenied(error)) onMemberDenied?.();
@@ -130,13 +132,21 @@ function publisherLabel(publisher: PublishedQuestion['publisher'], t: ReturnType
 function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: string }) {
   const t = useMessages('practice');
   const questions = useLiveQuery(() => readQuestions(props.owner, props.choirId).catch(() => null), [props.owner, props.choirId]);
-  const published = useChallengeRead(props, 'questions', signal =>
+  const published = useChallengeRead(props, { variant: 'questions' }, signal =>
     readSightSinging(publishedPath(props.choirId), publishedQuestionsSchema, signal));
   const denied = published.authority === 'signed-out' || published.authority === 'revoked';
   const reads = { ...props, onMemberDenied: published.clear };
-  const board = useChallengeRead(reads, 'leaderboard', signal => readSightSingingLeaderboard(props.choirId, signal), !denied);
+  const board = useChallengeRead(reads, { variant: 'leaderboard' }, signal => readSightSingingLeaderboard(props.choirId, signal), !denied);
   const [selection, setSelection] = useState<{ question?: PublishedQuestion; legacy?: SightSingingQuestion } | null>(null);
   const [pitchTraceEnabled, setPitchTraceEnabled] = useState(false);
+  const [resultGeneration, setResultGeneration] = useState(0);
+  const resultsChanged = (questionId: string) => {
+    // Fence pre-write reads for the aggregate and every filter on this question.
+    // The registry keeps the last displayed data and existing read authority.
+    invalidateReadResources(key => key.owner === props.owner && key.driveId === props.choirId && key.kind === 'sight-singing'
+      && (key.variant === 'leaderboard' || key.subjectId === questionId));
+    setResultGeneration(value => value + 1);
+  };
   const refresh = () => {
     if (!props.canReadCloud) { props.retryConnection(); return; }
     void published.refresh().catch(() => undefined);
@@ -144,6 +154,9 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   };
   const { refresh: refreshQuestions } = published;
   const { refresh: refreshBoard } = board;
+  useEffect(() => {
+    if (resultGeneration && props.canReadCloud && !denied) void refreshBoard().catch(() => undefined);
+  }, [resultGeneration, props.canReadCloud, denied, refreshBoard]);
   useEffect(() => {
     if (!props.canReadCloud) return;
     const verify = () => {
@@ -164,7 +177,7 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   }
   if (selection) return <QuestionWorkspace {...reads} {...selection} pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
     canEditQuestion={published.data?.questions.find(question => question.id === selection.question?.id)?.canEdit}
-    revalidateAccess={refresh} onBack={() => { setSelection(null); refresh(); }} />;
+    resultGeneration={resultGeneration} onResultsChanged={resultsChanged} revalidateAccess={refresh} onBack={() => { setSelection(null); refresh(); }} />;
   const legacyQuestions = questions?.filter(question => !published.data?.questions.some(item => item.id === question.id));
   const listPending = props.canReadCloud && !published.data && !published.error;
   const boardPending = props.canReadCloud && !board.data && !board.error;
@@ -275,7 +288,7 @@ function QuestionCard({ question, top, count, reads, ready, open }: {
 
 function ExpandedQuestionRanks({ reads, question }: { reads: ChallengeReads; question: PublishedQuestion }) {
   const t = useMessages('practice');
-  const details = useChallengeRead(reads, `card:${question.id}`, signal =>
+  const details = useChallengeRead(reads, { subjectId: question.id, variant: 'card' }, signal =>
     readSightSingingResults(reads.choirId, question.id, {}, signal));
   if (details.data) return <QuestionRanks rows={details.data.results} ready expanded showVersions={question.version > 1} />;
   if (reads.canReadCloud && !details.error) return <LoadingStatus>{t('sight.loading')}</LoadingStatus>;
@@ -359,8 +372,9 @@ function PublishedResultRow({ row, place, tied, showVersions, onRemove }: {
   </li>;
 }
 
-function PublishedResults({ reads, questionId, version, generation, userId }: {
+function PublishedResults({ reads, questionId, version, generation, userId, onResultsChanged }: {
   reads: ChallengeReads; questionId: string; version: number; generation: number; userId: string;
+  onResultsChanged: (questionId: string) => void;
 }) {
   const { choirId, canReadCloud } = reads;
   const t = useMessages('practice');
@@ -371,7 +385,8 @@ function PublishedResults({ reads, questionId, version, generation, userId }: {
   const [removing, setRemoving] = useState<PublishedSightSingingResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [withdrawFailed, setWithdrawFailed] = useState(false);
-  const results = useChallengeRead(reads, JSON.stringify(['results', questionId, filters]), signal =>
+  const lifetime = useSettingsLifetime();
+  const results = useChallengeRead(reads, { subjectId: questionId, variant: JSON.stringify(filters) }, signal =>
     readSightSingingResults(choirId, questionId, filters, signal));
   const rows = results.data?.results;
   const { refresh } = results;
@@ -383,15 +398,19 @@ function PublishedResults({ reads, questionId, version, generation, userId }: {
   const removeLabel = (edition: number) => showVersions ? t('sight.withdrawResult', { version: versionTag(edition) }) : t('sight.withdrawAction');
   const withdraw = async () => {
     if (!removing || busy || !results.canMutate) return;
+    const current = captureNavigationIdentity();
+    const mounted = captureSettingsLifetime(lifetime);
     setBusy(true); setWithdrawFailed(false);
     try {
       await withdrawSightSingingResult(choirId, questionId, userId, removing.id, removing.version);
-      refreshResults();
+      if (mounted() && current()) onResultsChanged(questionId);
     } catch (error) {
-      if (isSightSingingMemberDenied(error)) reads.onMemberDenied?.();
-      setWithdrawFailed(true);
+      if (mounted() && current()) {
+        if (isSightSingingMemberDenied(error)) reads.onMemberDenied?.();
+        setWithdrawFailed(true);
+      }
     } finally {
-      setBusy(false);
+      if (mounted()) setBusy(false);
     }
   };
   return <div className="challenge-published-results">
@@ -433,9 +452,10 @@ function PublishedResults({ reads, questionId, version, generation, userId }: {
 }
 
 function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOfficial, scores, canReadCloud, retryConnection, onMemberDenied, question, legacy, onBack, canEditQuestion, revalidateAccess,
-  pitchTraceEnabled, setPitchTraceEnabled }: DriveContext & {
+  resultGeneration, onResultsChanged, pitchTraceEnabled, setPitchTraceEnabled }: DriveContext & {
   question?: PublishedQuestion; legacy?: SightSingingQuestion; onBack: () => void; onMemberDenied: () => void;
   canEditQuestion?: boolean; revalidateAccess: () => void;
+  resultGeneration: number; onResultsChanged: (questionId: string) => void;
   pitchTraceEnabled: boolean; setPitchTraceEnabled: (enabled: boolean) => void;
 }) {
   const t = useMessages('practice');
@@ -449,7 +469,6 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const [sourceMode, setSourceMode] = useState<SourceMode>(draft?.snapshot ? 'saved' : 'library');
   const [upload, setUpload] = useState<{ key: string; file: File } | null>(null);
   const [invalidUpload, setInvalidUpload] = useState(false);
-  const [resultGeneration, setResultGeneration] = useState(0);
   const [questionId] = useState(() => question?.id ?? crypto.randomUUID());
   const [editing, setEditing] = useState(!question);
   useEffect(() => { heading.current?.focus(); }, [editing]);
@@ -592,7 +611,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       const result = await publishSightSingingResult(choirId, saved.id, userId, attempt, signal);
       signal.throwIfAborted();
       if (!current()) throw new Error('result_publication_unconfirmed');
-      setResultGeneration(value => value + 1);
+      onResultsChanged(saved.id);
       return result;
     } catch (error) {
       if (!controller.signal.aborted && current() && isSightSingingMemberDenied(error)) onMemberDenied();
@@ -619,7 +638,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
           onClick={() => { setSourceMode('saved'); setEditing(true); }}><Pencil size={18} aria-hidden="true" /></button>}
         {saved && <PracticePanel title={t('sight.bestResults')} icon={<Trophy size={19} aria-hidden="true" />}>
           <PublishedResults key={`${saved.id}:${version}`} reads={{ owner, choirId, canReadCloud, onMemberDenied }} userId={userId} questionId={saved.id}
-            version={version} generation={resultGeneration} />
+            version={version} generation={resultGeneration} onResultsChanged={onResultsChanged} />
         </PracticePanel>}
         <PracticePanel title={t('settings')} compact icon={<Settings size={20} aria-hidden="true" />}>
           <Switch className="challenge-settings-switch" isSelected={pitchTraceEnabled} onChange={setPitchTraceEnabled}>

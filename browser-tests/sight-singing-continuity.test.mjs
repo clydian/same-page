@@ -14,6 +14,23 @@ const xml = `<score-partwise version="4.0"><part-list><score-part id="P1"><part-
 const title = "弱网回归练习";
 const noConnection = "暂时无法连接，已保存的内容仍然保留。";
 
+async function holdNextRead(t, page, url) {
+  const snapshot = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  let held = false;
+  t.after(() => release.resolve());
+  await page.route(url, async route => {
+    if (held || route.request().method() !== "GET") return route.fallback();
+    held = true;
+    const response = await route.fetch();
+    assert.equal(response.status(), 200);
+    snapshot.resolve(await response.json());
+    await release.promise;
+    await route.fulfill({ response }).catch(() => undefined);
+  });
+  return { snapshot: snapshot.promise, release: release.resolve };
+}
+
 test("a loaded sight-singing question survives offline and a failed identity refresh", { timeout: 90_000 }, async t => {
   const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
   let browser;
@@ -26,7 +43,8 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1024, height: 768 }, serviceWorkers: "allow" });
   const owner = fixture.accounts[0];
   const drive = `${fixture.origin}/choirs/${fixture.choirId}`;
-  const questions = `${fixture.origin}/api/choirs/${fixture.choirId}/sight-singing/questions`;
+  const challengeApi = `${fixture.origin}/api/choirs/${fixture.choirId}/sight-singing`;
+  const questions = `${challengeApi}/questions`;
   const question = `${questions}/${crypto.randomUUID()}`;
   assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
     headers: { origin: fixture.origin }, data: { email: owner.email, password: owner.password },
@@ -130,11 +148,60 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   await unavailable.getByRole("button", { name: "重新加载", exact: true }).click();
   await expect(cold.getByRole("button", { name: new RegExp(title) })).toBeVisible();
 
+  await cold.getByRole("button", { name: new RegExp(title) }).click();
+  const resultsUrl = `${question}/results`;
+  const filteredUrl = `${resultsUrl}?speed=1`;
+  const posting = Promise.withResolvers();
+  const releasePost = Promise.withResolvers();
+  t.after(() => releasePost.resolve());
+  await cold.route(resultsUrl, async route => {
+    if (route.request().method() === "POST") {
+      posting.resolve();
+      await releasePost.promise;
+    }
+    await route.continue();
+  });
+  const oldResults = await holdNextRead(t, cold, filteredUrl);
+  await cold.getByRole("button", { name: "开始唱", exact: true }).click();
+  await posting.promise;
+  await cold.getByRole("button", { name: "最佳成绩", exact: true }).click();
+  const resultsPanel = cold.getByRole("dialog", { name: "最佳成绩", exact: true });
+  await resultsPanel.getByLabel("成绩速度").selectOption("1");
+  assert.deepEqual((await oldResults.snapshot).results, []);
+  const boardUrl = `${challengeApi}/leaderboard`;
+  const oldBoard = await holdNextRead(t, cold, boardUrl);
+
+  // The filtered GET captured the old server rows. A post-write GET must
+  // complete even while that pre-write response is still held.
+  const freshResults = cold.waitForResponse(filteredUrl, { timeout: 5_000 });
+  releasePost.resolve();
+  await expect(cold.getByRole("dialog", { name: "本次视唱", exact: true })).toBeVisible();
+  assert.equal((await (await freshResults).json()).results.length, 1);
+  oldResults.release();
+  await cold.getByRole("button", { name: "查看谱面", exact: true }).click();
+  const ownScore = resultsPanel.locator("li[data-own='true']");
+  await expect(ownScore).toHaveCount(1);
+  await expect(resultsPanel.getByLabel("成绩速度")).toHaveValue("1");
+
+  // Publication refreshed the board too. Hold that snapshot across withdrawal.
+  assert.equal((await oldBoard.snapshot).results.length, 1);
+  await ownScore.locator(".challenge-score-menu-trigger").click({ button: "right" });
+  await cold.getByRole("menuitem", { name: "撤下成绩", exact: true }).click();
+  const freshBoard = cold.waitForResponse(boardUrl, { timeout: 5_000 });
+  await cold.getByRole("dialog", { name: "撤下成绩", exact: true })
+    .getByRole("button", { name: "撤下成绩", exact: true }).click();
+  assert.deepEqual((await (await freshBoard).json()).results, []);
+  oldBoard.release();
+  await expect(resultsPanel.getByText("当前筛选下暂无成绩。")).toBeVisible();
+  await expect(resultsPanel.getByLabel("成绩速度")).toHaveValue("1");
+  await resultsPanel.getByRole("button", { name: "关闭", exact: true }).click();
+  await cold.getByRole("button", { name: "再试一次", exact: true }).click();
+
   // Result publication has the same membership requirement as the GETs. A
   // denial received from the write also closes a previously authorized view.
-  await cold.route(`${question}/results`, route => route.request().method() === "POST"
+  await cold.unroute(resultsUrl);
+  await cold.route(resultsUrl, route => route.request().method() === "POST"
     ? route.fulfill({ status: 403, json: { error: "permission_denied" } }) : route.continue());
-  await cold.getByRole("button", { name: new RegExp(title) }).click();
   await cold.getByRole("button", { name: "开始唱", exact: true }).click();
   await expect(cold.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible({ timeout: 12_000 });
   await expect(cold.locator(".challenge-run")).toHaveCount(0);
