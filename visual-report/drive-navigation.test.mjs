@@ -44,7 +44,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await scenario("history-and-destinations", async page => {
       await page.goto("data:text/html,<h1>Previous document</h1>");
       await page.goto(`${app.origin}/choirs/visual-choir`);
-      await page.getByRole("button", { name: "我的" }).waitFor();
+      await page.getByRole("link", { name: "我的" }).waitFor();
       await page.getByRole("button", { name: /^切换云盘/ }).click();
       await page.getByRole("dialog", { name: "切换云盘" }).waitFor();
       await page.evaluate(() => history.back());
@@ -53,7 +53,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await page.evaluate(() => history.back());
       await page.getByRole("heading", { name: "Previous document" }).waitFor();
       await page.goto(`${app.origin}/choirs/visual-choir`);
-      await page.getByRole("button", { name: "我的" }).waitFor();
+      await page.getByRole("link", { name: "我的" }).waitFor();
       await page.getByRole("button", { name: /^切换云盘/ }).click();
       await page.getByRole("dialog", { name: "切换云盘" }).waitFor();
       await page.keyboard.press("Escape");
@@ -69,13 +69,14 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       assert.equal(new URL(page.url()).pathname, "/choirs/visual-choir");
       await expect(page.getByRole("dialog")).toHaveCount(0);
     });
-    await scenario("personal-menu-navigation-and-focus", async page => {
+    await scenario("personal-page-navigation-and-focus", async page => {
       await page.goto(`${app.origin}/choirs/visual-choir`);
-      const trigger = page.getByRole("button", { name: "我的", exact: true });
-      await trigger.click();
-      await expect(page.getByRole("menu", { name: "我的", exact: true })).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(trigger).toBeFocused();
+      const trigger = page.getByRole("link", { name: "我的", exact: true });
+      await trigger.press("Enter");
+      await expect(page.getByRole("heading", { name: "我的", exact: true })).toBeVisible();
+      await expect(trigger).toHaveAttribute("aria-current", "page");
+      await page.goBack();
+      await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir`);
       await page.getByRole("button", { name: /^切换云盘/ }).click();
       const picker = page.getByRole("dialog", { name: "切换云盘" });
       // A bottom sheet grows upward when its async directory arrives. Wait for
@@ -85,7 +86,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(picker).toBeHidden();
       await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
       await trigger.click();
-      await page.getByRole("menuitem", { name: /^关于与更新/ }).click();
+      await page.getByRole("link", { name: /^关于与更新/ }).click();
       await expect(page.getByRole("heading", { name: "关于合谱", exact: true })).toBeVisible();
       const information = page.getByRole("navigation", { name: "帮助与产品信息" });
       await expect(information.getByRole("link", { name: /^使用手册/ })).toHaveAttribute("href", "/help");

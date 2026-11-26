@@ -57,8 +57,8 @@ test('choosing a sight-singing range follows the loaded score and saves only com
     if (request.method() === 'GET' && new URL(request.url()).pathname.endsWith(`/attachments/${attachment}/file`)) fileReads.push(request.url());
   });
   await page.goto(`${origin}/choirs/${choirId}`);
-  await page.getByRole('button', { name: '我的', exact: true }).click();
-  await page.getByRole('menuitem', { name: '视唱挑战', exact: true }).click();
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '工具', exact: true }).click();
+  await page.getByRole('link', { name: '视唱练习', exact: true }).click();
   const create = () => page.getByRole('button', { name: '新建题目', exact: true }).click();
   const editor = page.getByRole('region', { name: '小节范围', exact: true });
   const notation = editor.locator('.challenge-range-notation');

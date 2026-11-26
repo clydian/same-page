@@ -244,6 +244,9 @@
   "opusEmptyPiece": "合集包含沒有可播放小節的曲目。",
   "lyricSize": "歌詞字級",
   "advancedSettings": "進階設定",
+  "sightPractice": "視唱練習",
+  "rhythmPractice": "節奏練習",
+  "rhythmComingSoon": "籌備中",
   "sight": {
     "title": "視唱挑戰",
     "loading": "正在讀取…",

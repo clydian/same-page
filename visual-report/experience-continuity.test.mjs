@@ -49,7 +49,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await attachment.click();
       await expect(page.getByText("连接网络后可打开此附件。", { exact: true })).toBeVisible();
       await expect(page).toHaveURL(`${app.origin}/choirs/visual-choir`);
-      await expect(page.getByRole("button", { name: "我的", exact: true }).locator(".lucide-user-round")).toBeVisible();
+      await expect(page.getByRole("link", { name: "我的", exact: true }).locator(".lucide-user-round")).toBeVisible();
       await page.screenshot({ path: `${evidence}/offline-attachments.png` });
       holdMetadata = true;
       await context.setOffline(false);
@@ -59,8 +59,8 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       await expect(attachment).toHaveAttribute("data-continuity-observed", "true");
       releaseMetadata();
       await expect(attachment).toBeEnabled();
-      await page.getByRole("button", { name: "我的", exact: true }).click();
-      await page.getByRole("menuitem", { name: "云盘内身份", exact: true }).click();
+      await page.getByRole("link", { name: "我的", exact: true }).click();
+      await page.getByRole("link", { name: "云盘内身份", exact: true }).click();
       await page.getByRole("button", { name: "修改显示名", exact: true }).click();
       const input = page.getByRole("textbox", { name: "我在此云盘的显示名", exact: true });
       await input.fill("尚未保存的排练名字");

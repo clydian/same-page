@@ -244,6 +244,9 @@
   "opusEmptyPiece": "The collection contains a piece with no playable measures.",
   "lyricSize": "Lyric size",
   "advancedSettings": "Advanced settings",
+  "sightPractice": "Sight-singing practice",
+  "rhythmPractice": "Rhythm practice",
+  "rhythmComingSoon": "Coming soon",
   "sight": {
     "title": "Sight-singing challenge",
     "loading": "Loading…",

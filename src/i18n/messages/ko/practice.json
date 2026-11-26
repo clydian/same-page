@@ -244,6 +244,9 @@
   "opusEmptyPiece": "모음에 재생할 수 있는 마디가 없는 곡이 있습니다.",
   "lyricSize": "가사 크기",
   "advancedSettings": "고급 설정",
+  "sightPractice": "시창 연습",
+  "rhythmPractice": "리듬 연습",
+  "rhythmComingSoon": "준비 중",
   "sight": {
     "title": "시창 챌린지",
     "loading": "불러오는 중…",

@@ -181,9 +181,9 @@ node --test --test-name-pattern='^webkit: MusicXML startup local-directory-bound
 node --test --test-name-pattern='^chromium: preview notes stay local signed-in-direct-link$' browser-tests/preview-notes-smoke.test.mjs
 ```
 
-个人菜单的云盘内/外及可管理身份的条目和链接合同集中到 `personal-menu.test.tsx`；
-两个浏览器文件删除重复条目全集与旧入口缺席检查。浏览器仍验证实际关于页/首页跳转、Escape
-焦点恢复、云盘选择器边界、长邮箱窄屏无溢出及 End 键可达退出操作。
+「我的」页的应用设置、云盘内身份及权限链接合同集中到 `personal-settings-links.test.tsx`。
+浏览器用例 `workspace-tabs.test.mjs` 检查底栏页面切换、当前云盘范围、乐谱位置恢复和视唱挑战入口；
+相关用例继续覆盖关于页/首页跳转、云盘选择器焦点和窄屏布局。
 本批不改 PWA 更新/生命周期脚本、共享存储 fixture、浏览器分片或范围选择，避免改变 #564 的调查条件。
 
 - `npm test`：Node 规则和 jsdom 组件。客户端纯逻辑文件用 `*.node.test.ts` 命名，由 `vitest.node.config.ts` 收集，不启动 DOM、React cleanup 或 IndexedDB setup。jsdom 使用单个 setup hook，先卸载 React 再清理 IndexedDB，保持逐用例数据库隔离。

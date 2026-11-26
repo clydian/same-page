@@ -41,8 +41,8 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     });
     await page.goto(`${app.origin}/choirs/visual-choir`);
     await page.getByRole("button", { name: "上传 PDF", exact: true }).waitFor();
-    await page.getByRole("button", { name: "我的", exact: true }).click();
-    await page.getByRole("menuitem", { name: "云盘内身份", exact: true }).click();
+    await page.getByRole("link", { name: "我的", exact: true }).click();
+    await page.getByRole("link", { name: "云盘内身份", exact: true }).click();
     await page.getByRole("button", { name: "修改显示名", exact: true }).click();
     await page.getByLabel("我在此云盘的显示名", { exact: true }).getByRole("textbox").fill("新名字");
     await mkdir("artifacts/verification/issue-170", { recursive: true });
@@ -51,6 +51,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("dialog").waitFor({ state: "hidden" });
     await expect(page.getByText("新名字", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "返回", exact: true }).click();
+    await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "乐谱", exact: true }).click();
     await page.getByRole("link", { name: "云盘设置" }).click();
     await page.getByRole("link", { name: "基本信息", exact: true }).click();
     await page.getByRole("button", { name: "修改云盘名称", exact: true }).click();

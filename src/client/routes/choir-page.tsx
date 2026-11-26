@@ -236,7 +236,8 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   if (access.kind === "loading") {
     return (
-      <><DrivePage choirId={choirId} choirName={access.choir?.name} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? t("drive")} userId={userId} localOnly={!identity.authenticatedUserId} resolvingIdentity={identity.restoring || identity.onlineState === "checking"} search={search} onSearch={updateSearch} />} />{attachmentDialog}</>
+      <><DrivePage choirId={choirId} header={<DriveHeader loading choirId={choirId} choirName={access.choir?.name ?? t("drive")} userId={userId} localOnly={!identity.authenticatedUserId} search={search} onSearch={updateSearch} />}
+      />{attachmentDialog}</>
     );
   }
 
@@ -261,9 +262,10 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
     <IdentityNotice identity={identity} />
     {searchMessage && <p>{searchMessage}<Button onPress={() => void refresh()}>{t("retry")}</Button></p>}
   </div>;
+  const localOnly = Boolean(access.local) || !online;
 
   return (
-    <><DrivePage choirId={choirId} connectionHelp={connectionHelp} header={<DriveHeader choirId={choirId} choirName={choir.name} userId={userId} email={session.data?.user.email} localOnly={Boolean(access.local) || !online} canManageIdentity={access.isMember || access.rememberedMembership} search={search} onSearch={updateSearch} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
+    <><DrivePage choirId={choirId} connectionHelp={connectionHelp} header={<DriveHeader choirId={choirId} choirName={choir.name} userId={userId} localOnly={localOnly} search={search} onSearch={updateSearch} view={snapshot.view} onSort={updateSort} onDirection={updateDirection} />}>
       <PullToRefresh key={`${cacheOwner}:${choirId}`} onRefresh={async () => {
         await refresh();
         if (library.getSnapshot().refreshMessage) throw new Error("drive_refresh_failed");
