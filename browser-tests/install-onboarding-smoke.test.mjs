@@ -11,6 +11,10 @@ function simulateStandalone(context) {
   });
 }
 
+function isGuestLookup(request) {
+  return request.method() === "GET" && new URL(request.url()).pathname === "/api/guest/session";
+}
+
 test("invited guest crosses isolated browsers and cold-starts with only the copied cookie", { timeout: 120000 }, async t => {
   const fixture = await startStorageFixture({ invite: true, authenticated: true });
   t.after(() => fixture.stop());
@@ -43,15 +47,39 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   await external.getByRole("button", { name: "添加到桌面", exact: true }).click();
   await external.getByText("添加时遇到问题？", { exact: true }).click();
   await expect(external.getByRole("textbox", { name: "合谱网址" })).toHaveValue(/\/install\?drive=.*#handoff=/);
-  const cookies = await safari.cookies();
-  assert.ok(cookies.some(cookie => cookie.name === "same_page_guest"));
+  const cookies = (await safari.cookies()).filter(cookie => cookie.name === "same_page_guest");
+  assert.equal(cookies.length, 1);
   // Models Safari 17.2+ documented cookie-copy contract, not actual OS install.
   const installed = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
   await simulateStandalone(installed);
   await installed.addCookies(cookies);
   const launched = await installed.newPage();
+  let guestReads = 0;
+  let documentLoads = 0;
+  const statuses = [];
+  const { promise: allowRetry, resolve: releaseRetry } = Promise.withResolvers();
+  t.after(releaseRetry);
+  launched.on("request", request => {
+    if (request.isNavigationRequest() && request.frame() === launched.mainFrame()) documentLoads++;
+  });
+  launched.on("response", response => {
+    if (isGuestLookup(response.request())) statuses.push(response.status());
+  });
+  await launched.route("**/api/guest/session", async route => {
+    if (isGuestLookup(route.request())) {
+      if (++guestReads === 1) return route.fulfill({ status: 503 });
+      await allowRetry;
+    }
+    return route.continue();
+  });
+  const accountSession = launched.waitForResponse(response => new URL(response.url()).pathname === "/api/auth/get-session");
   await launched.goto(fixture.origin);
-  await expect(launched.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
+  assert.equal(await (await accountSession).json(), null);
+  await expect(launched.getByRole("link", { name: "加入云盘", exact: true })).toBeVisible();
+  releaseRetry();
+  await expect(launched.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible({ timeout: 10000 });
+  assert.deepEqual(statuses.slice(0, 2), [503, 200]);
+  assert.equal(documentLoads, 1, "the installed window must recover without reloading");
   await expect(launched.getByRole("button", { name: "添加到桌面", exact: true })).toHaveCount(0);
   await expect(launched.getByRole("link", { name: "登录或注册", exact: true })).toBeVisible();
   await expect(launched.locator(".file-row__open")).toHaveCount(1);
@@ -64,7 +92,9 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   assert.equal((await fresh.request.post(`${fixture.origin}/api/guest/install-handoff`, { data: { choirId: fixture.choirId } })).status(), 401);
   await simulateStandalone(fresh);
   const freshLaunch = await fresh.newPage();
+  const anonymousSession = freshLaunch.waitForResponse(response => isGuestLookup(response.request()));
   await freshLaunch.goto(fixture.origin);
+  assert.equal((await anonymousSession).status(), 401);
   await expect(freshLaunch.getByRole("heading", { name: "欢迎使用合谱", exact: true })).toBeVisible();
   await expect(freshLaunch.getByRole("link", { name: "登录", exact: true })).toHaveAttribute("href", "/login");
   await expect(freshLaunch.getByRole("link", { name: "创建免费云盘", exact: true })).toHaveAttribute("href", /^\/login\?returnTo=/);
@@ -104,5 +134,18 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   assert.equal((await fresh.request.post(`${fixture.origin}/api/choirs/${fixture.choirId}/join-code/rotate`)).status(), 200);
   const token = new URLSearchParams(new URL(bridge).hash.slice(1)).get("handoff");
   assert.equal((await safari.request.post(`${fixture.origin}/api/guest/install-handoff/redeem`, { data: { token } })).status(), 401);
-  for (const context of [wechat, safari, installed, fresh]) await context.close();
+  const revoked = await browser.newContext({ locale: "zh-CN" });
+  await simulateStandalone(revoked);
+  await revoked.addCookies(cookies);
+  const revokedLaunch = await revoked.newPage();
+  await revokedLaunch.clock.install();
+  let revokedReads = 0;
+  revokedLaunch.on("request", request => { if (isGuestLookup(request)) revokedReads++; });
+  const revokedSession = revokedLaunch.waitForResponse(response => isGuestLookup(response.request()));
+  await revokedLaunch.goto(fixture.origin);
+  assert.equal((await revokedSession).status(), 401);
+  await expect(revokedLaunch.getByRole("heading", { name: "欢迎使用合谱", exact: true })).toBeVisible();
+  await revokedLaunch.clock.runFor(2500);
+  assert.equal(revokedReads, 1);
+  for (const context of [wechat, safari, installed, fresh, revoked]) await context.close();
 });
