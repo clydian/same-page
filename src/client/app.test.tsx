@@ -353,11 +353,14 @@ describe("AppRoutes", () => {
 
     const openSample = await screen.findByRole("button", { name: "打开示例乐谱" });
     await waitFor(() => expect(openSample).not.toHaveAttribute("aria-disabled", "true"));
-    const feedback = document.getElementById("home-preview-status");
-    expect(feedback).toBeEmptyDOMElement();
+    expect(screen.queryByText("示例没能打开，请再试一次。")).not.toBeInTheDocument();
     fireEvent.click(openSample);
-    expect(await screen.findByText("示例没能打开，请再试一次。")).toHaveAttribute("role", "status");
+    const feedback = await screen.findByText("示例没能打开，请再试一次。");
+    expect(feedback.closest("[role=status]")).not.toBeNull();
+    expect(feedback.closest("main")).toBeNull();
     expect(screen.getByRole("button", { name: "打开示例乐谱" })).toBe(openSample);
+    fireEvent.click(screen.getByRole("button", { name: "关闭操作提示" }));
+    await waitFor(() => expect(feedback).not.toBeInTheDocument());
 
     fireEvent.click(await screen.findByRole("button", { name: "输入邀请码" }));
     const invite = await screen.findByRole("dialog");

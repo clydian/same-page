@@ -787,8 +787,6 @@ h1 {
   text-underline-offset: 0.22em;
 }
 
-.hero-preview-status { margin: 0; color: var(--muted); }
-.hero-preview-status:not(:empty) { margin-block-start: .45rem; }
 .marketing-install { display: flex; justify-content: center; padding-block: 1.5rem; }
 
 .hero-text-link:hover,
