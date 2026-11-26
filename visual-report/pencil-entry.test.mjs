@@ -104,9 +104,13 @@ test('chromium: native pen capture retains first contact; touch and mouse keep r
   await page.getByRole('button', { name: '编辑', exact: true }).click();
   assert.equal(await page.locator('.annotation-overlay[data-editing]').getAttribute('data-tool'), 'text');
   await page.getByRole('button', { name: '完成编辑', exact: true }).click();
-  const b = await page.locator(svgSelector).boundingBox();
+  // Finishing can still be saving when the click resolves. Bind the native
+  // contact to the reading surface once it explicitly accepts Pencil entry.
+  const entry = page.locator('.page-reader__sheet[data-page-turn-current] .annotation-overlay[data-pencil-entry]:not([data-editing]) svg');
+  await entry.waitFor({ state: 'visible' });
+  const b = await entry.boundingBox();
   const x = b.x + b.width * .4, y = b.y + b.height * .4;
-  await page.locator(svgSelector).evaluate(svg => { window.entrySvg = svg; svg.addEventListener('pointerdown', e => { window.entryPointer = e.pointerId; }); });
+  await entry.evaluate(svg => { window.entrySvg = svg; svg.addEventListener('pointerdown', e => { window.entryPointer = e.pointerId; }, { once: true }); });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', pointerType: 'pen', button: 'left', buttons: 1, x, y, force: .6 });
   assert.equal(await page.evaluate(() => window.entrySvg.isConnected && window.entrySvg.hasPointerCapture(window.entryPointer)), true);
   await page.locator('.annotation-controls').waitFor();
