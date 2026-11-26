@@ -151,12 +151,15 @@
 .challenge-save-status { display: flex; align-items: baseline; gap: .4rem; margin: 0; min-height: 1.2em; }
 
 .challenge-graph {
-  flex: none; margin: .4rem 0; padding: .45rem .65rem .35rem; border: 1px solid var(--line); border-radius: .75rem;
+  flex: none; margin: .3rem 0; padding: .1rem .55rem .3rem; border: 1px solid var(--line); border-radius: .75rem;
   background: var(--pitch-surface);
 }
-.challenge-graph figcaption { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem 1rem; margin-block-end: .35rem; }
+.challenge-graph figcaption {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
+  gap: 0 .5rem;
+}
 .challenge-graph figcaption h3 { font-size: .9rem; font-weight: 700; }
-.challenge-graph-legend { display: flex; flex-wrap: wrap; gap: .2rem .75rem; color: var(--muted); font-size: .78rem; }
+.challenge-graph-legend { display: flex; flex-wrap: wrap; gap: .12rem .55rem; color: var(--muted); font-size: .75rem; }
 .challenge-graph-legend span::before {
   content: ''; display: inline-block; width: .65rem; height: .22rem; margin-inline-end: .32rem;
   vertical-align: middle; border-radius: 1rem; background: var(--pitch-target);
@@ -171,29 +174,47 @@
 .challenge-plot { min-width: 0; border-inline-start: 1px solid var(--pitch-grid-strong); }
 .challenge-plot canvas { position: sticky; inset-block-start: 0; display: block; width: 100%; height: var(--pitch-window-height); }
 .challenge-pitch-axis { position: relative; }
-.challenge-time-axis {
-  position: relative; height: 1.05rem; border-block-start: 1px solid var(--pitch-grid-strong);
+.challenge-measure-axis {
+  display: grid; list-style: none; margin-block: 0; padding: 0;
   margin-inline: calc(var(--pitch-axis-width) + 9px) calc(var(--pitch-scrollbar, 0px) + 8px);
+  border-block-start: 1px solid var(--pitch-grid-strong); text-align: center;
+  color: var(--muted); font-size: .72rem; line-height: 1.35; font-variant-numeric: tabular-nums;
 }
-.challenge-pitch-axis span, .challenge-time-axis span { position: absolute; color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.challenge-measure-axis li { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.challenge-measure-axis li[aria-current] { color: var(--ink); font-weight: 700; }
+.challenge-pitch-axis span { position: absolute; color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .challenge-pitch-axis span { inset-inline-end: .45rem; transform: translateY(-50%); }
 .challenge-pitch-axis span[data-in-key="true"] { color: var(--ink); font-weight: 550; }
 .challenge-pitch-axis span[data-alternate="true"] { font-weight: 550; }
 .challenge-pitch-axis span[data-target="true"] { color: var(--ink); font-weight: 700; }
-.challenge-time-axis span { inset-block-start: .22rem; transform: translateX(-50%); }
-.challenge-time-axis span:first-child { transform: translateX(-25%); }
-.challenge-time-axis span:last-child { transform: translateX(-85%); }
 @media (max-width: 36rem) {
   .challenge-option { font-size: .84rem; }
+}
+@media (width < 30rem) {
+  .challenge-graph figcaption { grid-template-columns: minmax(0, 1fr) auto; }
+  .challenge-graph-legend { grid-column: 1 / -1; grid-row: 2; margin-block-end: .24rem; }
+  .challenge-graph-body { --pitch-window-height: clamp(3.25rem, 11dvh, 7rem); }
 }
 @media (max-height: 35rem) {
   .challenge-graph-body { --pitch-window-height: clamp(2.5rem, 11dvh, 5rem); }
 }
-@media (min-width: 38rem) and (max-height: 32rem) {
+@media (min-width: 30rem) and (max-height: 32rem) {
+  .challenge-workspace[data-practice] .task-header { min-block-size: 48px; padding-block: .1rem; }
+  .challenge-controls { padding-block-end: calc(.35rem + var(--safe-bottom)); }
+  .challenge-setup, .challenge-result, .challenge-transport { padding-block-start: .35rem; }
   .challenge-setup { grid-template-columns: minmax(0, 1fr) auto; }
   .challenge-setup > :is(.challenge-headphones, small) { grid-column: 1 / -1; }
-  .challenge-practice-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .challenge-practice-controls { grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 1fr) repeat(2, minmax(0, 1fr)); }
   .challenge-start { padding-inline: .75rem; }
+  .challenge-graph { display: grid; grid-template-columns: minmax(0, 16rem) minmax(0, 1fr); align-items: center; gap: .45rem; }
+  .challenge-graph figcaption { grid-template-columns: minmax(0, 1fr) auto; }
+  .challenge-graph figcaption h3 { position: absolute; clip-path: inset(50%); }
+  .challenge-graph-legend { line-height: 1.25; }
+  .challenge-graph-body { --pitch-window-height: clamp(2rem, 10dvh, 4rem); }
+}
+@media (30rem <= width <= 46rem) and (max-height: 32rem) {
+  .challenge-practice-controls { grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 1fr) repeat(2, 44px); }
+  .challenge-toggle span { display: none; }
 }
 
 .challenge-library-section + .challenge-library-section { margin-block-start: 1.6rem; }

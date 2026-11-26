@@ -51,6 +51,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [audioSession] = useState(() => playbackAudioSession());
   const [followRun, setFollowRun] = useState(0);
   const [attemptReset, setAttemptReset] = useState(0);
+  const [pitchSpan, setPitchSpan] = useState(3);
   const take = useRef<string | null>(null);
   const run = useRef<(() => void) | null>(null);
   const tonicPreview = useRef<ReturnType<typeof playSustainedTonic> | null>(null);
@@ -278,7 +279,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       pitchFrames={'frames' in state ? state.frames : undefined}
       liveTrace={state.phase === 'sing' || playing} traceThrough={state.phase === 'result' ? replayTime : undefined} />
 
-    {pitchTraceEnabled && <PitchGraph key={`${voice.id}:${attemptReset}`} melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
+    {pitchTraceEnabled && <PitchGraph key={voice.id} melody={melody} visits={document.visits} measure={measure} attemptReset={attemptReset}
+      measureSpan={pitchSpan} onMeasureSpanChange={setPitchSpan} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
       following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
@@ -307,13 +309,15 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
             <Plus size={18} aria-hidden="true" />
           </button>
         </div>
-        <button type="button" className="challenge-option" aria-pressed={drone} onClick={toggleTonic}>
-          <TuningFork size={18} aria-hidden="true" />{t('sight.sustainedTonic')}
+        <button type="button" className="challenge-option challenge-toggle" aria-pressed={drone}
+          aria-label={t('sight.sustainedTonic')} title={t('sight.sustainedTonic')} onClick={toggleTonic}>
+          <TuningFork size={18} aria-hidden="true" /><span>{t('sight.sustainedTonic')}</span>
         </button>
-        <button type="button" className="challenge-option" aria-pressed={accompaniment.length > 0}
+        <button type="button" className="challenge-option challenge-toggle" aria-pressed={accompaniment.length > 0}
+          aria-label={t('sight.ensembleBacking')} title={t('sight.ensembleBacking')}
           disabled={backingUnavailable || otherVoices.length === 0} onClick={() => {
             setBacking(!backing); if (!backing) setHeadphones(true);
-          }}><UsersRound size={18} aria-hidden="true" />{t('sight.ensembleBacking')}</button>
+          }}><UsersRound size={18} aria-hidden="true" /><span>{t('sight.ensembleBacking')}</span></button>
       </div>
       {backingUnavailable && <small>{t('sight.backingUnavailable')}</small>}
       <button className="primary-button challenge-start" type="button" onClick={start}><Mic size={18} aria-hidden="true" />{t('sight.start')}</button>

@@ -49,7 +49,8 @@ test('sight singing preserves its layout preferences and clears a completed take
   await page.getByRole('menuitem', { name: '视唱挑战' }).click();
   await page.getByRole('button', { name: '新建题目' }).click();
   await page.locator('select[name=source]').selectOption('upload');
-  await page.locator('input[type=file]').setInputFiles({ name: '示例.musicxml', mimeType: 'application/xml', buffer: musicXmlFixture(24) });
+  const xml = musicXmlFixture(24).toString().replaceAll('<measure number="1">', '<measure number="0">');
+  await page.locator('input[type=file]').setInputFiles({ name: '示例.musicxml', mimeType: 'application/xml', buffer: Buffer.from(xml) });
   await page.locator('input[name=title]').fill('视唱布局测试');
   await page.getByRole('button', { name: '发布到云盘' }).click();
 
@@ -82,8 +83,27 @@ test('sight singing preserves its layout preferences and clears a completed take
   await expect(direction).toHaveValue('horizontal');
   await expect(note).toHaveCount(24);
   await expect(contextNote).toHaveCount(0);
+
+  const zoom = page.getByRole('button', { name: '谱面大小' });
+  const enlarge = page.getByRole('button', { name: '放大谱面' });
+  const anchor = note.and(page.locator('[data-bar="7"]'));
+  await anchor.evaluate(el => {
+    const viewport = el.closest('.challenge-notation');
+    viewport.scrollLeft = el.offsetLeft - viewport.clientWidth * .32;
+  });
+  const glyphSize = () => score.evaluate(view => {
+    const glyph = view.querySelector('svg g.at text');
+    return glyph ? parseFloat(getComputedStyle(glyph).fontSize) : 0;
+  });
+  await expect.poll(glyphSize).toBeGreaterThan(0);
+  const oldSize = await glyphSize();
+  await enlarge.click();
+  await expect(zoom).toHaveText('100%');
+  await expect.poll(glyphSize).toBeGreaterThan(oldSize);
+  await expect(anchor).toBeInViewport();
   await direction.selectOption('vertical');
   await expect(note).toHaveCount(24);
+  await expect(anchor).toBeInViewport();
 
   const togglePitch = async () => {
     await page.getByRole('button', { name: '练习设置' }).click();
@@ -92,12 +112,24 @@ test('sight singing preserves its layout preferences and clears a completed take
   };
   await togglePitch();
   await expect(graph).toBeVisible();
+  const measures = graph.getByRole('listitem');
+  await expect(measures).toHaveText(['0', '2', '3']);
+  const beforeGraphZoom = await score.boundingBox();
+  await graph.getByRole('button', { name: '显示更少小节' }).click();
+  await expect(measures).toHaveText(['0', '2']);
+  await expect(zoom).toHaveText('100%');
+  assert.equal((await score.boundingBox()).height, beforeGraphZoom.height);
   const sheetBox = await score.boundingBox(), pitchBox = await graph.boundingBox(), controlsBox = await controls.boundingBox();
   assert(sheetBox.height < tallScore && sheetBox.height > 0);
   assert(sheetBox.y + sheetBox.height <= pitchBox.y);
   assert(pitchBox.y + pitchBox.height <= controlsBox.y);
   assert(Math.abs(controlsBox.y + controlsBox.height - bottom) <= 1);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 320);
+  await page.setViewportSize({ width: 568, height: 320 });
+  await expect(anchor).toBeInViewport();
+  await expect.poll(async () => (await score.boundingBox()).height).toBeGreaterThan(95);
+  assert(Math.abs((await controls.boundingBox()).y + (await controls.boundingBox()).height - 320) <= 1);
+  await page.setViewportSize({ width: 320, height: 650 });
   await togglePitch();
   await expect(graph).toHaveCount(0);
   assert.equal((await score.boundingBox()).height, tallScore);
@@ -128,6 +160,9 @@ test('sight singing preserves its layout preferences and clears a completed take
   assert.equal(retryScrollTop, 0);
   await expect(scope).toHaveValue('part');
   await expect(direction).toHaveValue('vertical');
+  await expect(zoom).toHaveText('100%');
+  await togglePitch();
+  await expect(measures).toHaveText(['0', '2']);
 
   await start.click();
   await expect.poll(() => page.evaluate(() => window.sightSingingCaptures.length)).toBe(2);

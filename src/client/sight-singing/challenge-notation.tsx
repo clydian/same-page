@@ -1,7 +1,8 @@
 import { AlphaTabApi, LayoutMode, model, NotationElement, PlayerMode, StaveProfile, type rendering } from '@coderline/alphatab';
 import { isPointerDrag, ScoreFollowSession, type PointerPosition } from '@same-page/player/score-follow';
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { memo, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useMessages } from '../../i18n';
+import { NotationZoom } from '../playback/notation-zoom';
 import type { Melody, MelodyMeasure, MelodyScore, MelodyVoice } from './melody';
 import { notationScore, samePart, type Part } from './notation-score';
 import { formatCents, pitchName, type assessNotes, type PitchFrame } from './pitch-feedback';
@@ -17,13 +18,14 @@ type Bounds = { x: number; y: number; w: number; h: number };
 type ScrollDirection = 'vertical' | 'horizontal';
 type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; system: Bounds; label: string; singleStem: boolean };
 type Geometry = {
-  score: MelodyScore['score']; direction: ScrollDirection; lookup: rendering.BoundsLookup; notes: NoteTarget[];
+  score: MelodyScore['score']; direction: ScrollDirection; scale: number; lookup: rendering.BoundsLookup; notes: NoteTarget[];
 };
 
+const defaultScale = .9;
 const centerX = (bounds: Bounds) => bounds.x + bounds.w / 2;
 const centerY = (bounds: Bounds) => bounds.y + bounds.h / 2;
 
-function buildGeometry(api: AlphaTabApi, score: Geometry['score'], direction: ScrollDirection): Geometry | null {
+function buildGeometry(api: AlphaTabApi, score: Geometry['score'], direction: ScrollDirection, scale: number): Geometry | null {
   const lookup = api.boundsLookup;
   if (!lookup) return null;
   const notes: NoteTarget[] = [];
@@ -43,7 +45,7 @@ function buildGeometry(api: AlphaTabApi, score: Geometry['score'], direction: Sc
       }
     }
   }
-  return { score, direction, lookup, notes };
+  return { score, direction, scale, lookup, notes };
 }
 
 const NotationButtons = memo(function NotationButtons({ notes, voice, results, onNote }: {
@@ -187,20 +189,22 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const t = useMessages('practice');
   const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
   const hadPosition = useRef(false);
+  const browseAnchor = useRef<number | null>(null);
   const pointer = useRef<PointerPosition | null>(null);
   const autoScroll = useRef<PointerPosition | null>(null);
   const [scrollIntent] = useState(() => new ScoreFollowSession());
   const [paused, setPaused] = useState<string>();
   const [scope, setScope] = useState<'part' | 'full'>('part');
   const [direction, setDirection] = useState<ScrollDirection>('vertical');
+  const [scale, setScale] = useState(defaultScale);
   const horizontal = direction === 'horizontal';
-  const followKey = `${attemptReset}:${followRun}:${scope}:${direction}`;
+  const followKey = `${attemptReset}:${followRun}`;
   const manual = paused === followKey;
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const played = useMemo(() => new Set(melody.measures.map(bar => bar.bar)), [melody.measures]);
   const min = Math.min(...played), max = Math.max(...played);
   const display = useMemo(() => notationScore(score, voice, scope === 'full', min, max), [score, voice, scope, min, max]);
-  const rendered = geometry?.score === display.score && geometry.direction === direction ? geometry : null;
+  const rendered = geometry?.score === display.score && geometry.direction === direction && geometry.scale === scale ? geometry : null;
   const notes = useMemo(() => rendered?.notes.filter(note => played.has(note.bar)) ?? [], [played, rendered]);
   const currentVisit = measure.visit;
   const { results, tinted, labels } = useMemo(() => {
@@ -219,12 +223,25 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     return { results, tinted, labels: placePitchLabels(notes, results) };
   }, [feedback, currentVisit, notes, display.part]);
 
+  const rememberAnchor = () => {
+    const host = viewport.current, element = notation.current;
+    if (!host || !element || !rendered || (positioned && !manual) || browseAnchor.current !== null ||
+      (!host.scrollTop && !host.scrollLeft)) return;
+    const frame = host.getBoundingClientRect(), sheet = element.getBoundingClientRect();
+    const x = frame.left + host.clientWidth * .32 - sheet.left;
+    const y = frame.top + Math.min(32, host.clientHeight * .25) - sheet.top;
+    const system = rendered.lookup.staffSystems.find(item => item.realBounds.y + item.realBounds.h > y);
+    const bar = system?.findBarAtPos(x) ?? system?.bars[0];
+    browseAnchor.current = bar?.index ?? null;
+  };
+  const rememberResizeAnchor = useEffectEvent(rememberAnchor);
+
   useEffect(() => {
     const element = notation.current;
     if (!element) return;
     const api = new AlphaTabApi(element, {
       core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
-      display: { scale: .92, startBar: min + 1, barCount: max - min + 1, justifyLastSystem: true,
+      display: { scale, startBar: min + 1, barCount: max - min + 1, justifyLastSystem: true,
         layoutMode: horizontal ? LayoutMode.Horizontal : LayoutMode.Page, stretchForce: horizontal ? 1.5 : 1,
         staveProfile: StaveProfile.Score,
         resources: { secondaryGlyphColor: '#000000' } },
@@ -234,11 +251,14 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     api.settings.notation.elements.set(NotationElement.ScoreSubTitle, false);
     api.settings.notation.elements.set(NotationElement.EffectTempo, false);
     api.updateSettings();
-    const update = () => setGeometry(buildGeometry(api, display.score, direction));
+    const update = () => setGeometry(buildGeometry(api, display.score, direction, scale));
+    // AlphaTab doesn't reflow the horizontal layout on resize.
+    const resize = () => { if (!horizontal) rememberResizeAnchor(); };
+    api.resize.on(resize);
     api.postRenderFinished.on(update);
     api.renderScore(display.score, display.tracks);
-    return () => { api.postRenderFinished.off(update); api.destroy(); };
-  }, [display, min, max, direction, horizontal]);
+    return () => { api.resize.off(resize); api.postRenderFinished.off(update); api.destroy(); };
+  }, [display, min, max, direction, horizontal, scale]);
 
   useLayoutEffect(() => {
     const element = notation.current;
@@ -250,6 +270,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       for (const glyph of marked) glyph.removeAttribute('data-challenge-feedback');
       marked.clear();
     };
+    const engravingRatio = rendered.scale / defaultScale;
     const shade = () => {
       clear();
       const sheet = element.getBoundingClientRect();
@@ -263,7 +284,8 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
         const svg = group.ownerSVGElement;
         if (svg && !stems.has(svg)) {
           stems.set(svg, [...svg.querySelectorAll<SVGRectElement>('rect')]
-            .filter(rect => rect.width.baseVal.value > 0 && rect.width.baseVal.value < 1.2 && rect.height.baseVal.value >= 12)
+            .filter(rect => rect.width.baseVal.value > 0 && rect.width.baseVal.value < 1.2 * engravingRatio &&
+              rect.height.baseVal.value >= 12 * engravingRatio)
             .map(rect => ({ element: rect, bounds: rect.getBoundingClientRect() })));
         }
         const candidates = svg ? stems.get(svg) ?? [] : [];
@@ -282,10 +304,23 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
 
   useLayoutEffect(() => {
     scrollIntent.restore();
+    browseAnchor.current = null;
     pointer.current = null;
     autoScroll.current = null;
     viewport.current?.scrollTo(0, 0);
   }, [attemptReset, scrollIntent]);
+
+  useLayoutEffect(() => {
+    const host = viewport.current, element = notation.current, index = browseAnchor.current;
+    if (!host || !element || !rendered || index === null) return;
+    browseAnchor.current = null;
+    const bar = rendered.lookup.findMasterBarByIndex(index);
+    if (!bar) return;
+    const bounds = bar.realBounds;
+    const frame = host.getBoundingClientRect(), sheet = element.getBoundingClientRect();
+    host.scrollTo(horizontal ? host.scrollLeft + sheet.left + bounds.x - frame.left : 0,
+      host.scrollTop + sheet.top + bounds.y - frame.top);
+  }, [rendered, horizontal]);
 
   const { row, anchors } = useMemo(() => {
     if (!positioned || !rendered) return {};
@@ -312,7 +347,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const cursor = from && (to && to.time > from.time
     ? from.x + (to.x - from.x) * Math.max(0, (elapsed - from.time) / (to.time - from.time)) : from.x);
 
-  useEffect(() => {
+  const followScore = useEffectEvent(() => {
     const host = viewport.current, element = notation.current;
     if (!host || !element) return;
     if (!positioned && hadPosition.current) host.scrollTo(0, 0);
@@ -329,27 +364,37 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     const top = sheet.top + vertical.y * scale, bottom = top + vertical.h * scale;
     if (top < frame.top || bottom > frame.bottom) host.scrollTop += top - frame.top - 10;
     autoScroll.current = { x: host.scrollLeft, y: host.scrollTop };
-  }, [cursor, followKey, manual, measure.bar, positioned, rendered, row, scrollIntent]);
+  });
+  useLayoutEffect(() => {
+    followScore();
+  }, [cursor, followKey, manual, measure.bar, positioned, rendered, row]);
+  useEffect(() => {
+    const host = viewport.current;
+    if (!host) return;
+    const observer = new ResizeObserver(() => followScore());
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
 
   const noteScrollIntent = () => scrollIntent.noteManualScrollIntent(performance.now());
-  const resetScoreScroll = () => {
-    scrollIntent.restore();
-    setPaused(undefined);
-    viewport.current?.scrollTo(0, 0);
-  };
 
   return <div className="challenge-score-view" data-score-scope={scope} data-scroll-direction={direction}>
     <div className="challenge-notation-tools">
       <span className="challenge-notation-tempo" aria-label={t('adjustedTempo', { beat: '♩', bpm: String(bpm) })}>♩ = {bpm}</span>
+      <NotationZoom ready={Boolean(rendered)} scale={scale} defaultScale={defaultScale} pinchHint={false} onChange={value => {
+        if (value === scale) return;
+        rememberAnchor();
+        setScale(value);
+      }} />
       <select aria-label={t('sight.scoreScope')} value={scope} onChange={event => {
-        resetScoreScroll();
+        rememberAnchor();
         setScope(event.target.value === 'full' ? 'full' : 'part');
       }}>
         <option value="part">{t('sight.scorePart')}</option>
         <option value="full">{t('sight.scoreFull')}</option>
       </select>
       <select aria-label={t('sight.scoreScroll')} value={direction} onChange={event => {
-        resetScoreScroll();
+        rememberAnchor();
         setDirection(event.target.value === 'horizontal' ? 'horizontal' : 'vertical');
       }}>
         <option value="vertical">{t('sight.scrollVertical')}</option>

@@ -144,10 +144,6 @@
 
 /* One shared practice shell at every viewport size. */
 .practice-header { position: fixed; z-index: 90; inset: 0 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: 4px 8px; box-sizing: border-box; padding: calc(var(--safe-top) + 4px) max(8px,var(--safe-right)) 4px max(8px,var(--safe-left)); background: var(--ui-surface, #fcfdfb); border-bottom: 1px solid var(--ui-line, #dce4de); color: var(--ui-ink, #31463a); }
-.practice-notation-size { display: flex; align-items: center; color: var(--ui-muted, #637268); }
-.practice-notation-size .practice-icon { font-size: 22px; }
-.practice-size-reset { min-width: 44px; min-height: 44px; padding: 0 2px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; }
-.practice-size-reset[data-disabled] { opacity: .4; }
 .practice-header button:focus-visible { outline: 2px solid var(--ui-accent, #769787); outline-offset: 2px; }
 .practice-bar-actions { display: flex; align-items: center; justify-self: end; }
 .practice-skip { position: relative; display: inline-flex; align-items: center; justify-content: center; }
@@ -222,7 +218,6 @@
 
 .reader-shell[data-practicing], .reader-shell[data-practicing] .page-reader__canvas-stage { background: var(--ui-surface, #f3f4f0); }
 
-.practice-notation-size button[aria-disabled=true] { opacity: .35; cursor: default; }
 
 /* One floating tool group in every orientation. It reserves no viewport row. */
 .practice-header-tools { display: flex; align-items: center; }
