@@ -84,10 +84,12 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           await expect(page.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
         };
         let placement = 0;
+        let markPdf;
         const checkExperience = async text => {
           stage = `${text}:reader`;
           await expect(page).toHaveURL(`${reader}?experience=1`);
           await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
+          markPdf?.("initial-canvas-visible");
           // Attachment returns may restore visible chrome. A tap toggles it, and
           // the viewport's outer thirds turn pages instead of revealing controls.
           const chromeVisible = await page.locator(".reader-shell").getAttribute("data-chrome-visible");
@@ -120,16 +122,20 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           await expect(attachments.locator(".attachment-play-badge")).toBeVisible();
           await expect(page.locator(".reader-playback-entries")).toHaveAttribute("aria-busy", "false");
           stage = `${text}:reload`;
+          markPdf?.("reload-start");
           await page.reload();
+          markPdf?.("reload-finished");
           // A reload starts PDF loading again; verify persisted notes only once
           // the page is painted, using the same readiness wait as initial entry.
           await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
+          markPdf?.("reload-canvas-visible");
           await expect(page.locator(".annotation-text").filter({ hasText: text })).toBeVisible();
           const cloud = await (await context.request.get(`${base}/layers`)).json();
           assert.equal(cloud.layers.length, 5);
           assert.ok(cloud.layers.every(layer => layer.kind === "shared" && !layer.canEdit));
         };
-        await withBrowserEvidence(context, `artifacts/verification/preview-notes/${engine}-${scenario}`, async () => {
+        await withBrowserEvidence(context, `artifacts/verification/preview-notes/${engine}-${scenario}`, async mark => {
+          markPdf = mark;
           if (scenario === "guest-sign-in-pdf") {
             await openLibrary();
             await page.locator(".file-row__open").click();
@@ -207,7 +213,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           assert.deepEqual(directoryFailures, []);
           assert.deepEqual(mutations, []);
           assert.deepEqual(errors, []);
-        }, { pdfLoad: engine === "webkit" });
+        }, { pdfLoad: engine === "webkit" || scenario === "signed-in-musicxml" });
       });
     }
   });
