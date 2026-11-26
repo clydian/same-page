@@ -552,10 +552,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
         || file.size === 0 || file.size > SIGHT_SINGING_SCORE_MAX_BYTES) { setInvalidUpload(true); return; }
     setUpload({ key: crypto.randomUUID(), file });
   };
-  const hasBeatBoundaries = beats.firstBeat != null || beats.lastBeat != null;
-  const startsAt = beats.firstBeat == null ? visitLabel(first) : `${visitLabel(first)} · ${t('sight.beatNumber', { beat: beats.firstBeat })}`;
-  const endsAt = beats.lastBeat == null ? visitLabel(last) : `${visitLabel(last)} · ${t('sight.throughBeat', { beat: beats.lastBeat })}`;
-  const range = first === last && !hasBeatBoundaries ? startsAt : t('measureRange', { start: startsAt, end: endsAt });
+  const range = first === last ? visitLabel(first) : t('measureRange', { start: visitLabel(first), end: visitLabel(last) });
   const visits = loaded.document?.visits;
   const firstVisit = visits?.[first], lastVisit = visits?.[last];
   const uploadedName = source?.kind === 'upload' && loadedName
@@ -563,7 +560,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       || loadedName.replace(/\.(?:musicxml|mxl|xml)$/i, '').trim() || loadedName : '';
   const scoreName = score ? scoreDisplayName(score.fileName) : uploadedName;
   const nameRange = visits && firstVisit && lastVisit
-    ? hasBeatBoundaries ? range : first === 0 && last === visits.length - 1 ? t('sight.wholePiece')
+    ? first === 0 && last === visits.length - 1 && beats.firstBeat == null && beats.lastBeat == null ? t('sight.wholePiece')
       : first === last || firstVisit.visit || lastVisit.visit ? range
       : t('sight.questionMeasureRange', { first: firstVisit.number, last: lastVisit.number })
     : '';

@@ -72,6 +72,7 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   const startEndpoint = advanced.getByRole('button', { name: '起点 A', exact: true });
   const endEndpoint = advanced.getByRole('button', { name: '终点 B', exact: true });
   const summary = editor.locator('.challenge-range-summary');
+  const title = page.getByRole('textbox', { name: '题目名称', exact: true });
   const capture = async filename => {
     if (process.env.SIGHT_RANGE_EVIDENCE) await page.screenshot({ path: join(process.env.SIGHT_RANGE_EVIDENCE, filename) });
   };
@@ -85,6 +86,7 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   await expect(to).toHaveValue('23');
   await expect(advanced).not.toHaveAttribute('open');
   await expect(editor.locator('select')).toHaveCount(0);
+  await expect(title).toHaveValue(/ 全曲$/);
 
   await page.setViewportSize({ width: 390, height: 585 });
   const rail = editor.locator('.practice-range-track');
@@ -151,6 +153,8 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   for (let step = 0; step < 3; step++) await previousBeat.click();
   await expect(previousBeat).toBeDisabled();
   await expect(summary).toContainText('含第 1 拍');
+  const measureLabel = `第 ${moved + 2} 小节`;
+  await expect(title).toHaveValue(new RegExp(` ${measureLabel}$`));
   assert.ok((await active.boundingBox()).width < wholeWidth / 2);
   assert.equal(fileReads.length, 1, 'range changes reuse the current source bytes');
   assert.equal(await page.evaluate(() => window.audioContexts), 0);
@@ -163,6 +167,7 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   const { question } = await response.json();
   assert.deepEqual([question.first, question.last, question.lastBeat], [moved + 1, moved + 1, 1]);
   await expect(page.getByRole('button', { name: '开始唱', exact: true })).toBeVisible();
+  await expect(page.locator('.task-header-heading > p')).toHaveText(`${measureLabel} · 我发布`);
   const result = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/results'));
   await page.getByRole('button', { name: '开始唱', exact: true }).click();
   const resultResponse = await result;
@@ -176,6 +181,7 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   await expect(summary).toContainText('含第 1 拍');
   await expect(advanced).not.toHaveAttribute('open');
   await page.getByRole('button', { name: '返回题目列表', exact: true }).click();
+  await expect(page.locator('.challenge-card-open strong')).toHaveText(question.title);
 
   await create();
   await page.locator('select[name="source"]').selectOption('upload');
