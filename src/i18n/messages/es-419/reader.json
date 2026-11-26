@@ -257,7 +257,7 @@
   "preferenceLockUnavailable": "El navegador actual no admite la sincronización segura. La selección se ha guardado en esta computadora. Actualice su navegador e inténtelo nuevamente.",
   "preferenceSignInRequired": "El inicio de sesión ha caducado. Inicie sesión nuevamente e inténtelo nuevamente.",
   "preferencesLocalSaveFailed": "No se ha guardado en esta máquina, inténtelo de nuevo.",
-  "preparedPdfDownload": "El PDF está listo para descargar a su computadora.",
+  "preparedPdfDownload": "El PDF está listo.",
   "preparedPdfShare": "El PDF está listo, haga clic en \"Compartir PDF\" para elegir dónde enviarlo o guardarlo.",
   "preparing": "Preparando…",
   "preparingNoteTools": "Preparando herramientas para tomar notas…",

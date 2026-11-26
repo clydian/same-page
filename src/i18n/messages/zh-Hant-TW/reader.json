@@ -257,7 +257,7 @@
   "preferenceLockUnavailable": "目前瀏覽器不支援安全同步，選擇已儲存至本機。請更新瀏覽器後重試。",
   "preferenceSignInRequired": "登入已失效，重新登入後重試。",
   "preferencesLocalSaveFailed": "尚未儲存到本機，請重試。",
-  "preparedPdfDownload": "PDF 已準備好，可下載至本機。",
+  "preparedPdfDownload": "PDF 已準備好。",
   "preparedPdfShare": "PDF 已準備好，點選「分享 PDF」選擇傳送或儲存位置。",
   "preparing": "正在準備…",
   "preparingNoteTools": "正在準備筆記工具…",

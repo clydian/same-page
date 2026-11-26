@@ -93,7 +93,6 @@
   "timbrePiano": "Piano",
   "timbreAahs": "Coro ah",
   "timbreOohs": "Voz oh",
-  "timbreSessionHint": "Solo para esta sesión; al cambiar, el audio se recarga brevemente.",
   "timbreLoading": "Cambiando sonido…",
   "partMixer": "Mezclador de voces",
   "partMixerHelp": "Ajusta el volumen de cada voz, silencia una voz o escucha solo las seleccionadas. Cerrar el panel no afecta la reproducción. Con el enfoque activo, las demás voces comparten un control de volumen.",

@@ -93,7 +93,6 @@
   "timbrePiano": "ピアノ",
   "timbreAahs": "合唱アー",
   "timbreOohs": "ボイス・ウー",
-  "timbreSessionHint": "今回の練習のみ。変更時は音声を短時間読み直します。",
   "timbreLoading": "音色を変更中…",
   "partMixer": "パートミキサー",
   "partMixerHelp": "パートごとに音量、ミュート、ソロを設定できます。パネルを閉じても再生には影響しません。対象パートに集中している間、他のパートはまとめて音量を調整します。",

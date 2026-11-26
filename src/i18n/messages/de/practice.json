@@ -93,7 +93,6 @@
   "timbrePiano": "Klavier",
   "timbreAahs": "Chor Ah",
   "timbreOohs": "Stimme Oh",
-  "timbreSessionHint": "Nur für diese Übung; ein Klangwechsel lädt das Audio kurz neu.",
   "timbreLoading": "Klang wird geändert…",
   "partMixer": "Stimmenmixer",
   "partMixerHelp": "Regeln Sie jede Stimme einzeln, schalten Sie sie stumm oder hören Sie ausgewählte Stimmen solo. Das Schließen ändert die Wiedergabe nicht. Bei aktivem Fokus werden die anderen Stimmen gemeinsam geregelt.",

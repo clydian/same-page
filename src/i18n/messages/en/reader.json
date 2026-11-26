@@ -257,7 +257,7 @@
   "preferenceLockUnavailable": "Your browser does not support safe syncing. Your choice is saved on this device. Update your browser and try again.",
   "preferenceSignInRequired": "Your session expired. Sign in and try again.",
   "preferencesLocalSaveFailed": "Could not save on this device. Try again.",
-  "preparedPdfDownload": "The PDF is ready to download.",
+  "preparedPdfDownload": "The PDF is ready.",
   "preparedPdfShare": "The PDF is ready. Choose Share PDF to send or save it.",
   "preparing": "Preparing…",
   "preparingNoteTools": "Preparing note-taking tools…",

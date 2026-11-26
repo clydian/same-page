@@ -56,7 +56,14 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
           await player.getByRole('button', { name: '播放', exact: true }).click();
           await expect(page.getByLabel('播放声音提示', { exact: true })).toHaveCount(0);
           await page.getByRole('button', { name: '练习设置', exact: true }).click();
-          await expect(hint).toBeVisible();
+          const help = page.getByRole('button', { name: '播放声音提示说明', exact: true });
+          const helpDialog = page.getByRole('dialog', { name: '播放声音提示说明', exact: true });
+          await expect(hint).toHaveCount(0);
+          await help.press('Enter');
+          await expect(helpDialog).toContainText('若无声，请关闭静音模式并检查媒体音量。');
+          await page.keyboard.press('Escape');
+          await expect(helpDialog).toHaveCount(0);
+          await expect(help).toBeFocused();
           await page.getByRole('button', { name: '关闭练习设置', exact: true }).click();
         }
         await closePractice(page);
