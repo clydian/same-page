@@ -213,7 +213,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           assert.deepEqual(directoryFailures, []);
           assert.deepEqual(mutations, []);
           assert.deepEqual(errors, []);
-        }, { pdfLoad: engine === "webkit" || scenario === "signed-in-musicxml" });
+        }, { pdfLoad: engine === "webkit" || scenario === "guest-sign-in-pdf" || scenario === "signed-in-musicxml" });
       });
     }
   });
