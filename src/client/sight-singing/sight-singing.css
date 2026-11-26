@@ -186,8 +186,14 @@
 @media (max-width: 36rem) {
   .challenge-option { font-size: .84rem; }
 }
+@media (max-height: 35rem) {
+  .challenge-graph-body { --pitch-window-height: clamp(2.5rem, 11dvh, 5rem); }
+}
 @media (min-width: 38rem) and (max-height: 32rem) {
+  .challenge-setup { grid-template-columns: minmax(0, 1fr) auto; }
+  .challenge-setup > :is(.challenge-headphones, small) { grid-column: 1 / -1; }
   .challenge-practice-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .challenge-start { padding-inline: .75rem; }
 }
 
 .challenge-library-section + .challenge-library-section { margin-block-start: 1.6rem; }
