@@ -26,7 +26,6 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
         const pathname = new URL(request.url()).pathname;
         counts[pathname] = (counts[pathname] ?? 0) + 1;
         if (pathname.endsWith("/bootstrap") && counts[pathname] > 1) await new Promise(resolve => { releaseBootstrap = resolve; });
-        if (pathname === "/api/choirs/visual-choir/settings") return route.fulfill({ json: { name: "示例云盘", nameRevision: 0, displayName: "管理员", membershipRevision: 0, canEditDriveInfo: true } });
         if (pathname.endsWith("/usage")) return route.fulfill({ json: { plan: "configured", usedBytes: 0, limitBytes: 1000, scoreCount: 1, scoreLimit: null, memberCount: 1, memberLimit: null } });
         await route.fulfill(fixture.resolve({ pathname, method: request.method(), identity: "admin", cookie: "" }));
       });
@@ -46,7 +45,7 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
       }
       assert.equal(counts["/api/choirs/visual-choir/bootstrap"], 1);
       assert.equal(counts["/api/choirs/visual-choir/management"], 1);
-      assert.equal(counts["/api/choirs/visual-choir/settings"], 1);
+      assert.equal(counts["/api/choirs/visual-choir/settings"] ?? 0, 0);
       assert.equal(counts["/api/choirs/visual-choir/usage"], 1, JSON.stringify(usageRequests));
       assert.equal(counts["/api/choirs/visual-choir/memberships"] ?? 0, 0);
       await page.getByRole("button", { name: "返回", exact: true }).click();
