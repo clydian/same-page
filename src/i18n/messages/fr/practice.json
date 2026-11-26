@@ -93,7 +93,6 @@
   "timbrePiano": "Piano",
   "timbreAahs": "Chœur ah",
   "timbreOohs": "Voix ou",
-  "timbreSessionHint": "Pour cette séance seulement ; le changement recharge brièvement le son.",
   "timbreLoading": "Changement de son…",
   "partMixer": "Mixage des pupitres",
   "partMixerHelp": "Réglez le volume par pupitre, coupez un pupitre ou écoutez uniquement les pupitres sélectionnés. Fermer le panneau ne change pas la lecture. Quand le focus est actif, les autres pupitres partagent un réglage de volume.",

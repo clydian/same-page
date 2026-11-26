@@ -93,7 +93,6 @@
   "timbrePiano": "Pianoforte",
   "timbreAahs": "Coro ah",
   "timbreOohs": "Voce oh",
-  "timbreSessionHint": "Solo per questa sessione; il cambio ricarica brevemente l’audio.",
   "timbreLoading": "Cambio del suono…",
   "partMixer": "Mixer delle parti",
   "partMixerHelp": "Regola il volume di ogni parte, silenziala o ascolta solo le parti selezionate. Chiudere il pannello non cambia la riproduzione. Con una parte in evidenza, le altre condividono il controllo del volume.",

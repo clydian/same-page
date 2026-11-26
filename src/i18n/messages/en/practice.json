@@ -93,7 +93,6 @@
   "timbrePiano": "Piano",
   "timbreAahs": "Choir aahs",
   "timbreOohs": "Voice oohs",
-  "timbreSessionHint": "This practice session only; changing sound briefly reloads audio.",
   "timbreLoading": "Changing sound…",
   "partMixer": "Part mixer",
   "partMixerHelp": "Adjust each part’s volume, mute a part, or solo selected parts. Closing the panel does not affect playback. With part focus on, the other parts share a volume control.",

@@ -93,7 +93,6 @@
   "timbrePiano": "鋼琴",
   "timbreAahs": "合唱啊聲",
   "timbreOohs": "人聲哦聲",
-  "timbreSessionHint": "僅限本次練習；更換時聲音會短暫重新載入。",
   "timbreLoading": "正在更換音色…",
   "partMixer": "聲部混音",
   "partMixerHelp": "可分別調整各聲部音量，將聲部靜音，或只聽選取的聲部。收合面板不影響播放；開啟聲部聚焦時，其他聲部共用音量控制。",
