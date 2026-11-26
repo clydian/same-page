@@ -384,7 +384,9 @@ export class ShellRuntime {
   async navigation(acceptLanguage?: string | null) {
     const record = await this.current;
     try {
-      if (this.permission && !await this.permission.permits(record.buildId)) throw new Error("release_not_permitted");
+      const offline = this.scope.navigator?.onLine === false;
+      // Offline starts still require the last committed display receipt.
+      if (offline && this.permission && !await this.permission.permits(record.buildId)) throw new Error("release_not_permitted");
       const cache = await caches.open(record.cacheName);
       // A sealed manifest was fully audited at install/activation. Check all
       // required keys before returning HTML, and verify the actual root bytes.
@@ -394,12 +396,15 @@ export class ShellRuntime {
       const root = record.entries.find(entry => entry.url === this.scope.registration.scope)!;
       let shell = await cache.match(root.url);
       if (!record.complete || record.entries.some(entry => !present.has(entry.url)) || !await valid(shell, root) || !/text\/html/i.test(shell?.headers.get('Content-Type') ?? '')) {
+        // Repair can fetch assets. Do not repair a shell we cannot show.
+        if (!offline && this.permission && !await this.permission.permits(record.buildId)) throw new Error('release_not_permitted');
         await this.ready(AbortSignal.timeout(10_000));
         shell = await cache.match(root.url);
       }
       // Cache eviction can race the audit and this final read. Never let an
       // undefined value escape respondWith, even after successful readiness.
       if (!shell || !await valid(shell, root)) throw new Error('shell_disappeared');
+      // For a healthy shell, this locked check is the only release readback.
       await this.permission?.displayed(record.buildId);
       if (record.candidateOnly) await this.locked(() => this.permitDisplay(record));
       return shell;
