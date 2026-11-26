@@ -1,7 +1,8 @@
 import { model, type rendering } from '@coderline/alphatab';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import type { MelodyNote, MelodyScore, StaffBeat } from './melody';
+import type { MelodyMeasure, MelodyNote, MelodyScore, StaffBeat } from './melody';
 import type { Part } from './notation-score';
+import { measureEndX } from './notation-timing';
 import { matchTargetPitch, type PitchFrame } from './pitch-feedback';
 import { firstFrameAt, pitchFramesConnect } from './pitch-trace';
 import { staffPitchY, type StaffPitchAnchor } from './staff-pitch';
@@ -19,9 +20,10 @@ type TraceBeat = {
   top: number; bottom: number;
 };
 
-function scorePitchLayout(lookup: rendering.BoundsLookup, score: MelodyScore['score'], voice: Part, beats: StaffBeat[]) {
+function scorePitchLayout(lookup: rendering.BoundsLookup, score: MelodyScore['score'], voice: Part, beats: StaffBeat[], measures: MelodyMeasure[]) {
   const staff = score.tracks[voice.track]?.staves[voice.staff];
   if (staff?.standardNotationLineCount !== 5) return [];
+  const cutoffs = new Map(measures.filter(measure => measure.clip && measure.clip.until < measure.clip.duration).map(measure => [measure.visit, measure]));
   return beats.flatMap(({ pitches, ...timing }): TraceBeat[] => {
     if (!pitches.length) return [];
     const bar = staff.bars[timing.bar];
@@ -45,7 +47,9 @@ function scorePitchLayout(lookup: rendering.BoundsLookup, score: MelodyScore['sc
     }
     if (!heads.size) return [];
     const nextBeat = voiceBeats[timing.beatIndex + 1];
-    const endX = (nextBeat && lookup.findBeat(nextBeat)?.onNotesX) ?? staffBounds.x + staffBounds.w - stepSize;
+    const end = (nextBeat && lookup.findBeat(nextBeat)?.onNotesX) ?? staffBounds.x + staffBounds.w - stepSize;
+    const cutoff = cutoffs.get(timing.visit);
+    const endX = cutoff ? Math.min(end, measureEndX(bounds.barBounds.masterBarBounds, cutoff)) : end;
     const ys = [...heads.values()].map(head => head.y);
     return [{ target: { ...timing, midi: pitches[0], chord: pitches }, system: system.index, endX, heads,
       top: Math.min(staffBounds.y, ...ys) - 2 * stepSize,
@@ -80,14 +84,14 @@ function tracePath(beats: TraceBeat[], frames: PitchFrame[], through = Number.PO
   return { path: path.join(' '), point: previous };
 }
 
-export function ScorePitchTrace({ lookup, score, voice, beats, frames, currentVisit, live, through, viewport }: {
-  lookup: rendering.BoundsLookup; score: MelodyScore['score']; voice: Part; beats: StaffBeat[];
+export function ScorePitchTrace({ lookup, score, voice, beats, measures, frames, currentVisit, live, through, viewport }: {
+  lookup: rendering.BoundsLookup; score: MelodyScore['score']; voice: Part; beats: StaffBeat[]; measures: MelodyMeasure[];
   frames: PitchFrame[]; currentVisit?: number; live: boolean; viewport: RefObject<HTMLDivElement | null>;
   through?: number;
 }) {
   const layer = useRef<SVGSVGElement>(null);
   const [visible, setVisible] = useState<number[] | null>(null);
-  const layout = useMemo(() => scorePitchLayout(lookup, score, voice, beats), [lookup, score, voice, beats]);
+  const layout = useMemo(() => scorePitchLayout(lookup, score, voice, beats, measures), [lookup, score, voice, beats, measures]);
 
   useEffect(() => {
     const host = viewport.current, overlay = layer.current;

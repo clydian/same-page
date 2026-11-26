@@ -1,12 +1,12 @@
 import { useMessages } from "../../i18n";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { Button, Slider, SliderThumb, SliderTrack } from 'react-aria-components';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button } from 'react-aria-components';
+import { MeasureRangeSlider } from './measure-range-slider';
 import { useMeasureLabel } from "./measure-label";
 import { PracticeSetting } from './practice-setting';
 import type { PlayerSession, PlayerState } from '@same-page/player';
 
 type Props = { rememberedRange?: number[] | null; onRememberRange?(values: number[]): void; session: PlayerSession | null; state: PlayerState; ready: boolean; onPreview(): void; onPreviewingChange(value: boolean): void };
-const loopMarkers = ["A", "B"];
 
 export function LoopRangeEditor({ rememberedRange, onRememberRange, session, state, ready, onPreview, onPreviewingChange }: Props) {
   const t = useMessages("practice");
@@ -49,15 +49,9 @@ export function LoopRangeEditor({ rememberedRange, onRememberRange, session, sta
           onPointerDownCapture={event => { cancelled.current = false; pointerActive.current = true; const thumb = (event.target as Element).closest('[data-loop-endpoint]'); const active = thumb ? Number(thumb.getAttribute('data-loop-endpoint')) : endpoint; setEndpoint(active); onPreview(); session?.previewMeasure(range[active], { start: range[0], end: range[1] }); onPreviewingChange(true); }} onPointerUpCapture={commit} onPointerCancelCapture={cancel}
           onKeyDownCapture={event => { if (event.key === 'Escape') { event.stopPropagation(); cancel(); } else if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)) { if (!pointerActive.current) cancelled.current = false; if (!cancelled.current) onPreviewingChange(true); } }} onKeyUpCapture={commit}>
         <p className="practice-loop-preview" role="status">{draft ? t("adjustingEndpoint", { endpoint: endpointLabel, measure: label(range[endpoint]) }) : t("loopingFromTo", { start: label(state.loop.start), end: label(state.loop.end) })}</p>
-        <Slider aria-label={t("loopRange")} isDisabled={!ready} minValue={0} maxValue={Math.max(0, state.measures.length - 1)} step={1} value={range} onChange={change}
-          onChangeEnd={commit} className="practice-range-slider">
-          <SliderTrack className="practice-range-track">
-            {({ state: slider }) => <>
-              <div className="practice-range-fill" style={{ left: `${slider.getThumbPercent(0) * 100}%`, right: `${100 - slider.getThumbPercent(1) * 100}%` } as CSSProperties} />
-              {[0, 1].map(index => <RangeThumb key={index} index={index} label={label(range[index])} coincident={range[0] === range[1]} onFocus={() => setEndpoint(index)} />)}
-            </>}
-          </SliderTrack>
-        </Slider>
+        <MeasureRangeSlider label={t("loopRange")} endpoints={[t("loopStart"), t("loopEnd")]} disabled={!ready}
+          max={Math.max(0, state.measures.length - 1)} value={range} formatMeasure={label}
+          onFocusEndpoint={setEndpoint} onChange={change} onChangeEnd={commit} />
       </div>
       <div className="practice-loop-endpoints">
         {[0, 1].map(index => <Button key={index} className="practice-endpoint" aria-label={index === 0 ? t("startA") : t("endB")} aria-pressed={endpoint === index} onPress={() => setEndpoint(index)}><span>{index === 0 ? t("startA") : t("endB")}</span><strong>{label(range[index])}</strong></Button>)}
@@ -67,12 +61,4 @@ export function LoopRangeEditor({ rememberedRange, onRememberRange, session, sta
       </div>
     </div>}
   </section>;
-}
-
-// React Aria formats slider values as numbers; printed measure labels also carry repeat visits.
-function RangeThumb({ index, label, coincident, onFocus }: { index: number; label: string; coincident: boolean; onFocus(): void }) {
-  const t = useMessages("practice");
-  const input = useRef<HTMLInputElement>(null);
-  useLayoutEffect(() => { input.current?.setAttribute('aria-valuetext', label); });
-  return <SliderThumb data-loop-endpoint={index} index={index} inputRef={input} aria-label={index === 0 ? t("loopStart") : t("loopEnd")} className="practice-range-thumb" onFocus={onFocus} style={{ marginLeft: coincident ? index === 0 ? -18 : 18 : 0 }}><span aria-hidden="true">{loopMarkers[index]}</span></SliderThumb>;
 }

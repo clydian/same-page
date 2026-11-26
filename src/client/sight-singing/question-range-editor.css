@@ -1,0 +1,43 @@
+.challenge-range-editor { min-inline-size: 0; margin-block-start: .75rem; }
+.challenge-range-editor > h2 { font-size: 1rem; }
+.challenge-range-summary { margin-block: .3rem 0; font-size: .875rem; color: var(--muted); }
+.challenge-range-editor .practice-range-track { margin-inline: 1.25rem; }
+.challenge-range-editor .practice-range-thumb { inline-size: 36px; }
+.challenge-range-editor .practice-range-thumb[data-focus-visible] span { outline-color: var(--ink); }
+.challenge-range-notation {
+  overflow: auto;
+  overscroll-behavior: contain;
+  max-block-size: clamp(8rem, 38svh, 20rem);
+  border: 1px solid var(--line);
+  border-radius: .65rem;
+  background: var(--surface);
+}
+.challenge-range-sheet { position: relative; }
+[data-ui-theme="dark"] .challenge-range-sheet svg { filter: invert(.9) hue-rotate(180deg); }
+.challenge-range-highlight, .challenge-range-active {
+  position: absolute;
+  pointer-events: none;
+}
+.challenge-range-highlight {
+  border-block: 1px solid var(--line);
+  background: color-mix(in srgb, #318469 13%, transparent);
+}
+.challenge-range-active {
+  border: 2px solid #318469;
+  border-radius: .25rem;
+  z-index: 1;
+}
+.challenge-range-advanced { margin-block-start: .5rem; }
+.challenge-range-advanced > summary { min-height: 44px; padding-block: .65rem; cursor: pointer; }
+.challenge-range-tune {
+  display: grid; gap: .35rem; padding: .55rem; border: 1px solid var(--line); border-radius: .65rem;
+}
+.challenge-range-endpoints, .challenge-range-step { display: grid; gap: .4rem; }
+.challenge-range-endpoints { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.challenge-range-step { grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; text-align: center; font-size: .875rem; }
+.challenge-range-tune button {
+  min-height: 44px; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: .5rem; cursor: pointer;
+}
+.challenge-range-tune button[aria-pressed="true"] { background: var(--brand-soft); border-color: var(--brand); }
+.challenge-range-tune button:disabled { opacity: .45; cursor: default; }

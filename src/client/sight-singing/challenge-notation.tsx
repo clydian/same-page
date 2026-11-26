@@ -4,7 +4,9 @@ import { memo, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useS
 import { useMessages } from '../../i18n';
 import { NotationZoom } from '../playback/notation-zoom';
 import type { Melody, MelodyMeasure, MelodyScore, MelodyVoice } from './melody';
+import { shadeContext } from './notation-crop';
 import { notationScore, samePart, type Part } from './notation-score';
+import { measureAnchors, positionAt } from './notation-timing';
 import { formatCents, pitchName, type assessNotes, type PitchFrame } from './pitch-feedback';
 import { ScorePitchTrace } from './score-pitch-trace';
 import './challenge-notation.css';
@@ -194,7 +196,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const autoScroll = useRef<PointerPosition | null>(null);
   const [scrollIntent] = useState(() => new ScoreFollowSession());
   const [paused, setPaused] = useState<string>();
-  const [scope, setScope] = useState<'part' | 'full'>('part');
+  const [scope, setScope] = useState<'part' | 'full'>('full');
   const [direction, setDirection] = useState<ScrollDirection>('vertical');
   const [scale, setScale] = useState(defaultScale);
   const horizontal = direction === 'horizontal';
@@ -203,7 +205,12 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const played = useMemo(() => new Set(melody.measures.map(bar => bar.bar)), [melody.measures]);
   const min = Math.min(...played), max = Math.max(...played);
-  const display = useMemo(() => notationScore(score, voice, scope === 'full', min, max), [score, voice, scope, min, max]);
+  const cropped = useMemo(() => melody.measures.some(bar => bar.clip), [melody.measures]);
+  const display = useMemo(() => {
+    const layout = notationScore(score, voice, scope === 'full', min, max);
+    if (cropped) shadeContext(layout.score, layout.part, melody.measures, min, max);
+    return layout;
+  }, [score, voice, scope, min, max, cropped, melody.measures]);
   const rendered = geometry?.score === display.score && geometry.direction === direction && geometry.scale === scale ? geometry : null;
   const notes = useMemo(() => rendered?.notes.filter(note => played.has(note.bar)) ?? [], [played, rendered]);
   const currentVisit = measure.visit;
@@ -329,23 +336,10 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       const staff = item.beats[0]?.beat.voice.bar.staff;
       return staff?.track.index === display.part.track && staff.index === display.part.staff;
     })?.realBounds;
-    if (!row || !horizontal) return { row };
-    const staff = display.score.tracks[display.part.track].staves[display.part.staff];
-    const beats = staff.bars[measure.bar].voices[display.part.voice]?.beats;
-    const anchors = melody.staffBeats.filter(beat => beat.visit === measure.visit).flatMap(beat => {
-      const modelBeat = beats?.[beat.beatIndex];
-      const bounds = modelBeat && rendered.lookup.findBeat(modelBeat);
-      return bounds ? [{ time: beat.start, x: bounds.onNotesX }] : [];
-    });
-    if (!anchors.length || anchors[0].time > measure.start) anchors.unshift({ time: measure.start, x: row.x });
-    anchors.push({ time: measure.end, x: row.x + row.w });
-    return { row, anchors };
-  }, [positioned, rendered, measure, display, horizontal, melody.staffBeats]);
-  const nextAnchor = anchors?.findIndex(anchor => anchor.time > elapsed) ?? -1;
-  const from = nextAnchor === -1 ? anchors?.at(-1) : anchors?.[Math.max(0, nextAnchor - 1)];
-  const to = anchors?.[nextAnchor];
-  const cursor = from && (to && to.time > from.time
-    ? from.x + (to.x - from.x) * Math.max(0, (elapsed - from.time) / (to.time - from.time)) : from.x);
+    if (!row || !horizontal && !cropped) return { row };
+    return { row, anchors: measureAnchors(rendered.lookup, display.score, display.part, measure, melody.staffBeats) };
+  }, [positioned, rendered, measure, display, horizontal, cropped, melody.staffBeats]);
+  const cursor = anchors && positionAt(anchors, elapsed);
 
   const followScore = useEffectEvent(() => {
     const host = viewport.current, element = notation.current;
@@ -441,8 +435,9 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       {row && <div className={cursor === undefined ? 'challenge-current-measure' : 'challenge-score-cursor'} aria-hidden="true"
         style={{ left: cursor ?? row.x, top: row.y, width: cursor === undefined ? row.w : 2, height: row.h }} />}
       {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={display.score} voice={display.part}
-        beats={melody.staffBeats} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} through={traceThrough} viewport={viewport} /> : null}
-      {onNote && <NotationButtons notes={notes} voice={display.part} results={results} onNote={onNote} />}
+        beats={melody.staffBeats} measures={melody.measures} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} through={traceThrough} viewport={viewport} /> : null}
+      {onNote && <NotationButtons notes={notes} voice={display.part} results={results}
+        onNote={hit => onNote(scope === 'part' ? { ...hit, voice: voice.voice } : hit)} />}
       {labels.length > 0 && <div className="challenge-pitch-labels" aria-hidden="true">
         {labels.map(({ key, position, status, text }) => <span key={key} data-status={status}
           style={{ left: position.x, top: position.y, width: position.w, height: position.h }}>{text}</span>)}

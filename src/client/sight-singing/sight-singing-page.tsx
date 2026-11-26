@@ -8,7 +8,7 @@ import { attachmentAccept, attachmentFormat, attachmentNameSchema } from '../../
 import { scoreDisplayName } from '../../shared/score-display-name';
 import type { ScoreSummary } from '../../shared/scores';
 import { publishedQuestionResponseSchema, publishedQuestionsSchema, SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH, SIGHT_SINGING_SCORE_MAX_BYTES,
-  type PublishedQuestion, type QuestionPublication } from '../../shared/sight-singing';
+  type PublishedQuestion, type QuestionBeats, type QuestionPublication } from '../../shared/sight-singing';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 import { presentationSessionId, useApplicationIdentity, type ApplicationIdentity } from '../auth/application-identity';
 import { loginHref } from '../auth/login-return';
@@ -28,6 +28,7 @@ import { ConfirmDialog } from '../settings/confirm-dialog';
 import { ChallengeRun, type ResultSave, type VoiceOption } from './challenge-run';
 import { useSightSingingScoreFormat } from './format-score';
 import { buildMelody } from './melody';
+import { QuestionRangeEditor } from './question-range-editor';
 import { readQuestions, type SightSingingQuestion } from './questions';
 import { ScoreBadges } from './score-badge';
 import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult,
@@ -478,6 +479,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const [voiceChoice, setVoiceChoice] = useState(legacy?.voice ?? '');
   const [first, setFirst] = useState(draft?.first ?? 0);
   const [lastChoice, setLastChoice] = useState<number | undefined>(draft?.last);
+  const [beats, setBeats] = useState<QuestionBeats>({ firstBeat: question?.firstBeat, lastBeat: question?.lastBeat });
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const saveLifetime = useRef<AbortController | null>(null);
@@ -523,8 +525,8 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const last = lastChoice ?? (loaded.document?.visits.length ?? 1) - 1;
   const options = useMemo(() => {
     const document = loaded.document;
-    return document?.voices.map(voice => ({ voice, melody: buildMelody(document, voice, first, last) })) ?? [];
-  }, [loaded.document, first, last]);
+    return document?.voices.map(voice => ({ voice, melody: buildMelody(document, voice, first, last, beats) })) ?? [];
+  }, [loaded.document, first, last, beats]);
   const voices: VoiceOption[] = options.flatMap(({ voice, melody }) => {
     if (typeof melody === 'string') return [];
     const name = voice.name || t('sight.part', { number: voice.track + 1 });
@@ -535,10 +537,13 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     const visit = loaded.document?.visits[index];
     return visit?.visit ? t('sight.measureVisit', { measure: visit.number, visit: visit.visit }) : t('sight.measureNumber', { measure: visit?.number ?? index + 1 });
   };
-  const resetRange = () => { setVoiceChoice(''); setFirst(0); setLastChoice(undefined); setFailed(false); };
+  const resetRange = () => { setVoiceChoice(''); setFirst(0); setLastChoice(undefined); setBeats({}); setFailed(false); };
   const changeSourceMode = (mode: SourceMode) => {
     setSourceMode(mode); resetRange(); setInvalidUpload(false); setUpload(null);
-    if (mode === 'saved' && savedSource) { setFirst(savedSource.first); setLastChoice(savedSource.last); }
+    if (mode === 'saved' && savedSource) {
+      setFirst(savedSource.first); setLastChoice(savedSource.last);
+      setBeats({ firstBeat: saved?.firstBeat, lastBeat: saved?.lastBeat });
+    }
   };
   const changeUpload = (file: File | null) => {
     setUpload(null); setInvalidUpload(false); resetRange();
@@ -547,7 +552,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
         || file.size === 0 || file.size > SIGHT_SINGING_SCORE_MAX_BYTES) { setInvalidUpload(true); return; }
     setUpload({ key: crypto.randomUUID(), file });
   };
-  const range = first === last ? visitLabel(first) : `${visitLabel(first)} – ${visitLabel(last)}`;
+  const range = first === last ? visitLabel(first) : t('measureRange', { start: visitLabel(first), end: visitLabel(last) });
   const visits = loaded.document?.visits;
   const firstVisit = visits?.[first], lastVisit = visits?.[last];
   const uploadedName = source?.kind === 'upload' && loadedName
@@ -555,7 +560,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       || loadedName.replace(/\.(?:musicxml|mxl|xml)$/i, '').trim() || loadedName : '';
   const scoreName = score ? scoreDisplayName(score.fileName) : uploadedName;
   const nameRange = visits && firstVisit && lastVisit
-    ? first === 0 && last === visits.length - 1 ? t('sight.wholePiece')
+    ? first === 0 && last === visits.length - 1 && beats.firstBeat == null && beats.lastBeat == null ? t('sight.wholePiece')
       : first === last || firstVisit.visit || lastVisit.visit ? range
       : t('sight.questionMeasureRange', { first: firstVisit.number, last: lastVisit.number })
     : '';
@@ -570,6 +575,8 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     try {
       const headers: Record<string, string> = { 'x-same-page-owner-user-id': userId };
       const payload = { title: title.trim(), first, last, expectedVersion: saved?.version ?? null,
+        ...(beats.firstBeat != null || saved?.firstBeat != null ? { firstBeat: beats.firstBeat ?? null } : {}),
+        ...(beats.lastBeat != null || saved?.lastBeat != null ? { lastBeat: beats.lastBeat ?? null } : {}),
         ...(saved?.snapshot && { expectedEditToken: saved.snapshot.editToken }),
         ...(!saved && { publication: canPublishOfficial ? publication : 'member' }) };
       let body: BodyInit;
@@ -596,6 +603,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       const { question: next } = await parseDiagnosticResponse(response, publishedQuestionResponseSchema);
       if (!controller.signal.aborted && current()) {
         setTitleOverride(next.title); setFirst(next.first); setLastChoice(next.last);
+        setBeats({ firstBeat: next.firstBeat, lastBeat: next.lastBeat });
         setScoreId(next.scoreId ?? ''); setFileChoice(next.attachmentId ? `${next.attachmentId}:${next.revision}` : '');
         setSaved(next); setSourceMode('saved'); setUpload(null); setEditing(false);
       }
@@ -625,7 +633,8 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const playable = Boolean(loaded.document && selected);
   const issue = !selected && loaded.document ? options[0]?.melody ?? 'noMelody' : null;
   const canEdit = !editing && editable;
-  const replace = Boolean(saved && (sourceMode !== 'saved' || first !== saved.first || last !== saved.last));
+  const replace = Boolean(saved && (sourceMode !== 'saved' || first !== saved.first || last !== saved.last ||
+    (beats.firstBeat ?? null) !== (saved.firstBeat ?? null) || (beats.lastBeat ?? null) !== (saved.lastBeat ?? null)));
   const badUpload = invalidUpload || (source?.kind === 'upload' && loaded.failed);
   const backingUnavailable = options.some(({ melody }) => typeof melody === 'string' && melody !== 'noMelody');
   const versionSuffix = version > 1 ? ` · ${versionTag(version)}` : '';
@@ -681,16 +690,9 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
             </select>
           </>}
         </>}
-        {loaded.document && <>
-          <div className="challenge-range">
-            <div><label htmlFor={`${id}-first`}>{t('sight.first')}</label><select id={`${id}-first`} name="first" value={first} disabled={saving} onChange={event => { const next = Number(event.target.value); setFirst(next); if (next > last) setLastChoice(next); }}>
-              {loaded.document.visits.map((_, index) => <option key={index} value={index}>{visitLabel(index)}</option>)}
-            </select></div>
-            <div><label htmlFor={`${id}-last`}>{t('sight.last')}</label><select id={`${id}-last`} name="last" value={last} disabled={saving} onChange={event => setLastChoice(Number(event.target.value))}>
-              {loaded.document.visits.map((_, index) => index >= first && <option key={index} value={index}>{visitLabel(index)}</option>)}
-            </select></div>
-          </div>
-        </>}
+        {loaded.document && loaded.document.visits.length > 0 && <QuestionRangeEditor document={loaded.document}
+          first={first} last={last} beats={beats} disabled={saving} formatMeasure={visitLabel}
+          onRangeChange={(start, end, nextBeats) => { setFirst(start); setLastChoice(end); setBeats(nextBeats); }} />}
         {!saved && canPublishOfficial && <fieldset className="challenge-publish-role" disabled={saving}>
           <legend>{t('sight.publishIdentity')}</legend>
           <label><input type="radio" name="publication" value="member" checked={publication === 'member'}

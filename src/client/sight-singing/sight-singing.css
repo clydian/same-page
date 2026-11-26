@@ -21,14 +21,12 @@
 .challenge-question:focus-visible { outline-offset: -3px; }
 .challenge-form { display: grid; gap: .45rem; max-width: 36rem; }
 .challenge-form label { font-weight: 600; }
-.challenge-form > label:not(:first-child), .challenge-range { margin-block-start: .55rem; }
+.challenge-form > label:not(:first-child) { margin-block-start: .55rem; }
 .challenge-form input, .challenge-form select {
   box-sizing: border-box; width: 100%; min-width: 0; min-height: 48px; padding: .5rem .75rem;
   border: 1px solid var(--line); border-radius: .6rem; background: var(--surface); color: var(--ink);
   font: inherit; font-size: max(1rem, 1em);
 }
-.challenge-range { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .75rem; }
-.challenge-range > div { display: grid; gap: .45rem; }
 .challenge-actions { margin-block: .6rem .85rem; }
 .challenge-actions button { display: inline-flex; align-items: center; gap: .45rem; min-height: 48px; }
 .challenge-error { color: var(--ui-danger, #a33535); }
@@ -100,14 +98,16 @@
 }
 .challenge-run > .challenge-error { margin-block: .35rem; }
 .challenge-transport { display: flex; justify-content: space-between; align-items: center; gap: .65rem; padding-block-start: .55rem; min-height: 3.15rem; }
+[data-phase="count"] > .challenge-transport { justify-content: center; }
+[data-phase="sing"] > .challenge-transport > .challenge-stop { inline-size: 100%; }
+.challenge-stage, .challenge-start, .challenge-stop, .challenge-review-play { min-height: 46px; }
 .challenge-start, .challenge-stop, .challenge-review-play {
-  display: inline-flex; justify-content: center; align-items: center; gap: .5rem; min-height: 46px;
+  display: inline-flex; justify-content: center; align-items: center; gap: .5rem;
   min-inline-size: 0; overflow-wrap: anywhere;
 }
 .challenge-start { border-radius: .85rem; padding-inline: 1.25rem; font-weight: 700; }
 .challenge-stop { border-radius: .85rem; }
 .challenge-stage { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem .8rem; font-weight: 650; }
-.challenge-staff-current-pitch { margin-inline-start: auto; color: var(--pitch-voice); font-size: .84rem; font-weight: 650; }
 .challenge-count { display: flex; gap: .4rem; }
 .challenge-count span { width: .55rem; height: .55rem; border: 1px solid var(--muted); border-radius: 50%; }
 .challenge-count span[data-passed="true"] { background: var(--brand); border-color: var(--brand); }

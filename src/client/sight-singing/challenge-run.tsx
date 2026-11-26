@@ -198,8 +198,10 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       onComplete: (result, recording) => {
         release();
         setDrone(false);
-        const review = assessNotes(melody.notes, result), score = takeScore(review);
-        setState({ phase: 'result', id: takeId, frames: trace.frames, review, score,
+        const review = assessNotes(melody.notes.filter(note => note.start >= melody.leadIn), result), score = takeScore(review);
+        const firstScoredFrame = result[0]?.time ?? Infinity;
+        const frames = melody.leadIn ? trace.frames.filter(frame => frame.time >= firstScoredFrame) : trace.frames;
+        setState({ phase: 'result', id: takeId, frames, review, score,
           answer: { status: 'preparing' }, save: score.percent === null ? 'unscored' : 'saving' });
         void saveResult(takeId, score);
         void prepareAnswer(takeId, recording, review);
@@ -236,6 +238,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
 
   const recording = state.phase === 'permission' || state.phase === 'count' || state.phase === 'sing';
   const position = state.phase === 'sing' ? state.frame.time : state.phase === 'result' ? replayTime : 0;
+  const inLeadIn = state.phase === 'sing' && position < melody.leadIn;
   const measure = melody.measures.find(bar => position < bar.end) ?? melody.measures[melody.measures.length - 1];
   const target = melody.notes.find(note => note.start <= position && position < note.end);
   const review = state.phase === 'result' ? state.review : undefined;
@@ -267,7 +270,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   }, [audioSession, playMeasure, release, state.phase]);
 
   const bpm = melody.tempoMarks.reduce((tempo, mark) => mark.start <= position ? mark.bpm : tempo, melody.tempo.bpm * speed);
-  const positioned = state.phase === 'count' || state.phase === 'sing' || state.phase === 'result' && (playing || replayTime > 0);
+  const cropped = melody.measures.some(bar => bar.clip);
+  const positioned = state.phase === 'count' && !cropped || state.phase === 'sing' || state.phase === 'result' && (playing || replayTime > 0);
   const canTap = state.phase === 'idle' || (state.phase === 'result' && state.answer.status === 'ready');
   const standing = state.phase === 'result' && !playing && dismissedStanding !== state.id && typeof state.save === 'object' && state.save.standing
     && state.score.percent !== null ? { id: state.id, score: state.score.percent, published: state.save.published, rank: state.save.standing } : null;
@@ -275,7 +279,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   return <div className="challenge-run" data-phase={state.phase} data-replaying={playing}>
     <ChallengeNotation score={document.score} voice={voice} melody={melody} measure={measure} elapsed={position}
       positioned={positioned} followRun={followRun} attemptReset={attemptReset} bpm={Number(bpm.toFixed(1))} feedback={feedback}
-      onNote={canTap ? selectNote : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
+      onNote={canTap ? hit => {
+        const inside = !cropped || voices.some(({ voice: part, melody: phrase }) =>
+          part.track === hit.track && part.staff === hit.staff && part.voice === hit.voice &&
+          phrase.staffBeats.some(beat => beat.bar === hit.bar && beat.beatIndex === hit.beatIndex && beat.pitches.includes(hit.midi)));
+        if (inside) selectNote(hit);
+      } : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
       pitchFrames={'frames' in state ? state.frames : undefined}
       liveTrace={state.phase === 'sing' || playing} traceThrough={state.phase === 'result' ? replayTime : undefined} />
 
@@ -324,16 +333,16 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     </div>}
 
     {recording && <div className="challenge-controls challenge-transport">
-      <div className="challenge-stage" role="status">
-        {state.phase === 'count' ? t('sight.count', { count: state.count }) : state.phase === 'permission' ? t('sight.waitingMicrophone') : t('sight.singNow')}
+      <div className={state.phase === 'sing' ? 'visually-hidden' : 'challenge-stage'} role="status">
+        {state.phase === 'count' ? t('sight.count', { count: state.count }) : state.phase === 'permission' ? t('sight.waitingMicrophone')
+          : inLeadIn ? t('sight.leadIn') : null}
         {state.phase === 'count' && <div className="challenge-count" aria-hidden="true">
           {Array.from({ length: melody.beats }, (_, index) => <span key={index} data-passed={index <= melody.beats - state.count} />)}
         </div>}
       </div>
-      {state.phase === 'sing' && state.frame.midi !== null && <span className="challenge-staff-current-pitch">
-        {t('sight.currentPitch', { pitch: pitchName(Math.round(state.frame.midi)) })}
-      </span>}
-      <button className="secondary-button challenge-stop" type="button" onClick={reset}><Square size={15} aria-hidden="true" />{t('sight.stop')}</button>
+      {state.phase !== 'count' && <button className="secondary-button challenge-stop" type="button" onClick={reset}>
+        <Square size={15} aria-hidden="true" />{t('sight.stop')}
+      </button>}
     </div>}
 
     {state.phase === 'result' && <section ref={reviewSection} tabIndex={-1} className="challenge-controls challenge-result" aria-label={t('sight.review')}>
