@@ -244,6 +244,9 @@
   "opusEmptyPiece": "La colección contiene una pieza sin compases reproducibles.",
   "lyricSize": "Tamaño de letra",
   "advancedSettings": "Configuración avanzada",
+  "sightPractice": "Práctica de lectura cantada",
+  "rhythmPractice": "Práctica de ritmo",
+  "rhythmComingSoon": "Próximamente",
   "sight": {
     "title": "Desafío de lectura cantada",
     "loading": "Cargando…",

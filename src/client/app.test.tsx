@@ -1053,8 +1053,8 @@ describe("AppRoutes", () => {
     );
 
     await screen.findByRole("searchbox", { name: /搜索.*中的乐谱/ });
-    fireEvent.click(await screen.findByRole("button", { name: "我的" }));
-    expect(await screen.findByRole("menuitem", { name: "阅读偏好" })).toHaveAttribute(
+    fireEvent.click(await screen.findByRole("link", { name: "我的" }));
+    expect(await screen.findByRole("link", { name: "阅读偏好" })).toHaveAttribute(
       "href",
       "/choirs/choir-1/preferences",
     );
@@ -1287,10 +1287,9 @@ describe("AppRoutes", () => {
     // Let the real local-directory read finish while bootstrap is still pending.
     await screen.findByText("本机尚未保存这个云盘的目录或乐谱，请联网后下载。");
     expect(screen.getByRole("heading", { name: "已知云盘名称" })).toBeInTheDocument();
-    // The avatar reads its display name independently; library access still uses one bootstrap.
+    // The library shares one bootstrap while restoring the saved drive summary.
     expect(fetchMock.mock.calls.map(([input]) => input).filter(input => input !== "/api/choirs").sort()).toEqual([
       "/api/choirs/choir-1/bootstrap",
-      "/api/choirs/choir-1/settings",
     ]);
 
     finishBootstrap(Response.json(driveBootstrapBody({ access: "membership" })));
@@ -1322,13 +1321,13 @@ describe("AppRoutes", () => {
       createdAt: 1,
     });
     render(
-      <MemoryRouter initialEntries={["/"]}>
+      <MemoryRouter initialEntries={["/drives"]}>
         <AppRoutes />
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "我的" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "退出登录" }));
+    fireEvent.click(await screen.findByRole("link", { name: "我的" }));
+    fireEvent.click(await screen.findByRole("button", { name: "退出登录" }));
     expect(await screen.findByRole("dialog", { name: "确认退出登录" })).toHaveTextContent(
       "本机还有 1 项待同步操作",
     );
@@ -1366,13 +1365,13 @@ describe("AppRoutes", () => {
       canEdit: true,
     });
     render(
-      <MemoryRouter initialEntries={["/"]}>
+      <MemoryRouter initialEntries={["/drives"]}>
         <AppRoutes />
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "我的" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "退出登录" }));
+    fireEvent.click(await screen.findByRole("link", { name: "我的" }));
+    fireEvent.click(await screen.findByRole("button", { name: "退出登录" }));
     fireEvent.click(
       await screen.findByRole("button", { name: "退出并清除" }),
     );

@@ -45,8 +45,8 @@ test('sight singing preserves its layout preferences and clears a completed take
   assert.equal(login.status(), 200);
   const page = await context.newPage();
   await page.goto(`${fixture.origin}/choirs/${fixture.choirId}`);
-  await page.locator('button.drive-avatar').click();
-  await page.getByRole('menuitem', { name: '视唱挑战' }).click();
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '工具', exact: true }).click();
+  await page.getByRole('link', { name: '视唱练习', exact: true }).click();
   await page.getByRole('button', { name: '新建题目' }).click();
   await page.locator('select[name=source]').selectOption('upload');
   const xml = musicXmlFixture(24).toString().replaceAll('<measure number="1">', '<measure number="0">');

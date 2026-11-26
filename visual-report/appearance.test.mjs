@@ -41,9 +41,9 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) test(`${name}
   });
   await page.addInitScript(() => localStorage.setItem('reader-gesture-hint-seen', 'true'));
   await page.goto(`${server.origin}/choirs/visual-choir`);
-  await page.getByRole('button', { name: '我的', exact: true }).click();
-  await expect(page.getByRole('menuitem', { name: '外观', exact: true })).toHaveAttribute('href', '/appearance');
-  await page.getByRole('menuitem', { name: '外观', exact: true }).click();
+  await page.getByRole('link', { name: '我的', exact: true }).click();
+  await expect(page.getByRole('link', { name: '外观', exact: true })).toHaveAttribute('href', '/appearance');
+  await page.getByRole('link', { name: '外观', exact: true }).click();
   await expect(page.getByRole('heading', { name: '外观', level: 1 })).toBeVisible();
   await page.getByRole('radio', { name: '深色', exact: true }).check();
   await expect(page.locator('html')).toHaveAttribute('data-paper-theme', 'soft');

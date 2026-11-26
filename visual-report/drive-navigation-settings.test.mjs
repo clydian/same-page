@@ -108,21 +108,18 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("button", { name: "返回", exact: true }).click();
     await expect(page.getByRole("heading", { name: "云盘设置", level: 1 })).toBeVisible();
     await page.getByRole("button", { name: "返回", exact: true }).click();
-    await page.getByRole("button", { name: "我的", exact: true }).click();
-    await expect(page.getByRole("menu", { name: "我的", exact: true })).toBeVisible();
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "Long account names must fit the personal menu");
+    const navigation = page.getByRole("navigation", { name: "主导航" });
+    await navigation.getByRole("link", { name: "我的", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "我的", exact: true })).toBeVisible();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "Long drive names must fit the personal page");
     await page.setViewportSize({ width: 740, height: 320 });
-    await expect.poll(async () => {
-      const box = await page.locator(".account-menu-popover").boundingBox();
-      return box.y >= 0 && box.y + box.height <= 320;
-    }).toBe(true);
-    await page.keyboard.press("End");
-    await expect.poll(async () => {
-      const box = await page.getByRole("menuitem", { name: "退出登录", exact: true }).boundingBox();
-      return box.y >= 0 && box.y + box.height <= 320;
-    }).toBe(true);
-    await page.keyboard.press("Escape");
+    const logout = page.getByRole("button", { name: "退出登录", exact: true });
+    await logout.focus();
+    await expect(logout).toBeInViewport({ ratio: 1 });
+    await navigation.getByRole("link", { name: "乐谱", exact: true }).click();
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole("searchbox")).toHaveValue("秋日");
+    await expect.poll(() => page.evaluate(() => scrollY)).toBe(350);
     const beforeRefresh = reads;
     await refreshLibrary(page);
     await expect.poll(() => reads).toBeGreaterThan(beforeRefresh);

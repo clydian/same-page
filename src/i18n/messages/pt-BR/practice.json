@@ -244,6 +244,9 @@
   "opusEmptyPiece": "A coleção contém uma peça sem compassos que possam ser reproduzidos.",
   "lyricSize": "Tamanho da letra",
   "advancedSettings": "Configurações avançadas",
+  "sightPractice": "Prática de solfejo",
+  "rhythmPractice": "Prática rítmica",
+  "rhythmComingSoon": "Em breve",
   "sight": {
     "title": "Desafio de leitura cantada",
     "loading": "Carregando…",

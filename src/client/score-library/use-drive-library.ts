@@ -44,6 +44,8 @@ export function useDriveLibrary(ownerKey: DriveCacheOwnerKey, choirId: string, s
   // Detach before the next route resets scroll in its layout effects. Keep
   // network startup passive so identity observers clear the previous owner first.
   useLayoutEffect(() => {
+    // A sibling tab can retain the same drive resource between library visits.
+    library.requestScrollRestore();
     const save = () => library.rememberScroll(window.scrollY);
     window.addEventListener("scroll", save, { passive: true });
     window.addEventListener("pagehide", save);

@@ -244,6 +244,9 @@
   "opusEmptyPiece": "Die Sammlung enthält ein Stück ohne abspielbare Takte.",
   "lyricSize": "Liedtextgröße",
   "advancedSettings": "Erweiterte Einstellungen",
+  "sightPractice": "Blattsingübung",
+  "rhythmPractice": "Rhythmusübung",
+  "rhythmComingSoon": "In Vorbereitung",
   "sight": {
     "title": "Blattsing-Challenge",
     "loading": "Wird geladen…",

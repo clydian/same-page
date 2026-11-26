@@ -69,8 +69,8 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     }
     // Continue through the UI after cancellation. Reloading this same URL while
     // the picker/history checkpoint is returning is unrelated to invitation coverage.
-    await page.getByRole("button", { name: "我的", exact: true }).click();
-    await page.getByRole("menuitem", { name: /关于与更新/ }).click();
+    await page.getByRole("link", { name: "我的", exact: true }).click();
+    await page.getByRole("link", { name: /关于与更新/ }).click();
     await expect(page.getByRole("heading", { name: "关于合谱", exact: true })).toBeVisible();
     await expect(page.getByText(/^v\d{2}\.\d{2}\.\d{2}\.\d{4}$/, { exact: true })).toBeVisible();
     await page.getByText("版本与技术信息", { exact: true }).click();

@@ -1,3 +1,4 @@
+import { BottomNavigation } from "../components/bottom-navigation";
 import { ConnectionHelp } from "../connection/connection-control";
 import { useMessages } from "../../i18n";
 import type { ReactNode } from "react";
@@ -15,9 +16,10 @@ export function DrivePage({ choirId, choirName, header, children, connectionHelp
     event.preventDefault();
   }}>
     <ConnectionHelp>{connectionHelp}</ConnectionHelp>
-    {header ?? <DriveHeader loading choirId={choirId} choirName={choirName ?? t("drive")} resolvingIdentity search="" onSearch={() => {}} />}
+    {header ?? <DriveHeader loading choirId={choirId} choirName={choirName ?? t("drive")} search="" onSearch={() => {}} />}
     {children ?? <main className="page-shell file-library">
       <p className="route-loading" role="status">{t("driveLoadingSheetMusic")}</p>
     </main>}
+    <BottomNavigation choirId={choirId} active="scores" />
   </div>;
 }

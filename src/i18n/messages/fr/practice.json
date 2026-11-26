@@ -244,6 +244,9 @@
   "opusEmptyPiece": "Le recueil contient une pièce sans mesures lisibles.",
   "lyricSize": "Taille des paroles",
   "advancedSettings": "Réglages avancés",
+  "sightPractice": "Exercice de chant à vue",
+  "rhythmPractice": "Exercice rythmique",
+  "rhythmComingSoon": "Bientôt disponible",
   "sight": {
     "title": "Défi de lecture chantée",
     "loading": "Chargement…",

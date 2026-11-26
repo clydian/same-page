@@ -14,12 +14,13 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await page.route("**/api/**", route => route.fulfill(fixture.resolve({ pathname: new URL(route.request().url()).pathname, method: route.request().method(), identity: "admin" })));
     await page.goto(`${app.origin}/choirs/visual-choir`);
     await expect(page.locator(".file-row")).toHaveCount(3);
-    const bottom = await page.evaluate(() => {
-      const target = document.elementFromPoint(24, innerHeight - 16);
+    const libraryBottom = () => page.locator(".bottom-navigation").evaluate(nav => nav.getBoundingClientRect().top - 16);
+    const bottom = await page.evaluate(y => {
+      const target = document.elementFromPoint(24, y);
       const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
       target.dispatchEvent(event);
       return { inLibrary: !!target.closest(".drive-page"), onFile: !!target.closest(".file-row"), select: getComputedStyle(target).userSelect, prevented: event.defaultPrevented };
-    });
+    }, await libraryBottom());
     assert.deepEqual(bottom, { inLibrary: true, onFile: false, select: "none", prevented: true });
     await page.setViewportSize({ width: 390, height: 300 });
     // Check native page scrolling without taking over touch gestures.
@@ -28,7 +29,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => scrollTo(0, 0));
     const text = await page.locator(".file-row__name").first().boundingBox();
-    await page.mouse.move(24, 828); await page.mouse.down();
+    await page.mouse.move(24, await libraryBottom()); await page.mouse.down();
     await page.mouse.move(text.x + text.width / 2, text.y + text.height / 2, { steps: 10 }); await page.mouse.up();
     assert.equal(await page.evaluate(() => getSelection().toString()), "");
 

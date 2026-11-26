@@ -244,6 +244,9 @@
   "opusEmptyPiece": "La raccolta contiene un brano senza battute riproducibili.",
   "lyricSize": "Dimensione testo",
   "advancedSettings": "Impostazioni avanzate",
+  "sightPractice": "Esercizio di canto a prima vista",
+  "rhythmPractice": "Esercizio ritmico",
+  "rhythmComingSoon": "In arrivo",
   "sight": {
     "title": "Sfida di lettura cantata",
     "loading": "Caricamento…",

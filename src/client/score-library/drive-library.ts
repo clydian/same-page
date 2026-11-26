@@ -287,6 +287,9 @@ export class DriveLibrary {
     this.updateView({ scrollTop });
     prepareDriveLibraryReturn(this.ownerKey, this.choirId);
   };
+  requestScrollRestore = () => {
+    this.restorePending = true;
+  };
   restoreScroll = (apply: (scrollTop: number) => void) => {
     if (!this.isActive() || !this.restorePending || this.snapshot.access.kind !== "opened") return;
     this.restorePending = false;

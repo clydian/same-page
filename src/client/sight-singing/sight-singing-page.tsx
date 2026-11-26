@@ -32,6 +32,7 @@ import { buildMelody } from './melody';
 import { QuestionRangeEditor } from './question-range-editor';
 import { readQuestions, type SightSingingQuestion } from './questions';
 import { ScoreBadges } from './score-badge';
+import { sightSingingAccess } from './access';
 import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingingResults, withdrawSightSingingResult,
   type SightSingingResultFilters } from './result-publication';
 import type { PublishedSightSingingResult, SightSingingLeaderboard, SightSingingResultSubmission } from '../../shared/sight-singing-results';
@@ -59,11 +60,7 @@ function SightSingingAccess({ owner, choirId, identity }: {
   const authenticated = Boolean(identity.authenticatedSessionId);
   const { library, snapshot: { access, reading, refreshMessage } } =
     useDriveLibraryResource(owner, choirId, authenticated, Boolean(sessionId), sessionId);
-  const member = authenticated && access.kind === 'opened' && access.isMember && !access.local && !access.choir.isPreviewEntry;
-  const signedOut = identity.onlineState === 'signed-out' || reading.authority === 'signed-out';
-  const driveDenied = reading.authority === 'revoked'
-    || access.kind === 'denied' || access.kind === 'not-found' || access.kind === 'join-required'
-    || access.kind === 'opened' && (access.retained === true || !access.local && (!access.isMember || access.choir.isPreviewEntry === true));
+  const { member, signedOut, driveDenied } = sightSingingAccess(access, reading.authority, identity);
   const denied = signedOut || driveDenied;
   const [admittedSession, setAdmittedSession] = useState<string | null>(null);
   const nextAdmission = denied || !sessionId ? null : member ? sessionId : admittedSession === sessionId ? admittedSession : null;

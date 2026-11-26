@@ -244,6 +244,9 @@
   "opusEmptyPiece": "曲集に再生できる小節のない曲が含まれています。",
   "lyricSize": "歌詞の文字サイズ",
   "advancedSettings": "詳細設定",
+  "sightPractice": "視唱練習",
+  "rhythmPractice": "リズム練習",
+  "rhythmComingSoon": "準備中",
   "sight": {
     "title": "視唱チャレンジ",
     "loading": "読み込み中…",

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, Link, Outlet, RouterProvider } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { expect, it, vi } from "vitest";
 import { NavigationProvider } from "./navigation";
 import { useAppNavigation, useExitLayer } from "./navigation-context";
@@ -151,37 +151,4 @@ it("asks before losing a changed form, keeps failed saves and returns after conf
   succeeds = true;
   fireEvent.click(screen.getByRole("button", { name: "保存并返回" }));
   expect(await screen.findByRole("heading", { name: "云盘" })).toBeInTheDocument();
-});
-
-it("keeps a stable personal icon and cached membership while restoring scoped menu permissions", async () => {
-  const { DriveHeader } = await import("../score-library/drive-header");
-  const { rememberResource, readResource } = await import("../settings/read-resource");
-  const key = { owner: "reader", driveId: "one", kind: "settings" } as const;
-  const settings = { name: "排练", nameRevision: 0, displayName: "林老师", membershipRevision: 2, canEditDriveInfo: false };
-  rememberResource(key, settings);
-  let confirmMembership!: () => void;
-  let finishSettings!: (response: Response) => void;
-  vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(resolve => { finishSettings = resolve; })));
-  function RestoringHeader() {
-    const [member, setMember] = useState(false);
-    useEffect(() => { confirmMembership = () => setMember(true); }, []);
-    return <DriveHeader loading={!member} choirId="one" choirName="排练" userId="reader" search="" onSearch={() => {}} canManageIdentity={member} />;
-  }
-  const router = createMemoryRouter([{ element: <NavigationProvider><Outlet /></NavigationProvider>, children: [
-    { path: "/choirs/one", element: <RestoringHeader /> },
-  ] }], { initialEntries: ["/choirs/one"] });
-  render(<RouterProvider router={router} />);
-  await act(async () => { await Promise.resolve(); });
-  expect(screen.getByRole("button", { name: "我的" })).toHaveTextContent("");
-  expect(readResource(key)).toEqual(settings);
-  fireEvent.click(screen.getByRole("button", { name: "我的" }));
-  await screen.findByRole("menuitem", { name: "阅读偏好" });
-  expect(screen.queryByText("林老师")).toBeNull();
-  expect(screen.queryByRole("menuitem", { name: "云盘内身份" })).toBeNull();
-  await act(async () => { confirmMembership(); finishSettings(Response.json({ ...settings, displayName: "小林" })); });
-  expect(screen.getByRole("menuitem", { name: "阅读偏好" })).toBeVisible();
-  expect(screen.getByRole("menuitem", { name: "云盘内身份" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "我的", hidden: true })).toHaveTextContent("")
-  expect(screen.queryByText("小林")).toBeNull();
-  expect(readResource(key)).toEqual({ ...settings, displayName: "小林" });
 });

@@ -65,8 +65,8 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   // Exercise a running shell whose precached worklet and soundfont can be read.
   await page.reload();
   assert.equal(await page.evaluate(() => Boolean(navigator.serviceWorker.controller)), true);
-  await page.getByRole("button", { name: "我的", exact: true }).click();
-  await page.getByRole("menuitem", { name: "视唱挑战", exact: true }).click();
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "工具", exact: true }).click();
+  await page.getByRole("link", { name: "视唱练习", exact: true }).click();
   await page.getByRole("button", { name: new RegExp(title) }).click();
   const heading = page.getByRole("heading", { name: title, exact: true });
   await expect(heading).toBeVisible();
