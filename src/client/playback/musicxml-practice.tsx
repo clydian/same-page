@@ -18,7 +18,7 @@ import { useNotationToolbarClearance } from "./use-notation-toolbar-clearance";
 import type { PlaybackPreparationProgress } from './playback-preparation-notice';
 import { PracticePlayerShell } from "./practice-player-shell";
 import { usePracticeFocus } from "./use-practice-focus";
-import { PracticeDisclosure, PracticeHelp, PracticeSetting, PracticeVolume } from "./practice-setting";
+import { PracticeDisclosure, PracticeSetting, PracticeVolume } from "./practice-setting";
 import { LyricSizeControl } from "./lyric-size-control";
 import { LoopRangeEditor } from "./loop-range-editor";
 import { PlaybackAudioHint } from './playback-audio-hint';
@@ -98,7 +98,6 @@ export function MusicXmlPractice({
     session?.playPause();
   };
   const ready = state.status === "ready" && !state.timbreLoading && !error;
-  const audioHint = state.audioHint ? t("audioHint") : undefined;
   useEffect(() => { if (ready) session?.lyricSize?.(lyricSize); }, [session, ready, lyricSize]);
   const formatMeasure = useMeasureLabel();
   const measureLabel = (index: number) => formatMeasure(state.measures[index], "—");
@@ -147,7 +146,7 @@ export function MusicXmlPractice({
         playing={state.playing || Boolean(state.countInBeats)}
         preparation={session ? state.loadingProgress : preparation && preparation.loaded !== undefined && preparation.total !== undefined ? { loaded: preparation.loaded, total: preparation.total } : undefined}
         message={error ?? (!session && preparation ? preparation.message : state.countInBeats ? t("countInProgress", { beat: state.countInBeat ?? 0, total: state.countInBeats }) : state.messageCode ? t(state.messageCode) : session ? state.message : t("playbackPreparing"))}
-        hint={<PlaybackAudioHint session={session} message={state.status === "ready" && !error ? audioHint : undefined} />}
+        hint={ready && <PlaybackAudioHint session={session} message={state.audioHint ? t("audioHint") : undefined} />}
         failed={Boolean(error) || state.status === "error"}
         timeline={{
           value: state.measure,
@@ -314,10 +313,7 @@ export function MusicXmlPractice({
           )}
           {view === "pdf" && <p className="practice-hint">{t("scaleDegreesReflowHint")}</p>}
         </div>
-        {audioHint && <div className="practice-setting-row">
-          <span className="practice-setting-name">{t("audioHintLabel")}</span>
-          <PracticeHelp title={t("audioHintLabel")}>{audioHint}</PracticeHelp>
-        </div>}
+        {state.audioHint && <p className="practice-hint">{t("audioHint")}</p>}
         <PracticeDisclosure title={t("advancedSettings")}>
           <PracticeSetting title={t("metronome")} help={t("metronomeHelp")} selected={Boolean(state.metronome)} disabled={!ready} onChange={metronome => session?.rhythm({ metronome })} />
           <PracticeSetting title={t("countInAfterSeek")} help={t("countInHelp")} selected={Boolean(state.countIn)} disabled={!ready} onChange={countIn => session?.rhythm({ countIn })} />
