@@ -199,7 +199,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         release();
         setDrone(false);
         const review = assessNotes(melody.notes.filter(note => note.start >= melody.leadIn), result), score = takeScore(review);
-        setState({ phase: 'result', id: takeId, frames: trace.frames, review, score,
+        const firstScoredFrame = result[0]?.time ?? Infinity;
+        const frames = melody.leadIn ? trace.frames.filter(frame => frame.time >= firstScoredFrame) : trace.frames;
+        setState({ phase: 'result', id: takeId, frames, review, score,
           answer: { status: 'preparing' }, save: score.percent === null ? 'unscored' : 'saving' });
         void saveResult(takeId, score);
         void prepareAnswer(takeId, recording, review);
