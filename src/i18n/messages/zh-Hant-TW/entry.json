@@ -71,6 +71,9 @@
     "name": "輸入雲端硬碟名稱「{name}」以確認"
   },
   "join": {
+    "cardCodeHint": "開啟邀請卡，輸入卡片上的邀請碼。",
+    "checkingIdentity": "正在確認登入狀態…",
+    "identityUnavailable": "暫時無法確認登入狀態。連線恢復後可以重試。",
     "guestError": "無法準備本機訪客空間，請再試一次。",
     "invalidLink": "邀請連結無效，請輸入目前邀請碼。",
     "newDrive": "加入新的雲端硬碟",
@@ -89,6 +92,7 @@
     "return": "返回輸入邀請碼"
   },
   "home": {
+    "appWelcome": "歡迎使用合譜",
     "previewUnavailable": "示範樂譜未能開啟，請再試一次。",
     "create": "建立免費雲端硬碟",
     "join": "輸入邀請碼",

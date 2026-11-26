@@ -4,6 +4,13 @@ import { mkdir } from "node:fs/promises";
 import { chromium, expect } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
 
+function simulateStandalone(context) {
+  return context.addInitScript(() => {
+    const original = window.matchMedia.bind(window);
+    window.matchMedia = query => query === "(display-mode: standalone)" ? { ...original(query), matches: true, addEventListener() {}, removeEventListener() {} } : original(query);
+  });
+}
+
 test("invited guest crosses isolated browsers and cold-starts with only the copied cookie", { timeout: 120000 }, async t => {
   const fixture = await startStorageFixture({ invite: true, authenticated: true });
   t.after(() => fixture.stop());
@@ -40,12 +47,9 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   assert.ok(cookies.some(cookie => cookie.name === "same_page_guest"));
   // Models Safari 17.2+ documented cookie-copy contract, not actual OS install.
   const installed = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
+  await simulateStandalone(installed);
   await installed.addCookies(cookies);
   const launched = await installed.newPage();
-  await launched.addInitScript(() => {
-    const original = window.matchMedia.bind(window);
-    window.matchMedia = query => query === "(display-mode: standalone)" ? { ...original(query), matches: true, addEventListener() {}, removeEventListener() {} } : original(query);
-  });
   await launched.goto(fixture.origin);
   await expect(launched.getByRole("heading", { name: "本地链路云盘", exact: true })).toBeVisible();
   await expect(launched.getByRole("button", { name: "添加到桌面", exact: true })).toHaveCount(0);
@@ -58,6 +62,19 @@ test("invited guest crosses isolated browsers and cold-starts with only the copi
   assert.equal((await safari.request.post(`${fixture.origin}/api/guest/install-handoff`, { data: { choirId: "other" } })).status(), 401);
   const fresh = await browser.newContext({ locale: "zh-CN" });
   assert.equal((await fresh.request.post(`${fixture.origin}/api/guest/install-handoff`, { data: { choirId: fixture.choirId } })).status(), 401);
+  await simulateStandalone(fresh);
+  const freshLaunch = await fresh.newPage();
+  await freshLaunch.goto(fixture.origin);
+  await expect(freshLaunch.getByRole("heading", { name: "欢迎使用合谱", exact: true })).toBeVisible();
+  await expect(freshLaunch.getByRole("link", { name: "登录", exact: true })).toHaveAttribute("href", "/login");
+  await expect(freshLaunch.getByRole("link", { name: "创建免费云盘", exact: true })).toHaveAttribute("href", /^\/login\?returnTo=/);
+  await expect(freshLaunch.locator(".marketing-hero")).toHaveCount(0);
+  await freshLaunch.getByRole("link", { name: "加入云盘", exact: true }).click();
+  await expect(freshLaunch.getByRole("heading", { name: "加入云盘", exact: true })).toBeVisible();
+  await expect(freshLaunch.getByLabel("邀请码", { exact: true })).toBeVisible();
+  await freshLaunch.getByRole("link", { name: "合谱 Same Page 首页", exact: true }).click();
+  await expect(freshLaunch.locator(".marketing-hero h1")).toBeVisible();
+  await freshLaunch.close();
   const android = await browser.newContext({ locale: "zh-CN", viewport: { width: 360, height: 800 }, userAgent: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0.0.0 Mobile Safari/537.36" });
   const androidPage = await android.newPage();
   await androidPage.goto(bridge);

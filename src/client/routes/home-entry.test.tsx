@@ -215,14 +215,14 @@ it("cancels a delayed invitation without late navigation and clears its guest se
     if (input === "/api/choirs/current-guest/join-state") return Response.json({ status: "joined", choir: membership("one").choir });
     return original(input, init);
   });
-  render(tree(["/?join=1"]));
+  render(tree(["/drives?join=1"]));
   fireEvent.change(await screen.findByLabelText("邀请码"), { target: { value: "ABCDEFGH" } });
   fireEvent.click(screen.getByRole("button", { name: "进入" }));
   await waitFor(() => expect(finish).toBeTypeOf("function"));
   fireEvent.click(screen.getByRole("button", { name: "关闭" }));
   await act(async () => { finish(Response.json({ choir: membership("one").choir, entryKind: "admission" })); });
   await waitFor(() => expect(guest).toBe(false));
-  expectPath("/?join=1");
+  expectPath("/drives?join=1");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 

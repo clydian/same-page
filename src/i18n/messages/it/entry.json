@@ -71,6 +71,9 @@
     "name": "Inserisci il nome del drive «{name}» per confermare"
   },
   "join": {
+    "cardCodeHint": "Apri la scheda di invito e inserisci il codice che trovi sulla scheda.",
+    "checkingIdentity": "Verifica dell’accesso…",
+    "identityUnavailable": "Impossibile verificare l’accesso. Riprova quando torna la connessione.",
     "guestError": "Impossibile preparare lo spazio per gli ospiti locali, riprova.",
     "invalidLink": "Il link di invito non è valido, inserisci il codice di invito attuale.",
     "newDrive": "Unisciti a un nuovo drive",
@@ -89,6 +92,7 @@
     "return": "Ritorna per inserire il codice invito"
   },
   "home": {
+    "appWelcome": "Benvenuto in Same Page",
     "previewUnavailable": "Impossibile aprire l’esempio. Riprova.",
     "create": "Crea un archivio gratuito",
     "join": "Inserisci un codice d’invito",

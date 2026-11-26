@@ -71,6 +71,9 @@
     "name": "Ingresa el nombre de la unidad «{name}» para confirmar"
   },
   "join": {
+    "cardCodeHint": "Abre tu tarjeta de invitación e ingresa el código que aparece en ella.",
+    "checkingIdentity": "Comprobando tu sesión…",
+    "identityUnavailable": "No pudimos comprobar tu sesión. Inténtalo de nuevo cuando tengas conexión.",
     "guestError": "No se puede preparar el espacio local para invitados, inténtalo de nuevo.",
     "invalidLink": "El enlace de invitación no es válido; ingrese el código de invitación actual.",
     "newDrive": "Unirse a otra unidad",
@@ -89,6 +92,7 @@
     "return": "Regresar para ingresar el código de invitación"
   },
   "home": {
+    "appWelcome": "Te damos la bienvenida a Same Page",
     "previewUnavailable": "No se pudo abrir el ejemplo. Inténtalo de nuevo.",
     "create": "Crear una unidad gratuita",
     "join": "Ingresar código de invitación",

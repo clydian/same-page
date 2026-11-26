@@ -30,11 +30,11 @@ export function JoinDriveDialog(props: JoinDriveProps) {
 }
 
 // The page and dialog share admission, scanning, display-name and cancellation.
-export function JoinDrivePanel(props: Omit<JoinDriveProps, "open" | "onBack">) {
+export function JoinDrivePanel(props: Omit<JoinDriveProps, "open" | "onBack"> & { focused?: boolean }) {
   return <JoinDriveFlow {...props} open inline />;
 }
 
-function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inline = false }: JoinDriveProps & { inline?: boolean }) {
+function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inline = false, focused = false }: JoinDriveProps & { inline?: boolean; focused?: boolean }) {
   const t = useMessages("entry");
   const viewportRef = useInputVisibility(inline ? "page" : "overlay");
   const navigate = useNavigate();
@@ -43,7 +43,9 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
   const userId = session.data?.user.id;
   const inviteTitleId = useId();
   const membershipTitleId = useId();
-  const admissionPaused = session.isPending || (Boolean(identity.localUserId) && !identity.authenticatedUserId && identity.onlineState !== "signed-out");
+  const identityUnavailable = focused && (identity.onlineState === "unreachable" || identity.onlineState === "local-unavailable");
+  const waitingForIdentity = session.isPending || identityUnavailable || (Boolean(identity.localUserId) && !identity.authenticatedUserId && identity.onlineState !== "signed-out");
+  const admissionPaused = waitingForIdentity || Boolean(invitation && location.hash);
   const linkHandled = useRef(false);
   const [joinStep, setJoinStep] = useState<JoinStep>({ kind: "invite" });
   const [joinCode, setJoinCode] = useState(invitation?.code ?? "");
@@ -162,18 +164,19 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
     // StrictMode disconnects and reconnects effects before this microtask.
     // Start only the committed lifetime, keeping automatic admission single-shot.
     void Promise.resolve().then(() => {
-      if (!active || !open || admissionPaused || !invitation || linkHandled.current) return;
+      if (!active || !open || !invitation || linkHandled.current) return;
       // Router navigation can complete asynchronously. Admit only on the next
       // committed location, once the shared credential has left the address bar.
       if (location.hash) {
-        void navigate({ pathname: location.pathname, search: location.search, hash: "" }, { replace: true });
+        void navigate({ pathname: location.pathname, search: focused ? "?join=1" : location.search, hash: "" }, { replace: true });
         return;
       }
+      if (admissionPaused) return;
       linkHandled.current = true;
       enterLinkedDrive();
     });
     return () => { active = false; };
-  }, [open, admissionPaused, invitation, navigate, location.pathname, location.search, location.hash]);
+  }, [open, admissionPaused, invitation, navigate, location.pathname, location.search, location.hash, focused]);
 
   const joinValidatedDrive = async (event: FormEvent) => {
     event.preventDefault();
@@ -195,6 +198,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
     }
   };
 
+  const scanner = open && <InviteScanner disabled={submitting || clearingGuestSession || admissionPaused} onRead={code => { setJoinCode(code); void enterInviteDrive(undefined, code); }} />;
   const content = (close: () => void) => (
               <>
                 {!inline && <div className={onBack ? "dialog-heading dialog-heading--back" : "dialog-heading"}>
@@ -223,7 +227,7 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                       aria-label={inline ? t("drive.join") : undefined}
                     >
                       {!inline && <h3 id={inviteTitleId}>{t("join.invitation")}</h3>}
-                      {open && <InviteScanner disabled={submitting || clearingGuestSession || admissionPaused} onRead={code => { setJoinCode(code); void enterInviteDrive(undefined, code); }} />}
+                      {!focused && scanner}
                       <Form
                         className="entry-form dialog-form"
                         onSubmit={enterInviteDrive}
@@ -248,6 +252,9 @@ function JoinDriveFlow({ open, onClose, identity, onBack, invitation = null, inl
                           {submitting || clearingGuestSession ? t("join.checking") : inline ? t("home.enter") : t("join.enterShort")}
                         </Button>
                       </Form>
+                      {focused && waitingForIdentity && <p role="status" className="drive-entry-notice">{t(identityUnavailable ? "join.identityUnavailable" : "join.checkingIdentity")}</p>}
+                      {identityUnavailable && <Button className="secondary-button" isDisabled={session.isRefetching} onPress={() => { void session.refetch().catch(() => undefined); }}>{t("startup.retry")}</Button>}
+                      {focused && !admissionPaused && scanner}
                     </section>
                   </>
                 ) : (

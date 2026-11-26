@@ -71,6 +71,9 @@
     "name": "Digite o nome do drive “{name}” para confirmar"
   },
   "join": {
+    "cardCodeHint": "Abra o cartão de convite e digite o código que aparece nele.",
+    "checkingIdentity": "Verificando sua sessão…",
+    "identityUnavailable": "Não foi possível verificar sua sessão. Tente de novo quando estiver on-line.",
     "guestError": "Não foi possível preparar o espaço local para convidados. Tente novamente.",
     "invalidLink": "O link de convite é inválido. Insira o código de convite atual.",
     "newDrive": "Participar de outro drive",
@@ -89,6 +92,7 @@
     "return": "Volte para inserir o código de convite"
   },
   "home": {
+    "appWelcome": "Boas-vindas ao Same Page",
     "previewUnavailable": "Não foi possível abrir o exemplo. Tente de novo.",
     "create": "Criar um drive gratuito",
     "join": "Inserir código de convite",

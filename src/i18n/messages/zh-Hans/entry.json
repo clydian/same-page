@@ -71,6 +71,9 @@
     "name": "输入云盘名称“{name}”确认"
   },
   "join": {
+    "cardCodeHint": "打开邀请卡，输入卡片上的邀请码。",
+    "checkingIdentity": "正在确认登录状态…",
+    "identityUnavailable": "暂时无法确认登录状态。连接恢复后可以重试。",
     "guestError": "无法准备本机访客空间，请重试。",
     "invalidLink": "邀请链接无效，请输入当前邀请码。",
     "newDrive": "加入新云盘",
@@ -89,6 +92,7 @@
     "return": "返回输入邀请码"
   },
   "home": {
+    "appWelcome": "欢迎使用合谱",
     "previewUnavailable": "示例没能打开，请再试一次。",
     "create": "创建免费云盘",
     "join": "输入邀请码",

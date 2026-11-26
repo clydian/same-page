@@ -71,6 +71,9 @@
     "name": "Zum Bestätigen den Namen der Ablage „{name}“ eingeben"
   },
   "join": {
+    "cardCodeHint": "Öffne deine Einladungskarte und gib den Code darauf ein.",
+    "checkingIdentity": "Anmeldestatus wird geprüft…",
+    "identityUnavailable": "Dein Anmeldestatus konnte nicht geprüft werden. Versuche es erneut, sobald du verbunden bist.",
     "guestError": "Lokaler Gästebereich konnte nicht vorbereitet werden. Bitte versuchen Sie es erneut.",
     "invalidLink": "Der Einladungslink ist ungültig, bitte geben Sie den aktuellen Einladungscode ein.",
     "newDrive": "Einer weiteren Ablage beitreten",
@@ -89,6 +92,7 @@
     "return": "Kehren Sie zurück, um den Einladungscode einzugeben"
   },
   "home": {
+    "appWelcome": "Willkommen bei Same Page",
     "previewUnavailable": "Die Beispielpartitur ließ sich nicht öffnen. Bitte versuche es erneut.",
     "create": "Kostenloses Laufwerk erstellen",
     "join": "Einladungscode eingeben",

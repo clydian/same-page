@@ -21,3 +21,8 @@
 }
 
 .drive-entry-chooser .drive-entry-copy { margin-bottom: 12px; }
+
+.installed-entry-actions { display: grid; gap: 12px; margin-top: 24px; }
+.installed-entry-actions > a { display: flex; align-items: center; justify-content: center; text-align: center; }
+.installed-entry-actions > .secondary-button { text-decoration: none; }
+.installed-entry-actions > .hero-preview-status:empty { position: absolute; }

@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium, expect } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
+import { createInviteLink } from "../src/client/components/invite-link.ts";
 
 test("valid invitations automatically admit guests, existing members and named new members", { timeout: 90000 }, async t => {
   const fixture = await startStorageFixture({ authenticated: true, invite: true, nonMember: true });
   t.after(() => fixture.stop());
   const browser = await chromium.launch(); t.after(() => browser.close());
-  for (const mode of ["fresh", "warm", "member", "new-member"]) {
+  for (const mode of ["fresh", "warm", "missing-fragment", "member", "new-member"]) {
     const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
     let page;
     const started = performance.now();
@@ -51,12 +52,22 @@ test("valid invitations automatically admit guests, existing members and named n
           assert.equal(new URL(page.url()).hash === "", true, "invitation fragment must be cleared");
         }
       });
+      const link = new URL(createInviteLink(fixture.origin, fixture.joinCode));
       if (mode === "warm") {
-        await page.goto(fixture.origin + "/?join=1");
-        await page.getByRole("button", { name: "关闭", exact: true }).click();
-        await page.evaluate(code => { location.hash = new URLSearchParams({ invite: code }).toString(); }, fixture.joinCode);
+        await page.goto(fixture.origin);
+        await expect(page.locator(".marketing-hero h1")).toBeVisible();
+        await page.evaluate(hash => { location.hash = hash; }, link.hash);
+      } else if (mode === "missing-fragment") {
+        await page.goto(link.origin + link.pathname + link.search);
+        await expect(page.getByRole("heading", { name: "加入云盘", exact: true })).toBeVisible();
+        await expect(page.locator(".marketing-hero")).toHaveCount(0);
+        const code = page.getByLabel("邀请码", { exact: true });
+        assert.equal(await code.inputValue(), "");
+        assert.equal(admissions, 0);
+        await code.fill(fixture.joinCode.slice(0, 4) + "-" + fixture.joinCode.slice(4));
+        await page.getByRole("button", { name: "进入云盘", exact: true }).click();
       } else {
-        await page.goto(`${fixture.origin}/?join=1#${new URLSearchParams({ invite: fixture.joinCode })}`);
+        await page.goto(link.href);
       }
       if (mode === "new-member") {
         await page.getByLabel("显示名", { exact: true }).waitFor({ state: "visible", timeout: 12_000 });

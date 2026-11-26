@@ -71,6 +71,9 @@
     "name": "Enter the Drive name “{name}” to confirm"
   },
   "join": {
+    "cardCodeHint": "Open your invitation card and enter the code shown on it.",
+    "checkingIdentity": "Checking your sign-in status…",
+    "identityUnavailable": "We couldn’t check your sign-in status. Try again when you’re connected.",
     "guestError": "Could not prepare local guest access. Try again.",
     "invalidLink": "This invitation link is invalid. Enter the current invitation code.",
     "newDrive": "Join a new Drive",
@@ -89,6 +92,7 @@
     "return": "Back to invitation code"
   },
   "home": {
+    "appWelcome": "Welcome to Same Page",
     "previewUnavailable": "The sample couldn’t open. Please try again.",
     "create": "Create a free drive",
     "join": "Enter an invite code",

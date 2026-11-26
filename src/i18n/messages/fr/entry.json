@@ -71,6 +71,9 @@
     "name": "Saisir le nom de l’espace « {name} » pour confirmer"
   },
   "join": {
+    "cardCodeHint": "Ouvrez votre carte d’invitation et saisissez le code qui y figure.",
+    "checkingIdentity": "Vérification de votre connexion au compte…",
+    "identityUnavailable": "Impossible de vérifier votre connexion au compte. Réessayez quand le réseau sera disponible.",
     "guestError": "Impossible de préparer l'espace invité local, veuillez réessayer.",
     "invalidLink": "Le lien d'invitation n'est pas valide, veuillez saisir le code d'invitation actuel.",
     "newDrive": "Rejoindre un nouvel espace",
@@ -89,6 +92,7 @@
     "return": "Retour pour saisir le code d'invitation"
   },
   "home": {
+    "appWelcome": "Bienvenue sur Same Page",
     "previewUnavailable": "Impossible d’ouvrir l’exemple. Réessayez.",
     "create": "Créer un espace gratuit",
     "join": "Saisir un code d’invitation",

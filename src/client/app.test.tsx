@@ -379,7 +379,7 @@ describe("AppRoutes", () => {
     expect(admissions[0][1]?.body).toBe(JSON.stringify({ admission: "invite", joinCode: "ABCDEFGH" }));
   });
 
-  it("keeps invitation cleanup and successful entry from triggering the dialog exit guard", async () => {
+  it("clears invitation credentials before entry and keeps the admitted session", async () => {
     const router = createMemoryRouter([{ path: "*", element: <AppRoutes /> }], { initialEntries: ["/?join=1#invite=ABCDEFGH"] });
     render(<RouterProvider router={router} />);
     expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
@@ -417,17 +417,21 @@ describe("AppRoutes", () => {
     render(<MemoryRouter initialEntries={["/?join=1#invite=ABCDEFGH"]}><AppRoutes /></MemoryRouter>);
     expect(await screen.findByRole("alert")).toHaveTextContent("暂时无法进入这个云盘");
     expect(screen.getByLabelText("邀请码")).toHaveValue("ABCDEFGH");
-    fireEvent.click(screen.getByRole("button", { name: "进入" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入云盘" }));
     expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
   });
 
   it("waits for session restoration before automatically admitting the linked guest", async () => {
     vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: true } as ReturnType<typeof authClient.useSession>);
-    const tree = <StrictMode><MemoryRouter initialEntries={["/?join=1#invite=ABCDEFGH"]}><AppRoutes /></MemoryRouter></StrictMode>;
+    const router = createMemoryRouter([{ path: "*", element: <AppRoutes /> }], { initialEntries: ["/?join=1#invite=ABCDEFGH"] });
+    const tree = <StrictMode><RouterProvider router={router} /></StrictMode>;
     const view = render(tree);
+    await waitFor(() => expect(router.state.location.hash).toBe(""));
+    expect(screen.getByRole("heading", { name: "加入云盘" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "合唱排练，在同一份谱上记笔记" })).not.toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls.some(([url, init]) => url === "/api/guest/session" && init?.method === "POST")).toBe(false);
     vi.mocked(authClient.useSession).mockReturnValue({ data: null, isPending: false } as ReturnType<typeof authClient.useSession>);
-    view.rerender(<StrictMode><MemoryRouter initialEntries={["/?join=1#invite=ABCDEFGH"]}><AppRoutes /></MemoryRouter></StrictMode>);
+    view.rerender(<StrictMode><RouterProvider router={router} /></StrictMode>);
     expect(await screen.findByRole("heading", { name: "小红花云盘" })).toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls.filter(([url, init]) => url === "/api/guest/session" && init?.method === "POST")).toHaveLength(1);
   });
@@ -621,7 +625,7 @@ describe("AppRoutes", () => {
 
 
     expect(
-      await screen.findByRole("dialog", { name: "加入「周末云盘」" }),
+      await screen.findByRole("heading", { name: "加入「周末云盘」" }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("邀请码")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("显示名"), {
@@ -688,7 +692,7 @@ describe("AppRoutes", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "进入" }));
     expect(
-      await screen.findByRole("dialog", { name: "加入「周末云盘」" }),
+      await screen.findByRole("heading", { name: "加入「周末云盘」" }),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "返回切换云盘" }));

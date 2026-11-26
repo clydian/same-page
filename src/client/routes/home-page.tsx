@@ -1,8 +1,9 @@
 import { useMessages } from "../../i18n";
 import { useDriveInvitation } from "../drives/use-drive-invitation";
-import { JoinDriveDialog } from "../drives/join-drive-dialog";
+import { JoinDriveDialog, JoinDrivePanel } from "../drives/join-drive-dialog";
 import { FeatureAnimation } from "../components/feature-animation";
 import { InstallButton } from "../install/install-entry";
+import { useInstall } from "../install/install-context";
 import { createDriveHref, loginHref } from "../auth/login-return";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { StartupEntry } from "../auth/startup-entry";
@@ -10,7 +11,7 @@ import type { ApplicationIdentity } from "../auth/application-identity";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { PersonalMenu } from "../components/personal-menu";
 import {
@@ -30,8 +31,8 @@ import {
   clearPreviewGuestSession,
 } from "../auth/preview-guest-session";
 import { AppHeader } from "../components/app-header";
-import { readInviteLink } from "../components/invite-link";
 import { startLoadingJourney } from "../performance/loading-performance";
+import "../drive-entry/drive-entry.css";
 import {
   driveCacheOwnerKey,
   rememberDriveSummary,
@@ -50,25 +51,41 @@ export function HomePage({ startup = false }: { startup?: boolean }) {
   const identity = useApplicationIdentity();
   const location = useLocation();
   const { invitation, finishInvitation } = useDriveInvitation();
+  const t = useMessages("entry");
+  const inviteEntry = new URLSearchParams(location.search).get("join") === "1" || Boolean(invitation.link && location.hash);
+  if (!inviteEntry && invitation.link) finishInvitation();
   // Explicit admission owns its lifetime even when it replaces the local owner.
   const owner = startup && !location.search && !location.hash && !invitation.link
     ? identity.localUserId : identity.session.data?.user.id;
-  return <HomeContent key={`${owner ?? "guest"}:${invitation.version}`} identity={identity} startup={startup} linkInvite={invitation.link} finishInvitation={finishInvitation} />;
+  if (inviteEntry) {
+    return <div className="app-page drive-entry-page">
+      <AppHeader />
+      <main className="drive-entry-main">
+        <section className="drive-entry-welcome" aria-labelledby="invite-entry-title">
+          <h1 id="invite-entry-title">{t("drive.join")}</h1>
+          {!invitation.link?.code && <p className="drive-entry-copy">{t("join.cardCodeHint")}</p>}
+          <JoinDrivePanel key={`${owner ?? "guest"}:${invitation.version}`} identity={identity} invitation={invitation.link} onClose={finishInvitation} focused />
+        </section>
+      </main>
+    </div>;
+  }
+  return <HomeContent key={owner ?? "guest"} identity={identity} startup={startup} />;
 }
 
-function HomeContent({ identity, startup, linkInvite, finishInvitation }: { identity: ApplicationIdentity; startup: boolean; linkInvite: ReturnType<typeof readInviteLink>; finishInvitation: () => void }) {
+function HomeContent({ identity, startup }: { identity: ApplicationIdentity; startup: boolean }) {
   const { session } = identity;
   const t = useMessages("entry");
-  const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const install = useInstall();
   const [startupDismissed, setStartupDismissed] = useState(false);
-  const startupIntent = startup && !startupDismissed && location.pathname === "/" && !location.search && !location.hash && !linkInvite;
-  const [joinOpen, setJoinOpen] = useState(searchParams.get("join") === "1" || linkInvite !== null);
+  const startupIntent = startup && !startupDismissed && location.pathname === "/" && !location.search && !location.hash;
+  const [joinOpen, setJoinOpen] = useState(false);
   const [previewChoir, setPreviewChoir] = useState<ChoirSummary | null>();
   const [previewAttempt, setPreviewAttempt] = useState(0);
   const openPreviewOnLoad = useRef(false);
   const hasDriveIdentity = Boolean(identity.authenticatedUserId || identity.localUserId);
+  const appEntry = startupIntent && install?.runningInApp && !hasDriveIdentity;
   const userId = session.data?.user.id;
   useEffect(() => {
     let active = true;
@@ -98,18 +115,17 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
   }, [session.isPending, userId]);
 
   const finishJoinDialog = () => {
-    finishInvitation();
     setStartupDismissed(true);
     setJoinOpen(false);
   };
 
   const previewAction = previewChoir ? (
-    <Link className={hasDriveIdentity ? "hero-text-link" : "primary-button"} to={`/choirs/${previewChoir.id}`}
+    <Link className={hasDriveIdentity ? "hero-text-link" : appEntry ? "secondary-button" : "primary-button"} to={`/choirs/${previewChoir.id}`}
       onClick={() => startLoadingJourney("enter-drive", "warm")}>
       {t("home.preview")}
     </Link>
   ) : !hasDriveIdentity && (
-    <Button className="primary-button" isPending={previewChoir === undefined} aria-describedby="home-preview-status" onPress={() => {
+    <Button className={appEntry ? "secondary-button" : "primary-button"} isPending={previewChoir === undefined} aria-describedby="home-preview-status" onPress={() => {
       openPreviewOnLoad.current = true;
       setPreviewChoir(undefined);
       setPreviewAttempt(attempt => attempt + 1);
@@ -117,8 +133,24 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
       {t("home.preview")}
     </Button>
   );
+  const previewStatus = <p id="home-preview-status" className="hero-preview-status" role="status">{previewAttempt > 0 && previewChoir === null ? t("home.previewUnavailable") : ""}</p>;
 
-  const content = (
+  const content = appEntry ? (
+    <div className="app-page drive-entry-page">
+      <AppHeader actions={<Link className="header-action" to="/login">{t("drive.login")}</Link>} />
+      <main className="drive-entry-main">
+        <section className="drive-entry-welcome" aria-labelledby="app-entry-title">
+          <h1 id="app-entry-title">{t("home.appWelcome")}</h1>
+          <div className="installed-entry-actions">
+            <Link className="primary-button" to="/?join=1">{t("drive.join")}</Link>
+            {previewAction}
+            {previewStatus}
+            <Link className="hero-text-link" to={loginHref(createDriveHref)}>{t("home.create")}</Link>
+          </div>
+        </section>
+      </main>
+    </div>
+  ) : (
     <div className="marketing-page">
       <AppHeader
         actions={
@@ -143,7 +175,7 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
               {hasDriveIdentity ? previewAction : <>
                 <div className="hero-cta hero-preview">
                   {previewAction}
-                  <p id="home-preview-status" className="hero-preview-status" role="status">{previewAttempt > 0 && previewChoir === null ? t("home.previewUnavailable") : ""}</p>
+                  {previewStatus}
                 </div>
                 <Button className="secondary-button" onPress={() => {
                   openPreviewOnLoad.current = false;
@@ -197,7 +229,7 @@ function HomeContent({ identity, startup, linkInvite, finishInvitation }: { iden
       </main>
 
 
-      <JoinDriveDialog open={joinOpen} onClose={finishJoinDialog} identity={identity} invitation={linkInvite} />
+      <JoinDriveDialog open={joinOpen} onClose={finishJoinDialog} identity={identity} />
 
     </div>
   );
