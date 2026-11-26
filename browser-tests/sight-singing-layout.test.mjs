@@ -61,9 +61,10 @@ test('sight singing preserves its layout preferences and clears a completed take
   const controls = page.locator('.challenge-controls');
   const note = page.locator('.challenge-notation-note');
   const contextNote = note.and(page.locator('[data-focused-part=false]'));
-  await expect(scope).toHaveValue('part');
+  await expect(scope).toHaveValue('full');
   await expect(direction).toHaveValue('vertical');
-  await expect(note).toHaveCount(24);
+  await expect(note).toHaveCount(48);
+  await expect(contextNote).toHaveCount(24);
   await expect.poll(() => score.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
   await score.evaluate(el => { el.scrollTop = el.scrollHeight; });
   await expect.poll(() => score.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
@@ -72,9 +73,6 @@ test('sight singing preserves its layout preferences and clears a completed take
   assert(Math.abs(bottom - 650) <= 1);
   const tallScore = (await score.boundingBox()).height;
 
-  await scope.selectOption('full');
-  await expect(direction).toHaveValue('vertical');
-  await expect(contextNote).toHaveCount(24);
   await direction.selectOption('horizontal');
   await expect(scope).toHaveValue('full');
   await expect(contextNote).toHaveCount(24);

@@ -196,7 +196,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const autoScroll = useRef<PointerPosition | null>(null);
   const [scrollIntent] = useState(() => new ScoreFollowSession());
   const [paused, setPaused] = useState<string>();
-  const [scope, setScope] = useState<'part' | 'full'>('part');
+  const [scope, setScope] = useState<'part' | 'full'>('full');
   const [direction, setDirection] = useState<ScrollDirection>('vertical');
   const [scale, setScale] = useState(defaultScale);
   const horizontal = direction === 'horizontal';
