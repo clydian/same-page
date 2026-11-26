@@ -135,46 +135,10 @@
 .challenge-settings-switch[data-focus-visible] .challenge-settings-switch-track { outline: 2px solid var(--brand); outline-offset: 3px; }
 .challenge-metronome-setting { display: flex; align-items: center; padding-inline-start: .1rem; }
 .challenge-metronome-setting .challenge-settings-switch { justify-content: center; min-inline-size: 44px; margin-inline-start: auto; }
-.challenge-mixer .practice-disclosure-trigger { font-size: inherit; }
-.challenge-mixer .practice-setting-content { gap: .45rem; box-shadow: none; }
+:is(.challenge-mixer, .challenge-latency-setting) .practice-disclosure-trigger { font-size: inherit; }
+:is(.challenge-mixer, .challenge-latency-setting) .practice-setting-content { gap: .45rem; box-shadow: none; }
 
 .challenge-result-filters { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .3rem .75rem; }
 .challenge-version-filter select { max-inline-size: 100%; }
 .challenge-version-filter select { min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line);
   border-radius: .6rem; background: var(--surface); color: var(--ink); font: inherit; }
-
-.challenge-standing-modal { width: min(25rem, 100%); }
-.challenge-standing { display: grid; justify-items: center; gap: .35rem; text-align: center; }
-.challenge-standing .challenge-standing-medal {
-  display: grid; place-items: center; inline-size: 3.25rem; block-size: 3.25rem;
-  border-radius: 50%; background: var(--brand-soft); color: var(--brand);
-}
-.challenge-standing h2 { margin: .5rem 0 0; font-size: 1.15rem; }
-.challenge-standing p { margin: 0; }
-.challenge-standing-scope, .challenge-standing-note { color: var(--muted); font-size: .9rem; }
-.challenge-standing-rank {
-  margin-block-start: .45rem; padding-block: .2rem;
-  color: var(--brand); font-size: clamp(1.8rem, 7vw, 3.1rem); font-weight: 750;
-  letter-spacing: -.025em; line-height: 1.1; font-variant-numeric: tabular-nums;
-}
-.challenge-standing-score { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.challenge-standing-note[data-improved="true"] { color: var(--brand); }
-.challenge-standing > button { min-block-size: 44px; inline-size: 100%; margin-block-start: .8rem; }
-.challenge-standing-nearby {
-  position: relative; box-sizing: border-box; inline-size: 100%; max-block-size: 7.5rem;
-  margin: .45rem 0 0; padding: 0; overflow: auto; overscroll-behavior: contain;
-  border: 1px solid var(--line); border-radius: .7rem; list-style: none; text-align: start; scrollbar-width: thin;
-}
-.challenge-standing-nearby[data-travelling] { block-size: 7.5rem; padding-block: 2.75rem; }
-.challenge-standing-nearby li {
-  display: grid; grid-template-columns: minmax(1.5rem, max-content) minmax(0, 1fr) auto;
-  align-items: center; gap: .45rem; min-block-size: 2.45rem;
-  padding: .25rem .65rem; font-size: .85rem;
-}
-.challenge-standing-nearby :is([data-standing-row="current"], [data-standing-row="previous"]) { font-weight: 700; }
-.challenge-standing-nearby [data-standing-row="current"] { background: var(--brand-soft); color: var(--brand); }
-.challenge-standing-nearby [data-standing-row="previous"] { background: var(--wash); color: var(--muted); }
-.challenge-standing-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.challenge-standing-nearby strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.challenge-standing-nearby .challenge-standing-gap { display: block; min-block-size: 0; color: var(--muted); text-align: center; }
-.challenge-standing-gap::before { content: '…'; }

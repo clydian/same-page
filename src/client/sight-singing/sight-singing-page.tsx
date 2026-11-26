@@ -26,7 +26,7 @@ import { useReadResource } from '../settings/use-read-resource';
 import { captureSettingsLifetime, useSettingsLifetime } from '../settings/use-settings-lifetime';
 import { ConfirmDialog } from '../settings/confirm-dialog';
 import { ChallengePracticeSettings } from './challenge-practice-settings';
-import { ChallengeRun, type ResultSave, type VoiceOption } from './challenge-run';
+import { ChallengeRun, type ChallengeResult, type VoiceOption } from './challenge-run';
 import { useSightSingingScoreFormat } from './format-score';
 import { buildMelody } from './melody';
 import { QuestionRangeEditor } from './question-range-editor';
@@ -148,6 +148,31 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
       && (key.variant === 'leaderboard' || key.subjectId === questionId));
     setResultGeneration(value => value + 1);
   };
+  // Keep the write alive across a return to the question library, but not
+  // across a change of identity or loss of drive access.
+  const resultLifetimes = useRef(new Set<AbortController>());
+  const [resultFailed, setResultFailed] = useState(false);
+  const canPublishResult = props.canReadCloud && !denied;
+  useEffect(() => {
+    const pending = resultLifetimes.current;
+    return () => { for (const controller of pending) controller.abort(); };
+  }, [canPublishResult, props.choirId, props.userId]);
+  const recordResult = (questionId: string, attempt: SightSingingResultSubmission) => {
+    if (!canPublishResult || !navigator.onLine) { setResultFailed(true); return; }
+    setResultFailed(false);
+    const controller = new AbortController(), current = captureNavigationIdentity();
+    resultLifetimes.current.add(controller);
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]);
+    void publishSightSingingResult(props.choirId, questionId, props.userId, attempt, signal)
+      .then(() => { if (!signal.aborted && current()) resultsChanged(questionId); })
+      .catch(error => {
+        if (controller.signal.aborted || !current()) return;
+        if (isSightSingingMemberDenied(error)) published.clear();
+        else setResultFailed(true);
+      })
+      .finally(() => resultLifetimes.current.delete(controller));
+  };
+  const resultNotice = resultFailed && <p className="challenge-save-status" role="status">{t('sight.resultSave.failed')}</p>;
   const refresh = () => {
     if (!props.canReadCloud) { props.retryConnection(); return; }
     void published.refresh().catch(() => undefined);
@@ -179,13 +204,14 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   if (selection) return <QuestionWorkspace {...reads} {...selection} pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
     audioMix={mix}
     canEditQuestion={published.data?.questions.find(question => question.id === selection.question?.id)?.canEdit}
-    resultGeneration={resultGeneration} onResultsChanged={resultsChanged} revalidateAccess={refresh} onBack={() => { setSelection(null); refresh(); }} />;
+    resultGeneration={resultGeneration} onResultsChanged={resultsChanged} onResult={recordResult} resultNotice={resultNotice} revalidateAccess={refresh} onBack={() => { setSelection(null); refresh(); }} />;
   const legacyQuestions = questions?.filter(question => !published.data?.questions.some(item => item.id === question.id));
   const listPending = props.canReadCloud && !published.data && !published.error;
   const boardPending = props.canReadCloud && !board.data && !board.error;
   return <div className="app-page challenge-library">
     <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}`} />
     <main className="page-shell settings-page challenge-page">
+      {resultNotice}
       <section className="challenge-library-section" aria-label={t('sight.publishedQuestions')}>
         {(published.error || !published.data && !listPending) && <p role="status">{t('sight.publishedError')}{' '}
           <button type="button" className="text-button" onClick={refresh}>{t('sight.retryLoad')}</button></p>}
@@ -454,10 +480,11 @@ function PublishedResults({ reads, questionId, version, generation, userId, onRe
 }
 
 function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOfficial, scores, canReadCloud, retryConnection, onMemberDenied, question, legacy, onBack, canEditQuestion, revalidateAccess,
-  resultGeneration, onResultsChanged, pitchTraceEnabled, setPitchTraceEnabled, audioMix }: DriveContext & {
+  resultGeneration, onResultsChanged, onResult, resultNotice, pitchTraceEnabled, setPitchTraceEnabled, audioMix }: DriveContext & {
   question?: PublishedQuestion; legacy?: SightSingingQuestion; onBack: () => void; onMemberDenied: () => void;
   canEditQuestion?: boolean; revalidateAccess: () => void;
   resultGeneration: number; onResultsChanged: (questionId: string) => void;
+  onResult: (questionId: string, attempt: SightSingingResultSubmission) => void; resultNotice: ReactNode;
   pitchTraceEnabled: boolean; setPitchTraceEnabled: (enabled: boolean) => void;
   audioMix: ReturnType<typeof useChallengeMix>;
 }) {
@@ -483,19 +510,18 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const [lastChoice, setLastChoice] = useState<number | undefined>(draft?.last);
   const [beats, setBeats] = useState<QuestionBeats>({ firstBeat: question?.firstBeat, lastBeat: question?.lastBeat });
   const [saving, setSaving] = useState(false);
+  const [audioBusy, setAudioBusy] = useState(false);
+  const [measuring, setMeasuring] = useState(false);
   const [failed, setFailed] = useState(false);
   const saveLifetime = useRef<AbortController | null>(null);
-  const resultLifetimes = useRef(new Set<AbortController>());
-  // A take can finish after the render that started it has lost cloud access.
+  const currentResult = useRef<ChallengeResult>(null);
+  // An edit can finish after the render that started it has lost cloud access.
   const cloudAvailable = useRef(false);
   useLayoutEffect(() => {
     cloudAvailable.current = canReadCloud;
     return () => { cloudAvailable.current = false; };
   }, [canReadCloud]);
-  useEffect(() => {
-    const pending = resultLifetimes.current;
-    return () => { saveLifetime.current?.abort(); for (const controller of pending) controller.abort(); };
-  }, []);
+  useEffect(() => () => saveLifetime.current?.abort(), []);
   useEffect(() => {
     if (canReadCloud) return;
     if (saveLifetime.current) {
@@ -503,7 +529,6 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       setSaving(false);
       setFailed(true);
     }
-    for (const controller of resultLifetimes.current) controller.abort();
   }, [canReadCloud]);
 
   const visibleSource = editing ? sourceMode : 'saved';
@@ -612,24 +637,6 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     } catch { if (!controller.signal.aborted) setFailed(true); }
     finally { saveLifetime.current = null; if (!controller.signal.aborted) setSaving(false); }
   };
-  const recordResult = async (attempt: SightSingingResultSubmission): Promise<ResultSave> => {
-    if (!saved || !cloudAvailable.current || !navigator.onLine) throw new Error('result_publication_unavailable');
-    const controller = new AbortController(), current = captureNavigationIdentity();
-    resultLifetimes.current.add(controller);
-    try {
-      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]);
-      const result = await publishSightSingingResult(choirId, saved.id, userId, attempt, signal);
-      signal.throwIfAborted();
-      if (!current()) throw new Error('result_publication_unconfirmed');
-      onResultsChanged(saved.id);
-      return result;
-    } catch (error) {
-      if (!controller.signal.aborted && current() && isSightSingingMemberDenied(error)) onMemberDenied();
-      throw error;
-    } finally {
-      resultLifetimes.current.delete(controller);
-    }
-  };
   const status = score && attachments.statusFor(score.id);
   const needsSource = visibleSource === 'library' && ((!score && Boolean(scoreId)) || (score && status === 'ready' && !attachment && Boolean(fileChoice)));
   const playable = Boolean(loaded.document && selected);
@@ -643,20 +650,21 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   return <div className="app-page challenge-workspace" data-practice={!editing && playable || undefined}>
     <TaskHeader title={<span ref={heading} tabIndex={-1} id={`${id}-heading`}>{editing ? t(saved ? 'sight.edit' : 'sight.create') : saved?.title}</span>}
       subtitle={editing || !saved ? undefined : `${loaded.document ? `${range} · ` : ''}${publisherLabel(saved.publisher, t)}${versionSuffix}`}
-      backTo={`/choirs/${choirId}`} onBack={onBack} backLabel={t('sight.backToQuestions')}
+      backTo={`/choirs/${choirId}`} onBack={() => { currentResult.current?.finish(); onBack(); }} backLabel={t('sight.backToQuestions')}
       actions={!editing && <div className="challenge-header-actions">
         {canEdit && <button type="button" className="icon-button" aria-label={t('sight.edit')} title={t('sight.edit')}
-          onClick={() => { setSourceMode('saved'); setEditing(true); }}><Pencil size={18} aria-hidden="true" /></button>}
+          onClick={() => { currentResult.current?.finish(); setSourceMode('saved'); setEditing(true); }}><Pencil size={18} aria-hidden="true" /></button>}
         {saved && <PracticePanel title={t('sight.bestResults')} icon={<Trophy size={19} aria-hidden="true" />}>
           <PublishedResults key={`${saved.id}:${version}`} reads={{ owner, choirId, canReadCloud, onMemberDenied }} userId={userId} questionId={saved.id}
             version={version} generation={resultGeneration} onResultsChanged={onResultsChanged} />
         </PracticePanel>}
         <PracticePanel title={t('settings')} compact icon={<Settings size={20} aria-hidden="true" />}>
           <ChallengePracticeSettings pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
-            mix={audioMix[0]} setMix={audioMix[1]} />
+            mix={audioMix[0]} setMix={audioMix[1]} audioBusy={audioBusy} measuring={measuring} onMeasure={setMeasuring} />
         </PracticePanel>
       </div>} />
     <main className="page-shell challenge-page">
+      {resultNotice}
       {editing && <form className="challenge-form" aria-labelledby={`${id}-heading`} onSubmit={event => {
         event.preventDefault();
         void save();
@@ -724,9 +732,10 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       {loaded.failed && source?.kind !== 'upload' && <p role="alert" className="challenge-error">{t('sight.sourceError')} <button type="button" className="text-button" onClick={canReadCloud || source?.kind === 'local' ? loaded.retry : retryConnection}>{t('sight.tryLoad')}</button></p>}
       {typeof issue === 'string' && <p role="alert" className="challenge-error">{t(`sight.${issue}`)}</p>}
       {failed && <p role="alert" className="challenge-error">{t('sight.publishError')}</p>}
-      {!editing && loaded.document && selected && <ChallengeRun document={loaded.document} selected={selected} voices={voices}
+      {!editing && loaded.document && selected && <ChallengeRun ref={currentResult} document={loaded.document} selected={selected} voices={voices}
         backingUnavailable={backingUnavailable} selectVoice={setVoiceChoice} questionVersion={version}
-        pitchTraceEnabled={pitchTraceEnabled} mix={audioMix[0]} onScored={recordResult} />}
+        pitchTraceEnabled={pitchTraceEnabled} mix={audioMix[0]} onScored={attempt => { if (saved) onResult(saved.id, attempt); }} onAudioBusy={setAudioBusy}
+        measuring={measuring} onMeasure={setMeasuring} onLatency={latency => audioMix[1](current => ({ ...current, latency }))} />}
     </main>
   </div>;
 }

@@ -11,6 +11,7 @@ import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melo
 import { notationScore } from './notation-score';
 import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
 import { createPitchTrace, octaveGuides, pitchFramesConnect } from './pitch-trace';
+import { calibrationTimes, calibrationTone, estimateRecordingLatency, recordingOffsetFrames } from './recording-latency';
 import { keyPitchClasses, staffPitchY } from './staff-pitch';
 
 const bytes = (text: string) => new TextEncoder().encode(text);
@@ -316,4 +317,17 @@ it('crops inclusive beats on each expanded visit and never attacks a tie carried
   const firstEighthBeat = buildMelody(compound, compound.voices[0], 0, 0, { lastBeat: 1 }) as Melody;
   expect(firstEighthBeat.notes.map(({ midi, start, end }) => [midi, start, end])).toEqual([[60, 0, .125], [62, .125, .25]]);
   expect(firstEighthBeat.duration).toBe(.25);
+});
+
+it('estimates a repeatable acoustic delay but does not replace compensation with silence or inconsistent pulses', () => {
+  const rate = 48000;
+  const tone = calibrationTone(rate);
+  const samples = new Float32Array(3.1 * rate);
+  expect(estimateRecordingLatency(samples, tone, rate)).toBeNull();
+  for (const time of calibrationTimes) samples.set(tone, Math.round((time + .187) * rate));
+  expect(estimateRecordingLatency(samples, tone, rate)).toBe(187);
+  expect(recordingOffsetFrames(rate, 187)).toBe(42576);
+  samples.fill(0, 2 * rate);
+  samples.set(tone, Math.round((calibrationTimes[2] + .104) * rate));
+  expect(estimateRecordingLatency(samples, tone, rate)).toBeNull();
 });

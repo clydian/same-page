@@ -226,3 +226,38 @@
 .challenge-history summary > span { color: var(--muted); }
 .challenge-history-detail { padding: 0 1rem 1rem; }
 .challenge-history-detail p { margin: .45rem 0; }
+
+.challenge-result-summary { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.challenge-latency-trigger { flex: none; min-height: 36px; padding: .25rem .65rem; font-size: .82rem; font-weight: 500; border-radius: .6rem; }
+.challenge-latency-controls { display: grid; gap: .25rem; }
+.challenge-latency-stepper, .challenge-latency-actions { display: flex; align-items: center; gap: .35rem; }
+.challenge-latency-stepper input { flex: 1; min-width: 0; min-height: 32px; accent-color: var(--brand); }
+.challenge-latency-actions { flex-wrap: wrap; }
+.challenge-latency-actions .secondary-button { min-height: 40px; padding: .25rem .65rem; font-size: .82rem; }
+.challenge-latency-controls small { color: var(--muted); }
+.challenge-result-adjustment { display: grid; gap: .15rem; }
+.challenge-latency-heading { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
+.challenge-latency-heading h2 { margin: 0; font-size: .95rem; font-weight: 650; }
+.challenge-latency-heading .icon-button { flex: none; }
+.challenge-latency-controls[data-show-direction] .challenge-latency-stepper {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 0;
+}
+.challenge-latency-controls[data-show-direction] .challenge-latency-stepper button { grid-row: 1 / 3; }
+.challenge-latency-controls[data-show-direction] .challenge-latency-stepper input {
+  grid-area: 2 / 2; inline-size: 100%; min-height: 26px; margin: 0;
+}
+.challenge-latency-value {
+  grid-area: 1 / 2; text-align: center; color: var(--ink); font-size: .85rem;
+  font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums;
+}
+.challenge-latency-controls[data-show-direction] .challenge-latency-actions { gap: .15rem; }
+.challenge-latency-controls[data-show-direction] .challenge-latency-reset { margin-inline-start: auto; color: var(--muted); }
+@media (max-height: 440px) and (min-width: 480px) {
+  .challenge-result:has(.challenge-result-adjustment) {
+    grid-template: 1fr auto / minmax(0, 1fr) minmax(0, 37%); align-items: end; gap: .35rem .8rem;
+  }
+  .challenge-result:has(.challenge-result-adjustment) .challenge-result-summary { grid-area: 1 / 2; justify-content: flex-start; }
+  .challenge-result-adjustment { grid-area: 1 / 1 / 3 / 2; }
+  .challenge-result:has(.challenge-result-adjustment) .challenge-replay-controls { grid-area: 2 / 2; }
+  .challenge-result:has(.challenge-result-adjustment) .challenge-replay-controls button { gap: .3rem; padding-inline: .35rem; font-size: .85rem; }
+}

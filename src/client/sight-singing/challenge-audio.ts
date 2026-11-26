@@ -4,6 +4,8 @@ import { loadPracticeSoundFont } from '../playback/practice-soundfont';
 import { createChoirBacking, scheduleChoirBacking } from './choir-backing';
 import { targetPitches, type Melody, type MelodyNote } from './melody';
 import { createPitchReader, frequency, pitchWindowSize, type PitchFrame } from './pitch-feedback';
+import { calibrationDuration, calibrationTimes, calibrationTone, estimateRecordingLatency,
+  recordingOffsetFrames } from './recording-latency';
 import type { ChallengeMix } from './use-challenge-mix';
 
 export type CaptureError = 'microphoneUnavailable' | 'microphoneDenied' | 'audioInterrupted' | 'audioFailure';
@@ -15,6 +17,75 @@ type CaptureCallbacks = {
 };
 
 type CaptureMix = Pick<ChallengeMix, 'backing' | 'metronome'>;
+
+const microphoneConstraints: MediaStreamConstraints = {
+  audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+  video: false,
+};
+
+export async function measureRecordingLatency(signal: AbortSignal) {
+  const context = new AudioContext();
+  let stream: MediaStream | undefined, worklet: AudioWorkletNode | undefined;
+  const cleanup = () => {
+    stream?.getTracks().forEach(track => track.stop());
+    worklet?.port.close();
+    worklet?.disconnect();
+    if (context.state !== 'closed') void context.close().catch(() => {});
+  };
+  signal.addEventListener('abort', cleanup, { once: true });
+  try {
+    signal.throwIfAborted();
+    const microphone = navigator.mediaDevices.getUserMedia(microphoneConstraints).then(opened => {
+      if (signal.aborted || context.state === 'closed') opened.getTracks().forEach(track => track.stop());
+      else stream = opened;
+      return opened;
+    });
+    const [opened] = await new Promise<[MediaStream, void, void]>((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+      void Promise.all([microphone, context.resume(), context.audioWorklet.addModule(workletUrl)])
+        .then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+    });
+    signal.throwIfAborted();
+    const { sampleRate } = context;
+    const tone = calibrationTone(sampleRate);
+    const durationFrames = Math.ceil(calibrationDuration * sampleRate);
+    const startFrame = Math.ceil((context.currentTime + .15) * sampleRate / 128) * 128;
+    worklet = new AudioWorkletNode(context, 'sight-singing-capture', {
+      channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1],
+      processorOptions: { beats: 0, beatFrames: 0, durationFrames, chunkFrames: 4096, startFrame },
+    });
+    const recorder = worklet;
+    const input = context.createMediaStreamSource(opened);
+    input.connect(recorder).connect(context.destination);
+    const buffer = context.createBuffer(1, tone.length, sampleRate);
+    buffer.getChannelData(0).set(tone);
+    for (const time of calibrationTimes) {
+      const pulse = context.createBufferSource();
+      pulse.buffer = buffer;
+      pulse.connect(context.destination);
+      pulse.start((startFrame + Math.round(time * sampleRate)) / sampleRate);
+    }
+    const samples = new Float32Array(durationFrames);
+    let received = 0;
+    return await new Promise<number | null>((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+      recorder.onprocessorerror = () => { signal.removeEventListener('abort', abort); reject(new Error('capture_failed')); };
+      recorder.port.onmessage = ({ data }: MessageEvent<{ samples: Float32Array; done: boolean }>) => {
+        samples.set(data.samples, received);
+        received += data.samples.length;
+        if (data.done) {
+          signal.removeEventListener('abort', abort);
+          resolve(estimateRecordingLatency(samples, tone, sampleRate));
+        }
+      };
+    });
+  } finally {
+    signal.removeEventListener('abort', cleanup);
+    cleanup();
+  }
+}
 
 function outputGain(context: AudioContext, level: number) {
   const gain = context.createGain();
@@ -65,10 +136,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     const clicks = loadPracticeClicks(context);
     // Permission can outlive cancellation. Claim its stream independently of
     // the worklet and stop late tracks even if another setup step failed.
-    const microphone = navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      video: false,
-    }).then(opened => {
+    const microphone = navigator.mediaDevices.getUserMedia(microphoneConstraints).then(opened => {
       if (!active) opened.getTracks().forEach(track => track.stop());
       else {
         stream = opened;
@@ -83,7 +151,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     const choirBacking = soundFont ? createChoirBacking(backing, melody.duration, soundFont, sampleRate) : null;
     const beatFrames = Math.round(melody.beatSeconds * sampleRate);
     const durationFrames = Math.round(melody.duration * sampleRate);
-    const leadInFrames = Math.round(melody.leadIn * sampleRate);
+    const margin = recordingOffsetFrames(sampleRate, 0);
     context.addEventListener('statechange', () => {
       if (context?.state !== 'running') fail('audioInterrupted');
     });
@@ -92,13 +160,16 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     const half = pitchWindowSize / 2;
     // Keep the count-in, clicks, accompaniment and recording on the audio clock.
     const startFrame = Math.ceil((context.currentTime + .15) * sampleRate / 128) * 128;
-    const countStart = startFrame / sampleRate;
+    // Fast count-ins can be shorter than the pre-roll needed for negative offsets.
+    const countOffset = Math.max(0, margin - beatFrames * melody.beats);
+    const countStart = (startFrame + countOffset) / sampleRate;
     const countBeat = beatFrames / sampleRate;
     const countDuration = melody.beats * countBeat;
     const start = countStart + countDuration;
     worklet = new AudioWorkletNode(context, 'sight-singing-capture', {
       channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1],
-      processorOptions: { beatFrames, beats: melody.beats, durationFrames, chunkFrames: half, startFrame },
+      processorOptions: { beatFrames, beats: melody.beats,
+        durationFrames: durationFrames + margin, recordFrom: -margin, countOffset, chunkFrames: half, startFrame },
     });
     worklet.onprocessorerror = () => fail('audioFailure');
     const pitch = createPitchReader(sampleRate);
@@ -113,14 +184,12 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
         window.copyWithin(0, half);
         window.fill(0, half);
         window.set(samples, half);
-        const frame = { time: received / sampleRate, midi: pitch(window) };
-        // The pitch window straddles its timestamp. Keep lead-in audio in a
-        // replay without ever feeding those samples into the score.
-        if (received - half >= leadInFrames) frames.push(frame);
-        callbacks.onFrame(frame);
+        const time = (received - margin) / sampleRate;
+        const frame = { time, midi: pitch(window) };
+        frames.push(frame);
+        if (time >= 0 && time < melody.duration) callbacks.onFrame(frame);
       } else {
         window.set(samples, half);
-        callbacks.onFrame({ time: 0, midi: null });
       }
       chunks.push(pcm16(samples));
       received += samples.length;
@@ -140,7 +209,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     cancelCount = schedulePracticeClicks(context, clickBuffers, countStart, countClicks);
     clickGain = outputGain(context, Number(mix.metronome));
     cancelMetronome = schedulePracticeClicks(context, clickBuffers, start, melody.clicks.filter(click => click.time >= melody.leadIn), clickGain);
-    deadline = setTimeout(() => fail('audioInterrupted'), 5000 + (beatFrames * melody.beats + durationFrames) / sampleRate * 1000);
+    deadline = setTimeout(() => fail('audioInterrupted'), 5000 + (beatFrames * melody.beats + durationFrames + margin) / sampleRate * 1000);
     if (choirBacking) {
       backingGain = outputGain(context, mix.backing);
       cancelBacking = scheduleChoirBacking(context, choirBacking, start, backingGain, () => fail('audioFailure'));
@@ -226,15 +295,17 @@ function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: nu
   }
 }
 
-export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[], voiceVolume: number) {
+export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[], voiceVolume: number, duration: number, latencyMs: number) {
   // Input is the PCM WAV produced by beginCapture. Render on the recording's
   // sample clock so the native player's seek and speed controls keep the mix aligned.
   const data = new DataView(await recording.arrayBuffer());
-  const sampleRate = data.getUint32(24, true), length = data.getUint32(40, true) / 2;
+  const sampleRate = data.getUint32(24, true), length = Math.round(duration * sampleRate);
+  const offset = recordingOffsetFrames(sampleRate, latencyMs);
+  const recordedLength = data.getUint32(40, true) / 2;
   const context = new OfflineAudioContext(1, length, sampleRate);
   const buffer = context.createBuffer(1, length, sampleRate);
   const samples = buffer.getChannelData(0);
-  for (let index = 0; index < length; index++) samples[index] = data.getInt16(44 + index * 2, true) / 32768;
+  for (let index = 0; index < length && index + offset < recordedLength; index++) samples[index] = data.getInt16(44 + (index + offset) * 2, true) / 32768;
   const source = context.createBufferSource(), gain = context.createGain();
   source.buffer = buffer;
   gain.gain.value = .78 * voiceVolume;

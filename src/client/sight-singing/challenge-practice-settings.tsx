@@ -1,11 +1,13 @@
 import { Switch } from 'react-aria-components';
 import { useMessages } from '../../i18n';
 import { PracticeDisclosure, PracticeHelp, PracticeVolume } from '../playback/practice-setting';
+import { ChallengeLatencySetting } from './challenge-latency-setting';
 import type { ChallengeMix } from './use-challenge-mix';
 import '../playback/practice-player.css';
 
-export function ChallengePracticeSettings({ pitchTraceEnabled, setPitchTraceEnabled, mix, setMix }: {
+export function ChallengePracticeSettings({ pitchTraceEnabled, setPitchTraceEnabled, mix, setMix, audioBusy, measuring, onMeasure }: {
   pitchTraceEnabled: boolean; setPitchTraceEnabled: (enabled: boolean) => void;
+  audioBusy: boolean; measuring: boolean; onMeasure: (busy: boolean) => void;
   mix: ChallengeMix; setMix: (change: (current: ChallengeMix) => ChallengeMix) => void;
 }) {
   const t = useMessages('practice');
@@ -22,6 +24,8 @@ export function ChallengePracticeSettings({ pitchTraceEnabled, setPitchTraceEnab
         <span className="challenge-settings-switch-track" aria-hidden="true" />
       </Switch>
     </div>
+    <ChallengeLatencySetting value={mix.latency} audioBusy={audioBusy || measuring} onMeasure={onMeasure}
+      onChange={latency => setMix(current => ({ ...current, latency }))} />
     <div className="challenge-mixer">
       <PracticeDisclosure title={t('sight.mixer')}>
         <PracticeVolume title={t('sight.replayVoice')} value={mix.voice} onChange={voice => setMix(current => ({ ...current, voice }))} />
