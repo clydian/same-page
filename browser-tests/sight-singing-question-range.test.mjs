@@ -106,9 +106,10 @@ test('choosing a sight-singing range follows the loaded score and saves only com
     await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: track.x + track.width * ratio, y }] });
     await expect(to).toHaveValue('23');
   }
-  await expect(from).not.toHaveValue('22');
-  const draftStart = Number(await from.inputValue());
-  await expect(active).toHaveAttribute('data-bar', String(draftStart));
+  await expect.poll(() => editor.evaluate(section => {
+    const a = section.querySelector('[data-loop-endpoint="0"] input').value;
+    return Number(a) < 22 && section.querySelector('[data-active]')?.getAttribute('data-bar') === a;
+  })).toBe(true);
   await expect.poll(async () => {
     const bar = await active.boundingBox(), view = await notation.boundingBox();
     return Boolean(bar && view && bar.y >= view.y && bar.y + bar.height <= view.y + view.height);
