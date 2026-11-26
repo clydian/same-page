@@ -20,6 +20,7 @@ import { offlinePreparationDescription } from "../offline/offline-score-status";
 import { ExportDialog } from "../reader/export-dialog";
 import { scoreDisplayName } from "../../shared/score-display-name";
 import { BackButton } from "../navigation/back-button";
+import { AppHeader } from "../components/app-header";
 import { ReaderLoading } from "../navigation/reader-loading";
 import { useAppNavigation, useExitLayer } from "../navigation/navigation-context";
 import { ReaderPresentationContext, useReaderPresentation } from "../reader/use-reader-presentation";
@@ -103,14 +104,17 @@ export default function ReaderPage() {
 
 function ReaderPageContent() {
   const t = useMessages("reader");
+  const tEntry = useMessages("entry");
   const { locale } = useAppLocale();
   const fullscreen = useReaderFullscreen();
   const location = useLocation();
   const navigate = useNavigate();
   const experience = new URLSearchParams(location.search).get("experience") === "1";
   const navigationType = useNavigationType();
-  const returnedPanel = navigationType !== "POP" && location.state?.readerReturnPanel === "layers";
+  const readerReturn = navigationType !== "POP" ? location.state?.readerReturn : undefined;
+  const returnedPanel = readerReturn?.panel === "layers";
   const { choirId = "", scoreId = "" } = useParams();
+  const scorePath = `/choirs/${choirId}/scores/${scoreId}`;
   const identity = useApplicationIdentity();
   const opening = useReaderWorkspace({ choirId, scoreId, experience, identity });
   const playback = useSyncExternalStore(playbackStore.subscribe, playbackStore.getSnapshot);
@@ -131,7 +135,7 @@ function ReaderPageContent() {
   const { style: toolStyle, setStyle: setToolStyle } = useToolStyle(workspace?.ownerKey ?? `user:${identity.localUserId ?? "guest"}`, tool);
   const { color: toolColor, setColor: setToolColor } = useToolColor(workspace?.ownerKey ?? `user:${identity.localUserId ?? "guest"}`, tool);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
-  const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel);
+  const [chromeVisible, setChromeVisible] = useReturnState("chrome", returnedPanel || readerReturn?.action === "annotate");
   const [readerPanel, setReaderPanel] = useReturnState<ReaderPanel | null>("panel", returnedPanel ? "layers" : null);
   const [layerPanelTab, setLayerPanelTab] = useState<"display" | "manage">("display");
   const [playbackEntryOpen, setPlaybackEntryOpen] = useState(false);
@@ -211,10 +215,12 @@ function ReaderPageContent() {
   const { layout, currentPage, setLayout, setCurrentPage } =
     useReaderPreferences({
       pageCount: document?.numPages,
+      initialPage: readerReturn?.page,
       identity: identity.localUserId ?? "guest",
       choirId,
       scoreId,
     });
+  const signInToAnnotate = loginHref(scorePath, { page: currentPage, action: "annotate" });
   const presentation = useReaderPresentation(reader.presentation, document, currentPage, editing);
   const pager = usePagedReader({
     currentPage,
@@ -286,7 +292,6 @@ function ReaderPageContent() {
     setActiveLayerId(editableLayer.id);
     writeStringPreference(preferenceKey, editableLayer.id);
     setEditingEditor(editor);
-
   };
 
   const requestEditing = () => {
@@ -336,13 +341,26 @@ function ReaderPageContent() {
   const displayChoices = <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>{t("retryPdfReader")}</Button>;
   const loadError = reader.snapshot.error;
   if (loadError) {
+    if (reader.snapshot.accessDenied && identity.onlineState === "signed-out") {
+      return <div className="app-page auth-page">
+        <AppHeader />
+        <main className="auth-layout">
+          <section className="auth-card" aria-labelledby="score-sign-in-title">
+            <h1 id="score-sign-in-title">{t("signInToOpenScore")}</h1>
+            <p className="auth-description">{t("signInRequiredForScore")}</p>
+            <div className="score-sign-in-actions">
+              <Link className="primary-link" to={loginHref(scorePath, { action: "open" })}>{tEntry("drive.login")}</Link>
+              <BackButton className="text-button auth-read-only" to={`/choirs/${choirId}`}>{t("backToDrive")}</BackButton>
+            </div>
+          </section>
+        </main>
+      </div>;
+    }
     return (
       <main className="page-shell compact-page">
         <p className="eyebrow">{t("scoreReader")}</p>
         <h1>{t("cannotOpen")}</h1>
-        <p className="hero__copy" role="alert">
-          {loadError}
-        </p>
+        <p className="hero__copy" role="alert">{loadError}</p>
         {reader.snapshot.opening && <p>{t("loadingStoppedAt", { phase: readerOpeningLabel(reader.snapshot.opening.phase, reader.snapshot.opening.source, locale).replace(/…$/, "") })}</p>}
         <BackButton className="primary-link" to={`/choirs/${choirId}`}>{t("backToDrive")}</BackButton>
         <Button className="secondary-button" onPress={() => navigation.afterEditing(reader.retry)}>{t("retryLoading")}</Button>
@@ -427,7 +445,7 @@ function ReaderPageContent() {
         <span>{t("pageFailedDraftRetained")}</span>{displayChoices}{diagnosticDialog}
       </div> : null}
       {reader.snapshot.displayMessage && <ReaderDisplayNotice key={reader.snapshot.displayMessage} message={reader.snapshot.displayMessage} onDismiss={reader.dismissDisplayMessage} />}
-      {guestNoteOpen && <GuestNoteDialog returnTo={`/choirs/${choirId}/scores/${scoreId}`} onClose={() => setGuestNoteOpen(false)} />}
+      {guestNoteOpen && <GuestNoteDialog signInHref={signInToAnnotate} onClose={() => setGuestNoteOpen(false)} />}
       {!xmlPracticing && chromeVisible && !guide.visible ? (
       <header className="reader-chrome" data-no-native-selection data-editing={editing || undefined} aria-label={t("readerControls")} style={annotationInteraction === "composing-text" ? { display: "none" } : undefined}>
           {editing && annotationInteraction !== "composing-text" && <p className="reader-edit-gesture-hint">
@@ -454,7 +472,7 @@ function ReaderPageContent() {
                 }
                 onPress={() => editing ? navigation.afterEditing(() => { /* Completion is performed by the editing exit layer. */ }) : requestEditing()}
               >
-                {editing ? <span>{t("done")}</span> : <Pencil aria-hidden="true" size={21} />}
+                {editing ? t("done") : <Pencil aria-hidden="true" size={21} />}
               </Button>
               {!editing && <><Button
                 ref={layersTrigger}
@@ -487,7 +505,7 @@ function ReaderPageContent() {
                   : editAvailability === "failed"
                     ? t("retryEditPreparation")
                     : editAvailability === "read-only"
-                      ? <>{t("scoreReadOnly")}{!identity.localUserId && <Link to={loginHref(`/choirs/${choirId}/scores/${scoreId}`)}>{t("signInToAnnotate")}</Link>}</>
+                      ? <>{t("scoreReadOnly")}{!identity.localUserId && <Link to={signInToAnnotate}>{t("signInToAnnotate")}</Link>}</>
                       : t("restoreToEdit")}
               </p>
             ) : null}
@@ -642,6 +660,7 @@ function ReaderPageContent() {
               </header>
               <ReaderLayerPanel
                 key={`${workspace.scopeKey}:${layerPanelTab}`}
+                page={currentPage}
                 initialTab={layerPanelTab}
                 workspace={workspace}
                 layers={activeAnnotations?.layers ?? []}

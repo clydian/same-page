@@ -3,6 +3,7 @@ import { DrivePage } from "../score-library/drive-page";
 import { AppHeader } from "../components/app-header";
 import { guestSessionResponseSchema } from "../../shared/choirs";
 import { activateGuestLocalOwner } from "../platform/local-workspace";
+import { useInstall } from "../install/install-context";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { choirMembershipsResponseSchema } from "../../shared/choirs";
@@ -100,21 +101,30 @@ async function localDestination(userId: string): Promise<EntryResult> {
 }
 
 function GuestStartupEntry({ children }: { children: ReactNode }) {
+  const runningInApp = useInstall()?.runningInApp ?? false;
   const [path, setPath] = useState<string | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    async function restore() {
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    async function restore(signal: AbortSignal, retryUnavailable = false) {
       try {
-        const response = await diagnosticFetch("/api/guest/session", { cache: "no-store", signal: controller.signal });
+        const response = await diagnosticFetch("/api/guest/session", { cache: "no-store", signal });
+        if (signal.aborted) return;
+        if (retryUnavailable && response.status >= 500) {
+          // The installed window may have copied only the guest cookie. Keep
+          // the entry usable while retrying a temporary service failure once.
+          retry = setTimeout(() => void restore(AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)])), 2_000);
+          return;
+        }
         if (!response.ok) return;
         const guest = await parseDiagnosticResponse(response, guestSessionResponseSchema);
-        if (controller.signal.aborted || guest.entryKind === "preview") return;
-        await activateGuestLocalOwner(guest.choir.id, controller.signal);
-        if (!controller.signal.aborted) setPath(`/choirs/${guest.choir.id}`);
+        if (signal.aborted || guest.entryKind === "preview") return;
+        await activateGuestLocalOwner(guest.choir.id, signal);
+        if (!signal.aborted) setPath(`/choirs/${guest.choir.id}`);
       } catch { /* The public homepage remains usable if admission is unavailable. */ }
     }
-    void restore();
-    return () => controller.abort();
-  }, []);
+    void restore(controller.signal, runningInApp);
+    return () => { clearTimeout(retry); controller.abort(); };
+  }, [runningInApp]);
   return path ? <Navigate to={path} replace /> : children;
 }

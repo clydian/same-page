@@ -1,4 +1,7 @@
 {
+  "selectedNotesVisibleToRecipients": "선택한 메모는 PDF에 포함되며 파일을 받은 사람 모두가 볼 수 있습니다.",
+  "signInRequiredForScore": "이 악보를 볼 수 있는 계정으로 로그인해 주세요.",
+  "signInToOpenScore": "로그인하여 악보 보기",
   "acceptCloudDeletion": "클라우드에서 메모가 삭제된 상태 적용",
   "addPersonalLayer": "+ 새 개인 레이어 만들기",
   "adoptCloudVersion": "클라우드 버전 사용",
@@ -347,7 +350,6 @@
   "selectedNoteColor": "선택한 메모 색상",
   "selectedNoteKind": "{label}를 선택했습니다.",
   "selectedNoteProperties": "선택한 메모 속성",
-  "selectingNotesToIncludeWillNotChange": "포함할 메모를 선택해도 읽는 동안 표시 설정이 변경되지 않습니다.",
   "share": "공유",
   "shareContents": "콘텐츠 공유",
   "shareNamedLayer": "{name} 공유",

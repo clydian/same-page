@@ -71,6 +71,9 @@
     "name": "Saisir le nom de l’espace « {name} » pour confirmer"
   },
   "join": {
+    "cardCodeHint": "Ouvrez votre carte d’invitation et saisissez le code qui y figure.",
+    "checkingIdentity": "Vérification de votre connexion au compte…",
+    "identityUnavailable": "Impossible de vérifier votre connexion au compte. Réessayez quand le réseau sera disponible.",
     "guestError": "Impossible de préparer l'espace invité local, veuillez réessayer.",
     "invalidLink": "Le lien d'invitation n'est pas valide, veuillez saisir le code d'invitation actuel.",
     "newDrive": "Rejoindre un nouvel espace",
@@ -89,15 +92,17 @@
     "return": "Retour pour saisir le code d'invitation"
   },
   "home": {
+    "appWelcome": "Bienvenue sur Same Page",
+    "previewUnavailable": "Impossible d’ouvrir l’exemple. Réessayez.",
+    "create": "Créer un espace gratuit",
+    "join": "Saisir un code d’invitation",
     "enter": "Ouvrir un espace",
     "myDrives": "Mes espaces",
-    "preview": "Voir un exemple",
+    "preview": "Ouvrir une partition d’exemple",
     "more": "Découvrir les fonctionnalités",
     "features": "Caractéristiques du produit",
-    "tagline": "Vos notes et ma partition",
-    "summaryEnglish": "Une bibliothèque de partitions en ligne pour les répétitions de chorale et les annotations partagées.",
-    "summary": "Une bibliothèque de partitions en ligne pour les répétitions de chorale et les annotations partagées.",
-    "title": "L’harmonie commence sur la même partition"
+    "summary": "Same Page est une bibliothèque de partitions pour les chœurs. Lisez la même partition et partagez vos annotations par pupitre. Avec une partition de travail, écoutez votre partie, ralentissez le tempo et répétez les mesures difficiles.",
+    "title": "Répétez sur la même partition"
   },
   "scan": {
     "unrecognized": "La carte d'invitation Same Page n'est pas reconnue. Veuillez pointer le code QR du carton d'invitation sur ce site ou saisir le code d'invitation.",

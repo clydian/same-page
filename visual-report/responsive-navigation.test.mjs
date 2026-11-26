@@ -121,7 +121,7 @@ for (const [engineName, engine, libraryIdentity, footerIdentity] of [
     await withFooterNavigationEvidence(page, evidence, async record => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "Harmony begins on the Same Page", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "同一份谱，一起排练", exact: true }).waitFor();
     assert.equal(new URL(page.url()).pathname, "/");
     const footer = page.getByRole("contentinfo");
     for (const name of ["使用手册", "关于与更新", "隐私政策"]) {
@@ -259,14 +259,13 @@ async function capture(page, name) {
   await page.screenshot({ path: path.join(process.env.LAYOUT_CAPTURE_DIR, `${name}.png`) });
 }
 
-test("phone home primary entry remains reachable on the narrowest screen", async t => {
+test("phone home invitation entry remains reachable on the narrowest screen", async t => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const page = await openPage(browser, "guest");
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto(`${origin}/#home`);
-  await page.getByRole("link", { name: "先看示例", exact: true }).waitFor();
-  const primary = page.getByRole("button", { name: "进入云盘", exact: true });
-  await primary.click();
+  await page.getByRole("link", { name: "打开示例乐谱", exact: true }).waitFor();
+  await page.getByRole("button", { name: "输入邀请码", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
 });

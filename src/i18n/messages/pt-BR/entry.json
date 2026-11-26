@@ -71,6 +71,9 @@
     "name": "Digite o nome do drive “{name}” para confirmar"
   },
   "join": {
+    "cardCodeHint": "Abra o cartão de convite e digite o código que aparece nele.",
+    "checkingIdentity": "Verificando sua sessão…",
+    "identityUnavailable": "Não foi possível verificar sua sessão. Tente de novo quando estiver on-line.",
     "guestError": "Não foi possível preparar o espaço local para convidados. Tente novamente.",
     "invalidLink": "O link de convite é inválido. Insira o código de convite atual.",
     "newDrive": "Participar de outro drive",
@@ -89,15 +92,17 @@
     "return": "Volte para inserir o código de convite"
   },
   "home": {
+    "appWelcome": "Boas-vindas ao Same Page",
+    "previewUnavailable": "Não foi possível abrir o exemplo. Tente de novo.",
+    "create": "Criar um drive gratuito",
+    "join": "Inserir código de convite",
     "enter": "Abrir um drive",
     "myDrives": "Meus drives",
-    "preview": "Ver um exemplo",
+    "preview": "Abrir partitura de exemplo",
     "more": "Explorar recursos",
     "features": "Recursos do produto",
-    "tagline": "Suas notas e minha pontuação",
-    "summaryEnglish": "Uma biblioteca de partituras na nuvem para ensaios de coral e anotações compartilhadas.",
-    "summary": "Uma biblioteca de partituras na nuvem para ensaios de coral e anotações compartilhadas.",
-    "title": "A harmonia começa na mesma partitura"
+    "summary": "O Same Page é uma biblioteca de partituras para coros. Leiam a mesma partitura e compartilhem anotações por naipe. Com uma partitura de estudo, vocês podem ouvir seu naipe, reduzir o andamento e repetir os compassos difíceis.",
+    "title": "Ensaie com todos na mesma partitura"
   },
   "scan": {
     "unrecognized": "O cartão de convite Same Page não é reconhecido. Aponte para o código QR do cartão de convite neste site ou insira o código do convite.",

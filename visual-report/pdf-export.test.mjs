@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import test from "node:test";
 import { chromium } from "playwright";
+import { expect } from "@playwright/test";
 import { PDFDocument, degrees, rgb } from "pdf-lib";
 import { startVisualServer } from "./setup.mjs";
-import { createVisualFixtureSession } from "./fixtures.mjs";
+import { createSampleScorePdf, createVisualFixtureSession } from "./fixtures.mjs";
 
 test("export preserves multipage source geometry and overlays text and ink on rotated cropped pages", async t => {
   const app = await startVisualServer({ script: "dev" });
@@ -119,17 +120,26 @@ test("reader export uses reading subscriptions even when opened from editing", a
   await page.getByRole("button", { name: "完成编辑", exact: true }).click();
   await page.getByRole("button", { name: "分享 PDF", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "分享 PDF" }); await dialog.waitFor();
-  assert.equal(await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).isChecked(), true);
-  assert.equal(await dialog.getByRole("checkbox", { name: "Bass", exact: true }).isChecked(), false);
-  assert.equal(await dialog.getByRole("checkbox", { name: "我的笔记", exact: true }).isChecked(), true);
+  const downloadButton = dialog.getByRole("button", { name: "下载 PDF", exact: true });
+  await expect(dialog.getByRole("radio", { name: "仅原谱", exact: true })).toBeChecked();
+  await expect(dialog.getByRole("checkbox")).toHaveCount(0);
+  const [defaultExport] = await Promise.all([page.waitForEvent("download"), downloadButton.click()]);
+  const source = createSampleScorePdf();
+  assert.deepEqual(await readFile(await defaultExport.path()), source);
+
+  await dialog.getByRole("radio", { name: "包含笔记", exact: true }).check();
+  await expect(dialog.getByRole("checkbox", { name: "Ensemble", exact: true })).toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "Bass", exact: true })).not.toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "我的笔记", exact: true })).not.toBeChecked();
   for (const checkbox of await dialog.getByRole("checkbox").all()) await checkbox.uncheck();
   assert.equal(await dialog.locator("input[type=checkbox]:checked").count(), 0);
   assert.equal(preferenceWrites.length, 0, "export selection must not change reading subscriptions");
   await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).check();
   await dialog.getByRole("checkbox", { name: "我的笔记", exact: true }).check();
-  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "下载 PDF", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), downloadButton.click()]);
   assert.ok(download.suggestedFilename().endsWith(".pdf"));
   assert.equal(await download.failure(), null);
+  assert.notDeepEqual(await readFile(await download.path()), source);
   revoked = true;
   await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).uncheck();
   await dialog.getByRole("checkbox", { name: "Ensemble", exact: true }).check();
@@ -138,8 +148,9 @@ test("reader export uses reading subscriptions even when opened from editing", a
   await page.context().setOffline(true);
   await dialog.getByText("所选笔记层的完整离线数据尚未准备好，请联网后导出").waitFor();
   for (const checkbox of await dialog.getByRole("checkbox").all()) await checkbox.uncheck();
-  const [original] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "下载 PDF", exact: true }).click()]);
+  const [original] = await Promise.all([page.waitForEvent("download"), downloadButton.click()]);
   assert.equal(await original.failure(), null);
+  assert.deepEqual(await readFile(await original.path()), source);
   assert.equal(preferenceWrites.length, 0, "export selection must not change reading subscriptions");
 
 });

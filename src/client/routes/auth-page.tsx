@@ -1,5 +1,5 @@
 import { useInputVisibility } from "../platform/use-input-visibility";
-import { loginReturn } from "../auth/login-return";
+import { createDriveHref, loginHref, loginReturn } from "../auth/login-return";
 import { joinDrive, resumeDriveEntry, cancelDriveEntry, type DriveEntryResult } from "../auth/drive-entry";
 import { invalidateSettingsLifetime, useSettingsLifetime, captureSettingsLifetime } from "../settings/use-settings-lifetime";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
@@ -7,6 +7,7 @@ import {
   type FormEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -421,9 +422,9 @@ export default function AuthPage() {
 
   const entryLifetimeRef = useSettingsLifetime();
   const pendingEntryRef = useRef<Promise<DriveEntryResult> | null>(null);
-  const returnContext = loginReturn(location.search);
+  const returnContext = useMemo(() => loginReturn(location.search), [location.search]);
   const returnTarget = returnContext?.target;
-  const returnPanel = returnContext?.panel;
+  const returnReader = returnContext?.reader;
   const finishAuthentication = useCallback(async () => {
     const isCurrent = captureSettingsLifetime(entryLifetimeRef);
     const lifecycle = await diagnosticFetch("/api/user/lifecycle").then(async (response) => response.ok ? response.json() : null).catch(() => null);
@@ -432,7 +433,7 @@ export default function AuthPage() {
       await navigate("/user/lifecycle");
       return;
     }
-    if (returnTarget === "/admin" || returnTarget?.startsWith("/admin/scores/")) {
+    if (returnTarget && (returnTarget === createDriveHref || returnReader?.action === "open" || returnTarget === "/admin" || returnTarget.startsWith("/admin/scores/"))) {
       await navigate(returnTarget, { replace: true });
       return;
     }
@@ -441,15 +442,16 @@ export default function AuthPage() {
     const result = await pending;
     if (!isCurrent()) return;
     if (result.kind === "none") {
-      await navigate(returnTarget ?? "/", { replace: true, state: returnTarget ? { readerReturnPanel: returnPanel } : { startup: true } });
+      await navigate(returnTarget ?? "/", { replace: true, state: returnTarget ? { readerReturn: returnReader } : { startup: true } });
     } else if (result.kind === "enter") {
-      await navigate(returnTarget?.startsWith(`/choirs/${result.choir.id}/`) ? returnTarget : `/choirs/${result.choir.id}`, { replace: Boolean(returnTarget), state: { readerReturnPanel: returnPanel } });
+      const target = returnTarget?.startsWith(`/choirs/${result.choir.id}/`) ? returnTarget : `/choirs/${result.choir.id}`;
+      await navigate(target, { replace: Boolean(returnTarget), state: target === returnTarget ? { readerReturn: returnReader } : undefined });
     } else if (result.kind === "display-name") {
       setJoinChoir(result.choir); setView("join-choir");
     } else {
       setView("join-result"); showMessage(() => result.message);
     }
-  }, [navigate, entryLifetimeRef, returnTarget, returnPanel, showMessage]);
+  }, [navigate, entryLifetimeRef, returnTarget, returnReader, showMessage]);
 
   useEffect(() => {
     const oauthResult = new URLSearchParams(location.search).get("oauth");
@@ -477,10 +479,11 @@ export default function AuthPage() {
     setSubmitting(true);
     setMessage(null);
     storeSocialEmailDraft(email);
+    const callback = returnTarget ? `${loginHref(returnTarget, returnReader)}&oauth=` : "/login?oauth=";
     const { error } = await authClient.signIn.social({
       provider,
-      callbackURL: `/login?oauth=complete${returnTarget ? `&returnTo=${encodeURIComponent(returnTarget)}${returnPanel ? "&panel=layers" : ""}` : ""}`,
-      errorCallbackURL: `/login?oauth=error${returnTarget ? `&returnTo=${encodeURIComponent(returnTarget)}${returnPanel ? "&panel=layers" : ""}` : ""}`,
+      callbackURL: `${callback}complete`,
+      errorCallbackURL: `${callback}error`,
     });
     if (error) {
       setSubmitting(false);
@@ -494,7 +497,7 @@ export default function AuthPage() {
     setSubmitting(true);
     if (returnTarget) await pendingEntryRef.current?.catch(() => undefined);
     else await cancelDriveEntry(pendingEntryRef.current);
-    if (isCurrent()) await navigate(returnTarget ?? "/", { replace: Boolean(returnTarget), state: returnTarget ? { readerReturnPanel: returnPanel } : { home: true } });
+    if (isCurrent()) await navigate(returnTarget ?? "/", { replace: Boolean(returnTarget), state: returnTarget ? { readerReturn: returnReader } : { home: true } });
   };
 
   const joinCurrentGuestChoir = async (event: FormEvent) => {
@@ -508,8 +511,10 @@ export default function AuthPage() {
     const result = await pending;
     if (!isCurrent()) return;
     setSubmitting(false);
-    if (result.kind === "enter") await navigate(returnTarget?.startsWith(`/choirs/${result.choir.id}/`) ? returnTarget : `/choirs/${result.choir.id}`, { replace: Boolean(returnTarget), state: { readerReturnPanel: returnPanel } });
-    else if (result.kind === "failed") {
+    if (result.kind === "enter") {
+      const target = returnTarget?.startsWith(`/choirs/${result.choir.id}/`) ? returnTarget : `/choirs/${result.choir.id}`;
+      await navigate(target, { replace: Boolean(returnTarget), state: target === returnTarget ? { readerReturn: returnReader } : undefined });
+    } else if (result.kind === "failed") {
       showMessage(() => result.message);
       if (result.restart) { setJoinChoir(null); setView("join-result"); }
     }
@@ -824,7 +829,7 @@ export default function AuthPage() {
             </p>
           ) : null}
         </section>
-        {returnTarget?.startsWith("/choirs/") && <Button className="text-button auth-read-only" onPress={() => void cancelEntry()}>{t("authContinueReadOnly")}</Button>}
+        {returnTarget?.startsWith("/choirs/") && returnReader?.action !== "open" && <Button className="text-button auth-read-only" onPress={() => void cancelEntry()}>{t("authContinueReadOnly")}</Button>}
       </main>
     </div>
   );

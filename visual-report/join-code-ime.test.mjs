@@ -25,6 +25,7 @@ test("join code preserves native IME replacement and only submits committed text
   });
   await page.goto(`${app.origin}/?join=1`);
   const input = page.getByRole("textbox", { name: "邀请码", exact: true });
+  const submit = page.getByRole("button", { name: "进入云盘", exact: true });
   await input.focus();
   const cdp = await page.context().newCDPSession(page);
   const compose = text => cdp.send("Input.imeSetComposition", { text, selectionStart: text.length, selectionEnd: text.length });
@@ -43,17 +44,17 @@ test("join code preserves native IME replacement and only submits committed text
   await expect(input).toHaveValue("as");
 
   await input.fill("abcdefgh");
-  await expect(page.getByRole("button", { name: "进入", exact: true })).toBeEnabled();
+  await expect(submit).toBeEnabled();
   await input.selectText();
   await compose("a");
-  await expect(page.getByRole("button", { name: "进入", exact: true })).toBeDisabled();
+  await expect(submit).toBeDisabled();
   // A direct form submission must also reject the previous complete code.
   await input.evaluate(element => element.form.requestSubmit());
   assert.equal(admissions.length, 0);
   await compose("as");
   await cdp.send("Input.insertText", { text: "as" });
   await expect(input).toHaveValue("as");
-  await expect(page.getByRole("button", { name: "进入", exact: true })).toBeDisabled();
+  await expect(submit).toBeDisabled();
 
   await input.fill("ABCDEFGHJKLMNPQR");
   await expect(input).toHaveValue("ABCDEFGH");
@@ -119,7 +120,7 @@ test("join code preserves native IME replacement and only submits committed text
   await input.fill("ABIO2345");
   await expect(input).toHaveValue("ABIO2345");
   await expect(page.getByRole("alert")).toContainText("不含 I、O、0、1");
-  await expect(page.getByRole("button", { name: "进入", exact: true })).toBeDisabled();
+  await expect(submit).toBeDisabled();
   await input.evaluate(element => element.form.requestSubmit());
   assert.equal(admissions.length, 0);
 
@@ -130,7 +131,7 @@ test("join code preserves native IME replacement and only submits committed text
   await input.evaluate(element => element.setSelectionRange(1, 2));
   await page.keyboard.insertText("s");
   await expect(input).toHaveValue("ascdefgh");
-  await page.getByRole("button", { name: "进入", exact: true }).click();
+  await submit.click();
   await expect.poll(() => admissions.length).toBe(1);
   assert.deepEqual(admissions[0], { admission: "invite", joinCode: "ASCDEFGH" });
 });

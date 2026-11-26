@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium, expect } from "@playwright/test";
 import { startStorageFixture } from "./storage-fixture.mjs";
+import { createInviteLink } from "../src/client/components/invite-link.ts";
 
 test("valid invitations automatically admit guests, existing members and named new members", { timeout: 90000 }, async t => {
   const fixture = await startStorageFixture({ authenticated: true, invite: true, nonMember: true });
   t.after(() => fixture.stop());
   const browser = await chromium.launch(); t.after(() => browser.close());
-  for (const mode of ["fresh", "warm", "member", "new-member"]) {
+  for (const mode of ["fresh", "warm", "missing-fragment", "member", "new-member"]) {
     const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
     let page;
     const started = performance.now();
@@ -51,12 +52,22 @@ test("valid invitations automatically admit guests, existing members and named n
           assert.equal(new URL(page.url()).hash === "", true, "invitation fragment must be cleared");
         }
       });
+      const link = new URL(createInviteLink(fixture.origin, fixture.joinCode));
       if (mode === "warm") {
-        await page.goto(fixture.origin + "/?join=1");
-        await page.getByRole("button", { name: "关闭", exact: true }).click();
-        await page.evaluate(code => { location.hash = new URLSearchParams({ invite: code }).toString(); }, fixture.joinCode);
+        await page.goto(fixture.origin);
+        await expect(page.locator(".marketing-hero h1")).toBeVisible();
+        await page.evaluate(hash => { location.hash = hash; }, link.hash);
+      } else if (mode === "missing-fragment") {
+        await page.goto(link.origin + link.pathname + link.search);
+        await expect(page.getByRole("heading", { name: "加入云盘", exact: true })).toBeVisible();
+        await expect(page.locator(".marketing-hero")).toHaveCount(0);
+        const code = page.getByLabel("邀请码", { exact: true });
+        assert.equal(await code.inputValue(), "");
+        assert.equal(admissions, 0);
+        await code.fill(fixture.joinCode.slice(0, 4) + "-" + fixture.joinCode.slice(4));
+        await page.getByRole("button", { name: "进入云盘", exact: true }).click();
       } else {
-        await page.goto(`${fixture.origin}/?join=1#${new URLSearchParams({ invite: fixture.joinCode })}`);
+        await page.goto(link.href);
       }
       if (mode === "new-member") {
         await page.getByLabel("显示名", { exact: true }).waitFor({ state: "visible", timeout: 12_000 });
@@ -72,6 +83,7 @@ test("valid invitations automatically admit guests, existing members and named n
       await expect(page.locator(".file-row__open")).toHaveCount(1);
       assert.equal(admissions, 1);
       if (mode === "fresh") {
+        await expect(page.locator(".drive-suggestion + .library-workspace")).toBeVisible();
         await expect(page.getByRole("complementary", { name: "排练准备" }).getByRole("link")).toHaveCount(0);
         if (process.env.LAYOUT_CAPTURE_DIR) {
           await mkdir(process.env.LAYOUT_CAPTURE_DIR, { recursive: true });
@@ -94,6 +106,10 @@ test("valid invitations automatically admit guests, existing members and named n
         await page.locator(".file-row__open").click();
         await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
         await page.locator(".page-reader__viewport").click({ position: { x: 195, y: 340 } });
+        await page.getByRole("button", { name: /^展开页码网格/ }).click();
+        await page.getByRole("button", { name: "第 2 页", exact: true }).click();
+        const currentPage = page.getByRole("button", { name: /第 2 页，共 2 页/ });
+        await expect(currentPage).toBeVisible();
         await page.getByRole("button", { name: "编辑", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: "登录后，记下你的排练笔记" });
         await expect(dialog).toBeVisible();
@@ -104,14 +120,17 @@ test("valid invitations automatically admit guests, existing members and named n
         await dialog.getByRole("link", { name: "注册 / 登录，开始记笔记" }).click();
         const target = `/choirs/${fixture.choirId}/scores/${fixture.scoreId}`;
         await expect.poll(() => new URL(page.url()).searchParams.get("returnTo")).toBe(target);
+        assert.equal(new URL(page.url()).searchParams.get("page"), "2");
         await page.getByLabel("邮箱", { exact: true }).fill(fixture.accounts[0].email);
         await page.getByRole("button", { name: "继续", exact: true }).click();
         await page.getByLabel("密码", { exact: true }).fill(fixture.accounts[0].password);
         await page.getByRole("button", { name: "登录", exact: true }).click();
         await expect(page).toHaveURL(fixture.origin + target);
         await page.locator("canvas[data-pdf-canvas-active]").first().waitFor();
-        await page.locator(".page-reader__viewport").click({ position: { x: 195, y: 340 } });
-        await page.getByRole("button", { name: "编辑", exact: true }).click();
+        await expect(currentPage).toBeVisible();
+        const edit = page.getByRole("button", { name: "编辑", exact: true });
+        await expect(edit.locator("svg.lucide-pencil")).toBeVisible();
+        await edit.click();
         await expect(page.locator(".annotation-controls")).toBeVisible();
 
       }

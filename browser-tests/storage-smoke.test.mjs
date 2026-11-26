@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import { expectSampleScoreContent } from "./pdf-content.mjs";
 import { startStorageFixture } from "./storage-fixture.mjs";
 
@@ -20,8 +20,10 @@ test("real Worker D1/R2 score survives a browser restart offline via IndexedDB",
   try {
     await page.goto(fixture.origin);
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
-    await page.getByRole("link", { name: "先看示例", exact: true }).click();
+    await page.getByRole("link", { name: "打开示例乐谱", exact: true }).click();
     await page.getByRole("link").filter({ hasText: fixture.fileName.replace(/\.pdf$/i, "") }).waitFor();
+    await expect(page.getByRole("complementary", { name: "安装建议" })).toBeVisible();
+    await expect(page.locator(".drive-suggestion + .library-workspace")).toBeVisible();
     stage = "verified download";
     await page.getByRole("button", { name: /^离线副本：/ }).click();
     await page.getByRole("button", { name: "保存供离线使用", exact: true }).click();

@@ -685,7 +685,6 @@ h1 {
   font-weight: 700;
 }
 
-.hero-mark,
 .dialog-eyebrow {
   margin: 0 0 1rem;
   color: var(--sage);
@@ -696,20 +695,22 @@ h1 {
 }
 
 .marketing-hero h1 {
-  max-width: 24ch;
-  font-size: clamp(2rem, 3.8vw, 3.4rem);
+  max-inline-size: 23ch;
+  font-size: clamp(2rem, 1.25rem + 4vw, 3.65rem);
   line-height: 1.12;
   letter-spacing: -0.035em;
   text-wrap: balance;
 }
 
-.hero-zh {
-  margin: 1.25rem 0 0;
-  color: var(--brand);
-  font-size: clamp(2rem, 4.1vw, 3.6rem);
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+.marketing-hero h1:is(:lang(zh), :lang(ja), :lang(ko)) {
+  max-inline-size: 17em;
+  line-height: 1.22;
+  letter-spacing: -0.018em;
+}
+
+.marketing-hero h1:lang(zh) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .hero-description {
@@ -718,7 +719,7 @@ h1 {
   max-width: 38rem;
   margin: 1.5rem 0 0;
   color: var(--muted);
-  font-size: 1rem;
+  font-size: 1.0625rem;
   line-height: 1.7;
 }
 
@@ -770,7 +771,15 @@ h1 {
   min-width: 9.5rem;
 }
 
-.hero-preview-link {
+.hero-actions > * { font-size: 1rem; }
+.hero-preview { display: grid; align-self: flex-start; }
+.hero-actions .primary-button { min-height: 3.25rem; padding-inline: 1.25rem; font-size: 1.0625rem; }
+.hero-preview [data-pending] { cursor: wait; }
+
+.hero-text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   border-radius: 0.55rem;
   padding: 0.55rem 0.3rem;
   color: var(--brand);
@@ -778,8 +787,12 @@ h1 {
   text-underline-offset: 0.22em;
 }
 
-.hero-preview-link:hover,
-.hero-preview-link:focus-visible {
+.hero-preview-status { margin: 0; color: var(--muted); }
+.hero-preview-status:not(:empty) { margin-block-start: .45rem; }
+.marketing-install { display: flex; justify-content: center; padding-block: 1.5rem; }
+
+.hero-text-link:hover,
+.hero-text-link:focus-visible {
   color: var(--brand-strong);
 }
 
@@ -1147,6 +1160,12 @@ h1 {
 .auth-read-only {
   justify-self: center;
   min-height: 44px;
+}
+
+.score-sign-in-actions {
+  display: grid;
+  gap: .5rem;
+  margin-top: 1.5rem;
 }
 
 .social-auth-options {
@@ -1633,24 +1652,24 @@ h1 {
   margin-top: 1.25rem;
   border: 1.5px dashed var(--ui-line, #a9bbb6);
   border-radius: 0.9rem;
-  padding: 2rem 1rem;
+  padding: 1.25rem 1rem;
   background: var(--ui-surface, #f8fbfa);
   text-align: center;
 }
 
 .upload-dropzone label {
-  color: var(--brand);
-  cursor: pointer;
-  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  min-height: 3rem;
 }
 
-.upload-dropzone input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
+.upload-dropzone label:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
 }
+
+.upload-dropzone label:has(input:disabled) { opacity: 0.45; cursor: default; }
+.upload-format-hint { margin-block: 0.75rem; }
 
 .upload-dropzone small,
 .trash-list small {
@@ -1686,6 +1705,8 @@ h1 {
   flex-wrap: wrap;
   gap: 12px;
 }
+
+.upload-queue-status:empty { margin: 0; }
 
 .upload-help summary {
   min-height: 44px;
@@ -2969,17 +2990,8 @@ h1 {
     line-height: 1.8;
   }
 
-  .marketing-hero h1 {
-    max-width: 24ch;
-    font-size: clamp(1.65rem, 6vw, 2.25rem);
-  }
-
-  .hero-zh {
-    font-size: 1.65rem;
-  }
-
   .hero-description {
-    max-width: 20rem;
+    max-width: 26rem;
   }
 
   .hero-actions {
@@ -2992,7 +3004,7 @@ h1 {
     width: 100%;
   }
 
-  .hero-preview-link {
+  .hero-text-link {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3164,8 +3176,6 @@ h1 {
 .invite-sharing-dialog > .drive-management-copy { margin: 0; font-size: 12px; }
 @media (max-width: 380px) { .invite-share-actions { gap: 8px; } .invite-share-actions button { font-size: .8rem; gap: 4px; } }
 
-.hero-description p[lang="zh-CN"] { font-size: 1rem; }
-.hero-description p[lang="en"] { font-size: .85rem; }
 @media (max-width: 60rem) {
   .marketing-hero { grid-template-columns: 1fr; gap: 1.5rem; min-height: auto; padding-block: 2.5rem; }
   .marketing-more-features { margin-top: .5rem; }
@@ -3173,10 +3183,9 @@ h1 {
 
 @media (max-width: 40rem) {
   .marketing-hero { padding-block: 1.5rem; gap: 2rem; }
-  .marketing-hero h1 { font-size: clamp(1.65rem, 6vw, 2.25rem); }
-  .hero-zh { margin-top: 1rem; font-size: clamp(1.8rem, 7.5vw, 2.6rem); }
   .hero-actions { position: relative; flex-direction: row; align-items: center; margin-top: 1.25rem; gap: 1rem; }
-  .hero-cta { width: auto; min-width: 8rem; }
+  .marketing-hero .hero-actions .hero-cta { flex: 0 0 100%; min-width: 0; box-sizing: border-box; }
+  .marketing-hero .hero-actions > :not(.hero-cta) { flex: 1 1 auto; justify-content: center; text-align: center; }
   .marketing-feature:first-child .marketing-animation { order: -1; }
 }
 

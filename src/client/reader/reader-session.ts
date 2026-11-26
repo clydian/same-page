@@ -36,6 +36,7 @@ export interface ReaderSessionSnapshot {
   capability: "preparing" | "ready" | "failed" | "read-only" | "trashed";
   status: "loading" | "ready" | "error";
   error: string | null;
+  accessDenied?: boolean;
   downloading: boolean;
   downloadMessage: string | null;
   preparation: OfflinePreparationState;
@@ -345,9 +346,9 @@ export class ReaderSession {
   private resolveFailure() {
     if (!this.localSettled || !this.cloudSettled || this.disposed) return;
     if (this.lookup && this.lookup.state !== "active" && !this.localMatches() && !this.confirmedVersion) {
-      this.publish({ status: "error", error: failureMessage(this.lookup.state) });
+      this.publish({ status: "error", error: failureMessage(this.lookup.state), accessDenied: this.lookup.state === "permission-denied" });
     } else if (this.pdfFailed) {
-      this.publish({ status: "error", error: this.pdfError });
+      this.publish({ status: "error", error: this.pdfError, accessDenied: false });
     }
   }
   retryLayers = () => this.refresh();

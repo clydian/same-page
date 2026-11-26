@@ -36,7 +36,7 @@ function ExportDialogContent(props: Props) {
         <label><input type="radio" name="export-content" checked={includeNotes} onChange={() => { session.setIncludeNotes(true); }} />{t("containsNotes")}</label>
       </fieldset>
       {includeNotes && <div className="export-layers">
-        <p className="export-help">{t("selectingNotesToIncludeWillNotChange")}</p>
+        <p className="export-help">{t("selectedNotesVisibleToRecipients")}</p>
         {layerGroups.map(group => group.layers.length > 0 && <fieldset key={group.id} disabled={sharing}>
           <legend>{group.title}</legend>
           {group.layers.map(layer => <label className="export-layer" key={layer.id}>

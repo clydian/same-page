@@ -108,12 +108,14 @@ for (const [engine, type] of [['chromium', chromium], ['webkit', webkit]]) {
         const expandDirectory = async (target, count) => {
           // Persisted rows can appear before the fresh directory read completes.
           // Finish that exact transport before a file click unmounts the library.
-          const requested = target.waitForResponse(response => {
-            const url = new URL(response.url());
-            return url.pathname === directoryPath && url.searchParams.get('scoreIds') === fixture.scoreId;
-          });
-          await target.getByRole('button', { name: `本地链路测试：${count} 个附件`, exact: true }).click();
-          const response = await requested;
+          const attachments = target.getByRole('button', { name: `本地链路测试：${count} 个附件`, exact: true });
+          const [response] = await Promise.all([
+            target.waitForResponse(response => {
+              const url = new URL(response.url());
+              return url.pathname === directoryPath && url.searchParams.get('scoreIds') === fixture.scoreId;
+            }),
+            attachments.click(),
+          ]);
           assert.equal(response.status(), 200);
           assert.equal(await response.finished(), null);
         };

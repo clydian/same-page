@@ -71,6 +71,9 @@
     "name": "輸入雲端硬碟名稱「{name}」以確認"
   },
   "join": {
+    "cardCodeHint": "開啟邀請卡，輸入卡片上的邀請碼。",
+    "checkingIdentity": "正在確認登入狀態…",
+    "identityUnavailable": "暫時無法確認登入狀態。連線恢復後可以重試。",
     "guestError": "無法準備本機訪客空間，請再試一次。",
     "invalidLink": "邀請連結無效，請輸入目前邀請碼。",
     "newDrive": "加入新的雲端硬碟",
@@ -89,15 +92,17 @@
     "return": "返回輸入邀請碼"
   },
   "home": {
+    "appWelcome": "歡迎使用合譜",
+    "previewUnavailable": "示範樂譜未能開啟，請再試一次。",
+    "create": "建立免費雲端硬碟",
+    "join": "輸入邀請碼",
     "enter": "開啟雲端硬碟",
     "myDrives": "我的雲端硬碟",
-    "preview": "先看範例",
+    "preview": "開啟示範樂譜",
     "more": "探索更多功能",
     "features": "產品特點",
-    "tagline": "你的筆記我的譜",
-    "summaryEnglish": "為合唱排練及共用筆記打造的樂譜雲端硬碟。",
-    "summary": "為合唱排練及共用筆記打造的樂譜雲端硬碟。",
-    "title": "每次排練，都在同一頁"
+    "summary": "合譜是給合唱團用的樂譜雲端硬碟。團裡一起看譜、分享聲部筆記。有練習譜的曲目，還能聽自己的聲部、放慢速度、反覆練難唱的小節。",
+    "title": "同一份譜，一起排練"
   },
   "scan": {
     "unrecognized": "未辨識到合譜邀請卡，請對準本站邀請卡QR 碼，或輸入邀請碼。",

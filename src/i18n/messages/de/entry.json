@@ -71,6 +71,9 @@
     "name": "Zum Bestätigen den Namen der Ablage „{name}“ eingeben"
   },
   "join": {
+    "cardCodeHint": "Öffne deine Einladungskarte und gib den Code darauf ein.",
+    "checkingIdentity": "Anmeldestatus wird geprüft…",
+    "identityUnavailable": "Dein Anmeldestatus konnte nicht geprüft werden. Versuche es erneut, sobald du verbunden bist.",
     "guestError": "Lokaler Gästebereich konnte nicht vorbereitet werden. Bitte versuchen Sie es erneut.",
     "invalidLink": "Der Einladungslink ist ungültig, bitte geben Sie den aktuellen Einladungscode ein.",
     "newDrive": "Einer weiteren Ablage beitreten",
@@ -89,15 +92,17 @@
     "return": "Kehren Sie zurück, um den Einladungscode einzugeben"
   },
   "home": {
+    "appWelcome": "Willkommen bei Same Page",
+    "previewUnavailable": "Die Beispielpartitur ließ sich nicht öffnen. Bitte versuche es erneut.",
+    "create": "Kostenloses Laufwerk erstellen",
+    "join": "Einladungscode eingeben",
     "enter": "Ablage öffnen",
     "myDrives": "Meine Ablagen",
-    "preview": "Beispiel ansehen",
+    "preview": "Beispielpartitur öffnen",
     "more": "Funktionen entdecken",
     "features": "Produktmerkmale",
-    "tagline": "Deine Notizen und meine Partitur",
-    "summaryEnglish": "Eine Online-Notenbibliothek für Chorproben und gemeinsame Anmerkungen.",
-    "summary": "Eine Online-Notenbibliothek für Chorproben und gemeinsame Anmerkungen.",
-    "title": "Harmonie beginnt mit gemeinsamen Noten"
+    "summary": "Same Page ist eine Notenbibliothek für Chöre. Nutzt dieselbe Partitur und teilt Notizen für eure Stimmgruppen. Wenn eine Übungspartitur verfügbar ist, könnt ihr eure Stimme anhören, das Tempo senken und schwierige Takte wiederholen.",
+    "title": "Gemeinsam in derselben Partitur proben"
   },
   "scan": {
     "unrecognized": "Die Same Page-Einladungskarte wird nicht erkannt. Bitte zeigen Sie auf dieser Seite auf den QR-Code der Einladungskarte oder geben Sie den Einladungscode ein.",

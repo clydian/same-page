@@ -71,6 +71,9 @@
     "name": "Inserisci il nome del drive «{name}» per confermare"
   },
   "join": {
+    "cardCodeHint": "Apri la scheda di invito e inserisci il codice che trovi sulla scheda.",
+    "checkingIdentity": "Verifica dell’accesso…",
+    "identityUnavailable": "Impossibile verificare l’accesso. Riprova quando torna la connessione.",
     "guestError": "Impossibile preparare lo spazio per gli ospiti locali, riprova.",
     "invalidLink": "Il link di invito non è valido, inserisci il codice di invito attuale.",
     "newDrive": "Unisciti a un nuovo drive",
@@ -89,15 +92,17 @@
     "return": "Ritorna per inserire il codice invito"
   },
   "home": {
+    "appWelcome": "Benvenuto in Same Page",
+    "previewUnavailable": "Impossibile aprire l’esempio. Riprova.",
+    "create": "Crea un archivio gratuito",
+    "join": "Inserisci un codice d’invito",
     "enter": "Apri un drive",
     "myDrives": "I miei drive",
-    "preview": "Vedi un esempio",
+    "preview": "Apri una partitura di esempio",
     "more": "Scopri le funzionalità",
     "features": "Caratteristiche del prodotto",
-    "tagline": "I tuoi appunti e il mio punteggio",
-    "summaryEnglish": "Una raccolta di partiture online per le prove corali e le annotazioni condivise.",
-    "summary": "Una raccolta di partiture online per le prove corali e le annotazioni condivise.",
-    "title": "L’armonia inizia dalla stessa partitura"
+    "summary": "Same Page è una biblioteca di spartiti per cori. Leggete lo stesso spartito e condividete le annotazioni per sezione. Se è disponibile uno spartito per esercitarsi, potete ascoltare la vostra parte, rallentare il tempo e ripetere le battute difficili.",
+    "title": "Provate insieme sullo stesso spartito"
   },
   "scan": {
     "unrecognized": "La carta di invito Same Page non viene riconosciuta. Punta il codice QR del biglietto d'invito su questo sito o inserisci il codice invito.",

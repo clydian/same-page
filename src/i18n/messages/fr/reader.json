@@ -1,4 +1,7 @@
 {
+  "selectedNotesVisibleToRecipients": "Les notes sélectionnées sont intégrées au PDF et visibles par toute personne qui reçoit le fichier.",
+  "signInRequiredForScore": "Utilisez un compte qui a accès à cette partition.",
+  "signInToOpenScore": "Connectez-vous pour voir la partition",
   "acceptCloudDeletion": "Accepter la suppression de l’annotation dans le cloud",
   "addPersonalLayer": "+ Créer un nouveau calque personnel",
   "adoptCloudVersion": "Utiliser la version cloud",
@@ -347,7 +350,6 @@
   "selectedNoteColor": "Couleur de la note sélectionnée",
   "selectedNoteKind": "Sélectionné {label}",
   "selectedNoteProperties": "Propriétés des notes sélectionnées",
-  "selectingNotesToIncludeWillNotChange": "La sélection de notes à inclure ne modifie pas les paramètres d'affichage pendant la lecture.",
   "share": "Partager",
   "shareContents": "Partager du contenu",
   "shareNamedLayer": "Partager {name}",

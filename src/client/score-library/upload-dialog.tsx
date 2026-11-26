@@ -8,13 +8,14 @@ import { Dialog } from "../navigation/overlays";
 import { LibraryDialogHeading } from "./library-dialog-heading";
 import { useUploadQueue } from "./use-upload-queue";
 
-export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpenChange, onComplete, onQuotaChange, onInspect }: {
+export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpenChange, onComplete, onInvite, onQuotaChange, onInspect }: {
   writable?: boolean;
   choirId: string;
   storage?: { usedBytes: number; limitBytes: number };
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete: () => void | Promise<void>;
+  onInvite?: () => void;
   onQuotaChange: (blocked: boolean) => void;
   onInspect: (fileName: string) => void;
 }) {
@@ -23,6 +24,7 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
   const waiting = queue.items.filter((item) => item.status === "queued").length;
   const uploading = queue.items.some((item) => item.status === "uploading");
   const hasUnfinished = waiting > 0 || uploading;
+  const invite = writable && !hasUnfinished && queue.items.some(item => item.status === "success") ? onInvite : undefined;
   const { stopWaiting } = queue;
   useLayoutEffect(() => {
     if (!isOpen) stopWaiting();
@@ -42,17 +44,11 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
   return <ModalOverlay className="modal-overlay" isOpen={isOpen} onOpenChange={changeOpen} isDismissable>
     <Modal className="app-modal"><Dialog className="app-dialog">
       <LibraryDialogHeading title={t("uploadUploadPdf")} close={() => changeOpen(false)} />
-      {storage && <p className="dialog-copy">{t("uploadStorageCapacity", { available: formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes)), limit: formatBytes(storage.limitBytes) })}</p>}
-      <p className="dialog-copy">{t("uploadSelectMultiplePdfsDrag")}</p>
-      <p className="dialog-copy">{t("uploadClosingWindowStopWaiting")}</p>
-      <details className="upload-help"><summary>{t("uploadWhenLeavingPageUploading")}</summary>
-        <p className="dialog-copy">{t("uploadLeavingCloudDiskSwitching")}</p>
-      </details>
       {!writable && <p role="status">{t("uploadConnectionUploadPermissionHas")}</p>}
       <div className="upload-dropzone"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => { event.preventDefault(); queue.add(Array.from(event.dataTransfer.files)); }}>
-        <label><span>{t("attachmentSelectPdfFile")}</span><input type="file" accept="application/pdf,.pdf" multiple disabled={!writable}
+        <label className={invite ? "secondary-button" : "primary-button"}><span>{t("attachmentSelectPdfFile")}</span><input className="visually-hidden" type="file" accept="application/pdf,.pdf" multiple disabled={!writable}
           onChange={(event) => {
             const files = Array.from(event.currentTarget.files ?? []);
             event.currentTarget.value = "";
@@ -60,7 +56,14 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
           }} /></label>
         <small>{t("uploadMaximumMbPerCopy")}</small>
       </div>
-      <p role="status" aria-live="polite">{uploading ? t("uploadUploadingCopy") : t("uploadThereCurrentlyNoFiles")} {t("uploadQueueWaitingCount", { count: waiting })}</p>
+      <p className="dialog-copy upload-format-hint">{t("uploadMusicXmlAttachmentHint")}</p>
+      <details className="upload-help"><summary>{t("uploadDetails")}</summary>
+        {storage && <p className="dialog-copy">{t("uploadStorageCapacity", { available: formatBytes(Math.max(0, storage.limitBytes - storage.usedBytes)), limit: formatBytes(storage.limitBytes) })}</p>}
+        <p className="dialog-copy">{t("uploadSelectMultiplePdfsDrag")}</p>
+        <p className="dialog-copy">{t("uploadClosingWindowStopWaiting")}</p>
+        <p className="dialog-copy">{t("uploadLeavingCloudDiskSwitching")}</p>
+      </details>
+      <p className="upload-queue-status" role="status">{uploading && t("uploadUploadingCopy")}{waiting > 0 && t("uploadQueueWaitingCount", { count: waiting })}</p>
       {queue.paused ? <p className="library-message" role="alert">
         {queue.paused === "uncertain" ? t("uploadQueueHasBeenPaused")
           : queue.paused === "quota" ? t("uploadQueueHasBeenSuspended")
@@ -79,6 +82,7 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
           {item.status === "unknown" || item.status === "success" ? <Button className="text-button" aria-label={t("uploadCheck", { name: String(item.name) })} onPress={() => { changeOpen(false); onInspect(item.name); }}>{t("uploadCheckFileLibrary")}</Button> : null}
         </li>)}
       </ul> : null}
+      {invite && <Button className="primary-button" onPress={() => { changeOpen(false); invite(); }}>{t("uploadInviteMembers")}</Button>}
     </Dialog></Modal>
   </ModalOverlay>;
 }

@@ -17,6 +17,7 @@ export function registerJoinKeyboardTests(cases) {
   for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     for (const [entry, width, height] of cases) {
       test(`${name}: ${entry} join code stays above keyboard`, async t => {
+        const inline = entry === "invite" || entry === "first-drive";
         const browser = await engine.launch(); t.after(() => browser.close());
         const page = await browser.newPage({ locale: "zh-CN", viewport: { width, height } });
         page.setDefaultTimeout(10000);
@@ -30,6 +31,9 @@ export function registerJoinKeyboardTests(cases) {
           return route.fulfill(fixture.resolve({ pathname, method: request.method(), identity: entry === "library" ? "admin" : "guest", cookie: "" }));
         });
         if (entry === "home" || entry === "landscape") {
+          await page.goto(app.origin);
+          await page.getByRole("button", { name: "输入邀请码", exact: true }).click();
+        } else if (entry === "invite") {
           await page.goto(`${app.origin}/?join=1`);
         } else if (entry === "first-drive") {
           await page.goto(`${app.origin}/drives`);
@@ -87,9 +91,9 @@ export function registerJoinKeyboardTests(cases) {
           window.visualViewport.offsetTop = 0;
           window.visualViewport.dispatchEvent(new Event("resize"));
         }, height);
-        const selector = entry === "first-drive" ? ".join-drive-panel" : ".join-drive-overlay";
-        const property = entry === "first-drive" ? "--input-keyboard-inset" : "--input-viewport-height";
-        await expect.poll(() => page.locator(selector).evaluate((element, key) => element.style.getPropertyValue(key), property)).toBe(entry === "first-drive" ? "0px" : `${height}px`);
+        const selector = inline ? ".join-drive-panel" : ".join-drive-overlay";
+        const property = inline ? "--input-keyboard-inset" : "--input-viewport-height";
+        await expect.poll(() => page.locator(selector).evaluate((element, key) => element.style.getPropertyValue(key), property)).toBe(inline ? "0px" : `${height}px`);
         if (entry === "library") {
           await page.getByRole("button", { name: "返回切换云盘", exact: true }).click();
           await page.getByRole("button", { name: "关闭云盘选择", exact: true }).click();

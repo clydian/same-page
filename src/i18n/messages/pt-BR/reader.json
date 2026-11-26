@@ -1,4 +1,7 @@
 {
+  "selectedNotesVisibleToRecipients": "As notas selecionadas serão incluídas no PDF e poderão ser vistas por quem receber o arquivo.",
+  "signInRequiredForScore": "Use uma conta que tenha acesso a esta partitura.",
+  "signInToOpenScore": "Entre para ver a partitura",
   "acceptCloudDeletion": "Aceitar a exclusão da anotação na nuvem",
   "addPersonalLayer": "+ Crie uma nova camada pessoal",
   "adoptCloudVersion": "Usar versão em nuvem",
@@ -347,7 +350,6 @@
   "selectedNoteColor": "Cor da nota selecionada",
   "selectedNoteKind": "Selecionado {label}",
   "selectedNoteProperties": "Propriedades da nota selecionada",
-  "selectingNotesToIncludeWillNotChange": "A seleção de notas a serem incluídas não altera as configurações de exibição durante a leitura.",
   "share": "Compartilhar",
   "shareContents": "Compartilhe conteúdo",
   "shareNamedLayer": "Compartilhar {name}",

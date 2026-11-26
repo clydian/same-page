@@ -181,11 +181,13 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
             if (entry === "missing") await page.goto(reader);
             else {
               await openLibrary();
-              // Cached rows can render before the fresh directory request finishes.
-              // Wait for that exact response before navigation unmounts the library.
-              const directoryResponse = page.waitForResponse(response => directoryRequest(response.request()));
-              await page.getByRole("button", { name: "本地链路测试：2 个附件", exact: true }).click();
-              const response = await directoryResponse;
+              // Expanding the row starts the directory read. Cached rows can render
+              // before it finishes, so wait for it before opening an attachment.
+              const attachments = page.getByRole("button", { name: "本地链路测试：2 个附件", exact: true });
+              const [response] = await Promise.all([
+                page.waitForResponse(response => directoryRequest(response.request())),
+                attachments.click(),
+              ]);
               assert.equal(response.status(), 200);
               await response.finished();
               stage = `${entry}:open-attachment`;

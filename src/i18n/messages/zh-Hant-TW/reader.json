@@ -1,4 +1,7 @@
 {
+  "selectedNotesVisibleToRecipients": "勾選的筆記會寫入 PDF，收到檔案的人都能看到。",
+  "signInRequiredForScore": "請用有存取權限的帳號登入。",
+  "signInToOpenScore": "登入後查看樂譜",
   "acceptCloudDeletion": "接受雲端刪除",
   "addPersonalLayer": "＋ 新建個人層",
   "adoptCloudVersion": "採用雲端版本",
@@ -347,7 +350,6 @@
   "selectedNoteColor": "所選筆記顏色",
   "selectedNoteKind": "選 {label}",
   "selectedNoteProperties": "所選筆記屬性",
-  "selectingNotesToIncludeWillNotChange": "選擇要包含的筆記，不會改變閱讀時的顯示設定。",
   "share": "分享",
   "shareContents": "分享內容",
   "shareNamedLayer": "分享 {name}",

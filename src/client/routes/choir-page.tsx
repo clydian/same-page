@@ -87,6 +87,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const [openAdmissionDisplayName, setOpenAdmissionDisplayName] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [firstScoreUpload, setFirstScoreUpload] = useState(false);
   const [quotaBlocked, setQuotaBlocked] = useState(false);
   const [exportScore, setExportScore] = useState<ScoreSummary | null>(null);
   const [attachmentSelection, setAttachmentSelection] = useState<(AttachmentSelection & { sessionId: string | null }) | null>(null);
@@ -255,6 +256,11 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
     library.prepareScoreOpen(scrollY);
     rememberReaderScore(userId ?? "guest", score);
   };
+  const openUpload = () => {
+    setFirstScoreUpload(result.scores.length === 0);
+    setUploadOpen(true);
+  };
+  const canInviteAfterUpload = firstScoreUpload && online && !access.local && can("manageInvites") && choir.guestAdmissionMode === "invite";
   const storageRatio = result.storage.usedBytes / result.storage.limitBytes;
 
   const connectionHelp = <div className="drive-connection-help">
@@ -345,14 +351,14 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
               })}
             </section>
           ) : (
-            <div className="library-empty-state">{access.retained && <BackButton className="secondary-link" to="/drives">{t("allDrives")}</BackButton>}{search.trim() ? <><p>{t("scoreSearchNoMatch", { search })}</p><Button className="secondary-button" onPress={() => updateSearch("")}>{t("choirClearSearch")}</Button></> : <><p>{access.retained ? t("choirThereNoReservedCopies") : access.local ? t("choirDirectoryMusicScoreCloud") : t("choirCloudDiskDoesNot")}</p><p>{can("uploadFiles") ? t("choirUploadFirstPdfStart") : access.isMember ? t("choirAfterMembersUploadPermission") : t("choirThereCurrentlyNoSheet")}</p>{can("uploadFiles") ? <Button className="secondary-button" onPress={() => setUploadOpen(true)}>{t("choirUploadFirstPdf")}</Button> : null}</>}</div>
+            <div className="library-empty-state">{access.retained && <BackButton className="secondary-link" to="/drives">{t("allDrives")}</BackButton>}{search.trim() ? <><p>{t("scoreSearchNoMatch", { search })}</p><Button className="secondary-button" onPress={() => updateSearch("")}>{t("choirClearSearch")}</Button></> : <><p>{access.retained ? t("choirThereNoReservedCopies") : access.local ? t("choirDirectoryMusicScoreCloud") : t("choirCloudDiskDoesNot")}</p><p>{can("uploadFiles") ? t("choirUploadFirstPdfStart") : access.isMember ? t("choirAfterMembersUploadPermission") : t("choirThereCurrentlyNoSheet")}</p>{can("uploadFiles") && <Button className="secondary-button" onPress={openUpload}>{t("choirUploadFirstPdf")}</Button>}</>}</div>
           )}
         </section>
       </main>
       </PullToRefresh>
 
       {exportScore && <Suspense fallback={<LibraryTaskLoading title={t("sharePdf")} size="tall" onClose={() => setExportScore(null)} />}><LibraryExportDialog key={`${exportScore.id}:${userId}`} score={exportScore} authenticatedUserId={userId ?? null} onClose={() => setExportScore(null)} /></Suspense>}
-      {visible("uploadFiles") && <UploadFab disabled={!online || Boolean(access.local)} onPress={() => setUploadOpen(true)} />}
+      {visible("uploadFiles") && <UploadFab disabled={!online || Boolean(access.local)} onPress={openUpload} />}
 
 
       {userId && !access.retained && visible("uploadFiles") ? <UploadDialog writable={online && !access.local && can("uploadFiles")} storage={result.storage}
@@ -361,6 +367,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         isOpen={uploadOpen}
         onOpenChange={setUploadOpen}
         onComplete={refreshAfterMutation}
+        onInvite={canInviteAfterUpload ? () => { void navigate(`/choirs/${choirId}/settings/admission`); } : undefined}
         onQuotaChange={setQuotaBlocked}
         onInspect={(fileName) => {
           updateSearch(fileName.trim());

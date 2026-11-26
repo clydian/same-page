@@ -1,4 +1,7 @@
 {
+  "selectedNotesVisibleToRecipients": "勾选的笔记会写进 PDF，收到文件的人都能看到。",
+  "signInRequiredForScore": "请用有访问权限的账号登录。",
+  "signInToOpenScore": "登录后查看乐谱",
   "acceptCloudDeletion": "接受云端删除",
   "addPersonalLayer": "＋ 新建个人层",
   "adoptCloudVersion": "采用云端版本",
@@ -347,7 +350,6 @@
   "selectedNoteColor": "所选笔记颜色",
   "selectedNoteKind": "所选{label}",
   "selectedNoteProperties": "所选笔记属性",
-  "selectingNotesToIncludeWillNotChange": "选择要包含的笔记，不会改变阅读时的显示设置。",
   "share": "分享",
   "shareContents": "分享内容",
   "shareNamedLayer": "分享 {name}",
