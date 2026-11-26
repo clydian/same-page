@@ -21,14 +21,12 @@
 .challenge-question:focus-visible { outline-offset: -3px; }
 .challenge-form { display: grid; gap: .45rem; max-width: 36rem; }
 .challenge-form label { font-weight: 600; }
-.challenge-form > label:not(:first-child), .challenge-range { margin-block-start: .55rem; }
+.challenge-form > label:not(:first-child) { margin-block-start: .55rem; }
 .challenge-form input, .challenge-form select {
   box-sizing: border-box; width: 100%; min-width: 0; min-height: 48px; padding: .5rem .75rem;
   border: 1px solid var(--line); border-radius: .6rem; background: var(--surface); color: var(--ink);
   font: inherit; font-size: max(1rem, 1em);
 }
-.challenge-range { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .75rem; }
-.challenge-range > div { display: grid; gap: .45rem; }
 .challenge-actions { margin-block: .6rem .85rem; }
 .challenge-actions button { display: inline-flex; align-items: center; gap: .45rem; min-height: 48px; }
 .challenge-error { color: var(--ui-danger, #a33535); }

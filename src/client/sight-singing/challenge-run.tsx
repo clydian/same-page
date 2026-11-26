@@ -275,7 +275,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   return <div className="challenge-run" data-phase={state.phase} data-replaying={playing}>
     <ChallengeNotation score={document.score} voice={voice} melody={melody} measure={measure} elapsed={position}
       positioned={positioned} followRun={followRun} attemptReset={attemptReset} bpm={Number(bpm.toFixed(1))} feedback={feedback}
-      onNote={canTap ? selectNote : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
+      onNote={canTap ? hit => {
+        const inside = !melody.measures.some(bar => bar.clip) || voices.some(({ voice: part, melody: phrase }) =>
+          part.track === hit.track && part.staff === hit.staff && part.voice === hit.voice &&
+          phrase.staffBeats.some(beat => beat.bar === hit.bar && beat.beatIndex === hit.beatIndex && beat.pitches.includes(hit.midi)));
+        if (inside) selectNote(hit);
+      } : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
       pitchFrames={'frames' in state ? state.frames : undefined}
       liveTrace={state.phase === 'sing' || playing} traceThrough={state.phase === 'result' ? replayTime : undefined} />
 

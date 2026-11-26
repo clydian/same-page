@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { attachmentFormat, attachmentNameSchema } from '../../src/shared/attachments';
 import {
   publishQuestionSchema, reuseQuestionSnapshotSchema, SIGHT_SINGING_SCORE_MAX_BYTES, uploadQuestionSchema,
-  type PublishedQuestion, type QuestionPublication,
+  type PublishedQuestion, type QuestionBeats, type QuestionPublication,
 } from '../../src/shared/sight-singing';
 import { AttachmentError } from '../attachments/storage';
 import { AuthorizationError } from '../auth/authorization';
@@ -24,7 +24,7 @@ const librarySource = `FROM score_attachments a JOIN scores s ON s.id = a.score_
 const columns = `id, title, score_id AS scoreId, attachment_id AS attachmentId, attachment_revision AS revision, first_visit AS first, last_visit AS last,
   version, write_id AS writeId, publication, publisher_membership_id AS publisherMembershipId, publisher_name AS publisherName`;
 const questionSelection = `SELECT q.id, q.title, q.score_id AS scoreId, q.attachment_id AS attachmentId, q.attachment_revision AS revision,
-  q.first_visit AS first, q.last_visit AS last, q.version, snapshot.name AS snapshotName,
+  q.first_visit AS first, q.last_visit AS last, v.first_beat AS firstBeat, v.last_beat AS lastBeat, q.version, snapshot.name AS snapshotName,
   v.snapshot_id AS snapshotId, v.fingerprint, q.write_id AS writeId,
   q.publication, q.publisher_membership_id AS publisherMembershipId, q.publisher_name AS publisherName
   FROM sight_singing_questions q JOIN sight_singing_question_versions v
@@ -35,8 +35,8 @@ type Source = { kind: 'library'; scoreId: string; attachmentId: string; revision
   | { kind: 'reuse' }
   | { kind: 'upload'; file: File };
 type Publication = { title: string; first: number; last: number; expectedVersion: number | null; expectedEditToken?: string;
-  publication?: QuestionPublication; source: Source };
-type QuestionRow = Omit<PublishedQuestion, 'snapshot' | 'publisher' | 'canEdit'> & {
+  publication?: QuestionPublication; source: Source } & QuestionBeats;
+type QuestionRow = Omit<PublishedQuestion, 'snapshot' | 'publisher' | 'canEdit' | keyof QuestionBeats> & QuestionBeats & {
   snapshotName: string | null; snapshotId: string | null; fingerprint: string | null; writeId: string | null;
   publication: QuestionPublication; publisherMembershipId: string | null; publisherName: string | null;
 };
@@ -50,10 +50,11 @@ const canEdit = (row: Pick<QuestionRow, 'publication' | 'publisherMembershipId'>
 
 function serialize({ snapshotName, writeId, ...row }: QuestionRow, actor: Actor) {
   if (!snapshotName || !writeId) throw new Error('published_question_snapshot_missing');
-  const { id, title, scoreId, attachmentId, revision, first, last, version } = row;
+  const { id, title, scoreId, attachmentId, revision, first, last, firstBeat, lastBeat, version } = row;
   const publisher = row.publication === 'official' ? { kind: 'official' }
     : { kind: 'member', name: row.publisherName ?? '', own: row.publisherMembershipId === actor.id };
   return { id, title, scoreId, attachmentId, revision, first, last, version,
+    ...(firstBeat != null && { firstBeat }), ...(lastBeat != null && { lastBeat }),
     snapshot: { name: snapshotName, editToken: writeId }, publisher, canEdit: canEdit(row, actor) };
 }
 
@@ -137,7 +138,8 @@ async function initializeSource(context: Context<AppEnvironment>, choirId: strin
   } else if (source.kind === 'library') {
     provenance = ['library', source.scoreId, source.attachmentId, source.revision];
   } else provenance = ['reuse', input.expectedVersion];
-  const fingerprint = JSON.stringify([title, first, last, input.expectedEditToken ?? null, provenance]);
+  const beats = input.firstBeat != null || input.lastBeat != null ? [input.firstBeat ?? null, input.lastBeat ?? null] : [];
+  const fingerprint = JSON.stringify([title, first, last, input.expectedEditToken ?? null, provenance, ...beats]);
   return {
     fingerprint,
     load: async () => {
@@ -216,22 +218,29 @@ sightSingingRoutes.put(`${base}/:id`, async context => {
   const version = (expectedVersion ?? 0) + 1;
   const conflict = () => context.json({ error: 'question_conflict' }, 409);
   const current = await readCurrent(db, choirId, id.data);
+  // Older clients omit both fields. Reusing the same endpoint preserves its beat.
+  const firstBeat = input.firstBeat === undefined && source.kind === 'reuse' && current?.first === first
+    ? current.firstBeat ?? null : input.firstBeat ?? null;
+  const lastBeat = input.lastBeat === undefined && source.kind === 'reuse' && current?.last === last
+    ? current.lastBeat ?? null : input.lastBeat ?? null;
+  if (first === last && lastBeat !== null && (firstBeat ?? 1) > lastBeat) return context.json({ error: 'invalid_question' }, 400);
   const publication = current?.publication ?? input.publication ?? 'member';
   if ((current && !canEdit(current, actor)) || (publication === 'official' && !actor.canPublishOfficial)) throw new AuthorizationError();
   if (input.publication && input.publication !== publication) return conflict();
-  const { fingerprint, load } = await initializeSource(context, choirId, input);
+  const { fingerprint, load } = await initializeSource(context, choirId, { ...input, firstBeat, lastBeat });
   if (current?.version === version && current.fingerprint === fingerprint) return context.json({ question: serialize(current, actor) });
   if ((current?.version ?? null) !== expectedVersion) return conflict();
   const memberPermission = 'EXISTS (SELECT 1 FROM membership_capabilities WHERE id = ?)';
   const permission = `${publication === 'official' ? operationPredicate(publishPermission) : memberPermission} AND ${activeDrive}`;
   const permissionValues = [member.id, choirId];
-  if (source.kind === 'reuse' && current?.snapshotName && current.first === first && current.last === last) {
+  if (source.kind === 'reuse' && current?.snapshotName && current.first === first && current.last === last &&
+      (current.firstBeat ?? null) === firstBeat && (current.lastBeat ?? null) === lastBeat) {
     // A different title leaves the exercise and its published results on the same version.
     if (current.title === title) return context.json({ question: serialize(current, actor) });
     const renamed = await db.prepare(`UPDATE sight_singing_questions SET title = ?, write_id = ?
       WHERE choir_id = ? AND id = ? AND version = ? AND write_id = ? AND ${permission} RETURNING ${columns}`)
       .bind(title, crypto.randomUUID(), choirId, id.data, expectedVersion, expectedEditToken ?? null, ...permissionValues).first<QuestionRow>();
-    return renamed ? context.json({ question: serialize({ ...renamed, snapshotName: current.snapshotName }, actor) }) : conflict();
+    return renamed ? context.json({ question: serialize({ ...renamed, firstBeat, lastBeat, snapshotName: current.snapshotName }, actor) }) : conflict();
   }
   if (current && current.writeId !== expectedEditToken) return conflict();
 
@@ -281,13 +290,13 @@ sightSingingRoutes.put(`${base}/:id`, async context => {
     const [question] = (await db.batch<QuestionRow>([
       ...(reserved ? [db.prepare('UPDATE sight_singing_score_snapshots SET etag = ? WHERE choir_id = ? AND id = ? AND etag IS NULL').bind(etag, choirId, reserved.id)] : []),
       update,
-      db.prepare(`INSERT INTO sight_singing_question_versions(choir_id, question_id, version, snapshot_id, title, first_visit, last_visit, fingerprint)
-        SELECT choir_id, id, version, ?, title, first_visit, last_visit, ? FROM sight_singing_questions WHERE choir_id = ? AND id = ? AND write_id = ?`)
-        .bind(snapshotId, fingerprint, choirId, id.data, writeId),
+      db.prepare(`INSERT INTO sight_singing_question_versions(choir_id, question_id, version, snapshot_id, title, first_visit, last_visit, fingerprint, first_beat, last_beat)
+        SELECT choir_id, id, version, ?, title, first_visit, last_visit, ?, ?, ? FROM sight_singing_questions WHERE choir_id = ? AND id = ? AND write_id = ?`)
+        .bind(snapshotId, fingerprint, firstBeat, lastBeat, choirId, id.data, writeId),
     ])).at(-2)!.results;
     if (question) {
       reserved = undefined;
-      return context.json({ question: serialize({ ...question, snapshotName }, actor) });
+      return context.json({ question: serialize({ ...question, firstBeat, lastBeat, snapshotName }, actor) });
     }
     const committed = await readCurrent(db, choirId, id.data);
     return committed?.version === version && committed.publication === publication && canEdit(committed, actor) && committed.fingerprint === fingerprint

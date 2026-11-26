@@ -1,40 +1,56 @@
-import { AlphaTabApi, LayoutMode, NotationElement, PlayerMode, StaveProfile, type rendering } from '@coderline/alphatab';
-import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
+import type { QuestionBeats } from '../../shared/sight-singing';
 import { MeasureRangeSlider } from '../playback/measure-range-slider';
-import type { MelodyScore } from './melody';
+import { beatsInVisit, type MelodyScore } from './melody';
+import { QuestionRangeScore } from './question-range-score';
 import './question-range-editor.css';
 
 type Props = {
   document: MelodyScore;
   first: number;
   last: number;
+  beats: QuestionBeats;
   disabled: boolean;
   formatMeasure(visit: number): string;
-  onRangeChange(first: number, last: number): void;
+  onRangeChange(first: number, last: number, beats: QuestionBeats): void;
 };
+type Drag = { pointerId: number; endpoint?: number; draft?: number[]; cancelled?: boolean };
 
-type Drag = { pointerId: number; draft?: number[]; cancelled?: boolean };
-
-export function QuestionRangeEditor({ document, first, last, disabled, formatMeasure, onRangeChange }: Props) {
+export function QuestionRangeEditor({ document, first, last, beats, disabled, formatMeasure, onRangeChange }: Props) {
   const t = useMessages('practice');
   const id = useId();
   const [draft, setDraft] = useState<number[] | null>(null);
   const [endpoint, setEndpoint] = useState(0);
   const drag = useRef<Drag | null>(null);
   const range = draft ?? [first, last];
+  const lastVisit = document.bars.length - 1;
+  const count = (visit: number) => document.bars[visit] ? Math.max(1, beatsInVisit(document.bars[visit])) : 1;
+  const fitBeats = ([start, end]: number[], moved: number): QuestionBeats => {
+    let firstBeat = beats.firstBeat == null ? null : Math.min(beats.firstBeat, count(start));
+    let lastBeat = beats.lastBeat == null ? null : Math.min(beats.lastBeat, count(end));
+    if (start === end && firstBeat != null && lastBeat != null && firstBeat > lastBeat) {
+      if (moved === 0) firstBeat = lastBeat;
+      else lastBeat = firstBeat;
+    }
+    return { firstBeat, lastBeat };
+  };
+  const applyMeasures = (value: number[], moved: number) => onRangeChange(value[0], value[1], fitBeats(value, moved));
+  const previewBeats = draft ? fitBeats(draft, endpoint) : beats;
   const cancel = useCallback(() => {
     if (!drag.current) return;
     drag.current.cancelled = true;
     setDraft(null);
   }, []);
-  const commit = useEffectEvent((value: number[]) => onRangeChange(value[0], value[1]));
+  const commit = useEffectEvent(applyMeasures);
   useEffect(() => {
     const finish = (event: PointerEvent) => {
       const active = drag.current;
       if (active?.pointerId !== event.pointerId) return;
       drag.current = null;
-      if (event.type === 'pointerup' && !active.cancelled && active.draft) commit(active.draft);
+      if (event.type === 'pointerup' && !active.cancelled && active.draft && active.endpoint !== undefined) {
+        commit(active.draft, active.endpoint);
+      }
       setDraft(null);
     };
     window.addEventListener('pointerup', finish, true);
@@ -47,94 +63,75 @@ export function QuestionRangeEditor({ document, first, last, disabled, formatMea
     };
   }, [cancel]);
 
+  const start = formatMeasure(range[0]), end = formatMeasure(range[1]);
+  const label = (measure: string, beat?: number | null, includesBeat = false) =>
+    beat == null ? measure : `${measure} · ${t(includesBeat ? 'sight.throughBeat' : 'sight.beatNumber', { beat })}`;
+  const summary = range[0] === range[1] && previewBeats.firstBeat == null && previewBeats.lastBeat == null ? start
+    : t('measureRange', { start: label(start, previewBeats.firstBeat), end: label(end, previewBeats.lastBeat, true) });
+  const editStart = endpoint === 0, visit = editStart ? first : last;
+  const beat = editStart ? beats.firstBeat ?? 1 : beats.lastBeat ?? count(last);
+  const measureLimits = editStart ? [0, last] : [first, lastVisit];
+  const beatLimits = [!editStart && first === last ? beats.firstBeat ?? 1 : 1,
+    editStart && first === last ? beats.lastBeat ?? count(visit) : count(visit)];
+  const stepMeasure = (delta: number) => applyMeasures(editStart ? [first + delta, last] : [first, last + delta], endpoint);
+  const stepBeat = (delta: number) => {
+    const next = beat + delta;
+    onRangeChange(first, last, editStart ? { ...beats, firstBeat: next === 1 ? null : next }
+      : { ...beats, lastBeat: next === count(last) ? null : next });
+  };
+  const steps = [
+    { value: visit, limits: measureLimits, text: formatMeasure(visit), previous: t('previousMeasure'), next: t('nextMeasure'), step: stepMeasure },
+    { value: beat, limits: beatLimits, text: t(editStart ? 'sight.beatNumber' : 'sight.throughBeat', { beat }),
+      previous: t('sight.previousBeat'), next: t('sight.nextBeat'), step: stepBeat },
+  ];
+
   return <section className="challenge-range-editor" aria-labelledby={id}>
     <h2 id={id}>{t('sight.measureRange')}</h2>
-    <p className="challenge-range-summary" role="status">{range[0] === range[1] ? formatMeasure(range[0])
-      : t('measureRange', { start: formatMeasure(range[0]), end: formatMeasure(range[1]) })}</p>
+    <p className="challenge-range-summary" role="status">{summary}</p>
     {document.visits.length > 1 && <div
       onPointerDownCapture={event => {
         if (disabled || !event.isPrimary || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey) return;
-        drag.current = { pointerId: event.pointerId };
+        const thumb = (event.target as Element).closest('[data-loop-endpoint]');
+        const target = thumb ? Number(thumb.getAttribute('data-loop-endpoint')) : undefined;
+        drag.current = { pointerId: event.pointerId, endpoint: target };
+        if (target !== undefined) setEndpoint(target);
       }}
       onKeyDownCapture={event => {
         if (event.key === 'Escape' && drag.current) { event.preventDefault(); event.stopPropagation(); cancel(); }
       }}>
       <MeasureRangeSlider label={t('sight.measureRange')} endpoints={[t('sight.first'), t('sight.last')]}
-        max={document.visits.length - 1} value={range} disabled={disabled} formatMeasure={formatMeasure}
-        onFocusEndpoint={setEndpoint} onChange={value => {
+        max={lastVisit} value={range} disabled={disabled} separateTargets formatMeasure={formatMeasure}
+        onFocusEndpoint={index => {
+          const active = drag.current;
+          if (active?.cancelled || active?.endpoint !== undefined && active.endpoint !== index) return;
+          if (active) active.endpoint = index;
+          setEndpoint(index);
+        }}
+        onChange={value => {
           const active = drag.current;
           if (active?.cancelled) return;
-          setEndpoint(value[0] !== (active?.draft?.[0] ?? first) ? 0 : 1);
-          if (active) { active.draft = value; setDraft(value); }
-          else onRangeChange(value[0], value[1]);
+          const previous = active?.draft ?? [first, last];
+          const moved = value[0] !== previous[0] ? 0 : value[1] !== previous[1] ? 1 : null;
+          if (moved === null || active?.endpoint !== undefined && active.endpoint !== moved) return;
+          setEndpoint(moved);
+          if (active) { active.endpoint = moved; active.draft = value; setDraft(value); }
+          else applyMeasures(value, moved);
         }} />
     </div>}
-    <QuestionRangeScore document={document} first={range[0]} last={range[1]} active={range[endpoint]} />
-    <div className="challenge-range">
-      <div><label htmlFor={`${id}-first`}>{t('sight.first')}</label>
-        <select id={`${id}-first`} name="first" value={first} disabled={disabled} onChange={event => {
-          const next = Number(event.target.value);
-          setEndpoint(0); onRangeChange(next, Math.max(next, last));
-        }}>
-          {document.visits.map((_, index) => <option key={index} value={index}>{formatMeasure(index)}</option>)}
-        </select></div>
-      <div><label htmlFor={`${id}-last`}>{t('sight.last')}</label>
-        <select id={`${id}-last`} name="last" value={last} disabled={disabled} onChange={event => {
-          setEndpoint(1); onRangeChange(first, Number(event.target.value));
-        }}>
-          {document.visits.map((_, index) => index >= first && <option key={index} value={index}>{formatMeasure(index)}</option>)}
-        </select></div>
-    </div>
+    <QuestionRangeScore document={document} first={range[0]} last={range[1]} active={range[endpoint]} beats={previewBeats} />
+    <details className="challenge-range-advanced">
+      <summary>{t('sight.rangeAdvanced')}</summary>
+      <div className="challenge-range-tune">
+        <div className="challenge-range-endpoints" role="group" aria-label={t('adjustByMeasure')}>
+          {[t('startA'), t('endB')].map((name, index) => <button key={name} type="button"
+            aria-pressed={endpoint === index} disabled={disabled} onClick={() => setEndpoint(index)}>{name}</button>)}
+        </div>
+        {steps.map(({ value, limits, text, previous, next, step }) => <div key={previous} className="challenge-range-step">
+          <button type="button" aria-label={previous} disabled={disabled || value <= limits[0]} onClick={() => step(-1)}>−</button>
+          <output>{text}</output>
+          <button type="button" aria-label={next} disabled={disabled || value >= limits[1]} onClick={() => step(1)}>+</button>
+        </div>)}
+      </div>
+    </details>
   </section>;
-}
-
-function QuestionRangeScore({ document, first, last, active }: {
-  document: MelodyScore; first: number; last: number; active: number;
-}) {
-  const t = useMessages('practice');
-  const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState<rendering.BoundsLookup | null>(null);
-  const { score, bars } = document;
-  // Repeats share printed geometry, while the form still selects distinct playback visits.
-  const selected = useMemo(() => new Set(bars.slice(first, last + 1).map(bar => bar.masterBar.index)), [bars, first, last]);
-  const activeBar = bars[active]?.masterBar.index;
-
-  useEffect(() => {
-    if (!notation.current) return;
-    const api = new AlphaTabApi(notation.current, {
-      core: { fontDirectory: '/font/', engine: 'svg' },
-      display: { scale: .8, layoutMode: LayoutMode.Page, staveProfile: StaveProfile.Score, justifyLastSystem: true },
-      player: { playerMode: PlayerMode.Disabled, enableUserInteraction: false },
-    });
-    api.settings.notation.elements.set(NotationElement.ScoreTitle, false);
-    api.settings.notation.elements.set(NotationElement.ScoreSubTitle, false);
-    api.updateSettings();
-    const update = () => setLayout(api.boundsLookup ?? null);
-    api.postRenderFinished.on(update);
-    api.renderScore(score, score.tracks.map(track => track.index));
-    return () => { api.postRenderFinished.off(update); api.destroy(); };
-  }, [score]);
-
-  useLayoutEffect(() => {
-    const host = viewport.current;
-    const bounds = activeBar === undefined ? undefined : layout?.findMasterBarByIndex(activeBar)?.realBounds;
-    if (!host || !bounds) return;
-    const { scrollTop, scrollLeft, clientHeight, clientWidth } = host;
-    if (bounds.y < scrollTop || bounds.y + bounds.h > scrollTop + clientHeight) {
-      host.scrollTop = bounds.y - Math.max(0, (clientHeight - bounds.h) / 2);
-    }
-    if (bounds.x < scrollLeft || bounds.x + bounds.w > scrollLeft + clientWidth) host.scrollLeft = bounds.x;
-  }, [layout, activeBar]);
-
-  return <div ref={viewport} className="challenge-range-notation" role="region" tabIndex={0} aria-label={t('sight.notation')}>
-    <div className="challenge-range-sheet" aria-hidden="true">
-      <div ref={notation} />
-      {layout?.staffSystems.flatMap(system => system.bars.map(bar => {
-        if (!selected.has(bar.index)) return null;
-        const { x, y, w, h } = bar.realBounds;
-        return <span key={bar.index} className="challenge-range-highlight" data-bar={bar.index}
-          data-active={bar.index === activeBar || undefined} style={{ left: x, top: y, width: w, height: h }} />;
-      }))}
-    </div>
-  </div>;
 }

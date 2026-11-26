@@ -282,3 +282,31 @@ it('counts on input samples and captures exactly the selected duration without c
   expect(messages[0]).toEqual({ count: 1 });
   expect(Array.from(messages[1].samples ?? [])).toEqual([8, 9, 10]);
 });
+
+it('crops inclusive beats on each expanded visit and never attacks a tie carried in from before the crop', () => {
+  const { document, melody } = melodyOf();
+  const { voices } = document;
+  expect(buildMelody(document, voices[0], 0, 4, { firstBeat: null, lastBeat: null })).toEqual(melody);
+  expect(buildMelody(document, voices[0], 0, 0, { firstBeat: 2 })).toBe('noMelody');
+  expect(buildMelody(document, voices[0], 1, 1, { firstBeat: 2, lastBeat: 1 })).toBe('noMelody');
+
+  const throughFirstBeat = buildMelody(document, voices[0], 3, 3, { lastBeat: 1 }) as Melody;
+  expect(throughFirstBeat.notes).toEqual([{ midi: 60, start: 0, end: throughFirstBeat.duration, visit: 3, bar: 1, beatIndex: 0 }]);
+  expect(throughFirstBeat.clicks).toEqual([{ time: 0, accent: 2 }]);
+  expect(throughFirstBeat.measures[0].clip).toEqual({ from: 0, until: 960 });
+  const carryIn = buildMelody(document, voices[0], 1, 2, { firstBeat: 2 }) as Melody;
+  expect(carryIn.notes).toEqual([{ midi: 67, start: 2, end: 3, visit: 2, bar: 2, beatIndex: 1 }]);
+  expect(carryIn.staffBeats[0]).toMatchObject({ start: 0, end: 1, pitches: [] });
+  expect(carryIn.tempo).toEqual({ bpm: 60, unit: 1 });
+  const alto = buildMelody(document, voices[1], 1, 2, { firstBeat: 2 }) as Melody;
+  expect(alto).toMatchObject({ duration: 3, notes: [{ midi: 64, start: 0, end: 1 }, { midi: 65, start: 1, end: 2 }, { midi: 62, start: 2, end: 3 }] });
+  expect(melodyAtSpeed(carryIn, .5)).toMatchObject({ duration: 6, notes: [{ start: 4, end: 6 }] });
+
+  const sixteenth = (step: string) => `<note>${pitch(step)}<duration>1</duration><type>16th</type></note>`;
+  const compound = loadMelodyScore(bytes(`<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Soprano</part-name></score-part></part-list>
+    <part id="P1"><measure number="1"><attributes><divisions>4</divisions><time><beats>6</beats><beat-type>8</beat-type></time></attributes>
+    <direction><sound tempo="120"/></direction>${'CDEFGACDEFGC'.split('').map(sixteenth).join('')}</measure></part></score-partwise>`));
+  const firstEighthBeat = buildMelody(compound, compound.voices[0], 0, 0, { lastBeat: 1 }) as Melody;
+  expect(firstEighthBeat.notes.map(({ midi, start, end }) => [midi, start, end])).toEqual([[60, 0, .125], [62, .125, .25]]);
+  expect(firstEighthBeat.duration).toBe(.25);
+});
