@@ -276,7 +276,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       pitchFrames={'frames' in state ? state.frames : undefined}
       liveTrace={state.phase === 'sing' || playing} traceThrough={state.phase === 'result' ? replayTime : undefined} />
 
-    {state.phase === 'idle' && <div className="challenge-setup">
+    {pitchTraceEnabled && <PitchGraph key={voice.id} melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
+      following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
+
+    {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
+    {audioHint && <p className="challenge-save-status" role="status">{t('audioHint')}</p>}
+    {state.phase === 'idle' && <div className="challenge-controls challenge-setup">
       {headphones && <div className="challenge-headphones">
         <span role="status"><Headphones size={17} aria-hidden="true" />{t('sight.audioGuidance')}</span>
         <button type="button" className="text-button" aria-label={t('sight.dismissAudioHint')} onClick={() => setHeadphones(false)}>
@@ -312,7 +317,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       <button className="primary-button challenge-start" type="button" onClick={start}><Mic size={18} aria-hidden="true" />{t('sight.start')}</button>
     </div>}
 
-    {recording && <div className="challenge-transport">
+    {recording && <div className="challenge-controls challenge-transport">
       <div className="challenge-stage" role="status">
         {state.phase === 'count' ? t('sight.count', { count: state.count }) : state.phase === 'permission' ? t('sight.waitingMicrophone') : t('sight.singNow')}
         {state.phase === 'count' && <div className="challenge-count" aria-hidden="true">
@@ -325,7 +330,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       <button className="secondary-button challenge-stop" type="button" onClick={reset}><Square size={15} aria-hidden="true" />{t('sight.stop')}</button>
     </div>}
 
-    {state.phase === 'result' && <section ref={reviewSection} tabIndex={-1} className="challenge-result" aria-label={t('sight.review')}>
+    {state.phase === 'result' && <section ref={reviewSection} tabIndex={-1} className="challenge-controls challenge-result" aria-label={t('sight.review')}>
       <div className="challenge-score">
         <ScoreBadges perfect={state.score.perfect} writtenOctave={state.score.writtenOctave} size={22} />
         <strong>{state.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(state.score.percent) })}</strong>
@@ -361,12 +366,6 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         setDismissedStanding(standing.id);
         requestAnimationFrame(() => reviewSection.current?.focus({ preventScroll: true }));
       }} />}
-
-    {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
-    {audioHint && <p className="challenge-save-status" role="status">{t('audioHint')}</p>}
-    {pitchTraceEnabled && (state.phase === 'count' || state.phase === 'sing' || state.phase === 'result') &&
-      <PitchGraph melody={melody} frames={'frames' in state ? state.frames : emptyFrames} elapsed={position}
-        following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
 
   </div>;
 }

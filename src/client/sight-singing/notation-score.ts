@@ -1,7 +1,6 @@
 import { model, Settings } from '@coderline/alphatab';
 import type { MelodyVoice } from './melody';
 
-export type ScoreView = 'line' | 'part' | 'full';
 export type Part = Pick<MelodyVoice, 'track' | 'staff' | 'voice'>;
 
 export const samePart = (a: Part, b: Part) => a.track === b.track && a.staff === b.staff && a.voice === b.voice;

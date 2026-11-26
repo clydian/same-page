@@ -1,22 +1,21 @@
-.challenge-score-view { position: relative; min-width: 0; }
+.challenge-score-view {
+  position: relative; display: flex; flex-direction: column; flex: 1;
+  min-inline-size: 0; min-block-size: 0;
+}
 .challenge-notation-tools {
-  display: flex; justify-content: space-between; align-items: center; gap: .5rem;
-  padding-inline: .75rem; background: var(--score-paper);
+  display: grid; grid-template-columns: auto repeat(2, minmax(0, max-content)); align-items: center;
+  gap: .3rem; padding-inline: .5rem; background: var(--score-paper);
 }
 .challenge-notation-tools select {
-  max-inline-size: 75%; min-block-size: 44px; font: inherit; font-size: 1rem;
-  color: var(--ink); border: 0; background: transparent; cursor: pointer;
+  min-inline-size: 0; max-inline-size: 100%; min-block-size: 44px; font: inherit; font-size: 1rem;
+  color: var(--ink); border: 0; background: transparent; cursor: pointer; text-overflow: ellipsis;
 }
-.challenge-notation.challenge-ensemble-score {
-  max-block-size: calc(clamp(17rem, 54svh, 32rem) - 44px);
-  scroll-padding-block: 10px;
+.challenge-notation { scroll-padding-block: 10px; }
+[data-scroll-direction="horizontal"] .challenge-notation { direction: ltr; }
+[data-scroll-direction="horizontal"] .challenge-notation-sheet {
+  inline-size: max-content; min-inline-size: 100%;
 }
-[data-score-view="line"] .challenge-notation {
-  min-block-size: 10rem; direction: ltr;
-}
-[data-score-view="line"] .challenge-notation-sheet { inline-size: max-content; min-inline-size: 100%; }
-.challenge-ensemble-score .challenge-notation-sheet { flex-shrink: 0; }
-.challenge-ensemble-score .challenge-notation-sheet > :first-child { pointer-events: none; }
+.challenge-notation-sheet > :first-child { pointer-events: none; }
 .challenge-score-cursor, .challenge-current-measure { position: absolute; pointer-events: none; }
 .challenge-score-cursor { z-index: 1; background: var(--score-cursor); }
 .challenge-current-measure { background: var(--score-focus); }

@@ -3,7 +3,7 @@ import { isPointerDrag, ScoreFollowSession, type PointerPosition } from '@same-p
 import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useMessages } from '../../i18n';
 import type { Melody, MelodyMeasure, MelodyScore, MelodyVoice } from './melody';
-import { notationScore, samePart, type Part, type ScoreView } from './notation-score';
+import { notationScore, samePart, type Part } from './notation-score';
 import { formatCents, pitchName, type assessNotes, type PitchFrame } from './pitch-feedback';
 import { ScorePitchTrace } from './score-pitch-trace';
 import './challenge-notation.css';
@@ -14,20 +14,21 @@ export type NotationFeedback = {
   status: ReturnType<typeof assessNotes>[number]['status']; cents: number | null;
 };
 type Bounds = { x: number; y: number; w: number; h: number };
+type ScrollDirection = 'vertical' | 'horizontal';
 type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; system: Bounds; label: string; singleStem: boolean };
 type Geometry = {
-  score: MelodyScore['score']; view: ScoreView; lookup: rendering.BoundsLookup; notes: NoteTarget[];
+  score: MelodyScore['score']; direction: ScrollDirection; lookup: rendering.BoundsLookup; notes: NoteTarget[];
 };
 
 const centerX = (bounds: Bounds) => bounds.x + bounds.w / 2;
 const centerY = (bounds: Bounds) => bounds.y + bounds.h / 2;
 
-function buildGeometry(api: AlphaTabApi, score: Geometry['score'], view: ScoreView): Geometry | null {
+function buildGeometry(api: AlphaTabApi, score: Geometry['score'], direction: ScrollDirection): Geometry | null {
   const lookup = api.boundsLookup;
   if (!lookup) return null;
   const notes: NoteTarget[] = [];
   // Horizontal rendering reports the same system for each lazy SVG partial.
-  const systems = view === 'line' ? lookup.staffSystems.slice(0, 1) : lookup.staffSystems;
+  const systems = direction === 'horizontal' ? lookup.staffSystems.slice(0, 1) : lookup.staffSystems;
   for (const system of systems) for (const master of system.bars) for (const bar of master.bars) {
     for (const { beat, notes: heads } of bar.beats) {
       // Worker-deserialized BarBounds does not carry a bar model reference.
@@ -42,7 +43,7 @@ function buildGeometry(api: AlphaTabApi, score: Geometry['score'], view: ScoreVi
       }
     }
   }
-  return { score, view, lookup, notes };
+  return { score, direction, lookup, notes };
 }
 
 const NotationButtons = memo(function NotationButtons({ notes, voice, results, onNote }: {
@@ -185,15 +186,16 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const autoScroll = useRef<PointerPosition | null>(null);
   const [scrollIntent] = useState(() => new ScoreFollowSession());
   const [paused, setPaused] = useState<string>();
-  const [view, setView] = useState<ScoreView>('line');
-  const followKey = `${followRun}:${view}`;
+  const [scope, setScope] = useState<'part' | 'full'>('part');
+  const [direction, setDirection] = useState<ScrollDirection>('vertical');
+  const horizontal = direction === 'horizontal';
+  const followKey = `${followRun}:${scope}:${direction}`;
   const manual = paused === followKey;
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const played = useMemo(() => new Set(melody.measures.map(bar => bar.bar)), [melody.measures]);
   const min = Math.min(...played), max = Math.max(...played);
-  const full = view === 'full';
-  const display = useMemo(() => notationScore(score, voice, full, min, max), [score, voice, full, min, max]);
-  const rendered = geometry?.score === display.score && geometry.view === view ? geometry : null;
+  const display = useMemo(() => notationScore(score, voice, scope === 'full', min, max), [score, voice, scope, min, max]);
+  const rendered = geometry?.score === display.score && geometry.direction === direction ? geometry : null;
   const notes = useMemo(() => rendered?.notes.filter(note => played.has(note.bar)) ?? [], [played, rendered]);
   const currentVisit = measure.visit;
   const { results, tinted, labels } = useMemo(() => {
@@ -218,7 +220,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     const api = new AlphaTabApi(element, {
       core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
       display: { scale: .92, startBar: min + 1, barCount: max - min + 1, justifyLastSystem: true,
-        layoutMode: view === 'line' ? LayoutMode.Horizontal : LayoutMode.Page, stretchForce: view === 'line' ? 1.5 : 1,
+        layoutMode: horizontal ? LayoutMode.Horizontal : LayoutMode.Page, stretchForce: horizontal ? 1.5 : 1,
         staveProfile: StaveProfile.Score,
         resources: { secondaryGlyphColor: '#000000' } },
       player: { playerMode: PlayerMode.Disabled, enableUserInteraction: false },
@@ -227,11 +229,11 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     api.settings.notation.elements.set(NotationElement.ScoreSubTitle, false);
     api.settings.notation.elements.set(NotationElement.EffectTempo, false);
     api.updateSettings();
-    const update = () => setGeometry(buildGeometry(api, display.score, view));
+    const update = () => setGeometry(buildGeometry(api, display.score, direction));
     api.postRenderFinished.on(update);
     api.renderScore(display.score, display.tracks);
     return () => { api.postRenderFinished.off(update); api.destroy(); };
-  }, [display, min, max, view]);
+  }, [display, min, max, direction, horizontal]);
 
   useEffect(() => {
     const element = notation.current;
@@ -273,7 +275,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       const staff = item.beats[0]?.beat.voice.bar.staff;
       return staff?.track.index === display.part.track && staff.index === display.part.staff;
     })?.realBounds;
-    if (!row || view !== 'line') return { row };
+    if (!row || !horizontal) return { row };
     const staff = display.score.tracks[display.part.track].staves[display.part.staff];
     const beats = staff.bars[measure.bar].voices[display.part.voice]?.beats;
     const anchors = melody.staffBeats.filter(beat => beat.visit === measure.visit).flatMap(beat => {
@@ -284,7 +286,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     if (!anchors.length || anchors[0].time > measure.start) anchors.unshift({ time: measure.start, x: row.x });
     anchors.push({ time: measure.end, x: row.x + row.w });
     return { row, anchors };
-  }, [positioned, rendered, measure, display, view, melody.staffBeats]);
+  }, [positioned, rendered, measure, display, horizontal, melody.staffBeats]);
   const nextAnchor = anchors?.findIndex(anchor => anchor.time > elapsed) ?? -1;
   const from = nextAnchor === -1 ? anchors?.at(-1) : anchors?.[Math.max(0, nextAnchor - 1)];
   const to = anchors?.[nextAnchor];
@@ -302,33 +304,40 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     if (cursor !== undefined) {
       const left = sheet.left + cursor * scale - frame.left - host.clientWidth * .32;
       host.scrollLeft = Math.max(0, host.scrollLeft + left);
-    } else {
-      const system = rendered?.lookup.findMasterBarByIndex(measure.bar)?.staffSystemBounds?.realBounds;
-      const vertical = system && system.h * scale + 20 <= host.clientHeight ? system : row;
-      const top = sheet.top + vertical.y * scale, bottom = top + vertical.h * scale;
-      if (top < frame.top || bottom > frame.bottom) host.scrollTop += top - frame.top - 10;
     }
+    const system = rendered?.lookup.findMasterBarByIndex(measure.bar)?.staffSystemBounds?.realBounds;
+    const vertical = system && system.h * scale + 20 <= host.clientHeight ? system : row;
+    const top = sheet.top + vertical.y * scale, bottom = top + vertical.h * scale;
+    if (top < frame.top || bottom > frame.bottom) host.scrollTop += top - frame.top - 10;
     autoScroll.current = { x: host.scrollLeft, y: host.scrollTop };
   }, [cursor, followKey, manual, measure.bar, positioned, rendered, row, scrollIntent]);
 
   const noteScrollIntent = () => scrollIntent.noteManualScrollIntent(performance.now());
+  const resetScoreScroll = () => {
+    scrollIntent.restore();
+    setPaused(undefined);
+    viewport.current?.scrollTo(0, 0);
+  };
 
-  return <div className="challenge-score-view" data-score-view={view}>
+  return <div className="challenge-score-view" data-score-scope={scope} data-scroll-direction={direction}>
     <div className="challenge-notation-tools">
       <span className="challenge-notation-tempo" aria-label={t('adjustedTempo', { beat: '♩', bpm: String(bpm) })}>♩ = {bpm}</span>
-      <select aria-label={t('sight.scoreView')} value={view} onChange={event => {
-        scrollIntent.restore();
-        setPaused(undefined);
-        viewport.current?.scrollTo(0, 0);
-        setView(event.target.value as ScoreView);
+      <select aria-label={t('sight.scoreScope')} value={scope} onChange={event => {
+        resetScoreScroll();
+        setScope(event.target.value === 'full' ? 'full' : 'part');
       }}>
-        <option value="line">{t('sight.scoreLine')}</option>
         <option value="part">{t('sight.scorePart')}</option>
         <option value="full">{t('sight.scoreFull')}</option>
       </select>
+      <select aria-label={t('sight.scoreScroll')} value={direction} onChange={event => {
+        resetScoreScroll();
+        setDirection(event.target.value === 'horizontal' ? 'horizontal' : 'vertical');
+      }}>
+        <option value="vertical">{t('sight.scrollVertical')}</option>
+        <option value="horizontal">{t('sight.scrollHorizontal')}</option>
+      </select>
     </div>
-    <div ref={viewport} className="challenge-notation challenge-ensemble-score" role="group" aria-label={t('sight.notation')}
-    tabIndex={view === 'line' ? 0 : undefined}
+    <div ref={viewport} className="challenge-notation" role="group" aria-label={t('sight.notation')} tabIndex={0}
     onWheel={noteScrollIntent}
     onKeyDown={event => {
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) noteScrollIntent();
