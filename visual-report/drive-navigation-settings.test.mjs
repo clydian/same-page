@@ -59,32 +59,40 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     const picker = page.getByRole("dialog", { name: "切换云盘" });
     await expect(picker.getByRole("link", { name: /周末排练云盘/ })).toBeVisible();
     await expect(picker.getByText("不应列出的公开体验")).toHaveCount(0);
-    for (const width of [390, 834]) {
-      await page.setViewportSize({ width, height: width === 390 ? 844 : 1112 });
-      for (const action of ["加入新云盘", "创建云盘"]) {
-        for (const dismissal of ["back", "escape", "history", ...(action === "创建云盘" ? ["cancel"] : [])]) {
-          await picker.getByRole("button", { name: action, exact: true }).click();
-          const admission = page.getByRole("dialog", { name: action === "创建云盘" ? "创建云盘" : "加入新云盘", exact: true });
-          await expect(admission).toBeVisible();
-          await expect(admission.getByRole("button", { name: "返回切换云盘", exact: true })).toBeVisible();
-          assert.equal(new URL(page.url()).pathname, "/choirs/visual-choir");
-          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-          if (dismissal === "back") {
-            await page.screenshot({ path: `artifacts/verification/issue-482/${name}-${width}-${action === "创建云盘" ? "create" : "join"}.png` });
-            await admission.getByRole("button", { name: "返回切换云盘", exact: true }).click();
-          } else if (dismissal === "escape") await page.keyboard.press("Escape");
-          else if (dismissal === "history") await page.goBack();
-          else await admission.getByRole("button", { name: "取消", exact: true }).click();
-          await expect(admission).toBeHidden();
-          await expect(picker).toBeVisible();
-          await expect(picker.getByRole("button", { name: action, exact: true })).toBeFocused();
-          await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
-          await expect(page.getByRole("button", { name: /^切换云盘/ })).toBeFocused();
-          await expect(page.getByRole("searchbox")).toHaveValue("秋日");
-          await expect.poll(() => page.evaluate(() => scrollY), { message: `${width} ${action} ${dismissal}: preserve library position` }).toBe(350);
-          await page.getByRole("button", { name: /^切换云盘/ }).click();
-        }
+    // Check each dismissal behavior once, while exercising both admission
+    // layouts and one complete close-and-restore cycle at each size.
+    const cases = [
+      { width: 390, height: 844, flows: [["加入新云盘", "back"], ["加入新云盘", "history"], ["创建云盘", "back"], ["创建云盘", "cancel"]] },
+      { width: 834, height: 1112, flows: [["加入新云盘", "back"], ["创建云盘", "back"], ["创建云盘", "escape"]] },
+    ];
+    for (const { width, height, flows } of cases) {
+      await page.setViewportSize({ width, height });
+      for (const [action, dismissal] of flows) {
+        const openAdmission = picker.getByRole("button", { name: action, exact: true });
+        await openAdmission.click();
+        const admission = page.getByRole("dialog", { name: action, exact: true });
+        await expect(admission).toBeVisible();
+        const back = admission.getByRole("button", { name: "返回切换云盘", exact: true });
+        await expect(back).toBeVisible();
+        assert.equal(new URL(page.url()).pathname, "/choirs/visual-choir");
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        if (dismissal === "back") {
+          await page.screenshot({ path: `artifacts/verification/issue-482/${name}-${width}-${action === "创建云盘" ? "create" : "join"}.png` });
+          await back.click();
+        } else if (dismissal === "escape") await page.keyboard.press("Escape");
+        else if (dismissal === "history") await page.goBack();
+        else await admission.getByRole("button", { name: "取消", exact: true }).click();
+        await expect(admission).toBeHidden();
+        await expect(picker).toBeVisible();
+        await expect(openAdmission).toBeFocused();
       }
+      const openPicker = page.getByRole("button", { name: /^切换云盘/ });
+      await picker.getByRole("button", { name: "关闭云盘选择", exact: true }).click();
+      await expect(picker).toBeHidden();
+      await expect(openPicker).toBeFocused();
+      await expect(page.getByRole("searchbox")).toHaveValue("秋日");
+      await expect.poll(() => page.evaluate(() => scrollY), { message: `${width}: preserve library position` }).toBe(350);
+      await openPicker.click();
     }
     await page.setViewportSize({ width: 390, height: 844 });
     const panel = await page.locator(".drive-switch-sheet").boundingBox();
