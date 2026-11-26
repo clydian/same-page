@@ -28,7 +28,7 @@ export function createChoirBacking(backing: MelodyNote[][], duration: number, so
   return exportPracticeAudio(file, soundFont, sampleRate, .75 / Math.sqrt(backing.length));
 }
 
-export function scheduleChoirBacking(context: AudioContext, backing: ReturnType<typeof createChoirBacking>, start: number, onError: () => void) {
+export function scheduleChoirBacking(context: AudioContext, backing: ReturnType<typeof createChoirBacking>, start: number, output: AudioNode, onError: () => void) {
   let scheduledFrames = 0;
   const schedule = () => {
     try {
@@ -43,7 +43,7 @@ export function scheduleChoirBacking(context: AudioContext, backing: ReturnType<
         for (let i = 0; i < length; i++) { left[i] = chunk.samples[2 * i]; right[i] = chunk.samples[2 * i + 1]; }
         const source = context.createBufferSource();
         source.buffer = buffer;
-        source.connect(context.destination);
+        source.connect(output);
         // Advance by actual frames because alphaTab rounds to its synthesis blocks.
         source.start(Math.max(when, context.currentTime), Math.max(0, context.currentTime - when));
         scheduledFrames += length;

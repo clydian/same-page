@@ -4,6 +4,7 @@ import { loadPracticeSoundFont } from '../playback/practice-soundfont';
 import { createChoirBacking, scheduleChoirBacking } from './choir-backing';
 import { targetPitches, type Melody, type MelodyNote } from './melody';
 import { createPitchReader, frequency, pitchWindowSize, type PitchFrame } from './pitch-feedback';
+import type { ChallengeMix } from './use-challenge-mix';
 
 export type CaptureError = 'microphoneUnavailable' | 'microphoneDenied' | 'audioInterrupted' | 'audioFailure';
 type CaptureCallbacks = {
@@ -13,18 +14,34 @@ type CaptureCallbacks = {
   onError(error: CaptureError): void;
 };
 
-export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing: MelodyNote[][], previewContext?: AudioContext) {
+type CaptureMix = Pick<ChallengeMix, 'backing' | 'metronome'>;
+
+function outputGain(context: AudioContext, level: number) {
+  const gain = context.createGain();
+  gain.gain.value = level;
+  gain.connect(context.destination);
+  return gain;
+}
+
+function setOutputLevel(gain: GainNode | undefined, level: number) {
+  gain?.gain.setTargetAtTime(level, gain.context.currentTime, .01);
+}
+
+export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing: MelodyNote[][],
+  mix: CaptureMix, previewContext?: AudioContext) {
   let active = true;
   let context = previewContext, stream: MediaStream | undefined;
   let input: MediaStreamAudioSourceNode | undefined, worklet: AudioWorkletNode | undefined;
-  let cancelClicks: (() => void) | undefined;
+  let cancelCount: (() => void) | undefined, cancelMetronome: (() => void) | undefined;
   let cancelBacking: (() => void) | undefined;
+  let backingGain: GainNode | undefined, clickGain: GainNode | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
   const dispose = () => {
     if (!active) return;
     active = false;
     clearTimeout(deadline);
-    cancelClicks?.();
+    cancelCount?.();
+    cancelMetronome?.();
     cancelBacking?.();
     stream?.getTracks().forEach(track => track.stop());
     worklet?.port.close();
@@ -115,19 +132,31 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     input.connect(worklet);
     // No microphone samples are copied to the node output.
     worklet.connect(context.destination);
-    cancelClicks = schedulePracticeClicks(context, clickBuffers, countStart, [
-      ...Array.from({ length: melody.beats }, (_, beat) => ({
-        time: beat * countBeat, accent: practiceBeatAccent(beat, melody.beats, melody.denominator),
-      })),
-      ...melody.clicks.map(click => ({ ...click, time: countDuration + click.time })),
-    ]);
+    // A lead-in before the scored phrase is audible just like the count-in.
+    const countClicks = Array.from({ length: melody.beats }, (_, beat) => ({
+      time: beat * countBeat, accent: practiceBeatAccent(beat, melody.beats, melody.denominator),
+    }));
+    for (const click of melody.clicks) if (click.time < melody.leadIn) countClicks.push({ ...click, time: countDuration + click.time });
+    cancelCount = schedulePracticeClicks(context, clickBuffers, countStart, countClicks);
+    clickGain = outputGain(context, Number(mix.metronome));
+    cancelMetronome = schedulePracticeClicks(context, clickBuffers, start, melody.clicks.filter(click => click.time >= melody.leadIn), clickGain);
     deadline = setTimeout(() => fail('audioInterrupted'), 5000 + (beatFrames * melody.beats + durationFrames) / sampleRate * 1000);
-    if (choirBacking) cancelBacking = scheduleChoirBacking(context, choirBacking, start, () => fail('audioFailure'));
+    if (choirBacking) {
+      backingGain = outputGain(context, mix.backing);
+      cancelBacking = scheduleChoirBacking(context, choirBacking, start, backingGain, () => fail('audioFailure'));
+    }
   })().catch((reason: unknown) => {
     const name = reason instanceof DOMException ? reason.name : '';
     fail(name === 'NotAllowedError' || name === 'SecurityError' ? 'microphoneDenied' : name === 'NotFoundError' ? 'microphoneUnavailable' : 'audioFailure');
   });
-  return dispose;
+  return {
+    stop: dispose,
+    setMix(next: CaptureMix) {
+      if (next.backing !== mix.backing) setOutputLevel(backingGain, next.backing);
+      if (next.metronome !== mix.metronome) setOutputLevel(clickGain, Number(next.metronome));
+      mix = next;
+    },
+  };
 }
 
 function waveFile(chunks: ArrayBuffer[], length: number, sampleRate: number) {
@@ -149,7 +178,7 @@ function pcm16(samples: Float32Array) {
   return pcm.buffer;
 }
 
-export function playSustainedTonic(midi: number, onError: () => void) {
+export function playSustainedTonic(midi: number, volume: number, onError: () => void) {
   const context = new AudioContext();
   let stopped = false;
   const stop = () => {
@@ -159,16 +188,18 @@ export function playSustainedTonic(midi: number, onError: () => void) {
   };
   try {
     const oscillator = context.createOscillator(), gain = context.createGain();
+    const output = outputGain(context, volume);
     const start = context.currentTime;
     oscillator.frequency.value = frequency(midi);
     gain.gain.setValueAtTime(0, start);
     gain.gain.linearRampToValueAtTime(.075, start + .02);
-    oscillator.connect(gain).connect(context.destination);
+    oscillator.connect(gain).connect(output);
     oscillator.start(start);
     void context.resume().catch(() => { if (!stopped) { stop(); onError(); } });
     return {
       context, stop,
       setPitch: (pitch: number) => oscillator.frequency.setTargetAtTime(frequency(pitch), context.currentTime, .01),
+      setVolume: (volume: number) => setOutputLevel(output, volume),
     };
   } catch (error) {
     stop();
@@ -195,7 +226,7 @@ function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: nu
   }
 }
 
-export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[]) {
+export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[], voiceVolume: number) {
   // Input is the PCM WAV produced by beginCapture. Render on the recording's
   // sample clock so the native player's seek and speed controls keep the mix aligned.
   const data = new DataView(await recording.arrayBuffer());
@@ -206,7 +237,7 @@ export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[]) {
   for (let index = 0; index < length; index++) samples[index] = data.getInt16(44 + index * 2, true) / 32768;
   const source = context.createBufferSource(), gain = context.createGain();
   source.buffer = buffer;
-  gain.gain.value = .78;
+  gain.gain.value = .78 * voiceVolume;
   source.connect(gain).connect(context.destination);
   source.start();
   schedulePiano(context, notes, 0, .18);
