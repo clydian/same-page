@@ -141,6 +141,7 @@ function ReaderPageContent() {
   const [playbackEntryOpen, setPlaybackEntryOpen] = useState(false);
   useExitLayer(playbackEntryOpen, "overlay", () => { setPlaybackEntryOpen(false); return true; });
   const [moreOpen, setMoreOpen] = useState(false);
+  const [dismissedUploadNotice, setDismissedUploadNotice] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [guestNoteOpen, setGuestNoteOpen] = useState(false);
   const guestReadOnly = workspace?.ownerKey.startsWith("guest:") === true;
@@ -208,6 +209,10 @@ function ReaderPageContent() {
   const layers = useReadingPreferenceProjection(workspace, [...activeAnnotations?.layers ?? []])
     .map(layer => layer.id === GUEST_NOTE_LAYER_ID ? { ...layer, name: t("previewNotes") } : layer).sort(compareLayers);
   const annotations = activeAnnotations?.annotations ?? [];
+  const uploadNoticeKey = syncStatus.dismissible && workspace
+    ? JSON.stringify([workspace.scopeKey, workspace.sessionEpoch, annotations.filter(note => note.state === "sync-error")
+      .map(note => [note.id, note.syncErrorCode]).sort()])
+    : null;
   const pendingCount = activeAnnotations?.pendingCount ?? 0;
   const conflicts = activeAnnotations?.conflicts ?? [];
   const editAvailability = reader.snapshot.capability === "ready" && !activeAnnotations?.layersReady
@@ -576,7 +581,16 @@ function ReaderPageContent() {
               </section>
               <section aria-label={t("noteSaveAndSync")}>
                 <div className="reader-option-heading"><h2><RefreshCw size={17} aria-hidden="true" />{t("noteSync")}</h2>
-                {!guestExperience && <Button className="reader-option-action" aria-label={!online ? t("syncWhenOnline") : syncing ? t("syncingShort") : syncStatus.kind === "failed" ? t("retrySynchronization") : t("syncNow")} aria-description={t("syncNotesDescription")} isDisabled={!sync.canRetry} onPress={() => void manualSync()}>{syncing ? t("syncingShort") : syncStatus.kind === "failed" ? t("retry") : t("sync")}</Button>}
+                {!guestExperience && <Button
+                  className="reader-option-action"
+                  data-offline={!online || undefined}
+                  aria-label={!online ? t("syncWhenOnline") : syncing ? t("syncingShort") : sync.retrySuggested ? t("retrySynchronization") : t("syncNow")}
+                  aria-description={online ? t("syncNotesDescription") : undefined}
+                  isDisabled={!sync.canRetry}
+                  onPress={() => void manualSync()}
+                >
+                  {!online ? t("syncWhenOnline") : syncing ? t("syncingShort") : sync.retrySuggested ? t("retry") : t("sync")}
+                </Button>}
                 </div>
                 {guestExperience ? <p className="reader-more-menu__status" role="status">{syncStatus.message}</p> : <>
                   <dl className="reader-sync-details">
@@ -682,14 +696,16 @@ function ReaderPageContent() {
       {!editing && conflictOpen && <ReaderConflictDialog key={`${workspace.scopeKey}:${workspace.sessionEpoch}:${score.currentVersion.id}`}
         conflicts={conflicts} document={document} layers={layers} annotations={annotations} online={online}
         onRefresh={refreshConflicts} onResolve={resolveConflict} syncStatus={syncStatus} canRetry={sync.canRetry} onRetry={manualSync} onClose={() => setConflictOpen(false)} />}
-      {!editing && (syncStatus.kind === "failed" || syncStatus.kind === "risk") ? (
+      {!editing && (syncStatus.kind === "failed" || syncStatus.kind === "risk") &&
+        (uploadNoticeKey === null || uploadNoticeKey !== dismissedUploadNotice) ? (
         <aside className="annotation-conflicts" aria-label={t("noteSyncProblems")}>
           <strong>{syncStatus.message}</strong>
           <div>
-            <Button isDisabled={!sync.canRetry} onPress={() => void manualSync()}>
-              {t("retrySynchronization")}
-            </Button>
+            {!guestExperience && <Button isDisabled={!sync.canRetry} onPress={() => void manualSync()}>
+              {online ? t("retrySynchronization") : t("syncWhenOnline")}
+            </Button>}
             {diagnosticDialog}
+            {uploadNoticeKey !== null && <Button aria-label={t("dismissSyncNotice")} onPress={() => setDismissedUploadNotice(uploadNoticeKey)}>{t("close")}</Button>}
           </div>
         </aside>
       ) : null}

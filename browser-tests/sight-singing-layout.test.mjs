@@ -144,8 +144,26 @@ test('sight singing preserves its layout preferences and clears a completed take
   const measures = graph.getByRole('listitem');
   await expect(measures).toHaveText(['0', '2', '3']);
   const beforeGraphZoom = await score.boundingBox();
-  await graph.getByRole('button', { name: '显示更少小节' }).click();
+  const pitchView = () => graph.locator('.challenge-pitch-scroll').evaluate(view => {
+    const [first, second] = view.querySelectorAll('.challenge-pitch-axis span');
+    const top = parseFloat(first.style.top), row = parseFloat(second.style.top) - top;
+    return { row, center: (view.scrollTop + view.clientHeight / 2 - top) / row };
+  });
+  const initialPitchView = await pitchView();
+  const pitchZoom = graph.getByRole('button', { name: '缩放', exact: true });
+  await pitchZoom.press('Enter');
+  const zoomDialog = page.getByRole('dialog', { name: '缩放' });
+  await zoomDialog.getByRole('button', { name: '显示更少小节' }).click();
   await expect(measures).toHaveText(['0', '2']);
+  assert.equal((await pitchView()).row, initialPitchView.row);
+  await zoomDialog.getByRole('button', { name: '扩大可见音域' }).click();
+  const widerPitchView = await pitchView();
+  assert.ok(widerPitchView.row < initialPitchView.row);
+  assert.ok(Math.abs(widerPitchView.center - initialPitchView.center) < .1);
+  await expect(measures).toHaveText(['0', '2']);
+  await page.keyboard.press('Escape');
+  await expect(zoomDialog).toBeHidden();
+  await expect(pitchZoom).toBeFocused();
   await expect(zoom).toHaveText('100%');
   assert.equal((await score.boundingBox()).height, beforeGraphZoom.height);
   const sheetBox = await score.boundingBox(), pitchBox = await graph.boundingBox(), controlsBox = await controls.boundingBox();
@@ -165,14 +183,13 @@ test('sight singing preserves its layout preferences and clears a completed take
 
   const run = page.locator('.challenge-run');
   const start = page.getByRole('button', { name: '开始唱', exact: true });
-  await expect(start).toBeDisabled();
-  await page.getByLabel('音高模式').selectOption('clear');
+  await expect(start).toBeEnabled();
+  await expect(page.getByLabel('音高模式')).toHaveCount(0);
   const marks = score.locator('[data-challenge-feedback]');
   await start.click();
   await expect.poll(() => page.evaluate(() => window.sightSingingCaptures.length)).toBe(1);
   await page.evaluate(() => window.sightSingingCaptures[0].complete());
   await expect(run).toHaveAttribute('data-phase', 'result');
-  await expect(run).toHaveAttribute('data-pitch-mode', 'clear');
   await expect(page.getByLabel('音高模式')).toHaveCount(0);
   const evidence = process.env.SIGHT_LATENCY_EVIDENCE;
   const rating = page.locator('.challenge-score strong');
@@ -198,16 +215,14 @@ test('sight singing preserves its layout preferences and clears a completed take
   await expect(panel.getByRole('heading')).toBeFocused();
   await expect(align).toHaveCount(0);
   await expect(page.getByRole('button', { name: '再试一次', exact: true })).toHaveCount(0);
-  const slider = page.getByRole('slider', { name: '人声对齐' });
+  const slider = panel.getByRole('slider', { name: '手动调整' });
   await expect(slider).toHaveValue('0');
   await expect(slider).toHaveAttribute('aria-valuetext', '不补偿 · 0 毫秒');
   await page.getByRole('button', { name: '减少 10 毫秒' }).click();
   await expect(slider).toHaveAttribute('aria-valuetext', '人声延后 10 毫秒');
   const measure = async index => {
-    await panel.getByRole('button', { name: '自动测量', exact: true }).click();
-    await expect(panel.getByText('用设备扬声器外放时，可自动测量。戴耳机时，建议手动调整。', { exact: true })).toBeVisible();
-    assert.equal(await page.evaluate(() => window.sightSingingCalibrations.length), index);
-    await panel.getByRole('button', { name: '开始测量', exact: true }).click();
+    await panel.getByRole('button', { name: '用扬声器测量', exact: true }).click();
+    await expect(panel.getByRole('button', { name: '正在测量…', exact: true })).toBeDisabled();
     await expect.poll(() => page.evaluate(() => window.sightSingingCalibrations.length)).toBe(index + 1);
     const rate = await page.evaluate(index => window.sightSingingCalibrations[index].rate, index);
     const loopback = new Float32Array(Math.floor(rate * 3));
@@ -217,11 +232,6 @@ test('sight singing preserves its layout preferences and clears a completed take
     await expect(slider).toHaveValue('200');
   };
   await measure(0);
-  await panel.getByRole('button', { name: '自动测量', exact: true }).click();
-  await panel.getByRole('button', { name: '手动调整', exact: true }).click();
-  await expect(slider).toBeFocused();
-  await expect(slider).toHaveValue('200');
-  assert.equal(await page.evaluate(() => window.sightSingingCalibrations.length), 1);
   await expect(slider).toHaveAttribute('aria-valuetext', '人声提前 200 毫秒');
   await expect(panel.getByText('人声提前 200 毫秒', { exact: true })).toBeVisible();
   await expect(rating).not.toHaveText(initialRating);
@@ -255,7 +265,7 @@ test('sight singing preserves its layout preferences and clears a completed take
   await page.getByRole('button', { name: '练习设置' }).click();
   const settings = page.getByRole('dialog', { name: '练习设置' });
   await settings.getByRole('button', { name: '人声对齐', exact: true }).click();
-  await expect(settings.getByRole('slider', { name: '人声对齐' })).toHaveValue('200');
+  await expect(settings.getByRole('slider', { name: '手动调整' })).toHaveValue('200');
   if (evidence) await page.screenshot({ path: join(evidence, 'settings.png') });
   await settings.getByRole('button', { name: '关闭', exact: true }).click();
   await score.evaluate(el => { el.scrollTop = 0; });
@@ -285,6 +295,7 @@ test('sight singing preserves its layout preferences and clears a completed take
   await expect(zoom).toHaveText('100%');
   await togglePitch();
   await expect(measures).toHaveText(['0', '2']);
+  assert.equal((await pitchView()).row, widerPitchView.row);
 
   await start.click();
   await expect.poll(() => page.evaluate(() => window.sightSingingCaptures.length)).toBe(2);

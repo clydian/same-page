@@ -8,7 +8,10 @@ export type MelodyError = 'noMelody' | 'ambiguousMelody' | 'unsupportedMelody' |
 export type MelodyNote = { midi: number; chord?: number[]; start: number; end: number; visit: number; bar: number; beatIndex?: number };
 export const targetPitches = (note: MelodyNote) => note.chord ?? [note.midi];
 export type MelodyMeasure = { start: number; end: number; bar: number; visit: number; clip?: TickWindow & { duration: number } };
-export type StaffBeat = MelodyMeasure & { beatIndex: number; pitches: number[] };
+export type StaffBeat = MelodyMeasure & {
+  beatIndex: number; pitches: number[];
+  continuationOf?: Pick<MelodyNote, 'visit' | 'beatIndex'>;
+};
 type KeyChange = { start: number; signature: number };
 export type Melody = {
   notes: MelodyNote[]; measures: MelodyMeasure[]; staffBeats: StaffBeat[]; clicks: PracticeClick[]; duration: number;
@@ -143,13 +146,15 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
       }
       const start = toSeconds(startTick), noteEnd = toSeconds(endTick);
       const pitches = [...new Set(sounding.map(note => note.realValue))];
-      staffBeats.push({ start, end: noteEnd, bar: master.index, visit, beatIndex: beat.index, pitches });
+      const staffBeat: StaffBeat = { start, end: noteEnd, bar: master.index, visit, beatIndex: beat.index, pitches };
+      staffBeats.push(staffBeat);
       if (!pitches.length) continue;
       const [midi] = pitches;
       const lastNote = notes.at(-1);
       if (lastNote && lastNote.end - start > .00001) return 'ambiguousMelody';
       if (lastNote && sounding.length === previous.length && sounding.every((note, index) => note.tieOrigin === previous[index] && note.realValue === previous[index].realValue) && Math.abs(lastNote.end - start) < .00001) {
         lastNote.end = noteEnd;
+        staffBeat.continuationOf = { visit: lastNote.visit, beatIndex: lastNote.beatIndex };
       } else {
         notes.push({ midi, ...(pitches.length > 1 && { chord: pitches }), start, end: noteEnd, visit, bar: master.index, beatIndex: beat.index });
       }

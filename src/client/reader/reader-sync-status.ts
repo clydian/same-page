@@ -7,6 +7,7 @@ export type ReaderSyncOutcome =
   | "local-saved"
   | "synced"
   | "failed"
+  | "sync-attempt-failed"
   | "trash-preserved"
   | "conflict-changed"
   | "conflict-discarded"
@@ -17,6 +18,7 @@ export type ReaderSyncStatusKind =
   | "draft"
   | "pending"
   | "syncing"
+  | "unavailable"
   | "failed"
   | "conflict"
   | "risk";
@@ -24,12 +26,13 @@ export type ReaderSyncStatusKind =
 export interface ReaderSyncStatus {
   kind: ReaderSyncStatusKind;
   message: string | null;
+  dismissible?: true;
 }
 
 export function deriveReaderSyncStatus({
   outcome, syncing, pendingCount, conflictCount, syncErrorCount,
   loaded = false, draftCount = 0, acceptedCount = 0, online = true,
-  permissionErrorCount = 0, localOnly = false,
+  permissionErrorCount = 0, localOnly = false, checkingLocal = false, cloudAvailability,
 }: {
   localOnly?: boolean;
   outcome: ReaderSyncOutcome;
@@ -42,19 +45,27 @@ export function deriveReaderSyncStatus({
   acceptedCount?: number;
   online?: boolean;
   permissionErrorCount?: number;
+  checkingLocal?: boolean;
+  cloudAvailability?: "unavailable" | "denied";
 }, locale: AppLocale = getCurrentLocale()): ReaderSyncStatus {
   const t = getMessages(locale, "reader");
   if (outcome === "trash-preserved") return { kind: "risk", message: t("trashedSyncPaused") };
+  if (checkingLocal) return { kind: "quiet", message: t("checkingLocalState") };
   if (!loaded) return { kind: "risk", message: t("annotationStateUnknown") };
   if (localOnly) return { kind: outcome === "failed" ? "failed" : "quiet", message: outcome === "failed" ? t("localActionFailed") : t("localPreviewNotesOnly") };
   if (conflictCount > 0) return { kind: "conflict", message: t("pendingConflicts", { conflictCount }) };
   if (permissionErrorCount > 0) return { kind: "failed", message: t("syncBlockedByPermission", { permissionErrorCount }) };
-  if (syncErrorCount > 0 || outcome === "failed") return { kind: "failed", message: t("syncFailed") };
-  if (syncing) return { kind: "syncing", message: pendingCount > 0 ? t("syncingChanges", { pendingCount }) : t("checkingCloudNotes") };
+  if (cloudAvailability === "denied") return { kind: "risk", message: t("cloudNotesAccessDenied") };
+  if (outcome === "failed") return { kind: "failed", message: t("localActionFailed") };
+  if (syncErrorCount > 0) return { kind: "failed", message: t("syncFailed"), dismissible: true };
+  if (online && syncing) return { kind: "syncing", message: pendingCount > 0 ? t("syncingChanges", { pendingCount }) : t("checkingCloudNotes") };
   if (pendingCount > 0 || draftCount > 0) return {
     kind: "pending",
     message: !online ? t("savedWaitingForConnection") : draftCount > 0 ? t("savedWaitingForEditing") : t("savedWaitingForSync", { pendingCount }),
   };
+  if (online && (cloudAvailability === "unavailable" || outcome === "sync-attempt-failed")) {
+    return { kind: "unavailable", message: t("cloudNotesCheckFailed") };
+  }
   // A completed request, empty query or network connection is not acceptance.
   if (acceptedCount > 0) return { kind: "quiet", message: t("noPendingUploads") };
   return { kind: "quiet", message: t("noChangesYet") };

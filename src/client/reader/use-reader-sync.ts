@@ -51,11 +51,24 @@ export function useReaderSync(workspace: LocalWorkspace | null, access: ReaderSy
       setFeedback(previous => ({ ...previous, outcome: "none" }));
     }
   }), [workspace?.scopeKey, workspace?.sessionEpoch]);
-  const [cloudCheck, setCloudCheck] = useState<{ workspace: LocalWorkspace; at: number } | null>(null);
+  const [cloudCheck, setCloudCheck] = useState<{
+    workspace: LocalWorkspace;
+    at: number | null;
+    availability?: "unavailable" | "denied";
+  } | null>(null);
   useEffect(() => {
     if (!workspace) return;
     return subscribeReaderSync(workspace, result => {
-      if (result.state === "active") setCloudCheck({ workspace, at: Date.now() });
+      if (result.state === "active") {
+        setCloudCheck({ workspace, at: Date.now() });
+      } else if (result.state === "network-unavailable" || result.state === "service-unavailable" || result.state === "permission-denied") {
+        const availability = result.state === "permission-denied" ? "denied" : "unavailable";
+        setCloudCheck(previous => ({
+          workspace, at: previous?.workspace === workspace ? previous.at : null,
+          // A later transport failure cannot undo a confirmed denial.
+          availability: previous?.workspace === workspace && previous.availability === "denied" ? "denied" : availability,
+        }));
+      }
     });
   }, [workspace]);
 
@@ -69,11 +82,14 @@ export function useReaderSync(workspace: LocalWorkspace | null, access: ReaderSy
   const localOnly = workspace ? isLocalExperience(workspace) : false;
   const outcome = feedback.workspace === workspace ? feedback.outcome : "none";
   const syncing = (feedback.actions === actions && feedback.retrying) || activity === "running";
+  const cloudAvailability = cloudCheck?.workspace === workspace ? cloudCheck.availability : undefined;
   const status = deriveReaderSyncStatus({
     localOnly,
-    outcome: localOnly ? outcome : access.trashed ? "trash-preserved" : activity === "failed" && online ? "failed" : outcome,
+    outcome: !localOnly && access.trashed ? "trash-preserved" : outcome,
     syncing,
     loaded: annotationState !== null,
+    checkingLocal: state?.workspace !== workspace,
+    cloudAvailability,
     draftCount: annotations.filter(annotation => annotation.state === "draft").length,
     acceptedCount: annotations.filter(annotation => annotation.state === "synced" && annotation.version > 0).length,
     permissionErrorCount: annotations.filter(annotation => annotation.syncErrorCode === "permission_denied" ||
@@ -84,6 +100,9 @@ export function useReaderSync(workspace: LocalWorkspace | null, access: ReaderSy
     syncErrorCount: annotationState?.syncErrorCount ?? 0,
   }, locale);
   const canRetry = !localOnly && online && !syncing && !access.trashed && actions !== null;
+  const retrySuggested = status.kind === "failed" || status.kind === "unavailable" ||
+    status.kind === "risk" && cloudAvailability === "denied" ||
+    status.kind === "pending" && (activity === "failed" || outcome === "sync-attempt-failed" || cloudAvailability === "unavailable");
 
   const retry = async () => {
     const active = current.current;
@@ -115,7 +134,7 @@ export function useReaderSync(workspace: LocalWorkspace | null, access: ReaderSy
   };
 
   return {
-    annotationState, online, localOnly, status, syncing, canRetry,
+    annotationState, online, localOnly, status, syncing, canRetry, retrySuggested,
     lastCheckedAt: cloudCheck?.workspace === workspace ? cloudCheck?.at ?? null : null,
     reportOutcome, retry, refreshConflicts, resolveConflict,
   };

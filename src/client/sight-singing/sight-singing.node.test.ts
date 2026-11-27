@@ -9,6 +9,7 @@ import { exportPracticeAudio } from '../playback/practice-soundfont';
 import { createChoirBacking } from './choir-backing';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { notationScore } from './notation-score';
+import { notationFeedbackAtVisit, type NotationFeedback } from './notation-feedback';
 import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
 import { createLivePitch } from './live-pitch';
 import { octaveGuides, pitchFramesConnect } from './pitch-trace';
@@ -88,6 +89,24 @@ it('focuses a voice on a shared staff without changing the challenge timeline', 
   expect(source.voices).toHaveLength(2);
   expect(source.voices[0].beats[0].style).toBeUndefined();
   expect(buildMelody(document, part, 1, 2)).toEqual(before);
+});
+
+it('uses the same assessment across a barline, with the selected repeat and clip boundaries', () => {
+  const tied = xml.replace(note('C', 'start'), note('E')).replace(note('C', 'stop'), note('C', 'start'))
+    .replace('<note><rest/><duration>1</duration><type>quarter</type></note>', note('C', 'stop'));
+  const { document, melody } = melodyOf(tied);
+  const feedback: NotationFeedback[] = [
+    { bar: 1, beatIndex: 1, visit: 1, midi: 60, status: 'inTune', cents: 0 },
+    { bar: 1, beatIndex: 1, visit: 3, midi: 60, status: 'wrongNote', cents: 200 },
+  ];
+  expect(melody.notes.filter(note => note.midi === 60).map(note => note.visit)).toEqual([1, 3]);
+  expect(notationFeedbackAtVisit(melody, feedback, 2).get('2:0')).toMatchObject({ visit: 1, status: 'inTune', continuation: [60] });
+  expect(notationFeedbackAtVisit(melody, feedback, 3).get('2:0')).toMatchObject({ visit: 3, status: 'wrongNote', continuation: [60] });
+  const voice = document.voices[0];
+  const startsInTie = buildMelody(document, voice, 2, 4, { lastBeat: 1 }) as Melody;
+  expect(notationFeedbackAtVisit(startsInTie, feedback.slice(1), 2).has('2:0')).toBe(false);
+  const stopsBeforeTie = buildMelody(document, voice, 0, 1, { lastBeat: 2 }) as Melody;
+  expect(notationFeedbackAtVisit(stopsBeforeTie, feedback.slice(0, 1), 1).has('2:0')).toBe(false);
 });
 
 it('renders the XML choir preset and sustains overlapping unisons on the score clock', () => {
