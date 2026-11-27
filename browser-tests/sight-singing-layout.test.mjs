@@ -307,8 +307,11 @@ test('sight singing preserves its layout preferences and clears a completed take
   const tip = score.locator('.challenge-staff-trace circle');
   await expect(tip).toBeVisible();
   if (evidence) await page.screenshot({ path: join(evidence, 'live-aligned.png') });
-  // Two complete 3-second measures fill the plot, with 8 px on either side.
-  await expect.poll(() => graph.locator('canvas').evaluate((canvas, time) =>
-    Math.abs(window.sightSingingPitchTipX - (8 + (canvas.clientWidth - 16) * time / 6)), lastTime - .2))
-    .toBeLessThan(1);
+  // Two complete 3-second measures fill the same horizontal range as their labels.
+  await expect.poll(() => graph.evaluate((figure, time) => {
+    const canvas = figure.querySelector('canvas').getBoundingClientRect();
+    const measures = figure.querySelector('.challenge-measure-axis').getBoundingClientRect();
+    const expectedTipX = measures.left - canvas.left + measures.width * time / 6;
+    return Math.abs(window.sightSingingPitchTipX - expectedTipX);
+  }, lastTime - .2)).toBeLessThan(1);
 });

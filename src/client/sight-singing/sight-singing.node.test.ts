@@ -150,11 +150,11 @@ it('projects sung pitches through diatonic staff steps anchored to the written n
 it('keeps the written key changes on the selected playback and speed timeline', () => {
   const changing = xml
     .replace('<divisions>1</divisions><time>', '<divisions>1</divisions><key><fifths>1</fifths></key><time>')
-    .replace(note('C', 'stop'), `<attributes><key><fifths>-1</fifths></key></attributes>${note('C', 'stop')}`);
+    .replace(note('C', 'stop'), `<attributes><key><fifths>-1</fifths><mode>minor</mode></key></attributes>${note('C', 'stop')}`);
   const { melody } = melodyOf(changing);
   expect(melody.keyChanges).toEqual([
-    { start: 0, signature: 1 }, { start: 1, signature: -1 },
-    { start: 4, signature: 1 }, { start: 5, signature: -1 },
+    { start: 0, signature: 1, tonic: 7 }, { start: 1, signature: -1, tonic: 2 },
+    { start: 4, signature: 1, tonic: 7 }, { start: 5, signature: -1, tonic: 2 },
   ]);
   expect(melodyAtSpeed(melody, .5).keyChanges.map(key => key.start)).toEqual([0, 2, 8, 10]);
   const [g, f] = melody.keyChanges.map(key => keyPitchClasses(key.signature));
