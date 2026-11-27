@@ -76,8 +76,6 @@ export function AppRoutes() {
             {["", "/choirs/:choirId"].flatMap(scope => (["tools", "mine"] as const).map(page => <Route
               key={`${scope}/${page}`} path={`${scope}/${page}`}
               element={<RouteContent><WorkspacePage page={page} /></RouteContent>} />))}
-            {["", "/choirs/:choirId"].map(scope => <Route key={scope} path={`${scope}/tools/pitch-monitor`}
-              element={<RouteContent><PitchMonitorPage /></RouteContent>} />)}
             <Route path="/choirs/:choirId/storage" element={<RouteContent><LocalStoragePage /></RouteContent>} />
             <Route path="/choirs/:choirId/sight-singing" element={<RouteContent><SightSingingPage /></RouteContent>} />
             <Route path="/choirs/:choirId/me" element={<RouteContent><LeaveDrivePage /></RouteContent>} />
@@ -113,6 +111,8 @@ export function AppRoutes() {
             />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
+          {["", "/choirs/:choirId"].map(scope => <Route key={scope} path={`${scope}/tools/pitch-monitor`}
+            element={<RouteContent><PitchMonitorPage /></RouteContent>} />)}
           <Route
             path="/choirs/:choirId/scores/:scoreId"
             element={<RouteContent><ReaderPage /></RouteContent>}
