@@ -82,6 +82,8 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
     await scoreAttachments.click();
     await expect(page.getByRole("button", { name: "排练笔记.md", exact: true })).toBeVisible();
 
+    // The cached attachment can appear before the drive confirms write access.
+    await expect(page.getByRole("button", { name: "上传 PDF", exact: true, includeHidden: true })).toBeEnabled();
     await addAttachment("PDF");
     await expect(page.getByLabel("选择附件文件")).toHaveAttribute("accept", ".pdf");
     await page.getByLabel("选择附件文件").setInputFiles({ name: "歌词译文.pdf", mimeType: "application/pdf", buffer: fixture.pdf });
