@@ -24,8 +24,6 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
   useEffect(() => {
     const element = container.current!;
     const controller = new AbortController();
-    const previous = document.documentElement.style.overscrollBehaviorY;
-    document.documentElement.style.overscrollBehaviorY = "contain";
     let start: { x: number; y: number } | null = null;
     let pulled = 0;
     let interrupted = false;
@@ -62,7 +60,6 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: {
     element.addEventListener("touchcancel", abort);
     return () => {
       controller.abort();
-      document.documentElement.style.overscrollBehaviorY = previous;
       element.removeEventListener("touchstart", begin); element.removeEventListener("touchmove", move);
       element.removeEventListener("touchend", end); element.removeEventListener("touchcancel", abort);
     };

@@ -11,6 +11,8 @@
 }
 
 :root {
+  /* Contain vertical viewport overscroll without affecting horizontal navigation. */
+  overscroll-behavior-y: contain;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
