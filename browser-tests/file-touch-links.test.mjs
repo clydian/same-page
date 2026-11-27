@@ -170,6 +170,8 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await other.close();
       await file.focus(); await page.keyboard.press("Enter");
       await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
+      await expect(page.locator("html")).toHaveCSS("overscroll-behavior-y", "contain");
+      await expect(page.locator("html")).toHaveCSS("overscroll-behavior-x", "auto");
     });
   });
 }
