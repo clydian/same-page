@@ -97,6 +97,11 @@
   flex: none; padding-block-end: calc(.5rem + var(--safe-bottom)); border-block-start: 1px solid var(--line);
 }
 .challenge-run > .challenge-error { margin-block: .35rem; }
+.challenge-audio-notice { position: relative; flex: none; }
+.challenge-audio-notice .practice-notice {
+  position: absolute; z-index: 2; inset-block-end: .5rem; inset-inline: 0;
+  inline-size: max-content; margin-inline: auto;
+}
 .challenge-transport { display: flex; justify-content: space-between; align-items: center; gap: .65rem; padding-block-start: .55rem; min-height: 3.15rem; }
 [data-phase="count"] > .challenge-transport { justify-content: center; }
 [data-phase="sing"] > .challenge-transport > .challenge-stop { inline-size: 100%; }

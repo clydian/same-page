@@ -1,0 +1,2 @@
+.practice-notice { display: flex; align-items: center; gap: 8px; max-width: min(480px,100%); padding: 4px 8px 4px 14px; border-radius: 12px; background: var(--ui-surface, #fcfdfb); color: var(--ui-ink, #31463a); font-size: 13px; pointer-events: auto; box-shadow: 0 4px 18px #0a171c24; }
+.practice-notice button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border: 0; background: transparent; color: inherit; }
