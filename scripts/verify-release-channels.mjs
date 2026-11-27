@@ -7,7 +7,7 @@ import { chromium, webkit } from '@playwright/test';
 const code=(await build({entryPoints:['service-worker/sw.ts'],bundle:true,write:false,format:'iife',platform:'browser',target:'es2022'})).outputFiles[0].text;
 const ids=['a','b','c'].map(c=>c.repeat(40)),[A,B,C]=ids;
 const integrity=s=>'sha256-'+createHash('sha256').update(s).digest('base64');
-let stable=A,beta=B;
+let stable=A,beta=B,releaseReads=0;
 const data=new Map();
 for(const id of ids){
  const html=`<!doctype html><meta name="same-page-build-id" content="${id}"><h1>${id}</h1><script>
@@ -21,7 +21,7 @@ const server=createServer((req,res)=>{
  const url=new URL(req.url,'http://localhost'),match=/same-page-channel=(stable|beta)/.exec(req.headers.cookie??'');
  const channel=match?.[1]??'stable',target=channel==='beta'?beta:stable;
  res.setHeader('Cache-Control','private, no-store');
- if(url.pathname==='/api/client-release'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({channel,target,intent:'fixture',revision:1,contract:'same-page-storage-v15-sync-v1'}));return}
+ if(url.pathname==='/api/client-release'){releaseReads++;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({channel,target,intent:'fixture',revision:1,contract:'same-page-storage-v15-sync-v1'}));return}
  if(url.pathname==='/api/select'){res.setHeader('Set-Cookie',`same-page-channel=${url.searchParams.get('channel')}; Path=/; Max-Age=31536000; SameSite=Lax`);res.end('ok');return}
  if(url.pathname==='/sw.js'){
   const d=data.get(target),entries=[{url:'/',networkUrl:`/_releases/${target}/index.html`,revision:null,integrity:integrity(d.html),bytes:Buffer.byteLength(d.html)},{url:`/_releases/${target}/app.js`,revision:null,integrity:integrity(d.js),bytes:Buffer.byteLength(d.js)}];
@@ -41,6 +41,11 @@ try{
    const context=await browser.newContext({ locale: "zh-CN" }),page=await context.newPage();
    await page.goto(origin+'/drives');await page.evaluate(()=>navigator.serviceWorker.ready);await page.reload();
    await page.waitForFunction(()=>navigator.serviceWorker.controller&&window.fixtureBuild==='a'.repeat(40));
+   const beforeNavigation=releaseReads;
+   const cachedNavigation=await page.goto(origin+'/drives');
+   assert.equal(cachedNavigation.status(),200);
+   assert.equal(await page.evaluate(()=>window.fixtureBuild),A);
+   assert.equal(releaseReads-beforeNavigation,1,'cached navigation should verify the release only once');
    const stage=async channel=>page.evaluate(async channel=>{
      await fetch('/api/select?channel='+channel);await(await navigator.serviceWorker.getRegistration()).update();
      const until=Date.now()+15000;
