@@ -152,11 +152,15 @@ for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
     await page.getByRole("link", { name: "基本信息", exact: true }).click();
     await page.getByRole("button", { name: "修改云盘名称", exact: true }).click();
     const input = page.getByRole("textbox", { name: "云盘名称", exact: true });
-    await input.fill("旋转后仍保留的草稿");
+    // Wait for the saved name before WebKit selects the text to replace.
+    await expect(input).toHaveValue("示例云盘");
+    const draft = "旋转后仍保留的草稿";
+    await input.fill(draft);
+    await expect(input).toHaveValue(draft);
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(input).toHaveValue("旋转后仍保留的草稿");
+    await expect(input).toHaveValue(draft);
     await page.setViewportSize({ width: 1112, height: 834 });
-    await expect(input).toHaveValue("旋转后仍保留的草稿");
+    await expect(input).toHaveValue(draft);
     await page.getByRole("dialog", { name: "云盘名称", exact: true }).getByRole("button", { name: "取消", exact: true }).click();
     // A tablet entry rotated to a phone returns through the phone directory.
     await page.setViewportSize({ width: 390, height: 844 });
