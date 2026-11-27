@@ -1,6 +1,7 @@
 import { useMessages } from "../../i18n";
 import { diagnosticErrorType, recordFailure } from "../diagnostics/diagnostics";
 import { ReaderLoading } from "../navigation/reader-loading";
+import { PitchMonitorRouteFeedback } from "../pitch-monitor/pitch-monitor-shell";
 import { Component, Suspense, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { DrivePage } from "../score-library/drive-page";
@@ -23,6 +24,7 @@ function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean
   const { pathname } = useLocation();
   const drive = pathname.match(/^\/choirs\/([^/]+)/)?.[1];
   const tab = /\/tools\/?$/.test(pathname) ? "tools" : /\/mine\/?$/.test(pathname) ? "mine" : undefined;
+  if (/\/tools\/pitch-monitor\/?$/.test(pathname)) return <PitchMonitorRouteFeedback failed={failed} />;
   if (!failed && drive && pathname === `/choirs/${drive}`) return <DrivePage choirId={drive} />;
   if (!failed && pathname.includes("/scores/") && drive) return <ReaderLoading choirId={drive} />;
   const title = tab ? t(tab)
@@ -33,7 +35,6 @@ function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean
     : pathname.endsWith("/memberships") ? t("membership")
     : pathname === "/login" ? t("signIn")
     : pathname === "/user/lifecycle" ? t("accountLifecycle")
-    : pathname.endsWith("/tools/pitch-monitor") ? practice("pitchMonitor.title")
     : pathname.endsWith("/sight-singing") ? practice("sight.title")
     : pathname.endsWith("/me") ? t("driveIdentity")
     : pathname === "/appearance" ? t("appearance")

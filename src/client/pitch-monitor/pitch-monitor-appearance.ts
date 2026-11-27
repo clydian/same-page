@@ -28,6 +28,12 @@ export function monitorColors(appearance: MonitorAppearance): CSSProperties | un
     const channel = parseInt(hex, 16) / 255;
     return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
   }) ?? [0, 0, 0];
-  const light = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722 > .18;
-  return { '--pitch-plot-background': background, '--pitch-plot-ink': light ? '#142323' : '#f1f7f5', '--pitch-plot-trace': trace } as CSSProperties;
+  const light = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722 > .179;
+  return {
+    '--pitch-plot-background': background,
+    '--pitch-plot-ink': light ? '#000' : '#fff',
+    '--pitch-plot-trace': trace,
+    '--pitch-plot-chromatic-opacity': .15,
+    '--pitch-plot-scale-opacity': .34,
+  } as CSSProperties;
 }

@@ -1,13 +1,11 @@
 import { playbackAudioSession } from '@same-page/player/playback-audio-session';
-import { ChevronDown, Circle, Play, Snowflake, Square } from 'lucide-react';
+import { ChevronDown, Circle, Play, Square } from 'lucide-react';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
 import { useMessages } from '../../i18n';
-import { TaskHeader } from '../components/task-header';
+import { LoadingStatus } from '../components/loading-status';
 import { pcm16, waveFile } from '../playback/pcm-audio';
 import { holdUpdate } from '../updates/update-safety';
 import type { PitchMode } from '../sight-singing/live-pitch';
-import { PitchModeSelect } from '../sight-singing/pitch-mode-select';
 import { formatCents, pitchName, type PitchFrame } from '../sight-singing/pitch-feedback';
 import { createPitchViewport } from '../sight-singing/pitch-viewport';
 import { firstFrameAt, pitchFramesConnect } from '../sight-singing/pitch-trace';
@@ -15,7 +13,7 @@ import { keyPitchClasses, pitchClass } from '../sight-singing/staff-pitch';
 import { openPitchInput } from './pitch-input';
 import { monitorColors, useMonitorAppearance } from './pitch-monitor-appearance';
 import { BeatGridSettings, MonitorAppearanceSettings } from './pitch-monitor-settings';
-import './pitch-monitor.css';
+import { PitchMonitorShell } from './pitch-monitor-shell';
 
 const seconds = 6, semitones = 24, recordLimit = 180;
 const majorKeys = ['C♭', 'G♭', 'D♭', 'A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯'];
@@ -83,9 +81,6 @@ function PitchPlot({ frames, current, center, label, signature, tonic, beatBpm }
 
 export default function PitchMonitorPage() {
   const t = useMessages('practice');
-  const { choirId } = useParams();
-  const { search } = useLocation();
-  const backTo = `${choirId ? `/choirs/${choirId}` : ''}/tools${search}`;
   const [appearance, setAppearance] = useMonitorAppearance();
   const theme = appearance.mode === 'dark' || appearance.mode === 'light' ? appearance.mode : undefined;
   const [session] = useState(() => playbackAudioSession());
@@ -260,62 +255,65 @@ export default function PitchMonitorPage() {
     });
   };
   const signature = key % 15 - 7;
-  const tonic = pitchClass(signature * 7 + (key >= 15 ? 9 : 0));
-  const note = view.current.midi === null ? null : Math.round(view.current.midi);
+  const minor = key >= 15;
+  const tonic = pitchClass(signature * 7 + (minor ? 9 : 0));
+  const keyName = t(minor ? 'pitchMonitor.minorKey' : 'pitchMonitor.majorKey', { note: (minor ? minorKeys : majorKeys)[key % 15] });
+  const note = view.current.midi !== null && (status === 'live' || held || playing) ? Math.round(view.current.midi) : null;
   const cents = note === null ? 0 : ((view.current.midi ?? note) - note) * 100;
-  return <div className="app-page pitch-monitor-page pitch-monitor-theme" data-ui-theme={theme} data-no-native-selection>
-    <TaskHeader title={t('pitchMonitor.title')} backTo={backTo} />
-    <main className="pitch-monitor-main">
-      <div className="pitch-monitor-readout">
-        <label className="pitch-monitor-key">
-          <select aria-label={t('pitchMonitor.key')} value={key} onChange={event => setKey(Number(event.target.value))}>
-            {[majorKeys, minorKeys].map((keys, mode) => <optgroup key={mode} label={t(mode ? 'pitchMonitor.minor' : 'pitchMonitor.major')}>
-              {keys.map((name, index) => <option key={name} value={index + mode * 15}>
-                {t(mode ? 'pitchMonitor.minorKey' : 'pitchMonitor.majorKey', { note: name })}
-              </option>)}
-            </optgroup>)}
-          </select>
-          <ChevronDown size={14} aria-hidden="true" />
-        </label>
-        <div className="pitch-monitor-note"><strong>{note === null ? '–' : pitchName(note)}</strong>
-          <span>{note === null ? '–' : `${formatCents(cents)} ¢`}</span></div>
-        <button type="button" className="pitch-monitor-hold" aria-pressed={held}
-          disabled={status !== 'live'} onClick={() => {
-            hold.current = !hold.current;
-            follow.reset();
-            setHeld(hold.current);
-            if (!hold.current) showLive();
-          }}><Snowflake size={16} aria-hidden="true" />{t('pitchMonitor.hold')}</button>
-        <div className="pitch-monitor-tuner" aria-hidden="true">
-          {note !== null && <i style={{ left: `${50 + cents}%` }} />}
-        </div>
-      </div>
-      <PitchModeSelect className="pitch-monitor-mode" value={playing && take ? take.mode : mode}
-        disabled={recording || playing || held} onChange={next => { follow.reset(); liveMode.current = next; setMode(next); }} />
-      <div className="pitch-monitor-chart" data-custom={appearance.mode === 'custom' || undefined} style={monitorColors(appearance)}>
-        <PitchPlot {...view} signature={signature} tonic={tonic} beatBpm={showBeats ? bpm : undefined} label={t('pitchMonitor.graph')} />
-        {resumeListening && <button className="secondary-button pitch-monitor-listen"
-          type="button" onClick={resumeListening}>{t('pitchMonitor.listen')}</button>}
-        <div className="pitch-monitor-controls">
-          <BeatGridSettings theme={theme} bpm={bpm} showBeats={showBeats} setBpm={setBpm} setShowBeats={setShowBeats} />
-          <div className="pitch-monitor-transport">
-            <button className="icon-button pitch-monitor-record" type="button"
-              aria-label={t(recording ? 'sight.stop' : 'pitchMonitor.record')}
-              disabled={status === 'starting' || playing} onClick={() => {
-                if (recording) stopRecording();
-                else if (status === 'live') record();
-                else void start(true);
-              }}>
-              {recording ? <Square size={19} fill="currentColor" aria-hidden="true" /> : <Circle size={21} fill="currentColor" aria-hidden="true" />}
-            </button>
-            {take && !recording && <button className="icon-button" type="button" aria-label={t(playing ? 'sight.stop' : 'pitchMonitor.play')}
-              disabled={status === 'starting'} onClick={togglePlay}>{playing ? <Square size={19} aria-hidden="true" /> : <Play size={21} aria-hidden="true" />}</button>}
-          </div>
-          <MonitorAppearanceSettings value={appearance} onChange={setAppearance} theme={theme} />
-        </div>
-      </div>
+  return <PitchMonitorShell theme={theme} colors={monitorColors(appearance)}>
+    <PitchPlot {...view} signature={signature} tonic={tonic} beatBpm={showBeats ? bpm : undefined} label={t('pitchMonitor.graph')} />
+    <div className="pitch-monitor-top">
+      <label className="pitch-monitor-action pitch-monitor-key">
+        <span aria-hidden="true">{keyName}</span>
+        <ChevronDown size={12} aria-hidden="true" />
+        <select aria-label={t('pitchMonitor.key')} value={key} onChange={event => setKey(Number(event.target.value))}>
+          {[majorKeys, minorKeys].map((keys, mode) => <optgroup key={mode} label={t(mode ? 'pitchMonitor.minor' : 'pitchMonitor.major')}>
+            {keys.map((name, index) => <option key={name} value={index + mode * 15}>
+              {t(mode ? 'pitchMonitor.minorKey' : 'pitchMonitor.majorKey', { note: name })}
+            </option>)}
+          </optgroup>)}
+        </select>
+      </label>
+      {note !== null && <div className="pitch-monitor-note">
+        <strong>{pitchName(note)}</strong><span>{formatCents(cents)} ¢</span>
+        <div className="pitch-monitor-tuner" aria-hidden="true"><i style={{ left: `${50 + cents}%` }} /></div>
+      </div>}
+      <button type="button" className="pitch-monitor-action pitch-monitor-hold" aria-pressed={held}
+        disabled={status !== 'live'} onClick={() => {
+          hold.current = !hold.current;
+          follow.reset();
+          setHeld(hold.current);
+          if (!hold.current) showLive();
+        }}>{t('pitchMonitor.hold')}</button>
+    </div>
+    {(status === 'starting' || error) && <div className="pitch-monitor-message">
       {error && <p className="pitch-monitor-error" role="alert">{t(`sight.${error}`)}</p>}
-      {take && <audio ref={audio} src={take.url} onPause={finishPlayback} onEnded={finishPlayback} />}
-    </main>
-  </div>;
+      {resumeListening || (error && status === 'idle')
+        ? <button className="secondary-button" type="button"
+            onClick={resumeListening ?? (() => { void start(false); })}>{t('pitchMonitor.listen')}</button>
+        : status === 'starting' && <LoadingStatus>{t('sight.waitingMicrophone')}</LoadingStatus>}
+    </div>}
+    <div className="pitch-monitor-controls">
+      <BeatGridSettings theme={theme} bpm={bpm} showBeats={showBeats} setBpm={setBpm} setShowBeats={setShowBeats} />
+      <div className="pitch-monitor-transport">
+        <button className="pitch-monitor-action pitch-monitor-icon pitch-monitor-record" type="button"
+          aria-label={t(recording ? 'sight.stop' : 'pitchMonitor.record')}
+          disabled={status === 'starting' || playing} onClick={() => {
+            if (recording) stopRecording();
+            else if (status === 'live') record();
+            else void start(true);
+          }}>
+          {recording ? <Square size={15} aria-hidden="true" /> : <Circle size={17} aria-hidden="true" />}
+        </button>
+        {take && !recording && <button className="pitch-monitor-action pitch-monitor-icon" type="button"
+          aria-label={t(playing ? 'sight.stop' : 'pitchMonitor.play')} disabled={status === 'starting'} onClick={togglePlay}>
+          {playing ? <Square size={17} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
+        </button>}
+      </div>
+      <MonitorAppearanceSettings value={appearance} onChange={setAppearance} theme={theme}
+        pitchMode={playing && take ? take.mode : mode} pitchModeDisabled={recording || playing || held}
+        onPitchModeChange={next => { follow.reset(); liveMode.current = next; setMode(next); }} />
+    </div>
+    {take && <audio ref={audio} src={take.url} onPause={finishPlayback} onEnded={finishPlayback} />}
+  </PitchMonitorShell>;
 }
