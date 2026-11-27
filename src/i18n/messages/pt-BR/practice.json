@@ -402,7 +402,7 @@
       "problem": "Há atraso?",
       "adjust": "Ajustar o atraso",
       "done": "Concluir",
-      "help": "Aumente a compensação se sua voz estiver atrasada ou diminua se estiver adiantada. Durante o teste, fique em silêncio e confira se o microfone capta os sons.",
+      "help": "Use os alto-falantes do dispositivo para medir automaticamente. Se estiver usando fones de ouvido, recomendamos o ajuste manual.",
       "value": "{ms} ms",
       "zero": "Sem ajuste · 0 ms",
       "ahead": "Adiantar a voz em {ms} ms",

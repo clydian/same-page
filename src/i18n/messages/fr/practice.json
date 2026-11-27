@@ -402,7 +402,7 @@
       "problem": "Voix décalée ?",
       "adjust": "Régler la synchro",
       "done": "Terminé",
-      "help": "Augmentez la compensation si votre voix est en retard, ou réduisez-la si elle est en avance. Durant le test, restez silencieux et vérifiez que le micro capte les sons.",
+      "help": "La mesure automatique est possible avec les haut-parleurs de votre appareil. Avec un casque ou des écouteurs, privilégiez le réglage manuel.",
       "value": "{ms} ms",
       "zero": "Sans décalage · 0 ms",
       "ahead": "Voix avancée de {ms} ms",

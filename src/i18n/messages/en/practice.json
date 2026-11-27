@@ -402,7 +402,7 @@
       "problem": "Voice lag?",
       "adjust": "Adjust replay timing",
       "done": "Done",
-      "help": "Increase compensation if your voice comes in late, or decrease it if it comes in early. During the test, stay quiet and make sure the microphone can hear the tones.",
+      "help": "Use your device’s speakers for automatic measurement. If you’re using headphones, we recommend adjusting manually.",
       "value": "{ms} ms",
       "zero": "No offset · 0 ms",
       "ahead": "Voice {ms} ms earlier",

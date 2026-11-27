@@ -402,7 +402,7 @@
       "problem": "Stimme verzögert?",
       "adjust": "Wiedergabe abstimmen",
       "done": "Fertig",
-      "help": "Erhöhe den Ausgleich, wenn deine Stimme zu spät klingt. Verringere ihn, wenn sie zu früh klingt. Bleib beim Test leise, damit das Mikrofon die Testtöne hört.",
+      "help": "Nutze für die automatische Messung die Lautsprecher deines Geräts. Mit Kopfhörern empfehlen wir die manuelle Einstellung.",
       "value": "{ms} ms",
       "zero": "Kein Versatz · 0 ms",
       "ahead": "Stimme {ms} ms früher",

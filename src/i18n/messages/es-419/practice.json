@@ -402,7 +402,7 @@
       "problem": "¿Hay retraso?",
       "adjust": "Ajustar el desfase",
       "done": "Listo",
-      "help": "Aumenta la compensación si tu voz suena tarde o redúcela si suena antes de tiempo. Durante la prueba, guarda silencio y verifica que el micrófono capte los tonos.",
+      "help": "Puedes usar la medición automática con los altavoces del dispositivo. Si usas audífonos, te recomendamos el ajuste manual.",
       "value": "{ms} ms",
       "zero": "Sin desfase · 0 ms",
       "ahead": "Adelantar la voz {ms} ms",

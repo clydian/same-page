@@ -402,7 +402,7 @@
       "problem": "Voce in ritardo?",
       "adjust": "Regola il ritardo",
       "done": "Fine",
-      "help": "Aumenta la compensazione se la voce è in ritardo o riducila se è in anticipo. Durante il test resta in silenzio e assicurati che il microfono capti i suoni.",
+      "help": "Puoi usare la misurazione automatica con gli altoparlanti del dispositivo. Se usi le cuffie, ti consigliamo la regolazione manuale.",
       "value": "{ms} ms",
       "zero": "Nessuno scarto · 0 ms",
       "ahead": "Voce anticipata di {ms} ms",
