@@ -199,8 +199,13 @@ body:has(.pitch-monitor-page) { min-block-size: 100dvh; }
   pointer-events: none;
 }
 .pitch-monitor-message p { margin: 0; color: inherit; }
-.pitch-monitor-message .pitch-monitor-error { color: var(--pitch-plot-ink, var(--ui-danger, #9b3e26)); }
+.pitch-monitor-message .pitch-monitor-error { color: var(--pitch-plot-ink, light-dark(#9b3e26, #ffb4ab)); }
 .pitch-monitor-message :is(button, a) { pointer-events: auto; }
+.pitch-monitor-message .secondary-button:is(:hover, :focus-visible) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.pitch-monitor-message :is(button, a):focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 .pitch-monitor-popover {
   z-index: 100;
