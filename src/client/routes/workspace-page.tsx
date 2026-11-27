@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Drum, Mic } from "lucide-react";
+import { AudioLines, Drum, Mic } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useMessages } from "../../i18n";
 import { presentationSessionId, useApplicationIdentity, type ApplicationIdentity } from "../auth/application-identity";
@@ -59,20 +59,26 @@ function Workspace({ page, identity, choirId, access, authority }: {
         <IdentityNotice identity={identity} />
         <PersonalSettingsLinks identity={identity} choirId={choirId} experience={experience}
           drive={choirId && opened ? { choirId, canManageIdentity: Boolean(opened.isMember || opened.rememberedMembership) } : undefined} />
-      </> : showChallenge && choirId ? <ul className="workspace-tools" role="list">
-        <li><Link className="workspace-tool" to={`/choirs/${choirId}/sight-singing`}>
-          <Mic size={40} strokeWidth={1.6} aria-hidden="true" />
-          <strong>{practice("sightPractice")}</strong>
-        </Link></li>
-        <li><article className="workspace-tool workspace-tool-upcoming">
-          <Drum size={40} strokeWidth={1.6} aria-hidden="true" />
-          <div>
-            <strong>{practice("rhythmPractice")}</strong>
-            <small>{practice("rhythmComingSoon")}</small>
-          </div>
-        </article></li>
-      </ul> : online && loading ? <LoadingStatus>{practice("sight.loading")}</LoadingStatus>
-        : <p className="workspace-empty" role="status">{unavailable ? entry("identity.unreachable") : practice("sight.needMember")}</p>}
+      </> : <>
+        <ul className="workspace-tools" role="list">
+          {showChallenge && choirId && <>
+            <li><Link className="workspace-tool" to={`/choirs/${choirId}/sight-singing`}>
+              <Mic size={40} strokeWidth={1.6} aria-hidden="true" />
+              <strong>{practice("sightPractice")}</strong>
+            </Link></li>
+            <li><article className="workspace-tool workspace-tool-upcoming">
+              <Drum size={40} strokeWidth={1.6} aria-hidden="true" />
+              <div><strong>{practice("rhythmPractice")}</strong><small>{practice("rhythmComingSoon")}</small></div>
+            </article></li>
+          </>}
+          <li><Link className="workspace-tool" to={`${choirId ? `/choirs/${choirId}` : ""}/tools/pitch-monitor${experience ? "?experience=1" : ""}`}>
+            <AudioLines size={40} strokeWidth={1.6} aria-hidden="true" />
+            <strong>{practice("pitchMonitor.title")}</strong>
+          </Link></li>
+        </ul>
+        {!showChallenge && choirId && (online && loading ? <LoadingStatus>{practice("sight.loading")}</LoadingStatus>
+          : <p className="workspace-empty" role="status">{unavailable ? entry("identity.unreachable") : practice("sight.needMember")}</p>)}
+      </>}
     </main>
     <BottomNavigation choirId={choirId} active={page} />
   </div>;

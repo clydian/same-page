@@ -9,8 +9,9 @@ import { exportPracticeAudio } from '../playback/practice-soundfont';
 import { createChoirBacking } from './choir-backing';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { notationScore } from './notation-score';
-import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
-import { createPitchTrace, octaveGuides, pitchFramesConnect } from './pitch-trace';
+import { assessNotes, createPitchReader, createScoringPitch, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
+import { createLivePitch, livePitchChunkSize } from './live-pitch';
+import { octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { calibrationTimes, calibrationTone, estimateRecordingLatency, recordingOffsetFrames } from './recording-latency';
 import { keyPitchClasses, staffPitchY } from './staff-pitch';
 
@@ -141,17 +142,70 @@ it('keeps the written key changes on the selected playback and speed timeline', 
   expect([g.has(6), g.has(5), g.has(10), f.has(6), f.has(5), f.has(10)]).toEqual([true, false, false, false, true, true]);
 });
 
-it('omits brief pitch spikes and keeps a sustained octave jump as a separate segment', () => {
-  const trace = createPitchTrace();
-  const frames = [55, 55.1, 55, 82, 82.1, null, 67, 67.16, 67.14, 67.1, 67];
-  const shown = frames.map((midi, index) => trace.append({ midi, time: index * 1024 / 48000 }).midi);
-  expect(shown.slice(0, 5)).toEqual([null, null, 55, null, null]);
-  expect(trace.frames.map(frame => frame.midi)).toEqual([55, 55.1, 55, null, null, null, 67, 67.16, 67.14, 67.1, 67]);
-  expect(pitchFramesConnect(trace.frames[2], trace.frames[6])).toBe(false);
-  expect(pitchFramesConnect({ time: 0, midi: 55 }, { time: .021, midi: 67 })).toBe(false);
-  expect(pitchFramesConnect(trace.frames[7], trace.frames[8])).toBe(true);
+it('breaks pitch lines at missing readings or note jumps and keeps the written octave guide separate', () => {
+  expect(pitchFramesConnect({ time: 0, midi: 55 }, { time: .002, midi: null })).toBe(false);
+  expect(pitchFramesConnect({ time: 0, midi: 55 }, { time: .002, midi: 67 })).toBe(false);
+  expect(pitchFramesConnect({ time: 0, midi: 55 }, { time: .002, midi: 55.1 })).toBe(true);
   expect(octaveGuides([79], 33, 91)).toEqual([43, 55, 67, 91]); // G2–G6, excluding written G5.
   expect(octaveGuides([67, 79], 43, 81)).toEqual([43, 55]);
+});
+
+it('publishes fast short-window readings, then revises the same center as more audio arrives', () => {
+  const rate = 48000;
+  const track = createLivePitch(rate, 5000);
+  const futureSilence = createLivePitch(rate, 5000);
+  const prefix = 8736;
+  let phase = 0;
+  const pcm = Float32Array.from({ length: 9600 }, (_, i) => {
+    const midi = 55 + 19 * Math.max(0, Math.min(1, (i / rate - .1) / .08));
+    phase += 2 * Math.PI * frequency(midi) / rate;
+    return .17 * (Math.sin(phase) + .5 * Math.sin(phase * 2 + .4) + .2 * Math.sin(phase * 3 + .8));
+  });
+  for (let i = 0; i < prefix; i += 192) {
+    const next = pcm.subarray(i, Math.min(prefix, i + 192));
+    expect(futureSilence.append(next)).toEqual(track.append(next));
+  }
+  const center = 8576 / rate;
+  const point = () => track.frames.find(frame => frame.time === center);
+  expect(point()).toMatchObject({ rank: .5 });
+  expect(point()?.midi).toBeCloseTo(73.66, 1);
+  expect(futureSilence.frames).toEqual(track.frames);
+  const initial = point();
+
+  track.append(pcm.subarray(prefix));
+  futureSilence.append(new Float32Array(pcm.length - prefix));
+  expect(point()).toMatchObject({ time: center, rank: 2 });
+  expect(futureSilence.frames.find(frame => frame.time === center)).toEqual(initial);
+  expect(track.frames.filter(frame => frame.time === center)).toHaveLength(1);
+});
+
+it.each([44100, 48000])('stays sample-aligned and keeps an absent reading explicit at %i Hz', rate => {
+  const track = createLivePitch(rate, 5000, 960);
+  const input = new Float32Array(3072);
+  for (let i = 0; i < input.length; i += 211) track.append(input.subarray(i, i + 211));
+  expect(track.frames[0]).toMatchObject({ time: (32 - 960) / rate, midi: null });
+  expect(track.frames.every(frame => frame.midi === null)).toBe(true);
+  expect(track.frames[1].time - track.frames[0].time).toBeCloseTo(96 / rate, 10);
+  expect(track.finalTime).toBe((3072 - 1024 - 960) / rate);
+});
+
+it('preserves the original scoring windows across live-audio chunks and a partial tail', () => {
+  const rate = 48000, origin = 256, half = pitchWindowSize / 2;
+  const input = Float32Array.from({ length: half * 4 + 137 }, (_, i) =>
+    .2 * Math.sin(2 * Math.PI * frequency(i < half * 2 ? 60 : 65) * i / rate));
+  const scoring = createScoringPitch(rate, origin);
+  for (let start = 0; start < input.length; start += livePitchChunkSize) {
+    const end = Math.min(input.length, start + livePitchChunkSize);
+    scoring.append(input.subarray(start, end), end === input.length);
+  }
+  const reader = createPitchReader(rate);
+  const expected = [];
+  for (let center = half; center < input.length; center += half) {
+    const window = new Float32Array(pitchWindowSize);
+    window.set(input.subarray(center - half, center + half));
+    expected.push({ time: (center - origin) / rate, midi: reader(window) });
+  }
+  expect(scoring.frames).toEqual(expected);
 });
 
 it('accepts a compressed MusicXML attachment using the existing importer', () => {
@@ -174,6 +228,16 @@ describe('pitch and feedback', () => {
     expect(silence).toBeNull();
     const frames = notes.map(note => ({ time: (note.start + note.end) / 2, midi: silence }));
     expect(assessNotes(notes, frames).map(row => row.status)).toEqual(notes.map(() => 'missed'));
+  });
+  it('includes C8 and its sharp tolerance, with a wider monitor range', () => {
+    const readWide = createPitchReader(sampleRate, 5000);
+    expect(read(tone(91))).toBeCloseTo(91, 1);
+    expect(read(tone(108))).toBeCloseTo(108, 1);
+    expect(read(tone(108.4))).toBeCloseTo(108.4, 1);
+    expect(read(tone(109))).toBeNull();
+    expect(readWide(tone(108))).toBeCloseTo(108, 1);
+    expect(readWide(tone(111))).toBeCloseTo(111, 1);
+    expect(readWide(tone(112))).toBeNull();
   });
   it('counts detuned notes as correct and averages their partial credit with misses', () => {
     const targets = Array.from({ length: 7 }, (_, index) => ({ midi: 60, start: index, end: index + 1, bar: 0, visit: 0 }));

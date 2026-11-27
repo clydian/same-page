@@ -6,6 +6,8 @@ export type PitchFrame = { time: number; midi: number | null };
 export const pitchWindowSize = 2048;
 const fullCreditCents = 15;
 const maxMatchedCents = 50;
+// Include the same sharp-side tolerance at C8 as at any other target note.
+export const sightSingingMaxMidi = 108 + maxMatchedCents / 100;
 export const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 export function formatCents(cents: number) {
   const rounded = Math.sign(cents) * Math.round(Math.abs(cents));
@@ -13,12 +15,43 @@ export function formatCents(cents: number) {
 }
 export const pitchName = (midi: number) => `${['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 
-export function createPitchReader(sampleRate: number) {
+export function createPitchReader(sampleRate: number, maxHz = frequency(sightSingingMaxMidi)) {
   const detector = PitchDetector.forFloat32Array(pitchWindowSize);
   detector.minVolumeDecibels = -48;
   return (samples: Float32Array) => {
     const [hz, clarity] = detector.findPitch(samples, sampleRate);
-    return clarity >= .87 && hz >= 55 && hz <= 1500 ? 69 + 12 * Math.log2(hz / 440) : null;
+    return clarity >= .87 && hz >= 55 && hz <= maxHz ? 69 + 12 * Math.log2(hz / 440) : null;
+  };
+}
+
+// Score on the existing half-window grid even when live display uses shorter hops.
+export function createScoringPitch(sampleRate: number, origin: number) {
+  const half = pitchWindowSize / 2;
+  const window = new Float32Array(pitchWindowSize);
+  const pitch = createPitchReader(sampleRate);
+  const frames: PitchFrame[] = [];
+  let received = 0, used = 0;
+
+  function read() {
+    if (received) frames.push({ time: (received - origin) / sampleRate, midi: pitch(window) });
+    received += used;
+    used = 0;
+    window.copyWithin(0, half);
+    window.fill(0, half);
+  }
+
+  return {
+    frames,
+    append(samples: Float32Array, done: boolean) {
+      for (let offset = 0; offset < samples.length;) {
+        const count = Math.min(half - used, samples.length - offset);
+        window.set(samples.subarray(offset, offset + count), half + used);
+        used += count;
+        offset += count;
+        if (used === half) read();
+      }
+      if (done && used) read();
+    },
   };
 }
 
