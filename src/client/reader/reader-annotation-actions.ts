@@ -25,10 +25,12 @@ export class ReaderAnnotationActions {
   async retry(): Promise<ReaderSyncOutcome | null> {
     const signal = this.controller.signal;
     const diagnostics = { report: diagnosticScope(), signal };
+    let failure: ReaderSyncOutcome = "failed";
     try {
       await this.check(signal);
       if (this.access.trashed) return "trash-preserved";
       if (!this.access.authenticated) {
+        failure = "sync-attempt-failed";
         await this.access.confirmIdentity();
         await this.check(signal);
         await syncReader(this.workspace, { signal, push: false });
@@ -38,12 +40,14 @@ export class ReaderAnnotationActions {
       await this.check(signal);
       await diagnoseLocalOperation("draft-save", () => queueScoreDrafts(this.workspace), diagnostics);
       await this.check(signal);
+      failure = "sync-attempt-failed";
       await syncReader(this.workspace, { signal });
+      failure = "failed";
       await this.check(signal);
       const state = await diagnoseLocalOperation("sync-retry", () => readScoreAnnotationState(this.workspace), diagnostics);
       await this.check(signal);
-      return state.syncErrorCount > 0 ? "failed" : "synced";
-    } catch { return signal.aborted ? null : "failed"; }
+      return state.syncErrorCount > 0 ? "sync-attempt-failed" : "synced";
+    } catch { return signal.aborted ? null : failure; }
   }
 
   async refreshConflicts() {

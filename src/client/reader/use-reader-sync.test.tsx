@@ -89,9 +89,13 @@ it("keeps failed checks actionable and does not advance the last successful chec
   const checked = result.current.lastCheckedAt;
   vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 503 }));
   await act(async () => { await result.current.retry(); });
-  expect(result.current.status.kind).toBe("failed");
+  expect(result.current.status.kind).toBe("unavailable");
   expect(result.current.canRetry).toBe(true);
+  expect(result.current.retrySuggested).toBe(true);
   expect(result.current.lastCheckedAt).toBe(checked);
+  act(() => { vi.spyOn(navigator, "onLine", "get").mockReturnValue(false); window.dispatchEvent(new Event("offline")); });
+  expect(result.current.status.message).toBe("尚无笔记修改");
+  expect(result.current.canRetry).toBe(false);
 });
 
 it("fences a delayed result and a retained callback when the reader changes scores", async () => {
@@ -167,7 +171,7 @@ it("hides old facts immediately when the same score is reopened in a new owner s
   const next = await captureLocalWorkspaceSession(createLocalWorkspace(authenticatedLocalOwnerKey("reader"), "drive", "score"));
   view.rerender({ scope: next });
   expect(view.result.current.annotationState).toBeNull();
-  expect(view.result.current.status.message).toBe("尚未确认本机笔记状态，请稍后重试。");
+  expect(view.result.current.status.kind).toBe("quiet");
   act(() => oldReport("failed"));
   await waitFor(() => expect(view.result.current.status.kind).toBe("pending"));
 });
@@ -191,7 +195,7 @@ it("does not carry a previous owner session's failed request into a reopened sco
   vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 503 }));
   const view = renderHook(({ scope }) => useReaderSync(scope, access), { initialProps: { scope: workspace } });
   await act(async () => { await view.result.current.retry(); });
-  expect(view.result.current.status.kind).toBe("failed");
+  expect(view.result.current.status.kind).toBe("unavailable");
   await activateAuthenticatedLocalOwner("other");
   await activateAuthenticatedLocalOwner("reader");
   const next = await captureLocalWorkspaceSession(createLocalWorkspace(authenticatedLocalOwnerKey("reader"), "drive", "score"));

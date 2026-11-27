@@ -184,6 +184,7 @@
 .reader-option-heading--status h2 { flex-shrink: 0; }
 .reader-option-heading--status p { text-align: right; font-size: 12px; }
 .reader-more-menu .reader-option-action { color: var(--ui-accent, #28634f); font-weight: 600; padding-inline: 10px; margin-right: -10px; }
+.reader-more-menu .reader-option-action[data-offline] { color: var(--ui-muted, #4d5f54); opacity: 1; }
 .reader-more-menu .segmented-control { display: flex; padding: 4px; gap: 4px; background: var(--ui-soft, #edf0eb); border-radius: 12px; }
 .reader-more-menu .segmented-control button { flex: 1; min-width: 0; background: transparent; overflow-wrap: anywhere; }
 .reader-more-menu .segmented-control button > svg { flex-shrink: 0; }
