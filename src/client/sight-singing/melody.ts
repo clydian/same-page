@@ -3,6 +3,7 @@ import { loadPreparedMusicXml, prepareMusicXmlForPlaybackBytes } from '@same-pag
 import { playbackMeasureVisits } from '@same-page/player/playback-measures';
 import type { QuestionBeats } from '../../shared/sight-singing';
 import { practiceBeatAccent, type PracticeClick } from '../playback/practice-metronome';
+import { pitchClass } from './staff-pitch';
 
 export type MelodyError = 'noMelody' | 'ambiguousMelody' | 'unsupportedMelody' | 'tooLong';
 export type MelodyNote = { midi: number; chord?: number[]; start: number; end: number; visit: number; bar: number; beatIndex?: number };
@@ -12,7 +13,7 @@ export type StaffBeat = MelodyMeasure & {
   beatIndex: number; pitches: number[];
   continuationOf?: Pick<MelodyNote, 'visit' | 'beatIndex'>;
 };
-type KeyChange = { start: number; signature: number };
+type KeyChange = { start: number; signature: number; tonic: number };
 export type Melody = {
   notes: MelodyNote[]; measures: MelodyMeasure[]; staffBeats: StaffBeat[]; clicks: PracticeClick[]; duration: number;
   keyChanges: KeyChange[]; leadIn: number;
@@ -77,8 +78,10 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   const addTempo = (start: number, bpm: number) => {
     if (tempoMarks.at(-1)?.bpm !== bpm) tempoMarks.push({ start, bpm });
   };
-  const addKey = (start: number, signature: number) => {
-    if (keyChanges.at(-1)?.signature !== signature) keyChanges.push({ start, signature });
+  const addKey = (start: number, signature: number, type: alphaTab.model.KeySignatureType) => {
+    const tonic = pitchClass(signature * 7 + (type === alphaTab.model.KeySignatureType.Minor ? 9 : 0));
+    const previous = keyChanges.at(-1);
+    if (previous?.signature !== signature || previous.tonic !== tonic) keyChanges.push({ start, signature, tonic });
   };
   let previous: alphaTab.model.Note[] = [], omitted: alphaTab.model.Note[] = [];
   let seconds = 0, leadIn = 0;
@@ -114,10 +117,10 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
     for (const change of changes) {
       if (change.tick > bar.start && change.tick < clipEnd) addTempo(toSeconds(change.tick), change.tempo);
     }
-    addKey(seconds, source.getKeySignatureAt(0));
-    for (const { displayStart, keySignature } of source.notationChanges ?? []) {
-      if (keySignature !== null && displayStart > 0 && displayStart < clip.until) {
-        addKey(toSeconds(bar.start + displayStart), keySignature);
+    addKey(seconds, source.getKeySignatureAt(0), source.getKeySignatureTypeAt(0));
+    for (const { displayStart, keySignature, keySignatureType } of source.notationChanges ?? []) {
+      if ((keySignature !== null || keySignatureType !== null) && displayStart > 0 && displayStart < clip.until) {
+        addKey(toSeconds(bar.start + displayStart), source.getKeySignatureAt(displayStart), source.getKeySignatureTypeAt(displayStart));
       }
     }
     const beatTicks = ticksPerBeat(bar);

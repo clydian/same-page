@@ -11,12 +11,12 @@ import { firstFrameAt, lastFrameThrough, octaveGuides, pitchFramesConnect } from
 import { createPitchViewport } from './pitch-viewport';
 import { keyPitchClasses, pitchClass } from './staff-pitch';
 
-const inlineInset = 8;
 const blockInset = 12;
 const chartGrowth = 1.2;
 const minRangeZoom = -2;
 const maxRangeZoom = 2;
 const solfege = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Ti'];
+const naturalPitchClasses = keyPitchClasses(0);
 
 export function PitchGraph({ melody, visits, measure, frames, elapsed, following, reviewing, activeTarget, attemptReset,
   measureSpan, onMeasureSpanChange, rangeZoom, onRangeZoomChange }: {
@@ -50,11 +50,12 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
   const first = Math.min(Math.floor(currentMeasure / count) * count, melody.measures.length - count);
   const measures = melody.measures.slice(first, first + count);
   const start = measures[0].start, end = measures[count - 1].end;
-  const { low, high, midiRows } = useMemo(() => {
+  const { low, high, midiRows, naturalRows } = useMemo(() => {
     const pitches = melody.notes.flatMap(targetPitches);
     // Cover the pitch reader's range and the whole written part.
     const low = Math.min(33, ...pitches) - 1, high = Math.ceil(Math.max(sightSingingMaxMidi, ...pitches)) + 1;
-    return { low, high, midiRows: Array.from({ length: high - low + 1 }, (_, index) => high - index) };
+    const midiRows = Array.from({ length: high - low + 1 }, (_, index) => high - index);
+    return { low, high, midiRows, naturalRows: midiRows.filter(midi => naturalPitchClasses.has(pitchClass(midi))) };
   }, [melody]);
   const noteY = (midi: number) => blockInset + (high - midi) * semitoneHeight;
   const keys = useMemo(() => melody.keyChanges.map((key, index) => ({
@@ -119,6 +120,7 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
     draw.clearRect(0, 0, width, height);
     const styles = getComputedStyle(element);
     const tone = (name: string) => styles.getPropertyValue(`--pitch-${name}`).trim();
+    const inlineInset = parseFloat(styles.getPropertyValue('--pitch-inline-inset'));
     const plotWidth = width - 2 * inlineInset;
     // Give each printed measure room even when a pickup or tempo change makes
     // its duration shorter. Notes and sung samples use the same playback times.
@@ -135,14 +137,16 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
     for (const midi of midiRows) {
       if (y(midi) < -semitoneHeight || y(midi) > height + semitoneHeight) continue;
       const row = Math.round(y(midi));
+      const noteClass = pitchClass(midi);
       draw.fillStyle = tone('grid');
       draw.fillRect(0, row, width, 1);
       for (const key of visibleKeys) {
-        if (!key.scale.has(pitchClass(midi))) continue;
+        if (!key.scale.has(noteClass)) continue;
         const left = key.start <= start ? 0 : x(key.start);
         const right = key.end >= end ? width : x(key.end);
-        draw.fillStyle = tone('grid-scale');
-        draw.fillRect(left, row, right - left, 1);
+        const tonic = key.tonic === noteClass;
+        draw.fillStyle = tone(tonic ? 'grid-tonic' : 'grid-scale');
+        draw.fillRect(left, row, right - left, tonic ? 2 : 1);
       }
     }
     draw.fillStyle = tone('grid');
@@ -289,7 +293,7 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
       <div className="challenge-pitch-scroll" data-following={following} ref={viewport} role="region" aria-label={t('sight.pitchRange')} tabIndex={0}>
         <div className="challenge-pitch-field" aria-hidden="true" style={{ height: noteY(low) + blockInset }}>
           <div className="challenge-pitch-axis">
-            {midiRows.map(midi => <span key={midi} data-in-key={currentKey?.scale.has(pitchClass(midi)) ?? false}
+            {naturalRows.map(midi => <span key={midi} data-in-key={currentKey?.scale.has(pitchClass(midi)) ?? false}
               data-target={targets.has(midi)} data-alternate={alternates.has(midi)} style={{ top: noteY(midi) }}>{pitchName(midi)}</span>)}
           </div>
           <div className="challenge-plot"><canvas ref={canvas} /></div>
