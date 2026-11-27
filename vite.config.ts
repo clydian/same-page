@@ -132,6 +132,7 @@ export default defineConfig(({ isPreview, command }) => {
         id: "/",
         scope: "/",
         start_url: "/",
+        shortcuts: [{ name: "音高仪", url: "/tools/pitch-monitor" }],
         icons: [
           {
             src: assetBase + "icon-192.png",

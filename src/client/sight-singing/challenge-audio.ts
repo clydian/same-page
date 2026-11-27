@@ -1,9 +1,11 @@
 import workletUrl from './capture-processor.js?url&no-inline';
+import { pcm16, waveFile } from '../playback/pcm-audio';
 import { loadPracticeClicks, practiceBeatAccent, schedulePracticeClicks } from '../playback/practice-metronome';
 import { loadPracticeSoundFont } from '../playback/practice-soundfont';
 import { createChoirBacking, scheduleChoirBacking } from './choir-backing';
 import { targetPitches, type Melody, type MelodyNote } from './melody';
-import { createPitchReader, frequency, pitchWindowSize, type PitchFrame } from './pitch-feedback';
+import { createLivePitch, livePitchChunkSize } from './live-pitch';
+import { createScoringPitch, frequency, type PitchFrame } from './pitch-feedback';
 import { calibrationDuration, calibrationTimes, calibrationTone, estimateRecordingLatency,
   recordingOffsetFrames } from './recording-latency';
 import type { ChallengeMix } from './use-challenge-mix';
@@ -11,8 +13,8 @@ import type { ChallengeMix } from './use-challenge-mix';
 export type CaptureError = 'microphoneUnavailable' | 'microphoneDenied' | 'audioInterrupted' | 'audioFailure';
 type CaptureCallbacks = {
   onCount(count: number): void;
-  onFrame(frame: PitchFrame): void;
-  onComplete(frames: PitchFrame[], recording: Blob): void;
+  onFrame(frame: PitchFrame, pitchFrames: PitchFrame[]): void;
+  onComplete(scoringFrames: PitchFrame[], pitchFrames: PitchFrame[], recording: Blob): void;
   onError(error: CaptureError): void;
 };
 
@@ -157,7 +159,6 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     });
     for (const track of opened.getAudioTracks()) track.addEventListener('ended', () => fail('audioInterrupted'), { once: true });
     input = context.createMediaStreamSource(opened);
-    const half = pitchWindowSize / 2;
     // Keep the count-in, clicks, accompaniment and recording on the audio clock.
     const startFrame = Math.ceil((context.currentTime + .15) * sampleRate / 128) * 128;
     // Fast count-ins can be shorter than the pre-roll needed for negative offsets.
@@ -169,33 +170,25 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     worklet = new AudioWorkletNode(context, 'sight-singing-capture', {
       channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1],
       processorOptions: { beatFrames, beats: melody.beats,
-        durationFrames: durationFrames + margin, recordFrom: -margin, countOffset, chunkFrames: half, startFrame },
+        durationFrames: durationFrames + margin, recordFrom: -margin, countOffset, chunkFrames: livePitchChunkSize, startFrame },
     });
     worklet.onprocessorerror = () => fail('audioFailure');
-    const pitch = createPitchReader(sampleRate);
-    const window = new Float32Array(pitchWindowSize), chunks: ArrayBuffer[] = [];
-    const frames: PitchFrame[] = [];
+    const pitch = createLivePitch(sampleRate, undefined, margin);
+    const scoring = createScoringPitch(sampleRate, margin);
+    const chunks: ArrayBuffer[] = [];
     let received = 0;
     worklet.port.onmessage = ({ data }: MessageEvent<{ count: number } | { samples: Float32Array; done: boolean }>) => {
       if (!active) return;
       if ('count' in data) { callbacks.onCount(data.count); return; }
       const { samples, done } = data;
-      if (received > 0) {
-        window.copyWithin(0, half);
-        window.fill(0, half);
-        window.set(samples, half);
-        const time = (received - margin) / sampleRate;
-        const frame = { time, midi: pitch(window) };
-        frames.push(frame);
-        if (time >= 0 && time < melody.duration) callbacks.onFrame(frame);
-      } else {
-        window.set(samples, half);
-      }
+      const frame = pitch.append(samples);
+      scoring.append(samples, done);
+      if (frame.time >= 0 && frame.time < melody.duration) callbacks.onFrame(frame, pitch.frames);
       chunks.push(pcm16(samples));
       received += samples.length;
       if (done) {
         dispose();
-        callbacks.onComplete(frames, waveFile(chunks, received, sampleRate));
+        callbacks.onComplete(scoring.frames, pitch.frames, waveFile(chunks, received, sampleRate));
       }
     };
     input.connect(worklet);
@@ -226,25 +219,6 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
       mix = next;
     },
   };
-}
-
-function waveFile(chunks: ArrayBuffer[], length: number, sampleRate: number) {
-  const header = new DataView(new ArrayBuffer(44));
-  const tag = (at: number, text: string) => [...text].forEach((character, index) => header.setUint8(at + index, character.charCodeAt(0)));
-  tag(0, 'RIFF'); header.setUint32(4, 36 + length * 2, true); tag(8, 'WAVE'); tag(12, 'fmt ');
-  header.setUint32(16, 16, true); header.setUint16(20, 1, true); header.setUint16(22, 1, true);
-  header.setUint32(24, sampleRate, true); header.setUint32(28, sampleRate * 2, true);
-  header.setUint16(32, 2, true); header.setUint16(34, 16, true); tag(36, 'data'); header.setUint32(40, length * 2, true);
-  return new Blob([header.buffer, ...chunks], { type: 'audio/wav' });
-}
-
-function pcm16(samples: Float32Array) {
-  const pcm = new DataView(new ArrayBuffer(samples.length * 2));
-  for (let index = 0; index < samples.length; index++) {
-    const level = Math.max(-1, Math.min(1, samples[index]));
-    pcm.setInt16(index * 2, level * (level < 0 ? 32768 : 32767), true);
-  }
-  return pcm.buffer;
 }
 
 export function playSustainedTonic(midi: number, volume: number, onError: () => void) {

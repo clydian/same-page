@@ -29,6 +29,7 @@ const DriveManagementPage = lazy(() => import("./routes/drive-management-page"))
 const AboutPage = lazy(() => import("./routes/about-page"));
 const AppearancePage = lazy(() => import("./routes/appearance-page"));
 const SightSingingPage = lazy(() => import("./sight-singing/sight-singing-page"));
+const PitchMonitorPage = lazy(() => import("./pitch-monitor/pitch-monitor-page"));
 const WorkspacePage = lazy(() => import("./routes/workspace-page"));
 const PersonalSettingsPage = lazy(() => import("./routes/personal-settings-page"));
 const LeaveDrivePage = lazy(() => import("./routes/leave-drive-page"));
@@ -75,6 +76,8 @@ export function AppRoutes() {
             {["", "/choirs/:choirId"].flatMap(scope => (["tools", "mine"] as const).map(page => <Route
               key={`${scope}/${page}`} path={`${scope}/${page}`}
               element={<RouteContent><WorkspacePage page={page} /></RouteContent>} />))}
+            {["", "/choirs/:choirId"].map(scope => <Route key={scope} path={`${scope}/tools/pitch-monitor`}
+              element={<RouteContent><PitchMonitorPage /></RouteContent>} />)}
             <Route path="/choirs/:choirId/storage" element={<RouteContent><LocalStoragePage /></RouteContent>} />
             <Route path="/choirs/:choirId/sight-singing" element={<RouteContent><SightSingingPage /></RouteContent>} />
             <Route path="/choirs/:choirId/me" element={<RouteContent><LeaveDrivePage /></RouteContent>} />

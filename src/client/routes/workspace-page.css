@@ -29,6 +29,7 @@
 }
 
 .workspace-tools > li { display: grid; }
+.workspace-tools > li:only-child { grid-column: 1 / -1; justify-self: center; inline-size: min(100%, 12.125rem); }
 
 .workspace-tool, .workspace-settings-list {
   border: 1px solid var(--line);

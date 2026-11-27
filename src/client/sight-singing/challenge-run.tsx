@@ -11,7 +11,6 @@ import { useSightSingingScoreFormat } from './format-score';
 import { PitchGraph } from './pitch-graph';
 import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
 import { assessNotes, pitchName, takeScore, type PitchFrame } from './pitch-feedback';
-import { createPitchTrace } from './pitch-trace';
 import { ScoreBadges } from './score-badge';
 import { useChallengeAnswer } from './use-challenge-answer';
 import type { ChallengeMix } from './use-challenge-mix';
@@ -24,13 +23,17 @@ export type VoiceOption = { voice: MelodyVoice; melody: Melody; label: string };
 type RunState = { phase: 'idle' | 'permission' }
   | { phase: 'count'; count: number }
   | { phase: 'sing'; frame: PitchFrame; frames: PitchFrame[] }
-  | { phase: 'result'; id: string; frames: PitchFrame[]; recording: Blob };
+  | { phase: 'result'; id: string; scoringFrames: PitchFrame[]; pitchFrames: PitchFrame[]; recording: Blob };
+
+function alignPitchFrames(melody: Melody, frames: PitchFrame[], latency: number) {
+  return frames.map(frame => ({ time: frame.time - latency / 1000, midi: frame.midi }))
+    .filter(frame => frame.time >= melody.leadIn && frame.time <= melody.duration);
+}
 
 function reviewRecording(melody: Melody, frames: PitchFrame[], latency: number) {
-  const aligned = frames.map(frame => ({ ...frame, time: frame.time - latency / 1000 }))
-    .filter(frame => frame.time >= melody.leadIn && frame.time <= melody.duration);
+  const aligned = alignPitchFrames(melody, frames, latency);
   const review = assessNotes(melody.notes.filter(note => note.start >= melody.leadIn), aligned);
-  return { review, score: takeScore(review), aligned };
+  return { review, score: takeScore(review) };
 }
 
 export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, pitchTraceEnabled, mix, onScored, onAudioBusy, measuring, onMeasure, onLatency, ref }: {
@@ -75,15 +78,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const tonicPreview = useRef<ReturnType<typeof playSustainedTonic> | null>(null);
   const replay = useRef<HTMLAudioElement>(null);
   const take = state.phase === 'result' ? state : undefined;
-  const rawFrames = take?.frames;
   const latency = latencyDraft ?? mix.latency;
   const corrected = useMemo(() => {
-    if (!rawFrames) return;
-    const { review, score, aligned } = reviewRecording(melody, rawFrames, latency);
-    const trace = createPitchTrace();
-    for (const frame of aligned) trace.append(frame);
-    return { review, score, frames: trace.frames };
-  }, [rawFrames, latency, melody]);
+    if (!take) return;
+    return { ...reviewRecording(melody, take.scoringFrames, latency),
+      frames: alignPitchFrames(melody, take.pitchFrames, latency) };
+  }, [take, latency, melody]);
   const { answer, retryAnswer } = useChallengeAnswer(take?.recording, corrected?.review, mix.voice, melody.duration, latency);
   const recording = state.phase === 'permission' || state.phase === 'count' || state.phase === 'sing';
   const audioBusy = recording || playing || drone;
@@ -163,7 +163,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const finish = () => {
     if (!take) return;
     // Leaving without finishing an adjustment submits the last applied score.
-    const score = latency === mix.latency ? corrected?.score : reviewRecording(melody, take.frames, mix.latency).score;
+    const score = latency === mix.latency ? corrected?.score : reviewRecording(melody, take.scoringFrames, mix.latency).score;
     if (!score || score.percent === null) return;
     onScored({ id: take.id, score: score.percent, speed, perfect: score.perfect, writtenOctave: score.writtenOctave,
       version: questionVersion, voiceId: voice.id, voiceName: selected.label });
@@ -207,21 +207,26 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     setState({ phase: 'permission' });
     const takeId = crypto.randomUUID();
     const releaseUpdate = holdUpdate();
-    const trace = createPitchTrace();
+    let paint = 0;
+    let latest: Extract<RunState, { phase: 'sing' }>;
     const capture = beginCapture(melody, {
       onCount: count => setState({ phase: 'count', count }),
-      onFrame: frame => {
-        setState({ phase: 'sing', frame: trace.append(frame), frames: trace.frames });
+      onFrame: (frame, frames) => {
+        latest = { phase: 'sing', frame, frames };
+        if (!paint) paint = requestAnimationFrame(() => {
+          paint = 0;
+          setState(latest);
+        });
       },
-      onComplete: (result, recording) => {
+      onComplete: (scoringFrames, pitchFrames, recording) => {
         release();
         setDrone(false);
-        setState({ phase: 'result', id: takeId, frames: result, recording });
+        setState({ phase: 'result', id: takeId, scoringFrames, pitchFrames, recording });
       },
       onError: reason => { releaseUpdate(); discard(); setDrone(false); setError(reason); setState({ phase: 'idle' }); },
     }, accompaniment.map(option => melodyAtSpeed(option.melody, speed).notes), mix, preview?.context);
     run.current = {
-      stop: () => { capture.stop(); releaseUpdate(); },
+      stop: () => { cancelAnimationFrame(paint); capture.stop(); releaseUpdate(); },
       setMix: next => { capture.setMix(next); preview?.setVolume(next.tonic); },
     };
   };

@@ -1,0 +1,303 @@
+import { playbackAudioSession } from '@same-page/player/playback-audio-session';
+import { ChevronDown, Circle, Play, Snowflake, Square } from 'lucide-react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
+import { useMessages } from '../../i18n';
+import { TaskHeader } from '../components/task-header';
+import { pcm16, waveFile } from '../playback/pcm-audio';
+import { holdUpdate } from '../updates/update-safety';
+import { formatCents, pitchName, type PitchFrame } from '../sight-singing/pitch-feedback';
+import { firstFrameAt, pitchFramesConnect } from '../sight-singing/pitch-trace';
+import { keyPitchClasses, pitchClass } from '../sight-singing/staff-pitch';
+import { openPitchInput } from './pitch-input';
+import { monitorColors, useMonitorAppearance } from './pitch-monitor-appearance';
+import { BeatGridSettings, MonitorAppearanceSettings } from './pitch-monitor-settings';
+import './pitch-monitor.css';
+
+const seconds = 6, semitones = 24, recordLimit = 180;
+const majorKeys = ['C♭', 'G♭', 'D♭', 'A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯'];
+const minorKeys = ['A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯'];
+const empty: PitchFrame = { time: 0, midi: null };
+type Take = { url: string; frames: PitchFrame[] };
+type Recording = { frames: PitchFrame[]; pcm: ArrayBuffer[]; length: number; rate: number; startTime: number; release: () => void };
+
+function visibleFrames(frames: PitchFrame[], time: number) {
+  return frames.slice(firstFrameAt(frames, time - seconds), firstFrameAt(frames, time + 1e-7));
+}
+
+function appendRecordedFrames(take: Recording, frames: PitchFrame[], through: number) {
+  const previous = take.frames.at(-1);
+  const from = take.startTime + (previous ? previous.time + 1e-7 : 0);
+  for (let i = firstFrameAt(frames, from); i < frames.length && frames[i].time <= through; i++) {
+    const { time, midi } = frames[i];
+    take.frames.push({ time: time - take.startTime, midi });
+  }
+}
+
+function PitchPlot({ frames, current, center, label, signature, tonic, beatBpm }: {
+  frames: PitchFrame[]; current: PitchFrame; center: number; label: string;
+  signature: number; tonic: number; beatBpm?: number;
+}) {
+  const right = current.time, bottom = center - semitones / 2;
+  const left = right - seconds;
+  const interval = beatBpm ? 60 / beatBpm : 0;
+  const firstBeat = interval ? Math.ceil(left / interval) : 0;
+  const beatCount = interval ? Math.floor(right / interval) - firstBeat + 1 : 0;
+  const x = (time: number) => (time - left) * 100 / seconds;
+  const scale = useMemo(() => keyPitchClasses(signature), [signature]);
+  const y = (midi: number) => (bottom + semitones - midi) * 100 / semitones;
+  const lines = Array.from({ length: semitones + 1 }, (_, i) => bottom + semitones - i);
+  let path = '', previous: PitchFrame | undefined;
+  for (const frame of frames) {
+    if (frame.midi === null) { previous = undefined; continue; }
+    const position = `${x(frame.time).toFixed(2)} ${y(frame.midi).toFixed(2)}`;
+    path += previous && pitchFramesConnect(previous, frame) ? `L${position} ` : `M${position}h.03 `;
+    previous = frame;
+  }
+  return <div className="pitch-monitor-plot" role="img" aria-label={label}>
+    <div className="pitch-monitor-axis" aria-hidden="true">
+      {lines.filter(midi => scale.has(pitchClass(midi))).map(midi => <span key={midi}
+        className={pitchClass(midi) === tonic ? 'pitch-monitor-tonic-label' : undefined}
+        style={{ top: `${y(midi)}%` }}>{pitchName(midi)}</span>)}
+    </div>
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      {Array.from({ length: Math.max(0, beatCount) }, (_, i) => {
+        const beat = firstBeat + i, position = x(beat * interval);
+        return <line className="pitch-monitor-beat" key={beat} x1={position} x2={position}
+          y1="0" y2="100" vectorEffect="non-scaling-stroke" />;
+      })}
+      {lines.map(midi => {
+        const noteClass = pitchClass(midi);
+        const level = noteClass === tonic ? 'tonic' : scale.has(noteClass) ? 'scale' : 'chromatic';
+        return <line key={midi} className={`pitch-monitor-${level}`} x1="0" x2="100"
+          y1={y(midi)} y2={y(midi)} vectorEffect="non-scaling-stroke" />;
+      })}
+      <path d={path} vectorEffect="non-scaling-stroke" />
+    </svg>
+  </div>;
+}
+
+export default function PitchMonitorPage() {
+  const t = useMessages('practice');
+  const { choirId } = useParams();
+  const { search } = useLocation();
+  const backTo = `${choirId ? `/choirs/${choirId}` : ''}/tools${search}`;
+  const [appearance, setAppearance] = useMonitorAppearance();
+  const theme = appearance.mode === 'dark' || appearance.mode === 'light' ? appearance.mode : undefined;
+  const [session] = useState(() => playbackAudioSession());
+  const [status, setStatus] = useState<'idle' | 'starting' | 'live'>('idle');
+  const [resumeListening, setResumeListening] = useState<() => void>();
+  const [key, setKey] = useState(7);
+  const [bpm, setBpm] = useState(120);
+  const [showBeats, setShowBeats] = useState(false);
+  const [held, setHeld] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [take, setTake] = useState<Take>();
+  const [error, setError] = useState<'microphoneDenied' | 'microphoneUnavailable' | 'audioFailure'>();
+  const [view, setView] = useState({ frames: [] as PitchFrame[], current: empty, center: 60 });
+  const capture = useRef<AbortController | null>(null);
+  const live = useRef({ frames: [] as PitchFrame[], current: empty, center: 60 });
+  const hold = useRef(false);
+  const activeTake = useRef<Recording | null>(null);
+  const audio = useRef<HTMLAudioElement>(null);
+  const takeUrl = useRef<string | null>(null);
+  const pendingPaint = useRef(0);
+  const audition = useRef(false);
+
+  const showLive = () => {
+    const { frames, current, center } = live.current;
+    setView({ frames: visibleFrames(frames, current.time), current, center });
+  };
+
+  useEffect(() => () => {
+    const pending = activeTake.current;
+    activeTake.current = null;
+    pending?.release();
+    audition.current = false;
+    cancelAnimationFrame(pendingPaint.current);
+    capture.current?.abort();
+    if (takeUrl.current) URL.revokeObjectURL(takeUrl.current);
+    session.release();
+  }, [session]);
+
+  const stopRecording = () => {
+    const pending = activeTake.current;
+    if (!pending) return;
+    activeTake.current = null;
+    pending.release();
+    setRecording(false);
+    if (!pending.length) return;
+    appendRecordedFrames(pending, live.current.frames, pending.startTime + pending.length / pending.rate);
+    if (takeUrl.current) URL.revokeObjectURL(takeUrl.current);
+    const url = URL.createObjectURL(waveFile(pending.pcm, pending.length, pending.rate));
+    takeUrl.current = url;
+    setTake({ url, frames: pending.frames });
+  };
+  const stopListening = () => {
+    stopRecording();
+    capture.current?.abort();
+    capture.current = null;
+    cancelAnimationFrame(pendingPaint.current);
+    pendingPaint.current = 0;
+    session.release();
+    setResumeListening(undefined);
+    setStatus('idle');
+  };
+  const record = () => {
+    if (activeTake.current) return;
+    setError(undefined);
+    activeTake.current = { frames: [], pcm: [], length: 0, rate: 0, startTime: 0, release: holdUpdate() };
+    setRecording(true);
+  };
+  const start = async (withRecording: boolean) => {
+    const controller = new AbortController();
+    capture.current = controller;
+    hold.current = false;
+    setHeld(false);
+    live.current = { frames: [], current: empty, center: 60 };
+    setView(live.current);
+    setError(undefined);
+    setStatus('starting');
+    session.request('play-and-record');
+    try {
+      await openPitchInput(controller.signal, ({ current, frames, samples, rate, startTime, finalTime }) => {
+        const { center: previousCenter } = live.current;
+        const center = current.midi === null || Math.abs(current.midi - previousCenter) <= 9
+          ? previousCenter : Math.round(current.midi);
+        live.current = { frames, current, center };
+        const pending = activeTake.current;
+        if (pending) {
+          if (!pending.length) pending.startTime = startTime;
+          pending.pcm.push(pcm16(samples));
+          pending.length += samples.length;
+          pending.rate = rate;
+          appendRecordedFrames(pending, frames, finalTime);
+          if (pending.length >= recordLimit * rate) stopRecording();
+        }
+        if (!hold.current && !pendingPaint.current) pendingPaint.current = requestAnimationFrame(() => {
+          pendingPaint.current = 0;
+          if (!hold.current) showLive();
+        });
+      }, () => {
+        stopListening();
+        setError('audioFailure');
+      }, resume => setResumeListening(() => resume));
+      if (controller.signal.aborted) return;
+      setResumeListening(undefined);
+      setStatus('live');
+      if (withRecording) record();
+    } catch (reason) {
+      if (controller.signal.aborted) return;
+      stopListening();
+      const name = reason instanceof DOMException ? reason.name : '';
+      setError(name === 'NotAllowedError' || name === 'SecurityError' ? 'microphoneDenied'
+        : name === 'NotFoundError' || name === 'NotSupportedError' ? 'microphoneUnavailable' : 'audioFailure');
+    }
+  };
+  const startListeningOnEntry = useEffectEvent(() => { void start(false); });
+  useEffect(() => {
+    // Avoid requesting the microphone during a discarded StrictMode effect.
+    let mounted = true;
+    queueMicrotask(() => { if (mounted) startListeningOnEntry(); });
+    return () => { mounted = false; };
+  }, []);
+  useEffect(() => {
+    if (!playing || !take) return;
+    let id = 0;
+    const draw = () => {
+      const player = audio.current;
+      if (!player || player.paused) return;
+      const frames = visibleFrames(take.frames, player.currentTime);
+      const current = { time: player.currentTime, midi: frames.at(-1)?.midi ?? null };
+      setView(previous => ({
+        frames, current, center: current.midi === null || Math.abs(current.midi - previous.center) <= 9
+          ? previous.center : Math.round(current.midi),
+      }));
+      id = requestAnimationFrame(draw);
+    };
+    id = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(id);
+  }, [playing, take]);
+
+  const finishPlayback = () => {
+    if (!audition.current) return;
+    audition.current = false;
+    setPlaying(false);
+    session.release();
+    void start(false);
+  };
+  const togglePlay = () => {
+    const player = audio.current;
+    if (!player) return;
+    if (audition.current) { player.pause(); finishPlayback(); return; }
+    if (status === 'live') stopListening();
+    hold.current = false;
+    setHeld(false);
+    session.request();
+    player.currentTime = 0;
+    audition.current = true;
+    setPlaying(true);
+    void player.play().catch(() => {
+      if (!audition.current) return;
+      finishPlayback();
+      setError('audioFailure');
+    });
+  };
+  const signature = key % 15 - 7;
+  const tonic = pitchClass(signature * 7 + (key >= 15 ? 9 : 0));
+  const note = view.current.midi === null ? null : Math.round(view.current.midi);
+  const cents = note === null ? 0 : ((view.current.midi ?? note) - note) * 100;
+  return <div className="app-page pitch-monitor-page pitch-monitor-theme" data-ui-theme={theme} data-no-native-selection>
+    <TaskHeader title={t('pitchMonitor.title')} backTo={backTo} />
+    <main className="pitch-monitor-main">
+      <div className="pitch-monitor-readout">
+        <label className="pitch-monitor-key">
+          <select aria-label={t('pitchMonitor.key')} value={key} onChange={event => setKey(Number(event.target.value))}>
+            {[majorKeys, minorKeys].map((keys, mode) => <optgroup key={mode} label={t(mode ? 'pitchMonitor.minor' : 'pitchMonitor.major')}>
+              {keys.map((name, index) => <option key={name} value={index + mode * 15}>
+                {t(mode ? 'pitchMonitor.minorKey' : 'pitchMonitor.majorKey', { note: name })}
+              </option>)}
+            </optgroup>)}
+          </select>
+          <ChevronDown size={14} aria-hidden="true" />
+        </label>
+        <div className="pitch-monitor-note"><strong>{note === null ? '–' : pitchName(note)}</strong>
+          <span>{note === null ? '–' : `${formatCents(cents)} ¢`}</span></div>
+        <button type="button" className="pitch-monitor-hold" aria-pressed={held}
+          disabled={status !== 'live'} onClick={() => {
+            hold.current = !hold.current;
+            setHeld(hold.current);
+            if (!hold.current) showLive();
+          }}><Snowflake size={16} aria-hidden="true" />{t('pitchMonitor.hold')}</button>
+        <div className="pitch-monitor-tuner" aria-hidden="true">
+          {note !== null && <i style={{ left: `${50 + cents}%` }} />}
+        </div>
+      </div>
+      <div className="pitch-monitor-chart" data-custom={appearance.mode === 'custom' || undefined} style={monitorColors(appearance)}>
+        <PitchPlot {...view} signature={signature} tonic={tonic} beatBpm={showBeats ? bpm : undefined} label={t('pitchMonitor.graph')} />
+        {resumeListening && <button className="secondary-button pitch-monitor-listen"
+          type="button" onClick={resumeListening}>{t('pitchMonitor.listen')}</button>}
+        <div className="pitch-monitor-controls">
+          <BeatGridSettings theme={theme} bpm={bpm} showBeats={showBeats} setBpm={setBpm} setShowBeats={setShowBeats} />
+          <div className="pitch-monitor-transport">
+            <button className="icon-button pitch-monitor-record" type="button"
+              aria-label={t(recording ? 'sight.stop' : 'pitchMonitor.record')}
+              disabled={status === 'starting' || playing} onClick={() => {
+                if (recording) stopRecording();
+                else if (status === 'live') record();
+                else void start(true);
+              }}>
+              {recording ? <Square size={19} fill="currentColor" aria-hidden="true" /> : <Circle size={21} fill="currentColor" aria-hidden="true" />}
+            </button>
+            {take && !recording && <button className="icon-button" type="button" aria-label={t(playing ? 'sight.stop' : 'pitchMonitor.play')}
+              disabled={status === 'starting'} onClick={togglePlay}>{playing ? <Square size={19} aria-hidden="true" /> : <Play size={21} aria-hidden="true" />}</button>}
+          </div>
+          <MonitorAppearanceSettings value={appearance} onChange={setAppearance} theme={theme} />
+        </div>
+      </div>
+      {error && <p className="pitch-monitor-error" role="alert">{t(`sight.${error}`)}</p>}
+      {take && <audio ref={audio} src={take.url} onPause={finishPlayback} onEnded={finishPlayback} />}
+    </main>
+  </div>;
+}

@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef } from 'react';
 import { useMessages } from '../../i18n';
 import { targetPitches, type Melody, type MelodyMeasure, type MelodyScore } from './melody';
-import { pitchName, type PitchFrame } from './pitch-feedback';
+import { pitchName, sightSingingMaxMidi, type PitchFrame } from './pitch-feedback';
 import { firstFrameAt, octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { keyPitchClasses, pitchClass } from './staff-pitch';
 
@@ -27,8 +27,8 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
   const start = measures[0].start, end = measures[count - 1].end;
   const { low, high, midiRows } = useMemo(() => {
     const pitches = melody.notes.flatMap(targetPitches);
-    // Cover the pitch reader's 55–1500 Hz range and the whole written part.
-    const low = Math.min(33, ...pitches) - 1, high = Math.max(90, ...pitches) + 1;
+    // Cover the pitch reader's range and the whole written part.
+    const low = Math.min(33, ...pitches) - 1, high = Math.ceil(Math.max(sightSingingMaxMidi, ...pitches)) + 1;
     return { low, high, midiRows: Array.from({ length: high - low + 1 }, (_, index) => high - index) };
   }, [melody]);
   const noteY = (midi: number) => blockInset + (high - midi) * semitoneHeight;
