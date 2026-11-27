@@ -410,6 +410,8 @@
       "less": "Decrease by 10 ms",
       "more": "Increase by 10 ms",
       "measure": "Measure automatically",
+      "startMeasurement": "Start measurement",
+      "manualAdjustment": "Adjust manually",
       "reset": "Reset to zero",
       "measuring": "Measuring…",
       "failed": "Couldn’t measure a stable delay. Check that the microphone can hear the tones, or adjust manually."

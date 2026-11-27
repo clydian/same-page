@@ -410,6 +410,8 @@
       "less": "Um 10 ms verringern",
       "more": "Um 10 ms erhöhen",
       "measure": "Automatisch messen",
+      "startMeasurement": "Messung starten",
+      "manualAdjustment": "Manuell einstellen",
       "reset": "Auf null setzen",
       "measuring": "Messung läuft …",
       "failed": "Keine stabile Verzögerung messbar. Prüfe, ob das Mikrofon die Testtöne hört, oder passe den Wert manuell an."

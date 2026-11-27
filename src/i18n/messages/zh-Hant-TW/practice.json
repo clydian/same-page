@@ -410,6 +410,8 @@
       "less": "減少 10 毫秒",
       "more": "增加 10 毫秒",
       "measure": "自動測量",
+      "startMeasurement": "開始測量",
+      "manualAdjustment": "手動調整",
       "reset": "歸零",
       "measuring": "正在測量…",
       "failed": "未能測出穩定的延遲。請確認麥克風能聽到測試音，或手動調整。"

@@ -204,7 +204,10 @@ test('sight singing preserves its layout preferences and clears a completed take
   await page.getByRole('button', { name: '减少 10 毫秒' }).click();
   await expect(slider).toHaveAttribute('aria-valuetext', '人声延后 10 毫秒');
   const measure = async index => {
-    await page.getByRole('button', { name: '自动测量' }).click();
+    await panel.getByRole('button', { name: '自动测量', exact: true }).click();
+    await expect(panel.getByText('用设备扬声器外放时，可自动测量。戴耳机时，建议手动调整。', { exact: true })).toBeVisible();
+    assert.equal(await page.evaluate(() => window.sightSingingCalibrations.length), index);
+    await panel.getByRole('button', { name: '开始测量', exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.sightSingingCalibrations.length)).toBe(index + 1);
     const rate = await page.evaluate(index => window.sightSingingCalibrations[index].rate, index);
     const loopback = new Float32Array(Math.floor(rate * 3));
@@ -214,6 +217,11 @@ test('sight singing preserves its layout preferences and clears a completed take
     await expect(slider).toHaveValue('200');
   };
   await measure(0);
+  await panel.getByRole('button', { name: '自动测量', exact: true }).click();
+  await panel.getByRole('button', { name: '手动调整', exact: true }).click();
+  await expect(slider).toBeFocused();
+  await expect(slider).toHaveValue('200');
+  assert.equal(await page.evaluate(() => window.sightSingingCalibrations.length), 1);
   await expect(slider).toHaveAttribute('aria-valuetext', '人声提前 200 毫秒');
   await expect(panel.getByText('人声提前 200 毫秒', { exact: true })).toBeVisible();
   await expect(rating).not.toHaveText(initialRating);

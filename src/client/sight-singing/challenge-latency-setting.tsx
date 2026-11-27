@@ -1,8 +1,8 @@
 import { playbackAudioSession } from '@same-page/player/playback-audio-session';
 import { Minus, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
-import { PracticeDisclosure, PracticeHelp } from '../playback/practice-setting';
+import { PracticeDisclosure } from '../playback/practice-setting';
 import { measureRecordingLatency } from './challenge-audio';
 import { latencyStepMs, recordingLatency, recordingMarginMs } from './recording-latency';
 
@@ -21,8 +21,15 @@ export function LatencyControls({ value, onChange, audioBusy, onMeasure, showDir
   value: number; onChange: (value: number) => void; audioBusy: boolean; onMeasure: (busy: boolean) => void; showDirection?: boolean;
 }) {
   const t = useMessages('practice');
-  const [status, setStatus] = useState<'idle' | 'measuring' | 'failed'>('idle');
+  const [status, setStatus] = useState<'idle' | 'guiding' | 'measuring' | 'failed'>('idle');
   const running = useRef<AbortController | null>(null);
+  const slider = useRef<HTMLInputElement>(null);
+  const guidance = useRef<HTMLParagraphElement>(null);
+  const guidanceId = useId();
+  const guiding = status === 'guiding';
+  useEffect(() => {
+    if (guiding) guidance.current?.focus({ preventScroll: true });
+  }, [guiding]);
   useEffect(() => {
     const stop = () => { if (document.visibilityState === 'hidden') running.current?.abort(); };
     document.addEventListener('visibilitychange', stop);
@@ -65,16 +72,27 @@ export function LatencyControls({ value, onChange, audioBusy, onMeasure, showDir
       <button type="button" className="icon-button" aria-label={t('sight.latency.less')}
         disabled={measuring || value <= -recordingMarginMs} onClick={() => set(value - latencyStepMs)}><Minus size={16} aria-hidden="true" /></button>
       {showDirection && <span className="challenge-latency-value" aria-hidden="true">{direction}</span>}
-      <input type="range" aria-label={title} aria-valuetext={direction}
+      <input ref={slider} type="range" aria-label={title} aria-valuetext={direction}
         min={-recordingMarginMs} max={recordingMarginMs} value={value} disabled={measuring}
         onChange={event => set(event.currentTarget.valueAsNumber)} />
       <button type="button" className="icon-button" aria-label={t('sight.latency.more')}
         disabled={measuring || value >= recordingMarginMs} onClick={() => set(value + latencyStepMs)}><Plus size={16} aria-hidden="true" /></button>
     </div>
+    {guiding && <p ref={guidance} id={guidanceId} className="challenge-latency-guidance" tabIndex={-1}>
+      {t('sight.latency.help')}
+    </p>}
     <div className="challenge-latency-actions">
-      <button type="button" className="secondary-button" disabled={audioBusy || measuring} onClick={() => void measure()}>
-        {t(measuring ? 'sight.latency.measuring' : 'sight.latency.measure')}</button>
-      <PracticeHelp title={title}>{t('sight.latency.help')}</PracticeHelp>
+      {guiding ? <>
+        <button type="button" className="secondary-button" disabled={audioBusy} aria-describedby={guidanceId} onClick={() => void measure()}>
+          {t('sight.latency.startMeasurement')}
+        </button>
+        <button type="button" className="secondary-button" onClick={() => {
+          setStatus('idle');
+          slider.current?.focus();
+        }}>{t('sight.latency.manualAdjustment')}</button>
+      </> : <button type="button" className="secondary-button" disabled={audioBusy || measuring} onClick={() => setStatus('guiding')}>
+        {t(measuring ? 'sight.latency.measuring' : 'sight.latency.measure')}
+      </button>}
       <button type="button" className="secondary-button challenge-latency-reset" disabled={measuring || value === 0} onClick={() => set(0)}>{t('sight.latency.reset')}</button>
     </div>
     {status === 'failed' && <small role="status">{t('sight.latency.failed')}</small>}

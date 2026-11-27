@@ -410,6 +410,8 @@
       "less": "Reducir 10 ms",
       "more": "Aumentar 10 ms",
       "measure": "Medir automáticamente",
+      "startMeasurement": "Iniciar medición",
+      "manualAdjustment": "Ajustar manualmente",
       "reset": "Restablecer a cero",
       "measuring": "Midiendo…",
       "failed": "No se pudo medir un retraso estable. Verifica que el micrófono capte los tonos o ajusta el valor manualmente."

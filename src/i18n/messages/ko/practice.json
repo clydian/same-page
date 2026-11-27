@@ -410,6 +410,8 @@
       "less": "10ms 줄이기",
       "more": "10ms 늘리기",
       "measure": "자동 측정",
+      "startMeasurement": "측정 시작",
+      "manualAdjustment": "수동 조정",
       "reset": "0으로 재설정",
       "measuring": "측정 중…",
       "failed": "안정적인 지연 시간을 측정하지 못했습니다. 테스트 소리가 마이크에 들리는지 확인하거나 수동으로 조정하세요."

@@ -410,6 +410,8 @@
       "less": "10 ミリ秒下げる",
       "more": "10 ミリ秒上げる",
       "measure": "自動測定",
+      "startMeasurement": "測定を開始",
+      "manualAdjustment": "手動で調整",
       "reset": "ゼロに戻す",
       "measuring": "測定中…",
       "failed": "安定した遅延を測定できませんでした。マイクにテスト音が届くか確認するか、手動で調整してください。"
