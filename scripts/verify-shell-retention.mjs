@@ -151,7 +151,9 @@ try {
         await waiting(page, buildId(version)); assert.equal(await apply(page), true);
         await active(page, buildId(version)); await page.reload();
         assert.equal(await page.evaluate(() => window.fixtureBuild), buildId(version));
-        assert.ok((await shells(page)).length <= 2, 'same-day history grew beyond current and rollback');
+        // The new page must not wait on cleanup. Verify that the background
+        // pass still retires history once the replacement page has loaded.
+        await pollPage(page, async () => (await caches.keys()).filter(name => name.startsWith('same-page-shell-v2:')).length <= 2);
       }
       version = historyVersion;
       await page.goto(origin + '/api/outside'); await page.goBack({ waitUntil: 'commit' }); await page.waitForFunction(() => typeof window.fixtureBuild === 'string');
