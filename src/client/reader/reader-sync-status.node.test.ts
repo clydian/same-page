@@ -36,7 +36,19 @@ describe("reader sync status", () => {
   it("keeps conflicts and revoked grants actionable even during other sync", () => {
     expect(deriveReaderSyncStatus({ ...quiet, conflictCount: 1, syncing: true }).kind).toBe("conflict");
     expect(deriveReaderSyncStatus({ ...quiet, syncErrorCount: 1, permissionErrorCount: 1 }).message).toContain("编辑权已撤销");
-    expect(deriveReaderSyncStatus({ ...quiet, outcome: "failed" }).message).toContain("若仍失败，可反馈问题");
+    expect(deriveReaderSyncStatus({ ...quiet, outcome: "failed" }).message).toBe("本机操作未完成，请重试。");
+    expect(deriveReaderSyncStatus({ ...quiet, syncErrorCount: 1, online: false })).toMatchObject({
+      kind: "failed", message: "本机笔记已保存，但有修改未能上传。", dismissible: true,
+    });
+    expect(deriveReaderSyncStatus({ ...quiet, cloudAvailability: "denied", online: false }).kind).toBe("risk");
+  });
+  it("keeps an unavailable cloud read separate from durable edits and unknown local data", () => {
+    const unavailable = { ...quiet, cloudAvailability: "unavailable" as const, outcome: "sync-attempt-failed" as const };
+    expect(deriveReaderSyncStatus(unavailable)).toEqual({ kind: "unavailable", message: "暂时无法检查云端笔记。" });
+    expect(deriveReaderSyncStatus({ ...unavailable, online: false }).kind).toBe("quiet");
+    expect(deriveReaderSyncStatus({ ...unavailable, pendingCount: 1 }).kind).toBe("pending");
+    expect(deriveReaderSyncStatus({ ...unavailable, loaded: false, checkingLocal: true }).kind).toBe("quiet");
+    expect(deriveReaderSyncStatus({ ...unavailable, loaded: false }).kind).toBe("risk");
   });
 
   it("describes a persisted conflict by page, layer and a safe summary", () => {

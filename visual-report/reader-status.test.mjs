@@ -83,6 +83,8 @@ test("failed local save blocks browser back and retains the draft through reconn
     failSync = true;
     await page.evaluate(() => { window.fixtureOnline = true; window.dispatchEvent(new Event("online")); });
     await menu.getByRole("button", { name: "重试同步", exact: true }).waitFor();
+    await expect(menu.getByText("已保存在本机 · 1 项等待同步", { exact: true })).toBeVisible();
+    await expect(page.locator("aside.annotation-conflicts")).toHaveCount(0);
     failSync = false;
     await menu.getByRole("button", { name: "重试同步", exact: true }).click();
     await page.getByText("没有待上传的修改", { exact: true }).waitFor();
