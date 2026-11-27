@@ -52,7 +52,7 @@ function buildGeometry(api: AlphaTabApi, score: Geometry['score'], direction: Sc
 
 const NotationButtons = memo(function NotationButtons({ notes, voice, results, onNote }: {
   notes: readonly NoteTarget[]; voice: Part; results: ReadonlyMap<string, NotationFeedback>;
-  onNote(hit: NotationNoteHit): void;
+  onNote(hit: NoteTarget): void;
 }) {
   const t = useMessages('practice');
   const [focusKey, setFocusKey] = useState('');
@@ -115,30 +115,60 @@ const labelHeight = 16;
 const overlaps = (a: Bounds, b: Bounds) =>
   a.x < b.x + b.w + 1 && a.x + a.w + 1 > b.x && a.y < b.y + b.h + 1 && a.y + a.h + 1 > b.y;
 
-function placePitchLabels(notes: NoteTarget[], results: ReadonlyMap<string, NotationFeedback>) {
-  if (!results.size) return [];
-  const occupied = new Map<Bounds, Bounds[]>();
-  for (const note of notes) {
-    const existing = occupied.get(note.system) ?? [];
-    existing.push(note.bounds);
-    occupied.set(note.system, existing);
-  }
-  return notes.flatMap(note => {
-    const result = results.get(note.key);
-    if (!result || result.cents === null) return [];
-    const text = formatCents(result.cents), width = text.length * 7 + 6;
-    const { x, y, w, h } = note.system;
-    const left = Math.max(x, Math.min(x + w - width, note.bounds.x + note.bounds.w + 3));
-    const above = Math.max(y, Math.min(y + h - labelHeight, centerY(note.bounds) - labelHeight - 2));
-    const obstacles = occupied.get(note.system)!;
-    let position: Bounds | undefined;
-    for (let top = above; top >= y; top -= labelHeight + 2) {
-      const candidate = { x: left, y: top, w: width, h: labelHeight };
-      if (!obstacles.some(bounds => overlaps(candidate, bounds))) { position = candidate; break; }
+function engravingObstacles(element: HTMLDivElement) {
+  const sheet = element.getBoundingClientRect();
+  const scale = element.offsetWidth ? sheet.width / element.offsetWidth : 0;
+  if (!scale) return [];
+  const canvas = document.createElement('canvas').getContext('2d');
+  return [...element.querySelectorAll('svg :is(text, path, rect, polygon, line, polyline, ellipse, circle, use)')].flatMap(glyph => {
+    let { left, top, width, height } = glyph.getBoundingClientRect();
+    // AlphaTab's music-font text boxes span the full font metrics (130 px
+    // at normal zoom), not the drawn clef, notehead, or accidental.
+    if (canvas && glyph instanceof SVGTextElement && glyph.matches('g.at > text') && glyph.getNumberOfChars()) {
+      const matrix = glyph.getScreenCTM();
+      if (matrix) {
+        const style = getComputedStyle(glyph);
+        canvas.font = `${style.fontSize} ${style.fontFamily}`;
+        const ink = canvas.measureText(glyph.textContent ?? '');
+        const start = glyph.getStartPositionOfChar(0).matrixTransform(matrix);
+        left = start.x - ink.actualBoundingBoxLeft * matrix.a;
+        top = start.y - ink.actualBoundingBoxAscent * matrix.d;
+        width = (ink.actualBoundingBoxLeft + ink.actualBoundingBoxRight) * matrix.a;
+        height = (ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent) * matrix.d;
+      }
     }
-    position ??= { x: left, y: above, w: width, h: labelHeight };
-    obstacles.push(position);
-    return [{ key: note.key, status: result.status, text, position }];
+    // Do not reserve the entire length of thin staff rules.
+    if (!width || !height || glyph.tagName !== 'text' && width / scale >= 24 && height / scale <= 1.5) return [];
+    return [{ x: (left - sheet.left) / scale, y: (top - sheet.top) / scale, w: width / scale, h: height / scale }];
+  });
+}
+
+function placePitchLabels(notes: NoteTarget[], results: ReadonlyMap<string, NotationFeedback>, engraving: Bounds[]) {
+  const ordered = notes.flatMap(note => {
+    const result = results.get(note.key);
+    return result && result.cents !== null ? [{ note, cents: result.cents, status: result.status }] : [];
+  }).sort((a, b) => Math.abs(b.cents) - Math.abs(a.cents));
+  engraving.sort((a, b) => b.y - a.y);
+  const occupied = [...engraving, ...notes.map(note => note.bounds)];
+  return ordered.flatMap(({ note, cents, status }) => {
+    const text = formatCents(cents), w = text.length * 8 + 4;
+    const { bounds, system } = note;
+    const above = centerY(bounds) - labelHeight - 3;
+    // A beam or stem can sit right above the notehead. Prefer moving just
+    // beyond the engraving to piling numbers in the middle of the staff.
+    const position = [0, 14].map(offset => {
+      const candidate = { x: centerX(bounds) - w / 2 + offset, y: above, w, h: labelHeight };
+      for (const obstacle of engraving) {
+        if (overlaps(candidate, obstacle)) candidate.y = obstacle.y - labelHeight - 2;
+      }
+      return candidate;
+    }).find(candidate =>
+      candidate.x >= system.x && candidate.x + w <= system.x + system.w &&
+      candidate.y >= Math.max(0, above - 38) && candidate.y + labelHeight <= system.y + system.h &&
+      !occupied.some(bounds => overlaps(candidate, bounds)));
+    if (!position) return [];
+    occupied.push(position);
+    return [{ key: note.key, status, text, position }];
   });
 }
 
@@ -181,12 +211,12 @@ function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect
   }
 }
 
-export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, attemptReset, onNote, onMeasure, feedback, pitchFrames, liveTrace = false, traceThrough, bpm }: {
+export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, attemptReset, onNote, onMeasure, feedback, pitchFrames, traceMode, traceThrough, traceOffset, bpm }: {
   score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; measure: MelodyMeasure; elapsed: number; positioned: boolean; followRun: number;
   attemptReset: number;
   onNote?: (note: NotationNoteHit) => void; onMeasure?: (bar: number) => void; feedback?: readonly NotationFeedback[];
-  pitchFrames?: PitchFrame[]; liveTrace?: boolean;
-  traceThrough?: number; bpm: number;
+  pitchFrames?: PitchFrame[]; traceMode?: 'recording' | 'replaying';
+  traceThrough?: number; traceOffset: number; bpm: number;
 }) {
   const t = useMessages('practice');
   const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
@@ -214,7 +244,9 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const rendered = geometry?.score === display.score && geometry.direction === direction && geometry.scale === scale ? geometry : null;
   const notes = useMemo(() => rendered?.notes.filter(note => played.has(note.bar)) ?? [], [played, rendered]);
   const currentVisit = measure.visit;
-  const { results, tinted, labels } = useMemo(() => {
+  const [labels, setLabels] = useState<ReturnType<typeof placePitchLabels>>([]);
+  const [selection, select] = useState<{ note: NoteTarget; attempt: number; voice: string; visit: number }>();
+  const { results, tinted } = useMemo(() => {
     const visited = feedbackAtVisit(feedback, currentVisit);
     const results = new Map<string, NotationFeedback>(), tinted = new Map<string, AssessedHead[]>();
     for (const note of notes) {
@@ -227,8 +259,31 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       heads.push({ bounds: note.bounds, status: result.status, singleStem: note.singleStem });
       tinted.set(note.beatClass, heads);
     }
-    return { results, tinted, labels: placePitchLabels(notes, results) };
+    return { results, tinted };
   }, [feedback, currentVisit, notes, display.part]);
+
+  const selected = feedback && selection?.attempt === attemptReset && selection.voice === voice.id ? selection : undefined;
+  const detail = useMemo(() => {
+    if (!selected) return;
+    const { note, visit } = selected;
+    const result = feedbackAtVisit(feedback, visit).get(`${note.bar}:${note.beatIndex}`);
+    if (!result || result.midi != null && result.midi !== note.midi) return;
+    return result;
+  }, [feedback, selected]);
+
+  useLayoutEffect(() => {
+    const element = notation.current;
+    if (!rendered || !element || !results.size) {
+      setLabels(previous => previous.length ? [] : previous);
+      return;
+    }
+    const layout = () => setLabels(placePitchLabels(rendered.notes, results, engravingObstacles(element)));
+    // AlphaTab mounts and detaches SVG partials as they enter the viewport.
+    const observer = new MutationObserver(layout);
+    observer.observe(element, { childList: true, subtree: true });
+    layout();
+    return () => observer.disconnect();
+  }, [rendered, results]);
 
   const rememberAnchor = () => {
     const host = viewport.current, element = notation.current;
@@ -435,15 +490,22 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       {row && <div className={cursor === undefined ? 'challenge-current-measure' : 'challenge-score-cursor'} aria-hidden="true"
         style={{ left: cursor ?? row.x, top: row.y, width: cursor === undefined ? row.w : 2, height: row.h }} />}
       {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={display.score} voice={display.part}
-        beats={melody.staffBeats} measures={melody.measures} frames={pitchFrames} currentVisit={currentVisit} live={liveTrace} through={traceThrough} viewport={viewport} /> : null}
+        beats={melody.staffBeats} measures={melody.measures} frames={pitchFrames} currentVisit={currentVisit} mode={traceMode} through={traceThrough} offset={traceOffset} viewport={viewport} /> : null}
       {onNote && <NotationButtons notes={notes} voice={display.part} results={results}
-        onNote={hit => onNote(scope === 'part' ? { ...hit, voice: voice.voice } : hit)} />}
+        onNote={hit => {
+          select(feedback && results.has(hit.key) ? { note: hit, attempt: attemptReset, voice: voice.id, visit: currentVisit } : undefined);
+          onNote(scope === 'part' ? { ...hit, voice: voice.voice } : hit);
+        }} />}
       {labels.length > 0 && <div className="challenge-pitch-labels" aria-hidden="true">
         {labels.map(({ key, position, status, text }) => <span key={key} data-status={status}
           style={{ left: position.x, top: position.y, width: position.w, height: position.h }}>{text}</span>)}
       </div>}
     </div>
     </div>
+    {selected && detail && <output className="challenge-note-detail">
+      <b dir="ltr">{pitchName(selected.note.midi)}</b>
+      <span>{detail.cents === null ? t(`sight.${detail.status}`) : <>{t('sight.pitchError')} <bdi>{formatCents(detail.cents)}</bdi></>}</span>
+    </output>}
     {manual && positioned && <button type="button" className="secondary-button challenge-resume-follow" onClick={() => {
       scrollIntent.restore();
       setPaused(undefined);

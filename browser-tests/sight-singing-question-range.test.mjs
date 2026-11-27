@@ -170,8 +170,10 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   await expect(page.locator('.task-header-heading > p')).toHaveText(`${measureLabel} · 我发布`);
   const result = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/results'));
   await page.getByRole('button', { name: '开始唱', exact: true }).click();
+  await expect(page.locator('.challenge-run')).toHaveAttribute('data-phase', 'result', { timeout: 8000 });
   await expect(page.getByRole('button', { name: '回听', exact: true })).toBeEnabled();
   await expect.poll(() => page.locator('audio').evaluate(audio => audio.duration)).toBe(.75);
+  await expect(page.locator('.challenge-pitch-labels span')).toHaveText(['0']);
   await page.getByRole('button', { name: '返回题目列表', exact: true }).click();
   const resultResponse = await result;
   assert.equal(resultResponse.status(), 200);
@@ -224,7 +226,6 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   assert.ok(await cursor.evaluate(element => Number.parseFloat(element.style.left)) < targetX);
   await expect(page.locator('.challenge-staff-trace')).toBeVisible();
   await capture('unscored-lead-in.png');
-  await expect(page.locator('.challenge-pitch-labels span')).toHaveCount(8);
   const audio = page.locator('audio');
   await expect.poll(() => audio.evaluate(element => element.duration)).toBe(3.75);
   await page.getByRole('button', { name: '回听', exact: true }).click();
@@ -233,7 +234,11 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   await expect.poll(() => audio.evaluate(element => element.ended)).toBe(true);
   assert.ok(await cursor.evaluate(element => Number.parseFloat(element.style.left)) < excludedX);
   await capture('scored-crop-replay.png');
+  await firstTarget.press('Enter');
+  await expect(page.locator('.challenge-note-detail')).toHaveText('E4音准偏差（音分） 0');
+  await expect(page.locator('.challenge-run')).toHaveAttribute('data-replaying', 'true');
   await page.getByRole('button', { name: '再试一次', exact: true }).click();
+  await expect(page.locator('.challenge-note-detail')).toHaveCount(0);
   const contextResponse = await contextResult;
   assert.equal(contextResponse.status(), 200);
   // The fixed E4 tone is wrong for the lead-in's two D4s, then matches all eight scored notes.

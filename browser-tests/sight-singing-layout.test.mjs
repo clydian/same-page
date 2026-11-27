@@ -16,6 +16,11 @@ test('sight singing preserves its layout preferences and clears a completed take
     const Worklet = AudioWorkletNode;
     window.sightSingingCaptures = [];
     window.sightSingingCalibrations = [];
+    const arc = CanvasRenderingContext2D.prototype.arc;
+    CanvasRenderingContext2D.prototype.arc = function (x, ...rest) {
+      if (this.canvas.closest('.challenge-graph')) window.sightSingingPitchTipX = x;
+      return arc.call(this, x, ...rest);
+    };
     window.AudioWorkletNode = class extends Worklet {
       constructor(audio, name, options) {
         super(audio, name, options);
@@ -35,9 +40,16 @@ test('sight singing preserves its layout preferences and clears a completed take
         window.sightSingingCaptures.push({
           count: () => port2.postMessage({ count: 4 }),
           live: () => {
-            for (let offset = 0; offset <= margin + frameSize; offset += frameSize) {
-              port2.postMessage({ samples: new Float32Array(frameSize), done: false });
+            let lastTime = 0;
+            for (let offset = 0; offset < margin + audio.sampleRate; offset += frameSize) {
+              lastTime = (offset - margin) / audio.sampleRate;
+              const samples = Float32Array.from({ length: frameSize }, (_, index) => {
+                const time = (offset + index - margin) / audio.sampleRate;
+                return time < .25 ? 0 : .2 * Math.sin(2 * Math.PI * 329.6276 * time);
+              });
+              port2.postMessage({ samples, done: false }, [samples.buffer]);
             }
+            return lastTime;
           },
           complete: () => {
             // Two written E4 measures. Supply one on-pitch and one off-pitch.
@@ -267,7 +279,14 @@ test('sight singing preserves its layout preferences and clears a completed take
   await page.evaluate(() => window.sightSingingCaptures[1].count());
   await expect(run).toHaveAttribute('data-phase', 'count');
   await expect(marks).toHaveCount(0);
-  await page.evaluate(() => window.sightSingingCaptures[1].live());
+  const lastTime = await page.evaluate(() => window.sightSingingCaptures[1].live());
   await expect(run).toHaveAttribute('data-phase', 'sing');
   await expect(marks).toHaveCount(0);
+  const tip = score.locator('.challenge-staff-trace circle');
+  await expect(tip).toBeVisible();
+  if (evidence) await page.screenshot({ path: join(evidence, 'live-aligned.png') });
+  // Two complete 3-second measures fill the plot, with 8 px on either side.
+  await expect.poll(() => graph.locator('canvas').evaluate((canvas, time) =>
+    Math.abs(window.sightSingingPitchTipX - (8 + (canvas.clientWidth - 16) * time / 6)), lastTime - .2))
+    .toBeLessThan(1);
 });

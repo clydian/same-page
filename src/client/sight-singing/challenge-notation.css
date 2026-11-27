@@ -48,6 +48,11 @@
 }
 .challenge-pitch-labels :is([data-status="sharp"], [data-status="flat"]) { color: var(--feedback-detuned); }
 .challenge-pitch-labels [data-status="wrongNote"] { color: var(--feedback-wrong); }
+.challenge-note-detail {
+  display: flex; flex: none; align-items: center; justify-content: center; gap: .45rem;
+  padding: .25rem .5rem; background: var(--score-paper); color: var(--ink);
+  font-size: .85rem;
+}
 .challenge-notation-sheet :is([data-challenge-feedback="inTune"], [data-challenge-feedback="sharp"], [data-challenge-feedback="flat"]) {
   --note-feedback-ink: var(--score-in-tune);
 }

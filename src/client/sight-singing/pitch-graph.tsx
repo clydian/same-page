@@ -2,15 +2,15 @@ import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef } from 'rea
 import { useMessages } from '../../i18n';
 import { targetPitches, type Melody, type MelodyMeasure, type MelodyScore } from './melody';
 import { pitchName, sightSingingMaxMidi, type PitchFrame } from './pitch-feedback';
-import { firstFrameAt, octaveGuides, pitchFramesConnect } from './pitch-trace';
+import { firstFrameAt, lastFrameThrough, octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { keyPitchClasses, pitchClass } from './staff-pitch';
 
 const inlineInset = 8;
 const blockInset = 12;
 const semitoneHeight = 16;
 
-export function PitchGraph({ melody, visits, measure, frames, elapsed, following, reviewing, activeTarget, attemptReset, measureSpan, onMeasureSpanChange }: {
-  melody: Melody; visits: MelodyScore['visits']; measure: MelodyMeasure; frames: PitchFrame[]; elapsed: number;
+export function PitchGraph({ melody, visits, measure, frames, elapsed, traceOffset, following, reviewing, activeTarget, attemptReset, measureSpan, onMeasureSpanChange }: {
+  melody: Melody; visits: MelodyScore['visits']; measure: MelodyMeasure; frames: PitchFrame[]; elapsed: number; traceOffset: number;
   following: boolean; reviewing: boolean; activeTarget?: string; attemptReset: number;
   measureSpan: number; onMeasureSpanChange(count: number): void;
 }) {
@@ -45,14 +45,19 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
     });
     return { notes, targets: new Set(notes.flatMap(note => note.written)), alternates: new Set(notes.flatMap(note => note.guides)) };
   }, [melody, start, end, low, high]);
-  const endFrame = firstFrameAt(frames, end + 1e-6);
-  const startFrame = firstFrameAt(frames, start);
-  const trace = frames.slice(startFrame, endFrame);
-  const index = firstFrameAt(trace, elapsed + 1e-6) - 1;
-  const current = trace[index];
-  const activePitch = current && elapsed - current.time <= .065 ? current.midi : null;
+  const latest = lastFrameThrough(frames, elapsed + traceOffset);
+  const recording = following && !reviewing;
+  const endFrame = lastFrameThrough(frames, end + traceOffset) + 1;
+  const startFrame = firstFrameAt(frames, start + traceOffset);
+  const trace = frames.slice(startFrame, recording ? Math.min(endFrame, latest + 1) : endFrame);
+  const index = Math.min(latest, endFrame - 1) - startFrame;
+  let current: PitchFrame | undefined;
+  for (let cursor = index; cursor >= 0; cursor--) {
+    if (trace[cursor].midi !== null) { current = trace[cursor]; break; }
+  }
+  const tipTime = recording ? Math.min(elapsed + traceOffset, frames.at(-1)?.time ?? 0) : elapsed;
+  const active = current && tipTime - current.time <= (recording ? .025 : .065) ? current : undefined;
   let focusPitch = current?.midi ?? null;
-  for (let cursor = index - 1; focusPitch === null && cursor >= 0; cursor--) focusPitch = trace[cursor].midi;
   if (focusPitch === null && reviewing) focusPitch = trace.find(frame => frame.midi !== null)?.midi ?? null;
   const anchor = focusPitch ?? notes[0]?.midi ?? melody.notes[0]?.midi;
   const anchorY = anchor === undefined ? undefined : noteY(anchor);
@@ -135,7 +140,8 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
     draw.beginPath();
     let previous: PitchFrame | undefined;
     for (const frame of trace) {
-      const { midi, time } = frame;
+      const { midi } = frame;
+      const time = frame.time - traceOffset;
       if (midi === null) { previous = undefined; continue; }
       if (!previous || !pitchFramesConnect(previous, frame)) {
         draw.moveTo(x(time), y(midi));
@@ -144,10 +150,10 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
       previous = frame;
     }
     draw.stroke();
-    if (activePitch !== null) {
+    if (active && active.midi !== null) {
       draw.fillStyle = tone('voice');
       draw.beginPath();
-      draw.arc(x(elapsed), y(activePitch), 3.5, 0, 2 * Math.PI);
+      draw.arc(x(active.time - traceOffset), y(active.midi), 3.5, 0, 2 * Math.PI);
       draw.fill();
     }
   });
@@ -173,7 +179,7 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
       <div className="challenge-graph-legend">
         <span data-kind="written">{activeTarget ? t('sight.currentTarget', { pitch: activeTarget }) : t('sight.targetLegend')}</span>
         <span data-kind="octave">{t('sight.octaveTargetLegend')}</span>
-        <span data-kind="voice">{activePitch === null ? t('sight.voiceLegend') : t('sight.currentPitch', { pitch: pitchName(Math.round(activePitch)) })}</span>
+        <span data-kind="voice">{active?.midi == null ? t('sight.voiceLegend') : t('sight.currentPitch', { pitch: pitchName(Math.round(active.midi)) })}</span>
       </div>
       <div className="practice-notation-size challenge-pitch-zoom" role="group" aria-label={t('sight.pitchMonitor')}>
         <button type="button" className="practice-icon" aria-label={t('sight.pitchMoreMeasures')}
