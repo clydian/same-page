@@ -144,8 +144,26 @@ test('sight singing preserves its layout preferences and clears a completed take
   const measures = graph.getByRole('listitem');
   await expect(measures).toHaveText(['0', '2', '3']);
   const beforeGraphZoom = await score.boundingBox();
-  await graph.getByRole('button', { name: '显示更少小节' }).click();
+  const pitchView = () => graph.locator('.challenge-pitch-scroll').evaluate(view => {
+    const [first, second] = view.querySelectorAll('.challenge-pitch-axis span');
+    const top = parseFloat(first.style.top), row = parseFloat(second.style.top) - top;
+    return { row, center: (view.scrollTop + view.clientHeight / 2 - top) / row };
+  });
+  const initialPitchView = await pitchView();
+  const pitchZoom = graph.getByRole('button', { name: '缩放', exact: true });
+  await pitchZoom.press('Enter');
+  const zoomDialog = page.getByRole('dialog', { name: '缩放' });
+  await zoomDialog.getByRole('button', { name: '显示更少小节' }).click();
   await expect(measures).toHaveText(['0', '2']);
+  assert.equal((await pitchView()).row, initialPitchView.row);
+  await zoomDialog.getByRole('button', { name: '扩大可见音域' }).click();
+  const widerPitchView = await pitchView();
+  assert.ok(widerPitchView.row < initialPitchView.row);
+  assert.ok(Math.abs(widerPitchView.center - initialPitchView.center) < .1);
+  await expect(measures).toHaveText(['0', '2']);
+  await page.keyboard.press('Escape');
+  await expect(zoomDialog).toBeHidden();
+  await expect(pitchZoom).toBeFocused();
   await expect(zoom).toHaveText('100%');
   assert.equal((await score.boundingBox()).height, beforeGraphZoom.height);
   const sheetBox = await score.boundingBox(), pitchBox = await graph.boundingBox(), controlsBox = await controls.boundingBox();
@@ -276,6 +294,7 @@ test('sight singing preserves its layout preferences and clears a completed take
   await expect(zoom).toHaveText('100%');
   await togglePitch();
   await expect(measures).toHaveText(['0', '2']);
+  assert.equal((await pitchView()).row, widerPitchView.row);
 
   await start.click();
   await expect.poll(() => page.evaluate(() => window.sightSingingCaptures.length)).toBe(2);

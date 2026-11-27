@@ -73,6 +73,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [followRun, setFollowRun] = useState(0);
   const [attemptReset, setAttemptReset] = useState(0);
   const [pitchSpan, setPitchSpan] = useState(3);
+  const [pitchRangeZoom, setPitchRangeZoom] = useState(0);
   const run = useRef<{ stop: () => void; setMix?: (mix: Pick<ChallengeMix, 'backing' | 'tonic' | 'metronome'>) => void } | null>(null);
   const tonicPreview = useRef<ReturnType<typeof playSustainedTonic> | null>(null);
   const replay = useRef<HTMLAudioElement>(null);
@@ -320,7 +321,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       traceThrough={state.phase === 'sing' || state.phase === 'result' ? position : undefined} />
 
     {pitchTraceEnabled && <PitchGraph key={voice.id} melody={melody} visits={document.visits} measure={measure} attemptReset={attemptReset}
-      measureSpan={pitchSpan} onMeasureSpanChange={setPitchSpan} frames={displayFrames ?? emptyFrames} elapsed={position}
+      measureSpan={pitchSpan} onMeasureSpanChange={setPitchSpan} rangeZoom={pitchRangeZoom} onRangeZoomChange={setPitchRangeZoom}
+      frames={displayFrames ?? emptyFrames} elapsed={position}
       following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
