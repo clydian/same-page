@@ -247,7 +247,6 @@
   "rhythmPractice": "Práctica de ritmo",
   "pitchMode": {
     "label": "Modo de tono",
-    "choose": "Elige un modo",
     "clear": "Claro",
     "all": "Todas las lecturas"
   },
@@ -357,6 +356,11 @@
     "currentPitch": "Cantada {pitch}",
     "ensembleBacking": "Otras voces",
     "backingUnavailable": "Algunas voces de este fragmento no se pueden reproducir.",
+    "pitchZoom": "Zoom",
+    "pitchZoomMeasures": "Compases",
+    "pitchZoomRange": "Rango de alturas",
+    "pitchWiderRange": "Ampliar el rango de alturas visible",
+    "pitchNarrowerRange": "Reducir el rango de alturas visible",
     "pitchMoreMeasures": "Mostrar más compases",
     "pitchFewerMeasures": "Mostrar menos compases",
     "mixer": "Mezclador",

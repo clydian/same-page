@@ -4,7 +4,7 @@ import { loadPracticeClicks, practiceBeatAccent, schedulePracticeClicks } from '
 import { loadPracticeSoundFont } from '../playback/practice-soundfont';
 import { createChoirBacking, scheduleChoirBacking } from './choir-backing';
 import { targetPitches, type Melody, type MelodyNote } from './melody';
-import { createLivePitch, livePitchChunkSize, type PitchMode } from './live-pitch';
+import { createLivePitch, livePitchChunkSize } from './live-pitch';
 import { frequency, type PitchFrame } from './pitch-feedback';
 import { calibrationDuration, calibrationTimes, calibrationTone, estimateRecordingLatency,
   recordingOffsetFrames } from './recording-latency';
@@ -101,7 +101,7 @@ function setOutputLevel(gain: GainNode | undefined, level: number) {
 }
 
 export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing: MelodyNote[][],
-  mix: CaptureMix, { mode, latency }: { mode: PitchMode; latency: number }, previewContext?: AudioContext) {
+  mix: CaptureMix, latency: number, previewContext?: AudioContext) {
   let active = true;
   let context = previewContext, stream: MediaStream | undefined;
   let input: MediaStreamAudioSourceNode | undefined, worklet: AudioWorkletNode | undefined;
@@ -175,7 +175,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     worklet.onprocessorerror = () => fail('audioFailure');
     const offset = latency / 1000;
     const pitch = createLivePitch(sampleRate, undefined, margin + offset * sampleRate);
-    const frames = pitch.frames(mode);
+    const frames = pitch.frames('clear');
     const chunks: ArrayBuffer[] = [];
     let received = 0;
     worklet.port.onmessage = ({ data }: MessageEvent<{ count: number } | { samples: Float32Array; done: boolean }>) => {
@@ -183,7 +183,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
       if ('count' in data) { callbacks.onCount(data.count); return; }
       const { samples, done } = data;
       pitch.append(samples);
-      const current = pitch.current(mode);
+      const current = pitch.current('clear');
       // The singer's samples are calibrated, while the accompaniment/playhead
       // stay on the worklet's unshifted clock.
       const time = current.time + offset;

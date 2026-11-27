@@ -112,7 +112,6 @@
 .challenge-count span { width: .55rem; height: .55rem; border: 1px solid var(--muted); border-radius: 50%; }
 .challenge-count span[data-passed="true"] { background: var(--brand); border-color: var(--brand); }
 .challenge-setup, .challenge-result { display: grid; gap: .55rem; padding-block-start: .55rem; }
-.challenge-pitch-mode { grid-column: 1 / -1; min-inline-size: 0; }
 .challenge-practice-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
 .challenge-option {
   position: relative; display: flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0;
@@ -153,13 +152,13 @@
 
 .challenge-graph {
   flex: none; margin: .3rem 0; padding: .1rem .55rem .3rem; border: 1px solid var(--line); border-radius: .75rem;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 .5rem;
   background: var(--pitch-surface);
 }
 .challenge-graph figcaption {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
-  gap: 0 .5rem;
+  display: flex; flex-wrap: wrap; align-items: center; min-inline-size: 0; gap: 0 .5rem;
 }
-.challenge-graph figcaption h3 { font-size: .9rem; font-weight: 700; }
+.challenge-graph figcaption h3 { margin: 0; font-size: .9rem; font-weight: 700; }
 .challenge-graph-legend { display: flex; flex-wrap: wrap; gap: .12rem .55rem; color: var(--muted); font-size: .75rem; }
 .challenge-graph-legend span::before {
   content: ''; display: inline-block; width: .65rem; height: .22rem; margin-inline-end: .32rem;
@@ -167,16 +166,38 @@
 }
 .challenge-graph-legend [data-kind="voice"]::before { background: var(--pitch-voice); }
 .challenge-graph-legend [data-kind="octave"]::before { background: none; border-radius: 0; border-block-start: 2px dashed var(--pitch-octave); }
-.challenge-graph-body { --pitch-window-height: clamp(3.25rem, 16dvh, 10rem); --pitch-axis-width: 2.45rem; margin-inline-start: -.15rem; }
+.challenge-pitch-zoom-trigger {
+  display: inline-flex; align-items: center; justify-content: center; gap: .32rem;
+  min-inline-size: 44px; min-block-size: 44px; padding: 0 .45rem; border: 0; border-radius: .55rem;
+  background: transparent; color: var(--ink); font: inherit; font-size: .78rem; cursor: pointer;
+}
+.challenge-pitch-zoom-trigger:is([data-hovered], [aria-expanded="true"]) { background: var(--ui-soft, #eaf0ea); }
+.challenge-pitch-zoom-trigger:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.challenge-pitch-zoom-popover {
+  z-index: 80; max-inline-size: calc(100vw - 1.5rem); overflow: auto; border: 1px solid var(--line);
+  border-radius: .75rem; background: var(--surface); color: var(--ink); box-shadow: 0 6px 24px #0003;
+}
+.challenge-pitch-zoom-dialog { padding: .2rem .35rem; outline: none; }
+.challenge-pitch-zoom-dialog .practice-notation-size {
+  display: grid; grid-template-columns: minmax(0, 1fr) 44px 44px; align-items: center; color: var(--ink);
+}
+.challenge-pitch-zoom-dialog .practice-notation-size + .practice-notation-size { border-block-start: 1px solid var(--line); }
+.challenge-pitch-zoom-dialog span { padding-inline: .55rem; font-size: .85rem; }
+.challenge-graph-body {
+  --pitch-base-height: clamp(3.25rem, 16dvh, 10rem);
+  --pitch-window-height: calc(var(--pitch-base-height) * var(--pitch-chart-growth));
+  --pitch-axis-width: 2.45rem; --solfege-axis-width: 2rem;
+  grid-column: 1 / -1; min-inline-size: 0; margin-inline-start: -.15rem;
+}
 .challenge-pitch-scroll { height: var(--pitch-window-height); overflow: auto; scrollbar-gutter: stable; scroll-behavior: auto; }
 .challenge-pitch-scroll:focus-visible { outline-offset: -2px; }
-.challenge-pitch-field { display: grid; grid-template-columns: var(--pitch-axis-width) minmax(0, 1fr); }
-.challenge-plot { min-width: 0; border-inline-start: 1px solid var(--pitch-grid-strong); }
+.challenge-pitch-field { display: grid; grid-template-columns: var(--pitch-axis-width) minmax(0, 1fr) var(--solfege-axis-width); }
+.challenge-plot { min-width: 0; border-inline: 1px solid var(--pitch-grid-strong); }
 .challenge-plot canvas { position: sticky; inset-block-start: 0; display: block; width: 100%; height: var(--pitch-window-height); }
 .challenge-pitch-axis { position: relative; }
 .challenge-measure-axis {
   display: grid; list-style: none; margin-block: 0; padding: 0;
-  margin-inline: calc(var(--pitch-axis-width) + 9px) calc(var(--pitch-scrollbar, 0px) + 8px);
+  margin-inline: calc(var(--pitch-axis-width) + 9px) calc(var(--solfege-axis-width) + var(--pitch-scrollbar, 0px) + 9px);
   border-block-start: 1px solid var(--pitch-grid-strong); text-align: center;
   color: var(--muted); font-size: .72rem; line-height: 1.35; font-variant-numeric: tabular-nums;
 }
@@ -187,16 +208,19 @@
 .challenge-pitch-axis span[data-in-key="true"] { color: var(--ink); font-weight: 550; }
 .challenge-pitch-axis span[data-alternate="true"] { font-weight: 550; }
 .challenge-pitch-axis span[data-target="true"] { color: var(--ink); font-weight: 700; }
+.challenge-solfege-axis span { inset-inline: .35rem auto; color: var(--ink); font-weight: 550; }
 @media (max-width: 36rem) {
   .challenge-option { font-size: .84rem; }
 }
 @media (width < 30rem) {
-  .challenge-graph figcaption { grid-template-columns: minmax(0, 1fr) auto; }
-  .challenge-graph-legend { grid-column: 1 / -1; grid-row: 2; margin-block-end: .24rem; }
-  .challenge-graph-body { --pitch-window-height: clamp(3.25rem, 11dvh, 7rem); }
+  .challenge-graph-body { --pitch-base-height: clamp(3.25rem, 11dvh, 7rem); }
+}
+@media (width < 22rem) {
+  .challenge-graph-legend { column-gap: .32rem; }
+  .challenge-graph-legend span::before { width: .48rem; margin-inline-end: .2rem; }
 }
 @media (max-height: 35rem) {
-  .challenge-graph-body { --pitch-window-height: clamp(2.5rem, 11dvh, 5rem); }
+  .challenge-graph-body { --pitch-base-height: clamp(2.5rem, 11dvh, 5rem); }
 }
 @media (min-width: 30rem) and (max-height: 32rem) {
   .challenge-workspace[data-practice] .task-header { min-block-size: 48px; padding-block: .1rem; }
@@ -204,16 +228,12 @@
   .challenge-setup, .challenge-result, .challenge-transport { padding-block-start: .35rem; }
   .challenge-setup { grid-template-columns: minmax(0, 1fr) auto; }
   .challenge-setup > :is(.challenge-headphones, small) { grid-column: 1 / -1; }
-  .challenge-practice-controls { grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 1fr) repeat(2, minmax(0, 1fr)) minmax(4.6rem, 1fr); }
-  .challenge-pitch-mode { grid-column: auto; position: relative; }
-  .challenge-pitch-mode > span { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
-  .challenge-pitch-mode > select { inline-size: 100%; padding-inline: .25rem; font-size: .85rem; text-overflow: ellipsis; }
+  .challenge-practice-controls { grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 1fr) repeat(2, minmax(0, 1fr)); }
   .challenge-start { padding-inline: .75rem; }
-  .challenge-graph { display: grid; grid-template-columns: minmax(0, 16rem) minmax(0, 1fr); align-items: center; gap: .45rem; }
-  .challenge-graph figcaption { grid-template-columns: minmax(0, 1fr) auto; }
+  .challenge-graph { grid-template-columns: minmax(0, 12rem) auto minmax(0, 1fr); gap: .45rem; }
   .challenge-graph figcaption h3 { position: absolute; clip-path: inset(50%); }
   .challenge-graph-legend { line-height: 1.25; }
-  .challenge-graph-body { --pitch-window-height: clamp(2rem, 10dvh, 4rem); }
+  .challenge-graph-body { --pitch-base-height: clamp(2rem, 10dvh, 4rem); grid-column: auto; }
 }
 @media (30rem <= width <= 46rem) and (max-height: 32rem) {
   .challenge-practice-controls { grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 1fr) repeat(2, 44px) minmax(4.6rem, 1fr); }

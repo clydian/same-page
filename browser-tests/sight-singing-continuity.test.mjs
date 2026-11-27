@@ -77,7 +77,6 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   page.on("request", request => {
     if (request.url() === `${question}/results` && request.method() === "POST") publications++;
   });
-  await page.getByLabel("音高模式").selectOption("clear");
   await page.getByRole("button", { name: "开始唱", exact: true }).click();
   await expect(run).toHaveAttribute("data-phase", "count");
   await context.setOffline(true);
@@ -162,7 +161,6 @@ test("a loaded sight-singing question survives offline and a failed identity ref
     await route.continue();
   });
   const oldResults = await holdNextRead(t, cold, filteredUrl);
-  await cold.getByLabel("音高模式").selectOption("clear");
   await cold.getByRole("button", { name: "开始唱", exact: true }).click();
   await cold.getByRole("button", { name: "再试一次", exact: true }).click();
   await posting.promise;

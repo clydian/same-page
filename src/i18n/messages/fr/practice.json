@@ -247,7 +247,6 @@
   "rhythmPractice": "Exercice rythmique",
   "pitchMode": {
     "label": "Mode de hauteur",
-    "choose": "Choisir un mode",
     "clear": "Clair",
     "all": "Toutes les mesures"
   },
@@ -357,6 +356,11 @@
     "currentPitch": "Chanté {pitch}",
     "ensembleBacking": "Autres voix",
     "backingUnavailable": "Certaines voix de ce passage ne peuvent pas être jouées.",
+    "pitchZoom": "Zoom",
+    "pitchZoomMeasures": "Mesures",
+    "pitchZoomRange": "Étendue",
+    "pitchWiderRange": "Élargir l’étendue visible",
+    "pitchNarrowerRange": "Réduire l’étendue visible",
     "pitchMoreMeasures": "Afficher plus de mesures",
     "pitchFewerMeasures": "Afficher moins de mesures",
     "mixer": "Mixeur",
