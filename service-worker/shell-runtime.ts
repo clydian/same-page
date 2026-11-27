@@ -53,6 +53,7 @@ export class ShellRuntime {
   private repair?: Promise<void>;
   private assetRecords?: Promise<ShellRecord[]>;
   private audit?: Promise<void>;
+  private collectAfterActivation = false;
   private progressSequence = 0;
   private progressSnapshot: InstallProgress | null = null;
   private progressPublishedAt = 0;
@@ -321,7 +322,9 @@ export class ShellRuntime {
     const permitted = await this.ready(AbortSignal.timeout(15_000)).then(() => this.permission ? this.permission.activate() : true).catch(() => false);
     const record = await this.current;
     await this.locked(async () => { if (permitted) await this.permitDisplay(record); record.activated = Date.now(); await this.save(record); }).catch(() => undefined);
-    await this.collect();
+    // Cache collection probes other windows and verifies retained releases.
+    // The browser queues the new document until activation finishes.
+    this.collectAfterActivation = true;
   }
   private async references() {
     const { active, waiting, installing } = this.scope.registration;
@@ -421,7 +424,10 @@ export class ShellRuntime {
     }
   }
   auditAfterNavigation() {
-    this.audit ??= this.ready(AbortSignal.timeout(30_000)).catch(() => undefined);
+    this.audit ??= (async () => {
+      await this.ready(AbortSignal.timeout(30_000)).catch(() => undefined);
+      if (this.collectAfterActivation) await this.collect().catch(() => undefined);
+    })();
     return this.audit;
   }
   async asset(request: Request): Promise<Response> {

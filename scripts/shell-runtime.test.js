@@ -198,7 +198,12 @@ it('keeps a steady current and one rollback across twenty same-day activations',
   for (let i = 0; i < 20; i++) {
     const runtime = await release(`day-${i}`);
     scope.registration.active = target(() => runtime.identity);
+    const collect = vi.spyOn(runtime, 'collect');
     await runtime.activate();
+    expect(collect).not.toHaveBeenCalled();
+    expect((await runtime.navigation()).status).toBe(200);
+    await runtime.auditAfterNavigation();
+    expect(collect).toHaveBeenCalledOnce();
     const records = await runtime.records();
     expect(records.map(r => r.buildId)).toEqual(i ? [`day-${i - 1}`, `day-${i}`] : ['day-0']);
     expect(await complete(runtime)).toBe(true);
@@ -241,6 +246,8 @@ it('preserves the fixed v1 legacy collection while retiring new history', async 
     const runtime = await release(`new-${i}`);
     scope.registration.active = target(() => runtime.identity);
     await runtime.activate();
+    expect((await runtime.navigation()).status).toBe(200);
+    await runtime.auditAfterNavigation();
     expect(stores.has(legacyName)).toBe(true);
     expect((await runtime.records()).length).toBeLessThanOrEqual(3);
   }
