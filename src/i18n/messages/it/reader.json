@@ -380,7 +380,7 @@
   "swipeVertically": "Scivola su e giù",
   "sync": "sincronizzare",
   "syncBlockedByPermission": "Annotazioni con sincronizzazione in pausa: {permissionErrorCount}. Il livello è stato disattivato o eliminato, oppure i tuoi permessi di modifica sono stati revocati. Le bozze restano su questo dispositivo. Riprova quando il livello originale e i permessi saranno ripristinati. Le bozze scadute restano qui e non verranno trasferite in nuovi livelli con lo stesso nome. Le altre annotazioni continuano a sincronizzarsi.",
-  "syncFailed": "Le note sono salvate su questo dispositivo. Non è stato possibile caricare alcune modifiche.",
+  "syncFailed": "Le note sono salvate su questo dispositivo. Il server ha rifiutato alcune modifiche.",
   "syncNotesDescription": "Ricevi le ultime note dai membri e carica le mie modifiche",
   "syncNow": "Sincronizza ora",
   "syncStatusExplanation": "Lo stato del caricamento si riferisce solo alle tue modifiche; fare clic su \"Sincronizza\" per ottenere le ultime note dei membri.",

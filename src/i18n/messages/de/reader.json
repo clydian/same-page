@@ -380,7 +380,7 @@
   "swipeVertically": "Auf und ab gleiten",
   "sync": "synchronisieren",
   "syncBlockedByPermission": "Synchronisierung für {permissionErrorCount} Notizen pausiert: Die Ebene wurde deaktiviert oder gelöscht, oder dir wurde die Bearbeitungsberechtigung entzogen. Die Entwürfe bleiben auf diesem Gerät. Versuche es erneut, sobald die ursprüngliche Ebene und deine Berechtigung wiederhergestellt sind. Entwürfe mit abgelaufener Frist bleiben auf dem Gerät und werden nicht in eine gleichnamige neue Ebene verschoben. Andere Notizen werden weiter synchronisiert.",
-  "syncFailed": "Die Notizen sind auf diesem Gerät gespeichert. Einige Änderungen konnten nicht hochgeladen werden.",
+  "syncFailed": "Die Notizen sind auf diesem Gerät gespeichert. Der Server hat einige Änderungen abgelehnt.",
   "syncNotesDescription": "Erhalten Sie die neuesten Notizen von Mitgliedern und laden Sie meine Änderungen hoch",
   "syncNow": "Jetzt synchronisieren",
   "syncStatusExplanation": "Der Upload-Status bezieht sich nur auf Ihre Änderungen; Klicken Sie auf „Synchronisieren“, um die neuesten Notizen der Mitglieder zu erhalten.",

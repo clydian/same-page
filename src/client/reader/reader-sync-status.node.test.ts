@@ -38,7 +38,7 @@ describe("reader sync status", () => {
     expect(deriveReaderSyncStatus({ ...quiet, syncErrorCount: 1, permissionErrorCount: 1 }).message).toContain("编辑权已撤销");
     expect(deriveReaderSyncStatus({ ...quiet, outcome: "failed" }).message).toBe("本机操作未完成，请重试。");
     expect(deriveReaderSyncStatus({ ...quiet, syncErrorCount: 1, online: false })).toMatchObject({
-      kind: "failed", message: "本机笔记已保存，但有修改未能上传。", dismissible: true,
+      kind: "failed", message: "本机笔记已保存，云端未接受部分修改。", dismissible: true,
     });
     expect(deriveReaderSyncStatus({ ...quiet, cloudAvailability: "denied", online: false }).kind).toBe("risk");
   });

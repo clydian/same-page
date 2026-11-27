@@ -380,7 +380,7 @@
   "swipeVertically": "Deslize para cima e para baixo",
   "sync": "sincronizar",
   "syncBlockedByPermission": "Anotações com sincronização pausada: {permissionErrorCount}. A camada foi desativada ou excluída, ou sua permissão de edição foi revogada. Seus rascunhos ficam neste dispositivo. Tente novamente quando a camada original e a permissão forem restauradas. Rascunhos expirados ficam neste dispositivo e não são movidos para novas camadas com o mesmo nome. As outras anotações continuam sincronizando.",
-  "syncFailed": "As anotações estão salvas neste dispositivo. Algumas alterações não puderam ser enviadas.",
+  "syncFailed": "As anotações estão salvas neste dispositivo. O servidor rejeitou algumas alterações.",
   "syncNotesDescription": "Receba as últimas notas dos membros e carregue minhas modificações",
   "syncNow": "Sincronize agora",
   "syncStatusExplanation": "O status do upload refere-se apenas às suas modificações; clique em \"Sincronizar\" para obter as últimas notas dos membros.",

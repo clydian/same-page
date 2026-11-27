@@ -380,7 +380,7 @@
   "swipeVertically": "Slide up and down",
   "sync": "Sync",
   "syncBlockedByPermission": "Notes with sync paused: {permissionErrorCount}. The layer was disabled or deleted, or your editing access changed. Drafts stay on this device. Retry once the original layer and your access are restored. Expired drafts stay on this device and will not move to a new layer with the same name. Other notes keep syncing.",
-  "syncFailed": "Notes are saved on this device. Some changes could not be uploaded.",
+  "syncFailed": "Notes are saved on this device. The server rejected some changes.",
   "syncNotesDescription": "Get the latest notes from members and upload my changes",
   "syncNow": "Sync now",
   "syncStatusExplanation": "Upload status shows your changes. Select Sync to get the latest notes from members.",

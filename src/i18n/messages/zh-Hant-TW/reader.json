@@ -380,7 +380,7 @@
   "swipeVertically": "上下滑動",
   "sync": "同步",
   "syncBlockedByPermission": "{permissionErrorCount} 則筆記暫停同步：圖層已停用、刪除，或編輯權限已撤銷。本機草稿會保留；恢復原圖層和編輯權限後可重試。到期的筆記留在本機，不會轉移到同名的新圖層。其他筆記會繼續同步。",
-  "syncFailed": "本機筆記已儲存，但有修改未能上傳。",
+  "syncFailed": "本機筆記已儲存，雲端未接受部分修改。",
   "syncNotesDescription": "取得會員最新筆記，並上傳我的修改",
   "syncNow": "立即同步",
   "syncStatusExplanation": "上傳狀態僅指你的修改；點「同步」取得成員最新筆記。",

@@ -380,7 +380,7 @@
   "swipeVertically": "Glisser de haut en bas",
   "sync": "synchroniser",
   "syncBlockedByPermission": "Annotations dont la synchronisation est en pause : {permissionErrorCount}. Le calque a été désactivé ou supprimé, ou vos droits de modification ont été révoqués. Vos brouillons restent sur cet appareil. Réessayez une fois le calque d’origine et vos droits rétablis. Les brouillons expirés restent ici et ne seront pas déplacés vers un nouveau calque du même nom. Les autres annotations continuent à se synchroniser.",
-  "syncFailed": "Les notes sont enregistrées sur cet appareil. Certaines modifications n’ont pas pu être envoyées.",
+  "syncFailed": "Les notes sont enregistrées sur cet appareil. Le serveur a refusé certaines modifications.",
   "syncNotesDescription": "Recevez les dernières notes des membres et téléchargez mes modifications",
   "syncNow": "Synchronisez maintenant",
   "syncStatusExplanation": "Le statut de téléchargement ne fait référence qu'à vos modifications ; cliquez sur \"Sync\" pour obtenir les dernières notes des membres.",

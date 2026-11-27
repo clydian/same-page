@@ -380,7 +380,7 @@
   "swipeVertically": "上下滑动",
   "sync": "同步",
   "syncBlockedByPermission": "{permissionErrorCount} 项笔记暂缓同步：层已停用、删除或编辑权已撤销。本机草稿保留；原层恢复且权限允许后重试。到期内容仍保留在本机，不会转写同名新层。其它笔记会继续同步。",
-  "syncFailed": "本机笔记已保存，但有修改未能上传。",
+  "syncFailed": "本机笔记已保存，云端未接受部分修改。",
   "syncNotesDescription": "获取成员最新笔记，并上传我的修改",
   "syncNow": "立即同步",
   "syncStatusExplanation": "上传状态仅指你的修改；点“同步”获取成员最新笔记。",

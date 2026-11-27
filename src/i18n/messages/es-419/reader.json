@@ -380,7 +380,7 @@
   "swipeVertically": "Deslízate hacia arriba y hacia abajo",
   "sync": "sincronizar",
   "syncBlockedByPermission": "Anotaciones con sincronización pausada: {permissionErrorCount}. La capa se desactivó o se eliminó, o se revocó tu permiso de edición. Tus borradores se conservan en este dispositivo. Vuelve a intentar cuando se restauren la capa original y tu acceso. Los borradores vencidos se conservan en el dispositivo y no se trasladan a capas nuevas con el mismo nombre. Las demás anotaciones siguen sincronizándose.",
-  "syncFailed": "Las notas están guardadas en este dispositivo. Algunos cambios no se pudieron subir.",
+  "syncFailed": "Las notas están guardadas en este dispositivo. El servidor rechazó algunos cambios.",
   "syncNotesDescription": "Obtenga las últimas notas de los miembros y cargue mis modificaciones",
   "syncNow": "Sincronizar ahora",
   "syncStatusExplanation": "El estado de carga sólo se refiere a sus modificaciones; haga clic en \"Sincronizar\" para obtener las últimas notas de los miembros.",
