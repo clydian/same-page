@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -36,26 +36,47 @@ export function validatePreviewRun(run, artifacts, source) {
   return artifact.id;
 }
 
+function github() {
+  assert.ok(process.env.GITHUB_TOKEN, 'GitHub Actions and deployment read access required');
+  return async suffix => {
+    const response = await fetch(`https://api.github.com/repos/${repository}${suffix}`, {
+      headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(30000),
+    });
+    assert.ok(response.ok, `GitHub cleanup audit failed (HTTP ${response.status})`);
+    return response.json();
+  };
+}
+
 async function validateRun() {
   assertApplyEnvironment(process.env);
   const id = process.env.PREVIEW_RUN_ID;
   assert.match(id ?? '', /^[1-9]\d*$/);
-  const get = async suffix => {
-    const response = await fetch(`https://api.github.com/repos/${repository}/actions/runs/${id}${suffix}`, {
-      headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(30000),
-    });
-    assert.ok(response.ok, `Preview provenance check failed (HTTP ${response.status})`);
-    return response.json();
-  };
-  const [run, listing] = await Promise.all([get(''), get('/artifacts?per_page=100')]);
+  const get = github();
+  const base = `/actions/runs/${id}`;
+  const [run, listing] = await Promise.all([get(base), get(`${base}/artifacts?per_page=100`)]);
   assert.ok(listing.total_count <= 100, 'Unexpected preview artifact count');
   assert.equal(String(run.id), id);
   const artifactId = validatePreviewRun(run, listing.artifacts, sourceSHA());
   await appendFile(process.env.GITHUB_OUTPUT, `artifact_id=${artifactId}\n`);
 }
 
-async function cloudflareStore(BUCKET) {
+export async function readCleanupCatalog(query, readAudit, approvedBuilds) {
+  const sql = 'SELECT stable,beta,revision FROM release_channels WHERE id=1';
+  const [channels] = await query(sql);
+  assert.ok(channels, 'Channels not initialized');
+  const audit = await readAudit();
+  const promotions = await query('SELECT previous_stable,expected_beta,expected_revision FROM release_promotions ORDER BY expected_revision');
+  const ids = [...new Set([...approvedBuilds, channels.stable, channels.beta, ...audit.recent.map(entry => entry.build),
+    ...promotions.flatMap(row => [row.previous_stable, row.expected_beta])])];
+  const releases = await query(`SELECT build_id,manifest_digest,contract,ready,published_at FROM frontend_releases
+    WHERE build_id IN (SELECT value FROM json_each(?)) ORDER BY build_id`, [JSON.stringify(ids)]);
+  const proof = (await query('SELECT report_digest FROM release_compatibility WHERE candidate=? AND stable=?', [channels.beta, channels.stable]))[0] ?? null;
+  assert.deepEqual((await query(sql))[0], channels, 'Channels changed while reading catalog');
+  return { channels, releases, proof, promotions, audit };
+}
+
+async function cloudflareStore(BUCKET, readAudit, approvedBuilds) {
   const account = process.env.CLOUDFLARE_ACCOUNT_ID, token = process.env.CLOUDFLARE_API_TOKEN;
   assert.match(account ?? '', /^[a-f0-9]{32}$/, 'Cloudflare account required');
   assert.ok(token, 'Cloudflare API token required');
@@ -81,22 +102,13 @@ async function cloudflareStore(BUCKET) {
   const send = (command, retryRead = false) => releaseOperation('R2 cleanup operation',
     signal => client.send(command, { abortSignal: signal }), { retryRead, timeoutMs: 60000 });
   return {
-    async catalog() {
-      // The revision is read before and after all related rows; mixed snapshots fail closed.
-      const sql = 'SELECT stable,beta,revision FROM release_channels WHERE id=1';
-      const channels = (await query(sql))[0];
-      assert.ok(channels, 'Channels not initialized');
-      const releases = await query('SELECT build_id,manifest_digest,contract,ready FROM frontend_releases WHERE build_id IN (?,?) ORDER BY build_id', [channels.stable, channels.beta]);
-      const proof = (await query('SELECT report_digest FROM release_compatibility WHERE candidate=? AND stable=?', [channels.beta, channels.stable]))[0] ?? null;
-      assert.deepEqual((await query(sql))[0], channels, 'Channels changed while reading catalog');
-      return { channels, releases, proof };
-    },
+    catalog: () => readCleanupCatalog(query, readAudit, approvedBuilds),
     async list(cursor) {
       const result = await send(new sdk.ListObjectsV2Command({ Bucket: BUCKET, ContinuationToken: cursor, MaxKeys: 1000 }), true);
       assert.equal(typeof result.IsTruncated, 'boolean', 'R2 truncation status missing');
       if (result.IsTruncated) assert.ok(result.NextContinuationToken, 'Truncated R2 response without cursor');
       return {
-        objects: (result.Contents ?? []).map(item => ({ key: item.Key, bytes: item.Size, etag: item.ETag })),
+        objects: (result.Contents ?? []).map(item => ({ key: item.Key, bytes: item.Size, etag: item.ETag, lastModified: item.LastModified?.getTime() })),
         cursor: result.IsTruncated ? result.NextContinuationToken : undefined,
       };
     },
@@ -131,7 +143,17 @@ async function main() {
     assert.equal(digest(bytes), process.env.PLAN_SHA256, 'Reviewed plan digest mismatch');
     plan = JSON.parse(bytes);
   }
-  const store = await cloudflareStore(BUCKET);
+  const { approvedBuilds } = await import('./frontend-cleanup-609.mjs');
+  const { readAdmissionAudit } = await import('./frontend-cleanup-audit.mjs');
+  assert.equal(execFileSync('git', ['rev-parse', '--is-shallow-repository'], { encoding: 'utf8' }).trim(), 'false', 'Full Git history required');
+  const isAncestor = (ancestor, descendant) => {
+    const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant]);
+    // An unavailable candidate can only be retained.
+    return result.status === 0;
+  };
+  const get = github();
+  const readAudit = () => readAdmissionAudit(get, repository, isAncestor);
+  const store = await cloudflareStore(BUCKET, readAudit, approvedBuilds);
   await mkdir(directory, { recursive: true });
   if (mode === 'preview') {
     plan = await previewCleanup(store, source);
@@ -143,8 +165,8 @@ async function main() {
     if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, report);
   } else {
     const journal = state => writeFile(path.join(directory, 'apply-result.json'), JSON.stringify(state, null, 2) + '\n');
-    await applyCleanup(store, plan, { source, journal });
-    console.log('Reviewed historical objects removed; both current releases verified.');
+    const result = await applyCleanup(store, plan, { source, journal });
+    console.log(`#609 acknowledged ${result.deleted.length} object deletions in this run. Retained releases verified.`);
   }
 }
 
