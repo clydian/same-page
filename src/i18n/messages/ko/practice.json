@@ -247,7 +247,6 @@
   "rhythmPractice": "리듬 연습",
   "pitchMode": {
     "label": "음높이 모드",
-    "choose": "모드 선택",
     "clear": "선명",
     "all": "전체 측정값"
   },

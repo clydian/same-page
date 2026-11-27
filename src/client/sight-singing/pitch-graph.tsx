@@ -1,3 +1,5 @@
+import { model } from '@coderline/alphatab';
+import { solfegeDegreeLabel } from '@same-page/player/solfege-degree';
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import { targetPitches, type Melody, type MelodyMeasure, type MelodyScore } from './melody';
@@ -9,6 +11,7 @@ import { keyPitchClasses, pitchClass } from './staff-pitch';
 const inlineInset = 8;
 const blockInset = 12;
 const semitoneHeight = 16;
+const solfege = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Ti'];
 
 export function PitchGraph({ melody, visits, measure, frames, elapsed, following, reviewing, activeTarget, attemptReset, measureSpan, onMeasureSpanChange }: {
   melody: Melody; visits: MelodyScore['visits']; measure: MelodyMeasure; frames: PitchFrame[]; elapsed: number;
@@ -37,11 +40,21 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
   }, [melody]);
   const noteY = (midi: number) => blockInset + (high - midi) * semitoneHeight;
   const keys = useMemo(() => melody.keyChanges.map((key, index) => ({
-    start: key.start, end: melody.keyChanges[index + 1]?.start ?? melody.duration,
+    ...key, end: melody.keyChanges[index + 1]?.start ?? melody.duration,
     scale: keyPitchClasses(key.signature),
   })), [melody]);
   const visibleKeys = keys.filter(key => key.start < end && key.end > start);
   const currentKey = keys.find(key => key.start <= elapsed && elapsed < key.end) ?? keys.at(-1);
+  const solfegeRows = useMemo(() => {
+    const labels = new Map<number, string>();
+    if (!currentKey || !Number.isInteger(currentKey.signature) || Math.abs(currentKey.signature) > 7) return labels;
+    // Grid rows know pitch class, without a written accidental spelling.
+    for (const pitch of currentKey.scale) {
+      const degree = Number(solfegeDegreeLabel(pitch, currentKey.signature, model.NoteAccidentalMode.Default));
+      if (solfege[degree - 1]) labels.set(pitch, solfege[degree - 1]);
+    }
+    return labels;
+  }, [currentKey]);
   const { notes, targets, alternates } = useMemo(() => {
     const notes = melody.notes.filter(note => note.start < end && note.end > start).map(note => {
       const written = targetPitches(note);
@@ -241,6 +254,12 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, following
               data-target={targets.has(midi)} data-alternate={alternates.has(midi)} style={{ top: noteY(midi) }}>{pitchName(midi)}</span>)}
           </div>
           <div className="challenge-plot"><canvas ref={canvas} /></div>
+          <div className="challenge-pitch-axis challenge-solfege-axis">
+            {midiRows.map(midi => {
+              const label = solfegeRows.get(pitchClass(midi));
+              return label && <span key={midi} style={{ top: noteY(midi) }}>{label}</span>;
+            })}
+          </div>
         </div>
       </div>
       <ol className="challenge-measure-axis" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>

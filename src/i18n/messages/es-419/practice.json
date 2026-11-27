@@ -247,7 +247,6 @@
   "rhythmPractice": "Práctica de ritmo",
   "pitchMode": {
     "label": "Modo de tono",
-    "choose": "Elige un modo",
     "clear": "Claro",
     "all": "Todas las lecturas"
   },

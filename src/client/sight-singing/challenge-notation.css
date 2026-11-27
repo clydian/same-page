@@ -67,6 +67,7 @@
   stroke-linejoin: round;
 }
 .challenge-notation-sheet rect[data-challenge-feedback] { stroke-width: 1; }
+.challenge-notation-sheet path[data-challenge-feedback] { stroke: none !important; }
 .challenge-run[data-phase="result"] .challenge-staff-trace { opacity: .62; }
 .challenge-run[data-replaying="true"] .challenge-staff-trace { opacity: 1; }
 .challenge-run[data-replaying="true"] .challenge-pitch-labels { display: none; }

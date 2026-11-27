@@ -247,7 +247,6 @@
   "rhythmPractice": "Rhythm practice",
   "pitchMode": {
     "label": "Pitch mode",
-    "choose": "Choose a mode",
     "clear": "Clear",
     "all": "All readings"
   },

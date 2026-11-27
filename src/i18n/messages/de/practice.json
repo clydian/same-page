@@ -247,7 +247,6 @@
   "rhythmPractice": "Rhythmusübung",
   "pitchMode": {
     "label": "Tonhöhenmodus",
-    "choose": "Modus wählen",
     "clear": "Klar",
     "all": "Alle Messwerte"
   },

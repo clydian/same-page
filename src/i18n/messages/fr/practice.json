@@ -247,7 +247,6 @@
   "rhythmPractice": "Exercice rythmique",
   "pitchMode": {
     "label": "Mode de hauteur",
-    "choose": "Choisir un mode",
     "clear": "Clair",
     "all": "Toutes les mesures"
   },

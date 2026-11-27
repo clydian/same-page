@@ -6,16 +6,14 @@ import { NotationZoom } from '../playback/notation-zoom';
 import type { Melody, MelodyMeasure, MelodyScore, MelodyVoice } from './melody';
 import { shadeContext } from './notation-crop';
 import { notationScore, samePart, type Part } from './notation-score';
+import { matchesNotationResult, notationFeedbackAtVisit, type NotationFeedback, type NotationResult } from './notation-feedback';
+import { tintBeams } from './notation-beams';
 import { measureAnchors, positionAt } from './notation-timing';
-import { formatCents, pitchName, type assessNotes, type PitchFrame } from './pitch-feedback';
+import { formatCents, pitchName, type PitchFrame } from './pitch-feedback';
 import { ScorePitchTrace } from './score-pitch-trace';
 import './challenge-notation.css';
 
 export type NotationNoteHit = { midi: number; track: number; staff: number; voice: number; bar: number; beatIndex: number };
-export type NotationFeedback = {
-  bar: number; beatIndex: number; visit: number; midi?: number | null;
-  status: ReturnType<typeof assessNotes>[number]['status']; cents: number | null;
-};
 type Bounds = { x: number; y: number; w: number; h: number };
 type ScrollDirection = 'vertical' | 'horizontal';
 type NoteTarget = NotationNoteHit & { key: string; beatClass: string; bounds: Bounds; system: Bounds; label: string; singleStem: boolean };
@@ -100,17 +98,6 @@ const NotationButtons = memo(function NotationButtons({ notes, voice, results, o
   </div>;
 });
 
-function feedbackAtVisit(feedback: readonly NotationFeedback[] | undefined, visit?: number) {
-  const beatFeedback = new Map<string, NotationFeedback>();
-  for (const item of feedback ?? []) {
-    const key = `${item.bar}:${item.beatIndex}`, current = beatFeedback.get(key);
-    // The same printed bar can play more than once. Put the feedback for the
-    // nearest selected visit on the page rather than painting several passes.
-    if (!current || visit !== undefined && Math.abs(visit - item.visit) < Math.abs(visit - current.visit)) beatFeedback.set(key, item);
-  }
-  return beatFeedback;
-}
-
 const labelHeight = 16;
 const overlaps = (a: Bounds, b: Bounds) =>
   a.x < b.x + b.w + 1 && a.x + a.w + 1 > b.x && a.y < b.y + b.h + 1 && a.y + a.h + 1 > b.y;
@@ -143,10 +130,10 @@ function engravingObstacles(element: HTMLDivElement) {
   });
 }
 
-function placePitchLabels(notes: NoteTarget[], results: ReadonlyMap<string, NotationFeedback>, engraving: Bounds[]) {
+function placePitchLabels(notes: NoteTarget[], results: ReadonlyMap<string, NotationResult>, engraving: Bounds[]) {
   const ordered = notes.flatMap(note => {
     const result = results.get(note.key);
-    return result && result.cents !== null ? [{ note, cents: result.cents, status: result.status }] : [];
+    return result && !result.continuation && result.cents !== null ? [{ note, cents: result.cents, status: result.status }] : [];
   }).sort((a, b) => Math.abs(b.cents) - Math.abs(a.cents));
   engraving.sort((a, b) => b.y - a.y);
   const occupied = [...engraving, ...notes.map(note => note.bounds)];
@@ -247,12 +234,12 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const [labels, setLabels] = useState<ReturnType<typeof placePitchLabels>>([]);
   const [selection, select] = useState<{ note: NoteTarget; attempt: number; voice: string; visit: number }>();
   const { results, tinted } = useMemo(() => {
-    const visited = feedbackAtVisit(feedback, currentVisit);
-    const results = new Map<string, NotationFeedback>(), tinted = new Map<string, AssessedHead[]>();
+    const visited = notationFeedbackAtVisit(melody, feedback, currentVisit);
+    const results = new Map<string, NotationResult>(), tinted = new Map<string, AssessedHead[]>();
     for (const note of notes) {
       if (!samePart(note, display.part)) continue;
       const result = visited.get(`${note.bar}:${note.beatIndex}`);
-      if (!result || result.midi != null && result.midi !== note.midi) continue;
+      if (!matchesNotationResult(result, note.midi)) continue;
       results.set(note.key, result);
       if (result.status === 'insufficientData') continue;
       const heads = tinted.get(note.beatClass) ?? [];
@@ -260,16 +247,16 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       tinted.set(note.beatClass, heads);
     }
     return { results, tinted };
-  }, [feedback, currentVisit, notes, display.part]);
+  }, [melody, feedback, currentVisit, notes, display.part]);
 
   const selected = feedback && selection?.attempt === attemptReset && selection.voice === voice.id ? selection : undefined;
   const detail = useMemo(() => {
     if (!selected) return;
     const { note, visit } = selected;
-    const result = feedbackAtVisit(feedback, visit).get(`${note.bar}:${note.beatIndex}`);
-    if (!result || result.midi != null && result.midi !== note.midi) return;
+    const result = notationFeedbackAtVisit(melody, feedback, visit).get(`${note.bar}:${note.beatIndex}`);
+    if (!matchesNotationResult(result, note.midi)) return;
     return result;
-  }, [feedback, selected]);
+  }, [melody, feedback, selected]);
 
   useLayoutEffect(() => {
     const element = notation.current;
@@ -353,6 +340,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
         const candidates = svg ? stems.get(svg) ?? [] : [];
         tintNoteheads(group, heads, sheet, scale, candidates, marked);
       }
+      for (const [svg, candidates] of stems) tintBeams(svg, candidates.map(stem => stem.element), engravingRatio, marked);
     };
     // Worker system SVGs mount lazily when they enter the viewport.
     const observer = new MutationObserver(shade);
