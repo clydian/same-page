@@ -165,14 +165,24 @@ try {
   await restarted.goto(`${origin}/about`, { waitUntil: "domcontentloaded" });
   assert.equal(await restarted.evaluate(() => document.documentElement.dataset.buildId), buildIds.second,
     "a prepared update must apply automatically after all old windows exit");
-  // WebKit can open this network-loaded B document while the last A client
-  // is still being released. Activation does not claim an uncontrolled page:
-  // our worker deliberately has no clients.claim(). Keep the immediate B
-  // assertion above, then verify control on the next navigation after activation.
-  await waitForPage(restarted, async () => {
+  // WebKit can open B from the network while releasing the last A client,
+  // or still report "activating" after B has served the navigation. Wait for
+  // B to occupy the active slot, then verify control on the next navigation.
+  await restarted.waitForFunction(async expected => {
     const registration = await navigator.serviceWorker.getRegistration();
-    return !registration?.waiting && registration?.active?.state === "activated";
-  });
+    const active = registration?.active;
+    if (!active || registration.waiting) return false;
+    return new Promise(resolve => {
+      const channel = new MessageChannel();
+      const timeout = setTimeout(() => { channel.port1.close(); resolve(false); }, 1000);
+      channel.port1.onmessage = event => {
+        clearTimeout(timeout);
+        channel.port1.close();
+        resolve(event.data?.buildId === expected);
+      };
+      active.postMessage({ type: "SAME_PAGE_SHELL_IDENTITY" }, [channel.port2]);
+    });
+  }, buildIds.second, { timeout: 30_000 });
   await restarted.reload({ waitUntil: "domcontentloaded" });
   await restarted.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   assert.equal(await restarted.evaluate(() => document.documentElement.dataset.buildId), buildIds.second);
