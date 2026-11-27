@@ -245,6 +245,12 @@
   "advancedSettings": "Impostazioni avanzate",
   "sightPractice": "Esercizio di canto a prima vista",
   "rhythmPractice": "Esercizio ritmico",
+  "pitchMode": {
+    "label": "Modalità di intonazione",
+    "choose": "Scegli una modalità",
+    "clear": "Chiara",
+    "all": "Tutte le rilevazioni"
+  },
   "pitchMonitor": {
     "title": "Monitor di intonazione",
     "hold": "Blocca",

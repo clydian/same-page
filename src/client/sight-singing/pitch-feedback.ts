@@ -24,37 +24,6 @@ export function createPitchReader(sampleRate: number, maxHz = frequency(sightSin
   };
 }
 
-// Score on the existing half-window grid even when live display uses shorter hops.
-export function createScoringPitch(sampleRate: number, origin: number) {
-  const half = pitchWindowSize / 2;
-  const window = new Float32Array(pitchWindowSize);
-  const pitch = createPitchReader(sampleRate);
-  const frames: PitchFrame[] = [];
-  let received = 0, used = 0;
-
-  function read() {
-    if (received) frames.push({ time: (received - origin) / sampleRate, midi: pitch(window) });
-    received += used;
-    used = 0;
-    window.copyWithin(0, half);
-    window.fill(0, half);
-  }
-
-  return {
-    frames,
-    append(samples: Float32Array, done: boolean) {
-      for (let offset = 0; offset < samples.length;) {
-        const count = Math.min(half - used, samples.length - offset);
-        window.set(samples.subarray(offset, offset + count), half + used);
-        used += count;
-        offset += count;
-        if (used === half) read();
-      }
-      if (done && used) read();
-    },
-  };
-}
-
 export function matchTargetPitch(note: MelodyNote, sung: number) {
   const octave = Math.round((sung - note.midi) / 12);
   let best = { midi: note.midi, octave, error: sung - (note.midi + octave * 12) };

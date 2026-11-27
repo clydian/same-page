@@ -1,14 +1,11 @@
 import workletUrl from '../sight-singing/capture-processor.js?url&no-inline';
 import { createLivePitch, livePitchChunkSize } from '../sight-singing/live-pitch';
-import type { PitchFrame } from '../sight-singing/pitch-feedback';
 
 type PitchInputChunk = {
-  current: PitchFrame;
-  frames: PitchFrame[];
+  pitch: ReturnType<typeof createLivePitch>;
   samples: Float32Array;
   rate: number;
   startTime: number;
-  finalTime: number;
 };
 
 // The standalone monitor covers up through D♯8 without changing sight-singing scoring.
@@ -54,9 +51,8 @@ export async function openPitchInput(signal: AbortSignal, onChunk: (chunk: Pitch
     node.port.onmessage = ({ data }: MessageEvent<{ samples: Float32Array }>) => {
       if (signal.aborted) return;
       const { samples } = data;
-      const current = pitch.append(samples);
-      onChunk({ current, frames: pitch.frames, samples, rate: sampleRate,
-        startTime: received / sampleRate, finalTime: pitch.finalTime });
+      pitch.append(samples);
+      onChunk({ pitch, samples, rate: sampleRate, startTime: received / sampleRate });
       received += samples.length;
     };
     node.onprocessorerror = onEnded;

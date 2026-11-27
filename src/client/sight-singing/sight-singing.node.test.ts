@@ -9,8 +9,8 @@ import { exportPracticeAudio } from '../playback/practice-soundfont';
 import { createChoirBacking } from './choir-backing';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { notationScore } from './notation-score';
-import { assessNotes, createPitchReader, createScoringPitch, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
-import { createLivePitch, livePitchChunkSize } from './live-pitch';
+import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
+import { createLivePitch } from './live-pitch';
 import { octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { calibrationTimes, calibrationTone, estimateRecordingLatency, recordingOffsetFrames } from './recording-latency';
 import { keyPitchClasses, staffPitchY } from './staff-pitch';
@@ -163,49 +163,59 @@ it('publishes fast short-window readings, then revises the same center as more a
   });
   for (let i = 0; i < prefix; i += 192) {
     const next = pcm.subarray(i, Math.min(prefix, i + 192));
-    expect(futureSilence.append(next)).toEqual(track.append(next));
+    track.append(next);
+    futureSilence.append(next);
+    expect(futureSilence.current('all')).toEqual(track.current('all'));
   }
   const center = 8576 / rate;
-  const point = () => track.frames.find(frame => frame.time === center);
+  const point = () => track.frames('all').find(frame => frame.time === center);
   expect(point()).toMatchObject({ rank: .5 });
   expect(point()?.midi).toBeCloseTo(73.66, 1);
-  expect(futureSilence.frames).toEqual(track.frames);
+  expect(futureSilence.frames('all')).toEqual(track.frames('all'));
   const initial = point();
 
   track.append(pcm.subarray(prefix));
   futureSilence.append(new Float32Array(pcm.length - prefix));
   expect(point()).toMatchObject({ time: center, rank: 2 });
-  expect(futureSilence.frames.find(frame => frame.time === center)).toEqual(initial);
-  expect(track.frames.filter(frame => frame.time === center)).toHaveLength(1);
+  expect(futureSilence.frames('all').find(frame => frame.time === center)).toEqual(initial);
+  expect(track.frames('all').filter(frame => frame.time === center)).toHaveLength(1);
 });
 
 it.each([44100, 48000])('stays sample-aligned and keeps an absent reading explicit at %i Hz', rate => {
   const track = createLivePitch(rate, 5000, 960);
   const input = new Float32Array(3072);
   for (let i = 0; i < input.length; i += 211) track.append(input.subarray(i, i + 211));
-  expect(track.frames[0]).toMatchObject({ time: (32 - 960) / rate, midi: null });
-  expect(track.frames.every(frame => frame.midi === null)).toBe(true);
-  expect(track.frames[1].time - track.frames[0].time).toBeCloseTo(96 / rate, 10);
-  expect(track.finalTime).toBe((3072 - 1024 - 960) / rate);
+  expect(track.frames('all')[0]).toMatchObject({ time: (32 - 960) / rate, midi: null });
+  expect(track.frames('clear').every(frame => frame.midi === null)).toBe(true);
+  expect(track.frames('all')[1].time - track.frames('all')[0].time).toBeCloseTo(96 / rate, 10);
+  expect(track.finalTime('all')).toBe((3072 - 1024 - 960) / rate);
 });
 
-it('preserves the original scoring windows across live-audio chunks and a partial tail', () => {
-  const rate = 48000, origin = 256, half = pitchWindowSize / 2;
-  const input = Float32Array.from({ length: half * 4 + 137 }, (_, i) =>
-    .2 * Math.sin(2 * Math.PI * frequency(i < half * 2 ? 60 : 65) * i / rate));
-  const scoring = createScoringPitch(rate, origin);
-  for (let start = 0; start < input.length; start += livePitchChunkSize) {
-    const end = Math.min(input.length, start + livePitchChunkSize);
-    scoring.append(input.subarray(start, end), end === input.length);
+it('keeps soft onsets and fast glides on the same centers while removing unsupported readings in a rest', () => {
+  const rate = 48000;
+  const clamp = (value: number) => Math.max(0, Math.min(1, value));
+  const track = createLivePitch(rate, 5000);
+  let phase = 0;
+  const input = Float32Array.from({ length: rate * 1.45 }, (_, index) => {
+    const time = index / rate;
+    const midi = time >= .58 && time < .89 ? 55 + 19 * clamp((time - .67) / .045) : time > 1 ? 83 : 64;
+    phase += 2 * Math.PI * frequency(midi) / rate;
+    const onset = .013 * clamp((time - .18) / .028) * clamp((.46 - time) / .018);
+    const slide = .16 * clamp((time - .625) / .007) * clamp((.88 - time) / .009);
+    const stray = time >= 1.19 && time < 1.196 ? .14 : 0;
+    return (onset + slide + stray) * (Math.sin(phase) + .42 * Math.sin(2 * phase + .4) + .17 * Math.sin(3 * phase + .8));
+  });
+  for (let i = 0; i < input.length; i += 384) track.append(input.subarray(i, i + 384));
+  const readings = (mode: 'all' | 'clear', start: number, stop: number) =>
+    track.frames(mode).filter(({ time, midi }) => time >= start && time < stop && midi !== null);
+  for (const [start, stop, count] of [[.18, .26, 40], [.67, .715, 19]]) {
+    const all = readings('all', start, stop);
+    expect(all).toHaveLength(count);
+    expect(readings('clear', start, stop)).toEqual(all);
   }
-  const reader = createPitchReader(rate);
-  const expected = [];
-  for (let center = half; center < input.length; center += half) {
-    const window = new Float32Array(pitchWindowSize);
-    window.set(input.subarray(center - half, center + half));
-    expected.push({ time: (center - origin) / rate, midi: reader(window) });
-  }
-  expect(scoring.frames).toEqual(expected);
+  expect(readings('all', 1.1, 1.3)).toHaveLength(2);
+  expect(readings('clear', 1.1, 1.3)).toHaveLength(0);
+  expect(track.frames('clear').map(frame => frame.time)).toEqual(track.frames('all').map(frame => frame.time));
 });
 
 it('accepts a compressed MusicXML attachment using the existing importer', () => {

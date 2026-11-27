@@ -245,6 +245,12 @@
   "advancedSettings": "Erweiterte Einstellungen",
   "sightPractice": "Blattsingübung",
   "rhythmPractice": "Rhythmusübung",
+  "pitchMode": {
+    "label": "Tonhöhenmodus",
+    "choose": "Modus wählen",
+    "clear": "Klar",
+    "all": "Alle Messwerte"
+  },
   "pitchMonitor": {
     "title": "Tonhöhenmonitor",
     "hold": "Halten",

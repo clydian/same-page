@@ -245,6 +245,12 @@
   "advancedSettings": "Advanced settings",
   "sightPractice": "Sight-singing practice",
   "rhythmPractice": "Rhythm practice",
+  "pitchMode": {
+    "label": "Pitch mode",
+    "choose": "Choose a mode",
+    "clear": "Clear",
+    "all": "All readings"
+  },
   "pitchMonitor": {
     "title": "Pitch monitor",
     "hold": "Hold",

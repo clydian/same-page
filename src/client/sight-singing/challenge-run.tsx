@@ -5,6 +5,8 @@ import { useMessages } from '../../i18n';
 import { sightSingingSpeeds, type SightSingingResultSubmission } from '../../shared/sight-singing-results';
 import { holdUpdate } from '../updates/update-safety';
 import { beginCapture, playNote, playSustainedTonic, type CaptureError } from './challenge-audio';
+import type { PitchMode } from './live-pitch';
+import { PitchModeSelect } from './pitch-mode-select';
 import { LatencyControls } from './challenge-latency-setting';
 import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
 import { useSightSingingScoreFormat } from './format-score';
@@ -23,17 +25,16 @@ export type VoiceOption = { voice: MelodyVoice; melody: Melody; label: string };
 type RunState = { phase: 'idle' | 'permission' }
   | { phase: 'count'; count: number }
   | { phase: 'sing'; frame: PitchFrame; frames: PitchFrame[] }
-  | { phase: 'result'; id: string; scoringFrames: PitchFrame[]; pitchFrames: PitchFrame[]; recording: Blob };
+  | { phase: 'result'; id: string; frames: PitchFrame[]; mode: PitchMode; captureLatency: number; recording: Blob };
 
-function alignPitchFrames(melody: Melody, frames: PitchFrame[], latency: number) {
-  return frames.map(frame => ({ time: frame.time - latency / 1000, midi: frame.midi }))
-    .filter(frame => frame.time >= melody.leadIn && frame.time <= melody.duration);
-}
-
-function reviewRecording(melody: Melody, frames: PitchFrame[], latency: number) {
-  const aligned = alignPitchFrames(melody, frames, latency);
-  const review = assessNotes(melody.notes.filter(note => note.start >= melody.leadIn), aligned);
-  return { review, score: takeScore(review) };
+function reviewRecording(melody: Melody, take: Extract<RunState, { phase: 'result' }>, latency: number) {
+  const shift = (latency - take.captureLatency) / 1000;
+  const frames = take.frames.flatMap(frame => {
+    const time = frame.time - shift;
+    return time >= melody.leadIn && time <= melody.duration ? [{ time, midi: frame.midi }] : [];
+  });
+  const review = assessNotes(melody.notes.filter(note => note.start >= melody.leadIn), frames);
+  return { frames, review, score: takeScore(review) };
 }
 
 export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, pitchTraceEnabled, mix, onScored, onAudioBusy, measuring, onMeasure, onLatency, ref }: {
@@ -53,6 +54,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const otherVoices = voices.filter(option => option.voice.id !== voice.id);
   const accompaniment = backing && !backingUnavailable ? otherVoices : [];
   const [state, setState] = useState<RunState>({ phase: 'idle' });
+  const [pitchMode, setPitchMode] = useState<PitchMode | null>(null);
   const [headphones, setHeadphones] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [replayTime, setReplayTime] = useState(0);
@@ -79,11 +81,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const replay = useRef<HTMLAudioElement>(null);
   const take = state.phase === 'result' ? state : undefined;
   const latency = latencyDraft ?? mix.latency;
-  const corrected = useMemo(() => {
-    if (!take) return;
-    return { ...reviewRecording(melody, take.scoringFrames, latency),
-      frames: alignPitchFrames(melody, take.pitchFrames, latency) };
-  }, [take, latency, melody]);
+  const corrected = useMemo(() => take ? reviewRecording(melody, take, latency) : undefined, [take, latency, melody]);
   const { answer, retryAnswer } = useChallengeAnswer(take?.recording, corrected?.review, mix.voice, melody.duration, latency);
   const recording = state.phase === 'permission' || state.phase === 'count' || state.phase === 'sing';
   const audioBusy = recording || playing || drone;
@@ -163,7 +161,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const finish = () => {
     if (!take) return;
     // Leaving without finishing an adjustment submits the last applied score.
-    const score = latency === mix.latency ? corrected?.score : reviewRecording(melody, take.scoringFrames, mix.latency).score;
+    const score = latency === mix.latency ? corrected?.score : reviewRecording(melody, take, mix.latency).score;
     if (!score || score.percent === null) return;
     onScored({ id: take.id, score: score.percent, speed, perfect: score.perfect, writtenOctave: score.writtenOctave,
       version: questionVersion, voiceId: voice.id, voiceName: selected.label });
@@ -196,6 +194,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   };
 
   const start = () => {
+    if (!pitchMode) return;
+    const captureLatency = mix.latency;
     // Transfer the audible oscillator to the capture session without restarting it.
     const preview = tonicPreview.current;
     discard(true);
@@ -218,13 +218,13 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
           setState(latest);
         });
       },
-      onComplete: (scoringFrames, pitchFrames, recording) => {
+      onComplete: (frames, recording) => {
         release();
         setDrone(false);
-        setState({ phase: 'result', id: takeId, scoringFrames, pitchFrames, recording });
+        setState({ phase: 'result', id: takeId, frames, mode: pitchMode, captureLatency, recording });
       },
       onError: reason => { releaseUpdate(); discard(); setDrone(false); setError(reason); setState({ phase: 'idle' }); },
-    }, accompaniment.map(option => melodyAtSpeed(option.melody, speed).notes), mix, preview?.context);
+    }, accompaniment.map(option => melodyAtSpeed(option.melody, speed).notes), mix, { mode: pitchMode, latency: captureLatency }, preview?.context);
     run.current = {
       stop: () => { cancelAnimationFrame(paint); capture.stop(); releaseUpdate(); },
       setMix: next => { capture.setMix(next); preview?.setVolume(next.tonic); },
@@ -276,7 +276,6 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const target = melody.notes.find(note => note.start <= position && position < note.end);
   const review = corrected?.review;
   const displayFrames = corrected?.frames ?? (state.phase === 'sing' ? state.frames : undefined);
-  const traceOffset = state.phase === 'sing' ? mix.latency / 1000 : 0;
   const feedback = useMemo(() => review?.flatMap(row => row.note.beatIndex === undefined ? [] : [{
     bar: row.note.bar, beatIndex: row.note.beatIndex, visit: row.note.visit, status: row.status, midi: row.target ?? undefined, cents: row.cents,
   }]), [review]);
@@ -311,7 +310,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const positioned = state.phase === 'count' && !cropped || state.phase === 'sing' || state.phase === 'result' && (playing || replayTime > 0);
   const canTap = !measuring && (state.phase === 'idle' || (state.phase === 'result' && answer.status === 'ready'));
 
-  return <div className="challenge-run" data-phase={state.phase} data-replaying={playing}>
+  return <div className="challenge-run" data-phase={state.phase} data-replaying={playing} data-pitch-mode={take?.mode ?? pitchMode ?? undefined}>
     <ChallengeNotation score={document.score} voice={voice} melody={melody} measure={measure} elapsed={position}
       positioned={positioned} followRun={followRun} attemptReset={attemptReset} bpm={Number(bpm.toFixed(1))} feedback={feedback}
       onNote={canTap ? hit => {
@@ -322,10 +321,10 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       } : undefined} onMeasure={state.phase === 'result' && canTap ? playMeasure : undefined}
       pitchFrames={displayFrames}
       traceMode={state.phase === 'sing' ? 'recording' : playing ? 'replaying' : undefined}
-      traceThrough={state.phase === 'sing' || state.phase === 'result' ? position : undefined} traceOffset={traceOffset} />
+      traceThrough={state.phase === 'sing' || state.phase === 'result' ? position : undefined} />
 
     {pitchTraceEnabled && <PitchGraph key={voice.id} melody={melody} visits={document.visits} measure={measure} attemptReset={attemptReset}
-      measureSpan={pitchSpan} onMeasureSpanChange={setPitchSpan} frames={displayFrames ?? emptyFrames} elapsed={position} traceOffset={traceOffset}
+      measureSpan={pitchSpan} onMeasureSpanChange={setPitchSpan} frames={displayFrames ?? emptyFrames} elapsed={position}
       following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
@@ -363,9 +362,10 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
           disabled={backingUnavailable || otherVoices.length === 0} onClick={() => {
             setBacking(!backing); if (!backing) setHeadphones(true);
           }}><UsersRound size={18} aria-hidden="true" /><span>{t('sight.ensembleBacking')}</span></button>
+        <PitchModeSelect className="challenge-pitch-mode" value={pitchMode} onChange={setPitchMode} disabled={measuring} />
       </div>
       {backingUnavailable && <small>{t('sight.backingUnavailable')}</small>}
-      <button className="primary-button challenge-start" type="button" disabled={measuring} onClick={start}><Mic size={18} aria-hidden="true" />{t('sight.start')}</button>
+      <button className="primary-button challenge-start" type="button" disabled={measuring || pitchMode === null} onClick={start}><Mic size={18} aria-hidden="true" />{t('sight.start')}</button>
     </div>}
 
     {recording && <div className="challenge-controls challenge-transport">
@@ -389,6 +389,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         <div className="challenge-score">
           <ScoreBadges perfect={corrected.score.perfect} writtenOctave={corrected.score.writtenOctave} size={22} />
           <strong>{corrected.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(corrected.score.percent) })}</strong>
+          <span>{t('pitchMode.label')} · {t(state.mode === 'clear' ? 'pitchMode.clear' : 'pitchMode.all')}</span>
           {corrected.score.total > 0 && !corrected.score.perfect && <span>{t('sight.matchedNotes', { matched: corrected.score.matched, total: corrected.score.total })}</span>}
         </div>
         {!adjusting && <button ref={latencyTrigger} className="secondary-button challenge-latency-trigger" type="button"

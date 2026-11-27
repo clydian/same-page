@@ -245,6 +245,12 @@
   "advancedSettings": "Configuración avanzada",
   "sightPractice": "Práctica de lectura cantada",
   "rhythmPractice": "Práctica de ritmo",
+  "pitchMode": {
+    "label": "Modo de tono",
+    "choose": "Elige un modo",
+    "clear": "Claro",
+    "all": "Todas las lecturas"
+  },
   "pitchMonitor": {
     "title": "Monitor de tono",
     "hold": "Congelar",
