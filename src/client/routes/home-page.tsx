@@ -2,6 +2,8 @@ import { useMessages } from "../../i18n";
 import { useDriveInvitation } from "../drives/use-drive-invitation";
 import { JoinDriveDialog, JoinDrivePanel } from "../drives/join-drive-dialog";
 import { FeatureAnimation } from "../components/feature-animation";
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { InstallButton } from "../install/install-entry";
 import { useInstall } from "../install/install-context";
 import { createDriveHref, loginHref } from "../auth/login-return";
@@ -83,6 +85,8 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
   const [joinOpen, setJoinOpen] = useState(false);
   const [previewChoir, setPreviewChoir] = useState<ChoirSummary | null>();
   const [previewAttempt, setPreviewAttempt] = useState(0);
+  const previewFeedback = useFeedbackMessage();
+  const { setMessage: setPreviewMessage, dismiss: dismissPreviewMessage } = previewFeedback;
   const openPreviewOnLoad = useRef(false);
   const hasDriveIdentity = Boolean(identity.authenticatedUserId || identity.localUserId);
   const appEntry = startupIntent && install?.runningInApp && !hasDriveIdentity;
@@ -97,17 +101,20 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
           driveCacheOwnerKey(userId ?? null, choir.id),
           choir,
         );
-        if (openPreviewOnLoad.current) {
-          openPreviewOnLoad.current = false;
-          startLoadingJourney("enter-drive", "warm");
-          void navigate(`/choirs/${choir.id}`);
-        }
       }
+      if (!openPreviewOnLoad.current) return;
+      openPreviewOnLoad.current = false;
+      if (!choir) {
+        setPreviewMessage("unavailable", { duration: 5000 });
+        return;
+      }
+      startLoadingJourney("enter-drive", "warm");
+      void navigate(`/choirs/${choir.id}`);
     });
     return () => {
       active = false;
     };
-  }, [previewAttempt, userId, navigate]);
+  }, [previewAttempt, userId, navigate, setPreviewMessage]);
 
   useEffect(() => {
     if (session.isPending || !userId) return;
@@ -125,7 +132,8 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
       {t("home.preview")}
     </Link>
   ) : !hasDriveIdentity && (
-    <Button className={appEntry ? "secondary-button" : "primary-button"} isPending={previewChoir === undefined} aria-describedby="home-preview-status" onPress={() => {
+    <Button className={appEntry ? "secondary-button" : "primary-button"} isPending={previewChoir === undefined} onPress={() => {
+      dismissPreviewMessage();
       openPreviewOnLoad.current = true;
       setPreviewChoir(undefined);
       setPreviewAttempt(attempt => attempt + 1);
@@ -133,7 +141,6 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
       {t("home.preview")}
     </Button>
   );
-  const previewStatus = <p id="home-preview-status" className="hero-preview-status" role="status">{previewAttempt > 0 && previewChoir === null ? t("home.previewUnavailable") : ""}</p>;
 
   const content = appEntry ? (
     <div className="app-page drive-entry-page startup-entry">
@@ -144,7 +151,6 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
           <div className="installed-entry-actions">
             <Link className="primary-button" to="/?join=1">{t("drive.join")}</Link>
             {previewAction}
-            {previewStatus}
             <Link className="hero-text-link" to={loginHref(createDriveHref)}>{t("home.create")}</Link>
           </div>
         </section>
@@ -172,10 +178,10 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
               {hasDriveIdentity ? previewAction : <>
                 <div className="hero-cta hero-preview">
                   {previewAction}
-                  {previewStatus}
                 </div>
                 <Button className="secondary-button" onPress={() => {
                   openPreviewOnLoad.current = false;
+                  dismissPreviewMessage();
                   setStartupDismissed(true);
                   setJoinOpen(true);
                 }}>
@@ -231,7 +237,10 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
 
     </div>
   );
-  return startupIntent && !joinOpen ? <StartupEntry identity={identity}>{content}</StartupEntry> : content;
+  return <>
+    {startupIntent && !joinOpen ? <StartupEntry identity={identity}>{content}</StartupEntry> : content}
+    <FeedbackMessage feedback={{ ...previewFeedback, message: previewFeedback.message ? t("home.previewUnavailable") : null }} />
+  </>;
 }
 
 async function loadPreviewChoir(): Promise<ChoirSummary | null> {
