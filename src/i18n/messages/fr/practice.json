@@ -245,6 +245,12 @@
   "advancedSettings": "Réglages avancés",
   "sightPractice": "Exercice de chant à vue",
   "rhythmPractice": "Exercice rythmique",
+  "pitchMode": {
+    "label": "Mode de hauteur",
+    "choose": "Choisir un mode",
+    "clear": "Clair",
+    "all": "Toutes les mesures"
+  },
   "pitchMonitor": {
     "title": "Moniteur de hauteur",
     "hold": "Figer",

@@ -1,16 +1,17 @@
-import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import { targetPitches, type Melody, type MelodyMeasure, type MelodyScore } from './melody';
 import { pitchName, sightSingingMaxMidi, type PitchFrame } from './pitch-feedback';
 import { firstFrameAt, lastFrameThrough, octaveGuides, pitchFramesConnect } from './pitch-trace';
+import { createPitchViewport } from './pitch-viewport';
 import { keyPitchClasses, pitchClass } from './staff-pitch';
 
 const inlineInset = 8;
 const blockInset = 12;
 const semitoneHeight = 16;
 
-export function PitchGraph({ melody, visits, measure, frames, elapsed, traceOffset, following, reviewing, activeTarget, attemptReset, measureSpan, onMeasureSpanChange }: {
-  melody: Melody; visits: MelodyScore['visits']; measure: MelodyMeasure; frames: PitchFrame[]; elapsed: number; traceOffset: number;
+export function PitchGraph({ melody, visits, measure, frames, elapsed, following, reviewing, activeTarget, attemptReset, measureSpan, onMeasureSpanChange }: {
+  melody: Melody; visits: MelodyScore['visits']; measure: MelodyMeasure; frames: PitchFrame[]; elapsed: number;
   following: boolean; reviewing: boolean; activeTarget?: string; attemptReset: number;
   measureSpan: number; onMeasureSpanChange(count: number): void;
 }) {
@@ -19,6 +20,9 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, traceOffs
   const viewport = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const centeredAttempt = useRef<number | null>(null);
+  const manualUntil = useRef(0);
+  const lastPaintTop = useRef(-1);
+  const [follow] = useState(createPitchViewport);
   const maxSpan = Math.min(8, melody.measures.length);
   const count = Math.min(measureSpan, maxSpan);
   const currentMeasure = measure.visit - melody.measures[0].visit;
@@ -45,32 +49,29 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, traceOffs
     });
     return { notes, targets: new Set(notes.flatMap(note => note.written)), alternates: new Set(notes.flatMap(note => note.guides)) };
   }, [melody, start, end, low, high]);
-  const latest = lastFrameThrough(frames, elapsed + traceOffset);
   const recording = following && !reviewing;
-  const endFrame = lastFrameThrough(frames, end + traceOffset) + 1;
-  const startFrame = firstFrameAt(frames, start + traceOffset);
+  // Calibrated voice frames may trail the live playhead. In review the
+  // playhead determines which part of the finished recording is current.
+  const through = recording ? Math.min(elapsed, frames.at(-1)?.time ?? elapsed) : elapsed;
+  const latest = lastFrameThrough(frames, through);
+  const endFrame = lastFrameThrough(frames, end) + 1;
+  const startFrame = firstFrameAt(frames, start);
   const trace = frames.slice(startFrame, recording ? Math.min(endFrame, latest + 1) : endFrame);
   const index = Math.min(latest, endFrame - 1) - startFrame;
   let current: PitchFrame | undefined;
   for (let cursor = index; cursor >= 0; cursor--) {
     if (trace[cursor].midi !== null) { current = trace[cursor]; break; }
   }
-  const tipTime = recording ? Math.min(elapsed + traceOffset, frames.at(-1)?.time ?? 0) : elapsed;
-  const active = current && tipTime - current.time <= (recording ? .025 : .065) ? current : undefined;
-  let focusPitch = current?.midi ?? null;
-  if (focusPitch === null && reviewing) focusPitch = trace.find(frame => frame.midi !== null)?.midi ?? null;
-  const anchor = focusPitch ?? notes[0]?.midi ?? melody.notes[0]?.midi;
-  const anchorY = anchor === undefined ? undefined : noteY(anchor);
+  const active = current && through - current.time <= (recording ? .025 : .065) ? current : undefined;
+  const anchor = notes[0]?.midi ?? melody.notes[0]?.midi;
   useLayoutEffect(() => {
     const view = viewport.current;
-    const centered = centeredAttempt.current === attemptReset;
-    if (!view?.clientHeight || (!following && centered) || anchorY === undefined) return;
-    const padding = view.clientHeight * .24;
-    const offset = anchorY - view.scrollTop;
-    if (centered && offset >= padding && offset <= view.clientHeight - padding) return;
-    view.scrollTop = anchorY - view.clientHeight / 2;
+    if (!view?.clientHeight || centeredAttempt.current === attemptReset || anchor === undefined) return;
+    view.scrollTop = blockInset + (high - anchor) * semitoneHeight - view.clientHeight / 2;
     centeredAttempt.current = attemptReset;
-  }, [anchorY, following, attemptReset]);
+    manualUntil.current = 0;
+    follow.reset();
+  }, [anchor, attemptReset, follow, high]);
 
   const paint = useEffectEvent(() => {
     const element = canvas.current;
@@ -97,7 +98,9 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, traceOffs
       const fraction = Math.max(0, (time - bar.start) / (bar.end - bar.start));
       return inlineInset + (index + fraction) / count * plotWidth;
     };
-    const y = (midi: number) => noteY(midi) - view.scrollTop;
+    const top = view.scrollTop;
+    lastPaintTop.current = top;
+    const y = (midi: number) => noteY(midi) - top;
     for (const midi of midiRows) {
       if (y(midi) < -semitoneHeight || y(midi) > height + semitoneHeight) continue;
       const row = Math.round(y(midi));
@@ -140,8 +143,7 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, traceOffs
     draw.beginPath();
     let previous: PitchFrame | undefined;
     for (const frame of trace) {
-      const { midi } = frame;
-      const time = frame.time - traceOffset;
+      const { midi, time } = frame;
       if (midi === null) { previous = undefined; continue; }
       if (!previous || !pitchFramesConnect(previous, frame)) {
         draw.moveTo(x(time), y(midi));
@@ -153,10 +155,37 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, traceOffs
     if (active && active.midi !== null) {
       draw.fillStyle = tone('voice');
       draw.beginPath();
-      draw.arc(x(active.time - traceOffset), y(active.midi), 3.5, 0, 2 * Math.PI);
+      draw.arc(x(active.time), y(active.midi), 3.5, 0, 2 * Math.PI);
       draw.fill();
     }
   });
+  const advance = useEffectEvent((now: number, reducedMotion: boolean) => {
+    const view = viewport.current;
+    if (!view?.clientHeight || now < manualUntil.current) return;
+    const halfHeight = view.clientHeight / 2;
+    const center = high + (blockInset - view.scrollTop - halfHeight) / semitoneHeight;
+    const topCenter = high + (blockInset - halfHeight) / semitoneHeight;
+    const min = topCenter - (view.scrollHeight - view.clientHeight) / semitoneHeight;
+    const next = follow.step({ center, span: view.clientHeight / semitoneHeight, frames, through, now, reducedMotion,
+      min, max: topCenter });
+    if (next === center) return;
+    const scrollTop = view.scrollTop;
+    view.scrollTop = (topCenter - next) * semitoneHeight;
+    if (view.scrollTop !== scrollTop) paint();
+  });
+
+  useEffect(() => {
+    if (!following) { follow.reset(); return; }
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    let request = 0;
+    const animate = (now: number) => {
+      advance(now, motion.matches);
+      request = requestAnimationFrame(animate);
+    };
+    request = requestAnimationFrame(animate);
+    return () => { cancelAnimationFrame(request); follow.reset(); };
+  }, [follow, following]);
+
   useEffect(() => { paint(); });
   useEffect(() => {
     const view = viewport.current, container = body.current;
@@ -168,10 +197,26 @@ export function PitchGraph({ melody, visits, measure, frames, elapsed, traceOffs
     resize.observe(canvas.current);
     const theme = new MutationObserver(() => paint());
     theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ui-theme'] });
-    const scroll = () => paint();
+    const hold = () => { manualUntil.current = performance.now() + 1100; follow.reset(); };
+    const key = (event: KeyboardEvent) => {
+      if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) hold();
+    };
+    const scroll = () => {
+      if (performance.now() < manualUntil.current) hold();
+      if (view.scrollTop !== lastPaintTop.current) paint();
+    };
+    const gestures = ['wheel', 'pointerdown', 'touchmove'] as const;
+    for (const event of gestures) view.addEventListener(event, hold, { passive: true });
+    view.addEventListener('keydown', key);
     view.addEventListener('scroll', scroll, { passive: true });
-    return () => { resize.disconnect(); theme.disconnect(); view.removeEventListener('scroll', scroll); };
-  }, []);
+    return () => {
+      resize.disconnect();
+      theme.disconnect();
+      for (const event of gestures) view.removeEventListener(event, hold);
+      view.removeEventListener('keydown', key);
+      view.removeEventListener('scroll', scroll);
+    };
+  }, [follow]);
 
   return <figure className="challenge-graph" aria-label={t('sight.pitchGraph')}>
     <figcaption>

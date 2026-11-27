@@ -1,0 +1,6 @@
+.pitch-mode-select { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .65rem; color: var(--ink); }
+.pitch-mode-select select {
+  min-block-size: 44px; max-inline-size: 100%; padding-inline: .55rem;
+  font: inherit; color: inherit; background: var(--surface);
+  border: 1px solid var(--line); border-radius: .65rem;
+}

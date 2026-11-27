@@ -2,6 +2,8 @@ import { PitchDetector } from 'pitchy';
 import { createPitchReader, frequency, pitchWindowSize, sightSingingMaxMidi, type PitchFrame } from './pitch-feedback';
 
 const pitchHop = 96;
+const supportHops = 2;
+export type PitchMode = 'clear' | 'all';
 // Post one message per worklet-aligned block, while analyzing every hop.
 export const livePitchChunkSize = pitchHop * 4;
 
@@ -26,16 +28,20 @@ export function createLivePitch(rate: number, maxHz = frequency(sightSingingMaxM
     return { ...tier, detector, samples: window.subarray(window.length - tier.size), pending: null as Candidate | null };
   });
   const frames: RankedFrame[] = [];
+  const clear: PitchFrame[] = [];
   const time = (center: number) => (center - origin) / rate;
   let firstCenter = firstTick;
   let newest = firstCenter - pitchHop;
-  let end = 0, filled = 0;
+  let end = 0, filled = 0, changedFrom = 0;
   let stableBass: Candidate | null = null;
 
   function put(center: number, midi: number, rank: number) {
     const index = (center - firstCenter) / pitchHop;
     const point = frames[index];
-    if (point && point.rank < rank) frames[index] = { time: point.time, rank, midi };
+    if (point && point.rank < rank) {
+      frames[index] = { time: point.time, rank, midi };
+      changedFrom = Math.min(changedFrom, index);
+    }
   }
 
   function analyze() {
@@ -73,19 +79,29 @@ export function createLivePitch(rate: number, maxHz = frequency(sightSingingMaxM
       }
       lane.pending = midi === null || bassPartial ? null : { center: laneCenter, midi };
     }
+  }
 
-    // Prune in batches so a long-running standalone monitor keeps bounded history.
-    if (center - firstCenter > (historySeconds + 1) * rate) {
-      const remove = Math.floor((center - firstCenter - historySeconds * rate) / pitchHop);
-      frames.splice(0, remove);
-      firstCenter += remove * pitchHop;
+  function updateClear() {
+    // One nearby, pitch-compatible reading supports an observation. Keep
+    // the raw pitch and center and leave gaps empty, even at a note change.
+    for (let index = Math.max(0, changedFrom - supportHops); index < frames.length; index++) {
+      const frame = frames[index];
+      let supported = false;
+      if (frame.midi !== null) {
+        for (let distance = 1; distance <= supportHops && !supported; distance++) {
+          for (const neighbor of [frames[index - distance], frames[index + distance]]) {
+            if (neighbor?.midi != null && Math.abs(neighbor.midi - frame.midi) < 2 * distance) supported = true;
+          }
+        }
+      }
+      clear[index] = supported || frame.midi === null ? frame :
+        clear[index]?.midi === null ? clear[index] : { time: frame.time, midi: null };
     }
   }
 
   return {
-    frames,
-    get finalTime() { return time(end - halfWindow); },
-    append(samples: Float32Array): PitchFrame {
+    append(samples: Float32Array) {
+      changedFrom = frames.length;
       for (let offset = 0; offset < samples.length;) {
         if (filled === 0) window.copyWithin(0, pitchHop);
         const count = Math.min(pitchHop - filled, samples.length - offset);
@@ -98,11 +114,28 @@ export function createLivePitch(rate: number, maxHz = frequency(sightSingingMaxM
           analyze();
         }
       }
+      if (changedFrom === frames.length) return;
+      updateClear();
+      // The standalone monitor only needs the recent portion of both tracks.
+      if (newest - firstCenter > (historySeconds + 1) * rate) {
+        const remove = Math.floor((newest - firstCenter - historySeconds * rate) / pitchHop);
+        frames.splice(0, remove);
+        clear.splice(0, remove);
+        firstCenter += remove * pitchHop;
+      }
+    },
+    frames(mode: PitchMode): PitchFrame[] { return mode === 'clear' ? clear : frames; },
+    finalTime(mode: PitchMode) {
+      // Later revisions may affect a clear point's support at a neighboring center.
+      return time(end - halfWindow - (mode === 'clear' ? supportHops * pitchHop : 0));
+    },
+    current(mode: PitchMode): PitchFrame {
+      const track = mode === 'clear' ? clear : frames;
       // Stable or low notes may have no short-window candidate. Use the newest
       // actual reading within the time allowed for a long-window estimate.
       let midi: number | null = null;
-      for (let i = frames.length - 1; i >= 0 && frames[i].time >= time(end - halfWindow); i--) {
-        if (frames[i].midi !== null) { midi = frames[i].midi; break; }
+      for (let i = track.length - 1; i >= 0 && track[i].time >= time(end - halfWindow - (mode === 'clear' ? supportHops * pitchHop : 0)); i--) {
+        if (track[i].midi !== null) { midi = track[i].midi; break; }
       }
       return { time: time(Math.max(0, newest)), midi };
     },

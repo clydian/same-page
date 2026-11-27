@@ -16,6 +16,7 @@
   border-radius: .875rem .875rem 0 0;
   font-variant-numeric: tabular-nums;
 }
+.pitch-monitor-mode { justify-content: flex-end; padding: .35rem .55rem; background: var(--surface); border-inline: 1px solid var(--line); }
 .pitch-monitor-note { display: grid; text-align: center; min-inline-size: 3rem; }
 .pitch-monitor-note strong { line-height: 1.05; font-size: 2rem; }
 .pitch-monitor-note span { color: var(--muted); font-size: .75rem; }

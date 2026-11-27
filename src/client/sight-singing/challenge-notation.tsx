@@ -211,12 +211,12 @@ function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect
   }
 }
 
-export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, attemptReset, onNote, onMeasure, feedback, pitchFrames, traceMode, traceThrough, traceOffset, bpm }: {
+export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, attemptReset, onNote, onMeasure, feedback, pitchFrames, traceMode, traceThrough, bpm }: {
   score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; measure: MelodyMeasure; elapsed: number; positioned: boolean; followRun: number;
   attemptReset: number;
   onNote?: (note: NotationNoteHit) => void; onMeasure?: (bar: number) => void; feedback?: readonly NotationFeedback[];
   pitchFrames?: PitchFrame[]; traceMode?: 'recording' | 'replaying';
-  traceThrough?: number; traceOffset: number; bpm: number;
+  traceThrough?: number; bpm: number;
 }) {
   const t = useMessages('practice');
   const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
@@ -490,7 +490,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       {row && <div className={cursor === undefined ? 'challenge-current-measure' : 'challenge-score-cursor'} aria-hidden="true"
         style={{ left: cursor ?? row.x, top: row.y, width: cursor === undefined ? row.w : 2, height: row.h }} />}
       {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={display.score} voice={display.part}
-        beats={melody.staffBeats} measures={melody.measures} frames={pitchFrames} currentVisit={currentVisit} mode={traceMode} through={traceThrough} offset={traceOffset} viewport={viewport} /> : null}
+        beats={melody.staffBeats} measures={melody.measures} frames={pitchFrames} currentVisit={currentVisit} mode={traceMode} through={traceThrough} viewport={viewport} /> : null}
       {onNote && <NotationButtons notes={notes} voice={display.part} results={results}
         onNote={hit => {
           select(feedback && results.has(hit.key) ? { note: hit, attempt: attemptReset, voice: voice.id, visit: currentVisit } : undefined);

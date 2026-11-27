@@ -4,8 +4,8 @@ import { loadPracticeClicks, practiceBeatAccent, schedulePracticeClicks } from '
 import { loadPracticeSoundFont } from '../playback/practice-soundfont';
 import { createChoirBacking, scheduleChoirBacking } from './choir-backing';
 import { targetPitches, type Melody, type MelodyNote } from './melody';
-import { createLivePitch, livePitchChunkSize } from './live-pitch';
-import { createScoringPitch, frequency, type PitchFrame } from './pitch-feedback';
+import { createLivePitch, livePitchChunkSize, type PitchMode } from './live-pitch';
+import { frequency, type PitchFrame } from './pitch-feedback';
 import { calibrationDuration, calibrationTimes, calibrationTone, estimateRecordingLatency,
   recordingOffsetFrames } from './recording-latency';
 import type { ChallengeMix } from './use-challenge-mix';
@@ -14,7 +14,7 @@ export type CaptureError = 'microphoneUnavailable' | 'microphoneDenied' | 'audio
 type CaptureCallbacks = {
   onCount(count: number): void;
   onFrame(frame: PitchFrame, pitchFrames: PitchFrame[]): void;
-  onComplete(scoringFrames: PitchFrame[], pitchFrames: PitchFrame[], recording: Blob): void;
+  onComplete(pitchFrames: PitchFrame[], recording: Blob): void;
   onError(error: CaptureError): void;
 };
 
@@ -101,7 +101,7 @@ function setOutputLevel(gain: GainNode | undefined, level: number) {
 }
 
 export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing: MelodyNote[][],
-  mix: CaptureMix, previewContext?: AudioContext) {
+  mix: CaptureMix, { mode, latency }: { mode: PitchMode; latency: number }, previewContext?: AudioContext) {
   let active = true;
   let context = previewContext, stream: MediaStream | undefined;
   let input: MediaStreamAudioSourceNode | undefined, worklet: AudioWorkletNode | undefined;
@@ -173,22 +173,26 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
         durationFrames: durationFrames + margin, recordFrom: -margin, countOffset, chunkFrames: livePitchChunkSize, startFrame },
     });
     worklet.onprocessorerror = () => fail('audioFailure');
-    const pitch = createLivePitch(sampleRate, undefined, margin);
-    const scoring = createScoringPitch(sampleRate, margin);
+    const offset = latency / 1000;
+    const pitch = createLivePitch(sampleRate, undefined, margin + offset * sampleRate);
+    const frames = pitch.frames(mode);
     const chunks: ArrayBuffer[] = [];
     let received = 0;
     worklet.port.onmessage = ({ data }: MessageEvent<{ count: number } | { samples: Float32Array; done: boolean }>) => {
       if (!active) return;
       if ('count' in data) { callbacks.onCount(data.count); return; }
       const { samples, done } = data;
-      const frame = pitch.append(samples);
-      scoring.append(samples, done);
-      if (frame.time >= 0 && frame.time < melody.duration) callbacks.onFrame(frame, pitch.frames);
+      pitch.append(samples);
+      const current = pitch.current(mode);
+      // The singer's samples are calibrated, while the accompaniment/playhead
+      // stay on the worklet's unshifted clock.
+      const time = current.time + offset;
+      if (time >= 0 && time < melody.duration) callbacks.onFrame({ ...current, time }, frames);
       chunks.push(pcm16(samples));
       received += samples.length;
       if (done) {
         dispose();
-        callbacks.onComplete(scoring.frames, pitch.frames, waveFile(chunks, received, sampleRate));
+        callbacks.onComplete(frames, waveFile(chunks, received, sampleRate));
       }
     };
     input.connect(worklet);

@@ -58,16 +58,15 @@ function scorePitchLayout(lookup: rendering.BoundsLookup, score: MelodyScore['sc
   });
 }
 
-function tracePath(beats: TraceBeat[], frames: PitchFrame[], offset: number, through = Number.POSITIVE_INFINITY) {
+function tracePath(beats: TraceBeat[], frames: PitchFrame[], through = Number.POSITIVE_INFINITY) {
   const path: string[] = [];
   let previous: { x: number; y: number; time: number; system: number; index: number; end: number } | undefined;
   let point: typeof previous;
   for (const beat of beats) {
     const { target } = beat;
-    for (let index = firstFrameAt(frames, target.start + offset); index < frames.length; index++) {
+    for (let index = firstFrameAt(frames, target.start); index < frames.length; index++) {
       const frame = frames[index];
-      const { midi } = frame;
-      const time = frame.time - offset;
+      const { midi, time } = frame;
       if (time >= target.end || time > through) break;
       if (midi === null) { previous = undefined; continue; }
       const match = matchTargetPitch(target, midi), head = beat.heads.get(match.midi);
@@ -86,10 +85,10 @@ function tracePath(beats: TraceBeat[], frames: PitchFrame[], offset: number, thr
   return { path: path.join(' '), point };
 }
 
-export function ScorePitchTrace({ lookup, score, voice, beats, measures, frames, currentVisit, mode, through, offset, viewport }: {
+export function ScorePitchTrace({ lookup, score, voice, beats, measures, frames, currentVisit, mode, through, viewport }: {
   lookup: rendering.BoundsLookup; score: MelodyScore['score']; voice: Part; beats: StaffBeat[]; measures: MelodyMeasure[];
   frames: PitchFrame[]; currentVisit?: number; mode?: 'recording' | 'replaying'; viewport: RefObject<HTMLDivElement | null>;
-  through?: number; offset: number;
+  through?: number;
 }) {
   const layer = useRef<SVGSVGElement>(null);
   const [visible, setVisible] = useState<number[] | null>(null);
@@ -126,9 +125,9 @@ export function ScorePitchTrace({ lookup, score, voice, beats, measures, frames,
     }
     return layout.filter(beat => (visible?.includes(beat.system) ?? false) && beat.target.visit === closest.get(beat.target.bar));
   }, [layout, visible, currentVisit]);
-  const { path, point } = tracePath(currentLayout, frames, offset, through);
+  const { path, point } = tracePath(currentLayout, frames, through);
   const tipTime = mode === 'recording' && through !== undefined
-    ? Math.min(through, (frames.at(-1)?.time ?? 0) - offset) : through;
+    ? Math.min(through, frames.at(-1)?.time ?? 0) : through;
   const tip = point && tipTime !== undefined && mode && tipTime - point.time <= (mode === 'recording' ? .025 : .065)
     ? point : undefined;
   return <svg ref={layer} className="challenge-staff-trace" aria-hidden="true" focusable="false">

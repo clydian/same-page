@@ -6,7 +6,10 @@ import { useMessages } from '../../i18n';
 import { TaskHeader } from '../components/task-header';
 import { pcm16, waveFile } from '../playback/pcm-audio';
 import { holdUpdate } from '../updates/update-safety';
+import type { PitchMode } from '../sight-singing/live-pitch';
+import { PitchModeSelect } from '../sight-singing/pitch-mode-select';
 import { formatCents, pitchName, type PitchFrame } from '../sight-singing/pitch-feedback';
+import { createPitchViewport } from '../sight-singing/pitch-viewport';
 import { firstFrameAt, pitchFramesConnect } from '../sight-singing/pitch-trace';
 import { keyPitchClasses, pitchClass } from '../sight-singing/staff-pitch';
 import { openPitchInput } from './pitch-input';
@@ -18,8 +21,8 @@ const seconds = 6, semitones = 24, recordLimit = 180;
 const majorKeys = ['C♭', 'G♭', 'D♭', 'A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯'];
 const minorKeys = ['A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯'];
 const empty: PitchFrame = { time: 0, midi: null };
-type Take = { url: string; frames: PitchFrame[] };
-type Recording = { frames: PitchFrame[]; pcm: ArrayBuffer[]; length: number; rate: number; startTime: number; release: () => void };
+type Take = { url: string; frames: PitchFrame[]; mode: PitchMode };
+type Recording = { mode: PitchMode; frames: PitchFrame[]; pcm: ArrayBuffer[]; length: number; rate: number; startTime: number; source?: PitchFrame[]; release: () => void };
 
 function visibleFrames(frames: PitchFrame[], time: number) {
   return frames.slice(firstFrameAt(frames, time - seconds), firstFrameAt(frames, time + 1e-7));
@@ -46,7 +49,8 @@ function PitchPlot({ frames, current, center, label, signature, tonic, beatBpm }
   const x = (time: number) => (time - left) * 100 / seconds;
   const scale = useMemo(() => keyPitchClasses(signature), [signature]);
   const y = (midi: number) => (bottom + semitones - midi) * 100 / semitones;
-  const lines = Array.from({ length: semitones + 1 }, (_, i) => bottom + semitones - i);
+  const firstNote = Math.floor(bottom + semitones);
+  const lines = Array.from({ length: firstNote - Math.ceil(bottom) + 1 }, (_, i) => firstNote - i);
   let path = '', previous: PitchFrame | undefined;
   for (const frame of frames) {
     if (frame.midi === null) { previous = undefined; continue; }
@@ -88,6 +92,8 @@ export default function PitchMonitorPage() {
   const [status, setStatus] = useState<'idle' | 'starting' | 'live'>('idle');
   const [resumeListening, setResumeListening] = useState<() => void>();
   const [key, setKey] = useState(7);
+  const [mode, setMode] = useState<PitchMode>('clear');
+  const liveMode = useRef<PitchMode>('clear');
   const [bpm, setBpm] = useState(120);
   const [showBeats, setShowBeats] = useState(false);
   const [held, setHeld] = useState(false);
@@ -97,7 +103,10 @@ export default function PitchMonitorPage() {
   const [error, setError] = useState<'microphoneDenied' | 'microphoneUnavailable' | 'audioFailure'>();
   const [view, setView] = useState({ frames: [] as PitchFrame[], current: empty, center: 60 });
   const capture = useRef<AbortController | null>(null);
-  const live = useRef({ frames: [] as PitchFrame[], current: empty, center: 60 });
+  const live = useRef({ frames: [] as PitchFrame[], current: empty });
+  const center = useRef(60);
+  const [follow] = useState(createPitchViewport);
+  const [motion] = useState(() => matchMedia('(prefers-reduced-motion: reduce)'));
   const hold = useRef(false);
   const activeTake = useRef<Recording | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
@@ -105,9 +114,11 @@ export default function PitchMonitorPage() {
   const pendingPaint = useRef(0);
   const audition = useRef(false);
 
-  const showLive = () => {
-    const { frames, current, center } = live.current;
-    setView({ frames: visibleFrames(frames, current.time), current, center });
+  const showLive = (now = performance.now()) => {
+    const { frames, current } = live.current;
+    center.current = follow.step({ center: center.current, span: semitones, frames,
+      through: current.time, now, reducedMotion: motion.matches });
+    setView({ frames: visibleFrames(frames, current.time), current, center: center.current });
   };
 
   useEffect(() => () => {
@@ -128,11 +139,11 @@ export default function PitchMonitorPage() {
     pending.release();
     setRecording(false);
     if (!pending.length) return;
-    appendRecordedFrames(pending, live.current.frames, pending.startTime + pending.length / pending.rate);
+    if (pending.source) appendRecordedFrames(pending, pending.source, pending.startTime + pending.length / pending.rate);
     if (takeUrl.current) URL.revokeObjectURL(takeUrl.current);
     const url = URL.createObjectURL(waveFile(pending.pcm, pending.length, pending.rate));
     takeUrl.current = url;
-    setTake({ url, frames: pending.frames });
+    setTake({ url, frames: pending.frames, mode: pending.mode });
   };
   const stopListening = () => {
     stopRecording();
@@ -147,7 +158,7 @@ export default function PitchMonitorPage() {
   const record = () => {
     if (activeTake.current) return;
     setError(undefined);
-    activeTake.current = { frames: [], pcm: [], length: 0, rate: 0, startTime: 0, release: holdUpdate() };
+    activeTake.current = { mode: liveMode.current, frames: [], pcm: [], length: 0, rate: 0, startTime: 0, release: holdUpdate() };
     setRecording(true);
   };
   const start = async (withRecording: boolean) => {
@@ -155,29 +166,33 @@ export default function PitchMonitorPage() {
     capture.current = controller;
     hold.current = false;
     setHeld(false);
-    live.current = { frames: [], current: empty, center: 60 };
-    setView(live.current);
+    follow.reset();
+    live.current = { frames: [], current: empty };
+    setView({ ...live.current, center: center.current });
     setError(undefined);
     setStatus('starting');
     session.request('play-and-record');
     try {
-      await openPitchInput(controller.signal, ({ current, frames, samples, rate, startTime, finalTime }) => {
-        const { center: previousCenter } = live.current;
-        const center = current.midi === null || Math.abs(current.midi - previousCenter) <= 9
-          ? previousCenter : Math.round(current.midi);
-        live.current = { frames, current, center };
+      await openPitchInput(controller.signal, ({ pitch, samples, rate, startTime }) => {
+        const current = pitch.current(liveMode.current);
+        const frames = pitch.frames(liveMode.current);
+        live.current = { frames, current };
         const pending = activeTake.current;
         if (pending) {
-          if (!pending.length) pending.startTime = startTime;
+          const source = pitch.frames(pending.mode);
+          if (!pending.length) {
+            pending.startTime = startTime;
+            pending.source = source;
+          }
           pending.pcm.push(pcm16(samples));
           pending.length += samples.length;
           pending.rate = rate;
-          appendRecordedFrames(pending, frames, finalTime);
+          appendRecordedFrames(pending, source, pitch.finalTime(pending.mode));
           if (pending.length >= recordLimit * rate) stopRecording();
         }
-        if (!hold.current && !pendingPaint.current) pendingPaint.current = requestAnimationFrame(() => {
+        if (!hold.current && !pendingPaint.current) pendingPaint.current = requestAnimationFrame(now => {
           pendingPaint.current = 0;
-          if (!hold.current) showLive();
+          if (!hold.current) showLive(now);
         });
       }, () => {
         stopListening();
@@ -205,20 +220,19 @@ export default function PitchMonitorPage() {
   useEffect(() => {
     if (!playing || !take) return;
     let id = 0;
-    const draw = () => {
+    const draw = (now: number) => {
       const player = audio.current;
       if (!player || player.paused) return;
       const frames = visibleFrames(take.frames, player.currentTime);
       const current = { time: player.currentTime, midi: frames.at(-1)?.midi ?? null };
-      setView(previous => ({
-        frames, current, center: current.midi === null || Math.abs(current.midi - previous.center) <= 9
-          ? previous.center : Math.round(current.midi),
-      }));
+      center.current = follow.step({ center: center.current, span: semitones,
+        frames, through: current.time, now, reducedMotion: motion.matches });
+      setView({ frames, current, center: center.current });
       id = requestAnimationFrame(draw);
     };
     id = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(id);
-  }, [playing, take]);
+  }, [follow, motion, playing, take]);
 
   const finishPlayback = () => {
     if (!audition.current) return;
@@ -233,6 +247,7 @@ export default function PitchMonitorPage() {
     if (audition.current) { player.pause(); finishPlayback(); return; }
     if (status === 'live') stopListening();
     hold.current = false;
+    follow.reset();
     setHeld(false);
     session.request();
     player.currentTime = 0;
@@ -267,6 +282,7 @@ export default function PitchMonitorPage() {
         <button type="button" className="pitch-monitor-hold" aria-pressed={held}
           disabled={status !== 'live'} onClick={() => {
             hold.current = !hold.current;
+            follow.reset();
             setHeld(hold.current);
             if (!hold.current) showLive();
           }}><Snowflake size={16} aria-hidden="true" />{t('pitchMonitor.hold')}</button>
@@ -274,6 +290,8 @@ export default function PitchMonitorPage() {
           {note !== null && <i style={{ left: `${50 + cents}%` }} />}
         </div>
       </div>
+      <PitchModeSelect className="pitch-monitor-mode" value={playing && take ? take.mode : mode}
+        disabled={recording || playing || held} onChange={next => { follow.reset(); liveMode.current = next; setMode(next); }} />
       <div className="pitch-monitor-chart" data-custom={appearance.mode === 'custom' || undefined} style={monitorColors(appearance)}>
         <PitchPlot {...view} signature={signature} tonic={tonic} beatBpm={showBeats ? bpm : undefined} label={t('pitchMonitor.graph')} />
         {resumeListening && <button className="secondary-button pitch-monitor-listen"

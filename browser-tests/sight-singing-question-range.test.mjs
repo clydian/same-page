@@ -167,6 +167,7 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   const { question } = await response.json();
   assert.deepEqual([question.first, question.last, question.lastBeat], [moved + 1, moved + 1, 1]);
   await expect(page.getByRole('button', { name: '开始唱', exact: true })).toBeVisible();
+  await page.getByLabel('音高模式').selectOption('all');
   await expect(page.locator('.task-header-heading > p')).toHaveText(`${measureLabel} · 我发布`);
   const result = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/results'));
   await page.getByRole('button', { name: '开始唱', exact: true }).click();
@@ -210,6 +211,7 @@ test('choosing a sight-singing range follows the loaded score and saves only com
   const excludedX = await excludedEnd.evaluate(element => Number.parseFloat(element.style.left));
   await capture('practice-context.png');
   const startSinging = page.getByRole('button', { name: '开始唱', exact: true });
+  await page.getByLabel('音高模式').selectOption('all');
   const transport = page.locator('.challenge-transport');
   const stop = transport.getByRole('button', { name: '停止', exact: true });
   const status = transport.getByRole('status');

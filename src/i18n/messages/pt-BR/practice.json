@@ -245,6 +245,12 @@
   "advancedSettings": "Configurações avançadas",
   "sightPractice": "Prática de solfejo",
   "rhythmPractice": "Prática rítmica",
+  "pitchMode": {
+    "label": "Modo de afinação",
+    "choose": "Escolha um modo",
+    "clear": "Claro",
+    "all": "Todas as leituras"
+  },
   "pitchMonitor": {
     "title": "Monitor de afinação",
     "hold": "Congelar",

@@ -165,11 +165,15 @@ test('sight singing preserves its layout preferences and clears a completed take
 
   const run = page.locator('.challenge-run');
   const start = page.getByRole('button', { name: '开始唱', exact: true });
+  await expect(start).toBeDisabled();
+  await page.getByLabel('音高模式').selectOption('clear');
   const marks = score.locator('[data-challenge-feedback]');
   await start.click();
   await expect.poll(() => page.evaluate(() => window.sightSingingCaptures.length)).toBe(1);
   await page.evaluate(() => window.sightSingingCaptures[0].complete());
   await expect(run).toHaveAttribute('data-phase', 'result');
+  await expect(run).toHaveAttribute('data-pitch-mode', 'clear');
+  await expect(page.getByLabel('音高模式')).toHaveCount(0);
   const evidence = process.env.SIGHT_LATENCY_EVIDENCE;
   const rating = page.locator('.challenge-score strong');
   const initialRating = await rating.textContent();

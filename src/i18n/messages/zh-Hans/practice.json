@@ -245,6 +245,12 @@
   "advancedSettings": "进阶设置",
   "sightPractice": "视唱练习",
   "rhythmPractice": "节奏练习",
+  "pitchMode": {
+    "label": "音高模式",
+    "choose": "选择模式",
+    "clear": "清晰",
+    "all": "全部读数"
+  },
   "pitchMonitor": {
     "title": "音高仪",
     "hold": "定格",
