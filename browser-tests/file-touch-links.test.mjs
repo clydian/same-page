@@ -15,17 +15,19 @@ async function hold(page, file, moveTo) {
   assert.ok(box);
   const point = { x: box.x + Math.min(70, box.width / 2), y: box.y + box.height / 2 };
   const cdp = await page.context().newCDPSession(page);
+  const menu = page.getByRole("menu");
   try {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
     await expect(file).toHaveAttribute("data-touch-active", "");
-    await expect(page.getByRole("menu")).toBeVisible();
+    await expect(menu).toBeVisible();
     assert.equal(await page.evaluate(() => getSelection().toString()), "");
     if (moveTo) {
       const end = await moveTo.boundingBox(); assert.ok(end);
       await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: end.x + end.width / 2, y: end.y + end.height / 2 }] });
     }
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    await expect(page.getByRole("menu")).toBeVisible();
+    await expect(menu).toBeVisible();
+    await expect.poll(() => menu.evaluate(node => node.contains(document.activeElement))).toBe(true);
   } finally { await cdp.detach(); }
 }
 
@@ -179,6 +181,7 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       await expect(page).toHaveURL(library);
       assert.deepEqual(fileRequests, [], "repeated holding must not prepare a score");
       await page.keyboard.press("Escape");
+      await expect(menu).toBeFocused();
       await file.tap();
       await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
     });
