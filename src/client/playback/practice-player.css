@@ -1,3 +1,5 @@
+@import './practice-notice.css';
+
 .practice-dock { position: fixed; z-index: 90; inset: auto 0 0; display: grid; gap: 8px; padding-bottom: env(safe-area-inset-bottom); background: var(--ui-surface, #fcfdfb); pointer-events: none; }
 .practice-transport { position: relative; display: flex; align-items: center; gap: 0; justify-content: center; }
 .practice-settings { justify-self: end; }
@@ -39,8 +41,6 @@
 .practice-hint { margin: 0; font-size: 12px; line-height: 1.6; color: var(--ui-muted, #718077); }
 .practice-panel footer { border-top: 1px solid var(--ui-line, #e4eae4); padding-top: 4px; }
 .practice-end { min-height: 44px; border: 0; padding: 0; color: var(--ui-muted, #65756a); background: transparent; font: inherit; font-size: 13px; }
-.practice-notice { display: flex; align-items: center; gap: 8px; max-width: min(480px,100%); padding: 4px 8px 4px 14px; border-radius: 12px; background: var(--ui-surface, #fcfdfb); color: var(--ui-ink, #31463a); font-size: 13px; pointer-events: auto; box-shadow: 0 4px 18px #0a171c24; }
-.practice-notice button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border: 0; background: transparent; color: inherit; }
 .practice-notation { position: fixed; z-index: 70; inset: var(--practice-top-inset,56px) 0 var(--practice-inset,72px); display: flex; flex-direction: column; visibility: hidden; background: var(--ui-surface, #f3f4f0); color: var(--ui-ink, #31463a); }
 .practice-notation[data-visible] { visibility: visible; }
 .practice-notation { padding: 0 var(--safe-right) 0 var(--safe-left); }

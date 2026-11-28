@@ -3,6 +3,7 @@ import { Check, ChevronDown, Headphones, Mic, Minus, Play, Plus, RotateCcw, Squa
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { useMessages } from '../../i18n';
 import { sightSingingSpeeds, type SightSingingResultSubmission } from '../../shared/sight-singing-results';
+import { PlaybackAudioHint } from '../playback/playback-audio-hint';
 import { holdUpdate } from '../updates/update-safety';
 import { beginCapture, playNote, playSustainedTonic, type CaptureError } from './challenge-audio';
 import { LatencyControls } from './challenge-latency-setting';
@@ -16,6 +17,19 @@ import { useChallengeAnswer } from './use-challenge-answer';
 import type { ChallengeMix } from './use-challenge-mix';
 
 const emptyFrames: PitchFrame[] = [];
+const audioHintKey = 'same-page:sight-singing-audio-hint';
+let audioHintShown = false;
+
+function claimAudioHint() {
+  if (audioHintShown) return false;
+  audioHintShown = true;
+  try {
+    if (sessionStorage.getItem(audioHintKey)) return false;
+    sessionStorage.setItem(audioHintKey, '1');
+  } catch { /* The in-memory guard still covers navigation within this document. */ }
+  return true;
+}
+
 const TuningFork = createLucideIcon('TuningFork', [['path', { d: 'M7 3v8a5 5 0 0 0 10 0V3M12 16v5', key: 'fork' }]]);
 type Speed = SightSingingResultSubmission['speed'];
 export type ChallengeResult = { finish: () => void };
@@ -70,6 +84,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const [error, setError] = useState<CaptureError | null>(null);
   const [audioHint, setAudioHint] = useState(false);
   const [audioSession] = useState(() => playbackAudioSession());
+  const showAudioHint = useCallback((advice: string | undefined) => {
+    if (advice && claimAudioHint()) setAudioHint(true);
+  }, []);
   const [followRun, setFollowRun] = useState(0);
   const [attemptReset, setAttemptReset] = useState(0);
   const [pitchSpan, setPitchSpan] = useState(3);
@@ -174,7 +191,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       return;
     }
     setError(null);
-    setAudioHint(Boolean(audioSession.request()));
+    const advice = audioSession.request();
     try {
       const preview = playSustainedTonic(melody.tonic, tonicVolume, () => {
         if (tonicPreview.current !== preview) return;
@@ -185,6 +202,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       tonicPreview.current = preview;
       setDrone(true);
       setHeadphones(true);
+      showAudioHint(advice);
     } catch {
       if (!run.current) audioSession.release();
       setError('audioFailure');
@@ -200,14 +218,17 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
     setFollowRun(value => value + 1);
     // Declare simultaneous output and capture before the gesture starts Web Audio and getUserMedia.
-    setAudioHint(Boolean(audioSession.request('play-and-record')));
+    const advice = audioSession.request('play-and-record');
     setState({ phase: 'permission' });
     const takeId = crypto.randomUUID();
     const releaseUpdate = holdUpdate();
     let paint = 0;
     let latest: Extract<RunState, { phase: 'sing' }>;
     const capture = beginCapture(melody, {
-      onCount: count => setState({ phase: 'count', count }),
+      onCount: count => {
+        if (count === melody.beats) showAudioHint(advice);
+        setState({ phase: 'count', count });
+      },
       onFrame: (frame, frames) => {
         latest = { phase: 'sing', frame, frames };
         if (!paint) paint = requestAnimationFrame(() => {
@@ -259,13 +280,15 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     if (time !== undefined) seek(time);
     else if (audio.ended) seek(0);
     setFollowRun(value => value + 1);
-    setAudioHint(Boolean(audioSession.request()));
-    void audio.play().catch((reason: unknown) => {
+    const advice = audioSession.request();
+    void audio.play().then(() => {
+      if (replay.current === audio && !audio.paused) showAudioHint(advice);
+    }).catch((reason: unknown) => {
       if (replay.current !== audio || reason instanceof DOMException && reason.name === 'AbortError') return;
       if (audio.paused) audioSession.release();
       setError('audioFailure');
     });
-  }, [audioSession, seek]);
+  }, [audioSession, seek, showAudioHint]);
 
   const position = state.phase === 'sing' ? state.frame.time : state.phase === 'result' ? replayTime : 0;
   const inLeadIn = state.phase === 'sing' && position < melody.leadIn;
@@ -288,7 +311,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     if (state.phase === 'result') { playMeasure(hit.bar); return; }
     if (state.phase !== 'idle') return;
     release(); setError(null);
-    setAudioHint(Boolean(audioSession.request()));
+    const advice = audioSession.request();
     try {
       const stop = playNote(hit.midi, failed => {
         run.current = null;
@@ -296,11 +319,12 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         if (failed) setError('audioFailure');
       });
       run.current = { stop };
+      showAudioHint(advice);
     } catch {
       if (!tonicPreview.current) audioSession.release();
       setError('audioFailure');
     }
-  }, [audioSession, measuring, playMeasure, release, state.phase]);
+  }, [audioSession, measuring, playMeasure, release, showAudioHint, state.phase]);
 
   const bpm = melody.tempoMarks.reduce((tempo, mark) => mark.start <= position ? mark.bpm : tempo, melody.tempo.bpm * speed);
   const cropped = melody.measures.some(bar => bar.clip);
@@ -326,7 +350,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       following={recording || playing} reviewing={state.phase === 'result'} activeTarget={target ? targetPitches(target).map(pitchName).join(' / ') : undefined} />}
 
     {error && <p className="challenge-error" role="alert">{t(`sight.${error}`)}</p>}
-    {audioHint && <p className="challenge-save-status" role="status">{t('audioHint')}</p>}
+    <div className="challenge-audio-notice">
+      <PlaybackAudioHint session={audioSession} message={audioHint ? t('audioHint') : undefined} />
+    </div>
     {state.phase === 'idle' && <div className="challenge-controls challenge-setup">
       {headphones && <div className="challenge-headphones">
         <span role="status"><Headphones size={17} aria-hidden="true" />{t('sight.audioGuidance')}</span>

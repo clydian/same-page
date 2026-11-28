@@ -313,7 +313,6 @@ export function MusicXmlPractice({
           )}
           {view === "pdf" && <p className="practice-hint">{t("scaleDegreesReflowHint")}</p>}
         </div>
-        {state.audioHint && <p className="practice-hint">{t("audioHint")}</p>}
         <PracticeDisclosure title={t("advancedSettings")}>
           <PracticeSetting title={t("metronome")} help={t("metronomeHelp")} selected={Boolean(state.metronome)} disabled={!ready} onChange={metronome => session?.rhythm({ metronome })} />
           <PracticeSetting title={t("countInAfterSeek")} help={t("countInHelp")} selected={Boolean(state.countIn)} disabled={!ready} onChange={countIn => session?.rhythm({ countIn })} />
