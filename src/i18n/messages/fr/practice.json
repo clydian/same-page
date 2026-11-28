@@ -299,6 +299,31 @@
     "storageError": "Impossible d’accéder aux exercices sur cet appareil. Réessayez.",
     "backToQuestions": "Retour aux exercices",
     "edit": "Modifier l’exercice",
+    "badges": {
+      "near": {
+        "title": "Presque sans faute",
+        "description": "Au moins 95 % des notes ont été chantées juste."
+      },
+      "matched": {
+        "title": "Toutes les notes justes",
+        "description": "Tu as chanté toutes les notes juste."
+      },
+      "original": {
+        "title": "Tout à l’octave écrite",
+        "description": "Chaque note est juste et dans l’octave écrite."
+      },
+      "rainbow": {
+        "title": "Dans le mille arc-en-ciel",
+        "description": "Chaque note a visé juste au centre."
+      },
+      "revelation": {
+        "title": "Fidèle à la partition",
+        "description": "Tu as chanté exactement ce qui était écrit."
+      }
+    },
+    "deleteQuestion": "Supprimer l’exercice",
+    "deleteQuestionConfirm": "Supprimer « {title} », toutes ses versions et leurs scores au classement ? Cette action est irréversible. La partition originale sera conservée.",
+    "deleteQuestionFailed": "Impossible de supprimer l’exercice. Rouvre-le et réessaie.",
     "name": "Nom de l’exercice",
     "nameRequired": "Saisissez un nom pour l’exercice.",
     "score": "Partition de l’espace",

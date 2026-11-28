@@ -299,6 +299,31 @@
     "storageError": "No se pudo acceder a los ejercicios de este dispositivo. Inténtalo de nuevo.",
     "backToQuestions": "Volver a los ejercicios",
     "edit": "Editar ejercicio",
+    "badges": {
+      "near": {
+        "title": "Casi todo correcto",
+        "description": "Cantaste correctamente al menos el 95 % de las notas."
+      },
+      "matched": {
+        "title": "Todas las notas correctas",
+        "description": "Cantaste todas las notas correctamente."
+      },
+      "original": {
+        "title": "Todo en su octava",
+        "description": "Cantaste correctamente cada nota en la octava escrita."
+      },
+      "rainbow": {
+        "title": "Diana arcoíris",
+        "description": "Cada nota dio justo en el centro."
+      },
+      "revelation": {
+        "title": "Fiel a la partitura",
+        "description": "Cantaste exactamente lo que estaba escrito."
+      }
+    },
+    "deleteQuestion": "Eliminar ejercicio",
+    "deleteQuestionConfirm": "¿Eliminar «{title}», todas sus versiones y sus resultados del ranking? No se puede deshacer. La partitura original se conserva.",
+    "deleteQuestionFailed": "No se pudo eliminar el ejercicio. Vuelve a abrirlo e inténtalo otra vez.",
     "name": "Nombre del ejercicio",
     "nameRequired": "Ingresa un nombre para el ejercicio.",
     "score": "Partitura de la unidad",

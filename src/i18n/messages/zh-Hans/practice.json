@@ -299,6 +299,31 @@
     "storageError": "无法读写本机题目，请重试。",
     "backToQuestions": "返回题目列表",
     "edit": "编辑题目",
+    "badges": {
+      "near": {
+        "title": "几乎全对",
+        "description": "至少 95% 的音符唱对了。"
+      },
+      "matched": {
+        "title": "全部唱对",
+        "description": "每个音都唱对了。"
+      },
+      "original": {
+        "title": "原八度全对",
+        "description": "每个音都在原八度唱对了。"
+      },
+      "rainbow": {
+        "title": "彩虹准星",
+        "description": "每个音都唱进了准星中心。"
+      },
+      "revelation": {
+        "title": "原谱显灵",
+        "description": "谱上怎么写，你就怎么准。"
+      }
+    },
+    "deleteQuestion": "删除题目",
+    "deleteQuestionConfirm": "删除「{title}」及其全部版本和榜单成绩？此操作无法撤销，原乐谱不会被删除。",
+    "deleteQuestionFailed": "无法删除题目。请重新打开题目后重试。",
     "name": "题目名称",
     "nameRequired": "请输入题目名称。",
     "score": "云盘乐谱",

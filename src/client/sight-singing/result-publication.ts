@@ -25,7 +25,7 @@ export type SightSingingResultFilters = { version?: number; voice?: string; spee
 
 export async function readSightSingingResults(choirId: string, questionId: string,
   { version, voice, speed }: SightSingingResultFilters, signal?: AbortSignal) {
-  const query = new URLSearchParams();
+  const query = new URLSearchParams({ badges: '1' });
   if (version !== undefined) query.set('version', String(version));
   if (voice) query.set('voice', voice);
   if (speed !== undefined) query.set('speed', String(speed));
@@ -33,7 +33,7 @@ export async function readSightSingingResults(choirId: string, questionId: strin
 }
 
 export async function readSightSingingLeaderboard(choirId: string, signal?: AbortSignal) {
-  return readSightSinging(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard`, sightSingingLeaderboardSchema, signal);
+  return readSightSinging(`/api/choirs/${encodeURIComponent(choirId)}/sight-singing/leaderboard?badges=1`, sightSingingLeaderboardSchema, signal);
 }
 
 export async function withdrawSightSingingResult(choirId: string, questionId: string, userId: string, id: string, version: number) {

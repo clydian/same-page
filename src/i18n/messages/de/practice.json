@@ -299,6 +299,31 @@
     "storageError": "Die lokalen Aufgaben konnten nicht geladen oder gespeichert werden. Versuche es erneut.",
     "backToQuestions": "Zurück zu den Aufgaben",
     "edit": "Aufgabe bearbeiten",
+    "badges": {
+      "near": {
+        "title": "Fast alles richtig",
+        "description": "Mindestens 95 % der Töne waren richtig."
+      },
+      "matched": {
+        "title": "Alle Töne richtig",
+        "description": "Du hast jeden Ton richtig gesungen."
+      },
+      "original": {
+        "title": "Alles in der notierten Oktave",
+        "description": "Du hast jeden Ton in der notierten Oktave richtig gesungen."
+      },
+      "rainbow": {
+        "title": "Regenbogen-Volltreffer",
+        "description": "Jeder Ton landete genau in der Mitte."
+      },
+      "revelation": {
+        "title": "Notentreu",
+        "description": "Du hast genau so gesungen, wie es notiert ist."
+      }
+    },
+    "deleteQuestion": "Übung löschen",
+    "deleteQuestionConfirm": "„{title}“, alle Versionen und ihre Bestenlistenergebnisse löschen? Das lässt sich nicht rückgängig machen. Die Originalpartitur bleibt erhalten.",
+    "deleteQuestionFailed": "Die Übung konnte nicht gelöscht werden. Öffne sie erneut und versuche es noch einmal.",
     "name": "Name der Aufgabe",
     "nameRequired": "Gib einen Namen ein.",
     "score": "Partitur im Laufwerk",

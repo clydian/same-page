@@ -299,6 +299,31 @@
     "storageError": "Impossibile accedere agli esercizi su questo dispositivo. Riprova.",
     "backToQuestions": "Torna agli esercizi",
     "edit": "Modifica esercizio",
+    "badges": {
+      "near": {
+        "title": "Quasi tutte corrette",
+        "description": "Almeno il 95% delle note è stato cantato correttamente."
+      },
+      "matched": {
+        "title": "Tutte le note corrette",
+        "description": "Hai cantato tutte le note correttamente."
+      },
+      "original": {
+        "title": "Tutte all’ottava scritta",
+        "description": "Hai cantato ogni nota correttamente, all’ottava scritta."
+      },
+      "rainbow": {
+        "title": "Centro arcobaleno",
+        "description": "Ogni nota ha centrato il bersaglio."
+      },
+      "revelation": {
+        "title": "Fedele alla partitura",
+        "description": "Hai cantato esattamente come era scritto."
+      }
+    },
+    "deleteQuestion": "Elimina esercizio",
+    "deleteQuestionConfirm": "Eliminare «{title}», tutte le versioni e i loro risultati in classifica? Non puoi annullare l’operazione. La partitura originale rimarrà.",
+    "deleteQuestionFailed": "Impossibile eliminare l’esercizio. Riaprilo e riprova.",
     "name": "Nome dell’esercizio",
     "nameRequired": "Inserisci un nome per l’esercizio.",
     "score": "Partitura dell’unità",

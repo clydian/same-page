@@ -299,6 +299,31 @@
     "storageError": "Não foi possível acessar os exercícios deste dispositivo. Tente novamente.",
     "backToQuestions": "Voltar aos exercícios",
     "edit": "Editar exercício",
+    "badges": {
+      "near": {
+        "title": "Quase tudo certo",
+        "description": "Você acertou pelo menos 95% das notas."
+      },
+      "matched": {
+        "title": "Todas as notas certas",
+        "description": "Você cantou todas as notas corretamente."
+      },
+      "original": {
+        "title": "Tudo na oitava escrita",
+        "description": "Você acertou todas as notas na oitava escrita."
+      },
+      "rainbow": {
+        "title": "Alvo arco-íris",
+        "description": "Todas as notas acertaram em cheio."
+      },
+      "revelation": {
+        "title": "Fiel à partitura",
+        "description": "Você cantou exatamente como estava escrito."
+      }
+    },
+    "deleteQuestion": "Excluir exercício",
+    "deleteQuestionConfirm": "Excluir “{title}”, todas as versões e as pontuações no ranking? Essa ação é irreversível. A partitura original será mantida.",
+    "deleteQuestionFailed": "Não foi possível excluir o exercício. Abra-o novamente e tente de novo.",
     "name": "Nome do exercício",
     "nameRequired": "Digite um nome para o exercício.",
     "score": "Partitura da unidade",

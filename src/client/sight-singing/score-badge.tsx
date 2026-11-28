@@ -1,27 +1,40 @@
-import { Music2, Sparkles } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { Button, DialogTrigger, Popover } from 'react-aria-components';
+import type { SightSingingExtraBadge } from '../../shared/sight-singing-results';
 import { useMessages } from '../../i18n';
 import { Dialog } from '../navigation/overlays';
+import near from './badge-art/near.svg';
+import matched from './badge-art/matched.svg';
+import original from './badge-art/original.svg';
+import rainbow from './badge-art/rainbow.svg';
+import revelation from './badge-art/revelation.svg';
 
-function ScoreBadge({ label, className, children }: { label: string; className: string; children: ReactNode }) {
-  return <DialogTrigger>
-    <Button className={`challenge-score-badge-button ${className}`} aria-label={label}>{children}</Button>
-    <Popover placement="top" offset={6} className="challenge-badge-popover">
-      <Dialog aria-label={label} className="challenge-badge-explanation">{label}</Dialog>
-    </Popover>
-  </DialogTrigger>;
-}
+const badges = {
+  1: { art: near, name: 'near' },
+  2: { art: matched, name: 'matched' },
+  3: { art: original, name: 'original' },
+  4: { art: rainbow, name: 'rainbow' },
+  5: { art: revelation, name: 'revelation' },
+} as const;
 
-export function ScoreBadges({ perfect, writtenOctave, size = 16 }: { perfect?: boolean; writtenOctave?: boolean; size?: number }) {
+export function ScoreBadges({ badge, perfect, writtenOctave, size = 16 }: {
+  badge?: SightSingingExtraBadge; perfect?: boolean; writtenOctave?: boolean; size?: number;
+}) {
   const t = useMessages('practice');
-  if (!perfect) return null;
+  const level = badge ?? (perfect ? (writtenOctave ? 3 : 2) : null);
+  if (!level) return null;
+  const { art, name } = badges[level];
+  const label = t(`sight.badges.${name}.title`);
   return <span className="challenge-score-badges">
-    {writtenOctave && <ScoreBadge className="challenge-written-octave" label={t('sight.allNotesInWrittenOctave')}>
-      <Music2 size={size} aria-hidden="true" />
-    </ScoreBadge>}
-    <ScoreBadge className="challenge-perfect" label={t('sight.allNotesMatched')}>
-      <Sparkles size={size} aria-hidden="true" />
-    </ScoreBadge>
+    <DialogTrigger>
+      <Button className="challenge-score-badge-button" aria-label={label}>
+        <img src={art} width={size} height={size} alt="" />
+      </Button>
+      <Popover placement="top" offset={6} className="challenge-badge-popover">
+        <Dialog aria-label={label} className="challenge-badge-explanation">
+          <strong>{label}</strong>
+          <span>{t(`sight.badges.${name}.description`)}</span>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
   </span>;
 }
