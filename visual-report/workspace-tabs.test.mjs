@@ -83,7 +83,7 @@ for (const [name, engine, viewport] of [
   await expect(tab("工具")).toHaveAttribute("aria-current", "page");
   await expect(challenge).toBeVisible();
   await challenge.click();
-  await expect(page.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible();
+  await expect(page.getByText("视唱练习仅对当前云盘成员开放。", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "新建题目", exact: true })).toHaveCount(0);
   await page.goto(app.origin + "/choirs/visual-preview-choir/tools?experience=1");
   await expect(tab("工具")).toHaveAttribute("aria-current", "page");
