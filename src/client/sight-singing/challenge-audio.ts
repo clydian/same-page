@@ -3,7 +3,7 @@ import { pcm16, waveFile } from '../playback/pcm-audio';
 import { loadPracticeClicks, practiceBeatAccent, schedulePracticeClick, schedulePracticeClicks } from '../playback/practice-metronome';
 import { loadPracticeSoundFont } from '../playback/practice-soundfont';
 import { createChoirBacking, scheduleChoirBacking } from './choir-backing';
-import { targetPitches, type Melody, type MelodyNote } from './melody';
+import { targetPitches, type Melody, type PlaybackNote } from './melody';
 import { createLivePitch, livePitchChunkSize } from './live-pitch';
 import { frequency, type PitchFrame } from './pitch-feedback';
 import { calibrationDuration, calibrationTimes, calibrationTone, estimateRecordingLatency,
@@ -100,7 +100,7 @@ function setOutputLevel(gain: GainNode | undefined, level: number) {
   gain?.gain.setTargetAtTime(level, gain.context.currentTime, .01);
 }
 
-export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing: MelodyNote[][],
+export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backing: PlaybackNote[][],
   mix: CaptureMix, latency: number, previewContext?: AudioContext) {
   let active = true;
   let context = previewContext, stream: MediaStream | undefined;
@@ -260,7 +260,7 @@ export function playSustainedTonic(midi: number, volume: number, onError: () => 
   }
 }
 
-function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: number, volume: number, output: AudioNode = context.destination) {
+function schedulePiano(context: BaseAudioContext, notes: PlaybackNote[], start: number, volume: number, output: AudioNode = context.destination) {
   const tone = context.createPeriodicWave(new Float32Array(7), Float32Array.of(0, 1, .34, .26, .14, .09, .045));
   for (const note of notes) {
     const pitches = targetPitches(note);
@@ -279,7 +279,7 @@ function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: nu
   }
 }
 
-export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[], voiceVolume: number, pianoVolume: number, duration: number, latencyMs: number) {
+export async function mixPianoAnswer(recording: Blob, notes: PlaybackNote[], voiceVolume: number, pianoVolume: number, duration: number, latencyMs: number) {
   // Input is the PCM WAV produced by beginCapture. Render on the recording's
   // sample clock so the native player's seek and speed controls keep the mix aligned.
   const data = new DataView(await recording.arrayBuffer());
@@ -310,7 +310,7 @@ export function playNote(midi: number, onFinish: (failed: boolean) => void) {
   void context.resume().then(() => {
     if (!active) return;
     const start = context.currentTime + .04;
-    schedulePiano(context, [{ midi, start: 0, end: .6, bar: 0, visit: 0 }], start, .23);
+    schedulePiano(context, [{ midi, start: 0, end: .6 }], start, .23);
     const sentinel = context.createConstantSource();
     sentinel.offset.value = 0;
     sentinel.connect(context.destination);

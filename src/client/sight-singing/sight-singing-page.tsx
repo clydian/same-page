@@ -562,7 +562,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const last = lastChoice ?? (loaded.document?.visits.length ?? 1) - 1;
   const options = useMemo(() => {
     const document = loaded.document;
-    return document?.voices.map(voice => ({ voice, melody: buildMelody(document, voice, first, last, beats) })) ?? [];
+    return document?.singingVoices.map(voice => ({ voice, melody: buildMelody(document, voice, first, last, beats) })) ?? [];
   }, [loaded.document, first, last, beats]);
   const voices: VoiceOption[] = options.flatMap(({ voice, melody }) => {
     if (typeof melody === 'string') return [];
@@ -682,7 +682,6 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const replace = Boolean(saved && (sourceMode !== 'saved' || first !== saved.first || last !== saved.last ||
     (beats.firstBeat ?? null) !== (saved.firstBeat ?? null) || (beats.lastBeat ?? null) !== (saved.lastBeat ?? null)));
   const badUpload = invalidUpload || (source?.kind === 'upload' && loaded.failed);
-  const backingUnavailable = options.some(({ melody }) => typeof melody === 'string' && melody !== 'noMelody');
   const versionSuffix = version > 1 ? ` · ${versionTag(version)}` : '';
   return <div className="app-page challenge-workspace" data-practice={!editing && playable || undefined}>
     <TaskHeader title={<span ref={heading} tabIndex={-1} id={`${id}-heading`}>{editing ? t(saved ? 'sight.edit' : 'sight.create') : saved?.title}</span>}
@@ -779,7 +778,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
         action: t('sight.deleteQuestion'), destructive: true, onConfirm: remove,
       } : null} />
       {!editing && loaded.document && selected && <ChallengeRun ref={currentResult} document={loaded.document} selected={selected} voices={voices}
-        backingUnavailable={backingUnavailable} selectVoice={setVoiceChoice} questionVersion={version}
+        selectVoice={setVoiceChoice} questionVersion={version}
         pitchTraceEnabled={pitchTraceEnabled} mix={audioMix[0]} onScored={attempt => { if (saved) onResult(saved.id, attempt); }} onAudioBusy={setAudioBusy}
         measuring={measuring} onMeasure={setMeasuring} onLatency={latency => audioMix[1](current => ({ ...current, latency }))} />}
     </main>
