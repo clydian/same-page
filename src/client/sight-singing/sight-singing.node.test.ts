@@ -291,15 +291,15 @@ describe('pitch and feedback', () => {
     expect(boundary.map(row => takeScore([row]).percent)).toEqual([50, 50, 75, 0]);
     expect(takeScore(boundary.slice(0, 2))).toMatchObject({ percent: 50, matched: 2, perfect: true });
   });
-  it('folds octave jumps before taking the median and reports only a dominant register', () => {
+  it('folds octave jumps before taking the median', () => {
     const note = { midi: 60, start: 0, end: 1, bar: 0, visit: 0 };
     const assess = (pitches: number[]) => assessNotes([note], pitches.map((midi, index) => ({ time: .2 + index * .1, midi })))[0];
     const jumping = assess([60, 72, 60, 72]);
-    expect(jumping).toMatchObject({ cents: 0, octave: null, sung: null, status: 'inTune' });
-    expect(takeScore([jumping])).toMatchObject({ percent: 100, writtenOctave: false });
+    expect(jumping).toMatchObject({ cents: 0, octave: 0, sung: 60, status: 'inTune' });
+    expect(takeScore([jumping])).toMatchObject({ percent: 100, writtenOctave: true });
     expect(assess([71.9, 72.1, 71.9, 72.1])).toMatchObject({ cents: 0, octave: 1, sung: 72, status: 'inTune' });
     expect(assess([60, 60, 72, 60])).toMatchObject({ cents: 0, octave: 0, sung: 60, status: 'inTune' });
-    expect(assess([60.1, 71.9])).toMatchObject({ cents: 0, octave: null, status: 'inTune' });
+    expect(assess([60.1, 71.9])).toMatchObject({ cents: 0, octave: 0, status: 'inTune' });
     const seam = assess([65.9, 54.1]);
     expect(seam.status).toBe('wrongNote');
     expect(Math.abs(seam.cents!)).toBe(600);
@@ -307,11 +307,32 @@ describe('pitch and feedback', () => {
     expect(opposed).toMatchObject({ cents: null, octave: null, status: 'wrongNote' });
     expect(takeScore([opposed])).toMatchObject({ total: 1, matched: 0, percent: 0 });
   });
+  it.each([
+    { case: 'exactly half in the written octave', pitches: [60, 60, 60, 60, 60, 72, 72, 72, 72, 72], sung: 60, octave: 0 },
+    { case: 'exactly half of the voiced frames in the written octave', pitches: [60, null, 60, 60, 60, 60, 72, 72, null, 72, 72, 72], sung: 60, octave: 0 },
+    { case: 'less than half in the written octave', pitches: [60, 60, 60, 60, 72, 72, 72, 72, 72, 72], sung: 72, octave: 1 },
+    { case: 'a tie between two nonoriginal octaves', pitches: [48, 48, 48, 48, 48, 72, 72, 72, 72, 72], sung: null, octave: null },
+  ])('keeps the same register for either frame order with $case', ({ pitches, sung, octave }) => {
+    const note = { midi: 60, start: 0, end: 1, bar: 0, visit: 0 };
+    for (const readings of [pitches, [...pitches].reverse()]) {
+      const [review] = assessNotes([note], readings.map((midi, index) => ({ time: .1 + index * .05, midi })));
+      expect(review).toMatchObject({ target: 60, cents: 0, octave, sung, status: 'inTune' });
+      expect(takeScore([review])).toMatchObject({ percent: 100, writtenOctave: octave === 0 });
+    }
+  });
   it('matches a single chord tone after folding rather than gathering different chord tones', () => {
     const note = { midi: 60, chord: [60, 64], start: 0, end: 1, bar: 0, visit: 0 };
     const assess = (pitches: number[]) => assessNotes([note], pitches.map((midi, index) => ({ time: .2 + index * .1, midi })))[0];
-    expect(assess([64, 76])).toMatchObject({ target: 64, octave: null, cents: 0, status: 'inTune' });
+    expect(assess([64, 76])).toMatchObject({ target: 64, octave: 0, sung: 64, cents: 0, status: 'inTune' });
     expect(assess([60, 64, 72, 76])).toMatchObject({ status: 'wrongNote' });
+  });
+  it('prefers the written chord octave closest to the main target and breaks equidistant ties consistently', () => {
+    const note = { midi: 60, chord: [48, 60, 72], start: 0, end: 1, bar: 0, visit: 0 };
+    for (const [first, second, target, cents] of [[72, 60, 60, 0], [60, 72, 60, 0], [72.1, 48.1, 48, 10], [48.1, 72.1, 48, 10]]) {
+      const [review] = assessNotes([note], [{ time: .3, midi: first }, { time: .5, midi: second }]);
+      expect(review).toMatchObject({ target, octave: 0, cents, status: 'inTune' });
+      expect(review.sung).toBeCloseTo(target + cents / 100);
+    }
   });
   it('distinguishes missing frames from sampled silence in consecutive thirty-second notes', () => {
     const pitches = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65];
