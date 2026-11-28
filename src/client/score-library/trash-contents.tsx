@@ -1,8 +1,7 @@
 import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useMessages } from "../../i18n";
-import { useSettingsLifetime, captureSettingsLifetime, invalidateSettingsLifetime } from "../settings/use-settings-lifetime";
-import { captureReadIdentity } from "../settings/read-resource";
+import { invalidateSettingsLifetime } from "../settings/use-settings-lifetime";
 import { SettingsRequestError, isSettingsReadDenied } from "../settings/settings-request";
 import { settingsError } from "../settings/settings-error";
 import { PurgeDialog } from "../drives/purge-dialog";
@@ -25,6 +24,7 @@ import {
   type TrashedScoreSummary,
 } from "../../shared/scores";
 import { uploadMessage } from "./library-format";
+import { useTrashRestore } from "./use-trash-restore";
 
 export function TrashContents({
   userId,
@@ -40,14 +40,12 @@ export function TrashContents({
   onRestored: () => void | Promise<void>;
 }) {
   const t = useMessages("library");
-  const lifetime = useSettingsLifetime(writable);
+  const { lifetime, busy, attempt, reread, runRestore } = useTrashRestore(writable);
   const [purging, setPurging] = useState<TrashedScoreSummary | null>(null);
   const [trash, setTrash] = useState<TrashedScoreSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [attempt, setAttempt] = useState(0);
   const feedback = useFeedbackMessage();
   const { message, setMessage } = feedback;
-  const [busy, setBusy] = useState(false);
   const [restoreConflict, setRestoreConflict] = useState<TrashedScoreSummary | null>(null);
   const [restoreName, setRestoreName] = useState("");
 
@@ -74,15 +72,10 @@ export function TrashContents({
 
   if (purging && !writable) setPurging(null);
 
-  const restoreScore = async (score: TrashedScoreSummary, nextName?: string) => {
-    if (!writable) return;
-    const sameIdentity = captureReadIdentity();
-    const sameLifetime = captureSettingsLifetime(lifetime);
-    const current = () => sameIdentity() && sameLifetime();
-    setBusy(true);
-    setMessage(null);
+  const restoreScore = (score: TrashedScoreSummary, nextName?: string) => {
     let confirmed = false;
-    try {
+    return runRestore(async current => {
+      setMessage(null);
       if (nextName) {
         const rename = await diagnosticFetch(`/api/choirs/${choirId}/scores/${score.id}`, {
           method: "PATCH",
@@ -122,13 +115,7 @@ export function TrashContents({
       confirmed = true;
       await onRestored();
       if (current()) setMessage(t("trashContents2"), { duration: 5000 });
-    } catch {
-      if (!current()) return;
-      setMessage(confirmed ? t("trashRestoreRefreshFailed") : t("trashContentsRestoreNotCompletedTry"));
-    } finally {
-      setBusy(false);
-      if (!current()) setAttempt(value => value + 1);
-    }
+    }, () => setMessage(confirmed ? t("trashRestoreRefreshFailed") : t("trashContentsRestoreNotCompletedTry")));
   };
 
   const submitConflict = (event: FormEvent<HTMLFormElement>) => {
@@ -153,7 +140,7 @@ export function TrashContents({
                   ))}
                 </ul>
               ) : (
-                message && !feedback.temporary ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); setAttempt(value => value + 1); }}>{t("trashContentsReReadRecycleBin")}</Button> : <p className="dialog-copy">{t("trashContentsThereNoDeletedScores")}</p>
+                message && !feedback.temporary ? <Button isDisabled={!writable} onPress={() => { setMessage(null); setLoading(true); reread(); }}>{t("trashContentsReReadRecycleBin")}</Button> : <p className="dialog-copy">{t("trashContentsThereNoDeletedScores")}</p>
               )}
               {purging && writable && <PurgeDialog userId={userId} path={`/api/choirs/${choirId}/scores/${purging.id}/purge`} title={t("trashContentsCompletelyDeleteScore")} description={t("trashContentsPdfFilesAttachmentsNotes", { name: String(scoreDisplayName(purging.fileName)) })} onClose={() => setPurging(null)} onComplete={async () => { setTrash(current => current.filter(score => score.id !== purging.id)); setPurging(null); await onRestored(); }} />}
               <ReplacedPdfTrash key={`pdf:${userId}:${choirId}`} userId={userId} choirId={choirId} canPurge={canPurge} writable={writable} onRestored={onRestored} />

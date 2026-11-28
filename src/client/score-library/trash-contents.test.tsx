@@ -64,7 +64,7 @@ it("does not reintroduce a restore conflict from a response that predates a writ
   expect(screen.queryByRole("textbox", { name: "恢复时使用的新文件名" })).not.toBeInTheDocument();
 });
 
-it("ignores a late attachment restoration completion after writable authority changes", async () => {
+it("rereads the attachment trash without accepting a late restoration after writable authority changes", async () => {
   let reads = 0;
   let finish!: (response: Response) => void;
   vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -80,6 +80,7 @@ it("ignores a late attachment restoration completion after writable authority ch
   await screen.findByText("你没有操作此设置的权限，请联系云盘拥有者。");
   await act(async () => finish(new Response(null, { status: 204 })));
   expect(onRestored).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(reads).toBe(3));
 });
 
 it("ignores a delayed conflict body after the retained view loses authority", async () => {
