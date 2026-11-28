@@ -13,6 +13,7 @@ import { publishedQuestionResponseSchema, publishedQuestionsSchema, SIGHT_SINGIN
   type PublishedQuestion, type QuestionBeats, type QuestionPublication } from '../../shared/sight-singing';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 import { presentationSessionId, useApplicationIdentity, type ApplicationIdentity } from '../auth/application-identity';
+import { readAvailableOfflineSession } from '../auth/offline-session';
 import { loginHref } from '../auth/login-return';
 import { FloatingAddButton } from '../components/floating-add-button';
 import { LoadingStatus } from '../components/loading-status';
@@ -39,7 +40,7 @@ import { publishSightSingingResult, readSightSingingLeaderboard, readSightSingin
   type SightSingingResultFilters } from './result-publication';
 import type { PublishedSightSingingResult, SightSingingLeaderboard, SightSingingResultSubmission } from '../../shared/sight-singing-results';
 import { isSettingsReadDenied } from '../settings/settings-request';
-import { capturePublishedCatalog, readPublishedQuestionCopies, readPublishedQuestionSession, recordPublishedQuestionChange } from './published-question-cache';
+import { capturePublishedCatalog, readPublishedQuestionCopies, recordPublishedQuestionChange } from './published-question-cache';
 import { isSightSingingMemberDenied, publishedPath, readSightSinging } from './read';
 import { useChallengeMix } from './use-challenge-mix';
 import { useMelodySource, type MelodySource } from './use-melody-source';
@@ -59,7 +60,7 @@ function SightSingingAccess({ owner, choirId, identity }: {
   const online = useNetworkStatus();
   const [previousSession, setPreviousSession] = useState(identity.authenticatedSessionId);
   const userId = identity.localUserId;
-  const remembered = useLiveQuery(() => userId ? readPublishedQuestionSession(userId).catch(() => null) : null, [userId]);
+  const remembered = useLiveQuery(() => userId ? readAvailableOfflineSession(userId).catch(() => null) : null, [userId]);
   const presentation = presentationSessionId(identity, previousSession);
   if (previousSession !== presentation) setPreviousSession(presentation);
   const sessionId = presentation ?? (identity.onlineState === 'checking' || identity.onlineState === 'unreachable' ? remembered?.sessionId : null);
@@ -263,7 +264,6 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   if (removed) setSelection(null);
   const activeQuestion = selectedQuestion ?? selection?.question;
   if (selection && !removed) return <QuestionWorkspace {...reads} legacy={selection.legacy}
-    key={activeQuestion && `${activeQuestion.id}:${activeQuestion.version}`}
     question={activeQuestion} pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
     audioMix={mix} canEditQuestion={selectedQuestion?.canEdit}
     offlineReady={available?.some(({ question }) => question.id === activeQuestion?.id && question.version === activeQuestion.version)}

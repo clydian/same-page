@@ -2,10 +2,11 @@ import { FeedbackMessage } from "../components/feedback-message";
 import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useAppLocale, useMessages } from "../../i18n";
 import { publishedQuestionStorageId } from "../platform/published-question-files";
-import { readPublishedQuestionCopies, readPublishedQuestionSession } from "../sight-singing/published-question-cache";
+import { readPublishedQuestionCopies } from "../sight-singing/published-question-cache";
 import { createLocalWorkspace } from "../platform/local-workspace";
 import { useOfflineScore } from "../offline/use-offline-score";
 import { useApplicationIdentity } from "../auth/application-identity";
+import { readAvailableOfflineSession } from "../auth/offline-session";
 import { localDatabase } from "../platform/local-database";
 import { scoreDisplayName } from "../../shared/score-display-name";
 import { useParams } from "react-router-dom";
@@ -30,7 +31,7 @@ export default function LocalStoragePage() {
   const questions = useLiveQuery(async () => {
     if (!userId || identity.onlineState === "signed-out") return null;
     try {
-      const session = await readPublishedQuestionSession(userId);
+      const session = await readAvailableOfflineSession(userId);
       if (!session) return null;
       const cached = await readPublishedQuestionCopies({ userId, choirId, sessionId: session.sessionId });
       return cached && { userId, choirId, copies: cached.copies };

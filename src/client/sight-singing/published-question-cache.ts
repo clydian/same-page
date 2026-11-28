@@ -1,7 +1,6 @@
 import Dexie from 'dexie';
 import { publishedQuestionSchema, SIGHT_SINGING_SCORE_MAX_BYTES, type PublishedQuestion } from '../../shared/sight-singing';
-import { readLogoutFence } from '../auth/logout-fence';
-import { readOfflineSession } from '../auth/offline-session';
+import { readAvailableOfflineSession } from '../auth/offline-session';
 import { captureOfflineFileFence } from '../offline/local-files';
 import { readOfflineFileBytes, sha256Hex } from '../offline/offline-score-verification';
 import { ACTIVE_LOCAL_OWNER_KEY, localDatabase, type SystemRecord } from '../platform/local-database';
@@ -39,13 +38,8 @@ async function captureWorkspace(scope: PublishedQuestionScope, id = '') {
   return captureLocalWorkspaceSession(createLocalWorkspace(authenticatedLocalOwnerKey(scope.userId), scope.choirId, id));
 }
 
-export function readPublishedQuestionSession(userId: string) {
-  return Dexie.Promise.all([readOfflineSession(), Dexie.waitFor(readLogoutFence())]).then(([session, logout]) =>
-    session?.userId === userId && session.expiresAt > Date.now() && logout?.userId !== userId ? session : null);
-}
-
 function currentSession(scope: PublishedQuestionScope) {
-  return readPublishedQuestionSession(scope.userId).then(session => session?.sessionId === scope.sessionId ? session : null);
+  return readAvailableOfflineSession(scope.userId).then(session => session?.sessionId === scope.sessionId ? session : null);
 }
 
 function currentCatalog(scope: PublishedQuestionScope) {

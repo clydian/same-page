@@ -1,8 +1,12 @@
-import { readLogoutFence } from './logout-fence';
+import Dexie from 'dexie';
+import type { LogoutFence } from './logout-fence';
 import { localDatabase } from '../platform/local-database';
 import { publishedQuestionFiles } from '../platform/published-question-files';
 
 const key = 'auth:offline-session';
+// Read the existing release-pinned fence without leaving Dexie's observable
+// transaction. The general reader uses a native async wrapper.
+const logoutKey = 'auth:explicit-logout';
 type OfflineSession = { userId: string; sessionId: string; expiresAt: number };
 
 export function readOfflineSession() {
@@ -12,6 +16,13 @@ export function readOfflineSession() {
       const value: OfflineSession = JSON.parse(row.value);
       return typeof value.userId === 'string' && typeof value.sessionId === 'string' && Number.isFinite(value.expiresAt) ? value : null;
     } catch { return null; }
+  });
+}
+
+export function readAvailableOfflineSession(userId: string) {
+  return Dexie.Promise.all([readOfflineSession(), localDatabase.system.get(logoutKey)]).then(([session, row]) => {
+    const logout: LogoutFence | null = row ? JSON.parse(row.value) : null;
+    return session?.userId === userId && session.expiresAt > Date.now() && logout?.userId !== userId ? session : null;
   });
 }
 
@@ -30,7 +41,7 @@ export async function rememberOfflineSession(next: OfflineSession | null) {
 
 export async function storeOfflineSession(next: OfflineSession | null) {
   await localDatabase.transaction('rw', localDatabase.system, async () => {
-    if (next && await readLogoutFence()) return;
+    if (next && await localDatabase.system.get(logoutKey)) return;
     await rememberOfflineSession(next);
   });
 }
