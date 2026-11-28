@@ -35,7 +35,7 @@ function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean
     : pathname.endsWith("/memberships") ? t("membership")
     : pathname === "/login" ? t("signIn")
     : pathname === "/user/lifecycle" ? t("accountLifecycle")
-    : pathname.endsWith("/sight-singing") ? practice("sight.title")
+    : pathname.endsWith("/sight-singing") ? practice("sightPractice")
     : pathname.endsWith("/me") ? t("driveIdentity")
     : pathname === "/appearance" ? t("appearance")
     : pathname === "/user" ? t("account")

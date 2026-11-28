@@ -101,11 +101,11 @@ function ChallengeEntry({ choirId, denied, signedOut = false, loading = false, r
   const entry = useMessages('entry');
   const online = useNetworkStatus();
   return <div className="app-page">
-    <TaskHeader title={t('sight.title')} backTo={`/choirs/${choirId}/tools`} />
+    <TaskHeader title={t('sightPractice')} backTo={`/choirs/${choirId}/tools`} />
     <main className="page-shell settings-page challenge-page">
       {loading ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
         : signedOut ? <p><Link to={loginHref(`/choirs/${choirId}/sight-singing`)}>{entry('identity.loginAgain')}</Link></p>
-        : denied ? <p role="status">{t('sight.needMember')}</p>
+        : denied ? <p role="status">{t('sight.needMember', { practice: t('sightPractice') })}</p>
           : <p role="status">{entry('identity.unreachable')}{online && <>{' '}
             <button type="button" className="text-button" onClick={retry}>{entry('identity.retryConnection')}</button></>}</p>}
     </main>
@@ -288,7 +288,7 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
       : catalog && !board.data && !boardPending ? t('sight.publishedResultsError')
         : shown && (published.error || board.error) ? entry('identity.unreachable') : null;
   return <div className="app-page challenge-library">
-    <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}/tools`} />
+    <TaskHeader title={t('sightPractice')} subtitle={driveName} backTo={`/choirs/${props.choirId}/tools`} />
     <main className="page-shell settings-page challenge-page">
       {resultNotice}
       <section className="challenge-library-section" aria-label={t('sight.publishedQuestions')}>

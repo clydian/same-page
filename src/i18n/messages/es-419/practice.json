@@ -270,9 +270,8 @@
   },
   "rhythmComingSoon": "Próximamente",
   "sight": {
-    "title": "Desafío de lectura cantada",
     "loading": "Cargando…",
-    "needMember": "Solo los miembros de esta unidad pueden abrir el desafío de lectura cantada.",
+    "needMember": "«{practice}» solo está disponible para los miembros de esta unidad.",
     "publishedQuestions": "Ejercicios del disco",
     "retryLoad": "Volver a cargar",
     "publishedError": "No se pudieron cargar los ejercicios del disco.",
