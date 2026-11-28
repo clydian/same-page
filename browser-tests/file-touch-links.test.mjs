@@ -108,27 +108,35 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       // The library surface keeps selection disabled after release (#694).
       // Check the gesture's visible result, then exercise scroll/menu/new input.
       assert.equal(await page.evaluate(() => getSelection().toString()), "");
+      const scroll = await page.evaluateHandle(() => {
+        const position = { start: window.scrollY, end: null };
+        document.addEventListener("scrollend", () => { position.end = window.scrollY; }, { once: true });
+        return position;
+      });
       const cdp = await context.newCDPSession(page);
       try {
         const box = await file.boundingBox(); assert.ok(box);
         const point = { x: box.x + 60, y: box.y + box.height / 2 };
-        const before = await page.evaluate(() => scrollY);
         await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
         for (let step = 1; step <= 5; step++) {
           await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: point.x, y: point.y - step * 25 }] });
           await delay(20);
         }
         await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-        await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
+        await expect.poll(() => scroll.evaluate(({ start, end }) => end !== null && end > start), {
+          message: "the file swipe scrolls the library and finishes",
+        }).toBe(true);
         await expect(page).toHaveURL(library);
-        await file.scrollIntoViewIfNeeded();
+        // The sticky toolbar can cover the file even when the row is in the viewport.
+        await scroll.evaluate(({ start }) => window.scrollTo({ top: start, behavior: "instant" }));
         const current = await file.boundingBox(); assert.ok(current);
         const first = { id: 0, x: current.x + 60, y: current.y + current.height / 2 };
         await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first] });
+        await expect(file).toHaveAttribute("data-touch-active", "");
         await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first, { id: 1, x: first.x + 200, y: first.y + 80 }] });
         await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
         await expect(page).toHaveURL(library);
-      } finally { await cdp.detach(); }
+      } finally { await scroll.dispose(); await cdp.detach(); }
       assert.deepEqual(fileRequests, [], "scrolling and multiple contacts must not prepare a score");
 
       // Source-specific menu handling, including unknown/keyboard sources.
