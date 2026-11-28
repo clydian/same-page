@@ -9,7 +9,7 @@ import { startViteServer } from "../scripts/vite-server.mjs";
 
 // Each call owns a fresh local Worker store. Bindings are disposed before Vite
 // opens them, so the seed and server never contend for the same SQLite files.
-export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), pageCount = 2, productAdmin = false, releaseChannels = false, connectionOrigins, authOrigin } = {}) {
+export async function startStorageFixture({ authenticated = false, invite = false, nonMember = false, previewEntry = true, script = "preview", expired = false, pdf = createSampleScorePdf(), pageCount = 2, productAdmin = false, releaseChannels = false, connectionOrigins, authOrigin, seedFrontendReleases } = {}) {
   const accounts = authenticated ? [0, 1].map(() => ({ id: randomUUID(), email: `${randomUUID()}@example.test`, password: randomBytes(24).toString("hex") })) : [];
   const joinCode = invite ? Array.from(randomBytes(8), value => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[value & 31]).join("") : null;
   const choirId = randomUUID(), scoreId = randomUUID(), versionId = randomUUID();
@@ -17,14 +17,15 @@ export async function startStorageFixture({ authenticated = false, invite = fals
   const fileName = "本地链路测试.pdf";
   const hash = createHash("sha256").update(pdf).digest("hex");
   const server = await startViteServer({
-    script, timeoutMs: 30_000,
+    script, timeoutMs: 30_000, seedPreviewRelease: !seedFrontendReleases,
     env: { ...process.env, ...(connectionOrigins ? { VITE_CONNECTIONS_ENABLED: "true", VITE_CONNECTION_PRIMARY_ORIGIN: connectionOrigins.direct, VITE_CONNECTION_BACKUP_ORIGIN: connectionOrigins.backup } : {}) },
     prepare: async ({ statePath, configPath, signal }) => {
-      if (connectionOrigins || authOrigin) {
+      if (connectionOrigins || authOrigin || seedFrontendReleases) {
         const config = JSON.parse(await readFile(configPath, "utf8"));
-        config.vars.BETTER_AUTH_URL = connectionOrigins?.direct ?? authOrigin;
+        if (connectionOrigins || authOrigin) config.vars.BETTER_AUTH_URL = connectionOrigins?.direct ?? authOrigin;
         if (connectionOrigins) Object.assign(config.vars, { CONNECTIONS_ENABLED: "true", CONNECTION_BACKUP_ORIGIN: connectionOrigins.backup });
-        else config.vars.CONNECTIONS_ENABLED = "false";
+        else if (authOrigin) config.vars.CONNECTIONS_ENABLED = "false";
+        if (seedFrontendReleases) config.vars.RELEASE_CHANNELS_ENABLED = "true";
         await writeFile(configPath, JSON.stringify(config));
       }
       const platform = await getPlatformProxy({ configPath, persist: { path: path.join(statePath, "v3") } });
@@ -78,6 +79,7 @@ export async function startStorageFixture({ authenticated = false, invite = fals
             DB.prepare("INSERT INTO release_channels VALUES(1,?,?,1)").bind(id, id),
           ]);
         }
+        await seedFrontendReleases?.(platform.env, signal);
         if (joinCode) {
           const inviteHash = createHmac("sha256", platform.env.INVITE_SECRET).update(`join-code:${joinCode}`).digest("base64url");
           await DB.prepare("UPDATE choirs SET guest_admission_mode = 'invite', is_preview_entry = 0, join_code_hash = ? WHERE id = ?").bind(inviteHash, choirId).run();

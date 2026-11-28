@@ -4,7 +4,7 @@
 
 主入口失效时，浏览器仍打开 `https://samepage.clyapps.com`。首次导航、浏览器管理的根 scope `/sw.js` 和在线许可 `/api/client-release` 都须由备用入口提供。两路共用登录会话、发布目录和 Worker/D1/R2。稳定版/测试版按照同一个主机专属 HttpOnly Cookie 服务端读回，过期回到默认稳定版。本机草稿、离线数据、发布准入和多窗口交接沿用 ADR-0021。范围是用户到入口的路径故障；共享后端停机时沿用当前离线行为。 [#614](https://github.com/clydian/same-page/issues/614) · [ADR-0021](../adr/0021-release-channels.md) · [Service Worker 更新算法](https://w3c.github.io/ServiceWorker/#update-algorithm)
 
-该需求明确且合理。下面的公网拓扑是待验证方案。维护者还需决定是否接受先由值班人切换、哪些运营商/区域的局部故障需要自动覆盖、故障确认和切回等待窗口、预算及可接受的恢复时间。DNS 切换由解析层生效，远端监控即便健康，某个用户到 Cloudflare 的路径仍可能中断。
+Cloudflare 直连继续作为默认入口。日常目标是让实际连不上直连的用户使用备用，健康用户继续直连。整站 DNS 切换仅作为大范围故障候选预案。下面的公网拓扑只验证备用入口具备同源服务能力。面向普通浏览器的局部故障检测、选线粒度、恢复窗口和预算仍待确定。DNS 切换由解析层生效，远端监控即便健康，某个用户到 Cloudflare 的路径仍可能中断。
 
 ## 当前路径与候选路径
 
@@ -39,17 +39,23 @@ SAME_PAGE_RELEASE_CHANNELS=1 npm run build
 node scripts/verify-same-origin-entry.mjs
 ```
 
-运行需要已安装项目依赖、Chromium 和 OpenSSL。可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定系统 Chromium。复用隔离 Workerd/D1/R2 和发布目录 fixture。两个本机 HTTPS listener 通过 TCP 转发选择，同一个 `https://app.same-page.test:<port>`；切换断开旧连接。Chromium 只对当次临时边缘证书公钥使用例外；回源使用独立证书和严格名称校验，校验 HTTP Host 与 SNI。测试使用真实应用密码登录、发布通道界面和浏览器管理的 SW。发布 fixture 把稳定版和测试版指向同一个本地构建，用来核对选择及目标是否保持；草稿通过产品存储命令写入实际 IndexedDB。此环境模拟入口选择，公网 DNS/TTL 及两个厂商的证书与回源能力仍需下表验收。
+运行需要已安装项目依赖、Chromium 和 OpenSSL。可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定系统 Chromium。脚本以当前 `dist` 为旧版 A，再编译独立构建 B，完成后恢复原始 `dist`；请与同工作目录的构建串行运行。两个构建经过现有制品封存和 R2 上传校验，使用隔离 Workerd/D1/R2。测试只预置本地提升所需的兼容记录，两个构建的存储契约必须一致；正式发布的 Chromium/WebKit 兼容门槛另有专门验证。
 
-2026-11-28，Chromium 154.0.8037.57、应用构建 `746eeee` 通过验证。主监听器关闭后，空 profile 首访失败；切到备用后同一 URL 加载 HTML，浏览器取得并激活根 SW，在线许可返回默认稳定版。已有 profile 在主 → 备 → 主过程中保留同一会话、测试版 Cookie、许可目标与草稿。显式切回稳定版后的 Cookie 和许可也跨入口保持。备用回源的错误 SNI 返回 502，未读取缓存替代许可。
+两个本机 HTTPS 监听器通过 TCP 转发选择，同一个 `https://app.same-page.test:<port>`，切换断开旧连接。Chromium 只对当次临时边缘证书公钥使用例外。回源使用独立证书和严格名称校验，并检查 HTTP Host 与 SNI。测试使用真实应用登录、更新界面、浏览器管理的 SW，以及实际 IndexedDB 草稿。
+
+1. 主入口提供稳定版 A。登录后写本机草稿，保存显式稳定版选择。关闭主监听器，空 profile 在选中备用前首访失败。切到备用后，空 profile 取得 HTML、根 SW 与标准稳定版许可。
+2. 主入口继续关闭。合成管理员经备用入口把已准备的 B 提升为稳定版。已有浏览器在原网址点击检查更新，经备用取得 `/sw.js`、在线许可和 B 的固定资源。另一个窗口正在读谱时，应继续显示 A。关掉读谱窗口后，经更新界面确认，B 才能接管。
+3. 核对原登录会话、显式稳定版 Cookie 和草稿，恢复主入口后继续使用 B。另测显式测试版 Cookie 跨入口保持、错误回源 SNI 返回 502。脚本控制切换时间，真实公网 DNS/TTL 和供应商证书仍需验收。
+
+2026-11-29（北京时间）Codex Cloud 的 Chromium 154.0.8037.57 通过上述路径。测试中 A 为 `746eeee`，B 为独立本地构建 `b2b5d38`。主监听器从首次故障到 B 激活始终关闭，新版脚本和固定资源的请求只到备用。切回主入口后仍运行 B，浏览器保持一个根 scope SW、原会话和未同步草稿。
 
 ## 公网试验与验收
 
-仅在批准后执行。**第一步**用已有或新批准的独立测试 zone，指定 `app.<测试域>` 和 `worker-origin.<测试域>`，部署隔离 Worker、D1、R2 和两份兼容的测试发布制品，只用合成账户。给 Cloudflare 两个测试 hostname 绑定并签发证书，在一个新 ESA CNAME 站点为 `app` 加仅限该测试主机的回源规则、缓存绕过和证书校验。使用控制台分配的站点归属 TXT 和独立 DCV 验证记录；生产记录不参与。先让 `app` 继续解析至 Cloudflare。若 ESA 无法在此条件下承接 HTTPS，记录限制，停在本阶段。
+仅在批准后执行。**第一步**用已有或新批准的独立测试 zone，指定 `app.<测试域>` 和 `worker-origin.<测试域>`，部署隔离 Worker、D1、R2 和两份兼容的测试发布制品，只用合成账户。给 Cloudflare 两个测试 hostname 绑定并签发证书，在一个新 ESA CNAME 站点为 `app` 加仅限该测试主机的回源规则、缓存绕过和证书校验。使用控制台分配的站点归属 TXT 和独立 DCV 验证记录；生产记录不参与。先让 `app` 继续解析至 Cloudflare，用指定线路的浏览器先验主路和备用，并在指定备用时验证 A → B。ESA 是第一个候选，其他公网入口可以沿用这一验收。若候选无法在此条件下承接 HTTPS，记录限制，停在本阶段。
 
 固定线路时，`curl --noproxy '*' --connect-to "$HOST:443:$EDGE_TARGET:443" "https://$HOST/sw.js"` 以同一请求 Host/SNI 命中该线路的目标，TLS 正常验证。将 `EDGE_TARGET` 分别设为当前 Cloudflare 测试入口的可达目标和 ESA 分配的 CNAME 目标。浏览器测试也可用只影响测试设备的显式解析覆盖。正式计时阶段使用普通解析和正常浏览器配置。记录两跳的证书 SAN/颁发方/到期、HTTP 状态和脱敏请求 ID；回源故障与错误 SNI 对照只在隔离站点执行。若探测固定目标只能看到一个边缘或共享故障无法区分，先停止推进。
 
-**第二步**在验收第一步且费用另行确认后，才在隔离 zone 验证可换的权威 DNS。例如在符合条件的外部权威 zone 用 Cloudflare partial setup 的 `app.<测试域>.cdn.cloudflare.net` 与 ESA 分配的目标做 DNS-only CNAME 的人工切换/切回。`worker-origin` 始终指向独立 Cloudflare 入口。先测人工切换可以避免把探测系统和用户路径两种问题叠在一起。记录主、备、回切前后各层 TTL，保持双证书有效并用热/冷解析分别计时。按运营商规定的试验窗口和维护者认可的恢复目标验收，再讨论自动策略。
+**第二步**在验收第一步且费用另行确认后，才在隔离 zone 验证可换的权威 DNS。例如在符合条件的外部权威 zone 用 Cloudflare partial setup 的 `app.<测试域>.cdn.cloudflare.net` 与 ESA 分配的目标做 DNS-only CNAME 的人工切换/切回。`worker-origin` 始终指向独立 Cloudflare 入口。人工切换用于测量这套试验拓扑。记录主、备、回切前后各层 TTL，保持双证书有效并用热/冷解析分别计时。真实网络结果出来后，再根据实际失败粒度评估日常选线策略。
 
 | 场景 | 测量与通过条件 |
 | --- | --- |

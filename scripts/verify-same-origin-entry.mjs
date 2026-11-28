@@ -10,15 +10,14 @@ import { join } from "node:path";
 import { build } from "esbuild";
 import { chromium, expect } from "@playwright/test";
 import { startStorageFixture } from "../browser-tests/storage-fixture.mjs";
+import { prepareSameOriginReleasePair } from "./same-origin-release-fixture.mjs";
 
-const { buildId, assetBase } = JSON.parse(await readFile("dist/client/build.json", "utf8"));
-assert.equal(assetBase, "/_releases/" + buildId + "/", "first build with SAME_PAGE_RELEASE_CHANNELS=1");
 const host = "app.same-page.test";
 const originHost = "worker-origin.same-page.test";
 const loopback = "127.0.0.1";
 const listeners = [];
 const traffic = [];
-let browser, fixture, activeEntry;
+let browser, fixture, activeEntry, releases;
 
 async function listen(server) {
   const sockets = new Set();
@@ -87,6 +86,8 @@ const draft = (await build({
 
 const temporary = await mkdtemp(join(tmpdir(), "same-page-614-"));
 try {
+  releases = await prepareSameOriginReleasePair();
+  const { stable: buildId, candidate } = releases;
   // Steer raw TCP so the browser owns its TLS connections, cookies and SW. A
   // switch drops existing connections, including ones otherwise reusable.
   const selector = await listen(tcpServer(socket => {
@@ -97,7 +98,10 @@ try {
     socket.pipe(upstream).pipe(socket);
   }));
   const canonical = new URL("https://" + host + ":" + selector.port);
-  fixture = await startStorageFixture({ authenticated: true, previewEntry: false, authOrigin: canonical.origin });
+  fixture = await startStorageFixture({
+    authenticated: true, previewEntry: false, productAdmin: true,
+    authOrigin: canonical.origin, seedFrontendReleases: releases.seed,
+  });
   const local = new URL(fixture.origin);
   const originTLS = await certificate(temporary, "origin", originHost);
   const origin = await listen(httpsServer(originTLS, (request, response) => {
@@ -147,6 +151,17 @@ try {
   });
   const workerRequest = entry => traffic.some(item => item.entry === entry && item.path === "/sw.js" && item.destination === "serviceworker");
   const open = (page, path) => page.goto(new URL(path, canonical).href, { waitUntil: "domcontentloaded", timeout: 20_000 });
+  const workerBuild = (page, slot) => page.evaluate(async slot => {
+    const worker = (await navigator.serviceWorker.getRegistration())?.[slot];
+    if (!worker) return null;
+    return new Promise(resolve => {
+      const channel = new MessageChannel();
+      const finish = id => { clearTimeout(timer); channel.port1.close(); resolve(id); };
+      const timer = setTimeout(() => finish(null), 1000);
+      channel.port1.onmessage = event => finish(event.data?.buildId ?? null);
+      worker.postMessage({ type: "SAME_PAGE_SHELL_IDENTITY" }, [channel.port2]);
+    });
+  }, slot);
 
   switchTo(direct);
   const context = await browser.newContext({ locale: "zh-CN" });
@@ -166,13 +181,16 @@ try {
   const authCookie = await readCookie(name => name.includes("session_token"));
   assert.ok(authCookie?.httpOnly && authCookie.secure && authCookie.domain === host);
   assert.equal((await selected(page)).channel, "stable");
-  await open(page, "/about");
-  const beta = page.getByRole("button", { name: /^测试版/ });
-  await beta.click();
-  await expect(beta).toHaveAttribute("aria-pressed", "true");
+  // The default channel has no cookie. Use the real selection API to keep an
+  // explicit stable cookie before and after the same-channel version update.
+  assert.equal(await page.evaluate(async intent => (await fetch("/api/client-release", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel: "stable", intent }),
+  })).status, randomUUID()), 204);
   const preference = await selected(page);
-  assert.equal(preference.channel, "beta");
+  assert.equal(preference.channel, "stable");
   assert.equal(preference.target, buildId);
+  await expect.poll(() => workerBuild(page, "active")).toBe(buildId);
   const channelCookie = await readCookie(name => name === "same-page-channel");
   assert.ok(channelCookie?.httpOnly && channelCookie.secure && channelCookie.domain === host);
   const score = "/api/choirs/" + fixture.choirId + "/scores/" + fixture.scoreId;
@@ -208,18 +226,18 @@ try {
   assert.equal(coldChoice.channel, "stable");
   await cold.close();
 
-  const verifyWarm = async entry => {
+  const verifyWarm = async (entry, expected) => {
     traffic.length = 0;
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
     assert.ok(workerRequest(entry), "browser-managed SW request must use the selected entry");
     await open(page, drivePath);
     await expect(page.locator(".file-row__open").first()).toBeVisible();
-    assert.equal(await displayedBuild(page), buildId);
+    assert.equal(await displayedBuild(page), expected.target);
     const readback = await selected(page);
     assert.equal(readback.status, 200);
     assert.equal(readback.entry, entry);
     assert.match(readback.cache, /no-store/);
-    for (const key of ["channel", "intent", "target", "revision"]) assert.equal(readback[key], preference[key]);
+    for (const key of ["channel", "intent", "target", "revision"]) assert.equal(readback[key], expected[key]);
     const current = await session(page);
     assert.equal(current.entry, entry);
     assert.ok(current.data?.session?.id === initialSession.data.session.id && current.data?.user?.id === account.id);
@@ -231,7 +249,51 @@ try {
       [registration.scope, registration.active?.scriptURL]));
     assert.deepEqual(scopes, [[canonical.href, new URL("/sw.js", canonical).href]]);
   };
-  await verifyWarm("backup");
+  await verifyWarm("backup", preference);
+
+  // Keep an actual reader open to veto a waiting worker. The main listener is
+  // still stopped. A different browser profile publishes B to the same stable
+  // channel through the local Workerd promotion API, using a synthetic admin.
+  const reader = await context.newPage();
+  await open(reader, drivePath + "/scores/" + fixture.scoreId);
+  await expect(reader.locator("canvas[data-pdf-canvas-active]").first()).toBeVisible();
+  const adminContext = await browser.newContext({ locale: "zh-CN" });
+  const adminPage = await adminContext.newPage();
+  await open(adminPage, "/login");
+  const admin = fixture.accounts[1];
+  assert.equal(await adminPage.evaluate(async ({ email, password }) => (await fetch("/api/auth/sign-in/email", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }),
+  })).status, { email: admin.email, password: admin.password }), 200);
+  await open(page, "/about");
+  await page.bringToFront();
+  const check = page.getByRole("button", { name: /^(重试)?检查更新$/ });
+  await expect(check).toBeEnabled();
+  traffic.length = 0;
+  const promote = await adminPage.evaluate(async input => {
+    const response = await fetch("/api/admin/releases/promote", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+    });
+    return { status: response.status, entry: response.headers.get("X-Fixture-Entry") };
+  }, { id: randomUUID(), expectedBeta: candidate, expectedRevision: preference.revision });
+  assert.deepEqual(promote, { status: 204, entry: "backup" });
+  await check.click();
+  await expect.poll(() => workerBuild(page, "waiting"), { timeout: 30_000 }).toBe(candidate);
+  assert.ok(workerRequest("backup"));
+  assert.ok(traffic.some(item => item.entry === "backup" && item.path.startsWith("/_releases/" + candidate + "/")));
+  const apply = page.getByRole("button", { name: "重新加载并更新", exact: true });
+  await apply.click();
+  await expect(page.getByRole("region", { name: "应用版本" }).getByRole("status"))
+    .toHaveText("请先在其他合谱窗口完成操作并返回文件库，或关闭那些窗口，再重试");
+  assert.equal(await displayedBuild(page), buildId);
+  assert.equal(await displayedBuild(reader), buildId);
+  await reader.close();
+  await apply.click();
+  await expect.poll(() => displayedBuild(page), { timeout: 30_000 }).toBe(candidate);
+  await expect.poll(() => workerBuild(page, "active")).toBe(candidate);
+  assert.ok(traffic.every(item => item.entry === "backup"), "primary must stay down until the new build is active");
+  await adminContext.close();
+  const updatedPreference = { ...preference, target: candidate, revision: preference.revision + 1 };
+  await verifyWarm("backup", updatedPreference);
   backupSNI = "wrong-origin.same-page.test";
   const invalid = await page.evaluate(async () => (await fetch("/api/client-release", { cache: "no-store" })).status);
   assert.equal(invalid, 502);
@@ -239,28 +301,33 @@ try {
   backupSNI = originHost;
   const restoredDirect = await edge("direct", directTLS);
   switchTo(restoredDirect);
-  await verifyWarm("direct");
+  await verifyWarm("direct", updatedPreference);
 
-  // Also exercise an explicit stable cookie after returning from beta, rather
-  // than inferring stable behavior solely from the anonymous default.
+  // The stable and beta targets now share B following local promotion. An
+  // explicit beta selection must retain its cookie when switching entry.
   await open(page, "/about");
-  const stable = page.getByRole("button", { name: /^稳定版/ });
-  await stable.click();
-  await expect(stable).toHaveAttribute("aria-pressed", "true");
-  const stableChoice = await selected(page);
-  const stableCookie = await readCookie(name => name === "same-page-channel");
-  assert.ok(stableCookie?.httpOnly && stableCookie.secure && stableCookie.value !== channelCookie.value);
+  const beta = page.getByRole("button", { name: /^测试版/ });
+  await beta.click();
+  await expect(beta).toHaveAttribute("aria-pressed", "true");
+  const betaChoice = await selected(page);
+  const betaCookie = await readCookie(name => name === "same-page-channel");
+  assert.ok(betaCookie?.httpOnly && betaCookie.secure && betaCookie.value !== channelCookie.value);
   switchTo(backup);
-  const stableReadback = await selected(page);
-  assert.equal(stableReadback.entry, "backup");
-  assert.equal(stableReadback.channel, "stable");
-  for (const key of ["intent", "target", "revision"]) assert.equal(stableReadback[key], stableChoice[key]);
-  assert.ok((await readCookie(name => name === "same-page-channel"))?.value === stableCookie.value);
+  const betaReadback = await selected(page);
+  assert.equal(betaReadback.entry, "backup");
+  assert.equal(betaReadback.channel, "beta");
+  for (const key of ["intent", "target", "revision"]) assert.equal(betaReadback[key], betaChoice[key]);
+  assert.ok((await readCookie(name => name === "same-page-channel"))?.value === betaCookie.value);
   switchTo(restoredDirect);
-  console.log("Chromium " + browser.version() + ": cold HTML/SW/permission, direct → backup → direct, session/channel/draft continuity, upstream TLS mismatch rejected");
+  console.log("Chromium " + browser.version() + ": cold HTML/SW/permission, stable " + buildId.slice(0, 7) +
+    " → " + candidate.slice(0, 7) + " on backup with reader veto, return to direct, session/channel/draft continuity, upstream TLS mismatch rejected");
 } finally {
-  await browser?.close();
-  await Promise.all(listeners.map(listener => listener.stop()));
-  await fixture?.stop();
-  await rm(temporary, { recursive: true, force: true });
+  try {
+    await browser?.close();
+    await Promise.all(listeners.map(listener => listener.stop()));
+    await fixture?.stop();
+  } finally {
+    await releases?.restore();
+    await rm(temporary, { recursive: true, force: true });
+  }
 }

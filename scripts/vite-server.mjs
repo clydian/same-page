@@ -15,7 +15,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
-export async function startViteServer({ script, port, cwd = process.cwd(), env = process.env, timeoutMs = 30_000, prepare }) {
+export async function startViteServer({ script, port, cwd = process.cwd(), env = process.env, timeoutMs = 30_000, prepare, seedPreviewRelease = true }) {
   const statePath = await mkdtemp(path.join(tmpdir(), "same-page-vite-"));
   const logs = [];
   let child;
@@ -58,7 +58,7 @@ export async function startViteServer({ script, port, cwd = process.cwd(), env =
       }
       shutdown.signal.throwIfAborted();
       await prepare?.({ statePath, configPath, origin, signal: shutdown.signal });
-      if (script === "preview") await preparePreviewRelease({ cwd, statePath, configPath, config });
+      if (script === "preview" && seedPreviewRelease) await preparePreviewRelease({ cwd, statePath, configPath, config });
       shutdown.signal.throwIfAborted();
       return { origin, configPath };
     })();
