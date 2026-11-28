@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@coderline/alphatab",
+  "packageVersion": "1.8.4-samepage.27",
+  "upstreamUrl": "https://github.com/CoderLine/alphaTab.git",
+  "upstreamCommit": "022a45c8e42370f9e12e68949d11eada370da83d",
+  "sourceCommit": "a0cbdbe7686b4c8ac555bce29c8eebd585b80b5c",
+  "sourceTree": "66312b36afbc9cf48c669e4f8bb55eae11404e73",
+  "archive": "a0cbdbe7686b4c8ac555bce29c8eebd585b80b5c-972a7ad77fc9e11f72386c1f9903951b76325414e201ae581fd8165dbb882d1f.tgz",
+  "sha256": "972a7ad77fc9e11f72386c1f9903951b76325414e201ae581fd8165dbb882d1f",
+  "license": "a0cbdbe7686b4c8ac555bce29c8eebd585b80b5c-972a7ad77fc9e11f72386c1f9903951b76325414e201ae581fd8165dbb882d1f-LICENSE.txt",
+  "notices": "a0cbdbe7686b4c8ac555bce29c8eebd585b80b5c-972a7ad77fc9e11f72386c1f9903951b76325414e201ae581fd8165dbb882d1f-LICENSE.header.txt"
+}

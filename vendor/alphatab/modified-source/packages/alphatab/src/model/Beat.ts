@@ -610,6 +610,9 @@ export class Beat {
     /** Complete source group size, allowing truncated/malformed JSON to fall back. */
     public sourceBeamGroupSize: number = 0;
 
+    /** Authored make-time in ticks for a complete source cross-staff grace group. */
+    public sourceGraceMakeTime?: number;
+
     /**
      * Adjacent, equally notated two-group tremolo partner on this staff/voice.
      * Derived after chaining, so JSON and score clones cannot retain stale IDs.
@@ -1003,17 +1006,11 @@ export class Beat {
         switch (this.graceType) {
             case GraceType.BeforeBeat:
             case GraceType.OnBeat:
-                switch (this.duration) {
-                    case Duration.Sixteenth:
-                        this.playbackDuration = MidiUtils.toTicks(Duration.SixtyFourth);
-                        break;
-                    case Duration.ThirtySecond:
-                        this.playbackDuration = MidiUtils.toTicks(Duration.OneHundredTwentyEighth);
-                        break;
-                    default:
-                        this.playbackDuration = MidiUtils.toTicks(Duration.ThirtySecond);
-                        break;
-                }
+                const graceDuration = this.graceGroup?.isCrossStaff
+                    ? GraceGroup.defaultDuration(this.graceGroup.beats.length)
+                    : this.duration;
+                const makeTime = this.graceGroup?.isCrossStaff ? this.sourceGraceMakeTime : undefined;
+                this.playbackDuration = makeTime ?? GraceGroup.playbackTicks(graceDuration);
                 this.displayDuration = 0;
                 break;
             case GraceType.BendGrace:
@@ -1072,14 +1069,8 @@ export class Beat {
         switch (this.graceType) {
             case GraceType.OnBeat:
             case GraceType.BeforeBeat:
-                const numberOfGraceBeats: number = this.graceGroup!.beats.length;
-                // set right duration for beaming/display
-                if (numberOfGraceBeats === 1) {
-                    this.duration = Duration.Eighth;
-                } else if (numberOfGraceBeats === 2) {
-                    this.duration = Duration.Sixteenth;
-                } else {
-                    this.duration = Duration.ThirtySecond;
+                if (!this.graceGroup!.isCrossStaff) {
+                    this.duration = GraceGroup.defaultDuration(this.graceGroup!.beats.length);
                 }
                 break;
         }
