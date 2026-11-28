@@ -8,27 +8,25 @@ import { replacedPdfListSchema, type ReplacedPdf } from "../../shared/scores";
 import { scoreDisplayName, scorePdfFileName } from "../../shared/score-display-name";
 import { diagnosticFetch } from "../diagnostics/diagnostics";
 import { PurgeDialog } from "../drives/purge-dialog";
-import { captureReadIdentity } from "../settings/read-resource";
-import { captureSettingsLifetime, invalidateSettingsLifetime, useSettingsLifetime } from "../settings/use-settings-lifetime";
+import { invalidateSettingsLifetime } from "../settings/use-settings-lifetime";
 import { isSettingsReadDenied, SettingsRequestError } from "../settings/settings-request";
 import { settingsError } from "../settings/settings-error";
 import { uploadMessage } from "./library-format";
+import { useTrashRestore } from "./use-trash-restore";
 
 export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = false, onRestored }: {
   userId: string; choirId: string; writable?: boolean; canPurge?: boolean; onRestored(): void | Promise<void>;
 }) {
   const { locale } = useAppLocale();
   const t = useMessages("library");
-  const lifetime = useSettingsLifetime(writable);
+  const { lifetime, busy, attempt, reread, runRestore } = useTrashRestore(writable);
   const gate = useRef(false);
   const [files, setFiles] = useState<ReplacedPdf[]>([]);
   const [now] = useState(Date.now);
-  const [attempt, setAttempt] = useState(0);
   const feedback = useFeedbackMessage();
   const { message, setMessage } = feedback;
   const [restoring, setRestoring] = useState<ReplacedPdf | null>(null);
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
   const [purging, setPurging] = useState<ReplacedPdf | null>(null);
   const base = `/api/choirs/${choirId}/pdf-trash`;
   useEffect(() => {
@@ -52,27 +50,28 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
     if (!restoring || !writable || gate.current) return;
     gate.current = true;
     const file = restoring;
-    const identity = captureReadIdentity(), active = captureSettingsLifetime(lifetime);
-    const current = () => identity() && active();
-    setBusy(true); setMessage(null);
     let confirmed = false;
     try {
-      const response = await diagnosticFetch(`${base}/${file.id}/restore`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fileName: scorePdfFileName(name), expectedReplacedAt: file.replacedAt }),
-      });
-      if (!current()) return;
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
+      await runRestore(async current => {
+        setMessage(null);
+        const response = await diagnosticFetch(`${base}/${file.id}/restore`, {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fileName: scorePdfFileName(name), expectedReplacedAt: file.replacedAt }),
+        });
         if (!current()) return;
-        setMessage(response.status === 404 ? t("replacedPdfTrashPdfNoLongerRecoverable") : uploadMessage(response.status, payload));
-        return;
-      }
-      confirmed = true;
-      setFiles(items => items.filter(item => item.id !== file.id)); setRestoring(null);
-      await onRestored();
-      if (current()) setMessage(t("replacedPdfTrashPdfHasBeenRestored"), { duration: 5000 });
-    } catch { if (current()) setMessage(confirmed ? t("replacedPdfTrashPdfRestoredButRefresh") : t("replacedPdfTrashRestoringAgainNotCreate")); }
-    finally { gate.current = false; setBusy(false); if (!current()) setAttempt(value => value + 1); }
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          if (!current()) return;
+          setMessage(response.status === 404 ? t("replacedPdfTrashPdfNoLongerRecoverable") : uploadMessage(response.status, payload));
+          return;
+        }
+        confirmed = true;
+        setFiles(items => items.filter(item => item.id !== file.id)); setRestoring(null);
+        await onRestored();
+        if (current()) setMessage(t("replacedPdfTrashPdfHasBeenRestored"), { duration: 5000 });
+      }, () => setMessage(confirmed ? t("replacedPdfTrashPdfRestoredButRefresh") : t("replacedPdfTrashRestoringAgainNotCreate")));
+    } finally {
+      gate.current = false;
+    }
   }
   if (!files.length && !message) return null;
   return <section className="attachment-trash replaced-pdf-trash" aria-label={t("replacedPdfTrashReplacedPdf")}><h3>{t("replacedPdfTrashReplacedPdf")}</h3>
@@ -90,6 +89,6 @@ export function ReplacedPdfTrash({ userId, choirId, writable = true, canPurge = 
     {purging && writable && <PurgeDialog userId={userId} path={`${base}/${purging.id}/purge`} title={t("replacedPdfTrashCompletelyDeletePdf")}
       description={t("replacedPdfTrashRecycleBinPdfNot")} onClose={() => setPurging(null)}
       onComplete={async current => { if (!current()) return; setFiles(items => items.filter(item => item.id !== purging.id)); setPurging(null); await onRestored(); }} />}
-    <FeedbackMessage feedback={feedback}>{!feedback.temporary && <Button isDisabled={busy || !writable} onPress={() => setAttempt(value => value + 1)}>{t("readAgain")}</Button>}</FeedbackMessage>
+    <FeedbackMessage feedback={feedback}>{!feedback.temporary && <Button isDisabled={busy || !writable} onPress={reread}>{t("readAgain")}</Button>}</FeedbackMessage>
   </section>;
 }
