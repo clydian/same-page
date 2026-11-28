@@ -10,17 +10,24 @@ import { withBrowserEvidence } from "./browser-evidence.mjs";
 
 // CDP drives real Chromium touch input. Synthetic WebKit pointer dispatch
 // duplicates component tests and cannot prove native iPhone long-press behavior.
-async function hold(page, file) {
+async function hold(page, file, moveTo) {
   const box = await file.boundingBox();
   assert.ok(box);
   const point = { x: box.x + Math.min(70, box.width / 2), y: box.y + box.height / 2 };
   const cdp = await page.context().newCDPSession(page);
+  const menu = page.getByRole("menu");
   try {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
     await expect(file).toHaveAttribute("data-touch-active", "");
-    await delay(700);
+    await expect(menu).toBeVisible();
     assert.equal(await page.evaluate(() => getSelection().toString()), "");
+    if (moveTo) {
+      const end = await moveTo.boundingBox(); assert.ok(end);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: end.x + end.width / 2, y: end.y + end.height / 2 }] });
+    }
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect(menu).toBeVisible();
+    await expect.poll(() => menu.evaluate(node => node.contains(document.activeElement))).toBe(true);
   } finally { await cdp.detach(); }
 }
 
@@ -100,14 +107,24 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
       }
       const fileRequests = [];
       page.on("request", request => { if (/\/scores\/[^/]+\/(?:versions\/[^/]+\/pdf|pdf|sync)(?:\?|$)/.test(new URL(request.url()).pathname)) fileRequests.push(request.url()); });
-      await hold(page, file);
+      const search = page.locator('input[type="search"]');
+      const menu = page.getByRole("button", { name: "本地链路测试 更多操作", exact: true });
+      await hold(page, file, search);
       await expect(page).toHaveURL(library);
-      await expect(page.getByRole("menu")).toHaveCount(0);
+      await expect(search).toHaveValue("");
+      const heldActions = await page.getByRole("menuitem").allTextContents();
+      assert.ok(heldActions.includes("分享 PDF"));
       assert.deepEqual(fileRequests, [], "holding must not start PDF or annotation preparation");
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeFocused();
       await expect(file).not.toHaveAttribute("data-touch-active");
-      // The library surface keeps selection disabled after release (#694).
-      // Check the gesture's visible result, then exercise scroll/menu/new input.
-      assert.equal(await page.evaluate(() => getSelection().toString()), "");
+      // A native link drag can otherwise insert the URL into the editable field.
+      await file.locator(".file-row__name").dragTo(search, { steps: 12 });
+      await expect(search).toHaveValue("");
+      await search.fill("本地链路");
+      await expect(file).toBeVisible();
+      await search.fill("");
+      await expect(page.getByRole("link", { name: "滚动测试0", exact: true })).toBeVisible();
       const scroll = await page.evaluateHandle(() => {
         const position = { start: window.scrollY, end: null };
         document.addEventListener("scrollend", () => { position.end = window.scrollY; }, { once: true });
@@ -134,6 +151,8 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
         await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first] });
         await expect(file).toHaveAttribute("data-touch-active", "");
         await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [first, { id: 1, x: first.x + 200, y: first.y + 80 }] });
+        await delay(550);
+        await expect(page.getByRole("menu")).toHaveCount(0);
         await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
         await expect(page).toHaveURL(library);
       } finally { await scroll.dispose(); await cdp.detach(); }
@@ -146,27 +165,27 @@ for (const [engine, browserType] of [["chromium", chromium], ["webkit", webkit]]
           node.dispatchEvent(event); return event.defaultPrevented;
         }, type), cancelled);
       }
-      const menu = page.getByRole("button", { name: "本地链路测试 更多操作", exact: true });
       await menu.tap();
       await expect(page.getByRole("menuitem", { name: "分享 PDF", exact: true })).toBeVisible();
+      assert.deepEqual(await page.getByRole("menuitem").allTextContents(), heldActions);
       await page.keyboard.press("Escape");
       await expect(menu).toBeFocused();
+      await menu.press("Enter");
+      await expect(page.getByRole("menuitem", { name: "分享 PDF", exact: true })).toBeFocused();
+      await page.keyboard.press("Escape");
       const rightMenu = page.evaluate(() => new Promise(resolve => document.querySelector(".file-open-link").addEventListener("contextmenu", event => setTimeout(() => resolve(event.defaultPrevented), 0), { once: true })));
       await file.click({ button: "right" });
       assert.equal(await rightMenu, false);
       await page.keyboard.press("Escape");
-      // Hold again after mouse/keyboard menu actions: those inputs clear the
-      // touch state themselves, so the next tap must follow a held touch directly.
       await hold(page, file);
       await expect(page).toHaveURL(library);
       assert.deepEqual(fileRequests, [], "repeated holding must not prepare a score");
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeFocused();
       await file.tap();
       await expect(page).toHaveURL(new RegExp(`${scorePath}$`));
     });
     await scenario(t, fixture, engine, browserType, "native-modifier-navigation", async ({ page, context, library, scorePath, file }) => {
-      // Only Chromium can exercise a native held touch in this harness.
-      if (engine === "chromium") await hold(page, file);
-      await expect(file).not.toHaveAttribute("data-touch-active");
       // Prove native modifier activation and its target; PDF engine readiness
       // belongs to the dedicated reader/offline suites, not a link timing gate.
       const [other] = await Promise.all([
