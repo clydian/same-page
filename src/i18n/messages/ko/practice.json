@@ -299,6 +299,31 @@
     "storageError": "이 기기의 문제에 접근할 수 없습니다. 다시 시도하세요.",
     "backToQuestions": "문제 목록으로",
     "edit": "문제 편집",
+    "badges": {
+      "near": {
+        "title": "거의 모두 정답",
+        "description": "음표의 95% 이상을 맞혔어요."
+      },
+      "matched": {
+        "title": "모든 음 정답",
+        "description": "모든 음을 정확하게 불렀어요."
+      },
+      "original": {
+        "title": "악보의 옥타브로 모두 정답",
+        "description": "모든 음을 악보에 적힌 옥타브로 정확하게 불렀어요."
+      },
+      "rainbow": {
+        "title": "무지개 명중",
+        "description": "모든 음이 과녁 한가운데에 들어갔어요."
+      },
+      "revelation": {
+        "title": "악보 그대로",
+        "description": "악보에 적힌 그대로 불렀어요."
+      }
+    },
+    "deleteQuestion": "연습 삭제",
+    "deleteQuestionConfirm": "‘{title}’의 모든 버전과 순위표 점수를 삭제할까요? 되돌릴 수 없지만 원본 악보는 그대로 남아요.",
+    "deleteQuestionFailed": "연습을 삭제할 수 없어요. 다시 열고 시도하세요.",
     "name": "문제 이름",
     "nameRequired": "문제 이름을 입력하세요.",
     "score": "드라이브 악보",

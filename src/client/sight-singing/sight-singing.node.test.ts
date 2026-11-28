@@ -10,7 +10,7 @@ import { createChoirBacking } from './choir-backing';
 import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
 import { notationScore } from './notation-score';
 import { notationFeedbackAtVisit, type NotationFeedback } from './notation-feedback';
-import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, takeScore } from './pitch-feedback';
+import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, sightSingingExtraBadge, takeScore } from './pitch-feedback';
 import { createLivePitch } from './live-pitch';
 import { octaveGuides, pitchFramesConnect } from './pitch-trace';
 import { calibrationTimes, calibrationTone, estimateRecordingLatency, recordingOffsetFrames } from './recording-latency';
@@ -333,6 +333,25 @@ describe('pitch and feedback', () => {
       expect(review).toMatchObject({ target, octave: 0, cents, status: 'inTune' });
       expect(review.sung).toBeCloseTo(target + cents / 100);
     }
+  });
+  it('awards only evidenced achievement badges even when the visible score rounds to 100', () => {
+    const target = (index: number) => ({ midi: 60, start: index, end: index + 1, bar: 0, visit: 0 });
+    const from = (pitches: (number | null | undefined)[]) => {
+      const review = assessNotes(pitches.map((_, index) => target(index)), pitches.flatMap((midi, index) =>
+        midi === undefined ? [] : [{ time: index + .5, midi }]));
+      const score = takeScore(review);
+      return { score, badge: sightSingingExtraBadge(review, score) };
+    };
+    expect(from([60, 60]).badge).toBe(5);
+    expect(from([60, 72]).badge).toBe(4);
+    expect(from([60, 60, undefined]).badge).toBeUndefined();
+    expect(from([60, 60, undefined]).score.percent).toBe(100);
+    expect(from(Array.from({ length: 100 }, (_, index) => index === 0 ? 60.151 : 60))).toMatchObject({
+      score: { percent: 100, perfect: true, writtenOctave: true }, badge: undefined,
+    });
+    expect(from([...Array<number>(19).fill(60), null]).badge).toBe(1);
+    expect(from([...Array<number>(18).fill(60), null, null]).badge).toBeUndefined();
+    expect(from([undefined]).badge).toBeUndefined();
   });
   it('distinguishes missing frames from sampled silence in consecutive thirty-second notes', () => {
     const pitches = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65];

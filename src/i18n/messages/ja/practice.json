@@ -299,6 +299,31 @@
     "storageError": "端末上の課題を読み書きできませんでした。もう一度お試しください。",
     "backToQuestions": "課題一覧に戻る",
     "edit": "課題を編集",
+    "badges": {
+      "near": {
+        "title": "ほぼ正解",
+        "description": "95%以上の音符を正しく歌えました。"
+      },
+      "matched": {
+        "title": "すべて正解",
+        "description": "すべての音符を正しく歌えました。"
+      },
+      "original": {
+        "title": "記譜のオクターブですべて正解",
+        "description": "すべての音符を記譜どおりのオクターブで歌えました。"
+      },
+      "rainbow": {
+        "title": "虹のど真ん中",
+        "description": "すべての音が的の中心に入りました。"
+      },
+      "revelation": {
+        "title": "楽譜どおり",
+        "description": "楽譜に書かれたとおりに歌えました。"
+      }
+    },
+    "deleteQuestion": "課題を削除",
+    "deleteQuestionConfirm": "「{title}」とそのすべての版・ランキング成績を削除しますか？ 元に戻せません。元の楽譜は残ります。",
+    "deleteQuestionFailed": "課題を削除できませんでした。開き直して再試行してください。",
     "name": "課題名",
     "nameRequired": "課題名を入力してください。",
     "score": "ドライブの楽譜",

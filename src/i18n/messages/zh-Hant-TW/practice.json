@@ -299,6 +299,31 @@
     "storageError": "無法讀寫本機題目，請重試。",
     "backToQuestions": "返回題目列表",
     "edit": "編輯題目",
+    "badges": {
+      "near": {
+        "title": "幾乎全對",
+        "description": "至少 95% 的音符唱對了。"
+      },
+      "matched": {
+        "title": "全部唱對",
+        "description": "每個音都唱對了。"
+      },
+      "original": {
+        "title": "原八度全對",
+        "description": "每個音都在原八度唱對了。"
+      },
+      "rainbow": {
+        "title": "彩虹準星",
+        "description": "每個音都唱進了準星中心。"
+      },
+      "revelation": {
+        "title": "原譜顯靈",
+        "description": "譜上怎麼寫，你就怎麼準。"
+      }
+    },
+    "deleteQuestion": "刪除題目",
+    "deleteQuestionConfirm": "刪除「{title}」及其所有版本和排行榜成績？此操作無法復原，原樂譜不會被刪除。",
+    "deleteQuestionFailed": "無法刪除題目。請重新開啟題目再試。",
     "name": "題目名稱",
     "nameRequired": "請輸入題目名稱。",
     "score": "雲端硬碟樂譜",

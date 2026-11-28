@@ -299,6 +299,31 @@
     "storageError": "Couldn’t access questions on this device. Try again.",
     "backToQuestions": "Back to questions",
     "edit": "Edit question",
+    "badges": {
+      "near": {
+        "title": "Nearly there",
+        "description": "At least 95% of the notes were right."
+      },
+      "matched": {
+        "title": "Every note right",
+        "description": "You sang every note correctly."
+      },
+      "original": {
+        "title": "Every note in octave",
+        "description": "You sang every note correctly in its written octave."
+      },
+      "rainbow": {
+        "title": "Rainbow bullseye",
+        "description": "Every note landed right in the center."
+      },
+      "revelation": {
+        "title": "Score incarnate",
+        "description": "You sang it exactly as written."
+      }
+    },
+    "deleteQuestion": "Delete exercise",
+    "deleteQuestionConfirm": "Delete “{title}”, all its versions, and their leaderboard scores? This cannot be undone. The source score will stay.",
+    "deleteQuestionFailed": "Could not delete the exercise. Reopen it and try again.",
     "name": "Question name",
     "nameRequired": "Enter a question name.",
     "score": "Drive score",

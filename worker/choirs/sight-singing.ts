@@ -1,5 +1,6 @@
 import { validateMusicXmlSource } from '@same-page/player/format';
 import { Hono, type Context } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import { attachmentFormat, attachmentNameSchema } from '../../src/shared/attachments';
 import {
@@ -304,4 +305,28 @@ sightSingingRoutes.put(`${base}/:id`, async context => {
   } finally {
     if (reserved) await removeAbandonedSnapshot(db, reserved, choirId).catch(() => undefined);
   }
+});
+
+sightSingingRoutes.delete(`${base}/:id`, bodyLimit({ maxSize: 1024 }), async context => {
+  const choirId = context.req.param('choirId'), db = context.env.DB;
+  const member = await readableMember(context, choirId);
+  if (context.req.header('x-same-page-owner-user-id') !== member.userId) throw new AuthorizationError();
+  const id = z.uuid().safeParse(context.req.param('id'));
+  const request = z.object({ editToken: z.uuid() }).strict().safeParse(await context.req.json().catch(() => null));
+  if (!id.success || !request.success) return context.json({ error: 'invalid_question' }, 400);
+  const current = await readCurrent(db, choirId, id.data);
+  if (!current) return context.json({ error: 'question_not_found' }, 404);
+  if (!canEdit(current, actorFor(member))) throw new AuthorizationError();
+  const limited = await limitDriveMutation(context, member.userId, 'delete-sight-singing-question', 30);
+  if (limited) return limited;
+
+  const permission = current.publication === 'official' ? operationPredicate(publishPermission)
+    : 'EXISTS (SELECT 1 FROM membership_capabilities WHERE id = ?)';
+  const removed = await db.prepare(`DELETE FROM sight_singing_questions
+    WHERE choir_id = ? AND id = ? AND write_id = ? AND publication = ?
+      AND (publication = 'official' OR publisher_membership_id = ?) AND ${permission} AND ${activeDrive}
+    RETURNING id`)
+    .bind(choirId, id.data, request.data.editToken, current.publication, member.id, member.id, choirId).first();
+  if (!removed) return context.json({ error: 'question_conflict' }, 409);
+  return context.body(null, 204);
 });

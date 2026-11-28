@@ -221,3 +221,62 @@ it('keeps one best score per version, voice and speed and withdraws only the sel
   expect(await (await read(listPath, owner)).json()).toMatchObject({ results: [] });
   expect(await (await read(overview, owner)).json()).toMatchObject({ participants: [{ questionId, count: 2 }] });
 });
+
+it('round-trips new badges without changing legacy responses and deletes an authorized question and its results', async () => {
+  const owner = await account('Owner', '198.51.100.41'), member = await account('Member', '198.51.100.42');
+  const { choirId, joinCode } = await provisionChoir({ binding: env.DB, ownerUserId: owner.id, ownerDisplayName: 'Owner', inviteSecret: env.INVITE_SECRET });
+  expect((await call('/api/choirs/join', {
+    method: 'POST', headers: { cookie: member.cookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ admission: 'invite', joinCode, displayName: 'Member' }),
+  })).status).toBe(201);
+
+  const base = `/api/choirs/${choirId}/sight-singing`, questionId = crypto.randomUUID(), otherId = crypto.randomUUID();
+  const questionPath = `${base}/questions/${questionId}`, resultPath = `${questionPath}/results`;
+  const publish = async (id: string) => {
+    const form = new FormData();
+    form.set('fields', JSON.stringify({ title: 'Practice', first: 0, last: 0, expectedVersion: null, publication: 'official' }));
+    form.set('file', new File([score], 'score.musicxml', { type: 'application/vnd.recordare.musicxml+xml' }));
+    const result = await call(`${base}/questions/${id}`, { method: 'PUT', body: form,
+      headers: { cookie: owner.cookie, 'x-same-page-owner-user-id': owner.id } });
+    expect(result.status, await result.clone().text()).toBe(200);
+    return (await result.json<{ question: { snapshot: { editToken: string } } }>()).question.snapshot.editToken;
+  };
+  const token = await publish(questionId);
+  await publish(otherId);
+  const originalSnapshot = await env.DB.prepare('SELECT snapshot_id AS id FROM sight_singing_question_versions WHERE choir_id = ? AND question_id = ?')
+    .bind(choirId, questionId).first<{ id: string }>();
+  // Model another edition referencing the same stored snapshot, rather than duplicating the bytes.
+  await env.DB.prepare('UPDATE sight_singing_question_versions SET snapshot_id = ? WHERE choir_id = ? AND question_id = ?')
+    .bind(originalSnapshot!.id, choirId, otherId).run();
+  const payload = { id: crypto.randomUUID(), version: 1, score: 100, speed: 1, voiceId: '0:0:0', voiceName: 'Alto',
+    perfect: true, writtenOctave: true, badge: 5 };
+  const send = (body: typeof payload) => call(resultPath, { method: 'POST',
+    headers: { cookie: member.cookie, 'content-type': 'application/json', 'x-same-page-owner-user-id': member.id },
+    body: JSON.stringify(body),
+  });
+  expect((await send({ ...payload, score: 99.99 })).status).toBe(400);
+  expect(await (await send(payload)).json()).toMatchObject({ result: { badge: 5 }, published: true });
+  expect(await (await send(payload)).json()).toMatchObject({ result: { badge: 5 }, published: true });
+  const read = (path: string) => call(path, { headers: { cookie: member.cookie } });
+  for (const path of [resultPath, `${base}/leaderboard`]) {
+    const older = await (await read(path)).json<{ results: object[] }>();
+    expect(older.results[0]).toMatchObject({ perfect: true, writtenOctave: true });
+    expect(older.results[0]).not.toHaveProperty('badge');
+    expect(await (await read(path + '?badges=1')).json()).toMatchObject({ results: [{ badge: 5 }] });
+  }
+
+  const remove = (editToken: string, user = owner) => call(questionPath, { method: 'DELETE',
+    headers: { cookie: user.cookie, 'content-type': 'application/json', 'x-same-page-owner-user-id': user.id },
+    body: JSON.stringify({ editToken }),
+  });
+  expect((await remove(token, member)).status).toBe(403);
+  expect((await remove(crypto.randomUUID())).status).toBe(409);
+  expect((await read(resultPath)).status).toBe(200);
+  expect((await remove(token)).status).toBe(204);
+  expect((await read(resultPath)).status).toBe(404);
+  expect((await send(payload)).status).toBe(404);
+  expect(await (await read(`${base}/leaderboard?badges=1`)).json()).toEqual({ results: [], participants: [] });
+  expect((await read(`${base}/questions/${otherId}/score`)).status).toBe(200);
+  expect(await env.DB.prepare('SELECT 1 FROM sight_singing_result_receipts WHERE choir_id = ? AND question_id = ?')
+    .bind(choirId, questionId).first()).toBeNull();
+});

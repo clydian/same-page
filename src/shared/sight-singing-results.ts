@@ -14,8 +14,12 @@ const sightSingingResultFields = z.object({
   voiceName: sightSingingVoiceNameSchema,
   speed: sightSingingSpeedSchema,
 }).strict();
-export const sightSingingResultSubmissionSchema = sightSingingResultFields.extend({ perfect: z.boolean(), writtenOctave: z.boolean() })
-  .refine(({ score, perfect, writtenOctave }) => (!perfect || score > 0) && (!writtenOctave || perfect));
+// Levels 2 and 3 are already represented by the original perfect/register flags.
+const extraBadgeSchema = z.literal([1, 4, 5]);
+export type SightSingingExtraBadge = z.infer<typeof extraBadgeSchema>;
+export const sightSingingResultSubmissionSchema = sightSingingResultFields.extend({ perfect: z.boolean(), writtenOctave: z.boolean(), badge: extraBadgeSchema.optional() })
+  .refine(({ score, perfect, writtenOctave, badge }) => (!perfect || score > 0) && (!writtenOctave || perfect) &&
+    (badge === undefined || (badge === 1 ? !perfect && score >= 47.5 : perfect && score === 100 && (badge === 5) === writtenOctave)));
 
 const publishedSightSingingResultSchema = sightSingingResultFields.extend({
   questionId: z.uuid(),
@@ -23,6 +27,7 @@ const publishedSightSingingResultSchema = sightSingingResultFields.extend({
   own: z.boolean(),
   perfect: z.literal(true).optional(),
   writtenOctave: z.literal(true).optional(),
+  badge: extraBadgeSchema.optional(),
 });
 
 const standingPlace = z.number().int().positive();
@@ -46,7 +51,7 @@ export const sightSingingResultsResponseSchema = z.object({
   voices: z.array(sightSingingVoiceNameSchema),
 });
 const leaderboardEntry = publishedSightSingingResultSchema.pick({
-  id: true, questionId: true, version: true, score: true, voiceName: true, displayName: true, speed: true, perfect: true, writtenOctave: true,
+  id: true, questionId: true, version: true, score: true, voiceName: true, displayName: true, speed: true, perfect: true, writtenOctave: true, badge: true,
 });
 export const sightSingingLeaderboardSchema = z.object({
   results: z.array(leaderboardEntry),

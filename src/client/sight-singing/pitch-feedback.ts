@@ -1,4 +1,5 @@
 import { PitchDetector } from 'pitchy';
+import type { SightSingingExtraBadge } from '../../shared/sight-singing-results';
 import type { MelodyNote } from './melody';
 
 export type PitchFrame = { time: number; midi: number | null };
@@ -117,4 +118,10 @@ export function takeScore(review: ReturnType<typeof assessNotes>) {
   const perfect = matched > 0 && matched === review.length;
   return { total, matched, perfect, writtenOctave: perfect && review.every(row => row.octave === 0),
     percent: total ? Math.round(points * 100 / total) / 100 : null };
+}
+
+/** Extra evidence for badges that the original publication flags cannot establish. */
+export function sightSingingExtraBadge(review: ReturnType<typeof assessNotes>, score: ReturnType<typeof takeScore>): SightSingingExtraBadge | undefined {
+  if (score.perfect && review.every(({ status }) => status === 'inTune')) return score.writtenOctave ? 5 : 4;
+  if (!score.perfect && review.length > 0 && score.matched * 20 >= review.length * 19) return 1;
 }

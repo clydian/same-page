@@ -336,7 +336,7 @@ function QuestionRanks({ rows, ready, expanded, showVersions }: {
       <div className="challenge-card-result">
         <div className="challenge-card-result-main"><span>{row.displayName}</span>
           <strong className="challenge-marked-score">
-            <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} />
+            <ScoreBadges badge={row.badge} perfect={row.perfect} writtenOctave={row.writtenOctave} />
             {t('sight.takeScore', { score: formatScore(row.score) })}
           </strong>
         </div>
@@ -394,7 +394,7 @@ function PublishedResultRow({ row, place, tied, showVersions, onRemove }: {
       </Popover>
     </MenuTrigger> : <div className="challenge-ranked-person">{person}</div>}
     <strong className="challenge-marked-score">
-      <ScoreBadges perfect={row.perfect} writtenOctave={row.writtenOctave} />
+      <ScoreBadges badge={row.badge} perfect={row.perfect} writtenOctave={row.writtenOctave} />
       {t('sight.takeScore', { score: formatScore(row.score) })}
     </strong>
   </li>;
@@ -510,10 +510,14 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const [lastChoice, setLastChoice] = useState<number | undefined>(draft?.last);
   const [beats, setBeats] = useState<QuestionBeats>({ firstBeat: question?.firstBeat, lastBeat: question?.lastBeat });
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
   const [audioBusy, setAudioBusy] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [failed, setFailed] = useState(false);
   const saveLifetime = useRef<AbortController | null>(null);
+  const deleteLifetime = useRef<AbortController | null>(null);
   const currentResult = useRef<ChallengeResult>(null);
   // An edit can finish after the render that started it has lost cloud access.
   const cloudAvailable = useRef(false);
@@ -521,13 +525,19 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     cloudAvailable.current = canReadCloud;
     return () => { cloudAvailable.current = false; };
   }, [canReadCloud]);
-  useEffect(() => () => saveLifetime.current?.abort(), []);
+  useEffect(() => () => { saveLifetime.current?.abort(); deleteLifetime.current?.abort(); }, []);
   useEffect(() => {
     if (canReadCloud) return;
     if (saveLifetime.current) {
       saveLifetime.current.abort();
       setSaving(false);
       setFailed(true);
+    }
+    if (deleteLifetime.current) {
+      deleteLifetime.current.abort();
+      setDeleting(false);
+      setConfirmingDelete(false);
+      setDeleteFailed(true);
     }
   }, [canReadCloud]);
 
@@ -594,7 +604,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const title = titleOverride ?? (scoreName && nameRange ? questionNameWithRange(scoreName, nameRange) : '');
   const editable = canEditQuestion ?? saved?.canEdit ?? canPublishOfficial;
   const save = async () => {
-    if (!canReadCloud || !title.trim() || !source || !loadedBytes || !loadedName || !selected || saveLifetime.current || (saved && !editable)) return;
+    if (!canReadCloud || !title.trim() || !source || !loadedBytes || !loadedName || !selected || saveLifetime.current || deleteLifetime.current || (saved && !editable)) return;
     const controller = new AbortController();
     saveLifetime.current = controller;
     const current = captureNavigationIdentity();
@@ -636,6 +646,33 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       }
     } catch { if (!controller.signal.aborted) setFailed(true); }
     finally { saveLifetime.current = null; if (!controller.signal.aborted) setSaving(false); }
+  };
+  const remove = async () => {
+    const editToken = saved?.snapshot.editToken;
+    if (!saved || !editToken || !editable || !canReadCloud || saveLifetime.current || deleteLifetime.current) return;
+    const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]);
+    const current = captureNavigationIdentity();
+    deleteLifetime.current = controller;
+    setDeleting(true); setDeleteFailed(false);
+    try {
+      const response = await diagnosticFetch(`${publishedPath(choirId)}/${encodeURIComponent(saved.id)}`, {
+        method: 'DELETE', signal, headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': userId },
+        body: JSON.stringify({ editToken }),
+      });
+      signal.throwIfAborted();
+      if (!current()) return;
+      if (response.status === 401) { onMemberDenied(); return; }
+      if (response.status === 403 || response.status === 409) revalidateAccess();
+      if (!response.ok) throw new Error('delete_question_failed');
+      onResultsChanged(saved.id);
+      onBack();
+    } catch {
+      if (!controller.signal.aborted && current()) setDeleteFailed(true);
+    } finally {
+      deleteLifetime.current = null;
+      if (!controller.signal.aborted && current()) { setDeleting(false); setConfirmingDelete(false); }
+    }
   };
   const status = score && attachments.statusFor(score.id);
   const needsSource = visibleSource === 'library' && ((!score && Boolean(scoreId)) || (score && status === 'ready' && !attachment && Boolean(fileChoice)));
@@ -721,7 +758,11 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
             <button type="button" className="text-button" onClick={retryConnection}>{entry('identity.retryConnection')}</button>
           </small>}
           <button type="submit" className="primary-button" aria-describedby={!saved ? `${id}-publish` : undefined}
-            disabled={saving || !canReadCloud || !playable || (Boolean(saved) && !editable)}>{t(replace ? 'sight.replacePublished' : saved ? 'sight.updatePublished' : 'sight.publish')}</button>
+            disabled={saving || deleting || !canReadCloud || !playable || (Boolean(saved) && !editable)}>{t(replace ? 'sight.replacePublished' : saved ? 'sight.updatePublished' : 'sight.publish')}</button>
+          {saved?.snapshot.editToken && editable && <button type="button" className="secondary-button"
+            disabled={saving || deleting || !canReadCloud} onClick={() => { setDeleteFailed(false); setConfirmingDelete(true); }}>
+            {t('sight.deleteQuestion')}
+          </button>}
         </div>
         <small>{t('sight.sourceFrozen')}</small>
         {!saved && <small id={`${id}-publish`}>{t('sight.publishScope')}</small>}
@@ -732,6 +773,11 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       {loaded.failed && source?.kind !== 'upload' && <p role="alert" className="challenge-error">{t('sight.sourceError')} <button type="button" className="text-button" onClick={canReadCloud || source?.kind === 'local' ? loaded.retry : retryConnection}>{t('sight.tryLoad')}</button></p>}
       {typeof issue === 'string' && <p role="alert" className="challenge-error">{t(`sight.${issue}`)}</p>}
       {failed && <p role="alert" className="challenge-error">{t('sight.publishError')}</p>}
+      {deleteFailed && <p role="alert" className="challenge-error">{t('sight.deleteQuestionFailed')}</p>}
+      <ConfirmDialog busy={deleting} onClose={() => setConfirmingDelete(false)} confirmation={confirmingDelete && saved ? {
+        title: t('sight.deleteQuestion'), message: t('sight.deleteQuestionConfirm', { title: saved.title }),
+        action: t('sight.deleteQuestion'), destructive: true, onConfirm: remove,
+      } : null} />
       {!editing && loaded.document && selected && <ChallengeRun ref={currentResult} document={loaded.document} selected={selected} voices={voices}
         backingUnavailable={backingUnavailable} selectVoice={setVoiceChoice} questionVersion={version}
         pitchTraceEnabled={pitchTraceEnabled} mix={audioMix[0]} onScored={attempt => { if (saved) onResult(saved.id, attempt); }} onAudioBusy={setAudioBusy}

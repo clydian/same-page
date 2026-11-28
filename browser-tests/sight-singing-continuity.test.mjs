@@ -149,7 +149,7 @@ test("a loaded sight-singing question survives offline and a failed identity ref
 
   await cold.getByRole("button", { name: new RegExp(title) }).click();
   const resultsUrl = `${question}/results`;
-  const filteredUrl = `${resultsUrl}?speed=1`;
+  const filteredUrl = `${resultsUrl}?badges=1&speed=1`;
   const posting = Promise.withResolvers();
   const releasePost = Promise.withResolvers();
   t.after(() => releasePost.resolve());
@@ -168,7 +168,7 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   const resultsPanel = cold.getByRole("dialog", { name: "最佳成绩", exact: true });
   await resultsPanel.getByLabel("成绩速度").selectOption("1");
   assert.deepEqual((await oldResults.snapshot).results, []);
-  const boardUrl = `${challengeApi}/leaderboard`;
+  const boardUrl = `${challengeApi}/leaderboard?badges=1`;
   const oldBoard = await holdNextRead(t, cold, boardUrl);
 
   // The filtered GET captured the old server rows. A post-write GET must

@@ -11,7 +11,7 @@ import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
 import { useSightSingingScoreFormat } from './format-score';
 import { PitchGraph } from './pitch-graph';
 import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
-import { assessNotes, pitchName, takeScore, type PitchFrame } from './pitch-feedback';
+import { assessNotes, pitchName, sightSingingExtraBadge, takeScore, type PitchFrame } from './pitch-feedback';
 import { ScoreBadges } from './score-badge';
 import { useChallengeAnswer } from './use-challenge-answer';
 import type { ChallengeMix } from './use-challenge-mix';
@@ -46,7 +46,8 @@ function reviewRecording(melody: Melody, take: Extract<RunState, { phase: 'resul
     return time >= melody.leadIn && time <= melody.duration ? [{ time, midi: frame.midi }] : [];
   });
   const review = assessNotes(melody.notes.filter(note => note.start >= melody.leadIn), frames);
-  return { frames, review, score: takeScore(review) };
+  const score = takeScore(review);
+  return { frames, review, score, badge: sightSingingExtraBadge(review, score) };
 }
 
 export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, pitchTraceEnabled, mix, onScored, onAudioBusy, measuring, onMeasure, onLatency, ref }: {
@@ -176,9 +177,11 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const finish = () => {
     if (!take) return;
     // Leaving without finishing an adjustment submits the last applied score.
-    const score = latency === mix.latency ? corrected?.score : reviewRecording(melody, take, mix.latency).score;
-    if (!score || score.percent === null) return;
-    onScored({ id: take.id, score: score.percent, speed, perfect: score.perfect, writtenOctave: score.writtenOctave,
+    const result = latency === mix.latency ? corrected : reviewRecording(melody, take, mix.latency);
+    if (!result) return;
+    const { score, badge } = result;
+    if (score.percent === null) return;
+    onScored({ id: take.id, score: score.percent, speed, perfect: score.perfect, writtenOctave: score.writtenOctave, badge,
       version: questionVersion, voiceId: voice.id, voiceName: selected.label });
   };
   useImperativeHandle(ref, () => ({ finish }));
@@ -409,8 +412,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       }}>
       <div className="challenge-result-summary">
         <div className="challenge-score">
-          <ScoreBadges perfect={corrected.score.perfect} writtenOctave={corrected.score.writtenOctave} size={22} />
           <strong>{corrected.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(corrected.score.percent) })}</strong>
+          <ScoreBadges badge={corrected.badge} perfect={corrected.score.perfect} writtenOctave={corrected.score.writtenOctave} size={22} inResult />
           {corrected.score.total > 0 && !corrected.score.perfect && <span>{t('sight.matchedNotes', { matched: corrected.score.matched, total: corrected.score.total })}</span>}
         </div>
         {!adjusting && <button ref={latencyTrigger} className="secondary-button challenge-latency-trigger" type="button"
