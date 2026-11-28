@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "Alle lokalen Beatdateien auf dieser Ablage",
   "localStorageRetryingButNotCompleting": "Wiederholen Sie den Versuch, die Bereinigung wird jedoch nicht abgeschlossen",
   "localStorageCleanUpLocalFiles": "Lokale Dateien bereinigen",
-  "localStorageOnlyCleanDownloadedPdfs": "Bereinigen Sie nur heruntergeladene PDFs und Bilder. Cloud-Dateien, Ablagenverzeichnisse, persönliche Entwürfe, zu synchronisierende Vorgänge und Konflikte bleiben alle erhalten, und Sie müssen sich nicht abmelden.",
+  "localStorageOnlyCleanDownloadedPdfs": "Heruntergeladene Dateien werden von diesem Gerät entfernt. Cloud-Dateien, Ablagenverzeichnisse, persönliche Entwürfe, ausstehende Änderungen und Konflikte bleiben erhalten. Sie bleiben angemeldet.",
   "localStorageCleanup": "Aufräumen",
   "cancel": "Abbrechen",
   "localStorageCleaningUp": "Aufräumen…",

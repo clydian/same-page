@@ -179,6 +179,8 @@ sightSingingRoutes.use(`${base}/*`, async (context, next) => { context.header('C
 sightSingingRoutes.get(base, async context => {
   const choirId = context.req.param('choirId'), db = context.env.DB;
   const member = await readableMember(context, choirId);
+  const expectedOwner = context.req.header('x-same-page-owner-user-id');
+  if (expectedOwner && expectedOwner !== member.userId) throw new AuthorizationError();
   const actor = actorFor(member);
   const rows = await db.prepare(`${questionSelection} WHERE q.choir_id = ?
     AND EXISTS (SELECT 1 FROM membership_capabilities WHERE id = ?) ORDER BY q.title, q.id`)
@@ -189,6 +191,8 @@ sightSingingRoutes.get(base, async context => {
 sightSingingRoutes.on(['GET', 'HEAD'], `${base}/:id/score`, async context => {
   const choirId = context.req.param('choirId'), db = context.env.DB;
   const member = await readableMember(context, choirId);
+  const expectedOwner = context.req.header('x-same-page-owner-user-id');
+  if (expectedOwner && expectedOwner !== member.userId) throw new AuthorizationError();
   const id = z.uuid().safeParse(context.req.param('id'));
   const version = z.coerce.number().int().positive().optional().safeParse(context.req.query('version'));
   if (!id.success || !version.success) return context.json({ error: 'invalid_question' }, 400);

@@ -260,3 +260,127 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   await expect(cold.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible({ timeout: 12_000 });
   await expect(cold.locator(".challenge-run")).toHaveCount(0);
 });
+
+test("an installed shell cold-starts the exact published question from the tools entry", { timeout: 120_000 }, async t => {
+  const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
+  const folder = await mkdtemp(join(tmpdir(), "sight-singing-cold-"));
+  let context;
+  t.after(async () => {
+    try { await context?.close(); await fixture.stop(); }
+    finally { await rm(folder, { recursive: true, force: true }); }
+  });
+  const wave = join(folder, "tone.wav");
+  await writeFile(wave, practiceWave());
+  const start = () => chromium.launchPersistentContext(join(folder, "profile"), {
+    locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "allow",
+    args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-audio-capture=${wave}`],
+  });
+  const drive = `${fixture.origin}/choirs/${fixture.choirId}`;
+  const questions = `${fixture.origin}/api/choirs/${fixture.choirId}/sight-singing/questions`;
+  const saved = `${questions}/${crypto.randomUUID()}`, unopened = `${questions}/${crypto.randomUUID()}`;
+  const owner = fixture.accounts[0];
+  const publish = (url, title, expectedVersion = null, editToken) => context.request.put(url, {
+    headers: { "x-same-page-owner-user-id": owner.id },
+    multipart: {
+      fields: JSON.stringify({ title, first: 0, last: 0, expectedVersion, ...(editToken && { expectedEditToken: editToken }) }),
+      file: { name: "challenge.musicxml", mimeType: "application/vnd.recordare.musicxml+xml",
+        buffer: Buffer.from(expectedVersion ? xml.replace("<step>A</step>", "<step>B</step>") : xml) },
+    },
+  });
+  const enter = async page => {
+    await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "工具", exact: true }).click();
+    await page.getByRole("link", { name: "视唱练习", exact: true }).click();
+  };
+  const kept = "已打开的合成题", missing = "未打开的合成题", replacement = "同题的新版本";
+  const find = (page, name) => page.getByRole("button", { name: new RegExp(name) });
+  context = await start();
+  assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
+    headers: { origin: fixture.origin }, data: { email: owner.email, password: owner.password },
+  })).status(), 200);
+  const first = await publish(saved, kept);
+  assert.equal(first.status(), 200, await first.text());
+  const firstEditToken = (await first.json()).question.snapshot.editToken;
+  assert.equal((await publish(unopened, missing)).status(), 200);
+  const wrongOwner = { "x-same-page-owner-user-id": fixture.accounts[1].id };
+  assert.equal((await context.request.get(questions, { headers: wrongOwner })).status(), 403);
+  assert.equal((await context.request.get(`${saved}/score?version=1`, { headers: wrongOwner })).status(), 403);
+  const page = context.pages()[0];
+  await page.goto(drive);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await enter(page);
+  await expect(find(page, missing)).toBeVisible();
+  await expect(find(page, missing)).not.toContainText("可离线");
+  const score = page.waitForResponse(`${saved}/score?version=1`);
+  await find(page, kept).click();
+  assert.equal((await score).status(), 200);
+  await expect(page.locator(".challenge-run")).toHaveAttribute("data-phase", "idle");
+  await expect(page.getByText(/可离线/)).toBeVisible({ timeout: 15_000 });
+  await context.close();
+
+  // A new Chromium process starts with only the persisted profile and service worker.
+  context = await start();
+  await context.setOffline(true);
+  const cold = context.pages()[0];
+  const requests = [];
+  cold.on("request", request => {
+    if (request.url().startsWith(questions)) requests.push(request);
+  });
+  await cold.goto(drive);
+  await enter(cold);
+  await expect(find(cold, kept)).toContainText("可离线");
+  await expect(find(cold, missing)).toHaveCount(0);
+  await find(cold, kept).click();
+  const run = cold.locator(".challenge-run");
+  await expect(run).toHaveAttribute("data-phase", "idle");
+  await expect(run.locator(".challenge-notation-note[data-midi='57']").first()).toBeVisible();
+  await cold.getByRole("button", { name: "持续主音", exact: true }).click();
+  await expect(cold.getByRole("button", { name: "持续主音", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await cold.getByRole("button", { name: "持续主音", exact: true }).click();
+  await cold.getByRole("button", { name: "开始唱", exact: true }).click();
+  await expect(run).toHaveAttribute("data-phase", "count");
+  await expect(run).toHaveAttribute("data-phase", "result", { timeout: 15_000 });
+  await expect(cold.locator(".challenge-score")).toContainText(/音准 .* 分/);
+  await expect(cold.locator(".challenge-result audio")).toHaveAttribute("src", /^blob:/);
+  await cold.getByRole("button", { name: "回听", exact: true }).click();
+  await expect(run).toHaveAttribute("data-replaying", "true");
+  assert.deepEqual(requests, []);
+
+  // The user can still practise V1 locally while the authoritative list request
+  // is delayed. The moment V2 is confirmed, V1 is no longer eligible.
+  const changed = await publish(saved, replacement, 1, firstEditToken);
+  assert.equal(changed.status(), 200, await changed.text());
+  const release = Promise.withResolvers();
+  t.after(() => release.resolve());
+  await cold.route(questions, async route => { await release.promise; await route.continue(); });
+  const verification = cold.waitForRequest(questions);
+  await context.setOffline(false);
+  await verification;
+  await expect(run).toHaveAttribute("data-phase", "result");
+  assert.equal(requests.filter(request => request.method() === "POST" || request.url().includes("/score?")).length, 0);
+  release.resolve();
+  await expect(find(cold, replacement)).toContainText("V2");
+  await expect(find(cold, replacement)).not.toContainText("可离线");
+  await expect(find(cold, kept)).toHaveCount(0);
+  await expect(run).toHaveCount(0);
+  const next = cold.waitForResponse(`${saved}/score?version=2`);
+  await find(cold, replacement).click();
+  assert.equal((await next).status(), 200);
+  await expect(cold.getByRole("heading", { name: replacement })).toBeVisible();
+  await expect(run).toHaveAttribute("data-phase", "idle");
+  await expect(run.locator(".challenge-notation-note[data-midi='59']").first()).toBeVisible();
+  await expect(cold.getByText(/V2 · 可离线/)).toBeVisible({ timeout: 15_000 });
+
+  await cold.goto(`${drive}/storage`);
+  await cold.getByRole("button", { name: `移除 ${replacement} 的离线副本`, exact: true }).click();
+  await cold.getByRole("button", { name: "确认清理", exact: true }).click();
+  await expect(cold.getByText(replacement, { exact: true })).toHaveCount(0);
+
+  await context.setOffline(true);
+  await cold.goto(drive);
+  await enter(cold);
+  await expect(cold.getByRole("status").filter({ hasText: noConnection })).toBeVisible();
+  await expect(find(cold, replacement)).toHaveCount(0);
+  await expect(find(cold, kept)).toHaveCount(0);
+});

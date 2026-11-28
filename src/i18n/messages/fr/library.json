@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "Tous les fichiers de partition locaux de cet espace",
   "localStorageRetryingButNotCompleting": "Réessayer mais ne pas terminer le nettoyage",
   "localStorageCleanUpLocalFiles": "Nettoyer les fichiers locaux",
-  "localStorageOnlyCleanDownloadedPdfs": "Uniquement les PDF et les images téléchargés propres. Les fichiers cloud, les répertoires de disques cloud, les brouillons personnels, les opérations à synchroniser et les conflits sont tous conservés et vous ne vous déconnectez pas.",
+  "localStorageOnlyCleanDownloadedPdfs": "Supprime les fichiers téléchargés sur cet appareil. Les fichiers et dossiers cloud, les brouillons personnels, les modifications en attente et les conflits sont conservés. Vous restez connecté.",
   "localStorageCleanup": "Nettoyage",
   "cancel": "Annuler",
   "localStorageCleaningUp": "Faire le ménage…",

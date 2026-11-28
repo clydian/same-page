@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "本雲端硬碟的全部本機譜面文件",
   "localStorageRetryingButNotCompleting": "重試未完成清理",
   "localStorageCleanUpLocalFiles": "清理本機文件",
-  "localStorageOnlyCleanDownloadedPdfs": "只清理已下載的 PDF 和圖片。雲端檔案、雲端目錄、個人草稿、待同步操作和衝突都保留，也不登出登入。",
+  "localStorageOnlyCleanDownloadedPdfs": "清除這台裝置上已下載的檔案。雲端檔案、雲端目錄、個人草稿、待同步操作和衝突均會保留，也不會登出。",
   "localStorageCleanup": "清理",
   "cancel": "取消",
   "localStorageCleaningUp": "正在清理…",

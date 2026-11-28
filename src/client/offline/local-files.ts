@@ -1,4 +1,5 @@
 import { getCurrentLocale, getMessages, type AppLocale } from "../../i18n";
+import { isPublishedQuestionStorageId, publishedQuestionFiles } from "../platform/published-question-files";
 import { musicXmlFiles } from "../platform/musicxml-files";
 import { localDatabase, guestOwnerSystemKey } from "../platform/local-database";
 import { assertLocalWorkspaceActive, currentLocalOwnerKey, type LocalWorkspace, type LocalWorkspaceOwnerKey } from "../platform/local-workspace";
@@ -28,12 +29,16 @@ export async function clearLocalFiles(scope: LocalFileScope) {
     if (baseOwnerKey.startsWith("user:") ? owner !== baseOwnerKey : owner?.startsWith("user:") || !scope.choirId || (await localDatabase.system.get(guestOwnerSystemKey(scope.choirId)))?.value !== baseOwnerKey) throw new Error("local_workspace_owner_changed");
     const key = JSON.stringify(["offline-files", scope.ownerKey, ...(scope.choirId ? [scope.choirId] : []), ...(scope.scoreId ? [scope.scoreId] : [])]);
     await localDatabase.system.put({ key, value: crypto.randomUUID() });
+    const questionId = isPublishedQuestionStorageId(scope.scoreId) ? scope.scoreId!.slice('sight-singing:'.length) : null;
+    const questionCopies = !scope.scoreId || questionId
+      ? await publishedQuestionFiles(scope.ownerKey, scope.choirId, questionId ?? undefined).filter(record => Boolean(record.blob)).toArray() : [];
+    await localDatabase.system.bulkDelete(questionCopies.map(file => file.key));
     const files = await localDatabase.offlineScores.where("ownerKey").equals(scope.ownerKey)
       .filter(file => (!scope.choirId || file.choirId === scope.choirId) && (!scope.scoreId || file.scoreId === scope.scoreId)).toArray();
     const xml = await musicXmlFiles(scope).toArray();
     await localDatabase.system.bulkDelete(xml.map(file => file.key));
     await localDatabase.offlineScores.bulkDelete(files.map(file => file.key));
     await localDatabase.offlineSnapshots.bulkDelete(files.map(file => file.key));
-    return [...files, ...xml].reduce((bytes, file) => bytes + (file.blob?.size ?? 0), 0);
+    return [...files, ...xml, ...questionCopies].reduce((bytes, file) => bytes + (file.blob?.size ?? 0), 0);
   });
 }

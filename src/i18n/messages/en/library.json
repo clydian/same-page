@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "All local score files for this Drive",
   "localStorageRetryingButNotCompleting": "Retry incomplete cleanup",
   "localStorageCleanUpLocalFiles": "Clean up local files",
-  "localStorageOnlyCleanDownloadedPdfs": "Only clean downloaded PDFs and images. Cloud files, Drive directories, personal drafts, operations to be synchronized, and conflicts are all retained, and you do not log out.",
+  "localStorageOnlyCleanDownloadedPdfs": "Remove downloaded files from this device. Cloud files, Drive directories, personal drafts, pending changes, and conflicts are kept. You stay signed in.",
   "localStorageCleanup": "Cleanup",
   "cancel": "Cancel",
   "localStorageCleaningUp": "Cleaning up…",

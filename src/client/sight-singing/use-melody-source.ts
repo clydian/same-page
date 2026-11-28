@@ -12,18 +12,21 @@ import { PracticeOpeningError } from '../playback/practice-error';
 import type { PlaybackSource } from '../playback/playback-store';
 import { validateMusicXmlFile } from '../playback/validate-musicxml';
 import { loadMelodyScore, type MelodyScore } from './melody';
+import { prepareOfflinePlayerAssets, offlinePlayerAssetsReady } from '../playback/offline-player-assets';
+import type { PublishedQuestion } from '../../shared/sight-singing';
+import { capturePublishedQuestionCopy, type PublishedQuestionScope } from './published-question-cache';
 import { readQuestionSnapshot } from './questions';
 import { isSightSingingMemberDenied, publishedPath } from './read';
 
 type QuestionSnapshot = { choirId: string; questionId: string; version: number; name: string };
 export type MelodySource =
   | { kind: 'library'; playback: PlaybackSource }
-  | ({ kind: 'cloud' } & QuestionSnapshot)
+  | { kind: 'cloud'; scope: PublishedQuestionScope; question: PublishedQuestion }
   | ({ kind: 'local'; owner: string } & QuestionSnapshot)
   | { kind: 'upload'; choirId: string; key: string; file: File; locale: AppLocale };
 
 type Loaded = { key: string; attempt: number } & ({ document: MelodyScore; bytes: Uint8Array<ArrayBuffer>; name: string } | { error: true });
-type SourceRead = { bytes: Uint8Array; name: string; library?: Awaited<ReturnType<typeof resolveMusicXmlSource>> };
+type SourceRead = { bytes: Uint8Array; name: string; library?: Awaited<ReturnType<typeof resolveMusicXmlSource>>; save?: (bytes: Uint8Array<ArrayBuffer>, task: AbortSignal) => Promise<void> };
 const attachmentChanged = (error: unknown) => error instanceof PracticeOpeningError && error.code === 'attachmentUpdated';
 
 function sourceKey(source: MelodySource | null) {
@@ -33,30 +36,45 @@ function sourceKey(source: MelodySource | null) {
     return JSON.stringify([source.kind, ownerKey, sessionId, choirId, score.id, attachment.id, attachment.revision]);
   }
   if (source.kind === 'upload') return JSON.stringify([source.kind, source.key]);
-  return JSON.stringify([source.kind, source.kind === 'local' ? source.owner : null, source.choirId, source.questionId, source.version]);
+  if (source.kind === 'cloud') {
+    const { userId, choirId, sessionId } = source.scope;
+    return JSON.stringify([source.kind, userId, choirId, sessionId, source.question.id, source.question.version]);
+  }
+  return JSON.stringify([source.kind, source.owner, source.choirId, source.questionId, source.version]);
 }
 
-export function useMelodySource(source: MelodySource | null, canReadCloud: boolean, onMemberDenied: () => void) {
+export function useMelodySource(source: MelodySource | null, canReadCloud: boolean, handlers: {
+  onMemberDenied: () => void; onCopySaved: () => void; onQuestionMissing: (id: string, signal: AbortSignal) => void;
+}) {
   const key = sourceKey(source);
   const currentSource = useEffectEvent(() => source);
   const [loaded, setLoaded] = useState<Loaded>();
   const [attempt, setAttempt] = useState(0);
   if (loaded && loaded.key !== key) setLoaded(undefined);
   const current = loaded?.key === key && loaded.attempt === attempt && 'document' in loaded ? loaded : null;
-  const waitingForConnection = !current && !canReadCloud && (source?.kind === 'cloud' || source?.kind === 'library' && navigator.onLine);
+  const waitingForConnection = !current && !canReadCloud && source?.kind === 'library' && navigator.onLine;
   const cloudAvailable = useEffectEvent(() => canReadCloud);
-  const memberDenied = useEffectEvent(onMemberDenied);
+  const memberDenied = useEffectEvent(handlers.onMemberDenied);
+  const copySaved = useEffectEvent(handlers.onCopySaved);
+  const questionMissing = useEffectEvent(handlers.onQuestionMissing);
   const retry = useCallback(() => setAttempt(value => value + 1), []);
   const verifyLibrary = useRef<() => void>(undefined);
   const verifyOnReconnect = useEffectEvent(() => { if (canReadCloud && current) verifyLibrary.current?.(); });
-  useEffect(() => { verifyOnReconnect(); }, [canReadCloud]);
+  const retryCloudOnReconnect = useEffectEvent(() => {
+    if (canReadCloud && source?.kind === 'cloud' && loaded?.key === key && 'error' in loaded) retry();
+  });
+  useEffect(() => {
+    verifyOnReconnect();
+    const timer = setTimeout(() => retryCloudOnReconnect(), 0);
+    return () => clearTimeout(timer);
+  }, [canReadCloud]);
   useEffect(() => {
     const source = currentSource();
     if (!source || waitingForConnection) return;
     const lifetime = new AbortController();
     const signal = AbortSignal.any([lifetime.signal, AbortSignal.timeout(source.kind === 'cloud' ? 30_000 : MUSICXML_READ_TIMEOUT_MS)]);
     const playback = source.kind === 'library' ? source.playback : null;
-    const choirId = source.kind === 'library' ? source.playback.choirId : source.choirId;
+    const choirId = source.kind === 'library' ? source.playback.choirId : source.kind === 'cloud' ? source.scope.choirId : source.choirId;
     const lease = playback ? acquirePlaybackPreparation(playback) : null;
     const navigationCurrent = captureNavigationIdentity();
     const revoke = () => { lifetime.abort(); setLoaded({ key, attempt, error: true }); };
@@ -92,15 +110,22 @@ export function useMelodySource(source: MelodySource | null, canReadCloud: boole
         if (blob) return { bytes: new Uint8Array(await blob.arrayBuffer()), name: source.name };
       }
       if (source.kind === 'cloud') {
-        const response = await diagnosticFetch(`${publishedPath(choirId)}/${encodeURIComponent(source.questionId)}/score?version=${source.version}`, {
-          signal,
-        });
-        if (!response.ok) throw new SettingsRequestError(response.status);
-        return { bytes: new Uint8Array(await response.arrayBuffer()), name: source.name };
+        const { question, scope } = source;
+        const cache = await capturePublishedQuestionCopy(scope, question, lifetime.signal).catch(() => null);
+        const bytes = await cache?.read().catch(() => null);
+        signal.throwIfAborted();
+        if (bytes && (cloudAvailable() || await offlinePlayerAssetsReady())) return { bytes, name: question.snapshot.name };
+        if (!cloudAvailable()) throw new Error('question_source_unavailable');
+        const response = await diagnosticFetch(`${publishedPath(choirId)}/${encodeURIComponent(question.id)}/score?version=${question.version}`, { signal, headers: { 'x-same-page-owner-user-id': scope.userId } });
+        if (!response.ok) {
+          if (response.status === 404 && !signal.aborted) questionMissing(question.id, lifetime.signal);
+          throw new SettingsRequestError(response.status);
+        }
+        return { bytes: new Uint8Array(await response.arrayBuffer()), name: question.snapshot.name, save: cache?.save };
       }
       throw new Error('question_source_unavailable');
     };
-    void open().then(({ bytes: raw, name, library }) => {
+    void open().then(({ bytes: raw, name, library, save }) => {
       signal.throwIfAborted();
       if (playback && !navigationCurrent()) throw new Error('offline_identity_changed');
       if (raw.byteLength > SIGHT_SINGING_SCORE_MAX_BYTES) throw new Error('question_source_too_large');
@@ -109,6 +134,8 @@ export function useMelodySource(source: MelodySource | null, canReadCloud: boole
       const prepared = cached && !('kind' in cached) ? cached : prepareMusicXmlForPlaybackBytes(bytes);
       const document = loadMelodyScore(prepared);
       setLoaded({ key, attempt, document, bytes, name });
+      if (save) void prepareOfflinePlayerAssets(lifetime.signal).then(() => save(bytes, lifetime.signal))
+        .then(() => { if (!lifetime.signal.aborted) copySaved(); }).catch(() => undefined);
       if (cached !== prepared && lease && library?.assertCurrent) {
         void library.assertCurrent().then(() => {
           if (!signal.aborted) lease.save(raw, prepared, library.cacheIdentity);

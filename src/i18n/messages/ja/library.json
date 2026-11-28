@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "このクラウド ディスク上のすべてのローカル ビート ファイル",
   "localStorageRetryingButNotCompleting": "再試行していますが、クリーンアップが完了していません",
   "localStorageCleanUpLocalFiles": "ローカルファイルをクリーンアップする",
-  "localStorageOnlyCleanDownloadedPdfs": "ダウンロードした PDF と画像のみをクリーンにしてください。クラウド ファイル、クラウド ディスク ディレクトリ、個人の下書き、同期する操作、および競合はすべて保持され、ログアウトする必要はありません。",
+  "localStorageOnlyCleanDownloadedPdfs": "このデバイスにダウンロードしたファイルを削除します。クラウドのファイルとフォルダ、個人の下書き、同期を待っている変更、競合は保持され、ログイン状態も維持されます。",
   "localStorageCleanup": "クリーンアップ",
   "cancel": "キャンセル",
   "localStorageCleaningUp": "掃除中…",

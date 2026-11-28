@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "本云盘的全部本机谱面文件",
   "localStorageRetryingButNotCompleting": "重试未完成清理",
   "localStorageCleanUpLocalFiles": "清理本机文件",
-  "localStorageOnlyCleanDownloadedPdfs": "只清理已下载的 PDF 和图片。云端文件、云盘目录、个人草稿、待同步操作和冲突均保留，也不退出登录。",
+  "localStorageOnlyCleanDownloadedPdfs": "清理这台设备上已下载的文件。云端文件、云盘目录、个人草稿、待同步操作和冲突均保留，也不退出登录。",
   "localStorageCleanup": "清理",
   "cancel": "取消",
   "localStorageCleaningUp": "正在清理…",
