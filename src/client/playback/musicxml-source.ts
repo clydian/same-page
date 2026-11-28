@@ -118,7 +118,7 @@ async function boundedFinalAccessGuard(access: MusicXmlAccess, signal: AbortSign
     clearTimeout(timer); if (aborted) signal.removeEventListener('abort', aborted);
   }
 }
-function validateMusicXmlAttachment(source: PlaybackSource, fresh: Metadata) {
+export function validateMusicXmlAttachment(source: PlaybackSource, fresh: Metadata) {
   if (fresh.id !== source.attachment.id || fresh.scoreId !== source.score.id || fresh.kind !== 'musicxml' || fresh.revision !== source.attachment.revision || fresh.sizeBytes !== source.attachment.sizeBytes || fresh.trashExpiresAt) throw new PracticeOpeningError("attachmentUpdated");
 }
 function lazyOriginalSave(source: PlaybackSource, openingSignal: AbortSignal, current: () => boolean) {

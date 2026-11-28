@@ -1,5 +1,6 @@
 import * as alphaTab from '@coderline/alphatab';
 import { loadPreparedMusicXml, prepareMusicXmlForPlaybackBytes } from '@same-page/player/engine';
+import type { PreparedMusicXml } from '@same-page/player/musicxml-direction-timing';
 import { playbackMeasureVisits } from '@same-page/player/playback-measures';
 import { classifyTimbreRoles } from '@same-page/player/timbre-profile';
 import type { QuestionBeats } from '../../shared/sight-singing';
@@ -53,10 +54,10 @@ function generatePlayback(score: alphaTab.model.Score, settings: alphaTab.Settin
   return { bars: generator.tickLookup.masterBars, events };
 }
 
-export function loadMelodyScore(bytes: Uint8Array) {
+export function loadMelodyScore(input: Uint8Array | PreparedMusicXml) {
   const settings = new alphaTab.Settings();
   settings.importer.mergePartGroupsInMusicXml = false;
-  const prepared = prepareMusicXmlForPlaybackBytes(bytes);
+  const prepared = input instanceof Uint8Array ? prepareMusicXmlForPlaybackBytes(input) : input;
   const score = loadPreparedMusicXml(prepared, settings);
   if (score.tracks.length > 1) score.stylesheet.multiTrackTrackNamePolicy = alphaTab.model.TrackNamePolicy.AllSystems;
   const { bars, events } = generatePlayback(score, settings);

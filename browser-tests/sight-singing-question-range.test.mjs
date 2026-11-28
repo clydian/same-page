@@ -52,9 +52,12 @@ test('choosing a sight-singing range follows the loaded score and saves only com
     };
   });
 
-  const page = await context.newPage(), fileReads = [];
+  const page = await context.newPage(), fileReads = [], metadataReads = [];
   page.on('request', request => {
-    if (request.method() === 'GET' && new URL(request.url()).pathname.endsWith(`/attachments/${attachment}/file`)) fileReads.push(request.url());
+    if (request.method() !== 'GET') return;
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith(`/attachments/${attachment}/file`)) fileReads.push(request.url());
+    if (path.endsWith(`/attachments/${attachment}`)) metadataReads.push(request.url());
   });
   await page.goto(`${origin}/choirs/${choirId}`);
   await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '工具', exact: true }).click();
@@ -188,7 +191,11 @@ test('choosing a sight-singing range follows the loaded score and saves only com
 
   await page.setViewportSize({ width: 1040, height: 850 });
   await create();
+  const previousMetadataReads = metadataReads.length;
   await page.locator('select[name="score"]').selectOption(scoreId);
+  await expect(marks).toHaveCount(24);
+  assert.equal(metadataReads.length, previousMetadataReads + 1, 'reopening verifies this exact attachment again');
+  assert.equal(fileReads.length, 1, 'reopening the authorized revision reuses its original bytes');
   await from.press('ArrowRight');
   await to.press('Home');
   await to.press('ArrowRight');
