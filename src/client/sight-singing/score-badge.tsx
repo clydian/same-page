@@ -16,14 +16,15 @@ const badges = {
   5: { art: revelation, name: 'revelation' },
 } as const;
 
-export function ScoreBadges({ badge, perfect, writtenOctave, size = 16 }: {
-  badge?: SightSingingExtraBadge; perfect?: boolean; writtenOctave?: boolean; size?: number;
+export function ScoreBadges({ badge, perfect, writtenOctave, size = 16, inResult = false }: {
+  badge?: SightSingingExtraBadge; perfect?: boolean; writtenOctave?: boolean; size?: number; inResult?: boolean;
 }) {
   const t = useMessages('practice');
   const level = badge ?? (perfect ? (writtenOctave ? 3 : 2) : null);
   if (!level) return null;
   const { art, name } = badges[level];
   const label = t(`sight.badges.${name}.title`);
+  const showTitle = !inResult || (name !== 'rainbow' && name !== 'revelation');
   return <span className="challenge-score-badges">
     <DialogTrigger>
       <Button className="challenge-score-badge-button" aria-label={label}>
@@ -31,7 +32,7 @@ export function ScoreBadges({ badge, perfect, writtenOctave, size = 16 }: {
       </Button>
       <Popover placement="top" offset={6} className="challenge-badge-popover">
         <Dialog aria-label={label} className="challenge-badge-explanation">
-          <strong>{label}</strong>
+          {showTitle && <strong>{label}</strong>}
           <span>{t(`sight.badges.${name}.description`)}</span>
         </Dialog>
       </Popover>

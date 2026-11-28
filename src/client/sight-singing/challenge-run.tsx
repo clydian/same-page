@@ -412,8 +412,8 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       }}>
       <div className="challenge-result-summary">
         <div className="challenge-score">
-          <ScoreBadges badge={corrected.badge} perfect={corrected.score.perfect} writtenOctave={corrected.score.writtenOctave} size={22} />
           <strong>{corrected.score.percent === null ? t('sight.takeComplete') : t('sight.intonationScore', { score: formatScore(corrected.score.percent) })}</strong>
+          <ScoreBadges badge={corrected.badge} perfect={corrected.score.perfect} writtenOctave={corrected.score.writtenOctave} size={22} inResult />
           {corrected.score.total > 0 && !corrected.score.perfect && <span>{t('sight.matchedNotes', { matched: corrected.score.matched, total: corrected.score.total })}</span>}
         </div>
         {!adjusting && <button ref={latencyTrigger} className="secondary-button challenge-latency-trigger" type="button"
