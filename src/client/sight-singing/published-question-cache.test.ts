@@ -1,7 +1,8 @@
 import { Blob as NodeBlob } from 'node:buffer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { PublishedQuestion } from '../../shared/sight-singing';
-import { acceptNewSession, beginLogout, forgetOfflineSession } from '../auth/logout-fence';
+import { beginLogout } from '../auth/logout-fence';
+import { storeOfflineSession } from '../auth/offline-session';
 import { clearLocalFiles } from '../offline/local-files';
 import { localDatabase } from '../platform/local-database';
 import { activateAuthenticatedLocalOwner, createLocalWorkspace } from '../platform/local-workspace';
@@ -29,7 +30,7 @@ beforeEach(async () => {
   await localDatabase.open();
   await localDatabase.system.clear();
   await setupDrive();
-  await acceptNewSession(scope.userId, scope.sessionId, Date.now(), expiresAt());
+  await storeOfflineSession({ userId: scope.userId, sessionId: scope.sessionId, expiresAt: expiresAt() });
   await (await capturePublishedCatalog(scope, signal()))([score]);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -89,11 +90,32 @@ it('drops protected copies after denial and rejects storage reads across expiry,
   await copy.save(bytes, signal());
   await beginLogout(scope.userId, scope.sessionId);
   expect(await readPublishedQuestionCopies(scope)).toBeNull();
-  await forgetOfflineSession();
+  await storeOfflineSession(null);
   expect(await publishedQuestionFiles(workspace.ownerKey).count()).toBe(0);
 
   const otherId = 'another-user';
   await activateAuthenticatedLocalOwner(otherId);
   await expect(copy.read()).rejects.toThrow('local_workspace_owner_changed');
   expect(await publishedQuestionFiles(`user:${otherId}`).count()).toBe(0);
+});
+
+
+it('discards copies on a replacement session and when another user signs in', async () => {
+  const copy = await capturePublishedQuestionCopy(scope, score, signal());
+  await copy.save(bytes, signal());
+
+  const nextScope = { ...scope, sessionId: 'replacement-session' };
+  await storeOfflineSession({ userId: nextScope.userId, sessionId: nextScope.sessionId, expiresAt: expiresAt() });
+  expect(await copy.read()).toBeNull();
+  expect(await publishedQuestionFiles('user:singer').count()).toBe(0);
+
+  await (await capturePublishedCatalog(nextScope, signal()))([score]);
+  const nextCopy = await capturePublishedQuestionCopy(nextScope, score, signal());
+  await nextCopy.save(bytes, signal());
+  expect(await nextCopy.read()).toEqual(bytes);
+
+  await storeOfflineSession({ userId: 'other-user', sessionId: 'other-session', expiresAt: expiresAt() });
+  await activateAuthenticatedLocalOwner('other-user');
+  expect(await publishedQuestionFiles('user:singer').count()).toBe(0);
+  expect(await readPublishedQuestionCopies({ ...scope, userId: 'other-user', sessionId: 'other-session' })).toBeNull();
 });

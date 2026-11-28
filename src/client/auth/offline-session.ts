@@ -1,3 +1,4 @@
+import { readLogoutFence } from './logout-fence';
 import { localDatabase } from '../platform/local-database';
 import { publishedQuestionFiles } from '../platform/published-question-files';
 
@@ -14,7 +15,7 @@ export function readOfflineSession() {
   });
 }
 
-// Called inside the logout-fence transaction. Keep only the session identity
+// Called inside a system-store transaction. Keep only the session identity
 // and its server expiry, never cookie, token or user profile data.
 export async function rememberOfflineSession(next: OfflineSession | null) {
   const previous = await readOfflineSession();
@@ -25,4 +26,11 @@ export async function rememberOfflineSession(next: OfflineSession | null) {
   else if (!previous || previous.userId !== next.userId || previous.sessionId !== next.sessionId || previous.expiresAt !== next.expiresAt) {
     await localDatabase.system.put({ key, value: JSON.stringify(next) });
   }
+}
+
+export async function storeOfflineSession(next: OfflineSession | null) {
+  await localDatabase.transaction('rw', localDatabase.system, async () => {
+    if (next && await readLogoutFence()) return;
+    await rememberOfflineSession(next);
+  });
 }

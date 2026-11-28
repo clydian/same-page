@@ -68,6 +68,11 @@ function SightSingingAccess({ owner, choirId, identity }: {
     useDriveLibraryResource(owner, choirId, authenticated, Boolean(sessionId), sessionId);
   const { member, signedOut, driveDenied } = sightSingingAccess(access, reading.authority, identity);
   const denied = signedOut || driveDenied;
+  useEffect(() => {
+    if (!denied || !userId || !sessionId) return;
+    const signal = new AbortController().signal;
+    void capturePublishedCatalog({ userId, choirId, sessionId }, signal).then(remember => remember([])).catch(() => undefined);
+  }, [choirId, denied, sessionId, userId]);
   const [admittedSession, setAdmittedSession] = useState<string | null>(null);
   const rememberedMember = sessionId === remembered?.sessionId && access.kind === 'opened'
     && access.local && access.rememberedMembership && !access.choir.isPreviewEntry;

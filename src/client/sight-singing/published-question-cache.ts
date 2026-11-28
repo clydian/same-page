@@ -40,7 +40,7 @@ async function captureWorkspace(scope: PublishedQuestionScope, id = '') {
 }
 
 export function readPublishedQuestionSession(userId: string) {
-  return Dexie.Promise.all([readOfflineSession(), readLogoutFence()]).then(([session, logout]) =>
+  return Dexie.Promise.all([readOfflineSession(), Dexie.waitFor(readLogoutFence())]).then(([session, logout]) =>
     session?.userId === userId && session.expiresAt > Date.now() && logout?.userId !== userId ? session : null);
 }
 
