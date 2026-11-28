@@ -182,6 +182,12 @@ export class Note {
     public tenutoPlacement: TenutoPlacement = TenutoPlacement.Automatic;
 
     /**
+     * Whether to engrave the MusicXML falloff articulation on this note.
+     * This is notation metadata and does not specify a pitch bend.
+     */
+    public isSourceFalloff: boolean = false;
+
+    /**
      * Gets or sets the bend type for this note.
      */
     public bendType: BendType = BendType.None;

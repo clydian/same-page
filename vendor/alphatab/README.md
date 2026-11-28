@@ -78,3 +78,7 @@ JSON／生成的 clone 传递可选显示字段；旧 JSON 缺字段时默认 nu
 ## samepage.24：无声音映射的念白保持静音 · #647
 
 MusicXML `unpitched` 只有在所用乐器声明了有效 `midi-unpitched`（1–128）时才产生声音；未指定 note/instrument 时沿用该 part 的默认乐器。无映射的念白保留原符头、歌词、节拍和定位，通过既有 articulation 的 `outputMidiNumber=-1` 内部哨兵在 MIDI 生成前跳过，不增加用户数据字段或修改附件。明确映射到 MIDI 0（MusicXML 值1）、其他打击乐和普通有音高 MIDI 0 继续播放。静音音符也不生成逐音 bend reset；JSON/clone 传递沿用已有 articulation 字段。历史固定制品和已公开源码档案保留。
+
+## samepage.25：重排谱面显示 MusicXML falloff
+
+MusicXML `<falloff/>` 随对应音头传递到渲染 Worker，在可见标准谱音头右侧绘制 SMuFL 短下滑记号并预留空间。它只表达谱面记号，回放沿用原始音高、节奏和音符事件。旧序列化数据缺省时不绘制。

@@ -214,6 +214,8 @@ export enum MusicFontSymbol {
     ArticMarcatoAbove = 0xe4ac,
     ArticMarcatoBelow = 0xe4ad,
 
+    BrassFallLipShort = 0xe5d7,
+
     FermataAbove = 0xe4c0,
     FermataBelow = 0xe4c1,
     FermataShortAbove = 0xe4c4,

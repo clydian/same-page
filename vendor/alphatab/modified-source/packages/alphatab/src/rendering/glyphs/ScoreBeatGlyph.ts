@@ -1,3 +1,4 @@
+import { EngravingSettings } from '@coderline/alphatab/EngravingSettings';
 import { Logger } from '@coderline/alphatab/Logger';
 import { AccentuationType } from '@coderline/alphatab/model/AccentuationType';
 import { BeatSubElement } from '@coderline/alphatab/model/Beat';
@@ -23,6 +24,7 @@ import type { EffectGlyph } from '@coderline/alphatab/rendering/glyphs/EffectGly
 import { GhostNoteContainerGlyph } from '@coderline/alphatab/rendering/glyphs/GhostNoteContainerGlyph';
 import { GlyphGroup } from '@coderline/alphatab/rendering/glyphs/GlyphGroup';
 import { GuitarGolpeGlyph } from '@coderline/alphatab/rendering/glyphs/GuitarGolpeGlyph';
+import { MusicFontGlyph } from '@coderline/alphatab/rendering/glyphs/MusicFontGlyph';
 import { NoteHeadGlyph, type NoteHeadGlyphBase } from '@coderline/alphatab/rendering/glyphs/NoteHeadGlyph';
 import { PercussionNoteHeadGlyph } from '@coderline/alphatab/rendering/glyphs/PercussionNoteHeadGlyph';
 import { PickStrokeGlyph } from '@coderline/alphatab/rendering/glyphs/PickStrokeGlyph';
@@ -31,6 +33,7 @@ import { ScoreNoteChordGlyph } from '@coderline/alphatab/rendering/glyphs/ScoreN
 import { ScoreRestGlyph } from '@coderline/alphatab/rendering/glyphs/ScoreRestGlyph';
 import { ScoreWhammyBarGlyph } from '@coderline/alphatab/rendering/glyphs/ScoreWhammyBarGlyph';
 import { SlashNoteHeadGlyph } from '@coderline/alphatab/rendering/glyphs/SlashNoteHeadGlyph';
+import { SpacingGlyph } from '@coderline/alphatab/rendering/glyphs/SpacingGlyph';
 import { StringNumberContainerGlyph } from '@coderline/alphatab/rendering/glyphs/StringNumberContainerGlyph';
 import type { ScoreBarRenderer } from '@coderline/alphatab/rendering/ScoreBarRenderer';
 import type { ScoreBeatContainerGlyph } from '@coderline/alphatab/rendering/ScoreBeatContainerGlyph';
@@ -47,6 +50,7 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
     private _collisionOffset: number = Number.NaN;
     private _skipPaint: boolean = false;
     private _whammy?: ScoreWhammyBarGlyph;
+    private _falloffs?: GlyphGroup;
 
     public noteHeads: ScoreNoteChordGlyph | null = null;
     public restGlyph: ScoreRestGlyph | null = null;
@@ -72,6 +76,9 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
         if (this._whammy?.hasBoundingBox) {
             y = Math.min(y, this._whammy.getBoundingBoxTop());
         }
+        if (this._falloffs) {
+            y = Math.min(y, this._falloffs.getBoundingBoxTop());
+        }
         return y;
     }
 
@@ -85,6 +92,9 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
 
         if (this._whammy?.hasBoundingBox) {
             y = Math.max(y, this._whammy.getBoundingBoxBottom());
+        }
+        if (this._falloffs) {
+            y = Math.max(y, this._falloffs.getBoundingBoxBottom());
         }
         return y;
     }
@@ -242,6 +252,23 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
                 if (note.isVisible) {
                     this._createNoteGlyph(note);
                     ghost.addParenthesis(note);
+                    if (note.isSourceFalloff && sr.smuflMetrics.hasSymbol(MusicFontSymbol.BrassFallLipShort)) {
+                        const scale =
+                            note.beat.graceType !== GraceType.None || note.isSmall ? EngravingSettings.GraceScale : 1;
+                        const glyph = new MusicFontGlyph(
+                            0,
+                            sr.getScoreY(sr.getNoteSteps(note)),
+                            scale,
+                            MusicFontSymbol.BrassFallLipShort
+                        );
+                        glyph.colorOverride = ElementStyleHelper.noteColor(
+                            sr.resources,
+                            NoteSubElement.StandardNotationEffects,
+                            note
+                        );
+                        this._falloffs ??= new GlyphGroup(0, 0);
+                        this._falloffs.addGlyph(glyph);
+                    }
                 }
             }
         }
@@ -278,6 +305,11 @@ export class ScoreBeatGlyph extends BeatOnNoteGlyphBase {
                 }
                 this.addEffect(group);
             }
+        }
+
+        if (this._falloffs) {
+            this.addEffect(new SpacingGlyph(0, 0, sr.smuflMetrics.postNoteEffectPadding));
+            this.addEffect(this._falloffs);
         }
 
         if (this.renderer.bar.isMultiVoice) {
