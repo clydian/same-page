@@ -36,6 +36,32 @@ export function matchTargetPitch(note: MelodyNote, sung: number) {
   return best;
 }
 
+function circularPitchMedian(pitches: number[], target: number) {
+  let x = 0, y = 0;
+  for (const pitch of pitches) {
+    const angle = ((pitch - target) % 12) * Math.PI / 6;
+    x += Math.cos(angle);
+    y += Math.sin(angle);
+  }
+  // Nearly opposing pitches do not provide a reliable place to cut the circle.
+  if (Math.hypot(x, y) < .1 * pitches.length) return null;
+
+  const anchor = target + Math.atan2(y, x) * 6 / Math.PI;
+  // Unwrap into the octave centered on the circular mean, then use an ordinary median.
+  const unwrapped = pitches.map(pitch => pitch - 12 * Math.floor((pitch - anchor + 6) / 12)).sort((a, b) => a - b);
+  const median = (unwrapped[Math.floor((pitches.length - 1) / 2)] + unwrapped[Math.floor(pitches.length / 2)]) / 2;
+
+  // Register is independent of pitch class. Only report a clearly dominant octave.
+  const octaves = new Map<number, number>();
+  for (const pitch of pitches) {
+    const octave = Math.round((pitch - median) / 12);
+    const count = (octaves.get(octave) ?? 0) + 1;
+    octaves.set(octave, count);
+    if (count > pitches.length * 2 / 3) return { median, sung: median + octave * 12 };
+  }
+  return { median, sung: null };
+}
+
 export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
   let cursor = 0;
   return notes.map(note => {
@@ -53,14 +79,19 @@ export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
     if (sampled === 0) {
       return { note, target: null, octave: null, sung: null, cents: null, status: 'insufficientData' } as const;
     }
-    pitches.sort((a, b) => a - b);
-    const voiced = pitches.length / sampled >= .5;
-    const sung = voiced ? (pitches[Math.floor((pitches.length - 1) / 2)] + pitches[Math.floor(pitches.length / 2)]) / 2 : null;
-    const match = sung === null ? null : matchTargetPitch(note, sung);
-    const cents = match ? Math.round(match.error * 1000) / 10 : null;
-    const status = cents === null ? 'missed' : Math.abs(cents) > maxMatchedCents ? 'wrongNote'
+    if (pitches.length / sampled < .5) {
+      return { note, target: null, octave: null, sung: null, cents: null, status: 'missed' } as const;
+    }
+    const pitch = circularPitchMedian(pitches, note.midi);
+    if (!pitch) {
+      return { note, target: null, octave: null, sung: null, cents: null, status: 'wrongNote' } as const;
+    }
+    // Compare one representative pitch with the chord, not one chord tone per frame.
+    const match = matchTargetPitch(note, pitch.sung ?? pitch.median);
+    const cents = Math.round(match.error * 1000) / 10;
+    const status = Math.abs(cents) > maxMatchedCents ? 'wrongNote'
       : cents > fullCreditCents ? 'sharp' : cents < -fullCreditCents ? 'flat' : 'inTune';
-    return { note, target: match?.midi ?? null, octave: match?.octave ?? null, sung, cents, status } as const;
+    return { note, target: match.midi, octave: pitch.sung === null ? null : match.octave, sung: pitch.sung, cents, status } as const;
   });
 }
 

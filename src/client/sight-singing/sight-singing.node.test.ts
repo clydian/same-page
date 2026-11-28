@@ -291,6 +291,28 @@ describe('pitch and feedback', () => {
     expect(boundary.map(row => takeScore([row]).percent)).toEqual([50, 50, 75, 0]);
     expect(takeScore(boundary.slice(0, 2))).toMatchObject({ percent: 50, matched: 2, perfect: true });
   });
+  it('folds octave jumps before taking the median and reports only a dominant register', () => {
+    const note = { midi: 60, start: 0, end: 1, bar: 0, visit: 0 };
+    const assess = (pitches: number[]) => assessNotes([note], pitches.map((midi, index) => ({ time: .2 + index * .1, midi })))[0];
+    const jumping = assess([60, 72, 60, 72]);
+    expect(jumping).toMatchObject({ cents: 0, octave: null, sung: null, status: 'inTune' });
+    expect(takeScore([jumping])).toMatchObject({ percent: 100, writtenOctave: false });
+    expect(assess([71.9, 72.1, 71.9, 72.1])).toMatchObject({ cents: 0, octave: 1, sung: 72, status: 'inTune' });
+    expect(assess([60, 60, 72, 60])).toMatchObject({ cents: 0, octave: 0, sung: 60, status: 'inTune' });
+    expect(assess([60.1, 71.9])).toMatchObject({ cents: 0, octave: null, status: 'inTune' });
+    const seam = assess([65.9, 54.1]);
+    expect(seam.status).toBe('wrongNote');
+    expect(Math.abs(seam.cents!)).toBe(600);
+    const opposed = assess([60, 66]);
+    expect(opposed).toMatchObject({ cents: null, octave: null, status: 'wrongNote' });
+    expect(takeScore([opposed])).toMatchObject({ total: 1, matched: 0, percent: 0 });
+  });
+  it('matches a single chord tone after folding rather than gathering different chord tones', () => {
+    const note = { midi: 60, chord: [60, 64], start: 0, end: 1, bar: 0, visit: 0 };
+    const assess = (pitches: number[]) => assessNotes([note], pitches.map((midi, index) => ({ time: .2 + index * .1, midi })))[0];
+    expect(assess([64, 76])).toMatchObject({ target: 64, octave: null, cents: 0, status: 'inTune' });
+    expect(assess([60, 64, 72, 76])).toMatchObject({ status: 'wrongNote' });
+  });
   it('distinguishes missing frames from sampled silence in consecutive thirty-second notes', () => {
     const pitches = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65];
     const secondsPerNote = 60 / 120 / 8;
