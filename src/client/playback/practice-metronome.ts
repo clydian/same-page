@@ -42,16 +42,20 @@ export async function loadPracticeClicks(context: AudioContext) {
   });
 }
 
+export function schedulePracticeClick(context: AudioContext, buffer: AudioBuffer, time: number, output: AudioNode = context.destination) {
+  const pulse = context.createBufferSource();
+  pulse.buffer = buffer;
+  pulse.connect(output);
+  pulse.start(time);
+}
+
 export function schedulePracticeClicks(context: AudioContext, buffers: AudioBuffer[], start: number, clicks: PracticeClick[], output: AudioNode = context.destination) {
   let next = 0;
   const schedule = () => {
     const until = context.currentTime + .75;
     while (next < clicks.length && start + clicks[next].time < until) {
       const { time, accent } = clicks[next++];
-      const pulse = context.createBufferSource();
-      pulse.buffer = buffers[accent];
-      pulse.connect(output);
-      pulse.start(start + time);
+      schedulePracticeClick(context, buffers[accent], start + time, output);
     }
     if (next === clicks.length) clearInterval(timer);
   };

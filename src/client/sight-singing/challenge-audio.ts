@@ -1,6 +1,6 @@
 import workletUrl from './capture-processor.js?url&no-inline';
 import { pcm16, waveFile } from '../playback/pcm-audio';
-import { loadPracticeClicks, practiceBeatAccent, schedulePracticeClicks } from '../playback/practice-metronome';
+import { loadPracticeClicks, practiceBeatAccent, schedulePracticeClick, schedulePracticeClicks } from '../playback/practice-metronome';
 import { loadPracticeSoundFont } from '../playback/practice-soundfont';
 import { createChoirBacking, scheduleChoirBacking } from './choir-backing';
 import { targetPitches, type Melody, type MelodyNote } from './melody';
@@ -89,7 +89,7 @@ export async function measureRecordingLatency(signal: AbortSignal) {
   }
 }
 
-function outputGain(context: AudioContext, level: number) {
+function outputGain(context: BaseAudioContext, level: number) {
   const gain = context.createGain();
   gain.gain.value = level;
   gain.connect(context.destination);
@@ -105,7 +105,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
   let active = true;
   let context = previewContext, stream: MediaStream | undefined;
   let input: MediaStreamAudioSourceNode | undefined, worklet: AudioWorkletNode | undefined;
-  let cancelCount: (() => void) | undefined, cancelMetronome: (() => void) | undefined;
+  let cancelMetronome: (() => void) | undefined;
   let cancelBacking: (() => void) | undefined;
   let backingGain: GainNode | undefined, clickGain: GainNode | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -113,7 +113,6 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     if (!active) return;
     active = false;
     clearTimeout(deadline);
-    cancelCount?.();
     cancelMetronome?.();
     cancelBacking?.();
     stream?.getTracks().forEach(track => track.stop());
@@ -148,6 +147,10 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     });
     const [,, opened, clickBuffers, soundFont] = await Promise.all([resumed, prepared, microphone, clicks, backing.length ? loadPracticeSoundFont() : null]);
     if (!active) return;
+    // Opening the microphone can restart the output route after the initial
+    // gesture has unlocked Web Audio. Wait for output again before counting in.
+    await context.resume();
+    if (!active) return;
     clearTimeout(deadline);
     const { sampleRate } = context;
     const choirBacking = soundFont ? createChoirBacking(backing, melody.duration, soundFont, sampleRate) : null;
@@ -165,8 +168,7 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     const countOffset = Math.max(0, margin - beatFrames * melody.beats);
     const countStart = (startFrame + countOffset) / sampleRate;
     const countBeat = beatFrames / sampleRate;
-    const countDuration = melody.beats * countBeat;
-    const start = countStart + countDuration;
+    const start = countStart + melody.beats * countBeat;
     worklet = new AudioWorkletNode(context, 'sight-singing-capture', {
       channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1],
       processorOptions: { beatFrames, beats: melody.beats,
@@ -198,14 +200,18 @@ export function beginCapture(melody: Melody, callbacks: CaptureCallbacks, backin
     input.connect(worklet);
     // No microphone samples are copied to the node output.
     worklet.connect(context.destination);
-    // A lead-in before the scored phrase is audible just like the count-in.
-    const countClicks = Array.from({ length: melody.beats }, (_, beat) => ({
-      time: beat * countBeat, accent: practiceBeatAccent(beat, melody.beats, melody.denominator),
-    }));
-    for (const click of melody.clicks) if (click.time < melody.leadIn) countClicks.push({ ...click, time: countDuration + click.time });
-    cancelCount = schedulePracticeClicks(context, clickBuffers, countStart, countClicks);
+    // Queue the full count-in and any lead-in on the audio clock before the score redraws.
+    for (let beat = 0; beat < melody.beats; beat++) {
+      const accent = practiceBeatAccent(beat, melody.beats, melody.denominator);
+      schedulePracticeClick(context, clickBuffers[accent], countStart + beat * countBeat);
+    }
+    const singingClicks: typeof melody.clicks = [];
+    for (const click of melody.clicks) {
+      if (click.time < melody.leadIn) schedulePracticeClick(context, clickBuffers[click.accent], start + click.time);
+      else singingClicks.push(click);
+    }
     clickGain = outputGain(context, Number(mix.metronome));
-    cancelMetronome = schedulePracticeClicks(context, clickBuffers, start, melody.clicks.filter(click => click.time >= melody.leadIn), clickGain);
+    cancelMetronome = schedulePracticeClicks(context, clickBuffers, start, singingClicks, clickGain);
     deadline = setTimeout(() => fail('audioInterrupted'), 5000 + (beatFrames * melody.beats + durationFrames + margin) / sampleRate * 1000);
     if (choirBacking) {
       backingGain = outputGain(context, mix.backing);
@@ -254,7 +260,7 @@ export function playSustainedTonic(midi: number, volume: number, onError: () => 
   }
 }
 
-function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: number, volume: number) {
+function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: number, volume: number, output: AudioNode = context.destination) {
   const tone = context.createPeriodicWave(new Float32Array(7), Float32Array.of(0, 1, .34, .26, .14, .09, .045));
   for (const note of notes) {
     const pitches = targetPitches(note);
@@ -267,13 +273,13 @@ function schedulePiano(context: BaseAudioContext, notes: MelodyNote[], start: nu
       gain.gain.linearRampToValueAtTime(level, on + Math.min(.007, (off - on) / 3));
       gain.gain.exponentialRampToValueAtTime(Math.max(.001, level * Math.exp(-(off - on) * 4)), off);
       gain.gain.exponentialRampToValueAtTime(.0001, off + .055);
-      oscillator.connect(gain).connect(context.destination);
+      oscillator.connect(gain).connect(output);
       oscillator.start(on); oscillator.stop(off + .055);
     }
   }
 }
 
-export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[], voiceVolume: number, duration: number, latencyMs: number) {
+export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[], voiceVolume: number, pianoVolume: number, duration: number, latencyMs: number) {
   // Input is the PCM WAV produced by beginCapture. Render on the recording's
   // sample clock so the native player's seek and speed controls keep the mix aligned.
   const data = new DataView(await recording.arrayBuffer());
@@ -284,12 +290,11 @@ export async function mixPianoAnswer(recording: Blob, notes: MelodyNote[], voice
   const buffer = context.createBuffer(1, length, sampleRate);
   const samples = buffer.getChannelData(0);
   for (let index = 0; index < length && index + offset < recordedLength; index++) samples[index] = data.getInt16(44 + (index + offset) * 2, true) / 32768;
-  const source = context.createBufferSource(), gain = context.createGain();
+  const source = context.createBufferSource();
   source.buffer = buffer;
-  gain.gain.value = .78 * voiceVolume;
-  source.connect(gain).connect(context.destination);
+  source.connect(outputGain(context, .78 * voiceVolume));
   source.start();
-  schedulePiano(context, notes, 0, .18);
+  if (pianoVolume > 0) schedulePiano(context, notes, 0, .18, outputGain(context, pianoVolume));
   const mixed = await context.startRendering();
   return waveFile([pcm16(mixed.getChannelData(0))], length, sampleRate);
 }
