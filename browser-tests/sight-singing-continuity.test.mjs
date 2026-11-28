@@ -14,6 +14,43 @@ const xml = `<score-partwise version="4.0"><part-list><score-part id="P1"><part-
 const title = "弱网回归练习";
 const noConnection = "暂时无法连接，已保存的内容仍然保留。";
 
+test("an installed PWA opens the tools and sight-singing entry on their first offline visit", { timeout: 90_000 }, async t => {
+  const fixture = await startStorageFixture({ authenticated: true, previewEntry: false });
+  let browser;
+  t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
+  browser = await chromium.launch();
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, serviceWorkers: "allow" });
+  const drive = `${fixture.origin}/choirs/${fixture.choirId}`;
+  const account = fixture.accounts[0];
+  assert.equal((await context.request.post(`${fixture.origin}/api/auth/sign-in/email`, {
+    headers: { origin: fixture.origin }, data: { email: account.email, password: account.password },
+  })).status(), 200);
+  const page = await context.newPage();
+  await page.goto(drive);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await expect(page.getByRole("link", { name: "本地链路测试", exact: true })).toBeVisible();
+  await context.setOffline(true);
+  await page.waitForFunction(() => !navigator.onLine);
+  const questionRequests = [];
+  page.on("request", request => {
+    if (request.url().includes("/sight-singing/questions")) questionRequests.push(request.url());
+  });
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "工具", exact: true }).click();
+  const challenge = page.getByRole("link", { name: "视唱练习", exact: true });
+  await expect(challenge).toBeVisible();
+  await expect(page.getByText("节奏练习", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "音高仪", exact: true })).toBeVisible();
+  await challenge.click();
+  await expect(page.getByRole("heading", { name: "视唱挑战", exact: true })).toBeVisible();
+  assert.deepEqual(questionRequests, []);
+  await page.getByRole("button", { name: "返回", exact: true }).click();
+  await expect(challenge).toBeVisible();
+  await context.setOffline(false);
+  await expect(challenge).toBeVisible();
+});
+
 async function holdNextRead(t, page, url) {
   const snapshot = Promise.withResolvers();
   const release = Promise.withResolvers();
@@ -65,9 +102,28 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   // Exercise a running shell whose precached worklet and soundfont can be read.
   await page.reload();
   assert.equal(await page.evaluate(() => Boolean(navigator.serviceWorker.controller)), true);
+  const boardRequest = `${challengeApi}/leaderboard?badges=1`;
+  const initialBoard = page.waitForResponse(boardRequest);
   await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "工具", exact: true }).click();
   await page.getByRole("link", { name: "视唱练习", exact: true }).click();
-  await page.getByRole("button", { name: new RegExp(title) }).click();
+  const questionButton = page.getByRole("button", { name: new RegExp(title) });
+  await expect(questionButton).toBeVisible();
+  await (await initialBoard).finished();
+  const cloudNotices = page.getByRole("region", { name: "云盘题目", exact: true }).getByRole("status");
+  const failRead = route => route.fulfill({ status: 503, json: { error: "unavailable" } });
+  await page.route(questions, failRead);
+  await page.route(boardRequest, failRead);
+  const failures = [questions, boardRequest].map(url => page.waitForResponse(response => response.url() === url && response.status() === 503));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await Promise.all(failures);
+  await expect(cloudNotices).toHaveCount(1);
+  await expect(cloudNotices).toContainText(noConnection);
+  await expect(questionButton).toBeVisible();
+  await page.unroute(questions, failRead);
+  await page.unroute(boardRequest, failRead);
+  await page.getByRole("button", { name: "重新加载", exact: true }).click();
+  await expect(cloudNotices).toHaveCount(0);
+  await questionButton.click();
   const heading = page.getByRole("heading", { name: title, exact: true });
   await expect(heading).toBeVisible();
   const run = page.locator(".challenge-run");

@@ -85,14 +85,15 @@ function ChallengeEntry({ choirId, denied, signedOut = false, loading = false, r
 }) {
   const t = useMessages('practice');
   const entry = useMessages('entry');
+  const online = useNetworkStatus();
   return <div className="app-page">
-    <TaskHeader title={t('sight.title')} backTo={`/choirs/${choirId}`} />
+    <TaskHeader title={t('sight.title')} backTo={`/choirs/${choirId}/tools`} />
     <main className="page-shell settings-page challenge-page">
       {loading ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
         : signedOut ? <p><Link to={loginHref(`/choirs/${choirId}/sight-singing`)}>{entry('identity.loginAgain')}</Link></p>
         : denied ? <p role="status">{t('sight.needMember')}</p>
-          : <p role="status">{entry('identity.unreachable')}{' '}
-            <button type="button" className="text-button" onClick={retry}>{entry('identity.retryConnection')}</button></p>}
+          : <p role="status">{entry('identity.unreachable')}{online && <>{' '}
+            <button type="button" className="text-button" onClick={retry}>{entry('identity.retryConnection')}</button></>}</p>}
     </main>
   </div>;
 }
@@ -131,6 +132,8 @@ function publisherLabel(publisher: PublishedQuestion['publisher'], t: ReturnType
 
 function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: string }) {
   const t = useMessages('practice');
+  const entry = useMessages('entry');
+  const online = useNetworkStatus();
   const questions = useLiveQuery(() => readQuestions(props.owner, props.choirId).catch(() => null), [props.owner, props.choirId]);
   const published = useChallengeRead(props, { variant: 'questions' }, signal =>
     readSightSinging(publishedPath(props.choirId), publishedQuestionsSchema, signal));
@@ -208,15 +211,16 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const legacyQuestions = questions?.filter(question => !published.data?.questions.some(item => item.id === question.id));
   const listPending = props.canReadCloud && !published.data && !published.error;
   const boardPending = props.canReadCloud && !board.data && !board.error;
+  const readMessage = !published.data && !listPending ? t('sight.publishedError')
+    : published.data && !board.data && !boardPending ? t('sight.publishedResultsError')
+      : published.data && (published.error || board.error) ? entry('identity.unreachable') : null;
   return <div className="app-page challenge-library">
-    <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}`} />
+    <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}/tools`} />
     <main className="page-shell settings-page challenge-page">
       {resultNotice}
       <section className="challenge-library-section" aria-label={t('sight.publishedQuestions')}>
-        {(published.error || !published.data && !listPending) && <p role="status">{t('sight.publishedError')}{' '}
-          <button type="button" className="text-button" onClick={refresh}>{t('sight.retryLoad')}</button></p>}
-        {published.data && (board.error || !board.data && !boardPending) && <p role="status">{t('sight.publishedResultsError')}{' '}
-          <button className="text-button" type="button" onClick={refresh}>{t('sight.retryLoad')}</button></p>}
+        {readMessage && <p role="status">{readMessage}{online && <>{' '}
+          <button type="button" className="text-button" onClick={refresh}>{t('sight.retryLoad')}</button></>}</p>}
         {listPending && <LoadingStatus>{t('sight.loading')}</LoadingStatus>}
         {published.data && <QuestionList questions={published.data.questions} leaderboard={board.data ?? (boardPending ? undefined : null)}
           reads={reads} open={question => setSelection({ question })} />}
