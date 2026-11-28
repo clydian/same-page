@@ -278,14 +278,15 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
       invalidateReadResources(key => key.owner === props.owner && key.driveId === props.choirId && key.variant === 'questions');
       refresh();
     }} onBack={() => { setSelection(null); refresh(); }} />;
-  const shown = online && catalog ? catalog : available?.map(copy => copy.question).sort((a, b) => a.title.localeCompare(b.title));
+  const cachedQuestions = available?.map(copy => copy.question).sort((a, b) => a.title.localeCompare(b.title));
+  const shown = online && catalog ? catalog : cachedQuestions?.length ? cachedQuestions : undefined;
   const legacyQuestions = questions?.filter(question => !catalog?.some(item => item.id === question.id));
   const listPending = props.canReadCloud && !catalog && !published.error && !shown?.length;
   const boardPending = props.canReadCloud && !board.data && !board.error;
   const readMessage = !online || !props.canReadCloud ? entry('identity.unreachable')
     : !shown && !listPending ? t('sight.publishedError')
-      : shown && (published.error || board.error) ? entry('identity.unreachable')
-        : shown && !board.data && !boardPending ? t('sight.publishedResultsError') : null;
+      : catalog && !board.data && !boardPending ? t('sight.publishedResultsError')
+        : shown && (published.error || board.error) ? entry('identity.unreachable') : null;
   return <div className="app-page challenge-library">
     <TaskHeader title={t('sight.title')} subtitle={driveName} backTo={`/choirs/${props.choirId}/tools`} />
     <main className="page-shell settings-page challenge-page">
