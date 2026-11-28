@@ -6,8 +6,9 @@ import { FileOpenLink } from "./file-open-link";
 import { useOfflineScore } from "../offline/use-offline-score";
 import { experienceOwnerKey, authenticatedLocalOwnerKey, createLocalWorkspace, currentLocalOwnerKey } from "../platform/local-workspace";
 
-export function ScoreLink({ userId, choirId, scoreId, local, experience = false, explainUnavailable = true, label, description, children, onOpen, onClick }: {
+export function ScoreLink({ userId, choirId, scoreId, local, experience = false, explainUnavailable = true, label, description, children, onOpen, onClick, onLongPress }: {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  onLongPress?: () => void;
   explainUnavailable?: boolean; label: string; description: string; experience?: boolean; userId?: string; choirId: string; scoreId: string; local: boolean; children: ReactNode; onOpen: () => void;
 }) {
   const t = useMessages("library");
@@ -21,8 +22,12 @@ export function ScoreLink({ userId, choirId, scoreId, local, experience = false,
   const offline = useOfflineScore(workspace);
   const ready = offline?.scopeKey === workspace?.scopeKey && offline?.record && !offline.invalid;
   const inspected = Boolean(workspace && offline?.scopeKey === workspace.scopeKey);
-  const unavailable = inspected ? offline?.readFailed ? t("scoreLinkLocalCopyCannotVerified") : t("localLibraryNoOfflineCopyAvailable") : t("scoreLinkConfirmingHowOpen");
-  return local && !ready
-    ? <div className="file-row__open" aria-disabled="true" aria-label={label} aria-description={`${description}，${unavailable}`} title={unavailable}>{children}{explainUnavailable && <span className="file-row__unavailable">{unavailable}</span>}</div>
-    : <FileOpenLink aria-label={label} aria-description={description} className="file-row__open" to={readerHref({ choirId, scoreId, experience })} onClick={event => { onClick?.(event); if (!event.defaultPrevented) onOpen(); }}>{children}</FileOpenLink>;
+  const unavailable = local && !ready
+    ? inspected ? offline?.readFailed ? t("scoreLinkLocalCopyCannotVerified") : t("localLibraryNoOfflineCopyAvailable") : t("scoreLinkConfirmingHowOpen")
+    : undefined;
+  return <FileOpenLink aria-label={label} aria-description={unavailable ? `${description}，${unavailable}` : description} className="file-row__open"
+    to={readerHref({ choirId, scoreId, experience })} unavailable={unavailable} onLongPress={onLongPress}
+    onClick={event => { onClick?.(event); if (!event.defaultPrevented) onOpen(); }}>
+    {children}{unavailable && explainUnavailable && <span className="file-row__unavailable">{unavailable}</span>}
+  </FileOpenLink>;
 }

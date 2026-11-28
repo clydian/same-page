@@ -19,7 +19,7 @@ import { rememberLastDrive, forgetLastDrive } from "../score-library/last-drive"
 import { presentationSessionId as resolvePresentationSessionId, useApplicationIdentity, type ApplicationIdentity } from "../auth/application-identity";
 import { IdentityNotice } from "../auth/local-entry";
 import { FileMusic, LoaderCircle } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import {
   Button,
   Form,
@@ -295,16 +295,33 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
             <section className="file-list" aria-label={t("choirPdfFile")}>
               {visibleScores.map((score) => {
                 const presentation = attachments.forScore(score);
+                const name = scoreDisplayName(score.fileName);
                 return (
-                <article className="score-file-group" data-returned-score={openedScoreId === score.id || undefined} key={score.id}><div className="file-row">
-                  <PreparedScoreLink score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={false} experience={choir.isPreviewEntry === true} label={scoreDisplayName(score.fileName)} description={t("choirFileSize", { fileSize: formatFileSize(score.currentVersion.sizeBytes) })} userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly}
-                    onOpen={scrollY => beforeScoreOpen(score, scrollY)}
-                  >
-                    {(opening, percent) => <>
-                    <span className="pdf-file-icon" aria-hidden="true">{opening && percent === null ? <LoaderCircle size={18} className="prepared-score-spinner" /> : "PDF"}</span>
-                    <span className="file-row__info"><span className="file-row__name" title={scoreDisplayName(score.fileName)}>{scoreDisplayName(score.fileName)}</span><span className="file-row__size">{opening ? t(percent !== null ? "scoreDownloading" : "scoreOpening") : formatFileSize(score.currentVersion.sizeBytes)}{presentation.hasGeneratedXml && <span className="file-row__practice" role="img" aria-label={t("choirThereAutomaticallyGeneratedPractice")} title={t("choirExerciseVersionHasBeen")}><FileMusic size={12} aria-hidden="true" /></span>}</span></span>
-                  </>}
-                  </PreparedScoreLink>
+                <article className="score-file-group" data-returned-score={openedScoreId === score.id || undefined} key={score.id}>
+                <ScoreFileRow score={score} sessionId={identity.authenticatedSessionId} explainUnavailable={false}
+                  experience={choir.isPreviewEntry === true} label={name} description={t("choirFileSize", { fileSize: formatFileSize(score.currentVersion.sizeBytes) })}
+                  userId={userId} choirId={choirId} scoreId={score.id} local={localFilesOnly} hasGeneratedXml={presentation.hasGeneratedXml}
+                  onOpen={scrollY => beforeScoreOpen(score, scrollY)} menu={
+                  <Popover className="file-menu-popover">
+                    <Menu
+                      aria-label={t("choirOperation", { name: String(name) })}
+                      disabledKeys={!online || access.local ? ["rename", "replace", "trash", "attachment-add"] : []}
+                      onAction={key => {
+                        if (key === "export") setExportScore(score);
+                        else if (key === "attachment-add") selectAttachment({ score, action: "add" });
+                        else openScoreAction(score, key as ScoreAction);
+                      }}
+                    >
+                      <MenuItem id="export">{t("sharePdf")}</MenuItem>
+                      {visible("uploadFiles") && <MenuItem id="attachment-add">{t("addAttachment")}</MenuItem>}
+                      {managementVisible && <>
+                      {visible("modifyFiles") && <MenuItem id="rename">{t("rename")}</MenuItem>}
+                      {visible("modifyFiles") && <MenuItem id="replace">{t("replacePdf")}</MenuItem>}
+                      {visible("trashFiles") && <MenuItem id="trash">{t("moveToTrash")}</MenuItem>}
+                      </>}
+                    </Menu>
+                  </Popover>
+                }>
                   <AttachmentCount score={score} count={presentation.count} expanded={expandedScoreIds.has(score.id)} disabled={false}
                     onToggle={() => {
                       const expanding = !expandedScoreIds.has(score.id);
@@ -315,31 +332,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
                     beforeScoreOpen(score);
                     void navigate(readerHref({ choirId, scoreId: score.id, experience: choir.isPreviewEntry === true }));
                   }} /></div>
-                  <MenuTrigger>
-                      <Button className="file-menu-button" aria-label={t("choirMoreOperations", { name: String(scoreDisplayName(score.fileName)) })}>
-                        ···
-                      </Button>
-                      <Popover className="file-menu-popover">
-                        <Menu
-                          aria-label={t("choirOperation", { name: String(scoreDisplayName(score.fileName)) })}
-                          disabledKeys={!online || access.local ? ["rename", "replace", "trash", "attachment-add"] : []}
-                          onAction={key => {
-                            if (key === "export") setExportScore(score);
-                            else if (key === "attachment-add") selectAttachment({ score, action: "add" });
-                            else openScoreAction(score, key as ScoreAction);
-                          }}
-                        >
-                          <MenuItem id="export">{t("sharePdf")}</MenuItem>
-                          {visible("uploadFiles") && <MenuItem id="attachment-add">{t("addAttachment")}</MenuItem>}
-                          {managementVisible && <>
-                          {visible("modifyFiles") && <MenuItem id="rename">{t("rename")}</MenuItem>}
-                          {visible("modifyFiles") && <MenuItem id="replace">{t("replacePdf")}</MenuItem>}
-                          {visible("trashFiles") && <MenuItem id="trash">{t("moveToTrash")}</MenuItem>}
-                          </>}
-                        </Menu>
-                      </Popover>
-                    </MenuTrigger>
-                </div>
+                </ScoreFileRow>
                 <div id={`score-attachments-${score.id}`} hidden={!expandedScoreIds.has(score.id)}>
                   {/* Ready empty rows must also finish the explicit reveal request. */}
                   {expandedScoreIds.has(score.id) && (presentation.count > 0 || attachments.statusFor(score.id) === "ready") && (attachments.statusFor(score.id) === "unavailable" ? <p className="attachment-pending attachment-help" role="status">{t("choirDeviceHasNotSaved")}</p>
@@ -389,6 +382,36 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
       ) : null}
     </DrivePage>{attachmentDialog}</>
   );
+}
+
+function ScoreFileRow({ label, hasGeneratedXml, menu, children, ...openProps }: Omit<ComponentProps<typeof PreparedScoreLink>, "children" | "onLongPress"> & {
+  hasGeneratedXml: boolean; menu: ReactNode; children: ReactNode;
+}) {
+  const t = useMessages("library");
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  return <div className="file-row">
+    <PreparedScoreLink {...openProps} label={label} onLongPress={() => {
+      trigger.current?.focus({ preventScroll: true });
+      setMenuOpen(true);
+    }}>
+      {(opening, percent) => <>
+        <span className="pdf-file-icon" aria-hidden="true">{opening && percent === null ? <LoaderCircle size={18} className="prepared-score-spinner" /> : "PDF"}</span>
+        <span className="file-row__info">
+          <span className="file-row__name" title={label}>{label}</span>
+          <span className="file-row__size">
+            {opening ? t(percent !== null ? "scoreDownloading" : "scoreOpening") : formatFileSize(openProps.score.currentVersion.sizeBytes)}
+            {hasGeneratedXml && <span className="file-row__practice" role="img" aria-label={t("choirThereAutomaticallyGeneratedPractice")} title={t("choirExerciseVersionHasBeen")}><FileMusic size={12} aria-hidden="true" /></span>}
+          </span>
+        </span>
+      </>}
+    </PreparedScoreLink>
+    {children}
+    <MenuTrigger isOpen={menuOpen} onOpenChange={setMenuOpen}>
+      <Button ref={trigger} className="file-menu-button" aria-label={t("choirMoreOperations", { name: label })}>···</Button>
+      {menu}
+    </MenuTrigger>
+  </div>;
 }
 
 function formatFileSize(bytes: number) {
