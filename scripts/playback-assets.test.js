@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { CoreSettings } from '@coderline/alphatab';
-import { playbackAssets } from './playback-assets.ts';
+import { playbackAssets, playbackFontDirectory } from './playback-assets.ts';
 import { shellManifest } from './shell-manifest.ts';
 const directories=[];
 afterEach(async()=>{await Promise.all(directories.splice(0).map(dir=>rm(dir,{recursive:true,force:true})));});
@@ -13,6 +13,7 @@ it.each(['/', '/_releases/release-one/'])('pins public roots under %s for the lo
  const code=plugin.transform(original,'/node_modules/@same-page/player/dist/session.js');
  expect(plugin.transform(original,'/repo/packages/player/dist/session.js')).toBe(code);
  expect(code).toContain(`${assetBase}playback/release-one/font/`);expect(code).toContain(`${assetBase}playback/release-one/soundfont/sonivox.sf2`);
+ expect(code).toContain(playbackFontDirectory('release-one',assetBase));
  expect(plugin.transform(original,'/another/session.js')).toBeUndefined();
  expect(()=>plugin.transform('changed','/node_modules/@same-page/player/dist/session.js')).toThrow('player_resource_contract_changed');
 });
@@ -25,6 +26,7 @@ it.each(['/', '/_releases/release-one/'])('includes the static player closure un
   'assets/common-one.js':{type:'chunk',imports:[],dynamicImports:['assets/admin-one.js']},
   'assets/admin-one.js':{type:'chunk',imports:[],dynamicImports:[]},
   'assets/prepare.worker-one.js':{type:'asset'},
+  'assets/alphaTab.worker-one.js':{type:'asset'},
   'assets/alphaTab.worklet-one.js':{type:'asset'},
  };
  for(const file of ['index.html',...Object.keys(bundle),'font/Bravura.woff2','font/Bravura.woff','font/Bravura.otf','font/Bravura.eot','font/Bravura.svg','font/bravura_metadata.json','soundfont/sonivox.sf2']) await writeFile(path.join(root,file),file);
@@ -50,5 +52,6 @@ it.each(['/', '/_releases/release-one/'])('includes the static player closure un
  expect(shell.manifest.find(entry=>entry.url.endsWith('/manifest.json')).url).toBe(`${assetBase}playback/release-one/manifest.json`);
  for (const entry of player.entries) expect(shell.manifest.find(item=>item.url===entry.url)).toMatchObject({integrity:entry.integrity,bytes:entry.bytes});
  expect(shell.manifest.some(entry=>entry.url.endsWith('/assets/audio-player-one.js'))).toBe(true);
+ expect(shell.manifest.filter(entry=>entry.url.endsWith('/assets/alphaTab.worker-one.js'))).toHaveLength(1);
  expect(shell.manifest.filter(entry=>entry.url.endsWith('/assets/common-one.js'))).toHaveLength(1);
 });

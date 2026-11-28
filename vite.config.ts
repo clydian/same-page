@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-import { playbackAssets } from "./scripts/playback-assets";
+import { playbackAssets, playbackFontDirectory } from "./scripts/playback-assets";
 import { shellManifest } from "./scripts/shell-manifest";
 import { pdfJsAssets } from "./scripts/pdfjs-assets-plugin.ts";
 import { formatBuildVersion } from "./scripts/build-version.mjs";
@@ -46,6 +46,7 @@ export default defineConfig(({ isPreview, command }) => {
       backup: process.env.VITE_CONNECTION_BACKUP_ORIGIN ?? "https://samepage-alt.clyapps.com",
     } }),
     __SAME_PAGE_ASSET_BASE__: JSON.stringify(assetBase),
+    __SAME_PAGE_NOTATION_FONT_DIRECTORY__: JSON.stringify(command === "build" ? playbackFontDirectory(buildId, assetBase) : "/font/"),
     __SAME_PAGE_RELEASE_CHANNELS__: JSON.stringify(process.env.SAME_PAGE_RELEASE_CHANNELS === "1"),
     __SAME_PAGE_BUILD_RUN_ID__: JSON.stringify(buildRunId),
     __SAME_PAGE_BUILD_PUBLISHED_DATE__: JSON.stringify(buildPublishedDate),
@@ -76,6 +77,9 @@ export default defineConfig(({ isPreview, command }) => {
       },
     ] } } },
   },
+  // AlphaTab builds its own workers through the Vite bridge, which takes
+  // these output options instead of inheriting Vite's client minifier.
+  worker: { rolldownOptions: { output: { minify: true } } },
   plugins: [
     playbackAssets(buildId, assetBase),
     pdfJsAssets(),

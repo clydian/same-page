@@ -6,17 +6,19 @@ import type { Plugin } from 'vite';
 // alphaTab CoreSettings.buildDefaultSmuflFontSources uses these three formats.
 // Keep server-side legacy files; only the new optional offline manifest narrows.
 const playbackFonts = new Set(['Bravura.woff2', 'Bravura.woff', 'Bravura.otf']);
+const playbackDirectory = (buildId: string) => `playback/${encodeURIComponent(buildId)}/`;
+export const playbackFontDirectory = (buildId: string, assetBase: string) => `${assetBase}${playbackDirectory(buildId)}font/`;
 
 // Give each build immutable resource URLs for offline playback. Match Vite's
 // real workspace path as well as the installed package path.
 export function playbackAssets(buildId: string, assetBase = "/"): Plugin {
-  const base = `playback/${encodeURIComponent(buildId)}/`;
+  const base = playbackDirectory(buildId);
   return {
     name: 'same-page-playback-assets', enforce: 'pre',
     transform(code, id) {
       if (!/\/(?:packages\/player|node_modules\/@same-page\/player)\/dist\/session\.js$/.test(id.replaceAll('\\', '/'))) return;
       if (!code.includes("'/font/'") || !code.includes("'/soundfont/sonivox.sf2'")) throw new Error('player_resource_contract_changed');
-      return code.replace("'/font/'", JSON.stringify(`${assetBase}${base}font/`)).replace("'/soundfont/sonivox.sf2'", JSON.stringify(`${assetBase}${base}soundfont/sonivox.sf2`));
+      return code.replace("'/font/'", JSON.stringify(playbackFontDirectory(buildId, assetBase))).replace("'/soundfont/sonivox.sf2'", JSON.stringify(`${assetBase}${base}soundfont/sonivox.sf2`));
     },
     async writeBundle(options, bundle) {
       const root = options.dir!;

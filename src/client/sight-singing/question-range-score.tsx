@@ -1,6 +1,7 @@
 import { AlphaTabApi, LayoutMode, NotationElement, PlayerMode, StaveProfile, type rendering } from '@coderline/alphatab';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
+import { notationFontDirectory } from '../../shared/asset-url';
 import type { QuestionBeats } from '../../shared/sight-singing';
 import { visitWindow, type MelodyScore } from './melody';
 import { measureEdge } from './notation-timing';
@@ -50,7 +51,7 @@ export function QuestionRangeScore({ document, first, last, active, beats }: {
   useEffect(() => {
     if (!notation.current) return;
     const api = new AlphaTabApi(notation.current, {
-      core: { fontDirectory: '/font/', engine: 'svg' },
+      core: { fontDirectory: notationFontDirectory, engine: 'svg' },
       display: { scale: .8, layoutMode: LayoutMode.Page, staveProfile: StaveProfile.Score, justifyLastSystem: true },
       player: { playerMode: PlayerMode.Disabled, enableUserInteraction: false },
     });
