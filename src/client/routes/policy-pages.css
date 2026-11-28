@@ -13,4 +13,5 @@
 .policy-plan .policy-plan-status { border-top: 1px solid var(--line); padding-top: 1rem; font-size: .85rem; }
 .policy-document ol { padding-left: 1.5rem; }
 .policy-document section { scroll-margin-top: 5rem; }
+.policy-preview-action[data-focus-visible] { outline: 2px solid var(--brand); outline-offset: 3px; }
 @media (max-width: 650px) { .policy-plans { grid-template-columns: 1fr; } .policy-plan { padding: 1.25rem; } }

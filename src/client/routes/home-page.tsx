@@ -3,23 +3,18 @@ import { useDriveInvitation } from "../drives/use-drive-invitation";
 import { JoinDriveDialog, JoinDrivePanel } from "../drives/join-drive-dialog";
 import { FeatureAnimation } from "../components/feature-animation";
 import { FeedbackMessage } from "../components/feedback-message";
-import { useFeedbackMessage } from "../components/use-feedback-message";
+import { usePreviewEntry } from "../drive-entry/use-preview-entry";
 import { InstallButton } from "../install/install-entry";
 import { useInstall } from "../install/install-context";
 import { createDriveHref, loginHref } from "../auth/login-return";
 import { useApplicationIdentity } from "../auth/application-identity";
 import { StartupEntry } from "../auth/startup-entry";
 import type { ApplicationIdentity } from "../auth/application-identity";
-import { diagnosticFetch } from "../diagnostics/diagnostics";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "react-aria-components";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { BottomNavigation } from "../components/bottom-navigation";
-import {
-  previewChoirResponseSchema,
-  type ChoirSummary,
-} from "../../shared/choirs";
 import sharedLayersIllustration from "../assets/home/shared-layers.webp";
 import sharedLayersAnimation from "../assets/home/shared-layers-animation.webp";
 import personalLayerAnimation from "../assets/home/personal-layer-animation.webp";
@@ -35,10 +30,6 @@ import {
 import { AppHeader } from "../components/app-header";
 import { startLoadingJourney } from "../performance/loading-performance";
 import "../drive-entry/drive-entry.css";
-import {
-  driveCacheOwnerKey,
-  rememberDriveSummary,
-} from "../score-library/drive-library-cache";
 
 
 const productFeatures = [
@@ -78,43 +69,14 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
   const { session } = identity;
   const t = useMessages("entry");
   const location = useLocation();
-  const navigate = useNavigate();
   const install = useInstall();
   const [startupDismissed, setStartupDismissed] = useState(false);
   const startupIntent = startup && !startupDismissed && location.pathname === "/" && !location.search && !location.hash;
   const [joinOpen, setJoinOpen] = useState(false);
-  const [previewChoir, setPreviewChoir] = useState<ChoirSummary | null>();
-  const [previewAttempt, setPreviewAttempt] = useState(0);
-  const previewFeedback = useFeedbackMessage();
-  const { setMessage: setPreviewMessage, dismiss: dismissPreviewMessage } = previewFeedback;
-  const openPreviewOnLoad = useRef(false);
   const hasDriveIdentity = Boolean(identity.authenticatedUserId || identity.localUserId);
   const appEntry = startupIntent && install?.runningInApp && !hasDriveIdentity;
   const userId = session.data?.user.id;
-  useEffect(() => {
-    let active = true;
-    void loadPreviewChoir().then((choir) => {
-      if (!active) return;
-      setPreviewChoir(choir);
-      if (choir) {
-        rememberDriveSummary(
-          driveCacheOwnerKey(userId ?? null, choir.id),
-          choir,
-        );
-      }
-      if (!openPreviewOnLoad.current) return;
-      openPreviewOnLoad.current = false;
-      if (!choir) {
-        setPreviewMessage("unavailable", { duration: 5000 });
-        return;
-      }
-      startLoadingJourney("enter-drive", "warm");
-      void navigate(`/choirs/${choir.id}`);
-    });
-    return () => {
-      active = false;
-    };
-  }, [previewAttempt, userId, navigate, setPreviewMessage]);
+  const preview = usePreviewEntry(userId, true);
 
   useEffect(() => {
     if (session.isPending || !userId) return;
@@ -126,18 +88,13 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
     setJoinOpen(false);
   };
 
-  const previewAction = previewChoir ? (
-    <Link className={hasDriveIdentity ? "hero-text-link" : appEntry ? "secondary-button" : "primary-button"} to={`/choirs/${previewChoir.id}`}
+  const previewAction = preview.href ? (
+    <Link className={hasDriveIdentity ? "hero-text-link" : appEntry ? "secondary-button" : "primary-button"} to={preview.href}
       onClick={() => startLoadingJourney("enter-drive", "warm")}>
       {t("home.preview")}
     </Link>
   ) : !hasDriveIdentity && (
-    <Button className={appEntry ? "secondary-button" : "primary-button"} isPending={previewChoir === undefined} onPress={() => {
-      dismissPreviewMessage();
-      openPreviewOnLoad.current = true;
-      setPreviewChoir(undefined);
-      setPreviewAttempt(attempt => attempt + 1);
-    }}>
+    <Button className={appEntry ? "secondary-button" : "primary-button"} isPending={preview.pending} onPress={preview.open}>
       {t("home.preview")}
     </Button>
   );
@@ -180,8 +137,7 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
                   {previewAction}
                 </div>
                 <Button className="secondary-button" onPress={() => {
-                  openPreviewOnLoad.current = false;
-                  dismissPreviewMessage();
+                  preview.cancel();
                   setStartupDismissed(true);
                   setJoinOpen(true);
                 }}>
@@ -239,16 +195,6 @@ function HomeContent({ identity, startup }: { identity: ApplicationIdentity; sta
   );
   return <>
     {startupIntent && !joinOpen ? <StartupEntry identity={identity}>{content}</StartupEntry> : content}
-    <FeedbackMessage feedback={{ ...previewFeedback, message: previewFeedback.message ? t("home.previewUnavailable") : null }} />
+    <FeedbackMessage feedback={preview.feedback} />
   </>;
-}
-
-async function loadPreviewChoir(): Promise<ChoirSummary | null> {
-  try {
-    const response = await diagnosticFetch("/api/guest/preview-choir");
-    if (!response.ok) return null;
-    return previewChoirResponseSchema.parse(await response.json()).choir;
-  } catch {
-    return null;
-  }
 }

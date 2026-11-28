@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdir } from "node:fs/promises";
-import { chromium, webkit } from "@playwright/test";
+import { chromium, expect, webkit } from "@playwright/test";
+import { createVisualFixtureSession } from "./fixtures.mjs";
 import { startVisualServer } from "./setup.mjs";
 
 // Protect public access, truthful launch status and usable navigation on narrow screens.
@@ -44,5 +45,59 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         await context.close();
       }
     } finally { await browser?.close(); await server.stop(); }
+  });
+
+  test(`${name}: pricing opens the configured public example on request and permits retry`, async () => {
+    const server = await startVisualServer({ script: "dev" });
+    let browser;
+    const firstLookup = Promise.withResolvers();
+    try {
+      browser = await engine.launch();
+      const page = await browser.newPage({
+        locale: "zh-CN", viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: "block",
+      });
+      const fixture = createVisualFixtureSession();
+      let lookups = 0;
+      const authWrites = [];
+      await page.route("**/api/**", async route => {
+        const request = route.request();
+        const pathname = new URL(request.url()).pathname;
+        const method = request.method();
+        if (pathname.startsWith("/api/auth/") && method !== "GET") authWrites.push(pathname);
+        if (pathname === "/api/guest/preview-choir" && ++lookups === 1) {
+          await firstLookup.promise;
+          return route.fulfill({ status: 503, json: {} });
+        }
+        return route.fulfill(fixture.resolve({ pathname, method, identity: "guest", cookie: (await request.headerValue("cookie")) ?? "" }));
+      });
+      await page.goto(`${server.origin}/pricing`);
+      const trial = page.getByRole("region", { name: "免费体验与已有云盘" });
+      const action = trial.getByRole("button", { name: "打开示例乐谱" });
+      await expect(action).toBeVisible();
+      assert.equal(lookups, 0);
+      for (let index = 0; index < 8 && !(await action.evaluate(el => el === document.activeElement)); index++) {
+        await page.keyboard.press("Tab");
+      }
+      await expect(action).toBeFocused();
+      await expect(action).toHaveAttribute("data-focus-visible", "true");
+      assert.ok((await action.boundingBox()).height >= 44);
+      await page.keyboard.press("Enter");
+      await expect.poll(() => lookups).toBe(1);
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(`${server.origin}/pricing`);
+      firstLookup.resolve();
+      await expect(page.getByRole("status").filter({ hasText: "示例没能打开，请再试一次。" })).toBeVisible();
+      assert.equal(lookups, 1);
+
+      await action.tap();
+      await expect(page).toHaveURL(`${server.origin}/choirs/visual-preview-choir`);
+      await expect(page.getByRole("heading", { name: "公开体验云盘", exact: true })).toBeVisible();
+      assert.equal(lookups, 2);
+      assert.deepEqual(authWrites, []);
+    } finally {
+      firstLookup.resolve();
+      await browser?.close();
+      await server.stop();
+    }
   });
 }

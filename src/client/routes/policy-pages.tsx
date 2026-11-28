@@ -1,6 +1,10 @@
 import { NavLink, Link } from "react-router-dom";
+import { Button } from "react-aria-components";
 import { useMessages } from "../../i18n";
+import { useApplicationIdentity } from "../auth/application-identity";
+import { FeedbackMessage } from "../components/feedback-message";
 import { TaskHeader } from "../components/task-header";
+import { usePreviewEntry } from "../drive-entry/use-preview-entry";
 import "./policy-pages.css";
 
 const titles = { pricing: "价格与方案", terms: "服务条款", refunds: "取消与退款" };
@@ -37,10 +41,27 @@ function Pricing() {
       <div className="policy-plans">{[{ price: 99, storage: 5, members: 25 }, { price: 199, storage: 20, members: 50 }, { price: 399, storage: 50, members: 100 }].map(plan => <article key={plan.price} className="policy-plan"><h3>{plan.storage} GB 云盘</h3><p className="policy-price"><strong>¥{plan.price}</strong><span> / 年，含税</span></p><p>{plan.members} 位有效成员（含拥有者）</p><p>容量内不另限乐谱份数</p><p className="policy-plan-status">筹备中 · 尚未开放购买</p></article>)}</div>
       <p>每个云盘单独订阅，无需每位成员分别购买，拟每年自动续费。付款前须清楚展示所选云盘和方案、本次含税总额、下次续费日期及金额，不在结账时另加适用销售税；目前没有付款或订阅管理入口。</p>
     </section>
-    <section><h2>免费体验与已有云盘</h2><p><strong>当前新建免费云盘：20 位有效成员（含拥有者）、50 MB、10 份当前乐谱。</strong>新建免费云盘改为 10 人、50 MB、10 份谱是待上线规则，本页不会改变现有额度。已有云盘保留各自配置，包括已有的免费 100 人特例；请以云盘实际配置为准。</p><p>经验证的用户最多拥有一个免费体验云盘，创建名额受平台总量限制。免费体验无固定到期时间，不承诺永久保留。连续超过 30 天无成员联网访问时可能被人工清理，至少提前 14 天邮件通知拥有者；通知期内任一成员重新联网访问即取消本次清理。</p></section>
+    <section aria-labelledby="pricing-free-trial">
+      <h2 id="pricing-free-trial">免费体验与已有云盘</h2>
+      <p>不登录也可以先读一份示例乐谱。</p>
+      <PricingPreviewAction />
+      <p><strong>当前新建免费云盘：20 位有效成员（含拥有者）、50 MB、10 份当前乐谱。</strong>新建免费云盘改为 10 人、50 MB、10 份谱是待上线规则，本页不会改变现有额度。已有云盘保留各自配置，包括已有的免费 100 人特例；请以云盘实际配置为准。</p>
+      <p>经验证的用户最多拥有一个免费体验云盘，创建名额受平台总量限制。免费体验无固定到期时间，不承诺永久保留。连续超过 30 天无成员联网访问时可能被人工清理，至少提前 14 天邮件通知拥有者；通知期内任一成员重新联网访问即取消本次清理。</p>
+    </section>
     <section><h2>年费包含什么</h2><p>PDF 阅读、共享与个人笔记、离线准备、笔记 PDF 导出，以及已有 MusicXML 的练习播放。笔记按产品同步机制更新，并非实时多人协作。</p><p>自动生成练习版目前由运营导入审核，不代表已开放自助转谱。收费 PDF 转 MusicXML 和转谱 credits 尚未开放，也不包含在年费中，年费不含人工校订。自动生成练习版可能与原谱不同，需要核对。</p></section>
     <section><h2>容量与文件边界</h2><p>容量包含主谱、附件、候选文件、回收站及历史保留文件。沿用现有 1024 进位显示口径：1 GB = 1024 MB，1 MB = 1024 × 1024 字节。</p><p>主谱 PDF 单文件最多 20 MiB、500 页。附件支持音频、PDF、Markdown、MusicXML 与链接，每谱最多 100 个附件；音频最多 50 MiB，PDF／MusicXML 最多 20 MiB，Markdown 最多 1 MiB。MiB 为 1024 × 1024 字节。合谱面向乐谱与排练资料，不是通用视频网盘。</p></section>
     <section><h2>续费、取消与到期</h2><p>拟提供无需说明理由的便捷取消方式；期末取消保留已付费期间权益。首次购买 14 天内、年度误续费后 7 天内可申请该次全额退款，更有利的权利不受影响。详见<Link to="/refunds">取消与退款草稿</Link>。</p><p>到期后的只读取回、保留与通知安排均待实现，详见<Link to="/terms">服务条款中的到期安排</Link>。</p></section>
+  </>;
+}
+
+function PricingPreviewAction() {
+  const { session } = useApplicationIdentity();
+  const preview = usePreviewEntry(session.data?.user.id);
+  return <>
+    <Button className="primary-button policy-preview-action" isPending={preview.pending} onPress={preview.open}>
+      打开示例乐谱
+    </Button>
+    <FeedbackMessage feedback={preview.feedback} />
   </>;
 }
 
