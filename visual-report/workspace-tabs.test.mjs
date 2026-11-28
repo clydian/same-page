@@ -48,9 +48,8 @@ for (const [name, engine, viewport] of [
   await expect(page.getByRole("searchbox")).toHaveCount(0);
   const challenge = page.getByRole("link", { name: "视唱练习", exact: true });
   await expect(challenge).toHaveAttribute("href", primary + "/sight-singing");
-  const rhythm = page.getByRole("article").filter({ hasText: "节奏练习" });
-  await expect(rhythm.getByText("筹备中", { exact: true })).toBeVisible();
-  await expect(rhythm.getByRole("link").or(rhythm.getByRole("button"))).toHaveCount(0);
+  const rhythm = page.getByRole("link", { name: "节奏练习", exact: true });
+  await expect(rhythm).toHaveAttribute("href", primary + "/rhythm");
   const tools = page.locator(".workspace-tools");
   await expect(tools).toHaveCSS("grid-template-columns", /^[\d.]+px [\d.]+px$/);
   const { y, height } = await tools.boundingBox();

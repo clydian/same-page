@@ -34,10 +34,10 @@ function ToolsWorkspace({ choirId }: { choirId?: string }) {
             <Mic size={40} strokeWidth={1.6} aria-hidden="true" />
             <strong>{practice("sightPractice")}</strong>
           </Link></li>
-          <li><article className="workspace-tool workspace-tool-upcoming">
+          <li><Link className="workspace-tool" to={`${drive}/rhythm`}>
             <Drum size={40} strokeWidth={1.6} aria-hidden="true" />
-            <div><strong>{practice("rhythmPractice")}</strong><small>{practice("rhythmComingSoon")}</small></div>
-          </article></li>
+            <strong>{practice("rhythmPractice")}</strong>
+          </Link></li>
         </>}
         <li><Link className="workspace-tool" to={`${drive}/tools/pitch-monitor${experience ? "?experience=1" : ""}`}>
           <AudioLines size={40} strokeWidth={1.6} aria-hidden="true" />

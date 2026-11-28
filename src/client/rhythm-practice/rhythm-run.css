@@ -1,0 +1,56 @@
+.rhythm-run {
+  min-block-size: 18rem;
+  --rhythm-on-time: var(--feedback-in-tune);
+  --rhythm-early: var(--feedback-detuned);
+  --rhythm-late: var(--feedback-detuned);
+  --rhythm-missed: var(--feedback-wrong);
+  --rhythm-extra: var(--feedback-wrong);
+}
+.challenge-workspace[data-rhythm][data-practice] .challenge-page { overflow-y: auto; }
+.rhythm-run [data-status='onTime'] { --rhythm-ink: var(--rhythm-on-time); }
+.rhythm-run [data-status='early'] { --rhythm-ink: var(--rhythm-early); }
+.rhythm-run [data-status='late'] { --rhythm-ink: var(--rhythm-late); }
+.rhythm-run [data-status='missed'] { --rhythm-ink: var(--rhythm-missed); }
+.rhythm-run [data-status='extra'] { --rhythm-ink: var(--rhythm-extra); }
+.rhythm-score-marks { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.rhythm-run [data-mark] {
+  display: inline-block; inline-size: 8px; block-size: 8px; box-sizing: border-box;
+  border: 2px solid var(--rhythm-ink, currentColor);
+}
+.rhythm-score-marks [data-mark] { position: absolute; transform: translateX(-50%); }
+.rhythm-run [data-mark='target'] { border-radius: 50%; background: var(--score-paper); }
+.rhythm-run [data-mark='tap'] { background: var(--rhythm-ink, currentColor); }
+.rhythm-run [data-mark][data-status='missed'] { border-style: dashed; }
+.rhythm-run [data-mark][data-status='extra'] { border-radius: 50%; }
+.rhythm-controls {
+  flex: none; display: grid; gap: .45rem; border-block-start: 1px solid var(--line);
+  padding: .65rem .75rem calc(.7rem + var(--safe-bottom));
+}
+.rhythm-controls p { margin: 0; }
+.rhythm-instructions { color: var(--muted); font-size: .85rem; }
+.rhythm-transport, .rhythm-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; }
+.rhythm-transport { min-block-size: 44px; }
+.rhythm-transport .icon-button { margin-inline-start: auto; }
+.rhythm-transport > span { font-weight: 650; }
+.rhythm-transport .challenge-count { flex-wrap: wrap; }
+.rhythm-pad {
+  display: flex; align-items: center; justify-content: center; gap: .55rem;
+  inline-size: 100%; min-block-size: 4.25rem; border-radius: .85rem;
+  touch-action: none; user-select: none;
+}
+.rhythm-pad:active { filter: brightness(.9); }
+.rhythm-pad kbd { border: 1px solid currentColor; border-radius: .3rem; padding: .05rem .35rem; font: inherit; font-size: .75em; opacity: .85; }
+.rhythm-actions button { min-block-size: 44px; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; }
+.rhythm-actions select, .rhythm-legend select {
+  min-inline-size: 0; max-inline-size: 100%; min-block-size: 44px; padding: .35rem .45rem;
+  border: 1px solid var(--line); border-radius: .65rem; background: var(--surface); color: var(--ink); font: inherit;
+}
+.rhythm-actions select { margin-inline-start: auto; }
+.rhythm-summary { font-size: .87rem; }
+.rhythm-summary summary { cursor: pointer; font-weight: 700; }
+.rhythm-summary summary::marker { color: var(--brand); }
+.rhythm-counts, .rhythm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .9rem; }
+.rhythm-counts { list-style: none; padding: 0; margin: .35rem 0 .25rem; }
+.rhythm-counts li { color: var(--rhythm-ink); }
+.rhythm-legend { color: var(--muted); font-size: .79rem; }
+.rhythm-legend span { display: inline-flex; align-items: center; gap: .28rem; }

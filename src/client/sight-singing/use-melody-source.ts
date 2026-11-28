@@ -111,12 +111,13 @@ export function useMelodySource(source: MelodySource | null, canReadCloud: boole
       }
       if (source.kind === 'cloud') {
         const { question, scope } = source;
-        const cache = await capturePublishedQuestionCopy(scope, question, lifetime.signal).catch(() => null);
+        const cache = question.exerciseType === 'rhythm' ? null
+          : await capturePublishedQuestionCopy(scope, question, lifetime.signal).catch(() => null);
         const bytes = await cache?.read().catch(() => null);
         signal.throwIfAborted();
         if (bytes && (cloudAvailable() || await offlinePlayerAssetsReady())) return { bytes, name: question.snapshot.name };
         if (!cloudAvailable()) throw new Error('question_source_unavailable');
-        const response = await diagnosticFetch(`${publishedPath(choirId)}/${encodeURIComponent(question.id)}/score?version=${question.version}`, { signal, headers: { 'x-same-page-owner-user-id': scope.userId } });
+        const response = await diagnosticFetch(`${publishedPath(choirId, question.exerciseType)}/${encodeURIComponent(question.id)}/score?version=${question.version}`, { signal, headers: { 'x-same-page-owner-user-id': scope.userId } });
         if (!response.ok) {
           if (response.status === 404 && !signal.aborted) questionMissing(question.id, lifetime.signal);
           throw new SettingsRequestError(response.status);

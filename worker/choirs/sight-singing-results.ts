@@ -17,7 +17,8 @@ const activeActor = `EXISTS (SELECT 1 FROM membership_capabilities actor JOIN ch
   WHERE actor.id = ? AND drive.purged_at IS NULL AND drive.is_preview_entry = 0)`;
 const exactVersion = `EXISTS (SELECT 1 FROM sight_singing_question_versions edition
   JOIN sight_singing_questions question ON question.choir_id = edition.choir_id AND question.id = edition.question_id
-  WHERE edition.choir_id = ? AND edition.question_id = ? AND (? IS NULL OR edition.version = ?))`;
+  WHERE edition.choir_id = ? AND edition.question_id = ? AND question.exercise_type = 'sight-singing'
+    AND (? IS NULL OR edition.version = ?))`;
 const versionNumber = z.coerce.number().int().positive();
 const uuid = z.uuid();
 
@@ -48,7 +49,8 @@ sightSingingResultRoutes.get(leaderboardPath, async context => {
   context.header('Cache-Control', 'no-store');
   const scope = `FROM sight_singing_best_results result
     JOIN membership_capabilities singer ON singer.choir_id = result.choir_id AND singer.id = result.membership_id
-    WHERE result.choir_id = ? AND ${activeActor}`;
+    JOIN sight_singing_questions question ON question.choir_id = result.choir_id AND question.id = result.question_id
+    WHERE result.choir_id = ? AND question.exercise_type = 'sight-singing' AND ${activeActor}`;
   const top = db.prepare(`WITH per_singer AS (
       SELECT result.id, result.question_id AS questionId, result.version, result.score_hundredths, result.voice_name AS voiceName,
         result.speed, result.perfect, result.written_octave AS writtenOctave, result.badge, singer.display_name AS displayName, result.achieved_order,
@@ -209,7 +211,7 @@ sightSingingResultRoutes.delete(`${path}/:resultId`, async context => {
     return context.json({ error: 'invalid_result' }, 400);
   }
   await db.prepare(`DELETE FROM sight_singing_best_results
-    WHERE choir_id = ? AND question_id = ? AND version = ? AND id = ? AND membership_id = ? AND ${activeActor}`)
-    .bind(choirId, questionId, version.data, resultId, member.id, member.id).run();
+    WHERE choir_id = ? AND question_id = ? AND version = ? AND id = ? AND membership_id = ? AND ${activeActor} AND ${exactVersion}`)
+    .bind(choirId, questionId, version.data, resultId, member.id, member.id, choirId, questionId, version.data, version.data).run();
   return context.body(null, 204, { 'Cache-Control': 'no-store' });
 });
