@@ -24,13 +24,30 @@ test("real Worker: create trial, upload, permanently clear trash and close drive
   await expect(page.getByRole("heading",{name:"周末排练",exact:true})).toBeVisible();
   const driveId=new URL(page.url()).pathname.split("/")[2];
   await page.getByRole("button",{name:"上传第一份 PDF",exact:true}).click();
-  await page.getByLabel("选择 PDF 文件").setInputFiles({name:"试用乐谱.pdf",mimeType:"application/pdf",buffer:fixture.pdf});
-  await expect(page.locator(".upload-list li[data-status='success']")).toHaveCount(1);
-  await page.getByRole("button",{name:"关闭",exact:true}).click();
+  const upload = page.getByRole("dialog", { name: "上传 PDF", exact: true });
+  const notices = page.getByRole("region", { name: "操作提示", exact: true });
+  await upload.getByLabel("选择 PDF 文件").setInputFiles({name:"试用乐谱.pdf",mimeType:"application/pdf",buffer:fixture.pdf});
+  await expect(notices.getByRole("status")).toHaveText("上传完成");
+  await expect(upload.getByRole("list", { name: "上传状态" })).toHaveCount(0);
+  await notices.getByRole("button", { name: "关闭操作提示" }).click();
+  await expect(notices).toHaveCount(0);
+  await upload.getByRole("button", { name: "关闭", exact: true }).click();
+  const score = page.getByRole("link", { name: "试用乐谱", exact: true });
+  await expect(score).toBeVisible();
   const list=await (await context.request.get(`${fixture.origin}/api/choirs/${driveId}/scores`)).json();
   assert.equal(list.scores.length,1);
+  assert.equal(list.scores[0].fileName, "试用乐谱.pdf");
   const scoreId=list.scores[0].id;
-  assert.equal((await context.request.delete(`${fixture.origin}/api/choirs/${driveId}/scores/${scoreId}`,{headers:{origin:fixture.origin}})).status(),204);
+  await page.getByRole("button", { name: "试用乐谱 更多操作", exact: true }).click();
+  await page.getByRole("menuitem", { name: "移到回收站", exact: true }).click();
+  const trash = page.getByRole("dialog", { name: "移到回收站", exact: true });
+  const [trashResponse] = await Promise.all([
+    page.waitForResponse(response => response.url() === `${fixture.origin}/api/choirs/${driveId}/scores/${scoreId}` && response.request().method() === "DELETE"),
+    trash.getByRole("button", { name: "移到回收站", exact: true }).click(),
+  ]);
+  assert.equal(trashResponse.status(), 204);
+  await expect(score).toHaveCount(0);
+  await expect(notices.getByRole("status")).toContainText("文件已移到回收站");
   await page.goto(`${fixture.origin}/choirs/${driveId}/settings/trash`);
   await page.getByRole("button",{name:"彻底删除",exact:true}).click();
   await expect(page.getByRole("alertdialog")).toContainText("所有成员的笔记");

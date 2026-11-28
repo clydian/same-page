@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Releases } from './releases';
 
@@ -34,8 +34,15 @@ it('shows each channel with its version and reports an exact promotion', async (
   expect(calls).toEqual([]);
   fireEvent.click(button);
   fireEvent.click(screen.getByRole('button', { name: '确认设为稳定版' }));
-  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('已将 v26.10.22.1500 设为稳定版。'));
+  const promotionMessage = '已将 v26.10.22.1500 设为稳定版。';
+  const notices = await screen.findByRole('region', { name: '操作提示' });
+  expect(within(notices).getByRole('status')).toHaveTextContent(promotionMessage);
+  const releasePanel = screen.getByRole('region', { name: '发布通道' });
+  expect(within(releasePanel).queryByText(promotionMessage)).not.toBeInTheDocument();
+  fireEvent.click(within(notices).getByRole('button', { name: '关闭操作提示' }));
+  expect(screen.queryByText(promotionMessage)).not.toBeInTheDocument();
   expect(calls).toEqual([expect.objectContaining({ expectedBeta: B, expectedRevision: 1 })]);
+  expect(within(stableRow).getByText('v26.10.22.1500')).toBeVisible();
   expect(button).toBeDisabled();
 });
 
