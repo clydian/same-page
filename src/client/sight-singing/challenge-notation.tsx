@@ -11,6 +11,7 @@ import { matchesNotationResult, notationFeedbackAtVisit, type NotationFeedback, 
 import { tintBeams } from './notation-beams';
 import { measureAnchors, positionAt } from './notation-timing';
 import { formatCents, pitchName, type PitchFrame } from './pitch-feedback';
+import { RhythmReviewMarks, type RhythmMark } from '../rhythm-practice/review-marks';
 import { ScorePitchTrace } from './score-pitch-trace';
 import './challenge-notation.css';
 
@@ -199,12 +200,12 @@ function tintNoteheads(group: SVGGElement, heads: AssessedHead[], sheet: DOMRect
   }
 }
 
-export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, attemptReset, onNote, onMeasure, feedback, pitchFrames, traceMode, traceThrough, bpm }: {
-  score: MelodyScore['score']; voice: MelodyVoice; melody: Melody; measure: MelodyMeasure; elapsed: number; positioned: boolean; followRun: number;
+export function ChallengeNotation({ score, voice, melody, measure, elapsed, positioned, followRun, attemptReset, onNote, onMeasure, feedback, pitchFrames, traceMode, traceThrough, bpm, tempoBeat = '♩', rhythm, rhythmMarks }: {
+  score: MelodyScore['score']; voice: MelodyVoice; melody: Pick<Melody, 'measures' | 'staffBeats'>; measure: MelodyMeasure; elapsed: number; positioned: boolean; followRun: number;
   attemptReset: number;
   onNote?: (note: NotationNoteHit) => void; onMeasure?: (bar: number) => void; feedback?: readonly NotationFeedback[];
   pitchFrames?: PitchFrame[]; traceMode?: 'recording' | 'replaying';
-  traceThrough?: number; bpm: number;
+  traceThrough?: number; bpm: number; tempoBeat?: string; rhythm?: boolean; rhythmMarks?: readonly RhythmMark[];
 }) {
   const t = useMessages('practice');
   const viewport = useRef<HTMLDivElement>(null), notation = useRef<HTMLDivElement>(null);
@@ -214,7 +215,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
   const autoScroll = useRef<PointerPosition | null>(null);
   const [scrollIntent] = useState(() => new ScoreFollowSession());
   const [paused, setPaused] = useState<string>();
-  const [scope, setScope] = useState<'part' | 'full'>('full');
+  const [scope, setScope] = useState<'part' | 'full'>(rhythm ? 'part' : 'full');
   const [direction, setDirection] = useState<ScrollDirection>('vertical');
   const [scale, setScale] = useState(defaultScale);
   const horizontal = direction === 'horizontal';
@@ -380,9 +381,9 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       const staff = item.beats[0]?.beat.voice.bar.staff;
       return staff?.track.index === display.part.track && staff.index === display.part.staff;
     })?.realBounds;
-    if (!row || !horizontal && !cropped) return { row };
+    if (!row || !horizontal && !cropped && !rhythm) return { row };
     return { row, anchors: measureAnchors(rendered.lookup, display.score, display.part, measure, melody.staffBeats) };
-  }, [positioned, rendered, measure, display, horizontal, cropped, melody.staffBeats]);
+  }, [positioned, rendered, measure, display, horizontal, cropped, rhythm, melody.staffBeats]);
   const cursor = anchors && positionAt(anchors, elapsed);
 
   const followScore = useEffectEvent(() => {
@@ -418,7 +419,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
 
   return <div className="challenge-score-view" data-score-scope={scope} data-scroll-direction={direction}>
     <div className="challenge-notation-tools">
-      <span className="challenge-notation-tempo" aria-label={t('adjustedTempo', { beat: '♩', bpm: String(bpm) })}>♩ = {bpm}</span>
+      <span className="challenge-notation-tempo" aria-label={t('adjustedTempo', { beat: tempoBeat, bpm: String(bpm) })}>{tempoBeat} = {bpm}</span>
       <NotationZoom ready={Boolean(rendered)} scale={scale} defaultScale={defaultScale} pinchHint={false} onChange={value => {
         if (value === scale) return;
         rememberAnchor();
@@ -478,6 +479,8 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
       <div ref={notation} aria-hidden="true" />
       {row && <div className={cursor === undefined ? 'challenge-current-measure' : 'challenge-score-cursor'} aria-hidden="true"
         style={{ left: cursor ?? row.x, top: row.y, width: cursor === undefined ? row.w : 2, height: row.h }} />}
+      {rendered && rhythmMarks && <RhythmReviewMarks marks={rhythmMarks} visit={currentVisit} lookup={rendered.lookup}
+        score={display.score} voice={display.part} measures={melody.measures} staffBeats={melody.staffBeats} />}
       {rendered && pitchFrames?.length ? <ScorePitchTrace lookup={rendered.lookup} score={display.score} voice={display.part}
         beats={melody.staffBeats} measures={melody.measures} frames={pitchFrames} currentVisit={currentVisit} mode={traceMode} through={traceThrough} viewport={viewport} /> : null}
       {onNote && <NotationButtons notes={notes} voice={display.part} results={results}

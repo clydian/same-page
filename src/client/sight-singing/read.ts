@@ -1,7 +1,8 @@
+import type { PracticeQuestionType } from '../../shared/sight-singing';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 import { SettingsRequestError } from '../settings/settings-request';
 
-export const publishedPath = (drive: string) => `/api/choirs/${encodeURIComponent(drive)}/sight-singing/questions`;
+export const publishedPath = (drive: string, type: PracticeQuestionType = 'sight-singing') => `/api/choirs/${encodeURIComponent(drive)}/${type}/questions`;
 
 export function isSightSingingMemberDenied(error: unknown) {
   return error instanceof SettingsRequestError && (error.status === 401 || error.status === 403);

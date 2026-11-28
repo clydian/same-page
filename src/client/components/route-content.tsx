@@ -36,6 +36,7 @@ function RouteFeedback({ failed = false, showHeader = true }: { failed?: boolean
     : pathname === "/login" ? t("signIn")
     : pathname === "/user/lifecycle" ? t("accountLifecycle")
     : pathname.endsWith("/sight-singing") ? practice("sightPractice")
+    : pathname.endsWith("/rhythm") ? practice("rhythmPractice")
     : pathname.endsWith("/me") ? t("driveIdentity")
     : pathname === "/appearance" ? t("appearance")
     : pathname === "/user" ? t("account")

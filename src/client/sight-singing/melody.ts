@@ -96,7 +96,7 @@ export function loadMelodyScore(input: Uint8Array | PreparedMusicXml) {
 export type MelodyScore = ReturnType<typeof loadMelodyScore>;
 type ScoreBar = MelodyScore['bars'][number];
 type TickWindow = { from: number; until: number };
-const ticksPerBeat = (bar: ScoreBar) => Math.max(1, Math.floor(3840 / bar.masterBar.timeSignatureDenominator));
+export const ticksPerBeat = (bar: ScoreBar) => Math.max(1, Math.floor(3840 / bar.masterBar.timeSignatureDenominator));
 
 export function beatsInVisit(bar: ScoreBar) {
   return Math.ceil((bar.end - bar.start) / ticksPerBeat(bar));
@@ -108,7 +108,7 @@ export function visitWindow(bar: ScoreBar, firstBeat?: number | null, lastBeat?:
   return { from: ((firstBeat ?? 1) - 1) * beatTicks, until: lastBeat == null ? duration : Math.min(duration, lastBeat * beatTicks) };
 }
 
-function visitClock(bar: ScoreBar, scoreTempo: number, seconds: number) {
+export function visitClock(bar: ScoreBar, scoreTempo: number, seconds: number) {
   const changes = bar.tempoChanges;
   const bpmAtStart = changes.reduce((bpm, change) => change.tick <= bar.start ? change.tempo : bpm,
     changes[0]?.tempo ?? scoreTempo);

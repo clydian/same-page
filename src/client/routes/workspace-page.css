@@ -52,20 +52,10 @@
 }
 
 .workspace-tool > svg { color: var(--brand); }
-.workspace-tool-upcoming > svg { color: var(--muted); }
 .workspace-tool strong {
   display: block;
   font-weight: 650;
 }
-.workspace-tool-upcoming small {
-  display: block;
-  margin-block-start: .2rem;
-  color: var(--muted);
-  font-size: .75rem;
-  font-weight: 500;
-  line-height: 1.35;
-}
-
 .workspace-settings h2 {
   color: var(--muted);
   margin: 0 0 .55rem;

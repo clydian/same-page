@@ -14,6 +14,7 @@ export type QuestionBeats = { firstBeat?: number | null; lastBeat?: number | nul
 const attachmentFields = z.object({
   scoreId: z.string().min(1).max(128), attachmentId: z.string().min(1).max(128), revision: z.number().int().positive(),
 });
+export type PracticeQuestionType = 'sight-singing' | 'rhythm';
 const publicationKind = z.enum(['official', 'member']);
 export type QuestionPublication = z.infer<typeof publicationKind>;
 const publication = rangeFields.extend({ expectedVersion: z.number().int().positive().nullable(),
@@ -31,7 +32,7 @@ const publisher = z.discriminatedUnion('kind', [
 ]);
 const publishedFields = rangeFields.extend({ id: z.uuid(), version: z.number().int().positive(),
   firstBeat: beatNumber.optional(), lastBeat: beatNumber.optional(),
-  publisher, canEdit: z.boolean() });
+  exerciseType: z.literal('rhythm').optional(), publisher, canEdit: z.boolean() });
 const snapshotFields = z.object({ name: attachmentNameSchema, editToken: z.uuid() });
 export const publishedQuestionSchema = z.union([
   publishedFields.extend({ ...attachmentFields.shape, snapshot: snapshotFields }),

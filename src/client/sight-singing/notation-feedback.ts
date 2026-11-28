@@ -11,7 +11,7 @@ export function matchesNotationResult(result: NotationResult | undefined, midi: 
   return !!result && (result.midi == null || result.midi === midi) && (!result.continuation || result.continuation.includes(midi));
 }
 
-export function notationFeedbackAtVisit(melody: Melody, feedback: readonly NotationFeedback[] | undefined, visit: number) {
+export function notationFeedbackAtVisit(melody: Pick<Melody, 'measures' | 'staffBeats'>, feedback: readonly NotationFeedback[] | undefined, visit: number) {
   const visible = new Map<string, NotationResult>();
   if (!feedback?.length) return visible;
   const passes = new Map<number, number>();

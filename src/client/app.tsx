@@ -78,6 +78,7 @@ export function AppRoutes() {
               element={<RouteContent><WorkspacePage page={page} /></RouteContent>} />))}
             <Route path="/choirs/:choirId/storage" element={<RouteContent><LocalStoragePage /></RouteContent>} />
             <Route path="/choirs/:choirId/sight-singing" element={<RouteContent><SightSingingPage /></RouteContent>} />
+            <Route path="/choirs/:choirId/rhythm" element={<RouteContent><SightSingingPage exerciseType="rhythm" /></RouteContent>} />
             <Route path="/choirs/:choirId/me" element={<RouteContent><LeaveDrivePage /></RouteContent>} />
             <Route path="/install" element={<RouteContent><InstallPage /></RouteContent>} />
             <Route path="/help" element={<RouteContent><HelpPage /></RouteContent>} />

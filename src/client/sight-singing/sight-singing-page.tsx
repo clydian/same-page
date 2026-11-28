@@ -10,7 +10,7 @@ import { attachmentAccept, attachmentFormat, attachmentNameSchema } from '../../
 import { scoreDisplayName } from '../../shared/score-display-name';
 import type { ScoreSummary } from '../../shared/scores';
 import { publishedQuestionResponseSchema, publishedQuestionsSchema, SIGHT_SINGING_QUESTION_NAME_MAX_LENGTH, SIGHT_SINGING_SCORE_MAX_BYTES,
-  type PublishedQuestion, type QuestionBeats, type QuestionPublication } from '../../shared/sight-singing';
+  type PracticeQuestionType, type PublishedQuestion, type QuestionBeats, type QuestionPublication } from '../../shared/sight-singing';
 import { diagnosticFetch, parseDiagnosticResponse } from '../diagnostics/diagnostics';
 import { presentationSessionId, useApplicationIdentity, type ApplicationIdentity } from '../auth/application-identity';
 import { readAvailableOfflineSession } from '../auth/offline-session';
@@ -31,7 +31,9 @@ import { ConfirmDialog } from '../settings/confirm-dialog';
 import { ChallengePracticeSettings } from './challenge-practice-settings';
 import { ChallengeRun, type ChallengeResult, type VoiceOption } from './challenge-run';
 import { useSightSingingScoreFormat } from './format-score';
-import { buildMelody } from './melody';
+import { RhythmRun, type RhythmOption } from '../rhythm-practice/rhythm-run';
+import { buildRhythmTimeline, rhythmVoices } from '../rhythm-practice/timeline';
+import { buildMelody, type MelodyVoice } from './melody';
 import { QuestionRangeEditor } from './question-range-editor';
 import { readQuestions, type SightSingingQuestion } from './questions';
 import { ScoreBadges } from './score-badge';
@@ -47,15 +49,15 @@ import { useMelodySource, type MelodySource } from './use-melody-source';
 import './sight-singing.css';
 import './sight-singing-workspace.css';
 
-export default function SightSingingPage() {
+export default function SightSingingPage({ exerciseType = 'sight-singing' }: { exerciseType?: PracticeQuestionType }) {
   const { choirId = '' } = useParams();
   const identity = useApplicationIdentity();
   const owner = driveCacheOwnerKey(identity.localUserId, choirId);
-  return <SightSingingAccess key={JSON.stringify([owner, choirId])} owner={owner} choirId={choirId} identity={identity} />;
+  return <SightSingingAccess key={JSON.stringify([owner, choirId, exerciseType])} owner={owner} choirId={choirId} identity={identity} exerciseType={exerciseType} />;
 }
 
-function SightSingingAccess({ owner, choirId, identity }: {
-  owner: DriveCacheOwnerKey; choirId: string; identity: ApplicationIdentity;
+function SightSingingAccess({ owner, choirId, identity, exerciseType }: {
+  owner: DriveCacheOwnerKey; choirId: string; identity: ApplicationIdentity; exerciseType: PracticeQuestionType;
 }) {
   const online = useNetworkStatus();
   const [previousSession, setPreviousSession] = useState(identity.authenticatedSessionId);
@@ -70,10 +72,10 @@ function SightSingingAccess({ owner, choirId, identity }: {
   const { member, signedOut, driveDenied } = sightSingingAccess(access, reading.authority, identity);
   const denied = signedOut || driveDenied;
   useEffect(() => {
-    if (!denied || !userId || !sessionId) return;
+    if (exerciseType === 'rhythm' || !denied || !userId || !sessionId) return;
     const signal = new AbortController().signal;
     void capturePublishedCatalog({ userId, choirId, sessionId }, signal).then(remember => remember([])).catch(() => undefined);
-  }, [choirId, denied, sessionId, userId]);
+  }, [choirId, denied, exerciseType, sessionId, userId]);
   const [admittedSession, setAdmittedSession] = useState<string | null>(null);
   const rememberedMember = sessionId === remembered?.sessionId && access.kind === 'opened'
     && access.local && access.rememberedMembership && !access.choir.isPreviewEntry;
@@ -84,35 +86,36 @@ function SightSingingAccess({ owner, choirId, identity }: {
     void (authenticated ? library.refresh() : identity.session.refetch()).catch(() => undefined);
   };
   if (nextAdmission && userId && access.kind === 'opened') return <QuestionLibrary key={nextAdmission}
-    owner={owner} choirId={choirId} userId={userId} sessionId={nextAdmission} driveName={access.choir.name}
+    owner={owner} choirId={choirId} userId={userId} sessionId={nextAdmission} exerciseType={exerciseType} driveName={access.choir.name}
     canReadCloud={online && member} retryConnection={retryConnection} sessionExpiresAt={remembered?.expiresAt}
     canPublishOfficial={(access.local ? access.rememberedCapabilities : access.result.permissions.capabilities)?.operations.operations.includes('editDriveInfo') ?? false}
     scores={access.result.scores} />;
 
-  return <ChallengeEntry choirId={choirId} denied={driveDenied} signedOut={signedOut && (online || reading.authority === 'signed-out')}
+  return <ChallengeEntry choirId={choirId} exerciseType={exerciseType} denied={driveDenied} signedOut={signedOut && (online || reading.authority === 'signed-out')}
     loading={online && !denied && (identity.onlineState === 'checking' || authenticated && !refreshMessage && (reading.request === 'pending' || access.kind === 'loading'))}
     retry={retryConnection} />;
 }
 
-function ChallengeEntry({ choirId, denied, signedOut = false, loading = false, retry }: {
-  choirId: string; denied: boolean; signedOut?: boolean; loading?: boolean; retry: () => void;
+function ChallengeEntry({ choirId, exerciseType, denied, signedOut = false, loading = false, retry }: {
+  choirId: string; exerciseType: PracticeQuestionType; denied: boolean; signedOut?: boolean; loading?: boolean; retry: () => void;
 }) {
   const t = useMessages('practice');
   const entry = useMessages('entry');
   const online = useNetworkStatus();
+  const practice = t(exerciseType === 'rhythm' ? 'rhythmPractice' : 'sightPractice');
   return <div className="app-page">
-    <TaskHeader title={t('sightPractice')} backTo={`/choirs/${choirId}/tools`} />
+    <TaskHeader title={practice} backTo={`/choirs/${choirId}/tools`} />
     <main className="page-shell settings-page challenge-page">
       {loading ? <LoadingStatus>{t('sight.loading')}</LoadingStatus>
-        : signedOut ? <p><Link to={loginHref(`/choirs/${choirId}/sight-singing`)}>{entry('identity.loginAgain')}</Link></p>
-        : denied ? <p role="status">{t('sight.needMember', { practice: t('sightPractice') })}</p>
+        : signedOut ? <p><Link to={loginHref(`/choirs/${choirId}/${exerciseType}`)}>{entry('identity.loginAgain')}</Link></p>
+        : denied ? <p role="status">{t('sight.needMember', { practice })}</p>
           : <p role="status">{entry('identity.unreachable')}{online && <>{' '}
             <button type="button" className="text-button" onClick={retry}>{entry('identity.retryConnection')}</button></>}</p>}
     </main>
   </div>;
 }
 
-type DriveContext = { owner: DriveCacheOwnerKey; choirId: string; sessionId: string; userId: string; canPublishOfficial: boolean; scores: ScoreSummary[]; canReadCloud: boolean; sessionExpiresAt?: number; retryConnection: () => void };
+type DriveContext = { exerciseType: PracticeQuestionType; owner: DriveCacheOwnerKey; choirId: string; sessionId: string; userId: string; canPublishOfficial: boolean; scores: ScoreSummary[]; canReadCloud: boolean; sessionExpiresAt?: number; retryConnection: () => void };
 type ChallengeReads = Pick<DriveContext, 'owner' | 'choirId' | 'canReadCloud'> & { onMemberDenied?: () => void };
 
 function useChallengeRead<T>({ owner, choirId, canReadCloud, onMemberDenied }: ChallengeReads, key: Pick<DriveReadIdentity, 'subjectId' | 'variant'>,
@@ -149,9 +152,11 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const entry = useMessages('entry');
   const libraryMessages = useMessages('library');
   const online = useNetworkStatus();
+  const rhythm = props.exerciseType === 'rhythm';
+  const questionsVariant = rhythm ? 'rhythm-questions' : 'questions';
   const scope = { userId: props.userId, choirId: props.choirId, sessionId: props.sessionId };
   const [localRevision, refreshLocal] = useState(0);
-  const local = useLiveQuery(() => readPublishedQuestionCopies(scope).catch(() => null), [scope.userId, scope.choirId, scope.sessionId, localRevision]);
+  const local = useLiveQuery(() => rhythm ? null : readPublishedQuestionCopies(scope).catch(() => null), [rhythm, scope.userId, scope.choirId, scope.sessionId, localRevision]);
   const [expired, setExpired] = useState(false);
   const expiresAt = local?.expiresAt ?? props.sessionExpiresAt;
   useEffect(() => {
@@ -171,11 +176,11 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   // The stored copy was committed after auditing the installed player assets.
   // A cold open independently rechecks the current shell before using it.
   const available = navigator.serviceWorker?.controller ? copies : undefined;
-  const questions = useLiveQuery(() => readQuestions(props.owner, props.choirId).catch(() => null), [props.owner, props.choirId]);
-  const published = useChallengeRead(props, { variant: 'questions' }, async signal => {
-    const remember = await capturePublishedCatalog(scope, signal).catch(() => null);
+  const questions = useLiveQuery(() => rhythm ? [] : readQuestions(props.owner, props.choirId).catch(() => null), [rhythm, props.owner, props.choirId]);
+  const published = useChallengeRead(props, { variant: questionsVariant }, async signal => {
+    const remember = rhythm ? null : await capturePublishedCatalog(scope, signal).catch(() => null);
     try {
-      const data = await readSightSinging(publishedPath(props.choirId), publishedQuestionsSchema, signal, { 'x-same-page-owner-user-id': scope.userId });
+      const data = await readSightSinging(publishedPath(props.choirId, props.exerciseType), publishedQuestionsSchema, signal, { 'x-same-page-owner-user-id': scope.userId });
       await remember?.(data.questions).catch(() => undefined);
       return data;
     } catch (error) {
@@ -186,16 +191,18 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const denied = published.authority === 'signed-out' || published.authority === 'revoked';
   const memberDenied = () => {
     published.clear();
+    if (rhythm) return;
     const signal = new AbortController().signal;
     void capturePublishedCatalog(scope, signal).then(remember => remember([])).catch(() => undefined);
   };
   const reads = { ...props, onMemberDenied: memberDenied };
-  const board = useChallengeRead(reads, { variant: 'leaderboard' }, signal => readSightSingingLeaderboard(props.choirId, signal), !denied);
+  const board = useChallengeRead(reads, { variant: 'leaderboard' }, signal => readSightSingingLeaderboard(props.choirId, signal), !rhythm && !denied);
   const [selection, setSelection] = useState<{ question?: PublishedQuestion; legacy?: SightSingingQuestion; fromCache?: boolean } | null>(null);
   const [pitchTraceEnabled, setPitchTraceEnabled] = useState(false);
   const mix = useChallengeMix(props.userId);
   const [resultGeneration, setResultGeneration] = useState(0);
   const resultsChanged = (questionId: string) => {
+    if (rhythm) return;
     // Fence pre-write reads for the aggregate and every filter on this question.
     // The registry keeps the last displayed data and existing read authority.
     invalidateReadResources(key => key.owner === props.owner && key.driveId === props.choirId && key.kind === 'sight-singing'
@@ -206,7 +213,7 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   // across a change of identity or loss of drive access.
   const resultLifetimes = useRef(new Set<AbortController>());
   const resultFeedback = useFeedbackMessage();
-  const canPublishResult = props.canReadCloud && !denied;
+  const canPublishResult = !rhythm && props.canReadCloud && !denied;
   useEffect(() => {
     const pending = resultLifetimes.current;
     return () => { for (const controller of pending) controller.abort(); };
@@ -230,19 +237,19 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const refresh = () => {
     if (!props.canReadCloud) { props.retryConnection(); return; }
     void published.refresh().catch(() => undefined);
-    void board.refresh().catch(() => undefined);
+    if (!rhythm) void board.refresh().catch(() => undefined);
   };
   const { refresh: refreshQuestions } = published;
   const { refresh: refreshBoard } = board;
   useEffect(() => {
-    if (resultGeneration && props.canReadCloud && !denied) void refreshBoard().catch(() => undefined);
-  }, [resultGeneration, props.canReadCloud, denied, refreshBoard]);
+    if (!rhythm && resultGeneration && props.canReadCloud && !denied) void refreshBoard().catch(() => undefined);
+  }, [resultGeneration, props.canReadCloud, denied, refreshBoard, rhythm]);
   useEffect(() => {
     if (!props.canReadCloud) return;
     const verify = () => {
       if (document.visibilityState !== 'visible') return;
       void refreshQuestions().catch(() => undefined);
-      if (!denied) void refreshBoard().catch(() => undefined);
+      if (!rhythm && !denied) void refreshBoard().catch(() => undefined);
     };
     window.addEventListener('focus', verify);
     document.addEventListener('visibilitychange', verify);
@@ -250,12 +257,12 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
       window.removeEventListener('focus', verify);
       document.removeEventListener('visibilitychange', verify);
     };
-  }, [props.canReadCloud, denied, refreshQuestions, refreshBoard]);
+  }, [props.canReadCloud, denied, refreshQuestions, refreshBoard, rhythm]);
   if (denied) {
     if (selection) setSelection(null);
-    return <ChallengeEntry choirId={props.choirId} denied signedOut={published.authority === 'signed-out'} retry={refresh} />;
+    return <ChallengeEntry choirId={props.choirId} exerciseType={props.exerciseType} denied signedOut={published.authority === 'signed-out'} retry={refresh} />;
   }
-  if (expired && !props.canReadCloud) return <ChallengeEntry choirId={props.choirId} denied={false} retry={refresh} />;
+  if (expired && !props.canReadCloud) return <ChallengeEntry choirId={props.choirId} exerciseType={props.exerciseType} denied={false} retry={refresh} />;
   const catalog = published.data?.questions;
   const selectedQuestion = selection?.question && catalog?.find(question => question.id === selection.question?.id);
   const removed = selection?.question && ((catalog && selectedQuestion?.version !== selection.question.version)
@@ -270,12 +277,12 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
     resultGeneration={resultGeneration} onResultsChanged={resultsChanged} onResult={recordResult} resultNotice={resultNotice}
     onCopySaved={() => refreshLocal(revision => revision + 1)}
     revalidateAccess={refresh} onQuestionChange={async (id, question, signal) => {
-      await recordPublishedQuestionChange(scope, id, question, signal).catch(() => undefined);
+      if (!rhythm) await recordPublishedQuestionChange(scope, id, question, signal).catch(() => undefined);
       if (signal.aborted) return;
       if (catalog) published.update({ questions: [...catalog.filter(item => item.id !== id), ...(question ? [question] : [])] });
       if (!question && selection.question?.id === id) setSelection(null);
       if (question && (selection.question?.id !== question.id || selection.question.version !== question.version)) setSelection({ question });
-      invalidateReadResources(key => key.owner === props.owner && key.driveId === props.choirId && key.variant === 'questions');
+      invalidateReadResources(key => key.owner === props.owner && key.driveId === props.choirId && key.variant === questionsVariant);
       refresh();
     }} onBack={() => { setSelection(null); refresh(); }} />;
   const cachedQuestions = available?.map(copy => copy.question).sort((a, b) => a.title.localeCompare(b.title));
@@ -285,20 +292,20 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   const boardPending = props.canReadCloud && !board.data && !board.error;
   const readMessage = !online || !props.canReadCloud ? entry('identity.unreachable')
     : !shown && !listPending ? t('sight.publishedError')
-      : catalog && !board.data && !boardPending ? t('sight.publishedResultsError')
-        : shown && (published.error || board.error) ? entry('identity.unreachable') : null;
+      : !rhythm && catalog && !board.data && !boardPending ? t('sight.publishedResultsError')
+        : shown && (published.error || !rhythm && board.error) ? entry('identity.unreachable') : null;
   return <div className="app-page challenge-library">
-    <TaskHeader title={t('sightPractice')} subtitle={driveName} backTo={`/choirs/${props.choirId}/tools`} />
+    <TaskHeader title={t(rhythm ? 'rhythmPractice' : 'sightPractice')} subtitle={driveName} backTo={`/choirs/${props.choirId}/tools`} />
     <main className="page-shell settings-page challenge-page">
       {resultNotice}
       <section className="challenge-library-section" aria-label={t('sight.publishedQuestions')}>
         {readMessage && <p role="status">{readMessage}{online && <>{' '}
           <button type="button" className="text-button" onClick={refresh}>{t('sight.retryLoad')}</button></>}</p>}
         {listPending && <LoadingStatus>{t('sight.loading')}</LoadingStatus>}
-        {shown && (shown.length > 0 || online && catalog) && <QuestionList questions={shown}
+        {shown && (shown.length > 0 || online && catalog) && <QuestionList questions={shown} rhythm={rhythm}
           available={new Set(available?.map(copy => `${copy.question.id}:${copy.question.version}`))}
           offlineLabel={libraryMessages('localStorageAvailableOffline')}
-          leaderboard={props.canReadCloud ? board.data ?? (boardPending ? undefined : null) : null}
+          leaderboard={!rhythm && props.canReadCloud ? board.data ?? (boardPending ? undefined : null) : null}
           reads={reads} open={question => setSelection({ question, fromCache: !catalog || !online })} />}
       </section>
       {questions === null ? <p role="alert">{t('sight.storageError')}</p> : props.canReadCloud && Boolean(legacyQuestions?.length) &&
@@ -344,9 +351,9 @@ function RankBadge({ place, tied }: { place: number; tied: boolean }) {
   </span>;
 }
 
-function QuestionList({ questions, leaderboard, reads, open, available, offlineLabel }: {
+function QuestionList({ questions, leaderboard, reads, open, available, offlineLabel, rhythm }: {
   questions: PublishedQuestion[]; leaderboard?: SightSingingLeaderboard | null; reads: ChallengeReads;
-  open: (question: PublishedQuestion) => void; available: Set<string>; offlineLabel: string;
+  open: (question: PublishedQuestion) => void; available: Set<string>; offlineLabel: string; rhythm: boolean;
 }) {
   const t = useMessages('practice');
   const byQuestion = new Map<string, SightSingingLeaderboard['results']>();
@@ -358,14 +365,14 @@ function QuestionList({ questions, leaderboard, reads, open, available, offlineL
   const counts = leaderboard?.participants && new Map(leaderboard.participants.map(item => [item.questionId, item.count]));
   return questions.length ? <ul className="challenge-card-grid" role="list" aria-busy={leaderboard === undefined}>
     {questions.map(question => <QuestionCard key={question.id} question={question} top={byQuestion.get(question.id)}
-      reads={reads} count={counts ? counts.get(question.id) ?? 0 : undefined}
+      reads={reads} rhythm={rhythm} count={counts ? counts.get(question.id) ?? 0 : undefined}
       ready={Boolean(leaderboard)} offlineLabel={available.has(`${question.id}:${question.version}`) ? offlineLabel : undefined} open={() => open(question)} />)}
   </ul> : <p className="challenge-empty">{t('sight.noPublished')}</p>;
 }
 
-function QuestionCard({ question, top, count, reads, ready, open, offlineLabel }: {
+function QuestionCard({ question, top, count, reads, ready, open, offlineLabel, rhythm }: {
   question: PublishedQuestion; top?: SightSingingLeaderboard['results']; count?: number; ready: boolean; open: () => void; offlineLabel?: string;
-  reads: ChallengeReads;
+  reads: ChallengeReads; rhythm: boolean;
 }) {
   const t = useMessages('practice');
   const rankingId = useId();
@@ -377,7 +384,7 @@ function QuestionCard({ question, top, count, reads, ready, open, offlineLabel }
       <span><strong>{question.title}</strong><small>{publisherLabel(question.publisher, t)}{showVersions && ` · ${versionTag(question.version)}`}{offlineLabel && ` · ${offlineLabel}`}</small></span>
       <ChevronRight size={17} aria-hidden="true" />
     </button>
-    <div className="challenge-card-podium">
+    {!rhythm && <div className="challenge-card-podium">
       {(count !== undefined || showDetailsButton) && <div className="challenge-card-summary">
         {count !== undefined && <span className="challenge-card-participants"><UsersRound size={14} aria-hidden="true" />
           {t('sight.participants', { count })}</span>}
@@ -390,7 +397,7 @@ function QuestionCard({ question, top, count, reads, ready, open, offlineLabel }
         {expanded ? <ExpandedQuestionRanks reads={reads} question={question} />
           : <QuestionRanks rows={top} ready={ready} />}
       </div>
-    </div>
+    </div>}
   </li>;
 }
 
@@ -559,7 +566,7 @@ function PublishedResults({ reads, questionId, version, generation, userId, onRe
   </div>;
 }
 
-function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOfficial, scores, canReadCloud, retryConnection, onMemberDenied, question, legacy, onBack, canEditQuestion, revalidateAccess, onQuestionChange, offlineReady, onCopySaved,
+function QuestionWorkspace({ exerciseType, owner, choirId, sessionId, userId, canPublishOfficial, scores, canReadCloud, retryConnection, onMemberDenied, question, legacy, onBack, canEditQuestion, revalidateAccess, onQuestionChange, offlineReady, onCopySaved,
   resultGeneration, onResultsChanged, onResult, resultNotice, pitchTraceEnabled, setPitchTraceEnabled, audioMix }: DriveContext & {
   question?: PublishedQuestion; legacy?: SightSingingQuestion; onBack: () => void; onMemberDenied: () => void;
   canEditQuestion?: boolean; offlineReady?: boolean; onCopySaved: () => void; revalidateAccess: () => void; onQuestionChange: (id: string, question: PublishedQuestion | null, signal: AbortSignal) => Promise<void>;
@@ -569,6 +576,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   audioMix: ReturnType<typeof useChallengeMix>;
 }) {
   const t = useMessages('practice');
+  const rhythm = exerciseType === 'rhythm';
   const { locale } = useAppLocale();
   const entry = useMessages('entry');
   const libraryMessages = useMessages('library');
@@ -646,14 +654,27 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const last = lastChoice ?? (loaded.document?.visits.length ?? 1) - 1;
   const options = useMemo(() => {
     const document = loaded.document;
-    return document?.singingVoices.map(voice => ({ voice, melody: buildMelody(document, voice, first, last, beats) })) ?? [];
-  }, [loaded.document, first, last, beats]);
-  const voices: VoiceOption[] = options.flatMap(({ voice, melody }) => {
-    if (typeof melody === 'string') return [];
+    return !rhythm && document ? document.singingVoices.map(voice => ({
+      voice, melody: buildMelody(document, voice, first, last, beats),
+    })) : [];
+  }, [loaded.document, first, last, beats, rhythm]);
+  const rhythmOptions = useMemo(() => {
+    const document = loaded.document;
+    return rhythm && document ? rhythmVoices(document).map(voice => ({
+      voice, timeline: buildRhythmTimeline(document, voice, first, last, beats),
+    })) : [];
+  }, [loaded.document, first, last, beats, rhythm]);
+  const voiceLabel = (voice: MelodyVoice) => {
     const name = voice.name || t('sight.part', { number: voice.track + 1 });
-    return [{ voice, melody, label: voice.multiple ? t('sight.voiceDetail', { name, staff: voice.staff + 1, voice: voice.voice + 1 }) : name }];
-  });
+    return voice.multiple ? t('sight.voiceDetail', { name, staff: voice.staff + 1, voice: voice.voice + 1 }) : name;
+  };
+  const voices: VoiceOption[] = options.flatMap(({ voice, melody }) =>
+    typeof melody === 'string' ? [] : [{ voice, melody, label: voiceLabel(voice) }]);
+  const tapVoices: RhythmOption[] = rhythmOptions.flatMap(({ voice, timeline }) =>
+    typeof timeline === 'string' ? [] : [{ voice, timeline, label: voiceLabel(voice) }]);
   const selected = voices.find(option => option.voice.id === voiceChoice) ?? voices[0];
+  const selectedRhythm = tapVoices.find(option => option.voice.id === voiceChoice) ?? tapVoices[0];
+  const playable = Boolean(selected || selectedRhythm);
   const visitLabel = (index: number) => {
     const visit = loaded.document?.visits[index];
     return visit?.visit ? t('sight.measureVisit', { measure: visit.number, visit: visit.visit }) : t('sight.measureNumber', { measure: visit?.number ?? index + 1 });
@@ -688,7 +709,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   const title = titleOverride ?? (scoreName && nameRange ? questionNameWithRange(scoreName, nameRange) : '');
   const editable = canEditQuestion ?? saved?.canEdit ?? canPublishOfficial;
   const save = async () => {
-    if (!canReadCloud || !title.trim() || !source || !loadedBytes || !loadedName || !selected || saveLifetime.current || deleteLifetime.current || (saved && !editable)) return;
+    if (!canReadCloud || !title.trim() || !source || !loadedBytes || !loadedName || !playable || saveLifetime.current || deleteLifetime.current || (saved && !editable)) return;
     const controller = new AbortController();
     saveLifetime.current = controller;
     const current = captureNavigationIdentity();
@@ -714,7 +735,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
         body = form;
       }
       const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]);
-      const response = await diagnosticFetch(`${publishedPath(choirId)}/${questionId}`, { method: 'PUT', signal, headers, body });
+      const response = await diagnosticFetch(`${publishedPath(choirId, exerciseType)}/${questionId}`, { method: 'PUT', signal, headers, body });
       signal.throwIfAborted();
       if (current()) {
         if (response.status === 401) onMemberDenied();
@@ -741,7 +762,7 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
     deleteLifetime.current = controller;
     setDeleting(true); setDeleteFailed(false);
     try {
-      const response = await diagnosticFetch(`${publishedPath(choirId)}/${encodeURIComponent(saved.id)}`, {
+      const response = await diagnosticFetch(`${publishedPath(choirId, exerciseType)}/${encodeURIComponent(saved.id)}`, {
         method: 'DELETE', signal, headers: { 'content-type': 'application/json', 'x-same-page-owner-user-id': userId },
         body: JSON.stringify({ editToken }),
       });
@@ -764,28 +785,29 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
   };
   const status = score && attachments.statusFor(score.id);
   const needsSource = visibleSource === 'library' && ((!score && Boolean(scoreId)) || (score && status === 'ready' && !attachment && Boolean(fileChoice)));
-  const playable = Boolean(loaded.document && selected);
-  const issue = !selected && loaded.document ? options[0]?.melody ?? 'noMelody' : null;
+  const issue = !playable && loaded.document
+    ? rhythm ? rhythmOptions[0]?.timeline ?? 'noTargets' : options[0]?.melody ?? 'noMelody'
+    : null;
   const canEdit = !editing && editable;
   const replace = Boolean(saved && (sourceMode !== 'saved' || first !== saved.first || last !== saved.last ||
     (beats.firstBeat ?? null) !== (saved.firstBeat ?? null) || (beats.lastBeat ?? null) !== (saved.lastBeat ?? null)));
   const badUpload = invalidUpload || (source?.kind === 'upload' && loaded.failed);
   const versionSuffix = version > 1 ? ` · ${versionTag(version)}` : '';
-  return <div className="app-page challenge-workspace" data-practice={!editing && playable || undefined}>
+  return <div className="app-page challenge-workspace" data-rhythm={rhythm || undefined} data-practice={!editing && playable || undefined}>
     <TaskHeader title={<span ref={heading} tabIndex={-1} id={`${id}-heading`}>{editing ? t(saved ? 'sight.edit' : 'sight.create') : saved?.title}</span>}
       subtitle={editing || !saved ? undefined : `${loaded.document ? `${range} · ` : ''}${publisherLabel(saved.publisher, t)}${versionSuffix}${offlineReady ? ` · ${libraryMessages('localStorageAvailableOffline')}` : ''}`}
       backTo={`/choirs/${choirId}`} onBack={() => { currentResult.current?.finish(); onBack(); }} backLabel={t('sight.backToQuestions')}
       actions={!editing && <div className="challenge-header-actions">
         {canEdit && <button type="button" className="icon-button" aria-label={t('sight.edit')} title={t('sight.edit')}
           onClick={() => { currentResult.current?.finish(); setSourceMode('saved'); setEditing(true); }}><Pencil size={18} aria-hidden="true" /></button>}
-        {saved && canReadCloud && <PracticePanel title={t('sight.bestResults')} icon={<Trophy size={19} aria-hidden="true" />}>
+        {!rhythm && saved && canReadCloud && <PracticePanel title={t('sight.bestResults')} icon={<Trophy size={19} aria-hidden="true" />}>
           <PublishedResults key={`${saved.id}:${version}`} reads={{ owner, choirId, canReadCloud, onMemberDenied }} userId={userId} questionId={saved.id}
             version={version} generation={resultGeneration} onResultsChanged={onResultsChanged} />
         </PracticePanel>}
-        <PracticePanel title={t('settings')} compact icon={<Settings size={20} aria-hidden="true" />}>
+        {!rhythm && <PracticePanel title={t('settings')} compact icon={<Settings size={20} aria-hidden="true" />}>
           <ChallengePracticeSettings pitchTraceEnabled={pitchTraceEnabled} setPitchTraceEnabled={setPitchTraceEnabled}
             mix={audioMix[0]} setMix={audioMix[1]} audioBusy={audioBusy} measuring={measuring} onMeasure={setMeasuring} />
-        </PracticePanel>
+        </PracticePanel>}
       </div>} />
     <main className="page-shell challenge-page">
       {resultNotice}
@@ -858,13 +880,15 @@ function QuestionWorkspace({ owner, choirId, sessionId, userId, canPublishOffici
       {(status === 'error' || status === 'unavailable') && <p role="alert" className="challenge-error">{t('sight.sourceError')} <button type="button" className="text-button" onClick={canReadCloud ? attachments.retry : retryConnection}>{t('sight.tryLoad')}</button></p>}
       {needsSource && <p role="alert" className="challenge-error">{t('sight.sourceChanged')}</p>}
       {loaded.failed && source?.kind !== 'upload' && <p role="alert" className="challenge-error">{t('sight.sourceError')} <button type="button" className="text-button" onClick={canReadCloud || source?.kind === 'local' ? loaded.retry : retryConnection}>{t('sight.tryLoad')}</button></p>}
-      {typeof issue === 'string' && <p role="alert" className="challenge-error">{t(`sight.${issue}`)}</p>}
+      {typeof issue === 'string' && <p role="alert" className="challenge-error">{t(issue === 'noTargets' ? 'rhythm.noTargets' : `sight.${issue}`)}</p>}
       {failed && <p role="alert" className="challenge-error">{t('sight.publishError')}</p>}
       {deleteFailed && <p role="alert" className="challenge-error">{t('sight.deleteQuestionFailed')}</p>}
       <ConfirmDialog busy={deleting} onClose={() => setConfirmingDelete(false)} confirmation={confirmingDelete && saved ? {
         title: t('sight.deleteQuestion'), message: t('sight.deleteQuestionConfirm', { title: saved.title }),
         action: t('sight.deleteQuestion'), destructive: true, onConfirm: remove,
       } : null} />
+      {!editing && loaded.document && selectedRhythm && <RhythmRun key={selectedRhythm.voice.id}
+        document={loaded.document} selected={selectedRhythm} voices={tapVoices} selectVoice={setVoiceChoice} visitLabel={visitLabel} />}
       {!editing && loaded.document && selected && <ChallengeRun ref={currentResult} document={loaded.document} selected={selected} voices={voices}
         selectVoice={setVoiceChoice} questionVersion={version}
         pitchTraceEnabled={pitchTraceEnabled} mix={audioMix[0]} onScored={attempt => { if (saved) onResult(saved.id, attempt); }} onAudioBusy={setAudioBusy}
