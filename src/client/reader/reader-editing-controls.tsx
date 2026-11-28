@@ -12,6 +12,7 @@ import type { AnnotationTool } from "../annotations/annotation-overlay";
 import type { AnnotationEditor } from "../annotations/annotation-editor";
 import "./reader-ux.css";
 import { LayerChoiceContent } from "./layer-choice";
+import { groupReaderLayers } from "./reader-layer-groups";
 import { StyleFields } from "../annotations/style-fields";
 import { defaultToolStyle, type ToolStyle } from "../annotations/tool-style";
 
@@ -48,7 +49,8 @@ export function ReaderEditingControls({
   const styleAnchor = useRef<Element | null>(null);
   const styleDialogId = useId();
   const permissionHelpId = useId();
-  const hasReadOnlyLayers = layers.some(layer => layer.kind === "shared" && !layer.canEdit);
+  const { shared: sharedLayers, personal: personalLayers } = groupReaderLayers(layers);
+  const hasReadOnlyLayers = sharedLayers.some(layer => !layer.canEdit);
   const stylePopover = useRef<HTMLDivElement>(null);
   const [styleSource, setStyleSource] = useState<AnnotationTool | "settings" | null>(null);
   const openStyle = (source: AnnotationTool | "settings", anchor: Element) => {
@@ -74,7 +76,6 @@ export function ReaderEditingControls({
     setStyleSource(null);
     setChoosingLayer(false);
   };
-  const personalLayers = layers.filter((layer) => layer.kind === "personal" && layer.canEdit);
 
   return (
     <section className="annotation-controls" data-no-native-selection aria-label={t("noteTools")}>
@@ -93,7 +94,7 @@ export function ReaderEditingControls({
             {hasReadOnlyLayers && <p id={permissionHelpId} className="annotation-layer-permission-help">{t("requestLayerPermission")}</p>}
             <p className="layer-choice-group-label">{t("sharedLayerAudience")}</p>
             <div className="annotation-layer-switcher" aria-label={t("editingLayer")}>
-              {layers.filter(layer => layer.kind === "shared").map((layer) => (
+              {sharedLayers.map((layer) => (
                 <LayerSlotButton
                   isDisabled={isDisabled}
                   key={layer.id}

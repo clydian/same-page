@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { Button, Tabs, TabList, Tab, TabPanel } from "react-aria-components";
 
 import type { AnnotationLayerSummary } from "../../shared/annotations";
+import { groupReaderLayers } from "./reader-layer-groups";
 import { usePersonalLayerManagement } from "./use-personal-layer-management";
 import { useReadingPreferences } from "./use-reading-preferences";
 import { type LocalWorkspace } from "../platform/local-workspace";
@@ -41,9 +42,7 @@ function ReaderLayerPanelContent({ workspace, layers: storedLayers, signedIn, pa
   const projectedLayers = useReadingPreferenceProjection(workspace, storedLayers);
   const layers = preferences.projectLayers(projectedLayers)
     .map(layer => layer.id === GUEST_NOTE_LAYER_ID ? { ...layer, name: t("previewNotes") } : layer);
-  const sharedLayers = layers.filter((layer) => layer.kind === "shared");
-  const personalLayers = layers.filter((layer) => layer.kind === "personal" && layer.canEdit);
-  const publishedLayers = layers.filter(layer => layer.kind === "personal" && !layer.canEdit);
+  const { shared: sharedLayers, personal: personalLayers, memberShares: publishedLayers } = groupReaderLayers(layers);
   const overriddenLayers = sharedLayers.filter((layer) => layer.scoreSubscriptionOverride !== null || layer.scoreColorOverride != null);
 
   const save = (changes: PreferenceChange[]) => Promise.all(changes.map(({ layer, ...change }) =>

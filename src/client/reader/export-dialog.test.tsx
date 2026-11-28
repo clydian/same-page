@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { loadLocale } from "../../i18n/catalogs";
 import { AppLocaleContext } from "../../i18n/context";
+import type { AnnotationLayerSummary } from "../../shared/annotations";
 import { guestNoteLayer } from "../annotations/guest-notes";
 import { ExportDialog } from "./export-dialog";
 import { authenticatedLocalOwnerKey, createLocalWorkspace, LocalWorkspaceOwnerChangedError } from "../platform/local-workspace";
@@ -59,4 +60,17 @@ it("localizes the preview layer label and preserves user-entered layer names", a
   fireEvent.click(await screen.findByRole("radio", { name: "Include notes" }));
   expect(await screen.findByRole("checkbox", { name: "Local preview notes" })).not.toBeChecked();
   expect(screen.getByRole("checkbox", { name: previewLayer.name })).toBeInTheDocument();
+});
+
+it("keeps read-only shared layers and member shares in their respective export groups", async () => {
+  const personal = { ...guestNoteLayer(), id: "personal", name: "我的笔记" };
+  const memberShare = { ...personal, id: "member-share", name: "声部长的笔记", canEdit: false, sharing: true };
+  const shared: AnnotationLayerSummary = { ...personal, id: "shared", kind: "shared", sharedSlot: "E", name: "Ensemble", canEdit: false };
+  io.read.mockResolvedValue({ ...state, layers: [memberShare, personal, shared] });
+  render(<ExportDialog workspace={workspace} versionId="v1" fileName="score.pdf" authenticatedUserId="reader" onClose={() => {}} />);
+
+  fireEvent.click(await screen.findByRole("radio", { name: "包含笔记" }));
+  expect(within(await screen.findByRole("group", { name: "共享层" })).getByRole("checkbox", { name: "Ensemble" })).toBeEnabled();
+  expect(within(screen.getByRole("group", { name: "我的个人层" })).getByRole("checkbox", { name: "我的笔记" })).not.toBeChecked();
+  expect(within(screen.getByRole("group", { name: "成员分享" })).getByRole("checkbox", { name: "声部长的笔记" })).not.toBeChecked();
 });

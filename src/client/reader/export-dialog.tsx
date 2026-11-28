@@ -4,6 +4,7 @@ import { GUEST_NOTE_LAYER_ID } from "../annotations/guest-notes";
 import { LibraryTaskDialog, LibraryTaskLoading } from "../score-library/library-task-dialog";
 import { LoadingStatus } from "../components/loading-status";
 import { type ExportTarget } from "./export-session";
+import { groupReaderLayers } from "./reader-layer-groups";
 import { useExportSession } from "./use-export-session";
 import "./export-dialog.css";
 
@@ -22,10 +23,11 @@ function ExportDialogContent(props: Props) {
   if (!current) return <LibraryTaskLoading title={t("sharePdf")} size="tall" onClose={onClose} />;
   const { session, snapshot: { prepared, layers, selected, includeNotes, file, message, readError, sharing, shareFailed } } = current;
   const canShare = file ? canSharePdf(file) : false;
+  const { shared, personal, memberShares } = groupReaderLayers(layers);
   const layerGroups = [
-    { id: "shared", title: t("sharedLayer"), layers: layers.filter(layer => layer.kind === "shared") },
-    { id: "personal", title: t("myPersonalLayers"), layers: layers.filter(layer => layer.kind === "personal" && layer.canEdit) },
-    { id: "member-shares", title: t("memberShares"), layers: layers.filter(layer => layer.kind === "personal" && !layer.canEdit) },
+    { id: "shared", title: t("sharedLayer"), layers: shared },
+    { id: "personal", title: t("myPersonalLayers"), layers: personal },
+    { id: "member-shares", title: t("memberShares"), layers: memberShares },
   ];
   return <LibraryTaskDialog title={t("sharePdf")} size="tall" onClose={onClose} busy={sharing}><div className="export-dialog">
     <p className="export-file-name">{fileName}</p>
