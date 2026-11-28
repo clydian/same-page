@@ -230,12 +230,22 @@ export function buildMelody(document: MelodyScore, voice: MelodyVoice, first: nu
   return { notes, measures, staffBeats, clicks, keyChanges, tempoMarks, duration: seconds, leadIn, pickup, beatSeconds, beats, denominator, tonic, tempo: { bpm, unit } };
 }
 
-export function voicePlayback(document: MelodyScore, voice: MelodyVoice, melody: Melody): PlaybackNote[] | null {
+export function voicePlayback(document: MelodyScore, voice: MelodyVoice, melody: Melody,
+  purpose: 'backing' | 'answer' = 'backing'): PlaybackNote[] | null {
   const opening = melody.measures[0], closing = melody.measures.at(-1)!;
   const bars = document.bars.slice(opening.visit, closing.visit + 1);
   const clocks = bars.map((bar, index) => visitClock(bar, document.score.tempo,
     index === 0 ? melody.pickup : melody.measures[index].start));
   const firstTick = bars[0].start;
+  const answerStart = purpose === 'answer' && opening.clip?.from ? firstTick + opening.clip.from : undefined;
+  const firstTarget = answerStart === undefined ? undefined
+    : melody.notes.find(note => note.visit === opening.visit && note.start >= melody.leadIn);
+  const source = document.score.tracks[voice.track].staves[voice.staff].bars[opening.bar]?.voices[voice.voice];
+  const beforeBeat = firstTarget?.beatIndex === undefined ? [] : source?.beats[firstTarget.beatIndex]?.graceGroup?.beats
+    .filter(beat => beat.voice === source && beat.graceType === alphaTab.model.GraceType.BeforeBeat) ?? [];
+  // Match the first target's written grace group to native attacks in this lane and visit.
+  const isOpeningGrace = (event: MidiNote) => event.visit === opening.visit && beforeBeat.some(beat =>
+    event.start === firstTick + beat.playbackStart && beat.notes.some(note => !note.isCue && !note.isPercussion && note.realValue === event.midi));
   const lastBar = bars.at(-1)!;
   const lastTick = closing.clip ? lastBar.start + closing.clip.until : lastBar.end;
   const toSeconds = (tick: number) => {
@@ -247,6 +257,7 @@ export function voicePlayback(document: MelodyScore, voice: MelodyVoice, melody:
   for (const event of document.playbackFor(voice)) {
     if (event.visit > closing.visit || event.start >= lastTick) continue;
     if (event.visit < opening.visit && (opening.clip || event.end <= firstTick)) continue;
+    if (answerStart !== undefined && event.start < answerStart && !isOpeningGrace(event)) continue;
     const start = toSeconds(event.visit < opening.visit ? firstTick : event.start);
     const end = toSeconds(Math.min(event.end, lastTick));
     if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isInteger(event.midi) || event.midi < 0 || event.midi > 127) return null;

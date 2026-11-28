@@ -126,6 +126,30 @@ it('keeps playable lanes independent of scoring and includes a before-beat grace
   expect(voicePlayback(document, alto, opening)).toEqual([{ midi: 65, start: .0625, end: 1.0625 }]);
 });
 
+it('plays the first scored note’s before-beat grace in a cropped answer while omitting the ordinary lead-in note', () => {
+  const meter = '<attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes>';
+  const document = loadMelodyScore(bytes(`<score-partwise version="4.0">
+<part-list><score-part id="S"><part-name>Soprano</part-name></score-part><score-part id="P"><part-name>Piano</part-name></score-part></part-list>
+<part id="S"><measure number="1">${meter}<direction><sound tempo="120"/></direction>
+${note('C')}${ornament('D', 'yes')}${note('G')}</measure></part>
+<part id="P"><measure number="1">${meter}${note('E')}${note('A')}</measure></part></score-partwise>`));
+  const [soprano, piano] = document.voices;
+  const melody = buildMelody(document, soprano, 0, 0, { firstBeat: 2 }) as Melody;
+  expect(melody.leadIn).toBe(.5);
+  expect(voicePlayback(document, soprano, melody, 'answer')).toEqual([
+    { midi: 62, start: .4375, end: .5 }, { midi: 67, start: .5, end: 1 },
+  ]);
+  expect(voicePlayback(document, piano, melody)).toEqual([
+    { midi: 64, start: 0, end: .5 }, { midi: 69, start: .5, end: 1 },
+  ]);
+  const targets = melody.notes.filter(note => note.start >= melody.leadIn);
+  expect(targets.map(note => note.midi)).toEqual([67]);
+  const direct = Array.from({ length: 100 }, (_, index) => ({
+    time: index / 100, midi: index < 50 ? null : 67,
+  }));
+  expect(takeScore(assessNotes(targets, direct))).toMatchObject({ total: 1, matched: 1, percent: 100 });
+});
+
 it('focuses a voice on a shared staff without changing the challenge timeline', () => {
   const secondVoice = `<backup><duration>2</duration></backup>` + ['E', 'F'].map(step =>
     `<note>${pitch(step)}<duration>1</duration><voice>2</voice><type>quarter</type>` +

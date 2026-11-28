@@ -10,7 +10,7 @@ import { LatencyControls } from './challenge-latency-setting';
 import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
 import { useSightSingingScoreFormat } from './format-score';
 import { PitchGraph } from './pitch-graph';
-import { melodyAtSpeed, targetPitches, voicePlayback, type Melody, type MelodyScore, type MelodyVoice } from './melody';
+import { melodyAtSpeed, targetPitches, voicePlayback, type Melody, type MelodyScore, type MelodyVoice, type PlaybackNote } from './melody';
 import { assessNotes, pitchName, sightSingingExtraBadge, takeScore, type PitchFrame } from './pitch-feedback';
 import { ScoreBadges } from './score-badge';
 import { useChallengeAnswer } from './use-challenge-answer';
@@ -65,13 +65,13 @@ export function ChallengeRun({ document, selected, voices, selectVoice, question
   const [drone, setDrone] = useState(false);
   const [backing, setBacking] = useState(false);
   const playback = useMemo(() => {
-    const scale = (part: MelodyVoice) => voicePlayback(document, part, selected.melody)?.map(note => ({
+    const scale = (notes: PlaybackNote[] | null) => notes?.map(note => ({
       ...note, start: note.start / speed, end: note.end / speed,
     })) ?? null;
-    const otherParts = document.voices.filter(part => part.id !== voice.id).map(scale);
-    const answer = scale(voice)?.filter(note => !melody.measures[0].clip?.from || note.start >= melody.leadIn) ?? [];
+    const otherParts = document.voices.filter(part => part.id !== voice.id).map(part => scale(voicePlayback(document, part, selected.melody)));
+    const answer = scale(voicePlayback(document, voice, selected.melody, 'answer')) ?? [];
     return { answer, otherParts: otherParts.flatMap(notes => notes?.length ? [notes] : []), unavailable: otherParts.includes(null) };
-  }, [document, melody, selected.melody, speed, voice]);
+  }, [document, selected.melody, speed, voice]);
   const accompaniment = backing && !playback.unavailable ? playback.otherParts : [];
   const [state, setState] = useState<RunState>({ phase: 'idle' });
   const [headphoneHint, setHeadphoneHint] = useState(false);
