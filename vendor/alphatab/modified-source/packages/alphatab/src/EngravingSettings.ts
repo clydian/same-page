@@ -928,6 +928,10 @@ export class EngravingSettings {
                     bBoxNE: [1.876, 1.18],
                     bBoxSW: [0, 0]
                 },
+                brassFallLipShort: {
+                    bBoxNE: [1.172, 0.168],
+                    bBoxSW: [0.004, -1.38]
+                },
                 buzzRoll: {
                     bBoxNE: [0.624, 0.464],
                     bBoxSW: [-0.62, -0.464]

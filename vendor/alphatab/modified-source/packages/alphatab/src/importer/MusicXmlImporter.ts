@@ -3955,7 +3955,9 @@ export class MusicXmlImporter extends ScoreImporter {
                 // case 'scoop': Not Supported
                 // case 'plop': Not Supported
                 // case 'doit': Not Supported
-                // case 'falloff': Not Supported
+                case 'falloff':
+                    note.isSourceFalloff = true;
+                    break;
                 // case 'breath-mark': Not Supported
                 // case 'caesura': Not Supported
                 // case 'stress': Not Supported

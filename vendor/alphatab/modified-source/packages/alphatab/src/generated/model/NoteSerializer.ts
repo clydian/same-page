@@ -47,6 +47,7 @@ export class NoteSerializer {
         o.set("accentuated", obj.accentuated as number);
         o.set("istenuto", obj.isTenuto);
         o.set("tenutoplacement", obj.tenutoPlacement as number);
+        o.set("issourcefalloff", obj.isSourceFalloff);
         o.set("bendtype", obj.bendType as number);
         o.set("bendstyle", obj.bendStyle as number);
         o.set("iscontinuedbend", obj.isContinuedBend);
@@ -116,6 +117,9 @@ export class NoteSerializer {
                 return true;
             case "tenutoplacement":
                 obj.tenutoPlacement = JsonHelper.parseEnum<TenutoPlacement>(v, TenutoPlacement)!;
+                return true;
+            case "issourcefalloff":
+                obj.isSourceFalloff = v! as boolean;
                 return true;
             case "bendtype":
                 obj.bendType = JsonHelper.parseEnum<BendType>(v, BendType)!;
