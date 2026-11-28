@@ -1,9 +1,9 @@
 import { midi } from '@coderline/alphatab';
 import { TONE_PROFILES } from '@same-page/player/timbre-profile';
 import { exportPracticeAudio } from '../playback/practice-soundfont';
-import { targetPitches, type MelodyNote } from './melody';
+import { targetPitches, type PlaybackNote } from './melody';
 
-export function createChoirBacking(backing: MelodyNote[][], duration: number, soundFont: Uint8Array, sampleRate: number) {
+export function createChoirBacking(backing: PlaybackNote[][], duration: number, soundFont: Uint8Array, sampleRate: number) {
   const file = new midi.MidiFile();
   file.division = 1000;
   const handler = new midi.AlphaSynthMidiFileHandler(file);

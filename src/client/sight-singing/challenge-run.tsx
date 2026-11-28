@@ -10,7 +10,7 @@ import { LatencyControls } from './challenge-latency-setting';
 import { ChallengeNotation, type NotationNoteHit } from './challenge-notation';
 import { useSightSingingScoreFormat } from './format-score';
 import { PitchGraph } from './pitch-graph';
-import { melodyAtSpeed, targetPitches, type Melody, type MelodyScore, type MelodyVoice } from './melody';
+import { melodyAtSpeed, targetPitches, voicePlayback, type Melody, type MelodyScore, type MelodyVoice, type PlaybackNote } from './melody';
 import { assessNotes, pitchName, sightSingingExtraBadge, takeScore, type PitchFrame } from './pitch-feedback';
 import { ScoreBadges } from './score-badge';
 import { useChallengeAnswer } from './use-challenge-answer';
@@ -50,8 +50,8 @@ function reviewRecording(melody: Melody, take: Extract<RunState, { phase: 'resul
   return { frames, review, score, badge: sightSingingExtraBadge(review, score) };
 }
 
-export function ChallengeRun({ document, selected, voices, backingUnavailable, selectVoice, questionVersion, pitchTraceEnabled, mix, onScored, onAudioBusy, measuring, onMeasure, onLatency, ref }: {
-  document: MelodyScore; selected: VoiceOption; voices: VoiceOption[]; backingUnavailable: boolean;
+export function ChallengeRun({ document, selected, voices, selectVoice, questionVersion, pitchTraceEnabled, mix, onScored, onAudioBusy, measuring, onMeasure, onLatency, ref }: {
+  document: MelodyScore; selected: VoiceOption; voices: VoiceOption[];
   selectVoice: (id: string) => void; questionVersion: number;
   pitchTraceEnabled: boolean; mix: ChallengeMix; onAudioBusy: (busy: boolean) => void; measuring: boolean;
   onMeasure: (busy: boolean) => void; onLatency: (value: number) => void; onScored: (take: SightSingingResultSubmission) => void; ref: Ref<ChallengeResult>;
@@ -64,8 +64,15 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const melody = useMemo(() => melodyAtSpeed(selected.melody, speed), [selected.melody, speed]);
   const [drone, setDrone] = useState(false);
   const [backing, setBacking] = useState(false);
-  const otherVoices = voices.filter(option => option.voice.id !== voice.id);
-  const accompaniment = backing && !backingUnavailable ? otherVoices : [];
+  const playback = useMemo(() => {
+    const scale = (notes: PlaybackNote[] | null) => notes?.map(note => ({
+      ...note, start: note.start / speed, end: note.end / speed,
+    })) ?? null;
+    const otherParts = document.voices.filter(part => part.id !== voice.id).map(part => scale(voicePlayback(document, part, selected.melody)));
+    const answer = scale(voicePlayback(document, voice, selected.melody, 'answer')) ?? [];
+    return { answer, otherParts: otherParts.flatMap(notes => notes?.length ? [notes] : []), unavailable: otherParts.includes(null) };
+  }, [document, selected.melody, speed, voice]);
+  const accompaniment = backing && !playback.unavailable ? playback.otherParts : [];
   const [state, setState] = useState<RunState>({ phase: 'idle' });
   const [headphoneHint, setHeadphoneHint] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -98,7 +105,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const take = state.phase === 'result' ? state : undefined;
   const latency = latencyDraft ?? mix.latency;
   const corrected = useMemo(() => take ? reviewRecording(melody, take, latency) : undefined, [take, latency, melody]);
-  const { answer, retryAnswer } = useChallengeAnswer(take?.recording, corrected?.review, mix, melody.duration, latency);
+  const { answer, retryAnswer } = useChallengeAnswer(take?.recording, corrected?.review, playback.answer, mix, melody.duration, latency);
   const recording = state.phase === 'permission' || state.phase === 'count' || state.phase === 'sing';
   const audioBusy = recording || playing || drone;
   useEffect(() => { onAudioBusy(audioBusy); return () => onAudioBusy(false); }, [audioBusy, onAudioBusy]);
@@ -244,7 +251,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         setState({ phase: 'result', id: takeId, frames, captureLatency, recording });
       },
       onError: reason => { releaseUpdate(); discard(); setDrone(false); setError(reason); setState({ phase: 'idle' }); },
-    }, accompaniment.map(option => melodyAtSpeed(option.melody, speed).notes), mix, captureLatency, preview?.context);
+    }, accompaniment, mix, captureLatency, preview?.context);
     run.current = {
       stop: () => { cancelAnimationFrame(paint); capture.stop(); releaseUpdate(); },
       setMix: next => { capture.setMix(next); preview?.setVolume(next.tonic); },
@@ -385,11 +392,11 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         </button>
         <button type="button" className="challenge-option challenge-toggle" aria-pressed={accompaniment.length > 0}
           aria-label={t('sight.ensembleBacking')} title={t('sight.ensembleBacking')}
-          disabled={backingUnavailable || otherVoices.length === 0} onClick={() => {
+          disabled={playback.unavailable || playback.otherParts.length === 0} onClick={() => {
             setBacking(!backing); if (!backing) setHeadphoneHint(true);
           }}><UsersRound size={18} aria-hidden="true" /><span>{t('sight.ensembleBacking')}</span></button>
       </div>
-      {backingUnavailable && <small>{t('sight.backingUnavailable')}</small>}
+      {playback.unavailable && <small>{t('sight.backingUnavailable')}</small>}
       <button className="primary-button challenge-start" type="button" disabled={measuring} onClick={start}><Mic size={18} aria-hidden="true" />{t('sight.start')}</button>
     </div>}
 

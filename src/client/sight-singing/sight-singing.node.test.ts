@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { renderPracticeClicks } from '../playback/practice-metronome';
 import { exportPracticeAudio } from '../playback/practice-soundfont';
 import { createChoirBacking } from './choir-backing';
-import { buildMelody, loadMelodyScore, melodyAtSpeed, type Melody } from './melody';
+import { buildMelody, loadMelodyScore, melodyAtSpeed, targetPitches, voicePlayback, type Melody } from './melody';
 import { notationScore } from './notation-score';
 import { notationFeedbackAtVisit, type NotationFeedback } from './notation-feedback';
 import { assessNotes, createPitchReader, formatCents, frequency, pitchWindowSize, sightSingingExtraBadge, takeScore } from './pitch-feedback';
@@ -63,6 +63,91 @@ it('keeps the pickup, rests, tie, tempo changes and repeat visits on one score t
   for (const [midi, target, status] of [[65.12, 65, 'inTune'], [65.36, 65, 'sharp'], [68.62, 69, 'flat'], [67.6, 69, 'wrongNote']] as const) {
     expect(assessNotes(alto.notes, [{ time: .25, midi }])[0]).toMatchObject({ target, status });
   }
+});
+
+const ornament = (step: string, slash = 'no') => `<note><grace slash="${slash}"/>${pitch(step)}<type>eighth</type></note>`;
+const timed = (step: string, duration: number, type: string, extra = '') =>
+  `<note>${pitch(step)}<duration>${duration}</duration><type>${type}</type>${extra}</note>`;
+const attributes = '<attributes><divisions>16</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes>';
+const spoken = '<note><unpitched><display-step>E</display-step><display-octave>4</display-octave></unpitched><duration>8</duration><type>eighth</type><notehead>x</notehead></note>';
+const graceXml = `<score-partwise version="4.0">
+<part-list><score-part id="S"><part-name>Soprano</part-name></score-part>
+<score-part id="A"><part-name>Alto</part-name></score-part><score-part id="P"><part-name>Piano</part-name></score-part></part-list>
+<part id="S"><measure number="1">${attributes}<direction><sound tempo="120"/></direction>
+${ornament('D')}${timed('G', 16, 'quarter')}${spoken}${timed('C', 2, '32nd')}${timed('F', 6, '16th', '<dot/>')}</measure>
+<measure number="2">${ornament('E', 'yes')}${timed('A', 32, 'half')}</measure></part>
+<part id="A"><measure number="1">${attributes}
+${timed('E', 32, 'half').replace('<note>', '<note time-only="1">')}<backup><duration>32</duration></backup>
+<note>${pitch('B', 3)}<duration>32</duration><voice>2</voice><type>half</type></note></measure>
+<measure number="2">${timed('F', 32, 'half')}</measure></part>
+<part id="P"><measure number="1">${attributes}${timed('C', 32, 'half')}</measure>
+<measure number="2">${timed('D', 32, 'half')}</measure></part></score-partwise>`;
+
+it('plays the grace and the equally short measured note, scoring only timed pitched notes', () => {
+  const { document, melody } = melodyOf(graceXml, 0, 0);
+  const soprano = document.voices[0];
+  expect(melody.notes.map(({ midi, start, end }) => [midi, start, end])).toEqual([
+    [67, .0625, .5], [60, .75, .8125], [65, .8125, .9375],
+  ]);
+  expect(voicePlayback(document, soprano, melody)).toEqual([
+    { midi: 62, start: 0, end: .0625 }, { midi: 67, start: .0625, end: .5 },
+    { midi: 60, start: .75, end: .8125 }, { midi: 65, start: .8125, end: .9375 },
+  ]);
+  expect(document.score.tracks[0].staves[0].bars[0].voices[0].beats[0].graceType).not.toBe(model.GraceType.None);
+  for (const entry of [62, 67]) {
+    const frames = Array.from({ length: 200 }, (_, index) => {
+      const time = index / 200;
+      const midi = time < .0625 ? entry : time < .5 ? 67 : time < .75 ? null : time < .8125 ? 60 : 65;
+      return { time, midi };
+    });
+    expect(takeScore(assessNotes(melody.notes, frames))).toMatchObject({ total: 3, matched: 3, percent: 100 });
+    expect(assessNotes(melody.notes, frames.map(frame => frame.midi === 60 ? { ...frame, midi: 65 } : frame))[1].status).toBe('wrongNote');
+  }
+  const secondBeat = buildMelody(document, soprano, 0, 0, { firstBeat: 2 }) as Melody;
+  expect(secondBeat.leadIn).toBe(.5);
+  expect(secondBeat.notes.filter(note => note.start >= secondBeat.leadIn).map(note => note.midi)).toEqual([60, 65]);
+});
+
+it('keeps playable lanes independent of scoring and includes a before-beat grace at the opening', () => {
+  const { document, melody } = melodyOf(graceXml, 0, 0);
+  const [soprano, alto, lower, piano] = document.voices;
+  expect(document.singingVoices.map(voice => voice.id)).toEqual([soprano.id, alto.id, lower.id]);
+  expect(piano.name).toBe('Piano');
+  expect(buildMelody(document, alto, 0, 0)).toBe('unsupportedMelody');
+  expect(voicePlayback(document, alto, melody)?.flatMap(targetPitches)).toEqual([64]);
+  expect(voicePlayback(document, lower, melody)?.flatMap(targetPitches)).toEqual([59]);
+  expect(voicePlayback(document, piano, melody)?.flatMap(targetPitches)).toEqual([60]);
+  const opening = buildMelody(document, soprano, 1, 1) as Melody;
+  expect(opening.leadIn).toBe(.0625);
+  expect(opening.notes.map(({ midi, start }) => [midi, start])).toEqual([[69, .0625]]);
+  expect(voicePlayback(document, soprano, opening)).toEqual([
+    { midi: 64, start: 0, end: .0625 }, { midi: 69, start: .0625, end: 1.0625 },
+  ]);
+  expect(voicePlayback(document, alto, opening)).toEqual([{ midi: 65, start: .0625, end: 1.0625 }]);
+});
+
+it('plays the first scored note’s before-beat grace in a cropped answer while omitting the ordinary lead-in note', () => {
+  const meter = '<attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes>';
+  const document = loadMelodyScore(bytes(`<score-partwise version="4.0">
+<part-list><score-part id="S"><part-name>Soprano</part-name></score-part><score-part id="P"><part-name>Piano</part-name></score-part></part-list>
+<part id="S"><measure number="1">${meter}<direction><sound tempo="120"/></direction>
+${note('C')}${ornament('D', 'yes')}${note('G')}</measure></part>
+<part id="P"><measure number="1">${meter}${note('E')}${note('A')}</measure></part></score-partwise>`));
+  const [soprano, piano] = document.voices;
+  const melody = buildMelody(document, soprano, 0, 0, { firstBeat: 2 }) as Melody;
+  expect(melody.leadIn).toBe(.5);
+  expect(voicePlayback(document, soprano, melody, 'answer')).toEqual([
+    { midi: 62, start: .4375, end: .5 }, { midi: 67, start: .5, end: 1 },
+  ]);
+  expect(voicePlayback(document, piano, melody)).toEqual([
+    { midi: 64, start: 0, end: .5 }, { midi: 69, start: .5, end: 1 },
+  ]);
+  const targets = melody.notes.filter(note => note.start >= melody.leadIn);
+  expect(targets.map(note => note.midi)).toEqual([67]);
+  const direct = Array.from({ length: 100 }, (_, index) => ({
+    time: index / 100, midi: index < 50 ? null : 67,
+  }));
+  expect(takeScore(assessNotes(targets, direct))).toMatchObject({ total: 1, matched: 1, percent: 100 });
 });
 
 it('focuses a voice on a shared staff without changing the challenge timeline', () => {
