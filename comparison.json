@@ -1,0 +1,117 @@
+{
+  "fixtureSha256": "782c99726c3427617e932e99ed4b2560f0958cdfce2f79d6ef5eba27c6dc6ce7",
+  "base": "52284b55aa6f102be926284d7f26084b1c5f13ed",
+  "head": "280597ffcbbc280a3bebc5159d1206490e9b5abd",
+  "baseMemberError": "BarLayoutingInfo.finish: Cannot read properties of undefined (reading 'preBeatWidth')",
+  "baseNativeNoteOnsets": [
+    [
+      0,
+      71
+    ],
+    [
+      0,
+      41
+    ],
+    [
+      2700,
+      64
+    ],
+    [
+      2730,
+      65
+    ],
+    [
+      2760,
+      69
+    ],
+    [
+      2790,
+      72
+    ],
+    [
+      2820,
+      74
+    ],
+    [
+      2850,
+      77
+    ],
+    [
+      2880,
+      79
+    ],
+    [
+      2880,
+      52
+    ],
+    [
+      2910,
+      53
+    ],
+    [
+      2940,
+      57
+    ],
+    [
+      2970,
+      62
+    ]
+  ],
+  "headWorkerNoteOnsets": [
+    [
+      0,
+      71
+    ],
+    [
+      0,
+      41
+    ],
+    [
+      2580,
+      52
+    ],
+    [
+      2610,
+      53
+    ],
+    [
+      2640,
+      57
+    ],
+    [
+      2670,
+      62
+    ],
+    [
+      2700,
+      64
+    ],
+    [
+      2730,
+      65
+    ],
+    [
+      2760,
+      69
+    ],
+    [
+      2790,
+      72
+    ],
+    [
+      2820,
+      74
+    ],
+    [
+      2850,
+      77
+    ],
+    [
+      2880,
+      79
+    ]
+  ],
+  "midiDivision": 960,
+  "headWorkerAudioNonZeroAtTick": 2937,
+  "drawnBeamPaths": 1
+}
