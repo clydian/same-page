@@ -2,6 +2,7 @@ import { AlphaTabApi, LayoutMode, model, NotationElement, PlayerMode, StaveProfi
 import { isPointerDrag, ScoreFollowSession, type PointerPosition } from '@same-page/player/score-follow';
 import { memo, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useMessages } from '../../i18n';
+import { notationFontDirectory } from '../../shared/asset-url';
 import { NotationZoom } from '../playback/notation-zoom';
 import type { Melody, MelodyMeasure, MelodyScore, MelodyVoice } from './melody';
 import { shadeContext } from './notation-crop';
@@ -289,7 +290,7 @@ export function ChallengeNotation({ score, voice, melody, measure, elapsed, posi
     const element = notation.current;
     if (!element) return;
     const api = new AlphaTabApi(element, {
-      core: { fontDirectory: '/font/', engine: 'svg', includeNoteBounds: true },
+      core: { fontDirectory: notationFontDirectory, engine: 'svg', includeNoteBounds: true },
       display: { scale, startBar: min + 1, barCount: max - min + 1, justifyLastSystem: true,
         layoutMode: horizontal ? LayoutMode.Horizontal : LayoutMode.Page, stretchForce: horizontal ? 1.5 : 1,
         staveProfile: StaveProfile.Score,
