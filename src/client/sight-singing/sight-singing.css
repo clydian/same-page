@@ -35,8 +35,8 @@
 .challenge-workspace .task-header + main { padding-block-start: 0; }
 .challenge-workspace .task-header h1 { font-size: clamp(1.15rem, 2vw, 1.5rem); letter-spacing: -.018em; }
 .challenge-workspace .task-header h1 > span:focus { outline: none; }
-.challenge-workspace:has(.challenge-range-editor) > :is(.challenge-page, .task-header) { max-width: 90rem; }
-.challenge-workspace:has(.challenge-range-editor) > .challenge-page { width: min(90rem, calc(100% - 2rem)); }
+.challenge-workspace:has(.challenge-form) > :is(.challenge-page, .task-header) { max-width: 90rem; }
+.challenge-workspace:has(.challenge-form) > .challenge-page { width: calc(100% - 2rem); }
 .challenge-form:has(> .challenge-range-editor) {
   max-width: none; grid-template-columns: minmax(0, 34rem) minmax(0, 1fr);
 }
