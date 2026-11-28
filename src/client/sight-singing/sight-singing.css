@@ -141,7 +141,7 @@
 .challenge-speed button:focus-visible { outline-offset: -3px; }
 .challenge-speed output { padding: .25rem .15rem; border-inline: 1px solid var(--line); text-align: center;
   font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.challenge-setup small, .challenge-save-status { color: var(--muted); font-size: .8rem; }
+.challenge-setup small { color: var(--muted); font-size: .8rem; }
 .challenge-headphones {
   width: max-content; max-width: 100%; display: flex; align-items: center; gap: .35rem; padding: 0 .35rem 0 .7rem;
   border: 1px solid var(--line); border-radius: .7rem; background: var(--surface); color: var(--ink); font-size: .82rem;
@@ -155,7 +155,6 @@
 .challenge-score-badges { align-self: center; }
 .challenge-replay-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
 .challenge-review-play { border-radius: .85rem; }
-.challenge-save-status { display: flex; align-items: baseline; gap: .4rem; margin: 0; min-height: 1.2em; }
 
 .challenge-graph {
   flex: none; margin-block: .3rem; margin-inline: -.75rem;

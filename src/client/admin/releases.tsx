@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { adminFetch, AdminRequestError } from "./api";
@@ -8,6 +10,7 @@ export function Releases({ onError }: { onError(error: unknown): void }) {
   const [data, setData] = useState<z.infer<typeof schema> | null>(null);
   const [busy, setBusy] = useState<"refresh" | "promote" | null>("refresh");
   const [message, setMessage] = useState("正在读取发布通道…"), [error, setError] = useState("");
+  const feedback = useFeedbackMessage();
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [confirmPromote, setConfirmPromote] = useState(false);
   const request = useRef<{ id: string; expectedBeta: string; expectedRevision: number } | null>(null);
@@ -28,22 +31,28 @@ export function Releases({ onError }: { onError(error: unknown): void }) {
     return () => abort.abort();
   }, [report]);
   async function refresh() {
-    setBusy("refresh"); setError(""); setMessage("正在读取发布通道…");
+    setBusy("refresh"); setError(""); feedback.dismiss(); setMessage("正在读取发布通道…");
     try {
-      await load(); request.current = null; setNeedsRefresh(false); setMessage("版本信息已更新。");
-    } catch (error) { setMessage(""); report(error); }
+      await load(); request.current = null; setNeedsRefresh(false); setMessage("");
+      feedback.setMessage("版本信息已更新。", { duration: 5000 });
+    } catch (error) {
+      setMessage("");
+      if (!data || needsRefresh || error instanceof AdminRequestError && [401, 403].includes(error.status)) report(error);
+      else feedback.setMessage(error instanceof Error ? error.message : "无法读取发布通道，请重试。", { duration: 8000 });
+    }
     finally { setBusy(null); }
   }
   async function promote() {
     if (!data || busy || needsRefresh) return;
     const targetVersion = version(data.beta);
-    setBusy("promote"); setError(""); setMessage(`正在将 ${targetVersion} 设为稳定版…`);
+    setBusy("promote"); setError(""); feedback.dismiss(); setMessage(`正在将 ${targetVersion} 设为稳定版…`);
     request.current ??= { id: crypto.randomUUID(), expectedBeta: data.beta, expectedRevision: data.revision };
     let submitted = false;
     try {
       await adminFetch("/releases/promote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request.current) });
       submitted = true; request.current = null;
-      await load(); setMessage(`已将 ${targetVersion} 设为稳定版。`);
+      await load(); setMessage("");
+      feedback.setMessage(`已将 ${targetVersion} 设为稳定版。`, { duration: 5000 });
     } catch (error) {
       if (submitted || error instanceof AdminRequestError && error.status === 409) setNeedsRefresh(true);
       setMessage(submitted ? "提升已提交，请重新读取版本确认结果。" : "");
@@ -88,6 +97,7 @@ export function Releases({ onError }: { onError(error: unknown): void }) {
     </div>
     <p className="release-admin-status" role="status" aria-live="polite">{message}</p>
     {error && <p role="alert">{error}</p>}
+    <FeedbackMessage feedback={feedback} />
     {data && <section className="release-admin-history" aria-labelledby="release-admin-history-heading">
       <h2 id="release-admin-history-heading">提升记录</h2>
       {data.events.length ? <ul>{data.events.map(event => <li key={event.id}>

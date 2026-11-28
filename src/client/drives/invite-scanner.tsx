@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useMessages } from "../../i18n";
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
@@ -10,7 +12,8 @@ export function InviteScanner({ onRead, disabled }: { onRead(code: string): void
   const t = useMessages("entry");
   const [scanning, setScanning] = useState(false);
   const [reading, setReading] = useState(false);
-  const [message, setMessage] = useState<"scan.unrecognized" | "scan.cameraFeedError" | "scan.cameraError" | "scan.reading" | "scan.imageUnrecognized" | "scan.imageError" | "">("");
+  const [message, setMessage] = useState<"scan.unrecognized" | "scan.cameraFeedError" | "scan.cameraError" | "">("");
+  const feedback = useFeedbackMessage();
   const video = useRef<HTMLVideoElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const generation = useRef(0);
@@ -63,24 +66,26 @@ export function InviteScanner({ onRead, disabled }: { onRead(code: string): void
   async function readImage(file: File) {
     const current = ++generation.current;
     imageJob.current = current;
-    setReading(true); setScanning(false); setMessage("scan.reading");
+    setReading(true); setScanning(false); setMessage(""); feedback.dismiss();
     try {
       const value = await decodeInviteImage(file);
       if (generation.current !== current || blocked.current) return;
       const code = value && readScannedInvite(value, window.location.origin);
-      if (code) { setMessage(""); currentHandler.current(code); }
-      else setMessage("scan.imageUnrecognized");
+      if (code) currentHandler.current(code);
+      else feedback.setMessage(t("scan.imageUnrecognized"), { duration: 8000 });
     } catch {
-      if (generation.current === current) setMessage("scan.imageError");
+      if (generation.current === current) feedback.setMessage(t("scan.imageError"), { duration: 8000 });
     } finally { if (imageJob.current === current) setReading(false); }
   }
+  const status = reading ? "scan.reading" : message;
   return <div className="invite-scanner">
     <div className="invite-scanner-actions">
-      <Button className="secondary-button" isDisabled={disabled || reading} onPress={() => { setMessage(""); setScanning(value => !value); }}><Camera size={18} aria-hidden="true" />{scanning ? t("scan.stop") : t("scan.start")}</Button>
+      <Button className="secondary-button" isDisabled={disabled || reading} onPress={() => { feedback.dismiss(); setMessage(""); setScanning(value => !value); }}><Camera size={18} aria-hidden="true" />{scanning ? t("scan.stop") : t("scan.start")}</Button>
       <Button className="secondary-button" isDisabled={disabled || reading} onPress={() => fileInput.current?.click()}><ImagePlus size={18} aria-hidden="true" />{t("scan.fromPhoto")}</Button>
     </div>
     <input ref={fileInput} type="file" accept="image/*" aria-label={t("scan.chooseImage")} hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void readImage(file); }} />
     {scanning && !disabled && <video className="invite-scanner-video" ref={video} muted playsInline aria-label={t("scan.camera")} />}
-    {message && <p role="status">{t(message)}</p>}
+    {status && <p role="status">{t(status)}</p>}
+    <FeedbackMessage feedback={feedback} />
   </div>;
 }

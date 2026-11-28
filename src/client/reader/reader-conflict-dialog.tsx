@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { getMessages, useAppLocale, useMessages, type AppLocale } from "../../i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button, Modal, ModalOverlay, Radio, RadioGroup } from "react-aria-components";
@@ -35,7 +37,8 @@ export function ReaderConflictDialog(props: Props) {
   const [refreshResult, setRefreshResult] = useState<{ request: Props["onRefresh"]; ok: boolean; checkedAt: number } | null>(null);
   const refresh = !online ? "offline" : refreshResult?.request !== onRefresh ? "checking" : refreshResult.ok ? "checked" : "failed";
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
+  const { setMessage } = feedback;
   const index = Math.max(0, conflicts.findIndex(conflict => conflict.opId === selectedId));
   const conflict = conflicts[index];
   const dialog = useRef<HTMLDivElement>(null);
@@ -54,9 +57,9 @@ export function ReaderConflictDialog(props: Props) {
     setBusy(true); setMessage(null);
     try {
       const outcome = await props.onResolve(opId, strategy, reviewed);
-      setMessage(outcome === "conflict-changed" ? t("resolveConflictChanged") :
-        outcome === "failed" || outcome === null ? t("resolveConflictFailed") :
-        outcome === "local-saved" ? t("resolveConflictSaved") : null);
+      if (outcome === "local-saved") setMessage(t("resolveConflictSaved"), { duration: 5000 });
+      else if (outcome === "conflict-changed") setMessage(t("resolveConflictChanged"));
+      else if (outcome === "failed" || outcome === null) setMessage(t("resolveConflictFailed"));
       return outcome;
     } finally { setBusy(false); }
   };
@@ -71,7 +74,7 @@ export function ReaderConflictDialog(props: Props) {
             <span>{!online ? t("offlineCloudSnapshot") : refresh === "checking" ? t("checkingCloud") : refresh === "failed" ? t("cloudReviewFailed") : t("cloudReviewedAt", { time: formatConflictTime(locale, refreshResult?.checkedAt) })}</span></div>
           <ConflictComparison key={conflictFingerprint(conflict)} {...props} conflict={conflict} busy={busy}
             onResolve={resolve} blocked={online && refresh !== "checked"} />
-          {message && <p role="status" className="conflict-message">{message}</p>}
+          <FeedbackMessage feedback={feedback} className="conflict-message" />
           <footer className="conflict-footer"><Button className="secondary-button" isDisabled={busy} onPress={onClose}>{t("resolveLater")}</Button>
             {refresh === "failed" && online && <Button className="secondary-button" isDisabled={busy} onPress={() => {
               setRefreshResult(null); void onRefresh().then(ok => setRefreshResult({ request: onRefresh, ok, checkedAt: Date.now() }));
@@ -79,7 +82,7 @@ export function ReaderConflictDialog(props: Props) {
             <div><Button className="reader-icon-button" aria-label={t("previousConflict")} isDisabled={busy || index === 0} onPress={() => { setSelectedId(conflicts[index - 1].opId); setMessage(null); }}><ChevronLeft size={20} /></Button>
               <Button className="reader-icon-button" aria-label={t("nextConflict")} isDisabled={busy || index === conflicts.length - 1} onPress={() => { setSelectedId(conflicts[index + 1].opId); setMessage(null); }}><ChevronRight size={20} /></Button></div>
           </footer>
-        </> : <><p role="status">{t("allConflictsResolved")}</p>{message && <p role="status">{message}</p>}
+        </> : <><p role="status">{t("allConflictsResolved")}</p><FeedbackMessage feedback={feedback} />
           {props.syncStatus.message && <p role="status">{props.syncStatus.message}</p>}
           <div className="conflict-complete-actions">
             {props.syncStatus.kind !== "quiet" && <Button className="secondary-button" isDisabled={busy || !props.canRetry} onPress={() => {

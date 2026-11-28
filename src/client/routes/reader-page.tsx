@@ -1,3 +1,4 @@
+import { FeedbackMessage } from "../components/feedback-message";
 import { useAppLocale, useMessages } from "../../i18n";
 import { readerHref } from "../reader/reader-entry";
 import { ReaderDisplayNotice } from '../reader/reader-display-notice';
@@ -526,7 +527,7 @@ function ReaderPageContent() {
               {!editing && <>
               <section aria-label={t("layoutAndZoom")} className="reader-options-display"><div className="reader-option-heading"><h2>{t("readingMode")}</h2>
               {fullscreen.supported && <Button className="reader-option-action" onPress={() => void fullscreen.toggle()}><Maximize size={15} aria-hidden="true" />{fullscreen.active ? t("exitFullScreen") : t("readFullScreen")}</Button>}</div>
-              {fullscreen.error && <p role="status">{fullscreen.error}</p>}
+              <FeedbackMessage feedback={fullscreen.feedback} />
               <div className="segmented-control" aria-label={t("pageLayout")}>
                 <Button
                   aria-pressed={layout === "page"}

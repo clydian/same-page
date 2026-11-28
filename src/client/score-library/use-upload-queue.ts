@@ -25,17 +25,18 @@ const initialState = (): QueueState => ({ items: [], paused: null, refreshFailed
 
 // The caller keys the dialog by user and drive. One pump owns all batches in
 // that lifetime, including while the dialog is hidden. No persisted tasks.
-export function useUploadQueue({ enabled = true, choirId, onComplete, onQuotaChange }: {
+export function useUploadQueue({ enabled = true, choirId, onComplete, onUploaded, onQuotaChange }: {
   enabled?: boolean;
   choirId: string;
   onComplete: () => void | Promise<void>;
+  onUploaded?: () => void;
   onQuotaChange: (blocked: boolean) => void;
 }) {
   const t = useMessages("library");
   const [state, setState] = useState(initialState);
   const runtime = useRef({ state, active: false, generation: 0, running: false, enabled, controller: null as AbortController | null });
-  const callbacks = useRef({ onComplete, onQuotaChange });
-  useLayoutEffect(() => { callbacks.current = { onComplete, onQuotaChange }; });
+  const callbacks = useRef({ onComplete, onUploaded, onQuotaChange });
+  useLayoutEffect(() => { callbacks.current = { onComplete, onUploaded, onQuotaChange }; });
   useLayoutEffect(() => {
     const current = runtime.current;
     current.active = true;
@@ -105,6 +106,9 @@ export function useUploadQueue({ enabled = true, choirId, onComplete, onQuotaCha
         });
         if (outcome.pause === "quota" || outcome.status === "success") {
           callbacks.current.onQuotaChange(outcome.pause === "quota");
+        }
+        if (outcome.status === "success" && current.state.items.every(entry => entry.status === "success" || entry.status === "cancelled")) {
+          callbacks.current.onUploaded?.();
         }
         // A refresh failure must never enable another POST for a created score.
         try {

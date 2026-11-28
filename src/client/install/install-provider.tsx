@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useMessages } from "../../i18n";
 import { ResourcePreparation } from "../updates/resource-preparation";
 import { assetUrl } from "../../shared/asset-url";
@@ -37,7 +39,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [requested, setRequested] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const feedback = useFeedbackMessage();
   const guide = deviceGuide;
   useEffect(() => {
     const ready = (event: Event) => { event.preventDefault(); if (!deviceGuide.endsWith("external")) { promptRef.current = event as InstallPromptEvent; setPrompt(promptRef.current); } };
@@ -63,8 +65,8 @@ export function InstallProvider({ children }: { children: ReactNode }) {
     try {
       const result = await event.prompt();
       if (result.outcome === "accepted") setRequested(true);
-      else setMessage("installProvider.cancelled");
-    } catch { setMessage("installProvider.promptFailed"); }
+      else feedback.setMessage(t("installProvider.cancelled"), { duration: 5000 });
+    } catch { feedback.setMessage(t("installProvider.promptFailed"), { duration: 5000 }); }
     finally { busyRef.current = false; setBusy(false); }
   };
   const show = () => {
@@ -73,7 +75,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
       void navigate(`/install?drive=${encodeURIComponent(drive)}`);
       return;
     }
-    setMessage(""); setOpen(true);
+    feedback.dismiss(); setOpen(true);
     if (!installed && !deviceGuide.endsWith("external") && deviceGuide !== "android") void install();
   };
   const external = guide.endsWith("external");
@@ -96,7 +98,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
           {prompt && <InstallSteps guide={guide} />}
           <CopyInstallLink />
         </details>
-        {message && <p role="status" className="install-message">{t(message)}</p>}
+        <FeedbackMessage feedback={feedback} />
         <p className="install-note">{t("installProvider.openApp")}</p>
         </>}
       </Dialog></Modal>

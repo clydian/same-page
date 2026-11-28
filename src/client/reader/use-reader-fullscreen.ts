@@ -1,3 +1,4 @@
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useMessages } from "../../i18n";
 import { useEffect, useRef, useState } from "react";
 
@@ -5,8 +6,9 @@ import { useEffect, useRef, useState } from "react";
 // visible. This reader only exits a fullscreen session it requested itself.
 export function useReaderFullscreen() {
   const t = useMessages("reader");
+  const practice = useMessages("practice");
   const [active, setActive] = useState(!!document.fullscreenElement);
-  const [error, setError] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
   const owned = useRef(false);
   const mounted = useRef(false);
   useEffect(() => {
@@ -23,9 +25,10 @@ export function useReaderFullscreen() {
     };
   }, []);
   const toggle = async () => {
-    setError(null);
+    feedback.dismiss();
+    const exiting = Boolean(document.fullscreenElement);
     try {
-      if (document.fullscreenElement) await document.exitFullscreen();
+      if (exiting) await document.exitFullscreen();
       else {
         owned.current = true;
         await document.documentElement.requestFullscreen({ navigationUI: "hide" });
@@ -33,8 +36,10 @@ export function useReaderFullscreen() {
       }
     } catch {
       owned.current = false;
-      if (mounted.current) setError(t("fullScreenUnavailable"));
+      if (!mounted.current) return;
+      if (exiting) feedback.setMessage(practice("focusExitFailure"));
+      else feedback.setMessage(t("fullScreenUnavailable"), { duration: 8000 });
     }
   };
-  return { active, supported: !!document.fullscreenEnabled, error, toggle };
+  return { active, supported: !!document.fullscreenEnabled, feedback, toggle };
 }
