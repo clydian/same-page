@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronDown, ChevronRight, Pencil, Settings, Trophy, UsersRound, X } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -151,15 +153,15 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
   // Keep the write alive across a return to the question library, but not
   // across a change of identity or loss of drive access.
   const resultLifetimes = useRef(new Set<AbortController>());
-  const [resultFailed, setResultFailed] = useState(false);
+  const resultFeedback = useFeedbackMessage();
   const canPublishResult = props.canReadCloud && !denied;
   useEffect(() => {
     const pending = resultLifetimes.current;
     return () => { for (const controller of pending) controller.abort(); };
   }, [canPublishResult, props.choirId, props.userId]);
   const recordResult = (questionId: string, attempt: SightSingingResultSubmission) => {
-    if (!canPublishResult || !navigator.onLine) { setResultFailed(true); return; }
-    setResultFailed(false);
+    if (!canPublishResult || !navigator.onLine) { resultFeedback.setMessage(t("sight.resultSave.failed"), { duration: 8000 }); return; }
+    resultFeedback.dismiss();
     const controller = new AbortController(), current = captureNavigationIdentity();
     resultLifetimes.current.add(controller);
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]);
@@ -168,11 +170,11 @@ function QuestionLibrary({ driveName, ...props }: DriveContext & { driveName: st
       .catch(error => {
         if (controller.signal.aborted || !current()) return;
         if (isSightSingingMemberDenied(error)) published.clear();
-        else setResultFailed(true);
+        else resultFeedback.setMessage(t("sight.resultSave.failed"), { duration: 8000 });
       })
       .finally(() => resultLifetimes.current.delete(controller));
   };
-  const resultNotice = resultFailed && <p className="challenge-save-status" role="status">{t('sight.resultSave.failed')}</p>;
+  const resultNotice = <FeedbackMessage feedback={resultFeedback} />;
   const refresh = () => {
     if (!props.canReadCloud) { props.retryConnection(); return; }
     void published.refresh().catch(() => undefined);

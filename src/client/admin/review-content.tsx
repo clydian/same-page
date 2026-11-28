@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useExitLayer } from "../navigation/navigation-context";
 import {
   lazy,
@@ -56,6 +58,7 @@ export function ReviewContent({
     [error, setError] = useState(""),
     [confirm, setConfirm] = useState(false),
     [success, setSuccess] = useState(false);
+  const feedback = useFeedbackMessage();
   useExitLayer(busy, "form", () => "cancelled");
   const publication = useRef({
     id: crypto.randomUUID(),
@@ -240,12 +243,8 @@ export function ReviewContent({
             </Button>
           </div>
           {error && <p role="alert">{error}</p>}
-          {success && (
-            <p role="status">
-              发布成功，成员现在可以使用这份练习版。
-              <Button className="secondary-button" onPress={refresh}>刷新</Button>
-            </p>
-          )}
+          {success && <Button className="secondary-button" onPress={refresh}>刷新</Button>}
+          <FeedbackMessage feedback={feedback} />
         </section>
       )}
       {confirm && candidate && (
@@ -314,6 +313,7 @@ export function ReviewContent({
                       () => {
                         setConfirm(false);
                         setSuccess(true);
+                        feedback.setMessage("发布成功，成员现在可以使用这份练习版。", { duration: 5000 });
                       },
                     );
                   }}
