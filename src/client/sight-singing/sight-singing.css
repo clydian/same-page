@@ -251,7 +251,7 @@ body:has(.challenge-workspace[data-practice]) { min-height: 100dvh; }
   .challenge-setup > :is(.challenge-headphones, small) { grid-column: 1 / -1; }
   .challenge-practice-controls { grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 1fr) repeat(2, minmax(0, 1fr)); }
   .challenge-start { padding-inline: .75rem; }
-  .challenge-graph { grid-template-columns: minmax(0, 12rem) auto minmax(0, 1fr); gap: .45rem; }
+  .challenge-graph { grid-template-columns: minmax(0, 12rem) auto minmax(0, 1fr); gap: .45rem; margin-block: .2rem; }
   .challenge-graph figcaption h3 { position: absolute; clip-path: inset(50%); }
   .challenge-graph-legend { line-height: 1.25; }
   .challenge-graph-body { --pitch-base-height: clamp(2rem, 10dvh, 4rem); grid-column: auto; }
