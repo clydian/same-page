@@ -36,7 +36,8 @@ export function matchTargetPitch(note: MelodyNote, sung: number) {
   return best;
 }
 
-function circularPitchMedian(pitches: number[], target: number) {
+function circularPitchMedian(pitches: number[], note: MelodyNote) {
+  const target = note.midi;
   let x = 0, y = 0;
   for (const pitch of pitches) {
     const angle = ((pitch - target) % 12) * Math.PI / 6;
@@ -51,15 +52,23 @@ function circularPitchMedian(pitches: number[], target: number) {
   const unwrapped = pitches.map(pitch => pitch - 12 * Math.floor((pitch - anchor + 6) / 12)).sort((a, b) => a - b);
   const median = (unwrapped[Math.floor((pitches.length - 1) / 2)] + unwrapped[Math.floor(pitches.length / 2)]) / 2;
 
-  // Register is independent of pitch class. Only report a clearly dominant octave.
+  // Count every register before deciding whether half the samples support a written octave.
   const octaves = new Map<number, number>();
   for (const pitch of pitches) {
     const octave = Math.round((pitch - median) / 12);
-    const count = (octaves.get(octave) ?? 0) + 1;
-    octaves.set(octave, count);
-    if (count > pitches.length * 2 / 3) return { median, sung: median + octave * 12 };
+    octaves.set(octave, (octaves.get(octave) ?? 0) + 1);
   }
-  return { median, sung: null };
+  const half = pitches.length / 2;
+  const writtenAtHalf: { sung: number; midi: number }[] = [];
+  for (const [octave, count] of octaves) {
+    if (count < half) continue;
+    const sung = median + octave * 12;
+    if (count > half) return { median, sung };
+    const match = matchTargetPitch(note, sung);
+    if (match.octave === 0) writtenAtHalf.push({ sung, midi: match.midi });
+  }
+  writtenAtHalf.sort((a, b) => Math.abs(a.midi - target) - Math.abs(b.midi - target) || a.midi - b.midi);
+  return { median, sung: writtenAtHalf[0]?.sung ?? null };
 }
 
 export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
@@ -82,7 +91,7 @@ export function assessNotes(notes: MelodyNote[], frames: PitchFrame[]) {
     if (pitches.length / sampled < .5) {
       return { note, target: null, octave: null, sung: null, cents: null, status: 'missed' } as const;
     }
-    const pitch = circularPitchMedian(pitches, note.midi);
+    const pitch = circularPitchMedian(pitches, note);
     if (!pitch) {
       return { note, target: null, octave: null, sung: null, cents: null, status: 'wrongNote' } as const;
     }
