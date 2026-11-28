@@ -66,11 +66,6 @@
   line-height: 1.35;
 }
 
-.workspace-empty {
-  color: var(--muted);
-  font-size: .9rem;
-}
-
 .workspace-settings h2 {
   color: var(--muted);
   margin: 0 0 .55rem;

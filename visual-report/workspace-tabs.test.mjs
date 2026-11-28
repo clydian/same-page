@@ -10,7 +10,7 @@ after(async () => { await app?.stop(); });
 for (const [name, engine, viewport] of [
   ["chromium", chromium, { width: 320, height: 680 }],
   ["webkit", webkit, { width: 1280, height: 860 }],
-]) test(`${name}: workspace tabs open pages, retain the current drive and protect challenge entry`, async t => {
+]) test(`${name}: workspace tabs keep tools visible and protect challenge content`, async t => {
   const browser = await engine.launch();
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport, serviceWorkers: "block", locale: "zh-CN" });
@@ -81,7 +81,12 @@ for (const [name, engine, viewport] of [
 
   await page.goto(app.origin + "/choirs/visual-preview-choir/tools");
   await expect(tab("工具")).toHaveAttribute("aria-current", "page");
+  await expect(challenge).toBeVisible();
+  await challenge.click();
   await expect(page.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "视唱练习", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "新建题目", exact: true })).toHaveCount(0);
+  await page.goto(app.origin + "/choirs/visual-preview-choir/tools?experience=1");
+  await expect(tab("工具")).toHaveAttribute("aria-current", "page");
+  await expect(challenge).toHaveCount(0);
   expect(new Set(requestLog.filter(pathname => pathname.endsWith("/sight-singing/questions")))).toEqual(new Set([`/api${primary}/sight-singing/questions`]));
 });
