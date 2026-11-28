@@ -1,3 +1,4 @@
+import { publishedQuestionFiles } from "../platform/published-question-files";
 import { clearAttachmentDirectories } from "./attachments/attachment-directory";
 import { noCapabilities, type DriveCapabilities } from "../../shared/drive-permissions";
 import type { ChoirSummary } from "../../shared/choirs";
@@ -9,6 +10,7 @@ export async function rememberLocalDriveDirectory(workspace: LocalWorkspace, cho
   // Capture the workspace epoch before fetching. Even A → B → A cannot commit an old directory.
   await withLocalWorkspaceTransaction(workspace, "rw", [localDatabase.driveDirectories], async () => {
     signal.throwIfAborted();
+    if (!membership) await publishedQuestionFiles(workspace.ownerKey, choir.id).delete();
     await localDatabase.driveDirectories.put({ key: JSON.stringify([workspace.ownerKey, choir.id]), ownerKey: workspace.ownerKey, choirId: choir.id, choir, scores, membership, capabilities, storage });
   });
 }
@@ -47,6 +49,7 @@ export async function rememberDriveAccessRevoked(workspace: LocalWorkspace, sign
     const key = JSON.stringify([workspace.ownerKey, workspace.choirId]);
     const directory = await localDatabase.driveDirectories.get(key);
     await clearAttachmentDirectories(workspace);
+    await publishedQuestionFiles(workspace.ownerKey, workspace.choirId).delete();
     await localDatabase.driveDirectories.put({ key, ownerKey: workspace.ownerKey, choirId: workspace.choirId,
       choir: directory?.choir ?? { id: workspace.choirId, name: "云盘", guestAdmissionMode: "invite" },
       scores: [], membership: false, capabilities: noCapabilities(), accessRevoked: true });

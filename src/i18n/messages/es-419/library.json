@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "Todos los archivos de ritmo locales en esta unidad",
   "localStorageRetryingButNotCompleting": "Reintentar pero no completar la limpieza",
   "localStorageCleanUpLocalFiles": "Limpiar archivos locales",
-  "localStorageOnlyCleanDownloadedPdfs": "Limpie únicamente los archivos PDF e imágenes descargados. Los archivos de la nube, los directorios de discos de la nube, los borradores personales, las operaciones que se sincronizarán y los conflictos se conservan y no se cierra la sesión.",
+  "localStorageOnlyCleanDownloadedPdfs": "Elimina los archivos descargados de este dispositivo. Se conservan los archivos en la nube, los directorios, los borradores personales, los cambios pendientes y los conflictos. Tu sesión sigue activa.",
   "localStorageCleanup": "Limpieza",
   "cancel": "Cancelar",
   "localStorageCleaningUp": "Limpiar…",

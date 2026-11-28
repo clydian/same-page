@@ -7,10 +7,10 @@ export function isSightSingingMemberDenied(error: unknown) {
   return error instanceof SettingsRequestError && (error.status === 401 || error.status === 403);
 }
 
-export async function readSightSinging<T>(path: string, schema: { parse(value: unknown): T }, lifetime?: AbortSignal) {
+export async function readSightSinging<T>(path: string, schema: { parse(value: unknown): T }, lifetime?: AbortSignal, headers?: HeadersInit) {
   const deadline = AbortSignal.timeout(15_000);
   const signal = lifetime ? AbortSignal.any([lifetime, deadline]) : deadline;
-  const response = await diagnosticFetch(path, { signal });
+  const response = await diagnosticFetch(path, { signal, headers });
   signal.throwIfAborted();
   if (!response.ok) throw new SettingsRequestError(response.status);
   const data = await parseDiagnosticResponse(response, schema);

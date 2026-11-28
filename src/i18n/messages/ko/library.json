@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "이 드라이브에 있는 모든 로컬 비트 파일",
   "localStorageRetryingButNotCompleting": "다시 시도했지만 정리가 완료되지 않음",
   "localStorageCleanUpLocalFiles": "로컬 파일 정리",
-  "localStorageOnlyCleanDownloadedPdfs": "다운로드한 PDF와 이미지만 정리하세요. 클라우드 파일, 드라이브 디렉터리, 개인 초안, 동기화할 작업, 충돌이 모두 유지되며 로그아웃하지 않습니다.",
+  "localStorageOnlyCleanDownloadedPdfs": "이 기기에 다운로드한 파일을 제거합니다. 클라우드 파일과 폴더, 개인 초안, 동기화 대기 중인 변경 사항 및 충돌은 유지됩니다. 로그아웃되지 않습니다.",
   "localStorageCleanup": "정리",
   "cancel": "취소",
   "localStorageCleaningUp": "청소 중…",

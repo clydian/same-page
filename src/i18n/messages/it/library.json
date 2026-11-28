@@ -112,7 +112,7 @@
   "localStorageAllLocalBeatFiles": "Tutti i file beat locali su questo drive",
   "localStorageRetryingButNotCompleting": "Nuovo tentativo ma non completamento della pulizia",
   "localStorageCleanUpLocalFiles": "Pulisci i file locali",
-  "localStorageOnlyCleanDownloadedPdfs": "Pulisci solo i PDF e le immagini scaricati. I file cloud, le directory dei dischi cloud, le bozze personali, le operazioni da sincronizzare e i conflitti vengono tutti conservati e non è possibile effettuare la disconnessione.",
+  "localStorageOnlyCleanDownloadedPdfs": "Rimuovi i file scaricati da questo dispositivo. I file e le cartelle cloud, le bozze personali, le modifiche in sospeso e i conflitti vengono conservati. Rimani connesso.",
   "localStorageCleanup": "Pulizia",
   "cancel": "Annulla",
   "localStorageCleaningUp": "Ripulire…",
