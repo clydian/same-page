@@ -1,5 +1,6 @@
 import * as alphaTab from '@coderline/alphatab';
 import { loadPreparedMusicXml, prepareMusicXmlForPlaybackBytes } from '@same-page/player/engine';
+import type { PreparedMusicXml } from '@same-page/player/musicxml-direction-timing';
 import { playbackMeasureVisits } from '@same-page/player/playback-measures';
 import type { QuestionBeats } from '../../shared/sight-singing';
 import { practiceBeatAccent, type PracticeClick } from '../playback/practice-metronome';
@@ -22,10 +23,10 @@ export type Melody = {
 };
 export type MelodyVoice = { id: string; track: number; staff: number; voice: number; name: string; multiple: boolean };
 
-export function loadMelodyScore(bytes: Uint8Array) {
+export function loadMelodyScore(input: Uint8Array | PreparedMusicXml) {
   const settings = new alphaTab.Settings();
   settings.importer.mergePartGroupsInMusicXml = false;
-  const prepared = prepareMusicXmlForPlaybackBytes(bytes);
+  const prepared = input instanceof Uint8Array ? prepareMusicXmlForPlaybackBytes(input) : input;
   const score = loadPreparedMusicXml(prepared, settings);
   if (score.tracks.length > 1) score.stylesheet.multiTrackTrackNamePolicy = alphaTab.model.TrackNamePolicy.AllSystems;
   const midi = new alphaTab.midi.MidiFile();
