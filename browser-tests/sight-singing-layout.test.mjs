@@ -11,7 +11,7 @@ test('sight singing preserves its layout preferences and clears a completed take
   let browser;
   t.after(async () => { try { await browser?.close(); } finally { await fixture.stop(); } });
   browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
-  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 320, height: 650 }, serviceWorkers: 'block' });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1180, height: 820 }, serviceWorkers: 'block' });
   await context.addInitScript(() => {
     const Worklet = AudioWorkletNode;
     window.sightSingingCaptures = [];
@@ -82,7 +82,21 @@ test('sight singing preserves its layout preferences and clears a completed take
   await page.locator('select[name=source]').selectOption('upload');
   const xml = musicXmlFixture(24).toString().replaceAll('<measure number="1">', '<measure number="0">');
   await page.locator('input[type=file]').setInputFiles({ name: '示例.musicxml', mimeType: 'application/xml', buffer: Buffer.from(xml) });
-  await page.locator('input[name=title]').fill('视唱布局测试');
+  const preview = page.getByRole('region', { name: '练习乐谱及当前小节', exact: true });
+  const title = page.locator('input[name=title]');
+  await expect(preview.locator('.at-surface svg').first()).toBeVisible();
+  assert((await preview.boundingBox()).width > 1000);
+  assert((await title.boundingBox()).width <= 34 * 16);
+  await page.setViewportSize({ width: 320, height: 650 });
+  const narrowPreview = await preview.boundingBox();
+  assert(narrowPreview.x > 0 && narrowPreview.x + narrowPreview.width < 320);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 320);
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--safe-top', '24px');
+    document.documentElement.style.setProperty('--safe-bottom', '20px');
+  });
+  await title.fill('视唱布局测试');
   await page.getByRole('button', { name: '发布到云盘' }).click();
 
   const scope = page.getByRole('combobox', { name: '谱面范围' });
@@ -92,6 +106,26 @@ test('sight singing preserves its layout preferences and clears a completed take
   const controls = page.locator('.challenge-controls');
   const note = page.locator('.challenge-notation-note');
   const contextNote = note.and(page.locator('[data-focused-part=false]'));
+  await expect(score).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 500));
+  assert.equal(await page.evaluate(() => window.scrollY), 0);
+  assert.equal((await page.locator('.task-header').boundingBox()).y, 24);
+  const tabletControls = await controls.boundingBox();
+  assert(Math.abs(tabletControls.y + tabletControls.height - 820) <= 1);
+
+  await page.setViewportSize({ width: 320, height: 220 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  const start = page.getByRole('button', { name: '开始唱', exact: true });
+  await start.focus();
+  await expect(start).toBeInViewport();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollHeight), 220);
+  assert(await page.locator('.challenge-workspace').evaluate(el => el.scrollTop) > 0);
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty('font-size');
+    document.documentElement.style.removeProperty('--safe-top');
+    document.documentElement.style.removeProperty('--safe-bottom');
+  });
+  await page.setViewportSize({ width: 320, height: 650 });
   await expect(scope).toHaveValue('full');
   await expect(direction).toHaveValue('vertical');
   await expect(note).toHaveCount(48);
@@ -182,7 +216,6 @@ test('sight singing preserves its layout preferences and clears a completed take
   assert.equal((await score.boundingBox()).height, tallScore);
 
   const run = page.locator('.challenge-run');
-  const start = page.getByRole('button', { name: '开始唱', exact: true });
   await expect(start).toBeEnabled();
   await expect(page.getByLabel('音高模式')).toHaveCount(0);
   const marks = score.locator('[data-challenge-feedback]');

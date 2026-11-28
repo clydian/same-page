@@ -1,6 +1,7 @@
 .challenge-score-view {
   position: relative; display: flex; flex-direction: column; flex: 1;
-  min-inline-size: 0; min-block-size: 0;
+  /* Leave room for notation when the workspace itself needs to scroll. */
+  min-inline-size: 0; min-block-size: calc(var(--score-tools-height) + 4rem);
   --score-tools-height: 44px;
 }
 .challenge-notation-tools {

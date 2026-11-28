@@ -270,9 +270,8 @@
   },
   "rhythmComingSoon": "籌備中",
   "sight": {
-    "title": "視唱挑戰",
     "loading": "正在讀取…",
-    "needMember": "視唱挑戰僅對此雲端硬碟的成員開放。",
+    "needMember": "{practice}僅對此雲端硬碟的成員開放。",
     "publishedQuestions": "雲端硬碟題目",
     "retryLoad": "重新載入",
     "publishedError": "無法載入雲端硬碟題目。",

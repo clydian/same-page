@@ -270,9 +270,8 @@
   },
   "rhythmComingSoon": "Coming soon",
   "sight": {
-    "title": "Sight-singing challenge",
     "loading": "Loading…",
-    "needMember": "Only members of this drive can open the sight-singing challenge.",
+    "needMember": "“{practice}” is only available to members of this drive.",
     "publishedQuestions": "Drive questions",
     "retryLoad": "Reload",
     "publishedError": "Couldn’t load drive questions.",

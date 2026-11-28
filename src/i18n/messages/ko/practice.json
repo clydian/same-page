@@ -270,9 +270,8 @@
   },
   "rhythmComingSoon": "준비 중",
   "sight": {
-    "title": "시창 챌린지",
     "loading": "불러오는 중…",
-    "needMember": "이 드라이브의 멤버만 시창 챌린지를 열 수 있습니다.",
+    "needMember": "‘{practice}’ 기능은 이 드라이브의 멤버만 이용할 수 있습니다.",
     "publishedQuestions": "드라이브 문제",
     "retryLoad": "다시 불러오기",
     "publishedError": "드라이브 문제를 불러올 수 없습니다.",

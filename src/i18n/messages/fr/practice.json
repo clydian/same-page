@@ -270,9 +270,8 @@
   },
   "rhythmComingSoon": "Bientôt disponible",
   "sight": {
-    "title": "Défi de lecture chantée",
     "loading": "Chargement…",
-    "needMember": "Seuls les membres de cet espace peuvent ouvrir le défi de lecture chantée.",
+    "needMember": "« {practice} » est accessible uniquement aux membres de cet espace.",
     "publishedQuestions": "Exercices du disque",
     "retryLoad": "Recharger",
     "publishedError": "Impossible de charger les exercices du disque.",

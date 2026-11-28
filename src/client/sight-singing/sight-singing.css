@@ -19,7 +19,7 @@
 .challenge-question span { overflow-wrap: anywhere; }
 .challenge-question:hover { background: var(--ui-surface-muted, var(--wash)); }
 .challenge-question:focus-visible { outline-offset: -3px; }
-.challenge-form { display: grid; gap: .45rem; max-width: 36rem; }
+.challenge-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: .45rem; max-width: 36rem; }
 .challenge-form label { font-weight: 600; }
 .challenge-form > label:not(:first-child) { margin-block-start: .55rem; }
 .challenge-form input, .challenge-form select {
@@ -35,19 +35,31 @@
 .challenge-workspace .task-header + main { padding-block-start: 0; }
 .challenge-workspace .task-header h1 { font-size: clamp(1.15rem, 2vw, 1.5rem); letter-spacing: -.018em; }
 .challenge-workspace .task-header h1 > span:focus { outline: none; }
+.challenge-workspace:has(.challenge-form) > :is(.challenge-page, .task-header) { max-width: 90rem; }
+.challenge-workspace:has(.challenge-form) > .challenge-page { width: calc(100% - 2rem); }
+.challenge-form:has(> .challenge-range-editor) {
+  max-width: none; grid-template-columns: minmax(0, 34rem) minmax(0, 1fr);
+}
+.challenge-form:has(> .challenge-range-editor) > * { grid-column: 1; }
+.challenge-form > .challenge-range-editor { grid-column: 1 / -1; }
+
+/* The practice workspace and its controls already include the safe-area insets. */
+body:has(.challenge-workspace[data-practice]) { min-height: 100dvh; }
+.page-with-footer:has(> .challenge-workspace[data-practice]) { padding: 0; }
 .challenge-workspace[data-practice] {
-  display: flex; flex-direction: column; flex: none; block-size: 100dvh; max-block-size: 100dvh;
+  display: flex; flex-direction: column; flex: none; block-size: 100dvh;
   padding: var(--safe-top) var(--safe-right) 0 var(--safe-left);
+  overflow-y: auto; overscroll-behavior-y: contain;
 }
 .challenge-workspace[data-practice] .task-header {
-  flex: none; inline-size: 100%; gap: .45rem; padding-block: .3rem; max-width: 72rem;
+  flex: none; inline-size: 100%; gap: .45rem; padding-block: .3rem; max-width: none;
 }
 .challenge-workspace[data-practice] .task-header-heading > :is(h1, p) {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .challenge-workspace[data-practice] .challenge-page {
   display: flex; flex-direction: column; flex: 1; min-block-size: 0;
-  max-width: 72rem; padding: 0;
+  width: calc(100% - 2rem); max-width: none; padding: 0;
 }
 .challenge-run {
   display: flex; flex-direction: column; flex: 1; min-block-size: 0;
@@ -239,7 +251,7 @@
   .challenge-setup > :is(.challenge-headphones, small) { grid-column: 1 / -1; }
   .challenge-practice-controls { grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 1fr) repeat(2, minmax(0, 1fr)); }
   .challenge-start { padding-inline: .75rem; }
-  .challenge-graph { grid-template-columns: minmax(0, 12rem) auto minmax(0, 1fr); gap: .45rem; }
+  .challenge-graph { grid-template-columns: minmax(0, 12rem) auto minmax(0, 1fr); gap: .45rem; margin-block: .2rem; }
   .challenge-graph figcaption h3 { position: absolute; clip-path: inset(50%); }
   .challenge-graph-legend { line-height: 1.25; }
   .challenge-graph-body { --pitch-base-height: clamp(2rem, 10dvh, 4rem); grid-column: auto; }

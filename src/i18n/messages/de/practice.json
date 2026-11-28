@@ -270,9 +270,8 @@
   },
   "rhythmComingSoon": "In Vorbereitung",
   "sight": {
-    "title": "Blattsing-Challenge",
     "loading": "Wird geladen…",
-    "needMember": "Nur Mitglieder dieses Laufwerks können die Blattsing-Challenge öffnen.",
+    "needMember": "„{practice}“ ist nur für Mitglieder dieses Laufwerks verfügbar.",
     "publishedQuestions": "Geteilte Aufgaben",
     "retryLoad": "Neu laden",
     "publishedError": "Geteilte Aufgaben konnten nicht geladen werden.",

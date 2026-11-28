@@ -43,7 +43,7 @@ test("an installed PWA opens the tools and sight-singing entry on their first of
   await expect(page.getByText("节奏练习", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "音高仪", exact: true })).toBeVisible();
   await challenge.click();
-  await expect(page.getByRole("heading", { name: "视唱挑战", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "视唱练习", exact: true })).toBeVisible();
   assert.deepEqual(questionRequests, []);
   await page.getByRole("button", { name: "返回", exact: true }).click();
   await expect(challenge).toBeVisible();
@@ -173,7 +173,7 @@ test("a loaded sight-singing question survives offline and a failed identity ref
   assert.equal(publications, 0);
 
   revalidation.resolve();
-  await expect(page.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible();
+  await expect(page.getByText("视唱练习仅对当前云盘成员开放。", { exact: true })).toBeVisible();
   await expect(name).toHaveCount(0);
   await page.unroute(questions);
 
@@ -257,7 +257,7 @@ test("a loaded sight-singing question survives offline and a failed identity ref
     ? route.fulfill({ status: 403, json: { error: "permission_denied" } }) : route.continue());
   await cold.getByRole("button", { name: "开始唱", exact: true }).click();
   await cold.getByRole("button", { name: "再试一次", exact: true }).click();
-  await expect(cold.getByText("视唱挑战仅对当前云盘成员开放。", { exact: true })).toBeVisible({ timeout: 12_000 });
+  await expect(cold.getByText("视唱练习仅对当前云盘成员开放。", { exact: true })).toBeVisible({ timeout: 12_000 });
   await expect(cold.locator(".challenge-run")).toHaveCount(0);
 });
 
