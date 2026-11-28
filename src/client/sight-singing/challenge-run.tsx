@@ -66,7 +66,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const otherVoices = voices.filter(option => option.voice.id !== voice.id);
   const accompaniment = backing && !backingUnavailable ? otherVoices : [];
   const [state, setState] = useState<RunState>({ phase: 'idle' });
-  const [headphones, setHeadphones] = useState(false);
+  const [headphoneHint, setHeadphoneHint] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [replayTime, setReplayTime] = useState(0);
   const [latencyDraft, setLatencyDraft] = useState<number | null>(null);
@@ -97,7 +97,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
   const take = state.phase === 'result' ? state : undefined;
   const latency = latencyDraft ?? mix.latency;
   const corrected = useMemo(() => take ? reviewRecording(melody, take, latency) : undefined, [take, latency, melody]);
-  const { answer, retryAnswer } = useChallengeAnswer(take?.recording, corrected?.review, mix.voice, melody.duration, latency);
+  const { answer, retryAnswer } = useChallengeAnswer(take?.recording, corrected?.review, mix, melody.duration, latency);
   const recording = state.phase === 'permission' || state.phase === 'count' || state.phase === 'sing';
   const audioBusy = recording || playing || drone;
   useEffect(() => { onAudioBusy(audioBusy); return () => onAudioBusy(false); }, [audioBusy, onAudioBusy]);
@@ -137,10 +137,10 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       release();
       stopTonic();
       setDrone(false);
-      setHeadphones(false);
+      setHeadphoneHint(false);
       setState(current => current.phase === 'permission' || current.phase === 'count' || current.phase === 'sing' ? { phase: 'idle' } : current);
     };
-    const pageHide = () => { discard(); setDrone(false); setHeadphones(false); setLatencyDraft(null); setState({ phase: 'idle' }); };
+    const pageHide = () => { discard(); setDrone(false); setHeadphoneHint(false); setLatencyDraft(null); setState({ phase: 'idle' }); };
     window.document.addEventListener('visibilitychange', interrupt);
     window.addEventListener('pagehide', pageHide);
     return () => {
@@ -187,7 +187,6 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     if (tonicPreview.current) {
       stopTonic();
       setDrone(false);
-      if (!backing) setHeadphones(false);
       return;
     }
     setError(null);
@@ -201,7 +200,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       });
       tonicPreview.current = preview;
       setDrone(true);
-      setHeadphones(true);
+      setHeadphoneHint(true);
       showAudioHint(advice);
     } catch {
       if (!run.current) audioSession.release();
@@ -215,7 +214,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     const preview = tonicPreview.current;
     discard(true);
     tonicPreview.current = null;
-    setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
+    setPlaying(false); setReplayTime(0); setError(null); setHeadphoneHint(false);
     setFollowRun(value => value + 1);
     // Declare simultaneous output and capture before the gesture starts Web Audio and getUserMedia.
     const advice = audioSession.request('play-and-record');
@@ -249,7 +248,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
     };
   };
   const reset = () => {
-    discard(); setDrone(false); setPlaying(false); setReplayTime(0); setError(null); setHeadphones(false);
+    discard(); setDrone(false); setPlaying(false); setReplayTime(0); setError(null); setHeadphoneHint(false);
     setLatencyDraft(null);
     setAttemptReset(value => value + 1);
     setState({ phase: 'idle' });
@@ -354,9 +353,9 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
       <PlaybackAudioHint session={audioSession} message={audioHint ? t('audioHint') : undefined} />
     </div>
     {state.phase === 'idle' && <div className="challenge-controls challenge-setup">
-      {headphones && <div className="challenge-headphones">
+      {headphoneHint && (drone || accompaniment.length > 0) && <div className="challenge-headphones">
         <span role="status"><Headphones size={17} aria-hidden="true" />{t('sight.audioGuidance')}</span>
-        <button type="button" className="text-button" aria-label={t('sight.dismissAudioHint')} onClick={() => setHeadphones(false)}>
+        <button type="button" className="text-button" aria-label={t('sight.dismissAudioHint')} onClick={() => setHeadphoneHint(false)}>
           <X size={17} aria-hidden="true" />
         </button>
       </div>}
@@ -384,7 +383,7 @@ export function ChallengeRun({ document, selected, voices, backingUnavailable, s
         <button type="button" className="challenge-option challenge-toggle" aria-pressed={accompaniment.length > 0}
           aria-label={t('sight.ensembleBacking')} title={t('sight.ensembleBacking')}
           disabled={backingUnavailable || otherVoices.length === 0} onClick={() => {
-            setBacking(!backing); if (!backing) setHeadphones(true);
+            setBacking(!backing); if (!backing) setHeadphoneHint(true);
           }}><UsersRound size={18} aria-hidden="true" /><span>{t('sight.ensembleBacking')}</span></button>
       </div>
       {backingUnavailable && <small>{t('sight.backingUnavailable')}</small>}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { mixPianoAnswer } from './challenge-audio';
 import type { assessNotes } from './pitch-feedback';
+import type { ChallengeMix } from './use-challenge-mix';
 
 type Review = ReturnType<typeof assessNotes>;
 type Answer = { status: 'ready'; url: string } | { status: 'failed' };
@@ -17,10 +18,12 @@ function pianoNotes(review: Review) {
   }));
 }
 
-export function useChallengeAnswer(recording: Blob | undefined, review: Review | undefined, volume: number, duration: number, latency: number) {
+export function useChallengeAnswer(recording: Blob | undefined, review: Review | undefined,
+  { voice, answer: piano }: Pick<ChallengeMix, 'voice' | 'answer'>, duration: number, latency: number) {
   const [attempt, setAttempt] = useState(0);
-  const [prepared, setPrepared] = useState<{ recording: Blob; review: Review; volume: number; latency: number; attempt: number; answer: Answer }>();
-  const current = prepared && prepared.recording === recording && prepared.review === review && prepared.latency === latency && prepared.volume === volume && prepared.attempt === attempt;
+  const [prepared, setPrepared] = useState<{ recording: Blob; review: Review; voice: number; piano: number; latency: number; attempt: number; answer: Answer }>();
+  const current = prepared && prepared.recording === recording && prepared.review === review && prepared.latency === latency &&
+    prepared.voice === voice && prepared.piano === piano && prepared.attempt === attempt;
   if (prepared && !current) setPrepared(undefined);
   useEffect(() => {
     if (!recording || !review) return;
@@ -29,12 +32,12 @@ export function useChallengeAnswer(recording: Blob | undefined, review: Review |
     // Coalesce range input events before rendering another full recording.
     const timer = setTimeout(async () => {
       try {
-        const mixed = await mixPianoAnswer(recording, pianoNotes(review), volume, duration, latency);
+        const mixed = await mixPianoAnswer(recording, pianoNotes(review), voice, piano, duration, latency);
         if (!active) return;
         url = URL.createObjectURL(mixed);
-        setPrepared({ recording, review, volume, latency, attempt, answer: { status: 'ready', url } });
+        setPrepared({ recording, review, voice, piano, latency, attempt, answer: { status: 'ready', url } });
       } catch {
-        if (active) setPrepared({ recording, review, volume, latency, attempt, answer: { status: 'failed' } });
+        if (active) setPrepared({ recording, review, voice, piano, latency, attempt, answer: { status: 'failed' } });
       }
     }, 150);
     return () => {
@@ -42,7 +45,7 @@ export function useChallengeAnswer(recording: Blob | undefined, review: Review |
       clearTimeout(timer);
       if (url) URL.revokeObjectURL(url);
     };
-  }, [recording, review, volume, duration, latency, attempt]);
+  }, [recording, review, voice, piano, duration, latency, attempt]);
 
   const answer = current ? prepared.answer : { status: 'preparing' as const };
   return { answer, retryAnswer: () => setAttempt(value => value + 1) };

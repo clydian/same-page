@@ -29,6 +29,7 @@ export function ChallengePracticeSettings({ pitchTraceEnabled, setPitchTraceEnab
     <div className="challenge-mixer">
       <PracticeDisclosure title={t('sight.mixer')}>
         <PracticeVolume title={t('sight.replayVoice')} value={mix.voice} onChange={voice => setMix(current => ({ ...current, voice }))} />
+        <PracticeVolume title={t('sight.replayAnswer')} value={mix.answer} onChange={answer => setMix(current => ({ ...current, answer }))} />
         <PracticeVolume title={t('sight.ensembleBacking')} value={mix.backing} onChange={backing => setMix(current => ({ ...current, backing }))} />
         <PracticeVolume title={t('sight.sustainedTonic')} value={mix.tonic} onChange={tonic => setMix(current => ({ ...current, tonic }))} />
       </PracticeDisclosure>

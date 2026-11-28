@@ -365,6 +365,7 @@
     "pitchFewerMeasures": "Show fewer measures",
     "mixer": "Mixer",
     "replayVoice": "Recorded voice",
+    "replayAnswer": "Correct answer piano",
     "metronomeHelp": "The metronome clicks while you sing. The count-in is always audible.",
     "pitchMonitor": "Pitch trace",
     "start": "Start singing",
