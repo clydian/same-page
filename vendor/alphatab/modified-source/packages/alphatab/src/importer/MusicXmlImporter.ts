@@ -237,7 +237,10 @@ export class MusicXmlImporter extends ScoreImporter {
     private _currentDynamics = DynamicValue.F;
     private _sourceBracketSequence = 0;
     private _openSourceBeams = new Map<string, { beats: Beat[]; levels: number; valid: boolean }>();
-    private _sourceGraceBeats = new Map<Beat, { duration: Duration; direction: BeamDirection }>();
+    private _sourceGraceBeats = new Map<
+        Beat,
+        { duration: Duration; direction: BeamDirection; makeTime: number | undefined }
+    >();
     private _completeSourceBeams: { beats: Beat[]; levels: number; valid: boolean }[] = [];
     private _openSourceBrackets = new Map<string, { bar: Bar; tick: number; mark: SourceBracket }>();
 
@@ -2706,7 +2709,8 @@ export class MusicXmlImporter extends ScoreImporter {
         let beat: Beat | null = null;
         let graceType = GraceType.None;
         let graceDurationInDivisions = 0;
-        let hasCustomGraceTiming = false;
+        let unsupportedGraceTiming = false;
+        let sourceGraceMakeTime: number | undefined;
         let beamMode: BeatBeamingMode | null = null;
         const sourceBeams = new Map<number, string>();
         // let graceTimeStealPrevious = 0;
@@ -2906,9 +2910,6 @@ export class MusicXmlImporter extends ScoreImporter {
         for (const c of element.childElements()) {
             switch (c.localName) {
                 case 'grace':
-                    hasCustomGraceTiming = ['make-time', 'steal-time-previous', 'steal-time-following'].some(
-                        name => c.attributes.has(name)
-                    );
                     const makeTime = Number.parseFloat(c.getAttribute('make-time', '-1'));
                     if (makeTime >= 0) {
                         graceDurationInDivisions = this._musicXmlDivisionsToAlphaTabTicks(makeTime);
@@ -2917,9 +2918,17 @@ export class MusicXmlImporter extends ScoreImporter {
                         graceType = GraceType.OnBeat;
                     }
 
-                    if (c.getAttribute('slash') === 'yes') {
+                    const slashed = c.getAttribute('slash') === 'yes';
+                    if (slashed) {
                         graceType = GraceType.BeforeBeat;
                     }
+                    if (Number.isSafeInteger(graceDurationInDivisions) && graceDurationInDivisions > 0 && !slashed) {
+                        sourceGraceMakeTime = graceDurationInDivisions;
+                    }
+                    unsupportedGraceTiming =
+                        c.attributes.has('steal-time-previous') ||
+                        c.attributes.has('steal-time-following') ||
+                        (c.attributes.has('make-time') && sourceGraceMakeTime === undefined);
 
                     break;
 
@@ -3069,7 +3078,7 @@ export class MusicXmlImporter extends ScoreImporter {
             this._readSourceBeamGroup(`${track.index}:${voiceIndex}`, beat!, sourceBeams);
             if (
                 graceType !== GraceType.None &&
-                !hasCustomGraceTiming &&
+                !unsupportedGraceTiming &&
                 sourceBeams.has(1) &&
                 beatDuration !== null &&
                 preferredBeamDirection !== null &&
@@ -3077,7 +3086,11 @@ export class MusicXmlImporter extends ScoreImporter {
                 !isCue &&
                 note !== null
             ) {
-                this._sourceGraceBeats.set(beat!, { duration: beatDuration, direction: preferredBeamDirection });
+                this._sourceGraceBeats.set(beat!, {
+                    duration: beatDuration,
+                    direction: preferredBeamDirection,
+                    makeTime: sourceGraceMakeTime
+                });
             }
         }
 
@@ -3128,6 +3141,7 @@ export class MusicXmlImporter extends ScoreImporter {
             const first = beats[0];
             const source = this._sourceGraceBeats.get(first);
             const anchor = beats[beats.length - 1].nextBeat;
+            const staves = [...new Set(beats.map(beat => beat.voice.bar.staff.index))].sort((a, b) => a - b);
             if (
                 !valid ||
                 !source ||
@@ -3137,13 +3151,13 @@ export class MusicXmlImporter extends ScoreImporter {
                 anchor.isEmpty ||
                 anchor.voice.bar.index !== first.voice.bar.index ||
                 anchor.displayStart !== first.displayStart ||
-                new Set(beats.map(b => b.voice.bar.staff.index)).size < 2 ||
+                staves.length < 2 ||
                 levels !== ModelUtils.getIndex(source.duration) - 2 ||
                 !beats.every(beat => {
                     const item = this._sourceGraceBeats.get(beat);
                     return (
                         item?.duration === source.duration &&
-                        item.direction === source.direction &&
+                        item.makeTime === source.makeTime &&
                         beat.graceType === first.graceType &&
                         beat.voice.bar.index === first.voice.bar.index &&
                         beat.displayStart === first.displayStart &&
@@ -3156,7 +3170,28 @@ export class MusicXmlImporter extends ScoreImporter {
                 continue;
             }
 
-            const duration = beats.length * GraceGroup.playbackTicks(GraceGroup.defaultDuration(beats.length));
+            const oneDirection = beats.every(beat => this._sourceGraceBeats.get(beat)!.direction === source.direction);
+            if (!oneDirection) {
+                // A single primary beam between adjacent staves can join opposing stems.
+                // Secondary beams and runs returning to their first staff need their own layout.
+                const firstStaff = first.voice.bar.staff.index;
+                const switchIndex = beats.findIndex(beat => beat.voice.bar.staff.index !== firstStaff);
+                if (
+                    levels !== 1 ||
+                    staves.length !== 2 ||
+                    staves[1] !== staves[0] + 1 ||
+                    !beats.slice(switchIndex).every(beat => beat.voice.bar.staff.index !== firstStaff) ||
+                    !beats.every(beat =>
+                        this._sourceGraceBeats.get(beat)!.direction ===
+                        (beat.voice.bar.staff.index === staves[0] ? BeamDirection.Down : BeamDirection.Up)
+                    )
+                ) {
+                    continue;
+                }
+            }
+
+            const duration = beats.length *
+                (source.makeTime ?? GraceGroup.playbackTicks(GraceGroup.defaultDuration(beats.length)));
             const startsBeforeAnchor = first.graceType === GraceType.BeforeBeat;
             const windowStart = startsBeforeAnchor ? anchor.displayStart - duration : anchor.displayStart;
             if (windowStart < 0 || (!startsBeforeAnchor && anchor.displayDuration <= duration)) {
@@ -3173,14 +3208,19 @@ export class MusicXmlImporter extends ScoreImporter {
             if (
                 neighbors.some(beat => beat.displayStart === anchor.displayStart && !beats.includes(beat)) ||
                 preceding.length > 1 ||
-                preceding.some(beat => beat.displayStart >= windowStart || beat.displayEnd !== anchor.displayStart)
+                preceding.some(beat =>
+                    beat.displayStart >= windowStart ||
+                    beat.displayEnd !== anchor.displayStart ||
+                    (source.makeTime !== undefined && !beat.isRest)
+                )
             ) {
                 continue;
             }
 
             for (const beat of beats) {
                 beat.duration = source.duration;
-                beat.preferredBeamDirection = source.direction;
+                beat.preferredBeamDirection = this._sourceGraceBeats.get(beat)!.direction;
+                beat.sourceGraceMakeTime = source.makeTime;
             }
             this._markSourceBeam(beats, ++id);
         }

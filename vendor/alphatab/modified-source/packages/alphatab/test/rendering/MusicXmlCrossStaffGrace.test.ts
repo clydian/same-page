@@ -101,3 +101,42 @@ it('shortens only the preceding sounding note in the same logical voice', () => 
         expect(events.off.find(note => note.noteKey === noteKey)?.tick).toBe(3840);
     }
 });
+
+it('preserves explicit unslashed timing and paints the shared beam between opposing stems', () => {
+    const xml = source
+        .replaceAll('<grace slash="yes"/>', '<grace slash="no" make-time="0.0625"/>')
+        .replaceAll(/<stem>down<\/stem>(\s*<staff>2<\/staff>)/g, '<stem>up</stem>$1');
+    const score = JsonConverter.jsonToScore(JsonConverter.scoreToJson(load(xml)));
+    const notes = midi(score).events.filter((event): event is NoteOnEvent => event instanceof NoteOnEvent);
+    expect(notes.slice(2).map(note => [note.noteKey, note.tick])).toEqual([
+        ...pitchOrder.map((pitch, index) => [pitch, 2730 + index * 15]),
+        [79, 2880]
+    ]);
+    expect(graceNotes(score).every(beat => beat.sourceGraceMakeTime === 15 && beat.displayDuration === 0)).toBe(true);
+
+    const settings = new Settings();
+    settings.core.engine = 'svg';
+    settings.core.enableLazyLoading = false;
+    settings.display.staveProfile = StaveProfile.Score;
+    const renderer = new ScoreRenderer(settings);
+    renderer.width = 760;
+    let svg = '';
+    renderer.partialRenderFinished.on(piece => {
+        if (typeof piece.renderResult === 'string' && piece.firstMasterBarIndex >= 0) {
+            svg += piece.renderResult;
+        }
+    });
+    renderer.error.on(error => {
+        throw error;
+    });
+    try {
+        renderer.renderScore(score, [0]);
+        const beam = [...svg.matchAll(/d="\s*M[-\d.]+,([-\d.]+) L[-\d.]+,([-\d.]+) L[-\d.,]+ L[-\d.,]+ z"/g)];
+        expect(beam).toHaveLength(1);
+        expect(beam[0][1]).toBe(beam[0][2]);
+        expect(svg).not.toContain(`&#${MusicFontSymbol.GraceNoteSlashStemUp};`);
+        expect(svg).not.toContain(`&#${MusicFontSymbol.GraceNoteSlashStemDown};`);
+    } finally {
+        renderer.destroy();
+    }
+});

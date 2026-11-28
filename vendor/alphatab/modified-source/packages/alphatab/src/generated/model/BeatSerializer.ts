@@ -99,6 +99,7 @@ export class BeatSerializer {
         o.set("sourcebeamgroup", obj.sourceBeamGroup);
         o.set("sourcebeamgroupindex", obj.sourceBeamGroupIndex);
         o.set("sourcebeamgroupsize", obj.sourceBeamGroupSize);
+        o.set("sourcegracemaketime", obj.sourceGraceMakeTime);
         o.set("crescendo", obj.crescendo as number);
         o.set("displaystart", obj.displayStart);
         o.set("playbackstart", obj.playbackStart);
@@ -280,6 +281,9 @@ export class BeatSerializer {
                 return true;
             case "sourcebeamgroupsize":
                 obj.sourceBeamGroupSize = v! as number;
+                return true;
+            case "sourcegracemaketime":
+                obj.sourceGraceMakeTime = v as number | undefined;
                 return true;
             case "crescendo":
                 obj.crescendo = JsonHelper.parseEnum<CrescendoType>(v, CrescendoType)!;

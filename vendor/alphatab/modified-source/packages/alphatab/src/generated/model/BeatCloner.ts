@@ -74,6 +74,7 @@ export class BeatCloner {
         clone.sourceBeamGroup = original.sourceBeamGroup;
         clone.sourceBeamGroupIndex = original.sourceBeamGroupIndex;
         clone.sourceBeamGroupSize = original.sourceBeamGroupSize;
+        clone.sourceGraceMakeTime = original.sourceGraceMakeTime;
         clone.crescendo = original.crescendo;
         clone.displayStart = original.displayStart;
         clone.playbackStart = original.playbackStart;

@@ -610,6 +610,9 @@ export class Beat {
     /** Complete source group size, allowing truncated/malformed JSON to fall back. */
     public sourceBeamGroupSize: number = 0;
 
+    /** Authored make-time in ticks for a complete source cross-staff grace group. */
+    public sourceGraceMakeTime?: number;
+
     /**
      * Adjacent, equally notated two-group tremolo partner on this staff/voice.
      * Derived after chaining, so JSON and score clones cannot retain stale IDs.
@@ -1006,7 +1009,8 @@ export class Beat {
                 const graceDuration = this.graceGroup?.isCrossStaff
                     ? GraceGroup.defaultDuration(this.graceGroup.beats.length)
                     : this.duration;
-                this.playbackDuration = GraceGroup.playbackTicks(graceDuration);
+                const makeTime = this.graceGroup?.isCrossStaff ? this.sourceGraceMakeTime : undefined;
+                this.playbackDuration = makeTime ?? GraceGroup.playbackTicks(graceDuration);
                 this.displayDuration = 0;
                 break;
             case GraceType.BendGrace:

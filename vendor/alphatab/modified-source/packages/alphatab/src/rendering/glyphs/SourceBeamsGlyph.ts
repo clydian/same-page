@@ -90,14 +90,37 @@ export class SourceBeamsGlyph {
             if (points.some(p => ![p.x, p.y, p.end].every(Number.isFinite)) || last.x < first.x) {
                 continue;
             }
-            const slope = last.x === first.x ? 0 : (last.end - first.end) / (last.x - first.x);
-            const line = (x: number) => first.end + slope * (x - first.x);
             const clearance = owner.lineSpacing * 2;
-            const adjustment =
-                direction === BeamDirection.Down
-                    ? Math.max(0, ...points.map(p => p.y + clearance - line(p.x)))
-                    : Math.min(0, ...points.map(p => p.y - clearance - line(p.x)));
-            const beamY = (x: number) => line(x) + adjustment;
+            const firstOpposing = points.findIndex(point => point.beat.preferredBeamDirection !== direction);
+            let beamY: (x: number) => number;
+            if (firstOpposing > 0) {
+                const upLimit = Math.min(
+                    ...points.filter(p => p.beat.preferredBeamDirection === BeamDirection.Up).map(p => p.y)
+                ) - owner.lineSpacing / 2;
+                const downLimit = Math.max(
+                    ...points.filter(p => p.beat.preferredBeamDirection === BeamDirection.Down).map(p => p.y)
+                ) + owner.lineSpacing / 2;
+                const between = (upLimit + downLimit) / 2;
+                if (downLimit <= upLimit) {
+                    beamY = () => between;
+                } else {
+                    // For intruding ledger notes, slope across the switch where the
+                    // authored up-stem and down-stem runs stop constraining each other.
+                    const left = points[firstOpposing - 1].x;
+                    const right = points[firstOpposing].x;
+                    const slope = (downLimit - upLimit) / Math.max(1, right - left) *
+                        (direction === BeamDirection.Up ? 1 : -1);
+                    beamY = x => between + (x - (left + right) / 2) * slope;
+                }
+            } else {
+                const slope = last.x === first.x ? 0 : (last.end - first.end) / (last.x - first.x);
+                const line = (x: number) => first.end + slope * (x - first.x);
+                const adjustment =
+                    direction === BeamDirection.Down
+                        ? Math.max(0, ...points.map(p => p.y + clearance - line(p.x)))
+                        : Math.min(0, ...points.map(p => p.y - clearance - line(p.x)));
+                beamY = x => line(x) + adjustment;
+            }
             const levels = ModelUtils.getIndex(first.beat.duration) - 2;
             const scale = first.beat.graceType === GraceType.None ? 1 : EngravingSettings.GraceScale;
             // A one-note system fragment keeps short continuation beams, not a
@@ -148,7 +171,11 @@ export class SourceBeamsGlyph {
                 canvas.closePath();
                 canvas.fill();
             }
-            if (first.beat.graceType === GraceType.BeforeBeat && first.beat.sourceBeamGroupIndex === 0) {
+            if (
+                first.beat.graceType === GraceType.BeforeBeat &&
+                first.beat.sourceGraceMakeTime === undefined &&
+                first.beat.sourceBeamGroupIndex === 0
+            ) {
                 const slash = direction === BeamDirection.Down
                     ? MusicFontSymbol.GraceNoteSlashStemDown
                     : MusicFontSymbol.GraceNoteSlashStemUp;
