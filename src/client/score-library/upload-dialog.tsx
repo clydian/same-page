@@ -8,23 +8,25 @@ import { Dialog } from "../navigation/overlays";
 import { LibraryDialogHeading } from "./library-dialog-heading";
 import { useUploadQueue } from "./use-upload-queue";
 
-export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpenChange, onComplete, onInvite, onQuotaChange, onInspect }: {
+export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpenChange, onComplete, onUploaded, onInvite, onQuotaChange, onInspect }: {
   writable?: boolean;
   choirId: string;
   storage?: { usedBytes: number; limitBytes: number };
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete: () => void | Promise<void>;
+  onUploaded?: () => void;
   onInvite?: () => void;
   onQuotaChange: (blocked: boolean) => void;
-  onInspect: (fileName: string) => void;
+  onInspect: (fileName: string, uncertain: boolean) => void;
 }) {
   const t = useMessages("library");
-  const queue = useUploadQueue({ enabled: writable, choirId, onComplete, onQuotaChange });
+  const queue = useUploadQueue({ enabled: writable, choirId, onComplete, onUploaded, onQuotaChange });
   const waiting = queue.items.filter((item) => item.status === "queued").length;
   const uploading = queue.items.some((item) => item.status === "uploading");
   const hasUnfinished = waiting > 0 || uploading;
   const invite = writable && !hasUnfinished && queue.items.some(item => item.status === "success") ? onInvite : undefined;
+  const showResults = queue.refreshFailed || queue.items.some(item => item.status !== "success");
   const { stopWaiting } = queue;
   useLayoutEffect(() => {
     if (!isOpen) stopWaiting();
@@ -74,12 +76,12 @@ export function UploadDialog({ writable = true, choirId, storage, isOpen, onOpen
         {queue.paused ? <Button className="secondary-button" isDisabled={!writable} onPress={queue.resume}>{t("uploadContinueWaitingItems")}</Button> : null}
         <Button className="text-button" onPress={queue.stopWaiting}>{t("uploadStopWaitingItems")}</Button>
       </div> : null}
-      {queue.items.length > 0 ? <ul className="upload-list" aria-label={t("uploadUploadStatus")}>
+      {showResults && queue.items.length > 0 ? <ul className="upload-list" aria-label={t("uploadUploadStatus")}>
         {queue.items.map((item) => <li key={item.id} data-status={item.status}>
-          <span>{item.name}</span><strong>{item.message}</strong>
+          <span>{item.name}</span><strong role={item.status === "error" || item.status === "unknown" ? "alert" : undefined}>{item.message}</strong>
           {item.status === "uploading" ? <UploadProgressView name={item.name} progress={item.progress} /> : null}
           {item.status === "error" && item.file ? <Button className="text-button" isDisabled={!writable} aria-label={t("driveLayerPreferencesTryAgain", { name: String(item.name) })} onPress={() => queue.retry(item.id)}>{t("retry")}</Button> : null}
-          {item.status === "unknown" || item.status === "success" ? <Button className="text-button" aria-label={t("uploadCheck", { name: String(item.name) })} onPress={() => { changeOpen(false); onInspect(item.name); }}>{t("uploadCheckFileLibrary")}</Button> : null}
+          {item.status === "unknown" || item.status === "success" ? <Button className="text-button" aria-label={t("uploadCheck", { name: String(item.name) })} onPress={() => { changeOpen(false); onInspect(item.name, item.status === "unknown"); }}>{t("uploadCheckFileLibrary")}</Button> : null}
         </li>)}
       </ul> : null}
       {invite && <Button className="primary-button" onPress={() => { changeOpen(false); invite(); }}>{t("uploadInviteMembers")}</Button>}

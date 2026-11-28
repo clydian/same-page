@@ -1,5 +1,5 @@
 import { StrictMode, useState } from "react";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { uploadPdf, type UploadProgress } from "./upload-transport";
@@ -31,14 +31,14 @@ function row(name: string) {
   if (!result) throw new Error("Upload row missing");
   return result;
 }
-function Harness({ writable = true, owner = "user", choirId = "drive", onComplete = () => {}, onQuotaChange = () => {}, onInspect = () => {} }: {
+function Harness({ writable = true, owner = "user", choirId = "drive", onComplete = () => {}, onUploaded, onQuotaChange = () => {}, onInspect = () => {} }: {
   writable?: boolean; owner?: string; choirId?: string; onComplete?: () => void | Promise<void>;
-  onQuotaChange?: (blocked: boolean) => void; onInspect?: (name: string) => void;
+  onUploaded?: () => void; onQuotaChange?: (blocked: boolean) => void; onInspect?: (name: string, uncertain: boolean) => void;
 }) {
   const [open, setOpen] = useState(true);
   return <><button onClick={() => setOpen(true)}>重新打开</button>
     <UploadDialog writable={writable} key={`${owner}:${choirId}`} choirId={choirId} isOpen={open} onOpenChange={setOpen}
-      onComplete={onComplete} onQuotaChange={onQuotaChange} onInspect={onInspect} /></>;
+      onComplete={onComplete} onUploaded={onUploaded} onQuotaChange={onQuotaChange} onInspect={onInspect} /></>;
 }
 
 describe("serial PDF uploads", () => {
@@ -51,7 +51,8 @@ describe("serial PDF uploads", () => {
       peak = Math.max(peak, ++active);
       return responses[names.length - 1].promise.finally(() => active--);
     }));
-    render(<StrictMode><Harness /></StrictMode>);
+    const uploaded = vi.fn();
+    render(<StrictMode><Harness onUploaded={uploaded} /></StrictMode>);
     select(pdf("a.pdf"), pdf("b.pdf"));
     fireEvent.drop(screen.getByLabelText("选择 PDF 文件").closest(".upload-dropzone")!, { dataTransfer: { files: [pdf("c.pdf")] } });
     expect(names).toEqual(["a.pdf"]);
@@ -60,9 +61,11 @@ describe("serial PDF uploads", () => {
     expect(names).toEqual(["a.pdf", "b.pdf"]);
     await act(async () => responses[1].resolve(success("b.pdf")));
     expect(names).toEqual(["a.pdf", "b.pdf", "c.pdf"]);
+    expect(uploaded).not.toHaveBeenCalled();
     await act(async () => responses[2].resolve(success("c.pdf")));
     expect(peak).toBe(1);
-    expect(within(screen.getByRole("list", { name: "上传状态" })).getAllByText("上传完成")).toHaveLength(3);
+    expect(uploaded).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("list", { name: "上传状态" })).not.toBeInTheDocument();
   });
 
   it.each(["invalid_pdf", "filename_conflict"])("isolates %s and retries only the selected failed item", async (error) => {
@@ -85,7 +88,7 @@ describe("serial PDF uploads", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<Harness />);
     select(pdf("a.pdf"), pdf("b.pdf"));
-    await screen.findByRole("alert");
+    await screen.findAllByRole("alert");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(row("b.pdf")).toHaveAttribute("data-status", "queued");
     fireEvent.click(screen.getByRole("button", { name: "继续等待项" }));
@@ -100,7 +103,7 @@ describe("serial PDF uploads", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<Harness onQuotaChange={quota} onComplete={refresh} />);
     select(pdf("a.pdf"), pdf("b.pdf"), pdf("c.pdf"));
-    await screen.findByRole("alert");
+    await screen.findAllByRole("alert");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(quota).toHaveBeenCalledTimes(1);
     expect(quota).toHaveBeenCalledWith(true);
@@ -122,7 +125,7 @@ describe("serial PDF uploads", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "重试 a.pdf" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "核对 a.pdf" }));
-    expect(inspect).toHaveBeenCalledWith("a.pdf");
+    expect(inspect).toHaveBeenCalledWith("a.pdf", true);
     fireEvent.click(screen.getByRole("button", { name: "重新打开" }));
     expect(row("b.pdf")).toHaveAttribute("data-status", "cancelled");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -159,7 +162,8 @@ describe("serial PDF uploads", () => {
     expect(refresh).not.toHaveBeenCalled();
     expect(screen.queryByText("old.pdf")).not.toBeInTheDocument();
     select(pdf("new.pdf"));
-    await waitFor(() => expect(row("new.pdf")).toHaveAttribute("data-status", "success"));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("list", { name: "上传状态" })).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(refresh).toHaveBeenCalledTimes(1);
   });
@@ -198,7 +202,7 @@ describe("serial PDF uploads", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<Harness />);
     select(pdf("a.pdf"), pdf("b.pdf"), pdf("c.pdf"));
-    await screen.findByRole("alert");
+    await screen.findAllByRole("alert");
     fireEvent.click(screen.getByRole("button", { name: "重试 a.pdf" }));
     expect(row("a.pdf")).toHaveAttribute("data-status", "queued");
     expect(row("c.pdf")).toHaveAttribute("data-status", "queued");
@@ -226,7 +230,7 @@ it("shows transfer speed and keeps 100 percent separate from confirmed success",
   expect(screen.getByText("传输完成，正在保存…")).toBeInTheDocument();
   expect(row("progress.pdf")).toHaveAttribute("data-status", "uploading");
   await act(async () => result.resolve(success("progress.pdf")));
-  expect(row("progress.pdf")).toHaveAttribute("data-status", "success");
+  expect(screen.queryByRole("list", { name: "上传状态" })).not.toBeInTheDocument();
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
 });
 

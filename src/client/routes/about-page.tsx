@@ -20,7 +20,7 @@ export default function AboutPage() {
   const information = [t("about.version", { version: buildVersion, build: buildId }), ...(buildRunId ? [t("about.run", { run: buildRunId })] : [])].join("\n");
   async function copy() {
     try { await navigator.clipboard.writeText(information); setMessage("about.copied", { duration: 5000 }); }
-    catch { setMessage("about.copyError"); }
+    catch { setMessage("about.copyError", { duration: 5000 }); }
   }
   return <div className="app-page support-page"><TaskHeader title={t("about.title")} backTo="/drives" />
     <main className="support-shell about-shell">
@@ -39,7 +39,7 @@ export default function AboutPage() {
         <Link to="/privacy"><ShieldCheck size={20} aria-hidden="true" /><span>{t("about.privacy")}</span><ChevronRight size={18} aria-hidden="true" /></Link>
         <Link to="/terms"><FileText size={20} aria-hidden="true" /><span>{common("terms")}</span><ChevronRight size={18} aria-hidden="true" /></Link>
       </nav>
-      <details className="support-details about-build" open={message === "about.copyError" || undefined}>
+      <details className="support-details about-build">
         <summary>{t("about.buildInfo")}</summary>
         <p className="support-muted">{t("about.currentVersion", { version: buildVersion })}</p>
         <pre>{information}</pre>

@@ -38,7 +38,7 @@ it("sends optional description, displays a receipt, and retains sent snapshot wh
   fireEvent.click(screen.getByRole("button", { name: "发送反馈" }));
   await screen.findByRole("button", { name: "复制反馈编号" });
   expect(fetchMock).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole("status")).toHaveTextContent("已发送给合谱维护人员");
+  expect(screen.getByRole("status")).toHaveTextContent("反馈已收到");
   expect(screen.getByLabelText("刚才遇到了什么问题？（选填）")).toHaveAttribute("readonly");
   fireEvent.click(screen.getByRole("button", { name: "填写另一份反馈" }));
   expect(screen.getByLabelText("刚才遇到了什么问题？（选填）")).not.toHaveAttribute("readonly");

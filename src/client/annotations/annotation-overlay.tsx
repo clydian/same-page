@@ -1,3 +1,5 @@
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { useMessages } from "../../i18n";
 import {
   type PointerEvent as ReactPointerEvent,
@@ -96,7 +98,7 @@ export function AnnotationOverlay({
   }, [movement, notes, annotations]);
   const interactionRef = useRef<AnnotationOverlayInteraction>("idle");
   const deleteTargetRef = useRef<HTMLDivElement>(null);
-  const [moveNotice, setMoveNotice] = useState<string | null>(null);
+  const moveFeedback = useFeedbackMessage();
   const finishing = persistence === "finishing";
   const canStartEdit = editing && !finishing && layers.some(layer => layer.id === activeLayerId && layer.canEdit);
   const canMoveObjects = canStartEdit && !editor?.isMoving() && ["select", "text", "rectangle", "ellipse"].includes(tool);
@@ -544,8 +546,8 @@ export function AnnotationOverlay({
       </div>
       {editing ? createPortal(
         <>
-          {activePage && (canStartEdit || finishing) && tool === "select" && selected?.payload && editor && <ObjectProperties layers={layers} onMoved={name => setMoveNotice(t("movedNoteToLayer", { name }))} editor={editor} layerId={selected.layerId} key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
-          {activePage && moveNotice && <aside className="annotation-move-notice" role="status">{moveNotice}</aside>}
+          {activePage && (canStartEdit || finishing) && tool === "select" && selected?.payload && editor && <ObjectProperties layers={layers} onMoved={name => moveFeedback.setMessage(t("movedNoteToLayer", { name }), { duration: 5000 })} editor={editor} layerId={selected.layerId} key={selected.id} payload={selected.payload} adjustment={adjustment} disabled={finishing || persistence === "failed"} personal={!layerColors.has(selected.layerId)} onEditText={editSelectedText} />}
+          <FeedbackMessage feedback={moveFeedback} />
           {activePage && !canStartEdit && !finishing && <aside className="annotation-storage-error" role="status">
             <strong>{t("layerEditingUnavailable")}</strong>
             <p>{t("layerEditingStoppedHint")}</p>

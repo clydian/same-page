@@ -1,4 +1,6 @@
 import { useReturnState } from "../navigation/navigation-context";
+import { FeedbackMessage } from "../components/feedback-message";
+import { useFeedbackMessage } from "../components/use-feedback-message";
 import { ConnectionHelp } from "../connection/connection-control";
 import { useMessages } from "../../i18n";
 import type { AttachmentRevealRequest } from "../score-library/attachments/use-attachment-reveal";
@@ -85,7 +87,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
   const { library, snapshot } = useDriveLibrary(cacheOwner, choirId, Boolean(identity.authenticatedUserId), !identity.restoring && (Boolean(userId) || identity.onlineState !== "checking"), presentationSessionId);
   const { access, view: { search }, scores: visibleScores, refreshMessage: searchMessage, joining: busy } = snapshot;
   const [openAdmissionDisplayName, setOpenAdmissionDisplayName] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const feedback = useFeedbackMessage();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [firstScoreUpload, setFirstScoreUpload] = useState(false);
   const [quotaBlocked, setQuotaBlocked] = useState(false);
@@ -188,7 +190,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
 
   const openScoreAction = (score: ScoreSummary, action: ScoreAction) => {
     setScoreAction({ score, action });
-    setMessage(null);
+    feedback.dismiss();
   };
 
   const headerActions = <Link className="header-action" to="/drives">{t("allDrives")}</Link>;
@@ -276,6 +278,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         await refresh();
         if (library.getSnapshot().refreshMessage) throw new Error("drive_refresh_failed");
       }} disabled={!online}>
+      <FeedbackMessage feedback={feedback} />
       <main className="page-shell file-library">
         {access.retained && <p role="status">{t("choirCloudDiskCannotAccessed")}</p>}
         {choir.isPreviewEntry ? <InstallSuggestion /> : !identity.restoring && !access.retained &&
@@ -289,7 +292,6 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
               {quotaBlocked ? t("choirFollowUploadPromptsFree") : t("choirCloseUpperLimitPay")}
             </p>
           ) : null}
-          {message ? <p className="library-message" role="status">{message}</p> : null}
 
           {visibleScores.length > 0 ? (
             <section className="file-list" aria-label={t("choirPdfFile")}>
@@ -359,12 +361,17 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
         choirId={choirId}
         isOpen={uploadOpen}
         onOpenChange={setUploadOpen}
-        onComplete={refreshAfterMutation}
+        onComplete={async () => {
+          await refreshAfterMutation();
+          await library.whenSettled();
+          if (library.getSnapshot().refreshMessage) throw new Error("drive_refresh_failed");
+        }}
+        onUploaded={() => feedback.setMessage(t("useUploadQueueUploadCompleted"), { duration: 5000 })}
         onInvite={canInviteAfterUpload ? () => { void navigate(`/choirs/${choirId}/settings/admission`); } : undefined}
         onQuotaChange={setQuotaBlocked}
-        onInspect={(fileName) => {
+        onInspect={(fileName, uncertain) => {
           updateSearch(fileName.trim());
-          setMessage(t("choirCheckFileSameName"));
+          if (uncertain) feedback.setMessage(t("choirCheckFileSameName"), { duration: 8000 });
           void refreshAfterMutation();
         }}
       /> : null}
@@ -376,7 +383,7 @@ function ChoirLibrary({ choirId, identity, cacheOwner }: { choirId: string; iden
           onClose={() => setScoreAction(null)}
           onComplete={(nextMessage) => {
             setScoreAction(null);
-            setMessage(nextMessage);
+            feedback.setMessage(nextMessage, { duration: 5000 });
           }}
         />
       ) : null}

@@ -84,7 +84,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
       await navigator.clipboard.writeText(value);
       setMessage(t("inviteSharingHasBeenCopied", { label }), { duration: 5000 });
     } catch {
-      setMessage(t("inviteSharingCopyingFailedTryAgain"));
+      setMessage(t("inviteSharingCopyingFailedTryAgain"), { duration: 5000 });
     }
   }
 
@@ -95,7 +95,7 @@ export function InviteSharing({ choirId, choirName, writable = true }: { choirId
       const result = await deliverInviteCard(readyFile, share);
       setMessage(result === "saved" ? t("inviteSharingInvitationCardHasBeen") : null, { duration: 5000 });
     } catch {
-      setMessage(t("inviteSharingInvitationCardGenerationSharing"));
+      setMessage(t("inviteSharingInvitationCardGenerationSharing"), { duration: 5000 });
     } finally {
       setSharing(false);
     }

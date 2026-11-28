@@ -29,7 +29,7 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
   catch { /* Copying existing diagnostic categories remains available. */ }
   const copy = async (value: string, success: string) => {
     try { await navigator.clipboard.writeText(value); setMessage(success, { duration: 5000 }); }
-    catch { setMessage("diagnosticReportForm.copyFailed"); }
+    catch { setMessage("diagnosticReportForm.copyFailed", { duration: 5000 }); }
   };
   return <div className="diagnostic-report-form">
     <label htmlFor="diagnostic-description">{t("diagnosticReportForm.description")}</label>
@@ -47,13 +47,14 @@ export function DiagnosticReportForm({ reader = null }: { reader?: DiagnosticRea
       {submission.report && submission.phase !== "sending" && <button type="button" onClick={() => { resetDiagnosticSubmission(); setMessage(""); }}>{t("diagnosticReportForm.newReport")}</button>}
     </div>
     {submission.phase === "sent" && submission.report && <div className="diagnostic-receipt">
-      <CheckCircle2 size={24} aria-hidden="true" /><h3>{t("diagnosticReportForm.received")}</h3>
+      <CheckCircle2 size={24} aria-hidden="true" /><h3><span role="status">{t("diagnosticReportForm.received")}</span></h3>
+      {!submission.report.retentionDays && <p>{submission.message}</p>}
       <p>{t("diagnosticReportForm.investigation")}</p>
       <p>{t.rich("diagnostic.reportId", { id: submission.report.id, value: chunks => <code>{chunks}</code> })}</p>
       <button className="secondary-button" type="button" onClick={() => void copy(submission.report!.id, "diagnosticReportForm.copiedId")}>{t("diagnosticReportForm.copyId")}</button>
       <p>{t("diagnosticReportForm.contact")}</p>
     </div>}
-    <FeedbackMessage feedback={{ ...feedback, message: feedback.message ? t(feedback.message) : null }} fallback={submission.message} />
+    <FeedbackMessage feedback={{ ...feedback, message: feedback.message ? t(feedback.message) : null }} fallback={submission.phase === "sent" ? undefined : submission.message} />
     <p className="diagnostic-hint">{t("diagnosticReportForm.keepOpen")}</p>
     <details className="support-details diagnostic-details">
       <summary>{t("diagnosticReportForm.details")}</summary>

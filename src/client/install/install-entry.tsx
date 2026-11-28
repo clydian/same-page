@@ -46,7 +46,7 @@ export function CopyInstallLink({ url }: { url?: string } = {}) {
   }, [url, drive, attempt, setMessage]);
   const copy = async () => {
     try { await navigator.clipboard.writeText(link); setMessage("installEntry.copied", { duration: 5000 }); }
-    catch { setMessage("installEntry.copyManually"); }
+    catch { setMessage("installEntry.copyManually", { duration: 5000 }); }
   };
   if (!link) return <div className="install-copy"><p role="status">{t(message || "installEntry.preparing")}</p>{message && <Button onPress={() => { setMessage(""); setAttempt(value => value + 1); }}>{t("installEntry.retry")}</Button>}</div>;
   return <div className="install-copy"><Button className="secondary-button" onPress={() => void copy()}>{t("installEntry.copy")}</Button><input aria-label={t("installEntry.webAddress")} readOnly value={link} onFocus={event => event.target.select()} /><FeedbackMessage feedback={{ ...feedback, message: message ? t(message) : null }} /></div>;
