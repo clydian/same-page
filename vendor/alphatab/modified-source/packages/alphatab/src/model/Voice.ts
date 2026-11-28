@@ -183,7 +183,7 @@ export class Voice {
                     currentGraceGroup.isComplete = true;
                 }
                 currentGraceGroup = null;
-            } else {
+            } else if (!beat.graceGroup?.isCrossStaff) {
                 if (!currentGraceGroup) {
                     currentGraceGroup = new GraceGroup();
                 }
@@ -286,8 +286,20 @@ export class Voice {
                 beat.graceGroup.finish();
             }
             currentDisplayTick += beat.displayDuration;
-            currentPlaybackTick += beat.playbackDuration;
+            // Source cross-staff graces share one clock, resolved after all staves finish.
+            if (!beat.graceGroup?.isCrossStaff) {
+                currentPlaybackTick += beat.playbackDuration;
+            }
         }
+    }
+
+    /** @internal */
+    public movePlaybackBeat(beat: Beat, tick: number): void {
+        if (this._beatLookup.get(beat.playbackStart) === beat) {
+            this._beatLookup.delete(beat.playbackStart);
+        }
+        beat.playbackStart = tick;
+        this._beatLookup.set(tick, beat);
     }
 
     public calculateDuration(): number {

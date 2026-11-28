@@ -31,6 +31,7 @@ export class BarLayoutingInfo {
     private _onTimePositionsForce: number = 0;
     private _onTimePositions: Map<number, number> = new Map();
     private _incompleteGraceRodsWidth: number = 0;
+    private _sourceGraceRodTimes = new Map<string, number>();
     private _beatSizes: Map<number, BarLayoutingInfoBeatSizes> = new Map();
 
     // the smallest duration we have between two springs to ensure we have positive spring constants
@@ -211,7 +212,14 @@ export class BarLayoutingInfo {
             const groupId = beat.graceGroup!.id;
 
             if (!this.allGraceRods.has(groupId)) {
-                this.allGraceRods.set(groupId, new Array<Spring>(beat.graceGroup!.beats.length));
+                const count = beat.graceGroup!.beats.length;
+                if (beat.graceGroup!.isCrossStaff) {
+                    // A profile can omit a staff. Slots without visible glyphs take no space.
+                    this.allGraceRods.set(groupId, Array.from({ length: count }, () => new Spring()));
+                    this._sourceGraceRodTimes.set(groupId, start);
+                } else {
+                    this.allGraceRods.set(groupId, new Array<Spring>(count));
+                }
             }
 
             if (!beat.graceGroup!.isComplete && !this.incompleteGraceRods.has(groupId)) {
@@ -249,7 +257,7 @@ export class BarLayoutingInfo {
     }
 
     public finish(): void {
-        for (const [_, s] of this.allGraceRods) {
+        for (const [groupId, s] of this.allGraceRods) {
             // for grace beats we store the offset
             // in the 'graceBeatWidth' for later use during applying
             // beat positions
@@ -258,6 +266,12 @@ export class BarLayoutingInfo {
                 x += sp.preBeatWidth;
                 sp.graceBeatWidth = x;
                 x += sp.postSpringWidth;
+            }
+            const sourceTime = this._sourceGraceRodTimes.get(groupId);
+            if (sourceTime !== undefined) {
+                // The anchor or some of the graces may have registered on a later staff.
+                const spring = this.springs.get(sourceTime) ?? this.addSpring(sourceTime, 0, 0, 0, 0);
+                spring.graceBeatWidth = Math.max(spring.graceBeatWidth, x);
             }
         }
         this._incompleteGraceRodsWidth = 0;

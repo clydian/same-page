@@ -26,6 +26,7 @@ import { DynamicValue } from '@coderline/alphatab/model/DynamicValue';
 import { Fermata, FermataType } from '@coderline/alphatab/model/Fermata';
 import { Fingers } from '@coderline/alphatab/model/Fingers';
 import { GolpeType } from '@coderline/alphatab/model/GolpeType';
+import { GraceGroup } from '@coderline/alphatab/model/GraceGroup';
 import { GraceType } from '@coderline/alphatab/model/GraceType';
 import { InstrumentArticulation } from '@coderline/alphatab/model/InstrumentArticulation';
 import { KeySignature } from '@coderline/alphatab/model/KeySignature';
@@ -236,6 +237,7 @@ export class MusicXmlImporter extends ScoreImporter {
     private _currentDynamics = DynamicValue.F;
     private _sourceBracketSequence = 0;
     private _openSourceBeams = new Map<string, { beats: Beat[]; levels: number; valid: boolean }>();
+    private _sourceGraceBeats = new Map<Beat, { duration: Duration; direction: BeamDirection }>();
     private _completeSourceBeams: { beats: Beat[]; levels: number; valid: boolean }[] = [];
     private _openSourceBrackets = new Map<string, { bar: Bar; tick: number; mark: SourceBracket }>();
 
@@ -245,6 +247,7 @@ export class MusicXmlImporter extends ScoreImporter {
 
     public readScore(): Score {
         this._openSourceBeams.clear();
+        this._sourceGraceBeats.clear();
         this._completeSourceBeams = [];
         this._openSourceBrackets.clear();
         this._sourceBracketSequence = 0;
@@ -273,9 +276,10 @@ export class MusicXmlImporter extends ScoreImporter {
                 }
             }
         }
+        const graceBeamCount = this._finishSourceGraceBeams();
         this._score.finish(this.settings);
         this._score.rebuildRepeatGroups();
-        this._finishSourceBeams();
+        this._finishSourceBeams(graceBeamCount);
 
         return this._score;
     }
@@ -2702,6 +2706,7 @@ export class MusicXmlImporter extends ScoreImporter {
         let beat: Beat | null = null;
         let graceType = GraceType.None;
         let graceDurationInDivisions = 0;
+        let hasCustomGraceTiming = false;
         let beamMode: BeatBeamingMode | null = null;
         const sourceBeams = new Map<number, string>();
         // let graceTimeStealPrevious = 0;
@@ -2901,6 +2906,9 @@ export class MusicXmlImporter extends ScoreImporter {
         for (const c of element.childElements()) {
             switch (c.localName) {
                 case 'grace':
+                    hasCustomGraceTiming = ['make-time', 'steal-time-previous', 'steal-time-following'].some(
+                        name => c.attributes.has(name)
+                    );
                     const makeTime = Number.parseFloat(c.getAttribute('make-time', '-1'));
                     if (makeTime >= 0) {
                         graceDurationInDivisions = this._musicXmlDivisionsToAlphaTabTicks(makeTime);
@@ -2913,8 +2921,6 @@ export class MusicXmlImporter extends ScoreImporter {
                         graceType = GraceType.BeforeBeat;
                     }
 
-                    // graceTimeStealPrevious = parseInt(c.getAttribute('steal-time-following', '0')) / 100.0;
-                    // graceTimeStealFollowing = parseInt(c.getAttribute('steal-time-previous', '0')) / 100.0;
                     break;
 
                 case 'chord':
@@ -3061,6 +3067,18 @@ export class MusicXmlImporter extends ScoreImporter {
         }
         if (!isChord) {
             this._readSourceBeamGroup(`${track.index}:${voiceIndex}`, beat!, sourceBeams);
+            if (
+                graceType !== GraceType.None &&
+                !hasCustomGraceTiming &&
+                sourceBeams.has(1) &&
+                beatDuration !== null &&
+                preferredBeamDirection !== null &&
+                dots === 0 &&
+                !isCue &&
+                note !== null
+            ) {
+                this._sourceGraceBeats.set(beat!, { duration: beatDuration, direction: preferredBeamDirection });
+            }
         }
 
         if (note !== null) {
@@ -3104,8 +3122,80 @@ export class MusicXmlImporter extends ScoreImporter {
         }
     }
 
-    private _finishSourceBeams(): void {
+    private _finishSourceGraceBeams(): number {
         let id = 0;
+        for (const { beats, levels, valid } of this._completeSourceBeams) {
+            const first = beats[0];
+            const source = this._sourceGraceBeats.get(first);
+            const anchor = beats[beats.length - 1].nextBeat;
+            if (
+                !valid ||
+                !source ||
+                !anchor ||
+                anchor.graceType !== GraceType.None ||
+                anchor.isRest ||
+                anchor.isEmpty ||
+                anchor.voice.bar.index !== first.voice.bar.index ||
+                anchor.displayStart !== first.displayStart ||
+                new Set(beats.map(b => b.voice.bar.staff.index)).size < 2 ||
+                levels !== ModelUtils.getIndex(source.duration) - 2 ||
+                !beats.every(beat => {
+                    const item = this._sourceGraceBeats.get(beat);
+                    return (
+                        item?.duration === source.duration &&
+                        item.direction === source.direction &&
+                        beat.graceType === first.graceType &&
+                        beat.voice.bar.index === first.voice.bar.index &&
+                        beat.displayStart === first.displayStart &&
+                        beat.isStemVisible &&
+                        beat.notes.some(note => note.isVisible) &&
+                        !beat.notes.some(note => note.isCue)
+                    );
+                })
+            ) {
+                continue;
+            }
+
+            const duration = beats.length * GraceGroup.playbackTicks(GraceGroup.defaultDuration(beats.length));
+            const startsBeforeAnchor = first.graceType === GraceType.BeforeBeat;
+            const windowStart = startsBeforeAnchor ? anchor.displayStart - duration : anchor.displayStart;
+            if (windowStart < 0 || (!startsBeforeAnchor && anchor.displayDuration <= duration)) {
+                continue;
+            }
+
+            // The group and its terminating note must be the only events of this logical
+            // voice at the anchor. A before-beat group may use silence or shorten one
+            // preceding note/rest that ends at the anchor, as for a single-staff grace group.
+            const neighbors = first.voice.bar.staff.track.staves
+                .flatMap(staff => staff.bars[first.voice.bar.index].voices[first.voice.index]?.beats ?? [])
+                .filter(beat => !beat.isEmpty && beat !== anchor && beat.displayStart <= anchor.displayStart);
+            const preceding = neighbors.filter(beat => beat.graceType === GraceType.None && beat.displayEnd > windowStart);
+            if (
+                neighbors.some(beat => beat.displayStart === anchor.displayStart && !beats.includes(beat)) ||
+                preceding.length > 1 ||
+                preceding.some(beat => beat.displayStart >= windowStart || beat.displayEnd !== anchor.displayStart)
+            ) {
+                continue;
+            }
+
+            for (const beat of beats) {
+                beat.duration = source.duration;
+                beat.preferredBeamDirection = source.direction;
+            }
+            this._markSourceBeam(beats, ++id);
+        }
+        return id;
+    }
+
+    private _markSourceBeam(beats: Beat[], id: number) {
+        for (const [index, beat] of beats.entries()) {
+            beat.sourceBeamGroup = id;
+            beat.sourceBeamGroupIndex = index;
+            beat.sourceBeamGroupSize = beats.length;
+        }
+    }
+
+    private _finishSourceBeams(id: number): void {
         for (const group of this._completeSourceBeams) {
             const first = group.beats[0];
             if (
@@ -3131,12 +3221,7 @@ export class MusicXmlImporter extends ScoreImporter {
             ) {
                 continue;
             }
-            id++;
-            for (const [index, beat] of group.beats.entries()) {
-                beat.sourceBeamGroup = id;
-                beat.sourceBeamGroupIndex = index;
-                beat.sourceBeamGroupSize = group.beats.length;
-            }
+            this._markSourceBeam(group.beats, ++id);
         }
     }
 
